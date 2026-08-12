@@ -1,0 +1,618 @@
+// Prisma is the CLIENT-GENERATION SOURCE only (product_240 section 2.4 E). The
+// DDL under deploy/database/ddl/ is the single structure authority; this schema
+// stays in lockstep with it (enforced by check-data-architecture.mjs). There is
+// no migrations directory - structure changes go through db-init, not prisma.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = [
+    "vx_provision",
+    "local_authz",
+    "local_usage",
+    "yucer_core",
+    "yucer_gtm",
+    "yucer_pipeline",
+    "yucer_delivery",
+    "yucer_agent"
+  ]
+}
+
+// ===== vx_provision =====
+
+model AppInstance {
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  tenantId      String?   @map("tenant_id") @db.Uuid
+  productCode   String    @map("product_code") @db.VarChar(32)
+  status        String    @default("pending") @db.VarChar(32)
+  env           String    @default("prod") @db.VarChar(32)
+  provisionedAt DateTime? @map("provisioned_at") @db.Timestamptz()
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, productCode], map: "uidx_app_instance_ws_product")
+  @@map("app_instance")
+  @@schema("vx_provision")
+}
+
+model WebhookDelivery {
+  id         String    @id @default(uuid()) @db.Uuid
+  deliveryId String    @map("delivery_id") @db.VarChar(128)
+  type       String    @db.VarChar(64)
+  occurredAt DateTime? @map("occurred_at") @db.Timestamptz()
+  result     String    @default("processed") @db.VarChar(32)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([deliveryId], map: "uidx_webhook_delivery_delivery_id")
+  @@map("webhook_delivery")
+  @@schema("vx_provision")
+}
+
+model ProvisionSeq {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  productCode String   @map("product_code") @db.VarChar(32)
+  lastSeq     BigInt   @default(0) @map("last_seq")
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, productCode], map: "uidx_provision_seq_ws_product")
+  @@map("provision_seq")
+  @@schema("vx_provision")
+}
+
+// ===== local_authz =====
+
+model Member {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  sub         String   @db.VarChar(128)
+  displayName String?  @map("display_name") @db.VarChar(255)
+  avatarHash  String?  @map("avatar_hash") @db.VarChar(128)
+  status      String   @default("active") @db.VarChar(32)
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz()
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, sub], map: "uidx_member_ws_sub")
+  @@map("member")
+  @@schema("local_authz")
+}
+
+model Role {
+  id        String   @id @default(uuid()) @db.Uuid
+  roleCode  String   @map("role_code") @db.VarChar(64)
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([roleCode], map: "uidx_role_role_code")
+  @@map("role")
+  @@schema("local_authz")
+}
+
+model Permission {
+  id        String   @id @default(uuid()) @db.Uuid
+  permCode  String   @map("perm_code") @db.VarChar(64)
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([permCode], map: "uidx_permission_perm_code")
+  @@map("permission")
+  @@schema("local_authz")
+}
+
+model MemberRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  memberId  String   @map("member_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([memberId, roleId], map: "uidx_member_role_member_role")
+  @@map("member_role")
+  @@schema("local_authz")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([roleId, permissionId], map: "uidx_role_permission_role_perm")
+  @@map("role_permission")
+  @@schema("local_authz")
+}
+
+// ===== local_usage =====
+
+model Raw {
+  id             String   @id @default(uuid()) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  metric         String   @db.VarChar(128)
+  amount         BigInt
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(128)
+  flushed        Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([idempotencyKey], map: "uidx_raw_idempotency_key")
+  @@map("raw")
+  @@schema("local_usage")
+}
+
+model Checkpoint {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  metric      String   @db.VarChar(128)
+  flushedAt   DateTime @default(now()) @map("flushed_at") @db.Timestamptz()
+
+  @@unique([workspaceId, metric], map: "uidx_checkpoint_ws_metric")
+  @@map("checkpoint")
+  @@schema("local_usage")
+}
+
+// ###########################################################################
+// PRODUCT DOMAIN MODELS (yucer) - lockstep mirror of the "PRODUCT DOMAIN
+// SCHEMAS" section of deploy/database/ddl/00_baseline.sql. Adding a model here
+// without its DDL table (or the reverse) fails check-data-architecture.mjs.
+//
+// Foreign keys are modelled as SCALAR columns only, with no `@relation` blocks -
+// the same pattern the contract-schema models above use (see MemberRole). The
+// DDL owns referential integrity; Prisma here is a client-generation source, not
+// the structure authority, so relation navigation is deliberately not declared.
+// ###########################################################################
+
+// ===== yucer_core (D4 account management) =====
+
+model Account {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  accountNo    String    @map("account_no") @db.VarChar(64)
+  name         String    @db.VarChar(255)
+  industry     String?   @db.VarChar(64)
+  region       String?   @db.VarChar(64)
+  segmentCode  String?   @map("segment_code") @db.VarChar(64)
+  ownerSub     String?   @map("owner_sub") @db.VarChar(128)
+  healthScore  Int?      @map("health_score") @db.SmallInt
+  status       String    @default("prospect") @db.VarChar(32)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
+
+  @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
+  @@map("account")
+  @@schema("yucer_core")
+}
+
+model Contact {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  accountId    String    @map("account_id") @db.Uuid
+  name         String    @db.VarChar(255)
+  title        String?   @db.VarChar(255)
+  department   String?   @db.VarChar(128)
+  decisionRole String    @default("unknown") @map("decision_role") @db.VarChar(32)
+  influence    Int?      @db.SmallInt
+  status       String    @default("active") @db.VarChar(32)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
+
+  @@map("contact")
+  @@schema("yucer_core")
+}
+
+model AccountRelation {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  fromContactId String   @map("from_contact_id") @db.Uuid
+  toContactId   String   @map("to_contact_id") @db.Uuid
+  relationType  String   @map("relation_type") @db.VarChar(32)
+  strength      Int?     @db.SmallInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([fromContactId, toContactId, relationType], map: "uidx_account_relation_edge")
+  @@map("account_relation")
+  @@schema("yucer_core")
+}
+
+model Offering {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  offeringCode String   @map("offering_code") @db.VarChar(64)
+  name         String   @db.VarChar(255)
+  category     String?  @db.VarChar(64)
+  listPrice    Decimal? @map("list_price") @db.Decimal(18, 2)
+  currency     String   @default("CNY") @db.VarChar(8)
+  status       String   @default("active") @db.VarChar(32)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, offeringCode], map: "uidx_offering_ws_code")
+  @@map("offering")
+  @@schema("yucer_core")
+}
+
+// ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
+
+model StrategyPlan {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  planNo      String    @map("plan_no") @db.VarChar(64)
+  name        String    @db.VarChar(255)
+  period      String    @db.VarChar(32)
+  objective   String?   @db.Text
+  ownerSub    String?   @map("owner_sub") @db.VarChar(128)
+  status      String    @default("draft") @db.VarChar(32)
+  approvedAt  DateTime? @map("approved_at") @db.Timestamptz()
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, planNo], map: "uidx_strategy_plan_ws_no")
+  @@map("strategy_plan")
+  @@schema("yucer_gtm")
+}
+
+model MarketSegment {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  segmentCode String   @map("segment_code") @db.VarChar(64)
+  name        String   @db.VarChar(255)
+  planId      String?  @map("plan_id") @db.Uuid
+  criteria    Json     @default("{}") @db.JsonB
+  priority    Int      @default(0) @db.SmallInt
+  status      String   @default("active") @db.VarChar(32)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, segmentCode], map: "uidx_market_segment_ws_code")
+  @@map("market_segment")
+  @@schema("yucer_gtm")
+}
+
+model Territory {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  territoryCode String   @map("territory_code") @db.VarChar(64)
+  name          String   @db.VarChar(255)
+  parentId      String?  @map("parent_id") @db.Uuid
+  ownerSub      String?  @map("owner_sub") @db.VarChar(128)
+  status        String   @default("active") @db.VarChar(32)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, territoryCode], map: "uidx_territory_ws_code")
+  @@map("territory")
+  @@schema("yucer_gtm")
+}
+
+model SalesTarget {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  planId       String?  @map("plan_id") @db.Uuid
+  period       String   @db.VarChar(32)
+  scopeType    String   @map("scope_type") @db.VarChar(32)
+  territoryId  String?  @map("territory_id") @db.Uuid
+  ownerSub     String?  @map("owner_sub") @db.VarChar(128)
+  metric       String   @default("revenue") @db.VarChar(64)
+  targetAmount Decimal  @map("target_amount") @db.Decimal(18, 2)
+  currency     String   @default("CNY") @db.VarChar(8)
+  status       String   @default("draft") @db.VarChar(32)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, period, scopeType, territoryId, ownerSub, metric], map: "uidx_sales_target_scope")
+  @@map("sales_target")
+  @@schema("yucer_gtm")
+}
+
+model Campaign {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  campaignNo   String    @map("campaign_no") @db.VarChar(64)
+  name         String    @db.VarChar(255)
+  planId       String?   @map("plan_id") @db.Uuid
+  segmentId    String?   @map("segment_id") @db.Uuid
+  channel      String?   @db.VarChar(64)
+  budgetAmount Decimal?  @map("budget_amount") @db.Decimal(18, 2)
+  currency     String    @default("CNY") @db.VarChar(8)
+  ownerSub     String?   @map("owner_sub") @db.VarChar(128)
+  startsAt     DateTime? @map("starts_at") @db.Timestamptz()
+  endsAt       DateTime? @map("ends_at") @db.Timestamptz()
+  status       String    @default("draft") @db.VarChar(32)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, campaignNo], map: "uidx_campaign_ws_no")
+  @@map("campaign")
+  @@schema("yucer_gtm")
+}
+
+model CampaignExecution {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  campaignId  String    @map("campaign_id") @db.Uuid
+  title       String    @db.VarChar(255)
+  actionType  String    @map("action_type") @db.VarChar(32)
+  assigneeSub String?   @map("assignee_sub") @db.VarChar(128)
+  dueAt       DateTime? @map("due_at") @db.Timestamptz()
+  status      String    @default("pending") @db.VarChar(32)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("campaign_execution")
+  @@schema("yucer_gtm")
+}
+
+// ===== yucer_pipeline (D5 signal, D6 opportunity) =====
+
+model Signal {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  source      String   @db.VarChar(64)
+  sourceRef   String?  @map("source_ref") @db.VarChar(255)
+  signalType  String   @map("signal_type") @db.VarChar(32)
+  accountId   String?  @map("account_id") @db.Uuid
+  subject     String   @db.VarChar(255)
+  payload     Json     @default("{}") @db.JsonB
+  score       Int?     @db.SmallInt
+  status      String   @default("new") @db.VarChar(32)
+  detectedAt  DateTime @default(now()) @map("detected_at") @db.Timestamptz()
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, source, sourceRef], map: "uidx_signal_ws_source_ref")
+  @@map("signal")
+  @@schema("yucer_pipeline")
+}
+
+model Lead {
+  id                     String   @id @default(uuid()) @db.Uuid
+  workspaceId            String   @map("workspace_id") @db.Uuid
+  leadNo                 String   @map("lead_no") @db.VarChar(64)
+  companyName            String   @map("company_name") @db.VarChar(255)
+  contactName            String?  @map("contact_name") @db.VarChar(255)
+  accountId              String?  @map("account_id") @db.Uuid
+  signalId               String?  @map("signal_id") @db.Uuid
+  campaignId             String?  @map("campaign_id") @db.Uuid
+  score                  Int?     @db.SmallInt
+  ownerSub               String?  @map("owner_sub") @db.VarChar(128)
+  status                 String   @default("new") @db.VarChar(32)
+  convertedOpportunityId String?  @map("converted_opportunity_id") @db.Uuid
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt              DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, leadNo], map: "uidx_lead_ws_no")
+  @@map("lead")
+  @@schema("yucer_pipeline")
+}
+
+model Opportunity {
+  id               String    @id @default(uuid()) @db.Uuid
+  workspaceId      String    @map("workspace_id") @db.Uuid
+  opportunityNo    String    @map("opportunity_no") @db.VarChar(64)
+  name             String    @db.VarChar(255)
+  accountId        String    @map("account_id") @db.Uuid
+  planId           String?   @map("plan_id") @db.Uuid
+  campaignId       String?   @map("campaign_id") @db.Uuid
+  territoryId      String?   @map("territory_id") @db.Uuid
+  ownerSub         String?   @map("owner_sub") @db.VarChar(128)
+  stage            String    @default("qualify") @db.VarChar(32)
+  forecastCategory String    @default("pipeline") @map("forecast_category") @db.VarChar(32)
+  amount           Decimal?  @db.Decimal(18, 2)
+  currency         String    @default("CNY") @db.VarChar(8)
+  probability      Int?      @db.SmallInt
+  expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
+  closedAt         DateTime? @map("closed_at") @db.Timestamptz()
+  status           String    @default("open") @db.VarChar(32)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz()
+
+  @@unique([workspaceId, opportunityNo], map: "uidx_opportunity_ws_no")
+  @@map("opportunity")
+  @@schema("yucer_pipeline")
+}
+
+model OpportunityStageEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  fromStage     String?  @map("from_stage") @db.VarChar(32)
+  toStage       String   @map("to_stage") @db.VarChar(32)
+  reason        String?  @db.VarChar(255)
+  actorSub      String?  @map("actor_sub") @db.VarChar(128)
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz()
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@map("opportunity_stage_event")
+  @@schema("yucer_pipeline")
+}
+
+model ForecastSnapshot {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  period          String   @db.VarChar(32)
+  scopeType       String   @map("scope_type") @db.VarChar(32)
+  territoryId     String?  @map("territory_id") @db.Uuid
+  ownerSub        String?  @map("owner_sub") @db.VarChar(128)
+  commitAmount    Decimal  @default(0) @map("commit_amount") @db.Decimal(18, 2)
+  bestCaseAmount  Decimal  @default(0) @map("best_case_amount") @db.Decimal(18, 2)
+  pipelineAmount  Decimal  @default(0) @map("pipeline_amount") @db.Decimal(18, 2)
+  closedAmount    Decimal  @default(0) @map("closed_amount") @db.Decimal(18, 2)
+  currency        String   @default("CNY") @db.VarChar(8)
+  snapshotAt      DateTime @default(now()) @map("snapshot_at") @db.Timestamptz()
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([workspaceId, period, scopeType, territoryId, ownerSub, snapshotAt], map: "uidx_forecast_snapshot_scope_at")
+  @@map("forecast_snapshot")
+  @@schema("yucer_pipeline")
+}
+
+model WinLossReview {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  outcome       String   @db.VarChar(32)
+  primaryReason String?  @map("primary_reason") @db.VarChar(64)
+  competitor    String?  @db.VarChar(255)
+  lessons       String?  @db.Text
+  reviewerSub   String?  @map("reviewer_sub") @db.VarChar(128)
+  reviewedAt    DateTime @default(now()) @map("reviewed_at") @db.Timestamptz()
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([opportunityId], map: "uidx_win_loss_review_opp")
+  @@map("win_loss_review")
+  @@schema("yucer_pipeline")
+}
+
+// ===== yucer_delivery (D7 project management) =====
+
+model Project {
+  id             String    @id @default(uuid()) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  projectNo      String    @map("project_no") @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  opportunityId  String?   @map("opportunity_id") @db.Uuid
+  accountId      String    @map("account_id") @db.Uuid
+  managerSub     String?   @map("manager_sub") @db.VarChar(128)
+  contractAmount Decimal?  @map("contract_amount") @db.Decimal(18, 2)
+  currency       String    @default("CNY") @db.VarChar(8)
+  health         String    @default("green") @db.VarChar(32)
+  startsAt       DateTime? @map("starts_at") @db.Timestamptz()
+  endsAt         DateTime? @map("ends_at") @db.Timestamptz()
+  status         String    @default("planning") @db.VarChar(32)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, projectNo], map: "uidx_project_ws_no")
+  @@map("project")
+  @@schema("yucer_delivery")
+}
+
+model ProjectMilestone {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  projectId   String    @map("project_id") @db.Uuid
+  name        String    @db.VarChar(255)
+  sequence    Int       @default(0) @db.SmallInt
+  dueAt       DateTime? @map("due_at") @db.Timestamptz()
+  completedAt DateTime? @map("completed_at") @db.Timestamptz()
+  status      String    @default("pending") @db.VarChar(32)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([projectId, sequence], map: "uidx_project_milestone_seq")
+  @@map("project_milestone")
+  @@schema("yucer_delivery")
+}
+
+model ProjectTask {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  projectId   String    @map("project_id") @db.Uuid
+  milestoneId String?   @map("milestone_id") @db.Uuid
+  title       String    @db.VarChar(255)
+  assigneeSub String?   @map("assignee_sub") @db.VarChar(128)
+  dueAt       DateTime? @map("due_at") @db.Timestamptz()
+  status      String    @default("todo") @db.VarChar(32)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("project_task")
+  @@schema("yucer_delivery")
+}
+
+model RevenueSchedule {
+  id             String    @id @default(uuid()) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  projectId      String    @map("project_id") @db.Uuid
+  milestoneId    String?   @map("milestone_id") @db.Uuid
+  sequence       Int       @default(0) @db.SmallInt
+  plannedAmount  Decimal   @map("planned_amount") @db.Decimal(18, 2)
+  actualAmount   Decimal?  @map("actual_amount") @db.Decimal(18, 2)
+  currency       String    @default("CNY") @db.VarChar(8)
+  dueAt          DateTime? @map("due_at") @db.Timestamptz()
+  settledAt      DateTime? @map("settled_at") @db.Timestamptz()
+  status         String    @default("planned") @db.VarChar(32)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([projectId, sequence], map: "uidx_revenue_schedule_seq")
+  @@map("revenue_schedule")
+  @@schema("yucer_delivery")
+}
+
+// ===== yucer_agent (D8 sales copilot) =====
+
+model AgentSession {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  actorSub    String   @map("actor_sub") @db.VarChar(128)
+  subjectType String?  @map("subject_type") @db.VarChar(32)
+  subjectId   String?  @map("subject_id") @db.Uuid
+  title       String?  @db.VarChar(255)
+  status      String   @default("open") @db.VarChar(32)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("agent_session")
+  @@schema("yucer_agent")
+}
+
+model AgentMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  seq         BigInt
+  role        String   @db.VarChar(32)
+  content     String   @db.Text
+  tokenCount  Int?     @map("token_count")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([sessionId, seq], map: "uidx_agent_message_session_seq")
+  @@map("agent_message")
+  @@schema("yucer_agent")
+}
+
+model AgentAction {
+  id           String    @id @default(uuid()) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  sessionId    String?   @map("session_id") @db.Uuid
+  actionType   String    @map("action_type") @db.VarChar(64)
+  subjectType  String    @map("subject_type") @db.VarChar(32)
+  subjectId    String    @map("subject_id") @db.Uuid
+  payload      Json      @default("{}") @db.JsonB
+  rationale    String?   @db.Text
+  confidence   Int?      @db.SmallInt
+  status       String    @default("proposed") @db.VarChar(32)
+  decidedBySub String?   @map("decided_by_sub") @db.VarChar(128)
+  decidedAt    DateTime? @map("decided_at") @db.Timestamptz()
+  executedAt   DateTime? @map("executed_at") @db.Timestamptz()
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("agent_action")
+  @@schema("yucer_agent")
+}
+
+model AgentPlaybook {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  playbookCode String   @map("playbook_code") @db.VarChar(64)
+  name         String   @db.VarChar(255)
+  scopeDomain  String   @map("scope_domain") @db.VarChar(32)
+  trigger      Json     @default("{}") @db.JsonB
+  content      String   @db.Text
+  version      Int      @default(1)
+  status       String   @default("draft") @db.VarChar(32)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, playbookCode], map: "uidx_agent_playbook_ws_code")
+  @@map("agent_playbook")
+  @@schema("yucer_agent")
+}

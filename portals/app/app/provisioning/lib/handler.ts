@@ -1,0 +1,76 @@
+import type { ProvisioningStore } from "./store";
+
+// Provisioning event handling (product_200 section 4, 080-rp section 4). The
+// platform guarantees at-least-once only, so duplicate + out-of-order delivery
+// WILL happen; the handler is idempotent + ordered. Business-space init must be
+// re-entrant; deprovision archives (never hard-deletes).
+
+export interface ProvisioningEvent {
+  id: string; // = X-Vxture-Delivery; idempotency key
+  type: string; // tenant.provisioned | tenant.deprovisioned | subscription_changed | grant.invalidated
+  occurred_at?: number;
+  seq: number; // per (workspace, product), monotonic
+  workspace_id: string;
+  tenant_id?: string;
+  application: string; // = product_code
+  plan?: string | null;
+  data?: unknown;
+}
+
+export interface HandleResult {
+  ok: true;
+  handled: boolean;
+  reason?: "wrong-product" | "duplicate" | "stale" | "processed";
+}
+
+export interface HandlerDeps {
+  store: ProvisioningStore;
+  product: string;
+  onSubscriptionChanged?: (workspaceId: string) => void; // C2 cache evict
+  onProvisioned?: (workspaceId: string) => Promise<void> | void; // re-entrant init
+}
+
+export async function handleProvisioning(
+  event: ProvisioningEvent,
+  deps: HandlerDeps,
+): Promise<HandleResult> {
+  // Reject events addressed to another product.
+  if (event.application !== deps.product) {
+    return { ok: true, handled: false, reason: "wrong-product" };
+  }
+
+  // Idempotency: a repeated delivery must not re-run side effects.
+  if (await deps.store.isDelivered(event.id)) {
+    return { ok: true, handled: false, reason: "duplicate" };
+  }
+
+  // Ordering: ignore stale/replayed seq (but still ack 2xx at the route).
+  const lastSeq = await deps.store.getLastSeq(event.workspace_id, deps.product);
+  if (event.seq <= lastSeq) {
+    return { ok: true, handled: false, reason: "stale" };
+  }
+
+  switch (event.type) {
+    case "tenant.provisioned":
+      await deps.store.upsertInstance(event.workspace_id, deps.product, "provisioned");
+      await deps.onProvisioned?.(event.workspace_id);
+      break;
+    case "tenant.deprovisioned":
+      // Archive, not hard-delete (080-rp section 4 / product_240 section 6#21).
+      await deps.store.upsertInstance(event.workspace_id, deps.product, "deprovisioned");
+      break;
+    case "subscription_changed":
+      deps.onSubscriptionChanged?.(event.workspace_id);
+      break;
+    case "grant.invalidated":
+      // Asset-face products re-scope here; neutral template just dedups.
+      break;
+    default:
+      // Unknown event: record delivery so retries stop, take no action.
+      break;
+  }
+
+  await deps.store.markDelivered(event.id, { type: event.type, result: "processed" });
+  await deps.store.setSeq(event.workspace_id, deps.product, event.seq);
+  return { ok: true, handled: true, reason: "processed" };
+}

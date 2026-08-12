@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # pnpm workspace root (repo root - pnpm-lock.yaml lives here, covering
+  # portals/app and portals/packages/shared). Dependabot's "npm" ecosystem
+  # reads pnpm-lock.yaml too.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # @vxture/* is org-internal and needs a deliberate look, not batched.
+      vxture-packages:
+        patterns:
+          - '@vxture/*'
+    ignore:
+      # @vxture/* moves on its own release cadence from a different repo -
+      # bump it deliberately, not via an automated PR.
+      - dependency-name: '@vxture/*'
+
+  # Keep pinned Action versions (docker/build-push-action@v6, actions/checkout@v4,
+  # etc.) current - these live outside npm and would otherwise drift silently.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

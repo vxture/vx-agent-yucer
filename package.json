@@ -1,0 +1,24 @@
+{
+  "name": "yucer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "yucer - enterprise sales super-agent: strategy, planning, execution, accounts, opportunity detection and management, delivery, and a sales copilot across the whole chain.",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.10": ">=8.5.10",
+      "@hono/node-server@<1.19.13": ">=1.19.13",
+      "sharp@<0.35.0": ">=0.35.0"
+    }
+  },
+  "scripts": {
+    "build": "pnpm --filter @yucer/app build",
+    "type-check:all": "pnpm --filter @yucer/shared type-check",
+    "lint": "pnpm --recursive --if-present lint",
+    "lint:docs-numbering": "node scripts/guardrails/check-docs-numbering.mjs --strict",
+    "lint:data-design": "node scripts/guardrails/check-data-architecture.mjs --strict"
+  }
+}
