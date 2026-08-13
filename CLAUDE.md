@@ -233,6 +233,15 @@ so violating them fails at runtime rather than at review:
   gating formula locally (UI `tier != null`, data `tier != null || bundled`).
 - Adding a writable domain column REQUIRES updating `98_column_locks.sql`, or the
   service-role write fails with permission denied. That failure is the design.
+- Product UI is built from `@vxture/design-system` (^2.0.0) only. Do not hand-roll
+  components, copy DS source into the repo, or fork it locally to tweak styling.
+  A missing element is a request to the DS, not a local build; if a stopgap is
+  genuinely unavoidable, register it as a TD entry (missing element, stopgap
+  location, recovery condition) - silent deviation fails self-rectify acceptance.
+  The only sanctioned local wrapper is a thin one that binds a DS element to this
+  product's domain semantics; it must not restyle the DS. Theme and design tokens
+  come from the DS - `@yucer/shared`'s `brand.ts` carries product identity only,
+  never colours, spacing, or type.
 
 ## Repository hygiene
 

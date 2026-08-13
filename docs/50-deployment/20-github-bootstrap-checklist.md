@@ -4,6 +4,18 @@ One-time GitHub setup for this product repo (`vxture/vx-agent-yucer`).
 Code-external, owner action. Authority: `140-repo-governance-standard.md`
 section 1 / section 6 and `product_240_repo-template.md` section 2.8.
 
+## BEFORE the first push - regenerate the lockfile
+
+- [ ] Run `pnpm install` on a host that has Node 22+ and a `NODE_AUTH_TOKEN` with
+      `read:packages`, then commit the updated `pnpm-lock.yaml`.
+
+`portals/app/package.json` declares `@vxture/design-system@^2.0.0`, but
+`pnpm-lock.yaml` has not been regenerated for it - the lockfile entry needs the
+registry-issued `integrity` hash and signed tarball URL, which cannot be
+hand-written. Until this runs, `pnpm install --frozen-lockfile` fails, which
+takes down **two of the five required checks** (`build` and `test-coverage`,
+`.github/workflows/ci.yml`) and the Dockerfile deps stage.
+
 ## Repo bootstrap - do these now
 
 - [ ] Create the repo PUBLIC (dev-phase repos are public; 140 section 2). A
