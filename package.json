@@ -8,10 +8,15 @@
     "node": ">=22"
   },
   "pnpm": {
+    "comment": "SCA remediation. Each entry pins a transitive dependency past a known vulnerability that osv-scanner blocks on; the gate is never widened to accommodate one. Raise the bound rather than remove the entry when a newer advisory lands.",
     "overrides": {
-      "postcss@<8.5.10": ">=8.5.10",
+      "postcss@<8.5.23": ">=8.5.23",
       "@hono/node-server@<1.19.13": ">=1.19.13",
-      "sharp@<0.35.0": ">=0.35.0"
+      "sharp@<0.35.0": ">=0.35.0",
+      "nanoid@<3.3.18": ">=3.3.18 <4",
+      "fast-uri@<3.1.5": ">=3.1.5 <4",
+      "valibot@<1.4.2": ">=1.4.2",
+      "hono@<4.12.34": ">=4.12.34"
     }
   },
   "scripts": {
