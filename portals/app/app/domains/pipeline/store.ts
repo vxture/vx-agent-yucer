@@ -1,0 +1,155 @@
+// D6 pipeline persistence port.
+//
+// Two rules shape this interface, and both are structural rather than advisory:
+//
+//   1. EVERY method takes workspaceId explicitly. workspace_id is the
+//      authoritative isolation key and is never inferred from a session, a
+//      default, or "the last one we saw". Making it the first parameter of every
+//      call means a query that forgot it does not compile.
+//
+//   2. A stage change is ONE method, not two. planStageChange() returns the
+//      column patch and the journal event together precisely because writing one
+//      without the other is the bug the journal exists to prevent; if the port
+//      exposed `updateOpportunity` and `appendStageEvent` separately, the first
+//      caller in a hurry would use only the first.
+
+import type { Money } from "../shared/money";
+import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
+import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
+
+export interface OpportunityRecord {
+  id: string;
+  workspaceId: string;
+  opportunityNo: string;
+  name: string;
+  accountId: string;
+  accountName?: string;
+  planId: string | null;
+  campaignId: string | null;
+  territoryId: string | null;
+  ownerSub: string | null;
+  stage: Stage;
+  forecastCategory: ForecastCategory;
+  amount: Money | null;
+  probability: number | null;
+  expectedCloseAt: Date | null;
+  closedAt: Date | null;
+  status: OpportunityStatus;
+  currency: string;
+}
+
+export interface StageEventRecord {
+  id: string;
+  opportunityId: string;
+  fromStage: Stage | null;
+  toStage: Stage;
+  reason: string | null;
+  actorSub: string | null;
+  occurredAt: Date;
+}
+
+export interface OpportunityFilter {
+  stage?: Stage;
+  ownerSub?: string;
+  territoryId?: string;
+  /** Terminal opportunities are excluded unless this is true. */
+  includeClosed?: boolean;
+  limit?: number;
+}
+
+export interface PipelineStore {
+  listOpportunities(workspaceId: string, filter?: OpportunityFilter): Promise<OpportunityRecord[]>;
+  getOpportunity(workspaceId: string, id: string): Promise<OpportunityRecord | null>;
+
+  /**
+   * Apply a planned stage change: the whitelisted column patch AND the journal
+   * event, atomically. Returns false when the opportunity does not exist in this
+   * workspace - which is also what a cross-workspace id looks like from here.
+   */
+  applyStageChange(workspaceId: string, opportunityId: string, plan: StageChangePlan): Promise<boolean>;
+
+  listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]>;
+
+  /** Append-only. Re-forecasting writes a new row and never edits one. */
+  appendForecastSnapshot(workspaceId: string, row: SnapshotRow): Promise<void>;
+
+  listForecastSnapshots(
+    workspaceId: string,
+    query: { period: string; scopeType?: ScopeType },
+  ): Promise<SnapshotRow[]>;
+}
+
+/** In-memory implementation for the offline path and for tests. */
+export class InMemoryPipelineStore implements PipelineStore {
+  private opportunities = new Map<string, OpportunityRecord>();
+  private events: StageEventRecord[] = [];
+  private snapshots: Array<SnapshotRow & { workspaceId: string }> = [];
+  private seq = 0;
+
+  seed(records: OpportunityRecord[]): void {
+    for (const r of records) this.opportunities.set(r.id, { ...r });
+  }
+
+  async listOpportunities(
+    workspaceId: string,
+    filter: OpportunityFilter = {},
+  ): Promise<OpportunityRecord[]> {
+    let rows = [...this.opportunities.values()].filter((o) => o.workspaceId === workspaceId);
+    if (!filter.includeClosed) rows = rows.filter((o) => o.status === "open");
+    if (filter.stage) rows = rows.filter((o) => o.stage === filter.stage);
+    if (filter.ownerSub) rows = rows.filter((o) => o.ownerSub === filter.ownerSub);
+    if (filter.territoryId) rows = rows.filter((o) => o.territoryId === filter.territoryId);
+    return filter.limit ? rows.slice(0, filter.limit) : rows;
+  }
+
+  async getOpportunity(workspaceId: string, id: string): Promise<OpportunityRecord | null> {
+    const row = this.opportunities.get(id);
+    // The workspace check is not a formality: without it, an id guessed or
+    // leaked from another workspace would read straight through.
+    return row && row.workspaceId === workspaceId ? { ...row } : null;
+  }
+
+  async applyStageChange(
+    workspaceId: string,
+    opportunityId: string,
+    plan: StageChangePlan,
+  ): Promise<boolean> {
+    const row = this.opportunities.get(opportunityId);
+    if (!row || row.workspaceId !== workspaceId) return false;
+
+    row.stage = plan.patch.stage;
+    row.status = plan.patch.status;
+    row.closedAt = plan.patch.closedAt;
+    if (plan.patch.probability !== undefined) row.probability = plan.patch.probability;
+
+    this.seq += 1;
+    this.events.push({ id: `evt_${this.seq}`, opportunityId, ...plan.event });
+    return true;
+  }
+
+  async listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]> {
+    const row = this.opportunities.get(opportunityId);
+    if (!row || row.workspaceId !== workspaceId) return [];
+    return this.events
+      .filter((e) => e.opportunityId === opportunityId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+  }
+
+  async appendForecastSnapshot(workspaceId: string, row: SnapshotRow): Promise<void> {
+    this.snapshots.push({ ...row, workspaceId });
+  }
+
+  async listForecastSnapshots(
+    workspaceId: string,
+    query: { period: string; scopeType?: ScopeType },
+  ): Promise<SnapshotRow[]> {
+    return this.snapshots
+      .filter(
+        (s) =>
+          s.workspaceId === workspaceId &&
+          s.period === query.period &&
+          (!query.scopeType || s.scopeType === query.scopeType),
+      )
+      .sort((a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime());
+  }
+}

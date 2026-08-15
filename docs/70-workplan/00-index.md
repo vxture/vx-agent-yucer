@@ -33,13 +33,33 @@
 **批次 1 验收**：`lint:docs-numbering --strict` 与 `lint:data-design --strict` 均
 exit 0；五个 CI 检查全绿。
 
-## 批次 2 - 域服务层与两道门
+## 批次 2 - 域服务层、两道门、智能体两平面
 
-| 项 | 范围 |
-|----|------|
-| 2a | 权限门 `authz/`：成员懒加载、角色权限判定、与权益门的组合判定 |
-| 2b | 域业务规则纯函数 `domains/<d>/lib/`：阶段机、归因计算、预测汇总、健康度派生（全部可单测、不碰 IO） |
-| 2c | 域持久化端口 + Prisma 实现（沿用模板的 port/adapter 形态） |
+| 项 | 范围 | 状态 |
+|----|------|------|
+| 2a | 权限门 `authz/`：成员懒加载、角色权限判定、与权益门的组合判定、动作目录 | 已交付 |
+| 2b | 域业务规则纯函数 `domains/<d>/lib/`：阶段机、归因计算、预测汇总、信号评分、提案生命周期（全部可单测、不碰 IO） | D5/D6/D8 已交付；D1-D4/D7 待做 |
+| 2c | 域持久化端口 + Prisma 实现（沿用模板的 port/adapter 形态） | 待做 |
+| 2d | **智能体两平面接入**（ADR-004）：`platform/s2s` 令牌、`agent/atlas` 模型面、`agent/runos` 能力面与 Skill 分发 | 已交付 |
+| 2e | 智能体编排 `agent/orchestrator`：会话回合把模型输出落成 `agent_action` 提案 | 待做 |
+
+### 2a/2b/2d 已交付内容
+
+- `authz/`：19 权限 / 7 角色的**类型化镜像**，`catalog.test.ts` 逐条解析
+  `incr/0001` 种子 SQL 断言双向一致——镜像漂移会让 CI 红，而不是悄悄分叉。
+  两道门的顺序（权益先、权限后）由 `gate.ts` 固化并单测。
+- `authz/actions.ts`：产品动作目录，把每个动作与它的 (feature key, 权限码) 配对
+  写成**数据**。这是防「某个写接口只查了权益、忘了查权限」的结构性手段。
+- `agent/atlas`：**只按 `endpointCode` 路由**，四个 copilot 任务各自可由环境变量改指；
+  错误按码分类重试（`GRANT_DENIED` / `QUOTA_EXCEEDED` 永不重试，`RATE_LIMITED` 用
+  body 里的延迟而非 `Retry-After` 头）；SSE 中途失败会**抛出**而不是被当成正常结束。
+- `agent/runos`：MCP 四工具面，`task_id` 本地先校验；两层错误（传输层 / 工具结果层）
+  分别建模。Skill **只分发不执行**：校验 `result_kind`、逐次核对 `content_digest`、
+  渲染进提示词时带来源围栏。
+- `platform/s2s`：缺 `workspace_id` **直接抛错**——Atlas 缺它不报错，只是静默跳过配额
+  并把用量记到 NULL 工作空间。
+
+`pnpm --filter @yucer/app test`：331 项全绿。
 
 ## 批次 3 - 产品界面与智能体交互
 
@@ -71,6 +91,15 @@ exit 0；五个 CI 检查全绿。
 
 ## 未决事项
 
-- 智能体的模型编排与工具协议尚未定型（模板的 agent-profile 三项预决策仍挂起）。
-  批次 3 之前需要单独决策并补 ADR。
-- 信号外部数据源的选型与合规边界未定，是批次 5 的前置。
+- ~~智能体的模型编排与工具协议尚未定型~~ → 已由
+  [ADR-004](../30-design/decisions/ADR-004-atlas-and-runos-as-the-only-agent-planes.md)
+  决策：模型走 Atlas（只按 `endpointCode` 路由），能力与技能走 Runos 四工具面，
+  Skill 只分发不执行。
+- Runos 的 `delegation_token`（对象级判定凭据）如何从 yucer 会话派生，未定型；当前
+  实现只透传，不自行构造。
+- 信号外部数据源的选型与合规边界未定，是批次 5 的前置；走 Runos connector 还是平台
+  数据服务取决于运营侧注册了什么。
+- **接入前置（运营侧，不在本仓）**：Atlas 需要一条 `(yucer, endpointCode)`
+  product-grant，否则任何模型调用都是 `403 GRANT_DENIED`；Runos 生产目录当前为空且
+  enforcement 关闭，首注册 / 首授权 / 开 enforcement 是三步运营动作。在那之前
+  `runos_discover` 返回空列表是**正常返回**，不是故障。

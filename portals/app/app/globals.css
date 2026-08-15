@@ -1,0 +1,25 @@
+/**
+ * The application's single stylesheet entry.
+ *
+ * Both imports come from @vxture/design-system and nothing is defined locally:
+ * globals.css carries the L0 foundation (Tailwind baseline, tokens, typography,
+ * components, platform patterns), and exactly ONE brand entry follows it.
+ * yucer is a Vxture product, so it takes the vxture brand; importing a second
+ * brand entry alongside it is forbidden.
+ *
+ * This file must never define a --vx-* token, a colour, a spacing value, a
+ * radius or a shadow. Those are the design system's, and a local override here
+ * is the exact deviation CLAUDE.md's rigid-zone rule exists to prevent.
+ */
+@import "@vxture/design-system/styles/globals.css";
+@import "@vxture/design-system/styles/brands/vxture.css";
+
+/*
+ * Tailwind v4 discovers utility classes by scanning source files, and skips
+ * node_modules by default. The DS ships its components pre-built, so the class
+ * names they render live in its dist bundle - without this the components mount
+ * with class names that have no CSS behind them and the whole UI renders
+ * unstyled. Pointing at the package root rather than a file keeps it working if
+ * the DS changes its bundle layout.
+ */
+@source "../node_modules/@vxture/design-system/dist";

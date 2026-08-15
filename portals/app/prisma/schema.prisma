@@ -7,18 +7,14 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// `schemas` MUST stay on one line. The Prisma 7 parser reads a multi-line array
+// in a datasource block as one definition per line and rejects every one of them
+// ("This line is not a valid definition within a datasource"), which takes the
+// whole `build` check down. Eight schemas: three inherited contract schemas plus
+// the five product domains.
 datasource db {
   provider = "postgresql"
-  schemas  = [
-    "vx_provision",
-    "local_authz",
-    "local_usage",
-    "yucer_core",
-    "yucer_gtm",
-    "yucer_pipeline",
-    "yucer_delivery",
-    "yucer_agent"
-  ]
+  schemas  = ["vx_provision", "local_authz", "local_usage", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent"]
 }
 
 // ===== vx_provision =====

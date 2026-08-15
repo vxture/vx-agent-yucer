@@ -9,3 +9,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-001 | [以八个能力域切分产品](ADR-001-eight-capability-domains.md) | accepted | 2026-08-12 |
 | ADR-002 | [八个域映射到五个 DB schema](ADR-002-five-schemas-for-eight-domains.md) | accepted | 2026-08-12 |
 | ADR-003 | [智能体的写操作一律是「可审阅提案」](ADR-003-agent-actions-are-proposals.md) | accepted | 2026-08-12 |
+| ADR-004 | [模型走 Atlas，能力与技能走 Runos](ADR-004-atlas-and-runos-as-the-only-agent-planes.md) | accepted | 2026-08-15 |

@@ -6,6 +6,9 @@
 !.env.local.example
 !deploy/env/*.env
 .env.bak.*
+# Local-only credential drop used to hand a registry token to a dev shell.
+# Never committed - the token belongs in the environment, not the repo.
+.tmp-token
 .npmrc
 # The .npmrc only declares the @vxture GitHub Packages registry and references
 # ${NODE_AUTH_TOKEN} (no literal secret). It MUST stay committed so CI
