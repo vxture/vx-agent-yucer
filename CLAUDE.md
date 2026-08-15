@@ -78,8 +78,11 @@ Always branch off `origin/main`, never off a stale local branch.
 
 1. `git fetch origin && git switch -c <feature> origin/main`
 2. Commit work on the feature branch.
-3. Open a PR into `main`. Direct `git push origin main` is BLOCKED by the ruleset
-   (must go through a PR, and the required checks must pass).
+3. Open a PR into `main`. Direct `git push origin main` is REFUSED by the ruleset
+   for anyone without bypass (must go through a PR, and the required checks must
+   pass). A repository admin is a bypass actor and is only WARNED - see the
+   admin-bypass note under branch protection. Admin or not, the PR path is the
+   only sanctioned one.
 4. CI runs on the PR. Squash-merge once green; the branch is auto-deleted on
    merge. This does not deploy anything.
 5. When ready to release, cut a tag from the commit you want deployed and push it.
@@ -106,6 +109,30 @@ ruleset is `docs/50-deployment/rebuild/main-ruleset.json`:
 - `production` GitHub Environment: required reviewer - every `v*.*.*` tag deploy
   pauses here until approved.
 - `beta` GitHub Environment: no reviewer gate.
+
+**Admin bypass - what "protected" actually means here.** The ruleset carries
+`bypass_actors: [{ actor_id: 5 (RepositoryRole = admin), bypass_mode: always }]`.
+For a repository admin the rules are EVALUATED AND REPORTED but not enforced: a
+direct push to `main` prints
+
+```
+remote: Bypassed rule violations for refs/heads/main:
+remote: - Changes must be made through a pull request.
+remote: - 5 of 5 required status checks are expected.
+```
+
+and then succeeds. This is deliberate - it is the escape hatch for repairing a
+wedged trunk - but it means "direct push is blocked" is only true for
+non-admins. Do not read a green ruleset as proof that nothing can reach `main`
+outside a PR; verify with `gh api repos/<org>/<repo>/rules/branches/main`, which
+reports the rules in effect, and remember who you are authenticated as.
+
+**Setting up protection: the default branch is a trap.** The ruleset targets
+`~DEFAULT_BRANCH`, not the literal name `main`. Pushing any branch into an EMPTY
+repository makes that branch the default, so a first push of a feature branch
+silently points the whole ruleset at it and leaves `main` unprotected. Confirm
+`gh api repos/<org>/<repo> --jq .default_branch` returns `main` before and after
+applying the ruleset.
 
 **Required checks (authoritative set of five):** `quality-gate` / `build` /
 `test-coverage` / `audit` / `gitleaks`. CI job names must produce exactly these
