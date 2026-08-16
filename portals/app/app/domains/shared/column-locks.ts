@@ -101,6 +101,18 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "converted_opportunity_id",
     "updated_at",
   ],
+  // commitment (incr/0004): the PROMISE is frozen - statement, direction,
+  // due_at and its origin are what was agreed. Only the lifecycle moves, and
+  // `met` additionally requires closure evidence at the database level.
+  "yucer_field.commitment": [
+    "status",
+    "closure_evidence_kind",
+    "closure_evidence_id",
+    "met_at",
+    "waived_by_sub",
+    "waive_reason",
+    "updated_at",
+  ],
   // opportunity: account_id and campaign_id are anchors; planning keys move.
   "yucer_pipeline.opportunity": [
     "name",
@@ -181,6 +193,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",
   "yucer_agent.agent_message",
+  // yucer_field, added by incr/0004. Evidence is frozen: a correction is a new
+  // row carrying corrects_interaction_id, never an edit of the original.
+  "yucer_field.interaction",
+  "yucer_field.interaction_participant",
 ];
 
 const APPEND_ONLY = new Set(APPEND_ONLY_TABLES);
