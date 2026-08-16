@@ -24,10 +24,12 @@ import { money } from "./money";
 import {
   DEMO_ACCOUNTS,
   DEMO_CAMPAIGNS,
+  DEMO_COMMITMENT_TEXT,
   DEMO_CONTACTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
   DEMO_MILESTONES,
+  DEMO_NOTES,
   DEMO_OPPORTUNITIES,
   DEMO_PLANS,
   DEMO_PLAYBOOKS,
@@ -35,8 +37,11 @@ import {
   DEMO_RATIONALES,
   DEMO_SIGNALS,
   DEMO_UNMATCHED_COMPANY,
+  DEMO_WAIVE_REASON,
 } from "./demo-fixtures";
 import type { InMemoryAccountStore } from "../account/store";
+import type { CommitmentRecord, InMemoryFieldStore, InteractionRecord } from "../account/field-store";
+import type { CommitmentDirection, CommitmentStatus, InteractionChannel } from "../account/lib/commitment";
 import type { InMemoryCopilotStore } from "../copilot/store";
 import type { InMemoryDeliveryStore } from "../delivery/store";
 import type { InMemoryPipelineStore } from "../pipeline/store";
@@ -61,6 +66,7 @@ export interface DemoStores {
   strategy: InMemoryStrategyStore;
   planning: InMemoryPlanningStore;
   account: InMemoryAccountStore;
+  field: InMemoryFieldStore;
   signal: InMemorySignalStore;
   pipeline: InMemoryPipelineStore;
   delivery: InMemoryDeliveryStore;
@@ -100,6 +106,7 @@ export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void
   seedStrategy(workspaceId, stores);
   seedPlanning(workspaceId, stores);
   seedAccounts(workspaceId, stores);
+  seedField(workspaceId, stores);
   seedSignals(workspaceId, stores);
   seedPipeline(workspaceId, stores);
   seedDelivery(workspaceId, stores);
@@ -239,6 +246,137 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         overdueRevenueCount: 0,
       },
     },
+  });
+}
+
+/**
+ * The evidence plane: what was actually said, and what was actually promised.
+ *
+ * These fixtures exist to make the ONE rule visible - a commitment is closed by
+ * evidence, not by assertion - so every state appears at least once and each is
+ * consistent with the account it hangs off:
+ *
+ *   - acc_demo_1 (health 34, last contact 48 days ago) has one promise THEY
+ *     missed and one THEY are 41 days late on. Its kept-rate is 0 of 1. That is
+ *     what a 34 looks like from underneath, and it is arithmetic rather than a
+ *     mood: the note on 2026-06 says the CFO would answer by the Wednesday, and
+ *     no interaction since cites an answer.
+ *   - acc_demo_2 (health 78) has the only met commitment, closed by
+ *     int_demo_a2b - the interaction that proves it, not a tick.
+ *   - acc_demo_4 is 9 days late on something WE owe. Our own failures sit in
+ *     the same list as theirs, which is the only way the list stays honest.
+ *   - acc_demo_3 has nothing at all: a prospect nobody has met is not the same
+ *     as a customer with a clean record, and its kept-rate is null, not 1.
+ *
+ * The occurredAt dates agree with the lastInteractionAt values seeded into the
+ * account health inputs. They have to: with a database the account page reads
+ * last contact FROM this table, so fixtures that disagreed would make the
+ * offline demo and the real product tell different stories about the same row.
+ */
+function seedField(workspaceId: string, stores: DemoStores): void {
+  const note = (
+    id: string,
+    accountId: string,
+    channel: InteractionChannel,
+    days: number,
+    actorSub: string,
+    rawNote: string,
+    opportunityId: string | null = null,
+  ): InteractionRecord => ({
+    id,
+    workspaceId,
+    accountId,
+    opportunityId,
+    projectId: null,
+    channel,
+    direction: "outbound",
+    occurredAt: daysAgo(days),
+    actorSub,
+    subject: null,
+    rawNote,
+    summary: null,
+    captureMode: "manual",
+    correctsInteractionId: null,
+  });
+
+  const promise = (
+    id: string,
+    accountId: string,
+    direction: CommitmentDirection,
+    statement: string,
+    dueDays: number,
+    status: CommitmentStatus,
+    extra: Partial<CommitmentRecord> = {},
+  ): CommitmentRecord => ({
+    id,
+    workspaceId,
+    accountId,
+    opportunityId: null,
+    originInteractionId: null,
+    direction,
+    statement,
+    // Negative means still ahead of us.
+    dueAt: dueDays >= 0 ? daysAgo(dueDays) : daysAhead(-dueDays),
+    // Ours has an owner; theirs deliberately does not - nobody here can be
+    // held to a promise the customer made.
+    ownerSub: direction === "we_owe" ? REP1 : null,
+    counterpartContactId: null,
+    status,
+    closureEvidenceKind: null,
+    closureEvidenceId: null,
+    metAt: null,
+    waivedBySub: null,
+    waiveReason: null,
+    ...extra,
+  });
+
+  stores.field.seed({
+    interactions: [
+      note("int_demo_a1a", "acc_demo_1", "meeting", 75, REP1, DEMO_NOTES.a1_kickoff, "opp_demo_1"),
+      note("int_demo_a1b", "acc_demo_1", "im", 62, REP1, DEMO_NOTES.a1_followup, "opp_demo_1"),
+      note("int_demo_a1c", "acc_demo_1", "call", 48, REP1, DEMO_NOTES.a1_blocked, "opp_demo_1"),
+      note("int_demo_a2a", "acc_demo_2", "meeting", 18, REP2, DEMO_NOTES.a2_renewal),
+      note("int_demo_a2b", "acc_demo_2", "email", 4, REP2, DEMO_NOTES.a2_evidence),
+      note("int_demo_a4a", "acc_demo_4", "call", 12, REP2, DEMO_NOTES.a4_slip),
+      note("int_demo_a5a", "acc_demo_5", "event", 35, REP1, DEMO_NOTES.a5_intro),
+    ],
+    commitments: [
+      // Open and 41 days past its date. Nothing in the timeline since cites an
+      // answer, which is precisely why it is still open.
+      promise("cm_demo_1", "acc_demo_1", "they_owe", DEMO_COMMITMENT_TEXT.a1_cfo, 41, "open", {
+        originInteractionId: "int_demo_a1a",
+        counterpartContactId: "ct_1",
+      }),
+      // Already resolved as missed. A miss stays on the record even though the
+      // meeting could still happen later - erasing it would erase the signal.
+      promise("cm_demo_2", "acc_demo_1", "they_owe", DEMO_COMMITMENT_TEXT.a1_procurement, 30, "missed", {
+        originInteractionId: "int_demo_a1c",
+      }),
+      // Ours, still ahead of its date.
+      promise("cm_demo_3", "acc_demo_1", "we_owe", DEMO_COMMITMENT_TEXT.a1_interface, -5, "open", {
+        originInteractionId: "int_demo_a1c",
+      }),
+      // The only met one, and it names the interaction that proves it.
+      promise("cm_demo_4", "acc_demo_2", "we_owe", DEMO_COMMITMENT_TEXT.a2_report, 6, "met", {
+        ownerSub: REP2,
+        originInteractionId: "int_demo_a2a",
+        closureEvidenceKind: "interaction",
+        closureEvidenceId: "int_demo_a2b",
+        metAt: daysAgo(4),
+      }),
+      // Ours, 9 days late. It sits in the same manager list as theirs.
+      promise("cm_demo_5", "acc_demo_4", "we_owe", DEMO_COMMITMENT_TEXT.a4_pilot, 9, "open", {
+        ownerSub: REP2,
+        originInteractionId: "int_demo_a4a",
+      }),
+      // Waived, with the reason attached. A waive without one is
+      // indistinguishable from the promise never having been made.
+      promise("cm_demo_6", "acc_demo_5", "they_owe", DEMO_COMMITMENT_TEXT.a5_meeting, 20, "waived", {
+        originInteractionId: "int_demo_a5a",
+        waivedBySub: REP1,
+        waiveReason: DEMO_WAIVE_REASON,
+      }),
+    ],
   });
 }
 

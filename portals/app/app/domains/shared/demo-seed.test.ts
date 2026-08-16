@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { seedDemoWorkspace, type DemoStores } from "./demo-seed";
 import { demoDataEnabled, ensureDemoData, resetDemoSeed, setPipelineStore } from "./registry";
 import { InMemoryAccountStore } from "../account/store";
+import { InMemoryFieldStore } from "../account/field-store";
 import { InMemoryCopilotStore } from "../copilot/store";
 import { InMemoryDeliveryStore } from "../delivery/store";
 import { InMemoryPipelineStore } from "../pipeline/store";
@@ -13,6 +14,7 @@ import { rollUp } from "../pipeline/lib/forecast";
 import { OPEN_STAGE_ORDER } from "../pipeline/lib/stage";
 import { deriveProjectHealth } from "../delivery/lib/revenue";
 import { analyzeChain } from "../account/lib/health";
+import { reliability } from "../account/lib/commitment";
 
 const WS = "ws_demo";
 
@@ -21,6 +23,7 @@ function stores(): DemoStores {
     strategy: new InMemoryStrategyStore(),
     planning: new InMemoryPlanningStore(),
     account: new InMemoryAccountStore(),
+    field: new InMemoryFieldStore(),
     signal: new InMemorySignalStore(),
     pipeline: new InMemoryPipelineStore(),
     delivery: new InMemoryDeliveryStore(),
@@ -431,4 +434,77 @@ test("the playbook catalog is seeded and its plays are active", async () => {
     "including a cross-cutting one, for turns with no subject",
   );
   for (const p of plays) assert.ok(p.content.trim().length > 0, `${p.playbookCode} has no content`);
+});
+
+// The evidence plane must agree with the account rows it explains, not merely
+// exist. These crossings are what make the demo a demonstration of the rule
+// rather than a screenshot of populated tables.
+test("demo: the evidence plane and the account health inputs tell one story", async () => {
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+
+  // Last contact from the interaction table matches what the health input
+  // claims. With a database the page reads the former, offline it reads the
+  // latter, and a demo where those disagree is a demo that lies in one mode.
+  const last = await s.field.lastContactAt(WS, "acc_demo_1");
+  assert.ok(last, "acc_demo_1 has recorded interactions");
+  const days = Math.round((Date.parse("2026-08-15T00:00:00Z") - last.getTime()) / 86_400_000);
+  assert.equal(days, 48);
+
+  // A prospect nobody has met has no contact date at all - not a recent one.
+  assert.equal(await s.field.lastContactAt(WS, "acc_demo_3"), null);
+
+  // The one met commitment cites an interaction that actually exists, and that
+  // interaction is on the same account. Closure evidence pointing at a foreign
+  // row would pass every type check and be worthless.
+  const met = (await s.field.listCommitments(WS, { accountId: "acc_demo_2" })).find(
+    (c) => c.status === "met",
+  );
+  assert.ok(met, "acc_demo_2 has a met commitment");
+  assert.equal(met.closureEvidenceKind, "interaction");
+  const evidence = (await s.field.listInteractions(WS, { accountId: "acc_demo_2" })).find(
+    (i) => i.id === met.closureEvidenceId,
+  );
+  assert.ok(evidence, "the closure evidence is a real interaction on the same account");
+  assert.ok(evidence.occurredAt.getTime() >= met.dueAt.getTime() - 7 * 86_400_000);
+
+  // Every open commitment predates or matches an interaction on its account,
+  // so nothing was promised on an account with no recorded contact.
+  for (const c of await s.field.listCommitments(WS)) {
+    const on = await s.field.listInteractions(WS, { accountId: c.accountId });
+    assert.ok(on.length > 0, `${c.id} hangs off an account with recorded contact`);
+  }
+});
+
+test("demo: overdue promises exist on both sides", async () => {
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+  const at = new Date("2026-08-15T00:00:00Z");
+
+  const overdue = await s.field.listCommitments(WS, { overdueAt: at });
+  assert.ok(overdue.length >= 2, "the manager list is not empty in the demo");
+  // Oldest first - the work-queue order the UI depends on.
+  for (let i = 1; i < overdue.length; i += 1) {
+    assert.ok(overdue[i - 1].dueAt.getTime() <= overdue[i].dueAt.getTime());
+  }
+  // Ours appears alongside theirs. A demo showing only customer failures would
+  // be selling a scoreboard rather than a diagnosis.
+  assert.ok(overdue.some((c) => c.direction === "we_owe"));
+  assert.ok(overdue.some((c) => c.direction === "they_owe"));
+});
+
+test("demo: acc_demo_1's kept-rate is what its health score looks like from underneath", async () => {
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+  const at = new Date("2026-08-15T00:00:00Z");
+
+  const r = reliability(await s.field.listCommitments(WS, { accountId: "acc_demo_1" }), at);
+  // One resolved miss plus one still-open overdue.
+  assert.equal(r.theyMissed, 2);
+  assert.equal(r.theirKeptRate, 0);
+
+  // No history is not a perfect record.
+  const clean = reliability(await s.field.listCommitments(WS, { accountId: "acc_demo_3" }), at);
+  assert.equal(clean.theirKeptRate, null);
+  assert.equal(clean.theyMissed, 0);
 });

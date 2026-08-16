@@ -124,3 +124,41 @@ export const DEMO_PLAYBOOKS = [
       "回答要落在数据上：引用具体的商机编号、金额、阶段和时间。数据不足时说明缺什么，不要估算。需要改动时提出建议动作，由人裁决。",
   },
 ] as const;
+
+// --- The evidence plane (ADR-006) -------------------------------------------
+//
+// These notes are written the way a rep actually writes them: unpunctuated,
+// mid-thought, sometimes contradicting an earlier one. That is the point. The
+// capture form asks for a dump, so a demo full of tidy minutes would be selling
+// a discipline the product deliberately does not require.
+//
+// Each note carries a fact a later stage will need to cite - a name, a date, an
+// objection - so the timeline is a source rather than decoration.
+
+export const DEMO_NOTES = {
+  a1_kickoff:
+    "见了王总和陈总监。预算这条线还是要 CFO 点头,王总说下周三之前给答复。陈总监对接口这块有顾虑,说去年上过一个系统,数据对不上,他被追责过。",
+  a1_followup:
+    "微信问了王总进展,回复说 CFO 出差,要往后拖。没给新日期。",
+  a1_blocked:
+    "刘敏私下说采购赵强倾向另一家,理由是价格。她建议我们别硬碰,先把陈总监的接口顾虑解决掉,他说话 CFO 会听。",
+  a2_renewal:
+    "季度复盘会,孙悦带了三个业务口的人。整体满意,提到仓储模块的报表跑得慢。答应我们两周内出优化方案。",
+  a2_evidence:
+    "按承诺把优化方案发过去了,孙悦确认收到,说下周内部过一轮。",
+  a4_slip:
+    "周总电话,语气不太好。上次答应给他的试点数据一直没给,他说再拖就先不谈了。",
+  a5_intro:
+    "行业会上碰到王磊,聊了二十分钟。他们今年重点是门店数字化,预算在总部。留了微信,说节后可以正式聊。",
+} as const;
+
+export const DEMO_COMMITMENT_TEXT = {
+  a1_cfo: "CFO 给出预算是否批复的答复",
+  a1_interface: "我方提供与既有系统的接口方案说明",
+  a2_report: "我方两周内提交仓储报表优化方案",
+  a4_pilot: "我方提供试点门店的运行数据",
+  a5_meeting: "对方安排节后与总部信息化负责人正式会面",
+  a1_procurement: "对方安排与采购负责人赵强的当面沟通",
+} as const;
+
+export const DEMO_WAIVE_REASON = "对方组织调整,原对接人离任,该承诺不再适用";

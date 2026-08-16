@@ -174,6 +174,99 @@ export const LIFECYCLE_ERROR: Record<string, string> = {
   no_data_access: "当前工作区无权访问",
 };
 
+export const FIELD_TEXT = {
+  // Capture. The wording matters as much as the form: this asks for a dump,
+  // not a report, because a busy salesperson will do the first and not the
+  // second.
+  recordTitle: "记一笔跟进",
+  recordDescription:
+    "把刚才发生的事倒进来就行——三句话、一段微信、一封转发的邮件都算。原文会原样保留,不会被改写。",
+  recordNote: "发生了什么",
+  recordNotePlaceholder: "例:见了王总和陈总监。预算这条线要等 CFO 点头,王总说下周三给答复。",
+  recordChannel: "方式",
+  recordWhen: "什么时候",
+  recordSubmit: "记下",
+  recordSaved: "已记下",
+  recordEmpty: "还没有跟进记录",
+  recordEmptyDescription: "记下第一笔之后,客户健康度和决策链就会开始用真实的接触时间,而不是靠商机阶段推算。",
+
+  timelineTitle: "跟进时间线",
+  timelineDescription: "谁、什么时候、通过什么方式。原文逐字保留——后续所有分析都引用它。",
+  timelineBy: "记录人",
+  timelineCorrects: "更正了一条更早的记录",
+
+  commitTitle: "承诺",
+  commitDescription:
+    "有日期的承诺,双向。**完成必须有证据**——指向一次真实的跟进,不能自己说完成了。错过不需要任何操作。",
+  commitOverdueTitle: "逾期承诺",
+  commitOverdueDescription:
+    "已经过期、还没有人面对的承诺。客户连续错过承诺,是停滞最早的信号。",
+  commitNew: "新增承诺",
+  commitStatement: "承诺了什么",
+  commitStatementPlaceholder: "例:回传盖章的技术确认书",
+  commitDirection: "谁的承诺",
+  commitDue: "何时之前",
+  commitCreate: "记下承诺",
+  commitClose: "标记完成",
+  commitCloseNeedsEvidence: "选一条证明它完成了的跟进",
+  commitWaive: "放弃",
+  commitWaiveReason: "为什么放弃",
+  commitMissed: "标记错过",
+  commitEmpty: "还没有承诺",
+  commitEmptyDescription: "从一次跟进里记下双方答应的事,它到期时系统会替你盯着。",
+  commitOverdueEmpty: "没有逾期承诺",
+  commitOverdueEmptyDescription: "所有已记录的承诺都还在期限内。",
+  commitDaysOverdue: (n: number) => `逾期 ${n} 天`,
+  commitDueIn: (n: number) => `还有 ${n} 天`,
+
+  evidenceTitle: "关系证据",
+  evidenceLastContact: "最近接触",
+  evidenceNever: "从未接触",
+  evidenceInteractions: "跟进条数",
+  evidenceTheyMissed: "对方错过",
+  evidenceWeMissed: "我方错过",
+  evidenceKeptRate: "对方守约率",
+  evidenceNoHistory: "尚无记录",
+} as const;
+
+export const FIELD_ERROR: Record<string, string> = {
+  note_required: "写一句发生了什么——只记下它发生过,没有价值",
+  occurred_in_future: "跟进不能发生在未来",
+  unknown_channel: "未知的跟进方式",
+  evidence_required: "完成必须指向一次真实的跟进,不能自己说完成了",
+  reason_required: "放弃承诺必须写明理由",
+  not_yet_due: "还没到期,不能标记为错过",
+  illegal_transition: "当前状态不能这样变更",
+  status_unchanged: "状态没有变化",
+  statement_required: "写明承诺的内容",
+  not_found: "记录不存在,或不属于当前工作区",
+  not_authenticated: "登录状态已失效,请重新登录",
+  permission_denied: "你没有记录跟进的权限",
+  no_data_access: "当前工作区无权访问",
+};
+
+export const CHANNEL_LABEL: Record<string, string> = {
+  meeting: "会面",
+  call: "电话",
+  visit: "拜访",
+  email: "邮件",
+  im: "即时消息",
+  event: "活动",
+  other: "其他",
+};
+
+export const DIRECTION_LABEL: Record<string, string> = {
+  we_owe: "我方承诺",
+  they_owe: "对方承诺",
+};
+
+export const COMMIT_STATUS_LABEL: Record<string, string> = {
+  open: "未决",
+  met: "已完成",
+  missed: "已错过",
+  waived: "已放弃",
+};
+
 export const RELATION_TYPE_LABEL: Record<string, string> = {
   reports_to: "汇报给",
   peer_of: "平级",
