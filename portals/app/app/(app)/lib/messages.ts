@@ -336,6 +336,35 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
   disqualified: "不合格",
 };
 
+export const WINLOSS_TEXT = {
+  title: "待复盘",
+  description: "已关闭但还没有复盘的商机。赢丢原因是结构化数据，回流给评分与建议——不写就没有闭环。",
+  columnOpportunity: "商机",
+  columnOutcome: "结果",
+  columnAmount: "金额",
+  columnClosed: "关闭时间",
+  outcomeWon: "赢单",
+  outcomeLost: "丢单",
+  record: "写复盘",
+  reasonLabel: "主要原因",
+  competitorLabel: "竞争对手",
+  lessonsLabel: "经验",
+  save: "保存",
+  cancel: "取消",
+  saved: "已记录",
+  emptyTitle: "没有待复盘的商机",
+  emptyDescription: "商机关闭后会出现在这里，直到复盘写完。",
+} as const;
+
+export const WINLOSS_REASON_LABEL: Record<string, string> = {
+  price: "价格",
+  fit: "方案匹配度",
+  timing: "时机",
+  competitor: "竞争对手",
+  no_decision: "客户未决策",
+  other: "其他",
+};
+
 export const PREVIEW_TEXT = {
   eyebrow: "离线预览",
   title: "yucer 产品界面预览",

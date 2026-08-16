@@ -39,6 +39,32 @@ export interface OpportunityRecord {
   currency: string;
 }
 
+export const WIN_LOSS_REASONS = ["price", "fit", "timing", "competitor", "no_decision", "other"] as const;
+export type WinLossReason = (typeof WIN_LOSS_REASONS)[number];
+
+/**
+ * The learning loop. One review per opportunity (unique on opportunity_id), so
+ * re-closing a deal updates the existing review rather than adding a second.
+ */
+export interface WinLossReviewRecord {
+  id: string;
+  opportunityId: string;
+  outcome: "won" | "lost";
+  primaryReason: WinLossReason | null;
+  competitor: string | null;
+  lessons: string | null;
+  reviewerSub: string | null;
+  reviewedAt: Date;
+}
+
+export interface NewWinLossReview {
+  outcome: "won" | "lost";
+  primaryReason: WinLossReason | null;
+  competitor?: string | null;
+  lessons?: string | null;
+  reviewerSub: string;
+}
+
 export interface StageEventRecord {
   id: string;
   opportunityId: string;
@@ -99,6 +125,18 @@ export interface PipelineStore {
     workspaceId: string,
     query: { period: string; scopeType?: ScopeType },
   ): Promise<SnapshotRow[]>;
+
+  getWinLossReview(workspaceId: string, opportunityId: string): Promise<WinLossReviewRecord | null>;
+  /** Upsert on opportunity_id. A re-closed deal revises its review; it does not
+   * accumulate several, and the unique index would reject one anyway. */
+  saveWinLossReview(
+    workspaceId: string,
+    opportunityId: string,
+    review: NewWinLossReview,
+  ): Promise<WinLossReviewRecord>;
+  /** Closed deals with no review yet - the outstanding learning debt. A rule
+   * that says "must" without a way to see what is outstanding is unenforceable. */
+  listUnreviewedClosed(workspaceId: string, limit?: number): Promise<OpportunityRecord[]>;
 }
 
 /** In-memory implementation for the offline path and for tests. */
@@ -106,6 +144,7 @@ export class InMemoryPipelineStore implements PipelineStore {
   private opportunities = new Map<string, OpportunityRecord>();
   private events: StageEventRecord[] = [];
   private snapshots: Array<SnapshotRow & { workspaceId: string }> = [];
+  private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private seq = 0;
 
   seed(records: OpportunityRecord[]): void {
@@ -184,6 +223,47 @@ export class InMemoryPipelineStore implements PipelineStore {
 
   async appendForecastSnapshot(workspaceId: string, row: SnapshotRow): Promise<void> {
     this.snapshots.push({ ...row, workspaceId });
+  }
+
+  async getWinLossReview(
+    workspaceId: string,
+    opportunityId: string,
+  ): Promise<WinLossReviewRecord | null> {
+    const r = this.reviews.get(opportunityId);
+    return r && r.workspaceId === workspaceId ? { ...r } : null;
+  }
+
+  async saveWinLossReview(
+    workspaceId: string,
+    opportunityId: string,
+    review: NewWinLossReview,
+  ): Promise<WinLossReviewRecord> {
+    const existing = this.reviews.get(opportunityId);
+    const record: WinLossReviewRecord & { workspaceId: string } = {
+      id: existing?.id ?? `wlr_${++this.seq}`,
+      workspaceId,
+      opportunityId,
+      outcome: review.outcome,
+      primaryReason: review.primaryReason,
+      competitor: review.competitor ?? null,
+      lessons: review.lessons ?? null,
+      reviewerSub: review.reviewerSub,
+      reviewedAt: new Date(),
+    };
+    this.reviews.set(opportunityId, record);
+    return record;
+  }
+
+  async listUnreviewedClosed(workspaceId: string, limit = 50): Promise<OpportunityRecord[]> {
+    return [...this.opportunities.values()]
+      .filter(
+        (o) =>
+          o.workspaceId === workspaceId &&
+          (o.status === "won" || o.status === "lost") &&
+          !this.reviews.has(o.id),
+      )
+      .sort((a, b) => (b.closedAt?.getTime() ?? 0) - (a.closedAt?.getTime() ?? 0))
+      .slice(0, limit);
   }
 
   async listForecastSnapshots(
