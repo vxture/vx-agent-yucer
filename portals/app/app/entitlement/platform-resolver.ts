@@ -15,18 +15,38 @@ interface Entry {
   expiresAt: number;
 }
 
+/**
+ * Injected so the failure path is assertable.
+ *
+ * This class turns a platform OUTAGE into an ACCESS DECISION, which makes
+ * "what happens when the call fails" the most important thing about it - and
+ * with a hardcoded fetch and clock there was no way to write that assertion.
+ */
+export interface PlatformResolverDeps {
+  fetchImpl?: typeof fetchEntitlement;
+  now?: () => number;
+}
+
 export class PlatformEntitlementResolver implements EntitlementResolver {
   private cache = new Map<string, Entry>();
+  private readonly fetchImpl: typeof fetchEntitlement;
+  private readonly now: () => number;
 
-  constructor(private readonly cfg: PlatformClientConfig) {}
+  constructor(
+    private readonly cfg: PlatformClientConfig,
+    deps: PlatformResolverDeps = {},
+  ) {
+    this.fetchImpl = deps.fetchImpl ?? fetchEntitlement;
+    this.now = deps.now ?? Date.now;
+  }
 
   async resolve(workspaceId: string): Promise<Entitlement> {
-    const now = Date.now();
+    const now = this.now();
     const hit = this.cache.get(workspaceId);
     if (hit && hit.expiresAt > now) return hit.value;
 
     try {
-      const value = await fetchEntitlement(this.cfg, workspaceId);
+      const value = await this.fetchImpl(this.cfg, workspaceId);
       this.cache.set(workspaceId, { value, expiresAt: now + TTL_MS });
       return value;
     } catch {

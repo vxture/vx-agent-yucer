@@ -107,7 +107,14 @@ function cacheKey(req: S2SRequest): string {
   // The subject token is part of the identity of an OBO ticket, but must not be
   // stored in a key; its tail is enough to separate two members' tickets.
   const subject = req.mode === "obo" ? (req.subjectToken ?? "").slice(-24) : "";
-  return [req.audience, req.mode, req.tenantId, req.workspaceId, subject].join("|");
+
+  // JSON, not join("|"). A delimiter that can occur inside a field makes the key
+  // non-injective: tenant "a|b" + workspace "c" and tenant "a" + workspace "b|c"
+  // produce the same string, and a collision here hands one workspace's
+  // credential to another. Platform ids are UUIDs today, so this is unreachable
+  // in practice - and it costs nothing to make it unreachable by construction
+  // rather than by assumption about someone else's id format.
+  return JSON.stringify([req.audience, req.mode, req.tenantId, req.workspaceId, subject]);
 }
 
 export function resetS2SCache(): void {
