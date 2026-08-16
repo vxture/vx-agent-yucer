@@ -168,3 +168,11 @@ GRANT UPDATE (status, decided_by_sub, decided_at, executed_at, updated_at)
 REVOKE UPDATE ON yucer_agent.agent_playbook FROM yucer_svc;
 GRANT UPDATE (name, trigger, content, version, status, updated_at)
   ON yucer_agent.agent_playbook TO yucer_svc;
+
+-- yucer_field (interaction, interaction_participant, commitment) is NOT locked
+-- here. Its locks live in incr/0004_field_evidence.sql alongside the CREATE
+-- TABLE, because db-init applies 97 and 98 BEFORE incr/*, so a lock written in
+-- this file would run against tables that do not exist yet.
+--
+-- The rule for any future increment that creates a table: carry its own grants
+-- and its own locks. check-incr-grants.mjs enforces the grants half.

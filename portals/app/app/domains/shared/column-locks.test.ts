@@ -54,7 +54,18 @@ function ddlGrants(): Map<string, string[]> {
       .split(",")
       .map((c) => c.trim())
       .filter(Boolean);
-    out.set(m[2], cols);
+    // UNION, not overwrite. Postgres accumulates grants: two GRANT UPDATE
+    // statements on one table leave the service role able to write BOTH column
+    // sets. Overwriting here would make the mirror check compare against only
+    // the last statement, so an increment adding a second grant to a table
+    // already granted in 98 would either pass while the mirror was missing
+    // columns, or demand the mirror DISAGREE with the database to stay green.
+    //
+    // No table has two grants today, so this is a trap rather than a live
+    // defect - but incr/0004 already proved increments carry their own grants,
+    // and the first one that extends an existing table springs it.
+    const prior = out.get(m[2]) ?? [];
+    out.set(m[2], [...prior, ...cols.filter((c) => !prior.includes(c))]);
   }
   return out;
 }
