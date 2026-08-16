@@ -4,7 +4,14 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryCopilotStore } from "./store";
-import { adjudicate, execute, listProposals, recordProposals, type CopilotContext } from "./service";
+import {
+  adjudicate,
+  execute,
+  listPlaybooks,
+  listProposals,
+  recordProposals,
+  type CopilotContext,
+} from "./service";
 import type { AgentAction } from "./lib/action";
 
 const WS = "ws_1";
@@ -229,4 +236,41 @@ test("listing proposals is gated on reading the copilot surface", async () => {
   store.seedProposals(WS, [proposal("a")]);
   assert.equal(unwrap(await listProposals(ctx("viewer", "free", store))).length, 1);
   assert.equal((await listProposals(ctx("viewer", null, store))).ok, false);
+});
+
+test("reading the plays the agent is grounded on takes the same gate as using it", async () => {
+  // Grounding injects workspace-authored text into every matching turn. If
+  // reading the catalog needed a privilege that asking a question does not,
+  // most of the people receiving those answers could never see what produced
+  // them - which is how an assistant becomes unaccountable.
+  const store = new InMemoryCopilotStore();
+  store.seedPlaybooks(WS, [
+    {
+      id: "pb_1",
+      playbookCode: "PB-Q",
+      name: "Qualification",
+      scopeDomain: "pipeline",
+      content: "Budget, authority, need, timeline.",
+      version: 1,
+      status: "active",
+    },
+  ]);
+  assert.equal(unwrap(await listPlaybooks(ctx("viewer", "free", store))).length, 1);
+  assert.equal((await listPlaybooks(ctx("viewer", null, store))).ok, false, "no entitlement, no catalog");
+});
+
+test("the catalog never leaks another workspace's plays", async () => {
+  const store = new InMemoryCopilotStore();
+  store.seedPlaybooks("ws_other", [
+    {
+      id: "pb_x",
+      playbookCode: "PB-X",
+      name: "Someone else's",
+      scopeDomain: "copilot",
+      content: "OTHER",
+      version: 1,
+      status: "active",
+    },
+  ]);
+  assert.deepEqual(unwrap(await listPlaybooks(ctx("viewer", "free", store))), []);
 });

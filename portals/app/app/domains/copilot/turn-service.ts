@@ -28,7 +28,8 @@ import { denied } from "../pipeline/service";
 import { recordProposals, type CopilotContext } from "./service";
 import { TASK_ID_MAX_LENGTH } from "../../agent/runos/types";
 import type { AgentAction, SubjectType } from "./lib/action";
-import type { SessionRecord } from "./store";
+import type { PlaybookScope, SessionRecord } from "./store";
+import type { PlaybookGrounding } from "../../agent/orchestrator/prompt";
 
 export interface TurnInput {
   question: string;
@@ -93,10 +94,13 @@ export async function runCopilotTurn(
 
   const history = await ctx.store.listMessages(ctx.workspaceId, session.id);
 
+  const playbooks = await selectPlaybooks(ctx, input.subject?.type);
+
   const prompt: PromptContext = {
     productName: "Yucer",
     permissions: [...ctx.holder.permissions],
     features: featureKeysOf(ctx.entitlement),
+    playbooks,
     subject: input.subject
       ? { type: input.subject.type, id: input.subject.id, summary: input.subject.summary }
       : undefined,
@@ -185,6 +189,59 @@ export async function runCopilotTurn(
  * line. Read off the matrix rather than re-derived - the product never invents a
  * commercial conclusion.
  */
+/**
+ * Which plays ground this turn.
+ *
+ * Two constraints, both of which cost real money if ignored:
+ *
+ *   1. BOUNDED. Every playbook goes into the prompt of every turn it grounds,
+ *      and prompt tokens are metered by Atlas. An unbounded catalog would make
+ *      each question progressively more expensive as the workspace writes more
+ *      plays - a cost that grows with adoption is the wrong shape.
+ *   2. ACTIVE ONLY. A draft is someone thinking out loud and a retired play is
+ *      advice the workspace has decided against. Grounding on either would have
+ *      the agent quoting guidance nobody stands behind.
+ *
+ * Selection follows the session's subject: a conversation anchored to an
+ * opportunity gets the pipeline plays. With no subject the copilot plays are
+ * used, which is the domain that cuts across the other seven.
+ */
+export const MAX_PLAYBOOKS = 3;
+
+const SUBJECT_TO_SCOPE: Record<string, PlaybookScope> = {
+  account: "account",
+  lead: "signal",
+  opportunity: "pipeline",
+  project: "delivery",
+  campaign: "campaign",
+  plan: "strategy",
+};
+
+async function selectPlaybooks(
+  ctx: CopilotContext,
+  subjectType: string | undefined,
+): Promise<PlaybookGrounding[]> {
+  const scope = subjectType ? SUBJECT_TO_SCOPE[subjectType] : undefined;
+  try {
+    const rows = await ctx.store.listPlaybooks(ctx.workspaceId, {
+      scopeDomain: scope ?? "copilot",
+      activeOnly: true,
+      limit: MAX_PLAYBOOKS,
+    });
+    return rows.map((p) => ({
+      playbookCode: p.playbookCode,
+      name: p.name,
+      scopeDomain: p.scopeDomain,
+      content: p.content,
+    }));
+  } catch {
+    // Grounding is an enhancement, not a precondition. A copilot that refuses
+    // to answer because its play catalog is unreachable is worse than one that
+    // answers without it.
+    return [];
+  }
+}
+
 function featureKeysOf(entitlement: Entitlement): string[] {
   if (entitlement.tier == null) return [];
   return [...CAPABILITY_MATRIX[entitlement.tier]];

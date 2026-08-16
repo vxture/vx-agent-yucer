@@ -3,6 +3,9 @@ import { assertWritable } from "../shared/column-locks";
 import type { ActionPatch, ActionStatus, AgentAction, SubjectType } from "./lib/action";
 import type {
   CopilotStore,
+  PlaybookFilter,
+  PlaybookRecord,
+  PlaybookScope,
   MessageRecord,
   NewProposal,
   ProposalFilter,
@@ -161,6 +164,22 @@ export class PrismaCopilotStore implements CopilotStore {
     return row ? toAction(row as Record<string, unknown>) : null;
   }
 
+  async listPlaybooks(workspaceId: string, filter: PlaybookFilter = {}): Promise<PlaybookRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.agentPlaybook.findMany({
+      where: {
+        workspaceId,
+        ...(filter.scopeDomain ? { scopeDomain: filter.scopeDomain } : {}),
+        ...(filter.activeOnly === false ? {} : { status: "active" }),
+      },
+      // Newest version first: a play that was revised should ground on its
+      // current text, not on whichever row the database happened to return.
+      orderBy: [{ version: "desc" }, { playbookCode: "asc" }],
+      ...(filter.limit ? { take: filter.limit } : {}),
+    });
+    return rows.map((r: Record<string, unknown>) => toPlaybook(r));
+  }
+
   async applyDecision(
     workspaceId: string,
     decisions: readonly { id: string; patch: ActionPatch; from: readonly ActionStatus[] }[],
@@ -193,6 +212,18 @@ export class PrismaCopilotStore implements CopilotStore {
     }
     return moved;
   }
+}
+
+function toPlaybook(r: Record<string, unknown>): PlaybookRecord {
+  return {
+    id: String(r.id),
+    playbookCode: String(r.playbookCode),
+    name: String(r.name),
+    scopeDomain: r.scopeDomain as PlaybookScope,
+    content: String(r.content),
+    version: Number(r.version),
+    status: String(r.status),
+  };
 }
 
 function toSession(r: Record<string, unknown>): SessionRecord {

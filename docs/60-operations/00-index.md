@@ -57,18 +57,26 @@ here. This register restarts its numbering for `yucer`.
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 
-`CLAUDE.md`「Repository hygiene」要求 source 文件 ASCII-only。
-`portals/app/app/(app)/lib/messages.ts` **违反这一条**：它包含中文界面文案。
+`CLAUDE.md`「Repository hygiene」要求 source 文件 ASCII-only。下列文件**违反这一条**，
+它们包含中文文本：
+
+| 文件 | 内容 | 加入时间 |
+|------|------|----------|
+| `portals/app/app/(app)/lib/messages.ts` | 全部界面文案 | 2026-08-15 |
+| `portals/app/app/domains/shared/demo-fixtures.ts` | 演示数据的展示文本（客户名、商机名、剧本正文） | 2026-08-15 |
 
 **为什么存在**：yucer 的主市场是中国企业销售组织（`brand.ts` 的
 `defaultLocale: "zh-CN"`，全部产品规格以中文撰写）。界面文案不可能既是 ASCII 又是
-这个产品该有的样子。
+这个产品该有的样子。演示数据同理：一份用拼音或英文假名填充的销售数据，无法向目标
+用户演示这个产品，也无法被评审。
 
-**已做的收敛**：全部面向用户的字符串集中在这**一个**文件里。因此：
+**已做的收敛**：全部非 ASCII 文本集中在这**两个**文件里，且两者都只含数据、不含逻辑。
+因此：
 
-- `app/` 下**有且仅有一个** source 文件含非 ASCII，可用一行命令机器校验；
-- 规则层、门控层、客户端、组件、视图映射**全部保持 ASCII**；
-- 将来替换只是换一处 import，不需要重写组件。
+- `app/` 下含非 ASCII 的 source 文件**可穷举**，可用一行命令机器校验；
+- 规则层、门控层、客户端、组件、视图映射、演示数据的**装配逻辑**全部保持 ASCII
+  （`demo-seed.ts` 只引用 `demo-fixtures.ts` 的导出，自身不含中文）；
+- 将来替换只是换一处 import，不需要重写组件或重写种子数据的结构。
 
 **为什么没有就地"修掉"**：可以把文案改成 JSON + `\uXXXX` 转义，那样 100% ASCII 且
 仍渲染中文——但那份文案将无法被人类阅读和维护。用一份不可维护的文案换一条规则的
@@ -80,4 +88,5 @@ here. This register restarts its numbering for `yucer`.
 2. 引入正式 i18n 方案，文案移出 source 树（例如运行时加载的 locale 资源）。
 
 `CLAUDE.md` 明确规定「标准的缺口先在平台仓修，不得在产品仓内自造标准」，所以这里
-**只登记，不裁定**。在裁定之前，收敛状态维持不变。
+**只登记，不裁定**。在裁定之前，收敛状态维持不变：新增中文文本只能进入上表已列出的
+文件，不得散落到第三处。
