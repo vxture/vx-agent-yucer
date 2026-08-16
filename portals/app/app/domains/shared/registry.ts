@@ -189,6 +189,7 @@ export function ensureDemoData(workspaceId: string): boolean {
     strategy: getStrategyStore(),
     planning: getPlanningStore(),
     account: getAccountStore(),
+    field: getFieldStore(),
     signal: getSignalStore(),
     pipeline: getPipelineStore(),
     delivery: getDeliveryStore(),

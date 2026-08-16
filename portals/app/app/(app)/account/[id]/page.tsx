@@ -2,12 +2,18 @@ import { EmptyState, PageHeader, PageStack, StatusBadge } from "@vxture/design-s
 import { resolveAppSession } from "../../lib/session";
 import { ACCOUNT_STATUS_LABEL, SHELL_TEXT } from "../../lib/messages";
 import { can } from "../../../authz/decide";
-import { getAccountStore } from "../../../domains/shared/registry";
+import { getAccountStore, getFieldStore } from "../../../domains/shared/registry";
 import { decisionChain, getAccountDetail, recomputeHealth } from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
+import { InteractionTimeline } from "../../components/interaction-timeline";
+import { CommitmentList } from "../../components/commitment-list";
+import { RecordFollowUp } from "../../components/record-follow-up";
+import { listCommitments, listInteractions } from "../../../domains/account/field-service";
+import { CHANNEL_LABEL } from "../../lib/messages";
 import { linkAccountContacts, recomputeAccountHealth } from "../actions";
+import { addCommitment, recordFollowUp, settleCommitment } from "../field-actions";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -49,6 +55,12 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   const canWrite = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
 
+  const fieldCtx = { ...ctx, store: getFieldStore() };
+  const [interactions, commitments] = await Promise.all([
+    listInteractions(fieldCtx, { accountId: id, limit: 50 }),
+    listCommitments(fieldCtx, { accountId: id }),
+  ]);
+
   const [health, chain] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
     // read-only member gets no panel rather than a silently failing one.
@@ -78,6 +90,32 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           onRecompute={recomputeAccountHealth}
         />
       ) : null}
+
+      {/* Capture first, above everything derived. The page a rep opens after a
+          meeting should let them dump it before it asks them to read anything. */}
+      <RecordFollowUp
+        accountId={id}
+        canRecord={canWrite}
+        onRecord={recordFollowUp}
+      />
+
+      {commitments.ok ? (
+        <CommitmentList
+          accountId={id}
+          items={commitments.value}
+          // Only real interactions can close a promise, so the picker is
+          // literally the evidence requirement made visible.
+          evidence={(interactions.ok ? interactions.value : []).map((i) => ({
+            id: i.id,
+            label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+          }))}
+          canWrite={canWrite}
+          onCreate={addCommitment}
+          onSettle={settleCommitment}
+        />
+      ) : null}
+
+      {interactions.ok ? <InteractionTimeline items={interactions.value} /> : null}
 
       {chain.ok ? (
         <DecisionChain
