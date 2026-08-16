@@ -102,11 +102,49 @@ Structure changes ship as numbered idempotent increments under `ddl/incr/`,
 applied by the `db-init` workflow - never by editing the baseline, never by the
 container entrypoint, and never through Prisma migrate.
 
-## Build plan
+## What runs today
 
-Batch tracker: `docs/70-workplan/00-index.md`. Batch 1 (this framework) delivers
-structure - specs, domain design, data model, capability matrix and role catalog.
-Domain services (batch 2) and product UI (batch 3) are explicit blank slots.
+Batches 1-3 are delivered. Batch tracker: `docs/70-workplan/00-index.md`.
+
+```
+portals/app/app/
+  (app)/            eight domain pages, the copilot conversation and the
+                    proposal queue. Server components resolve session ->
+                    entitlement -> permission; the client receives conclusions,
+                    never the inputs to compute them.
+  authz/            the permission gate. catalog.ts is a typed mirror of the
+                    seeded role/permission catalog, held in lockstep by a test
+                    that parses the seed SQL.
+  agent/atlas/      the model plane - the only LLM exit. Routes by endpointCode.
+  agent/runos/      the capability plane - four MCP tools. Skills are
+                    distributed, never executed by the gateway.
+  agent/orchestrator/  one copilot turn: model + tools -> agent_action proposals.
+  domains/<d>/      rules (pure), service (both gates), store (port +
+                    in-memory + Prisma). All eight domains.
+```
+
+609 unit tests. The five required CI checks are green.
+
+### Three things enforced by machine rather than by convention
+
+1. **The permission catalog cannot drift from the database.** `catalog.test.ts`
+   parses `incr/0001_seed_authz_catalog.sql` and asserts 19 permissions, 7 roles
+   and 67 grants match in both directions.
+2. **A write cannot touch a locked column.** `column-locks.ts` mirrors
+   `98_column_locks.sql`, its test parses the DDL for parity, and every Prisma
+   adapter checks a patch before it reaches the driver - so an illegal write
+   fails with a named violation at the call site rather than as
+   `permission denied for column ...` in production.
+3. **A navigation entry cannot point at a route that does not exist.**
+   `routes.test.ts` asserts every nav href has a page behind it.
+
+### Seeing it without a platform
+
+- `/product-preview` - the surfaces with fixtures, no session required. Role and
+  tier pickers show both gates behaving side by side.
+- `YUCER_DEMO_DATA=on` (offline only, refused when `DATABASE_URL` is set) seeds
+  one complete traceable chain: strategy -> campaign -> signal -> lead ->
+  opportunity -> project -> revenue.
 
 ## Working agreement
 
