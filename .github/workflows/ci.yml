@@ -171,3 +171,82 @@ jobs:
 
       - name: Run tests
         run: pnpm --filter @yucer/app test
+
+  # -- DB contract (NOT a required check): the DDL against a real Postgres.
+  #
+  # Every other job proves TypeScript. A UNIQUE index, a CHECK, a REVOKE and a
+  # NULL comparison are properties of the database and of nothing else, so the
+  # defects that live there were invisible to a fully green suite - including one
+  # where a constraint the design leans on did not hold at all.
+  #
+  # Deliberately NOT in the required five (quality-gate / build / test-coverage /
+  # audit / gitleaks). Adding a required check edits the branch-protection
+  # ruleset, which is an owner decision; this runs and reports without gating.
+  db-contract:
+    name: db-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        # Ephemeral, per-job, thrown away at the end. The password is not a
+        # secret: it never leaves the runner and the container is unreachable
+        # from outside it.
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: vxturebiz_yucer_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable corepack (pnpm from packageManager)
+        run: corepack enable
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+      - name: Apply the DDL, in the order db-init.yml applies it
+        # Same sequence as .github/workflows/db-init.yml: the three-part baseline
+        # then incr/ in name order. If these two ever disagree, this lane stops
+        # testing what actually ships - so the order is copied deliberately and
+        # db-init.yml remains the authority.
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=ci
+          run() { psql -h localhost -U postgres -d vxturebiz_yucer_ci -v ON_ERROR_STOP=1 "$@"; }
+          for f in 00_baseline.sql 97_service_role.sql 98_column_locks.sql; do
+            echo "[db-contract] applying $f"
+            run -f "deploy/database/ddl/$f"
+          done
+          for f in deploy/database/ddl/incr/*.sql; do
+            echo "[db-contract] applying incr $(basename "$f")"
+            run -f "$f"
+          done
+
+      - name: Run the DB-backed tests
+        # ONLY the *.db.test.ts files, not the whole suite. DATABASE_URL flips
+        # prismaEnabled(), so the shared registry would hand Prisma stores to
+        # tests written against the in-memory ones - a green run here would then
+        # mean something different from a green run in test-coverage.
+        #
+        # The same files self-skip in the ordinary suite, so they stay visible
+        # (as skipped) to anyone running pnpm test on a laptop.
+        run: pnpm --filter @yucer/app test:db
+        env:
+          DATABASE_URL: postgresql://postgres:ci@localhost:5432/vxturebiz_yucer_ci
