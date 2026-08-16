@@ -5,16 +5,28 @@
  * The DDL under deploy/database/ddl/ is the single structure authority
  * (product_240 section 2.4 E); the Prisma schema is only a client-generation
  * source and MUST stay in lockstep. This asserts that the set of tables declared
- * in the baseline DDL equals the set of Prisma models (matched by @@schema +
- * @@map). Any drift fails under --strict (CI).
+ * in the DDL equals the set of Prisma models (matched by @@schema + @@map).
+ * Any drift fails under --strict (CI).
+ *
+ * THE DDL IS THE BASELINE *PLUS* EVERY INCREMENT. It used to read only
+ * 00_baseline.sql, which was wrong the moment an increment created a table:
+ * incr/README.md states that the baseline is create-once and increments are the
+ * only legal way to add one, so the guardrail was forbidding the only permitted
+ * path and would have reported the increment as Prisma drift.
+ *
+ * This is a bug in the guardrail, not a gap in the standard - the standard
+ * already says increments carry structure. Fixing it here is therefore in
+ * scope; inventing a rule would not be.
  *
  * Pure node, zero dependencies.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 const DDL = "deploy/database/ddl/00_baseline.sql";
+const INCR_DIR = "deploy/database/ddl/incr";
 const PRISMA = "portals/app/prisma/schema.prisma";
 const STRICT = process.argv.includes("--strict");
 
@@ -47,7 +59,13 @@ function diff(a, b) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   let ddl, prisma;
   try {
-    ddl = ddlTables(readFileSync(DDL, "utf8"));
+    // Baseline first, then every increment in name order - the same order
+    // db-init.yml applies them in.
+    let sql = readFileSync(DDL, "utf8");
+    for (const f of readdirSync(INCR_DIR).filter((x) => x.endsWith(".sql")).sort()) {
+      sql += "\n" + readFileSync(join(INCR_DIR, f), "utf8");
+    }
+    ddl = ddlTables(sql);
     prisma = prismaTables(readFileSync(PRISMA, "utf8"));
   } catch (e) {
     console.log(`[data-architecture] skip: ${e.message}`);

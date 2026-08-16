@@ -6,8 +6,29 @@ workflow - never by editing `00_baseline.sql` (which is create-once) and never b
 the container entrypoint.
 
 Each increment must be idempotent: `ADD COLUMN IF NOT EXISTS`,
-`CREATE TABLE IF NOT EXISTS`, etc. Adding a writable column also requires updating
-`../98_column_locks.sql`, or the service-role write fails with permission denied.
+`CREATE TABLE IF NOT EXISTS`, etc. Adding a writable column to an EXISTING table
+also requires updating `../98_column_locks.sql`, or the service-role write fails
+with permission denied.
+
+## An increment that CREATES a table carries its own grants
+
+db-init applies `00_baseline.sql` -> `97_service_role.sql` -> `98_column_locks.sql`
+-> `incr/*.sql`, in that order. Two consequences, both silent, both fatal, and
+neither has fired yet only because no increment has ever created a table:
+
+1. **`97` cannot grant on it.** That file uses `GRANT ... ON ALL TABLES IN SCHEMA`,
+   which Postgres evaluates AT GRANT TIME, and there is no `ALTER DEFAULT
+   PRIVILEGES` anywhere in this repo. A table created afterwards has NO
+   privileges for the service role - not "writes fail", nothing works - and it
+   fails at runtime against a database that applied cleanly.
+2. **`98` cannot lock it.** Its `REVOKE` would run against a table that does not
+   exist yet, and db-init dies on the spot.
+
+So an increment that creates a table MUST also, in the same file, `GRANT` the
+service role its SELECT/INSERT/DELETE and `REVOKE`/`GRANT` its column-level
+UPDATE whitelist. `scripts/guardrails/check-incr-grants.mjs` enforces the first
+half in CI; put a mirrored comment in `../98_column_locks.sql` pointing at the
+increment so the whitelist stays discoverable from one place.
 
 ## Applied increments
 
