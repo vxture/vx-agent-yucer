@@ -233,6 +233,7 @@ export class RunosClient {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+    (timer as { unref?: () => void }).unref?.();
     let res: Response;
     try {
       res = await this.fetchImpl(`${this.cfg.baseUrl}${this.cfg.mcpPath}`, {
@@ -246,15 +247,18 @@ export class RunosClient {
         signal: controller.signal,
       });
     } catch (e) {
+      clearTimeout(timer);
       throw new RunosError({
         errorClass: "gateway_timeout",
         errorCode: "provider_unavailable",
         message: `runos unreachable: ${String(e)}`,
         retryable: true,
       });
-    } finally {
-      clearTimeout(timer);
     }
+    // Deliberately NOT cleared here. The response resolves on HEADERS, and the
+    // JSON-RPC body is read below - clearing now would leave that read
+    // unbounded, so a gateway that answers and then stalls would hang the tool
+    // call forever. Firing after the body is consumed is a no-op.
 
     // Layer 1: protocol / authentication. The call was never accepted.
     if (!res.ok) throw transportError(res.status, await safeJson(res));
