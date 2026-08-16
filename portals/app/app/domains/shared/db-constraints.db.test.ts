@@ -1,0 +1,254 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { Client } from "pg";
+
+// The DDL, tested against a real Postgres.
+//
+// Everything else in this suite runs against the in-memory adapters, which
+// cannot model a constraint: a UNIQUE index, a CHECK, a REVOKE and a NULL
+// comparison are all properties of the database and of nothing else. So the
+// defects that live there were invisible to 780-odd passing tests - including
+// one where a constraint the design leans on does not hold at all.
+//
+// SELF-SKIPPING. With no DATABASE_URL these report as skipped rather than
+// failing, so `pnpm test` stays runnable on a laptop with no Postgres. The CI
+// lane (ci.yml, job `db-contract`) sets it, applies the real DDL in the same
+// order db-init.yml does, and runs them for real.
+
+const DATABASE_URL = process.env.DATABASE_URL;
+const skip = DATABASE_URL ? false : "no DATABASE_URL - see ci.yml job db-contract";
+
+/** One connection per test, closed on the way out even when the test throws. */
+async function withDb<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const client = new Client({ connectionString: DATABASE_URL });
+  await client.connect();
+  try {
+    return await fn(client);
+  } finally {
+    await client.end();
+  }
+}
+
+const WS = "11111111-1111-1111-1111-111111111111";
+
+// --- The lane itself works -------------------------------------------------
+
+test("the DDL applied: every contract and domain schema exists", { skip }, async () => {
+  await withDb(async (c) => {
+    const { rows } = await c.query<{ nspname: string }>(
+      `SELECT nspname FROM pg_namespace WHERE nspname = ANY($1) ORDER BY 1`,
+      [
+        [
+          "vx_provision",
+          "local_authz",
+          "local_usage",
+          "yucer_core",
+          "yucer_gtm",
+          "yucer_pipeline",
+          "yucer_delivery",
+          "yucer_agent",
+        ],
+      ],
+    );
+    assert.equal(rows.length, 8, `missing schemas: ${JSON.stringify(rows.map((r) => r.nspname))}`);
+  });
+});
+
+test("the data-architecture count is a real table count, not a parse", { skip }, async () => {
+  // The offline guardrail counts 34 tables by parsing SQL text. This asserts the
+  // same number against the database that actually got built.
+  await withDb(async (c) => {
+    const { rows } = await c.query<{ n: string }>(
+      `SELECT count(*)::text AS n FROM information_schema.tables
+       WHERE table_schema IN ('vx_provision','local_authz','local_usage',
+                              'yucer_core','yucer_gtm','yucer_pipeline',
+                              'yucer_delivery','yucer_agent')
+         AND table_type = 'BASE TABLE'`,
+    );
+    assert.equal(Number(rows[0].n), 34);
+  });
+});
+
+test("the service role exists and holds no blanket UPDATE", { skip }, async () => {
+  // 98_column_locks.sql revokes UPDATE and re-grants it column by column. If the
+  // lock file had not applied, a table-level UPDATE privilege would remain and
+  // every column-lock guarantee in the codebase would be decoration.
+  await withDb(async (c) => {
+    const { rows: role } = await c.query(`SELECT 1 FROM pg_roles WHERE rolname = 'yucer_svc'`);
+    assert.equal(role.length, 1, "yucer_svc was not created");
+
+    const { rows } = await c.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.table_privileges
+       WHERE grantee = 'yucer_svc' AND privilege_type = 'UPDATE'
+         AND table_schema LIKE 'yucer_%'`,
+    );
+    assert.deepEqual(rows, [], "a table-level UPDATE grant survives the column locks");
+  });
+});
+
+test("append-only tables have no UPDATE at any level", { skip }, async () => {
+  // The whole "a correction is a new row" design rests on this being true in the
+  // database rather than observed by convention in the adapters.
+  await withDb(async (c) => {
+    for (const [schema, table] of [
+      ["yucer_core", "account_relation"],
+      ["yucer_pipeline", "opportunity_stage_event"],
+      ["yucer_pipeline", "forecast_snapshot"],
+      ["yucer_agent", "agent_message"],
+    ]) {
+      const { rows } = await c.query<{ column_name: string }>(
+        `SELECT column_name FROM information_schema.column_privileges
+         WHERE grantee = 'yucer_svc' AND privilege_type = 'UPDATE'
+           AND table_schema = $1 AND table_name = $2`,
+        [schema, table],
+      );
+      assert.deepEqual(rows, [], `${schema}.${table} has an UPDATE grant but is append-only`);
+    }
+  });
+});
+
+// --- Constraints the design leans on ---------------------------------------
+
+test("the CHECK constraints are live, not decoration", { skip }, async () => {
+  // Proves the column CHECKs actually apply, which is what makes the TS unions
+  // a convenience rather than the only thing standing between a typo and the
+  // table.
+  //
+  // sales_target is chosen deliberately: its only FKs are nullable, so the
+  // insert cannot trip a foreign key first and this does not depend on the
+  // order Postgres evaluates constraints in.
+  await withDb(async (c) => {
+    await c.query("BEGIN");
+    try {
+      // Each expected failure gets its own SAVEPOINT. In Postgres the FIRST
+      // error aborts the whole transaction, and every later statement then
+      // fails with "current transaction is aborted" instead of the constraint
+      // that would have caught it - so without this, only the first assertion
+      // means anything and the rest silently assert the same generic error.
+      const rejectsWith = async (
+        scope: string,
+        metric: string,
+        amount: number,
+        expected: RegExp,
+      ) => {
+        await c.query("SAVEPOINT probe");
+        await assert.rejects(
+          () =>
+            c.query(
+              `INSERT INTO yucer_gtm.sales_target
+                 (workspace_id, period, scope_type, metric, target_amount, currency)
+               VALUES ($1, '2026Q3', $2, $3, $4, 'CNY')`,
+              [WS, scope, metric, amount],
+            ),
+          expected,
+        );
+        await c.query("ROLLBACK TO SAVEPOINT probe");
+      };
+
+      await rejectsWith("everyone", "revenue", 1, /chk_sales_target_scope/);
+      await rejectsWith("workspace", "vibes", 1, /chk_sales_target_metric/);
+      // A negative quota is not a small quota.
+      await rejectsWith("workspace", "revenue", -1, /chk_sales_target_amount/);
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  });
+});
+
+test("a scope tuple identifies at most one sales target, NULLs included", { skip }, async () => {
+  // uidx_sales_target_scope is documented as making the scope tuple a target's
+  // IDENTITY. Postgres UNIQUE treats NULLs as DISTINCT by default, and a
+  // WORKSPACE-scope target has NULL territory_id AND NULL owner_sub - so the
+  // constraint was inert for exactly the most important case and the same
+  // workspace target could be inserted any number of times.
+  //
+  // incr/0003 rebuilds both indexes as NULLS NOT DISTINCT.
+  await withDb(async (c) => {
+    await c.query("BEGIN");
+    try {
+      const insert = () =>
+        c.query(
+          `INSERT INTO yucer_gtm.sales_target
+             (workspace_id, period, scope_type, territory_id, owner_sub, metric, target_amount, currency)
+           VALUES ($1, '2026Q3', 'workspace', NULL, NULL, 'revenue', 1000, 'CNY')`,
+          [WS],
+        );
+      await insert();
+      await assert.rejects(insert, /uidx_sales_target_scope/, "the same workspace target twice");
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  });
+});
+
+test("a scope and instant identify at most one forecast snapshot", { skip }, async () => {
+  // Same defect, same fix. Snapshots are append-only and their uniqueness is
+  // what makes "one snapshot per scope per instant" true; without it a
+  // workspace-scope snapshot could be written twice for the same instant and
+  // forecast accuracy would read a number that exists twice.
+  await withDb(async (c) => {
+    await c.query("BEGIN");
+    try {
+      const at = "2026-08-16T00:00:00Z";
+      const insert = () =>
+        c.query(
+          `INSERT INTO yucer_pipeline.forecast_snapshot
+             (workspace_id, period, scope_type, territory_id, owner_sub, snapshot_at,
+              commit_amount, best_case_amount, pipeline_amount, closed_amount, currency)
+           VALUES ($1, '2026Q3', 'workspace', NULL, NULL, $2, 0, 0, 0, 0, 'CNY')`,
+          [WS, at],
+        );
+      await insert();
+      await assert.rejects(insert, /uidx_forecast_snapshot_scope_at/, "the same snapshot twice");
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  });
+});
+
+test("a territory-scope target still collides on its own tuple", { skip }, async () => {
+  // The NULLS fix must not weaken the non-NULL case it already handled.
+  await withDb(async (c) => {
+    await c.query("BEGIN");
+    try {
+      const terr = "33333333-3333-3333-3333-333333333333";
+      await c.query(
+        `INSERT INTO yucer_gtm.territory (id, workspace_id, territory_code, name, owner_sub, status)
+         VALUES ($1, $2, 'EAST', 'East', NULL, 'active')`,
+        [terr, WS],
+      );
+      const insert = () =>
+        c.query(
+          `INSERT INTO yucer_gtm.sales_target
+             (workspace_id, period, scope_type, territory_id, owner_sub, metric, target_amount, currency)
+           VALUES ($1, '2026Q3', 'territory', $2, NULL, 'revenue', 1000, 'CNY')`,
+          [WS, terr],
+        );
+      await insert();
+      await assert.rejects(insert, /uidx_sales_target_scope/);
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  });
+});
+
+test("two workspaces may hold the same scope tuple", { skip }, async () => {
+  // The tuple is scoped BY workspace, so tightening NULL handling must not turn
+  // two tenants' identical targets into a collision.
+  await withDb(async (c) => {
+    await c.query("BEGIN");
+    try {
+      const other = "44444444-4444-4444-4444-444444444444";
+      for (const ws of [WS, other]) {
+        await c.query(
+          `INSERT INTO yucer_gtm.sales_target
+             (workspace_id, period, scope_type, territory_id, owner_sub, metric, target_amount, currency)
+           VALUES ($1, '2026Q3', 'workspace', NULL, NULL, 'revenue', 1000, 'CNY')`,
+          [ws],
+        );
+      }
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  });
+});
