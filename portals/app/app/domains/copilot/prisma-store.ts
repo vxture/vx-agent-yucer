@@ -11,6 +11,7 @@ import type {
   ProposalFilter,
   SessionRecord,
 } from "./store";
+import { lockKey } from "../shared/allocate";
 
 // Prisma-backed CopilotStore over yucer_agent.
 //
@@ -79,10 +80,13 @@ export class PrismaCopilotStore implements CopilotStore {
     const session = await p.agentSession.findFirst({ where: { id: input.sessionId, workspaceId } });
     if (!session) throw new Error(`session ${input.sessionId} is not in workspace ${workspaceId}`);
 
-    // seq is allocated inside the transaction that inserts the row. Reading the
-    // max outside one lets two concurrent turns pick the same seq and collide on
-    // uidx_agent_message_session_seq.
+    // seq is serialised PER SESSION by an advisory lock. Reading the max inside
+    // a transaction is not enough on its own: READ COMMITTED lets two concurrent
+    // turns read the same max and both write max+1, colliding on
+    // uidx_agent_message_session_seq. Keyed on the session rather than the
+    // workspace so two members' conversations never wait on each other.
     return p.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("agent_message_seq")}::int, hashtext(${input.sessionId})::int)`;
       const last = await tx.agentMessage.findFirst({
         where: { sessionId: input.sessionId },
         orderBy: { seq: "desc" },

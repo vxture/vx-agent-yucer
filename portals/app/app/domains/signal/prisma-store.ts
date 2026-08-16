@@ -11,6 +11,7 @@ import type {
   SignalRecord,
   SignalStore,
 } from "./store";
+import { isUniqueViolation, lockKey } from "../shared/allocate";
 
 // Prisma-backed SignalStore over yucer_pipeline.
 //
@@ -45,10 +46,14 @@ export class PrismaSignalStore implements SignalStore {
         },
       });
       return toSignal(row as Record<string, unknown>);
-    } catch {
-      // uidx_signal_ws_source_ref. Already known; the caller reports it as a
-      // duplicate rather than a failure.
-      return null;
+    } catch (e) {
+      // ONLY the duplicate. A bare catch here reported every failure as "already
+      // known" - a foreign key to a missing account, a CHECK on an unknown
+      // signal type, a dropped connection - so a signal that was never stored
+      // came back as one that already existed, and the ingest path had no way to
+      // tell "seen before" from "broken".
+      if (isUniqueViolation(e)) return null; // uidx_signal_ws_source_ref
+      throw e;
     }
   }
 
@@ -99,9 +104,10 @@ export class PrismaSignalStore implements SignalStore {
 
   async createLead(workspaceId: string, lead: NewLead): Promise<LeadRecord> {
     const p = await getPrismaClient();
-    // lead_no is a human-facing immutable business number. Generated inside a
-    // transaction so two concurrent promotions cannot pick the same one.
+    // lead_no is a human-facing immutable business number. Serialised by an
+    // advisory lock, not merely by the transaction - see domains/shared/allocate.ts.
     return p.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("lead_no")}::int, hashtext(${workspaceId})::int)`;
       const count = await tx.lead.count({ where: { workspaceId } });
       const row = await tx.lead.create({
         data: {
