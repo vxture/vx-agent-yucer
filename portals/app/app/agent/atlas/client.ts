@@ -71,8 +71,7 @@ export class AtlasClient {
   /** Non-streaming chat, with per-code retry. */
   async chat(task: CopilotTask, req: Omit<ChatRequest, "stream">, ctx: AtlasContext): Promise<ChatResponse> {
     return this.withRetry(async () => {
-      const res = await this.post("/v1/chat", this.body(task, req, ctx, false), ctx);
-      const json = await this.json(res);
+      const { res, json } = await this.requestJson("POST", "/v1/chat", this.body(task, req, ctx, false), ctx);
       if (!res.ok) throw parseAtlasError(res.status, json);
       return json as ChatResponse;
     });
@@ -95,13 +94,22 @@ export class AtlasClient {
     req: Omit<ChatRequest, "stream">,
     ctx: AtlasContext,
   ): AsyncGenerator<StreamFrame, void, void> {
-    const res = await this.post("/v1/chat", this.body(task, req, ctx, true), ctx);
+    const { res, controller } = await this.postStreaming("/v1/chat", this.body(task, req, ctx, true), ctx);
     if (!res.ok) {
+      controller.abort();
       throw parseAtlasError(res.status, await this.json(res));
     }
-    if (!res.body) throw new AtlasError({ code: "EMPTY_STREAM", status: res.status, message: "atlas returned no stream body" });
+    if (!res.body) {
+      controller.abort();
+      throw new AtlasError({ code: "EMPTY_STREAM", status: res.status, message: "atlas returned no stream body" });
+    }
 
-    for await (const frame of parseSse(res.body)) {
+    // The controller is handed to parseSse, whose finally block aborts it. That
+    // block runs on EVERY exit - the done sentinel, a thrown error frame, and
+    // the .return() a consumer triggers by abandoning this generator - which is
+    // what makes abandonment stop the upstream generation instead of merely
+    // stopping our reading of it.
+    for await (const frame of parseSse(res.body, { controller, idleMs: this.cfg.timeoutMs })) {
       if (frame.type === "error") throw streamFrameError(frame.code, frame.message);
       yield frame;
       if (frame.type === "done") return;
@@ -113,16 +121,14 @@ export class AtlasClient {
    * failure is an authorization or business problem, not a credential one.
    */
   async models(ctx: AtlasContext): Promise<unknown> {
-    const res = await this.request("GET", "/v1/models", undefined, ctx);
-    const json = await this.json(res);
+    const { res, json } = await this.requestJson("GET", "/v1/models", undefined, ctx);
     if (!res.ok) throw parseAtlasError(res.status, json);
     return json;
   }
 
   /** Entitlement as Atlas sees it, scoped by the token rather than by a param. */
   async quotas(ctx: AtlasContext): Promise<unknown> {
-    const res = await this.request("GET", "/tenancy/quotas", undefined, ctx);
-    const json = await this.json(res);
+    const { res, json } = await this.requestJson("GET", "/tenancy/quotas", undefined, ctx);
     if (!res.ok) throw parseAtlasError(res.status, json);
     return json;
   }
@@ -145,8 +151,23 @@ export class AtlasClient {
     };
   }
 
-  private async post(path: string, body: unknown, ctx: AtlasContext): Promise<Response> {
-    return this.request("POST", path, body, ctx);
+  /**
+   * A streaming POST. The caller owns the returned controller and must abort it
+   * when it stops reading.
+   *
+   * request()'s deadline covers reaching the far side and nothing more - the
+   * response resolves when the HEADERS arrive. The body gets a per-frame idle
+   * deadline instead, armed by parseSse, because a single overall budget would
+   * cut off exactly the long answers worth waiting for.
+   */
+  private async postStreaming(
+    path: string,
+    body: unknown,
+    ctx: AtlasContext,
+  ): Promise<{ res: Response; controller: AbortController }> {
+    const controller = new AbortController();
+    const res = await this.request("POST", path, body, ctx, controller);
+    return { res, controller };
   }
 
   private async request(
@@ -154,6 +175,8 @@ export class AtlasClient {
     path: string,
     body: unknown,
     ctx: AtlasContext,
+    /** Supplied by a streaming caller that outlives the headers. */
+    externalController?: AbortController,
   ): Promise<Response> {
     if (!this.cfg.enabled) {
       throw new AtlasError({
@@ -172,8 +195,9 @@ export class AtlasClient {
       subjectToken: ctx.subjectToken,
     });
 
-    const controller = new AbortController();
+    const controller = externalController ?? new AbortController();
     const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+
     try {
       return await this.fetchImpl(`${this.cfg.baseUrl}${path}`, {
         method,
@@ -185,6 +209,46 @@ export class AtlasClient {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
+    } finally {
+      // This deadline covers reaching the far side, and nothing more: the
+      // response resolves when the HEADERS arrive. Whoever reads the body owns
+      // its deadline - requestJson() re-arms one around the read, and the
+      // streaming path arms a per-frame idle timer instead.
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * A non-streaming call, with the body read under its OWN deadline.
+   *
+   * Without this, timeoutMs bounds only the connect phase and a server that
+   * answers with headers and then dribbles forever hangs the call - the failure
+   * that presents as "the copilot is thinking" and never ends.
+   */
+  private async requestJson(
+    method: string,
+    path: string,
+    body: unknown,
+    ctx: AtlasContext,
+  ): Promise<{ res: Response; json: unknown }> {
+    const controller = new AbortController();
+    const res = await this.request(method, path, body, ctx, controller);
+
+    const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs);
+    try {
+      const json = await this.json(res);
+      // json() is deliberately tolerant - it turns an unreadable body into null
+      // so a non-JSON error envelope is still carried. That tolerance would
+      // silently swallow a timeout, so the abort is checked explicitly and a
+      // truncated read is reported as what it is.
+      if (controller.signal.aborted) {
+        throw new AtlasError({
+          code: "BODY_TIMEOUT",
+          status: res.status,
+          message: `atlas did not finish sending within ${this.cfg.timeoutMs}ms`,
+        });
+      }
+      return { res, json };
     } finally {
       clearTimeout(timer);
     }
@@ -232,15 +296,58 @@ export function backoffMs(attempt: number): number {
  */
 export async function* parseSse(
   stream: ReadableStream<Uint8Array>,
+  opts: {
+    /** Aborted when the consumer stops reading, so the upstream call ends too. */
+    controller?: AbortController;
+    /** Silence budget between frames. Bounds the BODY, not just the headers. */
+    idleMs?: number;
+  } = {},
 ): AsyncGenerator<StreamFrame, void, void> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
+  // Re-armed on every frame rather than set once: the deadline is about
+  // SILENCE. A long answer that keeps producing tokens is healthy; one that
+  // stops mid-sentence is not, and a single overall deadline cannot tell them
+  // apart.
+  //
+  // Firing it CANCELS THE READER as well as aborting the controller. Aborting
+  // alone is not enough: it only unblocks a pending read when the stream is a
+  // fetch body wired to that same signal, so any other stream - and any future
+  // caller that passes one - would hang forever on a silent producer. Cancelling
+  // resolves the pending read as done, which works for every stream.
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  const armIdle = () => {
+    if (!opts.idleMs) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      timedOut = true;
+      opts.controller?.abort();
+      void reader.cancel().catch(() => {});
+    }, opts.idleMs);
+  };
+
   try {
+    armIdle();
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        // A cancel from the idle timer also surfaces here as a clean `done`.
+        // Letting that pass would hand the consumer a truncated answer dressed
+        // up as a complete one, which is worse than an error.
+        if (timedOut) {
+          throw new AtlasError({
+            code: "STREAM_IDLE_TIMEOUT",
+            status: 0,
+            message: `atlas stopped sending for ${opts.idleMs}ms`,
+            fromStream: true,
+          });
+        }
+        break;
+      }
+      armIdle();
       buffer += decoder.decode(value, { stream: true });
 
       let idx: number;
@@ -256,7 +363,19 @@ export async function* parseSse(
     const tail = parseSseLine(buffer.replace(/\r$/, ""));
     if (tail && tail !== "done-sentinel") yield tail;
   } finally {
-    reader.releaseLock();
+    clearTimeout(idleTimer);
+
+    // cancel(), not releaseLock(). releaseLock unlocks the reader but leaves the
+    // stream - and the HTTP response body behind it - open, so Atlas is never
+    // told the consumer left: it generates the whole completion and meters every
+    // token of it against the workspace. A member who reads one sentence and
+    // navigates away pays for the answer they never saw.
+    await reader.cancel().catch(() => {});
+
+    // Cancelling the body should end the request, but the abort is what
+    // guarantees it - and it is also the only thing that stops a fetch still
+    // waiting on headers.
+    opts.controller?.abort();
   }
 }
 
