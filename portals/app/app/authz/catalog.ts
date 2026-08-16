@@ -44,6 +44,16 @@ export const PERM_CODES = [
   "copilot.autopilot",
   // Product administration (NOT platform governance).
   "admin.manage",
+  // --- added by numbered increment, and therefore listed in ARRIVAL order ---
+  // Not grouped with the other D1 codes above, because this list mirrors the
+  // seed and the seed grows by append-only increment. Regrouping for tidiness
+  // would break the order parity that catches an accidental reshuffle.
+  //
+  // strategy.approve (incr/0002): approving a plan is not editing one. It is the
+  // moment a plan becomes the number the rest of the chain is measured against,
+  // and the same shape as the pipeline.write / pipeline.forecast split one level
+  // down - "owns the deal, not the forecast commitment".
+  "strategy.approve",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -69,6 +79,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
   sales_leader: [
     "strategy.read",
     "strategy.write",
+    "strategy.approve",
     "planning.read",
     "planning.write",
     "campaign.read",

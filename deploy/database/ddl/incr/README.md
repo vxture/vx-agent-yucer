@@ -14,6 +14,7 @@ Each increment must be idempotent: `ADD COLUMN IF NOT EXISTS`,
 | File | Purpose |
 |------|---------|
 | `0001_seed_authz_catalog.sql` | Seed the yucer product role/permission catalog (19 permissions, 7 roles, 67 grants). Authority: `docs/20-specs/50-role-permission-catalog.md`. |
+| `0002_strategy_approve_permission.sql` | Split approving a plan from editing one: adds `strategy.approve`, granted to `sales_leader` alone (catalog becomes 20 / 7 / 68). |
 
 Note that `0001` carries DATA, not structure. It ships here rather than in
 `00_baseline.sql` because `local_authz.role` / `local_authz.permission` are

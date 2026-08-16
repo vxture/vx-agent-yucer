@@ -53,7 +53,7 @@ export const ACTIONS = {
   "strategy.plan.view": { domain: "strategy", feature: "strategy.plan", permission: "strategy.read", writes: false },
   "strategy.plan.create": { domain: "strategy", feature: "strategy.plan", permission: "strategy.write", writes: true },
   "strategy.plan.update": { domain: "strategy", feature: "strategy.plan", permission: "strategy.write", writes: true },
-  "strategy.plan.approve": { domain: "strategy", feature: "strategy.plan", permission: "strategy.write", writes: true },
+  "strategy.plan.approve": { domain: "strategy", feature: "strategy.plan", permission: "strategy.approve", writes: true },
   "strategy.segment.view": { domain: "strategy", feature: "strategy.segment", permission: "strategy.read", writes: false },
   "strategy.segment.upsert": { domain: "strategy", feature: "strategy.segment", permission: "strategy.write", writes: true },
 
@@ -126,6 +126,14 @@ export const ACTIONS = {
   "copilot.action.decide_batch": { domain: "copilot", feature: "copilot.suggest", permission: "copilot.decide", writes: true },
   "copilot.autopilot.enable": { domain: "copilot", feature: "copilot.autopilot", permission: "copilot.autopilot", writes: true },
   "copilot.playbook.view": { domain: "copilot", feature: "copilot.ask", permission: "copilot.use", writes: false },
+  // Reading the proposal QUEUE, which is not the same thing as reading the
+  // playbooks it used to borrow its gate from. Deliberately free-tier: nothing
+  // can CREATE a proposal below pro (recordProposals needs copilot.suggest) and
+  // nothing can decide one, so the queue is empty at free tier unless the
+  // workspace DOWNGRADED - and letting a downgraded workspace still see what
+  // the agent proposed while they were paying is the retention surface, not a
+  // giveaway. Costs nothing to serve: the rows already exist.
+  "copilot.action.view": { domain: "copilot", feature: "copilot.ask", permission: "copilot.use", writes: false },
   "copilot.playbook.upsert": { domain: "copilot", feature: "copilot.suggest", permission: "admin.manage", writes: true },
 
   // --- Product administration (baseline, no feature key) --------------------
