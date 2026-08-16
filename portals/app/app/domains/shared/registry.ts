@@ -16,8 +16,11 @@ import { PrismaCopilotStore } from "../copilot/prisma-store";
 import { InMemoryAccountStore, type AccountStore } from "../account/store";
 import { PrismaAccountStore } from "../account/prisma-store";
 import { InMemoryDeliveryStore, type DeliveryStore } from "../delivery/store";
+import { PrismaDeliveryStore } from "../delivery/prisma-store";
 import { InMemoryPlanningStore, type PlanningStore } from "../planning/store";
+import { PrismaPlanningStore } from "../planning/prisma-store";
 import { InMemoryStrategyStore, type StrategyStore } from "../strategy/store";
+import { PrismaStrategyStore } from "../strategy/prisma-store";
 import { InMemorySignalStore, type SignalStore } from "../signal/store";
 import { PrismaSignalStore } from "../signal/prisma-store";
 
@@ -66,17 +69,14 @@ export function setAccountStore(next: AccountStore | null): void {
   accountMemo = null;
 }
 
-// D7 / D2 / D1+D3 have their ports and in-memory implementations; the Prisma
-// adapters follow the pattern already set by pipeline/account and are the
-// remaining work in batch 2c. Until then these resolve to the in-memory store
-// even with DATABASE_URL set, which is stated here rather than silently true.
-
 let deliveryOverride: DeliveryStore | null = null;
 let deliveryMemo: DeliveryStore | null = null;
 
 export function getDeliveryStore(): DeliveryStore {
   if (deliveryOverride) return deliveryOverride;
-  if (!deliveryMemo) deliveryMemo = new InMemoryDeliveryStore();
+  if (!deliveryMemo) {
+    deliveryMemo = prismaEnabled() ? new PrismaDeliveryStore() : new InMemoryDeliveryStore();
+  }
   return deliveryMemo;
 }
 
@@ -90,7 +90,9 @@ let planningMemo: PlanningStore | null = null;
 
 export function getPlanningStore(): PlanningStore {
   if (planningOverride) return planningOverride;
-  if (!planningMemo) planningMemo = new InMemoryPlanningStore();
+  if (!planningMemo) {
+    planningMemo = prismaEnabled() ? new PrismaPlanningStore() : new InMemoryPlanningStore();
+  }
   return planningMemo;
 }
 
@@ -104,7 +106,9 @@ let strategyMemo: StrategyStore | null = null;
 
 export function getStrategyStore(): StrategyStore {
   if (strategyOverride) return strategyOverride;
-  if (!strategyMemo) strategyMemo = new InMemoryStrategyStore();
+  if (!strategyMemo) {
+    strategyMemo = prismaEnabled() ? new PrismaStrategyStore() : new InMemoryStrategyStore();
+  }
   return strategyMemo;
 }
 
