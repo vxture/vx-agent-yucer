@@ -204,6 +204,110 @@ export const COPILOT_TEXT = {
   newSession: "新对话",
 } as const;
 
+export const ACCOUNT_TEXT = {
+  title: "客户管理",
+  description: "健康度是派生值，随源数据重算；它用于排序和预警，不作为任何业务判断的唯一依据。",
+  columnName: "客户",
+  columnIndustry: "行业",
+  columnOwner: "负责人",
+  columnHealth: "健康度",
+  columnStatus: "状态",
+  unscored: "未评估",
+  emptyTitle: "还没有客户",
+  emptyDescription: "线索转化或手工录入后，客户会出现在这里。",
+} as const;
+
+export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
+  prospect: "潜在",
+  active: "活跃",
+  dormant: "沉睡",
+  churned: "流失",
+};
+
+export const DELIVERY_TEXT = {
+  title: "项目落地",
+  description: "链路终点不是赢单，是钱到账。逾期回款的项目不允许显示为健康。",
+  columnName: "项目",
+  columnAccount: "客户",
+  columnManager: "项目经理",
+  columnHealth: "健康度",
+  columnContract: "合同额",
+  columnStatus: "状态",
+  healthOverridden: "已下调",
+  emptyTitle: "还没有交付项目",
+  emptyDescription: "商机赢单后建立交付项目，会出现在这里。",
+} as const;
+
+export const PROJECT_HEALTH_LABEL: Record<string, string> = {
+  green: "健康",
+  amber: "关注",
+  red: "风险",
+};
+
+export const PLANNING_TEXT = {
+  title: "销售规划",
+  description: "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",
+  columnScope: "作用域",
+  columnMetric: "指标",
+  columnTarget: "目标",
+  columnClosed: "已成交",
+  columnAttainment: "达成度",
+  columnStatus: "状态",
+  noSnapshot: "尚无快照",
+  noSnapshotHint: "该作用域本期还没有提交过预测快照，这与「达成 0%」不是一回事。",
+  emptyTitle: "本期没有目标",
+  emptyDescription: "销售运营设定区域与配额后，会出现在这里。",
+  scopeWorkspace: "全工作区",
+} as const;
+
+export const TARGET_STATUS_LABEL: Record<string, string> = {
+  draft: "草稿",
+  committed: "已承诺",
+  closed: "已关闭",
+};
+
+export const STRATEGY_TEXT = {
+  title: "市场战略",
+  description: "战略是全链路的起点：下游的战役、线索、商机都能回指到它。",
+  columnName: "战略",
+  columnPeriod: "周期",
+  columnOwner: "负责人",
+  columnStatus: "状态",
+  emptyTitle: "还没有战略规划",
+  emptyDescription: "定义本周期打哪个市场、达成什么目标。",
+} as const;
+
+export const PLAN_STATUS_LABEL: Record<string, string> = {
+  draft: "草稿",
+  approved: "已批准",
+  active: "执行中",
+  closed: "已结束",
+  archived: "已归档",
+};
+
+export const CAMPAIGN_TEXT = {
+  title: "市场执行",
+  description: "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
+  columnName: "战役",
+  columnChannel: "渠道",
+  columnBudget: "预算",
+  columnProgress: "执行进度",
+  columnStatus: "状态",
+  emptyTitle: "还没有战役",
+  emptyDescription: "把战略与细分市场变成具体的触达动作。",
+  progress: (done: number, total: number, skipped: number) =>
+    skipped > 0 ? `${done}/${total} 完成（${skipped} 跳过）` : `${done}/${total} 完成`,
+} as const;
+
+export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
+  draft: "草稿",
+  scheduled: "已排期",
+  running: "进行中",
+  paused: "暂停",
+  completed: "已完成",
+  cancelled: "已取消",
+};
+
 export const PREVIEW_TEXT = {
   eyebrow: "离线预览",
   title: "yucer 产品界面预览",
