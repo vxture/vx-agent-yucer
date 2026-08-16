@@ -15,6 +15,7 @@ import type {
   PipelineStore,
   StageEventRecord,
 } from "./store";
+import { lockKey } from "../shared/allocate";
 
 // Prisma-backed PipelineStore over yucer_pipeline.
 //
@@ -77,10 +78,12 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
 export class PrismaPipelineStore implements PipelineStore {
   async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {
     const p = await getPrismaClient();
-    // opportunity_no is a human-facing immutable business number, allocated
-    // inside the transaction so two concurrent conversions cannot claim the
-    // same one and collide on uidx_opportunity_ws_no.
+    // opportunity_no is a human-facing immutable business number. The
+    // ADVISORY LOCK is what makes concurrent allocation safe - the transaction
+    // alone does not, because READ COMMITTED lets two of them read the same
+    // count and both write count+1. It releases at commit or rollback.
     return p.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("opportunity_no")}::int, hashtext(${workspaceId})::int)`;
       const count = await tx.opportunity.count({ where: { workspaceId } });
       const row = await tx.opportunity.create({
         data: {
@@ -300,11 +303,26 @@ export class PrismaPipelineStore implements PipelineStore {
       );
     }
 
-    const row = await p.winLossReview.upsert({
-      where: { opportunityId },
-      create: { workspaceId, opportunityId, ...data },
-      update: { ...data, updatedAt: new Date() },
+    // NOT upsert({ where: { opportunityId } }). uidx_win_loss_review_opp makes
+    // opportunityId the only unique key Prisma will accept there, and a `where`
+    // without workspace_id is a cross-workspace write waiting for a caller that
+    // does not check ownership first. Every other method on this port scopes by
+    // workspace; this one silently did not.
+    //
+    // updateMany takes a non-unique where, so the scope goes in. Zero rows
+    // updated means there is nothing to revise and this is the first review.
+    const updated = await p.winLossReview.updateMany({
+      where: { opportunityId, workspaceId },
+      data: { ...data, updatedAt: new Date() },
     });
+    if (updated.count === 0) {
+      // A concurrent first review loses here on the unique index rather than
+      // silently overwriting - which is the correct way for that race to end.
+      await p.winLossReview.create({ data: { workspaceId, opportunityId, ...data } });
+    }
+
+    const row = await p.winLossReview.findFirst({ where: { opportunityId, workspaceId } });
+    if (!row) throw new Error(`win/loss review for ${opportunityId} vanished after write`);
     return toReview(row as Record<string, unknown>);
   }
 
