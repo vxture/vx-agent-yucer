@@ -6,6 +6,7 @@ import { getAuthUser } from "../../auth/lib/session";
 import type { AuthUser } from "../../auth/lib/claims";
 import { resolveAuthzContext, type AuthzContext } from "../../authz/context";
 import { ensureDemoData } from "../../domains/shared/registry";
+import { resolveDevSession } from "./dev-session";
 
 // Per-request resolution of everything a product surface needs, in the order
 // design_yucer_100 section 5 mandates:
@@ -27,6 +28,17 @@ export interface AppSession {
 }
 
 export async function resolveAppSession(): Promise<AppSession | null> {
+  // Local review only, and refused three independent ways - see dev-session.ts.
+  // Placed FIRST so it is obvious that it short-circuits the real chain, rather
+  // than hidden as a fallback where a reader would have to reason about when it
+  // fires. It still carries a real role and a real entitlement, so both gates
+  // below it evaluate normally.
+  const dev = await resolveDevSession();
+  if (dev) {
+    ensureDemoData(dev.workspaceId);
+    return dev;
+  }
+
   const cfg = getOidcConfig();
   const jar = await cookies();
   const rpsid = jar.get(cfg.cookieName)?.value;
