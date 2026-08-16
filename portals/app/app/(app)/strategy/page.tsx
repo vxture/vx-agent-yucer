@@ -3,6 +3,10 @@ import { resolveAppSession } from "../lib/session";
 import { PLAN_STATUS_LABEL, SHELL_TEXT, STRATEGY_TEXT } from "../lib/messages";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { listPlans } from "../../domains/strategy/service";
+import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
+import { can } from "../../authz/decide";
+import { LifecycleControl } from "../components/lifecycle-control";
+import { movePlan } from "./actions";
 import type { PlanRecord } from "../../domains/strategy/store";
 
 // D1 strategy: the top of the chain. Everything downstream can trace back here,
@@ -34,6 +38,18 @@ export default async function StrategyPage() {
     );
   }
 
+  // The service picks its gate from the DESTINATION - strategy.plan.approve for
+  // approving, strategy.plan.update otherwise - so the control is offered when
+  // either is held and the refusal, if any, comes from the service.
+  //
+  // Both action ids currently resolve to the same permission (strategy.write),
+  // so this is one check in practice. Making approval a genuine separation of
+  // duties would move catalog.ts, the seed SQL and the role doc together, which
+  // is a product decision rather than something to slip in here.
+  const canMove =
+    can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed ||
+    can(session.authz, session.entitlement, "strategy.plan.approve", "ui").allowed;
+
   const columns: readonly DataTableColumn<PlanRecord>[] = [
     {
       id: "name",
@@ -54,6 +70,22 @@ export default async function StrategyPage() {
         <StatusBadge tone={row.status === "active" ? "success" : "neutral"} dot>
           {PLAN_STATUS_LABEL[row.status] ?? row.status}
         </StatusBadge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      align: "right",
+      // Only the legal moves. An archived plan has none and renders nothing.
+      cell: (row) => (
+        <LifecycleControl
+          id={row.id}
+          status={row.status}
+          options={nextPlanStatuses(row.status)}
+          label={PLAN_STATUS_LABEL}
+          canChange={canMove}
+          onChange={movePlan}
+        />
       ),
     },
   ];

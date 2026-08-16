@@ -149,6 +149,23 @@ export const PIPELINE_TEXT = {
   rollupFailedTitle: "无法汇总",
 } as const;
 
+export const LIFECYCLE_TEXT = {
+  moveTo: "变更为",
+  apply: "应用",
+} as const;
+
+export const LIFECYCLE_ERROR: Record<string, string> = {
+  illegal_transition: "当前状态不能直接变更为该状态",
+  unknown_status: "未知状态",
+  executions_outstanding: "还有未完成的执行项；先完成或跳过它们再结束战役",
+  invalid_window: "战役的起止时间不合法",
+  not_found: "记录不存在，或不属于当前工作区",
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有执行这个操作的权限",
+  feature_not_in_tier: "当前档位不含这个能力",
+  no_data_access: "当前工作区无权访问",
+};
+
 export const RELATION_TYPE_LABEL: Record<string, string> = {
   reports_to: "汇报给",
   peer_of: "平级",

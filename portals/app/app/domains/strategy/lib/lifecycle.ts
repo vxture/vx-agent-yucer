@@ -39,6 +39,18 @@ export interface PlanPatch {
   approvedAt?: Date | null;
 }
 
+/**
+ * The moves that are legal from here.
+ *
+ * Exported so a surface can offer exactly these. A picker listing every status
+ * and letting the machine refuse four of the five teaches people that the
+ * product says no for reasons they cannot predict - and the transition map is
+ * the only thing that knows the answer, so it is the thing that must be asked.
+ */
+export function nextPlanStatuses(current: PlanStatus): readonly PlanStatus[] {
+  return PLAN_TRANSITIONS[current] ?? [];
+}
+
 export function planStrategyTransition(
   current: PlanSnapshot,
   to: PlanStatus,
@@ -90,6 +102,11 @@ export interface CampaignSnapshot {
   status: CampaignStatus;
   startsAt: Date | null;
   endsAt: Date | null;
+}
+
+/** The moves that are legal from here. See nextPlanStatuses. */
+export function nextCampaignStatuses(current: CampaignStatus): readonly CampaignStatus[] {
+  return CAMPAIGN_TRANSITIONS[current] ?? [];
 }
 
 export function planCampaignTransition(

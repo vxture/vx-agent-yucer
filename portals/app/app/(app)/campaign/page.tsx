@@ -4,6 +4,10 @@ import { CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT, SHELL_TEXT } from "../lib/message
 import { formatMoney } from "../lib/view-model";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { campaignReturn, listCampaigns } from "../../domains/strategy/service";
+import { nextCampaignStatuses, type CampaignStatus } from "../../domains/strategy/lib/lifecycle";
+import { can } from "../../authz/decide";
+import { LifecycleControl } from "../components/lifecycle-control";
+import { moveCampaign } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +78,8 @@ export default async function CampaignPage() {
     });
   }
 
+  const canMove = can(session.authz, session.entitlement, "campaign.upsert", "ui").allowed;
+
   const columns: readonly DataTableColumn<Row>[] = [
     {
       id: "name",
@@ -115,6 +121,24 @@ export default async function CampaignPage() {
         <StatusBadge tone={row.status === "running" ? "success" : "neutral"} dot>
           {CAMPAIGN_STATUS_LABEL[row.status] ?? row.status}
         </StatusBadge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      align: "right",
+      // Completing is guarded: a campaign with outstanding executions cannot be
+      // completed, and the refusal names the count. Both terminal states offer
+      // no further move and render nothing.
+      cell: (row) => (
+        <LifecycleControl
+          id={row.id}
+          status={row.status}
+          options={nextCampaignStatuses(row.status as CampaignStatus)}
+          label={CAMPAIGN_STATUS_LABEL}
+          canChange={canMove}
+          onChange={moveCampaign}
+        />
       ),
     },
   ];
