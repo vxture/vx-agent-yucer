@@ -6,7 +6,8 @@ import { getAccountStore } from "../../../domains/shared/registry";
 import { decisionChain, getAccountDetail, recomputeHealth } from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
 import { HealthPanel } from "../../components/health-panel";
-import { recomputeAccountHealth } from "../actions";
+import { LinkContacts } from "../../components/link-contacts";
+import { linkAccountContacts, recomputeAccountHealth } from "../actions";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -79,7 +80,19 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
       ) : null}
 
       {chain.ok ? (
-        <DecisionChain coverage={chain.value} contacts={contacts} />
+        <DecisionChain
+          coverage={chain.value}
+          contacts={contacts}
+          linkForm={
+            <LinkContacts
+              accountId={id}
+              contacts={contacts}
+              canLink={can(session.authz, session.entitlement, "account.graph.link", "ui").allowed}
+              unreachable={chain.value.economicBuyerUnreachable}
+              onLink={linkAccountContacts}
+            />
+          }
+        />
       ) : (
         // account.graph is a pro-tier capability. The page still renders - a
         // starter workspace sees the account without the relationship map.
