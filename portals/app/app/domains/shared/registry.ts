@@ -9,6 +9,7 @@
 // reach the pg driver, which cannot be bundled for the browser.
 
 import { prismaEnabled } from "../../lib/db";
+import { seedDemoWorkspace } from "./demo-seed";
 import { InMemoryPipelineStore, type PipelineStore } from "../pipeline/store";
 import { PrismaPipelineStore } from "../pipeline/prisma-store";
 import { InMemoryCopilotStore, type CopilotStore } from "../copilot/store";
@@ -130,4 +131,63 @@ export function getSignalStore(): SignalStore {
 export function setSignalStore(next: SignalStore | null): void {
   signalOverride = next;
   signalMemo = null;
+}
+
+
+// --- Demo data -------------------------------------------------------------
+//
+// Without a database every store starts empty and the product renders as eight
+// empty tables, which shows neither the features nor the chain they exist to
+// join up. This fills the in-memory stores once, on demand.
+//
+// It is guarded twice, because "demo data appeared in production" is discovered
+// by a customer rather than by a test:
+//
+//   1. prismaEnabled() - a workspace with a real database is never seeded.
+//   2. YUCER_DEMO_DATA must be explicitly "on". Absent means off.
+//
+// A third guard is structural: seedDemoWorkspace accepts the InMemory* classes
+// by type, so handing it a Prisma store does not compile.
+
+const seeded = new Set<string>();
+
+export function demoDataEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.YUCER_DEMO_DATA === "on" && !prismaEnabled();
+}
+
+/**
+ * Seed a workspace's in-memory stores, once. Safe to call on every request:
+ * the second call for a workspace is a no-op, so a page render does not
+ * multiply the fixtures.
+ */
+export function ensureDemoData(workspaceId: string): boolean {
+  if (!demoDataEnabled()) return false;
+  if (seeded.has(workspaceId)) return true;
+
+  const stores = {
+    strategy: getStrategyStore(),
+    planning: getPlanningStore(),
+    account: getAccountStore(),
+    signal: getSignalStore(),
+    pipeline: getPipelineStore(),
+    delivery: getDeliveryStore(),
+    copilot: getCopilotStore(),
+  };
+
+  // Belt and braces against a future refactor that makes a factory return a
+  // Prisma store while DATABASE_URL is somehow unset: if any store is not the
+  // in-memory implementation, seed nothing at all rather than seed partially.
+  const allInMemory = Object.values(stores).every((s) =>
+    s.constructor.name.startsWith("InMemory"),
+  );
+  if (!allInMemory) return false;
+
+  seedDemoWorkspace(workspaceId, stores as Parameters<typeof seedDemoWorkspace>[1]);
+  seeded.add(workspaceId);
+  return true;
+}
+
+/** Tests: forget what has been seeded. */
+export function resetDemoSeed(): void {
+  seeded.clear();
 }

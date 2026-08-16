@@ -5,6 +5,7 @@ import { getOidcConfig } from "../../auth/lib/config";
 import { getAuthUser } from "../../auth/lib/session";
 import type { AuthUser } from "../../auth/lib/claims";
 import { resolveAuthzContext, type AuthzContext } from "../../authz/context";
+import { ensureDemoData } from "../../domains/shared/registry";
 
 // Per-request resolution of everything a product surface needs, in the order
 // design_yucer_100 section 5 mandates:
@@ -45,6 +46,10 @@ export async function resolveAppSession(): Promise<AppSession | null> {
     resolveAuthzContext(user),
   ]);
   if (!authz) return null;
+
+  // Offline demo path only. No-op unless YUCER_DEMO_DATA is explicitly "on" AND
+  // there is no DATABASE_URL; see ensureDemoData for why it is guarded twice.
+  ensureDemoData(workspaceId);
 
   return { user, workspaceId, entitlement, authz };
 }
