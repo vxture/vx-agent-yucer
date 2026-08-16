@@ -14,6 +14,7 @@
 //      judgement a salesperson was asked to make.
 
 import { allOf, fail, ok, violation, type RuleResult, type Violation } from "../../shared/result";
+import type { ForecastCategory } from "./forecast";
 
 export const STAGES = [
   "qualify",
@@ -112,6 +113,20 @@ export interface OpportunityPatch {
   status: OpportunityStatus;
   closedAt: Date | null;
   probability?: number;
+  /**
+   * Moved WITH the stage, because the two are not independent.
+   *
+   * `closed` is not a judgement - planCategoryChange refuses it on an open deal
+   * and refuses anything else on a terminal one - so a stage move that left the
+   * category behind produced a row neither rule would accept, and one that no
+   * later edit could repair.
+   *
+   * The reporting consequence is the real one: a won deal still sitting in
+   * `commit` is counted by rollUp() as revenue still to come, while
+   * closedAmount stays empty. That is won money reported as pipeline, which is
+   * the same number justified twice.
+   */
+  forecastCategory?: ForecastCategory;
 }
 
 export interface StageChangePlan {
@@ -182,6 +197,14 @@ export function planStageChange(
 
   const nextProbability = applyProbability(current, input.to);
   if (nextProbability != null) patch.probability = nextProbability;
+
+  // Entering a terminal stage books the deal; leaving one puts it back in the
+  // most conservative bucket rather than reclaiming whatever it was committed
+  // at before. A reopened deal has to earn `commit` again - restoring it
+  // silently would let a closed-then-reopened deal keep a commitment nobody
+  // re-made.
+  if (isTerminal(input.to)) patch.forecastCategory = "closed";
+  else if (isTerminal(current.stage)) patch.forecastCategory = "pipeline";
 
   return allOf(
     {

@@ -91,11 +91,40 @@ test("a blank reason is normalized to null rather than stored as whitespace", ()
 
 // --- Terminal stages --------------------------------------------------------
 
-test("entering a terminal stage sets stage, status and closed_at together", () => {
-  // A won deal with a null closed_at falls out of every period-scoped report.
+test("entering a terminal stage books the deal in one patch", () => {
+  // A won deal with a null closed_at falls out of every period-scoped report -
+  // and one left in `commit` is counted by rollUp() as revenue still to come
+  // while closedAmount stays empty, which is the same money reported twice.
   const r = plan(opp({ stage: "negotiate", probability: 90 }), "won");
   assert.ok(r.ok);
-  assert.deepEqual(r.value.patch, { stage: "won", status: "won", closedAt: AT, probability: 100 });
+  assert.deepEqual(r.value.patch, {
+    stage: "won",
+    status: "won",
+    closedAt: AT,
+    probability: 100,
+    forecastCategory: "closed",
+  });
+});
+
+test("reopening puts the deal back in the most conservative bucket", () => {
+  // Not the bucket it held before. A reopened deal has to earn `commit` again;
+  // restoring it silently would keep a commitment nobody re-made.
+  const r = plan(
+    opp({ stage: "won", status: "won", probability: 100, closedAt: AT }),
+    "negotiate",
+    { reopen: true, reason: "customer restarted the process" },
+  );
+  assert.ok(r.ok);
+  assert.equal(r.value.patch.forecastCategory, "pipeline");
+  assert.equal(r.value.patch.closedAt, null);
+});
+
+test("a move between open stages leaves the bucket alone", () => {
+  // The forecast bucket is a salesperson's judgement everywhere except the
+  // terminal boundary, where it is a fact.
+  const r = plan(opp({ stage: "discover" }), "validate");
+  assert.ok(r.ok);
+  assert.equal("forecastCategory" in r.value.patch, false);
 });
 
 test("entering a terminal stage requires a win/loss review", () => {

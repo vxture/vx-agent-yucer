@@ -147,8 +147,36 @@ export async function updateCommercialTerms(
   opportunityId: string,
   input: CommercialTermsPatch,
 ): Promise<RuleResult<OpportunityRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.update", "data");
-  if (!gate.allowed) return denied(gate);
+  // TWO gates, because this patch spans two capabilities that the product sells
+  // and staffs separately.
+  //
+  // Pricing a deal is `pipeline.opportunity.update` (pipeline.manage, free tier,
+  // held by the rep who owns the deal). Moving its FORECAST BUCKET is
+  // `pipeline.forecast.categorize` (pipeline.forecast, pro tier) - the catalog
+  // gives sales_rep pipeline.write WITHOUT pipeline.forecast on purpose
+  // ("owns the deal, not the forecast commitment"), and
+  // 50-role-permission-catalog.md assigns adjusting the category to
+  // pipeline.forecast in as many words.
+  //
+  // Folding both under the editing gate handed a free-tier rep the commit
+  // number the product sells as a pro capability. Checking each field against
+  // the gate that owns it means a caller may price a deal they cannot
+  // categorise, and vice versa, which is exactly the split the catalog draws.
+  const editGate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.update", "data");
+  const categorizeGate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.categorize", "data");
+
+  const wantsEdit =
+    input.amount !== undefined ||
+    input.probability !== undefined ||
+    input.expectedCloseAt !== undefined ||
+    input.ownerSub !== undefined;
+  const wantsCategory = input.forecastCategory !== undefined;
+
+  if (wantsEdit && !editGate.allowed) return denied(editGate);
+  if (wantsCategory && !categorizeGate.allowed) return denied(categorizeGate);
+  // An empty request is refused on the weaker gate rather than reported as
+  // "nothing changed", so an unauthorized caller learns nothing from the shape.
+  if (!wantsEdit && !wantsCategory && !editGate.allowed) return denied(editGate);
 
   const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
   if (!current) {
@@ -196,6 +224,31 @@ export async function updateCommercialTerms(
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
   return ok(updated);
+}
+
+/**
+ * One opportunity, behind the same gate as the list.
+ *
+ * The detail page used to call store.getOpportunity() directly - the identical
+ * mistake getAccountDetail() exists to correct, shipped in the same round. A
+ * page holding a store handle is how a URL becomes a way around a gate: today
+ * every role carries pipeline.read and pipeline.manage is a free-tier feature,
+ * so nothing leaks, but that is a property of the current catalog rather than
+ * of the code, and it is exactly the reasoning the account fix refused to rest
+ * on.
+ */
+export async function getOpportunityDetail(
+  ctx: PipelineContext,
+  opportunityId: string,
+): Promise<RuleResult<OpportunityRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const row = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!row) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+  return ok(row);
 }
 
 /**

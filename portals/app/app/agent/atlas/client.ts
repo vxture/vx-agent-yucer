@@ -96,8 +96,15 @@ export class AtlasClient {
   ): AsyncGenerator<StreamFrame, void, void> {
     const { res, controller } = await this.postStreaming("/v1/chat", this.body(task, req, ctx, true), ctx);
     if (!res.ok) {
+      // READ THEN ABORT, in that order. Aborting first errors the body, json()
+      // swallows that into null, and parseAtlasError falls through to its
+      // generic branch - so GRANT_DENIED, QUOTA_EXCEEDED and RATE_LIMITED all
+      // collapse to a bare "403"/"429" with no message, no requestId and no
+      // retryAfterMs. The refusal that tells an operator what to fix is the one
+      // thing worth keeping from a failed call.
+      const body = await this.json(res);
       controller.abort();
-      throw parseAtlasError(res.status, await this.json(res));
+      throw parseAtlasError(res.status, body);
     }
     if (!res.body) {
       controller.abort();
