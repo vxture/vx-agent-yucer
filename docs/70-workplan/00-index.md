@@ -39,7 +39,7 @@ exit 0；五个 CI 检查全绿。
 |----|------|------|
 | 2a | 权限门 `authz/`：成员懒加载、角色权限判定、与权益门的组合判定、动作目录 | 已交付 |
 | 2b | 域业务规则纯函数 `domains/<d>/lib/`：阶段机、归因计算、预测汇总、信号评分、提案生命周期（全部可单测、不碰 IO） | 八域全部已交付 |
-| 2c | 域持久化端口 + 服务层（沿用模板的 port/adapter 形态） | 端口与服务八域全覆盖；Prisma 适配器 D4/D6/D8 已交付，D1/D2/D3/D7 待补 |
+| 2c | 域持久化端口 + 服务层 + Prisma 适配器（沿用模板的 port/adapter 形态） | **八域全部交付**：端口、服务、Prisma 适配器齐备 |
 | 2d | **智能体两平面接入**（ADR-004）：`platform/s2s` 令牌、`agent/atlas` 模型面、`agent/runos` 能力面与 Skill 分发 | 已交付 |
 | 2e | 智能体编排 `agent/orchestrator`：会话回合把模型输出落成 `agent_action` 提案 | 待做 |
 
@@ -64,7 +64,7 @@ exit 0；五个 CI 检查全绿。
 ```
 service.ts   两道门 -> 规则纯函数 -> 端口          [八域全覆盖]
 store.ts     端口 + 内存实现（workspace_id 是每个方法的第一个参数）
-prisma-*.ts  Prisma 适配器，写入前过列锁镜像       [D4/D6/D8 已交付]
+prisma-*.ts  Prisma 适配器，写入前过列锁镜像       [八域全覆盖]
 ```
 
 `domains/shared/column-locks.ts` 是 `98_column_locks.sql` 的类型化镜像，
