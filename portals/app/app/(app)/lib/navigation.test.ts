@@ -37,10 +37,12 @@ test("the nav covers all eight domains, in chain order", () => {
 test("administration is nav, but it is not a capability domain", () => {
   // Kept in its own list so the eight-domain invariant above stays an assertion
   // about the product rather than degrading into "nine things, one of which is
-  // not a domain".
+  // not a domain". Adoption belongs here for the same reason: it is a statement
+  // about whether the product is used, which is not a capability the product
+  // sells.
   assert.deepEqual(
     ADMIN_NAV_ENTRIES.map((e) => e.key),
-    ["admin"],
+    ["admin", "adoption"],
   );
   assert.equal(NAV_ENTRIES.length, DOMAIN_NAV_ENTRIES.length + ADMIN_NAV_ENTRIES.length);
 });

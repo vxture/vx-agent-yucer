@@ -41,6 +41,9 @@ export interface EvidenceOption {
 
 export interface CommitmentListProps {
   readonly accountId: string;
+  /** Set when the list is scoped to one deal: promises made in a deal belong to
+   * that deal's page, and closing one there must refresh it. */
+  readonly opportunityId?: string;
   readonly items: readonly CommitmentItem[];
   /** Interactions that can close one. Empty means nothing can be marked met. */
   readonly evidence: readonly EvidenceOption[];
@@ -48,12 +51,17 @@ export interface CommitmentListProps {
   readonly now?: Date;
   readonly onCreate: (
     accountId: string,
-    input: { direction: string; statement: string; dueAt: string },
+    input: { direction: string; statement: string; dueAt: string; opportunityId?: string },
   ) => Promise<{ ok: boolean; error?: string }>;
   readonly onSettle: (
     accountId: string,
     id: string,
-    input: { to: string; evidenceInteractionId?: string; waiveReason?: string },
+    input: {
+      to: string;
+      evidenceInteractionId?: string;
+      waiveReason?: string;
+      opportunityId?: string;
+    },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -61,6 +69,7 @@ const DAY = 86_400_000;
 
 export function CommitmentList({
   accountId,
+  opportunityId,
   items,
   evidence,
   canWrite,
@@ -129,7 +138,13 @@ export function CommitmentList({
                   size="sm"
                   disabled={pending || chosen === ""}
                   onClick={() =>
-                    run(() => onSettle(accountId, c.id, { to: "met", evidenceInteractionId: chosen }))
+                    run(() =>
+                      onSettle(accountId, c.id, {
+                        to: "met",
+                        evidenceInteractionId: chosen,
+                        opportunityId,
+                      }),
+                    )
                   }
                 >
                   {FIELD_TEXT.commitClose}
@@ -141,7 +156,7 @@ export function CommitmentList({
                     variant="outline"
                     size="sm"
                     disabled={pending}
-                    onClick={() => run(() => onSettle(accountId, c.id, { to: "missed" }))}
+                    onClick={() => run(() => onSettle(accountId, c.id, { to: "missed", opportunityId }))}
                   >
                     {FIELD_TEXT.commitMissed}
                   </Button>
@@ -159,7 +174,13 @@ export function CommitmentList({
                   size="sm"
                   disabled={pending || !(reason[c.id] ?? "").trim()}
                   onClick={() =>
-                    run(() => onSettle(accountId, c.id, { to: "waived", waiveReason: reason[c.id] }))
+                    run(() =>
+                      onSettle(accountId, c.id, {
+                        to: "waived",
+                        waiveReason: reason[c.id],
+                        opportunityId,
+                      }),
+                    )
                   }
                 >
                   {FIELD_TEXT.commitWaive}
@@ -216,7 +237,7 @@ export function CommitmentList({
             disabled={pending || !draft.statement.trim() || !draft.dueAt}
             onClick={() =>
               run(() =>
-                onCreate(accountId, draft).then((r) => {
+                onCreate(accountId, { ...draft, opportunityId }).then((r) => {
                   if (r.ok) setDraft({ direction: "they_owe", statement: "", dueAt: "" });
                   return r;
                 }),

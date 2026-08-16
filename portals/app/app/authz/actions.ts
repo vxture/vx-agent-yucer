@@ -140,6 +140,11 @@ export const ACTIONS = {
   // Role assignment must not be tier-gated: a workspace that can use the product
   // at all must be able to say who does what inside it.
   "admin.member.view": { domain: "admin", feature: null, permission: "admin.manage", writes: false },
+  // Adoption is workspace administration, not a sales capability: it says
+  // whether the product is being used, which is nobody's quota and everybody's
+  // problem. No feature key - withholding the answer from a tier would mean the
+  // people paying least get the least warning that they are not using it.
+  "admin.adoption.view": { domain: "admin", feature: null, permission: "admin.manage", writes: false },
   "admin.member.role.assign": { domain: "admin", feature: null, permission: "admin.manage", writes: true },
   "admin.member.role.revoke": { domain: "admin", feature: null, permission: "admin.manage", writes: true },
 } as const satisfies Record<string, ActionSpec>;

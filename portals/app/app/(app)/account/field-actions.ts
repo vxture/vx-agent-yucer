@@ -22,6 +22,20 @@ export interface FieldResult {
   error?: string;
 }
 
+/**
+ * Every surface that reads the evidence plane, invalidated together.
+ *
+ * Capture happens on two pages and is read on four. Revalidating only the page
+ * the form sits on is how a rep records a call and then sees the account list
+ * still claiming last contact was six weeks ago - which teaches them the form
+ * does not work, and the kill criterion measures exactly that lesson.
+ */
+function revalidateField(accountId: string, opportunityId?: string | null): void {
+  revalidatePath(`/account/${accountId}`);
+  revalidatePath("/account");
+  if (opportunityId) revalidatePath(`/pipeline/${opportunityId}`);
+}
+
 function ctx(session: NonNullable<Awaited<ReturnType<typeof resolveAppSession>>>) {
   return {
     workspaceId: session.workspaceId,
@@ -55,9 +69,9 @@ export async function recordFollowUp(
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
 
   // Health reads lastInteractionAt, so the account list moves too - not only
-  // the page the form is on.
-  revalidatePath(`/account/${accountId}`);
-  revalidatePath("/account");
+  // the page the form is on. And when the follow-up was recorded from a deal,
+  // that deal's page is the one the rep is looking at.
+  revalidateField(accountId, input.opportunityId);
   return { ok: true };
 }
 
@@ -81,8 +95,7 @@ export async function addCommitment(
   });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
 
-  revalidatePath(`/account/${accountId}`);
-  revalidatePath("/account");
+  revalidateField(accountId, input.opportunityId);
   return { ok: true };
 }
 
@@ -95,8 +108,9 @@ export async function addCommitment(
 export async function settleCommitment(
   accountId: string,
   id: string,
-  input: { to: string; evidenceInteractionId?: string; waiveReason?: string },
+  input: { to: string; evidenceInteractionId?: string; waiveReason?: string; opportunityId?: string },
 ): Promise<FieldResult> {
+  const opportunityId = input.opportunityId;
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
@@ -115,7 +129,6 @@ export async function settleCommitment(
   });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
 
-  revalidatePath(`/account/${accountId}`);
-  revalidatePath("/account");
+  revalidateField(accountId, opportunityId);
   return { ok: true };
 }

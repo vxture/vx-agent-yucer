@@ -38,6 +38,11 @@ export interface OpportunityRecord {
   closedAt: Date | null;
   status: OpportunityStatus;
   currency: string;
+  /** Anchor column, immutable. Exposed because the capture metric's denominator
+   * has to know when a deal STARTED being a deal - "opportunities open right
+   * now" as a historical denominator would let last month's coverage improve on
+   * its own every time something closed. */
+  createdAt: Date;
 }
 
 export const WIN_LOSS_REASONS = ["price", "fit", "timing", "competitor", "no_decision", "other"] as const;
@@ -100,6 +105,8 @@ export interface NewOpportunity {
   amount: Money | null;
   currency: string;
   expectedCloseAt: Date | null;
+  /** Tests and fixtures only. Real creation lets the database stamp it. */
+  createdAt?: Date;
 }
 
 /**
@@ -217,6 +224,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       closedAt: null,
       status: "open",
       currency: input.currency,
+      createdAt: input.createdAt ?? new Date(),
     };
     this.opportunities.set(record.id, record);
     return record;

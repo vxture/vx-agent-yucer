@@ -26,6 +26,7 @@ import {
   DEMO_CAMPAIGNS,
   DEMO_COMMITMENT_TEXT,
   DEMO_CONTACTS,
+  DEMO_DEAL_NOTES,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
   DEMO_MILESTONES,
@@ -229,19 +230,19 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       },
       [`${workspaceId}|acc_demo_2`]: {
         openOpportunities: [{ stage: "validate" }],
-        lastInteractionAt: daysAgo(4),
+        lastInteractionAt: daysAgo(3),
         projectHealth: ["green"],
         overdueRevenueCount: 0,
       },
       [`${workspaceId}|acc_demo_4`]: {
         openOpportunities: [{ stage: "propose" }, { stage: "negotiate" }],
-        lastInteractionAt: daysAgo(12),
+        lastInteractionAt: daysAgo(10),
         projectHealth: ["green"],
         overdueRevenueCount: 0,
       },
       [`${workspaceId}|acc_demo_5`]: {
         openOpportunities: [{ stage: "discover" }],
-        lastInteractionAt: daysAgo(35),
+        lastInteractionAt: daysAgo(2),
         projectHealth: ["amber"],
         overdueRevenueCount: 0,
       },
@@ -339,6 +340,22 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       note("int_demo_a2b", "acc_demo_2", "email", 4, REP2, DEMO_NOTES.a2_evidence),
       note("int_demo_a4a", "acc_demo_4", "call", 12, REP2, DEMO_NOTES.a4_slip),
       note("int_demo_a5a", "acc_demo_5", "event", 35, REP1, DEMO_NOTES.a5_intro),
+
+      // Deal-level follow-ups. Every one carries an opportunityId, which is what
+      // the adoption metric counts - an account-level note does not move it,
+      // because the criterion is per opportunity and a metric that accepted
+      // either would rise while deals stayed dark.
+      note("int_demo_d9a", "acc_demo_4", "call", 38, REP2, DEMO_DEAL_NOTES.d9_a, "opp_demo_9"),
+      note("int_demo_d6a", "acc_demo_4", "visit", 31, REP2, DEMO_DEAL_NOTES.d6_a, "opp_demo_6"),
+      note("int_demo_d6b", "acc_demo_4", "email", 24, REP2, DEMO_DEAL_NOTES.d6_b, "opp_demo_6"),
+      note("int_demo_d9b", "acc_demo_4", "call", 23, REP2, DEMO_DEAL_NOTES.d9_b, "opp_demo_9"),
+      note("int_demo_d2a", "acc_demo_2", "meeting", 17, REP2, DEMO_DEAL_NOTES.d2_a, "opp_demo_2"),
+      note("int_demo_d9c", "acc_demo_4", "email", 16, REP2, DEMO_DEAL_NOTES.d9_c, "opp_demo_9"),
+      note("int_demo_d2b", "acc_demo_2", "meeting", 11, REP2, DEMO_DEAL_NOTES.d2_b, "opp_demo_2"),
+      note("int_demo_d6c", "acc_demo_4", "im", 10, REP2, DEMO_DEAL_NOTES.d6_c, "opp_demo_6"),
+      note("int_demo_d7a", "acc_demo_5", "visit", 9, REP1, DEMO_DEAL_NOTES.d7_a, "opp_demo_7"),
+      note("int_demo_d2c", "acc_demo_2", "call", 3, REP2, DEMO_DEAL_NOTES.d2_c, "opp_demo_2"),
+      note("int_demo_d7b", "acc_demo_5", "email", 2, REP1, DEMO_DEAL_NOTES.d7_b, "opp_demo_7"),
     ],
     commitments: [
       // Open and 41 days past its date. Nothing in the timeline since cites an
@@ -747,6 +764,14 @@ function opp(
     amount: money(amount, CNY),
     probability,
     expectedCloseAt,
+    // Derived rather than passed: this helper already takes fifteen positional
+    // arguments and a sixteenth would be unreadable. A deal is created some
+    // months before it lands, so creation is anchored to the date it closed or
+    // is expected to close. It only has to be EARLIER than every interaction
+    // recorded against it - the capture metric's denominator asks when a deal
+    // started being a deal, and a note predating its own opportunity would make
+    // a week's coverage exceed one.
+    createdAt: new Date((closedAt ?? expectedCloseAt).getTime() - 130 * 86_400_000),
     closedAt,
     status: status as never,
     currency: CNY,

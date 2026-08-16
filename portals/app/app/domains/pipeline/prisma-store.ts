@@ -49,6 +49,7 @@ interface OpportunityRow {
   expectedCloseAt: Date | null;
   closedAt: Date | null;
   status: string;
+  createdAt: Date;
 }
 
 function toRecord(row: OpportunityRow): OpportunityRecord {
@@ -72,6 +73,7 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     expectedCloseAt: row.expectedCloseAt,
     closedAt: row.closedAt,
     status: row.status as OpportunityStatus,
+    createdAt: row.createdAt,
   };
 }
 

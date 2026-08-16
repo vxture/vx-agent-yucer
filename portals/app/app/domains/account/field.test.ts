@@ -5,6 +5,7 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryFieldStore } from "./field-store";
 import {
+  captureAdoption,
   closeCommitment,
   createCommitment,
   listCommitments,
@@ -305,4 +306,65 @@ test("overdue is open-and-past-due, and the definition is shared", async () => {
   assert.equal(isOverdue({ status: "open", dueAt: days(1) }, NOW), false);
   assert.equal(isOverdue({ status: "missed", dueAt: days(-1) }, NOW), false, "already resolved");
   assert.equal(isOverdue({ status: "met", dueAt: days(-1) }, NOW), false);
+});
+
+// --- The adoption reading (ADR-006's kill criterion) -------------------------
+
+test("adoption is admin-gated, not a sales capability", async () => {
+  // A rep must not be able to read whether their team is being measured, and a
+  // capability tier must not be able to withhold the answer - withholding it
+  // would mean the workspaces least likely to be using the product are the
+  // least likely to be told so.
+  const rep = ctx("sales_rep", "enterprise");
+  const denied = await captureAdoption(rep, []);
+  assert.equal(denied.ok, false);
+
+  const admin = ctx("sales_leader", "free");
+  const allowed = await captureAdoption(admin, []);
+  assert.equal(allowed.ok, true, "no feature key gates it, so the free tier still gets an answer");
+});
+
+test("adoption counts deal-linked follow-ups only, and names the dark deals", async () => {
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+
+  const opps = [
+    { id: "o_live", createdAt: days(-90), closedAt: null },
+    { id: "o_dark", createdAt: days(-90), closedAt: null },
+  ];
+
+  // One note on the deal, one on the account only. The account-level note must
+  // not rescue o_dark, and must not count towards the week at all.
+  await recordInteraction(c, {
+    accountId: ACC,
+    opportunityId: "o_live",
+    channel: "call",
+    occurredAt: days(-2),
+    rawNote: "spoke to them",
+  });
+  await recordInteraction(c, {
+    accountId: ACC,
+    channel: "call",
+    occurredAt: days(-2),
+    rawNote: "general catch-up, not about a deal",
+  });
+
+  const r = unwrap(await captureAdoption(c, opps, { now: NOW }));
+  assert.deepEqual(r.touched, ["o_live"], "the account-level note touched no deal");
+
+  const thisWeek = r.weeks[r.weeks.length - 1];
+  assert.equal(thisWeek.opportunities, 2);
+  assert.equal(thisWeek.covered, 1);
+  assert.equal(thisWeek.interactions, 1, "the account-level note is not counted");
+});
+
+test("adoption withholds a verdict rather than failing early on a short window", async () => {
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  const opps = [{ id: "o1", createdAt: days(-90), closedAt: null }];
+
+  // Two weeks of nothing recorded. It must read as too_early, not not_adopted:
+  // a criterion that can fail early is one that gets quoted early.
+  const r = unwrap(await captureAdoption(c, opps, { now: NOW, weeks: 2 }));
+  assert.equal(r.assessment.verdict, "too_early");
 });
