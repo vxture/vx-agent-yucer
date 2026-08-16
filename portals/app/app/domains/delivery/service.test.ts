@@ -1,0 +1,245 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
+import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
+import { money } from "../shared/money";
+import { unwrap } from "../shared/result";
+import { InMemoryDeliveryStore, type InstalmentRecord, type MilestoneRecord, type ProjectRecord } from "./store";
+import { listProjects, projectView, reconcileProjectHealth, transitionInstalment, type DeliveryContext } from "./service";
+
+const WS = "ws_1";
+const NOW = new Date("2026-08-15T00:00:00Z");
+const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
+const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+
+function project(over: Partial<ProjectRecord> = {}): ProjectRecord {
+  return {
+    id: "prj_1",
+    workspaceId: WS,
+    projectNo: "PRJ-1",
+    name: "Rollout",
+    opportunityId: "opp_1",
+    accountId: "acc_1",
+    managerSub: "usr_pm",
+    contractAmount: money(1_000_000),
+    health: "green",
+    status: "active",
+    currency: "CNY",
+    ...over,
+  };
+}
+
+function instalment(over: Partial<InstalmentRecord> = {}): InstalmentRecord & { workspaceId: string } {
+  return {
+    id: "inst_1",
+    projectId: "prj_1",
+    milestoneId: null,
+    sequence: 1,
+    status: "planned",
+    plannedAmount: money(500_000),
+    actualAmount: null,
+    dueAt: daysAhead(30),
+    settledAt: null,
+    workspaceId: WS,
+    ...over,
+  };
+}
+
+function milestone(over: Partial<MilestoneRecord> = {}): MilestoneRecord & { workspaceId: string } {
+  return {
+    id: "ms_1",
+    projectId: "prj_1",
+    name: "Phase 1",
+    sequence: 1,
+    status: "done",
+    dueAt: daysAgo(10),
+    completedAt: daysAgo(11),
+    workspaceId: WS,
+    ...over,
+  };
+}
+
+function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryDeliveryStore()): DeliveryContext {
+  return {
+    workspaceId: WS,
+    sub: "usr_me",
+    holder: { permissions: new Set(permissionsForRoles([role])) },
+    entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
+    store,
+  };
+}
+
+// --- The overdue-forbids-green rule ----------------------------------------
+
+test("an overdue instalment downgrades a reported green, and says why", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [project({ health: "green" })],
+    instalments: [instalment({ status: "overdue", dueAt: daysAgo(10) })],
+  });
+  const view = unwrap(await projectView(ctx("delivery_manager", "business", store), "prj_1", { now: NOW }));
+
+  assert.equal(view.reportedHealth, "green");
+  assert.equal(view.derivedHealth, "amber");
+  assert.match(String(view.healthOverriddenBecause), /cannot be green/);
+});
+
+test("the overdue rule applies even when the revenue view is not bought", async () => {
+  // It is a safety property, not a paid feature. delivery.revenue starts at
+  // business; a starter workspace still must not see a false green.
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [project({ health: "green" })],
+    instalments: [instalment({ status: "overdue", dueAt: daysAgo(5) })],
+  });
+  const view = unwrap(await projectView(ctx("delivery_manager", "starter", store), "prj_1", { now: NOW }));
+
+  assert.equal(view.collections, null, "the money view is withheld");
+  assert.equal(view.derivedHealth, "amber", "but the health rule still bit");
+});
+
+test("losing the revenue capability does not lose the project view", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()], milestones: [milestone()] });
+  const view = unwrap(await projectView(ctx("delivery_manager", "starter", store), "prj_1", { now: NOW }));
+
+  assert.equal(view.project.id, "prj_1");
+  assert.equal(view.progress.done, 1);
+  assert.deepEqual(view.instalments, [], "instalments withheld with the revenue gate");
+  assert.equal(view.collections, null);
+});
+
+test("a business workspace gets the collections summary", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [project()],
+    instalments: [
+      instalment({ id: "a", sequence: 1, status: "settled", actualAmount: money(400_000) }),
+      instalment({ id: "b", sequence: 2, plannedAmount: money(500_000) }),
+    ],
+  });
+  const view = unwrap(await projectView(ctx("delivery_manager", "business", store), "prj_1", { now: NOW }));
+  assert.equal(view.collections?.collected.amount, 400_000);
+  assert.equal(view.collections?.planned.amount, 1_000_000);
+});
+
+test("derived health only downgrades - a reported amber survives a clean schedule", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [project({ health: "amber" })],
+    instalments: [instalment({ status: "settled", actualAmount: money(500_000) })],
+  });
+  const view = unwrap(await projectView(ctx("delivery_manager", "business", store), "prj_1", { now: NOW }));
+  assert.equal(view.derivedHealth, "amber");
+  assert.equal(view.healthOverriddenBecause, null);
+});
+
+// --- Reconcile --------------------------------------------------------------
+
+test("reconcile writes the downgrade back and reports the change", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [project({ health: "green" })],
+    instalments: [instalment({ status: "overdue", dueAt: daysAgo(3) })],
+  });
+  const out = unwrap(await reconcileProjectHealth(ctx("delivery_manager", "business", store), "prj_1", { now: NOW }));
+
+  assert.equal(out.changed, true);
+  assert.equal(out.health, "amber");
+  assert.equal((await store.getProject(WS, "prj_1"))?.health, "amber");
+});
+
+test("reconcile is a no-op when nothing needs downgrading", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project({ health: "green" })], instalments: [] });
+  const out = unwrap(await reconcileProjectHealth(ctx("delivery_manager", "business", store), "prj_1", { now: NOW }));
+  assert.equal(out.changed, false);
+});
+
+// --- Instalment transitions -------------------------------------------------
+
+test("settling requires the money permission, not merely the project one", async () => {
+  // A delivery manager who may edit milestones does not automatically get to
+  // mark an invoice settled... except delivery_manager does hold delivery.write.
+  // presales holds delivery.read only, and is the honest negative case.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()], instalments: [instalment({ status: "invoiced" })] });
+  const r = await transitionInstalment(ctx("presales", "business", store), {
+    projectId: "prj_1",
+    instalmentId: "inst_1",
+    to: "settled",
+    actualAmount: money(500_000),
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+});
+
+test("the revenue capability is business-tier", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()], instalments: [instalment({ status: "invoiced" })] });
+  const r = await transitionInstalment(ctx("delivery_manager", "pro", store), {
+    projectId: "prj_1",
+    instalmentId: "inst_1",
+    to: "settled",
+    actualAmount: money(500_000),
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "feature_not_in_tier");
+});
+
+test("settling records what actually arrived", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()], instalments: [instalment({ status: "invoiced" })] });
+  const out = unwrap(
+    await transitionInstalment(ctx("delivery_manager", "business", store), {
+      projectId: "prj_1",
+      instalmentId: "inst_1",
+      to: "settled",
+      actualAmount: money(450_000),
+      at: NOW,
+    }),
+  );
+  assert.equal(out.status, "settled");
+  const rows = await store.listInstalments(WS, "prj_1");
+  assert.equal(rows[0].actualAmount?.amount, 450_000, "planned vs actual is the number this table exists for");
+});
+
+test("settling without an amount is refused", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()], instalments: [instalment({ status: "invoiced" })] });
+  const r = await transitionInstalment(ctx("delivery_manager", "business", store), {
+    projectId: "prj_1",
+    instalmentId: "inst_1",
+    to: "settled",
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "actual_amount_required");
+});
+
+test("an illegal transition is refused after the gate passes", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [project()],
+    instalments: [instalment({ status: "settled", actualAmount: money(500_000) })],
+  });
+  const r = await transitionInstalment(ctx("delivery_manager", "business", store), {
+    projectId: "prj_1",
+    instalmentId: "inst_1",
+    to: "planned",
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "illegal_transition");
+});
+
+// --- Isolation --------------------------------------------------------------
+
+test("a project in another workspace is not found", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project({ workspaceId: "ws_other" })] });
+  const r = await projectView(ctx("delivery_manager", "business", store), "prj_1", { now: NOW });
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+test("listing is gated and workspace-scoped", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project({ id: "mine" }), project({ id: "theirs", workspaceId: "ws_other" })] });
+  const rows = unwrap(await listProjects(ctx("delivery_manager", "starter", store)));
+  assert.deepEqual(rows.map((r) => r.id), ["mine"]);
+  assert.equal((await listProjects(ctx("delivery_manager", "free", store))).ok, false);
+});
