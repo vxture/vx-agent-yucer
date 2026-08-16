@@ -19,7 +19,7 @@ import {
 import { FORECAST_TONE, STAGE_TONE, formatMoney, probabilityDisplay } from "../../lib/view-model";
 import { can } from "../../../authz/decide";
 import { getPipelineStore } from "../../../domains/shared/registry";
-import { stageHistory } from "../../../domains/pipeline/service";
+import { getOpportunityDetail, stageHistory } from "../../../domains/pipeline/service";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
@@ -53,22 +53,22 @@ export default async function OpportunityDetailPage({
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
 
-  const store = getPipelineStore();
   const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store,
+    store: getPipelineStore(),
   };
 
-  const opportunity = await store.getOpportunity(session.workspaceId, id);
-  if (!opportunity) {
-    // Same answer for "does not exist" and "belongs to another workspace" - the
-    // store already collapsed the two, and re-separating them here would undo
-    // that on the surface a stranger actually reaches.
+  // Through the service, not the store. A page holding a store handle is how a
+  // URL becomes a way around the gate the hidden nav entry only appeared to
+  // enforce - the same mistake getAccountDetail() was added to correct.
+  const detail = await getOpportunityDetail(ctx, id);
+  if (!detail.ok) {
     return <EmptyState title={SHELL_TEXT.loadFailed} description={OPPORTUNITY_TEXT.notFound} />;
   }
+  const opportunity = detail.value;
 
   const history = await stageHistory(ctx, id);
 
@@ -152,6 +152,12 @@ export default async function OpportunityDetailPage({
         expectedCloseAt={opportunity.expectedCloseAt}
         forecastCategory={opportunity.forecastCategory}
         canEdit={can(session.authz, session.entitlement, "pipeline.opportunity.update", "ui").allowed}
+        // The bucket is a pro capability the catalog withholds from the rep who
+        // owns the deal, so it gets its own gate rather than riding on the
+        // editing one.
+        canCategorize={
+          can(session.authz, session.entitlement, "pipeline.forecast.categorize", "ui").allowed
+        }
         onSave={repriceOpportunity}
       />
 

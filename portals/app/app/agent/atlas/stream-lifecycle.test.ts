@@ -254,6 +254,55 @@ test("a non-streaming call bounds the BODY, not just the headers", async () => {
   });
 });
 
+test("a refused stream keeps its error envelope", async () => {
+  // The abort must come AFTER the body is read. Aborting first errors the body,
+  // json() swallows that into null, and parseAtlasError falls through to its
+  // generic branch - so GRANT_DENIED, QUOTA_EXCEEDED and RATE_LIMITED would all
+  // collapse to a bare "403"/"429" with no message and no retryAfterMs.
+  //
+  // The fake body is wired to init.signal, the way a real fetch is. Without
+  // that coupling this test passes either way and proves nothing.
+  const client = new AtlasClient(CFG, {
+    fetchImpl: async (_url, init) => {
+      const body = JSON.stringify({
+        code: "QUOTA_EXCEEDED",
+        message: "workspace quota exhausted",
+        requestId: "req_42",
+        retryAfterMs: 5_000,
+      });
+      const stream = new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(new TextEncoder().encode(body));
+          (init.signal as AbortSignal).addEventListener("abort", () => c.error(new Error("aborted")));
+          c.close();
+        },
+      });
+      return new Response(stream, { status: 429 });
+    },
+    mintToken: async (req) => ({
+      accessToken: "tok",
+      expiresAt: 0,
+      audience: req.audience,
+      mode: req.mode,
+    }),
+    sleep: async () => {},
+  });
+
+  await assert.rejects(
+    async () => {
+      for await (const _f of client.chatStream("chat", { messages: [] }, CTX)) {
+        // never reached
+      }
+    },
+    (e: Error & { code?: string; requestId?: string; retryAfterMs?: number }) => {
+      assert.equal(e.code, "QUOTA_EXCEEDED", "the code an operator acts on");
+      assert.equal(e.requestId, "req_42", "the id that finds the call in the logs");
+      assert.equal(e.retryAfterMs, 5_000, "the delay retryPolicyFor needs");
+      return true;
+    },
+  );
+});
+
 test("a non-200 streaming response does not leave a request in flight", async () => {
   let signal: AbortSignal | undefined;
   const client = new AtlasClient(CFG, {

@@ -26,6 +26,9 @@ export interface DealTermsProps {
   readonly expectedCloseAt: Date | null;
   readonly forecastCategory: ForecastCategory;
   readonly canEdit: boolean;
+  /** The forecast bucket is a pro capability with its own permission; the
+   * select is only rendered when the member actually holds it. */
+  readonly canCategorize: boolean;
   readonly onSave: (
     opportunityId: string,
     input: {
@@ -49,9 +52,16 @@ export function DealTerms({
   expectedCloseAt,
   forecastCategory,
   canEdit,
+  canCategorize,
   onSave,
 }: DealTermsProps) {
   const closed = isTerminal(stage);
+  const initial = {
+    amount: amount == null ? "" : String(amount),
+    probability: probability == null ? "" : String(probability),
+    expectedCloseAt: asDateInput(expectedCloseAt),
+    forecastCategory,
+  };
   const [form, setForm] = useState({
     amount: amount == null ? "" : String(amount),
     probability: probability == null ? "" : String(probability),
@@ -61,6 +71,10 @@ export function DealTerms({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  /** The value if the user changed it, undefined if they did not. */
+  const dirty = (k: keyof typeof initial): string | undefined =>
+    form[k] === initial[k] ? undefined : form[k];
 
   if (!canEdit) {
     return (
@@ -74,15 +88,23 @@ export function DealTerms({
     setError(null);
     setSaved(false);
     startTransition(() => {
+      // Only what the user actually CHANGED. Sending every field meant an
+      // untouched one could carry a refusal for the whole save: a deal closed
+      // through the stage control keeps whatever bucket it had, so resubmitting
+      // that bucket against a now-terminal stage failed the entire edit and
+      // named a field nobody touched.
+      //
+      // updateCommercialTerms refuses a fully empty patch with `empty_patch`,
+      // so "changed nothing" still gets an honest answer.
       void onSave(opportunityId, {
-        amount: form.amount,
+        amount: dirty("amount"),
         currency,
-        // A closed deal's win rate is fixed by the stage machine, so it is not
-        // sent at all. Sending it would earn a terminal_probability_fixed
+        // A closed deal's win rate is fixed by the stage machine, so it is
+        // never sent. Sending it would earn a terminal_probability_fixed
         // refusal for a field the user could not have changed.
-        probability: closed ? undefined : form.probability,
-        expectedCloseAt: form.expectedCloseAt,
-        forecastCategory: form.forecastCategory,
+        probability: closed ? undefined : dirty("probability"),
+        expectedCloseAt: dirty("expectedCloseAt"),
+        forecastCategory: canCategorize ? dirty("forecastCategory") : undefined,
       }).then((r) => {
         if (!r.ok) setError(OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
         else setSaved(true);
@@ -122,6 +144,8 @@ export function DealTerms({
         disabled={pending}
       />
 
+      {canCategorize ? (
+        <>
       <Label htmlFor="terms-forecast">{OPPORTUNITY_TEXT.termsForecast}</Label>
       <NativeSelect
         id="terms-forecast"
@@ -138,6 +162,8 @@ export function DealTerms({
           </option>
         ))}
       </NativeSelect>
+        </>
+      ) : null}
 
       <Button onClick={save} disabled={pending}>
         {OPPORTUNITY_TEXT.termsSubmit}

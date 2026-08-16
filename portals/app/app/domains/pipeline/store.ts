@@ -256,6 +256,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     row.status = plan.patch.status;
     row.closedAt = plan.patch.closedAt;
     if (plan.patch.probability !== undefined) row.probability = plan.patch.probability;
+    if (plan.patch.forecastCategory !== undefined) row.forecastCategory = plan.patch.forecastCategory;
 
     this.seq += 1;
     this.events.push({ id: `evt_${this.seq}`, opportunityId, ...plan.event });

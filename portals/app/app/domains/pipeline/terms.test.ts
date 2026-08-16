@@ -7,6 +7,7 @@ import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import { advanceStage, stageHistory, updateCommercialTerms, type PipelineContext } from "./service";
 import { DEFAULT_PROBABILITY } from "./lib/stage";
+import { rollUp } from "./lib/forecast";
 
 // Repricing a deal, and reading how it got where it is.
 //
@@ -85,6 +86,51 @@ test("an opportunity in another workspace is not found rather than forbidden", a
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
 });
 
+// --- Pricing and committing are different capabilities ---------------------
+
+test("the rep who owns the deal may price it but not move its forecast bucket", async () => {
+  // authz/catalog.ts gives sales_rep pipeline.write WITHOUT pipeline.forecast,
+  // commented "owns the deal, not the forecast commitment", and
+  // 50-role-permission-catalog.md assigns adjusting the category to
+  // pipeline.forecast. Folding both under the editing gate handed a rep the
+  // commit number the product sells separately.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_rep", "pro", store);
+
+  unwrap(await updateCommercialTerms(c, "opp_1", { amount: money(250_000) }));
+  assert.equal((await stored(store))?.amount?.amount, 250_000, "pricing is theirs");
+
+  const r = await updateCommercialTerms(c, "opp_1", { forecastCategory: "best_case" });
+  assert.equal(r.ok, false, "the bucket is not");
+  assert.equal((await stored(store))?.forecastCategory, "commit", "and nothing moved");
+});
+
+test("the forecast bucket is a pro capability, not a free one", async () => {
+  // pipeline.manage is in the FREE tier; pipeline.forecast starts at pro. A
+  // free workspace could otherwise write the number rollUp() sums into commit.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const r = await updateCommercialTerms(ctx("sales_leader", "free", store), "opp_1", {
+    forecastCategory: "best_case",
+  });
+  assert.equal(r.ok, false);
+  assert.equal((await stored(store))?.forecastCategory, "commit");
+});
+
+test("a price change and a bucket change are judged independently", async () => {
+  // A member who may do one and not the other gets a refusal for the half they
+  // may not, rather than the whole call succeeding or failing together.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const r = await updateCommercialTerms(ctx("sales_rep", "pro", store), "opp_1", {
+    amount: money(1),
+    forecastCategory: "best_case",
+  });
+  assert.equal(r.ok, false, "the bucket half is refused");
+  assert.equal((await stored(store))?.amount?.amount, 100_000, "so neither half lands");
+});
+
 // --- The override rule, now reachable --------------------------------------
 
 test("a human win rate survives a later stage move", async () => {
@@ -135,9 +181,11 @@ test("a win rate outside 0-100 is refused by the rule, not by the form", async (
 test("an open deal cannot be forecast as closed through the pricing path", async () => {
   // The same rule the category control enforces. If this path skipped it, the
   // pricing form would be the way around planCategoryChange.
+  // sales_leader holds pipeline.write AND pipeline.forecast; sales_rep does not
+  // hold the latter, which the gate tests below cover.
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
-  const r = await updateCommercialTerms(ctx("sales_rep", "pro", store), "opp_1", {
+  const r = await updateCommercialTerms(ctx("sales_leader", "pro", store), "opp_1", {
     forecastCategory: "closed",
   });
   assert.equal(r.ok === false && r.violations[0].code, "closed_requires_terminal_stage");
@@ -146,7 +194,7 @@ test("an open deal cannot be forecast as closed through the pricing path", async
 test("a closed deal cannot be forecast back into an open bucket", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp({ stage: "lost", status: "lost", probability: 0, forecastCategory: "closed", closedAt: new Date() })]);
-  const r = await updateCommercialTerms(ctx("sales_rep", "pro", store), "opp_1", {
+  const r = await updateCommercialTerms(ctx("sales_leader", "pro", store), "opp_1", {
     forecastCategory: "commit",
   });
   assert.equal(r.ok === false && r.violations[0].code, "terminal_requires_closed");
@@ -192,7 +240,7 @@ test("changing one field leaves the others alone", async () => {
 test("every violation is reported, not just the first", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
-  const r = await updateCommercialTerms(ctx("sales_rep", "pro", store), "opp_1", {
+  const r = await updateCommercialTerms(ctx("sales_leader", "pro", store), "opp_1", {
     amount: money(-5),
     probability: 200,
     forecastCategory: "closed",
@@ -295,4 +343,24 @@ test("convert-shaped deal: price it, move it, close it", async () => {
   assert.equal(events.length, 5, "every move journalled, none skipped");
   assert.equal(events[0].fromStage, "qualify");
   assert.equal(events[events.length - 1].toStage, "won");
+
+  // The assertion this test was missing, and the reason a won deal used to keep
+  // reporting itself as pipeline: closing must move the forecast bucket too.
+  assert.equal(row?.forecastCategory, "closed");
+  const totals = rollUp([row!], "CNY");
+  assert.ok(totals.ok);
+  assert.equal(totals.value.closedAmount.amount, 880_000, "won revenue lands in closed");
+  assert.equal(totals.value.commitAmount.amount, 0, "and not in the commitment still to come");
+});
+
+test("a deal closed through the product is immediately editable again", async () => {
+  // The state the old behaviour produced was one planCategoryChange rejected in
+  // BOTH directions, so no later edit could repair it: the deal was stuck.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ stage: "negotiate", probability: 90, forecastCategory: "commit" })]);
+  const c = ctx("sales_leader", "pro", store);
+
+  unwrap(await advanceStage(c, "opp_1", { to: "won" }));
+  unwrap(await updateCommercialTerms(c, "opp_1", { amount: money(123_000) }));
+  assert.equal((await stored(store))?.amount?.amount, 123_000);
 });

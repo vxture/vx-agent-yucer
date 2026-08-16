@@ -146,6 +146,7 @@ export class PrismaPipelineStore implements PipelineStore {
       updatedAt: new Date(),
     };
     if (plan.patch.probability !== undefined) patch.probability = plan.patch.probability;
+    if (plan.patch.forecastCategory !== undefined) patch.forecastCategory = plan.patch.forecastCategory;
 
     const guard = assertWritable(OPPORTUNITY_TABLE, patch);
     if (!guard.ok) {
