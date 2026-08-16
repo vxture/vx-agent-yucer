@@ -15,6 +15,7 @@
 
 import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
+import { DEFAULT_PROBABILITY } from "./lib/stage";
 import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
 
 export interface OpportunityRecord {
@@ -57,8 +58,29 @@ export interface OpportunityFilter {
   limit?: number;
 }
 
+/**
+ * A new opportunity. The attribution keys are supplied HERE and never again -
+ * they have no UPDATE grant, and the whole traceability claim rests on them
+ * being written once from computed facts rather than typed in later.
+ */
+export interface NewOpportunity {
+  name: string;
+  accountId: string;
+  campaignId: string | null;
+  planId: string | null;
+  territoryId: string | null;
+  ownerSub: string | null;
+  amount: Money | null;
+  currency: string;
+  expectedCloseAt: Date | null;
+}
+
 export interface PipelineStore {
   listOpportunities(workspaceId: string, filter?: OpportunityFilter): Promise<OpportunityRecord[]>;
+  /** Creates in `qualify` with the stage default probability. A deal cannot be
+   * born mid-funnel: the stage machine is what moves it, and every move is
+   * journalled. */
+  createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord>;
   getOpportunity(workspaceId: string, id: string): Promise<OpportunityRecord | null>;
 
   /**
@@ -88,6 +110,31 @@ export class InMemoryPipelineStore implements PipelineStore {
 
   seed(records: OpportunityRecord[]): void {
     for (const r of records) this.opportunities.set(r.id, { ...r });
+  }
+
+  async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {
+    this.seq += 1;
+    const record: OpportunityRecord = {
+      id: `opp_${this.seq}`,
+      workspaceId,
+      opportunityNo: `OPP-${String(this.seq).padStart(5, "0")}`,
+      name: input.name,
+      accountId: input.accountId,
+      planId: input.planId,
+      campaignId: input.campaignId,
+      territoryId: input.territoryId,
+      ownerSub: input.ownerSub,
+      stage: "qualify",
+      forecastCategory: "pipeline",
+      amount: input.amount,
+      probability: DEFAULT_PROBABILITY.qualify,
+      expectedCloseAt: input.expectedCloseAt,
+      closedAt: null,
+      status: "open",
+      currency: input.currency,
+    };
+    this.opportunities.set(record.id, record);
+    return record;
   }
 
   async listOpportunities(

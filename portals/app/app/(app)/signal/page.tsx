@@ -1,11 +1,13 @@
-import { EmptyState } from "@vxture/design-system";
+import { EmptyState, PageStack } from "@vxture/design-system";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT } from "../lib/messages";
 import { getSignalStore } from "../../domains/shared/registry";
-import { listSignals } from "../../domains/signal/service";
+import { listLeads, listSignals } from "../../domains/signal/service";
 import { can } from "../../authz/decide";
 import { SignalInbox } from "../components/signal-inbox";
+import { LeadList } from "../components/lead-list";
 import { actOnSignal } from "./actions";
+import { actOnLead } from "./lead-actions";
 
 // D5 signal inbox.
 //
@@ -21,16 +23,18 @@ export default async function SignalPage() {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
 
-  const result = await listSignals(
-    {
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: getSignalStore(),
-    },
-    { limit: 100 },
-  );
+  const ctx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getSignalStore(),
+  };
+
+  const [result, leads] = await Promise.all([
+    listSignals(ctx, { limit: 100 }),
+    listLeads(ctx, { limit: 100 }),
+  ]);
 
   if (!result.ok) {
     return (
@@ -42,14 +46,24 @@ export default async function SignalPage() {
   }
 
   return (
-    <SignalInbox
-      signals={result.value}
+    <PageStack>
+      <SignalInbox
+        signals={result.value}
       // Both flags come from the SAME gate the server action re-runs. Naming
       // tiers here would be the product re-deriving a commercial conclusion,
       // and it would drift from the matrix the moment packaging changed.
-      canTriage={can(session.authz, session.entitlement, "signal.triage", "ui").allowed}
-      canRescore={can(session.authz, session.entitlement, "signal.rescore", "ui").allowed}
-      onAct={actOnSignal}
-    />
+        canTriage={can(session.authz, session.entitlement, "signal.triage", "ui").allowed}
+        canRescore={can(session.authz, session.entitlement, "signal.rescore", "ui").allowed}
+        onAct={actOnSignal}
+      />
+      {/* Leads sit under the inbox because that is the order the chain runs in:
+          a signal is promoted into a lead, and a qualified lead converts. */}
+      <LeadList
+        leads={leads.ok ? leads.value : []}
+        canTriage={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
+        canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}
+        onAct={actOnLead}
+      />
+    </PageStack>
   );
 }
