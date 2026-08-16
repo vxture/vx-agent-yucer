@@ -365,6 +365,39 @@ export const WINLOSS_REASON_LABEL: Record<string, string> = {
   other: "其他",
 };
 
+export const CHAIN_TEXT = {
+  title: "决策链",
+  description: "「档案里有经济决策人」和「有人能引荐到他」是两件事。只有后者能推进单子。",
+  covered: "已覆盖",
+  missing: "缺失角色",
+  blockers: "阻碍者",
+  coaches: "内线",
+  reachable: "经济决策人可达",
+  unreachable: "经济决策人不可达",
+  unreachableHint: "没有从内线到经济决策人的路径——遍历会跳过对立关系和已离职的联系人。",
+  noEconomicBuyer: "档案里还没有经济决策人",
+  influence: "影响力",
+  emptyTitle: "还没有联系人",
+  emptyDescription: "录入联系人并标注决策角色后，这里会给出决策链分析。",
+  healthTitle: "客户健康度",
+  healthDescription: "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
+  primaryConcern: "首要问题",
+  recompute: "重新计算",
+  factorPipeline: "商机",
+  factorRecency: "互动时效",
+  factorDelivery: "交付",
+  factorCollections: "回款",
+} as const;
+
+export const DECISION_ROLE_LABEL: Record<string, string> = {
+  economic: "经济决策人",
+  technical: "技术决策人",
+  user: "使用者",
+  coach: "内线",
+  blocker: "阻碍者",
+  unknown: "未知",
+};
+
 export const PREVIEW_TEXT = {
   eyebrow: "离线预览",
   title: "yucer 产品界面预览",
