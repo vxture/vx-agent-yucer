@@ -6,6 +6,9 @@ import { DEFAULT_PROBABILITY } from "./lib/stage";
 import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
 import type {
   NewOpportunity,
+  NewWinLossReview,
+  WinLossReviewRecord,
+  WinLossReason,
   OpportunityFilter,
   OpportunityRecord,
   PipelineStore,
@@ -224,6 +227,68 @@ export class PrismaPipelineStore implements PipelineStore {
     });
   }
 
+  async getWinLossReview(
+    workspaceId: string,
+    opportunityId: string,
+  ): Promise<WinLossReviewRecord | null> {
+    const p = await getPrismaClient();
+    const row = await p.winLossReview.findFirst({ where: { workspaceId, opportunityId } });
+    return row ? toReview(row as Record<string, unknown>) : null;
+  }
+
+  async saveWinLossReview(
+    workspaceId: string,
+    opportunityId: string,
+    review: NewWinLossReview,
+  ): Promise<WinLossReviewRecord> {
+    const p = await getPrismaClient();
+    const data = {
+      outcome: review.outcome,
+      primaryReason: review.primaryReason,
+      competitor: review.competitor ?? null,
+      lessons: review.lessons ?? null,
+      reviewerSub: review.reviewerSub,
+      reviewedAt: new Date(),
+    };
+
+    // uidx_win_loss_review_opp: one review per opportunity. A re-closed deal
+    // revises the existing row - every column here is in the update whitelist.
+    const guard = assertWritable("yucer_pipeline.win_loss_review", { ...data, updatedAt: new Date() });
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    const row = await p.winLossReview.upsert({
+      where: { opportunityId },
+      create: { workspaceId, opportunityId, ...data },
+      update: { ...data, updatedAt: new Date() },
+    });
+    return toReview(row as Record<string, unknown>);
+  }
+
+  async listUnreviewedClosed(workspaceId: string, limit = 50): Promise<OpportunityRecord[]> {
+    const p = await getPrismaClient();
+    const reviewed = await p.winLossReview.findMany({
+      where: { workspaceId },
+      select: { opportunityId: true },
+    });
+    const reviewedIds = reviewed.map((r: { opportunityId: string }) => r.opportunityId);
+
+    const rows = await p.opportunity.findMany({
+      where: {
+        workspaceId,
+        status: { in: ["won", "lost"] },
+        deletedAt: null,
+        ...(reviewedIds.length > 0 ? { id: { notIn: reviewedIds } } : {}),
+      },
+      orderBy: { closedAt: "desc" },
+      take: limit,
+    });
+    return rows.map((r: OpportunityRow) => toRecord(r));
+  }
+
   async listForecastSnapshots(
     workspaceId: string,
     query: { period: string; scopeType?: ScopeType },
@@ -235,6 +300,19 @@ export class PrismaPipelineStore implements PipelineStore {
     });
     return rows.map((r: Record<string, unknown>) => decimalSnapshot(r));
   }
+}
+
+function toReview(r: Record<string, unknown>): WinLossReviewRecord {
+  return {
+    id: String(r.id),
+    opportunityId: String(r.opportunityId),
+    outcome: r.outcome as "won" | "lost",
+    primaryReason: (r.primaryReason as WinLossReason | null) ?? null,
+    competitor: (r.competitor as string | null) ?? null,
+    lessons: (r.lessons as string | null) ?? null,
+    reviewerSub: (r.reviewerSub as string | null) ?? null,
+    reviewedAt: r.reviewedAt as Date,
+  };
 }
 
 function decimalSnapshot(r: Record<string, unknown>): SnapshotRow {

@@ -19,7 +19,12 @@ import type { Decision } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { planSnapshot, type ForecastScope, type SnapshotRow } from "./lib/forecast";
 import { planStageChange, type Stage, type StageChangeInput } from "./lib/stage";
-import type { OpportunityRecord, PipelineStore } from "./store";
+import type {
+  NewWinLossReview,
+  OpportunityRecord,
+  PipelineStore,
+  WinLossReviewRecord,
+} from "./store";
 
 export interface PipelineContext {
   workspaceId: string;
@@ -62,7 +67,7 @@ export async function advanceStage(
   ctx: PipelineContext,
   opportunityId: string,
   input: Omit<StageChangeInput, "actorSub">,
-): Promise<RuleResult<{ stage: Stage; journalled: true }>> {
+): Promise<RuleResult<{ stage: Stage; journalled: true; reviewRequired: boolean }>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.advance", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -73,22 +78,90 @@ export async function advanceStage(
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
 
+  // The review state is loaded, not assumed. Without it hasWinLossReview is
+  // undefined, requiresWinLossReview is always true, and re-closing an already
+  // reviewed deal would demand a second review - which the unique index on
+  // opportunity_id would then reject.
+  const existingReview = await ctx.store.getWinLossReview(ctx.workspaceId, opportunityId);
+
   const plan = planStageChange(
     {
       stage: current.stage,
       status: current.status,
       probability: current.probability,
       closedAt: current.closedAt,
+      hasWinLossReview: existingReview != null,
     },
     { ...input, actorSub: ctx.sub },
   );
-  if (!plan.ok) return plan as RuleResult<{ stage: Stage; journalled: true }>;
+  if (!plan.ok) return plan as RuleResult<{ stage: Stage; journalled: true; reviewRequired: boolean }>;
 
   const applied = await ctx.store.applyStageChange(ctx.workspaceId, opportunityId, plan.value);
   if (!applied) {
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
-  return ok({ stage: plan.value.patch.stage, journalled: true });
+  // Surfaced rather than enforced inline. The spec requires a review on close,
+  // but blocking the close until someone writes one would push people to leave
+  // deals open instead - and an open deal that is really lost is worse for every
+  // number than a closed one missing its review. The debt is made visible by
+  // listPendingReviews() instead.
+  return ok({
+    stage: plan.value.patch.stage,
+    journalled: true,
+    reviewRequired: plan.value.requiresWinLossReview,
+  });
+}
+
+/**
+ * Closed deals with no review yet.
+ *
+ * The spec says a terminal stage MUST produce a review. A rule that says "must"
+ * with no way to see what is outstanding is unenforceable, so this is the list
+ * that makes it enforceable by a human rather than by a blocked form.
+ */
+export async function listPendingReviews(
+  ctx: PipelineContext,
+  limit = 50,
+): Promise<RuleResult<OpportunityRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listUnreviewedClosed(ctx.workspaceId, limit));
+}
+
+/**
+ * Record (or revise) the win/loss review.
+ *
+ * The outcome is derived from the opportunity's status, never taken from the
+ * caller: a review claiming "won" on a lost deal would corrupt the one dataset
+ * the learning loop reads, and the caller has no business asserting it.
+ */
+export async function recordWinLossReview(
+  ctx: PipelineContext,
+  opportunityId: string,
+  input: Omit<NewWinLossReview, "outcome" | "reviewerSub">,
+): Promise<RuleResult<WinLossReviewRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const opportunity = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!opportunity) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+  if (opportunity.status !== "won" && opportunity.status !== "lost") {
+    return fail(
+      violation("not_closed", "only a closed opportunity has a win/loss outcome to review", "status"),
+    );
+  }
+
+  return ok(
+    await ctx.store.saveWinLossReview(ctx.workspaceId, opportunityId, {
+      ...input,
+      outcome: opportunity.status,
+      // The reviewer is the session subject. A caller that could name the
+      // reviewer could attribute a post-mortem to someone who never wrote it.
+      reviewerSub: ctx.sub,
+    }),
+  );
 }
 
 /**
