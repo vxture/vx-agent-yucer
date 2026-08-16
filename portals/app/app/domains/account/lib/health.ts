@@ -148,7 +148,21 @@ export interface ContactNode {
   status: string;
 }
 
-export type RelationType = "reports_to" | "peer_of" | "allied_with" | "opposed_to" | "referred_by";
+/** Mirrors chk_account_relation_type. A value outside this set is refused by
+ * the database, so the surface offers exactly these and nothing else. */
+export const RELATION_TYPES = [
+  "reports_to",
+  "peer_of",
+  "allied_with",
+  "opposed_to",
+  "referred_by",
+] as const;
+
+export type RelationType = (typeof RELATION_TYPES)[number];
+
+export function isRelationType(v: string): v is RelationType {
+  return (RELATION_TYPES as readonly string[]).includes(v);
+}
 
 export interface RelationEdge {
   fromContactId: string;

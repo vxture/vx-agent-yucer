@@ -149,6 +149,38 @@ export const PIPELINE_TEXT = {
   rollupFailedTitle: "无法汇总",
 } as const;
 
+export const RELATION_TYPE_LABEL: Record<string, string> = {
+  reports_to: "汇报给",
+  peer_of: "平级",
+  allied_with: "同盟",
+  opposed_to: "对立",
+  referred_by: "由其引荐",
+};
+
+export const RELATION_TEXT = {
+  title: "补录关系",
+  description:
+    "关系图是追加写的：关系变了就补一条新的边，不会改写旧的——「上季度谁向谁汇报」是决策链分析要读的事实。",
+  from: "发起方",
+  to: "指向",
+  type: "关系",
+  submit: "记录",
+  saved: "已记录",
+  pick: "选择联系人",
+  readOnly: "你没有编辑关系图的权限。",
+  needTwo: "至少需要两位联系人才能建立关系。",
+  hintUnreachable: "记录一条通往决策人的路径，可以让上面的判断从「不可达」变成「可达」。",
+} as const;
+
+export const RELATION_ERROR: Record<string, string> = {
+  self_relation: "同一个人不能和自己建立关系",
+  unknown_relation_type: "未知的关系类型",
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有编辑关系图的权限",
+  feature_not_in_tier: "当前档位不含关系图能力",
+  no_data_access: "当前工作区无权访问",
+};
+
 export const OPPORTUNITY_TEXT = {
   notFound: "商机不存在，或不属于当前工作区",
   amount: "金额",

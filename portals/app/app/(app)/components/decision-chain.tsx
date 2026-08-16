@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
   EmptyState,
   PageSection,
@@ -27,13 +28,16 @@ import { CHAIN_TEXT, DECISION_ROLE_LABEL } from "../lib/messages";
 export interface DecisionChainProps {
   readonly coverage: ChainCoverage;
   readonly contacts: readonly ContactNode[];
+  /** The form that can change the answer above. Absent on surfaces that only read. */
+  readonly linkForm?: ReactNode;
 }
 
-export function DecisionChain({ coverage, contacts }: DecisionChainProps) {
+export function DecisionChain({ coverage, contacts, linkForm }: DecisionChainProps) {
   if (contacts.length === 0) {
     return (
       <PageSection title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
         <EmptyState title={CHAIN_TEXT.emptyTitle} description={CHAIN_TEXT.emptyDescription} />
+        {linkForm}
       </PageSection>
     );
   }
@@ -104,6 +108,11 @@ export function DecisionChain({ coverage, contacts }: DecisionChainProps) {
           ))}
         </div>
       ) : null}
+
+      {/* The action that can change the verdict above, in the place the verdict
+          is delivered. Sending a rep elsewhere to fix what this panel just told
+          them is how a finding turns into something people learn to ignore. */}
+      {linkForm}
     </PageSection>
   );
 }
