@@ -13,6 +13,11 @@ import { InMemoryPipelineStore, type PipelineStore } from "../pipeline/store";
 import { PrismaPipelineStore } from "../pipeline/prisma-store";
 import { InMemoryCopilotStore, type CopilotStore } from "../copilot/store";
 import { PrismaCopilotStore } from "../copilot/prisma-store";
+import { InMemoryAccountStore, type AccountStore } from "../account/store";
+import { PrismaAccountStore } from "../account/prisma-store";
+import { InMemoryDeliveryStore, type DeliveryStore } from "../delivery/store";
+import { InMemoryPlanningStore, type PlanningStore } from "../planning/store";
+import { InMemoryStrategyStore, type StrategyStore } from "../strategy/store";
 
 let pipelineOverride: PipelineStore | null = null;
 let pipelineMemo: PipelineStore | null = null;
@@ -42,4 +47,66 @@ export function getCopilotStore(): CopilotStore {
 export function setCopilotStore(next: CopilotStore | null): void {
   copilotOverride = next;
   copilotMemo = null;
+}
+
+let accountOverride: AccountStore | null = null;
+let accountMemo: AccountStore | null = null;
+
+export function getAccountStore(): AccountStore {
+  if (accountOverride) return accountOverride;
+  if (accountMemo) return accountMemo;
+  accountMemo = prismaEnabled() ? new PrismaAccountStore() : new InMemoryAccountStore();
+  return accountMemo;
+}
+
+export function setAccountStore(next: AccountStore | null): void {
+  accountOverride = next;
+  accountMemo = null;
+}
+
+// D7 / D2 / D1+D3 have their ports and in-memory implementations; the Prisma
+// adapters follow the pattern already set by pipeline/account and are the
+// remaining work in batch 2c. Until then these resolve to the in-memory store
+// even with DATABASE_URL set, which is stated here rather than silently true.
+
+let deliveryOverride: DeliveryStore | null = null;
+let deliveryMemo: DeliveryStore | null = null;
+
+export function getDeliveryStore(): DeliveryStore {
+  if (deliveryOverride) return deliveryOverride;
+  if (!deliveryMemo) deliveryMemo = new InMemoryDeliveryStore();
+  return deliveryMemo;
+}
+
+export function setDeliveryStore(next: DeliveryStore | null): void {
+  deliveryOverride = next;
+  deliveryMemo = null;
+}
+
+let planningOverride: PlanningStore | null = null;
+let planningMemo: PlanningStore | null = null;
+
+export function getPlanningStore(): PlanningStore {
+  if (planningOverride) return planningOverride;
+  if (!planningMemo) planningMemo = new InMemoryPlanningStore();
+  return planningMemo;
+}
+
+export function setPlanningStore(next: PlanningStore | null): void {
+  planningOverride = next;
+  planningMemo = null;
+}
+
+let strategyOverride: StrategyStore | null = null;
+let strategyMemo: StrategyStore | null = null;
+
+export function getStrategyStore(): StrategyStore {
+  if (strategyOverride) return strategyOverride;
+  if (!strategyMemo) strategyMemo = new InMemoryStrategyStore();
+  return strategyMemo;
+}
+
+export function setStrategyStore(next: StrategyStore | null): void {
+  strategyOverride = next;
+  strategyMemo = null;
 }
