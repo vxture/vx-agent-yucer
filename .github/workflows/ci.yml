@@ -217,8 +217,17 @@ jobs:
       - name: Enable corepack (pnpm from packageManager)
         run: corepack enable
 
-      - name: Install (frozen lockfile)
-        run: pnpm install --frozen-lockfile
+      - name: Install (frozen lockfile, no lifecycle scripts)
+        # --ignore-scripts: a dependency's postinstall is arbitrary code running
+        # with the runner's token in the environment. This job needs none of it -
+        # the DB tests talk to Postgres through `pg` and never load the Prisma
+        # client, and the DDL is applied by psql.
+        #
+        # The build and test-coverage jobs above still install WITH scripts, and
+        # should probably not; that is a separate change, because `build` runs
+        # prisma generate and is a required check, so tightening it belongs in a
+        # PR that can be judged on its own.
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
