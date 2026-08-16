@@ -120,18 +120,35 @@ test("the CHECK constraints are live, not decoration", { skip }, async () => {
   await withDb(async (c) => {
     await c.query("BEGIN");
     try {
-      const target = (scope: string, metric: string, amount: number) =>
-        c.query(
-          `INSERT INTO yucer_gtm.sales_target
-             (workspace_id, period, scope_type, metric, target_amount, currency)
-           VALUES ($1, '2026Q3', $2, $3, $4, 'CNY')`,
-          [WS, scope, metric, amount],
+      // Each expected failure gets its own SAVEPOINT. In Postgres the FIRST
+      // error aborts the whole transaction, and every later statement then
+      // fails with "current transaction is aborted" instead of the constraint
+      // that would have caught it - so without this, only the first assertion
+      // means anything and the rest silently assert the same generic error.
+      const rejectsWith = async (
+        scope: string,
+        metric: string,
+        amount: number,
+        expected: RegExp,
+      ) => {
+        await c.query("SAVEPOINT probe");
+        await assert.rejects(
+          () =>
+            c.query(
+              `INSERT INTO yucer_gtm.sales_target
+                 (workspace_id, period, scope_type, metric, target_amount, currency)
+               VALUES ($1, '2026Q3', $2, $3, $4, 'CNY')`,
+              [WS, scope, metric, amount],
+            ),
+          expected,
         );
+        await c.query("ROLLBACK TO SAVEPOINT probe");
+      };
 
-      await assert.rejects(() => target("everyone", "revenue", 1), /chk_sales_target_scope/);
-      await assert.rejects(() => target("workspace", "vibes", 1), /chk_sales_target_metric/);
+      await rejectsWith("everyone", "revenue", 1, /chk_sales_target_scope/);
+      await rejectsWith("workspace", "vibes", 1, /chk_sales_target_metric/);
       // A negative quota is not a small quota.
-      await assert.rejects(() => target("workspace", "revenue", -1), /chk_sales_target_amount/);
+      await rejectsWith("workspace", "revenue", -1, /chk_sales_target_amount/);
     } finally {
       await c.query("ROLLBACK");
     }

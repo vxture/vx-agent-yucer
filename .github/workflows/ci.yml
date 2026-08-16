@@ -189,12 +189,13 @@ jobs:
 
     services:
       postgres:
-        # Ephemeral, per-job, thrown away at the end. The password is not a
-        # secret: it never leaves the runner and the container is unreachable
-        # from outside it.
+        # Ephemeral, per-job, thrown away at the end - and with NO password at
+        # all. trust auth means there is no credential here to leak, to rotate,
+        # or to be mistaken for a real one by a scanner. The container is
+        # reachable only from this runner.
         image: postgres:18
         env:
-          POSTGRES_PASSWORD: ci
+          POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: vxturebiz_yucer_ci
         ports:
           - 5432:5432
@@ -228,7 +229,6 @@ jobs:
         # db-init.yml remains the authority.
         run: |
           set -euo pipefail
-          export PGPASSWORD=ci
           run() { psql -h localhost -U postgres -d vxturebiz_yucer_ci -v ON_ERROR_STOP=1 "$@"; }
           for f in 00_baseline.sql 97_service_role.sql 98_column_locks.sql; do
             echo "[db-contract] applying $f"
@@ -249,4 +249,4 @@ jobs:
         # (as skipped) to anyone running pnpm test on a laptop.
         run: pnpm --filter @yucer/app test:db
         env:
-          DATABASE_URL: postgresql://postgres:ci@localhost:5432/vxturebiz_yucer_ci
+          DATABASE_URL: postgresql://postgres@localhost:5432/vxturebiz_yucer_ci
