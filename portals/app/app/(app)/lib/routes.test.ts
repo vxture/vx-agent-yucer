@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { NAV_ENTRIES } from "./navigation";
+import { DOMAIN_NAV_ENTRIES, NAV_ENTRIES } from "./navigation";
 import { DOMAIN_LABEL } from "./messages";
 
 // Every navigation entry must have a page behind it.
@@ -35,9 +35,9 @@ test("every nav entry has a display label", () => {
 });
 
 test("all eight capability domains are reachable from the nav", () => {
-  assert.equal(NAV_ENTRIES.length, 8);
+  assert.equal(DOMAIN_NAV_ENTRIES.length, 8);
   assert.deepEqual(
-    NAV_ENTRIES.map((e) => e.key).sort(),
+    DOMAIN_NAV_ENTRIES.map((e) => e.key).sort(),
     ["account", "campaign", "copilot", "delivery", "pipeline", "planning", "signal", "strategy"],
   );
 });

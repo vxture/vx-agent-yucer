@@ -4,9 +4,12 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import type { AuthzContext } from "../../authz/context";
 import {
+  ADMIN_NAV_ENTRIES,
+  DOMAIN_NAV_ENTRIES,
   NAV_ENTRIES,
   defaultLandingHref,
   isFullyLockedOut,
+  lockoutReason,
   resolveNavigation,
 } from "./navigation";
 
@@ -26,9 +29,20 @@ function ent(over: Partial<Entitlement> = {}): Entitlement {
 
 test("the nav covers all eight domains, in chain order", () => {
   assert.deepEqual(
-    NAV_ENTRIES.map((e) => e.key),
+    DOMAIN_NAV_ENTRIES.map((e) => e.key),
     ["strategy", "planning", "campaign", "account", "signal", "pipeline", "delivery", "copilot"],
   );
+});
+
+test("administration is nav, but it is not a capability domain", () => {
+  // Kept in its own list so the eight-domain invariant above stays an assertion
+  // about the product rather than degrading into "nine things, one of which is
+  // not a domain".
+  assert.deepEqual(
+    ADMIN_NAV_ENTRIES.map((e) => e.key),
+    ["admin"],
+  );
+  assert.equal(NAV_ENTRIES.length, DOMAIN_NAV_ENTRIES.length + ADMIN_NAV_ENTRIES.length);
 });
 
 test("an entitlement gap is advertised, not hidden", () => {
@@ -72,7 +86,10 @@ test("an enterprise sales leader sees every domain", () => {
 
 test("a viewer sees every domain their tier bought, all read-only", () => {
   const nav = resolveNavigation(ctx("viewer"), ent({ tier: "enterprise" }));
-  assert.equal(nav.filter((e) => e.state === "visible").length, NAV_ENTRIES.length);
+  // Every DOMAIN, not every entry: a viewer holds no admin.manage, so the
+  // administration entry is a silent permission gap for them.
+  assert.equal(nav.filter((e) => e.state === "visible").length, DOMAIN_NAV_ENTRIES.length);
+  assert.equal(nav.some((e) => e.key === "admin"), false);
 });
 
 test("no tier at all locks everything, and that is detectable", () => {
@@ -95,6 +112,49 @@ test("a member with no roles at all sees nothing rather than an empty shell", ()
   assert.equal(isFullyLockedOut(nav), true);
 });
 
+test("a roleless member is not told to go and subscribe", () => {
+  // The workspace has already paid. Offering a checkout page to someone whose
+  // problem is a missing role sends them somewhere that cannot help, and the
+  // remedy they need - an administrator - is never named.
+  const nav = resolveNavigation(ctx(), ent({ tier: "enterprise" }));
+  assert.equal(lockoutReason(nav), "no_roles");
+});
+
+test("an unsubscribed workspace still gets the subscribe remedy", () => {
+  // Including for an administrator: admin.member.view carries feature: null, so
+  // no individual feature locks it, but base product access still does. Without
+  // that, an admin of an unpaid workspace would land in a shell containing only
+  // the members screen and never see the conversion exit.
+  const admin = resolveNavigation(ctx("sales_leader"), ent({ tier: null }));
+  assert.equal(lockoutReason(admin), "no_entitlement");
+  assert.equal(admin.find((e) => e.key === "admin")?.state, "locked");
+});
+
+test("both gaps at once is an entitlement problem first", () => {
+  // The gates are ordered, so a member with neither is told about the tier.
+  // Fixing roles first would leave them exactly as locked out.
+  const nav = resolveNavigation(ctx(), ent({ tier: null }));
+  assert.equal(lockoutReason(nav), "no_entitlement");
+});
+
+test("nothing is reported as a lockout while anything is reachable", () => {
+  const nav = resolveNavigation(ctx("sales_rep"), ent({ tier: "free" }));
+  assert.equal(lockoutReason(nav), null);
+});
+
+test("an administrator of a paid workspace can always reach the members screen", () => {
+  // The recovery path. If this entry were ever gated on a feature, a workspace
+  // could reach a state with no way to grant anyone a role.
+  for (const tier of ["free", "starter", "pro", "business", "enterprise"] as const) {
+    const nav = resolveNavigation(ctx("sales_ops"), ent({ tier }));
+    assert.equal(
+      nav.find((e) => e.key === "admin")?.state,
+      "visible",
+      `administration is not reachable at ${tier}`,
+    );
+  }
+});
+
 test("landing goes to the first domain that is actually open", () => {
   const rep = resolveNavigation(ctx("sales_rep"), ent({ tier: "free" }));
   assert.equal(defaultLandingHref(rep), "/account", "account precedes pipeline in chain order");
@@ -106,7 +166,8 @@ test("landing goes to the first domain that is actually open", () => {
 test("every nav entry points at a real action and a distinct route", () => {
   assert.equal(new Set(NAV_ENTRIES.map((e) => e.href)).size, NAV_ENTRIES.length);
   assert.equal(new Set(NAV_ENTRIES.map((e) => e.key)).size, NAV_ENTRIES.length);
-  for (const e of NAV_ENTRIES) assert.match(e.href, /^\/[a-z]+$/);
+  // Lowercase path segments; more than one is allowed (/admin/members).
+  for (const e of NAV_ENTRIES) assert.match(e.href, /^(\/[a-z]+)+$/);
 });
 
 test("a locked entry carries the tier that would unlock it, so the CTA can be specific", () => {

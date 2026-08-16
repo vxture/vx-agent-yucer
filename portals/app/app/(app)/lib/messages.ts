@@ -70,6 +70,46 @@ export const DOMAIN_LABEL: Record<string, string> = {
   pipeline: "商机管理",
   delivery: "项目落地",
   copilot: "销售助手",
+  admin: "成员与角色",
+};
+
+export const ROLE_LABEL: Record<string, string> = {
+  sales_leader: "销售负责人",
+  marketing_manager: "市场经理",
+  sales_rep: "销售代表",
+  presales: "售前顾问",
+  delivery_manager: "交付经理",
+  sales_ops: "销售运营",
+  viewer: "只读成员",
+};
+
+export const MEMBER_TEXT = {
+  title: "成员与角色",
+  description:
+    "角色决定成员能看到什么、能改什么。新成员首次登录后出现在这里，默认没有任何角色——在此为其分配。",
+  columnMember: "成员",
+  columnRoles: "角色",
+  columnActions: "",
+  noRoles: "无角色",
+  noRolesHint: "该成员当前看不到任何模块",
+  assign: "分配",
+  revoke: "移除",
+  assignPlaceholder: "选择角色",
+  emptyTitle: "还没有成员",
+  emptyDescription: "成员在首次登录后才会出现在这里。",
+  readOnly: "你没有管理成员角色的权限。",
+  adminBadge: "可管理成员",
+  lastAdminHint: "这是工作区最后一位管理员，移除后将无人能再分配角色",
+} as const;
+
+export const MEMBER_ERROR: Record<string, string> = {
+  last_admin: "这是工作区最后一位管理员；移除后将无人能再分配角色",
+  unknown_role: "角色不在目录中",
+  sub_required: "请选择成员",
+  not_found: "该成员不属于当前工作区",
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有管理成员角色的权限",
+  no_data_access: "当前工作区无权访问",
 };
 
 export const SHELL_TEXT = {
@@ -78,6 +118,9 @@ export const SHELL_TEXT = {
   noAccessTitle: "当前工作区尚未订阅 yucer",
   noAccessDescription: "订阅后即可使用客户管理、商机管道与销售智能助手。",
   subscribeCta: "前往订阅",
+  noRolesTitle: "还没有为你分配角色",
+  noRolesDescription:
+    "工作区已订阅，但你还没有任何角色，因此暂时看不到任何模块。请联系工作区管理员为你分配角色。",
   loadFailed: "数据加载失败",
 } as const;
 

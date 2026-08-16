@@ -49,7 +49,7 @@ export interface NavEntry {
  * planning -> campaign -> account -> signal -> pipeline -> delivery, with the
  * copilot last because it cuts across all of them.
  */
-export const NAV_ENTRIES: readonly NavEntry[] = [
+export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "strategy", href: "/strategy", icon: "graph", action: "strategy.plan.view" },
   { key: "planning", href: "/planning", icon: "chart-bar", action: "planning.target.view" },
   { key: "campaign", href: "/campaign", icon: "workflow", action: "campaign.view" },
@@ -59,6 +59,23 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   { key: "delivery", href: "/delivery", icon: "cube", action: "delivery.project.view" },
   { key: "copilot", href: "/copilot", icon: "sparkles", action: "copilot.playbook.view" },
 ];
+
+/**
+ * Administration sits outside the chain, and is kept in its own list so the
+ * eight-capability-domain invariant stays assertable rather than becoming "nine
+ * things, one of which is not a domain".
+ *
+ * Its action carries `feature: null`, so no individual FEATURE can lock it - a
+ * workspace unable to administer its own members because of its price plan
+ * would be a workspace nobody can get into. Base product access still applies,
+ * which is what keeps an unsubscribed workspace on the subscribe screen rather
+ * than dropping it into a shell containing only this entry.
+ */
+export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
+  { key: "admin", href: "/admin/members", icon: "settings", action: "admin.member.view" },
+];
+
+export const NAV_ENTRIES: readonly NavEntry[] = [...DOMAIN_NAV_ENTRIES, ...ADMIN_NAV_ENTRIES];
 
 export type NavState = "visible" | "locked";
 
@@ -103,4 +120,29 @@ export function defaultLandingHref(resolved: readonly ResolvedNavEntry[]): strin
  * rather than rendering an empty shell. */
 export function isFullyLockedOut(resolved: readonly ResolvedNavEntry[]): boolean {
   return resolved.every((e) => e.state !== "visible");
+}
+
+/**
+ * WHY nothing is reachable, which decides what to offer.
+ *
+ * The two causes need opposite remedies and were previously collapsed into one
+ * "go subscribe" screen:
+ *
+ *   no_entitlement - the workspace has not bought anything. Buying is the fix.
+ *   no_roles       - the workspace HAS bought, and this member holds no role.
+ *                    Telling them to subscribe is worse than useless: they
+ *                    cannot fix it by paying, and the thing they need is an
+ *                    administrator, not a checkout page.
+ *
+ * The two are told apart by the shape of `resolved`, and that follows from the
+ * gate's own ordering. A permission gap is dropped from the list while an
+ * entitlement gap is kept as `locked`, so an EMPTY list means every domain was
+ * refused on permission - which is only possible once entitlement has already
+ * passed, since the entitlement half is evaluated first.
+ */
+export type LockoutReason = "no_entitlement" | "no_roles";
+
+export function lockoutReason(resolved: readonly ResolvedNavEntry[]): LockoutReason | null {
+  if (!isFullyLockedOut(resolved)) return null;
+  return resolved.length === 0 ? "no_roles" : "no_entitlement";
 }

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { EmptyState, PageStack } from "@vxture/design-system";
+import { Button, EmptyState, PageStack } from "@vxture/design-system";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
-import { resolveNavigation, isFullyLockedOut } from "./lib/navigation";
+import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { DomainNav } from "./components/domain-nav";
 import { SHELL_TEXT } from "./lib/messages";
 
@@ -27,10 +27,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   const nav = resolveNavigation(session.authz, session.entitlement);
+  const lockout = lockoutReason(nav);
+
+  // Nothing reachable. WHICH nothing decides what to offer: a member whose
+  // workspace has already paid cannot fix a missing role by paying again, and
+  // sending them to checkout is worse than saying nothing.
+  if (lockout === "no_roles") {
+    return (
+      <PageStack>
+        <EmptyState title={SHELL_TEXT.noRolesTitle} description={SHELL_TEXT.noRolesDescription} />
+      </PageStack>
+    );
+  }
 
   // Entitled to nothing at all: the conversion exit is the only useful thing on
   // the page, so it is the whole page rather than a banner above an empty shell.
-  if (isFullyLockedOut(nav)) {
+  if (lockout === "no_entitlement") {
     return (
       <PageStack>
         <EmptyState
@@ -38,7 +50,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           description={SHELL_TEXT.noAccessDescription}
           // Intent is upgrade | renew | addon; the console route is already
           // /subscribe, so a first purchase reads as an upgrade from nothing.
-          action={<a href={subscribeUrl({ intent: "upgrade" })}>{SHELL_TEXT.subscribeCta}</a>}
+          action={
+            <Button asChild>
+              <a href={subscribeUrl({ intent: "upgrade" })}>{SHELL_TEXT.subscribeCta}</a>
+            </Button>
+          }
         />
       </PageStack>
     );
