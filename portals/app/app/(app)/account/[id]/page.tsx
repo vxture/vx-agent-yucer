@@ -3,7 +3,7 @@ import { resolveAppSession } from "../../lib/session";
 import { ACCOUNT_STATUS_LABEL, SHELL_TEXT } from "../../lib/messages";
 import { can } from "../../../authz/decide";
 import { getAccountStore } from "../../../domains/shared/registry";
-import { decisionChain, recomputeHealth } from "../../../domains/account/service";
+import { decisionChain, getAccountDetail, recomputeHealth } from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
 import { HealthPanel } from "../../components/health-panel";
 import { recomputeAccountHealth } from "../actions";
@@ -24,28 +24,35 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
 
-  const store = getAccountStore();
   const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store,
+    store: getAccountStore(),
   };
 
-  const account = await store.getAccount(session.workspaceId, id);
-  if (!account) {
-    return <EmptyState title={SHELL_TEXT.loadFailed} description={`account ${id} was not found`} />;
+  // Through the service, not the store. The page holding a store handle is how
+  // a URL becomes a way around the entitlement gate that the hidden nav entry
+  // only appeared to enforce.
+  const detail = await getAccountDetail(ctx, id);
+  if (!detail.ok) {
+    return (
+      <EmptyState
+        title={SHELL_TEXT.loadFailed}
+        description={detail.violations.map((v) => v.message).join("; ")}
+      />
+    );
   }
+  const { account, contacts } = detail.value;
 
   const canWrite = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
 
-  const [health, chain, contacts] = await Promise.all([
+  const [health, chain] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
     // read-only member gets no panel rather than a silently failing one.
     canWrite ? recomputeHealth(ctx, id, { persist: false }) : Promise.resolve(null),
     decisionChain(ctx, id),
-    store.listContacts(session.workspaceId, id),
   ]);
 
   return (

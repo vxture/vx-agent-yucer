@@ -120,6 +120,19 @@ export async function execute(
   id: string,
   opts: { autopilot?: boolean; workspaceOptIn?: boolean } = {},
 ): Promise<RuleResult<{ id: string; autonomous: boolean }>> {
+  // The decide gate runs BEFORE the row is loaded. Loading first would answer
+  // `not_found` to an unauthorized caller for an id that does not exist and
+  // `permission_denied` for one that does - an oracle for enumerating valid
+  // proposal ids. advanceStage() avoids this by the same ordering.
+  //
+  // The autopilot gate cannot come first: whether a call is autonomous depends
+  // on the row's own status. So the decide gate is checked up front, and the
+  // autopilot check - which is strictly stronger, needing three independent
+  // yeses - is applied after the status is known. A caller who fails the decide
+  // gate never reaches the load either way.
+  const gate = can(ctx.holder, ctx.entitlement, "copilot.action.decide", "data");
+  if (!gate.allowed) return denied(gate);
+
   const action = await ctx.store.getProposal(ctx.workspaceId, id);
   if (!action) return fail(violation("not_found", `proposal ${id} was not found`, "id"));
 
@@ -131,9 +144,6 @@ export async function execute(
       workspaceOptIn: Boolean(opts.workspaceOptIn),
     });
     if (!auth.allowed) return denied(auth);
-  } else {
-    const gate = can(ctx.holder, ctx.entitlement, "copilot.action.decide", "data");
-    if (!gate.allowed) return denied(gate);
   }
 
   const plan = planExecution(action, { autopilot: autonomous });
