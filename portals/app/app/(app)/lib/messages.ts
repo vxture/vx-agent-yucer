@@ -145,6 +145,45 @@ export const PROPOSAL_TEXT = {
   rejectNote: "拒绝同样需要裁决人落章，被拒绝的提案会保留完整记录。",
 } as const;
 
+export const SIGNAL_TEXT = {
+  title: "商机信号收件箱",
+  description: "不等销售录入，主动发现的商机线索。评分越高越值得先看。",
+  columnSubject: "信号",
+  columnType: "类型",
+  columnScore: "评分",
+  columnAccount: "匹配客户",
+  columnDetected: "发现时间",
+  columnStatus: "状态",
+  unmatchedAccount: "新客户",
+  unscored: "未评分",
+  emptyTitle: "收件箱是空的",
+  emptyDescription: "外部信号源接入后，发现的商机会出现在这里；也可以手工录入信号。",
+  promote: "升级为线索",
+  dismiss: "忽略",
+  markDuplicate: "判重",
+  rescore: "重新评分",
+  scoreExplain: (base: number, decay: number, bonus: number) =>
+    `类型权重 ${base} × 时效 ${decay.toFixed(2)} + 匹配加成 ${bonus}`,
+} as const;
+
+export const SIGNAL_TYPE_LABEL: Record<string, string> = {
+  intent: "购买意向",
+  hiring: "招聘扩张",
+  funding: "融资",
+  tech_change: "技术变更",
+  engagement: "内容互动",
+  referral: "转介绍",
+  other: "其他",
+};
+
+export const SIGNAL_STATUS_LABEL: Record<string, string> = {
+  new: "待评分",
+  scored: "已评分",
+  promoted: "已升级",
+  dismissed: "已忽略",
+  duplicate: "重复",
+};
+
 export const PREVIEW_TEXT = {
   eyebrow: "离线预览",
   title: "yucer 产品界面预览",
