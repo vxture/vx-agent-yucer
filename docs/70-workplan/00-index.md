@@ -190,24 +190,40 @@ PR #26 处理审计尾部中**不涉及商业判断**的部分：账户详情页
 | 事项 | 卡在哪里 | 记录 |
 |------|---------|------|
 | **TD-002** 界面文案违反 source ASCII-only | 等**平台仓修订标准**。`CLAUDE.md` 规定标准缺口先在平台仓修、不得在产品仓自造，因此本仓只登记不裁定 | `docs/60-operations/00-index.md` |
-| 提案队列在免费档是否可读 | 等**产品裁定**。`listProposals` 用 `copilot.playbook.view`（功能 `copilot.ask`，free），而其他所有提案入口要 `copilot.suggest`（pro）。留着它当降级挽留面是正当理由，收紧它也是——两者都是商业决策，按 `CLAUDE.md` 需要 ADR，不是悄悄改一个门 | 审计确认发现，未处置 |
-| `strategy.plan.approve` 是否成为真权限 | 等**产品裁定**。它与 `strategy.plan.update` 是两个不同 action id，但都解析到 `strategy.write`——**分离是名义上的**，能编辑计划的人也能审批。要做成真正的职责分离，需 `catalog.ts`、种子 SQL 与角色文档一起动 | PR #28 记录了现状 |
-| Prisma 适配器完整性问题 | 等**一条能连数据库的 CI 通道**。见下 | 审计 R7/R8，未处置 |
 
-### 为什么 Prisma 适配器的问题没有一并修掉
+**其余三项已由 owner 于 2026-08-16 裁定并落地**，此表不再持有它们：
 
-审计在适配器层指出了几处真问题：用 `count()` 分配 `opportunity_no` / `lead_no`
-（其注释声称事务提供了 READ COMMITTED **并不提供**的串行化，并发下靠唯一索引兜底成
-偶发失败）、`saveWinLossReview` 的 upsert `where` **未按工作区限定**（服务层先做了
-归属校验所以当前不可利用，但它是潜在的跨工作区写，且与该 port 自己声明的规则矛盾）、
-`recordSignal` 的裸 `catch {}` 把外键/CHECK 失败一律报成重复。
+| 事项 | 裁定 | 落地 |
+|------|------|------|
+| 提案队列免费档可读 | **维持免费,但必须命名** | PR #33：新增 `copilot.action.view`，有效门不变。免费档队列必然为空（pro 以下产生不出提案），唯一能读到内容的是**降级后**的工作区，那正是挽留面本身 |
+| `strategy.plan.approve` 成为真权限 | **做,只发 `sales_leader`** | PR #33 + `incr/0002`。`marketing_manager` 保留 `strategy.write`，可起草修改，但不能替销售组织签字。目录 19/67 → 20/68 |
+| Prisma 适配器完整性 | **建 Postgres 18 CI 通道** | PR #34（通道 + `incr/0003`）、PR #35（三个适配器缺陷）|
 
-**这些没有修，是因为在本环境里无法验证**：所有 Prisma 适配器一个测试都没有，且这里
-没有数据库。往写路径上打没验证过的补丁，比留着一个已登记的已知问题更危险。正确顺序
-是审计 R8——先做 `store-contract.ts` 契约套件，对 in-memory 恒跑、对 Prisma 在
-`DATABASE_URL` 存在时跑——然后再改。这也会顺带抓住已知的适配器分歧：
-`PrismaPipelineStore.listOpportunities` 过滤 `deletedAt: null` 而 in-memory 没有软删
-概念，也就是说**全仓的服务层断言目前证明的是另一个实现**。
+### 数据库通道（PR #34/#35）
+
+`db-contract` job：`postgres:18` service 容器，按 `db-init.yml` 的**同一顺序**跑真
+DDL，然后跑 `*.db.test.ts`（15 个）。**未加入必需检查集合**——那会改动分支保护
+ruleset，是 owner 决定。
+
+之所以必须先建通道再修适配器：唯一索引、CHECK、REVOKE 和 NULL 比较都是**数据库的
+性质**，内存适配器建模不了。有几个缺陷就是这样在 788 个绿灯下活下来的：
+
+- `uidx_sales_target_scope` / `uidx_forecast_snapshot_scope_at` 建在可空列上，而
+  Postgres 的 UNIQUE **把 NULL 视为互不相同**——所以这两个约束**对工作区级行完全
+  失效**，而那正是其他所有数字的基准。`incr/0003` 用 `NULLS NOT DISTINCT` 重建。
+- `count()` 分配编号的三处注释都声称"放在事务里所以安全"。事务给的是**原子性不是
+  串行化**：READ COMMITTED 下两个并发事务读到同一个 count。改用
+  `pg_advisory_xact_lock`，按分配种类和作用域双重分键。
+- `saveWinLossReview` 的 upsert `where` 未按工作区限定；`recordSignal` 的裸 `catch`
+  把外键/CHECK 失败一律报成"已存在"。
+
+**通道在它自己第一次运行里就抓到了三个我写的缺陷**：CHECK 测试的第 2、3 条断言因
+Postgres 事务中止语义而实际无效（约束删掉照样绿）、硬编码容器口令、安装未禁用生命周期
+脚本。这三件都只有对着真数据库和真 CI 跑过才会现形。
+
+关于审计的一处措辞更正：它称 `deletedAt` 过滤意味着"全仓服务层断言证明的是另一个
+实现"。**这说过头了**——没有任何产品路径能设置 `deleted_at`（所有 port 都没有删除
+方法），两个适配器返回的是同一批活行。真正成立的是**排序**分歧（PR #30）。
 
 TD-002 的现状是**收敛而非解决**：全部非 ASCII 文本集中在两个纯数据文件——
 `portals/app/app/(app)/lib/messages.ts`（界面文案）与
