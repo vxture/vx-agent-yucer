@@ -15,7 +15,9 @@ import { PrismaPipelineStore } from "../pipeline/prisma-store";
 import { InMemoryCopilotStore, type CopilotStore } from "../copilot/store";
 import { PrismaCopilotStore } from "../copilot/prisma-store";
 import { InMemoryAccountStore, type AccountStore } from "../account/store";
+import { InMemoryFieldStore, type FieldStore } from "../account/field-store";
 import { PrismaAccountStore } from "../account/prisma-store";
+import { PrismaFieldStore } from "../account/field-prisma-store";
 import { InMemoryDeliveryStore, type DeliveryStore } from "../delivery/store";
 import { PrismaDeliveryStore } from "../delivery/prisma-store";
 import { InMemoryPlanningStore, type PlanningStore } from "../planning/store";
@@ -57,6 +59,25 @@ export function setCopilotStore(next: CopilotStore | null): void {
 
 let accountOverride: AccountStore | null = null;
 let accountMemo: AccountStore | null = null;
+
+/**
+ * The evidence plane (ADR-006). Same domain as the account store, separate port
+ * because it spans a different schema with a different write discipline.
+ */
+let fieldOverride: FieldStore | null = null;
+let fieldMemo: FieldStore | null = null;
+
+export function getFieldStore(): FieldStore {
+  if (fieldOverride) return fieldOverride;
+  if (fieldMemo) return fieldMemo;
+  fieldMemo = prismaEnabled() ? new PrismaFieldStore() : new InMemoryFieldStore();
+  return fieldMemo;
+}
+
+export function setFieldStore(next: FieldStore | null): void {
+  fieldOverride = next;
+  fieldMemo = null;
+}
 
 export function getAccountStore(): AccountStore {
   if (accountOverride) return accountOverride;

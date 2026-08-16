@@ -151,27 +151,24 @@ export class PrismaAccountStore implements AccountStore {
       }),
     ]);
 
-    const opportunityIds = opportunities.map((o: { id: string }) => o.id);
     const projectIds = projects.map((x: { id: string }) => x.id);
 
-    // "Last interaction" is APPROXIMATED by the most recent stage movement on
-    // this account's deals. The schema has no activity or contact log, and this
-    // is the closest honest proxy; it is named as an approximation here rather
-    // than presented as a real interaction record.
+    // "Last interaction" is now a REAL interaction (ADR-006, incr/0004).
     //
-    // The events must be scoped through the account's opportunity ids. The
-    // Prisma models carry scalar foreign keys with no @relation blocks, so
-    // there is no nested filter to traverse - an unscoped query would return
-    // the newest event in the whole workspace and report every account as
-    // freshly touched.
-    const lastEvent =
-      opportunityIds.length === 0
-        ? null
-        : await p.opportunityStageEvent.findFirst({
-            where: { workspaceId, opportunityId: { in: opportunityIds } },
-            orderBy: { occurredAt: "desc" },
-            select: { occurredAt: true },
-          });
+    // It used to be the most recent stage movement on the account's deals -
+    // named honestly as an approximation, but an approximation that reported
+    // three calls, two proposals and a site visit as NO CONTACT unless somebody
+    // also dragged a card. The evidence plane exists so this can be the truth.
+    //
+    // Note this changes what the same constants MEASURE. Health scores move on
+    // the deploy that lands this, and accounts that looked fresh because a card
+    // moved will correctly go red. That is a correction, not a regression, and
+    // ADR-006 records that it needs a release note rather than a silent ship.
+    const lastContact = await p.interaction.findFirst({
+      where: { workspaceId, accountId },
+      orderBy: { occurredAt: "desc" },
+      select: { occurredAt: true },
+    });
     const overdueRevenueCount =
       projectIds.length === 0
         ? 0
@@ -186,7 +183,7 @@ export class PrismaAccountStore implements AccountStore {
           stage: o.stage,
           amount: o.amount == null ? null : Number(String(o.amount)),
         })),
-      lastInteractionAt: (lastEvent?.occurredAt as Date | undefined) ?? null,
+      lastInteractionAt: (lastContact?.occurredAt as Date | undefined) ?? null,
       projectHealth: projects.map((x: { health: string }) => x.health as ProjectHealth),
       overdueRevenueCount,
     };
