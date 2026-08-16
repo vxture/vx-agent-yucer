@@ -2,8 +2,10 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
+import { DEFAULT_PROBABILITY } from "./lib/stage";
 import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
 import type {
+  NewOpportunity,
   OpportunityFilter,
   OpportunityRecord,
   PipelineStore,
@@ -69,6 +71,35 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
 }
 
 export class PrismaPipelineStore implements PipelineStore {
+  async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {
+    const p = await getPrismaClient();
+    // opportunity_no is a human-facing immutable business number, allocated
+    // inside the transaction so two concurrent conversions cannot claim the
+    // same one and collide on uidx_opportunity_ws_no.
+    return p.$transaction(async (tx) => {
+      const count = await tx.opportunity.count({ where: { workspaceId } });
+      const row = await tx.opportunity.create({
+        data: {
+          workspaceId,
+          opportunityNo: `OPP-${String(count + 1).padStart(5, "0")}`,
+          name: input.name,
+          // Written once, here. accountId and campaignId have no UPDATE grant.
+          accountId: input.accountId,
+          campaignId: input.campaignId,
+          planId: input.planId,
+          territoryId: input.territoryId,
+          ownerSub: input.ownerSub,
+          amount: input.amount?.amount ?? null,
+          currency: input.currency,
+          probability: DEFAULT_PROBABILITY.qualify,
+          expectedCloseAt: input.expectedCloseAt,
+          // stage and forecast_category default to qualify/pipeline in the DDL.
+        },
+      });
+      return toRecord(row as OpportunityRow);
+    });
+  }
+
   async listOpportunities(
     workspaceId: string,
     filter: OpportunityFilter = {},

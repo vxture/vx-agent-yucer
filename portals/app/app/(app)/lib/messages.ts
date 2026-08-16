@@ -308,6 +308,34 @@ export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
   cancelled: "已取消",
 };
 
+export const LEAD_TEXT = {
+  title: "线索",
+  description: "线索合格后转化为商机。转化那一刻，来源战役被复制到商机上并冻结——归因不靠事后填写。",
+  columnCompany: "公司",
+  columnScore: "评分",
+  columnSource: "来源",
+  columnOwner: "负责人",
+  columnStatus: "状态",
+  sourceCampaign: "战役",
+  sourceSignalCampaign: "信号所属战役",
+  sourceSelf: "自拓",
+  qualify: "标记合格",
+  disqualify: "判定不合格",
+  convert: "转化为商机",
+  converted: "已转化",
+  needAccount: "需先匹配客户",
+  emptyTitle: "还没有线索",
+  emptyDescription: "信号升级后会出现在这里。",
+} as const;
+
+export const LEAD_STATUS_LABEL: Record<string, string> = {
+  new: "新线索",
+  working: "跟进中",
+  qualified: "已合格",
+  converted: "已转化",
+  disqualified: "不合格",
+};
+
 export const PREVIEW_TEXT = {
   eyebrow: "离线预览",
   title: "yucer 产品界面预览",
