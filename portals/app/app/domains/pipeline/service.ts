@@ -16,13 +16,26 @@
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { Decision } from "../../authz/gate";
-import { fail, ok, violation, type RuleResult } from "../shared/result";
-import { planSnapshot, type ForecastScope, type SnapshotRow } from "./lib/forecast";
-import { planStageChange, type Stage, type StageChangeInput } from "./lib/stage";
+import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
+import { isNonNegative } from "../shared/money";
+import {
+  planCategoryChange,
+  planSnapshot,
+  type ForecastScope,
+  type SnapshotRow,
+} from "./lib/forecast";
+import {
+  planProbabilityOverride,
+  planStageChange,
+  type Stage,
+  type StageChangeInput,
+} from "./lib/stage";
 import type {
+  CommercialTermsPatch,
   NewWinLossReview,
   OpportunityRecord,
   PipelineStore,
+  StageEventRecord,
   WinLossReviewRecord,
 } from "./store";
 
@@ -110,6 +123,105 @@ export async function advanceStage(
     journalled: true,
     reviewRequired: plan.value.requiresWinLossReview,
   });
+}
+
+/**
+ * Reprice a deal: what it is worth, when it lands, how likely, which bucket.
+ *
+ * Every field runs through the rule that owns it rather than being written as
+ * typed. Two of those rules were previously unreachable from any surface:
+ *
+ *   - planProbabilityOverride() rejects a terminal deal and anything outside
+ *     0-100. Without a caller, the whole "a human override wins and the machine
+ *     keeps its hands off" design was untestable in practice - the machine can
+ *     only decline to overwrite an override that someone was able to make.
+ *   - planCategoryChange() keeps `closed` and a terminal stage agreeing in both
+ *     directions, so this cannot be the path that forecasts an open deal as
+ *     closed.
+ *
+ * An empty patch is refused rather than silently succeeding: a no-op write that
+ * reports success reads to the caller as "saved" and to the database as nothing.
+ */
+export async function updateCommercialTerms(
+  ctx: PipelineContext,
+  opportunityId: string,
+  input: CommercialTermsPatch,
+): Promise<RuleResult<OpportunityRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.update", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+
+  const patch: CommercialTermsPatch = {};
+  const problems: Violation[] = [];
+
+  if (input.amount !== undefined) {
+    if (input.amount != null && !isNonNegative(input.amount)) {
+      problems.push(violation("amount_negative", "a deal cannot be worth less than nothing", "amount"));
+    } else {
+      patch.amount = input.amount;
+    }
+  }
+
+  if (input.probability !== undefined) {
+    const planned = planProbabilityOverride(current, input.probability);
+    if (!planned.ok) problems.push(...planned.violations);
+    else patch.probability = planned.value.probability;
+  }
+
+  if (input.forecastCategory !== undefined) {
+    const planned = planCategoryChange(current, input.forecastCategory);
+    if (!planned.ok) problems.push(...planned.violations);
+    else patch.forecastCategory = planned.value.forecastCategory;
+  }
+
+  if (input.expectedCloseAt !== undefined) patch.expectedCloseAt = input.expectedCloseAt;
+  if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
+
+  if (problems.length > 0) return { ok: false, violations: problems };
+  if (Object.keys(patch).length === 0) {
+    return fail(violation("empty_patch", "nothing was changed", "patch"));
+  }
+
+  const applied = await ctx.store.updateCommercialTerms(ctx.workspaceId, opportunityId, patch);
+  if (!applied) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+
+  const updated = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!updated) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+  return ok(updated);
+}
+
+/**
+ * The stage journal for one opportunity, oldest first.
+ *
+ * Gated on `pipeline.view` rather than on the advance permission: the history is
+ * a READ of the same deal the list already shows, and requiring the write
+ * permission to see how a deal got where it is would hide the audit trail from
+ * exactly the people - leadership, finance - who read it and never move deals.
+ *
+ * Returns not_found for a missing opportunity AND for one in another workspace,
+ * for the same reason getOpportunity does: distinguishing them turns the 404
+ * into an existence oracle.
+ */
+export async function stageHistory(
+  ctx: PipelineContext,
+  opportunityId: string,
+): Promise<RuleResult<StageEventRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+  return ok(await ctx.store.listStageEvents(ctx.workspaceId, opportunityId));
 }
 
 /**
