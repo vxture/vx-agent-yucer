@@ -10,6 +10,7 @@ import { InMemoryPlanningStore } from "../planning/store";
 import { InMemorySignalStore } from "../signal/store";
 import { InMemoryStrategyStore } from "../strategy/store";
 import { rollUp } from "../pipeline/lib/forecast";
+import { OPEN_STAGE_ORDER } from "../pipeline/lib/stage";
 import { deriveProjectHealth } from "../delivery/lib/revenue";
 import { analyzeChain } from "../account/lib/health";
 
@@ -25,6 +26,12 @@ function stores(): DemoStores {
     delivery: new InMemoryDeliveryStore(),
     copilot: new InMemoryCopilotStore(),
   };
+}
+
+function seeded(): DemoStores {
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+  return s;
 }
 
 // --- The safety guards, which matter more than the data -------------------
@@ -78,7 +85,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 4);
+    assert.equal(rows.length, 10);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -88,43 +95,162 @@ test("seeding twice does not multiply the fixtures", async () => {
   }
 });
 
-// --- The chain is real, not a set of agreeing fixtures --------------------
+// --- The working set is big enough to look like one -----------------------
+
+test("the demo has the working set it claims: 5 accounts, 10 deals, 4 projects", async () => {
+  // Not decoration. Every list view, every roll-up and every "sickest first"
+  // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
+  // a broken one on three rows.
+  const s = seeded();
+  const [accounts, opportunities, projects] = await Promise.all([
+    s.account.listAccounts(WS),
+    s.pipeline.listOpportunities(WS, { includeClosed: true }),
+    s.delivery.listProjects(WS),
+  ]);
+
+  assert.equal(accounts.length, 5);
+  assert.equal(opportunities.length, 10);
+  assert.equal(projects.length, 4);
+});
+
+test("every open stage is occupied, so the board has no empty column", async () => {
+  const s = seeded();
+  const rows = await s.pipeline.listOpportunities(WS);
+  const occupied = new Set(rows.map((o) => o.stage));
+  for (const stage of OPEN_STAGE_ORDER) {
+    assert.ok(occupied.has(stage), `no demo opportunity sits at ${stage}`);
+  }
+});
+
+// --- Referential integrity: the chain is real, not agreeing fixtures ------
+
+test("no record points at an id that does not exist", async () => {
+  // The whole traceability claim rests on these keys. A dangling one would
+  // render as a blank cell rather than an error, so nothing would report it.
+  const s = seeded();
+  const [accounts, opportunities, projects, leads, signals, campaigns] = await Promise.all([
+    s.account.listAccounts(WS),
+    s.pipeline.listOpportunities(WS, { includeClosed: true }),
+    s.delivery.listProjects(WS),
+    s.signal.listLeads(WS),
+    s.signal.listSignals(WS),
+    s.strategy.listCampaigns(WS),
+  ]);
+  const accountIds = new Set(accounts.map((a) => a.id));
+  const oppIds = new Set(opportunities.map((o) => o.id));
+  const signalIds = new Set(signals.map((x) => x.id));
+  const campaignIds = new Set(campaigns.map((c) => c.id));
+
+  for (const o of opportunities) {
+    assert.ok(accountIds.has(o.accountId), `${o.id} -> missing account ${o.accountId}`);
+    if (o.campaignId) assert.ok(campaignIds.has(o.campaignId), `${o.id} -> missing campaign`);
+  }
+  for (const p of projects) {
+    assert.ok(accountIds.has(p.accountId), `${p.id} -> missing account ${p.accountId}`);
+    if (p.opportunityId) assert.ok(oppIds.has(p.opportunityId), `${p.id} -> missing opportunity`);
+  }
+  for (const l of leads) {
+    if (l.accountId) assert.ok(accountIds.has(l.accountId), `${l.id} -> missing account`);
+    if (l.signalId) assert.ok(signalIds.has(l.signalId), `${l.id} -> missing signal`);
+    if (l.campaignId) assert.ok(campaignIds.has(l.campaignId), `${l.id} -> missing campaign`);
+    if (l.convertedOpportunityId) {
+      assert.ok(oppIds.has(l.convertedOpportunityId), `${l.id} -> missing opportunity`);
+    }
+  }
+  for (const x of signals) {
+    if (x.accountId) assert.ok(accountIds.has(x.accountId), `${x.id} -> missing account`);
+  }
+});
+
+test("a delivery project only ever comes from a WON deal", async () => {
+  // A project hanging off an open or lost opportunity would show delivery
+  // starting before the deal closed, which is the opposite of the rule the
+  // conversion seam enforces.
+  const s = seeded();
+  const projects = await s.delivery.listProjects(WS);
+  const linked = projects.filter((p) => p.opportunityId);
+  assert.ok(linked.length >= 3, "most projects trace back to a deal");
+  for (const p of linked) {
+    const opp = await s.pipeline.getOpportunity(WS, p.opportunityId!);
+    assert.equal(opp?.status, "won", `${p.id} hangs off a ${opp?.status} opportunity`);
+  }
+});
+
+test("one chain runs the whole length of the product", async () => {
+  // plan -> campaign -> signal -> lead -> opportunity -> project -> instalment.
+  // This is the product thesis; if it were broken, every page would still
+  // render and the claim would still be false.
+  const s = seeded();
+
+  const campaign = await s.strategy.getCampaign(WS, "camp_demo_3");
+  assert.ok(campaign, "the campaign exists");
+  assert.ok(await s.strategy.getPlan(WS, campaign.planId!), "and belongs to a real plan");
+
+  const lead = (await s.signal.listLeads(WS)).find((l) => l.id === "lead_demo_3");
+  assert.ok(lead, "the lead exists");
+  assert.equal(lead.campaignId, campaign.id, "the lead carries the campaign");
+
+  const signal = await s.signal.getSignal(WS, lead.signalId!);
+  assert.ok(signal, "the lead came from a real signal");
+  assert.equal(signal.status, "promoted", "and that signal was promoted, not merely scored");
+
+  const opp = await s.pipeline.getOpportunity(WS, lead.convertedOpportunityId!);
+  assert.ok(opp, "the lead converted to a real opportunity");
+  assert.equal(opp.campaignId, lead.campaignId, "attribution was copied across the seam");
+  assert.equal(opp.accountId, lead.accountId, "and so was the account");
+  assert.equal(opp.status, "won");
+
+  const project = (await s.delivery.listProjects(WS)).find((p) => p.opportunityId === opp.id);
+  assert.ok(project, "the won deal became a project");
+  assert.equal(project.accountId, opp.accountId, "the project sits on the same account");
+
+  const instalments = await s.delivery.listInstalments(WS, project.id);
+  assert.ok(instalments.length > 0, "and the project has a revenue schedule");
+});
 
 test("the campaign's attributed opportunities are the same ids the pipeline holds", async () => {
   // If these drifted, campaignReturn() would compute a number from fixtures
   // that agree with themselves by coincidence rather than from a real join.
-  const s = stores();
-  seedDemoWorkspace(WS, s);
-
-  const attributed = await s.strategy.attributedOpportunities(WS, "camp_demo_1");
+  const s = seeded();
   const pipeline = await s.pipeline.listOpportunities(WS, { includeClosed: true });
-  const pipelineIds = new Set(pipeline.map((o) => o.id));
+  const byId = new Map(pipeline.map((o) => [o.id, o]));
 
-  assert.ok(attributed.length > 0);
-  for (const a of attributed) {
-    assert.ok(pipelineIds.has(a.id), `${a.id} is attributed to a campaign but not in the pipeline`);
+  for (const campaignId of ["camp_demo_1", "camp_demo_2", "camp_demo_3"]) {
+    const attributed = await s.strategy.attributedOpportunities(WS, campaignId);
+    assert.ok(attributed.length > 0, `${campaignId} has attributed deals`);
+    for (const a of attributed) {
+      const opp = byId.get(a.id);
+      assert.ok(opp, `${a.id} is attributed to ${campaignId} but not in the pipeline`);
+      // The attribution list is a projection of the opportunity, so it must not
+      // disagree with it - a campaign reporting a return the pipeline does not
+      // show is the exact failure this join exists to prevent.
+      assert.equal(opp.campaignId, campaignId, `${a.id} does not carry ${campaignId}`);
+      assert.equal(a.amount?.amount, opp.amount?.amount, `${a.id} amount disagrees`);
+      assert.equal(a.status, opp.status, `${a.id} status disagrees`);
+    }
   }
 });
 
 test("the lead points at the signal and opportunity that actually exist", async () => {
-  const s = stores();
-  seedDemoWorkspace(WS, s);
-
+  const s = seeded();
   const leads = await s.signal.listLeads(WS);
-  const converted = leads.find((l) => l.status === "converted");
-  assert.ok(converted, "the demo must include one completed conversion");
+  const converted = leads.filter((l) => l.status === "converted");
+  assert.ok(converted.length >= 2, "the demo must include completed conversions");
 
-  assert.ok(await s.signal.getSignal(WS, converted.signalId!), "lead points at a real signal");
-  const opp = await s.pipeline.getOpportunity(WS, converted.convertedOpportunityId!);
-  assert.ok(opp, "lead points at a real opportunity");
-  assert.equal(opp.campaignId, converted.campaignId, "the campaign was copied across the seam");
+  for (const lead of converted) {
+    assert.ok(await s.signal.getSignal(WS, lead.signalId!), "lead points at a real signal");
+    const opp = await s.pipeline.getOpportunity(WS, lead.convertedOpportunityId!);
+    assert.ok(opp, "lead points at a real opportunity");
+    assert.equal(opp.campaignId, lead.campaignId, "the campaign was copied across the seam");
+  }
 });
+
+// --- Fixtures that exist to make a rule visible ---------------------------
 
 test("the delivery project demonstrates the overdue-forbids-green rule", async () => {
   // Reported green with an overdue instalment. If the fixture were clean, the
   // page would assert the rule without ever showing it.
-  const s = stores();
-  seedDemoWorkspace(WS, s);
+  const s = seeded();
 
   const project = await s.delivery.getProject(WS, "prj_demo_1");
   assert.equal(project?.health, "green", "the team reported green");
@@ -139,18 +265,32 @@ test("the delivery project demonstrates the overdue-forbids-green rule", async (
 });
 
 test("the forecast roll-up computes from the seeded deals", async () => {
-  const s = stores();
-  seedDemoWorkspace(WS, s);
+  const s = seeded();
   const rows = await s.pipeline.listOpportunities(WS, { includeClosed: true });
   const totals = rollUp(rows, "CNY");
   assert.ok(totals.ok);
   assert.ok(totals.value.commitAmount.amount > 0, "there is something to commit");
+  assert.ok(totals.value.bestCaseAmount.amount > 0, "and something upside");
+  assert.ok(totals.value.pipelineAmount.amount > 0, "and something early");
   assert.ok(totals.value.closedAmount.amount > 0, "and something already closed");
 });
 
-test("the decision chain is complete and the buyer is reachable", async () => {
-  const s = stores();
-  seedDemoWorkspace(WS, s);
+test("a terminal deal always carries the closed forecast category", async () => {
+  // planCategoryChange rejects any other pairing in both directions. A fixture
+  // that violates its own domain rule teaches the wrong shape.
+  const s = seeded();
+  for (const o of await s.pipeline.listOpportunities(WS, { includeClosed: true })) {
+    const terminal = o.status === "won" || o.status === "lost";
+    assert.equal(
+      o.forecastCategory === "closed",
+      terminal,
+      `${o.id} is ${o.status} but forecast as ${o.forecastCategory}`,
+    );
+  }
+});
+
+test("the decision chain is complete on one account and unreachable on another", async () => {
+  const s = seeded();
   const [contacts, relations] = await Promise.all([
     s.account.listContacts(WS, "acc_demo_1"),
     s.account.listRelations(WS, "acc_demo_1"),
@@ -160,11 +300,23 @@ test("the decision chain is complete and the buyer is reachable", async () => {
   assert.deepEqual(chain.missing, [], "economic, technical and coach are all covered");
   assert.equal(chain.blockers.length, 1, "and there is a blocker to show");
   assert.equal(chain.economicBuyerUnreachable, false, "a coach can reach the buyer");
+
+  // The contrast case: a buyer on file whom nobody can introduce us to. Without
+  // it the surface never shows the distinction it leads with.
+  const [c4, r4] = await Promise.all([
+    s.account.listContacts(WS, "acc_demo_4"),
+    s.account.listRelations(WS, "acc_demo_4"),
+  ]);
+  const weak = analyzeChain(c4, r4);
+  assert.ok(
+    c4.some((c) => c.decisionRole === "economic"),
+    "the buyer is on file",
+  );
+  assert.equal(weak.economicBuyerUnreachable, true, "and still unreachable");
 });
 
 test("the inbox contains an unmatched signal, which is the new-logo case", async () => {
-  const s = stores();
-  seedDemoWorkspace(WS, s);
+  const s = seeded();
   const signals = await s.signal.listSignals(WS);
   assert.ok(
     signals.some((x) => x.accountId == null && (x.score ?? 0) > 50),
@@ -172,9 +324,17 @@ test("the inbox contains an unmatched signal, which is the new-logo case", async
   );
 });
 
+test("one lead has no account, so convert is unavailable with a reason", async () => {
+  const s = seeded();
+  const leads = await s.signal.listLeads(WS);
+  assert.ok(
+    leads.some((l) => l.accountId == null && l.status !== "converted"),
+    "an unmatched lead must be present - it is the case the convert seam refuses",
+  );
+});
+
 test("planning has a target with no snapshot, so the two null cases are visible", async () => {
-  const s = stores();
-  seedDemoWorkspace(WS, s);
+  const s = seeded();
   const targets = await s.planning.listTargets(WS, { period: "2026Q3" });
   const withoutSnapshot: string[] = [];
   for (const t of targets) {
@@ -184,10 +344,91 @@ test("planning has a target with no snapshot, so the two null cases are visible"
   assert.ok(withoutSnapshot.length < targets.length, "and others must have snapshots");
 });
 
+test("the review debt is partial: some closed deals reviewed, some not", async () => {
+  // All-reviewed hides the debt; none-reviewed hides the fact that recording a
+  // review removes it. Only a mixed set shows both.
+  const s = seeded();
+  const closed = (await s.pipeline.listOpportunities(WS, { includeClosed: true })).filter(
+    (o) => o.status === "won" || o.status === "lost",
+  );
+  const pending = await s.pipeline.listUnreviewedClosed(WS);
+
+  assert.ok(pending.length > 0, "there is outstanding learning debt");
+  assert.ok(pending.length < closed.length, "and some deals have visibly left it");
+  const reviewed = await s.pipeline.getWinLossReview(WS, "opp_demo_5");
+  assert.ok(reviewed?.lessons, "a completed review carries its lesson, not just a tick");
+});
+
+test("the stage journal is contiguous and ends where the deal now sits", async () => {
+  // A history with a jump in it would make the journal look like decoration
+  // rather than the record that every stage move writes.
+  const s = seeded();
+  for (const id of ["opp_demo_1", "opp_demo_4", "opp_demo_5", "opp_demo_6"]) {
+    const events = await s.pipeline.listStageEvents(WS, id);
+    assert.ok(events.length >= 3, `${id} has a history`);
+    assert.equal(events[0].fromStage, null, `${id} starts from nothing`);
+    for (let i = 1; i < events.length; i += 1) {
+      assert.equal(events[i].fromStage, events[i - 1].toStage, `${id} jumps a stage at ${i}`);
+      assert.ok(
+        events[i].occurredAt.getTime() > events[i - 1].occurredAt.getTime(),
+        `${id} event ${i} does not move forward in time`,
+      );
+    }
+    const opp = await s.pipeline.getOpportunity(WS, id);
+    assert.equal(events[events.length - 1].toStage, opp?.stage, `${id} history disagrees with its stage`);
+  }
+});
+
+test("a closed deal's last stage event lands on the day it closed", async () => {
+  const s = seeded();
+  for (const id of ["opp_demo_4", "opp_demo_5"]) {
+    const events = await s.pipeline.listStageEvents(WS, id);
+    const opp = await s.pipeline.getOpportunity(WS, id);
+    assert.equal(
+      events[events.length - 1].occurredAt.getTime(),
+      opp?.closedAt?.getTime(),
+      `${id} closed on a different day than it was journalled`,
+    );
+  }
+});
+
 test("the proposal queue has pending items and one already decided", async () => {
-  const s = stores();
-  seedDemoWorkspace(WS, s);
+  const s = seeded();
   const proposals = await s.copilot.listProposals(WS);
   assert.ok(proposals.filter((p) => p.status === "proposed").length >= 2);
   assert.ok(proposals.some((p) => p.decidedBySub != null), "history is visible too");
+});
+
+test("every proposal names a subject that exists", async () => {
+  // A proposal about a deleted or invented record is one a human cannot judge,
+  // and judging is the only thing the proposal exists for.
+  const s = seeded();
+  const proposals = await s.copilot.listProposals(WS);
+  assert.ok(proposals.length > 0);
+  for (const p of proposals) {
+    if (p.subjectType === "opportunity") {
+      assert.ok(await s.pipeline.getOpportunity(WS, p.subjectId), `${p.id} -> missing ${p.subjectId}`);
+    } else if (p.subjectType === "account") {
+      assert.ok(await s.account.getAccount(WS, p.subjectId), `${p.id} -> missing ${p.subjectId}`);
+    } else if (p.subjectType === "lead") {
+      const leads = await s.signal.listLeads(WS);
+      assert.ok(
+        leads.some((l) => l.id === p.subjectId),
+        `${p.id} -> missing ${p.subjectId}`,
+      );
+    }
+  }
+});
+
+test("the playbook catalog is seeded and its plays are active", async () => {
+  // Playbook grounding reads active plays only. A catalog seeded as drafts
+  // would ground nothing while looking populated on screen.
+  const s = seeded();
+  const plays = await s.copilot.listPlaybooks(WS, { activeOnly: true });
+  assert.ok(plays.length >= 3, "there are plays to ground on");
+  assert.ok(
+    plays.some((p) => p.scopeDomain === "copilot"),
+    "including a cross-cutting one, for turns with no subject",
+  );
+  for (const p of plays) assert.ok(p.content.trim().length > 0, `${p.playbookCode} has no content`);
 });

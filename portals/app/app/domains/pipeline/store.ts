@@ -147,8 +147,24 @@ export class InMemoryPipelineStore implements PipelineStore {
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private seq = 0;
 
-  seed(records: OpportunityRecord[]): void {
+  /**
+   * The journal and the reviews are seedable too, and deliberately so: a closed
+   * deal with no stage history and no review is not a smaller version of a real
+   * one, it is a different thing. `listUnreviewedClosed` is what the pipeline
+   * page renders as outstanding learning debt, and with nothing seeded EVERY
+   * closed deal appears in it - which shows the list but hides the rule, since
+   * a review that was actually done must be seen to leave it.
+   */
+  seed(
+    records: OpportunityRecord[],
+    extra: {
+      events?: StageEventRecord[];
+      reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
+    } = {},
+  ): void {
     for (const r of records) this.opportunities.set(r.id, { ...r });
+    this.events.push(...(extra.events ?? []));
+    for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
   }
 
   async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {

@@ -21,7 +21,7 @@ import {
   type AgentAction,
   type Decision,
 } from "./lib/action";
-import type { CopilotStore, NewProposal, ProposalFilter } from "./store";
+import type { CopilotStore, NewProposal, PlaybookFilter, PlaybookRecord, ProposalFilter } from "./store";
 
 export interface CopilotContext {
   workspaceId: string;
@@ -38,6 +38,25 @@ export async function listProposals(
   const gate = can(ctx.holder, ctx.entitlement, "copilot.playbook.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listProposals(ctx.workspaceId, filter));
+}
+
+/**
+ * The plays the workspace has written, as a readable catalog.
+ *
+ * It matters that this is VIEWABLE and not just consumed. Grounding silently
+ * injects workspace-authored text into the agent's prompt, and an assistant
+ * whose instructions nobody can read is one nobody can correct: a rep who
+ * disagrees with an answer needs to be able to find the sentence that produced
+ * it. Same gate as the proposal queue - reading what the agent was told is part
+ * of using the agent, not an admin privilege.
+ */
+export async function listPlaybooks(
+  ctx: CopilotContext,
+  filter: PlaybookFilter = {},
+): Promise<RuleResult<PlaybookRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "copilot.playbook.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listPlaybooks(ctx.workspaceId, filter));
 }
 
 export interface AdjudicationResult {

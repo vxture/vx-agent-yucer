@@ -2,9 +2,11 @@ import { EmptyState, PageStack } from "@vxture/design-system";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT } from "../lib/messages";
 import { getCopilotStore } from "../../domains/shared/registry";
-import { listProposals } from "../../domains/copilot/service";
+import { listPlaybooks, listProposals } from "../../domains/copilot/service";
+import { MAX_PLAYBOOKS } from "../../domains/copilot/turn-service";
 import { can } from "../../authz/decide";
 import { CopilotChat, type ChatMessageView } from "../components/copilot-chat";
+import { PlaybookCatalog } from "../components/playbook-catalog";
 import { ProposalQueue } from "../components/proposal-queue";
 import { adjudicateProposals } from "./actions";
 import { askCopilot } from "./ask-action";
@@ -33,8 +35,9 @@ export default async function CopilotPage() {
     store: getCopilotStore(),
   };
 
-  const [proposals, sessions] = await Promise.all([
+  const [proposals, playbooks, sessions] = await Promise.all([
     listProposals(ctx, { limit: 100 }),
+    listPlaybooks(ctx, { activeOnly: true }),
     ctx.store.listSessions(session.workspaceId, session.user.sub, 1),
   ]);
 
@@ -69,6 +72,13 @@ export default async function CopilotPage() {
         canDecide={can(session.authz, session.entitlement, "copilot.action.decide", "ui").allowed}
         onDecide={adjudicateProposals}
       />
+      {/* Below the queue, not above it: the plays explain the agent's answers,
+          they are not something to act on. A failed read is silence rather than
+          an error - grounding is an enhancement, and the same is true of being
+          able to inspect it. */}
+      {playbooks.ok ? (
+        <PlaybookCatalog playbooks={playbooks.value} maxPerTurn={MAX_PLAYBOOKS} />
+      ) : null}
     </PageStack>
   );
 }

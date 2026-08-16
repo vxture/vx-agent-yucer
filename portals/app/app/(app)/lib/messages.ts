@@ -204,6 +204,27 @@ export const COPILOT_TEXT = {
   newSession: "新对话",
 } as const;
 
+export const PLAYBOOK_TEXT = {
+  title: "作战剧本",
+  description:
+    "助手回答时会引用这些剧本。放在这里是为了让它们可被看见、被质疑、被修订——你不同意某个回答时，能找到产生它的那句话。",
+  emptyTitle: "还没有剧本",
+  emptyDescription: "剧本是本工作区自己写的做法。没有剧本时，助手只依据数据回答。",
+  version: "版本",
+  grounding: (n: number) => `每轮对话最多引用 ${n} 条与主题相关的剧本`,
+} as const;
+
+export const PLAYBOOK_SCOPE_LABEL: Record<string, string> = {
+  strategy: "战略",
+  planning: "目标",
+  campaign: "战役",
+  account: "客户",
+  signal: "信号",
+  pipeline: "商机",
+  delivery: "交付",
+  copilot: "通用",
+};
+
 export const ACCOUNT_TEXT = {
   title: "客户管理",
   description: "健康度是派生值，随源数据重算；它用于排序和预警，不作为任何业务判断的唯一依据。",

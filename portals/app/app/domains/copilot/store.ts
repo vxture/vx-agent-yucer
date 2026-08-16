@@ -43,6 +43,28 @@ export interface NewProposal {
   confidence: number | null;
 }
 
+/** The eight capability domains a play can be filed under. */
+export type PlaybookScope =
+  | "strategy" | "planning" | "campaign" | "account"
+  | "signal" | "pipeline" | "delivery" | "copilot";
+
+export interface PlaybookRecord {
+  id: string;
+  playbookCode: string;
+  name: string;
+  scopeDomain: PlaybookScope;
+  content: string;
+  version: number;
+  status: string;
+}
+
+export interface PlaybookFilter {
+  scopeDomain?: PlaybookScope;
+  /** Only `active` plays ground a turn - see the note in the service. */
+  activeOnly?: boolean;
+  limit?: number;
+}
+
 export interface ProposalFilter {
   status?: ActionStatus;
   subjectType?: SubjectType;
@@ -88,12 +110,15 @@ export interface CopilotStore {
     workspaceId: string,
     decisions: readonly { id: string; patch: ActionPatch; from: readonly ActionStatus[] }[],
   ): Promise<string[]>;
+
+  listPlaybooks(workspaceId: string, filter?: PlaybookFilter): Promise<PlaybookRecord[]>;
 }
 
 export class InMemoryCopilotStore implements CopilotStore {
   private sessions = new Map<string, SessionRecord>();
   private messages: Array<MessageRecord & { workspaceId: string }> = [];
   private actions = new Map<string, AgentAction & { workspaceId: string }>();
+  private playbooks: Array<PlaybookRecord & { workspaceId: string }> = [];
   private seq = 0;
 
   private nextId(prefix: string): string {
@@ -103,6 +128,17 @@ export class InMemoryCopilotStore implements CopilotStore {
 
   seedProposals(workspaceId: string, actions: AgentAction[]): void {
     for (const a of actions) this.actions.set(a.id, { ...a, workspaceId });
+  }
+
+  seedPlaybooks(workspaceId: string, playbooks: PlaybookRecord[]): void {
+    this.playbooks.push(...playbooks.map((p) => ({ ...p, workspaceId })));
+  }
+
+  async listPlaybooks(workspaceId: string, filter: PlaybookFilter = {}): Promise<PlaybookRecord[]> {
+    let rows = this.playbooks.filter((p) => p.workspaceId === workspaceId);
+    if (filter.scopeDomain) rows = rows.filter((p) => p.scopeDomain === filter.scopeDomain);
+    if (filter.activeOnly !== false) rows = rows.filter((p) => p.status === "active");
+    return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 
   async createSession(

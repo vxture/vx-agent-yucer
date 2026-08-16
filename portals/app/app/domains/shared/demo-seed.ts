@@ -1,24 +1,41 @@
 // Demo dataset for the offline path.
 //
 // Without this, every page renders an empty state and the product cannot be
-// seen or demonstrated. More importantly, the CHAIN cannot be seen: the whole
-// product thesis is that strategy -> campaign -> signal -> lead -> opportunity
-// -> project -> revenue are linked by data rather than by a spreadsheet, and a
-// screenshot of seven empty tables does not show that.
+// seen. More importantly the CHAIN cannot be seen: the whole thesis is that
+// strategy -> campaign -> signal -> lead -> opportunity -> project -> revenue
+// are linked by data rather than by a spreadsheet, and a screenshot of eight
+// empty tables does not show that.
 //
 // SAFETY: this can never touch a real database. The function accepts the
 // IN-MEMORY store classes by type, not the ports they implement, so passing a
-// Prisma store is a compile error rather than a runtime disaster. The registry
-// additionally refuses to seed when DATABASE_URL is set. Two independent
-// mechanisms, because "demo data appeared in production" is the kind of mistake
-// that is discovered by a customer.
+// Prisma store is a compile error. The registry additionally refuses to seed
+// when DATABASE_URL is set, and refuses to seed partially if any store is not
+// in-memory. Three mechanisms, because "demo data appeared in production" is
+// the kind of mistake a customer discovers.
 //
 // The ids are literal and cross-referenced on purpose: opportunity opp_demo_1
 // really does carry campaign camp_demo_1, so campaignReturn() computes a real
-// number from a real join rather than from a fixture that agrees with itself by
-// coincidence.
+// number from a real join rather than from fixtures that agree with themselves
+// by coincidence. demo-seed.test.ts asserts those crossings hold.
+//
+// All display copy lives in demo-fixtures.ts so this file stays ASCII.
 
 import { money } from "./money";
+import {
+  DEMO_ACCOUNTS,
+  DEMO_CAMPAIGNS,
+  DEMO_CONTACTS,
+  DEMO_EXECUTIONS,
+  DEMO_LESSONS,
+  DEMO_MILESTONES,
+  DEMO_OPPORTUNITIES,
+  DEMO_PLANS,
+  DEMO_PLAYBOOKS,
+  DEMO_PROJECTS,
+  DEMO_RATIONALES,
+  DEMO_SIGNALS,
+  DEMO_UNMATCHED_COMPANY,
+} from "./demo-fixtures";
 import type { InMemoryAccountStore } from "../account/store";
 import type { InMemoryCopilotStore } from "../copilot/store";
 import type { InMemoryDeliveryStore } from "../delivery/store";
@@ -26,6 +43,8 @@ import type { InMemoryPipelineStore } from "../pipeline/store";
 import type { InMemoryPlanningStore } from "../planning/store";
 import type { InMemorySignalStore } from "../signal/store";
 import type { InMemoryStrategyStore } from "../strategy/store";
+import type { StageEventRecord } from "../pipeline/store";
+import type { PlaybookScope } from "../copilot/store";
 
 /** Anchored so the demo reads the same on every run rather than drifting. */
 const NOW = new Date("2026-08-15T00:00:00Z");
@@ -33,8 +52,10 @@ const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
 const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
 const CNY = "CNY";
-const OWNER = "usr_demo_rep";
-const MANAGER = "usr_demo_pm";
+const REP1 = "usr_demo_rep";
+const REP2 = "usr_demo_rep2";
+const PM = "usr_demo_pm";
+const PERIOD = "2026Q3";
 
 export interface DemoStores {
   strategy: InMemoryStrategyStore;
@@ -47,25 +68,54 @@ export interface DemoStores {
 }
 
 /**
- * Populate a workspace with one complete, traceable chain plus enough
- * surrounding data for each list to look like a real working set.
+ * Five customer organisations, ten opportunities across every stage, four
+ * delivery projects, and the lineage that connects them.
  *
- * The chain: plan_demo_1 -> camp_demo_1 -> sig_demo_1 -> lead_demo_1 ->
- * opp_demo_1 -> prj_demo_1 -> two instalments, one of them overdue (which is
- * what makes the delivery page demonstrate the overdue-forbids-green rule
- * instead of just asserting it).
+ * One chain runs the full length of the product, and it is the thing to look at
+ * first:
+ *
+ *   plan_demo_1 -> camp_demo_3 -> sig_demo_5 -> lead_demo_3 -> opp_demo_10
+ *               -> prj_demo_3 -> inst_5 / inst_6
+ *
+ * A second reaches delivery from the campaign side without a signal
+ * (camp_demo_1 -> opp_demo_4 -> prj_demo_1), because in practice not every deal
+ * starts as a detected signal and a demo that implied otherwise would be
+ * selling a shape the data does not have.
+ *
+ * Several fixtures exist to make a RULE visible rather than to fill a table:
+ *   - prj_demo_1 reports green while carrying an overdue instalment, so the
+ *     delivery page shows the overdue-forbids-green rule firing;
+ *   - opp_demo_2's win rate differs from its stage default, so an override is
+ *     visibly surviving the machine;
+ *   - sig_demo_2 scores high with no matched account - the new-logo case;
+ *   - lead_demo_2 has no account, so convert is unavailable WITH A REASON;
+ *   - acc_demo_4 has a buyer and a coach and no edge between them, which is
+ *     "on file but unreachable" rather than covered;
+ *   - terr_north has a target and no snapshot, so "not forecast" and "0%
+ *     attained" are visibly different;
+ *   - two of the four closed deals have no win/loss review, so the pending
+ *     review debt is non-empty and the reviewed ones have visibly left it.
  */
 export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void {
-  // --- D1 strategy ---------------------------------------------------------
+  seedStrategy(workspaceId, stores);
+  seedPlanning(workspaceId, stores);
+  seedAccounts(workspaceId, stores);
+  seedSignals(workspaceId, stores);
+  seedPipeline(workspaceId, stores);
+  seedDelivery(workspaceId, stores);
+  seedCopilot(workspaceId, stores);
+}
+
+function seedStrategy(workspaceId: string, stores: DemoStores): void {
   stores.strategy.seed({
     plans: [
       {
         id: "plan_demo_1",
         workspaceId,
         planNo: "PLAN-2026H2",
-        name: "2026 H2 - attack mid-market retail",
+        name: DEMO_PLANS[0].name,
         period: "2026H2",
-        objective: "Win 12 mid-market retail logos with the POS replacement play.",
+        objective: DEMO_PLANS[0].objective,
         ownerSub: "usr_demo_cro",
         status: "active",
         approvedAt: daysAgo(60),
@@ -74,103 +124,94 @@ export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void
         id: "plan_demo_2",
         workspaceId,
         planNo: "PLAN-2026H1",
-        name: "2026 H1 - manufacturing beachhead",
+        name: DEMO_PLANS[1].name,
         period: "2026H1",
-        objective: null,
+        objective: DEMO_PLANS[1].objective,
         ownerSub: "usr_demo_cro",
         status: "closed",
         approvedAt: daysAgo(240),
       },
     ],
     campaigns: [
-      {
-        id: "camp_demo_1",
-        workspaceId,
-        campaignNo: "CAMP-0001",
-        name: "Retail POS replacement - outbound",
-        planId: "plan_demo_1",
-        segmentId: null,
-        channel: "outbound",
-        budgetAmount: money(200_000, CNY),
-        ownerSub: "usr_demo_mkt",
-        startsAt: daysAgo(45),
-        endsAt: daysAhead(45),
-        status: "running",
-        currency: CNY,
-      },
-      {
-        id: "camp_demo_2",
-        workspaceId,
-        campaignNo: "CAMP-0002",
-        name: "Manufacturing webinar series",
-        planId: "plan_demo_2",
-        segmentId: null,
-        channel: "event",
-        budgetAmount: money(80_000, CNY),
-        ownerSub: "usr_demo_mkt",
-        startsAt: daysAgo(200),
-        endsAt: daysAgo(120),
-        status: "completed",
-        currency: CNY,
-      },
+      campaign("camp_demo_1", workspaceId, DEMO_CAMPAIGNS[0], "plan_demo_1", "outbound", 200_000, "running", daysAgo(45), daysAhead(45)),
+      campaign("camp_demo_2", workspaceId, DEMO_CAMPAIGNS[1], "plan_demo_2", "event", 80_000, "completed", daysAgo(200), daysAgo(120)),
+      campaign("camp_demo_3", workspaceId, DEMO_CAMPAIGNS[2], "plan_demo_1", "event", 150_000, "running", daysAgo(30), daysAhead(30)),
     ],
     executions: [
-      { id: "exec_1", campaignId: "camp_demo_1", title: "Tier-1 outbound sequence", actionType: "outreach", assigneeSub: "usr_demo_mkt", dueAt: daysAgo(20), status: "done", workspaceId },
-      { id: "exec_2", campaignId: "camp_demo_1", title: "POS migration guide", actionType: "content", assigneeSub: "usr_demo_mkt", dueAt: daysAgo(5), status: "done", workspaceId },
-      { id: "exec_3", campaignId: "camp_demo_1", title: "Regional roadshow", actionType: "event", assigneeSub: "usr_demo_mkt", dueAt: daysAhead(15), status: "pending", workspaceId },
-      { id: "exec_4", campaignId: "camp_demo_2", title: "Webinar 1", actionType: "event", assigneeSub: "usr_demo_mkt", dueAt: daysAgo(180), status: "done", workspaceId },
-      { id: "exec_5", campaignId: "camp_demo_2", title: "Follow-up nurture", actionType: "nurture", assigneeSub: null, dueAt: daysAgo(150), status: "skipped", workspaceId },
+      execution("exec_1", workspaceId, "camp_demo_1", DEMO_EXECUTIONS[0], "outreach", "done", daysAgo(20)),
+      execution("exec_2", workspaceId, "camp_demo_1", DEMO_EXECUTIONS[1], "content", "done", daysAgo(5)),
+      execution("exec_3", workspaceId, "camp_demo_1", DEMO_EXECUTIONS[2], "event", "pending", daysAhead(15)),
+      execution("exec_4", workspaceId, "camp_demo_2", DEMO_EXECUTIONS[3], "event", "done", daysAgo(180)),
+      execution("exec_5", workspaceId, "camp_demo_2", DEMO_EXECUTIONS[4], "nurture", "skipped", daysAgo(150)),
+      execution("exec_6", workspaceId, "camp_demo_3", DEMO_EXECUTIONS[5], "outreach", "done", daysAgo(10)),
     ],
+    // The join campaignReturn() reads. Every id here exists in seedPipeline.
     attributed: {
-      // The join campaignReturn() reads. These ids match the pipeline seed
-      // below, so the ROI on the campaign page is computed, not fabricated.
       [`${workspaceId}|camp_demo_1`]: [
         { id: "opp_demo_1", amount: money(2_400_000, CNY), status: "open" },
         { id: "opp_demo_4", amount: money(760_000, CNY), status: "won" },
+        { id: "opp_demo_7", amount: money(620_000, CNY), status: "open" },
       ],
       [`${workspaceId}|camp_demo_2`]: [{ id: "opp_demo_5", amount: money(320_000, CNY), status: "lost" }],
+      [`${workspaceId}|camp_demo_3`]: [
+        { id: "opp_demo_6", amount: money(1_800_000, CNY), status: "open" },
+        { id: "opp_demo_10", amount: money(540_000, CNY), status: "won" },
+      ],
     },
   });
+}
 
-  // --- D2 planning ---------------------------------------------------------
-  const period = "2026Q3";
+function seedPlanning(workspaceId: string, stores: DemoStores): void {
   stores.planning.seed({
     territories: [
-      { id: "terr_east", workspaceId, territoryCode: "EAST", name: "East China", parentId: null, ownerSub: OWNER, status: "active" },
-      { id: "terr_north", workspaceId, territoryCode: "NORTH", name: "North China", parentId: null, ownerSub: "usr_demo_rep2", status: "active" },
+      territory("terr_east", workspaceId, "EAST", "East China", REP1),
+      territory("terr_north", workspaceId, "NORTH", "North China", REP2),
+      territory("terr_south", workspaceId, "SOUTH", "South China", REP2),
     ],
     targets: [
-      { id: "tgt_ws", workspaceId, period, scopeType: "workspace", territoryId: null, ownerSub: null, metric: "revenue", targetAmount: money(8_000_000, CNY), status: "committed", planId: "plan_demo_1" },
-      { id: "tgt_east", workspaceId, period, scopeType: "territory", territoryId: "terr_east", ownerSub: null, metric: "revenue", targetAmount: money(5_000_000, CNY), status: "committed", planId: "plan_demo_1" },
-      // Deliberately has NO snapshot, so the planning page demonstrates that
-      // "not forecast yet" renders differently from "0% attained".
-      { id: "tgt_north", workspaceId, period, scopeType: "territory", territoryId: "terr_north", ownerSub: null, metric: "revenue", targetAmount: money(3_000_000, CNY), status: "draft", planId: "plan_demo_1" },
+      target("tgt_ws", workspaceId, "workspace", null, null, 12_000_000, "committed"),
+      target("tgt_east", workspaceId, "territory", "terr_east", null, 6_000_000, "committed"),
+      target("tgt_south", workspaceId, "territory", "terr_south", null, 3_500_000, "committed"),
+      // No snapshot below, on purpose: "not forecast yet" must be visibly
+      // different from "0% attained".
+      target("tgt_north", workspaceId, "territory", "terr_north", null, 2_500_000, "draft"),
     ],
     closed: {
-      [`${workspaceId}|${period}|workspace||`]: money(3_160_000, CNY),
-      [`${workspaceId}|${period}|territory|terr_east|`]: money(2_800_000, CNY),
+      [`${workspaceId}|${PERIOD}|workspace||`]: money(2_700_000, CNY),
+      [`${workspaceId}|${PERIOD}|territory|terr_east|`]: money(760_000, CNY),
+      [`${workspaceId}|${PERIOD}|territory|terr_south|`]: money(540_000, CNY),
     },
   });
+}
 
-  // --- D4 accounts ---------------------------------------------------------
+function seedAccounts(workspaceId: string, stores: DemoStores): void {
   stores.account.seed({
     accounts: [
-      { id: "acc_demo_1", workspaceId, accountNo: "ACC-0001", name: "East China Retail Group", industry: "Retail", region: "East", segmentCode: "MIDMARKET", ownerSub: OWNER, healthScore: 34, status: "active" },
-      { id: "acc_demo_2", workspaceId, accountNo: "ACC-0002", name: "Southwest Manufacturing", industry: "Manufacturing", region: "Southwest", segmentCode: "ENTERPRISE", ownerSub: "usr_demo_rep2", healthScore: 78, status: "active" },
-      { id: "acc_demo_3", workspaceId, accountNo: "ACC-0003", name: "Northern Telecom", industry: "Telecom", region: "North", segmentCode: "ENTERPRISE", ownerSub: OWNER, healthScore: null, status: "prospect" },
+      account("acc_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0], "MIDMARKET", REP1, 34, "active"),
+      account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
+      account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect"),
+      account("acc_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3], "MIDMARKET", REP2, 61, "active"),
+      account("acc_demo_5", workspaceId, 5, DEMO_ACCOUNTS[4], "MIDMARKET", REP1, 45, "active"),
     ],
     contacts: [
-      { id: "ct_1", workspaceId, accountId: "acc_demo_1", name: "Wang Lei", title: "CFO", department: "Finance", decisionRole: "economic", influence: 90, status: "active" },
-      { id: "ct_2", workspaceId, accountId: "acc_demo_1", name: "Chen Hao", title: "IT Director", department: "IT", decisionRole: "technical", influence: 70, status: "active" },
-      { id: "ct_3", workspaceId, accountId: "acc_demo_1", name: "Liu Min", title: "Ops Manager", department: "Operations", decisionRole: "coach", influence: 55, status: "active" },
-      { id: "ct_4", workspaceId, accountId: "acc_demo_1", name: "Zhao Qiang", title: "Procurement", department: "Procurement", decisionRole: "blocker", influence: 60, status: "active" },
+      contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90),
+      contact("ct_2", workspaceId, "acc_demo_1", DEMO_CONTACTS[1], "technical", 70),
+      contact("ct_3", workspaceId, "acc_demo_1", DEMO_CONTACTS[2], "coach", 55),
+      contact("ct_4", workspaceId, "acc_demo_1", DEMO_CONTACTS[3], "blocker", 60),
+      contact("ct_5", workspaceId, "acc_demo_2", DEMO_CONTACTS[4], "economic", 85),
+      contact("ct_6", workspaceId, "acc_demo_2", DEMO_CONTACTS[1], "technical", 65),
+      // acc_demo_4 has a buyer and a coach with NO edge between them, so the
+      // chain reports "on file but unreachable" - the distinction the view leads
+      // with.
+      contact("ct_7", workspaceId, "acc_demo_4", DEMO_CONTACTS[5], "economic", 80),
+      contact("ct_8", workspaceId, "acc_demo_4", DEMO_CONTACTS[2], "coach", 50),
+      contact("ct_9", workspaceId, "acc_demo_5", DEMO_CONTACTS[0], "economic", 75),
     ],
     relations: [
-      // The coach can reach the economic buyer, so the chain analysis reports
-      // reachable rather than merely "an economic buyer is on file".
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_3", toContactId: "ct_1", relationType: "reports_to" },
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_2", toContactId: "ct_1", relationType: "reports_to" },
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_4", toContactId: "ct_1", relationType: "opposed_to" },
+      { workspaceId, accountId: "acc_demo_2", fromContactId: "ct_6", toContactId: "ct_5", relationType: "reports_to" },
     ],
     healthInputs: {
       [`${workspaceId}|acc_demo_1`]: {
@@ -185,56 +226,484 @@ export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void
         projectHealth: ["green"],
         overdueRevenueCount: 0,
       },
+      [`${workspaceId}|acc_demo_4`]: {
+        openOpportunities: [{ stage: "propose" }, { stage: "negotiate" }],
+        lastInteractionAt: daysAgo(12),
+        projectHealth: ["green"],
+        overdueRevenueCount: 0,
+      },
+      [`${workspaceId}|acc_demo_5`]: {
+        openOpportunities: [{ stage: "discover" }],
+        lastInteractionAt: daysAgo(35),
+        projectHealth: ["amber"],
+        overdueRevenueCount: 0,
+      },
     },
   });
+}
 
-  // --- D5 signals and leads ------------------------------------------------
+function seedSignals(workspaceId: string, stores: DemoStores): void {
   stores.signal.seed({
     signals: [
-      { id: "sig_demo_1", workspaceId, source: "campaign", sourceRef: "camp_demo_1", signalType: "intent", subject: "East China Retail Group evaluating POS replacements", payload: {}, detectedAt: daysAgo(40), accountId: "acc_demo_1", score: 88, status: "promoted" },
-      // Unmatched: the new-logo case the inbox renders as "new logo".
-      { id: "sig_demo_2", workspaceId, source: "news", sourceRef: "https://news.example/funding/992", signalType: "funding", subject: "Fresh Foods Chain raises Series C", payload: {}, detectedAt: daysAgo(6), accountId: null, score: 71, status: "scored" },
-      { id: "sig_demo_3", workspaceId, source: "web", sourceRef: "https://jobs.example/8821", signalType: "hiring", subject: "Northern Telecom hiring 20 retail ops engineers", payload: {}, detectedAt: daysAgo(95), accountId: "acc_demo_3", score: 26, status: "scored" },
-      { id: "sig_demo_4", workspaceId, source: "partner", sourceRef: "ref-4471", signalType: "referral", subject: "Partner referral: Yangtze Logistics", payload: {}, detectedAt: daysAgo(2), accountId: null, score: null, status: "new" },
+      signal("sig_demo_1", workspaceId, "campaign", "camp_demo_1", "intent", DEMO_SIGNALS[0], "acc_demo_1", 88, "promoted", 40),
+      // Unmatched and high-scoring: the new-logo case the rule exists for.
+      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 71, "scored", 6),
+      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 26, "scored", 95),
+      signal("sig_demo_4", workspaceId, "partner", "ref-4471", "referral", DEMO_SIGNALS[3], null, null, "new", 2),
+      signal("sig_demo_5", workspaceId, "campaign", "camp_demo_3", "intent", DEMO_SIGNALS[4], "acc_demo_5", 79, "promoted", 25),
+      signal("sig_demo_6", workspaceId, "crm", "crm-3312", "tech_change", DEMO_SIGNALS[5], "acc_demo_2", 58, "scored", 18),
+      signal("sig_demo_7", workspaceId, "web", "https://tender.example/7781", "intent", DEMO_SIGNALS[6], "acc_demo_4", 83, "promoted", 22),
+      signal("sig_demo_8", workspaceId, "news", "https://news.example/conf/551", "engagement", DEMO_SIGNALS[7], null, 33, "duplicate", 60),
     ],
     leads: [
-      { id: "lead_demo_1", workspaceId, leadNo: "LEAD-00001", companyName: "East China Retail Group", contactName: "Liu Min", accountId: "acc_demo_1", signalId: "sig_demo_1", campaignId: "camp_demo_1", score: 88, ownerSub: OWNER, status: "converted", convertedOpportunityId: "opp_demo_1" },
-      { id: "lead_demo_2", workspaceId, leadNo: "LEAD-00002", companyName: "Fresh Foods Chain", contactName: null, accountId: null, signalId: "sig_demo_2", campaignId: null, score: 71, ownerSub: OWNER, status: "qualified", convertedOpportunityId: null },
+      lead("lead_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0].name, "acc_demo_1", "sig_demo_1", "camp_demo_1", 88, REP1, "converted", "opp_demo_1"),
+      // Unmatched account: convert is offered only once an account is set, and
+      // the surface explains why rather than failing.
+      lead("lead_demo_2", workspaceId, 2, DEMO_UNMATCHED_COMPANY, null, "sig_demo_2", null, 71, REP1, "qualified", null),
+      lead("lead_demo_3", workspaceId, 3, DEMO_ACCOUNTS[4].name, "acc_demo_5", "sig_demo_5", "camp_demo_3", 79, REP1, "converted", "opp_demo_10"),
+      lead("lead_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3].name, "acc_demo_4", "sig_demo_7", null, 83, REP2, "qualified", null),
+      lead("lead_demo_5", workspaceId, 5, DEMO_ACCOUNTS[2].name, "acc_demo_3", "sig_demo_3", null, 26, REP1, "working", null),
     ],
   });
+}
 
-  // --- D6 pipeline ---------------------------------------------------------
-  stores.pipeline.seed([
-    { id: "opp_demo_1", workspaceId, opportunityNo: "OPP-2026-0001", name: "Nationwide store digitalisation", accountId: "acc_demo_1", accountName: "East China Retail Group", planId: "plan_demo_1", campaignId: "camp_demo_1", territoryId: "terr_east", ownerSub: OWNER, stage: "negotiate", forecastCategory: "commit", amount: money(2_400_000, CNY), probability: 90, expectedCloseAt: daysAhead(46), closedAt: null, status: "open", currency: CNY },
-    // Human-overridden win rate: the stage default at validate is 50.
-    { id: "opp_demo_2", workspaceId, opportunityNo: "OPP-2026-0002", name: "Supply-chain platform phase 1", accountId: "acc_demo_2", accountName: "Southwest Manufacturing", planId: "plan_demo_1", campaignId: null, territoryId: "terr_east", ownerSub: "usr_demo_rep2", stage: "validate", forecastCategory: "best_case", amount: money(1_150_000, CNY), probability: 35, expectedCloseAt: daysAhead(61), closedAt: null, status: "open", currency: CNY },
-    { id: "opp_demo_3", workspaceId, opportunityNo: "OPP-2026-0003", name: "Service desk automation", accountId: "acc_demo_3", accountName: "Northern Telecom", planId: null, campaignId: null, territoryId: "terr_north", ownerSub: OWNER, stage: "qualify", forecastCategory: "pipeline", amount: money(480_000, CNY), probability: 10, expectedCloseAt: daysAhead(108), closedAt: null, status: "open", currency: CNY },
-    { id: "opp_demo_4", workspaceId, opportunityNo: "OPP-2026-0004", name: "Store POS replacement", accountId: "acc_demo_1", accountName: "East China Retail Group", planId: "plan_demo_1", campaignId: "camp_demo_1", territoryId: "terr_east", ownerSub: OWNER, stage: "won", forecastCategory: "closed", amount: money(760_000, CNY), probability: 100, expectedCloseAt: daysAgo(15), closedAt: daysAgo(15), status: "won", currency: CNY },
-  ]);
+function seedPipeline(workspaceId: string, stores: DemoStores): void {
+  stores.pipeline.seed(
+    [
+      opp("opp_demo_1", workspaceId, 1, DEMO_OPPORTUNITIES[0], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "negotiate", "commit", 2_400_000, 90, daysAhead(46), null, "open"),
+      // Overridden win rate: the stage default at validate is 50, so the page
+      // shows a human judgement surviving the machine's suggestion.
+      opp("opp_demo_2", workspaceId, 2, DEMO_OPPORTUNITIES[1], "acc_demo_2", null, "terr_east", REP2, "validate", "best_case", 1_150_000, 35, daysAhead(61), null, "open"),
+      opp("opp_demo_3", workspaceId, 3, DEMO_OPPORTUNITIES[2], "acc_demo_3", null, "terr_north", REP1, "qualify", "pipeline", 480_000, 10, daysAhead(108), null, "open"),
+      opp("opp_demo_4", workspaceId, 4, DEMO_OPPORTUNITIES[3], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "won", "closed", 760_000, 100, daysAgo(15), daysAgo(15), "won"),
+      // Terminal stages carry the `closed` category in both directions - a lost
+      // deal forecast as pipeline is a state planCategoryChange rejects, and a
+      // fixture that violates its own domain rule is worse than no fixture.
+      opp("opp_demo_5", workspaceId, 5, DEMO_OPPORTUNITIES[4], "acc_demo_2", "camp_demo_2", "terr_east", REP2, "lost", "closed", 320_000, 0, daysAgo(90), daysAgo(90), "lost"),
+      opp("opp_demo_6", workspaceId, 6, DEMO_OPPORTUNITIES[5], "acc_demo_4", "camp_demo_3", "terr_south", REP2, "propose", "commit", 1_800_000, 70, daysAhead(32), null, "open"),
+      opp("opp_demo_7", workspaceId, 7, DEMO_OPPORTUNITIES[6], "acc_demo_5", "camp_demo_1", "terr_south", REP1, "discover", "pipeline", 620_000, 25, daysAhead(80), null, "open"),
+      opp("opp_demo_8", workspaceId, 8, DEMO_OPPORTUNITIES[7], "acc_demo_2", null, "terr_east", REP2, "won", "closed", 1_400_000, 100, daysAgo(40), daysAgo(40), "won"),
+      opp("opp_demo_9", workspaceId, 9, DEMO_OPPORTUNITIES[8], "acc_demo_4", null, "terr_south", REP2, "negotiate", "best_case", 950_000, 90, daysAhead(20), null, "open"),
+      opp("opp_demo_10", workspaceId, 10, DEMO_OPPORTUNITIES[9], "acc_demo_5", "camp_demo_3", "terr_south", REP1, "won", "closed", 540_000, 100, daysAgo(8), daysAgo(8), "won"),
+    ],
+    {
+      // A stage never jumps: every event names the stage it came from, and the
+      // first one comes from null. A history with a gap in it would make the
+      // journal look optional.
+      events: [
+        ...stageHistory("opp_demo_1", ["qualify", "discover", "validate", "propose", "negotiate"], REP1, 120, 10),
+        // The last event of a closed deal lands on its closedAt, not near it.
+        ...stageHistory("opp_demo_4", ["qualify", "discover", "validate", "propose", "negotiate", "won"], REP1, 150, 15),
+        ...stageHistory("opp_demo_5", ["qualify", "discover", "lost"], REP2, 160, 90),
+        ...stageHistory("opp_demo_6", ["qualify", "discover", "validate", "propose"], REP2, 70, 6),
+      ],
+      // Two of the four closed deals are reviewed; the other two are the debt
+      // the pipeline page renders.
+      reviews: [
+        {
+          id: "wlr_demo_1",
+          workspaceId,
+          opportunityId: "opp_demo_5",
+          outcome: "lost",
+          primaryReason: "fit",
+          competitor: null,
+          lessons: DEMO_LESSONS[1],
+          reviewerSub: "usr_demo_leader",
+          reviewedAt: daysAgo(85),
+        },
+        {
+          id: "wlr_demo_2",
+          workspaceId,
+          opportunityId: "opp_demo_8",
+          outcome: "won",
+          primaryReason: "fit",
+          competitor: null,
+          lessons: DEMO_LESSONS[0],
+          reviewerSub: "usr_demo_leader",
+          reviewedAt: daysAgo(35),
+        },
+      ],
+    },
+  );
+}
 
-  // --- D7 delivery ---------------------------------------------------------
+/**
+ * A contiguous stage journal ending at the deal's current stage, spread evenly
+ * between the first move and the last.
+ */
+function stageHistory(
+  opportunityId: string,
+  stages: readonly string[],
+  actorSub: string,
+  firstDaysAgo: number,
+  lastDaysAgo: number,
+): StageEventRecord[] {
+  const span = (firstDaysAgo - lastDaysAgo) / Math.max(1, stages.length - 1);
+  return stages.map((to, i) => ({
+    id: `${opportunityId}_ev_${i + 1}`,
+    opportunityId,
+    fromStage: (i === 0 ? null : stages[i - 1]) as StageEventRecord["fromStage"],
+    toStage: to as StageEventRecord["toStage"],
+    reason: null,
+    actorSub,
+    occurredAt: daysAgo(Math.round(firstDaysAgo - i * span)),
+  }));
+}
+
+function seedDelivery(workspaceId: string, stores: DemoStores): void {
   stores.delivery.seed({
     projects: [
-      // Reported green, but carries an overdue instalment - the delivery page
-      // downgrades it, which is the rule being demonstrated rather than claimed.
-      { id: "prj_demo_1", workspaceId, projectNo: "PRJ-0001", name: "POS rollout - phase 1", opportunityId: "opp_demo_4", accountId: "acc_demo_1", managerSub: MANAGER, contractAmount: money(760_000, CNY), health: "green", status: "active", currency: CNY },
+      // Reported green while carrying an overdue instalment: the delivery page
+      // downgrades it, so the rule is demonstrated rather than claimed.
+      project("prj_demo_1", workspaceId, 1, DEMO_PROJECTS[0], "opp_demo_4", "acc_demo_1", 760_000, "green", "active"),
+      project("prj_demo_2", workspaceId, 2, DEMO_PROJECTS[1], "opp_demo_8", "acc_demo_2", 1_400_000, "green", "active"),
+      project("prj_demo_3", workspaceId, 3, DEMO_PROJECTS[2], "opp_demo_10", "acc_demo_5", 540_000, "amber", "planning"),
+      project("prj_demo_4", workspaceId, 4, DEMO_PROJECTS[3], null, "acc_demo_4", 300_000, "green", "delivered"),
     ],
     milestones: [
-      { id: "ms_1", projectId: "prj_demo_1", name: "Kickoff and survey", sequence: 1, status: "done", dueAt: daysAgo(30), completedAt: daysAgo(31), workspaceId },
-      { id: "ms_2", projectId: "prj_demo_1", name: "Pilot stores live", sequence: 2, status: "in_progress", dueAt: daysAhead(10), completedAt: null, workspaceId },
-      { id: "ms_3", projectId: "prj_demo_1", name: "Full rollout", sequence: 3, status: "pending", dueAt: daysAhead(60), completedAt: null, workspaceId },
+      milestone("ms_1", workspaceId, "prj_demo_1", DEMO_MILESTONES[0], 1, "done", daysAgo(30), daysAgo(31)),
+      milestone("ms_2", workspaceId, "prj_demo_1", DEMO_MILESTONES[1], 2, "in_progress", daysAhead(10), null),
+      milestone("ms_3", workspaceId, "prj_demo_1", DEMO_MILESTONES[2], 3, "pending", daysAhead(60), null),
+      milestone("ms_4", workspaceId, "prj_demo_2", DEMO_MILESTONES[0], 1, "done", daysAgo(25), daysAgo(26)),
+      milestone("ms_5", workspaceId, "prj_demo_2", DEMO_MILESTONES[1], 2, "done", daysAgo(5), daysAgo(6)),
+      milestone("ms_6", workspaceId, "prj_demo_3", DEMO_MILESTONES[0], 1, "pending", daysAhead(14), null),
+      milestone("ms_7", workspaceId, "prj_demo_4", DEMO_MILESTONES[3], 1, "done", daysAgo(60), daysAgo(58)),
     ],
     instalments: [
-      { id: "inst_1", projectId: "prj_demo_1", milestoneId: "ms_1", sequence: 1, status: "settled", plannedAmount: money(380_000, CNY), actualAmount: money(380_000, CNY), dueAt: daysAgo(25), settledAt: daysAgo(24), workspaceId },
-      { id: "inst_2", projectId: "prj_demo_1", milestoneId: "ms_2", sequence: 2, status: "overdue", plannedAmount: money(380_000, CNY), actualAmount: null, dueAt: daysAgo(8), settledAt: null, workspaceId },
+      instalment("inst_1", workspaceId, "prj_demo_1", "ms_1", 1, "settled", 380_000, 380_000, daysAgo(25), daysAgo(24)),
+      instalment("inst_2", workspaceId, "prj_demo_1", "ms_2", 2, "overdue", 380_000, null, daysAgo(8), null),
+      instalment("inst_3", workspaceId, "prj_demo_2", "ms_4", 1, "settled", 700_000, 700_000, daysAgo(20), daysAgo(19)),
+      instalment("inst_4", workspaceId, "prj_demo_2", "ms_5", 2, "invoiced", 700_000, null, daysAhead(12), null),
+      instalment("inst_5", workspaceId, "prj_demo_3", "ms_6", 1, "planned", 270_000, null, daysAhead(30), null),
+      instalment("inst_6", workspaceId, "prj_demo_3", null, 2, "planned", 270_000, null, daysAhead(90), null),
+      // Collected short of plan: the planned-versus-actual gap this domain
+      // exists to produce is only visible if one instalment actually has one.
+      instalment("inst_7", workspaceId, "prj_demo_4", "ms_7", 1, "settled", 300_000, 290_000, daysAgo(50), daysAgo(49)),
     ],
   });
+}
 
-  // --- D8 copilot ----------------------------------------------------------
+function seedCopilot(workspaceId: string, stores: DemoStores): void {
   stores.copilot.seedProposals(workspaceId, [
-    { id: "act_demo_1", status: "proposed", actionType: "advance_stage", subjectType: "opportunity", subjectId: "opp_demo_2", payload: { to: "propose" }, rationale: "POC sign-off is recorded and procurement has asked for a formal quote.", confidence: 86, decidedBySub: null, decidedAt: null, executedAt: null, createdAt: daysAgo(1) },
-    { id: "act_demo_2", status: "proposed", actionType: "draft_outreach", subjectType: "account", subjectId: "acc_demo_1", payload: { channel: "email" }, rationale: "No contact for 48 days and one instalment is overdue; health has fallen to 34.", confidence: 52, decidedBySub: null, decidedAt: null, executedAt: null, createdAt: daysAgo(1) },
-    { id: "act_demo_3", status: "proposed", actionType: "promote_signal", subjectType: "lead", subjectId: "lead_demo_2", payload: { score: 71 }, rationale: "Series C funding usually precedes a platform decision by one to two quarters.", confidence: 64, decidedBySub: null, decidedAt: null, executedAt: null, createdAt: daysAgo(2) },
-    { id: "act_demo_4", status: "rejected", actionType: "advance_stage", subjectType: "opportunity", subjectId: "opp_demo_3", payload: { to: "discover" }, rationale: "Two inbound enquiries from the same account this week.", confidence: 41, decidedBySub: "usr_demo_leader", decidedAt: daysAgo(3), executedAt: null, createdAt: daysAgo(4) },
+    proposal("act_demo_1", "proposed", "advance_stage", "opportunity", "opp_demo_2", { to: "propose" }, DEMO_RATIONALES[0], 86, null, 1),
+    proposal("act_demo_2", "proposed", "draft_outreach", "account", "acc_demo_1", { channel: "email" }, DEMO_RATIONALES[1], 52, null, 1),
+    proposal("act_demo_3", "proposed", "promote_signal", "lead", "lead_demo_2", { score: 71 }, DEMO_RATIONALES[2], 64, null, 2),
+    proposal("act_demo_4", "rejected", "advance_stage", "opportunity", "opp_demo_3", { to: "discover" }, DEMO_RATIONALES[3], 41, "usr_demo_leader", 4),
+    proposal("act_demo_5", "proposed", "advance_stage", "opportunity", "opp_demo_6", { to: "negotiate" }, DEMO_RATIONALES[4], 77, null, 1),
   ]);
+
+  stores.copilot.seedPlaybooks(
+    workspaceId,
+    DEMO_PLAYBOOKS.map((pb, i) => ({
+      id: `pb_demo_${i + 1}`,
+      playbookCode: pb.code,
+      name: pb.name,
+      scopeDomain: pb.scope as PlaybookScope,
+      content: pb.content,
+      version: 1,
+      status: "active",
+    })),
+  );
+}
+
+// --- row builders, kept terse so the data above reads as a table -----------
+
+function campaign(
+  id: string,
+  workspaceId: string,
+  name: string,
+  planId: string,
+  channel: string,
+  budget: number,
+  status: string,
+  startsAt: Date,
+  endsAt: Date,
+) {
+  return {
+    id,
+    workspaceId,
+    campaignNo: `CAMP-${id.slice(-1).padStart(4, "0")}`,
+    name,
+    planId,
+    segmentId: null,
+    channel,
+    budgetAmount: money(budget, CNY),
+    ownerSub: "usr_demo_mkt",
+    startsAt,
+    endsAt,
+    status: status as never,
+    currency: CNY,
+  };
+}
+
+function execution(
+  id: string,
+  workspaceId: string,
+  campaignId: string,
+  title: string,
+  actionType: string,
+  status: string,
+  dueAt: Date,
+) {
+  return { id, workspaceId, campaignId, title, actionType, assigneeSub: "usr_demo_mkt", dueAt, status: status as never };
+}
+
+function territory(id: string, workspaceId: string, code: string, name: string, ownerSub: string) {
+  return { id, workspaceId, territoryCode: code, name, parentId: null, ownerSub, status: "active" };
+}
+
+function target(
+  id: string,
+  workspaceId: string,
+  scopeType: "workspace" | "territory" | "owner",
+  territoryId: string | null,
+  ownerSub: string | null,
+  amount: number,
+  status: string,
+) {
+  return {
+    id,
+    workspaceId,
+    period: PERIOD,
+    scopeType,
+    territoryId,
+    ownerSub,
+    metric: "revenue" as const,
+    targetAmount: money(amount, CNY),
+    status: status as never,
+    planId: "plan_demo_1",
+  };
+}
+
+function account(
+  id: string,
+  workspaceId: string,
+  n: number,
+  info: { name: string; industry: string; region: string },
+  segmentCode: string,
+  ownerSub: string,
+  healthScore: number | null,
+  status: string,
+) {
+  return {
+    id,
+    workspaceId,
+    accountNo: `ACC-${String(n).padStart(4, "0")}`,
+    name: info.name,
+    industry: info.industry,
+    region: info.region,
+    segmentCode,
+    ownerSub,
+    healthScore,
+    status: status as never,
+  };
+}
+
+function contact(
+  id: string,
+  workspaceId: string,
+  accountId: string,
+  info: { name: string; title: string; department: string },
+  decisionRole: string,
+  influence: number,
+) {
+  return {
+    id,
+    workspaceId,
+    accountId,
+    name: info.name,
+    title: info.title,
+    department: info.department,
+    decisionRole: decisionRole as never,
+    influence,
+    status: "active",
+  };
+}
+
+function signal(
+  id: string,
+  workspaceId: string,
+  source: string,
+  sourceRef: string | null,
+  signalType: string,
+  subject: string,
+  accountId: string | null,
+  score: number | null,
+  status: string,
+  agedDays: number,
+) {
+  return {
+    id,
+    workspaceId,
+    source,
+    sourceRef,
+    signalType: signalType as never,
+    subject,
+    payload: {},
+    detectedAt: daysAgo(agedDays),
+    accountId,
+    score,
+    status: status as never,
+  };
+}
+
+function lead(
+  id: string,
+  workspaceId: string,
+  n: number,
+  companyName: string,
+  accountId: string | null,
+  signalId: string | null,
+  campaignId: string | null,
+  score: number,
+  ownerSub: string,
+  status: string,
+  convertedOpportunityId: string | null,
+) {
+  return {
+    id,
+    workspaceId,
+    leadNo: `LEAD-${String(n).padStart(5, "0")}`,
+    companyName,
+    contactName: null,
+    accountId,
+    signalId,
+    campaignId,
+    score,
+    ownerSub,
+    status: status as never,
+    convertedOpportunityId,
+  };
+}
+
+function opp(
+  id: string,
+  workspaceId: string,
+  n: number,
+  name: string,
+  accountId: string,
+  campaignId: string | null,
+  territoryId: string,
+  ownerSub: string,
+  stage: string,
+  forecastCategory: string,
+  amount: number,
+  probability: number,
+  expectedCloseAt: Date,
+  closedAt: Date | null,
+  status: string,
+) {
+  return {
+    id,
+    workspaceId,
+    opportunityNo: `OPP-2026-${String(n).padStart(4, "0")}`,
+    name,
+    accountId,
+    accountName: undefined,
+    planId: "plan_demo_1",
+    campaignId,
+    territoryId,
+    ownerSub,
+    stage: stage as never,
+    forecastCategory: forecastCategory as never,
+    amount: money(amount, CNY),
+    probability,
+    expectedCloseAt,
+    closedAt,
+    status: status as never,
+    currency: CNY,
+  };
+}
+
+function project(
+  id: string,
+  workspaceId: string,
+  n: number,
+  name: string,
+  opportunityId: string | null,
+  accountId: string,
+  contract: number,
+  health: string,
+  status: string,
+) {
+  return {
+    id,
+    workspaceId,
+    projectNo: `PRJ-${String(n).padStart(4, "0")}`,
+    name,
+    opportunityId,
+    accountId,
+    managerSub: PM,
+    contractAmount: money(contract, CNY),
+    health: health as never,
+    status,
+    currency: CNY,
+  };
+}
+
+function milestone(
+  id: string,
+  workspaceId: string,
+  projectId: string,
+  name: string,
+  sequence: number,
+  status: string,
+  dueAt: Date,
+  completedAt: Date | null,
+) {
+  return { id, workspaceId, projectId, name, sequence, status: status as never, dueAt, completedAt };
+}
+
+function instalment(
+  id: string,
+  workspaceId: string,
+  projectId: string,
+  milestoneId: string | null,
+  sequence: number,
+  status: string,
+  planned: number,
+  actual: number | null,
+  dueAt: Date,
+  settledAt: Date | null,
+) {
+  return {
+    id,
+    workspaceId,
+    projectId,
+    milestoneId,
+    sequence,
+    status: status as never,
+    plannedAmount: money(planned, CNY),
+    actualAmount: actual == null ? null : money(actual, CNY),
+    dueAt,
+    settledAt,
+  };
+}
+
+function proposal(
+  id: string,
+  status: string,
+  actionType: string,
+  subjectType: string,
+  subjectId: string,
+  payload: Record<string, unknown>,
+  rationale: string,
+  confidence: number,
+  decidedBySub: string | null,
+  agedDays: number,
+) {
+  return {
+    id,
+    status: status as never,
+    actionType,
+    subjectType: subjectType as never,
+    subjectId,
+    payload,
+    rationale,
+    confidence,
+    decidedBySub,
+    decidedAt: decidedBySub ? daysAgo(agedDays - 1) : null,
+    executedAt: null,
+    createdAt: daysAgo(agedDays),
+  };
 }
