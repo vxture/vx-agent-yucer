@@ -35,7 +35,11 @@ export async function listProposals(
   ctx: CopilotContext,
   filter: ProposalFilter = {},
 ): Promise<RuleResult<AgentAction[]>> {
-  const gate = can(ctx.holder, ctx.entitlement, "copilot.playbook.view", "data");
+  // copilot.action.view, not copilot.playbook.view. The effective gate is the
+  // same, but the action now NAMES what it guards - reading the proposal queue
+  // is not reading the playbook catalog, and a reader of this line could not
+  // previously tell whether the free tier here was intended or accidental.
+  const gate = can(ctx.holder, ctx.entitlement, "copilot.action.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listProposals(ctx.workspaceId, filter));
 }

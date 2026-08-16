@@ -235,7 +235,7 @@ ADR, not a free edit:
 | product definition | eight capability domains D1-D8, split by object ownership | `docs/20-specs/20-capability-domains.md`, ADR-001 |
 | domain schemas | five: `yucer_core` / `yucer_gtm` / `yucer_pipeline` / `yucer_delivery` / `yucer_agent` (24 tables) | `docs/30-design/data_yucer_200_domain-schemas.md`, ADR-002 |
 | capability matrix | 19 feature keys across five tiers, cumulative | `portals/app/app/entitlement/capability.ts`, `docs/20-specs/40-capability-matrix.md` |
-| role/permission catalog | 19 permissions, 7 roles, 67 grants | `deploy/database/ddl/incr/0001_seed_authz_catalog.sql`, `docs/20-specs/50-role-permission-catalog.md` |
+| role/permission catalog | 20 permissions, 7 roles, 68 grants | `deploy/database/ddl/incr/*.sql`, `docs/20-specs/50-role-permission-catalog.md` |
 | domain guardrails | append-only tables, frozen attribution keys, agent proposals immutable | `deploy/database/ddl/98_column_locks.sql`, ADR-003 |
 
 Still blank (batches 2-3): domain pages and components, the permission-gate module

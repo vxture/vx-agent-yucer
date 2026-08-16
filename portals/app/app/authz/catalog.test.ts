@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
@@ -19,12 +19,21 @@ import {
 // These tests are what makes "mirror" true rather than aspirational - they parse
 // the seed SQL and demand exact parity in both directions.
 
-const SEED = join(
+// EVERY increment, in order - not just 0001. The catalog grows by numbered
+// increment (incr/README.md: "a new permission is a new increment here"), so a
+// mirror that read only the first file would go stale the moment one landed and
+// would report the drift as a mirror bug rather than as the missing increment.
+const INCR_DIR = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../../deploy/database/ddl/incr/0001_seed_authz_catalog.sql",
+  "../../../../deploy/database/ddl/incr",
 );
 
-const sql = readFileSync(SEED, "utf8");
+const INCREMENTS = readdirSync(INCR_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
+
+const sources = INCREMENTS.map((f) => readFileSync(join(INCR_DIR, f), "utf8"));
+const sql = sources.join("\n");
 
 /** Strip SQL line comments so commented-out rows never parse as real ones. */
 function uncommented(text: string): string {
@@ -37,12 +46,26 @@ function uncommented(text: string): string {
     .join("\n");
 }
 
+/**
+ * Every block matching the markers, across every increment, concatenated in
+ * file order. An increment that adds one permission has the same INSERT shape
+ * as the original seed, so the same parser reads both.
+ */
 function seedSection(startMarker: string, endMarker: string): string {
-  const from = sql.indexOf(startMarker);
-  const to = sql.indexOf(endMarker, from + startMarker.length);
-  assert.ok(from !== -1, `seed marker not found: ${startMarker}`);
-  assert.ok(to !== -1, `seed marker not found: ${endMarker}`);
-  return uncommented(sql.slice(from, to));
+  const blocks: string[] = [];
+  for (const source of sources) {
+    let cursor = 0;
+    for (;;) {
+      const from = source.indexOf(startMarker, cursor);
+      if (from === -1) break;
+      const to = source.indexOf(endMarker, from + startMarker.length);
+      assert.ok(to !== -1, `seed marker opened but never closed: ${startMarker}`);
+      blocks.push(uncommented(source.slice(from, to)));
+      cursor = to + endMarker.length;
+    }
+  }
+  assert.ok(blocks.length > 0, `seed marker not found in any increment: ${startMarker}`);
+  return blocks.join("\n");
 }
 
 function seedPermCodes(): string[] {
@@ -82,13 +105,13 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 19 permissions, 7 roles, 67 grants", () => {
+test("the catalog is the documented size: 20 permissions, 7 roles, 68 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
-  assert.equal(PERM_CODES.length, 19);
+  assert.equal(PERM_CODES.length, 20);
   assert.equal(ROLE_CODES.length, 7);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 67);
+  assert.equal(total, 68);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {

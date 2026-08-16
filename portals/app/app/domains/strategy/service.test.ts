@@ -97,14 +97,28 @@ test("a running plan cannot be sent back to draft", async () => {
   assert.equal(r.ok === false && r.violations[0].code, "illegal_transition");
 });
 
-test("a marketing manager may edit strategy; a rep may not", async () => {
+test("a marketing manager may EDIT a plan but not approve it", async () => {
+  // strategy.approve (incr/0002) goes to sales_leader alone. A marketing
+  // manager authors and revises the plan; committing the sales organisation to
+  // it is not theirs to do.
   const store = new InMemoryStrategyStore();
-  store.seed({ plans: [plan()] });
-  assert.ok((await transitionPlan(ctx("marketing_manager", "business", store), "plan_1", "approved")).ok);
+  store.seed({ plans: [plan({ status: "approved" })] });
+  assert.ok(
+    (await transitionPlan(ctx("marketing_manager", "business", store), "plan_1", "active")).ok,
+    "editing is still theirs",
+  );
 
   const store2 = new InMemoryStrategyStore();
   store2.seed({ plans: [plan()] });
-  const r = await transitionPlan(ctx("sales_rep", "business", store2), "plan_1", "approved");
+  const r = await transitionPlan(ctx("marketing_manager", "business", store2), "plan_1", "approved");
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+  assert.equal((await store2.getPlan(WS, "plan_1"))?.status, "draft", "nothing was signed off");
+});
+
+test("a rep may not touch a plan at all", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan()] });
+  const r = await transitionPlan(ctx("sales_rep", "business", store), "plan_1", "approved");
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });
 

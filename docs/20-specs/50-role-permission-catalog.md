@@ -23,6 +23,7 @@
 |-----------|------|------|
 | `strategy.read` | 查看战略 | D1 只读 |
 | `strategy.write` | 编辑战略 | D1 创建/修改战略与细分市场 |
+| `strategy.approve` | 审批计划 | D1 批准战略计划——计划由此成为承诺（`incr/0002`） |
 | `planning.read` | 查看规划 | D2 只读 |
 | `planning.write` | 编辑规划 | D2 设定区域与目标配额 |
 | `campaign.read` | 查看战役 | D3 只读 |
@@ -47,7 +48,7 @@
 
 | role_code | 名称 | 权限 |
 |-----------|------|------|
-| `sales_leader` | 销售负责人 | 全部 19 项 |
+| `sales_leader` | 销售负责人 | 全部 20 项 |
 | `marketing_manager` | 市场负责人 | `strategy.read` `strategy.write` `campaign.read` `campaign.write` `signal.read` `signal.triage` `account.read` `pipeline.read` `copilot.use` `copilot.decide` |
 | `sales_rep` | 一线销售 | `account.read` `account.write` `signal.read` `signal.triage` `pipeline.read` `pipeline.write` `delivery.read` `campaign.read` `copilot.use` `copilot.decide` |
 | `presales` | 售前/方案 | `account.read` `account.write` `pipeline.read` `delivery.read` `copilot.use` |
@@ -61,6 +62,11 @@
   的人开启，且还要档位为 enterprise 才真正生效（两道门）。
 - **`pipeline.forecast` 给运营和负责人，不给一线销售**。预测是管理动作：一线销售可
   推进商机（`pipeline.write`），但提交对上承诺的预测快照是另一件事。
+- **`strategy.approve` 只给 `sales_leader`**。与上一条同形，只是上移了一层：
+  `marketing_manager` 持有 `strategy.write`，可以起草和修改计划，但把销售组织**承诺**
+  到这个数字上不是它的职权。`strategy_plan.approved_at` 是下游所有报表的基准，签字
+  和编辑是两个动作。（`incr/0002`；在此之前 `strategy.plan.approve` 这个 action id
+  解析到 `strategy.write`，分离仅是名义上的。）
 - **`sales_ops` 有 `admin.manage` 但没有 `pipeline.write`**。运营定口径、管配额、管
   角色，但不替销售改单子——避免口径制定者同时是数据修改者。
 - **`marketing_manager` 有 `signal.triage` 但没有 `pipeline.write`**。市场负责信号到

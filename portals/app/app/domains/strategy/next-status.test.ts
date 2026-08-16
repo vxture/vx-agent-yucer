@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
-import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
+import { ROLE_PERMISSIONS, permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import {
   CAMPAIGN_STATUSES,
@@ -117,19 +117,29 @@ test("approving a plan stamps the approval and only once", () => {
   assert.equal("approvedAt" in back, false, "an existing approval is left alone");
 });
 
-test("approving is a distinct ACTION but not yet a distinct permission", async () => {
-  // Recorded as it actually is, not as it reads. strategy.plan.approve and
-  // strategy.plan.update are separate action ids that both resolve to
-  // strategy.write, so anyone who may edit a plan may also sign it off.
-  //
-  // Whether drafting and approving should require different permissions is a
-  // role-catalog decision - it would move catalog.ts, the seed SQL and the
-  // published role doc together - so this asserts today's behaviour rather than
-  // quietly introducing a separation of duties nobody agreed to.
+test("approving a plan is a separate permission from editing one", async () => {
+  // The separation this test used to record as NOMINAL is now real: incr/0002
+  // adds strategy.approve and grants it to sales_leader alone. Editing and
+  // signing off are different acts, the same way pipeline.write and
+  // pipeline.forecast are one level down.
   const store = new InMemoryStrategyStore();
   store.seed({ plans: [planRow("draft")] });
-  unwrap(await transitionPlan(ctx("marketing_manager", "business", store), "plan_1", "approved"));
+
+  const editor = await transitionPlan(ctx("marketing_manager", "business", store), "plan_1", "approved");
+  assert.equal(editor.ok, false, "an editor cannot sign off");
+  assert.equal((await store.getPlan(WS, "plan_1"))?.status, "draft");
+
+  unwrap(await transitionPlan(ctx("sales_leader", "business", store), "plan_1", "approved"));
   assert.equal((await store.getPlan(WS, "plan_1"))?.status, "approved");
+});
+
+test("only one role in the catalog can approve a plan", async () => {
+  // Asserted over the catalog rather than by example, so a future grant of
+  // strategy.approve is a deliberate act that fails here first.
+  const holders = (Object.keys(ROLE_PERMISSIONS) as RoleCode[]).filter((r) =>
+    ROLE_PERMISSIONS[r].includes("strategy.approve"),
+  );
+  assert.deepEqual(holders, ["sales_leader"]);
 });
 
 test("a role without strategy.write cannot move a plan at all", async () => {
