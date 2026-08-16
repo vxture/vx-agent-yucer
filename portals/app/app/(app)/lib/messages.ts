@@ -184,6 +184,26 @@ export const SIGNAL_STATUS_LABEL: Record<string, string> = {
   duplicate: "重复",
 };
 
+export const COPILOT_TEXT = {
+  title: "销售智能助手",
+  description: "问它下一步该做什么。它给出的是建议动作，采纳之后才会执行。",
+  placeholder: "例如：这个季度哪些商机最该盯？华东零售集团下一步该找谁？",
+  submit: "发送",
+  thinking: "正在思考",
+  emptyTitle: "还没有对话",
+  emptyDescription: "向助手提问。它会结合你的客户、商机和交付数据回答，并在需要改动时提出建议。",
+  proposalsFromTurn: (n: number) => `本轮提出了 ${n} 条建议动作，待你裁决`,
+  droppedProposals: (n: number) => `另有 ${n} 条建议未记录：当前档位不含「助手主动建议」能力`,
+  capabilitiesUsed: (names: string) => `调用了外部能力：${names}`,
+  truncated: "本轮工具调用已达上限，回答基于已获取的信息",
+  errorPrefix: "助手无法作答：",
+  errorNotConfigured: "模型平面尚未接入（需要运营侧完成注册与授权）",
+  errorNoGrant: "本产品在模型平面上还没有被授权",
+  errorQuota: "模型用量配额已耗尽",
+  errorGeneric: "请稍后重试；持续失败请联系运营",
+  newSession: "新对话",
+} as const;
+
 export const PREVIEW_TEXT = {
   eyebrow: "离线预览",
   title: "yucer 产品界面预览",
