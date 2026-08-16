@@ -101,6 +101,18 @@ export interface NewOpportunity {
   expectedCloseAt: Date | null;
 }
 
+/**
+ * What may be repriced. Every field here carries an UPDATE grant in
+ * 98_column_locks.sql; the stage triple deliberately does not appear.
+ */
+export interface CommercialTermsPatch {
+  amount?: Money | null;
+  probability?: number;
+  expectedCloseAt?: Date | null;
+  forecastCategory?: ForecastCategory;
+  ownerSub?: string | null;
+}
+
 export interface PipelineStore {
   listOpportunities(workspaceId: string, filter?: OpportunityFilter): Promise<OpportunityRecord[]>;
   /** Creates in `qualify` with the stage default probability. A deal cannot be
@@ -115,6 +127,23 @@ export interface PipelineStore {
    * workspace - which is also what a cross-workspace id looks like from here.
    */
   applyStageChange(workspaceId: string, opportunityId: string, plan: StageChangePlan): Promise<boolean>;
+
+  /**
+   * The COMMERCIAL terms only: what the deal is worth, when it lands, how likely
+   * it is, and which forecast bucket it sits in.
+   *
+   * Deliberately NOT a general updateOpportunity. `stage`, `status` and
+   * `closedAt` are absent from the patch type and cannot be reached from here -
+   * if they could, this method would be the shortcut past applyStageChange that
+   * rule 2 above exists to prevent, and the first caller in a hurry would take
+   * it. Moving a deal journals; pricing it does not, because a price has no
+   * from/to and the column history is not what any report reads.
+   */
+  updateCommercialTerms(
+    workspaceId: string,
+    opportunityId: string,
+    patch: CommercialTermsPatch,
+  ): Promise<boolean>;
 
   listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]>;
 
@@ -226,6 +255,26 @@ export class InMemoryPipelineStore implements PipelineStore {
 
     this.seq += 1;
     this.events.push({ id: `evt_${this.seq}`, opportunityId, ...plan.event });
+    return true;
+  }
+
+  async updateCommercialTerms(
+    workspaceId: string,
+    opportunityId: string,
+    patch: CommercialTermsPatch,
+  ): Promise<boolean> {
+    const row = this.opportunities.get(opportunityId);
+    if (!row || row.workspaceId !== workspaceId) return false;
+
+    // Field by field against `undefined`, not a spread: `amount: null` and
+    // `expectedCloseAt: null` are meaningful values ("unpriced", "no date"), and
+    // a spread of the whole patch would let an absent key overwrite a present
+    // one with undefined.
+    if (patch.amount !== undefined) row.amount = patch.amount;
+    if (patch.probability !== undefined) row.probability = patch.probability;
+    if (patch.expectedCloseAt !== undefined) row.expectedCloseAt = patch.expectedCloseAt;
+    if (patch.forecastCategory !== undefined) row.forecastCategory = patch.forecastCategory;
+    if (patch.ownerSub !== undefined) row.ownerSub = patch.ownerSub;
     return true;
   }
 

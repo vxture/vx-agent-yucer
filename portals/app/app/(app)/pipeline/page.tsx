@@ -49,7 +49,16 @@ export default async function PipelinePage() {
 
   return (
     <PageStack>
-      <PipelineBoard rows={rows} readOnly={!session.authz.permissions.has("pipeline.write")} />
+      {/* The gate, not the raw permission. Reading permissions.has() directly
+          skips the ENTITLEMENT half entirely, so a workspace whose subscription
+          lapsed would still render the board as writable - and the two gates
+          are ordered precisely so the tier answer comes first. */}
+      <PipelineBoard
+        rows={rows}
+        readOnly={
+          !can(session.authz, session.entitlement, "pipeline.opportunity.advance", "ui").allowed
+        }
+      />
       {/* Only rendered when the workspace bought win/loss. The list is the debt
           the "must review on close" rule creates; without it the rule is a
           sentence in a document. */}

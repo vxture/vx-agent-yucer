@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import {
   DataTable,
   EmptyState,
@@ -62,9 +63,14 @@ export function PipelineBoard({ rows, currency = "CNY", loading, onOpen, readOnl
     {
       id: "name",
       header: PIPELINE_TEXT.columnOpportunity,
+      // A link, not an onRowClick handler: navigable, middle-clickable and
+      // shareable in a way a click handler is not. Same reasoning as the
+      // account list.
       cell: (row) => (
         <div>
-          <div>{row.name}</div>
+          <div>
+            <Link href={`/pipeline/${row.id}`}>{row.name}</Link>
+          </div>
           <div>
             {row.opportunityNo} / {row.accountName}
           </div>

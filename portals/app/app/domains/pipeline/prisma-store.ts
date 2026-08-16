@@ -5,6 +5,7 @@ import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { DEFAULT_PROBABILITY } from "./lib/stage";
 import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
 import type {
+  CommercialTermsPatch,
   NewOpportunity,
   NewWinLossReview,
   WinLossReviewRecord,
@@ -176,6 +177,44 @@ export class PrismaPipelineStore implements PipelineStore {
       });
       return true;
     });
+  }
+
+  async updateCommercialTerms(
+    workspaceId: string,
+    opportunityId: string,
+    input: CommercialTermsPatch,
+  ): Promise<boolean> {
+    const p = await getPrismaClient();
+
+    // Built key by key against `undefined` so a caller changing only the amount
+    // does not blank the close date. `null` stays: it means "unpriced" / "no
+    // date", which are values a user can legitimately set.
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (input.amount !== undefined) {
+      patch.amount = input.amount == null ? null : input.amount.amount;
+      if (input.amount != null) patch.currency = input.amount.currency;
+    }
+    if (input.probability !== undefined) patch.probability = input.probability;
+    if (input.expectedCloseAt !== undefined) patch.expectedCloseAt = input.expectedCloseAt;
+    if (input.forecastCategory !== undefined) patch.forecastCategory = input.forecastCategory;
+    if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
+
+    // The same backstop the stage path uses. It should never fire - the patch
+    // keys are fixed by CommercialTermsPatch - but it is what turns a future
+    // careless addition into a caught error instead of a permission denied
+    // arriving from Postgres at runtime.
+    const guard = assertWritable(OPPORTUNITY_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write locked columns: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    const updated = await p.opportunity.updateMany({
+      where: { id: opportunityId, workspaceId },
+      data: patch,
+    });
+    return updated.count > 0;
   }
 
   async listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]> {
