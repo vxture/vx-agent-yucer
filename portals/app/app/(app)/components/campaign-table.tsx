@@ -1,0 +1,106 @@
+"use client";
+
+import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-system";
+import { nextCampaignStatuses, type CampaignStatus } from "../../domains/strategy/lib/lifecycle";
+import { CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } from "../lib/messages";
+import { formatMoney } from "../lib/view-model";
+import { LifecycleControl } from "./lifecycle-control";
+
+// The campaign table. Client-side because DataTableColumn.cell is a function
+// and functions do not cross the RSC boundary - see account-table.tsx.
+//
+// The return column reads WON revenue, never pipeline. A campaign that
+// generated a lot of unclosed pipeline has returned nothing yet, and showing
+// pipeline as return is how the same spend gets justified twice.
+
+export interface CampaignRow {
+  id: string;
+  name: string;
+  campaignNo: string;
+  channel: string | null;
+  budget: number | null;
+  currency: string;
+  status: string;
+  done: number;
+  total: number;
+  skipped: number;
+  wonAmount: number | null;
+  returnOnBudget: number | null;
+}
+
+export interface CampaignTableProps {
+  readonly rows: readonly CampaignRow[];
+  readonly canMove: boolean;
+  readonly onMove: (id: string, to: string) => Promise<{ ok: boolean; error?: string }>;
+}
+
+export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
+  if (rows.length === 0) {
+    return <EmptyState title={CAMPAIGN_TEXT.emptyTitle} description={CAMPAIGN_TEXT.emptyDescription} />;
+  }
+
+  const columns: readonly DataTableColumn<CampaignRow>[] = [
+    {
+      id: "name",
+      header: CAMPAIGN_TEXT.columnName,
+      cell: (row) => (
+        <div>
+          <div>{row.name}</div>
+          <div>{row.campaignNo}</div>
+        </div>
+      ),
+    },
+    { id: "channel", header: CAMPAIGN_TEXT.columnChannel, cell: (row) => row.channel ?? "-" },
+    {
+      id: "budget",
+      header: CAMPAIGN_TEXT.columnBudget,
+      align: "right",
+      cell: (row) => formatMoney(row.budget, row.currency),
+    },
+    {
+      id: "progress",
+      header: CAMPAIGN_TEXT.columnProgress,
+      cell: (row) => CAMPAIGN_TEXT.progress(row.done, row.total, row.skipped),
+    },
+    {
+      id: "return",
+      header: "ROI",
+      align: "right",
+      cell: (row) =>
+        row.returnOnBudget == null ? "-" : (
+          <StatusBadge tone={row.returnOnBudget >= 1 ? "success" : "neutral"}>
+            {row.returnOnBudget.toFixed(1)}x
+          </StatusBadge>
+        ),
+    },
+    {
+      id: "status",
+      header: CAMPAIGN_TEXT.columnStatus,
+      cell: (row) => (
+        <StatusBadge tone={row.status === "running" ? "success" : "neutral"} dot>
+          {CAMPAIGN_STATUS_LABEL[row.status] ?? row.status}
+        </StatusBadge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      align: "right",
+      // Completing is guarded: a campaign with outstanding executions cannot be
+      // completed, and the refusal names the count. Both terminal states offer
+      // no further move and render nothing.
+      cell: (row) => (
+        <LifecycleControl
+          id={row.id}
+          status={row.status}
+          options={nextCampaignStatuses(row.status as CampaignStatus)}
+          label={CAMPAIGN_STATUS_LABEL}
+          canChange={canMove}
+          onChange={onMove}
+        />
+      ),
+    },
+  ];
+
+  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />;
+}

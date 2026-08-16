@@ -113,6 +113,8 @@ export const MEMBER_ERROR: Record<string, string> = {
 };
 
 export const SHELL_TEXT = {
+  brandName: "Yucer 销售智能体",
+  workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
   noAccessTitle: "当前工作区尚未订阅 yucer",
@@ -126,6 +128,12 @@ export const SHELL_TEXT = {
 
 export const NAV_TEXT = {
   ariaLabel: "能力域导航",
+  // The sidebar groups are a business statement, not a tidy-up: D1-D7 are a
+  // sequence, the copilot cuts across all of them, and administration sits
+  // outside the chain.
+  groupChain: "销售链条",
+  groupAgent: "智能助手",
+  groupAdmin: "管理",
   requiresTier: (tier: string) => `需要 ${tier} 档位`,
   notSubscribed: "当前工作区尚未订阅本产品",
   upgradeCta: "升级以解锁更多能力",

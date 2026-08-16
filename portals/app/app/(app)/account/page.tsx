@@ -1,11 +1,9 @@
-import Link from "next/link";
-import { DataTable, EmptyState, PageSection, StatusBadge, type DataTableColumn } from "@vxture/design-system";
+import { EmptyState, PageSection } from "@vxture/design-system";
 import { resolveAppSession } from "../lib/session";
-import { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, SHELL_TEXT } from "../lib/messages";
-import { healthTone } from "../lib/view-model";
+import { ACCOUNT_TEXT, SHELL_TEXT } from "../lib/messages";
 import { getAccountStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
-import type { AccountRecord } from "../../domains/account/store";
+import { AccountTable } from "../components/account-table";
 
 // D4 account list.
 //
@@ -39,51 +37,9 @@ export default async function AccountPage() {
     );
   }
 
-  const columns: readonly DataTableColumn<AccountRecord>[] = [
-    {
-      id: "name",
-      header: ACCOUNT_TEXT.columnName,
-      // A server-rendered link rather than an onRowClick handler: the list is a
-      // server component, and a link is navigable, middle-clickable and
-      // crawlable in a way a click handler is not.
-      cell: (row) => (
-        <div>
-          <Link href={`/account/${row.id}`}>{row.name}</Link>
-          <div>{row.accountNo}</div>
-        </div>
-      ),
-    },
-    { id: "industry", header: ACCOUNT_TEXT.columnIndustry, cell: (row) => row.industry ?? "-" },
-    { id: "owner", header: ACCOUNT_TEXT.columnOwner, cell: (row) => row.ownerSub ?? "-" },
-    {
-      id: "health",
-      header: ACCOUNT_TEXT.columnHealth,
-      align: "right",
-      cell: (row) =>
-        row.healthScore == null ? (
-          <StatusBadge tone="neutral">{ACCOUNT_TEXT.unscored}</StatusBadge>
-        ) : (
-          <StatusBadge tone={healthTone(row.healthScore)}>{row.healthScore}</StatusBadge>
-        ),
-    },
-    {
-      id: "status",
-      header: ACCOUNT_TEXT.columnStatus,
-      cell: (row) => (
-        <StatusBadge tone={row.status === "churned" ? "danger" : "neutral"} dot>
-          {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
-        </StatusBadge>
-      ),
-    },
-  ];
-
   return (
     <PageSection title={ACCOUNT_TEXT.title} description={ACCOUNT_TEXT.description}>
-      {result.value.length === 0 ? (
-        <EmptyState title={ACCOUNT_TEXT.emptyTitle} description={ACCOUNT_TEXT.emptyDescription} />
-      ) : (
-        <DataTable columns={columns} rows={result.value} rowKey={(row) => row.id} />
-      )}
+      <AccountTable rows={result.value} />
     </PageSection>
   );
 }

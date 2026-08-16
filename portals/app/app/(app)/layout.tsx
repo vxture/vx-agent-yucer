@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { Button, EmptyState, PageStack } from "@vxture/design-system";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
-import { resolveNavigation, lockoutReason } from "./lib/navigation";
-import { DomainNav } from "./components/domain-nav";
+import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES } from "./lib/navigation";
+import { AppShell } from "./components/app-shell";
 import { SHELL_TEXT } from "./lib/messages";
 
 // The product shell.
@@ -12,6 +12,9 @@ import { SHELL_TEXT } from "./lib/messages";
 // the real entitlement and the real membership - the client is handed the
 // resolved answers, never the inputs to compute them itself. A client that could
 // compute its own gate decisions could also compute different ones.
+//
+// The three lockout states are distinct on purpose and none of them renders the
+// shell: there is nothing to navigate.
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await resolveAppSession();
@@ -40,8 +43,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Entitled to nothing at all: the conversion exit is the only useful thing on
-  // the page, so it is the whole page rather than a banner above an empty shell.
   if (lockout === "no_entitlement") {
     return (
       <PageStack>
@@ -60,10 +61,26 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Split for the sidebar's three groups. The copilot is pulled OUT of the
+  // domain list rather than left at its end: it cuts across all seven links of
+  // the chain, and rendering it as their eighth peer would read as a stage that
+  // comes after delivery.
+  const adminKeys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
+  const domains = nav.filter((e) => e.key !== "copilot" && !adminKeys.has(e.key));
+  const copilot = nav.find((e) => e.key === "copilot") ?? null;
+  const admin = nav.filter((e) => adminKeys.has(e.key));
+
   return (
-    <PageStack>
-      <DomainNav entries={nav} upgradeHref={subscribeUrl({ intent: "upgrade" })} />
+    <AppShell
+      domains={domains}
+      copilot={copilot}
+      admin={admin}
+      activeKey={null}
+      userName={session.user.sub}
+      workspaceLabel={session.entitlement.tier ?? SHELL_TEXT.workspaceFallback}
+      upgradeHref={subscribeUrl({ intent: "upgrade" })}
+    >
       {children}
-    </PageStack>
+    </AppShell>
   );
 }
