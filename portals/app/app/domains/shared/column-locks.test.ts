@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
@@ -19,7 +19,21 @@ import {
 // reverse) fails the build instead of failing a production write.
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../../../..");
-const sql = readFileSync(join(ROOT, "deploy/database/ddl/98_column_locks.sql"), "utf8");
+// 98_column_locks.sql PLUS every increment.
+//
+// db-init applies 97/98 BEFORE incr/*, so a table created in an increment
+// cannot have its locks in file 98 - the REVOKE would run against a table that
+// does not exist yet. Its grants therefore ship inside the increment that
+// creates it, and this mirror has to read them from there or it would demand
+// parity against half the picture.
+const LOCK_FILES = [
+  join(ROOT, "deploy/database/ddl/98_column_locks.sql"),
+  ...readdirSync(join(ROOT, "deploy/database/ddl/incr"))
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => join(ROOT, "deploy/database/ddl/incr", f)),
+];
+const sql = LOCK_FILES.map((f) => readFileSync(f, "utf8")).join("\n");
 
 /** Strip SQL line comments so commented-out grants never parse as real ones. */
 const uncommented = sql
