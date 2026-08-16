@@ -11,6 +11,7 @@
 // value of the detective domain is that its inputs can be trusted later.
 
 import type { SignalStatus, SignalType } from "./lib/scoring";
+import { asc, by, desc } from "../shared/order";
 
 export interface SignalRecord {
   id: string;
@@ -162,7 +163,14 @@ export class InMemorySignalStore implements SignalStore {
     if (filter.accountId) rows = rows.filter((s) => s.accountId === filter.accountId);
     if (filter.minScore != null) rows = rows.filter((s) => (s.score ?? -1) >= filter.minScore!);
     // Highest score first: the inbox exists to put the best lead at the top.
-    rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    // Nulls LAST: an unscored signal is not a high-scoring one. Postgres would
+    // put it first on a bare DESC, so both adapters say so explicitly.
+    rows.sort(
+      by(
+        desc((s: SignalRecord) => s.score, { nulls: "last" }),
+        desc((s: SignalRecord) => s.detectedAt),
+      ),
+    );
     return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 
@@ -208,7 +216,7 @@ export class InMemorySignalStore implements SignalStore {
     let rows = [...this.leads.values()].filter((l) => l.workspaceId === workspaceId);
     if (filter.status) rows = rows.filter((l) => l.status === filter.status);
     if (filter.ownerSub) rows = rows.filter((l) => l.ownerSub === filter.ownerSub);
-    rows.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    rows.sort(by(desc((l: LeadRecord) => l.score, { nulls: "last" })));
     return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 

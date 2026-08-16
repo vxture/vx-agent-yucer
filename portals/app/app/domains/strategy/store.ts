@@ -13,6 +13,7 @@
 
 import type { Money } from "../shared/money";
 import type { CampaignStatus, ExecutionStatus, PlanStatus } from "./lib/lifecycle";
+import { asc, by, desc } from "../shared/order";
 
 export interface PlanRecord {
   id: string;
@@ -107,6 +108,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     let rows = [...this.plans.values()].filter((p) => p.workspaceId === workspaceId);
     if (filter.period) rows = rows.filter((p) => p.period === filter.period);
     if (filter.status) rows = rows.filter((p) => p.status === filter.status);
+    rows.sort(by(desc((p: PlanRecord) => p.period)));
     return rows;
   }
 
@@ -129,6 +131,7 @@ export class InMemoryStrategyStore implements StrategyStore {
     let rows = [...this.campaigns.values()].filter((c) => c.workspaceId === workspaceId);
     if (filter.planId) rows = rows.filter((c) => c.planId === filter.planId);
     if (filter.status) rows = rows.filter((c) => c.status === filter.status);
+    rows.sort(by(desc((c: CampaignRecord) => c.startsAt, { nulls: "last" })));
     return rows;
   }
 
@@ -149,7 +152,9 @@ export class InMemoryStrategyStore implements StrategyStore {
   }
 
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {
-    return this.executions.filter((e) => e.workspaceId === workspaceId && e.campaignId === campaignId);
+    return this.executions
+      .filter((e) => e.workspaceId === workspaceId && e.campaignId === campaignId)
+      .sort(by(asc((e: ExecutionRecord) => e.dueAt)));
   }
 
   async attributedOpportunities(

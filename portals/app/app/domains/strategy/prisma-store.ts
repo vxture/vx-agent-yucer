@@ -78,7 +78,7 @@ export class PrismaStrategyStore implements StrategyStore {
         ...(filter.planId ? { planId: filter.planId } : {}),
         ...(filter.status ? { status: filter.status } : {}),
       },
-      orderBy: [{ startsAt: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ startsAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     });
     return rows.map((r: Record<string, unknown>) => toCampaign(r));
   }

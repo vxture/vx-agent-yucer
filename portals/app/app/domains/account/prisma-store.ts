@@ -68,7 +68,7 @@ export class PrismaAccountStore implements AccountStore {
     const p = await getPrismaClient();
     const rows = await p.contact.findMany({
       where: { workspaceId, accountId, deletedAt: null },
-      orderBy: { influence: "desc" },
+      orderBy: { influence: { sort: "desc", nulls: "last" } },
     });
     return rows.map((r: Record<string, unknown>) => ({
       id: String(r.id),
