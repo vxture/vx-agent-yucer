@@ -54,12 +54,22 @@ export function tablesCreated(sql) {
   return set;
 }
 
-/** Tables this file grants ANY privilege on, to anyone. */
+/**
+ * Tables this file grants ANY privilege on, to anyone.
+ *
+ * Split on statements FIRST, then match inside each one. Scanning the whole
+ * file for `GRANT ... ON x.y` with a lazy any-character run backtracks
+ * super-linearly, which is a poor property for something CI runs on every push -
+ * and a privilege list never spans a semicolon anyway, so the split is free.
+ */
 export function tablesGranted(sql) {
   const set = new Set();
-  const re = /GRANT\s+[^;]*?\bON\s+(?:TABLE\s+)?(\w+)\.(\w+)/gi;
-  let m;
-  while ((m = re.exec(sql))) set.add(`${m[1]}.${m[2]}`);
+  for (const statement of sql.split(";")) {
+    if (!/^\s*GRANT\b/i.test(statement)) continue;
+    const re = /\bON\s+(?:TABLE\s+)?(\w+)\.(\w+)/gi;
+    let m;
+    while ((m = re.exec(statement))) set.add(`${m[1]}.${m[2]}`);
+  }
   return set;
 }
 
@@ -67,7 +77,9 @@ export function auditIncrement(sql) {
   const clean = uncommented(sql);
   const created = tablesCreated(clean);
   const granted = tablesGranted(clean);
-  return [...created].filter((t) => !granted.has(t)).sort();
+  // Explicit comparator: these are strings, so the default would be correct -
+  // but the default coerces, and that is a real bug the day this sorts numbers.
+  return [...created].filter((t) => !granted.has(t)).sort((a, b) => a.localeCompare(b));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
