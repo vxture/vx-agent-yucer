@@ -14,7 +14,7 @@ generator client {
 // the five product domains.
 datasource db {
   provider = "postgresql"
-  schemas  = ["vx_provision", "local_authz", "local_usage", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent"]
+  schemas  = ["vx_provision", "local_authz", "local_usage", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_field"]
 }
 
 // ===== vx_provision =====
@@ -611,4 +611,72 @@ model AgentPlaybook {
   @@unique([workspaceId, playbookCode], map: "uidx_agent_playbook_ws_code")
   @@map("agent_playbook")
   @@schema("yucer_agent")
+}
+
+// ===== yucer_field (ADR-006) =====
+// The evidence plane. Client-generation only - structure lives in
+// deploy/database/ddl/incr/0004_field_evidence.sql, which also carries this
+// schema's grants and locks because db-init applies 97/98 before incr/.
+
+model Interaction {
+  id                    String    @id @default(uuid()) @db.Uuid
+  workspaceId           String    @map("workspace_id") @db.Uuid
+  accountId             String    @map("account_id") @db.Uuid
+  opportunityId         String?   @map("opportunity_id") @db.Uuid
+  projectId             String?   @map("project_id") @db.Uuid
+  channel               String    @db.VarChar(32)
+  direction             String    @default("outbound") @db.VarChar(16)
+  occurredAt            DateTime  @map("occurred_at") @db.Timestamptz(6)
+  actorSub              String    @map("actor_sub") @db.VarChar(128)
+  subject               String?   @db.VarChar(255)
+  rawNote               String    @map("raw_note")
+  summary               String?
+  captureMode           String    @default("manual") @map("capture_mode") @db.VarChar(32)
+  correctsInteractionId String?   @map("corrects_interaction_id") @db.Uuid
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([workspaceId, accountId, occurredAt(sort: Desc)])
+  @@map("interaction")
+  @@schema("yucer_field")
+}
+
+model InteractionParticipant {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  interactionId String   @map("interaction_id") @db.Uuid
+  contactId     String?  @map("contact_id") @db.Uuid
+  memberSub     String?  @map("member_sub") @db.VarChar(128)
+  externalName  String?  @map("external_name") @db.VarChar(255)
+  roleAtTime    String?  @map("role_at_time") @db.VarChar(32)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([interactionId, contactId, memberSub, externalName], map: "uidx_participant_edge")
+  @@index([workspaceId, contactId])
+  @@map("interaction_participant")
+  @@schema("yucer_field")
+}
+
+model Commitment {
+  id                   String    @id @default(uuid()) @db.Uuid
+  workspaceId          String    @map("workspace_id") @db.Uuid
+  accountId            String    @map("account_id") @db.Uuid
+  opportunityId        String?   @map("opportunity_id") @db.Uuid
+  originInteractionId  String?   @map("origin_interaction_id") @db.Uuid
+  direction            String    @db.VarChar(16)
+  statement            String
+  ownerSub             String?   @map("owner_sub") @db.VarChar(128)
+  counterpartContactId String?   @map("counterpart_contact_id") @db.Uuid
+  dueAt                DateTime  @map("due_at") @db.Timestamptz(6)
+  status               String    @default("open") @db.VarChar(32)
+  closureEvidenceKind  String?   @map("closure_evidence_kind") @db.VarChar(32)
+  closureEvidenceId    String?   @map("closure_evidence_id") @db.Uuid
+  metAt                DateTime? @map("met_at") @db.Timestamptz(6)
+  waivedBySub          String?   @map("waived_by_sub") @db.VarChar(128)
+  waiveReason          String?   @map("waive_reason")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([workspaceId, dueAt])
+  @@map("commitment")
+  @@schema("yucer_field")
 }

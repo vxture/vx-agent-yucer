@@ -11,3 +11,5 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-003 | [智能体的写操作一律是「可审阅提案」](ADR-003-agent-actions-are-proposals.md) | accepted | 2026-08-12 |
 | ADR-004 | [模型走 Atlas，能力与技能走 Runos](ADR-004-atlas-and-runos-as-the-only-agent-planes.md) | accepted | 2026-08-15 |
 | ADR-005 | [审批计划是与编辑计划不同的权限](ADR-005-approving-a-plan-is-not-editing-it.md) | accepted | 2026-08-16 |
+| ADR-006 | [现场证据独立成 schema：`yucer_field`](ADR-006-field-evidence-as-its-own-schema.md) | accepted | 2026-08-16 |
+| ADR-010 | [后台作业面：内部令牌路由 + 外部定时器](ADR-010-recurring-jobs.md) | accepted | 2026-08-16 |
