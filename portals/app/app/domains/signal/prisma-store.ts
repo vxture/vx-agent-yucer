@@ -64,7 +64,9 @@ export class PrismaSignalStore implements SignalStore {
       },
       // Matches idx_signal_ws_status_score. Highest first, newest as tie-break:
       // the inbox exists to put the best lead at the top.
-      orderBy: [{ score: "desc" }, { detectedAt: "desc" }],
+      // nulls last, explicitly: Postgres puts NULLs FIRST on a bare DESC, which
+      // would float unscored signals above a 90 at the top of the inbox.
+      orderBy: [{ score: { sort: "desc", nulls: "last" } }, { detectedAt: "desc" }],
       ...(filter.limit ? { take: filter.limit } : {}),
     });
     return rows.map((r: Record<string, unknown>) => toSignal(r));
@@ -126,7 +128,7 @@ export class PrismaSignalStore implements SignalStore {
         ...(filter.status ? { status: filter.status } : {}),
         ...(filter.ownerSub ? { ownerSub: filter.ownerSub } : {}),
       },
-      orderBy: [{ score: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ score: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
       ...(filter.limit ? { take: filter.limit } : {}),
     });
     return rows.map((r: Record<string, unknown>) => toLead(r));

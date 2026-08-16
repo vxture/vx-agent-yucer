@@ -11,6 +11,7 @@
 // transcript.
 
 import type { ActionPatch, ActionStatus, AgentAction, SubjectType } from "./lib/action";
+import { asc, by, desc } from "../shared/order";
 
 export interface SessionRecord {
   id: string;
@@ -138,6 +139,12 @@ export class InMemoryCopilotStore implements CopilotStore {
     let rows = this.playbooks.filter((p) => p.workspaceId === workspaceId);
     if (filter.scopeDomain) rows = rows.filter((p) => p.scopeDomain === filter.scopeDomain);
     if (filter.activeOnly !== false) rows = rows.filter((p) => p.status === "active");
+    // The grounding limit slices this list, so an unordered one made "which
+    // three plays shape the answer" arbitrary offline and version-ordered in
+    // production - the same question answered two ways.
+    rows = [...rows].sort(
+      by(desc((p: PlaybookRecord) => p.version), asc((p: PlaybookRecord) => p.playbookCode)),
+    );
     return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 

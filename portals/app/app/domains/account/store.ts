@@ -8,6 +8,7 @@
 // reported to whom last quarter" is a fact the decision-chain analysis reads.
 
 import type { AccountStatus, ContactNode, ProjectHealth, RelationEdge } from "./lib/health";
+import { asc, by, desc } from "../shared/order";
 
 export interface AccountRecord {
   id: string;
@@ -89,7 +90,9 @@ export class InMemoryAccountStore implements AccountStore {
     if (filter.ownerSub) rows = rows.filter((a) => a.ownerSub === filter.ownerSub);
     if (filter.segmentCode) rows = rows.filter((a) => a.segmentCode === filter.segmentCode);
     // Sickest first: the list exists to surface the accounts needing attention.
-    rows.sort((a, b) => (a.healthScore ?? 101) - (b.healthScore ?? 101));
+    // Unscored sorts last, which is Postgres ASC NULLS LAST - "never assessed"
+    // is not "in trouble". Name breaks the tie so `limit` is deterministic.
+    rows.sort(by(asc((a: AccountRecord) => a.healthScore), asc((a: AccountRecord) => a.name)));
     return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 
@@ -110,7 +113,9 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
-    return this.contacts.filter((c) => c.workspaceId === workspaceId && c.accountId === accountId);
+    return this.contacts
+      .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
+      .sort(by(desc((c: ContactRecord) => c.influence, { nulls: "last" })));
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {

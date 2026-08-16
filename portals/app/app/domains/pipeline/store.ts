@@ -17,6 +17,7 @@ import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import { DEFAULT_PROBABILITY } from "./lib/stage";
 import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
+import { asc, by, desc } from "../shared/order";
 
 export interface OpportunityRecord {
   id: string;
@@ -230,6 +231,9 @@ export class InMemoryPipelineStore implements PipelineStore {
     if (filter.stage) rows = rows.filter((o) => o.stage === filter.stage);
     if (filter.ownerSub) rows = rows.filter((o) => o.ownerSub === filter.ownerSub);
     if (filter.territoryId) rows = rows.filter((o) => o.territoryId === filter.territoryId);
+    // Matches the adapter's ORDER BY. Without it `limit` took an arbitrary
+    // slice here and the earliest-closing deals in production.
+    rows.sort(by(asc((o: OpportunityRecord) => o.expectedCloseAt)));
     return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 
