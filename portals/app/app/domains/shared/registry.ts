@@ -18,6 +18,8 @@ import { PrismaAccountStore } from "../account/prisma-store";
 import { InMemoryDeliveryStore, type DeliveryStore } from "../delivery/store";
 import { InMemoryPlanningStore, type PlanningStore } from "../planning/store";
 import { InMemoryStrategyStore, type StrategyStore } from "../strategy/store";
+import { InMemorySignalStore, type SignalStore } from "../signal/store";
+import { PrismaSignalStore } from "../signal/prisma-store";
 
 let pipelineOverride: PipelineStore | null = null;
 let pipelineMemo: PipelineStore | null = null;
@@ -109,4 +111,19 @@ export function getStrategyStore(): StrategyStore {
 export function setStrategyStore(next: StrategyStore | null): void {
   strategyOverride = next;
   strategyMemo = null;
+}
+
+let signalOverride: SignalStore | null = null;
+let signalMemo: SignalStore | null = null;
+
+export function getSignalStore(): SignalStore {
+  if (signalOverride) return signalOverride;
+  if (signalMemo) return signalMemo;
+  signalMemo = prismaEnabled() ? new PrismaSignalStore() : new InMemorySignalStore();
+  return signalMemo;
+}
+
+export function setSignalStore(next: SignalStore | null): void {
+  signalOverride = next;
+  signalMemo = null;
 }
