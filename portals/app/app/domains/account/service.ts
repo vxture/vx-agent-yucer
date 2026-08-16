@@ -16,7 +16,7 @@ import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { analyzeChain, deriveHealth, type ChainCoverage, type HealthResult } from "./lib/health";
 import type { Stage } from "../pipeline/lib/stage";
-import type { AccountFilter, AccountRecord, AccountStore } from "./store";
+import type { AccountFilter, AccountRecord, AccountStore, ContactRecord } from "./store";
 import type { RelationEdge } from "./lib/health";
 
 export interface AccountContext {
@@ -34,6 +34,38 @@ export async function listAccounts(
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listAccounts(ctx.workspaceId, filter));
+}
+
+export interface AccountDetail {
+  account: AccountRecord;
+  contacts: ContactRecord[];
+}
+
+/**
+ * One account with its contacts, behind the same gate as the list.
+ *
+ * This exists because the detail PAGE previously reached the store directly.
+ * The nav hides an unentitled domain, but hiding a link is not access control:
+ * a workspace whose tier does not include account.manage could still read a
+ * customer record and its whole contact list by typing the URL. A page holding
+ * a store handle is the shape that bug takes, so the handle is removed.
+ *
+ * A missing account and one in another workspace are the same answer, for the
+ * reason the pipeline service already gives: distinguishing them turns the
+ * refusal into an oracle for which ids exist elsewhere.
+ */
+export async function getAccountDetail(
+  ctx: AccountContext,
+  accountId: string,
+): Promise<RuleResult<AccountDetail>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!account) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  return ok({ account, contacts: await ctx.store.listContacts(ctx.workspaceId, accountId) });
 }
 
 export interface HealthOutcome extends HealthResult {
