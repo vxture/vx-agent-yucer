@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { DataTable, EmptyState, PageSection, StatusBadge, type DataTableColumn } from "@vxture/design-system";
 import { resolveAppSession } from "../lib/session";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, SHELL_TEXT } from "../lib/messages";
@@ -42,9 +43,12 @@ export default async function AccountPage() {
     {
       id: "name",
       header: ACCOUNT_TEXT.columnName,
+      // A server-rendered link rather than an onRowClick handler: the list is a
+      // server component, and a link is navigable, middle-clickable and
+      // crawlable in a way a click handler is not.
       cell: (row) => (
         <div>
-          <div>{row.name}</div>
+          <Link href={`/account/${row.id}`}>{row.name}</Link>
           <div>{row.accountNo}</div>
         </div>
       ),
