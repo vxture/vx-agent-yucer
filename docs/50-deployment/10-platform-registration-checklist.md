@@ -37,6 +37,18 @@ Concrete values below are the ones derived at instantiation
 
 - [ ] Create `yucer.vxture.com` on the shared edge, pointing at the assigned
       worker host and `APP_PUBLISH_PORT`.
+
+  **The port comes from the platform port registry, which is the only source.**
+  It lives outside this repo and needs a login, so neither a coding agent nor CI
+  can read it - that is deliberate, not an omission. Registry rule R1 is
+  register-then-code: taking an unregistered number is forbidden even when it is
+  free. Rule R3 makes the local dev fallback, the registry entry and the
+  production container-internal port one number, and
+  `scripts/guardrails/check-port-consistency.mjs` fails the build when this
+  repo's eight carriers of that number stop agreeing. It cannot tell you whether
+  the number is the REGISTERED one - only a human reading the registry can.
+
+  yucer is an L3 industry agent, so its number comes from the `4000-5999` band.
 - [ ] Record the assigned port; the vhost config in
       `configs/edge/yucer.vxture.com.conf` must match it.
 

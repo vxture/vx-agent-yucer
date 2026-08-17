@@ -103,6 +103,13 @@ jobs:
       - name: Data architecture guardrail (DDL <-> Prisma lockstep)
         run: node scripts/guardrails/check-data-architecture.mjs --strict
 
+      # The platform port registry needs a login, so CI cannot check this repo
+      # against it. What CI can check is that the repo agrees with itself, which
+      # is the half that drifts - the number gets changed in one carrier and not
+      # the rest, and nothing errors until a login fails to redirect back.
+      - name: Port consistency guardrail (registry rule R3)
+        run: node scripts/guardrails/check-port-consistency.mjs --strict
+
   # -- Quality gate (aggregator; stable required-check name) ------------------
   quality-gate:
     name: quality-gate
