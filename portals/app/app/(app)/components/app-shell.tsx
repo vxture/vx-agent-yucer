@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ShellBrand, ShellThemeToggle, ShellUserMenu, useTheme } from "@vxture/design-system";
+import { ShellBrand, ShellIconButton, ShellThemeToggle, ShellUserMenu, useTheme } from "@vxture/design-system";
 import { Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DOMAIN_LABEL, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
@@ -38,6 +38,13 @@ export interface AppShellProps {
   /** Where a person acts: the judgement stream and the decision queue. */
   readonly work: readonly ResolvedNavEntry[];
   readonly domains: readonly ResolvedNavEntry[];
+  /**
+   * Administration. Reached from a single header icon rather than a sidebar
+   * group: it is not work and not data, it is setup - visited rarely, and a
+   * permanent group for it spends sidebar height on something nobody opens on
+   * a Monday. Absent entirely when the member holds no admin permission, so the
+   * icon is not a locked door they cannot do anything about.
+   */
   readonly admin: readonly ResolvedNavEntry[];
   readonly activeKey: string | null;
   readonly userName: string;
@@ -135,6 +142,11 @@ export function AppShell({
         </div>
 
         <div className="vxh-actions">
+          {admin.some((e) => e.state === "visible") ? (
+            <a href="/admin" aria-label={NAV_TEXT.groupAdmin} title={NAV_TEXT.groupAdmin}>
+              <ShellIconButton icon="settings" label={NAV_TEXT.groupAdmin} />
+            </a>
+          ) : null}
           <ShellThemeToggle
             currentTheme={mode === "dark" ? "dark" : "light"}
             onThemeChange={(next) => setMode(next)}
@@ -149,7 +161,6 @@ export function AppShell({
               claim about what the product is for. */}
           <NavSection title={NAV_TEXT.groupWork} entries={work} activeKey={activeKey} />
           <NavSection title={NAV_TEXT.groupChain} entries={domains} activeKey={activeKey} />
-          <NavSection title={NAV_TEXT.groupAdmin} entries={admin} activeKey={activeKey} />
 
           {/* The conversion exit stays reachable from the shell rather than only
               from a domain that happens to be locked. */}

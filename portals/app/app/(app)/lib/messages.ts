@@ -152,6 +152,17 @@ export const ASK_ABOUT_TEXT = {
   linkFromAccount: "就这个客户问助手",
 } as const;
 
+export const ADMIN_TEXT = {
+  title: "管理",
+  description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
+  emptyTitle: "你没有管理权限",
+  emptyDescription: "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
+  entryHint: {
+    admin: "谁能进这个工作区，各自能做什么",
+    adoption: "跟进记录有没有被用起来。判据见 ADR-012",
+  } as Record<string, string>,
+} as const;
+
 export const HOME_TEXT = {
   title: "今日判断",
   description: (n: number) => `由 ${n} 位客户的已记录跟进推出。同时只展开一条。`,
