@@ -178,6 +178,7 @@ export const ADOPTION_TEXT = {
   rate: "密度",
   rateHint: "当周跟进笔数 / 当周开放商机数，仅作参照",
   week: "周",
+  weekInProgress: "本周（进行中，不计入裁定）",
   openDeals: "开放商机",
   touched: "被跟进",
   notes: "跟进笔数",

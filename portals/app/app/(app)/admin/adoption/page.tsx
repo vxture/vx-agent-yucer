@@ -176,13 +176,23 @@ export default async function AdoptionPage() {
           <tbody>
             {weeks.map((w) => (
               <tr key={w.weekStart.toISOString()}>
-                <th scope="row">{w.weekStart.toISOString().slice(0, 10)}</th>
+                <th scope="row">
+                  {w.weekStart.toISOString().slice(0, 10)}
+                  {/* The current week is shown because a manager wants to know
+                      how it is going - and marked because otherwise its number
+                      is read as a result. A Monday morning row saying 0% is an
+                      artifact of the calendar, not a fact about the team, and
+                      an unmarked artifact is indistinguishable from a verdict. */}
+                  {w.complete ? null : (
+                    <StatusBadge tone="info">{ADOPTION_TEXT.weekInProgress}</StatusBadge>
+                  )}
+                </th>
                 <td>{w.opportunities === 0 ? ADOPTION_TEXT.noDeals : w.opportunities}</td>
                 <td>{w.covered}</td>
                 <td>{w.interactions}</td>
                 {/* Null, not zero: a week with no open deals is not a week the
                     team failed to record anything. */}
-                <td>{pct(w.coverage)}</td>
+                <td>{w.complete ? pct(w.coverage) : "-"}</td>
               </tr>
             ))}
           </tbody>

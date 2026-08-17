@@ -1,0 +1,171 @@
+name: ds-upgrade-probe
+
+# Resolve the design packages at their published versions and report the whole
+# breaking-change surface in ONE run.
+#
+# Why this exists. The @vxture packages live on the GitHub Packages registry and
+# the token that reads them is an ORG-level secret shared into this repo. That is
+# the right arrangement - a credential nobody can read out of a file - but it
+# means a developer without that token cannot install, cannot resolve a lockfile,
+# and cannot type-check against a new major.
+#
+# CI has the token. So CI does the two things that need it, and hands the results
+# back as artifacts:
+#
+#   1. the resolved pnpm-lock.yaml, which cannot be produced offline and which
+#      `pnpm install --frozen-lockfile` requires CI to accept;
+#   2. every .d.ts of the new packages plus the complete tsc error list, so the
+#      migration can be done in one pass against real types instead of guessed
+#      one through round trips.
+#
+# It is manual-only and writes nothing back to the repository. It resolves, it
+# reports, it uploads. Deciding what to change stays with a person reading the
+# output.
+
+on:
+  workflow_dispatch:
+    inputs:
+      design_system:
+        description: "@vxture/design-system version range"
+        required: true
+        default: "^5.0.0"
+      design_ui:
+        description: "@vxture/design-ui version range (empty to skip)"
+        required: false
+        default: "^2.0.0"
+      design_tokens:
+        description: "@vxture/design-tokens version range (empty to skip)"
+        required: false
+        default: "^2.0.0"
+      shared:
+        description: "@vxture/shared version range"
+        required: true
+        default: "^1.6.0"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@vxture"
+
+      # Fail here rather than three steps later with a confusing 401. The whole
+      # point of this workflow is the token, so its absence is the one condition
+      # worth checking before anything else runs.
+      - name: The token is the reason this workflow exists
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        run: |
+          test -n "$NODE_AUTH_TOKEN" || {
+            echo "::error::NODE_AUTH_TOKEN is empty. It is an org-level secret shared into this repo."
+            exit 1
+          }
+
+      - name: What is actually published
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        run: |
+          mkdir -p probe
+          for p in design-system design-ui design-tokens shared; do
+            echo "=== @vxture/$p ===" | tee -a probe/published.txt
+            npm view "@vxture/$p" dist-tags versions --json 2>&1 | tail -40 | tee -a probe/published.txt
+          done
+
+      - name: Raise the ranges
+        env:
+          DS: ${{ inputs.design_system }}
+          DUI: ${{ inputs.design_ui }}
+          DT: ${{ inputs.design_tokens }}
+          SH: ${{ inputs.shared }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const f = "portals/app/package.json";
+            const j = JSON.parse(fs.readFileSync(f, "utf8"));
+            j.dependencies["@vxture/design-system"] = process.env.DS;
+            j.dependencies["@vxture/shared"] = process.env.SH;
+            // The two new packages are only added when a range was given, so a
+            // probe can also answer "does design-system 5 pull them in itself?"
+            if (process.env.DUI) j.dependencies["@vxture/design-ui"] = process.env.DUI;
+            if (process.env.DT) j.dependencies["@vxture/design-tokens"] = process.env.DT;
+            fs.writeFileSync(f, JSON.stringify(j, null, 2) + "\n");
+            console.log(JSON.stringify(j.dependencies, null, 2));
+          '
+
+      - name: Resolve
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+        # --ignore-scripts matters MORE here than in the normal install path.
+        # This step deliberately resolves package versions nobody in this repo
+        # has ever run, across three major bumps, and a postinstall is arbitrary
+        # code executing with the registry token in the environment. The probe
+        # needs type definitions and a lockfile; neither is produced by a
+        # lifecycle script.
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
+
+      - name: What resolved, and what each package depends on
+        run: |
+          {
+            echo "=== resolved versions ==="
+            for p in design-system design-ui design-tokens shared; do
+              d=$(find node_modules/.pnpm -maxdepth 4 -path "*@vxture/$p/package.json" | head -1)
+              [ -n "$d" ] && node -e "const j=require('./$d');console.log(j.name, j.version, '| peer:', JSON.stringify(j.peerDependencies||{}), '| deps:', JSON.stringify(j.dependencies||{}))"
+            done
+          } | tee probe/resolved.txt
+
+      # The complete error list, not the first twenty. This is the artifact the
+      # whole run is for: it is the migration's work list.
+      - name: Type-check against the new majors
+        continue-on-error: true
+        working-directory: portals/app
+        # The typescript already resolved into node_modules, not whatever npx
+        # would fetch. npx installs on demand and runs the fetched package's
+        # lifecycle scripts, which would mean the version being type-checked
+        # against is not the version that was just resolved.
+        run: ./node_modules/.bin/tsc --noEmit 2>&1 | tee ../../probe/tsc-errors.txt
+
+      - name: Error surface, summarised
+        run: |
+          {
+            echo "=== total errors ==="
+            grep -c "error TS" probe/tsc-errors.txt || echo 0
+            echo "=== by file ==="
+            grep -oE "^[^(]+" probe/tsc-errors.txt | sort | uniq -c | sort -rn | head -40
+            echo "=== by error code ==="
+            grep -oE "error TS[0-9]+" probe/tsc-errors.txt | sort | uniq -c | sort -rn
+            echo "=== missing exports (the rename list) ==="
+            grep -oE "has no exported member '[^']+'" probe/tsc-errors.txt | sort | uniq -c | sort -rn
+          } | tee probe/summary.txt
+
+      # The type definitions, so the migration can be written against real
+      # signatures rather than guessed from error messages.
+      - name: Collect type definitions
+        run: |
+          mkdir -p probe/types
+          for p in design-system design-ui design-tokens shared; do
+            src=$(find node_modules/.pnpm -maxdepth 4 -type d -path "*@vxture/$p" | head -1)
+            [ -n "$src" ] && find "$src" -name "*.d.ts" -exec sh -c 'mkdir -p "probe/types/'"$p"'"; cp "$1" "probe/types/'"$p"'/$(basename "$1")"' _ {} \;
+          done
+          find probe/types -name "*.d.ts" | sort
+
+      - name: Upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ds-upgrade-probe
+          path: |
+            probe/
+            pnpm-lock.yaml
+            portals/app/package.json
+          retention-days: 7
