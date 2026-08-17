@@ -89,6 +89,12 @@ export const ACTIONS = {
   // stays available on starter.
   "signal.rescore": { domain: "signal", feature: "signal.autoscore", permission: "signal.triage", writes: true },
   "signal.feed.configure": { domain: "signal", feature: "signal.external_feed", permission: "admin.manage", writes: true },
+  // Ingesting is not configuring. Configuring a feed is an administrative act;
+  // writing the rows it produces is triage work, and the background subject
+  // that does it must not need the catalogue's strongest permission to run -
+  // that is the back door ADR-010 rule 2 exists to close. Reuses signal.triage,
+  // so no new permission code, no increment, no seed change.
+  "signal.feed.ingest": { domain: "signal", feature: "signal.external_feed", permission: "signal.triage", writes: true },
   "signal.lead.view": { domain: "signal", feature: "signal.inbox", permission: "signal.read", writes: false },
   "signal.lead.upsert": { domain: "signal", feature: "signal.inbox", permission: "signal.triage", writes: true },
   // Conversion creates an opportunity, so it is gated as a pipeline write even

@@ -76,7 +76,7 @@ export async function ingestSignals(
   ctx: SignalContext,
   signals: readonly NewSignal[],
 ): Promise<RuleResult<IngestResult>> {
-  const gate = can(ctx.holder, ctx.entitlement, "signal.feed.configure", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "signal.feed.ingest", "data");
   if (!gate.allowed) return denied(gate);
 
   const recorded: SignalRecord[] = [];

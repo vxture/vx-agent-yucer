@@ -2,6 +2,14 @@
 //
 //   Atlas  - the model plane. Every LLM call in the product exits through it.
 //   Runos  - the commercial capability plane. Connectors, skills and executors.
+//   arda   - the shared-data plane. An inbound fact source feeding the signal
+//            inbox, alongside the operational database yucer owns (ADR-011).
+//
+// scopeFor() still derives tool:${audience} for all three. tool:arda is
+// probably wrong for a DATA plane rather than a tool plane, but guessing a
+// replacement would be authoring a scope vocabulary that belongs to the
+// platform - liaison question 2. Stage 1 cannot run before the base URL
+// arrives anyway, so an unconfirmed scope blocks nothing not already blocked.
 //
 // Both verify, neither issues: the platform IdP signs the token and each service
 // checks issuer / audience / scope / mode / act.sub against its own config. So
@@ -23,7 +31,7 @@
  * only ever look up named keys. */
 type EnvLike = Record<string, string | undefined>;
 
-export type Audience = "atlas" | "runos";
+export type Audience = "atlas" | "runos" | "arda";
 
 /**
  * service = no end user behind the call (scheduled scoring, background jobs).

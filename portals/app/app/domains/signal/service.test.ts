@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
-import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
+import { ROLE_CODES, permissionsForRoles, type RoleCode } from "../../authz/catalog";
+import { ACTIONS } from "../../authz/actions";
 import { unwrap } from "../shared/result";
 import { InMemorySignalStore, type LeadRecord, type SignalRecord } from "./store";
 import {
@@ -122,7 +123,11 @@ test("the store has no way to rewrite evidence", async () => {
 
 test("ingestion is business-tier and reports duplicates rather than failing", async () => {
   const store = new InMemorySignalStore();
-  const c = ctx("sales_ops", "business", store);
+  // sales_rep, not sales_ops. Ingestion now rides signal.triage rather than
+  // admin.manage, which also repairs an incoherence: sales_ops holds
+  // admin.manage but NOT signal.read, so under the old gate the only role that
+  // could ingest signals was one that could not then read them.
+  const c = ctx("sales_rep", "business", store);
   const incoming = [
     { source: "news", sourceRef: "n1", signalType: "funding" as const, subject: "Acme raised a round" },
     { source: "news", sourceRef: "n1", signalType: "funding" as const, subject: "Acme raised a round" },
@@ -134,7 +139,7 @@ test("ingestion is business-tier and reports duplicates rather than failing", as
 });
 
 test("ingestion below business tier is refused", async () => {
-  const r = await ingestSignals(ctx("sales_ops", "pro"), [
+  const r = await ingestSignals(ctx("sales_rep", "pro"), [
     { source: "news", sourceRef: "n1", signalType: "funding", subject: "x" },
   ]);
   assert.equal(r.ok === false && r.violations[0].code, "feature_not_in_tier");
@@ -143,7 +148,7 @@ test("ingestion below business tier is refused", async () => {
 test("an ingested signal is always born `new`", async () => {
   const store = new InMemorySignalStore();
   const out = unwrap(
-    await ingestSignals(ctx("sales_ops", "business", store), [
+    await ingestSignals(ctx("sales_rep", "business", store), [
       { source: "web", sourceRef: "w1", signalType: "intent", subject: "x" },
     ]),
   );
@@ -282,4 +287,20 @@ test("the inbox puts the best signal at the top", async () => {
   });
   const rows = unwrap(await listSignals(ctx("sales_rep", "pro", store)));
   assert.deepEqual(rows.map((r) => r.id), ["high", "low", "unscored"]);
+});
+
+test("whoever can write a signal into the inbox can also read it", async () => {
+  // The incoherence the ingest gate change repaired. Under the old gate,
+  // ingestion rode signal.feed.configure -> admin.manage, and the role that
+  // actually holds admin.manage (sales_ops) has no signal.read at all: the only
+  // role able to fill the inbox could not open it.
+  //
+  // Asserted as a property over the whole catalogue rather than about one role,
+  // so a future grant that re-splits them fails here instead of in production.
+  for (const role of ROLE_CODES) {
+    const held = new Set(permissionsForRoles([role]));
+    if (held.has(ACTIONS["signal.feed.ingest"].permission)) {
+      assert.ok(held.has("signal.read"), `${role} can ingest signals but cannot read them`);
+    }
+  }
 });
