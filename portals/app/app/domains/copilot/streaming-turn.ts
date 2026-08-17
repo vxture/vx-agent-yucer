@@ -21,7 +21,7 @@ import type { Entitlement } from "../../entitlement/types";
 import { can } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
 import { AtlasError } from "../../agent/atlas/errors";
-import type { ChatMessage } from "../../agent/atlas/types";
+import { ATLAS_TASK_ID_MAX, type ChatMessage } from "../../agent/atlas/types";
 import { buildTurnMessages, type PromptContext } from "../../agent/orchestrator/prompt";
 import { CAPABILITY_MATRIX } from "../../entitlement/capability";
 import { PROPOSE_ACTION_TOOL } from "../../agent/orchestrator/tools";
@@ -120,6 +120,11 @@ export async function* streamCopilotTurn(
     subjectToken: input.subjectToken,
     applicationId: session.id,
     requestId: `${session.id}:${history.length}:stream`,
+    // Mandatory since Atlas v0.15.0. Deliberately WITHOUT the ":stream" suffix
+    // that requestId carries: requestId identifies one HTTP call, taskId
+    // identifies the agent task, and a streamed answer is the same task as the
+    // non-streamed one. Suffixing it would split one task's spend in two.
+    taskId: `${session.id}:${history.length}`.slice(0, ATLAS_TASK_ID_MAX),
   };
 
   let answer = "";

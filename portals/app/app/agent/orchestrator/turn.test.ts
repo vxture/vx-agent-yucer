@@ -15,7 +15,7 @@ const BASE: Omit<TurnInput, "question"> = {
     permissions: ["pipeline.read", "pipeline.write", "copilot.use"],
     features: ["pipeline.manage", "copilot.suggest"],
   },
-  atlas: { workspaceId: "ws", tenantId: "tn" },
+  atlas: { workspaceId: "ws", tenantId: "tn", taskId: "task_1" },
   runos: { workspaceId: "ws", tenantId: "tn", taskId: "task_1" },
 };
 

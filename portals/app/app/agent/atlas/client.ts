@@ -33,6 +33,15 @@ export interface AtlasContext {
   applicationId?: string;
   /** Lets an operator find this exact call in /capability/logs?requestId=. */
   requestId?: string;
+  /**
+   * MANDATORY since Atlas v0.15.0 - a call without it is 400 TASK_ID_REQUIRED.
+   *
+   * Required rather than optional on purpose: making it optional would let a
+   * new call site compile and then fail at runtime against production, which is
+   * exactly how this defect reached main in the first place. The type is the
+   * only place that can refuse it before a member does.
+   */
+  taskId: string;
 }
 
 export function getAtlasConfig(env: EnvLike = process.env): AtlasConfig {
@@ -69,7 +78,7 @@ export class AtlasClient {
   }
 
   /** Non-streaming chat, with per-code retry. */
-  async chat(task: CopilotTask, req: Omit<ChatRequest, "stream">, ctx: AtlasContext): Promise<ChatResponse> {
+  async chat(task: CopilotTask, req: Omit<ChatRequest, "stream" | "taskId">, ctx: AtlasContext): Promise<ChatResponse> {
     return this.withRetry(async () => {
       const { res, json } = await this.requestJson("POST", "/v1/chat", this.body(task, req, ctx, false), ctx);
       if (!res.ok) throw parseAtlasError(res.status, json);
@@ -91,7 +100,7 @@ export class AtlasClient {
    */
   async *chatStream(
     task: CopilotTask,
-    req: Omit<ChatRequest, "stream">,
+    req: Omit<ChatRequest, "stream" | "taskId">,
     ctx: AtlasContext,
   ): AsyncGenerator<StreamFrame, void, void> {
     const { res, controller } = await this.postStreaming("/v1/chat", this.body(task, req, ctx, true), ctx);
@@ -117,7 +126,16 @@ export class AtlasClient {
     // what makes abandonment stop the upstream generation instead of merely
     // stopping our reading of it.
     for await (const frame of parseSse(res.body, { controller, idleMs: this.cfg.timeoutMs })) {
-      if (frame.type === "error") throw streamFrameError(frame.code, frame.message);
+      if (frame.type === "error") {
+        // Not every error frame ends the exchange. UPSTREAM_FRAME_UNPARSEABLE
+        // is the one code Atlas documents as "the stream itself continues" - a
+        // single malformed upstream frame. Throwing on it would discard a good
+        // answer already in progress, the mirror of the bug the mid-stream
+        // handling exists to prevent. parseSse already applies this reasoning
+        // to its OWN parse failures; Atlas's equivalent signal gets it too.
+        if (frame.code === "UPSTREAM_FRAME_UNPARSEABLE") continue;
+        throw streamFrameError(frame.code, frame.message, frame.retryable);
+      }
       yield frame;
       if (frame.type === "done") return;
     }
@@ -142,7 +160,7 @@ export class AtlasClient {
 
   private body(
     task: CopilotTask,
-    req: Omit<ChatRequest, "stream">,
+    req: Omit<ChatRequest, "stream" | "taskId">,
     ctx: AtlasContext,
     stream: boolean,
   ): ChatRequest {
@@ -154,6 +172,10 @@ export class AtlasClient {
       applicationId: ctx.applicationId,
       requestId: ctx.requestId,
       ...req,
+      // AFTER the spread, not before. Mandatory since v0.15.0, and a caller
+      // passing `taskId: undefined` would otherwise blank it and get a 400 -
+      // the same latent trap the other defaults still carry.
+      taskId: ctx.taskId,
       stream,
     };
   }

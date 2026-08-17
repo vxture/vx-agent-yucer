@@ -9,7 +9,7 @@ const CFG: AtlasConfig = { baseUrl: "http://atlas.test", timeoutMs: 5_000, maxRe
 
 const CTX: AtlasContext = {
   workspaceId: "11111111-1111-1111-1111-111111111111",
-  tenantId: "22222222-2222-2222-2222-222222222222",
+  tenantId: "22222222-2222-2222-2222-222222222222", taskId: "task_1",
 };
 
 interface Call {
