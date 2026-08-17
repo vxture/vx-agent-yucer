@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { countByUrgency, deriveJudgements, type AccountInput } from "./judgement";
+import { countByUrgency, deriveJudgements, resolveScope, type AccountInput } from "./judgement";
 
 // The judgement layer.
 //
@@ -196,4 +196,24 @@ test("every judgement carries which kind it is", () => {
   // Everything this module makes is a rule. Model judgements never originate
   // here - they cost money and only exist when someone asks.
   assert.ok(js.every((j) => j.source === "rule"));
+});
+
+// The defect this locks down shipped once: the home screen hardcoded "mine",
+// so every leader-shaped role opened the product on an empty stream with the
+// data one filter away. Nothing went red - an empty list is a valid render.
+test("an explicit scope always wins over the derivation", () => {
+  assert.equal(resolveScope("mine", 5), "mine");
+  assert.equal(resolveScope("all", 5), "all");
+  // Including the case that looks pointless: asking for "mine" while owning
+  // nothing is a reader choosing to see their own empty book, and the filter
+  // control has to keep meaning what it says.
+  assert.equal(resolveScope("mine", 0), "mine");
+});
+
+test("owning nothing defaults to the team rather than to an empty screen", () => {
+  assert.equal(resolveScope(undefined, 0), "all");
+});
+
+test("owning accounts defaults to your own book", () => {
+  assert.equal(resolveScope(undefined, 1), "mine");
 });

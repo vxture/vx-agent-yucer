@@ -87,7 +87,10 @@ export function JudgementStream({
               ariaLabel={HOME_TEXT.scopeLabel}
               value={scope}
               onChange={(v) => {
-                window.location.search = v === "all" ? "?scope=all" : "";
+                // Both branches are explicit. Navigating to a bare URL would
+                // re-enter the derivation and could land somewhere other than
+                // where the reader just clicked.
+                window.location.search = v === "all" ? "?scope=all" : "?scope=mine";
               }}
               items={[
                 { value: "mine", label: HOME_TEXT.scopeMine },

@@ -19,7 +19,14 @@ import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/regi
 import { listAccounts, decisionChain, accountRelations } from "../account/service";
 import { listPipeline } from "../pipeline/service";
 import { captureAdoption } from "../account/field-service";
-import { deriveJudgements, countByUrgency, type Judgement, type Urgency } from "./lib/judgement";
+import {
+  deriveJudgements,
+  countByUrgency,
+  resolveScope,
+  type Judgement,
+  type Scope,
+  type Urgency,
+} from "./lib/judgement";
 
 export interface JudgementContext {
   workspaceId: string;
@@ -33,12 +40,21 @@ export interface JudgementFeed {
   counts: Record<Urgency, number>;
   /** How many accounts were actually read, so an empty feed is explicable. */
   scanned: number;
+  /**
+   * The scope actually used. Not an echo of the request: when the caller does
+   * not pin one this is where the choice was made, and the filter control has
+   * to show the state the feed is really in.
+   */
+  scope: Scope;
 }
 
 export interface FeedOptions {
   now?: Date;
-  /** "mine" restricts to accounts this member owns. */
-  scope?: "mine" | "all";
+  /**
+   * "mine" restricts to accounts this member owns. Omit to let ownership
+   * decide - see the derivation below, which is the honest default.
+   */
+  scope?: Scope;
 }
 
 const DAY = 86_400_000;
@@ -70,7 +86,21 @@ export async function judgementFeed(
 
   const accounts = accountsResult.ok ? accountsResult.value : [];
   const deals = dealsResult.ok ? dealsResult.value : [];
-  const mine = options.scope === "all" ? accounts : accounts.filter((a) => a.ownerSub === ctx.sub);
+  // Which accounts this member is asking about.
+  //
+  // The default is DERIVED, not "mine". A sales_leader owns no accounts by
+  // design - they carry the team's - so a hardcoded "mine" made the flagship
+  // screen render empty for a whole role while the data sat one filter away.
+  // An empty result caused by a default nobody chose is indistinguishable from
+  // "nothing is wrong", which is the one thing this screen must never say by
+  // accident.
+  //
+  // So: own something and the default is your own book; own nothing and the
+  // only scope that can answer anything is the team's. An explicit request
+  // always wins - the filter control still means what it says.
+  const owned = accounts.filter((a) => a.ownerSub === ctx.sub);
+  const scope = resolveScope(options.scope, owned.length);
+  const mine = scope === "all" ? accounts : owned;
 
   const inputs = await Promise.all(
     mine.map(async (a) => {
@@ -138,5 +168,5 @@ export async function judgementFeed(
     now,
   });
 
-  return ok({ judgements, counts: countByUrgency(judgements), scanned: mine.length });
+  return ok({ judgements, counts: countByUrgency(judgements), scanned: mine.length, scope });
 }

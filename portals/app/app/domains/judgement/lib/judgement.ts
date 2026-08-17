@@ -357,3 +357,23 @@ export function countByUrgency(js: readonly Judgement[]): Record<Urgency, number
   for (const j of js) c[j.urgency] += 1;
   return c;
 }
+
+/** Which accounts a feed is about. */
+export type Scope = "mine" | "all";
+
+/**
+ * Choosing the scope when the reader has not.
+ *
+ * Extracted from the service because it is a POLICY, not plumbing: it decides
+ * what the flagship screen shows on first load, and a policy that only exists
+ * inline is one no test can hold still.
+ *
+ * The rule: an explicit request always wins, and otherwise ownership decides.
+ * A member who owns no accounts - a sales_leader, by design of the role
+ * catalog - can learn nothing from "mine", so defaulting them into it renders
+ * an empty screen that is indistinguishable from "nothing is wrong".
+ */
+export function resolveScope(requested: Scope | undefined, ownedCount: number): Scope {
+  if (requested) return requested;
+  return ownedCount > 0 ? "mine" : "all";
+}

@@ -34,7 +34,9 @@ export default async function HomePage({
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
 
-  const scope = rawScope === "all" ? "all" : "mine";
+  // Only a scope the reader actually asked for is pinned. Anything else stays
+  // undefined so the service can derive it from what this member owns.
+  const requested = rawScope === "all" ? "all" : rawScope === "mine" ? "mine" : undefined;
   const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
@@ -42,7 +44,7 @@ export default async function HomePage({
     entitlement: session.entitlement,
   };
 
-  const feed = await judgementFeed(ctx, { scope });
+  const feed = await judgementFeed(ctx, { scope: requested });
   if (!feed.ok) {
     return (
       <EmptyState
@@ -104,7 +106,7 @@ export default async function HomePage({
         judgements={feed.value.judgements}
         counts={feed.value.counts}
         scanned={feed.value.scanned}
-        scope={scope}
+        scope={feed.value.scope}
         hasAnyRecord={recent.length > 0}
       />
     </DetailPageTemplate>
