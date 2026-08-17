@@ -146,9 +146,15 @@ R ≥ 200 是因为 R = 50 时 10% 的置信区间大约 ±8 个百分点，那�
 
 ## 未决
 
-audience 令牌、scope 字符串、base URL、游标语义，见联络函
-`docs/80-liaison/01-2608161131-platform-karda-arda-contract-request.md` A 段与 B 段
-（第 1-11 问）。其中**第 7 问单独决定本 ADR「零 DDL」这条是否成立**。
+audience 令牌、scope 字符串、base URL、游标语义，见
+[vxture-arda#212](https://github.com/vxture/vxture-arda/issues/212)。其中**水位语义那一问
+单独决定本 ADR「零 DDL」这条是否成立**。
+
+**而在它之前还有一问更要紧**：Runos 的两域模型写着「L3 业务场景 Agent 必须全部经
+Runos 网关」，而 yucer 是 L3。若成立，本 ADR 的传输前提整个不对——`ARDA_BASE_URL`
+不该存在，`Audience` 不该加 `arda`，`http-source.ts` 瞄错了缝。反过来说，那样 arda
+一期**不需要任何新平台契约**，只要一条 Runos 能力授权。本仓不裁定，已作为该 issue 的
+第一问发出。
 
 `arda` 这个名字在本仓源码里已经指向一个**兄弟产品**（`auth/lib/claims.ts:3`、
 `entitlement/resolver.ts:5`、`check-docs-numbering.mjs:14` 明确拒绝「arda 连字符变体」、

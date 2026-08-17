@@ -235,8 +235,8 @@ owner 指示接入 karda（知识）与 arda（共享数据）。两者拿到**�
 | 事项 | 卡在哪里 | 记录 |
 |------|---------|------|
 | **TD-002** 界面文案违反 source ASCII-only | 等**平台仓修订标准**。`CLAUDE.md` 规定标准缺口先在平台仓修、不得在产品仓自造，因此本仓只登记不裁定 | `docs/60-operations/00-index.md` |
-| **karda 接入** | 等**平台发布 karda 契约**。本仓已落 [ADR-007](../30-design/decisions/ADR-007-karda-as-the-only-knowledge-crossing.md)，把「消费侧立场」定死（不自建第二个知识存储），但**契约发布前零代码**——2026-08-15 写过的一版已整体丢弃，见下 | 联络函 C 段（第 12-15 问） |
-| **arda 能跑** | 等 base URL / audience / scope / 游标语义。一期**可合并、可单测，跑不起来**，与 Atlas / Runos 今天状态相同 | 联络函 A、B 段（第 1-11 问） |
+| **karda 接入** | 等**平台发布 karda 契约**。本仓已落 [ADR-007](../30-design/decisions/ADR-007-karda-as-the-only-knowledge-crossing.md)，把「消费侧立场」定死（不自建第二个知识存储），但**契约发布前零代码**——2026-08-15 写过的一版已整体丢弃，见下 | [karda#103](https://github.com/vxture/vxture-karda/issues/103) |
+| **arda 能跑** | 等 base URL / audience / scope / 游标语义。一期**可合并、可单测，跑不起来**，与 Atlas / Runos 今天状态相同 | [arda#212](https://github.com/vxture/vxture-arda/issues/212) |
 
 **其余三项已由 owner 于 2026-08-16 裁定并落地**，此表不再持有它们：
 

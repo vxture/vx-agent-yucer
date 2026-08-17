@@ -1,3 +1,18 @@
+> **投递渠道错误的记录，不是一封发出过的信。**
+>
+> 本仓 2026-08-16 把这 16 个问题写成了这份文件，放在**自己的仓**里等回复。跨仓联络的
+> 渠道早在 2026-07-27 就改成了**开在收信方仓上的 GitHub Issue**
+> （`140-repo-governance-standard.md` sec.10）。收信方没有任何理由会看到这份文件。
+>
+> 内容已于 2026-08-17 拆分重发：
+> [arda#212](https://github.com/vxture/vxture-arda/issues/212)、
+> [karda#103](https://github.com/vxture/vxture-karda/issues/103)、
+> [runos#145](https://github.com/vxture/vxture-runos/issues/145)、
+> [atlas#248](https://github.com/vxture/vxture-atlas/issues/248)、
+> [platform#269](https://github.com/vxture/vxture-platform/issues/269)。
+>
+> 保留原文，因为一份投错了渠道的信是这个目录最有说服力的说明。
+
 # 01 - 致平台线：karda 与 arda 的接入契约请求
 
 - 时间戳：2608161131
