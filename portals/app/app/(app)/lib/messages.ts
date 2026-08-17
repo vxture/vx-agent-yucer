@@ -140,6 +140,21 @@ export const NAV_TEXT = {
   upgradeCta: "升级以解锁更多能力",
 } as const;
 
+export const RECENCY_TEXT = {
+  title: "谁是真的联系过的",
+  // The distinction this panel exists to hold, stated where a reader sees it.
+  description:
+    "上面那格看的是组织图——录进来的人和汇报线。这一格看的是跟进记录里真的出现过谁。两者刻意不合并：现在跟进记录的覆盖率还不满，「没记录」不等于「没联系」，把它算进「缺角色」会让记录习惯的缺口冒充关系的缺口。",
+  warm: (days: number) => `${days} 天内有跟进`,
+  cold: (days: number) => `超过 ${days} 天没跟进`,
+  unrecorded: "没有任何跟进记录",
+  unrecordedHint: "这与「很久没跟进」是两件事：可能只是没记。",
+  warmPathYes: "有一条走得通的、且真的联系过的路径通向决策人",
+  warmPathNo: "通向决策人的路径上，有人已经很久没联系过了",
+  warmPathUnknown: "这个客户下没有任何跟进记录，无法判断",
+  warmPathUnknownHint: "答「否」会拿我们自己的记录缺口去陈述一个关于客户关系的事实。",
+} as const;
+
 export const ADOPTION_TEXT = {
   navLabel: "使用情况",
   title: "跟进记录的使用情况",

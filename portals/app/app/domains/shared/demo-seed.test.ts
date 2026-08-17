@@ -13,7 +13,7 @@ import { InMemoryStrategyStore } from "../strategy/store";
 import { rollUp } from "../pipeline/lib/forecast";
 import { OPEN_STAGE_ORDER } from "../pipeline/lib/stage";
 import { deriveProjectHealth } from "../delivery/lib/revenue";
-import { analyzeChain } from "../account/lib/health";
+import { analyzeChain, analyzeChainRecency } from "../account/lib/health";
 import { reliability } from "../account/lib/commitment";
 
 const WS = "ws_demo";
@@ -507,4 +507,89 @@ test("demo: acc_demo_1's kept-rate is what its health score looks like from unde
   const clean = reliability(await s.field.listCommitments(WS, { accountId: "acc_demo_3" }), at);
   assert.equal(clean.theirKeptRate, null);
   assert.equal(clean.theyMissed, 0);
+});
+
+test("demo: acc_demo_4 shows the gap the two chain panels exist to separate", async () => {
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+  const at = new Date("2026-08-15T00:00:00Z");
+
+  const contacts = await s.account.listContacts(WS, "acc_demo_4");
+  const relations = await s.account.listRelations(WS, "acc_demo_4");
+  const last = await s.field.lastContactByContact(WS, "acc_demo_4");
+
+  // Both panels say unreachable, for INDEPENDENT reasons. Structurally: ct_7
+  // and ct_8 have no edge between them, a fixture batch 3 set up on purpose.
+  assert.equal(analyzeChain(contacts, relations).economicBuyerUnreachable, true);
+
+  // But nobody has ever been in a recorded room with ct_7. Six meetings, all
+  // with the coach - which is what a weekly-catch-up-with-my-friend deal looks
+  // like from the outside.
+  assert.ok(last.has("ct_8"), "the coach has recorded contact");
+  assert.equal(last.has("ct_7"), false, "the economic buyer has none");
+
+  const recency = analyzeChainRecency(
+    contacts,
+    relations,
+    contacts.map((c) => ({ contactId: c.id, lastContactAt: last.get(c.id) ?? null })),
+    { now: at },
+  );
+  // Evidentially: nobody has ever been in a room with ct_7. Two reasons landing
+  // on one verdict is worth more than either alone - and had the org chart been
+  // filled in optimistically, this half would still have caught it.
+  assert.equal(recency.warmPathToEconomic, false);
+  assert.ok(recency.unrecorded.some((c) => c.id === "ct_7"));
+});
+
+test("demo: acc_demo_1 is the mirror - access is fine, the promises are not", async () => {
+  // The contrast that makes two panels worth having. Here both agree the
+  // decision-maker is reachable and warm, so a reader who saw only the chain
+  // would conclude the account is healthy. Its health score is 34, and the
+  // reason is entirely in the commitment table.
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+  const at = new Date("2026-08-15T00:00:00Z");
+
+  const contacts = await s.account.listContacts(WS, "acc_demo_1");
+  const relations = await s.account.listRelations(WS, "acc_demo_1");
+  const last = await s.field.lastContactByContact(WS, "acc_demo_1");
+
+  assert.equal(analyzeChain(contacts, relations).economicBuyerUnreachable, false);
+  const r = analyzeChainRecency(
+    contacts,
+    relations,
+    contacts.map((c) => ({ contactId: c.id, lastContactAt: last.get(c.id) ?? null })),
+    { now: at },
+  );
+  assert.equal(r.warmPathToEconomic, true, "the buyer has been met, and recently enough");
+
+  // And yet: two promises they made are broken.
+  const rel = reliability(await s.field.listCommitments(WS, { accountId: "acc_demo_1" }), at);
+  assert.equal(rel.theyMissed, 2);
+});
+
+test("demo: an account with recorded contact answers the warm-path question", async () => {
+  const s = stores();
+  seedDemoWorkspace(WS, s);
+  const at = new Date("2026-08-15T00:00:00Z");
+
+  for (const acc of ["acc_demo_1", "acc_demo_2"]) {
+    const contacts = await s.account.listContacts(WS, acc);
+    const relations = await s.account.listRelations(WS, acc);
+    const last = await s.field.lastContactByContact(WS, acc);
+    const r = analyzeChainRecency(
+      contacts,
+      relations,
+      contacts.map((c) => ({ contactId: c.id, lastContactAt: last.get(c.id) ?? null })),
+      { now: at },
+    );
+    assert.notEqual(r.warmPathToEconomic, null, `${acc} has evidence, so the question is answerable`);
+  }
+
+  // acc_demo_3 has no contacts and no interactions at all - unanswerable, and
+  // that must stay null rather than becoming a false claim about the customer.
+  const c3 = await s.account.listContacts(WS, "acc_demo_3");
+  const l3 = await s.field.lastContactByContact(WS, "acc_demo_3");
+  const r3 = analyzeChainRecency(c3, [], c3.map((c) => ({ contactId: c.id, lastContactAt: l3.get(c.id) ?? null })), { now: at });
+  assert.equal(r3.warmPathToEconomic, null);
 });

@@ -261,3 +261,103 @@ function push(map: Map<string, string[]>, key: string, value: string): void {
   if (list) list.push(value);
   else map.set(key, [value]);
 }
+
+// --- Recency over the decision chain (ADR-006 stage 1) ----------------------
+//
+// analyzeChain above answers a STRUCTURAL question: does this account have the
+// roles a deal needs, and is there a path from a coach to the economic buyer.
+// It answers it from the org chart, which is what someone typed in.
+//
+// The evidence plane can now answer a different question - which of those
+// people has anyone actually spoken to - and the two must be kept apart.
+//
+// WHY RECENCY DOES NOT REMOVE COVERAGE. The obvious move is to drop stale
+// contacts the way inactive ones are dropped, so a coach nobody has spoken to
+// in six months stops counting. That would be wrong right now, and the adoption
+// panel says why: capture coverage is well short of complete, so ABSENCE OF A
+// RECORDED INTERACTION IS NOT ABSENCE OF CONTACT. Folding recency into
+// `missing` would make a workspace that has not adopted the follow-up form
+// watch its decision chains collapse, and it would blame the customer
+// relationship for what is a recording gap.
+//
+// So recency is reported as its own fact, with the one distinction that makes
+// it usable: "we have records and they are old" is not the same claim as "we
+// have no records at all", and this never merges them.
+
+export interface ContactActivity {
+  contactId: string;
+  /** Most recent recorded interaction they took part in. Null means none. */
+  lastContactAt: Date | null;
+}
+
+export interface ChainRecency {
+  /** Recorded contact inside the window. */
+  warm: ContactNode[];
+  /** Recorded contact, but older than the window. */
+  cold: ContactNode[];
+  /** No recorded contact at all. NOT the same as cold - see above. */
+  unrecorded: ContactNode[];
+  /**
+   * Is there a coach-to-economic path using only warm contacts?
+   *
+   * NULL when nothing has been recorded on this account at all. The question
+   * cannot be answered from no data, and answering "no" would state a fact
+   * about the relationship on the strength of a gap in our own record-keeping.
+   */
+  warmPathToEconomic: boolean | null;
+  /** Days after which recorded contact counts as cold. */
+  windowDays: number;
+}
+
+/** A quarter. Long enough that a normal gap between meetings is not "cold",
+ * short enough that a champion who went quiet shows up before the deal does. */
+export const CHAIN_WARM_DAYS = 90;
+
+export function analyzeChainRecency(
+  contacts: readonly ContactNode[],
+  relations: readonly RelationEdge[],
+  activity: readonly ContactActivity[],
+  options: { now?: Date; windowDays?: number } = {},
+): ChainRecency {
+  const now = options.now ?? new Date();
+  const windowDays = options.windowDays ?? CHAIN_WARM_DAYS;
+  const cutoff = now.getTime() - windowDays * 86_400_000;
+
+  const active = contacts.filter((c) => c.status === "active");
+  const lastByContact = new Map<string, Date | null>();
+  for (const a of activity) lastByContact.set(a.contactId, a.lastContactAt);
+
+  const warm: ContactNode[] = [];
+  const cold: ContactNode[] = [];
+  const unrecorded: ContactNode[] = [];
+
+  for (const c of active) {
+    const last = lastByContact.get(c.id) ?? null;
+    if (last === null) unrecorded.push(c);
+    else if (last.getTime() >= cutoff) warm.push(c);
+    else cold.push(c);
+  }
+
+  // Nothing recorded anywhere on this account: the question is unanswerable,
+  // and null says so rather than guessing.
+  const anythingRecorded = warm.length > 0 || cold.length > 0;
+
+  const warmIds = new Set(warm.map((c) => c.id));
+  const warmCoaches = warm
+    .filter((c) => c.decisionRole === "coach")
+    .sort((a, b) => (b.influence ?? 0) - (a.influence ?? 0));
+  const warmEconomic = warm.filter((c) => c.decisionRole === "economic");
+
+  return {
+    warm,
+    cold,
+    unrecorded,
+    // Reuses the same walk as the structural analysis, restricted to warm
+    // contacts - so "reachable" and "reachable through people we have actually
+    // spoken to" are computed the same way and differ only in the input.
+    warmPathToEconomic: !anythingRecorded
+      ? null
+      : warmEconomic.length > 0 && anyPathExists(warmCoaches, warmEconomic, relations, warmIds),
+    windowDays,
+  };
+}

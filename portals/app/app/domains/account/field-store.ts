@@ -133,6 +133,17 @@ export interface FieldStore {
   listParticipants(workspaceId: string, interactionId: string): Promise<ParticipantRecord[]>;
 
   /**
+   * Most recent recorded interaction per CONTACT on one account.
+   *
+   * Its own method rather than a join the caller assembles, because the join is
+   * the whole point: interaction_participant is what turns "we contacted this
+   * company" into "we contacted this person", and that distinction is what the
+   * decision chain needs. A contact absent from the result has no recorded
+   * interaction at all, which is deliberately different from having an old one.
+   */
+  lastContactByContact(workspaceId: string, accountId: string): Promise<Map<string, Date>>;
+
+  /**
    * The most recent interaction instant for an account, or null.
    *
    * Exists as its own method rather than as listInteractions()[0] because it is
@@ -196,6 +207,23 @@ export class InMemoryFieldStore implements FieldStore {
     // Newest first, matching the adapter's ORDER BY.
     rows = [...rows].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
     return filter.limit ? rows.slice(0, filter.limit) : rows;
+  }
+
+  async lastContactByContact(workspaceId: string, accountId: string): Promise<Map<string, Date>> {
+    const onAccount = new Map<string, Date>();
+    for (const i of this.interactions) {
+      if (i.workspaceId !== workspaceId || i.accountId !== accountId) continue;
+      onAccount.set(i.id, i.occurredAt);
+    }
+    const out = new Map<string, Date>();
+    for (const p of this.participants) {
+      if (p.workspaceId !== workspaceId || !p.contactId) continue;
+      const at = onAccount.get(p.interactionId);
+      if (!at) continue;
+      const prior = out.get(p.contactId);
+      if (!prior || at.getTime() > prior.getTime()) out.set(p.contactId, at);
+    }
+    return out;
   }
 
   async listParticipants(workspaceId: string, interactionId: string): Promise<ParticipantRecord[]> {
@@ -265,8 +293,17 @@ export class InMemoryFieldStore implements FieldStore {
   }
 
   /** Test/offline helper. */
-  seed(input: { interactions?: InteractionRecord[]; commitments?: CommitmentRecord[] }): void {
+  seed(input: {
+    interactions?: InteractionRecord[];
+    commitments?: CommitmentRecord[];
+    participants?: ParticipantRecord[];
+  }): void {
     this.interactions.push(...(input.interactions ?? []));
     for (const c of input.commitments ?? []) this.commitments.set(c.id, { ...c });
+    // Participants are seeded separately rather than nested in the interaction,
+    // because who was in the room is the join the decision chain reads and a
+    // fixture that omitted it would silently render every contact as never
+    // having been met.
+    this.participants.push(...(input.participants ?? []));
   }
 }
