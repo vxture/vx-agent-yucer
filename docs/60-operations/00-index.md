@@ -13,6 +13,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-001 | 域业务规则尚无实现，仅有文档口径 | 2026-08-12 | closed 2026-08-15 |
 | TD-002 | 产品界面文案违反 source ASCII-only 规则 | 2026-08-15 | open |
 | TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | open |
+| TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -117,3 +118,25 @@ CREATE UNIQUE INDEX uidx_agent_action_sweep_open
 **为什么当前可以先记不修**：定时器在平台侧且唯一，暴露面是运维手动重复触发，不是
 系统自己制造的竞态。**不用应用层加锁顶替**——两个副本下那个锁是错的，会给出一种
 已经解决了的错觉。
+
+
+### TD-004 - 能力依赖不钉版本，也收不到弃用信号
+
+`product_251` X-4：「消费方依赖的每个对象（能力、模型、工具）**MUST** 可钉版本并能
+被告知弃用。」
+
+本仓 `RunosClient.resolve()` 与 `SkillLoader.load()` 全部落在默认值 `"stable"` 上，
+而 `stable` 是**浮动别名**。`types.ts` 声明了 `version_resolved`，没有任何调用点读它；
+Runos 提供的 `deprecated` 生命周期字段本仓一处都没声明。
+
+**后果**：运营者把 `stable` 改指到另一个版本时，本仓行为随之改变——**没有代码变更、
+没有信号、没有测试变红**。表现是「同样的问题昨天好好的今天不对了」，且无从归因。
+
+顺带记一条**平台侧的债，不是本仓的**：Atlas 的模型面**根本没有版本列**，只有
+`model_code` / `is_active`。供应商在同一个 `model_code` 背后换模型行为是常态，而消费方
+拿不到任何信号——没有版本可钉、没有弃用期、没有别名可切。本仓按 `endpointCode` 路由
+买到的是运营者的间接层，**不是**变更通知。
+
+**修法**（本仓这一半）：`resolve()` 钉解析后的 semver 并读回 `version_resolved`；
+声明 `deprecated` 并在解析到已弃用能力时记录；`latest` 加警告——它可能**回拨**
+（先注册 2.0.0 后补 1.0.1，Runos 侧语义未裁定）。

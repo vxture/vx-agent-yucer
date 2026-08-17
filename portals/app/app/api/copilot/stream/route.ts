@@ -1,4 +1,5 @@
 import { AtlasClient } from "../../../agent/atlas/client";
+import { envelope, errorResponse } from "../../../platform/envelope";
 import { getCopilotStore } from "../../../domains/shared/registry";
 import { streamCopilotTurn, shouldStream } from "../../../domains/copilot/streaming-turn";
 import { resolveAppSession, tenantIdOf } from "../../../(app)/lib/session";
@@ -20,26 +21,29 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
   const session = await resolveAppSession();
-  if (!session) return Response.json({ error: "not_authenticated" }, { status: 401 });
+  if (!session) return errorResponse(401, "COPILOT_NOT_AUTHENTICATED", "no signed-in member for this request");
 
   const tenantId = tenantIdOf(session);
-  if (!tenantId) return Response.json({ error: "no_active_tenant" }, { status: 400 });
+  if (!tenantId) return errorResponse(400, "COPILOT_NO_ACTIVE_TENANT", "the session carries no active platform tenant");
 
   let body: { question?: unknown; sessionId?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    return Response.json({ error: "invalid_json" }, { status: 400 });
+    return errorResponse(400, "COPILOT_BODY_INVALID", "request body is not valid JSON", { field: "body" });
   }
 
   const question = typeof body.question === "string" ? body.question : "";
-  if (!question.trim()) return Response.json({ error: "question_required" }, { status: 400 });
+  if (!question.trim()) return errorResponse(400, "COPILOT_QUESTION_REQUIRED", "ask something", { field: "question" });
 
   if (!shouldStream(session.entitlement, session.authz)) {
     // Not an error - this workspace gets proposals, and proposals need the
     // non-streamed path. Saying so is more useful than streaming a draft.
+    // Still not a failure: this workspace gets proposals, and proposals need
+    // the non-streamed path. The envelope carries the redirect alongside the
+    // code rather than instead of it.
     return Response.json(
-      { error: "streaming_not_applicable", use: "/api/copilot/turn" },
+      { ...envelope("COPILOT_STREAMING_NOT_APPLICABLE", "this workspace uses the proposal path"), use: "/api/copilot/turn" },
       { status: 409 },
     );
   }

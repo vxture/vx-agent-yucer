@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { errorResponse } from "../../platform/envelope";
 import { NextResponse } from "next/server";
 import { buildStatus, statusMode } from "../../lib/status";
 import { getOidcConfig } from "../../auth/lib/config";
@@ -64,14 +65,17 @@ async function probeRedis(url?: string): Promise<boolean | null> {
 
 export async function GET(): Promise<Response> {
   const mode = statusMode(process.env);
-  if (mode === "off") return new NextResponse("not found", { status: 404 });
+  // Deliberately indistinguishable from a route that does not exist: a status
+  // page that announced itself as "switched off" would confirm the product is
+  // deployed here, which is the one thing an off switch is meant to hide.
+  if (mode === "off") return errorResponse(404, "STATUS_NOT_FOUND", "not found");
 
   if (mode === "authed") {
     const cfg = getOidcConfig();
     const jar = await cookies();
     const rpsid = jar.get(cfg.cookieName)?.value;
     const user = rpsid ? await getAuthUser(cfg, rpsid).catch(() => null) : null;
-    if (!user) return new NextResponse("unauthorized", { status: 401 });
+    if (!user) return errorResponse(401, "STATUS_NOT_AUTHENTICATED", "sign in to read the status page");
   }
 
   const status = buildStatus(process.env, new Date().toISOString());
