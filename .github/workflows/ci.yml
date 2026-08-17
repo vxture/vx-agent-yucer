@@ -110,6 +110,12 @@ jobs:
       - name: Port consistency guardrail (registry rule R3)
         run: node scripts/guardrails/check-port-consistency.mjs --strict
 
+      # product_251 D-3: machine-check the conformance clauses that can be
+      # machine-checked, because a matrix written into a document is a snapshot
+      # and it rots.
+      - name: Error envelope guardrail (L1 spec X-1 / A-1)
+        run: node scripts/guardrails/check-error-envelope.mjs --strict
+
   # -- Quality gate (aggregator; stable required-check name) ------------------
   quality-gate:
     name: quality-gate

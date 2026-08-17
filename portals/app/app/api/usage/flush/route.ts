@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { errorResponse } from "../../../platform/envelope";
 import { flushUsage } from "../../../usage/lib/flush";
 
 // POST /api/usage/flush: trigger the usage flush job. Gated by INTERNAL_JOB_TOKEN
@@ -10,7 +11,7 @@ export async function POST(req: Request): Promise<Response> {
   const expected = process.env.INTERNAL_JOB_TOKEN;
   const got = req.headers.get("x-internal-job-token");
   if (!expected || got !== expected) {
-    return new NextResponse("forbidden", { status: 403 });
+    return errorResponse(403, "JOB_TOKEN_INVALID", "internal job token missing or wrong");
   }
   const summary = await flushUsage();
   return NextResponse.json(summary);

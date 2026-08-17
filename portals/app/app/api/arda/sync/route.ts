@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { errorResponse } from "../../../platform/envelope";
 import { runArdaSync } from "../../../platform/arda/sync";
 
 // POST /api/arda/sync: pull facts from arda into the signal inbox (ADR-011).
@@ -17,7 +18,7 @@ export async function POST(req: Request): Promise<Response> {
   const expected = process.env.INTERNAL_JOB_TOKEN;
   const got = req.headers.get("x-internal-job-token");
   if (!expected || got !== expected) {
-    return new NextResponse("forbidden", { status: 403 });
+    return errorResponse(403, "JOB_TOKEN_INVALID", "internal job token missing or wrong");
   }
 
   let workspaces: { workspaceId: string; tenantId: string }[] = [];
@@ -33,7 +34,7 @@ export async function POST(req: Request): Promise<Response> {
       );
     }
   } catch {
-    return new NextResponse("bad request", { status: 400 });
+    return errorResponse(400, "JOB_BODY_INVALID", "request body is not valid JSON", { field: "body" });
   }
 
   const ledger = await runArdaSync({

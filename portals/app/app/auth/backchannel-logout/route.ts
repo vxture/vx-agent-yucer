@@ -14,6 +14,16 @@ export async function POST(req: Request): Promise<Response> {
   const cfg = getOidcConfig();
   const form = await req.formData().catch(() => null);
   const logoutToken = form?.get("logout_token");
+  // DELIBERATELY NOT the vxture error envelope (product_251 X-1).
+  //
+  // This endpoint answers the IdP under OIDC Back-Channel Logout 1.0, not a
+  // vxture consumer under the L1 spec. The caller is a standards-conformant
+  // OIDC provider that has never heard of `code`/`retryable`, and the status
+  // code is the entire contract it acts on. Reshaping the body here would swap
+  // a standard the far side implements for one it does not.
+  //
+  // Recorded as an exclusion in the conformance attestation rather than left
+  // as an apparent oversight.
   if (typeof logoutToken !== "string") return new Response("bad request", { status: 400 });
 
   let claims;

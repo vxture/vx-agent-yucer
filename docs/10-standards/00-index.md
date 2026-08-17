@@ -37,3 +37,7 @@ Local realization of the standards above (where to look, not a re-statement):
   `portals/app/Dockerfile` (runner stage) and their build-time derivation from
   git tag/sha/date in `.github/workflows/build.yml`. Any instantiated product
   inherits these unchanged, so its `/api/health` conforms out of the box.
+
+| 文档 | 内容 |
+|------|------|
+| [10-l1-api-conformance](10-l1-api-conformance.md) | 平台 `product_251`「L1 API 规范」的符合性自陈（D-2 要求），含豁免登记与未决冲突 |

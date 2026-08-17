@@ -1,4 +1,5 @@
 import { BRAND } from "@yucer/shared/brand";
+import { errorResponse } from "../../platform/envelope";
 import { verifySignature, webhookSecrets } from "../lib/verify";
 import { handleProvisioning, type ProvisioningEvent } from "../lib/handler";
 import { getProvisioningStore } from "../lib/store";
@@ -18,18 +19,22 @@ export async function POST(req: Request): Promise<Response> {
   const raw = await req.text(); // raw body - required for HMAC, do not re-serialize
   const sig = req.headers.get("x-vxture-signature");
   if (!verifySignature(raw, sig, webhookSecrets())) {
-    return new Response("invalid signature", { status: 401 });
+    return errorResponse(401, "WEBHOOK_SIGNATURE_INVALID", "signature did not verify against either secret");
   }
 
   let payload: Record<string, unknown>;
   try {
     payload = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    return new Response("bad json", { status: 400 });
+    return errorResponse(400, "WEBHOOK_BODY_INVALID", "request body is not valid JSON", { field: "body" });
   }
 
   const deliveryId = req.headers.get("x-vxture-delivery") ?? String(payload.id ?? "");
-  if (!deliveryId) return new Response("missing delivery id", { status: 400 });
+  if (!deliveryId) {
+    return errorResponse(400, "WEBHOOK_DELIVERY_ID_REQUIRED", "the delivery id is the idempotency key", {
+      field: "deliveryId",
+    });
+  }
 
   const event: ProvisioningEvent = {
     id: deliveryId,
@@ -50,7 +55,11 @@ export async function POST(req: Request): Promise<Response> {
       onSubscriptionChanged: (ws) => getEntitlementResolver().invalidate(ws),
     });
   } catch {
-    return new Response("processing error", { status: 500 }); // platform will retry
+    // retryable:true, and it is the honest answer - the platform WILL retry, and
+    // a 500 here means our handler failed, not that the delivery was bad.
+    return errorResponse(500, "WEBHOOK_PROCESSING_FAILED", "handler failed; safe to redeliver", {
+      retryable: true,
+    });
   }
   return new Response("", { status: 200 });
 }
