@@ -162,8 +162,18 @@ export interface ReportOutcomeArgs {
 export interface CallMeta {
   task_id: string;
   agent_version?: string;
-  /** Object-level authorization credential. Runos forwards it and never
-   * adjudicates on it - object-level decisions belong to the calling agent. */
+  /**
+   * Object-level authorization credential - a platform-issued RS256 JWT.
+   *
+   * Runos VERIFIES it (iss / aud / exp / sub) and pseudonymises the subject:
+   * `end_user_id = sha256(sub)`, so the natural identifier is never stored.
+   * A bad one fails the whole call before any capability work, with no call_id
+   * to correlate against.
+   *
+   * Object-level DECISIONS still belong to the calling agent - that part was
+   * always right. What was wrong was "Runos never adjudicates on it": it
+   * adjudicates the credential, not the object.
+   */
   delegation_token?: string;
   session_id?: string;
   /** Set when following a skill that was already fetched. Attribution only:

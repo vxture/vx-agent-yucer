@@ -228,7 +228,15 @@ test("the loader is wired to a real client without a private SDK", async () => {
           id: 1,
           result: {
             content: [{ type: "text", text: SKILL_MD }],
-            _meta: { vxture: { result_kind: "distributed", content_digest: sha256(SKILL_MD), call_id: "c1" } },
+            // A skill distribution carries ONLY the metadata in
+            // structuredContent - there is no payload beside it.
+            structuredContent: {
+              _meta_vxture: {
+                result_kind: "distributed",
+                content_digest: sha256(SKILL_MD),
+                call_id: "c1",
+              },
+            },
           },
         }),
         { status: 200 },
