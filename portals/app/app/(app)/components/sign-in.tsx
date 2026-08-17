@@ -44,6 +44,17 @@ export function SignIn() {
 
   return (
     <main className="bg-background relative grid min-h-screen place-items-center overflow-hidden">
+      {/* A brand-tinted ground. bg-background alone rendered flat grey, which
+          made the door look unfinished rather than calm. The tint is one token
+          at low alpha, so it follows the brand and both themes. */}
+      <div
+        aria-hidden
+        // color-mix, not `var(--primary)/8%` - slash-alpha is only valid inside
+        // a colour function, so the earlier form made the whole gradient
+        // invalid and the browser dropped it silently. This is the form the DS
+        // itself uses.
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(125%_85%_at_50%_-10%,color-mix(in_srgb,var(--primary)_14%,transparent),transparent_65%)]"
+      />
       <Ambience />
 
       <section
@@ -95,9 +106,12 @@ function Ambience() {
         // keyframe and no motion tokens. Recorded in TD-005 with the element
         // itself rather than smuggled in; the field reads as intended without
         // it, and motion is the part that costs least to wait for.
-        className="text-primary absolute inset-[-8%] h-[116%] w-[116%] opacity-40"
+        // "none" stretched the paths to the viewport's aspect and left them
+        // bunched bottom-left with the top-right bare. "slice" keeps their
+        // drawn proportions and fills the frame.
+        className="text-primary absolute inset-0 h-full w-full opacity-50"
         viewBox="0 0 1600 1000"
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid slice"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.2}
@@ -111,7 +125,7 @@ function Ambience() {
 
       {/* The wash. Without it the lines run under the wordmark and the door
           stops being legible - the field has to fade where the reading is. */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_48%,var(--background)_0%,var(--background)_30%,transparent_74%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_46%,var(--background)_0%,var(--background)_26%,transparent_66%)]" />
     </div>
   );
 }

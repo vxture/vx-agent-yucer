@@ -5,15 +5,12 @@ import Link from "next/link";
 import {
   Badge,
   Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
   EmptyState,
-  FactList,
   Icon,
-  PanelCard,
+  PanelList,
   SectionHeader,
   SegmentedControl,
+  Separator,
   Stack,
   StatusBadge,
 } from "@vxture/design-ui";
@@ -22,25 +19,30 @@ import type { Judgement, Urgency } from "../../domains/judgement/lib/judgement";
 
 // The home screen's stream.
 //
-// One judgement open at a time, and that is not a space saving - it is what
-// lets the open one be worth reading. A list where everything is expanded is a
-// wall; a list where nothing expands is headlines nobody can check.
+// REBUILT as a queue of rows, after the card version rendered as a wall of
+// slabs: three heavy boxes, each with a full-width coloured bar across the top
+// and a stack of red label/value lines, on a page that was 40% empty below.
+// Every one of those was a defensible component choice and the result was
+// unreadable, which is the whole argument for looking at the rendered page.
 //
-// THE SOURCE MARKER IS THE LOAD-BEARING PART. A rule judgement and a model
-// judgement are both single true-shaped sentences and deserve completely
-// different scepticism:
+// What changed and why:
 //
-//   rule  - shows its trigger condition. You can recompute it and disagree
-//           with the arithmetic.
-//   model - shows which notes it cited. You cannot recompute it; the only
-//           check available is whether those notes say what it claims.
+//   rows, not cards   PanelList divides with hairlines. Boxes fragment a list
+//                     into unrelated objects; a queue you work through should
+//                     read as one surface.
+//   a dot, not a bar  urgency is a StatusBadge dot beside the claim, so it
+//                     labels the sentence instead of painting the container.
+//   one quote open    evidence used to dump three verbatim notes at once and
+//                     made the first item 600px tall. The most recent is
+//                     shown; the rest are behind a count.
+//   facts in a line   they were a vertical stack of coloured pairs that read
+//                     as a debug dump.
 //
-// Rendering them identically would teach people to trust both or neither.
-//
-// The card is a PanelCard, so the tier colours its TOP edge - the DS already
-// has a convention for exactly this. An earlier version drew its own left
-// stripe out of Tailwind utilities, which is restyling the design system rather
-// than using it.
+// THE SOURCE MARKER IS STILL LOAD-BEARING. A rule judgement shows its trigger
+// condition, so you can recompute it and disagree with the arithmetic. A model
+// judgement shows which notes it cited, because you cannot recompute it and the
+// only check available is whether those notes say what it claims. Rendering
+// them identically would teach people to trust both or neither.
 
 export interface JudgementStreamProps {
   readonly judgements: readonly Judgement[];
@@ -58,6 +60,12 @@ const TIER_TONE: Record<Urgency, "danger" | "warning" | "info"> = {
   watch: "info",
 };
 
+const TIER_LABEL: Record<Urgency, string> = {
+  today: HOME_TEXT.urgencyToday,
+  week: HOME_TEXT.urgencyWeek,
+  watch: HOME_TEXT.urgencyWatch,
+};
+
 export function JudgementStream({
   judgements,
   counts,
@@ -66,30 +74,34 @@ export function JudgementStream({
   hasAnyRecord,
 }: JudgementStreamProps) {
   const [tier, setTier] = useState<Tier>("all");
-  // One id for the whole list, so opening a card closes the previous one
-  // without any card needing to know the others exist.
+  // One id for the whole queue, so opening a row closes the previous one
+  // without any row needing to know the others exist.
   const [openId, setOpenId] = useState<string>(judgements[0]?.id ?? "");
 
   const shown = tier === "all" ? judgements : judgements.filter((j) => j.urgency === tier);
 
   return (
-    <Stack gap="md">
-      <SectionHeader
-        level={1}
-        title={HOME_TEXT.title}
-        description={HOME_TEXT.description(scanned)}
-        // Both filters together on the right. The counts ride inside the tiers
-        // rather than in a strip of metric cards above: they are filter labels,
-        // and three big numbers should not cost a screen of height to say three
-        // numbers.
-        action={
+    <Stack gap="lg">
+      {/* The opening sentence is the agent's, and it is sized like a statement
+          rather than like a page title, because that is what it is. */}
+      <Stack gap="md">
+        <div className="flex flex-wrap items-end justify-between gap-md">
+          <div className="min-w-0">
+            <h1 className="text-heading-2 text-foreground">
+              {counts.today > 0 ? HOME_TEXT.lead(counts.today) : HOME_TEXT.leadNone}
+            </h1>
+            <p className="text-muted-foreground mt-2xs text-body-sm">
+              {HOME_TEXT.leadSub(scanned, judgements.length)}
+            </p>
+          </div>
+
           <Stack gap="xs" className="flex-row flex-wrap items-center">
             <SegmentedControl
               ariaLabel={HOME_TEXT.scopeLabel}
               value={scope}
               onChange={(v) => {
-                // Both branches are explicit. Navigating to a bare URL would
-                // re-enter the derivation and could land somewhere other than
+                // Both branches explicit: a bare URL would re-enter the
+                // ownership derivation and could land somewhere other than
                 // where the reader just clicked.
                 window.location.search = v === "all" ? "?scope=all" : "?scope=mine";
               }}
@@ -110,8 +122,9 @@ export function JudgementStream({
               ]}
             />
           </Stack>
-        }
-      />
+        </div>
+        <Separator />
+      </Stack>
 
       {shown.length === 0 ? (
         <EmptyState
@@ -122,30 +135,32 @@ export function JudgementStream({
           description={hasAnyRecord ? HOME_TEXT.emptyDescription : HOME_TEXT.emptyNoRecords}
         />
       ) : (
-        <Stack gap="sm">
+        <PanelList>
           {shown.map((j) => (
-            <JudgementCard
+            <JudgementRow
               key={j.id}
               judgement={j}
               open={openId === j.id}
-              onOpenChange={(next) => setOpenId(next ? j.id : "")}
+              onToggle={() => setOpenId(openId === j.id ? "" : j.id)}
             />
           ))}
-        </Stack>
+        </PanelList>
       )}
     </Stack>
   );
 }
 
-function JudgementCard({
+function JudgementRow({
   judgement: j,
   open,
-  onOpenChange,
+  onToggle,
 }: {
   judgement: Judgement;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onToggle: () => void;
 }) {
+  const [allEvidence, setAllEvidence] = useState(false);
+
   const href =
     j.subjectType === "account"
       ? `/account/${j.subjectId}`
@@ -153,132 +168,111 @@ function JudgementCard({
         ? `/pipeline/${j.subjectId}`
         : "/admin/adoption";
 
+  const quotes = allEvidence ? j.citations : j.citations.slice(0, 1);
+  const hidden = j.citations.length - quotes.length;
+
   return (
-    <Collapsible open={open} onOpenChange={onOpenChange}>
-      <PanelCard
-        tone={TIER_TONE[j.urgency]}
-        title={j.claim}
-        titleSuffix={<SourceMark source={j.source} />}
-        description={
-          <Stack gap="xs" className="flex-row flex-wrap items-center">
-            {/* A tag with a tone is a STATUS and gets StatusBadge, which draws
-                the tone's icon. A tag without one is just a fact - the account
-                name, the amount - and got the neutral tone's icon too, so every
-                chip on the card wore a leading dash and read as broken. */}
-            {/* "neutral" is not a status, it is the ABSENCE of one, so it must
-                not draw a status icon - StatusBadge renders the tone's icon
-                unconditionally, and neutral's is a dash. */}
-            {j.tags.map((t, i) =>
-              t.tone && t.tone !== "neutral" ? (
-                <StatusBadge key={i} tone={t.tone}>
-                  {t.label ? `${t.label} ${t.value}` : t.value}
-                </StatusBadge>
-              ) : (
-                <Badge key={i} variant="outline">
-                  {t.label ? `${t.label} ${t.value}` : t.value}
-                </Badge>
-              ),
-            )}
-          </Stack>
-        }
-        action={
-          <CollapsibleTrigger asChild>
-            {/* The label says which way it goes, so no chevron is needed -
-                and a word survives a screen reader better than a glyph. */}
-            <Button variant="ghost" size="sm" aria-expanded={open}>
-              {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
-            </Button>
-          </CollapsibleTrigger>
-        }
-      >
-        {/* PanelCard ALWAYS renders a body region, so a collapsed card whose
-            body was empty drew a padded blank box under the dashed rule - a
-            hole in the middle of the stream. The body is therefore never empty:
-            collapsed, it carries the facts on one line, which also means a
-            closed card still tells you something instead of only a headline. */}
-        {open ? null : (
-          <p className="text-muted-foreground text-xs">
+    <div className="py-md">
+      <div className="flex min-w-0 items-start gap-md">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-xs">
+            {/* The dot labels the sentence. The card version painted the whole
+                container with this tone, which shouted the tier and buried the
+                claim it was supposed to qualify. */}
+            <StatusBadge tone={TIER_TONE[j.urgency]} dot>
+              {TIER_LABEL[j.urgency]}
+            </StatusBadge>
+            <SourceMark source={j.source} />
+          </div>
+
+          <p className="text-foreground mt-xs text-body-md">{j.claim}</p>
+
+          {/* Facts on one line, muted. They qualify the claim; they are not
+              four separate alarms. */}
+          <p className="text-muted-foreground mt-2xs text-body-sm">
             {j.facts
-              .slice(0, 3)
+              .slice(0, 4)
               .map((f) => HOME_TEXT.factInline(f.label, f.value))
               .join(HOME_TEXT.factJoin)}
           </p>
-        )}
+        </div>
 
-        <CollapsibleContent>
-          <Stack gap="md">
-            {j.citations.length > 0 ? (
-              <section>
-                <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(j.citations.length)} />
-                <Stack gap="sm">
-                  {j.citations.map((c, i) => (
-                    // Verbatim. Everything downstream cites these rows, so what
-                    // a reader can open must be what was cited - a tidied
-                    // summary here would make provenance a story.
-                    <blockquote key={i} className="border-border border-l-2 pl-sm">
-                      {c.who ? (
-                        <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
-                          {c.who}
-                        </cite>
-                      ) : null}
-                      <p className="text-muted-foreground text-sm leading-relaxed">{c.text}</p>
-                    </blockquote>
-                  ))}
-                </Stack>
-              </section>
-            ) : null}
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={onToggle}>
+          {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
+          <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+        </Button>
+      </div>
 
-            {j.facts.length > 0 ? (
-              <section>
-                <SectionHeader level={4} title={HOME_TEXT.secFacts} />
-                <FactList
-                  facts={j.facts.map((f) => ({ label: f.label, value: f.value, tone: f.tone }))}
-                />
-              </section>
-            ) : null}
+      {open ? (
+        // Indented to the claim it belongs to, so an open row reads as one
+        // thing rather than as a new section.
+        <Stack gap="md" className="mt-md pl-md">
+          {quotes.length > 0 ? (
+            <section>
+              <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(j.citations.length)} />
+              <Stack gap="sm" className="mt-xs">
+                {quotes.map((c, i) => (
+                  // Verbatim. Everything downstream cites these rows, so what a
+                  // reader can open must be what was cited - a tidied summary
+                  // here would make provenance a story.
+                  <blockquote key={i} className="border-border border-l-2 pl-sm">
+                    {c.who ? (
+                      <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
+                        {c.who}
+                      </cite>
+                    ) : null}
+                    <p className="text-muted-foreground text-body-sm leading-relaxed">{c.text}</p>
+                  </blockquote>
+                ))}
+                {hidden > 0 || allEvidence ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="self-start"
+                    onClick={() => setAllEvidence(!allEvidence)}
+                  >
+                    {allEvidence ? HOME_TEXT.evidenceLess : HOME_TEXT.evidenceMore(hidden)}
+                  </Button>
+                ) : null}
+              </Stack>
+            </section>
+          ) : null}
 
-            {j.rule ? (
-              <section>
-                <SectionHeader level={4} title={HOME_TEXT.secRule} />
-                {/* Shown so a reader can disagree with the arithmetic rather
-                    than with the conclusion. A rule that hides its condition is
-                    an opinion wearing a formula's clothes. */}
-                <code className="bg-muted text-muted-foreground block rounded-md px-sm py-xs text-xs">
-                  {j.rule}
-                </code>
-              </section>
-            ) : null}
+          {j.rule ? (
+            <section>
+              <SectionHeader level={4} title={HOME_TEXT.secRule} />
+              {/* Shown so a reader can disagree with the arithmetic rather than
+                  with the conclusion. A rule that hides its condition is an
+                  opinion wearing a formula's clothes. */}
+              <code className="bg-muted text-muted-foreground mt-xs block rounded-md px-sm py-xs text-xs">
+                {j.rule}
+              </code>
+            </section>
+          ) : null}
 
-            <Stack gap="xs" className="flex-row flex-wrap items-center">
-              <Button size="sm" asChild>
-                <Link href={href}>{HOME_TEXT.openSubject}</Link>
+          <Stack gap="xs" className="flex-row flex-wrap items-center">
+            <Button size="sm" asChild>
+              <Link href={href}>{HOME_TEXT.openSubject}</Link>
+            </Button>
+            {/* Analyses are deliberately quieter than the decision: one looks
+                again, the other files a proposal a person must sign. They must
+                not weigh the same. */}
+            {j.analyses.map((a) => (
+              <Button key={a} size="sm" variant="outline">
+                {a === "risk"
+                  ? HOME_TEXT.analysisRisk
+                  : a === "competition"
+                    ? HOME_TEXT.analysisCompetition
+                    : HOME_TEXT.analysisPolicy}
               </Button>
-              {/* Analyses are deliberately quieter than the decision: one looks
-                  again, the other files a proposal a person must sign. They
-                  must not weigh the same. */}
-              {j.analyses.map((a) => (
-                <Button key={a} size="sm" variant="outline">
-                  {a === "risk"
-                    ? HOME_TEXT.analysisRisk
-                    : a === "competition"
-                      ? HOME_TEXT.analysisCompetition
-                      : HOME_TEXT.analysisPolicy}
-                </Button>
-              ))}
-              <Button size="sm" variant="ghost">
-                {HOME_TEXT.actDismiss}
-              </Button>
-              {j.analyses.length > 0 ? (
-                <span className="text-muted-foreground ml-auto text-xs">
-                  {HOME_TEXT.analysisHint}
-                </span>
-              ) : null}
-            </Stack>
+            ))}
+            <Button size="sm" variant="ghost">
+              {HOME_TEXT.actDismiss}
+            </Button>
           </Stack>
-        </CollapsibleContent>
-      </PanelCard>
-    </Collapsible>
+        </Stack>
+      ) : null}
+    </div>
   );
 }
 
@@ -293,7 +287,7 @@ function SourceMark({ source }: { source: Judgement["source"] }) {
   const rule = source === "rule";
   return (
     <Badge
-      variant={rule ? "outline" : "default"}
+      variant="outline"
       title={rule ? HOME_TEXT.sourceRuleHint : HOME_TEXT.sourceModelHint}
     >
       {rule ? HOME_TEXT.sourceRule : HOME_TEXT.sourceModel}
