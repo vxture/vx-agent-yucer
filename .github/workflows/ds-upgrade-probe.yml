@@ -51,11 +51,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           registry-url: https://npm.pkg.github.com
@@ -107,7 +107,13 @@ jobs:
       - name: Resolve
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-        run: pnpm install --no-frozen-lockfile
+        # --ignore-scripts matters MORE here than in the normal install path.
+        # This step deliberately resolves package versions nobody in this repo
+        # has ever run, across three major bumps, and a postinstall is arbitrary
+        # code executing with the registry token in the environment. The probe
+        # needs type definitions and a lockfile; neither is produced by a
+        # lifecycle script.
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
 
       - name: What resolved, and what each package depends on
         run: |
@@ -124,7 +130,11 @@ jobs:
       - name: Type-check against the new majors
         continue-on-error: true
         working-directory: portals/app
-        run: npx tsc --noEmit 2>&1 | tee ../../probe/tsc-errors.txt
+        # The typescript already resolved into node_modules, not whatever npx
+        # would fetch. npx installs on demand and runs the fetched package's
+        # lifecycle scripts, which would mean the version being type-checked
+        # against is not the version that was just resolved.
+        run: ./node_modules/.bin/tsc --noEmit 2>&1 | tee ../../probe/tsc-errors.txt
 
       - name: Error surface, summarised
         run: |
@@ -151,7 +161,7 @@ jobs:
           find probe/types -name "*.d.ts" | sort
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ds-upgrade-probe
           path: |
