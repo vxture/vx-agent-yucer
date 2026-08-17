@@ -4,7 +4,7 @@
 `portals/app/prisma/schema.prisma` 只是客户端生成源，必须与 DDL 严格 lockstep——
 `scripts/guardrails/check-data-architecture.mjs --strict` 在 CI 强制校验。
 
-当前基线：**34 张表**（契约面 10 + 产品域 24）。
+当前基线：**37 张表**（契约面 10 + 产品域 27）。产品域 24 张为批次 1 的五个域 schema，另 3 张为 `yucer_field` 证据面（ADR-006，`incr/0004`）。
 
 ## 1. 域表清单
 
