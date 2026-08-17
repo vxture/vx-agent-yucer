@@ -87,6 +87,44 @@ export class PrismaFieldStore implements FieldStore {
     return rows.map((r: Record<string, unknown>) => toInteraction(r));
   }
 
+  async lastContactByContact(workspaceId: string, accountId: string): Promise<Map<string, Date>> {
+    const p = await getPrismaClient();
+
+    // Two queries rather than one join. interaction_participant carries no
+    // Prisma relation to interaction, and adding one would change the schema
+    // for a read this small - the participants of one account's interactions.
+    const interactions = await p.interaction.findMany({
+      where: { workspaceId, accountId },
+      select: { id: true, occurredAt: true },
+    });
+    if (interactions.length === 0) return new Map();
+
+    const occurredAt = new Map<string, Date>();
+    for (const i of interactions as { id: string; occurredAt: Date }[]) {
+      occurredAt.set(i.id, i.occurredAt);
+    }
+
+    const rows = await p.interactionParticipant.findMany({
+      where: {
+        workspaceId,
+        contactId: { not: null },
+        interactionId: { in: [...occurredAt.keys()] },
+      },
+      select: { contactId: true, interactionId: true },
+    });
+
+    const out = new Map<string, Date>();
+    for (const r of rows as { contactId: string | null; interactionId: string }[]) {
+      const at = r.contactId ? occurredAt.get(r.interactionId) : undefined;
+      if (!r.contactId || !at) continue;
+      const prior = out.get(r.contactId);
+      // Max, taken explicitly. Relying on row order to make the last write win
+      // would be relying on an ordering the query does not ask for.
+      if (!prior || at.getTime() > prior.getTime()) out.set(r.contactId, at);
+    }
+    return out;
+  }
+
   async listParticipants(workspaceId: string, interactionId: string): Promise<ParticipantRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.interactionParticipant.findMany({ where: { workspaceId, interactionId } });

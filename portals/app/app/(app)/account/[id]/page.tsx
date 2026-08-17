@@ -3,8 +3,14 @@ import { resolveAppSession } from "../../lib/session";
 import { ACCOUNT_STATUS_LABEL, SHELL_TEXT } from "../../lib/messages";
 import { can } from "../../../authz/decide";
 import { getAccountStore, getFieldStore } from "../../../domains/shared/registry";
-import { decisionChain, getAccountDetail, recomputeHealth } from "../../../domains/account/service";
+import {
+  accountRelations,
+  decisionChain,
+  getAccountDetail,
+  recomputeHealth,
+} from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
+import { ChainRecencyPanel } from "../../components/chain-recency";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
 import { InteractionTimeline } from "../../components/interaction-timeline";
@@ -14,6 +20,7 @@ import { RecordFollowUp } from "../../components/record-follow-up";
 import {
   listCommitments,
   listInteractions,
+  chainRecency,
   relationshipEvidence,
 } from "../../../domains/account/field-service";
 import { CHANNEL_LABEL } from "../../lib/messages";
@@ -68,12 +75,19 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     relationshipEvidence(fieldCtx, id, now),
   ]);
 
-  const [health, chain] = await Promise.all([
+  const [health, chain, relations] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
     // read-only member gets no panel rather than a silently failing one.
     canWrite ? recomputeHealth(ctx, id, { persist: false }) : Promise.resolve(null),
     decisionChain(ctx, id),
+    accountRelations(ctx, id),
   ]);
+
+  // A second analysis over the same graph: who has actually been in a recorded
+  // room. Deliberately not folded into `chain` - see chain-recency.tsx.
+  const recency = relations.ok
+    ? await chainRecency(fieldCtx, id, contacts, relations.value, { now })
+    : null;
 
   return (
     <PageStack>
@@ -150,6 +164,16 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           description={chain.violations.map((v) => v.message).join("; ")}
         />
       )}
+
+      {/* Directly under the org chart, because it is a commentary on it: the
+          panel above says who exists, this one says who has been in a recorded
+          room. Separate panels so neither gap can be read as the other. */}
+      {recency?.ok ? (
+        <ChainRecencyPanel
+          recency={recency.value}
+          nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
+        />
+      ) : null}
     </PageStack>
   );
 }

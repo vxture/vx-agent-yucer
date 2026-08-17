@@ -22,6 +22,7 @@ import {
   type CloseInput,
   type Reliability,
 } from "./lib/commitment";
+import { analyzeChainRecency, type ChainRecency, type ContactNode, type RelationEdge } from "./lib/health";
 import {
   CAPTURE_CRITERION,
   assessCapture,
@@ -241,4 +242,36 @@ export async function captureAdoption(
     // and conflating the two would send a manager after the wrong thing.
     touched: [...dealsTouched(interactions, from, to)],
   });
+}
+
+/**
+ * Who on the decision chain anyone has actually spoken to.
+ *
+ * Lives here rather than in the account service because the join it needs is
+ * the evidence plane's - interaction_participant is what turns "we contacted
+ * this company" into "we contacted this person". The caller pairs it with
+ * decisionChain(); the two are deliberately separate results, because
+ * structural coverage and recorded contact are different claims and merging
+ * them would let a gap in our own record-keeping read as a gap in the
+ * relationship.
+ */
+export async function chainRecency(
+  ctx: FieldContext,
+  accountId: string,
+  contacts: readonly ContactNode[],
+  relations: readonly RelationEdge[],
+  options: { now?: Date; windowDays?: number } = {},
+): Promise<RuleResult<ChainRecency>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const last = await ctx.store.lastContactByContact(ctx.workspaceId, accountId);
+  // Every active contact gets an entry. A contact missing from the map has no
+  // recorded interaction, and that must arrive as an explicit null rather than
+  // as an absent key the rule has to interpret.
+  const activity = contacts.map((c) => ({
+    contactId: c.id,
+    lastContactAt: last.get(c.id) ?? null,
+  }));
+  return ok(analyzeChainRecency(contacts, relations, activity, options));
 }

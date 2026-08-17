@@ -41,7 +41,12 @@ import {
   DEMO_WAIVE_REASON,
 } from "./demo-fixtures";
 import type { InMemoryAccountStore } from "../account/store";
-import type { CommitmentRecord, InMemoryFieldStore, InteractionRecord } from "../account/field-store";
+import type {
+  CommitmentRecord,
+  InMemoryFieldStore,
+  InteractionRecord,
+  ParticipantRecord,
+} from "../account/field-store";
 import type { CommitmentDirection, CommitmentStatus, InteractionChannel } from "../account/lib/commitment";
 import type { InMemoryCopilotStore } from "../copilot/store";
 import type { InMemoryDeliveryStore } from "../delivery/store";
@@ -331,7 +336,68 @@ function seedField(workspaceId: string, stores: DemoStores): void {
     ...extra,
   });
 
+  // Who was actually in the room.
+  //
+  // interaction_participant is what turns "we contacted this company" into "we
+  // contacted this person", and it is the only thing the chain-recency panel
+  // reads. A fixture set that omitted it would render every contact as never
+  // having been met, which is technically true of the data and useless as a
+  // demonstration.
+  //
+  // acc_demo_4 is the case worth looking at: SEVEN recorded contacts, every
+  // single one with the coach (ct_8), and NOT ONE with the economic buyer
+  // (ct_7). That is what a weekly-catch-up-with-my-friend deal looks like from
+  // the outside, and the two panels reach it from different directions - the
+  // structural one because ct_7 and ct_8 have no edge between them (a fixture
+  // batch 3 set up deliberately), the recency one because nobody has ever been
+  // in a room with ct_7. Same verdict, two independent reasons, which is worth
+  // more than either alone.
+  //
+  // acc_demo_1 is the mirror: structurally reachable AND everyone warm. Both
+  // panels say the access is fine - and it is, its problem is that the promises
+  // are not being kept.
+  const person = (id: string, interactionId: string, contactId: string): ParticipantRecord => ({
+    id,
+    workspaceId,
+    interactionId,
+    contactId,
+    memberSub: null,
+    externalName: null,
+    roleAtTime: null,
+  });
+
   stores.field.seed({
+    participants: [
+      // acc_demo_1: the buyer and the technical lead at kickoff, the buyer again
+      // on the chase, the coach on the private call. All still inside the
+      // window - this account's problem is broken promises, not access.
+      person("pt_1", "int_demo_a1a", "ct_1"),
+      person("pt_2", "int_demo_a1a", "ct_2"),
+      person("pt_3", "int_demo_a1b", "ct_1"),
+      person("pt_4", "int_demo_a1c", "ct_3"),
+
+      // acc_demo_2: healthy. The buyer is in the room and in the follow-up.
+      person("pt_5", "int_demo_a2a", "ct_5"),
+      person("pt_6", "int_demo_a2a", "ct_6"),
+      person("pt_7", "int_demo_a2b", "ct_5"),
+      person("pt_8", "int_demo_d2a", "ct_6"),
+      person("pt_9", "int_demo_d2b", "ct_6"),
+      person("pt_10", "int_demo_d2c", "ct_6"),
+
+      // acc_demo_4: six recorded contacts, every one with the coach.
+      person("pt_11", "int_demo_a4a", "ct_8"),
+      person("pt_12", "int_demo_d6a", "ct_8"),
+      person("pt_13", "int_demo_d6b", "ct_8"),
+      person("pt_14", "int_demo_d6c", "ct_8"),
+      person("pt_15", "int_demo_d9a", "ct_8"),
+      person("pt_16", "int_demo_d9b", "ct_8"),
+      person("pt_17", "int_demo_d9c", "ct_8"),
+
+      // acc_demo_5: early, but with the right person.
+      person("pt_18", "int_demo_a5a", "ct_9"),
+      person("pt_19", "int_demo_d7a", "ct_9"),
+      person("pt_20", "int_demo_d7b", "ct_9"),
+    ],
     interactions: [
       note("int_demo_a1a", "acc_demo_1", "meeting", 75, REP1, DEMO_NOTES.a1_kickoff, "opp_demo_1"),
       note("int_demo_a1b", "acc_demo_1", "im", 62, REP1, DEMO_NOTES.a1_followup, "opp_demo_1"),

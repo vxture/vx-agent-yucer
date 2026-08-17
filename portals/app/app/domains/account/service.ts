@@ -139,6 +139,23 @@ export async function decisionChain(
 }
 
 /**
+ * The chain's raw edges.
+ *
+ * Exposed so a caller can compute a SECOND analysis over the same graph -
+ * specifically the evidence plane's recency walk - without either holding a
+ * store handle or re-deriving the edges from a coverage result that has already
+ * thrown them away. Same gate as decisionChain: the edges are the graph.
+ */
+export async function accountRelations(
+  ctx: AccountContext,
+  accountId: string,
+): Promise<RuleResult<RelationEdge[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.graph.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listRelations(ctx.workspaceId, accountId));
+}
+
+/**
  * Record a relationship. Append-only: there is no edit path, because the edge
  * table has no UPDATE grant and a changed relationship is a new edge.
  */
