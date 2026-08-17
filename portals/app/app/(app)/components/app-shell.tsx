@@ -1,11 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ShellBrand, ShellIconButton, ShellThemeToggle, ShellUserMenu, useTheme } from "@vxture/design-system";
+import {
+  ShellBrand,
+  ShellIconButton,
+  ShellIconGroup,
+  ShellScopeButton,
+  ShellSearchBox,
+  ShellThemeToggle,
+  ShellUserMenu,
+  useTheme,
+} from "@vxture/design-system";
 import { Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
-import { DOMAIN_LABEL, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
+import { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 
 // yucer's application shell.
 //
@@ -50,6 +60,12 @@ export interface AppShellProps {
   readonly userName: string;
   readonly workspaceLabel: string;
   readonly upgradeHref: string;
+  /** Build identity, so a bug report can say which build it was seen on. */
+  readonly appVersion: string;
+  /** The tier itself, not its display label - null when unsubscribed. */
+  readonly tier: string | null;
+  /** What search can reach. Assembled on the server so it obeys both gates. */
+  readonly searchable: readonly { key: string; label: string; description?: string; href: string; group: "account" | "deal" }[];
   readonly children: ReactNode;
 }
 
@@ -122,35 +138,98 @@ export function AppShell({
   userName,
   workspaceLabel,
   upgradeHref,
+  appVersion,
+  tier,
+  searchable,
   children,
 }: AppShellProps) {
   const { mode, setMode } = useTheme();
+  const [query, setQuery] = useState("");
+  const router = useRouter();
+
+  // Filtered here rather than fetched: the set is one workspace's accounts and
+  // open deals, it already came down with the shell, and a round trip per
+  // keystroke would buy nothing. It is also already gated - the server built
+  // this list through the same services the pages use.
+  const q = query.trim().toLowerCase();
+  const hits = q === "" ? [] : searchable.filter((s) => s.label.toLowerCase().includes(q));
+  const searchGroups = q === "" ? [] : [
+    { key: "account", heading: HEADER_TEXT.groupAccounts, items: hits.filter((h) => h.group === "account") },
+    { key: "deal", heading: HEADER_TEXT.groupDeals, items: hits.filter((h) => h.group === "deal") },
+  ]
+    .filter((g) => g.items.length > 0)
+    .map((g) => ({
+      key: g.key,
+      heading: g.heading,
+      items: g.items.slice(0, 6).map((h) => ({
+        key: h.key,
+        label: h.label,
+        description: h.description,
+        onSelect: () => router.push(h.href),
+      })),
+    }));
 
   return (
     <div className="app">
+      {/* The template's own three-column grid, used as it was designed:
+          minmax(0,1fr) | minmax(240px,460px) | auto - identity, search,
+          actions. The 1fr on the first column IS the gap; nothing needs to be
+          pushed anywhere.
+          
+          What was wrong before was not .vxh-left (which the stylesheet does
+          define: inline-flex, gap 12px, min-width 0) but that there were only
+          three children and none of them was a search box - so the workspace
+          badge landed in the search column and the actions in the third, and
+          the header looked like a header with a stray badge in the middle. */}
       <header className="vxh">
         <div className="vxh-left">
-          <ShellBrand href="/" label={SHELL_TEXT.brandName} />
+          <ShellBrand
+            href="/"
+            label={SHELL_TEXT.brandName}
+            // The build identity, as part of the lockup rather than a line
+            // beside it: when someone reports a bug, the first question is
+            // which build they were looking at.
+            tag={HEADER_TEXT.version(appVersion)}
+          />
+          <span className="vxh-divider" aria-hidden />
+          {/* The workspace is the isolation key every row and every gate
+              decision is scoped by, and the tier is what decides which of them
+              can even be asked. A member with access to more than one needs
+              both before they read a single number. */}
+          <ShellScopeButton
+            icon="buildings"
+            label={workspaceLabel}
+            ariaLabel={HEADER_TEXT.subscriptionAria}
+            caret={false}
+          />
+          <StatusBadge tone={tier ? "brand" : "neutral"}>
+            {tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
+          </StatusBadge>
         </div>
 
-        {/* The workspace is the isolation key every row and every gate decision
-            is scoped by. Showing it is not decoration - a member with access to
-            more than one needs to know which one they are looking at before
-            they read a single number. */}
-        <div className="vxh-context">
-          <StatusBadge tone="neutral">{workspaceLabel}</StatusBadge>
-        </div>
+        <ShellSearchBox
+          query={query}
+          onQueryChange={setQuery}
+          groups={searchGroups}
+          labels={{
+            placeholder: HEADER_TEXT.searchPlaceholder,
+            empty: HEADER_TEXT.searchEmpty,
+            loading: HEADER_TEXT.searchLoading,
+          }}
+        />
 
         <div className="vxh-actions">
-          {admin.some((e) => e.state === "visible") ? (
-            <a href="/admin" aria-label={NAV_TEXT.groupAdmin} title={NAV_TEXT.groupAdmin}>
-              <ShellIconButton icon="settings" label={NAV_TEXT.groupAdmin} />
-            </a>
-          ) : null}
-          <ShellThemeToggle
-            currentTheme={mode === "dark" ? "dark" : "light"}
-            onThemeChange={(next) => setMode(next)}
-          />
+          <ShellIconGroup label={NAV_TEXT.ariaLabel}>
+            {admin.some((e) => e.state === "visible") ? (
+              <a href="/admin" aria-label={HEADER_TEXT.adminAria} title={HEADER_TEXT.adminAria}>
+                <ShellIconButton icon="settings" label={HEADER_TEXT.adminAria} />
+              </a>
+            ) : null}
+            <ShellThemeToggle
+              currentTheme={mode === "dark" ? "dark" : "light"}
+              onThemeChange={(next) => setMode(next)}
+            />
+          </ShellIconGroup>
           <ShellUserMenu user={{ displayName: userName, uniqueLine: workspaceLabel }} />
         </div>
       </header>

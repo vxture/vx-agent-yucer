@@ -4,6 +4,11 @@ import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
 import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES, WORK_NAV_ENTRIES } from "./lib/navigation";
 import { AppShell } from "./components/app-shell";
+import { serviceIdentity } from "@vxture/shared";
+import { BRAND } from "@yucer/shared/brand";
+import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
+import { listAccounts } from "../domains/account/service";
+import { listPipeline } from "../domains/pipeline/service";
 import { SHELL_TEXT } from "./lib/messages";
 
 // The product shell.
@@ -15,6 +20,23 @@ import { SHELL_TEXT } from "./lib/messages";
 //
 // The three lockout states are distinct on purpose and none of them renders the
 // shell: there is nothing to navigate.
+
+/**
+ * What to print beside the wordmark.
+ *
+ * serviceIdentity returns "unknown" for the sha when GIT_SHA is unset, which is
+ * every local run - and "vunknown" in a header reads like a defect rather than
+ * like a development build. Say "dev" when that is what it is; a version string
+ * that cannot be traced to a build should not pretend to be one.
+ */
+function buildLabel(): string {
+  const { gitSha } = serviceIdentity({
+    service: `${BRAND.productCode}-app`,
+    product: BRAND.productCode,
+  });
+  if (!gitSha || gitSha === "unknown") return process.env.APP_VERSION ?? "dev";
+  return gitSha.slice(0, 7);
+}
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await resolveAppSession();
@@ -79,10 +101,44 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const domains = nav.filter((e) => !workKeys.has(e.key) && !adminKeys.has(e.key));
   const admin = nav.filter((e) => adminKeys.has(e.key));
 
+  // What search can reach, assembled through the SAME services the pages use -
+  // so a member cannot find by name what a page would refuse to show them.
+  // Failures degrade to an empty list: search going quiet is a smaller harm
+  // than the shell refusing to render.
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+  const [accounts, deals] = await Promise.all([
+    listAccounts({ ...base, store: getAccountStore() }),
+    listPipeline({ ...base, store: getPipelineStore() }),
+  ]);
+  const searchable = [
+    ...(accounts.ok ? accounts.value : []).map((a) => ({
+      key: `a:${a.id}`,
+      label: a.name,
+      description: a.industry ?? undefined,
+      href: `/account/${a.id}`,
+      group: "account" as const,
+    })),
+    ...(deals.ok ? deals.value : []).map((d) => ({
+      key: `d:${d.id}`,
+      label: d.name,
+      description: d.accountName ?? d.opportunityNo,
+      href: `/pipeline/${d.id}`,
+      group: "deal" as const,
+    })),
+  ];
+
   return (
     <AppShell
       work={work}
       domains={domains}
+      appVersion={buildLabel()}
+      tier={session.entitlement.tier}
+      searchable={searchable}
       admin={admin}
       activeKey={null}
       userName={session.user.sub}

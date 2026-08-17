@@ -152,6 +152,20 @@ export const ASK_ABOUT_TEXT = {
   linkFromAccount: "就这个客户问助手",
 } as const;
 
+export const HEADER_TEXT = {
+  searchPlaceholder: "搜索客户、商机、跟进记录",
+  searchEmpty: "没有匹配的",
+  searchLoading: "检索中",
+  groupAccounts: "客户",
+  groupDeals: "商机",
+  subscription: (tier: string) => `${tier} 档`,
+  subscriptionNone: "未订阅",
+  subscriptionAria: "订阅档位",
+  version: (v: string) => `v${v}`,
+  adminAria: "管理",
+  userMenuOpen: "打开用户菜单",
+} as const;
+
 export const ADMIN_TEXT = {
   title: "管理",
   description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
