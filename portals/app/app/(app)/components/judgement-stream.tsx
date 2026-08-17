@@ -6,6 +6,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  FactList,
   Icon,
   PanelList,
   SectionHeader,
@@ -173,7 +174,15 @@ function JudgementRow({
 
   return (
     <div className="py-md">
-      <div className="flex min-w-0 items-start gap-md">
+      <div className="flex min-w-0 items-start gap-xl">
+        {/* The reading column is capped at a measure, not left to stretch. At
+            1920 the claim and its evidence ran ~900px wide - roughly double a
+            readable line - because flex-1 hands a text column all the width
+            there is. Width is for putting things BESIDE each other. */}
+        {/* flex-1 with NO max-width: the container must keep absorbing the
+            spare width, or the row packs left and leaves a dead strip at the
+            right edge. The measure is capped on the TEXT instead - that is
+            what needed a limit. */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-xs">
             {/* The dot labels the sentence. The card version painted the whole
@@ -185,17 +194,29 @@ function JudgementRow({
             <SourceMark source={j.source} />
           </div>
 
-          <p className="text-foreground mt-xs text-body-md">{j.claim}</p>
-
-          {/* Facts on one line, muted. They qualify the claim; they are not
-              four separate alarms. */}
-          <p className="text-muted-foreground mt-2xs text-body-sm">
-            {j.facts
-              .slice(0, 4)
-              .map((f) => HOME_TEXT.factInline(f.label, f.value))
-              .join(HOME_TEXT.factJoin)}
-          </p>
+          <p className="text-foreground mt-xs max-w-[62ch] text-body-md">{j.claim}</p>
         </div>
+
+        {/* The facts, BESIDE the claim rather than under it. This is what the
+            spare width is for: the row now says what it concluded and what it
+            counted at the same altitude, and the reader compares them by
+            looking across rather than by scrolling. Hidden on narrow screens,
+            where there is no width to spend and they fall back under the
+            claim.
+
+            Fixed width so the rail forms a COLUMN down the queue: facts you
+            cannot compare across rows are just decoration beside each one.
+
+            The breakpoint is 2xl, not lg. lg (1024px) measures the WINDOW, but
+            what has to fit is this column - and it already shares the window
+            with a 280px nav and a 450px agent panel. At 1180 the rail took its
+            224px, the claim was squeezed to a few dozen pixels, and the
+            sentence rendered one character per line. */}
+        {j.facts.length > 0 ? (
+          <div className="hidden w-56 shrink-0 2xl:block">
+            <FactList facts={j.facts.slice(0, 4).map((f) => ({ label: f.label, value: f.value, tone: f.tone }))} />
+          </div>
+        ) : null}
 
         <Button variant="ghost" size="sm" aria-expanded={open} onClick={onToggle}>
           {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
@@ -203,10 +224,19 @@ function JudgementRow({
         </Button>
       </div>
 
+      {j.facts.length > 0 ? (
+        <p className="text-muted-foreground mt-xs text-body-sm 2xl:hidden">
+          {j.facts
+            .slice(0, 4)
+            .map((f) => HOME_TEXT.factInline(f.label, f.value))
+            .join(HOME_TEXT.factJoin)}
+        </p>
+      ) : null}
+
       {open ? (
         // Indented to the claim it belongs to, so an open row reads as one
         // thing rather than as a new section.
-        <Stack gap="md" className="mt-md pl-md">
+        <Stack gap="md" className="mt-md max-w-[62ch] pl-md">
           {quotes.length > 0 ? (
             <section>
               <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(j.citations.length)} />
