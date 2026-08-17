@@ -168,7 +168,7 @@ export const ADOPTION_TEXT = {
   navLabel: "使用情况",
   title: "跟进记录的使用情况",
   description:
-    "这张表回答的不是「谁干得好」，而是「这套东西有没有被用起来」。二期（智能体基于历史做分析与判断）是否值得建，取决于这里的数字——证据表是空的时候，推理层只会产出自信的虚构。",
+    "这张表回答的不是「谁干得好」，而是「这套东西有没有被用起来」。二期（智能体基于历史做分析与判断）是否值得建，取决于这里的数字（判据见 ADR-012）——证据表是空的时候，推理层只会产出自信的虚构。",
   // The anti-scoreboard note is user-visible on purpose. If people believe it
   // is a ranking they will record for the ranking, and the number stops
   // measuring the thing it was built to measure.
@@ -188,7 +188,7 @@ export const ADOPTION_TEXT = {
   verdictAdoptedHint: "二期（主张与判断）的前置条件成立。",
   verdictNotAdopted: "未形成记录习惯",
   verdictNotAdoptedHint:
-    "按 ADR-006 的约定，此时不应建二期。要改的是采集路径本身，不是在空数据上加推理。",
+    "按 ADR-012 的判据，此时不应建二期。要改的是采集路径本身，不是在空数据上加推理。",
   verdictTooEarly: "观察期未满",
   verdictTooEarlyHint: "尚不构成裁定依据。一个能提前失败的判据，一定会被提前引用。",
   verdictNoData: "尚无开放商机",

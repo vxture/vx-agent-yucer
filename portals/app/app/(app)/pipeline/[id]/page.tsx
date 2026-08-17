@@ -81,7 +81,7 @@ export default async function OpportunityDetailPage({
   // The evidence plane, scoped to THIS deal.
   //
   // Capture lives here and not only on the account page for one reason: the
-  // kill criterion for ADR-006 stage 1 is confirmed interactions per
+  // kill criterion (ADR-012) counts confirmed interactions per
   // OPPORTUNITY per week, and a rep working a deal is on this page, not on the
   // customer record. A metric that measures a behaviour the interface does not
   // afford measures the interface, not the idea.

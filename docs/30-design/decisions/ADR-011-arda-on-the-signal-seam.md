@@ -8,7 +8,10 @@
 owner 于 2026-08-16 指示：由于各业务差异大，产品**可以自建数据库**，但**也需要对接
 arda**，实现共享和数据获取。
 
-本仓自建库这一半已经成立：5 个 schema、37 张表、DDL 为权威、Prisma lockstep 对账。
+本仓自建库这一半已经成立：**6 个产品 schema**（`yucer_core` / `yucer_gtm` /
+`yucer_pipeline` / `yucer_delivery` / `yucer_agent` 五个来自批次 1，`yucer_field`
+来自 ADR-006 的 `incr/0004`）加 3 个契约面 schema，共 37 张表，DDL 为权威、
+Prisma lockstep 对账。
 要裁定的是另一半——arda 以什么形态进来。
 
 同时，工作计划里挂着一条未决事项：**「信号外部数据源的选型与合规边界未定，是批次 5

@@ -167,10 +167,14 @@ export const DEMO_WAIVE_REASON = "对方组织调整,原对接人离任,该承�
  * Recent deal-level follow-ups.
  *
  * These exist so the adoption instrument has something to measure. They are
- * spread across four open deals and six weeks with coverage RISING, because
- * that is what partial adoption looks like in practice - a couple of people
- * start, the rest follow, and one deal (acc_demo_1's) stays dark the whole time
- * while sitting in negotiate. That dark deal is the point of the whole panel.
+ * spread across four open deals and six weeks, and one deal (acc_demo_1's)
+ * stays dark the whole time while sitting in negotiate. That dark deal is the
+ * point of the whole panel.
+ *
+ * The curve is NOT monotonically rising - an earlier version of this comment
+ * said it was, and the seeded dates do not produce that. It rises overall and
+ * dips, which is what partial adoption actually looks like. Do not "fix" the
+ * data to match a tidier sentence; the sentence was the thing that was wrong.
  */
 export const DEMO_DEAL_NOTES = {
   d2_a: "孙悦那边把报表优化排进了他们的迭代,让我们下周同步一次进度。",

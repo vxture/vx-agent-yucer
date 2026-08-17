@@ -1,6 +1,6 @@
-// The instrument for ADR-006's kill criterion.
+// The instrument for ADR-012's kill criterion.
 //
-// Stage 1 shipped with a condition attached: if the capture habit does not
+// ADR-012 attaches a condition to the evidence plane: if the capture habit does not
 // form, stages 2 and 3 (claims, judgements) are not built, because a reasoning
 // layer over an empty evidence table is a machine for producing confident
 // fiction. That condition was written down and then not measured, which makes
@@ -54,6 +54,15 @@ export interface CaptureWeek {
   /** Monday 00:00 UTC. */
   weekStart: Date;
   weekEnd: Date;
+  /**
+   * Has this week finished?
+   *
+   * The current week is shown and NEVER judged. Judging it means a Monday
+   * morning is scored as a week in which almost nothing was recorded, so the
+   * same unchanged data reads `adopted` on Sunday evening and `not_adopted`
+   * four hours later. A criterion that moves at midnight is not a criterion.
+   */
+  complete: boolean;
   /** Opportunities that were open at some point during the week. */
   opportunities: number;
   /** Interactions recorded against any of them, in the week. */
@@ -100,7 +109,10 @@ export function captureByWeek(
   const currentWeek = weekStartOf(now);
 
   const out: CaptureWeek[] = [];
-  for (let i = weeks - 1; i >= 0; i -= 1) {
+  // weeks COMPLETE weeks, plus the in-progress one. The current week is worth
+  // showing - a manager wants to know what has happened so far - but it is
+  // marked and excluded from the verdict.
+  for (let i = weeks; i >= 0; i -= 1) {
     const weekStart = new Date(currentWeek.getTime() - i * WEEK_MS);
     const weekEnd = new Date(weekStart.getTime() + WEEK_MS);
 
@@ -123,6 +135,7 @@ export function captureByWeek(
     out.push({
       weekStart,
       weekEnd,
+      complete: weekEnd.getTime() <= now.getTime(),
       opportunities: inScope.length,
       interactions: hits.length,
       covered: touched.size,
@@ -156,8 +169,20 @@ export interface CaptureAssessment {
   judgedCoverage: number | null;
   /** How many of the judged weeks actually had open opportunities. */
   judgedWeeks: number;
-  /** Weeks observed since the first recorded interaction. */
-  observedWeeks: number;
+  /**
+   * Whole weeks elapsed since the FIRST recorded interaction - how long this
+   * workspace has actually been observed.
+   *
+   * This is what gates `too_early`, and it has to be, because the alternative
+   * does not work: the previous version tested `weeks.length`, which
+   * captureByWeek makes a constant, so the guard was dead on every production
+   * call. A workspace switching the evidence plane on over deals that predate
+   * it read the stage-2 KILL verdict within days.
+   *
+   * Null when nothing has ever been recorded - there is no observation to
+   * measure the length of.
+   */
+  observedWeeks: number | null;
 }
 
 /**
@@ -170,22 +195,35 @@ export interface CaptureAssessment {
  */
 export function assessCapture(
   weeks: readonly CaptureWeek[],
-  criterion: typeof CAPTURE_CRITERION = CAPTURE_CRITERION,
+  options: { firstRecordedAt?: Date | null; now?: Date; criterion?: typeof CAPTURE_CRITERION } = {},
 ): CaptureAssessment {
-  const withDeals = weeks.filter((w) => w.opportunities > 0);
-  const observedWeeks = weeks.filter((w) => w.interactions > 0).length;
+  const criterion = options.criterion ?? CAPTURE_CRITERION;
+  const now = options.now ?? new Date();
 
+  // The in-progress week is shown, never scored. See CaptureWeek.complete.
+  const done = weeks.filter((w) => w.complete);
+
+  const observedWeeks =
+    options.firstRecordedAt == null
+      ? null
+      : Math.floor((now.getTime() - options.firstRecordedAt.getTime()) / WEEK_MS);
+
+  const withDeals = done.filter((w) => w.opportunities > 0);
   if (withDeals.length === 0) {
     return { verdict: "no_data", judgedCoverage: null, judgedWeeks: 0, observedWeeks };
   }
 
-  const judged = weeks.slice(-criterion.judgeWeeks).filter((w) => w.opportunities > 0);
+  const judged = done.slice(-criterion.judgeWeeks).filter((w) => w.opportunities > 0);
   const judgedCoverage =
     judged.length === 0
       ? null
       : judged.reduce((sum, w) => sum + (w.coverage ?? 0), 0) / judged.length;
 
-  if (weeks.length < criterion.windowWeeks || judged.length < criterion.judgeWeeks) {
+  // Not enough OBSERVATION yet. Gated on elapsed time since the first recorded
+  // interaction, never on how many rows the table happens to have - a table
+  // length is a property of this function's arguments, not of the world.
+  const tooYoung = observedWeeks === null || observedWeeks < criterion.windowWeeks;
+  if (tooYoung || judged.length < criterion.judgeWeeks) {
     return { verdict: "too_early", judgedCoverage, judgedWeeks: judged.length, observedWeeks };
   }
 

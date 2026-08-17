@@ -1,3 +1,4 @@
+import { can } from "../../authz/decide";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import type { PermCode } from "../../authz/catalog";
 import { getSignalStore } from "../../domains/shared/registry";
@@ -99,6 +100,25 @@ export async function runArdaSync(options: ArdaSyncOptions): Promise<ArdaSyncLed
 
     try {
       const entitlement = await resolver.resolve(ws.workspaceId);
+
+      // THE GATE RUNS BEFORE THE WORK, and that ordering is the fix.
+      //
+      // It used to live inside ingestSignals, which meant an unentitled
+      // workspace still had its watermark computed, an S2S token minted
+      // CARRYING ITS workspace_id, and its facts pulled from arda - all before
+      // anything checked whether this workspace had bought the feature. A gate
+      // that runs after the request has already been made is an accounting
+      // step, not a gate.
+      //
+      // It also fixes the ledger: the early return on an empty feed sat ahead
+      // of the old gate, so a below-tier workspace with a quiet feed was
+      // counted as neither skipped nor recorded - it simply vanished, which is
+      // the exact failure ADR-010 rule 5 exists to prevent.
+      const gate = can(holder, entitlement, "signal.feed.ingest", "data");
+      if (!gate.allowed) {
+        ledger.skipped += 1;
+        continue;
+      }
 
       // The watermark, derived rather than stored. Re-polled with a deliberate
       // overlap: a duplicate is caught by uidx_signal_ws_source_ref and

@@ -522,7 +522,7 @@ test("demo: acc_demo_4 shows the gap the two chain panels exist to separate", as
   // and ct_8 have no edge between them, a fixture batch 3 set up on purpose.
   assert.equal(analyzeChain(contacts, relations).economicBuyerUnreachable, true);
 
-  // But nobody has ever been in a recorded room with ct_7. Six meetings, all
+  // But nobody has ever been in a recorded room with ct_7. Seven meetings, all
   // with the coach - which is what a weekly-catch-up-with-my-friend deal looks
   // like from the outside.
   assert.ok(last.has("ct_8"), "the coach has recorded contact");

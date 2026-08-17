@@ -42,8 +42,17 @@ export interface ArdaDeps {
 
 /** signal.source_ref is VARCHAR(255) and is half the dedup key. */
 const MAX_SOURCE_REF = 255;
-/** signal.subject is VARCHAR(512). */
-const MAX_SUBJECT = 512;
+/**
+ * signal.subject is VARCHAR(255), not 512.
+ *
+ * The wrong number here was worse than a wrong number usually is. A 256-512
+ * character subject passed this guard, reached Postgres, and raised 22001 -
+ * which recordSignal does not absorb (it only swallows unique violations), and
+ * ingestSignals has no per-row catch. So ONE over-long subject aborted the
+ * whole page, the remaining facts were never inserted, and the watermark moved
+ * past them anyway. Silent permanent loss, reported as failed:1.
+ */
+const MAX_SUBJECT = 255;
 
 /**
  * Provisional. Every key here is a guess (liaison question 9), and the map is
@@ -161,7 +170,12 @@ export class HttpArdaFactSource implements ArdaFactSource {
         detectedAt,
         // accountId is deliberately absent. Resolution is yucer's half of the
         // table and arda never supplies it - a feed that could name the account
-        // could rewrite attribution, and account_id is frozen too.
+        // could rewrite attribution.
+        //
+        // This is enforced HERE and nowhere else: account_id is writable in the
+        // DDL (98_column_locks grants UPDATE on it, so a human can fix a bad
+        // match). The database will not stop an arda value from landing there,
+        // which is exactly why the adapter must not put one in.
       });
     }
 

@@ -7,7 +7,7 @@ import { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } from "../lib/messages";
 
 // Capture.
 //
-// This form is the whole bet. Stage 1 has a kill criterion measured in
+// This form is the whole bet. ADR-012 sets a kill criterion measured in
 // confirmed interactions per opportunity per week, and a form that feels like
 // admin will produce zero of them - that is how CRMs die, and it is not a
 // motivation problem. Entry costs the rep and the benefit lands on the manager.

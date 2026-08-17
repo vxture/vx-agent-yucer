@@ -12,6 +12,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 |----|-------|--------|--------|
 | TD-001 | 域业务规则尚无实现，仅有文档口径 | 2026-08-12 | closed 2026-08-15 |
 | TD-002 | 产品界面文案违反 source ASCII-only 规则 | 2026-08-15 | open |
+| TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -90,3 +91,29 @@ here. This register restarts its numbering for `yucer`.
 `CLAUDE.md` 明确规定「标准的缺口先在平台仓修，不得在产品仓内自造标准」，所以这里
 **只登记，不裁定**。在裁定之前，收敛状态维持不变：新增中文文本只能进入上表已列出的
 文件，不得散落到第三处。
+
+
+### TD-003 - 逾期承诺扫描的读后写竞态
+
+`runCommitmentSweep` 先读「已在队列中待裁决」的提案做去重，再写新提案。中间没有事务、
+没有锁，数据库也没有约束能兜底——`yucer_agent.agent_action` 上只有两条非唯一索引。
+
+**表现**：两次并发扫描各自读到空的待裁决集合，双双建单。两条逾期承诺变成四条提案，
+而**两份账目都报 `{overdue:2, proposed:2, alreadyQueued:0}`**，看起来都很干净。
+这是这次自审里唯一一条「两边都不报错」的缺陷。
+
+**修法**：一条部分唯一索引，写成增量：
+
+```sql
+CREATE UNIQUE INDEX uidx_agent_action_sweep_open
+  ON yucer_agent.agent_action (workspace_id, action_type, (payload->>'commitmentId'))
+  WHERE action_type = 'chase_overdue_commitment' AND status = 'proposed';
+```
+
+`WHERE status = 'proposed'` 这一半是关键：**全量唯一索引会让人工拒绝之后再也无法就
+同一条承诺重新提案**，而那正是这个作业最该做的事——承诺还欠着，就该再问一次。
+插入时把唯一冲突映射成 `alreadyQueued`。
+
+**为什么当前可以先记不修**：定时器在平台侧且唯一，暴露面是运维手动重复触发，不是
+系统自己制造的竞态。**不用应用层加锁顶替**——两个副本下那个锁是错的，会给出一种
+已经解决了的错觉。

@@ -67,16 +67,37 @@ test("unconfigured reports disabled, not failure", async () => {
   setArdaFactSource(null);
 });
 
-test("a below-tier workspace is counted as skipped, never silently omitted", async () => {
-  // ADR-010 rule 5: a sweep that cannot tell "not entitled" from "nothing to
-  // do" lets everyone assume the work happened.
+test("a below-tier workspace is skipped BEFORE arda is contacted", async () => {
+  // Two properties in one, and the second used to be false.
+  //
+  // ADR-010 rule 5: "not entitled" and "nothing to do" must be
+  // distinguishable, or everyone assumes the work happened.
+  //
+  // And the gate must run before the work. The earlier version of this test
+  // asserted `attempted === 3` - "the fetch still happened and is reported" -
+  // which was asserting the defect: an unentitled workspace had its watermark
+  // read, an S2S token minted carrying its workspace_id, and its facts pulled
+  // from a third party, all before anything checked whether it had bought the
+  // feature.
   freshStore();
   process.env.MOCK_TIER = "free";
   const src = new StubSource([batch(3)]);
   const led = await runArdaSync({ workspaces: WS, source: src, now: NOW });
   assert.equal(led.skipped, 1);
   assert.equal(led.recorded, 0);
-  assert.equal(led.attempted, 3, "the fetch still happened and is reported");
+  assert.equal(src.calls.length, 0, "arda was never called for an unentitled workspace");
+  assert.equal(led.attempted, 0);
+  delete process.env.MOCK_TIER;
+});
+
+test("an unentitled workspace with a quiet feed is still counted as skipped", async () => {
+  // The ledger hole. The early return on an empty feed sat AHEAD of the old
+  // gate, so this workspace was neither skipped nor recorded - it vanished from
+  // the ledger entirely, which reads exactly like a healthy quiet run.
+  freshStore();
+  process.env.MOCK_TIER = "free";
+  const led = await runArdaSync({ workspaces: WS, source: new StubSource([batch(0)]), now: NOW });
+  assert.equal(led.skipped, 1);
   delete process.env.MOCK_TIER;
 });
 
