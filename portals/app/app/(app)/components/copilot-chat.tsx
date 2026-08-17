@@ -8,7 +8,7 @@ import {
   PromptInput,
   StatusBadge,
 } from "@vxture/design-system";
-import { COPILOT_TEXT } from "../lib/messages";
+import { ASK_ABOUT_TEXT, COPILOT_TEXT } from "../lib/messages";
 
 // The copilot conversation.
 //
@@ -42,9 +42,17 @@ export interface CopilotChatProps {
   readonly initialMessages: readonly ChatMessageView[];
   readonly sessionId: string | null;
   readonly canAsk: boolean;
+  /**
+   * The account this conversation is anchored to, when it is anchored.
+   *
+   * Only the id and the name travel. Everything the model is told about the
+   * account is re-read on the server behind account.view.
+   */
+  readonly account?: { id: string; name: string };
   readonly onAsk: (
     question: string,
     sessionId: string | null,
+    accountId?: string,
   ) => Promise<
     { ok: true; sessionId: string; outcome: TurnOutcome } | { ok: false; error: string }
   >;
@@ -60,7 +68,7 @@ function explainError(code: string): string {
   return COPILOT_TEXT.errorGeneric;
 }
 
-export function CopilotChat({ initialMessages, sessionId, canAsk, onAsk }: CopilotChatProps) {
+export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk }: CopilotChatProps) {
   const [messages, setMessages] = useState<ChatMessageView[]>([...initialMessages]);
   const [session, setSession] = useState<string | null>(sessionId);
   const [draft, setDraft] = useState("");
@@ -81,7 +89,7 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, onAsk }: Copil
     setOutcome(null);
 
     startTransition(() => {
-      void onAsk(question, session).then((result) => {
+      void onAsk(question, session, account?.id).then((result) => {
         if (!result.ok) {
           setError(explainError(result.error));
           return;
@@ -95,6 +103,18 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, onAsk }: Copil
 
   return (
     <PageSection title={COPILOT_TEXT.title} description={COPILOT_TEXT.description}>
+      {/* Said out loud, because the difference between a grounded answer and a
+          general one is the difference between citing and guessing - and a
+          reader who cannot tell which they are getting will trust both alike. */}
+      {account ? (
+        <>
+          <StatusBadge tone="info" dot>
+            {ASK_ABOUT_TEXT.anchored(account.name)}
+          </StatusBadge>
+          <p>{ASK_ABOUT_TEXT.anchoredHint}</p>
+        </>
+      ) : null}
+
       {messages.length === 0 && !pending ? (
         <EmptyState title={COPILOT_TEXT.emptyTitle} description={COPILOT_TEXT.emptyDescription} />
       ) : (

@@ -22,6 +22,7 @@ import {
   type CloseInput,
   type Reliability,
 } from "./lib/commitment";
+import type { EvidenceGrounding } from "../../agent/orchestrator/prompt";
 import { analyzeChainRecency, type ChainRecency, type ContactNode, type RelationEdge } from "./lib/health";
 import {
   CAPTURE_CRITERION,
@@ -274,4 +275,67 @@ export async function chainRecency(
     lastContactAt: last.get(c.id) ?? null,
   }));
   return ok(analyzeChainRecency(contacts, relations, activity, options));
+}
+
+/**
+ * The evidence plane, shaped for a prompt.
+ *
+ * Assembled HERE, behind this domain's gate, rather than inside the copilot
+ * turn: a customer's recorded words reaching a model must pass the same
+ * account.view check as a person reading the same page. The copilot receives a
+ * finished, already-authorised block and never holds a handle to this store.
+ *
+ * The cap is declared in the result rather than applied silently. A model shown
+ * a window with no note that it is a window will reason as though it has the
+ * whole history, and "nothing happened before this" is exactly the confident
+ * fiction the evidence plane exists to stop.
+ */
+export async function evidenceForPrompt(
+  ctx: FieldContext,
+  accountId: string,
+  accountName: string,
+  options: { now?: Date; maxNotes?: number; opportunityId?: string } = {},
+): Promise<RuleResult<EvidenceGrounding>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const now = options.now ?? new Date();
+  const maxNotes = options.maxNotes ?? 12;
+  const scope = options.opportunityId
+    ? { accountId, opportunityId: options.opportunityId }
+    : { accountId };
+
+  const [all, commitments, lastContactAt] = await Promise.all([
+    ctx.store.listInteractions(ctx.workspaceId, scope),
+    ctx.store.listCommitments(ctx.workspaceId, scope),
+    ctx.store.lastContactAt(ctx.workspaceId, accountId),
+  ]);
+
+  const notes = all.slice(0, maxNotes);
+  return ok({
+    accountName,
+    notes: notes.map((n) => ({
+      id: n.id,
+      channel: n.channel,
+      occurredAt: n.occurredAt,
+      actorSub: n.actorSub,
+      rawNote: n.rawNote,
+    })),
+    omittedNotes: all.length - notes.length,
+    // Open promises first, and only the open ones carry a days-overdue number -
+    // a settled promise has no countdown and printing one would invite the
+    // model to treat a closed matter as outstanding.
+    promises: commitments.map((c) => ({
+      direction: c.direction,
+      statement: c.statement,
+      dueAt: c.dueAt,
+      status: c.status,
+      daysOverdue:
+        c.status === "open" ? Math.floor((now.getTime() - c.dueAt.getTime()) / 86_400_000) : null,
+    })),
+    daysSinceContact:
+      lastContactAt === null
+        ? null
+        : Math.floor((now.getTime() - lastContactAt.getTime()) / 86_400_000),
+  });
 }
