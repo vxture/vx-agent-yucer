@@ -4,6 +4,7 @@ import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
 import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES, WORK_NAV_ENTRIES } from "./lib/navigation";
 import { AppShell } from "./components/app-shell";
+import { SignIn } from "./components/sign-in";
 import { serviceIdentity } from "@vxture/shared";
 import { BRAND } from "@yucer/shared/brand";
 import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
@@ -41,14 +42,16 @@ function buildLabel(): string {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await resolveAppSession();
 
-  // No session: say so plainly. Auto-redirecting to the IdP from a layout would
-  // bounce anyone who merely opened a stale tab.
+  // No session: the product's front door, rendered in place. Auto-redirecting
+  // to the IdP from a layout would bounce anyone who merely opened a stale tab,
+  // and rendering here also KEEPS THE URL - so signing in returns to the page
+  // that was actually asked for rather than to the home screen.
+  //
+  // It sits on this layout rather than on a route so it covers every route:
+  // there is no address in the product that answers a session-less visitor
+  // with anything else.
   if (!session) {
-    return (
-      <ViewLayout>
-        <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />
-      </ViewLayout>
-    );
+    return <SignIn />;
   }
 
   const nav = resolveNavigation(session.authz, session.entitlement);

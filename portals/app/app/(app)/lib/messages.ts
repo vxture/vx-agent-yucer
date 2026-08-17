@@ -129,6 +129,25 @@ export const SHELL_TEXT = {
   loadFailed: "数据加载失败",
 } as const;
 
+/**
+ * The signed-out landing page.
+ *
+ * Separate from SHELL_TEXT's signedOutTitle/Description, which stay for any
+ * caller that still wants the terse inline version. This page is the product's
+ * front door - opened by typing the domain - so it introduces the product
+ * rather than only reporting a missing session.
+ */
+export const SIGNIN_TEXT = {
+  // No exclamation and no welcome: the reader did not choose to be here, they
+  // arrived and were stopped. Say what has to happen and why.
+  description: "登录以验证您的订阅并访问产品。",
+  cta: "登录",
+  // Promised because returnTo really does carry the path they asked for - a
+  // hint that were not true would be worse than no hint.
+  hint: "登录后将自动返回当前页面",
+  ariaLabel: "登录",
+} as const;
+
 export const NAV_TEXT = {
   ariaLabel: "能力域导航",
   // The sidebar groups are a business statement, not a tidy-up: D1-D7 are a
