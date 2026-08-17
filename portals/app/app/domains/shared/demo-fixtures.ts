@@ -162,3 +162,26 @@ export const DEMO_COMMITMENT_TEXT = {
 } as const;
 
 export const DEMO_WAIVE_REASON = "对方组织调整,原对接人离任,该承诺不再适用";
+
+/**
+ * Recent deal-level follow-ups.
+ *
+ * These exist so the adoption instrument has something to measure. They are
+ * spread across four open deals and six weeks with coverage RISING, because
+ * that is what partial adoption looks like in practice - a couple of people
+ * start, the rest follow, and one deal (acc_demo_1's) stays dark the whole time
+ * while sitting in negotiate. That dark deal is the point of the whole panel.
+ */
+export const DEMO_DEAL_NOTES = {
+  d2_a: "孙悦那边把报表优化排进了他们的迭代,让我们下周同步一次进度。",
+  d2_b: "过了一轮技术方案,IT 提了两个集成上的问题,已经记下来带回去。",
+  d2_c: "电话对了一下商务条款,分期方式他们内部还要走一轮。",
+  d6_a: "周总带我们看了两家门店的实际流程,和方案里的假设有出入,要改。",
+  d6_b: "把修改后的方案发过去了,周总说本周内给反馈。",
+  d6_c: "微信催了一次方案反馈,说还在走内部会签。",
+  d9_a: "价格谈到第三轮,对方采购坚持要再降,我们守住了服务范围。",
+  d9_b: "对方法务开始看合同了,这是个好信号。",
+  d9_c: "合同条款回来两条修改意见,都不涉及价格。",
+  d7_a: "第一次正式拜访,主要是摸情况。对方今年确实有预算。",
+  d7_b: "把行业案例发过去了,对方问了两个很具体的问题。",
+} as const;

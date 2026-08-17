@@ -73,6 +73,7 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
  */
 export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "admin", href: "/admin/members", icon: "settings", action: "admin.member.view" },
+  { key: "adoption", href: "/admin/adoption", icon: "chart-bar", action: "admin.adoption.view" },
 ];
 
 export const NAV_ENTRIES: readonly NavEntry[] = [...DOMAIN_NAV_ENTRIES, ...ADMIN_NAV_ENTRIES];

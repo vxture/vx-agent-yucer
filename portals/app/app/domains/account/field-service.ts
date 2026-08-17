@@ -22,6 +22,15 @@ import {
   type CloseInput,
   type Reliability,
 } from "./lib/commitment";
+import {
+  CAPTURE_CRITERION,
+  assessCapture,
+  captureByWeek,
+  dealsTouched,
+  type CaptureAssessment,
+  type CaptureWeek,
+  type OpportunityWindow,
+} from "./lib/capture-metric";
 import type {
   CommitmentFilter,
   CommitmentRecord,
@@ -190,5 +199,46 @@ export async function relationshipEvidence(
     lastContactAt,
     reliability: reliability(commitments, now),
     interactionCount: interactions.length,
+  });
+}
+
+// --- Whether any of this is being used --------------------------------------
+
+/**
+ * The adoption reading behind ADR-006's kill criterion.
+ *
+ * Takes the opportunity windows as an argument rather than reaching for the
+ * pipeline store: this service owns the evidence plane, and a function that
+ * held handles to two domains' stores would be the first place the one-object-
+ * one-owning-domain rule started leaking. The caller joins them.
+ *
+ * Gated on admin.manage, not on a sales permission. It is a statement about the
+ * workspace's use of the product, and the honest audience for it is whoever
+ * decides whether to keep paying for it.
+ */
+export async function captureAdoption(
+  ctx: FieldContext,
+  opportunities: readonly OpportunityWindow[],
+  options: { now?: Date; weeks?: number } = {},
+): Promise<
+  RuleResult<{ weeks: CaptureWeek[]; assessment: CaptureAssessment; touched: string[] }>
+> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.adoption.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const interactions = await ctx.store.listInteractions(ctx.workspaceId, {});
+  const weeks = captureByWeek(interactions, opportunities, {
+    now: options.now,
+    weeks: options.weeks ?? CAPTURE_CRITERION.windowWeeks,
+  });
+  const from = weeks[0]?.weekStart ?? new Date(0);
+  const to = weeks[weeks.length - 1]?.weekEnd ?? new Date(0);
+  return ok({
+    weeks,
+    assessment: assessCapture(weeks),
+    // Named deals, not just percentages. Computed over the whole window rather
+    // than per week: a deal touched once in six weeks is not dark, it is slow,
+    // and conflating the two would send a manager after the wrong thing.
+    touched: [...dealsTouched(interactions, from, to)],
   });
 }

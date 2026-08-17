@@ -71,6 +71,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   delivery: "项目落地",
   copilot: "销售助手",
   admin: "成员与角色",
+  adoption: "使用情况",
 };
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -137,6 +138,40 @@ export const NAV_TEXT = {
   requiresTier: (tier: string) => `需要 ${tier} 档位`,
   notSubscribed: "当前工作区尚未订阅本产品",
   upgradeCta: "升级以解锁更多能力",
+} as const;
+
+export const ADOPTION_TEXT = {
+  navLabel: "使用情况",
+  title: "跟进记录的使用情况",
+  description:
+    "这张表回答的不是「谁干得好」，而是「这套东西有没有被用起来」。二期（智能体基于历史做分析与判断）是否值得建，取决于这里的数字——证据表是空的时候，推理层只会产出自信的虚构。",
+  // The anti-scoreboard note is user-visible on purpose. If people believe it
+  // is a ranking they will record for the ranking, and the number stops
+  // measuring the thing it was built to measure.
+  notAScoreboard: "刻意不按人拆分。一旦这张表能当成绩效看，大家就会为它而记录，它也就不再测量它要测的东西。",
+  coverage: "覆盖率",
+  coverageHint: "当周有开放商机中，至少被记了一笔跟进的比例",
+  rate: "密度",
+  rateHint: "当周跟进笔数 / 当周开放商机数，仅作参照",
+  week: "周",
+  openDeals: "开放商机",
+  touched: "被跟进",
+  notes: "跟进笔数",
+  noDeals: "无开放商机",
+  criterion: (pct: number, weeks: number) =>
+    `判据：最近 ${weeks} 周的覆盖率均值达到 ${pct}%。以最近两周而非六周均值判定——问的是习惯现在在不在，不是第一周有没有热情。`,
+  verdictAdopted: "已形成记录习惯",
+  verdictAdoptedHint: "二期（主张与判断）的前置条件成立。",
+  verdictNotAdopted: "未形成记录习惯",
+  verdictNotAdoptedHint:
+    "按 ADR-006 的约定，此时不应建二期。要改的是采集路径本身，不是在空数据上加推理。",
+  verdictTooEarly: "观察期未满",
+  verdictTooEarlyHint: "尚不构成裁定依据。一个能提前失败的判据，一定会被提前引用。",
+  verdictNoData: "尚无开放商机",
+  verdictNoDataHint: "没有可记录的对象，这不是失败。",
+  darkDeals: "无近期跟进的开放商机",
+  darkDealsHint: "这些商机在观察窗口内一笔跟进都没有。停在推进阶段的那几条最值得先看。",
+  darkDealsEmpty: "所有开放商机在窗口内都有跟进记录。",
 } as const;
 
 export const PIPELINE_TEXT = {
@@ -220,6 +255,9 @@ export const FIELD_TEXT = {
   commitDueIn: (n: number) => `还有 ${n} 天`,
 
   evidenceTitle: "关系证据",
+  evidenceDescription:
+    "全部来自已记录的事实，不是评分。「对方答应的三件事错了两件」是能行动的句子，一个 0-100 的健康分不是。",
+  evidenceDaysAgo: (n: number) => `${n} 天前`,
   evidenceLastContact: "最近接触",
   evidenceNever: "从未接触",
   evidenceInteractions: "跟进条数",

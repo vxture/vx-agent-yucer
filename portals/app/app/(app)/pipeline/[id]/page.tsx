@@ -18,13 +18,19 @@ import {
 } from "../../lib/messages";
 import { FORECAST_TONE, STAGE_TONE, formatMoney, probabilityDisplay } from "../../lib/view-model";
 import { can } from "../../../authz/decide";
-import { getPipelineStore } from "../../../domains/shared/registry";
+import { getFieldStore, getPipelineStore } from "../../../domains/shared/registry";
 import { getOpportunityDetail, stageHistory } from "../../../domains/pipeline/service";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
 import { StageControl } from "../../components/stage-control";
 import { StageJourney } from "../../components/stage-journey";
+import { RecordFollowUp } from "../../components/record-follow-up";
+import { InteractionTimeline } from "../../components/interaction-timeline";
+import { CommitmentList } from "../../components/commitment-list";
+import { listCommitments, listInteractions } from "../../../domains/account/field-service";
+import { CHANNEL_LABEL } from "../../lib/messages";
+import { addCommitment, recordFollowUp, settleCommitment } from "../../account/field-actions";
 import { advanceOpportunityStage, repriceOpportunity } from "../stage-action";
 
 // D6 opportunity detail: where the deal is, how it got there, and where it goes.
@@ -71,6 +77,26 @@ export default async function OpportunityDetailPage({
   const opportunity = detail.value;
 
   const history = await stageHistory(ctx, id);
+
+  // The evidence plane, scoped to THIS deal.
+  //
+  // Capture lives here and not only on the account page for one reason: the
+  // kill criterion for ADR-006 stage 1 is confirmed interactions per
+  // OPPORTUNITY per week, and a rep working a deal is on this page, not on the
+  // customer record. A metric that measures a behaviour the interface does not
+  // afford measures the interface, not the idea.
+  const fieldCtx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getFieldStore(),
+  };
+  const [interactions, commitments] = await Promise.all([
+    listInteractions(fieldCtx, { opportunityId: id, limit: 50 }),
+    listCommitments(fieldCtx, { opportunityId: id }),
+  ]);
+  const canRecord = can(fieldCtx.holder, fieldCtx.entitlement, "account.upsert", "data").allowed;
 
   const probability = probabilityDisplay(opportunity);
   const metrics: MetricGridItem[] = [
@@ -143,6 +169,17 @@ export default async function OpportunityDetailPage({
         </div>
       </PageSection>
 
+      {/* Capture sits ABOVE the controls that move the deal. Recording what
+          happened is what a rep came here to do after a meeting; deciding the
+          stage is a conclusion drawn from it, and putting the conclusion first
+          is how a stage gets advanced on optimism. */}
+      <RecordFollowUp
+        accountId={opportunity.accountId}
+        opportunityId={id}
+        canRecord={canRecord}
+        onRecord={recordFollowUp}
+      />
+
       <DealTerms
         opportunityId={id}
         stage={opportunity.stage}
@@ -168,6 +205,27 @@ export default async function OpportunityDetailPage({
         canAdvance={can(session.authz, session.entitlement, "pipeline.opportunity.advance", "ui").allowed}
         onAdvance={advanceOpportunityStage}
       />
+
+      {commitments.ok ? (
+        <CommitmentList
+          accountId={opportunity.accountId}
+          opportunityId={id}
+          items={commitments.value}
+          evidence={(interactions.ok ? interactions.value : []).map((i) => ({
+            id: i.id,
+            label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+          }))}
+          canWrite={canRecord}
+          onCreate={addCommitment}
+          onSettle={settleCommitment}
+        />
+      ) : null}
+
+      {/* Deliberately adjacent to the stage journey. One says what we recorded
+          about the deal's state, the other says what actually happened - and a
+          deal that advanced two stages with nothing beside it in the timeline
+          is the single most useful thing this page can show a manager. */}
+      {interactions.ok ? <InteractionTimeline items={interactions.value} /> : null}
 
       {history.ok ? (
         <StageJourney events={history.value} />

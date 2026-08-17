@@ -19,6 +19,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
     id: "opp_1",
     workspaceId: WS,
     opportunityNo: "OPP-1",
+  createdAt: new Date("2026-01-01T00:00:00Z"),
     name: "Deal",
     accountId: "acc_1",
     planId: null,

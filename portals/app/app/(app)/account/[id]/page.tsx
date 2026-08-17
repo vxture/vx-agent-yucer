@@ -9,8 +9,13 @@ import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
+import { RelationshipEvidencePanel } from "../../components/relationship-evidence";
 import { RecordFollowUp } from "../../components/record-follow-up";
-import { listCommitments, listInteractions } from "../../../domains/account/field-service";
+import {
+  listCommitments,
+  listInteractions,
+  relationshipEvidence,
+} from "../../../domains/account/field-service";
 import { CHANNEL_LABEL } from "../../lib/messages";
 import { linkAccountContacts, recomputeAccountHealth } from "../actions";
 import { addCommitment, recordFollowUp, settleCommitment } from "../field-actions";
@@ -56,9 +61,11 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const canWrite = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
 
   const fieldCtx = { ...ctx, store: getFieldStore() };
-  const [interactions, commitments] = await Promise.all([
+  const now = new Date();
+  const [interactions, commitments, evidence] = await Promise.all([
     listInteractions(fieldCtx, { accountId: id, limit: 50 }),
     listCommitments(fieldCtx, { accountId: id }),
+    relationshipEvidence(fieldCtx, id, now),
   ]);
 
   const [health, chain] = await Promise.all([
@@ -90,6 +97,10 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           onRecompute={recomputeAccountHealth}
         />
       ) : null}
+
+      {/* What the recorded facts say about this relationship, above the health
+          score they are meant to explain. */}
+      {evidence.ok ? <RelationshipEvidencePanel evidence={evidence.value} now={now} /> : null}
 
       {/* Capture first, above everything derived. The page a rep opens after a
           meeting should let them dump it before it asks them to read anything. */}
