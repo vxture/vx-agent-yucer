@@ -1,11 +1,9 @@
 import { EmptyState } from "@vxture/design-ui";
 import { resolveAppSession } from "./lib/session";
 import { HOME_TEXT, SHELL_TEXT } from "./lib/messages";
-import { can } from "../authz/decide";
 import { getFieldStore } from "../domains/shared/registry";
 import { cachedFeed } from "./lib/board";
 import { JudgementWorkspace } from "./components/judgement-workspace";
-import { recordFollowUp } from "./account/field-actions";
 
 // The home screen.
 //
@@ -59,7 +57,6 @@ export default async function HomePage({
   // "nothing is wrong" apart from "nothing has been recorded, so nothing can be
   // concluded" - they look identical on a screen and mean opposite things.
   const recent = await getFieldStore().listInteractions(session.workspaceId, { limit: 1 });
-  const canRecord = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
 
   return (
     <JudgementWorkspace
@@ -68,18 +65,6 @@ export default async function HomePage({
       scanned={feed.value.scanned}
       scope={feed.value.scope}
       hasAnyRecord={recent.length > 0}
-      canRecord={canRecord}
-      onRecord={async (text: string) => {
-        "use server";
-        // No account id: an unanchored note is still worth keeping, and
-        // demanding one at capture time is the friction the kill criterion is
-        // measuring.
-        return recordFollowUp("", {
-          channel: "other",
-          occurredAt: new Date().toISOString(),
-          rawNote: text,
-        });
-      }}
     />
   );
 }

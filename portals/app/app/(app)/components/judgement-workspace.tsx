@@ -7,13 +7,11 @@ import {
   Button,
   Card,
   EmptyState,
-  FactList,
+  Icon,
   SectionHeader,
   SegmentedControl,
-  SplitViewLayout,
   Stack,
   StatusBadge,
-  Textarea,
 } from "@vxture/design-ui";
 import { HOME_TEXT } from "../lib/messages";
 import type { Judgement, Urgency } from "../../domains/judgement/lib/judgement";
@@ -51,8 +49,6 @@ export interface JudgementWorkspaceProps {
   readonly scanned: number;
   readonly scope: "mine" | "all";
   readonly hasAnyRecord: boolean;
-  readonly canRecord: boolean;
-  readonly onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 type Tier = Urgency | "all";
@@ -75,152 +71,105 @@ export function JudgementWorkspace({
   scanned,
   scope,
   hasAnyRecord,
-  canRecord,
-  onRecord,
 }: JudgementWorkspaceProps) {
   const [tier, setTier] = useState<Tier>("all");
-  const [selectedId, setSelectedId] = useState<string>(judgements[0]?.id ?? "");
+  // One id for the whole stack, so opening a row closes the previous one
+  // without any row needing to know the others exist.
+  const [openId, setOpenId] = useState<string>(judgements[0]?.id ?? "");
 
   const shown = tier === "all" ? judgements : judgements.filter((j) => j.urgency === tier);
-  // Falls back to the first visible row rather than to nothing: filtering to a
-  // tier the selected row is not in must not blank the case pane.
-  const selected = shown.find((j) => j.id === selectedId) ?? shown[0];
 
   return (
-    <Stack gap="lg">
-      <SplitViewLayout
-        header={
-          <Stack gap="md">
-            <div className="flex flex-wrap items-end justify-between gap-md">
-              <div className="min-w-0">
-                {/* The agent's own opening sentence, sized like a statement.
-                    The screen used to open with the label "今日判断" over a grey
-                    line of provenance, which is a drawer tag on a filing
-                    cabinet. */}
-                <h1 className="text-heading-2 text-foreground">
-                  {counts.today > 0 ? HOME_TEXT.lead(counts.today) : HOME_TEXT.leadNone}
-                </h1>
-                <p className="text-muted-foreground mt-2xs text-body-sm">
-                  {HOME_TEXT.leadSub(scanned, judgements.length)}
-                </p>
-              </div>
+    // ONE card. The headline used to float above the content as its own block,
+    // which read as a page title bolted onto an unrelated container - the
+    // sentence is the agent speaking about exactly what is inside.
+    <Card className="overflow-hidden">
+      <div className="border-border flex flex-wrap items-end justify-between gap-md border-b px-lg py-md">
+        <div className="min-w-0">
+          <h1 className="text-heading-2 text-foreground">
+            {counts.today > 0 ? HOME_TEXT.lead(counts.today) : HOME_TEXT.leadNone}
+          </h1>
+          <p className="text-muted-foreground mt-2xs text-body-sm">
+            {HOME_TEXT.leadSub(scanned, judgements.length)}
+          </p>
+        </div>
 
-              <Stack gap="xs" className="flex-row flex-wrap items-center">
-                <SegmentedControl
-                  ariaLabel={HOME_TEXT.scopeLabel}
-                  value={scope}
-                  onChange={(v) => {
-                    // Both branches explicit: a bare URL would re-enter the
-                    // ownership derivation and could land somewhere other than
-                    // where the reader just clicked.
-                    window.location.search = v === "all" ? "?scope=all" : "?scope=mine";
-                  }}
-                  items={[
-                    { value: "mine", label: HOME_TEXT.scopeMine },
-                    { value: "all", label: HOME_TEXT.scopeAll },
-                  ]}
-                />
-                <SegmentedControl
-                  ariaLabel={HOME_TEXT.urgencyLabel}
-                  value={tier}
-                  onChange={(v: Tier) => setTier(v)}
-                  items={[
-                    { value: "all", label: HOME_TEXT.urgencyAll, count: judgements.length },
-                    { value: "today", label: HOME_TEXT.urgencyToday, count: counts.today },
-                    { value: "week", label: HOME_TEXT.urgencyWeek, count: counts.week },
-                    { value: "watch", label: HOME_TEXT.urgencyWatch, count: counts.watch },
-                  ]}
-                />
-              </Stack>
-            </div>
-          </Stack>
-        }
-        navigation={
-          shown.length === 0 ? null : (
-            <nav aria-label={HOME_TEXT.queueLabel}>
-              <Stack gap="xs">
-                {shown.map((j) => (
-                  <QueueRow
-                    key={j.id}
-                    judgement={j}
-                    selected={selected?.id === j.id}
-                    onSelect={() => setSelectedId(j.id)}
-                  />
-                ))}
-              </Stack>
-            </nav>
-          )
-        }
-        content={
-          selected ? (
-            <JudgementCase judgement={selected} />
-          ) : (
-            <EmptyState
-              title={HOME_TEXT.emptyTitle}
-              // Two different silences. "Nothing is wrong" and "nothing has
-              // been recorded, so nothing can be concluded" look identical on a
-              // screen and mean opposite things.
-              description={hasAnyRecord ? HOME_TEXT.emptyDescription : HOME_TEXT.emptyNoRecords}
+        <Stack gap="xs" className="flex-row flex-wrap items-center">
+          <SegmentedControl
+            ariaLabel={HOME_TEXT.scopeLabel}
+            value={scope}
+            onChange={(v) => {
+              // Both branches explicit: a bare URL would re-enter the ownership
+              // derivation and could land somewhere other than where the reader
+              // just clicked.
+              window.location.search = v === "all" ? "?scope=all" : "?scope=mine";
+            }}
+            items={[
+              { value: "mine", label: HOME_TEXT.scopeMine },
+              { value: "all", label: HOME_TEXT.scopeAll },
+            ]}
+          />
+          <SegmentedControl
+            ariaLabel={HOME_TEXT.urgencyLabel}
+            value={tier}
+            onChange={(v: Tier) => setTier(v)}
+            items={[
+              { value: "all", label: HOME_TEXT.urgencyAll, count: judgements.length },
+              { value: "today", label: HOME_TEXT.urgencyToday, count: counts.today },
+              { value: "week", label: HOME_TEXT.urgencyWeek, count: counts.week },
+              { value: "watch", label: HOME_TEXT.urgencyWatch, count: counts.watch },
+            ]}
+          />
+        </Stack>
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="p-lg">
+          <EmptyState
+            title={HOME_TEXT.emptyTitle}
+            // Two different silences. "Nothing is wrong" and "nothing has been
+            // recorded, so nothing can be concluded" look identical on a screen
+            // and mean opposite things.
+            description={hasAnyRecord ? HOME_TEXT.emptyDescription : HOME_TEXT.emptyNoRecords}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col">
+          {shown.map((j) => (
+            <Engagement
+              key={j.id}
+              judgement={j}
+              open={openId === j.id}
+              onToggle={() => setOpenId(openId === j.id ? "" : j.id)}
             />
-          )
-        }
-      />
-
-      {canRecord ? <CaptureBar onRecord={onRecord} /> : null}
-    </Stack>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 
 /**
- * One line in the queue.
+ * One engagement, stacked.
  *
- * Deliberately terse: the subject, the tier and how it was reached. A queue row
- * exists to be chosen between, not to be read - the claim it stands for is two
- * lines at most, and everything that justifies it lives in the case pane.
+ * THE COLLAPSED STATE IS THE POINT. It keeps three rows - who and how urgent,
+ * what the agent concluded, and the numbers behind it, then the orders - so the
+ * common decisions never require opening anything. Expanding is for CHECKING
+ * the claim, not for acting on it, and separating those two is what lets a
+ * closed row still be useful.
+ *
+ * A split view put the queue and the case at the same altitude and made a
+ * reader hold two places at once. Stacked, there is only ever one place.
  */
-function QueueRow({
+function Engagement({
   judgement: j,
-  selected,
-  onSelect,
+  open,
+  onToggle,
 }: {
   judgement: Judgement;
-  selected: boolean;
-  onSelect: () => void;
+  open: boolean;
+  onToggle: () => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={selected}
-      className={[
-        "w-full rounded-md px-sm py-sm text-left transition-colors",
-        selected ? "bg-accent" : "hover:bg-accent/50",
-      ].join(" ")}
-    >
-      <div className="flex items-center gap-xs">
-        <StatusBadge tone={TIER_TONE[j.urgency]} dot>
-          {TIER_LABEL[j.urgency]}
-        </StatusBadge>
-        <SourceMark source={j.source} />
-      </div>
-      {/* The SUBJECT leads. A queue is chosen between, and you choose by which
-          customer it is about - repeating the full claim here just prints the
-          case pane's headline twice. */}
-      <p className="text-foreground mt-xs truncate text-label-md">{j.subjectName}</p>
-      <p className="text-muted-foreground line-clamp-2 text-body-sm">{j.claim}</p>
-    </button>
-  );
-}
-
-/**
- * The selected judgement, in full.
- *
- * This pane is the widest thing on the screen and the evidence is why. Every
- * downstream claim cites these rows, so what a reader can open must be what was
- * cited - which means room to show all of it, unabridged, rather than the "one
- * quote plus a count" the list version needed to stay a manageable height.
- */
-function JudgementCase({ judgement: j }: { judgement: Judgement }) {
   const href =
     j.subjectType === "account"
       ? `/account/${j.subjectId}`
@@ -229,85 +178,58 @@ function JudgementCase({ judgement: j }: { judgement: Judgement }) {
         : "/admin/adoption";
 
   return (
-    // Capped. The pane is the widest thing on the screen because the evidence
-    // needs room, but "as wide as available" is not a measure - unbounded, the
-    // facts rail ended up 400px from the claim it qualifies.
-    <Stack gap="lg" className="max-w-[1024px]">
-      <div className="flex flex-wrap items-start gap-xl">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-xs">
-            <StatusBadge tone={TIER_TONE[j.urgency]} dot>
-              {TIER_LABEL[j.urgency]}
-            </StatusBadge>
-            <SourceMark source={j.source} />
-            {j.tags.map((t, i) =>
-              // "neutral" is not a status, it is the ABSENCE of one, and
-              // StatusBadge draws the tone's icon unconditionally - neutral's is
-              // a dash, which put a leading "-" on every descriptive chip.
-              t.tone && t.tone !== "neutral" ? (
-                <StatusBadge key={i} tone={t.tone}>
-                  {t.label ? `${t.label} ${t.value}` : t.value}
-                </StatusBadge>
-              ) : (
-                <Badge key={i} variant="outline">
-                  {t.label ? `${t.label} ${t.value}` : t.value}
-                </Badge>
-              ),
-            )}
-          </div>
-          {/* Capped at a measure. A claim allowed to run the full width of this
-              pane would set a line roughly twice as long as anyone reads
-              comfortably. */}
-          <p className="text-foreground mt-sm max-w-[54ch] text-heading-4">{j.claim}</p>
+    <article
+      className={[
+        "border-border border-b px-lg py-md last:border-b-0",
+        open ? "bg-accent/40" : "",
+      ].join(" ")}
+    >
+      {/* Row 1: who, how urgent, how it was reached - and the numbers. */}
+      <div className="flex flex-wrap items-center gap-xs">
+        <StatusBadge tone={TIER_TONE[j.urgency]} dot>
+          {TIER_LABEL[j.urgency]}
+        </StatusBadge>
+        <SourceMark source={j.source} />
+        <span className="text-foreground text-label-md">{j.subjectName}</span>
+
+        <div className="ml-auto flex flex-wrap items-baseline gap-md">
+          {j.facts.slice(0, 4).map((f, i) => (
+            <span key={i} className="flex items-baseline gap-2xs">
+              <b
+                className={[
+                  "text-label-lg tabular-nums",
+                  f.tone === "danger"
+                    ? "text-destructive"
+                    : f.tone === "warning"
+                      ? "text-warning"
+                      : f.tone === "success"
+                        ? "text-success"
+                        : "text-foreground",
+                ].join(" ")}
+              >
+                {f.value}
+              </b>
+              <span className="text-muted-foreground text-xs">{f.label}</span>
+            </span>
+          ))}
         </div>
 
-        {j.facts.length > 0 ? (
-          <div className="w-56 shrink-0">
-            <FactList
-              facts={j.facts.map((f) => ({ label: f.label, value: f.value, tone: f.tone }))}
-            />
-          </div>
-        ) : null}
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={onToggle}>
+          {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
+          <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+        </Button>
       </div>
 
-      {j.citations.length > 0 ? (
-        <section>
-          <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(j.citations.length)} />
-          <Stack gap="sm" className="mt-sm">
-            {j.citations.map((c, i) => (
-              // Verbatim, and all of them. A tidied summary here would make
-              // provenance a story rather than a record.
-              <blockquote key={i} className="border-border max-w-[62ch] border-l-2 pl-sm">
-                {c.who ? (
-                  <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
-                    {c.who}
-                  </cite>
-                ) : null}
-                <p className="text-muted-foreground text-body-sm leading-relaxed">{c.text}</p>
-              </blockquote>
-            ))}
-          </Stack>
-        </section>
-      ) : null}
+      {/* Row 2: what it concluded. */}
+      <p className="text-foreground mt-xs max-w-[62ch] text-body-md">{j.claim}</p>
 
-      {j.rule ? (
-        <section>
-          <SectionHeader level={4} title={HOME_TEXT.secRule} />
-          {/* Shown so a reader can disagree with the arithmetic rather than
-              with the conclusion. A rule that hides its condition is an opinion
-              wearing a formula's clothes. */}
-          <code className="bg-muted text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-xs">
-            {j.rule}
-          </code>
-        </section>
-      ) : null}
-
-      <Stack gap="xs" className="flex-row flex-wrap items-center">
+      {/* Row 3: the orders. Available WITHOUT expanding, because opening the
+          subject or asking for an analysis are the ordinary moves - only
+          checking the reasoning needs the drawer. */}
+      <Stack gap="xs" className="mt-sm flex-row flex-wrap items-center">
         <Button size="sm" asChild>
           <Link href={href}>{HOME_TEXT.openSubject}</Link>
         </Button>
-        {/* Analyses are deliberately quieter than the decision: one looks again,
-            the other files a proposal a person must sign. */}
         {j.analyses.map((a) => (
           <Button key={a} size="sm" variant="outline">
             {a === "risk"
@@ -324,50 +246,44 @@ function JudgementCase({ judgement: j }: { judgement: Judgement }) {
           <span className="text-muted-foreground ml-auto text-xs">{HOME_TEXT.analysisHint}</span>
         ) : null}
       </Stack>
-    </Stack>
-  );
-}
 
-/**
- * Capture, as a bar.
- *
- * It belongs to no single judgement, which is why it is not inside the case
- * pane. It also does not deserve a standing column: writing a note is a
- * one-second act, and the panel it used to live in could never be filled.
- */
-function CaptureBar({
-  onRecord,
-}: {
-  onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
-}) {
-  const [text, setText] = useState("");
-  const [pendingSave, start] = useTransition();
+      {open ? (
+        <Stack gap="sm" className="mt-md">
+          {j.citations.length > 0 ? (
+            <section className="bg-muted/40 border-border rounded-md border p-sm">
+              <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(j.citations.length)} />
+              <Stack gap="sm" className="mt-xs">
+                {j.citations.map((c, i) => (
+                  // Verbatim, and all of them. Everything downstream cites these
+                  // rows, so what a reader can open must be what was cited - a
+                  // tidied summary would make provenance a story.
+                  <blockquote key={i} className="border-primary/40 max-w-[62ch] border-l-2 pl-sm">
+                    {c.who ? (
+                      <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
+                        {c.who}
+                      </cite>
+                    ) : null}
+                    <p className="text-muted-foreground text-body-sm leading-relaxed">{c.text}</p>
+                  </blockquote>
+                ))}
+              </Stack>
+            </section>
+          ) : null}
 
-  return (
-    <Card className="p-sm">
-      <div className="flex items-end gap-sm">
-        <Textarea
-          className="min-h-11 flex-1 resize-none"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={HOME_TEXT.agentPlaceholder}
-          disabled={pendingSave}
-        />
-        <Button
-          disabled={pendingSave || text.trim() === "" || !onRecord}
-          onClick={() =>
-            start(() => {
-              void onRecord?.(text).then((r) => {
-                if (r.ok) setText("");
-              });
-            })
-          }
-        >
-          {HOME_TEXT.agentSend}
-        </Button>
-      </div>
-      <p className="text-muted-foreground mt-xs text-xs">{HOME_TEXT.agentHelp}</p>
-    </Card>
+          {j.rule ? (
+            <section className="bg-muted/40 border-border rounded-md border p-sm">
+              <SectionHeader level={4} title={HOME_TEXT.secRule} />
+              {/* Shown so a reader can disagree with the arithmetic rather than
+                  with the conclusion. A rule that hides its condition is an
+                  opinion wearing a formula's clothes. */}
+              <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-xs">
+                {j.rule}
+              </code>
+            </section>
+          ) : null}
+        </Stack>
+      ) : null}
+    </article>
   );
 }
 

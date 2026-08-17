@@ -3,7 +3,9 @@ import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
-import { boardSections } from "./lib/board";
+import { boardSections, agentPanel } from "./lib/board";
+import { can } from "../authz/decide";
+import { recordFollowUp } from "./account/field-actions";
 import { AppShell } from "./components/app-shell";
 import { SignIn } from "./components/sign-in";
 import { serviceIdentity } from "@vxture/shared";
@@ -104,6 +106,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // setup rather than work, and it lives as a header icon.
   const admin = nav.filter((e) => e.key === "admin" || e.key === "adoption");
 
+  const canRecord = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
+  const agent = await agentPanel(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+    },
+    new Date(),
+  );
+
   const board = await boardSections({
     workspaceId: session.workspaceId,
     sub: session.user.sub,
@@ -145,6 +158,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AppShell
       board={board}
+      agent={agent}
+      canRecord={canRecord}
+      onRecord={async (text: string) => {
+        "use server";
+        // No account id: an unanchored note is still worth keeping, and
+        // demanding one at capture time is the friction ADR-012's kill
+        // criterion is measuring.
+        return recordFollowUp("", {
+          channel: "other",
+          occurredAt: new Date().toISOString(),
+          rawNote: text,
+        });
+      }}
       appVersion={buildLabel()}
       tier={session.entitlement.tier}
       searchable={searchable}
