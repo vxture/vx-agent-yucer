@@ -308,7 +308,7 @@ test("overdue is open-and-past-due, and the definition is shared", async () => {
   assert.equal(isOverdue({ status: "met", dueAt: days(-1) }, NOW), false);
 });
 
-// --- The adoption reading (ADR-006's kill criterion) -------------------------
+// --- The adoption reading (ADR-012's kill criterion) -------------------------
 
 test("adoption is admin-gated, not a sales capability", async () => {
   // A rep must not be able to read whether their team is being measured, and a
@@ -367,4 +367,107 @@ test("adoption withholds a verdict rather than failing early on a short window",
   // a criterion that can fail early is one that gets quoted early.
   const r = unwrap(await captureAdoption(c, opps, { now: NOW, weeks: 2 }));
   assert.equal(r.assessment.verdict, "too_early");
+});
+
+// --- The adoption path, exercised the way the page exercises it -------------
+//
+// Every defect the self-review found in the capture metric was invisible to the
+// existing tests for one reason: they called the pure function with arguments
+// the page never supplies. These call captureAdoption the way
+// (app)/admin/adoption/page.tsx does - options.now only - so a defect in the
+// wiring cannot hide behind a correct function.
+
+test("a day-one workspace is never told the stage-2 kill verdict", async () => {
+  // The reproduction. Open deals that predate the evidence plane, one call
+  // recorded yesterday. Before the fix this read `not_adopted` - the kill
+  // verdict - three days into use, because the too_early guard tested the
+  // length of an array the caller controls.
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  const opps = [
+    { id: "o1", createdAt: days(-120), closedAt: null },
+    { id: "o2", createdAt: days(-120), closedAt: null },
+    { id: "o3", createdAt: days(-120), closedAt: null },
+    { id: "o4", createdAt: days(-120), closedAt: null },
+  ];
+  await recordInteraction(c, {
+    accountId: ACC,
+    opportunityId: "o1",
+    channel: "call",
+    occurredAt: days(-1),
+    rawNote: "spoke to them",
+  });
+
+  const r = unwrap(await captureAdoption(c, opps, { now: NOW }));
+  assert.equal(r.assessment.verdict, "too_early");
+  assert.equal(r.assessment.observedWeeks, 0, "observed for less than a week");
+});
+
+test("nothing recorded at all is too_early, not a failure", async () => {
+  // What EVERY workspace looks like the day the evidence plane ships.
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  const r = unwrap(
+    await captureAdoption(c, [{ id: "o1", createdAt: days(-120), closedAt: null }], { now: NOW }),
+  );
+  assert.equal(r.assessment.verdict, "too_early");
+  assert.equal(r.assessment.observedWeeks, null);
+});
+
+test("the verdict does not move when a week rolls over", async () => {
+  // Identical data, four hours apart across a Monday boundary. Before the fix
+  // the new week's empty partial counted at full weight and flipped the
+  // verdict. A criterion that changes at midnight is not a criterion.
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  const opps = [{ id: "o1", createdAt: days(-200), closedAt: null }];
+
+  // Touched every week for ten weeks.
+  for (let w = 0; w < 10; w += 1) {
+    await recordInteraction(c, {
+      accountId: ACC,
+      opportunityId: "o1",
+      channel: "call",
+      occurredAt: days(-3 - w * 7),
+      rawNote: `week ${w}`,
+    });
+  }
+
+  // NOW is a Sunday 00:00 UTC; +1 day crosses into the next week.
+  const before = unwrap(await captureAdoption(c, opps, { now: NOW }));
+  const after = unwrap(await captureAdoption(c, opps, { now: days(1) }));
+  assert.equal(before.assessment.verdict, after.assessment.verdict);
+  assert.equal(before.assessment.judgedCoverage, after.assessment.judgedCoverage);
+});
+
+test("closing an untouched deal does not retroactively improve past weeks", async () => {
+  // The page's denominator must be historical. This is the assertion the old
+  // test made against the pure function while the page passed only open deals,
+  // so the product had the defect the suite claimed to forbid.
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  await recordInteraction(c, {
+    accountId: ACC,
+    opportunityId: "kept",
+    channel: "call",
+    occurredAt: days(-10),
+    rawNote: "one touch",
+  });
+
+  const bothOpen = [
+    { id: "kept", createdAt: days(-200), closedAt: null },
+    { id: "dark", createdAt: days(-200), closedAt: null },
+  ];
+  const darkClosed = [
+    { id: "kept", createdAt: days(-200), closedAt: null },
+    // Closed AFTER the week in question, so that week's denominator is unchanged.
+    { id: "dark", createdAt: days(-200), closedAt: days(-1) },
+  ];
+
+  const a = unwrap(await captureAdoption(c, bothOpen, { now: NOW }));
+  const b = unwrap(await captureAdoption(c, darkClosed, { now: NOW }));
+  const weekOf = (r: typeof a, days: number) =>
+    r.weeks.find((w) => w.weekStart.getTime() <= NOW.getTime() - days * 86_400_000 &&
+      w.weekEnd.getTime() > NOW.getTime() - days * 86_400_000);
+  assert.equal(weekOf(a, 10)?.coverage, weekOf(b, 10)?.coverage, "the past week is unchanged");
 });

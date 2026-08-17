@@ -207,7 +207,7 @@ export async function relationshipEvidence(
 // --- Whether any of this is being used --------------------------------------
 
 /**
- * The adoption reading behind ADR-006's kill criterion.
+ * The adoption reading behind ADR-012's kill criterion.
  *
  * Takes the opportunity windows as an argument rather than reaching for the
  * pipeline store: this service owns the evidence plane, and a function that
@@ -235,9 +235,22 @@ export async function captureAdoption(
   });
   const from = weeks[0]?.weekStart ?? new Date(0);
   const to = weeks[weeks.length - 1]?.weekEnd ?? new Date(0);
+
+  // How long this workspace has actually been observed, taken from the oldest
+  // recorded interaction rather than from the size of the weeks array. The
+  // array's length is a property of this function's arguments; the question
+  // "have we watched long enough to judge" is a property of the world.
+  let firstRecordedAt: Date | null = null;
+  for (const i of interactions) {
+    if (i.opportunityId === null) continue;
+    if (firstRecordedAt === null || i.occurredAt.getTime() < firstRecordedAt.getTime()) {
+      firstRecordedAt = i.occurredAt;
+    }
+  }
+
   return ok({
     weeks,
-    assessment: assessCapture(weeks),
+    assessment: assessCapture(weeks, { firstRecordedAt, now: options.now }),
     // Named deals, not just percentages. Computed over the whole window rather
     // than per week: a deal touched once in six weeks is not dark, it is slow,
     // and conflating the two would send a manager after the wrong thing.

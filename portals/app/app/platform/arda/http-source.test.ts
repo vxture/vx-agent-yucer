@@ -61,9 +61,16 @@ test("two distinct over-length ids do not collapse into one source_ref", () => {
 });
 
 test("an over-length subject is dropped rather than cut to fit", () => {
-  const r = source.map({ facts: [fact({ subject: "s".repeat(513) })] }, FETCHED);
+  // 256, not 513. The column is VARCHAR(255), and the old fixture only ever
+  // exercised a length so far past the real limit that a wrong constant could
+  // not fail it - which is exactly what happened: the guard said 512, so
+  // everything between 256 and 512 sailed through to a Postgres 22001 that
+  // aborted the whole batch.
+  const r = source.map({ facts: [fact({ subject: "s".repeat(256) })] }, FETCHED);
   assert.equal(r.signals.length, 0);
   assert.equal(r.unmapped, 1);
+
+  assert.equal(source.map({ facts: [fact({ subject: "s".repeat(255) })] }, FETCHED).signals.length, 1);
 });
 
 test("detectedAt comes from arda's true-as-of, never from fetch time", () => {

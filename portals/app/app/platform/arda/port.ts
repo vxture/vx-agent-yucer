@@ -27,6 +27,13 @@ import type { NewSignal } from "../../domains/signal/store";
 //   yucer owns the RESOLUTION half absolutely - account_id, score, status.
 //   arda never supplies them. Anything carrying a yucer business number is
 //   yucer's and never leaves.
+//
+//   Note the asymmetry: the resolution columns are WRITABLE - 98_column_locks
+//   grants UPDATE (account_id, score, status, updated_at) on signal, precisely
+//   so a human or a later rule can correct a match. Only the evidence half is
+//   frozen. "arda does not supply them" is a product rule enforced by this
+//   adapter, not a database lock, and saying otherwise would send the next
+//   reader looking for a constraint that is not there.
 
 /** The literal that marks a signal as arda-sourced. It is also half the dedup
  * key (uidx_signal_ws_source_ref) and the whole of the kill switch's WHERE

@@ -384,7 +384,7 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       person("pt_9", "int_demo_d2b", "ct_6"),
       person("pt_10", "int_demo_d2c", "ct_6"),
 
-      // acc_demo_4: six recorded contacts, every one with the coach.
+      // acc_demo_4: SEVEN recorded contacts, every one with the coach.
       person("pt_11", "int_demo_a4a", "ct_8"),
       person("pt_12", "int_demo_d6a", "ct_8"),
       person("pt_13", "int_demo_d6b", "ct_8"),

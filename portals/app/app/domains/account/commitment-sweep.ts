@@ -1,9 +1,9 @@
 import type { PermCode } from "../../authz/catalog";
+import { can } from "../../authz/decide";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getCopilotStore, getFieldStore } from "../shared/registry";
 import { recordProposals } from "../copilot/service";
 import type { NewProposal } from "../copilot/store";
-import { isOverdue } from "./lib/commitment";
 import type { CommitmentRecord } from "./field-store";
 
 // The overdue-commitment sweep (ADR-010 + ADR-006).
@@ -82,15 +82,42 @@ export async function runCommitmentSweep(options: SweepOptions): Promise<SweepLe
 
   for (const ws of options.workspaces) {
     try {
+      // Entitlement first, for the same reason as the arda sync: the early
+      // return on "nothing overdue" used to sit ahead of the gate, so a
+      // workspace that could not use the feature was counted as neither
+      // skipped nor swept whenever its commitments happened to be in order.
+      // A quiet workspace and an unentitled one read identically, which is what
+      // ADR-010 rule 5 forbids.
+      const entitlement = await resolver.resolve(ws.workspaceId);
+      const gate = can(holder, entitlement, "copilot.suggest", "data");
+      if (!gate.allowed) {
+        ledger.skipped += 1;
+        continue;
+      }
+
       const overdue = await field.listCommitments(ws.workspaceId, { overdueAt: now });
       ledger.overdue += overdue.length;
       if (overdue.length === 0) continue;
 
-      const entitlement = await resolver.resolve(ws.workspaceId);
-
       // Dedup against what is already waiting for a human. A daily sweep that
       // re-proposed the same broken promise every morning would bury the queue
       // in a week, and a queue nobody can face is a queue nobody reads.
+      //
+      // READ-THEN-WRITE, WITH NO LOCK. Two sweeps running at once both read an
+      // empty pending set and both file, so every proposal appears twice and
+      // BOTH ledgers report a clean run. There is no database constraint to
+      // catch it: agent_action carries only non-unique indexes.
+      //
+      // Not fixed here, because the fix is a partial unique index on
+      // (workspace_id, action_type, payload->>'commitmentId') WHERE
+      // status='proposed' - an increment, and one whose WHERE clause is
+      // load-bearing: a full unique index would permanently block re-proposing
+      // after a human rejects. Registered as TD-003 rather than papered over
+      // with an application-level lock that would be wrong under two replicas.
+      //
+      // Tolerable meanwhile because the timer is external and single: the
+      // exposure is an operator firing the route twice, not a race the system
+      // creates for itself.
       //
       // Matched on the commitment id in the payload rather than on the subject,
       // because one account can carry several overdue promises and they are
@@ -164,12 +191,4 @@ function proposalFor(c: CommitmentRecord, now: Date): NewProposal {
     // very sure, and the queue sorts and filters on this field.
     confidence: null,
   };
-}
-
-/**
- * Whether a commitment is in scope for the sweep. Exported so the rule the job
- * uses and the rule the UI shows are the same one.
- */
-export function sweepable(c: CommitmentRecord, now: Date): boolean {
-  return isOverdue({ status: c.status, dueAt: c.dueAt }, now);
 }

@@ -44,11 +44,15 @@ test("coverage counts deals touched, not notes written", () => {
   const notes = Array.from({ length: 20 }, () => note("o1", 1));
 
   const weeks = captureByWeek(notes, opps, { now: NOW, weeks: 1 });
-  assert.equal(weeks[0].opportunities, 4);
-  assert.equal(weeks[0].interactions, 20);
-  assert.equal(weeks[0].covered, 1);
-  assert.equal(weeks[0].coverage, 0.25);
-  assert.equal(weeks[0].rate, 5);
+  // The notes are 1 day old, so they land in the CURRENT week - the last entry,
+  // which captureByWeek now appends in-progress and flags as such.
+  const current = weeks[weeks.length - 1];
+  assert.equal(current.complete, false, "the current week is never scored");
+  assert.equal(current.opportunities, 4);
+  assert.equal(current.interactions, 20);
+  assert.equal(current.covered, 1);
+  assert.equal(current.coverage, 0.25);
+  assert.equal(current.rate, 5);
 });
 
 test("account-level notes do not count - the criterion is per opportunity", () => {
@@ -72,8 +76,8 @@ test("the denominator is historical, so past weeks do not improve when a deal cl
 test("a deal created after a week ended does not count for that week", () => {
   const opps = [opp("new", 2)];
   const weeks = captureByWeek([], opps, { now: NOW, weeks: 3 });
-  assert.equal(weeks[0].opportunities, 0);
-  assert.equal(weeks[2].opportunities, 1);
+  assert.equal(weeks[0].opportunities, 0, "oldest week predates the deal");
+  assert.equal(weeks[weeks.length - 1].opportunities, 1, "this week has it");
 });
 
 test("a week with no open deals is null coverage, not zero", () => {
@@ -82,14 +86,18 @@ test("a week with no open deals is null coverage, not zero", () => {
   const weeks = captureByWeek([], [], { now: NOW, weeks: 2 });
   assert.equal(weeks[0].coverage, null);
   assert.equal(weeks[0].rate, null);
+  assert.ok(weeks.every((w, i) => w.complete === (i < weeks.length - 1)),
+    "every week but the last is complete");
 });
 
 test("an interaction outside its deal's week is not counted in it", () => {
   const opps = [opp("o1", 60)];
   // 9 days ago falls in an earlier week than 1 day ago.
   const weeks = captureByWeek([note("o1", 9)], opps, { now: NOW, weeks: 2 });
-  assert.equal(weeks[1].interactions, 0, "this week saw nothing");
-  assert.equal(weeks[0].interactions, 1, "last week saw it");
+  const current = weeks[weeks.length - 1];
+  const lastWeek = weeks[weeks.length - 2];
+  assert.equal(current.interactions, 0, "this week saw nothing");
+  assert.equal(lastWeek.interactions, 1, "last week saw it");
 });
 
 test("an interaction on an unknown opportunity id is ignored, not counted", () => {
@@ -99,10 +107,17 @@ test("an interaction on an unknown opportunity id is ignored, not counted", () =
 
 // --- the criterion ---------------------------------------------------------
 
+// Hand-built weeks, for the assessment rules ONLY.
+//
+// Every one of these is marked complete, because assessCapture must never see
+// the in-progress week - and a helper that could produce one would let a test
+// pass while the production path fails, which is precisely what happened to the
+// first version of this file.
 function weeksAt(coverages: readonly (number | null)[]) {
   return coverages.map((c, i) => ({
     weekStart: new Date(NOW.getTime() - (coverages.length - 1 - i) * WEEK),
     weekEnd: new Date(NOW.getTime() - (coverages.length - 2 - i) * WEEK),
+    complete: true,
     opportunities: c === null ? 0 : 10,
     interactions: c === null ? 0 : Math.round(c * 10),
     covered: c === null ? 0 : Math.round(c * 10),
@@ -111,33 +126,72 @@ function weeksAt(coverages: readonly (number | null)[]) {
   }));
 }
 
-test("the verdict is too_early before the window closes, never not_adopted", () => {
-  // Three weeks of terrible coverage. It must NOT read as failure - a criterion
-  // that can fail early is one that gets quoted early, and stage 2 dies on
-  // three weeks of data.
-  const a = assessCapture(weeksAt([0, 0, 0]));
+/** Observed long enough to be judged - the common case for these tests. */
+const OLD_ENOUGH = { firstRecordedAt: new Date(NOW.getTime() - 30 * WEEK), now: NOW };
+
+test("the verdict is too_early until the workspace has been OBSERVED long enough", () => {
+  // Terrible coverage, but the evidence plane has only been on for two weeks.
+  // It must NOT read as failure - a criterion that can fail early is one that
+  // gets quoted early, and stage 2 dies on two weeks of data.
+  //
+  // This is gated on elapsed observation, not on how many rows the caller
+  // handed in. The first version tested the array length, which captureByWeek
+  // makes a constant, so the guard never fired in production at all and a
+  // workspace that switched the plane on over pre-existing deals read the KILL
+  // verdict within days.
+  const young = assessCapture(weeksAt([0, 0, 0, 0, 0, 0]), {
+    firstRecordedAt: new Date(NOW.getTime() - 2 * WEEK),
+    now: NOW,
+  });
+  assert.equal(young.verdict, "too_early");
+  assert.equal(young.observedWeeks, 2);
+
+  // Same rows, same zeros - but observed long enough. Now it is a verdict.
+  const grown = assessCapture(weeksAt([0, 0, 0, 0, 0, 0]), OLD_ENOUGH);
+  assert.equal(grown.verdict, "not_adopted");
+});
+
+test("nothing ever recorded is never a failing verdict", () => {
+  // observedWeeks is null, not zero: there is no observation whose length could
+  // be measured, and zero would read as "we watched and saw nothing".
+  const a = assessCapture(weeksAt([0, 0, 0, 0, 0, 0]), { firstRecordedAt: null, now: NOW });
   assert.equal(a.verdict, "too_early");
+  assert.equal(a.observedWeeks, null);
+});
+
+test("the in-progress week is excluded from the verdict, so it cannot flip at midnight", () => {
+  // The defect this prevents, exactly: identical data read `adopted` on a
+  // Sunday evening and `not_adopted` four hours later, because the new week had
+  // begun and its almost-empty partial counted at full weight.
+  const done = weeksAt([0.8, 0.8, 0.8, 0.8, 0.8, 0.8]);
+  const withPartial = [
+    ...done,
+    { ...done[0], weekStart: NOW, weekEnd: new Date(NOW.getTime() + WEEK), complete: false, coverage: 0, covered: 0, interactions: 0 },
+  ];
+  assert.equal(assessCapture(done, OLD_ENOUGH).verdict, "adopted");
+  assert.equal(assessCapture(withPartial, OLD_ENOUGH).verdict, "adopted", "the partial week changed nothing");
+  assert.equal(assessCapture(withPartial, OLD_ENOUGH).judgedCoverage, 0.8);
 });
 
 test("adoption is judged on the last two weeks, not the six-week average", () => {
   // A strong start and a dead finish averages above the bar but means the habit
   // did not survive contact with a normal week.
-  const a = assessCapture(weeksAt([1, 1, 1, 1, 0.1, 0.1]));
+  const a = assessCapture(weeksAt([1, 1, 1, 1, 0.1, 0.1]), OLD_ENOUGH);
   assert.equal(a.verdict, "not_adopted");
   assert.ok(a.judgedCoverage !== null && a.judgedCoverage < CAPTURE_CRITERION.minCoverage);
 
   // And the mirror: a slow start that ends strong is adoption.
-  const b = assessCapture(weeksAt([0, 0, 0.1, 0.3, 0.6, 0.7]));
+  const b = assessCapture(weeksAt([0, 0, 0.1, 0.3, 0.6, 0.7]), OLD_ENOUGH);
   assert.equal(b.verdict, "adopted");
 });
 
 test("exactly at the threshold counts as adopted", () => {
-  const a = assessCapture(weeksAt([0, 0, 0, 0, 0.5, 0.5]));
+  const a = assessCapture(weeksAt([0, 0, 0, 0, 0.5, 0.5]), OLD_ENOUGH);
   assert.equal(a.verdict, "adopted");
 });
 
 test("no open deals at all is no_data, which is not a failure", () => {
-  const a = assessCapture(weeksAt([null, null, null, null, null, null]));
+  const a = assessCapture(weeksAt([null, null, null, null, null, null]), OLD_ENOUGH);
   assert.equal(a.verdict, "no_data");
   assert.equal(a.judgedCoverage, null);
 });
@@ -145,7 +199,7 @@ test("no open deals at all is no_data, which is not a failure", () => {
 test("weeks with no deals are excluded from the judged average rather than scored zero", () => {
   // Final two weeks: one had no deals, one had full coverage. The average must
   // be 1, not 0.5 - the empty week is not evidence of anything.
-  const a = assessCapture(weeksAt([0.6, 0.6, 0.6, 0.6, null, 1]));
+  const a = assessCapture(weeksAt([0.6, 0.6, 0.6, 0.6, null, 1]), OLD_ENOUGH);
   assert.equal(a.judgedWeeks, 1);
   assert.equal(a.judgedCoverage, 1);
   // But one judged week is fewer than the criterion demands, so it withholds.

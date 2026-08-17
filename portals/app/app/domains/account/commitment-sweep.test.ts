@@ -177,14 +177,19 @@ test("the sweep subject holds exactly one permission", async () => {
   assert.deepEqual([...SWEEP_PERMISSIONS], ["copilot.use"]);
 });
 
-test("a workspace whose tier refuses proposals is counted as skipped", async () => {
-  // ADR-010 rule 5. Not an error, not a silent success.
+test("a workspace whose tier refuses proposals is skipped before any work", async () => {
+  // ADR-010 rule 5. Not an error, not a silent success - and now also not
+  // after the fact: the early return on "nothing overdue" used to sit ahead of
+  // the gate, so an unentitled workspace with tidy commitments was counted as
+  // neither skipped nor swept.
   const { copilot } = setup([commitment()]);
   process.env.MOCK_TIER = "free";
   const led = await runCommitmentSweep({ workspaces: WS, now: NOW });
-  assert.equal(led.overdue, 1, "the scan happened and is reported");
   assert.equal(led.skipped, 1);
   assert.equal(led.proposed, 0);
+  // Nothing was scanned either: the gate now runs before the work, so an
+  // unentitled workspace does not have its commitment table read at all.
+  assert.equal(led.overdue, 0);
   assert.equal((await copilot.listProposals("ws_1", {})).length, 0);
   teardown();
 });

@@ -17,7 +17,7 @@ import { listPipeline } from "../../../domains/pipeline/service";
 import type { OpportunityRecord } from "../../../domains/pipeline/store";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 
-// The instrument behind ADR-006's kill criterion.
+// The instrument behind ADR-012's kill criterion.
 //
 // Stage 1 was shipped with a condition attached - if the capture habit does not
 // form, the reasoning stages are not built - and a condition nobody can read is
@@ -44,7 +44,18 @@ export default async function AdoptionPage() {
   };
 
   const now = new Date();
-  const opportunities = await listPipeline({ ...base, store: getPipelineStore() });
+  // includeClosed, and it is load-bearing rather than tidy.
+  //
+  // listPipeline defaults to open-only, so without this the denominator is
+  // "deals open RIGHT NOW" - and closing an untouched deal would retroactively
+  // raise every past week's coverage, quietly carrying the workspace over the
+  // 50% bar without anyone recording anything. capture-metric has a test
+  // asserting the denominator is historical; it passed because it called the
+  // pure function with closed deals the page never supplied.
+  const opportunities = await listPipeline(
+    { ...base, store: getPipelineStore() },
+    { includeClosed: true },
+  );
   if (!opportunities.ok) {
     return (
       <EmptyState
