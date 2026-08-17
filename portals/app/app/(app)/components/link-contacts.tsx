@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Label, NativeSelect, StatusBadge } from "@vxture/design-system";
+import { Button, Label, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { RELATION_TYPES } from "../../domains/account/lib/health";
 import type { ContactNode } from "../../domains/account/lib/health";
 import { DECISION_ROLE_LABEL, RELATION_ERROR, RELATION_TEXT, RELATION_TYPE_LABEL } from "../lib/messages";

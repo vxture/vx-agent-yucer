@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, NativeSelect, StatusBadge } from "@vxture/design-system";
+import { Button, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { LIFECYCLE_ERROR, LIFECYCLE_TEXT } from "../lib/messages";
 
 // Moving a plan or a campaign through its lifecycle.

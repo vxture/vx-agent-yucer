@@ -1,13 +1,5 @@
 import Link from "next/link";
-import {
-  EmptyState,
-  MetricGrid,
-  PageHeader,
-  PageSection,
-  PageStack,
-  StatusBadge,
-  type MetricGridItem,
-} from "@vxture/design-system";
+import { EmptyState, MetricGrid, Section, StatusBadge, ViewHeader, ViewLayout, type MetricGridItem } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import {
   FORECAST_LABEL,
@@ -133,13 +125,13 @@ export default async function OpportunityDetailPage({
   ];
 
   return (
-    <PageStack>
-      <PageHeader
-        eyebrow={opportunity.opportunityNo}
+    <ViewLayout>
+      <ViewHeader
+        secondary={opportunity.opportunityNo}
         icon="table"
         title={opportunity.name}
         description={opportunity.accountName ?? opportunity.accountId}
-        actions={
+        action={
           <>
             <StatusBadge tone={STAGE_TONE[opportunity.stage as Stage]} dot>
               {STAGE_LABEL[opportunity.stage as Stage] ?? opportunity.stage}
@@ -153,7 +145,7 @@ export default async function OpportunityDetailPage({
 
       <MetricGrid items={metrics} />
 
-      <PageSection title={OPPORTUNITY_TEXT.account} description={OPPORTUNITY_TEXT.attributionFrozen}>
+      <Section title={OPPORTUNITY_TEXT.account} description={OPPORTUNITY_TEXT.attributionFrozen}>
         <Link href={`/account/${opportunity.accountId}`}>
           {opportunity.accountName ?? opportunity.accountId}
         </Link>
@@ -167,7 +159,7 @@ export default async function OpportunityDetailPage({
             <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.noAttribution}</StatusBadge>
           )}
         </div>
-      </PageSection>
+      </Section>
 
       {/* Capture sits ABOVE the controls that move the deal. Recording what
           happened is what a rep came here to do after a meeting; deciding the
@@ -235,6 +227,6 @@ export default async function OpportunityDetailPage({
           description={history.violations.map((v) => v.message).join("; ")}
         />
       )}
-    </PageStack>
+    </ViewLayout>
   );
 }

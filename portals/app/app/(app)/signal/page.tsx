@@ -1,4 +1,4 @@
-import { EmptyState, PageStack } from "@vxture/design-system";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT } from "../lib/messages";
 import { getSignalStore } from "../../domains/shared/registry";
@@ -46,7 +46,7 @@ export default async function SignalPage() {
   }
 
   return (
-    <PageStack>
+    <ViewLayout>
       <SignalInbox
         signals={result.value}
       // Both flags come from the SAME gate the server action re-runs. Naming
@@ -64,6 +64,6 @@ export default async function SignalPage() {
         canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}
         onAct={actOnLead}
       />
-    </PageStack>
+    </ViewLayout>
   );
 }

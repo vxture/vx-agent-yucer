@@ -1,4 +1,4 @@
-import { EmptyState, PageSection, StatusBadge } from "@vxture/design-system";
+import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { RECENCY_TEXT } from "../lib/messages";
 import type { ChainRecency } from "../../domains/account/lib/health";
 import type { ContactNode } from "../../domains/account/lib/health";
@@ -28,7 +28,7 @@ export function ChainRecencyPanel({ recency, nameOf }: ChainRecencyProps) {
   }
 
   return (
-    <PageSection title={RECENCY_TEXT.title} description={RECENCY_TEXT.description}>
+    <Section title={RECENCY_TEXT.title} description={RECENCY_TEXT.description}>
       {/* Null is a real answer here and gets its own rendering. Collapsing it
           into "no" would state a fact about the customer on the strength of a
           gap in our own record-keeping. */}
@@ -77,6 +77,6 @@ export function ChainRecencyPanel({ recency, nameOf }: ChainRecencyProps) {
           <EmptyState title={RECENCY_TEXT.unrecorded} description={RECENCY_TEXT.unrecordedHint} />
         </div>
       ) : null}
-    </PageSection>
+    </Section>
   );
 }

@@ -1,4 +1,4 @@
-import { EmptyState, PageSection } from "@vxture/design-system";
+import { EmptyState, Section } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { DELIVERY_TEXT, SHELL_TEXT } from "../lib/messages";
 import { getDeliveryStore } from "../../domains/shared/registry";
@@ -61,8 +61,8 @@ export default async function DeliveryPage() {
   }
 
   return (
-    <PageSection title={DELIVERY_TEXT.title} description={DELIVERY_TEXT.description}>
+    <Section title={DELIVERY_TEXT.title} description={DELIVERY_TEXT.description}>
       <DeliveryTable rows={rows} />
-    </PageSection>
+    </Section>
   );
 }

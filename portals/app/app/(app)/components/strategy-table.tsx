@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-system";
+import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
 import type { PlanRecord } from "../../domains/strategy/store";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
 import { PLAN_STATUS_LABEL, STRATEGY_TEXT } from "../lib/messages";

@@ -1,4 +1,4 @@
-import { EmptyState, PageHeader, PageStack, StatusBadge } from "@vxture/design-system";
+import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import Link from "next/link";
 import { ACCOUNT_STATUS_LABEL, ASK_ABOUT_TEXT, SHELL_TEXT } from "../../lib/messages";
@@ -91,13 +91,13 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
     : null;
 
   return (
-    <PageStack>
-      <PageHeader
-        eyebrow={account.accountNo}
+    <ViewLayout>
+      <ViewHeader
+        secondary={account.accountNo}
         icon="buildings"
         title={account.name}
         description={[account.industry, account.region].filter(Boolean).join(" / ")}
-        actions={
+        action={
           <StatusBadge tone={account.status === "churned" ? "danger" : "neutral"} dot>
             {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
           </StatusBadge>
@@ -184,6 +184,6 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
         />
       ) : null}
-    </PageStack>
+    </ViewLayout>
   );
 }

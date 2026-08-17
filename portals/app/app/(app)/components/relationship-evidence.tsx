@@ -1,4 +1,4 @@
-import { MetricGrid, PageSection, type MetricGridItem } from "@vxture/design-system";
+import { MetricGrid, Section, type MetricGridItem } from "@vxture/design-ui";
 import { FIELD_TEXT } from "../lib/messages";
 import type { RelationshipEvidence as Evidence } from "../../domains/account/field-service";
 
@@ -76,8 +76,8 @@ export function RelationshipEvidencePanel({ evidence, now }: RelationshipEvidenc
   ];
 
   return (
-    <PageSection title={FIELD_TEXT.evidenceTitle} description={FIELD_TEXT.evidenceDescription}>
+    <Section title={FIELD_TEXT.evidenceTitle} description={FIELD_TEXT.evidenceDescription}>
       <MetricGrid items={items} />
-    </PageSection>
+    </Section>
   );
 }

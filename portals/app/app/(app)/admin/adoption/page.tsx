@@ -1,13 +1,5 @@
 import Link from "next/link";
-import {
-  EmptyState,
-  MetricGrid,
-  PageHeader,
-  PageSection,
-  PageStack,
-  StatusBadge,
-  type MetricGridItem,
-} from "@vxture/design-system";
+import { EmptyState, MetricGrid, Section, StatusBadge, ViewHeader, ViewLayout, type MetricGridItem } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import { ADOPTION_TEXT, SHELL_TEXT, STAGE_LABEL } from "../../lib/messages";
 import { getFieldStore, getPipelineStore } from "../../../domains/shared/registry";
@@ -147,12 +139,12 @@ export default async function AdoptionPage() {
   );
 
   return (
-    <PageStack>
-      <PageHeader
+    <ViewLayout>
+      <ViewHeader
         icon="chart-bar"
         title={ADOPTION_TEXT.title}
         description={ADOPTION_TEXT.description}
-        actions={<StatusBadge tone={verdict.tone} dot>{verdict.label}</StatusBadge>}
+        action={<StatusBadge tone={verdict.tone} dot>{verdict.label}</StatusBadge>}
       />
 
       <MetricGrid items={metrics} />
@@ -162,7 +154,7 @@ export default async function AdoptionPage() {
           measuring the thing it was built to measure. */}
       <StatusBadge tone="info">{ADOPTION_TEXT.notAScoreboard}</StatusBadge>
 
-      <PageSection title={ADOPTION_TEXT.week} description={ADOPTION_TEXT.rateHint}>
+      <Section title={ADOPTION_TEXT.week} description={ADOPTION_TEXT.rateHint}>
         <table>
           <thead>
             <tr>
@@ -197,9 +189,9 @@ export default async function AdoptionPage() {
             ))}
           </tbody>
         </table>
-      </PageSection>
+      </Section>
 
-      <PageSection title={ADOPTION_TEXT.darkDeals} description={ADOPTION_TEXT.darkDealsHint}>
+      <Section title={ADOPTION_TEXT.darkDeals} description={ADOPTION_TEXT.darkDealsHint}>
         {dark.length === 0 ? (
           <EmptyState title={ADOPTION_TEXT.darkDealsEmpty} description={windowStart.toISOString().slice(0, 10)} />
         ) : (
@@ -213,7 +205,7 @@ export default async function AdoptionPage() {
             ))}
           </ul>
         )}
-      </PageSection>
-    </PageStack>
+      </Section>
+    </ViewLayout>
   );
 }

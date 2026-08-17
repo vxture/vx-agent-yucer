@@ -1,4 +1,4 @@
-import { EmptyState, PageStack } from "@vxture/design-system";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT } from "../lib/messages";
 import { getAccountStore, getCopilotStore } from "../../domains/shared/registry";
@@ -80,7 +80,7 @@ export default async function CopilotPage({
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
   return (
-    <PageStack>
+    <ViewLayout>
       <CopilotChat
         initialMessages={initialMessages}
         sessionId={latest?.id ?? null}
@@ -100,6 +100,6 @@ export default async function CopilotPage({
       {playbooks.ok ? (
         <PlaybookCatalog playbooks={playbooks.value} maxPerTurn={MAX_PLAYBOOKS} />
       ) : null}
-    </PageStack>
+    </ViewLayout>
   );
 }

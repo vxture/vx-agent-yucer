@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EmptyState, PageSection, StatusBadge } from "@vxture/design-system";
+import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { DIRECTION_LABEL, FIELD_TEXT } from "../lib/messages";
 
 // The manager's first screen: promises that have gone past their date.
@@ -34,14 +34,14 @@ export function OverdueCommitments({ rows, now }: OverdueCommitmentsProps) {
 
   if (rows.length === 0) {
     return (
-      <PageSection title={FIELD_TEXT.commitOverdueTitle} description={FIELD_TEXT.commitOverdueDescription}>
+      <Section title={FIELD_TEXT.commitOverdueTitle} description={FIELD_TEXT.commitOverdueDescription}>
         <EmptyState title={FIELD_TEXT.commitOverdueEmpty} description={FIELD_TEXT.commitOverdueEmptyDescription} />
-      </PageSection>
+      </Section>
     );
   }
 
   return (
-    <PageSection title={FIELD_TEXT.commitOverdueTitle} description={FIELD_TEXT.commitOverdueDescription}>
+    <Section title={FIELD_TEXT.commitOverdueTitle} description={FIELD_TEXT.commitOverdueDescription}>
       <ul>
         {rows.map((r) => {
           const days = Math.floor((at.getTime() - r.dueAt.getTime()) / DAY);
@@ -62,6 +62,6 @@ export function OverdueCommitments({ rows, now }: OverdueCommitmentsProps) {
           );
         })}
       </ul>
-    </PageSection>
+    </Section>
   );
 }

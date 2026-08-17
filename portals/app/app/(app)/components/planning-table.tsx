@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  DataTable,
-  EmptyState,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  type DataTableColumn,
-} from "@vxture/design-system";
+import { DataTable, EmptyState, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
 import type { AttainmentRow } from "../../domains/planning/service";
 import { PLANNING_TEXT, TARGET_STATUS_LABEL } from "../lib/messages";
 import { formatMoney, formatPercent } from "../lib/view-model";

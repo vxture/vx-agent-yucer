@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  DataTable,
-  EmptyState,
-  Input,
-  Label,
-  NativeSelect,
-  PageSection,
-  StatusBadge,
-  Textarea,
-  type DataTableColumn,
-} from "@vxture/design-system";
+import { Button, DataTable, EmptyState, Input, Label, NativeSelect, Section, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
@@ -114,7 +103,7 @@ export function PendingReviews({ opportunities, canRecord, onRecord }: PendingRe
   const target = opportunities.find((o) => o.id === openId) ?? null;
 
   return (
-    <PageSection title={WINLOSS_TEXT.title} description={WINLOSS_TEXT.description}>
+    <Section title={WINLOSS_TEXT.title} description={WINLOSS_TEXT.description}>
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {opportunities.length === 0 ? (
@@ -124,7 +113,7 @@ export function PendingReviews({ opportunities, canRecord, onRecord }: PendingRe
       )}
 
       {target ? (
-        <PageSection tone="muted" title={target.name}>
+        <Section tone="default" title={target.name}>
           <Label htmlFor="wlr-reason">{WINLOSS_TEXT.reasonLabel}</Label>
           <NativeSelect
             id="wlr-reason"
@@ -154,8 +143,8 @@ export function PendingReviews({ opportunities, canRecord, onRecord }: PendingRe
           <Button onClick={() => submit(target.id)} disabled={pending}>
             {WINLOSS_TEXT.save}
           </Button>
-        </PageSection>
+        </Section>
       ) : null}
-    </PageSection>
+    </Section>
   );
 }

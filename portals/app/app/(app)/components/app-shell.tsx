@@ -2,17 +2,8 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  Icon,
-  ShellBrand,
-  ShellThemeToggle,
-  ShellUserMenu,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  useTheme,
-} from "@vxture/design-system";
+import { ShellBrand, ShellThemeToggle, ShellUserMenu, useTheme } from "@vxture/design-system";
+import { Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DOMAIN_LABEL, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 

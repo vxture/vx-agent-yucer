@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  AIAssistantBubble,
-  EmptyState,
-  PageSection,
-  PromptInput,
-  StatusBadge,
-} from "@vxture/design-system";
+import { AIAssistantBubble, EmptyState, PromptInput, Section, StatusBadge } from "@vxture/design-ui";
 import { ASK_ABOUT_TEXT, COPILOT_TEXT } from "../lib/messages";
 
 // The copilot conversation.
@@ -108,7 +102,7 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
   }
 
   return (
-    <PageSection title={COPILOT_TEXT.title} description={COPILOT_TEXT.description}>
+    <Section title={COPILOT_TEXT.title} description={COPILOT_TEXT.description}>
       {/* Said out loud, because the difference between a grounded answer and a
           general one is the difference between citing and guessing - and a
           reader who cannot tell which they are getting will trust both alike. */}
@@ -171,6 +165,6 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
         // omitting it reads as a broken page.
         hint={canAsk ? undefined : COPILOT_TEXT.errorGeneric}
       />
-    </PageSection>
+    </Section>
   );
 }

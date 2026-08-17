@@ -1,4 +1,4 @@
-import { EmptyState, PageSection, StatusBadge } from "@vxture/design-system";
+import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { CHANNEL_LABEL, FIELD_TEXT } from "../lib/messages";
 
 // What actually happened, newest first.
@@ -27,14 +27,14 @@ export interface InteractionTimelineProps {
 export function InteractionTimeline({ items }: InteractionTimelineProps) {
   if (items.length === 0) {
     return (
-      <PageSection title={FIELD_TEXT.timelineTitle} description={FIELD_TEXT.timelineDescription}>
+      <Section title={FIELD_TEXT.timelineTitle} description={FIELD_TEXT.timelineDescription}>
         <EmptyState title={FIELD_TEXT.recordEmpty} description={FIELD_TEXT.recordEmptyDescription} />
-      </PageSection>
+      </Section>
     );
   }
 
   return (
-    <PageSection title={FIELD_TEXT.timelineTitle} description={FIELD_TEXT.timelineDescription}>
+    <Section title={FIELD_TEXT.timelineTitle} description={FIELD_TEXT.timelineDescription}>
       <ol>
         {items.map((i) => (
           <li key={i.id}>
@@ -55,6 +55,6 @@ export function InteractionTimeline({ items }: InteractionTimelineProps) {
           </li>
         ))}
       </ol>
-    </PageSection>
+    </Section>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-system";
+import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
 import { nextCampaignStatuses, type CampaignStatus } from "../../domains/strategy/lib/lifecycle";
 import { CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";

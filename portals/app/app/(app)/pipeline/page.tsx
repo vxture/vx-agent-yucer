@@ -1,4 +1,4 @@
-import { EmptyState, PageStack } from "@vxture/design-system";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT } from "../lib/messages";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
@@ -48,7 +48,7 @@ export default async function PipelinePage() {
   }));
 
   return (
-    <PageStack>
+    <ViewLayout>
       {/* The gate, not the raw permission. Reading permissions.has() directly
           skips the ENTITLEMENT half entirely, so a workspace whose subscription
           lapsed would still render the board as writable - and the two gates
@@ -69,6 +69,6 @@ export default async function PipelinePage() {
           onRecord={recordReview}
         />
       ) : null}
-    </PageStack>
+    </ViewLayout>
   );
 }

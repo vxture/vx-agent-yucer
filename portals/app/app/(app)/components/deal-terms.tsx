@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label, NativeSelect, PageSection, StatusBadge } from "@vxture/design-system";
+import { Button, Input, Label, NativeSelect, Section, StatusBadge } from "@vxture/design-ui";
 import { FORECAST_CATEGORIES, type ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import { DEFAULT_PROBABILITY, isTerminal, type Stage } from "../../domains/pipeline/lib/stage";
 import { FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } from "../lib/messages";
@@ -78,9 +78,9 @@ export function DealTerms({
 
   if (!canEdit) {
     return (
-      <PageSection title={OPPORTUNITY_TEXT.termsTitle}>
+      <Section title={OPPORTUNITY_TEXT.termsTitle}>
         <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsReadOnly}</StatusBadge>
-      </PageSection>
+      </Section>
     );
   }
 
@@ -113,7 +113,7 @@ export function DealTerms({
   }
 
   return (
-    <PageSection title={OPPORTUNITY_TEXT.termsTitle} description={OPPORTUNITY_TEXT.termsDescription}>
+    <Section title={OPPORTUNITY_TEXT.termsTitle} description={OPPORTUNITY_TEXT.termsDescription}>
       <Label htmlFor="terms-amount">
         {OPPORTUNITY_TEXT.termsAmount} ({currency})
       </Label>
@@ -171,6 +171,6 @@ export function DealTerms({
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {saved ? <StatusBadge tone="success">{OPPORTUNITY_TEXT.termsSaved}</StatusBadge> : null}
-    </PageSection>
+    </Section>
   );
 }

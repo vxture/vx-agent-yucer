@@ -1,4 +1,4 @@
-import { EmptyState, PageStack } from "@vxture/design-system";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import { SHELL_TEXT } from "../../lib/messages";
 import { can } from "../../../authz/decide";
@@ -42,7 +42,7 @@ export default async function MembersPage() {
   }
 
   return (
-    <PageStack>
+    <ViewLayout>
       <MemberRoles
         members={result.value}
         // Viewing and changing are separate actions on purpose: the list is
@@ -52,6 +52,6 @@ export default async function MembersPage() {
         onGrant={grantMemberRole}
         onRevoke={removeMemberRole}
       />
-    </PageStack>
+    </ViewLayout>
   );
 }
