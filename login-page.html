@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product_template</title>
+  <style>
+    :root {
+      --blue: #2563eb;
+      --blue-hover: #1d4ed8;
+      --text: #172033;
+      --muted: #718096;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+        "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: #eef6ff;
+    }
+
+    .page {
+      min-height: 100vh;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+
+    /* 背景动线 */
+    .flow {
+      position: absolute;
+      inset: -8%;
+      pointer-events: none;
+      opacity: .75;
+    }
+
+    .flow svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .flow path {
+      fill: none;
+      stroke: #cbdff5;
+      stroke-width: 1.2;
+      stroke-linecap: round;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+
+    .flow path:nth-child(2) {
+      animation-delay: -5s;
+      opacity: .7;
+    }
+
+    .flow path:nth-child(3) {
+      animation-delay: -9s;
+      opacity: .45;
+    }
+
+    .flow path:nth-child(4) {
+      animation-delay: -13s;
+      opacity: .3;
+    }
+
+    @keyframes drift {
+      from {
+        transform: translate3d(-12px, 8px, 0);
+      }
+
+      to {
+        transform: translate3d(12px, -8px, 0);
+      }
+    }
+
+    .wash {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(
+          circle at 50% 48%,
+          rgba(255, 255, 255, .96) 0%,
+          rgba(255, 255, 255, .78) 27%,
+          rgba(238, 246, 255, .25) 58%,
+          transparent 76%
+        );
+      pointer-events: none;
+    }
+
+    .login {
+      position: relative;
+      width: min(390px, calc(100vw - 48px));
+      text-align: center;
+      transform: translateY(-3vh);
+    }
+
+    /* 产品身份 */
+    .product-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 76px;
+      font-size: 21px;
+      line-height: 1;
+      font-weight: 650;
+      letter-spacing: -.025em;
+      color: #172033;
+    }
+
+    .product-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      background: var(--blue);
+      position: relative;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, .18);
+    }
+
+    .product-mark::before {
+      content: "";
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #fff;
+      left: 7px;
+      top: 10px;
+      box-shadow: 6px 0 0 rgba(255, 255, 255, .55);
+    }
+
+    .desc {
+      margin: 0 auto 40px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+      letter-spacing: .01em;
+    }
+
+    .login-button {
+      width: 100%;
+      height: 50px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: .01em;
+      cursor: pointer;
+      box-shadow: 0 9px 24px rgba(37, 99, 235, .2);
+      transition:
+        transform .18s ease,
+        background .18s ease,
+        box-shadow .18s ease;
+    }
+
+    .login-button:hover {
+      background: var(--blue-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, .25);
+    }
+
+    .login-button:active {
+      transform: translateY(0);
+    }
+
+    .hint {
+      margin-top: 22px;
+      font-size: 12px;
+      color: #9aa9bb;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .flow path {
+        animation: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+
+    <div class="flow" aria-hidden="true">
+      <svg viewBox="0 0 1600 1000" preserveAspectRatio="none">
+        <path d="M-80 690 C220 430,360 790,650 570 S1080 300,1680 480" />
+        <path d="M-100 760 C220 500,390 850,690 620 S1130 360,1700 540" />
+        <path d="M-120 830 C230 570,420 900,720 675 S1180 420,1710 600" />
+        <path d="M-60 600 C240 360,390 680,610 500 S1070 240,1640 410" />
+      </svg>
+    </div>
+
+    <div class="wash"></div>
+
+    <section class="login">
+
+      <div class="product-name">
+        <span class="product-mark"></span>
+        <span>Product_template</span>
+      </div>
+
+      <p class="desc">
+        请登录以验证您的订阅并访问产品。
+      </p>
+
+      <button class="login-button" onclick="handleLogin()">
+        登录
+      </button>
+
+      <div class="hint">
+        登录后将自动返回当前产品
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    function handleLogin() {
+      // 替换为你的统一认证地址
+      // window.location.href =
+      //   "https://auth.example.com/login?redirect_uri=" +
+      //   encodeURIComponent(window.location.href);
+
+      alert("这里跳转到统一认证（Auth）");
+    }
+  </script>
+</body>
+</html>
