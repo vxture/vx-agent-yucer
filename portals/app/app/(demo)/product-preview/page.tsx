@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader, PageStack, Separator } from "@vxture/design-system";
+import { Separator, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { subscribeUrl } from "../../entitlement/deeplink";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
@@ -195,9 +195,9 @@ export default function ProductPreviewPage() {
   const canWritePipeline = holder.permissions.has("pipeline.write");
 
   return (
-    <PageStack>
-      <PageHeader
-        eyebrow={PREVIEW_TEXT.eyebrow}
+    <ViewLayout>
+      <ViewHeader
+        secondary={PREVIEW_TEXT.eyebrow}
         icon="sparkles"
         title={PREVIEW_TEXT.title}
         description={PREVIEW_TEXT.description}
@@ -250,6 +250,6 @@ export default function ProductPreviewPage() {
           ))}
         </ul>
       ) : null}
-    </PageStack>
+    </ViewLayout>
   );
 }

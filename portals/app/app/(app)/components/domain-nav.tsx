@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-system";
+import { Button, Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DOMAIN_LABEL, NAV_TEXT } from "../lib/messages";
 

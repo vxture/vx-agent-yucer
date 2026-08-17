@@ -1,4 +1,4 @@
-import { EmptyState, PageSection } from "@vxture/design-system";
+import { EmptyState, Section } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT, STRATEGY_TEXT } from "../lib/messages";
 import { getStrategyStore } from "../../domains/shared/registry";
@@ -49,8 +49,8 @@ export default async function StrategyPage() {
     can(session.authz, session.entitlement, "strategy.plan.approve", "ui").allowed;
 
   return (
-    <PageSection title={STRATEGY_TEXT.title} description={STRATEGY_TEXT.description}>
+    <Section title={STRATEGY_TEXT.title} description={STRATEGY_TEXT.description}>
       <StrategyTable rows={result.value} canMove={canMove} onMove={movePlan} />
-    </PageSection>
+    </Section>
   );
 }

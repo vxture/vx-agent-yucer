@@ -2,18 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import {
-  DataTable,
-  EmptyState,
-  MetricGrid,
-  PageSection,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  type DataTableColumn,
-  type MetricGridItem,
-} from "@vxture/design-system";
+import { DataTable, EmptyState, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory, ForecastableOpportunity } from "../../domains/pipeline/lib/forecast";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
@@ -42,12 +31,11 @@ export interface PipelineBoardProps {
   readonly rows: readonly PipelineRow[];
   readonly currency?: string;
   readonly loading?: boolean;
-  readonly onOpen?: (row: PipelineRow) => void;
   /** Shown when the member may read but not advance anything. */
   readonly readOnly?: boolean;
 }
 
-export function PipelineBoard({ rows, currency = "CNY", loading, onOpen, readOnly }: PipelineBoardProps) {
+export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: PipelineBoardProps) {
   const totals = useMemo(() => rollUp(rows, currency), [rows, currency]);
 
   const metrics: MetricGridItem[] = totals.ok
@@ -63,9 +51,10 @@ export function PipelineBoard({ rows, currency = "CNY", loading, onOpen, readOnl
     {
       id: "name",
       header: PIPELINE_TEXT.columnOpportunity,
-      // A link, not an onRowClick handler: navigable, middle-clickable and
+      // A link, not a row-click handler: navigable, middle-clickable and
       // shareable in a way a click handler is not. Same reasoning as the
-      // account list.
+      // account list - and design-ui 2.0 dropped onRowClick entirely, which
+      // only removed a second, worse way to reach the same page.
       cell: (row) => (
         <div>
           <div>
@@ -133,7 +122,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, onOpen, readOnl
   ];
 
   return (
-    <PageSection
+    <Section
       title={PIPELINE_TEXT.title}
       description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description}
     >
@@ -146,14 +135,8 @@ export function PipelineBoard({ rows, currency = "CNY", loading, onOpen, readOnl
       ) : rows.length === 0 ? (
         <EmptyState title={PIPELINE_TEXT.emptyTitle} description={PIPELINE_TEXT.emptyDescription} />
       ) : (
-        <DataTable
-          columns={columns}
-          rows={rows}
-          rowKey={(row) => row.id}
-          loading={loading}
-          onRowClick={onOpen}
-        />
+        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
       )}
-    </PageSection>
+    </Section>
   );
 }

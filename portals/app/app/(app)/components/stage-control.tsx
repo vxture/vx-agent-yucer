@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  Checkbox,
-  Label,
-  NativeSelect,
-  PageSection,
-  StatusBadge,
-  Textarea,
-} from "@vxture/design-system";
+import { Button, Checkbox, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 import {
   DEFAULT_PROBABILITY,
   OPEN_STAGE_ORDER,
@@ -62,9 +54,9 @@ export function StageControl({
 
   if (!canAdvance) {
     return (
-      <PageSection title={OPPORTUNITY_TEXT.advanceTitle}>
+      <Section title={OPPORTUNITY_TEXT.advanceTitle}>
         <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.advanceReadOnly}</StatusBadge>
-      </PageSection>
+      </Section>
     );
   }
 
@@ -106,7 +98,7 @@ export function StageControl({
   }
 
   return (
-    <PageSection title={OPPORTUNITY_TEXT.advanceTitle} description={OPPORTUNITY_TEXT.advanceDescription}>
+    <Section title={OPPORTUNITY_TEXT.advanceTitle} description={OPPORTUNITY_TEXT.advanceDescription}>
       {closed ? (
         <>
           <StatusBadge tone="warning" dot>
@@ -210,6 +202,6 @@ export function StageControl({
           ) : null}
         </>
       ) : null}
-    </PageSection>
+    </Section>
   );
 }

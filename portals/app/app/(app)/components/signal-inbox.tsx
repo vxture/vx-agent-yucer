@@ -1,17 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  DataTable,
-  EmptyState,
-  PageSection,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  type DataTableColumn,
-} from "@vxture/design-system";
+import { Button, DataTable, EmptyState, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
 import type { SignalRecord } from "../../domains/signal/store";
 import { SIGNAL_STATUS_LABEL, SIGNAL_TEXT, SIGNAL_TYPE_LABEL } from "../lib/messages";
 import { confidenceTone, type Tone } from "../lib/view-model";
@@ -153,12 +143,12 @@ export function SignalInbox({ signals, canTriage, canRescore, onAct }: SignalInb
   ];
 
   return (
-    <PageSection title={SIGNAL_TEXT.title} description={SIGNAL_TEXT.description}>
+    <Section title={SIGNAL_TEXT.title} description={SIGNAL_TEXT.description}>
       {signals.length === 0 ? (
         <EmptyState title={SIGNAL_TEXT.emptyTitle} description={SIGNAL_TEXT.emptyDescription} />
       ) : (
         <DataTable columns={columns} rows={signals} rowKey={(row) => row.id} />
       )}
-    </PageSection>
+    </Section>
   );
 }

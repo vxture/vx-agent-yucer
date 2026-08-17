@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, MetricGrid, PageSection, StatusBadge, type MetricGridItem } from "@vxture/design-system";
+import { Button, MetricGrid, Section, StatusBadge, type MetricGridItem } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { CHAIN_TEXT } from "../lib/messages";
 import { healthTone } from "../lib/view-model";
@@ -52,11 +52,11 @@ export function HealthPanel({ accountId, health, canRecompute, onRecompute }: He
     // meaning of the panel.
     value: `${c.points > 0 ? "+" : ""}${c.points}`,
     trend: c.detail,
-    tone: c.points < 0 ? "danger" : "positive",
+    tone: c.points < 0 ? "danger" : "success",
   }));
 
   return (
-    <PageSection
+    <Section
       title={CHAIN_TEXT.healthTitle}
       description={CHAIN_TEXT.healthDescription}
       action={
@@ -78,6 +78,6 @@ export function HealthPanel({ accountId, health, canRecompute, onRecompute }: He
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       <MetricGrid items={items} />
-    </PageSection>
+    </Section>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-system";
+import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
 import type { ProjectHealth } from "../../domains/delivery/lib/revenue";
 import { DELIVERY_TEXT, PROJECT_HEALTH_LABEL } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";

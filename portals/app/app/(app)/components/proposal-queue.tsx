@@ -1,17 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  Badge,
-  BulkActionBar,
-  Button,
-  Checkbox,
-  DataTable,
-  EmptyState,
-  PageSection,
-  StatusBadge,
-  type DataTableColumn,
-} from "@vxture/design-system";
+import { Badge, BulkActionBar, Button, Checkbox, DataTable, EmptyState, Section, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
 import { batchRisk, type AgentAction, type Decision } from "../../domains/copilot/lib/action";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
 import { ACTION_STATUS_LABEL, PROPOSAL_TEXT } from "../lib/messages";
@@ -159,28 +149,24 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
   ];
 
   return (
-    <PageSection
+    <Section
       title={PROPOSAL_TEXT.title}
       description={PROPOSAL_TEXT.description}
     >
-      {selected.size > 0 ? (
-        <BulkActionBar
-          selectedLabel={PROPOSAL_TEXT.selectedLabel(risk.count, risk.lowConfidenceCount)}
-          selectionActions={
-            <Button variant="ghost" onClick={() => setSelected(new Set())}>
-              {PROPOSAL_TEXT.clearSelection}
-            </Button>
-          }
-          primaryActions={
-            <>
-              <Button variant="outline" onClick={() => setConfirming("reject")}>
-                {PROPOSAL_TEXT.bulkReject}
-              </Button>
-              <Button onClick={() => setConfirming("accept")}>{PROPOSAL_TEXT.bulkAccept}</Button>
-            </>
-          }
-        />
-      ) : null}
+      {/* The bar takes data now, not three JSX slots, and returns null itself
+          when nothing is selected - so the outer guard is gone. Both bulk
+          actions still open the confirmation rather than acting: ADR-003 is
+          that a person decides, and a one-click "accept 200" is exactly the
+          frictionless path batchRisk() exists to interrupt. */}
+      <BulkActionBar
+        count={selected.size}
+        noun={PROPOSAL_TEXT.selectionNoun}
+        onClear={() => setSelected(new Set())}
+        actions={[
+          { id: "reject", label: PROPOSAL_TEXT.bulkReject, onSelect: () => setConfirming("reject") },
+          { id: "accept", label: PROPOSAL_TEXT.bulkAccept, onSelect: () => setConfirming("accept") },
+        ]}
+      />
 
       {confirming ? <BatchConfirm decision={confirming} risk={risk} onCancel={() => setConfirming(null)} onConfirm={() => void apply(confirming)} /> : null}
 
@@ -192,7 +178,7 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
       ) : (
         <DataTable columns={columns} rows={actions} rowKey={(row) => row.id} />
       )}
-    </PageSection>
+    </Section>
   );
 }
 
@@ -211,8 +197,8 @@ interface BatchConfirmProps {
 function BatchConfirm({ decision, risk, onCancel, onConfirm }: BatchConfirmProps) {
   const verb = decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
   return (
-    <PageSection
-      tone="muted"
+    <Section
+      tone="default"
       title={PROPOSAL_TEXT.confirmTitle(verb, risk.count)}
       description={PROPOSAL_TEXT.confirmDetail({
         actionTypes: risk.actionTypes.join(", "),
@@ -236,6 +222,6 @@ function BatchConfirm({ decision, risk, onCancel, onConfirm }: BatchConfirmProps
       ) : (
         <p>{PROPOSAL_TEXT.rejectNote}</p>
       )}
-    </PageSection>
+    </Section>
   );
 }

@@ -453,6 +453,8 @@ export const PROPOSAL_TEXT = {
   selectedLabel: (count: number, lowConfidence: number) =>
     lowConfidence > 0 ? `已选 ${count} 条 · 其中 ${lowConfidence} 条低置信度` : `已选 ${count} 条`,
   clearSelection: "取消选择",
+  /** BulkActionBar counts for itself now; it needs the unit, not the sentence. */
+  selectionNoun: "条提案",
   bulkReject: "批量拒绝",
   bulkAccept: "批量采纳",
   emptyTitle: "暂无提案",

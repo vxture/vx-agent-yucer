@@ -1,16 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  EmptyState,
-  Input,
-  Label,
-  NativeSelect,
-  PageSection,
-  StatusBadge,
-  Textarea,
-} from "@vxture/design-system";
+import { Button, EmptyState, Input, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 import { COMMITMENT_DIRECTIONS, isOverdue } from "../../domains/account/lib/commitment";
 import { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } from "../lib/messages";
 
@@ -97,7 +88,7 @@ export function CommitmentList({
   const settled = items.filter((c) => c.status !== "open");
 
   return (
-    <PageSection title={FIELD_TEXT.commitTitle} description={FIELD_TEXT.commitDescription}>
+    <Section title={FIELD_TEXT.commitTitle} description={FIELD_TEXT.commitDescription}>
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {items.length === 0 ? (
@@ -248,6 +239,6 @@ export function CommitmentList({
           </Button>
         </>
       ) : null}
-    </PageSection>
+    </Section>
   );
 }

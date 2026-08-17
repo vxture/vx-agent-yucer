@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button, EmptyState, PageStack } from "@vxture/design-system";
+import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
 import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES } from "./lib/navigation";
@@ -23,9 +23,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // bounce anyone who merely opened a stale tab.
   if (!session) {
     return (
-      <PageStack>
+      <ViewLayout>
         <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />
-      </PageStack>
+      </ViewLayout>
     );
   }
 
@@ -37,15 +37,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // sending them to checkout is worse than saying nothing.
   if (lockout === "no_roles") {
     return (
-      <PageStack>
+      <ViewLayout>
         <EmptyState title={SHELL_TEXT.noRolesTitle} description={SHELL_TEXT.noRolesDescription} />
-      </PageStack>
+      </ViewLayout>
     );
   }
 
   if (lockout === "no_entitlement") {
     return (
-      <PageStack>
+      <ViewLayout>
         <EmptyState
           title={SHELL_TEXT.noAccessTitle}
           description={SHELL_TEXT.noAccessDescription}
@@ -57,7 +57,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </Button>
           }
         />
-      </PageStack>
+      </ViewLayout>
     );
   }
 

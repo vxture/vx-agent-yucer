@@ -1,4 +1,4 @@
-import { EmptyState, PageSection } from "@vxture/design-system";
+import { EmptyState, Section } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { CAMPAIGN_TEXT, SHELL_TEXT } from "../lib/messages";
 import { getStrategyStore } from "../../domains/shared/registry";
@@ -64,8 +64,8 @@ export default async function CampaignPage() {
   const canMove = can(session.authz, session.entitlement, "campaign.upsert", "ui").allowed;
 
   return (
-    <PageSection title={CAMPAIGN_TEXT.title} description={CAMPAIGN_TEXT.description}>
+    <Section title={CAMPAIGN_TEXT.title} description={CAMPAIGN_TEXT.description}>
       <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
-    </PageSection>
+    </Section>
   );
 }

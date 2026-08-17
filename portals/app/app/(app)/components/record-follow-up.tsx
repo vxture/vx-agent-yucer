@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label, NativeSelect, PageSection, StatusBadge, Textarea } from "@vxture/design-system";
+import { Button, Input, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 import { INTERACTION_CHANNELS } from "../../domains/account/lib/commitment";
 import { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } from "../lib/messages";
 
@@ -69,7 +69,7 @@ export function RecordFollowUp({ accountId, opportunityId, canRecord, onRecord }
   }
 
   return (
-    <PageSection title={FIELD_TEXT.recordTitle} description={FIELD_TEXT.recordDescription}>
+    <Section title={FIELD_TEXT.recordTitle} description={FIELD_TEXT.recordDescription}>
       <Label htmlFor="fu-note">{FIELD_TEXT.recordNote}</Label>
       <Textarea
         id="fu-note"
@@ -109,6 +109,6 @@ export function RecordFollowUp({ accountId, opportunityId, canRecord, onRecord }
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {saved ? <StatusBadge tone="success">{FIELD_TEXT.recordSaved}</StatusBadge> : null}
-    </PageSection>
+    </Section>
   );
 }

@@ -1,17 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  DataTable,
-  EmptyState,
-  PageSection,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  type DataTableColumn,
-} from "@vxture/design-system";
+import { Button, DataTable, EmptyState, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
 import type { LeadRecord } from "../../domains/signal/store";
 import { LEAD_STATUS_LABEL, LEAD_TEXT } from "../lib/messages";
 import { confidenceTone } from "../lib/view-model";
@@ -155,13 +145,13 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
   ];
 
   return (
-    <PageSection title={LEAD_TEXT.title} description={LEAD_TEXT.description}>
+    <Section title={LEAD_TEXT.title} description={LEAD_TEXT.description}>
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
       {leads.length === 0 ? (
         <EmptyState title={LEAD_TEXT.emptyTitle} description={LEAD_TEXT.emptyDescription} />
       ) : (
         <DataTable columns={columns} rows={leads} rowKey={(row) => row.id} />
       )}
-    </PageSection>
+    </Section>
   );
 }

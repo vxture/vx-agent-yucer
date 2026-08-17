@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-system";
+import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
 import type { AccountRecord } from "../../domains/account/store";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT } from "../lib/messages";
 import { healthTone } from "../lib/view-model";

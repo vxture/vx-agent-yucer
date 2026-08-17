@@ -1,14 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  EmptyState,
-  PageSection,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@vxture/design-system";
+import { EmptyState, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { ChainCoverage, ContactNode } from "../../domains/account/lib/health";
 import { CHAIN_TEXT, DECISION_ROLE_LABEL } from "../lib/messages";
 
@@ -35,17 +28,17 @@ export interface DecisionChainProps {
 export function DecisionChain({ coverage, contacts, linkForm }: DecisionChainProps) {
   if (contacts.length === 0) {
     return (
-      <PageSection title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+      <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
         <EmptyState title={CHAIN_TEXT.emptyTitle} description={CHAIN_TEXT.emptyDescription} />
         {linkForm}
-      </PageSection>
+      </Section>
     );
   }
 
   const hasEconomicBuyer = contacts.some((c) => c.decisionRole === "economic" && c.status === "active");
 
   return (
-    <PageSection title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+    <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
       {/* Reachability leads. Coverage is secondary and rendered below it. */}
       {coverage.economicBuyerUnreachable ? (
         <Tooltip>
@@ -113,6 +106,6 @@ export function DecisionChain({ coverage, contacts, linkForm }: DecisionChainPro
           is delivered. Sending a rep elsewhere to fix what this panel just told
           them is how a finding turns into something people learn to ignore. */}
       {linkForm}
-    </PageSection>
+    </Section>
   );
 }

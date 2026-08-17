@@ -1,4 +1,4 @@
-import { EmptyState, PageSection, SectionCard, StatusBadge } from "@vxture/design-system";
+import { EmptyState, PanelCard, Section, StatusBadge } from "@vxture/design-ui";
 import { PLAYBOOK_SCOPE_LABEL, PLAYBOOK_TEXT } from "../lib/messages";
 
 // The plays the agent is grounded on.
@@ -32,14 +32,14 @@ export interface PlaybookCatalogProps {
 export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps) {
   if (playbooks.length === 0) {
     return (
-      <PageSection title={PLAYBOOK_TEXT.title} description={PLAYBOOK_TEXT.description}>
+      <Section title={PLAYBOOK_TEXT.title} description={PLAYBOOK_TEXT.description}>
         <EmptyState title={PLAYBOOK_TEXT.emptyTitle} description={PLAYBOOK_TEXT.emptyDescription} />
-      </PageSection>
+      </Section>
     );
   }
 
   return (
-    <PageSection
+    <Section
       title={PLAYBOOK_TEXT.title}
       description={PLAYBOOK_TEXT.description}
       // The bound is part of the contract, not an implementation detail: a
@@ -48,7 +48,7 @@ export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps)
       action={<StatusBadge tone="neutral">{PLAYBOOK_TEXT.grounding(maxPerTurn)}</StatusBadge>}
     >
       {playbooks.map((p) => (
-        <SectionCard
+        <PanelCard
           key={p.id}
           title={p.name}
           description={
@@ -66,8 +66,8 @@ export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps)
           {/* The play's own words, verbatim. Summarising it here would mean the
               catalog and the prompt no longer show the same thing. */}
           <p>{p.content}</p>
-        </SectionCard>
+        </PanelCard>
       ))}
-    </PageSection>
+    </Section>
   );
 }

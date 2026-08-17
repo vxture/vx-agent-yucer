@@ -1,4 +1,4 @@
-import { EmptyState, PageSection } from "@vxture/design-system";
+import { EmptyState, Section } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { ACCOUNT_TEXT, SHELL_TEXT } from "../lib/messages";
 import { getAccountStore, getFieldStore } from "../../domains/shared/registry";
@@ -68,9 +68,9 @@ export default async function AccountPage() {
         />
       ) : null}
 
-      <PageSection title={ACCOUNT_TEXT.title} description={ACCOUNT_TEXT.description}>
+      <Section title={ACCOUNT_TEXT.title} description={ACCOUNT_TEXT.description}>
         <AccountTable rows={result.value} />
-      </PageSection>
+      </Section>
     </>
   );
 }

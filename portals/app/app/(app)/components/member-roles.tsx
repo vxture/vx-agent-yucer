@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  DataTable,
-  EmptyState,
-  NativeSelect,
-  PageSection,
-  StatusBadge,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  type DataTableColumn,
-} from "@vxture/design-system";
+import { Button, DataTable, EmptyState, NativeSelect, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
 import { ROLE_CODES, ROLE_PERMISSIONS, type RoleCode } from "../../authz/catalog";
 import { MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } from "../lib/messages";
 
@@ -186,7 +175,7 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
   ];
 
   return (
-    <PageSection title={MEMBER_TEXT.title} description={MEMBER_TEXT.description}>
+    <Section title={MEMBER_TEXT.title} description={MEMBER_TEXT.description}>
       {!canManage ? <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge> : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {members.length === 0 ? (
@@ -194,6 +183,6 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
       ) : (
         <DataTable columns={columns} rows={members} rowKey={(row) => row.memberId} />
       )}
-    </PageSection>
+    </Section>
   );
 }

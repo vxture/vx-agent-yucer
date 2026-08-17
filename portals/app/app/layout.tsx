@@ -1,10 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  FullscreenProvider,
-  ThemeProvider,
-  ToastProvider,
-  TooltipProvider,
-} from "@vxture/design-system";
+import { Providers } from "./providers";
 import { BRAND } from "@yucer/shared/brand";
 import "./globals.css";
 
@@ -29,13 +24,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         {/* The prop is defaultMode; the DS README's example still says
             defaultTheme, which its own shipped types reject. */}
-        <ThemeProvider defaultMode="system" defaultDensity="default">
-          <FullscreenProvider>
-            <ToastProvider>
-              <TooltipProvider>{children}</TooltipProvider>
-            </ToastProvider>
-          </FullscreenProvider>
-        </ThemeProvider>
+        <Providers>{children}
+        </Providers>
       </body>
     </html>
   );

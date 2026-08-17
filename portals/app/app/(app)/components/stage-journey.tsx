@@ -1,4 +1,4 @@
-import { EmptyState, PageSection, StatusBadge } from "@vxture/design-system";
+import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import { OPPORTUNITY_TEXT, STAGE_LABEL } from "../lib/messages";
 import { STAGE_TONE } from "../lib/view-model";
@@ -38,12 +38,12 @@ function daysBetween(from: Date, to: Date): number {
 export function StageJourney({ events, now }: StageJourneyProps) {
   if (events.length === 0) {
     return (
-      <PageSection title={OPPORTUNITY_TEXT.journeyTitle} description={OPPORTUNITY_TEXT.journeyDescription}>
+      <Section title={OPPORTUNITY_TEXT.journeyTitle} description={OPPORTUNITY_TEXT.journeyDescription}>
         <EmptyState
           title={OPPORTUNITY_TEXT.journeyEmptyTitle}
           description={OPPORTUNITY_TEXT.journeyEmptyDescription}
         />
-      </PageSection>
+      </Section>
     );
   }
 
@@ -51,7 +51,7 @@ export function StageJourney({ events, now }: StageJourneyProps) {
   const first = events[0];
 
   return (
-    <PageSection
+    <Section
       title={OPPORTUNITY_TEXT.journeyTitle}
       description={OPPORTUNITY_TEXT.journeyDescription}
       action={
@@ -102,6 +102,6 @@ export function StageJourney({ events, now }: StageJourneyProps) {
           );
         })}
       </ol>
-    </PageSection>
+    </Section>
   );
 }
