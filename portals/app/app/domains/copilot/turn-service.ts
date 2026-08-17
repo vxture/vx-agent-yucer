@@ -118,20 +118,31 @@ export async function runCopilotTurn(
     autopilotActive: input.autopilotActive,
   };
 
+  // ONE task id, computed once, sent to BOTH planes.
+  //
+  // Atlas has required it since v0.15.0 and Runos has always taken it, and both
+  // want the same value for the same reason: it is the only key that adds one
+  // agent task's consumption back together across products and models. Deriving
+  // it twice would eventually let the two derivations drift and silently split
+  // a task's spend across two ledgers that cannot be summed.
+  //
+  // Bounded to Runos's limit because that is the tighter of the two - Atlas
+  // allows 128, Runos rejects an over-long one outright.
+  const taskId = `${session.id}:${history.length}`.slice(0, TASK_ID_MAX_LENGTH);
+
   const atlas: AtlasContext = {
     workspaceId: ctx.workspaceId,
     tenantId: input.tenantId,
     subjectToken: input.subjectToken,
     applicationId: session.id,
     requestId: `${session.id}:${history.length}`,
+    taskId,
   };
   const runos: RunosContext = {
     workspaceId: ctx.workspaceId,
     tenantId: input.tenantId,
     subjectToken: input.subjectToken,
-    // Ties every capability call of this turn together. Bounded because Runos
-    // rejects an over-long one outright.
-    taskId: `${session.id}:${history.length}`.slice(0, TASK_ID_MAX_LENGTH),
+    taskId,
     sessionId: session.id,
   };
 

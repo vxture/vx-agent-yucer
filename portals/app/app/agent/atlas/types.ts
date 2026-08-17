@@ -40,8 +40,30 @@ export type ToolChoice = "auto" | "none" | "required" | { name: string };
 
 export type ApplicationType = "agent" | "product" | "job";
 
+/**
+ * Atlas stores taskId in a varchar(128) verbatim, with no transformation.
+ *
+ * yucer bounds to Runos's tighter limit wherever one value serves both planes,
+ * so this constant exists for the paths that talk only to Atlas.
+ */
+export const ATLAS_TASK_ID_MAX = 128;
+
 export interface ChatRequest {
   messages: ChatMessage[];
+  /**
+   * MANDATORY since Atlas v0.15.0. Without it every call is
+   * `400 TASK_ID_REQUIRED`, retryable:false - it fails on the first attempt.
+   *
+   * Any stable string, <= 128 chars, stored verbatim. Its purpose is joining:
+   * one agent task that crosses products and models must send the SAME value,
+   * because that is the only key that adds a task's consumption back together.
+   *
+   * yucer sends the same string it sends Runos, deliberately. Mailing the join
+   * key to one plane and withholding it from the other leaves a task's spend
+   * split across two ledgers that cannot be summed - which is the exact thing
+   * the field exists to prevent.
+   */
+  taskId: string;
   /**
    * Routing. Exactly one is needed; more is allowed and the most specific wins
    * (modelCode > endpointCode > taskProfile).
@@ -118,6 +140,13 @@ export interface StreamErrorFrame {
   type: "error";
   code: string;
   message: string;
+  /**
+   * Atlas's own verdict, carried on the frame since v0.15.0 - an SSE error
+   * frame uses the same envelope as an HTTP error body. It is authoritative:
+   * the gateway knows things a local code table does not, which is why the
+   * Runos client has always preferred the far side's flag over its own class.
+   */
+  retryable?: boolean;
 }
 
 export type StreamFrame =

@@ -63,7 +63,13 @@ function explainError(code: string): string {
   if (code === "atlas_ATLAS_NOT_CONFIGURED" || code === "no_active_tenant") {
     return COPILOT_TEXT.errorNotConfigured;
   }
-  if (code === "atlas_GRANT_DENIED") return COPILOT_TEXT.errorNoGrant;
+  // Atlas renamed GRANT_DENIED to NOT_ENTITLED on 2026-08-16. Both are matched:
+  // this is the one message here that names a remedy, and losing it to a rename
+  // would leave exactly the people who can fix the problem reading "something
+  // went wrong".
+  if (code === "atlas_NOT_ENTITLED" || code === "atlas_GRANT_DENIED") {
+    return COPILOT_TEXT.errorNoGrant;
+  }
   if (code === "atlas_QUOTA_EXCEEDED") return COPILOT_TEXT.errorQuota;
   return COPILOT_TEXT.errorGeneric;
 }
