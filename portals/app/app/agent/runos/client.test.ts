@@ -187,13 +187,20 @@ test("a payload delivered as a JSON text block is read the same as structuredCon
   assert.equal(caps[0].capability_id, "x");
 });
 
-test("invoke returns content plus the vxture meta block", async () => {
+test("invoke reads the meta block from structuredContent, and keeps it out of the payload", async () => {
+  // NOTE THE ASYMMETRY, which is the whole reason this was wrong: the REQUEST
+  // carries its metadata at `_meta.vxture` (asserted above), while the RESPONSE
+  // carries it as a flat `_meta_vxture` key INSIDE structuredContent, beside
+  // the capability's own payload. The fixture used to build the request shape
+  // for a response, so the suite was green against a body Runos never sends.
   const { client, sent } = harness([
     () =>
       rpcOk({
         content: [{ type: "text", text: "done" }],
-        structuredContent: { rows: 3 },
-        _meta: { vxture: { call_id: "call_9", version_resolved: "2.0.0" } },
+        structuredContent: {
+          rows: 3,
+          _meta_vxture: { call_id: "call_9", version_resolved: "2.0.0" },
+        },
       }),
   ]);
   const res = await client.invoke(
@@ -202,6 +209,9 @@ test("invoke returns content plus the vxture meta block", async () => {
   );
   assert.equal(res.meta.call_id, "call_9");
   assert.equal(res.meta.version_resolved, "2.0.0");
+  // The payload the model sees has the gateway's plumbing stripped out. Leaving
+  // it in feeds call_id and version_resolved to the LLM as though they were
+  // part of the capability's answer.
   assert.deepEqual(res.structured, { rows: 3 });
   assert.equal(sent[0].rpc.params.name, "runos_invoke");
 });

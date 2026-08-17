@@ -48,7 +48,20 @@ export interface RunosContext {
   /** Ties every call of one task together. Mandatory upstream. */
   taskId: string;
   sessionId?: string;
-  /** Forwarded untouched; Runos never adjudicates on it. */
+  /**
+   * Object-level authorization credential.
+   *
+   * RUNOS DOES ADJUDICATE ON IT. This comment used to say the opposite, and
+   * that was true of an earlier contract: the platform has since specified a
+   * platform-issued RS256 JWT whose iss / aud / exp / sub are all verified, and
+   * verification is stage 5 of the invoke pipeline - ABOVE the audit boundary,
+   * so a rejection produces `caller_error / invalid_delegation` with no call_id
+   * and no audit row at all.
+   *
+   * yucer still only forwards a value it was handed and never constructs one.
+   * What remains undecided is narrower than it was: which yucer session
+   * identity becomes `sub`, and who mints it. See ADR-004.
+   */
   delegationToken?: string;
 }
 
@@ -73,11 +86,55 @@ interface JsonRpcResponse {
   id: number | string;
   result?: {
     content?: Array<{ type: string; text?: string; [k: string]: unknown }>;
+    /**
+     * Where the gateway's metadata actually lives - as a FLAT `_meta_vxture`
+     * key inside this object, beside the capability's own payload.
+     *
+     * yucer previously read `result._meta.vxture`, a nested shape taken from a
+     * superseded revision of the interface reference. That key is never
+     * present, so the metadata was always empty and four things failed at once
+     * and silently: every skill fetch threw (result_kind defaulted to
+     * "executed"), content_digest was never verified, version_resolved fell
+     * back to whatever was requested, and call_id was never captured - so
+     * yucer's invocation log could not be joined to Runos's audit trail at all.
+     */
     structuredContent?: unknown;
     isError?: boolean;
     _meta?: Record<string, unknown>;
   };
   error?: { code: number; message: string; data?: unknown };
+}
+
+/** The gateway's key inside structuredContent. */
+const META_KEY = "_meta_vxture";
+
+/**
+ * Split the gateway's metadata from the capability's payload.
+ *
+ * They are SIBLINGS for a normal capability - `structuredContent` is the
+ * payload with `_meta_vxture` mixed in beside it - so the split has to happen
+ * here rather than at the call site. Without it the orchestrator hands
+ * `structuredContent` straight to the model, and `call_id` / `version_resolved`
+ * arrive in the tool result as if they were part of the capability's answer.
+ * Plumbing in the model's context is not harmless: it is unexplained tokens
+ * that look like data.
+ */
+function splitMeta(structuredContent: unknown): {
+  payload: unknown;
+  meta: Record<string, unknown>;
+} {
+  if (typeof structuredContent !== "object" || structuredContent === null || Array.isArray(structuredContent)) {
+    return { payload: structuredContent, meta: {} };
+  }
+  const { [META_KEY]: raw, ...payload } = structuredContent as Record<string, unknown>;
+  const meta = typeof raw === "object" && raw !== null && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+  // A skill distribution carries ONLY the metadata, so the remainder is {} -
+  // returned as undefined so a caller does not render an empty object as an
+  // answer.
+  const keys = Object.keys(payload);
+  return { payload: keys.length === 0 ? undefined : payload, meta };
 }
 
 export class RunosClient {
@@ -140,10 +197,11 @@ export class RunosClient {
     skillContext?: CallMeta["skill_context"],
   ): Promise<InvokeResult> {
     const result = await this.callTool("runos_invoke", args, ctx, skillContext);
-    const meta = (result._meta?.vxture as Record<string, unknown> | undefined) ?? {};
+    const { payload, meta } = splitMeta(result.structuredContent);
     return {
       content: result.content ?? [],
-      structured: result.structuredContent,
+      // The capability's payload with the gateway's metadata removed.
+      structured: payload,
       meta,
     };
   }

@@ -29,6 +29,10 @@ export type ErrorCode =
   | "quota_exceeded"
   | "schema_invalid"
   | "missing_metadata"
+  // Delegation-token verification, stage 5 of invoke. It sits ABOVE the audit
+  // boundary, so unlike every other refusal here it yields no call_id and no
+  // audit row - there is nothing to correlate a support question against.
+  | "invalid_delegation"
   | "unknown_capability"
   | "version_not_found"
   | "provider_unavailable"
@@ -150,13 +154,29 @@ export function parseToolError(text: string, raw?: unknown): RunosError {
 
 /** A protocol/authentication failure, which rides the HTTP status. */
 export function transportError(status: number, body: unknown): RunosError {
+  const b = (body ?? {}) as Record<string, unknown>;
   const message =
-    body && typeof body === "object" && typeof (body as { message?: unknown }).message === "string"
-      ? (body as { message: string }).message
-      : `runos request failed with ${status}`;
+    typeof b.message === "string" ? b.message : `runos request failed with ${status}`;
+
+  // Carry Runos's own code through when it sent one.
+  //
+  // A transport 401 used to be relabelled `not_entitled`, which inverted the
+  // diagnosis exactly: `not_entitled` makes isAdjudication true, so a wrong
+  // scope or a missing act.sub - pure ticket-minting bugs on OUR side - were
+  // reported as "this workspace has not bought this capability". The gateway
+  // publishes six distinguishable S2S_TOKEN_* codes precisely so a reader can
+  // tell those apart, and collapsing all six into the one label that means
+  // something else discarded the whole distinction.
+  //
+  // Real entitlement denial never arrives on this path: it comes back as
+  // authz_rejected/not_entitled in the TOOL RESULT, under HTTP 200.
+  const code = typeof b.code === "string" ? b.code : undefined;
+  const errorCode =
+    code ?? (status === 401 || status === 403 ? "invalid_credential" : "contract_violation");
+
   return new RunosError({
     errorClass: status >= 500 ? "gateway_error" : "caller_error",
-    errorCode: status === 401 || status === 403 ? "not_entitled" : "contract_violation",
+    errorCode,
     message,
     // 401/403 here mean the ticket itself is wrong: wrong audience, wrong scope,
     // wrong mode. Replaying it cannot fix any of those.
