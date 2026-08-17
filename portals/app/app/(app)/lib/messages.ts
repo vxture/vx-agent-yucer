@@ -201,6 +201,8 @@ export const HOME_TEXT = {
   secEvidenceCount: (n: number) => `依据 · ${n} 条`,
   secFacts: "关键事实",
   secRule: "触发条件",
+  expand: "展开",
+  collapse: "收起",
   analysisRisk: "风险分析",
   analysisCompetition: "竞争态势",
   analysisPolicy: "政策与行业",
