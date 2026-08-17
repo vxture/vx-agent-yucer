@@ -180,7 +180,10 @@ export const HEADER_TEXT = {
   subscription: (tier: string) => `${tier} 档`,
   subscriptionNone: "未订阅",
   subscriptionAria: "订阅档位",
-  version: (v: string) => `v${v}`,
+  // Passed through. The "v" prefix used to be added here, which turned the
+  // local build label "dev" into "vdev"; a prefix that only fits one of the
+  // three shapes this label takes belongs where the label is chosen.
+  version: (v: string) => v,
   adminAria: "管理",
   userMenuOpen: "打开用户菜单",
 } as const;
@@ -220,6 +223,9 @@ export const HOME_TEXT = {
   secEvidenceCount: (n: number) => `依据 · ${n} 条`,
   secFacts: "关键事实",
   secRule: "触发条件",
+  /** Facts joined into the one line a collapsed card shows. */
+  factInline: (label: string, value: string) => `${label} ${value}`,
+  factJoin: " · ",
   expand: "展开",
   collapse: "收起",
   analysisRisk: "风险分析",
@@ -231,8 +237,11 @@ export const HOME_TEXT = {
   agentScope: (n: number) => `正看着：${n} 位客户`,
   agentNote: "记一笔",
   agentAsk: "问助手",
-  agentPlaceholder:
-    "刚跟王总通完电话……\n\n直接倒进来就行，三句话、一段微信、一封转发的邮件都算。原文会原样保留。",
+  agentPlaceholder: "刚跟王总通完电话……",
+  // Was appended to the placeholder with a blank line, which rendered it as a
+  // second paragraph INSIDE the input - it read as text someone had already
+  // typed. Guidance about a field belongs beside the field, not in it.
+  agentHelp: "三句话、一段微信、一封转发的邮件都算，原文会原样保留。",
   agentSend: "存",
   agentPending: "待我裁决",
   agentPendingCount: (n: number) => `待我裁决 · ${n} 条`,

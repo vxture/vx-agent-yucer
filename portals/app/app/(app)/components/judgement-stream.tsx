@@ -10,6 +10,7 @@ import {
   CollapsibleTrigger,
   EmptyState,
   FactList,
+  Icon,
   PanelCard,
   SectionHeader,
   SegmentedControl,
@@ -160,11 +161,24 @@ function JudgementCard({
         titleSuffix={<SourceMark source={j.source} />}
         description={
           <Stack gap="xs" className="flex-row flex-wrap items-center">
-            {j.tags.map((t, i) => (
-              <StatusBadge key={i} tone={t.tone ?? "neutral"}>
-                {t.label ? `${t.label} ${t.value}` : t.value}
-              </StatusBadge>
-            ))}
+            {/* A tag with a tone is a STATUS and gets StatusBadge, which draws
+                the tone's icon. A tag without one is just a fact - the account
+                name, the amount - and got the neutral tone's icon too, so every
+                chip on the card wore a leading dash and read as broken. */}
+            {/* "neutral" is not a status, it is the ABSENCE of one, so it must
+                not draw a status icon - StatusBadge renders the tone's icon
+                unconditionally, and neutral's is a dash. */}
+            {j.tags.map((t, i) =>
+              t.tone && t.tone !== "neutral" ? (
+                <StatusBadge key={i} tone={t.tone}>
+                  {t.label ? `${t.label} ${t.value}` : t.value}
+                </StatusBadge>
+              ) : (
+                <Badge key={i} variant="outline">
+                  {t.label ? `${t.label} ${t.value}` : t.value}
+                </Badge>
+              ),
+            )}
           </Stack>
         }
         action={
@@ -173,10 +187,25 @@ function JudgementCard({
                 and a word survives a screen reader better than a glyph. */}
             <Button variant="ghost" size="sm" aria-expanded={open}>
               {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
+              <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
             </Button>
           </CollapsibleTrigger>
         }
       >
+        {/* PanelCard ALWAYS renders a body region, so a collapsed card whose
+            body was empty drew a padded blank box under the dashed rule - a
+            hole in the middle of the stream. The body is therefore never empty:
+            collapsed, it carries the facts on one line, which also means a
+            closed card still tells you something instead of only a headline. */}
+        {open ? null : (
+          <p className="text-muted-foreground text-xs">
+            {j.facts
+              .slice(0, 3)
+              .map((f) => HOME_TEXT.factInline(f.label, f.value))
+              .join(HOME_TEXT.factJoin)}
+          </p>
+        )}
+
         <CollapsibleContent>
           <Stack gap="md">
             {j.citations.length > 0 ? (

@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Avatar, AvatarFallback, Button, PanelItem, PanelList, SegmentedControl, Textarea } from "@vxture/design-ui";
+import {
+  Avatar,
+  AvatarFallback,
+  Button,
+  Card,
+  PanelItem,
+  PanelList,
+  SegmentedControl,
+  Textarea,
+} from "@vxture/design-ui";
 import { HOME_TEXT } from "../lib/messages";
 
 // The agent, as a column rather than a page.
@@ -49,7 +58,7 @@ export function AgentColumn({ scanned, pending, recent, canRecord, onRecord }: A
       </div>
 
       {canRecord ? (
-        <div className="bg-card rounded-md border p-2 shadow-sm">
+        <Card className="p-sm">
           <SegmentedControl
             ariaLabel={HOME_TEXT.agentComposeLabel}
             fill
@@ -60,14 +69,20 @@ export function AgentColumn({ scanned, pending, recent, canRecord, onRecord }: A
               { value: "ask", label: HOME_TEXT.agentAsk },
             ]}
           />
+          {/* The DS Textarea keeps its own border and padding. An earlier
+              version stripped all three to fake an inline composer, which is
+              restyling the design system rather than using it. */}
           <Textarea
-            className="mt-2 min-h-20 resize-none border-0 p-0 text-sm shadow-none focus-visible:ring-0"
+            className="mt-sm min-h-20 resize-none"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={HOME_TEXT.agentPlaceholder}
             disabled={pendingSave}
           />
-          <div className="mt-1 flex justify-end">
+          <p className="text-muted-foreground mt-xs text-xs leading-relaxed">
+            {HOME_TEXT.agentHelp}
+          </p>
+          <div className="mt-sm flex justify-end">
             <Button
               size="sm"
               disabled={pendingSave || text.trim() === "" || !onRecord}
@@ -82,7 +97,7 @@ export function AgentColumn({ scanned, pending, recent, canRecord, onRecord }: A
               {HOME_TEXT.agentSend}
             </Button>
           </div>
-        </div>
+        </Card>
       ) : null}
 
       {pending.length > 0 ? (

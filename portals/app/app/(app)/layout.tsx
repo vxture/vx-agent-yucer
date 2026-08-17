@@ -35,7 +35,10 @@ function buildLabel(): string {
     service: `${BRAND.productCode}-app`,
     product: BRAND.productCode,
   });
-  if (!gitSha || gitSha === "unknown") return process.env.APP_VERSION ?? "dev";
+  // Three shapes, and only one of them takes a "v": a semver release does,
+  // a commit sha does not, and "dev" is not a version at all.
+  const declared = process.env.APP_VERSION;
+  if (!gitSha || gitSha === "unknown") return declared ? `v${declared}` : "dev";
   return gitSha.slice(0, 7);
 }
 
@@ -145,7 +148,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       admin={admin}
       activeKey={null}
       userName={session.user.sub}
-      workspaceLabel={session.entitlement.tier ?? SHELL_TEXT.workspaceFallback}
+      // NOT the tier. The header already states the tier in its own badge, and
+      // passing it here printed "enterprise" twice - once as the place you are
+      // in and once as what you pay for, which are different facts.
+      workspaceLabel={SHELL_TEXT.workspaceFallback}
       upgradeHref={subscribeUrl({ intent: "upgrade" })}
     >
       {children}
