@@ -1,6 +1,7 @@
 import { EmptyState, PageHeader, PageStack, StatusBadge } from "@vxture/design-system";
 import { resolveAppSession } from "../../lib/session";
-import { ACCOUNT_STATUS_LABEL, SHELL_TEXT } from "../../lib/messages";
+import Link from "next/link";
+import { ACCOUNT_STATUS_LABEL, ASK_ABOUT_TEXT, SHELL_TEXT } from "../../lib/messages";
 import { can } from "../../../authz/decide";
 import { getAccountStore, getFieldStore } from "../../../domains/shared/registry";
 import {
@@ -110,6 +111,15 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           canRecompute={canWrite}
           onRecompute={recomputeAccountHealth}
         />
+      ) : null}
+
+      {/* The entry point to a grounded conversation. Deliberately here rather
+          than on the copilot page: the question "why has this stalled" occurs
+          to someone while they are looking at the account, and making them
+          navigate away and re-identify the customer is how a feature goes
+          unused. */}
+      {can(session.authz, session.entitlement, "copilot.ask", "ui").allowed ? (
+        <Link href={`/copilot?account=${id}`}>{ASK_ABOUT_TEXT.linkFromAccount}</Link>
       ) : null}
 
       {/* What the recorded facts say about this relationship, above the health

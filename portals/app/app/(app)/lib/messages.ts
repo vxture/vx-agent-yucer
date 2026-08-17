@@ -140,6 +140,15 @@ export const NAV_TEXT = {
   upgradeCta: "升级以解锁更多能力",
 } as const;
 
+export const ASK_ABOUT_TEXT = {
+  anchored: (name: string) => `本次对话已锁定客户：${name}`,
+  // Says what the model can and cannot see. A grounded answer that looked
+  // omniscient would get trusted past what it actually read.
+  anchoredHint:
+    "助手能读到这个客户下已记录的跟进原文与承诺，回答时会标注它引用了哪一条。读不到的东西它不会替你补——没记下来的事，它也不知道。",
+  linkFromAccount: "就这个客户问助手",
+} as const;
+
 export const RECENCY_TEXT = {
   title: "谁是真的联系过的",
   // The distinction this panel exists to hold, stated where a reader sees it.

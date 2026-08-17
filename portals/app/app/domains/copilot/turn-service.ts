@@ -21,7 +21,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
 import type { RunosClient, RunosContext } from "../../agent/runos/client";
 import { runTurn, type TurnResult } from "../../agent/orchestrator/turn";
-import type { PromptContext } from "../../agent/orchestrator/prompt";
+import type { EvidenceGrounding, PromptContext } from "../../agent/orchestrator/prompt";
 import { AtlasError } from "../../agent/atlas/errors";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
@@ -42,6 +42,16 @@ export interface TurnInput {
   tenantId: string;
   /** True when the workspace has autopilot switched on. */
   autopilotActive?: boolean;
+  /**
+   * What has actually been recorded about the subject.
+   *
+   * Passed in rather than fetched here, and that is the gate story: it is
+   * assembled by the account domain behind account.view, so a customer's
+   * recorded words reach a model only through the same check a person reading
+   * the page passes. A copilot that fetched it itself would be a second path to
+   * the same data with its own opinion about who may see it.
+   */
+  evidence?: EvidenceGrounding;
 }
 
 export interface TurnOutput {
@@ -101,6 +111,7 @@ export async function runCopilotTurn(
     permissions: [...ctx.holder.permissions],
     features: featureKeysOf(ctx.entitlement),
     playbooks,
+    evidence: input.evidence,
     subject: input.subject
       ? { type: input.subject.type, id: input.subject.id, summary: input.subject.summary }
       : undefined,

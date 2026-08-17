@@ -1,7 +1,8 @@
 import { EmptyState, PageStack } from "@vxture/design-system";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT } from "../lib/messages";
-import { getCopilotStore } from "../../domains/shared/registry";
+import { getAccountStore, getCopilotStore } from "../../domains/shared/registry";
+import { getAccountDetail } from "../../domains/account/service";
 import { listPlaybooks, listProposals } from "../../domains/copilot/service";
 import { MAX_PLAYBOOKS } from "../../domains/copilot/turn-service";
 import { can } from "../../authz/decide";
@@ -21,7 +22,12 @@ import { askCopilot } from "./ask-action";
 
 export const dynamic = "force-dynamic";
 
-export default async function CopilotPage() {
+export default async function CopilotPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ account?: string }>;
+}) {
+  const { account: accountId } = await searchParams;
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -34,6 +40,20 @@ export default async function CopilotPage() {
     entitlement: session.entitlement,
     store: getCopilotStore(),
   };
+
+  // Resolved server-side through the account service, so an id in the URL that
+  // the member may not read simply does not anchor the conversation. The client
+  // never supplies the name.
+  const anchored = accountId
+    ? await getAccountDetail(
+        { ...ctx, store: getAccountStore() },
+        accountId,
+      )
+    : null;
+  const account =
+    anchored?.ok === true
+      ? { id: anchored.value.account.id, name: anchored.value.account.name }
+      : undefined;
 
   const [proposals, playbooks, sessions] = await Promise.all([
     listProposals(ctx, { limit: 100 }),
@@ -65,6 +85,7 @@ export default async function CopilotPage() {
         initialMessages={initialMessages}
         sessionId={latest?.id ?? null}
         canAsk={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}
+        account={account}
         onAsk={askCopilot}
       />
       <ProposalQueue
