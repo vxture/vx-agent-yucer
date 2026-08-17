@@ -109,8 +109,10 @@ karda 公布契约之后，**本 ADR 被取代（superseded），而不是朝有
 
 ## 未决
 
-全部条目见 `docs/80-liaison/01-2608161131-platform-karda-arda-contract-request.md`
-的 A 段与 C 段（第 1-4、12-16 问）。逐条都是「答案会改代码」的问题；只会改文档的
+全部条目已发为 [vxture-karda#103](https://github.com/vxture/vxture-karda/issues/103)。逐条都是「答案会改代码」的问题；只会改文档的
 问题没有进那张表。
 
-在 C 段全部回答之前，本仓不开始 karda 的任何实现工作。
+在该 issue 全部回答之前，本仓不开始 karda 的任何实现工作。
+
+**渠道更正**：这些问题最初写成了本仓 `docs/80-liaison/` 下的一份文件，那是错的——
+跨仓联络 2026-07-27 起走开在收信方仓上的 GitHub Issue。已重发。
