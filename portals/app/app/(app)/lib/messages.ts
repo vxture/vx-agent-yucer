@@ -228,6 +228,7 @@ export const HOME_TEXT = {
   // tag. This is a colleague who did the reading telling you what they found.
   lead: (n: number) => `今天有 ${n} 件要你定`,
   leadNone: "今天没有要你定的事",
+  queueLabel: "待定判断队列",
   leadSub: (accounts: number, judgements: number) =>
     `扫过 ${accounts} 位客户的跟进记录，得出 ${judgements} 条判断`,
   evidenceMore: (n: number) => `还有 ${n} 条依据`,
