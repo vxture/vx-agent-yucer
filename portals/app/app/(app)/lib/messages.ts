@@ -148,6 +148,46 @@ export const SIGNIN_TEXT = {
   ariaLabel: "登录",
 } as const;
 
+/**
+ * The navigation board.
+ *
+ * Section titles and the LABEL beside each number. The unit belongs to the
+ * value, not to the label - "240 万" is one fact and splitting it across two
+ * elements makes the reader reassemble it.
+ */
+export const BOARD_TEXT = {
+  today: "今日判断",
+  adjudicate: "待我裁决",
+  mydeals: "我的商机",
+  strategy: "市场战略",
+  campaign: "市场执行",
+  planning: "销售规划",
+  account: "客户管理",
+  signal: "商机侦探",
+  delivery: "项目落地",
+
+  tierToday: "今天",
+  tierWeek: "本周",
+  tierWatch: "留意",
+  pending: "待裁决",
+  dealsOpen: "在办",
+  dealsWorth: "金额",
+  plans: "计划",
+  campaigns: "战役",
+  targets: "目标",
+  territories: "辖区",
+  accounts: "客户",
+  signals: "信号",
+  leads: "线索",
+  projects: "项目",
+
+  /** Ten-thousands, the unit Chinese enterprise sales actually quotes in. */
+  wan: (amount: number) => `${Math.round(amount / 10_000)} 万`,
+  expand: (title: string) => `展开${title}`,
+  collapse: (title: string) => `收起${title}`,
+  boardLabel: "板块概览",
+} as const;
+
 export const NAV_TEXT = {
   ariaLabel: "能力域导航",
   // The sidebar groups are a business statement, not a tidy-up: D1-D7 are a

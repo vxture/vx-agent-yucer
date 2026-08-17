@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
-import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES, WORK_NAV_ENTRIES } from "./lib/navigation";
+import { resolveNavigation, lockoutReason } from "./lib/navigation";
+import { boardSections } from "./lib/board";
 import { AppShell } from "./components/app-shell";
 import { SignIn } from "./components/sign-in";
 import { serviceIdentity } from "@vxture/shared";
@@ -89,23 +90,26 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Three groups, and the split is the point of the rearrangement.
+  // The sidebar's sections and their real numbers.
   //
-  //   work    where a person acts - the judgement stream, and the copilot,
-  //           which is where their decisions land.
-  //   archive the seven object domains. They hold the data; nobody opens a
-  //           customer list to find out what went wrong over the weekend.
-  //   admin   outside the chain entirely.
+  // Gathered here rather than in the page because the board belongs to the
+  // SHELL - it is on screen for every route, so every route pays for it. That
+  // cost is real and deliberate: a board that only knew the numbers on the home
+  // screen would go stale the moment you navigated, which is worse than not
+  // showing numbers at all.
   //
-  // The copilot moves into WORK rather than out of the product: it is still D8
-  // (ADR-001) and still in DOMAIN_NAV_ENTRIES. What changed is that it stopped
-  // being the ninth item in a flat menu, which said it was one more optional
-  // feature you might click.
-  const adminKeys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
-  const workKeys = new Set([...WORK_NAV_ENTRIES.map((e) => e.key), "copilot"]);
-  const work = nav.filter((e) => workKeys.has(e.key));
-  const domains = nav.filter((e) => !workKeys.has(e.key) && !adminKeys.has(e.key));
-  const admin = nav.filter((e) => adminKeys.has(e.key));
+  // The judgement feed inside it is memoised per request (board.ts), so the
+  // home page reusing it does not compute the most expensive read twice.
+  // Administration still comes from the gate resolver, not the board: it is
+  // setup rather than work, and it lives as a header icon.
+  const admin = nav.filter((e) => e.key === "admin" || e.key === "adoption");
+
+  const board = await boardSections({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  });
 
   // What search can reach, assembled through the SAME services the pages use -
   // so a member cannot find by name what a page would refuse to show them.
@@ -140,8 +144,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <AppShell
-      work={work}
-      domains={domains}
+      board={board}
       appVersion={buildLabel()}
       tier={session.entitlement.tier}
       searchable={searchable}

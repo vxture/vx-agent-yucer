@@ -15,6 +15,18 @@ import {
 } from "@vxture/design-system";
 import { Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
+import { NavBoard } from "./nav-board";
+import type { BoardSection } from "../lib/board";
+
+/**
+ * The three sections that stay open.
+ *
+ * They are what a person opens this product to do: what needs deciding today,
+ * what is waiting on their signature, and what is still in play. Everything
+ * else is a title until asked for - nine equally-loud panels teach a reader
+ * nothing about which one matters.
+ */
+export const PINNED_SECTIONS = ["today", "adjudicate", "mydeals"] as const;
 import { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 
 // yucer's application shell.
@@ -46,8 +58,8 @@ import { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages
 
 export interface AppShellProps {
   /** Where a person acts: the judgement stream and the decision queue. */
-  readonly work: readonly ResolvedNavEntry[];
-  readonly domains: readonly ResolvedNavEntry[];
+  /** The sections and their real numbers, gathered server-side in board.ts. */
+  readonly board: readonly BoardSection[];
   /**
    * Administration. Reached from a single header icon rather than a sidebar
    * group: it is not work and not data, it is setup - visited rarely, and a
@@ -108,31 +120,8 @@ function NavLink({ entry, active }: { entry: ResolvedNavEntry; active: boolean }
   );
 }
 
-function NavSection({
-  title,
-  entries,
-  activeKey,
-}: {
-  title: string;
-  entries: readonly ResolvedNavEntry[];
-  activeKey: string | null;
-}) {
-  if (entries.length === 0) return null;
-  return (
-    <div className="nav-section">
-      <div className="nav-section-title">{title}</div>
-      <div className="nav-items">
-        {entries.map((e) => (
-          <NavLink key={e.key} entry={e} active={e.key === activeKey} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function AppShell({
-  work,
-  domains,
+  board,
   admin,
   activeKey,
   userName,
@@ -235,15 +224,15 @@ export function AppShell({
       </header>
 
       <div className="app-body">
-        <nav className="sidebar" aria-label={NAV_TEXT.ariaLabel}>
-          {/* Work first, and the archive under it. A sidebar's order is a
-              claim about what the product is for. */}
-          <NavSection title={NAV_TEXT.groupWork} entries={work} activeKey={activeKey} />
-          <NavSection title={NAV_TEXT.groupChain} entries={domains} activeKey={activeKey} />
+        <div className="sidebar">
+          {/* Not a menu. Nine links answer "where can I go", which nobody
+              wonders about twice; the board answers "where do things stand"
+              and is also how you get there. See nav-board.tsx. */}
+          <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
 
           {/* The conversion exit stays reachable from the shell rather than only
               from a domain that happens to be locked. */}
-          {domains.some((d) => d.state === "locked") ? (
+          {upgradeHref && board.length === 0 ? (
             <div className="side-foot">
               <a className="nav-item" href={upgradeHref}>
                 <i aria-hidden="true">
@@ -253,7 +242,7 @@ export function AppShell({
               </a>
             </div>
           ) : null}
-        </nav>
+        </div>
 
         <main className="content-scroll">
           <div className="content-inner">{children}</div>

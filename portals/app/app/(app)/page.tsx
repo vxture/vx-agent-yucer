@@ -3,7 +3,7 @@ import { resolveAppSession } from "./lib/session";
 import { HOME_TEXT, SHELL_TEXT } from "./lib/messages";
 import { can } from "../authz/decide";
 import { getFieldStore } from "../domains/shared/registry";
-import { judgementFeed } from "../domains/judgement/service";
+import { cachedFeed } from "./lib/board";
 import { JudgementWorkspace } from "./components/judgement-workspace";
 import { recordFollowUp } from "./account/field-actions";
 
@@ -43,7 +43,9 @@ export default async function HomePage({
     entitlement: session.entitlement,
   };
 
-  const feed = await judgementFeed(ctx, { scope: requested });
+  // The SAME memoised call the shell's board makes, so the most expensive read
+  // in the product happens once per request rather than once per consumer.
+  const feed = await cachedFeed(ctx, { scope: requested });
   if (!feed.ok) {
     return (
       <EmptyState
