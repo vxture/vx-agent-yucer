@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
-import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES } from "./lib/navigation";
+import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES, WORK_NAV_ENTRIES } from "./lib/navigation";
 import { AppShell } from "./components/app-shell";
 import { SHELL_TEXT } from "./lib/messages";
 
@@ -61,19 +61,28 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Split for the sidebar's three groups. The copilot is pulled OUT of the
-  // domain list rather than left at its end: it cuts across all seven links of
-  // the chain, and rendering it as their eighth peer would read as a stage that
-  // comes after delivery.
+  // Three groups, and the split is the point of the rearrangement.
+  //
+  //   work    where a person acts - the judgement stream, and the copilot,
+  //           which is where their decisions land.
+  //   archive the seven object domains. They hold the data; nobody opens a
+  //           customer list to find out what went wrong over the weekend.
+  //   admin   outside the chain entirely.
+  //
+  // The copilot moves into WORK rather than out of the product: it is still D8
+  // (ADR-001) and still in DOMAIN_NAV_ENTRIES. What changed is that it stopped
+  // being the ninth item in a flat menu, which said it was one more optional
+  // feature you might click.
   const adminKeys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
-  const domains = nav.filter((e) => e.key !== "copilot" && !adminKeys.has(e.key));
-  const copilot = nav.find((e) => e.key === "copilot") ?? null;
+  const workKeys = new Set([...WORK_NAV_ENTRIES.map((e) => e.key), "copilot"]);
+  const work = nav.filter((e) => workKeys.has(e.key));
+  const domains = nav.filter((e) => !workKeys.has(e.key) && !adminKeys.has(e.key));
   const admin = nav.filter((e) => adminKeys.has(e.key));
 
   return (
     <AppShell
+      work={work}
       domains={domains}
-      copilot={copilot}
       admin={admin}
       activeKey={null}
       userName={session.user.sub}

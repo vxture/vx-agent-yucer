@@ -70,6 +70,8 @@ export const DOMAIN_LABEL: Record<string, string> = {
   pipeline: "商机管理",
   delivery: "项目落地",
   copilot: "销售助手",
+  home: "今日判断",
+  queue: "待我裁决",
   admin: "成员与角色",
   adoption: "使用情况",
 };
@@ -132,7 +134,8 @@ export const NAV_TEXT = {
   // The sidebar groups are a business statement, not a tidy-up: D1-D7 are a
   // sequence, the copilot cuts across all of them, and administration sits
   // outside the chain.
-  groupChain: "销售链条",
+  groupWork: "工作台",
+  groupChain: "档案",
   groupAgent: "智能助手",
   groupAdmin: "管理",
   requiresTier: (tier: string) => `需要 ${tier} 档位`,
@@ -147,6 +150,62 @@ export const ASK_ABOUT_TEXT = {
   anchoredHint:
     "助手能读到这个客户下已记录的跟进原文与承诺，回答时会标注它引用了哪一条。读不到的东西它不会替你补——没记下来的事，它也不知道。",
   linkFromAccount: "就这个客户问助手",
+} as const;
+
+export const HOME_TEXT = {
+  title: "今日判断",
+  description: (n: number) => `由 ${n} 位客户的已记录跟进推出。同时只展开一条。`,
+  emptyTitle: "现在没有要处理的",
+  emptyDescription:
+    "没有逾期承诺、没有长时间沉默、没有决策人零接触。这不是「暂无数据」——是扫过了，确实没有。",
+  emptyNoRecords:
+    "还没有任何跟进记录，所以推不出任何判断。判断是从记录里长出来的，第一步是记一笔。",
+  scopeMine: "我的",
+  scopeAll: "全部",
+  urgencyAll: "全部",
+  urgencyToday: "今天",
+  urgencyWeek: "本周",
+  urgencyWatch: "留意",
+  sourceRule: "规则",
+  sourceModel: "模型",
+  // Stated where a reader sees it, because it is the whole reason the two are
+  // marked apart.
+  sourceRuleHint: "算出来的，你可以自己复核",
+  sourceModelHint: "看出来的，只能核对它引用的原文",
+  secEvidence: "依据",
+  secEvidenceCount: (n: number) => `依据 · ${n} 条`,
+  secFacts: "关键事实",
+  secRule: "触发条件",
+  analysisRisk: "风险分析",
+  analysisCompetition: "竞争态势",
+  analysisPolicy: "政策与行业",
+  analysisHint: "分析结果会作为「模型」判断入流",
+  actDismiss: "不用管",
+  agentTitle: "智能助手",
+  agentScope: (n: number) => `正看着：${n} 位客户`,
+  agentNote: "记一笔",
+  agentAsk: "问助手",
+  agentPlaceholder:
+    "刚跟王总通完电话……\n\n直接倒进来就行，三句话、一段微信、一封转发的邮件都算。原文会原样保留。",
+  agentSend: "存",
+  agentPending: "待我裁决",
+  agentPendingCount: (n: number) => `待我裁决 · ${n} 条`,
+  /** Source and time, joined. The separator lives here, not in a component. */
+  agentPendingWhen: (source: string, when: string) => `${source} · ${when}`,
+  /** Truncation is copy too - the ellipsis is a character, and it is Chinese. */
+  truncate: (text: string) => `${text}…`,
+  agentRecent: "最近记的",
+  agentAvatar: "聿",
+  agentComposeLabel: "记一笔或问助手",
+  scopeLabel: "范围",
+  urgencyLabel: "紧要程度",
+  openSubject: "打开",
+  whenToday: "今天",
+  whenDaysAgo: (n: number) => `${n} 天前`,
+  pendingFromScan: "今晨扫描",
+  pendingFromClick: "你点了分析",
+  /** Subject and claim, joined. Kept here so no separator lives in a .tsx. */
+  pendingTitle: (subject: string, claim: string) => `${subject} · ${claim}`,
 } as const;
 
 export const RECENCY_TEXT = {

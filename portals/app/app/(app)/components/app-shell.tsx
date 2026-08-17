@@ -35,9 +35,10 @@ import { DOMAIN_LABEL, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 // nobody is teased with a door only their colleague can open.
 
 export interface AppShellProps {
+  /** Where a person acts: the judgement stream and the decision queue. */
+  readonly work: readonly ResolvedNavEntry[];
   readonly domains: readonly ResolvedNavEntry[];
   readonly admin: readonly ResolvedNavEntry[];
-  readonly copilot: ResolvedNavEntry | null;
   readonly activeKey: string | null;
   readonly userName: string;
   readonly workspaceLabel: string;
@@ -107,9 +108,9 @@ function NavSection({
 }
 
 export function AppShell({
+  work,
   domains,
   admin,
-  copilot,
   activeKey,
   userName,
   workspaceLabel,
@@ -144,10 +145,10 @@ export function AppShell({
 
       <div className="app-body">
         <nav className="sidebar" aria-label={NAV_TEXT.ariaLabel}>
+          {/* Work first, and the archive under it. A sidebar's order is a
+              claim about what the product is for. */}
+          <NavSection title={NAV_TEXT.groupWork} entries={work} activeKey={activeKey} />
           <NavSection title={NAV_TEXT.groupChain} entries={domains} activeKey={activeKey} />
-          {copilot ? (
-            <NavSection title={NAV_TEXT.groupAgent} entries={[copilot]} activeKey={activeKey} />
-          ) : null}
           <NavSection title={NAV_TEXT.groupAdmin} entries={admin} activeKey={activeKey} />
 
           {/* The conversion exit stays reachable from the shell rather than only

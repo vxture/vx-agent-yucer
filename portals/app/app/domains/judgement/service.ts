@@ -1,0 +1,142 @@
+// Assembling the judgement stream.
+//
+// This is the one service that reads across domains, and it does so through
+// their SERVICES rather than their stores - so every gate that guards a page
+// guards this too. A home screen that could show what a detail page refuses to
+// is a hole shaped exactly like the nav-link-hiding mistake this repo already
+// fixed once: hiding a link is not access control, and neither is summarising.
+//
+// It reads a lot. That is inherent - a judgement about "which of my deals is
+// rotting" cannot be made from one table - but it means this is the first place
+// to look when the home screen gets slow, and the narrow-port work registered
+// after the self-review lands here first.
+
+import type { Entitlement } from "../../entitlement/types";
+import { can, type PermissionHolder } from "../../authz/decide";
+import { ok, type RuleResult } from "../shared/result";
+import { denied } from "../pipeline/service";
+import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/registry";
+import { listAccounts, decisionChain, accountRelations } from "../account/service";
+import { listPipeline } from "../pipeline/service";
+import { captureAdoption } from "../account/field-service";
+import { deriveJudgements, countByUrgency, type Judgement, type Urgency } from "./lib/judgement";
+
+export interface JudgementContext {
+  workspaceId: string;
+  sub: string;
+  holder: PermissionHolder;
+  entitlement: Entitlement;
+}
+
+export interface JudgementFeed {
+  judgements: Judgement[];
+  counts: Record<Urgency, number>;
+  /** How many accounts were actually read, so an empty feed is explicable. */
+  scanned: number;
+}
+
+export interface FeedOptions {
+  now?: Date;
+  /** "mine" restricts to accounts this member owns. */
+  scope?: "mine" | "all";
+}
+
+const DAY = 86_400_000;
+
+/**
+ * The home screen's whole payload.
+ *
+ * Gated on account.view, the same permission the account list needs: every
+ * judgement here is a statement about accounts, and a member who may not read
+ * the accounts may not read conclusions drawn from them either.
+ */
+export async function judgementFeed(
+  ctx: JudgementContext,
+  options: FeedOptions = {},
+): Promise<RuleResult<JudgementFeed>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const now = options.now ?? new Date();
+  const base = { workspaceId: ctx.workspaceId, sub: ctx.sub, holder: ctx.holder, entitlement: ctx.entitlement };
+  const accountCtx = { ...base, store: getAccountStore() };
+  const fieldStore = getFieldStore();
+
+  const [accountsResult, dealsResult] = await Promise.all([
+    listAccounts(accountCtx),
+    listPipeline({ ...base, store: getPipelineStore() }, { includeClosed: true }),
+  ]);
+  if (!accountsResult.ok) return accountsResult as RuleResult<JudgementFeed>;
+
+  const accounts = accountsResult.ok ? accountsResult.value : [];
+  const deals = dealsResult.ok ? dealsResult.value : [];
+  const mine = options.scope === "all" ? accounts : accounts.filter((a) => a.ownerSub === ctx.sub);
+
+  const inputs = await Promise.all(
+    mine.map(async (a) => {
+      const [notes, commitments, lastContactAt, contactActivity, relations] = await Promise.all([
+        fieldStore.listInteractions(ctx.workspaceId, { accountId: a.id, limit: 3 }),
+        fieldStore.listCommitments(ctx.workspaceId, { accountId: a.id }),
+        fieldStore.lastContactAt(ctx.workspaceId, a.id),
+        fieldStore.lastContactByContact(ctx.workspaceId, a.id),
+        accountRelations(accountCtx, a.id),
+      ]);
+      // decisionChain is pro-tier; a starter workspace simply gets no
+      // decision-chain judgements rather than an error on the home screen.
+      const chain = await decisionChain(accountCtx, a.id);
+      const contacts = chain.ok ? await getAccountStore().listContacts(ctx.workspaceId, a.id) : [];
+
+      const open = deals.filter((d) => d.accountId === a.id && d.closedAt === null);
+      return {
+        accountId: a.id,
+        accountName: a.name,
+        ownerSub: a.ownerSub,
+        openDeals: open.map((d) => ({
+          id: d.id,
+          name: d.name,
+          stage: d.stage,
+          amount: d.amount?.amount ?? null,
+          stageDays: Math.floor((now.getTime() - d.createdAt.getTime()) / DAY),
+        })),
+        lastContactAt,
+        commitments: commitments.map((c) => ({
+          id: c.id,
+          direction: c.direction,
+          status: c.status,
+          statement: c.statement,
+          dueAt: c.dueAt,
+        })),
+        contacts,
+        relations: relations.ok ? relations.value : [],
+        contactActivity: contacts.map((c) => ({
+          contactId: c.id,
+          lastContactAt: contactActivity.get(c.id) ?? null,
+        })),
+        notes: notes.map((n) => ({
+          id: n.id,
+          occurredAt: n.occurredAt,
+          channel: n.channel,
+          who: n.actorSub,
+          text: n.rawNote,
+        })),
+      };
+    }),
+  );
+
+  // The team judgement rides the adoption reading, which is admin-gated. A
+  // member without admin.manage gets the object judgements and not that one -
+  // the feed degrades rather than refusing.
+  const adoption = await captureAdoption({ ...base, store: fieldStore }, deals.map((d) => ({
+    id: d.id,
+    createdAt: d.createdAt,
+    closedAt: d.closedAt,
+  })), { now });
+
+  const judgements = deriveJudgements({
+    accounts: inputs,
+    captureWeeks: adoption.ok ? adoption.value.weeks : undefined,
+    now,
+  });
+
+  return ok({ judgements, counts: countByUrgency(judgements), scanned: mine.length });
+}
