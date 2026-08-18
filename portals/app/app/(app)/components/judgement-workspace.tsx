@@ -14,7 +14,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { HOME_TEXT } from "../lib/messages";
-import type { Judgement, Urgency } from "../../domains/judgement/lib/judgement";
+import type { AnalysisKind, Judgement, Urgency } from "../../domains/judgement/lib/judgement";
 
 // The home screen: a decision queue with provenance.
 //
@@ -57,6 +57,15 @@ const TIER_TONE: Record<Urgency, "danger" | "warning" | "info"> = {
   today: "danger",
   week: "warning",
   watch: "info",
+};
+
+/** One entry per kind, so adding a kind is a compile error rather than a
+ *  silent fallthrough to whatever the last branch was. */
+const ANALYSIS_LABEL: Record<AnalysisKind, string> = {
+  risk: HOME_TEXT.analysisRisk,
+  competition: HOME_TEXT.analysisCompetition,
+  policy: HOME_TEXT.analysisPolicy,
+  chain: HOME_TEXT.analysisChain,
 };
 
 const TIER_LABEL: Record<Urgency, string> = {
@@ -193,11 +202,14 @@ function Engagement({
         <span className="text-foreground text-label-md">{j.subjectName}</span>
 
         <div className="ml-auto flex flex-wrap items-baseline gap-md">
+          {/* Only facts that ARE quantities get the big tabular treatment. Some
+              are verdicts - "未失约", "是"/"否" - and setting a word at figure
+              size in a row of numbers makes the reader parse it as one. */}
           {j.facts.slice(0, 4).map((f, i) => (
             <span key={i} className="flex items-baseline gap-2xs">
               <b
                 className={[
-                  "text-label-lg tabular-nums",
+                  /^[0-9]/.test(f.value) ? "text-label-lg tabular-nums" : "text-body-sm",
                   f.tone === "danger"
                     ? "text-destructive"
                     : f.tone === "warning"
@@ -232,11 +244,7 @@ function Engagement({
         </Button>
         {j.analyses.map((a) => (
           <Button key={a} size="sm" variant="outline">
-            {a === "risk"
-              ? HOME_TEXT.analysisRisk
-              : a === "competition"
-                ? HOME_TEXT.analysisCompetition
-                : HOME_TEXT.analysisPolicy}
+            {ANALYSIS_LABEL[a]}
           </Button>
         ))}
         <Button size="sm" variant="ghost">

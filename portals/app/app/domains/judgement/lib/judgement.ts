@@ -81,11 +81,30 @@ export interface Judgement {
 }
 
 /** The on-demand model analyses. Each costs an Atlas call, so each is a click. */
-export const ANALYSES = ["risk", "competition", "policy"] as const;
+export const ANALYSES = ["risk", "competition", "policy", "chain"] as const;
 export type AnalysisKind = (typeof ANALYSES)[number];
 
 /** Analyses that only make sense about a customer or a deal. */
-const OBJECT_ANALYSES: readonly AnalysisKind[] = ANALYSES;
+// Which second opinions are worth ASKING FOR depends on what was concluded.
+//
+// The same three buttons on every row made them furniture: a person learns in
+// two screens that the set never changes and stops reading it. Each is a real
+// request that costs a model call, so the set has to be the one that could
+// actually change this decision.
+//
+//   stalled   it stopped moving AND they broke promises - the live questions
+//             are who else is in the room and whether the risk is ours.
+//   unreached the economic buyer has never been met, so the only useful
+//             analysis is of the decision structure itself.
+//   weowe     WE are the ones who missed. Competition and policy do not
+//             explain our own broken promise, and offering them would invite
+//             blaming the market for it.
+//   quiet     silence with no broken promises - a competitor moving is the
+//             likeliest explanation worth checking.
+const ANALYSES_STALLED: readonly AnalysisKind[] = ["risk", "competition", "policy"];
+const ANALYSES_UNREACHED: readonly AnalysisKind[] = ["chain", "risk"];
+const ANALYSES_WE_OWE: readonly AnalysisKind[] = ["risk"];
+const ANALYSES_QUIET: readonly AnalysisKind[] = ["competition", "risk"];
 
 // --- inputs -----------------------------------------------------------------
 
@@ -194,7 +213,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
           ...(biggest ? [{ label: "停留阶段", value: `${biggest.stage} ${biggest.stageDays} 天` }] : []),
         ],
         rule: "开放商机 且 最近接触 > 30 天 且 对方逾期承诺 >= 1",
-        analyses: OBJECT_ANALYSES,
+        analyses: ANALYSES_STALLED,
       });
     }
 
@@ -250,7 +269,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
               : []),
           ],
           rule: "存在决策人 且 该决策人从未出现在任何交互参与人记录中",
-          analyses: OBJECT_ANALYSES,
+          analyses: ANALYSES_UNREACHED,
         });
       }
     }
@@ -279,7 +298,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
           { label: "我方未兑现", value: String(rel.weMissed), tone: rel.weMissed > 1 ? "danger" : "warning" },
         ],
         rule: "我方承诺 且 状态为 open 且 已过到期日",
-        analyses: OBJECT_ANALYSES,
+        analyses: ANALYSES_WE_OWE,
       });
     }
 
@@ -307,7 +326,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
           { label: "未兑现承诺", value: "无", tone: "success" },
         ],
         rule: "开放商机 且 最近接触 > 21 天 且 双方均无逾期承诺",
-        analyses: OBJECT_ANALYSES,
+        analyses: ANALYSES_QUIET,
       });
     }
   }
