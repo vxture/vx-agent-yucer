@@ -443,6 +443,26 @@ export const PIPELINE_TEXT = {
   emptyTitle: "暂无商机",
   emptyDescription: "线索合格转化后会出现在这里。",
   rollupFailedTitle: "无法汇总",
+  // --- Added for the redesigned page ---------------------------------------
+  // The agent's opening sentence, same shape as the home screen's: what the
+  // number MEANS this week, not the label "pipeline".
+  lead: (commit: string) => `本季承诺 ${commit}`,
+  leadDelta: (delta: string, since: number) => `较 ${since} 天前的预测 ${delta}`,
+  leadFlat: "与上次预测持平",
+  leadNoHistory: "本期尚无预测记录",
+  periodOf: (p: string) => `${p} 口径`,
+
+  trajectory: "预测轨迹",
+  trajectoryWhy: "快照只追加、不可修改——预测准确率是期末实际对期初快照，少一个点就算不出来。",
+  tCommit: "承诺",
+  tBestCase: "乐观",
+  tPipeline: "管道",
+  tClosed: "已成交",
+
+  productSplit: "承诺的构成",
+  productSplitWhy: "按产品行项拆开。一个总额说不出这笔钱要交付什么。",
+  needsApproval: "折扣待批",
+  noLines: "尚无产品行项",
 } as const;
 
 export const LIFECYCLE_TEXT = {

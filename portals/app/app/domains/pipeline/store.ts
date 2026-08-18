@@ -197,11 +197,15 @@ export class InMemoryPipelineStore implements PipelineStore {
     extra: {
       events?: StageEventRecord[];
       reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
+      /** A forecast series. Append-only in the DDL; seeded as a series here so
+       *  the trajectory the immutability exists for is actually visible. */
+      snapshots?: Array<SnapshotRow & { workspaceId: string }>;
     } = {},
   ): void {
     for (const r of records) this.opportunities.set(r.id, { ...r });
     this.events.push(...(extra.events ?? []));
     for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
+    this.snapshots.push(...(extra.snapshots ?? []));
   }
 
   async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {

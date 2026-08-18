@@ -38,6 +38,14 @@ export interface ForecastScope {
 export interface ForecastableOpportunity {
   id: string;
   stage: Stage;
+  /**
+   * Needed because `closed` cannot distinguish won from lost on its own.
+   *
+   * The category enum has four values and none of them is "lost", so a lost
+   * deal is filed under `closed` too - and the won total counted it. Status is
+   * the only thing that separates them.
+   */
+  status?: string;
   forecastCategory: ForecastCategory;
   amount: Money | null;
   territoryId: string | null;
@@ -83,6 +91,11 @@ export function rollUp(
         ),
       );
     }
+    // A LOST deal contributes to nothing. It carries `closed` because the
+    // category has no other terminal value, and counting it as won reported
+    // money that was never won - which is the one direction a forecast must
+    // never be wrong in. Business rules section 2: closed means WON.
+    if (o.status === "lost") continue;
     if (o.amount) buckets[o.forecastCategory].push(o.amount);
   }
 

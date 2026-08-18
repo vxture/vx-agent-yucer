@@ -603,6 +603,32 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           reviewedAt: daysAgo(35),
         },
       ],
+      // A forecast SERIES, five points across the quarter.
+      //
+      // This is the only reason forecast_snapshot has UPDATE revoked: accuracy
+      // is period-end actual against what was forecast at period start, and
+      // that is unanswerable unless every point survives. Nothing read it back
+      // until now, so the immutability was a cost the product paid and never
+      // collected on.
+      //
+      // The shape tells a true story rather than a flattering one: commit rose
+      // through the quarter, then fell when one deal slipped - which is what a
+      // forecast actually does and what makes the history worth keeping.
+      snapshots: [
+        snapshot(workspaceId, daysAgo(75), 3_200_000, 2_100_000, 1_900_000, 0),
+        snapshot(workspaceId, daysAgo(60), 3_800_000, 2_400_000, 1_800_000, 760_000),
+        snapshot(workspaceId, daysAgo(45), 4_600_000, 2_900_000, 1_700_000, 1_300_000),
+        snapshot(workspaceId, daysAgo(30), 4_900_000, 3_100_000, 1_600_000, 2_700_000),
+        // The slip: commit came down because one deal moved out of the quarter.
+        //
+        // The LAST point equals what the live board computes right now
+        // (4,200,000 / 3,030,000 / 1,580,000 / 2,700,000). A snapshot taken
+        // today that disagreed with today would be a demo teaching the exact
+        // "total and detail disagree" mess this repo keeps arguing against -
+        // and the closed figure also has to match the quota card,
+        // because both are the same three won deals.
+        snapshot(workspaceId, daysAgo(14), 4_200_000, 3_030_000, 1_580_000, 2_700_000),
+      ],
     },
   );
 }
@@ -1120,4 +1146,28 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
   );
 
   stores.catalog.seed({ products, solutions, items, prices, lines });
+}
+
+/** One point on the forecast trajectory. Workspace scope, CNY. */
+function snapshot(
+  workspaceId: string,
+  at: Date,
+  commit: number,
+  bestCase: number,
+  pipelineAmt: number,
+  closed: number,
+) {
+  return {
+    workspaceId,
+    period: PERIOD,
+    scopeType: "workspace" as const,
+    territoryId: null,
+    ownerSub: null,
+    currency: CNY,
+    snapshotAt: at,
+    commitAmount: money(commit, CNY),
+    bestCaseAmount: money(bestCase, CNY),
+    pipelineAmount: money(pipelineAmt, CNY),
+    closedAmount: money(closed, CNY),
+  };
 }
