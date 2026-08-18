@@ -6,9 +6,9 @@ import {
   AvatarFallback,
   Button,
   Card,
+  Icon,
   PanelItem,
   PanelList,
-  SegmentedControl,
   Textarea,
 } from "@vxture/design-ui";
 import { BOARD_TEXT } from "../lib/messages";
@@ -30,18 +30,22 @@ export interface AgentPanelProps {
   readonly data: AgentPanelData;
   readonly canRecord: boolean;
   readonly onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Absent until the ask path reaches the agent plane; the button says so. */
+  readonly onAsk?: (text: string) => void;
+  /** Absent until attachment intake exists; same treatment. */
+  readonly onAttach?: () => void;
 }
 
-export function AgentPanel({ data, canRecord, onRecord }: AgentPanelProps) {
-  const [mode, setMode] = useState<"note" | "ask">("note");
+export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: AgentPanelProps) {
   const [text, setText] = useState("");
   const [pendingSave, start] = useTransition();
 
   return (
     <div className="flex flex-col gap-sm">
-      {/* The agent says what it is currently looking at. The quality of every
-          answer below depends on that scope, and a reader should not have to
-          guess it. */}
+      {/* ONE card, with the agent's identity as its header.
+          Splitting the identity into its own card made the panel read as two
+          unrelated things stacked; the scope line belongs to the box you are
+          about to type into, because it says what the answer will be based on. */}
       <Card className="p-sm">
         <div className="flex items-center gap-xs">
           <Avatar className="size-6">
@@ -52,50 +56,71 @@ export function AgentPanel({ data, canRecord, onRecord }: AgentPanelProps) {
             {BOARD_TEXT.agentScope(data.scanned)}
           </span>
         </div>
-      </Card>
 
-      {canRecord ? (
-        <Card className="p-sm">
-          <SegmentedControl
-            ariaLabel={BOARD_TEXT.capture}
-            fill
-            value={mode}
-            onChange={(v: "note" | "ask") => setMode(v)}
-            items={[
-              { value: "note", label: BOARD_TEXT.capture },
-              { value: "ask", label: BOARD_TEXT.ask },
-            ]}
-          />
-          <Textarea
-            className="mt-sm min-h-24 resize-none"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={BOARD_TEXT.capturePlaceholder}
-            disabled={pendingSave}
-          />
-          {/* Guidance beside the field, never inside it: appended to the
-              placeholder it rendered as a paragraph someone had already
-              typed. */}
-          <p className="text-muted-foreground mt-xs text-xs leading-relaxed">
-            {BOARD_TEXT.captureHelp}
-          </p>
-          <div className="mt-xs flex justify-end">
-            <Button
-              size="sm"
-              disabled={pendingSave || text.trim() === "" || !onRecord}
-              onClick={() =>
-                start(() => {
-                  void onRecord?.(text).then((r) => {
-                    if (r.ok) setText("");
-                  });
-                })
-              }
-            >
-              {BOARD_TEXT.captureSend}
-            </Button>
-          </div>
-        </Card>
-      ) : null}
+        {canRecord ? (
+          <>
+            <Textarea
+              className="mt-sm min-h-24 resize-none"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={BOARD_TEXT.capturePlaceholder}
+              disabled={pendingSave}
+            />
+            {/* Guidance beside the field, never inside it: appended to the
+                placeholder it rendered as a paragraph someone had already
+                typed. */}
+            <p className="text-muted-foreground mt-xs text-xs leading-relaxed">
+              {BOARD_TEXT.captureHelp}
+            </p>
+
+            {/* THE VERB IS THE BUTTON, not a mode set beforehand.
+                A segmented control at the top made you declare what you were
+                doing before you had written it; here you write first and then
+                say what it is - which is the order the thought actually
+                arrives in. */}
+            <div className="mt-sm flex items-center gap-xs">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={BOARD_TEXT.attach}
+                title={onAttach ? BOARD_TEXT.attach : BOARD_TEXT.notWired}
+                disabled={!onAttach || pendingSave}
+                onClick={() => onAttach?.()}
+              >
+                <Icon name="paperclip" size="xs" />
+              </Button>
+
+              <div className="ml-auto flex items-center gap-xs">
+                {/* Disabled until the ask path is wired to the agent plane.
+                    A button that silently does nothing teaches people the
+                    product is broken; one that is visibly not ready does not. */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!onAsk || pendingSave || text.trim() === ""}
+                  title={onAsk ? undefined : BOARD_TEXT.notWired}
+                  onClick={() => onAsk?.(text)}
+                >
+                  {BOARD_TEXT.ask}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={pendingSave || text.trim() === "" || !onRecord}
+                  onClick={() =>
+                    start(() => {
+                      void onRecord?.(text).then((r) => {
+                        if (r.ok) setText("");
+                      });
+                    })
+                  }
+                >
+                  {BOARD_TEXT.capture}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : null}
+      </Card>
 
       {data.pending.length > 0 ? (
         <Card className="p-sm">

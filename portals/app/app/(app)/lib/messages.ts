@@ -204,6 +204,8 @@ export const BOARD_TEXT = {
   agentScope: (n: number) => `正看着 ${n} 位客户`,
   capture: "记一笔",
   ask: "问参谋",
+  attach: "添加附件",
+  notWired: "该能力尚未接通",
   reconTitle: "敌情",
   reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
   reconCta: "发起竞争态势分析",
