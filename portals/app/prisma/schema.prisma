@@ -587,12 +587,16 @@ model AgentAction {
   rationale    String?   @db.Text
   confidence   Int?      @db.SmallInt
   status       String    @default("proposed") @db.VarChar(32)
+  /// Which capability proposed this - ADR-015. Nullable: historical rows have
+  /// none, and a backfilled guess would manufacture accuracy data.
+  capability   String?   @db.VarChar(64)
   decidedBySub String?   @map("decided_by_sub") @db.VarChar(128)
   decidedAt    DateTime? @map("decided_at") @db.Timestamptz()
   executedAt   DateTime? @map("executed_at") @db.Timestamptz()
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
 
+  @@index([workspaceId, capability, status], map: "agent_action_by_capability")
   @@map("agent_action")
   @@schema("yucer_agent")
 }

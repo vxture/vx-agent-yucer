@@ -19,6 +19,7 @@ import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects } from "../../domains/delivery/service";
 import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
+import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import { judgementFeed } from "../../domains/judgement/service";
 import { BOARD_TEXT } from "./messages";
@@ -89,11 +90,21 @@ const ACTION_LABEL: Record<string, string> = {
  */
 function proposalBreakdown(result: { ok: boolean; value?: unknown }): BoardMetric[] {
   if (!result.ok || !Array.isArray(result.value)) return [];
-  const rows = result.value as { actionType: string }[];
+  const rows = result.value as { actionType: string; capability: string | null }[];
   if (rows.length === 0) return [];
+  // Grouped by CAPABILITY where one is recorded, falling back to the action
+  // type. ADR-015: the action type says what would be DONE (advance a stage),
+  // the capability says what expertise concluded it should be - and those are
+  // the units accuracy is measured and noise is muted in.
+  //
+  // Rows without a capability show as unlabelled rather than being folded into
+  // a guess: they are the history from before the key existed, and inventing
+  // one would put manufactured data next to measured data.
   const byKind = new Map<string, number>();
   for (const r of rows) {
-    const label = ACTION_LABEL[r.actionType] ?? BOARD_TEXT.actOther;
+    const label = r.capability
+      ? capabilityLabel(r.capability, BOARD_TEXT.capabilityLabels, BOARD_TEXT.capUnlabelled)
+      : (ACTION_LABEL[r.actionType] ?? BOARD_TEXT.actOther);
     byKind.set(label, (byKind.get(label) ?? 0) + 1);
   }
   return [

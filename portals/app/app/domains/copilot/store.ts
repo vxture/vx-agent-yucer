@@ -37,6 +37,8 @@ export interface MessageRecord {
 export interface NewProposal {
   sessionId: string | null;
   actionType: string;
+  /** ADR-015. Set at creation; the column has no UPDATE grant. */
+  capability?: string | null;
   subjectType: SubjectType;
   subjectId: string;
   payload: Record<string, unknown>;
@@ -234,6 +236,7 @@ export class InMemoryCopilotStore implements CopilotStore {
         // Always `proposed`. The store has no parameter for anything else.
         status: "proposed",
         actionType: p.actionType,
+      capability: p.capability ?? null,
         subjectType: p.subjectType,
         subjectId: p.subjectId,
         payload: p.payload,

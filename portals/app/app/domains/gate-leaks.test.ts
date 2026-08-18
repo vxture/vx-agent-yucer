@@ -102,6 +102,7 @@ function proposal(over: Partial<AgentAction> = {}): AgentAction {
   return {
     id: "act_1",
     status: "accepted",
+    capability: null,
     actionType: "advance_stage",
     subjectType: "opportunity",
     subjectId: "opp_1",

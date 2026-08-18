@@ -26,6 +26,7 @@ function toAction(r: Record<string, unknown>): AgentAction {
     id: String(r.id),
     status: r.status as AgentAction["status"],
     actionType: String(r.actionType),
+  capability: (r.capability as string | null) ?? null,
     subjectType: r.subjectType as SubjectType,
     subjectId: String(r.subjectId),
     payload: (r.payload ?? {}) as Record<string, unknown>,

@@ -954,6 +954,13 @@ function instalment(
   };
 }
 
+const CAPABILITY_BY_ACTION: Record<string, string> = {
+  advance_stage: "deal.stall_risk",
+  draft_outreach: "account.chain_map",
+  promote_signal: "signal.triage",
+  adjust_forecast: "deal.stall_risk",
+};
+
 function proposal(
   id: string,
   status: string,
@@ -967,6 +974,8 @@ function proposal(
   agedDays: number,
 ) {
   return {
+    // ADR-015: which capability proposed it, chosen by what it proposes.
+    capability: CAPABILITY_BY_ACTION[actionType] ?? null,
     id,
     status: status as never,
     actionType,

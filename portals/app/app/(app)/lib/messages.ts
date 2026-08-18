@@ -177,6 +177,23 @@ export const BOARD_TEXT = {
   actOutreach: "起草外联",
   actPromote: "提升线索",
   actOther: "其他",
+  capUnlabelled: "未标注",
+  /**
+   * Capability labels, keyed by the stored key (ADR-015).
+   *
+   * Here rather than in the domain module: display text belongs to the UI, and
+   * TD-002 contains every non-ASCII string in this file.
+   */
+  capabilityLabels: {
+    "deal.stall_risk": "停滞风险",
+    "deal.competition": "竞争态势",
+    "account.chain_map": "决策链测绘",
+    "account.cadence": "战略客户节奏",
+    "signal.triage": "信号分拣",
+    "pricing.discount_approval": "折扣审批",
+    "delivery.payment_risk": "回款风险",
+    "campaign.return": "战役回报",
+  } as Record<string, string>,
   dealsOpen: "在办",
   dealsWorth: "金额",
   plans: "计划",
