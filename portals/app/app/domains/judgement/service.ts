@@ -15,7 +15,8 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { ok, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
-import { getAccountStore, getFieldStore, getPipelineStore } from "../shared/registry";
+import { getAccountStore, getCopilotStore, getFieldStore, getPipelineStore } from "../shared/registry";
+import type { CopilotStore } from "../copilot/store";
 import { listAccounts, decisionChain, accountRelations } from "../account/service";
 import { listPipeline } from "../pipeline/service";
 import { captureAdoption } from "../account/field-service";
@@ -56,6 +57,38 @@ export interface JudgementFeed {
    */
   scope: Scope;
 }
+
+/** Ranked, so "did the tier get worse" is a comparison rather than a lookup. */
+const URGENCY_RANK: Record<Urgency, number> = { watch: 0, week: 1, today: 2 };
+
+/**
+ * Defer one judgement out of this member's queue.
+ *
+ * Gated on account.view, the same permission the feed itself needs: a member
+ * who may not read a conclusion may not act on it either.
+ *
+ * SEVEN DAYS, and the caller does not get to choose. A snooze whose length is
+ * a parameter becomes a way to bury something - the point of the control is
+ * "not now", not "not ever", and the two must not be the same button.
+ */
+export async function snoozeJudgement(
+  ctx: JudgementContext & { store: CopilotStore },
+  input: { judgementId: string; urgency: Urgency },
+  now: Date = new Date(),
+): Promise<RuleResult<null>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  await ctx.store.snoozeJudgement(ctx.workspaceId, {
+    sub: ctx.sub,
+    judgementId: input.judgementId,
+    urgency: input.urgency,
+    until: new Date(now.getTime() + SNOOZE_DAYS * DAY),
+  });
+  return ok(null);
+}
+
+const SNOOZE_DAYS = 7;
 
 export interface FeedOptions {
   now?: Date;
@@ -177,6 +210,14 @@ export async function judgementFeed(
     closedAt: d.closedAt,
   })), { now });
 
+  // What this member has deferred, and what it looked like when they did.
+  const snoozed = new Map(
+    (await getCopilotStore().listSnoozes(ctx.workspaceId, ctx.sub, now)).map((r) => [
+      r.judgementId,
+      r.urgency as Urgency,
+    ]),
+  );
+
   const judgements = deriveJudgements({
     accounts: inputs,
     captureWeeks: adoption.ok ? adoption.value.weeks : undefined,
@@ -195,9 +236,21 @@ export async function judgementFeed(
     accounts: withChain.length,
   };
 
+  // A snooze holds only while the situation is no worse than when it was made.
+  // Comparing tiers rather than facts is deliberate: facts drift every night -
+  // "50 days quiet" becomes 51 - so a fingerprint over them would expire within
+  // a day and make the control useless, while the tier moves only when the
+  // situation materially does. That is the event worth re-interrupting someone
+  // for, and it is what stops "not now" from quietly becoming "never".
+  const visible = judgements.filter((j) => {
+    const at = snoozed.get(j.id);
+    if (at === undefined) return true;
+    return URGENCY_RANK[j.urgency] > URGENCY_RANK[at];
+  });
+
   return ok({
-    judgements,
-    counts: countByUrgency(judgements),
+    judgements: visible,
+    counts: countByUrgency(visible),
     scanned: mine.length,
     scope,
     allies,

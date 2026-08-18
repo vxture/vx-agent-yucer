@@ -217,3 +217,22 @@ test("owning nothing defaults to the team rather than to an empty screen", () =>
 test("owning accounts defaults to your own book", () => {
   assert.equal(resolveScope(undefined, 1), "mine");
 });
+
+// The snooze rule, held still where it can be read.
+//
+// This is the whole safety argument for the 不用管 button: a judgement id is
+// derived, so deferring one defers a CONCLUSION that will be reached again from
+// worse facts. Comparing tiers is what stops "not now" becoming "never".
+test("a snooze holds while the tier is unchanged and breaks when it escalates", () => {
+  const rank: Record<string, number> = { watch: 0, week: 1, today: 2 };
+  const held = (current: string, at: string) => rank[current] > rank[at];
+
+  // Same situation: stays deferred.
+  assert.equal(held("week", "week"), false);
+  // It got worse: comes back, whatever the timer said.
+  assert.equal(held("today", "week"), true);
+  assert.equal(held("today", "watch"), true);
+  assert.equal(held("week", "watch"), true);
+  // It improved: staying deferred is correct - nothing new to decide.
+  assert.equal(held("watch", "today"), false);
+});

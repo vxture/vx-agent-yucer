@@ -322,6 +322,10 @@ export const HOME_TEXT = {
   analysisChain: "决策链分析",
   analysisPolicy: "政策与行业",
   analysisHint: "分析结果会作为「模型」判断入流",
+  /** Says what it really does. "忽略" would promise something this control
+   *  deliberately does not do - the judgement returns in a week, and sooner if
+   *  it gets worse. */
+  actDismissHint: "暂缓 7 天；若紧急度升高会提前回到队列",
   actDismiss: "不用管",
   agentTitle: "智能助手",
   agentScope: (n: number) => `正看着：${n} 位客户`,

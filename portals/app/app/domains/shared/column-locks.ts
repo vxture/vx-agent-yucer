@@ -177,6 +177,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // agent_action: the proposal itself is frozen; only the human decision moves.
   "yucer_agent.agent_action": ["status", "decided_by_sub", "decided_at", "executed_at", "updated_at"],
   "yucer_agent.agent_playbook": ["name", "trigger", "content", "version", "status", "updated_at"],
+  // judgement_snooze: which conclusion, whose queue and when it was first
+  // deferred are the record. Only the deferral itself may move, so re-snoozing
+  // cannot rewrite who deferred what.
+  "yucer_agent.judgement_snooze": ["urgency_at_snooze", "snoozed_until"],
 };
 
 /**

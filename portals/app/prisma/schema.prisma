@@ -595,6 +595,27 @@ model AgentAction {
   @@schema("yucer_agent")
 }
 
+/// A member deferring one derived judgement - see incr/0005_judgement_snooze.sql.
+///
+/// judgementId is TEXT, not a UUID: judgements are recomputed from evidence on
+/// every request and have no row of their own, so this references a conclusion
+/// rather than a record. urgencyAtSnooze is what makes that safe - the snooze
+/// ends early if the tier escalates.
+model JudgementSnooze {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  sub             String   @db.Text
+  judgementId     String   @map("judgement_id") @db.Text
+  urgencyAtSnooze String   @map("urgency_at_snooze") @db.Text
+  snoozedUntil    DateTime @map("snoozed_until") @db.Timestamptz()
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([workspaceId, sub, judgementId], map: "judgement_snooze_unique")
+  @@index([workspaceId, sub, snoozedUntil], map: "judgement_snooze_live")
+  @@map("judgement_snooze")
+  @@schema("yucer_agent")
+}
+
 model AgentPlaybook {
   id           String   @id @default(uuid()) @db.Uuid
   workspaceId  String   @map("workspace_id") @db.Uuid

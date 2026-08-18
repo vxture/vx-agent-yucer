@@ -14,6 +14,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { HOME_TEXT } from "../lib/messages";
+import { dismissJudgement } from "../judgement-actions";
 import type { AnalysisKind, Judgement, Urgency } from "../../domains/judgement/lib/judgement";
 
 // The home screen: a decision queue with provenance.
@@ -179,6 +180,8 @@ function Engagement({
   open: boolean;
   onToggle: () => void;
 }) {
+  const [pendingDismiss, startDismiss] = useTransition();
+
   const href =
     j.subjectType === "account"
       ? `/account/${j.subjectId}`
@@ -248,7 +251,17 @@ function Engagement({
             {ANALYSIS_LABEL[a]}
           </Button>
         ))}
-        <Button size="sm" variant="ghost">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pendingDismiss}
+          title={HOME_TEXT.actDismissHint}
+          onClick={() =>
+            startDismiss(() => {
+              void dismissJudgement(j.id, j.urgency);
+            })
+          }
+        >
           {HOME_TEXT.actDismiss}
         </Button>
         {j.analyses.length > 0 ? (

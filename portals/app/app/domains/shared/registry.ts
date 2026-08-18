@@ -28,130 +28,152 @@ import { InMemorySignalStore, type SignalStore } from "../signal/store";
 import { PrismaSignalStore } from "../signal/prisma-store";
 
 let pipelineOverride: PipelineStore | null = null;
-let pipelineMemo: PipelineStore | null = null;
+
+/**
+ * The memo table, on globalThis rather than in module scope.
+ *
+ * WHY IT CANNOT BE A MODULE VARIABLE. Next evaluates server actions and RSC
+ * renders in SEPARATE module graphs, so a module-level singleton is
+ * instantiated once per layer and each gets its own copy. That is silent and
+ * it is the worst possible shape of bug for the in-memory stores: a write
+ * through a server action reports success against one instance while the page
+ * that renders next reads the other, so the product looks like it accepted
+ * your input and then lost it.
+ *
+ * Found by driving a real click and tagging the instances - the action wrote to
+ * `copilot-7ynho` and the feed read `copilot-60sq6`. It affected every write
+ * path through a server action, not only the one being added: notes captured
+ * through the agent panel were landing in a store nothing rendered from.
+ *
+ * The Prisma path never had the problem, because there the shared state is the
+ * database rather than the object. This only ever mattered for the demo stores,
+ * which is exactly where nobody would think to look.
+ */
+const MEMO = Symbol.for("yucer.domain-stores");
+type MemoTable = Record<string, unknown>;
+function memoTable(): MemoTable {
+  const g = globalThis as unknown as Record<symbol, MemoTable | undefined>;
+  if (!g[MEMO]) g[MEMO] = {};
+  return g[MEMO];
+}
 
 export function getPipelineStore(): PipelineStore {
   if (pipelineOverride) return pipelineOverride;
-  if (pipelineMemo) return pipelineMemo;
-  pipelineMemo = prismaEnabled() ? new PrismaPipelineStore() : new InMemoryPipelineStore();
-  return pipelineMemo;
+  const memo = memoTable();
+  if (memo.pipeline) return memo.pipeline as PipelineStore;
+  memo.pipeline = prismaEnabled() ? new PrismaPipelineStore() : new InMemoryPipelineStore();
+  return memo.pipeline as PipelineStore;
 }
 
 export function setPipelineStore(next: PipelineStore | null): void {
   pipelineOverride = next;
-  pipelineMemo = null;
+  memoTable().pipeline = undefined;
 }
 
 let copilotOverride: CopilotStore | null = null;
-let copilotMemo: CopilotStore | null = null;
 
 export function getCopilotStore(): CopilotStore {
   if (copilotOverride) return copilotOverride;
-  if (copilotMemo) return copilotMemo;
-  copilotMemo = prismaEnabled() ? new PrismaCopilotStore() : new InMemoryCopilotStore();
-  return copilotMemo;
+  const memo = memoTable();
+  if (memo.copilot) return memo.copilot as CopilotStore;
+  memo.copilot = prismaEnabled() ? new PrismaCopilotStore() : new InMemoryCopilotStore();
+  return memo.copilot as CopilotStore;
 }
 
 export function setCopilotStore(next: CopilotStore | null): void {
   copilotOverride = next;
-  copilotMemo = null;
+  memoTable().copilot = undefined;
 }
 
 let accountOverride: AccountStore | null = null;
-let accountMemo: AccountStore | null = null;
 
 /**
  * The evidence plane (ADR-006). Same domain as the account store, separate port
  * because it spans a different schema with a different write discipline.
  */
 let fieldOverride: FieldStore | null = null;
-let fieldMemo: FieldStore | null = null;
 
 export function getFieldStore(): FieldStore {
   if (fieldOverride) return fieldOverride;
-  if (fieldMemo) return fieldMemo;
-  fieldMemo = prismaEnabled() ? new PrismaFieldStore() : new InMemoryFieldStore();
-  return fieldMemo;
+  const memo = memoTable();
+  if (memo.field) return memo.field as FieldStore;
+  memo.field = prismaEnabled() ? new PrismaFieldStore() : new InMemoryFieldStore();
+  return memo.field as FieldStore;
 }
 
 export function setFieldStore(next: FieldStore | null): void {
   fieldOverride = next;
-  fieldMemo = null;
+  memoTable().field = undefined;
 }
 
 export function getAccountStore(): AccountStore {
   if (accountOverride) return accountOverride;
-  if (accountMemo) return accountMemo;
-  accountMemo = prismaEnabled() ? new PrismaAccountStore() : new InMemoryAccountStore();
-  return accountMemo;
+  const memo = memoTable();
+  if (memo.account) return memo.account as AccountStore;
+  memo.account = prismaEnabled() ? new PrismaAccountStore() : new InMemoryAccountStore();
+  return memo.account as AccountStore;
 }
 
 export function setAccountStore(next: AccountStore | null): void {
   accountOverride = next;
-  accountMemo = null;
+  memoTable().account = undefined;
 }
 
 let deliveryOverride: DeliveryStore | null = null;
-let deliveryMemo: DeliveryStore | null = null;
 
 export function getDeliveryStore(): DeliveryStore {
   if (deliveryOverride) return deliveryOverride;
-  if (!deliveryMemo) {
-    deliveryMemo = prismaEnabled() ? new PrismaDeliveryStore() : new InMemoryDeliveryStore();
-  }
-  return deliveryMemo;
+  const memo = memoTable();
+  if (!memo.delivery) memo.delivery = prismaEnabled() ? new PrismaDeliveryStore() : new InMemoryDeliveryStore();
+  return memo.delivery as DeliveryStore;
 }
 
 export function setDeliveryStore(next: DeliveryStore | null): void {
   deliveryOverride = next;
-  deliveryMemo = null;
+  memoTable().delivery = undefined;
 }
 
 let planningOverride: PlanningStore | null = null;
-let planningMemo: PlanningStore | null = null;
 
 export function getPlanningStore(): PlanningStore {
   if (planningOverride) return planningOverride;
-  if (!planningMemo) {
-    planningMemo = prismaEnabled() ? new PrismaPlanningStore() : new InMemoryPlanningStore();
-  }
-  return planningMemo;
+  const memo = memoTable();
+  if (!memo.planning) memo.planning = prismaEnabled() ? new PrismaPlanningStore() : new InMemoryPlanningStore();
+  return memo.planning as PlanningStore;
 }
 
 export function setPlanningStore(next: PlanningStore | null): void {
   planningOverride = next;
-  planningMemo = null;
+  memoTable().planning = undefined;
 }
 
 let strategyOverride: StrategyStore | null = null;
-let strategyMemo: StrategyStore | null = null;
 
 export function getStrategyStore(): StrategyStore {
   if (strategyOverride) return strategyOverride;
-  if (!strategyMemo) {
-    strategyMemo = prismaEnabled() ? new PrismaStrategyStore() : new InMemoryStrategyStore();
-  }
-  return strategyMemo;
+  const memo = memoTable();
+  if (!memo.strategy) memo.strategy = prismaEnabled() ? new PrismaStrategyStore() : new InMemoryStrategyStore();
+  return memo.strategy as StrategyStore;
 }
 
 export function setStrategyStore(next: StrategyStore | null): void {
   strategyOverride = next;
-  strategyMemo = null;
+  memoTable().strategy = undefined;
 }
 
 let signalOverride: SignalStore | null = null;
-let signalMemo: SignalStore | null = null;
 
 export function getSignalStore(): SignalStore {
   if (signalOverride) return signalOverride;
-  if (signalMemo) return signalMemo;
-  signalMemo = prismaEnabled() ? new PrismaSignalStore() : new InMemorySignalStore();
-  return signalMemo;
+  const memo = memoTable();
+  if (memo.signal) return memo.signal as SignalStore;
+  memo.signal = prismaEnabled() ? new PrismaSignalStore() : new InMemorySignalStore();
+  return memo.signal as SignalStore;
 }
 
 export function setSignalStore(next: SignalStore | null): void {
   signalOverride = next;
-  signalMemo = null;
+  memoTable().signal = undefined;
 }
 
 

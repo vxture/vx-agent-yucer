@@ -113,9 +113,29 @@ export interface CopilotStore {
   ): Promise<string[]>;
 
   listPlaybooks(workspaceId: string, filter?: PlaybookFilter): Promise<PlaybookRecord[]>;
+
+  /**
+   * Defer one derived judgement out of one member's queue.
+   *
+   * Upsert, not append: re-snoozing the same conclusion moves the existing row
+   * so "how long has this been deferred" stays answerable, which a growing pile
+   * of rows would not.
+   */
+  snoozeJudgement(
+    workspaceId: string,
+    input: { sub: string; judgementId: string; urgency: string; until: Date },
+  ): Promise<void>;
+
+  /** The live snoozes for one member. Expired rows are not returned. */
+  listSnoozes(
+    workspaceId: string,
+    sub: string,
+    now: Date,
+  ): Promise<{ judgementId: string; urgency: string; until: Date }[]>;
 }
 
 export class InMemoryCopilotStore implements CopilotStore {
+  private snoozes = new Map<string, { urgency: string; until: Date }>();
   private sessions = new Map<string, SessionRecord>();
   private messages: Array<MessageRecord & { workspaceId: string }> = [];
   private actions = new Map<string, AgentAction & { workspaceId: string }>();
@@ -263,4 +283,25 @@ export class InMemoryCopilotStore implements CopilotStore {
     }
     return moved;
   }
+  async snoozeJudgement(
+    workspaceId: string,
+    input: { sub: string; judgementId: string; urgency: string; until: Date },
+  ): Promise<void> {
+    this.snoozes.set(`${workspaceId}|${input.sub}|${input.judgementId}`, {
+      urgency: input.urgency,
+      until: input.until,
+    });
+  }
+
+  async listSnoozes(
+    workspaceId: string,
+    sub: string,
+    now: Date,
+  ): Promise<{ judgementId: string; urgency: string; until: Date }[]> {
+    const prefix = `${workspaceId}|${sub}|`;
+    return [...this.snoozes]
+      .filter(([k, v]) => k.startsWith(prefix) && v.until.getTime() > now.getTime())
+      .map(([k, v]) => ({ judgementId: k.slice(prefix.length), urgency: v.urgency, until: v.until }));
+  }
+
 }
