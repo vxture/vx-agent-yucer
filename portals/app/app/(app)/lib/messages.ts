@@ -1111,3 +1111,87 @@ export function healthReasonText(r: {
       return r.code;
   }
 }
+
+/**
+ * The position page - an opportunity-led pursuit review.
+ *
+ * Structured the way a deal review actually runs: whose position this is, what
+ * the other side looks like, what our own side looks like, and what we intend
+ * to do next. The last part is proposals a human signs, never a free-text memo
+ * that becomes a second untended TODO list (ADR-003).
+ */
+export const POSITION_TEXT = {
+  tierStrategic: "战略客户",
+  tierKey: "重点客户",
+  tierStandard: "普通客户",
+  planOf: (period: string) => `${period} 经营计划`,
+  planTarget: "计划目标",
+  planDeals: "在办商机",
+
+  triangle: "负责团队",
+  /** The three owners, joined. The separator is text, so it lives here. */
+  triangleOf: (sales: string, presales: string, delivery: string) =>
+    `销售 ${sales} · 售前 ${presales} · 交付 ${delivery}`,
+  roleOwner: "销售",
+  rolePresales: "售前",
+  roleDelivery: "交付",
+  roleUnset: "未指定",
+
+  external: "敌情 · 外部",
+  externalWhy: "对方的决策结构、在交付的项目、以及竞争。",
+  chain: "决策链",
+  chainCovered: "已覆盖角色",
+  chainMissing: "缺失角色",
+  chainCoaches: "内线",
+  chainBlockers: "阻力",
+  chainUnreachable: "决策人不可达",
+  chainReachable: "决策人可达",
+  projects: "在交付的项目",
+  noProjects: "这家客户目前没有在交付的项目",
+  /**
+   * Words that mark a note as mentioning a rival.
+   *
+   * Data about Chinese prose, so it lives with the other Chinese strings rather
+   * than inside a page module. Crude on purpose: it selects QUOTES for a human
+   * to read, never a conclusion, so a false positive costs one extra sentence
+   * and a miss costs nothing that was not already invisible.
+   */
+  rivalWords: ["另一家", "竞争", "对手", "别家", "友商"] as readonly string[],
+  competition: "竞争态势",
+  competitionNone: "尚无结构化的竞争情报。以下是跟进原文里提到对手的片段——这是目前唯一的依据。",
+  competitionNoMention: "跟进原文里没有出现竞争对手。这不等于没有对手，只等于没人记下来。",
+  scout: "发起竞争态势分析",
+
+  internal: "我情 · 内部",
+  internalWhy: "我们这边：谁在负责、做过什么、卡在哪。",
+  problems: "重点问题",
+  problemsWhy: "由规则从已记录的证据推出，不是人工填写的风险清单。",
+  noProblems: "规则没有在这个阵地上发现问题。",
+  history: "跟进过程",
+  historyCount: (n: number) => `${n} 条记录`,
+
+  plan: "下一步作战计划",
+  planWhy: "助手提议，人来签字。没有人落章就不会执行。",
+  planEmpty: "助手目前没有针对这个阵地的提案。",
+  planCommercial: "商务",
+  planTechnical: "产品技术",
+  planRelation: "关系",
+  /**
+   * What a proposal would DO, in words.
+   *
+   * The page printed the raw action_type - the third time a bare key has
+   * reached the screen in this repo. Unknown keys fall back to the key rather
+   * than to a guess, so a new action type is visible as unlabelled instead of
+   * silently mislabelled.
+   */
+  actionLabels: {
+    advance_stage: "推进到下一阶段",
+    draft_outreach: "起草一封外联",
+    promote_signal: "把信号升级为线索",
+    adjust_forecast: "调整预测口径",
+    draft_email: "起草邮件",
+  } as Record<string, string>,
+  approve: "批准",
+  reject: "否决",
+  confidence: (n: number) => `置信度 ${n}`,
+} as const;
