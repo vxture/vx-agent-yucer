@@ -41,6 +41,15 @@ export interface JudgementFeed {
   /** How many accounts were actually read, so an empty feed is explicable. */
   scanned: number;
   /**
+   * Who is on our side, across the accounts just read.
+   *
+   * Reported from the decision-chain coverage this feed already computes, so
+   * the shell can state it without a second pass over every account. `reach`
+   * is deliberately the count of accounts where the economic buyer CANNOT be
+   * reached: the useful number is the gap, not the coverage.
+   */
+  allies: { coaches: number; blockers: number; unreachable: number; accounts: number };
+  /**
    * The scope actually used. Not an echo of the request: when the caller does
    * not pin one this is where the choice was made, and the filter control has
    * to show the state the feed is really in.
@@ -115,9 +124,15 @@ export async function judgementFeed(
       // decision-chain judgements rather than an error on the home screen.
       const chain = await decisionChain(accountCtx, a.id);
       const contacts = chain.ok ? await getAccountStore().listContacts(ctx.workspaceId, a.id) : [];
+      // The coverage itself was being computed and thrown away - only `.ok` was
+      // read. It is the most expensive call in this loop, and it is exactly
+      // what the shell needs to say who is on our side, so it is carried out
+      // rather than recomputed by a second caller.
+      const coverage = chain.ok ? chain.value : null;
 
       const open = deals.filter((d) => d.accountId === a.id && d.closedAt === null);
       return {
+        coverage,
         accountId: a.id,
         accountName: a.name,
         ownerSub: a.ownerSub,
@@ -168,5 +183,23 @@ export async function judgementFeed(
     now,
   });
 
-  return ok({ judgements, counts: countByUrgency(judgements), scanned: mine.length, scope });
+  // Only accounts whose chain was actually readable count as the denominator -
+  // a starter workspace gets no coverage at all, and reporting "0 coaches" for
+  // a tier that cannot see chains would be a claim about the customers rather
+  // than about the subscription.
+  const withChain = inputs.filter((i) => i.coverage !== null);
+  const allies = {
+    coaches: withChain.filter((i) => (i.coverage?.coaches.length ?? 0) > 0).length,
+    blockers: withChain.filter((i) => (i.coverage?.blockers.length ?? 0) > 0).length,
+    unreachable: withChain.filter((i) => i.coverage?.economicBuyerUnreachable).length,
+    accounts: withChain.length,
+  };
+
+  return ok({
+    judgements,
+    counts: countByUrgency(judgements),
+    scanned: mine.length,
+    scope,
+    allies,
+  });
 }

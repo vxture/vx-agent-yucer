@@ -129,7 +129,12 @@ export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: Agent
             {data.pending.map((p) => (
               <PanelItem
                 key={p.id}
-                main={<span className="truncate text-body-sm">{p.title}</span>}
+                main={
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-body-sm">{p.title}</span>
+                    <span className="text-muted-foreground truncate text-xs">{p.why}</span>
+                  </span>
+                }
                 trail={<span className="text-muted-foreground text-xs">{p.source}</span>}
               />
             ))}

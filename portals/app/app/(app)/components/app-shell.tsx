@@ -28,7 +28,7 @@ import type { BoardSection } from "../lib/board";
  * else is a title until asked for - nine equally-loud panels teach a reader
  * nothing about which one matters.
  */
-export const PINNED_SECTIONS = ["quota", "today", "adjudicate", "resource"] as const;
+export const PINNED_SECTIONS = ["quota", "today", "adjudicate", "resource", "allies"] as const;
 import { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 
 // yucer's application shell.

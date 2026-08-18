@@ -187,6 +187,40 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
         ...count(playbooks, BOARD_TEXT.playbooks),
       ],
     },
+    // Who is on our side, from the coverage the feed already computed. Shown
+    // only when at least one chain was readable: on a tier that cannot see
+    // decision chains, "0 coaches" would be a claim about the customers rather
+    // than about the subscription.
+    ...(feed.ok && feed.value.allies.accounts > 0
+      ? [
+          {
+            key: "allies",
+            title: BOARD_TEXT.allies,
+            href: "/account",
+            metrics: [
+              {
+                label: BOARD_TEXT.alliesCoaches,
+                value: String(feed.value.allies.coaches),
+                tone: "good" as const,
+              },
+              {
+                label: BOARD_TEXT.alliesUnreachable,
+                value: String(feed.value.allies.unreachable),
+                tone: feed.value.allies.unreachable > 0 ? ("bad" as const) : undefined,
+              },
+              ...(feed.value.allies.blockers > 0
+                ? [
+                    {
+                      label: BOARD_TEXT.alliesBlockers,
+                      value: String(feed.value.allies.blockers),
+                      tone: "warn" as const,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : []),
     {
       key: "adjudicate",
       title: BOARD_TEXT.adjudicate,
@@ -244,7 +278,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
 
 export interface AgentPanelData {
   readonly scanned: number;
-  readonly pending: readonly { id: string; title: string; source: string }[];
+  readonly pending: readonly { id: string; title: string; why: string; source: string }[];
   readonly recent: readonly { id: string; text: string; when: string }[];
 }
 
@@ -277,6 +311,10 @@ export async function agentPanel(ctx: BoardContext, now: Date): Promise<AgentPan
           .map((j) => ({
             id: j.id,
             title: j.subjectName,
+            // The claim, clipped. A queue of names says work exists without
+            // saying what it is, so a reader has to open each one to find out
+            // whether it is theirs to decide.
+            why: j.claim.length > 24 ? BOARD_TEXT.truncate(j.claim.slice(0, 24)) : j.claim,
             // The marker travels with the row: a decision queue has to let a
             // person see whether an item was counted out or thought up before
             // they sign it.
