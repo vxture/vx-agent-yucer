@@ -194,6 +194,8 @@ export const BOARD_TEXT = {
   collapse: (title: string) => `收起${title}`,
   boardLabel: "板块概览",
   resource: "我的资源",
+  productLines: "产品线 · 在办",
+  needsApproval: "待批折扣",
   allies: "友军 · 决策链",
   alliesCoaches: "已建内线",
   alliesUnreachable: "决策人未触达",

@@ -31,7 +31,9 @@ import {
   DEMO_LESSONS,
   DEMO_MILESTONES,
   DEMO_NOTES,
+  DEMO_PRODUCTS,
   DEMO_QUIET_NOTES,
+  DEMO_SOLUTIONS,
   DEMO_OPPORTUNITIES,
   DEMO_PLANS,
   DEMO_PLAYBOOKS,
@@ -49,6 +51,7 @@ import type {
   ParticipantRecord,
 } from "../account/field-store";
 import type { CommitmentDirection, CommitmentStatus, InteractionChannel } from "../account/lib/commitment";
+import type { InMemoryCatalogStore } from "../catalog/store";
 import type { InMemoryCopilotStore } from "../copilot/store";
 import type { InMemoryDeliveryStore } from "../delivery/store";
 import type { InMemoryPipelineStore } from "../pipeline/store";
@@ -78,6 +81,7 @@ export interface DemoStores {
   pipeline: InMemoryPipelineStore;
   delivery: InMemoryDeliveryStore;
   copilot: InMemoryCopilotStore;
+  catalog: InMemoryCatalogStore;
 }
 
 /**
@@ -118,6 +122,7 @@ export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void
   seedPipeline(workspaceId, stores);
   seedDelivery(workspaceId, stores);
   seedCopilot(workspaceId, stores);
+  seedCatalog(workspaceId, stores);
 }
 
 function seedStrategy(workspaceId: string, stores: DemoStores): void {
@@ -975,4 +980,116 @@ function proposal(
     executedAt: null,
     createdAt: daysAgo(agedDays),
   };
+}
+
+// The catalogue, and the lines that give six deals a composition (ADR-014).
+//
+// The lines are built to RECONCILE with the header amounts already seeded, not
+// invented alongside them: a demo where the total and the detail disagree would
+// teach the exact mess the reconciliation rule exists to prevent. The unit
+// prices are therefore derived from each deal's total, and one line is priced
+// below its floor on purpose so the approval flag has a case.
+function seedCatalog(workspaceId: string, stores: DemoStores): void {
+  const products = DEMO_PRODUCTS.map((p, i) => ({
+    id: `prd_demo_${i + 1}`,
+    workspaceId,
+    productCode: p.code,
+    name: p.name,
+    category: p.category,
+    unit: p.unit,
+    status: "active" as const,
+  }));
+  const byCode = new Map(products.map((p, i) => [DEMO_PRODUCTS[i].code, p.id]));
+
+  const solutions = DEMO_SOLUTIONS.map((sol, i) => ({
+    id: `sol_demo_${i + 1}`,
+    workspaceId,
+    solutionCode: sol.code,
+    name: sol.name,
+    summary: sol.summary,
+    status: "active" as const,
+  }));
+
+  const items = DEMO_SOLUTIONS.flatMap((sol, si) =>
+    sol.items.map((it, ii) => ({
+      id: `sit_demo_${si + 1}_${ii + 1}`,
+      workspaceId,
+      solutionId: `sol_demo_${si + 1}`,
+      productId: byCode.get(it.code)!,
+      quantity: it.qty,
+    })),
+  );
+
+  const prices = DEMO_PRODUCTS.map((p, i) => ({
+    id: `pbe_demo_${i + 1}`,
+    workspaceId,
+    productId: `prd_demo_${i + 1}`,
+    currency: CNY,
+    listPrice: p.list,
+    floorPrice: p.floor,
+    effectiveAt: daysAgo(180),
+  }));
+
+  // Each entry: deal, solution it was quoted from, and the products with the
+  // quantities that add up to that deal's seeded amount.
+  const composition: Array<{
+    opp: string;
+    sol: string | null;
+    lines: Array<{ code: (typeof DEMO_PRODUCTS)[number]["code"]; qty: number; unit: number }>;
+  }> = [
+    // The explicit numbers below; the seed test proves they add up.
+    { opp: "opp_demo_1", sol: "sol_demo_1", lines: [
+      { code: "PRD-CORE", qty: 1, unit: 800_000 },
+      { code: "PRD-ANALYTICS", qty: 1, unit: 400_000 },
+      { code: "PRD-INTEGRATION", qty: 16, unit: 62_500 },
+      { code: "PRD-SUPPORT", qty: 1, unit: 200_000 },
+    ] },
+    { opp: "opp_demo_2", sol: "sol_demo_2", lines: [
+      { code: "PRD-WMS", qty: 1, unit: 600_000 },
+      { code: "PRD-INTEGRATION", qty: 10, unit: 55_000 },
+    ] },
+    { opp: "opp_demo_4", sol: "sol_demo_1", lines: [
+      { code: "PRD-CORE", qty: 1, unit: 600_000 },
+      { code: "PRD-SUPPORT", qty: 1, unit: 160_000 },
+    ] },
+    { opp: "opp_demo_6", sol: "sol_demo_2", lines: [
+      { code: "PRD-WMS", qty: 2, unit: 600_000 },
+      { code: "PRD-INTEGRATION", qty: 10, unit: 60_000 },
+    ] },
+    { opp: "opp_demo_9", sol: "sol_demo_1", lines: [
+      { code: "PRD-ANALYTICS", qty: 1, unit: 400_000 },
+      { code: "PRD-INTEGRATION", qty: 5, unit: 60_000 },
+      { code: "PRD-SUPPORT", qty: 1, unit: 250_000 },
+    ] },
+    // Below floor on the platform line (600k floor, quoted 520k): the approval
+    // flag needs a real case or nobody ever sees what it looks like.
+    { opp: "opp_demo_12", sol: "sol_demo_1", lines: [
+      { code: "PRD-CORE", qty: 1, unit: 520_000 },
+      { code: "PRD-ANALYTICS", qty: 1, unit: 330_000 },
+      { code: "PRD-INTEGRATION", qty: 1, unit: 80_000 },
+    ] },
+  ];
+
+  let seq = 0;
+  const lines = composition.flatMap((c) =>
+    c.lines.map((l) => {
+      const productId = byCode.get(l.code)!;
+      const price = DEMO_PRODUCTS.find((p) => p.code === l.code)!;
+      return {
+        id: `oln_demo_${++seq}`,
+        workspaceId,
+        opportunityId: c.opp,
+        productId,
+        solutionId: c.sol,
+        quantity: l.qty,
+        unitPrice: l.unit,
+        amount: Math.round(l.qty * l.unit * 100) / 100,
+        currency: CNY,
+        // Computed from the book, never hand-set - same rule as the service.
+        needsApproval: l.unit < price.floor,
+      };
+    }),
+  );
+
+  stores.catalog.seed({ products, solutions, items, prices, lines });
 }

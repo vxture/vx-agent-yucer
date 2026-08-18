@@ -17,6 +17,8 @@ import { listPlans, listCampaigns } from "../../domains/strategy/service";
 import { listTargets, listTerritories, attainment } from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects } from "../../domains/delivery/service";
+import { getCatalogStore } from "../../domains/shared/registry";
+import { byProduct } from "../../domains/catalog/lib/pricing";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import { judgementFeed } from "../../domains/judgement/service";
 import { BOARD_TEXT } from "./messages";
@@ -114,7 +116,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
     entitlement: ctx.entitlement,
   };
 
-  const [feed, deals, proposals, plans, campaigns, targets, territories, accounts, signals, leads, projects, playbooks] =
+  const [feed, deals, proposals, plans, campaigns, targets, territories, accounts, signals, leads, projects, playbooks, lines, catalogue] =
     await Promise.all([
       cachedFeed(base),
       listPipeline({ ...base, store: getPipelineStore() }),
@@ -128,6 +130,8 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       listLeads({ ...base, store: getSignalStore() }),
       listProjects({ ...base, store: getDeliveryStore() }),
       listPlaybooks({ ...base, store: getCopilotStore() }),
+      getCatalogStore().allLines(ctx.workspaceId),
+      getCatalogStore().listProducts(ctx.workspaceId),
     ]);
 
   // Open deals only, and their value. "How many deals exist" is a database
@@ -135,6 +139,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
   // opens this product with.
   const open = deals.ok ? deals.value.filter((d) => d.closedAt === null) : [];
   const worth = open.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
+  const openIds = new Set(open.map((d) => d.id));
 
   // Attainment comes from the DOMAIN, not from arithmetic here.
   //
@@ -213,6 +218,40 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
                     {
                       label: BOARD_TEXT.alliesBlockers,
                       value: String(feed.value.allies.blockers),
+                      tone: "warn" as const,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : []),
+    // What the open money is actually FOR. A single open-pipeline total says
+    // nothing about
+    // which product line carries it - that is the whole reason opportunity_line
+    // exists (ADR-014). Only open deals, and only the top lines, because a
+    // sidebar card is a glance rather than a report.
+    ...(lines.length > 0
+      ? [
+          {
+            key: "products",
+            title: BOARD_TEXT.productLines,
+            href: "/pipeline",
+            metrics: [
+              ...[...byProduct(lines.filter((l) => openIds.has(l.opportunityId)))]
+                .sort((a, b) => b[1].amount - a[1].amount)
+                .slice(0, 3)
+                .map(([productId, agg]) => ({
+                  label: catalogue.find((p) => p.id === productId)?.name ?? productId,
+                  value: BOARD_TEXT.wan(agg.amount),
+                })),
+              // Below-floor lines are a decision someone owes, so they belong
+              // beside the money rather than buried in a deal.
+              ...(lines.some((l) => l.needsApproval)
+                ? [
+                    {
+                      label: BOARD_TEXT.needsApproval,
+                      value: String(lines.filter((l) => l.needsApproval).length),
                       tone: "warn" as const,
                     },
                   ]

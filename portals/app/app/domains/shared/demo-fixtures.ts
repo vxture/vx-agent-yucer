@@ -208,3 +208,41 @@ export const DEMO_DEAL_NOTES = {
   d7_a: "第一次正式拜访,主要是摸情况。对方今年确实有预算。",
   d7_b: "把行业案例发过去了,对方问了两个很具体的问题。",
 } as const;
+
+/**
+ * The catalogue this demo company sells - see ADR-014.
+ *
+ * Five products across three lines, so whitespace analysis has something to be
+ * about: an account that bought the platform but not the analytics module is a
+ * different sales conversation from one that bought neither.
+ */
+export const DEMO_PRODUCTS = [
+  { code: "PRD-CORE", name: "零售中台基础平台", category: "平台", unit: "套", list: 800_000, floor: 600_000 },
+  { code: "PRD-ANALYTICS", name: "经营分析模块", category: "平台", unit: "套", list: 400_000, floor: 300_000 },
+  { code: "PRD-WMS", name: "智能仓储调度", category: "供应链", unit: "套", list: 600_000, floor: 450_000 },
+  { code: "PRD-INTEGRATION", name: "系统对接实施", category: "服务", unit: "人月", list: 60_000, floor: 45_000 },
+  { code: "PRD-SUPPORT", name: "年度技术支持", category: "服务", unit: "年", list: 200_000, floor: 160_000 },
+] as const;
+
+export const DEMO_SOLUTIONS = [
+  {
+    code: "SOL-RETAIL",
+    name: "零售数字化整体方案",
+    summary: "基础平台 + 经营分析 + 实施与首年支持，面向连锁零售。",
+    items: [
+      { code: "PRD-CORE", qty: 1 },
+      { code: "PRD-ANALYTICS", qty: 1 },
+      { code: "PRD-INTEGRATION", qty: 6 },
+      { code: "PRD-SUPPORT", qty: 1 },
+    ],
+  },
+  {
+    code: "SOL-SUPPLY",
+    name: "供应链协同方案",
+    summary: "仓储调度 + 对接实施，面向物流与制造。",
+    items: [
+      { code: "PRD-WMS", qty: 1 },
+      { code: "PRD-INTEGRATION", qty: 4 },
+    ],
+  },
+] as const;

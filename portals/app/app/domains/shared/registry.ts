@@ -12,6 +12,8 @@ import { prismaEnabled } from "../../lib/db";
 import { seedDemoWorkspace } from "./demo-seed";
 import { InMemoryPipelineStore, type PipelineStore } from "../pipeline/store";
 import { PrismaPipelineStore } from "../pipeline/prisma-store";
+import { InMemoryCatalogStore } from "../catalog/store";
+import type { CatalogStore } from "../catalog/store";
 import { InMemoryCopilotStore, type CopilotStore } from "../copilot/store";
 import { PrismaCopilotStore } from "../copilot/prisma-store";
 import { InMemoryAccountStore, type AccountStore } from "../account/store";
@@ -78,6 +80,20 @@ export function setPipelineStore(next: PipelineStore | null): void {
 }
 
 let copilotOverride: CopilotStore | null = null;
+
+export function getCatalogStore(): CatalogStore {
+  if (catalogOverride) return catalogOverride;
+  const memo = memoTable();
+  if (!memo.catalog) memo.catalog = new InMemoryCatalogStore();
+  return memo.catalog as CatalogStore;
+}
+
+export function setCatalogStore(next: CatalogStore | null): void {
+  catalogOverride = next;
+  memoTable().catalog = undefined;
+}
+
+let catalogOverride: CatalogStore | null = null;
 
 export function getCopilotStore(): CopilotStore {
   if (copilotOverride) return copilotOverride;
@@ -223,6 +239,7 @@ export function ensureDemoData(workspaceId: string): boolean {
     pipeline: getPipelineStore(),
     delivery: getDeliveryStore(),
     copilot: getCopilotStore(),
+    catalog: getCatalogStore() as InMemoryCatalogStore,
   };
 
   // Belt and braces against a future refactor that makes a factory return a

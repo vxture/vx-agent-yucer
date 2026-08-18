@@ -14,7 +14,7 @@ generator client {
 // the five product domains.
 datasource db {
   provider = "postgresql"
-  schemas  = ["vx_provision", "local_authz", "local_usage", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_field"]
+  schemas  = ["vx_provision", "local_authz", "local_usage", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field"]
 }
 
 // ===== vx_provision =====
@@ -731,4 +731,89 @@ model Commitment {
   @@index([workspaceId, dueAt])
   @@map("commitment")
   @@schema("yucer_field")
+}
+
+/// The product catalogue - see ADR-014.
+///
+/// Nothing to do with the platform's vx_provision.product_code: one says who we
+/// sell this SaaS to, the other says what the company using it sells.
+model Product {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  productCode  String   @map("product_code") @db.VarChar(64)
+  name         String   @db.VarChar(255)
+  category     String?  @db.VarChar(64)
+  unit         String   @default("set") @db.VarChar(32)
+  status       String   @default("active") @db.VarChar(16)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, productCode], map: "uidx_product_code")
+  @@map("product")
+  @@schema("yucer_catalog")
+}
+
+/// A quoting template. Lines never reference it for calculation - ADR-014 s4.
+model Solution {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  solutionCode String   @map("solution_code") @db.VarChar(64)
+  name         String   @db.VarChar(255)
+  summary      String?  @db.Text
+  status       String   @default("active") @db.VarChar(16)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, solutionCode], map: "uidx_solution_code")
+  @@map("solution")
+  @@schema("yucer_catalog")
+}
+
+model SolutionItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  workspaceId String  @map("workspace_id") @db.Uuid
+  solutionId  String  @map("solution_id") @db.Uuid
+  productId   String  @map("product_id") @db.Uuid
+  quantity    Decimal @default(1) @db.Decimal(12, 2)
+
+  @@unique([solutionId, productId], map: "uidx_solution_item")
+  @@map("solution_item")
+  @@schema("yucer_catalog")
+}
+
+/// list_price and FLOOR. The floor is what makes this table carry a decision.
+model PriceBookEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  currency    String   @default("CNY") @db.VarChar(8)
+  listPrice   Decimal  @map("list_price") @db.Decimal(18, 2)
+  floorPrice  Decimal  @map("floor_price") @db.Decimal(18, 2)
+  effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz()
+
+  @@unique([workspaceId, productId, currency, effectiveAt], map: "uidx_price_entry")
+  @@map("price_book_entry")
+  @@schema("yucer_catalog")
+}
+
+/// When lines exist they are AUTHORITATIVE and opportunity.amount is their sum.
+/// Reconciled in the service, not by a trigger - ADR-014 s2.
+model OpportunityLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  opportunityId  String   @map("opportunity_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  solutionId     String?  @map("solution_id") @db.Uuid
+  quantity       Decimal  @default(1) @db.Decimal(12, 2)
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(18, 2)
+  amount         Decimal  @db.Decimal(18, 2)
+  currency       String   @default("CNY") @db.VarChar(8)
+  needsApproval  Boolean  @default(false) @map("needs_approval")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@index([workspaceId, opportunityId], map: "opportunity_line_by_opp")
+  @@index([workspaceId, productId], map: "opportunity_line_by_product")
+  @@map("opportunity_line")
+  @@schema("yucer_pipeline")
 }
