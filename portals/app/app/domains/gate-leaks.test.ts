@@ -51,6 +51,7 @@ function seededAccounts(): InMemoryAccountStore {
         ownerSub: "usr_rep",
         healthScore: 40,
         status: "active",
+    tier: "standard" as const,
       },
     ],
     contacts: [

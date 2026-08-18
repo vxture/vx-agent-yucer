@@ -22,6 +22,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     ownerSub: "usr_rep",
     healthScore: null,
     status: "active",
+    tier: "standard" as const,
     ...over,
   };
 }

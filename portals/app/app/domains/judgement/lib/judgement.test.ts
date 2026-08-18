@@ -236,3 +236,58 @@ test("a snooze holds while the tier is unchanged and breaks when it escalates", 
   // It improved: staying deferred is correct - nothing new to decide.
   assert.equal(held("watch", "today"), false);
 });
+
+// ADR-013. This is the whole point of the strategic tier, so it is pinned here
+// rather than left to the shape of whatever demo data happens to exist.
+const plan = (over: Partial<NonNullable<AccountInput["plan"]>> = {}) => ({
+  period: "2026Q3",
+  contactCadenceDays: 30,
+  execCadenceDays: 90,
+  lastExecContactAt: daysAgo(20),
+  ...over,
+});
+
+test("the cadence rule fires with NO open opportunity - every other rule cannot", () => {
+  const bare = account({ openDeals: [], commitments: [], plan: plan({ lastExecContactAt: daysAgo(200) }) });
+  const js = deriveJudgements({ accounts: [bare], now: NOW });
+
+  // Nothing else can speak: the other four rules all require an open deal.
+  assert.equal(js.filter((j) => j.id.startsWith("quiet:")).length, 0);
+  assert.equal(js.filter((j) => j.id.startsWith("stalled:")).length, 0);
+
+  const cadence = js.find((j) => j.id === "cadence:acc_1");
+  assert.ok(cadence, "a strategic account with no deal and no contact must still be reported");
+  // The executive gap outranks the ordinary one: contact can be delegated,
+  // and a plan that never reached a decision-maker is not being worked.
+  assert.equal(cadence!.urgency, "today");
+  // There is nothing to quote. The evidence IS the silence.
+  assert.deepEqual([...cadence!.citations], []);
+});
+
+test("a strategic account inside its cadence produces nothing", () => {
+  const healthy = account({
+    openDeals: [],
+    commitments: [],
+    lastContactAt: daysAgo(5),
+    plan: plan({ lastExecContactAt: daysAgo(10) }),
+  });
+  assert.deepEqual(deriveJudgements({ accounts: [healthy], now: NOW }), []);
+});
+
+test("a decision-maker never met is late by definition, not missing data", () => {
+  const never = account({
+    openDeals: [],
+    commitments: [],
+    lastContactAt: daysAgo(3),
+    plan: plan({ lastExecContactAt: null }),
+  });
+  const j = deriveJudgements({ accounts: [never], now: NOW }).find((x) => x.id === "cadence:acc_1");
+  assert.ok(j, "never having met the decision maker is the worse case, not the absent one");
+  assert.equal(j!.urgency, "today");
+});
+
+test("a non-strategic account gets no cadence judgement at all", () => {
+  const ordinary = account({ openDeals: [], commitments: [], lastContactAt: daysAgo(400) });
+  const js = deriveJudgements({ accounts: [ordinary], now: NOW });
+  assert.equal(js.filter((j) => j.id.startsWith("cadence:")).length, 0);
+});

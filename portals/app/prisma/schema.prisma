@@ -171,6 +171,8 @@ model Account {
   region       String?   @db.VarChar(64)
   segmentCode  String?   @map("segment_code") @db.VarChar(64)
   ownerSub     String?   @map("owner_sub") @db.VarChar(128)
+  /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
+  tier         String    @default("standard") @db.VarChar(16)
   healthScore  Int?      @map("health_score") @db.SmallInt
   status       String    @default("prospect") @db.VarChar(32)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
@@ -593,6 +595,35 @@ model AgentAction {
 
   @@map("agent_action")
   @@schema("yucer_agent")
+}
+
+/// How we intend to work one strategic customer - see ADR-013.
+///
+/// The cadence fields are the reason this table exists: every other judgement
+/// rule is event-triggered and needs an open opportunity, which makes a locked-in
+/// customer with no live deal invisible exactly when that is worth reporting.
+model AccountPlan {
+  id                 String   @id @default(uuid()) @db.Uuid
+  workspaceId        String   @map("workspace_id") @db.Uuid
+  accountId          String   @map("account_id") @db.Uuid
+  period             String   @db.VarChar(16)
+  targetAmount       Decimal? @map("target_amount") @db.Decimal(18, 2)
+  currency           String   @default("CNY") @db.VarChar(8)
+  contactCadenceDays Int      @default(30) @map("contact_cadence_days")
+  execCadenceDays    Int      @default(90) @map("exec_cadence_days")
+  ownerSub           String?  @map("owner_sub") @db.VarChar(128)
+  presalesSub        String?  @map("presales_sub") @db.VarChar(128)
+  deliverySub        String?  @map("delivery_sub") @db.VarChar(128)
+  chainGoal          String?  @map("chain_goal") @db.Text
+  targetLines        String?  @map("target_lines") @db.Text
+  status             String   @default("active") @db.VarChar(16)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, accountId, period], map: "account_plan_unique")
+  @@index([workspaceId, status], map: "account_plan_active")
+  @@map("account_plan")
+  @@schema("yucer_core")
 }
 
 /// A member deferring one derived judgement - see incr/0005_judgement_snooze.sql.

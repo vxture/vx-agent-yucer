@@ -163,9 +163,35 @@ export async function judgementFeed(
       // rather than recomputed by a second caller.
       const coverage = chain.ok ? chain.value : null;
 
+      // The plan, only for strategic accounts - it is what lets rule 5 fire on
+      // an absence. Read here rather than in a second pass because everything
+      // it needs to be USEFUL (contacts and their last-contact times) is
+      // already in hand on this iteration.
+      const plan =
+        a.tier === "strategic" ? await getAccountStore().getAccountPlan(ctx.workspaceId, a.id) : null;
+
       const open = deals.filter((d) => d.accountId === a.id && d.closedAt === null);
+      // Last contact with a DECISION MAKER, not with anyone. Computed from the
+      // contacts already fetched: an account can be busy at working level for
+      // months while the person who signs has not been seen once, and that gap
+      // is the one the cadence exists to catch.
+      const execIds = new Set(
+        contacts.filter((c) => c.decisionRole === "economic").map((c) => c.id),
+      );
+      const execTimes = [...contactActivity]
+        .filter(([id, at]) => execIds.has(id) && at !== null)
+        .map(([, at]) => (at as Date).getTime());
+
       return {
         coverage,
+        plan: plan
+          ? {
+              period: plan.period,
+              contactCadenceDays: plan.contactCadenceDays,
+              execCadenceDays: plan.execCadenceDays,
+              lastExecContactAt: execTimes.length > 0 ? new Date(Math.max(...execTimes)) : null,
+            }
+          : null,
         accountId: a.id,
         accountName: a.name,
         ownerSub: a.ownerSub,

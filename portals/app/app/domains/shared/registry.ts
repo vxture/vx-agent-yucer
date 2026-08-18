@@ -48,6 +48,13 @@ let pipelineOverride: PipelineStore | null = null;
  * The Prisma path never had the problem, because there the shared state is the
  * database rather than the object. This only ever mattered for the demo stores,
  * which is exactly where nobody would think to look.
+ *
+ * DEV NOTE, and it is the flip side of the fix: because these now survive on
+ * globalThis, they also survive a hot reload. Adding a METHOD to a store class
+ * therefore needs a server restart in dev - the old instance is still there and
+ * will throw "is not a function". Production never sees it (fresh process), and
+ * making the table self-invalidate would mean versioning it against a build id,
+ * which is more machinery than a restart is worth.
  */
 const MEMO = Symbol.for("yucer.domain-stores");
 type MemoTable = Record<string, unknown>;

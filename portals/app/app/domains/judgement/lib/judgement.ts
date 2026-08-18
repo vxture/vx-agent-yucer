@@ -115,6 +115,10 @@ const ANALYSES_STALLED: readonly AnalysisKind[] = ["risk", "competition", "polic
 const ANALYSES_UNREACHED: readonly AnalysisKind[] = ["chain", "risk"];
 const ANALYSES_WE_OWE: readonly AnalysisKind[] = ["risk"];
 const ANALYSES_QUIET: readonly AnalysisKind[] = ["competition", "risk"];
+//   cadence   nothing happened, so there is no new evidence to weigh. What is
+//             worth asking is who we should be talking to and who else is -
+//             not "how risky is this deal", because there may be no deal.
+const ANALYSES_CADENCE: readonly AnalysisKind[] = ["chain", "competition"];
 
 // --- inputs -----------------------------------------------------------------
 
@@ -125,6 +129,19 @@ export interface AccountInput {
   /** Open opportunities on this account, for amount and stage context. */
   openDeals: readonly { id: string; name: string; stage: string; amount: number | null; stageDays: number }[];
   lastContactAt: Date | null;
+  /**
+   * The account plan, when this customer is a strategic one - see ADR-013.
+   *
+   * Present only for tier `strategic`. Its cadence is what lets rule 5 fire on
+   * an ABSENCE, which every other rule here is structurally unable to do.
+   */
+  plan?: {
+    readonly period: string;
+    readonly contactCadenceDays: number;
+    readonly execCadenceDays: number;
+    /** Last contact with anyone at decision-maker level, not just anyone. */
+    readonly lastExecContactAt: Date | null;
+  } | null;
   commitments: readonly {
     id: string;
     direction: CommitmentDirection;
@@ -339,9 +356,78 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
         analyses: ANALYSES_QUIET,
       });
     }
+
+    // 5. A STRATEGIC ACCOUNT WHERE NOTHING HAS HAPPENED.
+    //
+    // Every rule above is event-triggered and every one of them requires an
+    // open opportunity: something stalled, someone broke a promise, a deal went
+    // quiet. That is right for transactional selling - with no live deal, a
+    // quiet customer is simply a quiet customer.
+    //
+    // It is wrong for an account someone locked in as strategic. There the
+    // absence IS the event: the plan is failing, it fails silently, and no
+    // event will ever fire to say so. This rule is the only one here that
+    // does not require an open deal, and that is its entire reason to exist.
+    //
+    // See ADR-013 section 3.
+    if (a.plan) {
+      const sinceContact = quiet;
+      const sinceExec = a.plan.lastExecContactAt === null ? null : days(a.plan.lastExecContactAt, now);
+      const contactLate = sinceContact !== null && sinceContact > a.plan.contactCadenceDays;
+      // A decision-maker contact that has NEVER happened is late by definition -
+      // it is the worse case, not the missing one.
+      const execLate = sinceExec === null || sinceExec > a.plan.execCadenceDays;
+
+      if (contactLate || execLate) {
+        // The executive gap is the more serious of the two: ordinary contact
+        // can be delegated, and a plan that has not reached a decision-maker
+        // all period is not being worked at any level that matters.
+        const worst = execLate;
+        out.push({
+          id: `cadence:${a.accountId}`,
+          source: "rule",
+          urgency: worst ? "today" : "week",
+          claim: worst
+            ? sinceExec === null
+              ? `${a.accountName}是战略客户，本期还没有过一次决策人接触。`
+              : `${a.accountName}是战略客户，已经 ${sinceExec} 天没见到决策人，节奏是 ${a.plan.execCadenceDays} 天。`
+            : `${a.accountName}是战略客户，已经 ${sinceContact} 天没有任何接触，节奏是 ${a.plan.contactCadenceDays} 天。`,
+          subjectType: "account",
+          subjectId: a.accountId,
+          subjectName: a.accountName,
+          tags: [
+            ...baseTags,
+            // "neutral" is the absence of a status, and that is exactly right
+            // here: being strategic is a classification, not an alarm.
+            { label: "", value: "战略客户", tone: "neutral" as const },
+            { label: "本期", value: a.plan.period, tone: "neutral" as const },
+          ],
+          // No citation of a note, deliberately: there is nothing to quote.
+          // The evidence for this judgement is the SILENCE, and the facts
+          // below are how it is measured.
+          citations: [],
+          facts: [
+            {
+              label: "距上次接触",
+              value: sinceContact === null ? "无记录" : `${sinceContact} 天`,
+              tone: contactLate ? "danger" : "neutral",
+            },
+            {
+              label: "距决策人接触",
+              value: sinceExec === null ? "无记录" : `${sinceExec} 天`,
+              tone: execLate ? "danger" : "success",
+            },
+            { label: "接触节奏", value: `${a.plan.contactCadenceDays} 天` },
+            { label: "决策人节奏", value: `${a.plan.execCadenceDays} 天` },
+          ],
+          rule: "战略客户 且 (距上次接触 > 接触节奏 或 距决策人接触 > 决策人节奏) · 不要求存在开放商机",
+          analyses: ANALYSES_CADENCE,
+        });
+      }
+    }
   }
 
-  // 5. The one team-level judgement: is anybody recording anything.
+  // 6. The one team-level judgement: is anybody recording anything.
   if (input.captureWeeks && input.captureWeeks.length > 0) {
     const done = input.captureWeeks.filter((w) => w.complete);
     const latest = done[done.length - 1];

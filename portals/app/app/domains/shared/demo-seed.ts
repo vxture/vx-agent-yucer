@@ -200,10 +200,32 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
 
 function seedAccounts(workspaceId: string, stores: DemoStores): void {
   stores.account.seed({
+    // One plan, on the strategic account. Its executive cadence is 60 days and
+    // nobody has ever met the decision maker, so the cadence rule fires at the
+    // most serious tier - which is the demo's whole job here: to show that an
+    // account with no deal and no event can still be the most important row.
+    plans: [
+      {
+        id: "plan_demo_3",
+        workspaceId,
+        accountId: "acc_demo_3",
+        period: PERIOD,
+        targetAmount: 3_000_000,
+        contactCadenceDays: 30,
+        execCadenceDays: 60,
+        ownerSub: REP1,
+        presalesSub: PM,
+        deliverySub: null,
+        status: "active",
+      },
+    ],
     accounts: [
       account("acc_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0], "MIDMARKET", REP1, 34, "active"),
       account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
-      account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect"),
+      // Strategic, and deliberately a PROSPECT with no open opportunity: this is
+      // the case every other rule is structurally blind to. Nothing has
+      // happened here, and that is precisely what has to be reported.
+      account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect", "strategic"),
       account("acc_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3], "MIDMARKET", REP2, 61, "active"),
       account("acc_demo_5", workspaceId, 5, DEMO_ACCOUNTS[4], "MIDMARKET", REP1, 45, "active"),
       // Two accounts that exist to exercise rules the first five never reach:
@@ -721,8 +743,10 @@ function account(
   ownerSub: string,
   healthScore: number | null,
   status: string,
+  tier: "strategic" | "key" | "standard" = "standard",
 ) {
   return {
+    tier,
     id,
     workspaceId,
     accountNo: `ACC-${String(n).padStart(4, "0")}`,

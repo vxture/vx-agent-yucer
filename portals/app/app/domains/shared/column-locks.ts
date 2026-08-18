@@ -34,7 +34,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "region",
     "segment_code",
     "owner_sub",
-    "health_score",
+    "health_score", "tier",
     "status",
     "updated_at",
     "deleted_at",
@@ -181,6 +181,14 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // deferred are the record. Only the deferral itself may move, so re-snoozing
   // cannot rewrite who deferred what.
   "yucer_agent.judgement_snooze": ["urgency_at_snooze", "snoozed_until"],
+  // account_plan: account_id and period ARE the plan's identity. Re-planning the
+  // same period edits this row; a different period is a new row.
+  "yucer_core.account_plan": [
+    "target_amount", "currency",
+    "contact_cadence_days", "exec_cadence_days",
+    "owner_sub", "presales_sub", "delivery_sub",
+    "chain_goal", "target_lines", "status", "updated_at",
+  ],
 };
 
 /**
