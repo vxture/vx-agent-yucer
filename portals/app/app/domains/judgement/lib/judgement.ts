@@ -78,6 +78,16 @@ export interface Judgement {
   rule?: string;
   /** Which analyses make sense here. A team metric gets no competitor scan. */
   analyses: readonly AnalysisKind[];
+  /**
+   * An ordered series, when the judgement is about a TREND rather than a state.
+   *
+   * Separate from `facts` because they are read differently: facts are parallel
+   * quantities you compare against each other, a series is one quantity you
+   * compare against its own past. The team capture judgement used to put six
+   * weeks into `facts`, so the row rendered a time series in the slot meant for
+   * side-by-side metrics and neither reading worked.
+   */
+  series?: readonly { readonly label: string; readonly percent: number }[];
 }
 
 /** The on-demand model analyses. Each costs an Atlas call, so each is a click. */
@@ -337,6 +347,12 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     const latest = done[done.length - 1];
     if (latest && latest.coverage !== null) {
       const pct = Math.round(latest.coverage * 100);
+      // Against its own past, which is the only comparison a coverage number
+      // supports - there is no external benchmark for "how much this team
+      // writes down".
+      const before = done[done.length - 2];
+      const prev = before && before.coverage !== null ? Math.round(before.coverage * 100) : null;
+      const delta = prev === null ? 0 : pct - prev;
       const worst = done.every((w) => (w.coverage ?? 1) >= (latest.coverage ?? 0));
       out.push({
         id: "capture:team",
@@ -353,10 +369,26 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
           { label: "覆盖率", value: `${pct}%`, tone: pct < 50 ? "warning" : "success" },
         ],
         citations: [],
-        facts: done.map((w) => ({
-          label: w.weekStart.toISOString().slice(5, 10),
-          value: w.coverage === null ? "无商机" : `${Math.round(w.coverage * 100)}%`,
-        })),
+        facts: [
+          { label: "覆盖率", value: `${pct}%`, tone: pct < 50 ? ("warning" as const) : ("success" as const) },
+          ...(prev !== null
+            ? [
+                {
+                  label: "较上周",
+                  value: `${delta >= 0 ? "+" : ""}${delta} 点`,
+                  tone: delta >= 0 ? ("success" as const) : ("warning" as const),
+                },
+              ]
+            : []),
+          { label: "统计周数", value: String(done.length) },
+        ],
+        // The weeks themselves, as a series rather than as parallel facts.
+        series: done
+          .filter((w) => w.coverage !== null)
+          .map((w) => ({
+            label: w.weekStart.toISOString().slice(5, 10),
+            percent: Math.round((w.coverage ?? 0) * 100),
+          })),
         rule: "覆盖率 = 当周有跟进的开放商机 / 当周开放商机 · 进行中的一周不计入",
         // Deliberately none. A competitor scan on a team adoption metric would
         // be a button that exists for symmetry, and this product does not put

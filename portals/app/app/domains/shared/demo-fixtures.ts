@@ -14,6 +14,11 @@ export const DEMO_ACCOUNTS = [
   { name: "北方通信", industry: "通信", region: "华北" },
   { name: "长江物流", industry: "物流", region: "华中" },
   { name: "华南连锁药房", industry: "零售", region: "华南" },
+  // Added to exercise two rules the first five never reached. Without them the
+  // "本周" tier was permanently 0 and two of the four judgement rules had no
+  // demo case at all - a screen nobody could review is not a demo.
+  { name: "西部能源装备", industry: "能源", region: "西北" },
+  { name: "东海精密仪器", industry: "制造", region: "华东" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */
@@ -59,6 +64,8 @@ export const DEMO_OPPORTUNITIES = [
   "智能仓储升级",
   "网点运营分析平台",
   "处方流转系统",
+  "技改能效监测",
+  "实验室数据对接",
 ] as const;
 
 export const DEMO_PROJECTS = [
@@ -152,6 +159,16 @@ export const DEMO_NOTES = {
     "行业会上碰到王磊,聊了二十分钟。他们今年重点是门店数字化,预算在总部。留了微信,说节后可以正式聊。",
 } as const;
 
+/** Notes for the two rule-coverage accounts. */
+export const DEMO_QUIET_NOTES = {
+  a6_demo:
+    "给设备部做了一轮演示，现场反馈还行。他们说要等集团那边的技改预算批下来，没给具体时间。",
+  a6_intro: "行业会上加的联系人，回来后通了一次电话，介绍了大致情况。",
+  a7_kickoff:
+    "见了采购和质量两条线。质量那边最关心的是校准数据能不能对接他们的 LIMS，让我们出个方案。",
+  a7_followup: "电话确认了方案范围，他们说下周内部评审。",
+} as const;
+
 export const DEMO_COMMITMENT_TEXT = {
   a1_cfo: "CFO 给出预算是否批复的答复",
   a1_interface: "我方提供与既有系统的接口方案说明",
@@ -159,6 +176,8 @@ export const DEMO_COMMITMENT_TEXT = {
   a4_pilot: "我方提供试点门店的运行数据",
   a5_meeting: "对方安排节后与总部信息化负责人正式会面",
   a1_procurement: "对方安排与采购负责人赵强的当面沟通",
+  /** Ours, and only a few days late - the "本周" case for the we-owe rule. */
+  a7_lims: "把 LIMS 对接方案发给质量部张工",
 } as const;
 
 export const DEMO_WAIVE_REASON = "对方组织调整,原对接人离任,该承诺不再适用";

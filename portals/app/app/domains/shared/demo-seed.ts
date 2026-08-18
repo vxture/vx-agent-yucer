@@ -31,6 +31,7 @@ import {
   DEMO_LESSONS,
   DEMO_MILESTONES,
   DEMO_NOTES,
+  DEMO_QUIET_NOTES,
   DEMO_OPPORTUNITIES,
   DEMO_PLANS,
   DEMO_PLAYBOOKS,
@@ -205,6 +206,10 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect"),
       account("acc_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3], "MIDMARKET", REP2, 61, "active"),
       account("acc_demo_5", workspaceId, 5, DEMO_ACCOUNTS[4], "MIDMARKET", REP1, 45, "active"),
+      // Two accounts that exist to exercise rules the first five never reach:
+      // 6 goes quiet with nobody having broken a promise, 7 is one WE owe.
+      account("acc_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5], "MIDMARKET", REP1, 52, "active"),
+      account("acc_demo_7", workspaceId, 7, DEMO_ACCOUNTS[6], "ENTERPRISE", REP1, 66, "active"),
     ],
     contacts: [
       contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90),
@@ -406,6 +411,10 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       note("int_demo_a2b", "acc_demo_2", "email", 4, REP2, DEMO_NOTES.a2_evidence),
       note("int_demo_a4a", "acc_demo_4", "call", 12, REP2, DEMO_NOTES.a4_slip),
       note("int_demo_a5a", "acc_demo_5", "event", 35, REP1, DEMO_NOTES.a5_intro),
+      note("int_demo_a6a", "acc_demo_6", "meeting", 35, REP1, DEMO_QUIET_NOTES.a6_demo, "opp_demo_11"),
+      note("int_demo_a6b", "acc_demo_6", "event", 58, REP1, DEMO_QUIET_NOTES.a6_intro),
+      note("int_demo_a7a", "acc_demo_7", "meeting", 20, REP1, DEMO_QUIET_NOTES.a7_kickoff, "opp_demo_12"),
+      note("int_demo_a7b", "acc_demo_7", "call", 9, REP1, DEMO_QUIET_NOTES.a7_followup, "opp_demo_12"),
 
       // Deal-level follow-ups. Every one carries an opportunityId, which is what
       // the adoption metric counts - an account-level note does not move it,
@@ -447,6 +456,9 @@ function seedField(workspaceId: string, stores: DemoStores): void {
         closureEvidenceId: "int_demo_a2b",
         metAt: daysAgo(4),
       }),
+      // Ours, four days late. Under the 7-day cut, so the rule tiers it "week"
+      // rather than "today" - the tier boundary itself now has a demo case.
+      promise("cm_demo_7", "acc_demo_7", "we_owe", DEMO_COMMITMENT_TEXT.a7_lims, 4, "open"),
       // Ours, 9 days late. It sits in the same manager list as theirs.
       promise("cm_demo_5", "acc_demo_4", "we_owe", DEMO_COMMITMENT_TEXT.a4_pilot, 9, "open", {
         ownerSub: REP2,
@@ -506,6 +518,10 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       opp("opp_demo_8", workspaceId, 8, DEMO_OPPORTUNITIES[7], "acc_demo_2", null, "terr_east", REP2, "won", "closed", 1_400_000, 100, daysAgo(40), daysAgo(40), "won"),
       opp("opp_demo_9", workspaceId, 9, DEMO_OPPORTUNITIES[8], "acc_demo_4", null, "terr_south", REP2, "negotiate", "best_case", 950_000, 90, daysAhead(20), null, "open"),
       opp("opp_demo_10", workspaceId, 10, DEMO_OPPORTUNITIES[9], "acc_demo_5", "camp_demo_3", "terr_south", REP1, "won", "closed", 540_000, 100, daysAgo(8), daysAgo(8), "won"),
+      // Rule-coverage deals. Both open, both with a real amount, so the two
+      // new accounts appear in the pipeline the judgement rules read.
+      opp("opp_demo_11", workspaceId, 11, DEMO_OPPORTUNITIES[10], "acc_demo_6", null, "terr_south", REP1, "qualify", "pipeline", 480_000, 25, daysAhead(75), null, "open"),
+      opp("opp_demo_12", workspaceId, 12, DEMO_OPPORTUNITIES[11], "acc_demo_7", null, "terr_east", REP1, "validate", "best_case", 930_000, 45, daysAhead(52), null, "open"),
     ],
     {
       // A stage never jumps: every event names the stage it came from, and the

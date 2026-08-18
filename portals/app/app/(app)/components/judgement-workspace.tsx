@@ -203,8 +203,9 @@ function Engagement({
 
         <div className="ml-auto flex flex-wrap items-baseline gap-md">
           {/* Only facts that ARE quantities get the big tabular treatment. Some
-              are verdicts - "未失约", "是"/"否" - and setting a word at figure
-              size in a row of numbers makes the reader parse it as one. */}
+              are verdicts rather than amounts - "no missed promises", "yes" /
+              "no" - and setting a word at figure size in a row of numbers makes
+              the reader parse it as one. */}
           {j.facts.slice(0, 4).map((f, i) => (
             <span key={i} className="flex items-baseline gap-2xs">
               <b
@@ -275,6 +276,40 @@ function Engagement({
                   </blockquote>
                 ))}
               </Stack>
+            </section>
+          ) : null}
+
+          {j.series && j.series.length > 1 ? (
+            <section className="bg-muted/40 border-border rounded-md border p-sm">
+              <SectionHeader level={4} title={HOME_TEXT.secSeries} />
+              {/* A series compares a quantity against its OWN past, so the bars
+                  share one baseline and the latest is the emphasised one. In
+                  the metric row these six weeks read as six unrelated numbers. */}
+              <div className="mt-sm flex items-end gap-sm">
+                {j.series.map((pt, i) => {
+                  const last = i === j.series!.length - 1;
+                  return (
+                    <div key={pt.label} className="flex min-w-0 flex-col items-center gap-2xs">
+                      <span
+                        className={[
+                          "text-xs tabular-nums",
+                          last ? "text-foreground font-semibold" : "text-muted-foreground",
+                        ].join(" ")}
+                      >
+                        {pt.percent}%
+                      </span>
+                      <div
+                        className={[
+                          "w-8 rounded-sm",
+                          last ? "bg-primary" : "bg-primary/30",
+                        ].join(" ")}
+                        style={{ height: `${Math.max(4, pt.percent)}px` }}
+                      />
+                      <span className="text-muted-foreground text-xs tabular-nums">{pt.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </section>
           ) : null}
 

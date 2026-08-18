@@ -88,7 +88,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 10);
+    assert.equal(rows.length, 12);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -100,7 +100,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 5 accounts, 10 deals, 4 projects", async () => {
+test("the demo has the working set it claims: 7 accounts, 12 deals, 4 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -111,8 +111,8 @@ test("the demo has the working set it claims: 5 accounts, 10 deals, 4 projects",
     s.delivery.listProjects(WS),
   ]);
 
-  assert.equal(accounts.length, 5);
-  assert.equal(opportunities.length, 10);
+  assert.equal(accounts.length, 7);
+  assert.equal(opportunities.length, 12);
   assert.equal(projects.length, 4);
 });
 

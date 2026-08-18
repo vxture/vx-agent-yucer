@@ -170,6 +170,13 @@ export const BOARD_TEXT = {
   tierWeek: "本周",
   tierWatch: "留意",
   pending: "待裁决",
+  /** What the agent is proposing. Split by KIND rather than by confidence: a
+   *  confidence threshold would be a number this repo invented, while the
+   *  action type is a fact already in the row. */
+  actAdvance: "推进阶段",
+  actOutreach: "起草外联",
+  actPromote: "提升线索",
+  actOther: "其他",
   dealsOpen: "在办",
   dealsWorth: "金额",
   plans: "计划",
@@ -191,6 +198,7 @@ export const BOARD_TEXT = {
   quota: (period: string) => `${period} 目标`,
   quotaWon: "已签",
   quotaTarget: "目标",
+  quotaOf: "已完成",
   quotaLeft: (pct: number) => `${pct}%`,
   agent: "智能助手",
   agentScope: (n: number) => `正看着 ${n} 位客户`,
@@ -286,6 +294,7 @@ export const HOME_TEXT = {
   secEvidence: "依据",
   secEvidenceCount: (n: number) => `依据 · ${n} 条`,
   secFacts: "关键事实",
+  secSeries: "逐周走势",
   secRule: "触发条件",
   // The agent's own opening sentence. The screen used to open with the label
   // "今日判断" and a grey line of provenance, which is a filing-cabinet drawer

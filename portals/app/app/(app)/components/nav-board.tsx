@@ -105,8 +105,15 @@ function Metrics({ section: s }: { section: BoardSection }) {
       {typeof s.progress === "number" ? (
         <div className="mt-sm">
           <Progress value={s.progress} />
-          <div className="text-muted-foreground mt-2xs text-xs tabular-nums">
-            {BOARD_TEXT.quotaLeft(s.progress)}
+          {/* The percentage sits ON the bar's line rather than under it. Read
+              alone under an almost-empty track, a low number looked like a
+              rendering failure; beside the track it is obviously the track's
+              value. */}
+          <div className="mt-2xs flex items-baseline justify-between">
+            <span className="text-foreground text-xs font-semibold tabular-nums">
+              {BOARD_TEXT.quotaLeft(s.progress)}
+            </span>
+            <span className="text-muted-foreground text-xs">{BOARD_TEXT.quotaOf}</span>
           </div>
         </div>
       ) : null}

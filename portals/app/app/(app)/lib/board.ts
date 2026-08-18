@@ -14,7 +14,7 @@ import {
 import { listAccounts } from "../../domains/account/service";
 import { listPipeline } from "../../domains/pipeline/service";
 import { listPlans, listCampaigns } from "../../domains/strategy/service";
-import { listTargets, listTerritories } from "../../domains/planning/service";
+import { listTargets, listTerritories, attainment } from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects } from "../../domains/delivery/service";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
@@ -70,6 +70,36 @@ export interface BoardContext {
  */
 export const cachedFeed = cache(judgementFeed);
 
+const ACTION_LABEL: Record<string, string> = {
+  advance_stage: BOARD_TEXT.actAdvance,
+  draft_outreach: BOARD_TEXT.actOutreach,
+  promote_signal: BOARD_TEXT.actPromote,
+};
+
+/**
+ * What is waiting, by what it would DO.
+ *
+ * A lone "4" says work exists without saying what kind, and these are not
+ * interchangeable: waving through a stage advance and signing off an outreach
+ * draft are different acts with different risk. Grouped by action type, which
+ * is a fact on the row - not by a confidence threshold, which would be a
+ * number invented here.
+ */
+function proposalBreakdown(result: { ok: boolean; value?: unknown }): BoardMetric[] {
+  if (!result.ok || !Array.isArray(result.value)) return [];
+  const rows = result.value as { actionType: string }[];
+  if (rows.length === 0) return [];
+  const byKind = new Map<string, number>();
+  for (const r of rows) {
+    const label = ACTION_LABEL[r.actionType] ?? BOARD_TEXT.actOther;
+    byKind.set(label, (byKind.get(label) ?? 0) + 1);
+  }
+  return [
+    { label: BOARD_TEXT.pending, value: String(rows.length), tone: "warn" },
+    ...[...byKind].map(([label, n]) => ({ label, value: String(n) })),
+  ];
+}
+
 /** A count, or nothing at all if the gate refused. */
 function count(result: { ok: boolean; value?: unknown }, label: string): BoardMetric[] {
   if (!result.ok || !Array.isArray(result.value)) return [];
@@ -106,21 +136,29 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
   const open = deals.ok ? deals.value.filter((d) => d.closedAt === null) : [];
   const worth = open.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
 
-  // Attainment, and ONLY when it can be stated without lying about the period.
-  // Targets carry their own period string; summing across different periods
-  // would produce a number that is arithmetically fine and means nothing. If
-  // the workspace's active targets do not agree on one period, the card is
-  // omitted rather than shown with a quietly wrong denominator.
-  // "committed", not "draft" - a draft target is a proposal, and measuring
-  // attainment against one would report progress toward a number nobody has
-  // agreed to yet.
-  const active = targets.ok ? targets.value.filter((t) => t.status === "committed") : [];
-  const periods = new Set(active.map((t) => t.period));
-  const onePeriod = periods.size === 1 ? [...periods][0] : null;
-  const quota = active.reduce((sum, t) => sum + (t.targetAmount?.amount ?? 0), 0);
-  const won = deals.ok
-    ? deals.value.filter((d) => d.status === "won").reduce((s, d) => s + (d.amount?.amount ?? 0), 0)
-    : 0;
+  // Attainment comes from the DOMAIN, not from arithmetic here.
+  //
+  // The first version summed every committed target and every won deal. Both
+  // halves were wrong. Targets are HIERARCHICAL - the workspace target already
+  // contains its territories - so summing them double-counted and produced a
+  // denominator of 21.5M against a 12M quota. And the numerator missed every
+  // closed deal, because listPipeline excludes terminal ones by default.
+  //
+  // planning.attainment() already reconciles a target against what actually
+  // closed for that exact scope, and it keeps apart the two cases this card
+  // could most easily lie about: "nobody has forecast this yet" and "attained
+  // zero". Rendering both as 0% would report an unforecast quarter as a failed
+  // one.
+  const wsTarget = targets.ok
+    ? targets.value.find((t) => t.scopeType === "workspace" && t.status === "committed")
+    : undefined;
+  const rows = wsTarget
+    ? await attainment({ ...base, store: getPlanningStore() }, wsTarget.period)
+    : null;
+  const wsRow =
+    rows?.ok
+      ? rows.value.find((r) => r.target.id === wsTarget?.id)
+      : undefined;
 
   const sections: BoardSection[] = [
     {
@@ -155,7 +193,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       href: "/copilot",
       // Proposals awaiting a person, under ADR-003: the agent proposes and a
       // human decides, so this is work owed by a person, not by the system.
-      metrics: count(proposals, BOARD_TEXT.pending),
+      metrics: proposalBreakdown(proposals),
     },
     // The archive, each with the one number that says whether it is worth
     // opening.
@@ -177,17 +215,19 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
     { key: "delivery", title: BOARD_TEXT.delivery, href: "/delivery", metrics: count(projects, BOARD_TEXT.projects) },
   ];
 
-  // Only when the denominator is honest.
-  if (onePeriod && quota > 0) {
+  // Shown only with a workspace-scope committed target AND a snapshot behind
+  // it. No target means no denominator; no snapshot means nobody has forecast
+  // the period, which is not the same as having attained nothing.
+  if (wsTarget && wsRow?.hasSnapshot && wsRow.ratio !== null) {
     sections.unshift({
       key: "quota",
-      title: BOARD_TEXT.quota(onePeriod),
+      title: BOARD_TEXT.quota(wsTarget.period),
       href: "/planning",
       metrics: [
-        { label: BOARD_TEXT.quotaWon, value: BOARD_TEXT.wan(won), tone: "warn" },
-        { label: BOARD_TEXT.quotaTarget, value: BOARD_TEXT.wan(quota) },
+        { label: BOARD_TEXT.quotaWon, value: BOARD_TEXT.wan(wsRow.closed?.amount ?? 0), tone: "warn" },
+        { label: BOARD_TEXT.quotaTarget, value: BOARD_TEXT.wan(wsTarget.targetAmount.amount) },
       ],
-      progress: Math.min(100, Math.round((won / quota) * 100)),
+      progress: Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100))),
     });
   }
 
