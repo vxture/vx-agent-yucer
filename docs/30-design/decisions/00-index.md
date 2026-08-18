@@ -19,3 +19,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-013 | [战略客户与跟进节奏](ADR-013-strategic-accounts-and-the-cadence.md) | accepted | 2026-08-17 |
 | ADR-014 | [产品体系](ADR-014-the-product-catalogue.md) | accepted | 2026-08-17 |
 | ADR-015 | [能力键而非智能体身份](ADR-015-capability-keys-not-agent-identities.md) | accepted | 2026-08-18 |
+| ADR-016 | [招标信号与定向挖掘](ADR-016-tender-signals-and-targeted-mining.md) | accepted | 2026-08-18 |

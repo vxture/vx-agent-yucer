@@ -89,7 +89,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
 
   // --- yucer_pipeline ---
   // signal: evidence frozen, only the resolution is writable.
-  "yucer_pipeline.signal": ["account_id", "score", "status", "updated_at"],
+  // targeting joins the writable set (ADR-016): re-mining can reclassify WHY we
+  // were looking, and a signal matched to an account after the fact moves from
+  // product_domain to named_account. The evidence columns stay frozen.
+  "yucer_pipeline.signal": ["account_id", "score", "status", "targeting", "updated_at"],
   // lead: signal_id / campaign_id are the attribution record.
   "yucer_pipeline.lead": [
     "company_name",

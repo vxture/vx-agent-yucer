@@ -215,7 +215,23 @@ export function setSignalStore(next: SignalStore | null): void {
 // A third guard is structural: seedDemoWorkspace accepts the InMemory* classes
 // by type, so handing it a Prisma store does not compile.
 
-const seeded = new Set<string>();
+/**
+ * Which workspaces have been seeded - on the SAME globalThis table as the
+ * stores it guards.
+ *
+ * It was a module-level Set while the stores lived on globalThis, and that
+ * split is silently destructive: a hot reload resets the flag but NOT the
+ * stores, so the next request re-seeds into a store that already holds the
+ * data. In dev the demo quietly doubled on every reload, and it showed up as a
+ * duplicated row on a page rather than as an error.
+ *
+ * A guard has to live exactly as long as the thing it guards.
+ */
+function seededSet(): Set<string> {
+  const t = memoTable() as { seeded?: Set<string> };
+  if (!t.seeded) t.seeded = new Set<string>();
+  return t.seeded;
+}
 
 export function demoDataEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.YUCER_DEMO_DATA === "on" && !prismaEnabled();
@@ -228,7 +244,7 @@ export function demoDataEnabled(env: Record<string, string | undefined> = proces
  */
 export function ensureDemoData(workspaceId: string): boolean {
   if (!demoDataEnabled()) return false;
-  if (seeded.has(workspaceId)) return true;
+  if (seededSet().has(workspaceId)) return true;
 
   const stores = {
     strategy: getStrategyStore(),
@@ -251,11 +267,11 @@ export function ensureDemoData(workspaceId: string): boolean {
   if (!allInMemory) return false;
 
   seedDemoWorkspace(workspaceId, stores as Parameters<typeof seedDemoWorkspace>[1]);
-  seeded.add(workspaceId);
+  seededSet().add(workspaceId);
   return true;
 }
 
 /** Tests: forget what has been seeded. */
 export function resetDemoSeed(): void {
-  seeded.clear();
+  seededSet().clear();
 }

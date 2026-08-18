@@ -139,7 +139,11 @@ test("attribution keys are absent from every writable list", () => {
 
 test("signal evidence is frozen and only the resolution is writable", () => {
   const cols = writableColumns("yucer_pipeline.signal");
-  assert.deepEqual([...cols].sort(), ["account_id", "score", "status", "updated_at"]);
+  // targeting is writable (ADR-016) and the evidence is not: re-mining can
+  // reclassify WHY we were looking, and a signal matched to an account after
+  // the fact moves from product_domain to named_account. What was published,
+  // when, and by whom cannot move at all.
+  assert.deepEqual([...cols].sort(), ["account_id", "score", "status", "targeting", "updated_at"]);
   for (const evidence of ["source", "source_ref", "signal_type", "subject", "payload", "detected_at"]) {
     assert.ok(!cols.includes(evidence), `${evidence} must stay frozen`);
   }

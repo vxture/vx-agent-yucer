@@ -356,12 +356,16 @@ model Signal {
   subject     String   @db.VarChar(255)
   payload     Json     @default("{}") @db.JsonB
   score       Int?     @db.SmallInt
+  /// Which line of enquiry surfaced this - ADR-016. Orders the inbox; never
+  /// enters the score.
+  targeting    String?  @db.VarChar(24)
   status      String   @default("new") @db.VarChar(32)
   detectedAt  DateTime @default(now()) @map("detected_at") @db.Timestamptz()
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, source, sourceRef], map: "uidx_signal_ws_source_ref")
+  @@index([workspaceId, targeting, detectedAt(sort: Desc)], map: "signal_by_targeting")
   @@map("signal")
   @@schema("yucer_pipeline")
 }

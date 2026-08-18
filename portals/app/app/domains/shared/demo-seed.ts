@@ -34,6 +34,7 @@ import {
   DEMO_PRODUCTS,
   DEMO_QUIET_NOTES,
   DEMO_SOLUTIONS,
+  DEMO_TENDER_SIGNALS,
   DEMO_OPPORTUNITIES,
   DEMO_PLANS,
   DEMO_PLAYBOOKS,
@@ -509,6 +510,21 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       // Unmatched and high-scoring: the new-logo case the rule exists for.
       signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 71, "scored", 6),
       signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 26, "scored", 95),
+      // Tenders. The strongest public evidence there is: a procurement already
+      // running, with a budget and a deadline attached (ADR-016).
+      //
+      // The first two came in along the NAMED ACCOUNT line, the third along the
+      // product line from a buyer nobody has ever dealt with - which is the case
+      // a named-account-only crawler would never see, and the reason targeting
+      // orders the inbox instead of scoring it.
+      signal("sig_demo_11", workspaceId, "web", "https://tender.example/2026/9912", "tender",
+        DEMO_TENDER_SIGNALS.strategic, "acc_demo_3", 93, "scored", 3, "named_account"),
+      signal("sig_demo_12", workspaceId, "web", "https://tender.example/2026/9931", "tender",
+        DEMO_TENDER_SIGNALS.known, "acc_demo_1", 90, "scored", 8, "named_account"),
+      signal("sig_demo_13", workspaceId, "web", "https://tender.example/2026/9948", "tender",
+        DEMO_TENDER_SIGNALS.newLogo, null, 84, "new", 2, "product_domain"),
+      signal("sig_demo_14", workspaceId, "news", "https://gov.example/notice/551", "compliance",
+        DEMO_TENDER_SIGNALS.policy, "acc_demo_4", 61, "scored", 15, "product_domain"),
       signal("sig_demo_4", workspaceId, "partner", "ref-4471", "referral", DEMO_SIGNALS[3], null, null, "new", 2),
       signal("sig_demo_5", workspaceId, "campaign", "camp_demo_3", "intent", DEMO_SIGNALS[4], "acc_demo_5", 79, "promoted", 25),
       signal("sig_demo_6", workspaceId, "crm", "crm-3312", "tech_change", DEMO_SIGNALS[5], "acc_demo_2", 58, "scored", 18),
@@ -797,10 +813,13 @@ function signal(
   score: number | null,
   status: string,
   agedDays: number,
+  // ADR-016: WHY we were looking. Ordering only - it never enters the score.
+  targeting: "named_account" | "product_domain" | "none" | null = null,
 ) {
   return {
     id,
     workspaceId,
+    targeting,
     source,
     sourceRef,
     signalType: signalType as never,

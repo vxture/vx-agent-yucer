@@ -639,3 +639,33 @@ test("every seeded deal with lines reconciles to their sum", async () => {
     resetDemoSeed();
   }
 });
+
+// A duplicate id silently overwrote four seeded signals and only one of them
+// was visibly missing, because the page shows a subset. Ids are cheap to check
+// and expensive to debug.
+test("no seeded record shares an id with another of its kind", async () => {
+  const saved = process.env.YUCER_DEMO_DATA;
+  const savedDb = process.env.DATABASE_URL;
+  process.env.YUCER_DEMO_DATA = "on";
+  delete process.env.DATABASE_URL;
+  try {
+    resetDemoSeed();
+    assert.equal(ensureDemoData(WS), true);
+    const { getSignalStore, getPipelineStore, getAccountStore } = await import("./registry");
+    const groups: Array<[string, { id: string }[]]> = [
+      ["signals", await getSignalStore().listSignals(WS, { limit: 500 })],
+      ["leads", await getSignalStore().listLeads(WS, { limit: 500 })],
+      ["opportunities", await getPipelineStore().listOpportunities(WS, { includeClosed: true })],
+      ["accounts", await getAccountStore().listAccounts(WS)],
+    ];
+    for (const [name, rows] of groups) {
+      const ids = rows.map((r) => r.id);
+      assert.equal(new Set(ids).size, ids.length, `${name} has duplicate ids`);
+    }
+  } finally {
+    if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
+    else delete process.env.YUCER_DEMO_DATA;
+    if (savedDb !== undefined) process.env.DATABASE_URL = savedDb;
+    resetDemoSeed();
+  }
+});

@@ -246,3 +246,17 @@ export const DEMO_SOLUTIONS = [
     ],
   },
 ] as const;
+
+/**
+ * Tender and policy signals - see ADR-016.
+ *
+ * The third one is deliberately from a company NOT on the named list: a system
+ * that only mined its own account list would systematically miss every new
+ * logo, and new-logo signals are the reason the detective domain exists.
+ */
+export const DEMO_TENDER_SIGNALS = {
+  strategic: "北方通信发布省级政企客户管理平台公开招标，预算 1200 万，投标截止 9 月 26 日",
+  known: "华东零售集团门店数字化二期招标公示，含经营分析模块",
+  newLogo: "西城市政数据集团发布数据中台采购公告，采购人此前无往来记录",
+  policy: "省工信厅发文要求二级以上物流企业 2027 年前完成运输数据联网",
+} as const;

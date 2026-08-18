@@ -262,3 +262,27 @@ test("an unscored signal cannot be promoted through this path either", () => {
   const r = planPromotion({ signal: { ...promotable, score: null } });
   assert.equal(r.ok === false && r.violations[0].code, "score_required");
 });
+
+// ADR-016. The ordering between these two is a judgement, not an accident, so
+// it is pinned: a vouch means somebody is willing to help us, a tender means
+// the money is already moving through a process.
+test("a tender outranks a referral, and both outrank intent", () => {
+  assert.ok(TYPE_WEIGHT.tender > TYPE_WEIGHT.referral);
+  assert.ok(TYPE_WEIGHT.referral > TYPE_WEIGHT.intent);
+});
+
+test("compliance sits above hiring - forced buying beats capability building", () => {
+  assert.ok(TYPE_WEIGHT.compliance > TYPE_WEIGHT.hiring);
+});
+
+// The rule that keeps the detective useful: targeting says why we looked, not
+// how likely it is to be true. A tender from a stranger must be able to outrank
+// a weak signal on a strategic account.
+test("an unmatched tender still scores above a matched weak signal", () => {
+  const stranger = score({ signalType: "tender", accountId: null, detectedAt: daysAgo(2) });
+  const known = score({ signalType: "engagement", accountId: "acc_1", detectedAt: daysAgo(2) });
+  assert.ok(
+    stranger.score > known.score,
+    "a running procurement from a new logo must not rank below content engagement",
+  );
+});

@@ -1,3 +1,4 @@
+import type { SignalType } from "../../domains/signal/lib/scoring";
 /* eslint-disable */
 // User-facing strings for the product surfaces.
 //
@@ -727,7 +728,17 @@ export const SIGNAL_TEXT = {
     `类型权重 ${base} × 时效 ${decay.toFixed(2)} + 匹配加成 ${bonus}`,
 } as const;
 
-export const SIGNAL_TYPE_LABEL: Record<string, string> = {
+/**
+ * Keyed by SignalType rather than by string.
+ *
+ * It was a Record<string, string>, which meant adding a type without a label
+ * compiled fine and rendered the raw key on screen - which is exactly what
+ * happened when tender and compliance arrived (ADR-016). Now the omission is a
+ * compile error.
+ */
+export const SIGNAL_TYPE_LABEL: Record<SignalType, string> = {
+  tender: "招标公示",
+  compliance: "政策合规",
   intent: "购买意向",
   hiring: "招聘扩张",
   funding: "融资",
