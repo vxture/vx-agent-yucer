@@ -260,3 +260,25 @@ export const DEMO_TENDER_SIGNALS = {
   newLogo: "西城市政数据集团发布数据中台采购公告，采购人此前无往来记录",
   policy: "省工信厅发文要求二级以上物流企业 2027 年前完成运输数据联网",
 } as const;
+
+/**
+ * A longer follow-up history on the flagship account.
+ *
+ * The demo had three notes per account, which is enough to prove the timeline
+ * renders and not enough to show what a real pursuit looks like: the swings,
+ * the people who change their minds, the months where nothing happens. These
+ * span five months on 华东零售集团 so the account page has a story rather than
+ * a sample.
+ */
+export const DEMO_LONG_HISTORY = {
+  d1: "第一次拜访。王总说集团今年要统一门店系统，但预算还没批，让我们先出个初步方案。",
+  d2: "把初步方案发过去了。陈总监回了很细的问题，主要在数据迁移和历史订单的对账口径。",
+  d3: "现场做了一轮演示。运营的人反馈不错，说比现在的系统快很多。陈总监全程没怎么说话。",
+  d4: "陈总监私下讲了顾虑：去年上过一个系统，数据对不上，他被追责过。这次他要看到迁移的验证方案。",
+  d5: "按他说的补了数据迁移验证方案，附了两个同行业案例。他说要拿去内部过一轮。",
+  d6: "王总说预算批下来了，但要走集团采购流程，让我们准备正式报价。",
+  d7: "报价发出。采购赵强要求再降 15%，理由是有其他家报得更低。",
+  d8: "刘敏私下说赵强倾向另一家，理由是价格。她建议别硬碰，先把陈总监的接口顾虑解决掉，他说话 CFO 会听。",
+  d9: "微信问王总进展，回复说 CFO 出差，要往后拖。没给新日期。",
+} as const;
+

@@ -368,7 +368,11 @@ export const HOME_TEXT = {
   agentComposeLabel: "记一笔或问助手",
   scopeLabel: "范围",
   urgencyLabel: "紧要程度",
-  openSubject: "打开",
+  // Names the destination, not the gesture. "打开" says a page will appear;
+  // "打开阵地" says which page and why - and it is the same word the account
+  // detail page titles itself with, so the link and its landing agree.
+  openSubject: "打开阵地",
+  openTeam: "看采纳看板",
   whenToday: "今天",
   whenDaysAgo: (n: number) => `${n} 天前`,
   pendingFromScan: "今晨扫描",
@@ -1068,3 +1072,42 @@ export const PREVIEW_FIXTURES = {
     "对方已口头确认选型结果。",
   ],
 } as const;
+
+/**
+ * Health reasons, rendered.
+ *
+ * The domain used to build these sentences itself, in English, inside a Chinese
+ * product. It now emits a code and its numbers; the words live here with every
+ * other user-visible string.
+ */
+export function healthReasonText(r: {
+  code: string;
+  count?: number;
+  days?: number;
+  furthestStage?: string;
+}): string {
+  switch (r.code) {
+    case "no_open_deals":
+      return "没有开放商机";
+    case "open_deals":
+      return `${r.count} 个开放商机，最远到 ${(STAGE_LABEL as Record<string, string>)[r.furthestStage ?? ""] ?? r.furthestStage}`;
+    case "never_contacted":
+      return "没有任何跟进记录";
+    case "quiet_days":
+      return `已 ${r.days} 天没有接触`;
+    case "contacted_days":
+      return `${r.days} 天前有过接触`;
+    case "projects_red":
+      return `${r.count} 个项目红灯`;
+    case "projects_amber":
+      return `${r.count} 个项目黄灯`;
+    case "projects_green":
+      return `${r.count} 个项目绿灯`;
+    case "overdue_revenue":
+      return `${r.count} 笔回款逾期`;
+    case "revenue_clean":
+      return "回款无逾期";
+    default:
+      return r.code;
+  }
+}

@@ -244,7 +244,12 @@ function Engagement({
           checking the reasoning needs the drawer. */}
       <Stack gap="xs" className="mt-sm flex-row flex-wrap items-center">
         <Button size="sm" asChild>
-          <Link href={href}>{HOME_TEXT.openSubject}</Link>
+          {/* The team judgement is not an account, so it does not open a
+              position - it opens the adoption board. Sending it to the same
+              label would name the destination wrongly. */}
+          <Link href={href}>
+            {j.subjectType === "team" ? HOME_TEXT.openTeam : HOME_TEXT.openSubject}
+          </Link>
         </Button>
         {j.analyses.map((a) => (
           <Button key={a} size="sm" variant="outline">

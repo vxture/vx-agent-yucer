@@ -145,7 +145,7 @@ test("the outcome explains itself, so a red account can be argued with", async (
   const out = unwrap(await recomputeHealth(ctx("sales_rep", "pro", store), "acc_1", { now: NOW }));
   assert.ok(out.contributions.length >= 3);
   assert.notEqual(out.primaryConcern, null);
-  for (const c of out.contributions) assert.ok(c.detail.length > 0);
+  for (const c of out.contributions) assert.ok(c.reason.code.length > 0);
 });
 
 test("persist:false computes without writing - for a preview", async () => {

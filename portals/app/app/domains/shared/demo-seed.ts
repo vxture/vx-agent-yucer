@@ -30,6 +30,7 @@ import {
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
   DEMO_MILESTONES,
+  DEMO_LONG_HISTORY,
   DEMO_NOTES,
   DEMO_PRODUCTS,
   DEMO_QUIET_NOTES,
@@ -432,6 +433,23 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       person("pt_20", "int_demo_d7b", "ct_9"),
     ],
     interactions: [
+      // Five months on the flagship account, so the timeline shows a pursuit
+      // rather than three samples: the technical objection that turns out to be
+      // personal, the budget that arrives, the price pressure, and then the
+      // silence. The gaps between them are as much of the story as the entries.
+      note("int_demo_a1z1", "acc_demo_1", "meeting", 152, REP1, DEMO_LONG_HISTORY.d1, "opp_demo_1"),
+      note("int_demo_a1z2", "acc_demo_1", "email", 138, REP1, DEMO_LONG_HISTORY.d2, "opp_demo_1"),
+      note("int_demo_a1z3", "acc_demo_1", "meeting", 121, REP1, DEMO_LONG_HISTORY.d3, "opp_demo_1"),
+      note("int_demo_a1z4", "acc_demo_1", "call", 116, REP1, DEMO_LONG_HISTORY.d4, "opp_demo_1"),
+      note("int_demo_a1z5", "acc_demo_1", "email", 104, REP1, DEMO_LONG_HISTORY.d5, "opp_demo_1"),
+      note("int_demo_a1z6", "acc_demo_1", "call", 92, REP1, DEMO_LONG_HISTORY.d6, "opp_demo_1"),
+      note("int_demo_a1z7", "acc_demo_1", "email", 84, REP1, DEMO_LONG_HISTORY.d7, "opp_demo_1"),
+      note("int_demo_a1z8", "acc_demo_1", "call", 58, REP1, DEMO_LONG_HISTORY.d8, "opp_demo_1"),
+      note("int_demo_a1z9", "acc_demo_1", "im", 55, REP1, DEMO_LONG_HISTORY.d9, "opp_demo_1"),
+      // acc_demo_3 deliberately gets NO interactions. A strategic account nobody
+      // has ever contacted is the strongest case ADR-013 exists for, and a
+      // seed test pins it: "no contact date at all" and "a very old contact
+      // date" are different findings, and the first is the one this demo needs.
       note("int_demo_a1a", "acc_demo_1", "meeting", 75, REP1, DEMO_NOTES.a1_kickoff, "opp_demo_1"),
       note("int_demo_a1b", "acc_demo_1", "im", 62, REP1, DEMO_NOTES.a1_followup, "opp_demo_1"),
       note("int_demo_a1c", "acc_demo_1", "call", 48, REP1, DEMO_NOTES.a1_blocked, "opp_demo_1"),
