@@ -506,10 +506,13 @@ function seedField(workspaceId: string, stores: DemoStores): void {
 function seedSignals(workspaceId: string, stores: DemoStores): void {
   stores.signal.seed({
     signals: [
-      signal("sig_demo_1", workspaceId, "campaign", "camp_demo_1", "intent", DEMO_SIGNALS[0], "acc_demo_1", 88, "promoted", 40),
+      signal("sig_demo_1", workspaceId, "campaign", "camp_demo_1", "intent", DEMO_SIGNALS[0], "acc_demo_1", 47, "promoted", 40),
       // Unmatched and high-scoring: the new-logo case the rule exists for.
-      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 71, "scored", 6),
-      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 26, "scored", 95),
+      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 61, "scored", 6),
+      // Scored 95 days ago when the posting was fresh, and never re-scored.
+      // Today the rule gives 22 - the gap IS the point: it is the one row where
+      // "score is stale" is true, so the marker means something everywhere else.
+      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 52, "scored", 95),
       // Tenders. The strongest public evidence there is: a procurement already
       // running, with a budget and a deadline attached (ADR-016).
       //
@@ -518,11 +521,11 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       // a named-account-only crawler would never see, and the reason targeting
       // orders the inbox instead of scoring it.
       signal("sig_demo_11", workspaceId, "web", "https://tender.example/2026/9912", "tender",
-        DEMO_TENDER_SIGNALS.strategic, "acc_demo_3", 93, "scored", 3, "named_account"),
+        DEMO_TENDER_SIGNALS.strategic, "acc_demo_3", 100, "scored", 3, "named_account"),
       signal("sig_demo_12", workspaceId, "web", "https://tender.example/2026/9931", "tender",
-        DEMO_TENDER_SIGNALS.known, "acc_demo_1", 90, "scored", 8, "named_account"),
+        DEMO_TENDER_SIGNALS.known, "acc_demo_1", 94, "scored", 8, "named_account"),
       signal("sig_demo_13", workspaceId, "web", "https://tender.example/2026/9948", "tender",
-        DEMO_TENDER_SIGNALS.newLogo, null, 84, "new", 2, "product_domain"),
+        DEMO_TENDER_SIGNALS.newLogo, null, 91, "new", 2, "product_domain"),
       signal("sig_demo_14", workspaceId, "news", "https://gov.example/notice/551", "compliance",
         DEMO_TENDER_SIGNALS.policy, "acc_demo_4", 61, "scored", 15, "product_domain"),
       signal("sig_demo_4", workspaceId, "partner", "ref-4471", "referral", DEMO_SIGNALS[3], null, null, "new", 2),

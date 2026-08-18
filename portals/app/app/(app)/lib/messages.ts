@@ -746,6 +746,32 @@ export const SIGNAL_TEXT = {
   rescore: "重新评分",
   scoreExplain: (base: number, decay: number, bonus: number) =>
     `类型权重 ${base} × 时效 ${decay.toFixed(2)} + 匹配加成 ${bonus}`,
+  // --- Added for the redesigned inbox --------------------------------------
+  // Opens with what came in, not with the word "inbox".
+  lead: (n: number) => `${n} 条情报待判`,
+  leadNamed: (n: number) => `其中 ${n} 条来自命名客户`,
+  leadNone: "暂无待判情报",
+
+  // The two lines of enquiry (ADR-016). Aim decides what to read first, never
+  // what is allowed in - so the untargeted group is shown, not hidden.
+  groupNamed: "命名客户线",
+  groupNamedWhy: "战略客户清单上的公司，持续盯招标、人事、投资。",
+  groupDomain: "业务领域线",
+  groupDomainWhy: "我们产品能覆盖的标的类型。名单外的新客户从这里进来。",
+  groupNone: "未定向",
+  groupNoneWhy: "早于定向挖掘的历史信号，保留原样、不回填。",
+
+  // The score, taken apart. It was a bare number until now.
+  breakdown: "评分构成",
+  bdBase: "类型权重",
+  bdDecay: "时效",
+  bdBonus: "匹配加成",
+  bdAge: "已过天数",
+  stale: "评分已过期",
+  staleCount: (n: number) => `${n} 条评分已过期，重新评分可对齐`,
+  staleWhy: (stored: number, now: number) =>
+    `入库时 ${stored} 分，按今天的时效重算是 ${now} 分。评分会随时间衰减，重新评分即可对齐。`,
+  detectedOn: (d: string, src: string) => `发现于 ${d} · ${src}`,
 } as const;
 
 /**
