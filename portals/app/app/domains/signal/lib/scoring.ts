@@ -18,6 +18,8 @@
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
 export const SIGNAL_TYPES = [
+  "tender",
+  "compliance",
   "intent",
   "hiring",
   "funding",
@@ -35,17 +37,26 @@ export type SignalStatus = (typeof SIGNAL_STATUSES)[number];
  * Base weight per signal type, 0-100. These say how strongly each kind of
  * evidence predicts a real buying process:
  *
- *   referral    a human vouched, the strongest signal there is
+ *   tender      a procurement is ALREADY RUNNING, with a budget and a deadline
+ *   referral    a human vouched
  *   intent      active research on the problem we solve
  *   funding     budget just appeared
+ *   compliance  policy or accreditation forcing a purchase
  *   tech_change a migration window opened
  *   hiring      capability being built, but slow to convert
  *   engagement  they touched our content; weak on its own
+ *
+ * TENDER OUTRANKS REFERRAL, and that is a deliberate judgement rather than an
+ * ordering accident. A vouch means SOMEBODY IS WILLING TO HELP US; a tender
+ * means THE MONEY IS ALREADY MOVING THROUGH A PROCESS. The first is a
+ * relationship, the second is a fact. See ADR-016.
  */
 export const TYPE_WEIGHT: Record<SignalType, number> = {
+  tender: 95,
   referral: 90,
   intent: 80,
   funding: 70,
+  compliance: 65,
   tech_change: 60,
   hiring: 45,
   engagement: 35,

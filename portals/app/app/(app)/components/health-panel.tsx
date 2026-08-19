@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, MetricGrid, Section, StatusBadge, type MetricGridItem } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { CHAIN_TEXT } from "../lib/messages";
+import { healthReasonText } from "../lib/messages";
 import { healthTone } from "../lib/view-model";
 
 // Account health, with its reasons.
@@ -51,7 +52,7 @@ export function HealthPanel({ accountId, health, canRecompute, onRecompute }: He
     // The sign is kept. A contribution of -25 read as "25" would invert the
     // meaning of the panel.
     value: `${c.points > 0 ? "+" : ""}${c.points}`,
-    trend: c.detail,
+    trend: healthReasonText(c.reason),
     tone: c.points < 0 ? "danger" : "success",
   }));
 
@@ -71,7 +72,7 @@ export function HealthPanel({ accountId, health, canRecompute, onRecompute }: He
 
       {current.primaryConcern ? (
         <StatusBadge tone="warning">
-          {CHAIN_TEXT.primaryConcern}: {current.primaryConcern.detail}
+          {CHAIN_TEXT.primaryConcern}: {healthReasonText(current.primaryConcern.reason)}
         </StatusBadge>
       ) : null}
 

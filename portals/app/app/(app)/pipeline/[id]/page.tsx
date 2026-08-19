@@ -12,6 +12,17 @@ import { FORECAST_TONE, STAGE_TONE, formatMoney, probabilityDisplay } from "../.
 import { can } from "../../../authz/decide";
 import { getFieldStore, getPipelineStore } from "../../../domains/shared/registry";
 import { getOpportunityDetail, stageHistory } from "../../../domains/pipeline/service";
+import { getAccountDetail, decisionChain } from "../../../domains/account/service";
+import { listProjects } from "../../../domains/delivery/service";
+import { listProposals } from "../../../domains/copilot/service";
+import {
+  getAccountStore,
+  getCopilotStore,
+  getDeliveryStore,
+} from "../../../domains/shared/registry";
+import { cachedFeed } from "../../lib/board";
+import { PositionBrief } from "../../components/position-brief";
+import { POSITION_TEXT } from "../../lib/messages";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
@@ -70,6 +81,71 @@ export default async function OpportunityDetailPage({
 
   const history = await stageHistory(ctx, id);
 
+  // Everything the position brief needs. Each read goes through its domain's
+  // own service, so this page cannot show what another page would refuse.
+  const accountCtx = { ...ctx, store: getAccountStore() };
+  const [account, chain, projects, feed, proposals] = await Promise.all([
+    getAccountDetail(accountCtx, opportunity.accountId),
+    decisionChain(accountCtx, opportunity.accountId),
+    listProjects({ ...ctx, store: getDeliveryStore() }, { accountId: opportunity.accountId }),
+    cachedFeed({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement }),
+    listProposals({ ...ctx, store: getCopilotStore() }, { status: "proposed" }),
+  ]);
+  const plan = account.ok && account.value.account.tier === "strategic"
+    ? await getAccountStore().getAccountPlan(session.workspaceId, opportunity.accountId)
+    : null;
+
+  const accountName = account.ok ? account.value.account.name : opportunity.accountId;
+  const tier = account.ok ? account.value.account.tier : "standard";
+
+  // The chain, as facts. `unreachable` is reported as the GAP rather than the
+  // coverage, because on a pursuit page the gap is what there is to do.
+  const cov = chain.ok ? chain.value : null;
+  const chainFacts = cov
+    ? [
+        { label: POSITION_TEXT.chainCovered, value: String(cov.covered.length) },
+        {
+          label: POSITION_TEXT.chainMissing,
+          value: String(cov.missing.length),
+          tone: cov.missing.length > 0 ? ("bad" as const) : undefined,
+        },
+        { label: POSITION_TEXT.chainCoaches, value: String(cov.coaches.length), tone: "good" as const },
+        {
+          label: POSITION_TEXT.chainBlockers,
+          value: String(cov.blockers.length),
+          tone: cov.blockers.length > 0 ? ("warn" as const) : undefined,
+        },
+      ]
+    : [];
+
+
+  // The problems are the JUDGEMENTS that landed on this account - rules over
+  // recorded evidence, not a hand-kept risk list that goes stale.
+  const problems = (feed.ok ? feed.value.judgements : [])
+    .filter((j) => j.subjectId === opportunity.accountId || j.subjectId === id)
+    .map((j) => ({ id: j.id, claim: j.claim, rule: j.rule ?? null }));
+
+  // Proposals for this position, labelled by the capability that produced them
+  // (ADR-015) so a reader can see whether they are signing a commercial move or
+  // a relationship one.
+  const CAP_GROUP: Record<string, string> = {
+    "deal.stall_risk": POSITION_TEXT.planCommercial,
+    "deal.competition": POSITION_TEXT.planCommercial,
+    "pricing.discount_approval": POSITION_TEXT.planCommercial,
+    "account.chain_map": POSITION_TEXT.planRelation,
+    "account.cadence": POSITION_TEXT.planRelation,
+    "delivery.payment_risk": POSITION_TEXT.planTechnical,
+  };
+  const positionProposals = (proposals.ok ? proposals.value : [])
+    .filter((a) => a.subjectId === id || a.subjectId === opportunity.accountId)
+    .map((a) => ({
+      id: a.id,
+      title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType,
+      group: CAP_GROUP[a.capability ?? ""] ?? POSITION_TEXT.planCommercial,
+      rationale: a.rationale,
+      confidence: a.confidence,
+    }));
+
   // The evidence plane, scoped to THIS deal.
   //
   // Capture lives here and not only on the account page for one reason: the
@@ -88,6 +164,18 @@ export default async function OpportunityDetailPage({
     listInteractions(fieldCtx, { opportunityId: id, limit: 50 }),
     listCommitments(fieldCtx, { opportunityId: id }),
   ]);
+
+  // Rival mentions, found in the notes rather than inferred. The words are the
+  // evidence; naming an opponent nobody wrote down would be fabrication.
+  const rivalMentions = (interactions.ok ? interactions.value : [])
+    .filter((n: { rawNote: string }) => POSITION_TEXT.rivalWords.some((w) => n.rawNote.includes(w)))
+    .slice(0, 3)
+    .map((n) => ({
+      id: n.id,
+      when: n.occurredAt.toISOString().slice(0, 10),
+      text: n.rawNote,
+    }));
+
   const canRecord = can(fieldCtx.holder, fieldCtx.entitlement, "account.upsert", "data").allowed;
 
   const probability = probabilityDisplay(opportunity);
@@ -130,7 +218,7 @@ export default async function OpportunityDetailPage({
         secondary={opportunity.opportunityNo}
         icon="table"
         title={opportunity.name}
-        description={opportunity.accountName ?? opportunity.accountId}
+        description={accountName}
         action={
           <>
             <StatusBadge tone={STAGE_TONE[opportunity.stage as Stage]} dot>
@@ -143,12 +231,50 @@ export default async function OpportunityDetailPage({
         }
       />
 
+      {/* Whose position this is. A strategic account is a different kind of
+          pursuit from a one-off deal, and the page should say which before it
+          says anything else. */}
+      <div className="flex flex-wrap items-center gap-xs">
+        <StatusBadge tone={tier === "strategic" ? "brand" : tier === "key" ? "warning" : "neutral"}>
+          {tier === "strategic"
+            ? POSITION_TEXT.tierStrategic
+            : tier === "key"
+              ? POSITION_TEXT.tierKey
+              : POSITION_TEXT.tierStandard}
+        </StatusBadge>
+        {plan ? (
+          <>
+            <StatusBadge tone="neutral">{POSITION_TEXT.planOf(plan.period)}</StatusBadge>
+            <span className="text-muted-foreground text-xs">
+              {POSITION_TEXT.triangleOf(
+                plan.ownerSub ?? POSITION_TEXT.roleUnset,
+                plan.presalesSub ?? POSITION_TEXT.roleUnset,
+                plan.deliverySub ?? POSITION_TEXT.roleUnset,
+              )}
+            </span>
+          </>
+        ) : null}
+      </div>
+
       <MetricGrid items={metrics} />
 
+      <PositionBrief
+        chain={chainFacts}
+        projects={(projects.ok ? projects.value : []).map((pr) => ({
+          id: pr.id,
+          name: pr.name,
+          health: pr.health,
+          href: `/delivery`,
+        }))}
+        rivalMentions={rivalMentions}
+        problems={problems}
+        proposals={positionProposals}
+      />
+
       <Section title={OPPORTUNITY_TEXT.account} description={OPPORTUNITY_TEXT.attributionFrozen}>
-        <Link href={`/account/${opportunity.accountId}`}>
-          {opportunity.accountName ?? opportunity.accountId}
-        </Link>
+        {/* The href is the ID and the label is the NAME. They were both the id,
+            so the page printed "acc_demo_1" where the customer's name belongs. */}
+        <Link href={`/account/${opportunity.accountId}`}>{accountName}</Link>
         <div>
           <span>{OPPORTUNITY_TEXT.campaign}: </span>
           {opportunity.campaignId ? (

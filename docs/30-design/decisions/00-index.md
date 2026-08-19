@@ -16,3 +16,7 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-010 | [后台作业面：内部令牌路由 + 外部定时器](ADR-010-recurring-jobs.md) | accepted | 2026-08-16 |
 | ADR-011 | [arda 接在信号缝上：一期只取数、不外发、零 DDL](ADR-011-arda-on-the-signal-seam.md) | accepted | 2026-08-16 |
 | ADR-012 | [采集习惯的杀死判据](ADR-012-the-capture-kill-criterion.md) | accepted | 2026-08-17 |
+| ADR-013 | [战略客户与跟进节奏](ADR-013-strategic-accounts-and-the-cadence.md) | accepted | 2026-08-17 |
+| ADR-014 | [产品体系](ADR-014-the-product-catalogue.md) | accepted | 2026-08-17 |
+| ADR-015 | [能力键而非智能体身份](ADR-015-capability-keys-not-agent-identities.md) | accepted | 2026-08-18 |
+| ADR-016 | [招标信号与定向挖掘](ADR-016-tender-signals-and-targeted-mining.md) | accepted | 2026-08-18 |

@@ -26,6 +26,14 @@ export interface SignalRecord {
   /** Resolution - writable. */
   accountId: string | null;
   score: number | null;
+  /**
+   * Which line of enquiry surfaced this - ADR-016.
+   *
+   * Orders the inbox and NEVER enters the score: aim says why we were looking,
+   * the score says how likely it is to be real. Mixing them would rank noise on
+   * a strategic account above a real tender from a stranger.
+   */
+  targeting: "named_account" | "product_domain" | "none" | null;
   status: SignalStatus;
 }
 
@@ -150,6 +158,7 @@ export class InMemorySignalStore implements SignalStore {
       accountId: signal.accountId ?? null,
       score: null,
       // Always `new`. The store has no parameter for anything else.
+      targeting: null,
       status: "new",
     };
     this.signals.set(record.id, record);
