@@ -222,12 +222,12 @@
 
   <script>
     function handleLogin() {
-      // 替换为你的统一认证地址
-      // window.location.href =
-      //   "https://auth.example.com/login?redirect_uri=" +
-      //   encodeURIComponent(window.location.href);
-
-      alert("这里跳转到统一认证（Auth）");
+      // 顶层导航到 RP 的登录入口（/auth/login）。必须是 top-level navigation，
+      // 不能走 iframe 或 XHR。returnTo 只接受根相对路径 —— 传绝对 URL 会被
+      // safeReturnTo 判定为开放重定向并回落到 "/"。
+      var returnTo = window.location.pathname + window.location.search;
+      window.location.href =
+        "/auth/login?returnTo=" + encodeURIComponent(returnTo);
     }
   </script>
 </body>

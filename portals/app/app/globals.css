@@ -15,19 +15,6 @@
 @import "@vxture/design-system/styles/brands/vxture.css";
 
 /*
- * The portal shell chrome (.app / .vxh / .sidebar / .nav-* / .content-*).
- *
- * Loaded AFTER the base packs, which is what its own header requires: the
- * template chrome and its ergonomic aliases must win over the base rules.
- *
- * This is the same chrome the console and admin portals consume, so the three
- * Vxture surfaces stay visually identical. yucer composes its own SHELL from
- * these classes - which sections exist, what goes in the header, how the eight
- * domains are grouped - but does not restyle them.
- */
-@import "@vxture/design-system/styles/shell-template.css";
-
-/*
  * Tailwind v4 discovers utility classes by scanning source files, and skips
  * node_modules by default. The DS ships its components pre-built, so the class
  * names they render live in its dist bundle - without this the components mount

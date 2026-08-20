@@ -34,9 +34,14 @@ services:
       DATABASE_URL: ${DATABASE_URL:-}
     ports:
       - "${APP_PUBLISH_PORT:-5000}:5000"
+    # Gated on HEALTH, not on start order. A bare `depends_on` only waits for the
+    # container to exist, so the app used to boot before postgres could accept a
+    # connection, die, and be restarted forever by the policy below.
     depends_on:
-      - redis
-      - db
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5000/api/health"]
       interval: 30s
@@ -44,6 +49,17 @@ services:
       retries: 3
     networks: [appnet]
     restart: unless-stopped
+    # A restart policy with no log cap is how a crash loop fills a disk: the
+    # default json-file driver keeps every line forever. Bound it per container.
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-3}"
+    # Bound what one container can take from the host. Overridable per
+    # environment; the point is that a default exists at all.
+    mem_limit: ${APP_MEM_LIMIT:-2g}
+    cpus: ${APP_CPUS:-2.0}
 
   redis:
     container_name: ${PROJECT_NAME:-yucer}-redis
@@ -51,8 +67,21 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - ${DATA_DIR:-./data}/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     networks: [appnet]
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-3}"
+    mem_limit: ${REDIS_MEM_LIMIT:-512m}
+    cpus: ${REDIS_CPUS:-1.0}
 
   db:
     container_name: ${PROJECT_NAME:-yucer}-db
@@ -64,11 +93,28 @@ services:
       # identity = <code>_svc, never owner-direct).
       POSTGRES_DB: ${POSTGRES_DB:-vxturebiz_${PRODUCT_CODE_SNAKE:-yucer}_prod}
       POSTGRES_USER: ${POSTGRES_DB_OWNER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      # REQUIRED, not defaulted-to-empty. The postgres image refuses to start on
+      # an empty password, and `restart: unless-stopped` then retries that
+      # refusal forever. `:?` makes compose fail once, up front, with this
+      # message instead.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD; the postgres image refuses to boot without one and would crash-restart forever}
     volumes:
       - ${DATA_DIR:-./data}/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks: [appnet]
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: ${LOG_MAX_SIZE:-10m}
+        max-file: "${LOG_MAX_FILE:-3}"
+    mem_limit: ${DB_MEM_LIMIT:-1g}
+    cpus: ${DB_CPUS:-1.0}
 
 networks:
   appnet:

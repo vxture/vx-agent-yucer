@@ -13,8 +13,17 @@ export const dynamic = "force-dynamic";
 
 const PROBE_TIMEOUT_MS = 1000;
 
+// The loser of the race still has to be cleaned up. Without the clear, a probe
+// that answers quickly leaves its timer armed for the full budget, so a polled
+// status page accumulates one pending timer per probe per request.
 function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([p, new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p,
+    new Promise<T>((r) => {
+      timer = setTimeout(() => r(fallback), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 async function probeDb(url?: string): Promise<boolean | null> {
