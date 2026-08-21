@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AIAssistantBubble, EmptyState, PromptInput, Section, StatusBadge } from "@vxture/design-ui";
+import { Button, EmptyState, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 import { ASK_ABOUT_TEXT, COPILOT_TEXT } from "../lib/messages";
 
 // The copilot conversation.
@@ -120,11 +120,11 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
       ) : (
         <div>
           {messages.map((m, i) => (
-            <AIAssistantBubble key={i} role={m.role === "user" ? "user" : "ai"}>
+            <div key={i} data-role={m.role}>
               {m.content}
-            </AIAssistantBubble>
+            </div>
           ))}
-          {pending ? <AIAssistantBubble role="ai">{COPILOT_TEXT.thinking}</AIAssistantBubble> : null}
+          {pending ? <div data-role="assistant">{COPILOT_TEXT.thinking}</div> : null}
         </div>
       )}
 
@@ -153,18 +153,25 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
 
       {outcome?.truncated ? <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge> : null}
 
-      <PromptInput
-        value={draft}
-        onChange={setDraft}
-        onSubmit={submit}
-        placeholder={COPILOT_TEXT.placeholder}
-        submitLabel={COPILOT_TEXT.submit}
-        busy={pending}
-        // A member without copilot.use gets a disabled input rather than a
-        // hidden one: knowing the assistant exists is not a leak, and silently
-        // omitting it reads as a broken page.
-        hint={canAsk ? undefined : COPILOT_TEXT.errorGeneric}
-      />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit(draft);
+        }}
+      >
+        <Textarea
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder={COPILOT_TEXT.placeholder}
+          disabled={!canAsk || pending}
+          rows={3}
+          aria-label={COPILOT_TEXT.placeholder}
+        />
+        <Button type="submit" disabled={!canAsk || pending || draft.trim() === ""}>
+          {COPILOT_TEXT.submit}
+        </Button>
+        {!canAsk ? <p>{COPILOT_TEXT.errorGeneric}</p> : null}
+      </form>
     </Section>
   );
 }
