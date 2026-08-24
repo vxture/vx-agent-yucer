@@ -16,6 +16,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open |
 | TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open |
 | TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open |
+| TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -111,6 +112,30 @@ DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标
 
 **恢复条件**：向 DS 提出计数徽标元素（实底、圆形或胶囊、随图标按钮尺寸档走、
 带 99+ 溢出规则）。DS 提供后，删除本地组合，改为消费该元素。
+
+### TD-007 - DS 无正文行宽（measure）token，八处手写 `62ch`
+
+**缺失的元素**：设计系统没有「行宽」token —— 一行正文最多允许多宽。DS 的
+`--container-content-narrow-lg`(64rem) / `--container-base-xl`(80rem) 是**版面宽度**，
+量的是栏能有多宽；行宽量的是**一行字读起来会不会串行**，两者语义不同，
+数值也差一个量级（62ch 约 31rem，narrow-lg 是 64rem）。拿版面宽度当行宽用，
+判断正文会拉到 1024px 一行，正是这个 token 要防的事。
+
+**权宜位置**：8 处 `max-w-[62ch]`，分布在
+`judgement-workspace.tsx`(3) / `position-brief.tsx`(4) / `signal-queue.tsx`(1)。
+
+**为什么值得要一个 token**：行宽是**排版常量**，不是每个页面各自的选择。现在
+8 处都写着 62ch，靠的是抄；下一个人写 68 或 72 不会有任何东西拦他，而串行的
+那一屏没人会归因到这里。它和字号档一样属于 T1 排版层 —— DS 已经管了字号、
+行高、字距，唯独漏了行宽，而行宽是这四项里唯一与「读得下去」直接相关的。
+
+**为什么不在本仓自造 token**：CLAUDE.md 刚性区规定排版取值属于 DS。产品仓自造
+`--yucer-measure` 会让五个门户各有一份行宽，正是 DS 存在的理由所要消除的分叉。
+
+**当前表现**：功能正确，8 处数值一致，但没有任何机制保证第 9 处也是 62ch。
+
+**恢复条件**：向 DS 提出 measure token（建议 `--container-measure` 或
+`--spacing-measure`，取值随字号档走）。DS 提供后，8 处替换为该 token 类名。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 

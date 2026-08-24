@@ -102,27 +102,6 @@ export interface AppShellProps {
   readonly children: ReactNode;
 }
 
-/**
- * The grid, spelled out per state.
- *
- * Four whole literals rather than one composed from fragments, because Tailwind
- * discovers classes by scanning source TEXT: a template string that assembles
- * `grid-cols-[...]` at runtime yields a class name with no CSS behind it, and it
- * fails silently. That is the same failure mode that made the whole UI render
- * unstyled when the design packages stopped being scanned.
- *
- * Below `lg` every state is a single column and the flanks stack above the
- * centre. Deliberate: on a narrow window there is no honest way to show three
- * columns, and stacking at least keeps a flank reachable instead of hiding it
- * behind a breakpoint with no way back.
- */
-const GRID = {
-  "true-true": "lg:grid-cols-[288px_minmax(0,1fr)] 2xl:grid-cols-[288px_minmax(0,1fr)_320px]",
-  "true-false": "lg:grid-cols-[288px_minmax(0,1fr)]",
-  "false-true": "2xl:grid-cols-[minmax(0,1fr)_320px]",
-  "false-false": "",
-} as const;
-
 export function AppShell({
   board,
   agent,
@@ -243,28 +222,43 @@ export function AppShell({
         }
       />
 
-      {/* Horizontal room is the DS's own `page-inset`: clamp(lg, 3.2vw, 3xl),
-          so 24px on a narrow window and 48px on a wide one, sliding rather than
-          stepping - the page's outer margin is the biggest single piece of
-          whitespace on screen, and switching it at a breakpoint stages a visible
-          lurch exactly where the eye is least forgiving. It was p-sm (10px),
-          which put the centre's text within a hair of both flanks.
+      {/* THE FRAME. Flex, not grid, and that is what removes the last naked CSS
+          from the shell: the grid form of this needed an arbitrary column
+          template carrying two literal pixel widths, hand-picked in an HTML mock
+          rather than taken from anything. (Written out here it would still be
+          scanned - Tailwind reads comments too - so it is described instead of
+          quoted.) In flex the flanks can just BE `w-sidebar-expanded`,
+          which is the DS's own sidebar width token, and the centre is whatever
+          is left.
 
-          Vertical is a flat lg instead: the header already draws the top
-          boundary, and a fluid 48px under it reads as a gap rather than as
-          breathing room. The column gutter matches the panels' own px-lg, so a
-          line of text clears its neighbour by 24 + 24 rather than by 10. */}
-      <div className={`grid items-start gap-lg px-page-inset py-lg ${GRID[`${showBoard}-${showDock}` as keyof typeof GRID]}`}>
+          The two spacings answer different questions and are deliberately far
+          apart in size:
+
+            p-sm   - how close the console sits to the window. Small on purpose:
+                     the flanks are instruments and they belong at the edges.
+                     Not zero, because a panel flush against the viewport reads
+                     as clipped rather than as placed.
+
+            gap-page-inset - how far the centre's text stands off the flanks
+                     beside it. This is the DS token whose stated job is the
+                     breathing room around a content area, clamp(lg, 3.2vw, 3xl),
+                     so 24px on a narrow window and 48px on a wide one, sliding
+                     rather than stepping.
+
+          I had these two the wrong way round: the page edge was pushed out to
+          48px and the gutter left at 10px, which is the opposite of both. The
+          gutter is the one doing the work here. */}
+      <div className="flex flex-col flex-wrap gap-page-inset p-sm lg:flex-row">
         {/* LEFT FLANK - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
         {showBoard ? (
-          <div className="flex flex-col gap-lg lg:sticky lg:top-lg">
+          <aside className="flex w-full shrink-0 flex-col gap-page-inset lg:sticky lg:top-sm lg:w-sidebar-expanded">
             <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
-          </div>
+          </aside>
         ) : null}
 
         {/* CENTRE - the engagement */}
-        <main className="min-w-0">{children}</main>
+        <main className="min-w-0 flex-1">{children}</main>
 
         {/* RIGHT FLANK - the agent, and what it is looking at.
 
@@ -275,9 +269,9 @@ export function AppShell({
             the row puts it below the content at full width instead, which is
             what "there is no room for a third column" should look like. */}
         {showDock ? (
-          <div className="col-span-full flex flex-col gap-lg 2xl:col-span-1 2xl:sticky 2xl:top-lg">
+          <aside className="flex w-full shrink-0 flex-col gap-page-inset 2xl:sticky 2xl:top-sm 2xl:w-sidebar-expanded">
             <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
-          </div>
+          </aside>
         ) : null}
       </div>
     </div>
