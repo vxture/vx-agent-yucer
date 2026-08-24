@@ -17,6 +17,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open |
 | TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open |
 | TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
+| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -136,6 +137,39 @@ DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标
 
 **恢复条件**：向 DS 提出 measure token（建议 `--container-measure` 或
 `--spacing-measure`，取值随字号档走）。DS 提供后，8 处替换为该 token 类名。
+
+### TD-008 - DS 无任何数据可视化元素，战况板图表本地实现
+
+**缺失的元素**：设计系统**一件图表都没有**。`MetricCard` / `MetricGrid` /
+`PanelItem` / `FactList` / `LabeledValue` 全部是文字读数；`Progress` 只画一个比例，
+且只有一条轨。占比条、条形列表、迷你趋势线一件都没有，无从组合。
+
+**权宜位置**：`portals/app/app/(app)/components/board-chart.tsx`
+（`ShareBar` 占比条 / `BarList` 条形列表），由左翼六张卡消费。
+**同一条债还覆盖两处更早的手写图表**（随 PR #56 进入，此前未登记）：
+`forecast-trajectory.tsx` 的预测柱状图、`judgement-workspace.tsx` 的覆盖率迷你柱。
+
+**为什么不算违规的自建组件**：
+· 颜色全部是 DS 语义槽（`primary` / `destructive` / `warning` / `success` / `muted`），
+  不定义任何色值，不引入任何调色板条目；
+· 间距、圆角、字号全部走 DS token；
+· **唯一的计算值是百分比宽度，而那就是数据本身** —— 没有类名能表达连续值，
+  硬造一套宽度档反而是在发明尺度。
+
+**分类色是这条债的核心**：无语气的分段（"停滞风险 / 决策链测绘 / 信号分拣" ——
+是种类不是好坏）需要彼此可辨。本地实现用**单色阶**（`bg-primary` →
+`/70` → `/45` → `/25`）而**不是四个色相**：挑四个可辨的色相就是在设计分类色阶，
+而颜色归 DS。单色阶同时也是更诚实的读法 —— 四个颜色会暗示四种含义，
+而数据里没有。**修之前所有无语气分段都渲染成同一个 `bg-primary`，
+三段的条看起来是一整块，图表的全部内容（怎么分的）不可见。**
+
+**图形选择不在组件里**：`BoardSection.chart` 由 `board.ts` 声明
+（`"share"` = 这些数分割同一个总体；`"bars"` = 各自独立、同一单位）。
+把互不相关的数画成一条占比条，是在断言一个并不存在的关系，
+而组件没有办法知道 —— 这个判断属于取数那一层。
+
+**恢复条件**：向 DS 提出数据可视化族（至少：占比条、条形列表、迷你趋势线，
+外加一套分类色阶）。DS 提供后删除本地实现，三处消费点改为消费 DS 元素。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 

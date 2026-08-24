@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, Icon, Progress } from "@vxture/design-ui";
 import { BOARD_TEXT } from "../lib/messages";
-import type { BoardSection } from "../lib/board";
+import { BarList, ShareBar } from "./board-chart";
+import type { BoardMetric, BoardSection } from "../lib/board";
 
 // The left flank: where things stand for OUR side.
 //
@@ -32,6 +33,14 @@ export interface NavBoardProps {
   readonly activeKey: string | null;
 }
 
+/** Spelled out: Tailwind reads source text, so a computed `grid-cols-${n}`
+ *  would produce a class with no CSS behind it. */
+const COLS: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+};
+
 const TONE_CLASS: Record<string, string> = {
   bad: "text-destructive",
   warn: "text-warning",
@@ -46,8 +55,12 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
   return (
     <nav className="flex flex-col gap-sm" aria-label={BOARD_TEXT.boardLabel}>
       {open.map((s) => (
-        <Card key={s.key} className="p-sm">
-          <SectionHead section={s} active={s.key === activeKey} />
+        <Card key={s.key} className="p-md">
+          <SectionHead
+            section={s}
+            active={s.key === activeKey}
+            total={s.chart === "share" ? s.metrics.find((m) => m.weight === undefined) : undefined}
+          />
           <Metrics section={s} />
         </Card>
       ))}
@@ -66,42 +79,69 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
   );
 }
 
-function SectionHead({ section: s, active }: { section: BoardSection; active: boolean }) {
+/**
+ * The title, and - for a charted section - its total on the same line.
+ *
+ * The total used to sit below as a full readout block: one digit at heading
+ * size, alone on a row two hundred pixels wide, which is the "large empty area"
+ * this pass exists to remove. On the title line it costs no height at all, and
+ * it reads the way the sentence actually goes - "waiting on me: 4" - instead of
+ * as a peer of the segments underneath, which it is not: they add up to it.
+ */
+function SectionHead({
+  section: s,
+  active,
+  total,
+}: {
+  section: BoardSection;
+  active: boolean;
+  total?: BoardMetric;
+}) {
   return (
-    <Link
-      href={s.href}
-      className={[
-        "block truncate text-xs font-semibold tracking-wide",
-        active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-      ].join(" ")}
-    >
-      {s.title}
-    </Link>
+    <div className="flex items-baseline justify-between gap-xs">
+      <Link
+        href={s.href}
+        className={[
+          "min-w-0 truncate text-xs font-semibold tracking-wide",
+          active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+        ].join(" ")}
+      >
+        {s.title}
+      </Link>
+      {total ? (
+        <span className="flex shrink-0 items-baseline gap-2xs">
+          <span
+            className={[
+              "text-label-md font-semibold tabular-nums",
+              total.tone ? TONE_CLASS[total.tone] : "text-foreground",
+            ].join(" ")}
+          >
+            {total.value}
+          </span>
+          <span className="text-muted-foreground text-xs">{total.label}</span>
+        </span>
+      ) : null}
+    </div>
   );
 }
 
 function Metrics({ section: s }: { section: BoardSection }) {
   if (s.metrics.length === 0) return null;
+
+  // A charted section shows its HEADLINE figures as readouts and lets the chart
+  // carry the rest. For "share" that is the one metric with no weight - the
+  // total the segments add up to; for "bars" every figure is already printed on
+  // its own row, so nothing is repeated above it.
+  // On a charted section the figures belong to the chart (and its total to the
+  // title line), so nothing is printed twice above it.
+  const headline = s.chart ? [] : s.metrics;
+
   return (
     <>
-      <div className="mt-xs flex flex-wrap gap-md">
-        {s.metrics.map((m) => (
-          <div key={m.label} className="min-w-0">
-            {/* The number is the content and the label is the footnote, so the
-                sizes say so. Tabular figures, because these are compared down a
-                column and across days. */}
-            <div
-              className={[
-                "text-heading-4 tabular-nums",
-                m.tone ? TONE_CLASS[m.tone] : "text-foreground",
-              ].join(" ")}
-            >
-              {m.value}
-            </div>
-            <div className="text-muted-foreground text-xs">{m.label}</div>
-          </div>
-        ))}
-      </div>
+      {headline.length > 0 ? <Readouts metrics={headline} /> : null}
+      {s.chart === "share" ? <ShareBar metrics={s.metrics} /> : null}
+      {s.chart === "bars" ? <BarList metrics={s.metrics} /> : null}
+
       {typeof s.progress === "number" ? (
         <div className="mt-sm">
           <Progress value={s.progress} />
@@ -118,6 +158,43 @@ function Metrics({ section: s }: { section: BoardSection }) {
         </div>
       ) : null}
     </>
+  );
+}
+
+/**
+ * The plain figures, spread across the card rather than pushed to its left.
+ *
+ * A grid, not flex-wrap. Wrapped, three single-digit counts occupied about
+ * ninety of the two hundred and thirty available pixels and left the rest of
+ * the row empty - the card read as mostly nothing. Equal columns give each
+ * figure the same share of the width, which is also the honest arrangement:
+ * these are peers, and a flex row silently ranks them by how many characters
+ * they happen to have.
+ *
+ * Capped at three columns because the fourth lands at roughly fifty pixels,
+ * which is narrower than "1200 万".
+ */
+function Readouts({ metrics }: { metrics: readonly BoardMetric[] }) {
+  const cols = Math.min(metrics.length, 3);
+  return (
+    <div className={`mt-xs grid gap-x-md gap-y-sm ${COLS[cols]}`}>
+      {metrics.map((m) => (
+        <div key={m.label} className="min-w-0">
+          {/* The number is the content and the label is the footnote, so the
+              sizes say so. Tabular figures, because these are compared down a
+              column and across days. */}
+          <div
+            className={[
+              "text-heading-4 truncate tabular-nums",
+              m.tone ? TONE_CLASS[m.tone] : "text-foreground",
+            ].join(" ")}
+          >
+            {m.value}
+          </div>
+          <div className="text-muted-foreground truncate text-xs">{m.label}</div>
+        </div>
+      ))}
+    </div>
   );
 }
 

@@ -43,6 +43,16 @@ export interface BoardMetric {
   readonly tone?: "bad" | "warn" | "good";
   /** Pre-formatted, because a number's unit is part of what it means. */
   readonly value: string;
+  /**
+   * The raw magnitude behind `value`, for sections that draw their numbers.
+   *
+   * Separate from `value` because the two are for different readers: `value` is
+   * the formatted string a person reads ("253 万"), `weight` is what a bar's
+   * length is computed from. Parsing the string back into a number would make
+   * the chart depend on the formatting - change 万 to 亿 and the bars silently
+   * become wrong.
+   */
+  readonly weight?: number;
 }
 
 export interface BoardSection {
@@ -53,6 +63,21 @@ export interface BoardSection {
   readonly metrics: readonly BoardMetric[];
   /** 0-100, only where a real denominator exists. */
   readonly progress?: number;
+  /**
+   * How this section's numbers should be DRAWN, decided here rather than in the
+   * component, because it is a claim about what they mean:
+   *
+   *   "share" - the metrics partition one population, so their relative sizes
+   *             are the point (today/week/watch is every open judgement, split
+   *             three ways). Drawn as one bar in segments.
+   *   "bars"  - the metrics are independent magnitudes on a common unit, so the
+   *             comparison is between them (money per product line). Drawn as a
+   *             row each.
+   *
+   * Absent means the numbers do not relate to each other and drawing them would
+   * assert a relationship that is not there.
+   */
+  readonly chart?: "share" | "bars";
 }
 
 export interface BoardContext {
@@ -108,8 +133,10 @@ function proposalBreakdown(result: { ok: boolean; value?: unknown }): BoardMetri
     byKind.set(label, (byKind.get(label) ?? 0) + 1);
   }
   return [
+    // No weight: this is the total the segments below add up to, so drawing it
+    // as one of them would double the population.
     { label: BOARD_TEXT.pending, value: String(rows.length), tone: "warn" },
-    ...[...byKind].map(([label, n]) => ({ label, value: String(n) })),
+    ...[...byKind].map(([label, n]) => ({ label, value: String(n), weight: n })),
   ];
 }
 
@@ -181,11 +208,12 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       key: "today",
       title: BOARD_TEXT.today,
       href: "/",
+      chart: "share",
       metrics: feed.ok
         ? [
-            { label: BOARD_TEXT.tierToday, value: String(feed.value.counts.today), tone: "bad" },
-            { label: BOARD_TEXT.tierWeek, value: String(feed.value.counts.week), tone: "warn" },
-            { label: BOARD_TEXT.tierWatch, value: String(feed.value.counts.watch) },
+            { label: BOARD_TEXT.tierToday, value: String(feed.value.counts.today), tone: "bad", weight: feed.value.counts.today },
+            { label: BOARD_TEXT.tierWeek, value: String(feed.value.counts.week), tone: "warn", weight: feed.value.counts.week },
+            { label: BOARD_TEXT.tierWatch, value: String(feed.value.counts.watch), weight: feed.value.counts.watch },
           ]
         : [],
     },
@@ -212,17 +240,20 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
           {
             key: "allies",
             title: BOARD_TEXT.allies,
+            chart: "share" as const,
             href: "/account",
             metrics: [
               {
                 label: BOARD_TEXT.alliesCoaches,
                 value: String(feed.value.allies.coaches),
                 tone: "good" as const,
+                weight: feed.value.allies.coaches,
               },
               {
                 label: BOARD_TEXT.alliesUnreachable,
                 value: String(feed.value.allies.unreachable),
                 tone: feed.value.allies.unreachable > 0 ? ("bad" as const) : undefined,
+                weight: feed.value.allies.unreachable,
               },
               ...(feed.value.allies.blockers > 0
                 ? [
@@ -230,6 +261,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
                       label: BOARD_TEXT.alliesBlockers,
                       value: String(feed.value.allies.blockers),
                       tone: "warn" as const,
+                      weight: feed.value.allies.blockers,
                     },
                   ]
                 : []),
@@ -248,6 +280,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
             key: "products",
             title: BOARD_TEXT.productLines,
             href: "/pipeline",
+            chart: "bars" as const,
             metrics: [
               ...[...byProduct(lines.filter((l) => openIds.has(l.opportunityId)))]
                 .sort((a, b) => b[1].amount - a[1].amount)
@@ -255,6 +288,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
                 .map(([productId, agg]) => ({
                   label: catalogue.find((p) => p.id === productId)?.name ?? productId,
                   value: BOARD_TEXT.wan(agg.amount),
+                  weight: agg.amount,
                 })),
               // Below-floor lines are a decision someone owes, so they belong
               // beside the money rather than buried in a deal.
@@ -275,6 +309,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       key: "adjudicate",
       title: BOARD_TEXT.adjudicate,
       href: "/copilot",
+      chart: "share",
       // Proposals awaiting a person, under ADR-003: the agent proposes and a
       // human decides, so this is work owed by a person, not by the system.
       metrics: proposalBreakdown(proposals),
