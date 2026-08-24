@@ -1,7 +1,7 @@
 /**
  * The application's single stylesheet entry.
  *
- * Both imports come from @vxture/design-system and nothing is defined locally:
+ * Every import comes from @vxture/design-system and nothing is defined locally:
  * globals.css carries the L0 foundation (Tailwind baseline, tokens, typography,
  * components, platform patterns), and exactly ONE brand entry follows it.
  * yucer is a Vxture product, so it takes the vxture brand; importing a second
@@ -11,27 +11,57 @@
  * radius or a shadow. Those are the design system's, and a local override here
  * is the exact deviation CLAUDE.md's rigid-zone rule exists to prevent.
  */
+
+/*
+ * Self-hosted fonts, and NOT optional despite being a separate entry.
+ *
+ * The token layer hardcodes the family names - --vx-font-sans starts at Inter,
+ * --vx-font-brand at 'Funnel Display', --vx-font-mono at 'Geist Mono' - but
+ * ships no @font-face for any of them. Without this import all three resolve
+ * past their first choice into the CJK/system fallbacks further down each
+ * stack, which is silent: text still lays out, the wordmark and every metric
+ * and ID code just render in the wrong face. Measured 2026-08-24 before the
+ * fix: Inter, Funnel Display and Geist Mono each measured identical to a
+ * deliberately nonexistent family, i.e. none of them was ever loaded.
+ *
+ * The three @fontsource packages this pulls in are declared in THIS package's
+ * package.json as well as the DS's, which is not redundant - Turbopack resolves
+ * a PostCSS @import from the consumer's own node_modules upward and does not
+ * look inside the DS's, so declaring them only there fails to resolve.
+ */
+@import "@vxture/design-system/styles/fonts.css";
+
 @import "@vxture/design-system/styles/globals.css";
 @import "@vxture/design-system/styles/brands/vxture.css";
 
 /*
+ * Workbench page canvas. Must follow the brand entry - it overrides
+ * --background, so anything that re-declares the token afterwards wins.
+ *
+ * yucer is a workbench (the same shape as console / admin / opera / accounts),
+ * not a marketing site, so it takes the branded canvas rather than the DS's
+ * neutral default. This is a recovery, not a new choice: until DS 6 the tint
+ * arrived through shell-template.css, whose --vx-color-shell-bg was
+ * var(--vx-color-brand-20) - the identical value workbench.css sets. Without
+ * it the canvas and the cards sit on nearly the same near-white and the whole
+ * surface reads flat.
+ */
+@import "@vxture/design-system/styles/workbench.css";
+
+/*
  * Tailwind v4 discovers utility classes by scanning source files, and skips
- * node_modules by default. The DS ships its components pre-built, so the class
- * names they render live in its dist bundle - without this the components mount
- * with class names that have no CSS behind them and the whole UI renders
- * unstyled.
+ * node_modules by default. Both packages ship their components pre-built, so
+ * the class names they render live in their dist bundles - without this the
+ * components mount with class names that have no CSS behind them and the whole
+ * UI renders unstyled.
  *
- * BOTH packages have to be listed. Until design-system 5 the components were
- * all in that one package; the 5.0 split moved every component - Button,
- * DataTable, Accordion, SegmentedControl, PanelCard, the lot - into
- * @vxture/design-ui, leaving design-system with only the shell, auth and theme
- * layer. Scanning only the old path silently purged the utilities for
- * essentially the entire component library, which renders as a page whose
- * markup is right and whose layout is absent.
- *
- * Pointing at the package root rather than a file keeps this working if either
- * package changes its bundle layout. If a third @vxture package ever ships
- * components, it needs a line here too.
+ * The DS's own globals.css already carries @source lines, and they are NOT
+ * enough here: they point at `../components` and `../../../design-ui/src`,
+ * which exist in the design-system workspace but not in the published tarballs
+ * (design-system publishes src/styles only, design-ui publishes dist only).
+ * A missing @source path is silent, so the two lines below are load-bearing
+ * rather than belt-and-braces. Both packages need one: the shell chrome is in
+ * design-system, every other component is in design-ui.
  */
 @source "../node_modules/@vxture/design-system/dist";
 @source "../node_modules/@vxture/design-ui/dist";
