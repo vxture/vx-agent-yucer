@@ -234,10 +234,17 @@ export function AppShell({
           The two spacings answer different questions and are deliberately far
           apart in size:
 
-            p-sm   - how close the console sits to the window. Small on purpose:
+            p-md   - how close the console sits to the window. Small on purpose:
                      the flanks are instruments and they belong at the edges.
                      Not zero, because a panel flush against the viewport reads
                      as clipped rather than as placed.
+
+                     md (16px), not sm. sm is the one fractional step in the
+                     whole scale - 2.5 x the 4px base, so 10px - and a frame
+                     inset is exactly the kind of structural measurement that
+                     should land on a whole step. The sticky offsets follow it,
+                     so a pinned flank stops level with the padding above it
+                     rather than two pixels off.
 
             gap-page-inset - how far the centre's text stands off the flanks
                      beside it. This is the DS token whose stated job is the
@@ -248,11 +255,11 @@ export function AppShell({
           I had these two the wrong way round: the page edge was pushed out to
           48px and the gutter left at 10px, which is the opposite of both. The
           gutter is the one doing the work here. */}
-      <div className="flex flex-col flex-wrap gap-page-inset p-sm lg:flex-row">
+      <div className="flex flex-col flex-wrap gap-page-inset p-md lg:flex-row">
         {/* LEFT FLANK - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
         {showBoard ? (
-          <aside className="flex w-full shrink-0 flex-col gap-page-inset lg:sticky lg:top-sm lg:w-sidebar-expanded">
+          <aside className="flex w-full shrink-0 flex-col gap-page-inset lg:sticky lg:top-md lg:w-sidebar-expanded">
             <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
           </aside>
         ) : null}
@@ -269,7 +276,7 @@ export function AppShell({
             the row puts it below the content at full width instead, which is
             what "there is no room for a third column" should look like. */}
         {showDock ? (
-          <aside className="flex w-full shrink-0 flex-col gap-page-inset 2xl:sticky 2xl:top-sm 2xl:w-sidebar-expanded">
+          <aside className="flex w-full shrink-0 flex-col gap-page-inset 2xl:sticky 2xl:top-md 2xl:w-sidebar-expanded">
             <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
           </aside>
         ) : null}
