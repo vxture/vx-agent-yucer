@@ -243,11 +243,22 @@ export function AppShell({
         }
       />
 
-      <div className={`grid items-start gap-sm p-sm ${GRID[`${showBoard}-${showDock}` as keyof typeof GRID]}`}>
+      {/* Horizontal room is the DS's own `page-inset`: clamp(lg, 3.2vw, 3xl),
+          so 24px on a narrow window and 48px on a wide one, sliding rather than
+          stepping - the page's outer margin is the biggest single piece of
+          whitespace on screen, and switching it at a breakpoint stages a visible
+          lurch exactly where the eye is least forgiving. It was p-sm (10px),
+          which put the centre's text within a hair of both flanks.
+
+          Vertical is a flat lg instead: the header already draws the top
+          boundary, and a fluid 48px under it reads as a gap rather than as
+          breathing room. The column gutter matches the panels' own px-lg, so a
+          line of text clears its neighbour by 24 + 24 rather than by 10. */}
+      <div className={`grid items-start gap-lg px-page-inset py-lg ${GRID[`${showBoard}-${showDock}` as keyof typeof GRID]}`}>
         {/* LEFT FLANK - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
         {showBoard ? (
-          <div className="flex flex-col gap-sm lg:sticky lg:top-sm">
+          <div className="flex flex-col gap-lg lg:sticky lg:top-lg">
             <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
           </div>
         ) : null}
@@ -255,9 +266,16 @@ export function AppShell({
         {/* CENTRE - the engagement */}
         <main className="min-w-0">{children}</main>
 
-        {/* RIGHT FLANK - the agent, and what it is looking at */}
+        {/* RIGHT FLANK - the agent, and what it is looking at.
+
+            col-span-full below 2xl is not cosmetic. The dock is the grid's third
+            child, and below 2xl the template has only two columns - so it
+            wrapped into column ONE, rendering the agent deck 288px wide and
+            fifteen hundred pixels down the page, underneath the board. Spanning
+            the row puts it below the content at full width instead, which is
+            what "there is no room for a third column" should look like. */}
         {showDock ? (
-          <div className="flex flex-col gap-sm 2xl:sticky 2xl:top-sm">
+          <div className="col-span-full flex flex-col gap-lg 2xl:col-span-1 2xl:sticky 2xl:top-lg">
             <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
           </div>
         ) : null}
