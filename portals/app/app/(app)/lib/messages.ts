@@ -284,6 +284,14 @@ export const HEADER_TEXT = {
   version: (v: string) => v,
   adminAria: "管理",
   userMenuOpen: "打开用户菜单",
+  // The two flank toggles. Named for what the flank IS, not for the direction it
+  // moves: "收起左栏" tells you the geometry, "收起战况板" tells you what you
+  // stop being able to see, and only the second is a reason to keep it open.
+  boardOpen: "展开战况板",
+  boardClose: "收起战况板",
+  agentDock: "智能助手",
+  agentDockWithCount: (n: number) => `智能助手，${n} 件待你裁决`,
+  countOverflow: "99+",
 } as const;
 
 export const ADMIN_TEXT = {

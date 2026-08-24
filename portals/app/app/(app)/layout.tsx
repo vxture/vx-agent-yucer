@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
@@ -7,8 +8,9 @@ import { boardSections, agentPanel } from "./lib/board";
 import { can } from "../authz/decide";
 import { recordFollowUp } from "./account/field-actions";
 import { AppShell } from "./components/app-shell";
+import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
-import { serviceIdentity } from "@vxture/shared";
+import { readNavCollapsed, serviceIdentity } from "@vxture/shared";
 import { BRAND } from "@yucer/shared/brand";
 import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
 import { listAccounts } from "../domains/account/service";
@@ -155,8 +157,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     })),
   ];
 
+  // The two flanks' states, read BEFORE rendering. Doing this on the client
+  // instead would paint both flanks open and then jump - and here the jump is
+  // the entire page layout, not a detail. Default is open: a first-time visitor
+  // should see what the product is, and shutting a flank is one click.
+  const jar = await cookies();
+  const cookieString = jar
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
+
   return (
     <AppShell
+      boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
+      dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
       board={board}
       agent={agent}
       canRecord={canRecord}

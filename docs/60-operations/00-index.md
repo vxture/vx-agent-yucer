@@ -15,6 +15,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | open |
 | TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open |
 | TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open |
+| TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -84,6 +85,32 @@ DS 目前只提供 `vx-boot-splash-in` 一条 keyframe，且无任何 `--animate
 
 **恢复条件**：DS 提供环境背景元素（或 accounts 收敛后重建的认证页样式）时，删除
 `Ambience()` 改为消费 DS 元素，并在同一次改动中恢复漂移动效。
+
+### TD-006 - DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替
+
+**缺失的元素**：设计系统没有「计数徽标」——挂在图标按钮角上、只承载一个数字、
+用高对比实底把"有事等你"从一屏信息里拔出来的那种小气泡。DS 有 `Badge` 与
+`StatusBadge`，但两者都是**行内状态标签**，为成簇并排而设计。
+
+**权宜位置**：`portals/app/app/(app)/components/agent-dock-button.tsx`，
+右翼收起时 header 上助手图标的角标。
+
+**owner 要求的是实底红**。DS 明确拒绝提供，而且理由写在 `badgeVariants` 的注释里：
+destructive 档取 `bg-destructive-muted`（淡底）而非实心红，因为「徽章常成片出现，
+满屏实心红会把整页的视觉重心压到异常状态上」。那条判断对**行内状态标签**是对的；
+对**角标计数**不成立——角标一屏只有一两个，它存在的全部意义就是打断视线。
+两种用途共用一个元素，所以这个分歧现在没有出口。
+
+**为什么不本地覆写**：把 `bg-destructive` 写在调用点上，就是在产品仓里就地重定义
+DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标的尺寸同理：
+`Badge` 定高 `h-control-2xs` + `px-sm`，单个数字渲染成 30x20，比它挂着的 32px
+按钮还宽——但那个定高在 DS 里也是有理由的（成簇时要对齐），不该由消费方改掉。
+
+**当前表现**：淡红底、红字、红描边的 `Badge variant="destructive"`，尺寸偏大。
+可读、语义正确、但不是被要求的那枚实底小气泡。
+
+**恢复条件**：向 DS 提出计数徽标元素（实底、圆形或胶囊、随图标按钮尺寸档走、
+带 99+ 溢出规则）。DS 提供后，删除本地组合，改为消费该元素。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 
