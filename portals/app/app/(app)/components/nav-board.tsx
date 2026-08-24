@@ -53,15 +53,24 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
   const rest = sections.filter((s) => !pinnedSet.has(s.key));
 
   return (
-    <nav className="flex flex-col gap-sm" aria-label={BOARD_TEXT.boardLabel}>
+    <nav className="flex flex-col gap-xs" aria-label={BOARD_TEXT.boardLabel}>
       {open.map((s) => (
         <Card key={s.key} className="p-md">
-          <SectionHead
-            section={s}
-            active={s.key === activeKey}
-            total={s.chart === "share" ? s.metrics.find((m) => m.weight === undefined) : undefined}
-          />
-          <Metrics section={s} />
+          {/* ONE child, deliberately. Card is `flex flex-col gap-xl` - built for
+              page-level cards whose sections stand 32px apart - and with two
+              children that gap fired between the title and the chart, on top of
+              the margin the content already carried: 42px of air inside a 256px
+              card. Wrapping in a single child makes the gap inapplicable rather
+              than overriding it, so the DS element is untouched and the rhythm
+              in here is ours to set. */}
+          <div className="flex flex-col gap-md">
+            <SectionHead
+              section={s}
+              active={s.key === activeKey}
+              total={s.chart === "share" ? s.metrics.find((m) => m.weight === undefined) : undefined}
+            />
+            <Metrics section={s} />
+          </div>
         </Card>
       ))}
 
@@ -69,7 +78,7 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
           nobody opens daily would give the archive the same weight as the work,
           which is the arrangement this redesign exists to undo. */}
       {rest.length > 0 ? (
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden py-none">
           {rest.map((s, i) => (
             <Sector key={s.key} section={s} active={s.key === activeKey} first={i === 0} />
           ))}
@@ -143,7 +152,7 @@ function Metrics({ section: s }: { section: BoardSection }) {
       {s.chart === "bars" ? <BarList metrics={s.metrics} /> : null}
 
       {typeof s.progress === "number" ? (
-        <div className="mt-sm">
+        <div>
           <Progress value={s.progress} />
           {/* The percentage sits ON the bar's line rather than under it. Read
               alone under an almost-empty track, a low number looked like a
@@ -177,7 +186,7 @@ function Metrics({ section: s }: { section: BoardSection }) {
 function Readouts({ metrics }: { metrics: readonly BoardMetric[] }) {
   const cols = Math.min(metrics.length, 3);
   return (
-    <div className={`mt-xs grid gap-x-md gap-y-sm ${COLS[cols]}`}>
+    <div className={`grid gap-x-md gap-y-sm ${COLS[cols]}`}>
       {metrics.map((m) => (
         <div key={m.label} className="min-w-0">
           {/* The number is the content and the label is the footnote, so the

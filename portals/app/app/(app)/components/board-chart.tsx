@@ -91,7 +91,7 @@ export function ShareBar({ metrics }: { metrics: readonly BoardMetric[] }) {
   const idx = untonedIndexes(parts);
 
   return (
-    <div className="mt-sm flex flex-col gap-xs">
+    <div className="flex flex-col gap-xs">
       <div
         className="bg-muted flex h-2xs w-full gap-px overflow-hidden rounded-full"
         role="img"
@@ -139,7 +139,7 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
   const max = Math.max(...rows.map((m) => m.weight ?? 0));
 
   return (
-    <ul className="mt-sm flex flex-col gap-xs">
+    <ul className="flex flex-col gap-xs">
       {rows.map((m, i) => (
         <li key={m.label} className="flex flex-col gap-2xs">
           <div className="flex items-baseline justify-between gap-xs">
