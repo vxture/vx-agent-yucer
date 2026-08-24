@@ -65,3 +65,43 @@
  */
 @source "../node_modules/@vxture/design-system/dist";
 @source "../node_modules/@vxture/design-ui/dist";
+
+/*
+ * Scrollbars hidden everywhere; scrolling itself untouched.
+ *
+ * Deliberately ONE global rule rather than a utility repeated per scroller.
+ * The product has four independent scroll areas in the shell alone, plus every
+ * dropdown, dialog and overflow list the DS mounts - sprinkling a class on the
+ * ones we happen to remember produces a console where some panels have a bar
+ * and some do not, which reads as a defect rather than as a choice.
+ *
+ * This defines no token, colour, spacing, radius or shadow, so it stays inside
+ * what this file is allowed to say. Scrollbar chrome is a behaviour, not a
+ * design value, and the DS offers no switch for it - it applies the same three
+ * declarations inline in ShellSidebarNav, which is where this idiom comes from.
+ *
+ * Inside @layer base on purpose. Unlayered CSS beats every @layer including
+ * utilities (globals-base.css carries a long note about exactly that trap), so
+ * an unlayered rule here would make a visible scrollbar impossible to opt back
+ * into anywhere. In base, any component that genuinely needs one can still say
+ * so with a utility.
+ *
+ * Three declarations because three engines disagree: scrollbar-width is the
+ * standard (and Firefox), -ms-overflow-style is legacy Edge, and the
+ * ::-webkit-scrollbar pseudo-element is WebKit/Blink. None of them stops wheel,
+ * trackpad, keyboard or programmatic scrolling - they hide the indicator only.
+ *
+ * The cost, stated: a hidden scrollbar removes both the visual cue that a
+ * region CAN scroll and the drag target for scrolling it. Mouse-wheel and
+ * keyboard users are unaffected; anyone who relies on dragging the bar is not.
+ */
+@layer base {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
