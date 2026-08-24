@@ -11,7 +11,7 @@ import {
   ShellUserMenu,
   useTheme,
 } from "@vxture/design-system";
-import { ShellHeader, StatusBadge } from "@vxture/design-ui";
+import { ShellHeader, ShellViewport, StatusBadge } from "@vxture/design-ui";
 import { writeNavCollapsed } from "@vxture/shared";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { NavBoard } from "./nav-board";
@@ -165,7 +165,31 @@ export function AppShell({
     }));
 
   return (
-    <div className="bg-background min-h-screen">
+    /* FOUR SURFACES, EACH OWNING ITS OWN SCROLL.
+
+       ShellViewport is the DS's own shell and does three of the four things
+       asked for by construction: h-dvh so the page itself never scrolls, the
+       header shrink-0 inside it so it never leaves, and `main` with its own
+       overflow-y-auto. Hand-rolling that would have duplicated a DS component
+       to gain nothing.
+
+       What it does NOT do is scroll the flanks independently or let a zone
+       carry its own padding, so both of those ride on wrappers inside its
+       slots - composition, not modification.
+
+       PADDING IS PER ZONE. Each flank is padded on three sides and flush on the
+       side facing the centre, so its cards reach the boundary of their own zone
+       instead of stopping short of it. The standoff between a flank and the
+       centre's text therefore comes entirely from the CENTRE's px-page-inset:
+       one source, rather than two paddings meeting in the middle and summing to
+       something neither intended.
+
+       The scrollbars land where they belong as a consequence - inside each
+       zone, against the gutter - instead of one bar at the window's edge
+       governing everything at once. */
+    <ShellViewport
+      sidebarMode={showBoard ? "expanded" : "hidden"}
+      header={
       <ShellHeader
         leading={
           <>
@@ -221,66 +245,28 @@ export function AppShell({
           </>
         }
       />
-
-      {/* THE FRAME. Flex, not grid, and that is what removes the last naked CSS
-          from the shell: the grid form of this needed an arbitrary column
-          template carrying two literal pixel widths, hand-picked in an HTML mock
-          rather than taken from anything. (Written out here it would still be
-          scanned - Tailwind reads comments too - so it is described instead of
-          quoted.) In flex the flanks can just BE `w-sidebar-expanded`,
-          which is the DS's own sidebar width token, and the centre is whatever
-          is left.
-
-          The two spacings answer different questions and are deliberately far
-          apart in size:
-
-            p-md   - how close the console sits to the window. Small on purpose:
-                     the flanks are instruments and they belong at the edges.
-                     Not zero, because a panel flush against the viewport reads
-                     as clipped rather than as placed.
-
-                     md (16px), not sm. sm is the one fractional step in the
-                     whole scale - 2.5 x the 4px base, so 10px - and a frame
-                     inset is exactly the kind of structural measurement that
-                     should land on a whole step. The sticky offsets follow it,
-                     so a pinned flank stops level with the padding above it
-                     rather than two pixels off.
-
-            gap-page-inset - how far the centre's text stands off the flanks
-                     beside it. This is the DS token whose stated job is the
-                     breathing room around a content area, clamp(lg, 3.2vw, 3xl),
-                     so 24px on a narrow window and 48px on a wide one, sliding
-                     rather than stepping.
-
-          I had these two the wrong way round: the page edge was pushed out to
-          48px and the gutter left at 10px, which is the opposite of both. The
-          gutter is the one doing the work here. */}
-      <div className="flex flex-col flex-wrap gap-page-inset p-md lg:flex-row">
-        {/* LEFT FLANK - ours. Cards that state where things stand; opening one
-            navigates, but that is a consequence of the card, not its purpose. */}
-        {showBoard ? (
-          <aside className="flex w-full shrink-0 flex-col gap-page-inset lg:sticky lg:top-md lg:w-sidebar-expanded">
-            <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
-          </aside>
-        ) : null}
-
-        {/* CENTRE - the engagement */}
-        <main className="min-w-0 flex-1">{children}</main>
-
-        {/* RIGHT FLANK - the agent, and what it is looking at.
-
-            col-span-full below 2xl is not cosmetic. The dock is the grid's third
-            child, and below 2xl the template has only two columns - so it
-            wrapped into column ONE, rendering the agent deck 288px wide and
-            fifteen hundred pixels down the page, underneath the board. Spanning
-            the row puts it below the content at full width instead, which is
-            what "there is no room for a third column" should look like. */}
-        {showDock ? (
-          <aside className="flex w-full shrink-0 flex-col gap-page-inset 2xl:sticky 2xl:top-md 2xl:w-sidebar-expanded">
+      }
+      sidebar={
+        /* LEFT FLANK - ours. Cards that state where things stand; opening one
+           navigates, but that is a consequence of the card, not its purpose.
+           Flush right: the cards end at the zone's right boundary. */
+        <div className="min-h-0 flex-1 overflow-y-auto pt-md pb-md pl-md">
+          <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
+        </div>
+      }
+      dock={
+        /* RIGHT FLANK - the agent, and what it is looking at. Flush left, for
+           the same reason the board is flush right. */
+        showDock ? (
+          <aside className="w-sidebar-expanded shrink-0 overflow-y-auto pt-md pr-md pb-md">
             <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
           </aside>
-        ) : null}
-      </div>
-    </div>
+        ) : null
+      }
+    >
+      {/* CENTRE - the engagement. Its horizontal padding IS the gutter on both
+          sides, which is why the flanks carry none facing it. */}
+      <div className="px-page-inset py-md">{children}</div>
+    </ShellViewport>
   );
 }
