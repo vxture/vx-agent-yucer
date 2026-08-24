@@ -14,6 +14,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-002 | 产品界面文案违反 source ASCII-only 规则 | 2026-08-15 | open |
 | TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | open |
 | TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open |
+| TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -57,6 +58,33 @@ here. This register restarts its numbering for `yucer`.
 这五个域的服务与持久化属于**未建功能**，跟踪在 `docs/70-workplan/00-index.md` 批次 2c，
 不再计为技术债——未实现的功能不是债。
 
+### TD-005 - 登录页的环境背景无 DS 元素可用，本地实现为权宜
+
+**缺失的元素**：设计系统没有「环境背景」这类元素——铺满视口、承载产品气质、不携带
+任何信息的装饰层。同时 `@vxture/design-system/styles/auth.css` **已退役**，其文件头
+写明「原 8 个 auth-* 模块整体引用遗留 token，随其一并退役；认证页样式在 accounts
+收敛时以工具类重建」。也就是说认证形态的样式当前处于收敛中间态，没有可组合的成品。
+
+**权宜位置**：`portals/app/app/(app)/components/sign-in.tsx` 的 `Ambience()`。
+
+**为什么不算违规的自建组件**：它不复刻、不覆写、不 fork 任何 DS 元素，颜色全部取自
+DS token（`text-primary` / `var(--background)`），本地不定义任何色值。设计稿里的
+`#2563eb` 与 `#cbdff5` **没有被搬进来**——若照抄，这个产品就把一套调色板钉死在自己
+仓里，既不跟随品牌也不跟随主题。
+
+**已知缺口**：设计稿中线条有 18s 漂移动效，本实现是**静态**的。Tailwind 的
+`animate-[drift_...]` 需要一条本仓自定义的 `@keyframes`，那是在产品仓里发明动效设计值；
+DS 目前只提供 `vx-boot-splash-in` 一条 keyframe，且无任何 `--animate-*` token。
+因此动效一并挂在本条债上，而不是偷偷落地。
+
+**为什么不用 `UnifiedAuthPage`**：那是**平台**认证页——桌面端强制渲染营销视觉栏
+（`AuthVisualPanel` 在 visual 缺省时填 DS 默认文案），且其存在意义是承载密码 / 手机号 /
+社交登录面板。本产品不实现任何一种登录方式，认证是平台的职责，本页全部内容只是一个
+按钮。套用该模板等于承诺一个并不存在的登录表单。
+
+**恢复条件**：DS 提供环境背景元素（或 accounts 收敛后重建的认证页样式）时，删除
+`Ambience()` 改为消费 DS 元素，并在同一次改动中恢复漂移动效。
+
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 
 `CLAUDE.md`「Repository hygiene」要求 source 文件 ASCII-only。下列文件**违反这一条**，
@@ -66,13 +94,20 @@ here. This register restarts its numbering for `yucer`.
 |------|------|----------|
 | `portals/app/app/(app)/lib/messages.ts` | 全部界面文案 | 2026-08-15 |
 | `portals/app/app/domains/shared/demo-fixtures.ts` | 演示数据的展示文本（客户名、商机名、剧本正文） | 2026-08-15 |
+| `portals/app/app/domains/judgement/lib/judgement.ts` | 判断句、事实标签与触发条件的中文表述 | 2026-08-17 |
 
 **为什么存在**：yucer 的主市场是中国企业销售组织（`brand.ts` 的
 `defaultLocale: "zh-CN"`，全部产品规格以中文撰写）。界面文案不可能既是 ASCII 又是
 这个产品该有的样子。演示数据同理：一份用拼音或英文假名填充的销售数据，无法向目标
 用户演示这个产品，也无法被评审。
 
-**已做的收敛**：全部非 ASCII 文本集中在这**两个**文件里，且两者都只含数据、不含逻辑。
+**2026-08-17 新增第三个文件。** `judgement.ts` 生成判断句本身（"华东零售集团在 negotiate
+阶段停了 50 天"），这些句子由规则内插数值构成，不是可查表的静态文案，因此没有随
+`messages.ts` 一起外提。它与前两个文件不同：**它含逻辑**，所以此前"两个文件都只含数据"
+的收敛论证对它不成立。这一条是本仓自己引入的，不是模板遗留，登记于此以免它被当成
+既有状态默认接受。
+
+**已做的收敛**：非 ASCII 文本集中在这**三个**文件里，前两个只含数据、不含逻辑。
 因此：
 
 - `app/` 下含非 ASCII 的 source 文件**可穷举**，可用一行命令机器校验；

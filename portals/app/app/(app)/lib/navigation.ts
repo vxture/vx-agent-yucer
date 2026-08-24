@@ -61,6 +61,24 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
 ];
 
 /**
+ * Where work happens, as opposed to where data lives.
+ *
+ * Kept OUT of DOMAIN_NAV_ENTRIES so the eight-domain invariant stays an
+ * assertion about the product rather than becoming "nine things, one of which
+ * is not a domain". D8 (the copilot) remains a domain and stays in that list -
+ * what changed is only where the shell PUTS it, which is a presentation
+ * decision and does not belong in the product's own inventory.
+ *
+ * The rearrangement it serves: the copilot used to be the ninth thing in a flat
+ * menu, which said it was one more optional feature to remember to click. It is
+ * the product. The home stream is its output and it also sits permanently in a
+ * column beside the work.
+ */
+export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
+  { key: "home", href: "/", icon: "sparkles", action: "account.view" },
+];
+
+/**
  * Administration sits outside the chain, and is kept in its own list so the
  * eight-capability-domain invariant stays assertable rather than becoming "nine
  * things, one of which is not a domain".
@@ -76,7 +94,11 @@ export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "adoption", href: "/admin/adoption", icon: "chart-bar", action: "admin.adoption.view" },
 ];
 
-export const NAV_ENTRIES: readonly NavEntry[] = [...DOMAIN_NAV_ENTRIES, ...ADMIN_NAV_ENTRIES];
+export const NAV_ENTRIES: readonly NavEntry[] = [
+  ...WORK_NAV_ENTRIES,
+  ...DOMAIN_NAV_ENTRIES,
+  ...ADMIN_NAV_ENTRIES,
+];
 
 export type NavState = "visible" | "locked";
 

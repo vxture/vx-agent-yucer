@@ -1,11 +1,35 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ShellBrand, ShellThemeToggle, ShellUserMenu, useTheme } from "@vxture/design-system";
-import { Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import {
+  ShellBrand,
+  ShellIconButton,
+  ShellIconGroup,
+  ShellScopeButton,
+  ShellSearchBox,
+  ShellThemeToggle,
+  ShellUserMenu,
+  useTheme,
+} from "@vxture/design-system";
+import { Card, StatusBadge } from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
-import { DOMAIN_LABEL, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
+import { NavBoard } from "./nav-board";
+import { AgentPanel } from "./agent-panel";
+import type { AgentPanelData } from "../lib/board";
+import type { BoardSection } from "../lib/board";
+
+/**
+ * The three sections that stay open.
+ *
+ * They are what a person opens this product to do: what needs deciding today,
+ * what is waiting on their signature, and what is still in play. Everything
+ * else is a title until asked for - nine equally-loud panels teach a reader
+ * nothing about which one matters.
+ */
+export const PINNED_SECTIONS = ["quota", "today", "adjudicate", "resource", "products", "allies"] as const;
+import { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 
 // yucer's application shell.
 //
@@ -35,138 +59,146 @@ import { DOMAIN_LABEL, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
 // nobody is teased with a door only their colleague can open.
 
 export interface AppShellProps {
-  readonly domains: readonly ResolvedNavEntry[];
+  /** Where a person acts: the judgement stream and the decision queue. */
+  /** The sections and their real numbers, gathered server-side in board.ts. */
+  readonly board: readonly BoardSection[];
+  /** The agent's own reading, for the right flank. */
+  readonly agent: AgentPanelData;
+  readonly canRecord: boolean;
+  readonly onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Administration. Reached from a single header icon rather than a sidebar
+   * group: it is not work and not data, it is setup - visited rarely, and a
+   * permanent group for it spends sidebar height on something nobody opens on
+   * a Monday. Absent entirely when the member holds no admin permission, so the
+   * icon is not a locked door they cannot do anything about.
+   */
   readonly admin: readonly ResolvedNavEntry[];
-  readonly copilot: ResolvedNavEntry | null;
   readonly activeKey: string | null;
   readonly userName: string;
   readonly workspaceLabel: string;
   readonly upgradeHref: string;
+  /** Build identity, so a bug report can say which build it was seen on. */
+  readonly appVersion: string;
+  /** The tier itself, not its display label - null when unsubscribed. */
+  readonly tier: string | null;
+  /** What search can reach. Assembled on the server so it obeys both gates. */
+  readonly searchable: readonly { key: string; label: string; description?: string; href: string; group: "account" | "deal" }[];
   readonly children: ReactNode;
 }
 
-function NavLink({ entry, active }: { entry: ResolvedNavEntry; active: boolean }) {
-  const label = DOMAIN_LABEL[entry.key] ?? entry.key;
-
-  if (entry.state === "locked") {
-    // Shown, not hidden, and it says what would unlock it.
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="nav-item" aria-disabled="true" data-locked="true">
-            <i aria-hidden="true">
-              <Icon name={entry.icon} />
-            </i>
-            <span className="nav-item-label">{label}</span>
-            <StatusBadge tone="neutral">
-              {entry.decision.requiredTier
-                ? NAV_TEXT.requiresTier(entry.decision.requiredTier)
-                : NAV_TEXT.notSubscribed}
-            </StatusBadge>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{NAV_TEXT.upgradeCta}</TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return (
-    <Link
-      href={entry.href}
-      className={active ? "nav-item active" : "nav-item"}
-      aria-current={active ? "page" : undefined}
-    >
-      <i aria-hidden="true">
-        <Icon name={entry.icon} />
-      </i>
-      <span className="nav-item-label">{label}</span>
-    </Link>
-  );
-}
-
-function NavSection({
-  title,
-  entries,
-  activeKey,
-}: {
-  title: string;
-  entries: readonly ResolvedNavEntry[];
-  activeKey: string | null;
-}) {
-  if (entries.length === 0) return null;
-  return (
-    <div className="nav-section">
-      <div className="nav-section-title">{title}</div>
-      <div className="nav-items">
-        {entries.map((e) => (
-          <NavLink key={e.key} entry={e} active={e.key === activeKey} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function AppShell({
-  domains,
+  board,
+  agent,
+  canRecord,
+  onRecord,
   admin,
-  copilot,
   activeKey,
   userName,
   workspaceLabel,
   upgradeHref,
+  appVersion,
+  tier,
+  searchable,
   children,
 }: AppShellProps) {
   const { mode, setMode } = useTheme();
+  const [query, setQuery] = useState("");
+  const router = useRouter();
+
+  // Filtered here rather than fetched: the set is one workspace's accounts and
+  // open deals, it already came down with the shell, and a round trip per
+  // keystroke would buy nothing. It is also already gated - the server built
+  // this list through the same services the pages use.
+  const q = query.trim().toLowerCase();
+  const hits = q === "" ? [] : searchable.filter((s) => s.label.toLowerCase().includes(q));
+  const searchGroups = q === "" ? [] : [
+    { key: "account", heading: HEADER_TEXT.groupAccounts, items: hits.filter((h) => h.group === "account") },
+    { key: "deal", heading: HEADER_TEXT.groupDeals, items: hits.filter((h) => h.group === "deal") },
+  ]
+    .filter((g) => g.items.length > 0)
+    .map((g) => ({
+      key: g.key,
+      heading: g.heading,
+      items: g.items.slice(0, 6).map((h) => ({
+        key: h.key,
+        label: h.label,
+        description: h.description,
+        onSelect: () => router.push(h.href),
+      })),
+    }));
 
   return (
-    <div className="app">
-      <header className="vxh">
-        <div className="vxh-left">
-          <ShellBrand href="/" label={SHELL_TEXT.brandName} />
-        </div>
-
-        {/* The workspace is the isolation key every row and every gate decision
-            is scoped by. Showing it is not decoration - a member with access to
-            more than one needs to know which one they are looking at before
-            they read a single number. */}
-        <div className="vxh-context">
-          <StatusBadge tone="neutral">{workspaceLabel}</StatusBadge>
-        </div>
-
-        <div className="vxh-actions">
-          <ShellThemeToggle
-            currentTheme={mode === "dark" ? "dark" : "light"}
-            onThemeChange={(next) => setMode(next)}
-          />
-          <ShellUserMenu user={{ displayName: userName, uniqueLine: workspaceLabel }} />
-        </div>
-      </header>
-
-      <div className="app-body">
-        <nav className="sidebar" aria-label={NAV_TEXT.ariaLabel}>
-          <NavSection title={NAV_TEXT.groupChain} entries={domains} activeKey={activeKey} />
-          {copilot ? (
-            <NavSection title={NAV_TEXT.groupAgent} entries={[copilot]} activeKey={activeKey} />
-          ) : null}
-          <NavSection title={NAV_TEXT.groupAdmin} entries={admin} activeKey={activeKey} />
-
-          {/* The conversion exit stays reachable from the shell rather than only
-              from a domain that happens to be locked. */}
-          {domains.some((d) => d.state === "locked") ? (
-            <div className="side-foot">
-              <a className="nav-item" href={upgradeHref}>
-                <i aria-hidden="true">
-                  <Icon name="sparkles" />
-                </i>
-                <span className="nav-item-label">{NAV_TEXT.upgradeCta}</span>
-              </a>
+    <div className="bg-background min-h-screen">
+      {/* The template's own three-column grid, used as it was designed:
+          minmax(0,1fr) | minmax(240px,460px) | auto - identity, search,
+          actions. The 1fr on the first column IS the gap; nothing needs to be
+          pushed anywhere.
+          
+          What was wrong before was not .vxh-left (which the stylesheet does
+          define: inline-flex, gap 12px, min-width 0) but that there were only
+          three children and none of them was a search box - so the workspace
+          badge landed in the search column and the actions in the third, and
+          the header looked like a header with a stray badge in the middle. */}
+      {/* THREE ZONES, and the header is split between the two flanks.
+          A full-width bar across the top said "this is a document with a
+          toolbar". The product is a console: your own standing on the left,
+          the engagement in the middle, the agent and the enemy on the right -
+          so identity rides the own-forces panel and the tools ride the
+          agent's, because that is whose they are. */}
+      <div className="grid items-start gap-sm p-sm lg:grid-cols-[288px_minmax(0,1fr)] 2xl:grid-cols-[288px_minmax(0,1fr)_320px]">
+        {/* LEFT FLANK - ours */}
+        <div className="hidden flex-col gap-sm lg:sticky lg:top-sm lg:flex">
+          <Card className="p-sm">
+            <div className="flex items-center gap-xs">
+              <ShellBrand href="/" label={SHELL_TEXT.brandName} tag={HEADER_TEXT.version(appVersion)} />
             </div>
-          ) : null}
-        </nav>
+            <div className="mt-xs flex flex-wrap items-center gap-2xs">
+              <StatusBadge tone="neutral">{workspaceLabel}</StatusBadge>
+              <StatusBadge tone={tier ? "brand" : "neutral"}>
+                {tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
+              </StatusBadge>
+            </div>
+          </Card>
 
-        <main className="content-scroll">
-          <div className="content-inner">{children}</div>
-        </main>
+          <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
+        </div>
+
+        {/* CENTRE - the engagement */}
+        <main className="min-w-0">{children}</main>
+
+        {/* RIGHT FLANK - the agent, and what it is looking at */}
+        <div className="hidden flex-col gap-sm 2xl:sticky 2xl:top-sm 2xl:flex">
+          <Card className="p-sm">
+            <div className="flex items-center gap-xs">
+              <ShellSearchBox
+                query={query}
+                onQueryChange={setQuery}
+                groups={searchGroups}
+                labels={{
+                  placeholder: HEADER_TEXT.searchPlaceholder,
+                  empty: HEADER_TEXT.searchEmpty,
+                  loading: HEADER_TEXT.searchLoading,
+                }}
+              />
+              <ShellIconGroup label={NAV_TEXT.ariaLabel}>
+                {admin.some((e) => e.state === "visible") ? (
+                  <a href="/admin" aria-label={HEADER_TEXT.adminAria} title={HEADER_TEXT.adminAria}>
+                    <ShellIconButton icon="settings" label={HEADER_TEXT.adminAria} />
+                  </a>
+                ) : null}
+                <ShellThemeToggle
+                  currentTheme={mode === "dark" ? "dark" : "light"}
+                  onThemeChange={(next) => setMode(next)}
+                />
+              </ShellIconGroup>
+              <ShellUserMenu user={{ displayName: userName, uniqueLine: workspaceLabel }} />
+            </div>
+          </Card>
+
+          <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
+        </div>
       </div>
     </div>
   );

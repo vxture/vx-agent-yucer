@@ -336,6 +336,29 @@ export async function recordWinLossReview(
  * pipeline.forecast permission rather than pipeline.write: advancing a deal and
  * committing a number upward are different acts by different people.
  */
+/**
+ * Every snapshot taken for a period, oldest first.
+ *
+ * THIS IS THE ONLY REASON forecast_snapshot IS APPEND-ONLY. The DDL revokes
+ * UPDATE on it so accuracy can be measured - period-end actual against what was
+ * forecast at period start - and that measurement is impossible unless the
+ * whole series survives. Until now nothing read it back, so the immutability
+ * was a cost the product paid and never collected on.
+ *
+ * Gated on pipeline.forecast.view, the read half of the forecast permission:
+ * seeing what the team committed to and having committed it are the same
+ * privilege, and a rep who may not forecast may not audit the forecast either.
+ */
+export async function forecastHistory(
+  ctx: PipelineContext,
+  period: string,
+  scopeType: "workspace" | "territory" | "owner" = "workspace",
+): Promise<RuleResult<SnapshotRow[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType }));
+}
+
 export async function submitForecast(
   ctx: PipelineContext,
   input: { period: string; scope: ForecastScope; currency?: string; snapshotAt?: Date },

@@ -6,6 +6,7 @@ import type { AuthzContext } from "../../authz/context";
 import {
   ADMIN_NAV_ENTRIES,
   DOMAIN_NAV_ENTRIES,
+  WORK_NAV_ENTRIES,
   NAV_ENTRIES,
   defaultLandingHref,
   isFullyLockedOut,
@@ -44,7 +45,19 @@ test("administration is nav, but it is not a capability domain", () => {
     ADMIN_NAV_ENTRIES.map((e) => e.key),
     ["admin", "adoption"],
   );
-  assert.equal(NAV_ENTRIES.length, DOMAIN_NAV_ENTRIES.length + ADMIN_NAV_ENTRIES.length);
+  assert.equal(
+    NAV_ENTRIES.length,
+    WORK_NAV_ENTRIES.length + DOMAIN_NAV_ENTRIES.length + ADMIN_NAV_ENTRIES.length,
+  );
+});
+
+test("the work entries are not domains either, and the copilot stays a domain", () => {
+  // The copilot moved in the SHELL - it is grouped with the work rather than
+  // listed ninth in a flat menu - but it is still D8 (ADR-001). Demoting it out
+  // of the domain inventory to express a layout decision would make the
+  // eight-domain assertion above a statement about a sidebar.
+  assert.deepEqual(WORK_NAV_ENTRIES.map((e) => e.key), ["home"]);
+  assert.ok(DOMAIN_NAV_ENTRIES.some((e) => e.key === "copilot"));
 });
 
 test("an entitlement gap is advertised, not hidden", () => {
@@ -77,7 +90,9 @@ test("the two gaps are never confused with each other", () => {
 test("a free-tier rep sees the core loop and nothing else unlocked", () => {
   const nav = resolveNavigation(ctx("sales_rep"), ent({ tier: "free" }));
   const visible = nav.filter((e) => e.state === "visible").map((e) => e.key);
-  assert.deepEqual(visible.sort(), ["account", "copilot", "pipeline"]);
+  // home rides account.view, so a rep who can read accounts can read the
+  // judgements drawn from them - and a rep who cannot has nothing to land on.
+  assert.deepEqual(visible.sort(), ["account", "copilot", "home", "pipeline"]);
 });
 
 test("an enterprise sales leader sees every domain", () => {
@@ -90,7 +105,10 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   const nav = resolveNavigation(ctx("viewer"), ent({ tier: "enterprise" }));
   // Every DOMAIN, not every entry: a viewer holds no admin.manage, so the
   // administration entry is a silent permission gap for them.
-  assert.equal(nav.filter((e) => e.state === "visible").length, DOMAIN_NAV_ENTRIES.length);
+  assert.equal(
+    nav.filter((e) => e.state === "visible").length,
+    DOMAIN_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length,
+  );
   assert.equal(nav.some((e) => e.key === "admin"), false);
 });
 
@@ -157,19 +175,34 @@ test("an administrator of a paid workspace can always reach the members screen",
   }
 });
 
-test("landing goes to the first domain that is actually open", () => {
+test("landing goes to the judgement stream, not to a list", () => {
+  // It used to be "the first open domain in chain order", which meant everyone
+  // arrived at a directory of their own customers - a screen that answers a
+  // question they did not ask. Home is first in NAV_ENTRIES now, so both of
+  // these land there.
   const rep = resolveNavigation(ctx("sales_rep"), ent({ tier: "free" }));
-  assert.equal(defaultLandingHref(rep), "/account", "account precedes pipeline in chain order");
+  assert.equal(defaultLandingHref(rep), "/");
 
   const delivery = resolveNavigation(ctx("delivery_manager"), ent({ tier: "starter" }));
-  assert.equal(defaultLandingHref(delivery), "/account");
+  assert.equal(defaultLandingHref(delivery), "/");
+});
+
+test("a member who cannot read accounts lands somewhere they can read", () => {
+  // home is gated on account.view. Without it there is nothing to land on, and
+  // the fallback must still be a real destination rather than a dead href.
+  const pm = resolveNavigation(ctx("delivery_manager"), ent({ tier: "enterprise" }));
+  const href = defaultLandingHref(pm);
+  assert.ok(href, "somewhere");
+  assert.ok(pm.some((e) => e.href === href && e.state === "visible"));
 });
 
 test("every nav entry points at a real action and a distinct route", () => {
   assert.equal(new Set(NAV_ENTRIES.map((e) => e.href)).size, NAV_ENTRIES.length);
   assert.equal(new Set(NAV_ENTRIES.map((e) => e.key)).size, NAV_ENTRIES.length);
   // Lowercase path segments; more than one is allowed (/admin/members).
-  for (const e of NAV_ENTRIES) assert.match(e.href, /^(\/[a-z]+)+$/);
+  // Lowercase segments, or the root itself - home is "/" and that is a real
+  // destination rather than a missing path.
+  for (const e of NAV_ENTRIES) assert.match(e.href, /^\/$|^(\/[a-z]+)+$/);
 });
 
 test("a locked entry carries the tier that would unlock it, so the CTA can be specific", () => {

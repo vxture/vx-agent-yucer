@@ -188,6 +188,7 @@ function toSignal(r: Record<string, unknown>): SignalRecord {
     detectedAt: r.detectedAt as Date,
     accountId: (r.accountId as string | null) ?? null,
     score: (r.score as number | null) ?? null,
+    targeting: (r.targeting as SignalRecord["targeting"]) ?? null,
     status: r.status as SignalStatus,
   };
 }

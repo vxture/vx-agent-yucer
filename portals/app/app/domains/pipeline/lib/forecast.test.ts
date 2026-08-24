@@ -234,3 +234,26 @@ test("accuracy compares what actually closed against what was committed", () => 
   assert.equal(unwrap(accuracy({ commitAmount: money(1000) }, money(900))), 0.9);
   assert.equal(unwrap(accuracy({ commitAmount: money(0) }, money(900))), null);
 });
+
+// Business rules section 2: `closed` means 已成交. The enum has no "lost"
+// value, so a lost deal is filed under closed as well - and counting it as
+// revenue reports money nobody ever won, which is the one direction a forecast
+// must never be wrong in.
+test("a lost deal contributes to no category, closed included", () => {
+  const totals = unwrap(
+    rollUp([
+      { id: "won", stage: "won", forecastCategory: "closed", amount: money(500_000), territoryId: null, ownerSub: null, status: "won" },
+      { id: "lost", stage: "lost", forecastCategory: "closed", amount: money(300_000), territoryId: null, ownerSub: null, status: "lost" },
+    ]),
+  );
+  assert.equal(totals.closedAmount.amount, 500_000);
+});
+
+test("an opportunity with no status is treated as live - legacy rows still roll up", () => {
+  const totals = unwrap(
+    rollUp([
+      { id: "a", stage: "negotiate", forecastCategory: "commit", amount: money(100_000), territoryId: null, ownerSub: null },
+    ]),
+  );
+  assert.equal(totals.commitAmount.amount, 100_000);
+});

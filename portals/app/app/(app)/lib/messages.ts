@@ -1,3 +1,4 @@
+import type { SignalType } from "../../domains/signal/lib/scoring";
 /* eslint-disable */
 // User-facing strings for the product surfaces.
 //
@@ -70,6 +71,8 @@ export const DOMAIN_LABEL: Record<string, string> = {
   pipeline: "商机管理",
   delivery: "项目落地",
   copilot: "销售助手",
+  home: "今日判断",
+  queue: "待我裁决",
   admin: "成员与角色",
   adoption: "使用情况",
 };
@@ -127,12 +130,129 @@ export const SHELL_TEXT = {
   loadFailed: "数据加载失败",
 } as const;
 
+/**
+ * The signed-out landing page.
+ *
+ * Separate from SHELL_TEXT's signedOutTitle/Description, which stay for any
+ * caller that still wants the terse inline version. This page is the product's
+ * front door - opened by typing the domain - so it introduces the product
+ * rather than only reporting a missing session.
+ */
+export const SIGNIN_TEXT = {
+  // No exclamation and no welcome: the reader did not choose to be here, they
+  // arrived and were stopped. Say what has to happen and why.
+  description: "登录以验证您的订阅并访问产品。",
+  cta: "登录",
+  // Promised because returnTo really does carry the path they asked for - a
+  // hint that were not true would be worse than no hint.
+  hint: "登录后将自动返回当前页面",
+  ariaLabel: "登录",
+} as const;
+
+/**
+ * The navigation board.
+ *
+ * Section titles and the LABEL beside each number. The unit belongs to the
+ * value, not to the label - "240 万" is one fact and splitting it across two
+ * elements makes the reader reassemble it.
+ */
+export const BOARD_TEXT = {
+  today: "今日判断",
+  adjudicate: "待我裁决",
+  mydeals: "我的商机",
+  strategy: "市场战略",
+  campaign: "市场执行",
+  planning: "销售规划",
+  account: "客户管理",
+  signal: "商机侦探",
+  delivery: "项目落地",
+
+  tierToday: "今天",
+  tierWeek: "本周",
+  tierWatch: "留意",
+  pending: "待裁决",
+  /** What the agent is proposing. Split by KIND rather than by confidence: a
+   *  confidence threshold would be a number this repo invented, while the
+   *  action type is a fact already in the row. */
+  actAdvance: "推进阶段",
+  actOutreach: "起草外联",
+  actPromote: "提升线索",
+  actOther: "其他",
+  capUnlabelled: "未标注",
+  /**
+   * Capability labels, keyed by the stored key (ADR-015).
+   *
+   * Here rather than in the domain module: display text belongs to the UI, and
+   * TD-002 contains every non-ASCII string in this file.
+   */
+  capabilityLabels: {
+    "deal.stall_risk": "停滞风险",
+    "deal.competition": "竞争态势",
+    "account.chain_map": "决策链测绘",
+    "account.cadence": "战略客户节奏",
+    "signal.triage": "信号分拣",
+    "pricing.discount_approval": "折扣审批",
+    "delivery.payment_risk": "回款风险",
+    "campaign.return": "战役回报",
+  } as Record<string, string>,
+  dealsOpen: "在办",
+  dealsWorth: "金额",
+  plans: "计划",
+  campaigns: "战役",
+  targets: "目标",
+  territories: "辖区",
+  accounts: "客户",
+  signals: "信号",
+  leads: "线索",
+  projects: "项目",
+
+  /** Ten-thousands, the unit Chinese enterprise sales actually quotes in. */
+  wan: (amount: number) => `${Math.round(amount / 10_000)} 万`,
+  expand: (title: string) => `展开${title}`,
+  collapse: (title: string) => `收起${title}`,
+  boardLabel: "板块概览",
+  resource: "我的资源",
+  productLines: "产品线 · 在办",
+  needsApproval: "待批折扣",
+  allies: "友军 · 决策链",
+  alliesCoaches: "已建内线",
+  alliesUnreachable: "决策人未触达",
+  alliesBlockers: "有阻力",
+  playbooks: "可用剧本",
+  quota: (period: string) => `${period} 目标`,
+  quotaWon: "已签",
+  quotaTarget: "目标",
+  quotaOf: "已完成",
+  quotaLeft: (pct: number) => `${pct}%`,
+  agent: "智能助手",
+  agentScope: (n: number) => `正看着 ${n} 位客户`,
+  capture: "记一笔",
+  ask: "问参谋",
+  attach: "添加附件",
+  notWired: "该能力尚未接通",
+  reconTitle: "敌情",
+  reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
+  reconCta: "发起竞争态势分析",
+  reconNote: "分析结果会作为「模型」判断入流。",
+  captureSend: "存",
+  capturePlaceholder: "刚跟王总通完电话……",
+  captureHelp: "三句话、一段微信、一封转发的邮件都算，原文会原样保留。",
+  pendingTitle: "今天要定的",
+  recentTitle: "最近记的",
+  sourceRule: "规则",
+  sourceModel: "模型",
+  whenToday: "今天",
+  whenDaysAgo: (n: number) => `${n} 天前`,
+  truncate: (t: string) => `${t}……`,
+} as const;
+
 export const NAV_TEXT = {
   ariaLabel: "能力域导航",
   // The sidebar groups are a business statement, not a tidy-up: D1-D7 are a
   // sequence, the copilot cuts across all of them, and administration sits
   // outside the chain.
-  groupChain: "销售链条",
+  groupWork: "工作台",
+  groupChain: "档案",
   groupAgent: "智能助手",
   groupAdmin: "管理",
   requiresTier: (tier: string) => `需要 ${tier} 档位`,
@@ -147,6 +267,118 @@ export const ASK_ABOUT_TEXT = {
   anchoredHint:
     "助手能读到这个客户下已记录的跟进原文与承诺，回答时会标注它引用了哪一条。读不到的东西它不会替你补——没记下来的事，它也不知道。",
   linkFromAccount: "就这个客户问助手",
+} as const;
+
+export const HEADER_TEXT = {
+  searchPlaceholder: "搜索客户、商机、跟进记录",
+  searchEmpty: "没有匹配的",
+  searchLoading: "检索中",
+  groupAccounts: "客户",
+  groupDeals: "商机",
+  subscription: (tier: string) => `${tier} 档`,
+  subscriptionNone: "未订阅",
+  subscriptionAria: "订阅档位",
+  // Passed through. The "v" prefix used to be added here, which turned the
+  // local build label "dev" into "vdev"; a prefix that only fits one of the
+  // three shapes this label takes belongs where the label is chosen.
+  version: (v: string) => v,
+  adminAria: "管理",
+  userMenuOpen: "打开用户菜单",
+} as const;
+
+export const ADMIN_TEXT = {
+  title: "管理",
+  description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
+  emptyTitle: "你没有管理权限",
+  emptyDescription: "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
+  entryHint: {
+    admin: "谁能进这个工作区，各自能做什么",
+    adoption: "跟进记录有没有被用起来。判据见 ADR-012",
+  } as Record<string, string>,
+} as const;
+
+export const HOME_TEXT = {
+  title: "今日判断",
+  description: (n: number) => `由 ${n} 位客户的已记录跟进推出。同时只展开一条。`,
+  emptyTitle: "现在没有要处理的",
+  emptyDescription:
+    "没有逾期承诺、没有长时间沉默、没有决策人零接触。这不是「暂无数据」——是扫过了，确实没有。",
+  emptyNoRecords:
+    "还没有任何跟进记录，所以推不出任何判断。判断是从记录里长出来的，第一步是记一笔。",
+  scopeMine: "我的",
+  scopeAll: "全部",
+  urgencyAll: "全部",
+  urgencyToday: "今天",
+  urgencyWeek: "本周",
+  urgencyWatch: "留意",
+  sourceRule: "规则",
+  sourceModel: "模型",
+  // Stated where a reader sees it, because it is the whole reason the two are
+  // marked apart.
+  sourceRuleHint: "算出来的，你可以自己复核",
+  sourceModelHint: "看出来的，只能核对它引用的原文",
+  secEvidence: "依据",
+  secEvidenceCount: (n: number) => `依据 · ${n} 条`,
+  secFacts: "关键事实",
+  secSeries: "逐周走势",
+  secRule: "触发条件",
+  // The agent's own opening sentence. The screen used to open with the label
+  // "今日判断" and a grey line of provenance, which is a filing-cabinet drawer
+  // tag. This is a colleague who did the reading telling you what they found.
+  lead: (n: number) => `今天有 ${n} 件要你定`,
+  leadNone: "今天没有要你定的事",
+  queueLabel: "待定判断队列",
+  leadSub: (accounts: number, judgements: number) =>
+    `扫过 ${accounts} 位客户的跟进记录，得出 ${judgements} 条判断`,
+  evidenceMore: (n: number) => `还有 ${n} 条依据`,
+  evidenceLess: "只看最近一条",
+  /** Facts joined into the one line a collapsed card shows. */
+  factInline: (label: string, value: string) => `${label} ${value}`,
+  factJoin: " · ",
+  expand: "展开",
+  collapse: "收起",
+  analysisRisk: "风险分析",
+  analysisCompetition: "竞争态势",
+  analysisChain: "决策链分析",
+  analysisPolicy: "政策与行业",
+  analysisHint: "分析结果会作为「模型」判断入流",
+  /** Says what it really does. "忽略" would promise something this control
+   *  deliberately does not do - the judgement returns in a week, and sooner if
+   *  it gets worse. */
+  actDismissHint: "暂缓 7 天；若紧急度升高会提前回到队列",
+  actDismiss: "不用管",
+  agentTitle: "智能助手",
+  agentScope: (n: number) => `正看着：${n} 位客户`,
+  agentNote: "记一笔",
+  agentAsk: "问助手",
+  agentPlaceholder: "刚跟王总通完电话……",
+  // Was appended to the placeholder with a blank line, which rendered it as a
+  // second paragraph INSIDE the input - it read as text someone had already
+  // typed. Guidance about a field belongs beside the field, not in it.
+  agentHelp: "三句话、一段微信、一封转发的邮件都算，原文会原样保留。",
+  agentSend: "存",
+  agentPending: "待我裁决",
+  agentPendingCount: (n: number) => `待我裁决 · ${n} 条`,
+  /** Source and time, joined. The separator lives here, not in a component. */
+  agentPendingWhen: (source: string, when: string) => `${source} · ${when}`,
+  /** Truncation is copy too - the ellipsis is a character, and it is Chinese. */
+  truncate: (text: string) => `${text}…`,
+  agentRecent: "最近记的",
+  agentAvatar: "聿",
+  agentComposeLabel: "记一笔或问助手",
+  scopeLabel: "范围",
+  urgencyLabel: "紧要程度",
+  // Names the destination, not the gesture. "打开" says a page will appear;
+  // "打开阵地" says which page and why - and it is the same word the account
+  // detail page titles itself with, so the link and its landing agree.
+  openSubject: "打开阵地",
+  openTeam: "看采纳看板",
+  whenToday: "今天",
+  whenDaysAgo: (n: number) => `${n} 天前`,
+  pendingFromScan: "今晨扫描",
+  pendingFromClick: "你点了分析",
+  /** Subject and claim, joined. Kept here so no separator lives in a .tsx. */
+  pendingTitle: (subject: string, claim: string) => `${subject} · ${claim}`,
 } as const;
 
 export const RECENCY_TEXT = {
@@ -215,6 +447,26 @@ export const PIPELINE_TEXT = {
   emptyTitle: "暂无商机",
   emptyDescription: "线索合格转化后会出现在这里。",
   rollupFailedTitle: "无法汇总",
+  // --- Added for the redesigned page ---------------------------------------
+  // The agent's opening sentence, same shape as the home screen's: what the
+  // number MEANS this week, not the label "pipeline".
+  lead: (commit: string) => `本季承诺 ${commit}`,
+  leadDelta: (delta: string, since: number) => `较 ${since} 天前的预测 ${delta}`,
+  leadFlat: "与上次预测持平",
+  leadNoHistory: "本期尚无预测记录",
+  periodOf: (p: string) => `${p} 口径`,
+
+  trajectory: "预测轨迹",
+  trajectoryWhy: "快照只追加、不可修改——预测准确率是期末实际对期初快照，少一个点就算不出来。",
+  tCommit: "承诺",
+  tBestCase: "乐观",
+  tPipeline: "管道",
+  tClosed: "已成交",
+
+  productSplit: "承诺的构成",
+  productSplitWhy: "按产品行项拆开。一个总额说不出这笔钱要交付什么。",
+  needsApproval: "折扣待批",
+  noLines: "尚无产品行项",
 } as const;
 
 export const LIFECYCLE_TEXT = {
@@ -498,9 +750,45 @@ export const SIGNAL_TEXT = {
   rescore: "重新评分",
   scoreExplain: (base: number, decay: number, bonus: number) =>
     `类型权重 ${base} × 时效 ${decay.toFixed(2)} + 匹配加成 ${bonus}`,
+  // --- Added for the redesigned inbox --------------------------------------
+  // Opens with what came in, not with the word "inbox".
+  lead: (n: number) => `${n} 条情报待判`,
+  leadNamed: (n: number) => `其中 ${n} 条来自命名客户`,
+  leadNone: "暂无待判情报",
+
+  // The two lines of enquiry (ADR-016). Aim decides what to read first, never
+  // what is allowed in - so the untargeted group is shown, not hidden.
+  groupNamed: "命名客户线",
+  groupNamedWhy: "战略客户清单上的公司，持续盯招标、人事、投资。",
+  groupDomain: "业务领域线",
+  groupDomainWhy: "我们产品能覆盖的标的类型。名单外的新客户从这里进来。",
+  groupNone: "未定向",
+  groupNoneWhy: "早于定向挖掘的历史信号，保留原样、不回填。",
+
+  // The score, taken apart. It was a bare number until now.
+  breakdown: "评分构成",
+  bdBase: "类型权重",
+  bdDecay: "时效",
+  bdBonus: "匹配加成",
+  bdAge: "已过天数",
+  stale: "评分已过期",
+  staleCount: (n: number) => `${n} 条评分已过期，重新评分可对齐`,
+  staleWhy: (stored: number, now: number) =>
+    `入库时 ${stored} 分，按今天的时效重算是 ${now} 分。评分会随时间衰减，重新评分即可对齐。`,
+  detectedOn: (d: string, src: string) => `发现于 ${d} · ${src}`,
 } as const;
 
-export const SIGNAL_TYPE_LABEL: Record<string, string> = {
+/**
+ * Keyed by SignalType rather than by string.
+ *
+ * It was a Record<string, string>, which meant adding a type without a label
+ * compiled fine and rendered the raw key on screen - which is exactly what
+ * happened when tender and compliance arrived (ADR-016). Now the omission is a
+ * compile error.
+ */
+export const SIGNAL_TYPE_LABEL: Record<SignalType, string> = {
+  tender: "招标公示",
+  compliance: "政策合规",
   intent: "购买意向",
   hiring: "招聘扩张",
   funding: "融资",
@@ -783,4 +1071,127 @@ export const PREVIEW_FIXTURES = {
     "招聘信号衰减后重算。",
     "对方已口头确认选型结果。",
   ],
+} as const;
+
+/**
+ * Health reasons, rendered.
+ *
+ * The domain used to build these sentences itself, in English, inside a Chinese
+ * product. It now emits a code and its numbers; the words live here with every
+ * other user-visible string.
+ */
+export function healthReasonText(r: {
+  code: string;
+  count?: number;
+  days?: number;
+  furthestStage?: string;
+}): string {
+  switch (r.code) {
+    case "no_open_deals":
+      return "没有开放商机";
+    case "open_deals":
+      return `${r.count} 个开放商机，最远到 ${(STAGE_LABEL as Record<string, string>)[r.furthestStage ?? ""] ?? r.furthestStage}`;
+    case "never_contacted":
+      return "没有任何跟进记录";
+    case "quiet_days":
+      return `已 ${r.days} 天没有接触`;
+    case "contacted_days":
+      return `${r.days} 天前有过接触`;
+    case "projects_red":
+      return `${r.count} 个项目红灯`;
+    case "projects_amber":
+      return `${r.count} 个项目黄灯`;
+    case "projects_green":
+      return `${r.count} 个项目绿灯`;
+    case "overdue_revenue":
+      return `${r.count} 笔回款逾期`;
+    case "revenue_clean":
+      return "回款无逾期";
+    default:
+      return r.code;
+  }
+}
+
+/**
+ * The position page - an opportunity-led pursuit review.
+ *
+ * Structured the way a deal review actually runs: whose position this is, what
+ * the other side looks like, what our own side looks like, and what we intend
+ * to do next. The last part is proposals a human signs, never a free-text memo
+ * that becomes a second untended TODO list (ADR-003).
+ */
+export const POSITION_TEXT = {
+  tierStrategic: "战略客户",
+  tierKey: "重点客户",
+  tierStandard: "普通客户",
+  planOf: (period: string) => `${period} 经营计划`,
+  planTarget: "计划目标",
+  planDeals: "在办商机",
+
+  triangle: "负责团队",
+  /** The three owners, joined. The separator is text, so it lives here. */
+  triangleOf: (sales: string, presales: string, delivery: string) =>
+    `销售 ${sales} · 售前 ${presales} · 交付 ${delivery}`,
+  roleOwner: "销售",
+  rolePresales: "售前",
+  roleDelivery: "交付",
+  roleUnset: "未指定",
+
+  external: "敌情 · 外部",
+  externalWhy: "对方的决策结构、在交付的项目、以及竞争。",
+  chain: "决策链",
+  chainCovered: "已覆盖角色",
+  chainMissing: "缺失角色",
+  chainCoaches: "内线",
+  chainBlockers: "阻力",
+  chainUnreachable: "决策人不可达",
+  chainReachable: "决策人可达",
+  projects: "在交付的项目",
+  noProjects: "这家客户目前没有在交付的项目",
+  /**
+   * Words that mark a note as mentioning a rival.
+   *
+   * Data about Chinese prose, so it lives with the other Chinese strings rather
+   * than inside a page module. Crude on purpose: it selects QUOTES for a human
+   * to read, never a conclusion, so a false positive costs one extra sentence
+   * and a miss costs nothing that was not already invisible.
+   */
+  rivalWords: ["另一家", "竞争", "对手", "别家", "友商"] as readonly string[],
+  competition: "竞争态势",
+  competitionNone: "尚无结构化的竞争情报。以下是跟进原文里提到对手的片段——这是目前唯一的依据。",
+  competitionNoMention: "跟进原文里没有出现竞争对手。这不等于没有对手，只等于没人记下来。",
+  scout: "发起竞争态势分析",
+
+  internal: "我情 · 内部",
+  internalWhy: "我们这边：谁在负责、做过什么、卡在哪。",
+  problems: "重点问题",
+  problemsWhy: "由规则从已记录的证据推出，不是人工填写的风险清单。",
+  noProblems: "规则没有在这个阵地上发现问题。",
+  history: "跟进过程",
+  historyCount: (n: number) => `${n} 条记录`,
+
+  plan: "下一步作战计划",
+  planWhy: "助手提议，人来签字。没有人落章就不会执行。",
+  planEmpty: "助手目前没有针对这个阵地的提案。",
+  planCommercial: "商务",
+  planTechnical: "产品技术",
+  planRelation: "关系",
+  /**
+   * What a proposal would DO, in words.
+   *
+   * The page printed the raw action_type - the third time a bare key has
+   * reached the screen in this repo. Unknown keys fall back to the key rather
+   * than to a guess, so a new action type is visible as unlabelled instead of
+   * silently mislabelled.
+   */
+  actionLabels: {
+    advance_stage: "推进到下一阶段",
+    draft_outreach: "起草一封外联",
+    promote_signal: "把信号升级为线索",
+    adjust_forecast: "调整预测口径",
+    draft_email: "起草邮件",
+  } as Record<string, string>,
+  approve: "批准",
+  reject: "否决",
+  confidence: (n: number) => `置信度 ${n}`,
 } as const;

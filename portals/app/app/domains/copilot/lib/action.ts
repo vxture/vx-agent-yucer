@@ -63,6 +63,14 @@ export interface AgentAction {
   id: string;
   status: ActionStatus;
   actionType: string;
+  /**
+   * Which capability proposed this - ADR-015. Frozen with payload/rationale.
+   *
+   * Nullable because historical rows have none. Backfilling a guess would
+   * manufacture accuracy data that reads as measured, and a gap is visible
+   * where a guess is not.
+   */
+  capability: string | null;
   subjectType: SubjectType;
   subjectId: string;
   /** The model's own record. Frozen at creation. */

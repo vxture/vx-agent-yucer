@@ -3,8 +3,10 @@ import { assertWritable } from "../shared/column-locks";
 import type { AccountStatus, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
+  AccountPlanRecord,
   AccountRecord,
   AccountStore,
+  AccountTier,
   ContactRecord,
   HealthInputs,
 } from "./store";
@@ -188,6 +190,28 @@ export class PrismaAccountStore implements AccountStore {
       overdueRevenueCount,
     };
   }
+
+  async getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
+    const p = await getPrismaClient();
+    const r = (await p.accountPlan.findFirst({
+      where: { workspaceId, accountId, status: "active" },
+      orderBy: { period: "desc" },
+    })) as Record<string, unknown> | null;
+    if (!r) return null;
+    return {
+      id: String(r.id),
+      workspaceId: String(r.workspaceId),
+      accountId: String(r.accountId),
+      period: String(r.period),
+      targetAmount: r.targetAmount === null ? null : Number(r.targetAmount),
+      contactCadenceDays: Number(r.contactCadenceDays),
+      execCadenceDays: Number(r.execCadenceDays),
+      ownerSub: (r.ownerSub as string | null) ?? null,
+      presalesSub: (r.presalesSub as string | null) ?? null,
+      deliverySub: (r.deliverySub as string | null) ?? null,
+      status: r.status as "active" | "closed",
+    };
+  }
 }
 
 function toAccount(r: Record<string, unknown>): AccountRecord {
@@ -202,5 +226,6 @@ function toAccount(r: Record<string, unknown>): AccountRecord {
     ownerSub: (r.ownerSub as string | null) ?? null,
     healthScore: (r.healthScore as number | null) ?? null,
     status: r.status as AccountStatus,
+    tier: (r.tier as AccountTier | undefined) ?? "standard",
   };
 }

@@ -2,8 +2,17 @@ import type { ReactNode } from "react";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
-import { resolveNavigation, lockoutReason, ADMIN_NAV_ENTRIES } from "./lib/navigation";
+import { resolveNavigation, lockoutReason } from "./lib/navigation";
+import { boardSections, agentPanel } from "./lib/board";
+import { can } from "../authz/decide";
+import { recordFollowUp } from "./account/field-actions";
 import { AppShell } from "./components/app-shell";
+import { SignIn } from "./components/sign-in";
+import { serviceIdentity } from "@vxture/shared";
+import { BRAND } from "@yucer/shared/brand";
+import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
+import { listAccounts } from "../domains/account/service";
+import { listPipeline } from "../domains/pipeline/service";
 import { SHELL_TEXT } from "./lib/messages";
 
 // The product shell.
@@ -16,17 +25,39 @@ import { SHELL_TEXT } from "./lib/messages";
 // The three lockout states are distinct on purpose and none of them renders the
 // shell: there is nothing to navigate.
 
+/**
+ * What to print beside the wordmark.
+ *
+ * serviceIdentity returns "unknown" for the sha when GIT_SHA is unset, which is
+ * every local run - and "vunknown" in a header reads like a defect rather than
+ * like a development build. Say "dev" when that is what it is; a version string
+ * that cannot be traced to a build should not pretend to be one.
+ */
+function buildLabel(): string {
+  const { gitSha } = serviceIdentity({
+    service: `${BRAND.productCode}-app`,
+    product: BRAND.productCode,
+  });
+  // Three shapes, and only one of them takes a "v": a semver release does,
+  // a commit sha does not, and "dev" is not a version at all.
+  const declared = process.env.APP_VERSION;
+  if (!gitSha || gitSha === "unknown") return declared ? `v${declared}` : "dev";
+  return gitSha.slice(0, 7);
+}
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await resolveAppSession();
 
-  // No session: say so plainly. Auto-redirecting to the IdP from a layout would
-  // bounce anyone who merely opened a stale tab.
+  // No session: the product's front door, rendered in place. Auto-redirecting
+  // to the IdP from a layout would bounce anyone who merely opened a stale tab,
+  // and rendering here also KEEPS THE URL - so signing in returns to the page
+  // that was actually asked for rather than to the home screen.
+  //
+  // It sits on this layout rather than on a route so it covers every route:
+  // there is no address in the product that answers a session-less visitor
+  // with anything else.
   if (!session) {
-    return (
-      <ViewLayout>
-        <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />
-      </ViewLayout>
-    );
+    return <SignIn />;
   }
 
   const nav = resolveNavigation(session.authz, session.entitlement);
@@ -61,23 +92,95 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Split for the sidebar's three groups. The copilot is pulled OUT of the
-  // domain list rather than left at its end: it cuts across all seven links of
-  // the chain, and rendering it as their eighth peer would read as a stage that
-  // comes after delivery.
-  const adminKeys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
-  const domains = nav.filter((e) => e.key !== "copilot" && !adminKeys.has(e.key));
-  const copilot = nav.find((e) => e.key === "copilot") ?? null;
-  const admin = nav.filter((e) => adminKeys.has(e.key));
+  // The sidebar's sections and their real numbers.
+  //
+  // Gathered here rather than in the page because the board belongs to the
+  // SHELL - it is on screen for every route, so every route pays for it. That
+  // cost is real and deliberate: a board that only knew the numbers on the home
+  // screen would go stale the moment you navigated, which is worse than not
+  // showing numbers at all.
+  //
+  // The judgement feed inside it is memoised per request (board.ts), so the
+  // home page reusing it does not compute the most expensive read twice.
+  // Administration still comes from the gate resolver, not the board: it is
+  // setup rather than work, and it lives as a header icon.
+  const admin = nav.filter((e) => e.key === "admin" || e.key === "adoption");
+
+  const canRecord = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
+  const agent = await agentPanel(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+    },
+    new Date(),
+  );
+
+  const board = await boardSections({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  });
+
+  // What search can reach, assembled through the SAME services the pages use -
+  // so a member cannot find by name what a page would refuse to show them.
+  // Failures degrade to an empty list: search going quiet is a smaller harm
+  // than the shell refusing to render.
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+  const [accounts, deals] = await Promise.all([
+    listAccounts({ ...base, store: getAccountStore() }),
+    listPipeline({ ...base, store: getPipelineStore() }),
+  ]);
+  const searchable = [
+    ...(accounts.ok ? accounts.value : []).map((a) => ({
+      key: `a:${a.id}`,
+      label: a.name,
+      description: a.industry ?? undefined,
+      href: `/account/${a.id}`,
+      group: "account" as const,
+    })),
+    ...(deals.ok ? deals.value : []).map((d) => ({
+      key: `d:${d.id}`,
+      label: d.name,
+      description: d.accountName ?? d.opportunityNo,
+      href: `/pipeline/${d.id}`,
+      group: "deal" as const,
+    })),
+  ];
 
   return (
     <AppShell
-      domains={domains}
-      copilot={copilot}
+      board={board}
+      agent={agent}
+      canRecord={canRecord}
+      onRecord={async (text: string) => {
+        "use server";
+        // No account id: an unanchored note is still worth keeping, and
+        // demanding one at capture time is the friction ADR-012's kill
+        // criterion is measuring.
+        return recordFollowUp("", {
+          channel: "other",
+          occurredAt: new Date().toISOString(),
+          rawNote: text,
+        });
+      }}
+      appVersion={buildLabel()}
+      tier={session.entitlement.tier}
+      searchable={searchable}
       admin={admin}
       activeKey={null}
       userName={session.user.sub}
-      workspaceLabel={session.entitlement.tier ?? SHELL_TEXT.workspaceFallback}
+      // NOT the tier. The header already states the tier in its own badge, and
+      // passing it here printed "enterprise" twice - once as the place you are
+      // in and once as what you pay for, which are different facts.
+      workspaceLabel={SHELL_TEXT.workspaceFallback}
       upgradeHref={subscribeUrl({ intent: "upgrade" })}
     >
       {children}

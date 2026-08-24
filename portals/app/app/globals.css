@@ -19,7 +19,19 @@
  * node_modules by default. The DS ships its components pre-built, so the class
  * names they render live in its dist bundle - without this the components mount
  * with class names that have no CSS behind them and the whole UI renders
- * unstyled. Pointing at the package root rather than a file keeps it working if
- * the DS changes its bundle layout.
+ * unstyled.
+ *
+ * BOTH packages have to be listed. Until design-system 5 the components were
+ * all in that one package; the 5.0 split moved every component - Button,
+ * DataTable, Accordion, SegmentedControl, PanelCard, the lot - into
+ * @vxture/design-ui, leaving design-system with only the shell, auth and theme
+ * layer. Scanning only the old path silently purged the utilities for
+ * essentially the entire component library, which renders as a page whose
+ * markup is right and whose layout is absent.
+ *
+ * Pointing at the package root rather than a file keeps this working if either
+ * package changes its bundle layout. If a third @vxture package ever ships
+ * components, it needs a line here too.
  */
 @source "../node_modules/@vxture/design-system/dist";
+@source "../node_modules/@vxture/design-ui/dist";

@@ -34,7 +34,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "region",
     "segment_code",
     "owner_sub",
-    "health_score",
+    "health_score", "tier",
     "status",
     "updated_at",
     "deleted_at",
@@ -89,7 +89,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
 
   // --- yucer_pipeline ---
   // signal: evidence frozen, only the resolution is writable.
-  "yucer_pipeline.signal": ["account_id", "score", "status", "updated_at"],
+  // targeting joins the writable set (ADR-016): re-mining can reclassify WHY we
+  // were looking, and a signal matched to an account after the fact moves from
+  // product_domain to named_account. The evidence columns stay frozen.
+  "yucer_pipeline.signal": ["account_id", "score", "status", "targeting", "updated_at"],
   // lead: signal_id / campaign_id are the attribution record.
   "yucer_pipeline.lead": [
     "company_name",
@@ -177,6 +180,28 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // agent_action: the proposal itself is frozen; only the human decision moves.
   "yucer_agent.agent_action": ["status", "decided_by_sub", "decided_at", "executed_at", "updated_at"],
   "yucer_agent.agent_playbook": ["name", "trigger", "content", "version", "status", "updated_at"],
+  // judgement_snooze: which conclusion, whose queue and when it was first
+  // deferred are the record. Only the deferral itself may move, so re-snoozing
+  // cannot rewrite who deferred what.
+  "yucer_agent.judgement_snooze": ["urgency_at_snooze", "snoozed_until"],
+  // account_plan: account_id and period ARE the plan's identity. Re-planning the
+  // same period edits this row; a different period is a new row.
+  // The catalogue. product_code / solution_code are anchors: renaming what a
+  // thing IS would rewrite every historical line that referenced it.
+  "yucer_catalog.product": ["name", "category", "unit", "status", "updated_at"],
+  "yucer_catalog.solution": ["name", "summary", "status", "updated_at"],
+  "yucer_catalog.solution_item": ["quantity"],
+  // opportunity_id and product_id are the line's identity - moving a line to
+  // another deal or another product is a different line.
+  "yucer_pipeline.opportunity_line": [
+    "quantity", "unit_price", "amount", "currency", "needs_approval", "updated_at",
+  ],
+  "yucer_core.account_plan": [
+    "target_amount", "currency",
+    "contact_cadence_days", "exec_cadence_days",
+    "owner_sub", "presales_sub", "delivery_sub",
+    "chain_goal", "target_lines", "status", "updated_at",
+  ],
 };
 
 /**
@@ -193,6 +218,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",
   "yucer_agent.agent_message",
+  // A price entry is a point in time. Correcting one means a new effective_at
+  // row - editing it would rewrite what the price USED to be, and every past
+  // discount approval was judged against that number.
+  "yucer_catalog.price_book_entry",
   // yucer_field, added by incr/0004. Evidence is frozen: a correction is a new
   // row carrying corrects_interaction_id, never an edit of the original.
   "yucer_field.interaction",

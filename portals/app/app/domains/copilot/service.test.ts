@@ -22,6 +22,7 @@ function proposal(id: string, over: Partial<AgentAction> = {}): AgentAction {
     id,
     status: "proposed",
     actionType: "advance_stage",
+    capability: null,
     subjectType: "opportunity",
     subjectId: "opp_1",
     payload: { to: "validate" },
