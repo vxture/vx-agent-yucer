@@ -342,9 +342,18 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       key: "quota",
       title: BOARD_TEXT.quota(wsTarget.period),
       href: "/planning",
+      // Attainment rides as a THIRD figure rather than as a caption under the
+      // track. It is a reading in its own right - the one a leader quotes - and
+      // as a caption it cost the card a whole row to say what the other two
+      // already imply. Three figures over one track is also exactly the density
+      // of the resource card, which is the shape this board settled on.
       metrics: [
         { label: BOARD_TEXT.quotaWon, value: BOARD_TEXT.wan(wsRow.closed?.amount ?? 0), tone: "warn" },
         { label: BOARD_TEXT.quotaTarget, value: BOARD_TEXT.wan(wsTarget.targetAmount.amount) },
+        {
+          label: BOARD_TEXT.quotaOf,
+          value: BOARD_TEXT.quotaLeft(Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100)))),
+        },
       ],
       progress: Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100))),
     });

@@ -55,7 +55,13 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
   return (
     <nav className="flex flex-col gap-xs" aria-label={BOARD_TEXT.boardLabel}>
       {open.map((s) => (
-        <Card key={s.key} className="p-md">
+        /* A COMMON FLOOR, so the board reads as a rank of instruments rather
+           than a ragged stack. 32 on the spacing scale is 128px - the height the
+           two densest cards (today, resource) settle at on their own, which is
+           why it is the reference rather than a number picked to look tidy.
+           min-h, not h: content still governs, and a card that genuinely needs
+           more grows instead of clipping. */
+        <Card key={s.key} className="min-h-32 p-md">
           {/* ONE child, deliberately. Card is `flex flex-col gap-xl` - built for
               page-level cards whose sections stand 32px apart - and with two
               children that gap fired between the title and the chart, on top of
@@ -151,21 +157,11 @@ function Metrics({ section: s }: { section: BoardSection }) {
       {s.chart === "share" ? <ShareBar metrics={s.metrics} /> : null}
       {s.chart === "bars" ? <BarList metrics={s.metrics} /> : null}
 
-      {typeof s.progress === "number" ? (
-        <div>
-          <Progress value={s.progress} />
-          {/* The percentage sits ON the bar's line rather than under it. Read
-              alone under an almost-empty track, a low number looked like a
-              rendering failure; beside the track it is obviously the track's
-              value. */}
-          <div className="mt-2xs flex items-baseline justify-between">
-            <span className="text-foreground text-xs font-semibold tabular-nums">
-              {BOARD_TEXT.quotaLeft(s.progress)}
-            </span>
-            <span className="text-muted-foreground text-xs">{BOARD_TEXT.quotaOf}</span>
-          </div>
-        </div>
-      ) : null}
+      {/* Bare track. The percentage it represents is one of the figures above
+          it now, so a caption here would print the same number twice - and a
+          number read alone under an almost-empty track was what made a low
+          attainment look like a rendering failure in the first place. */}
+      {typeof s.progress === "number" ? <Progress value={s.progress} /> : null}
     </>
   );
 }

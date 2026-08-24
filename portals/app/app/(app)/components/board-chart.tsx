@@ -139,9 +139,12 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
   const max = Math.max(...rows.map((m) => m.weight ?? 0));
 
   return (
-    <ul className="flex flex-col gap-xs">
+    <ul className="flex flex-col gap-2xs">
       {rows.map((m, i) => (
-        <li key={m.label} className="flex flex-col gap-2xs">
+        /* Track tucked directly under its own line - no gap between a label and
+           the bar that measures it, since they are one statement. The spacing
+           that matters is BETWEEN rows, and that is the list gap. */
+        <li key={m.label} className="flex flex-col">
           <div className="flex items-baseline justify-between gap-xs">
             <span className="text-foreground min-w-0 truncate text-xs">{m.label}</span>
             <span className="text-foreground shrink-0 text-xs font-semibold tabular-nums">{m.value}</span>
