@@ -60,14 +60,14 @@ export function ForecastTrajectory({
           make a titled section disappear on selection, which reads as a broken
           page rather than as an empty one. */}
       {points.length === 0 ? (
-        <div className="mt-md">
+        <div>
           <EmptyState
             title={PIPELINE_TEXT.trajectoryEmptyTitle}
             description={PIPELINE_TEXT.trajectoryEmptyDescription}
           />
         </div>
       ) : (
-      <Card className="mt-md p-md">
+      <Card className="p-md">
         <div className="flex items-end gap-lg overflow-x-auto">
         {points.map((p) => (
           <div key={p.at} className="flex shrink-0 flex-col items-center gap-xs">

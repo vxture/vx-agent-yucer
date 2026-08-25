@@ -162,7 +162,7 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
       ) : (
         /* Only the table is in the card - the heading and its tools stay
            outside it, the same as the board. */
-        <Card className="mt-md p-xs">
+        <Card className="p-xs">
           {view === "list" ? (
             <DataTable leadingSpacer indexStart={1} columns={columns} rows={shown} rowKey={(row) => row.id} />
           ) : (
