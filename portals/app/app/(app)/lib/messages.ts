@@ -1080,6 +1080,19 @@ export const PLANNING_TEXT = {
   title: "销售规划",
   description:
     "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",
+  // The headline. The workspace row is the one number this page exists for, so
+  // it is stated rather than left to be found in row one of a table.
+  lead: (period: string) => `${period} 销售规划`,
+  leadAttained: (closed: string, target: string, pct: string) =>
+    `全工作区 ${closed} / ${target} · 达成 ${pct}`,
+  leadNoWorkspaceTarget: "本期未设全工作区目标。",
+  leadUnforecast: (n: number) =>
+    `${n} 个作用域本期还没有提交预测快照——那不是达成 0%。`,
+  leadRule:
+    "目标由本域设定，达成由商机域的预测快照计算。两个域不互相写对方的数据。",
+  rowCount: (n: number) => `${n} 个作用域`,
+  ownerScope: (sub: string) => sub,
+  scopeUnnamed: "未命名",
   columnScope: "作用域",
   columnMetric: "指标",
   columnTarget: "目标",
@@ -1093,6 +1106,18 @@ export const PLANNING_TEXT = {
   emptyDescription: "销售运营设定区域与配额后，会出现在这里。",
   scopeWorkspace: "全工作区",
 } as const;
+
+/**
+ * Keyed off the database's CHECK constraint (chk_sales_target_metric), not off
+ * what the fixtures produce. The planning table printed `row.target.metric`
+ * raw, so every row read `revenue` in English.
+ */
+export const TARGET_METRIC_LABEL: Record<string, string> = {
+  revenue: "收入",
+  new_logo: "新客户数",
+  pipeline: "管道额",
+  margin: "毛利",
+};
 
 export const TARGET_STATUS_LABEL: Record<string, string> = {
   draft: "草稿",

@@ -1,8 +1,9 @@
-import { EmptyState, Section } from "@vxture/design-ui";
+import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { PLANNING_TEXT, SHELL_TEXT } from "../lib/messages";
+import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
-import { attainment } from "../../domains/planning/service";
+import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
 
 // D2 planning: targets against what actually closed.
@@ -22,19 +23,31 @@ function currentPeriod(now = new Date()): string {
 export default async function PlanningPage() {
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const period = currentPeriod();
-  const result = await attainment(
-    {
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: getPlanningStore(),
-    },
-    period,
+  const ctx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getPlanningStore(),
+  };
+  const result = await attainment(ctx, period);
+
+  // Territory names, so the scope column reads as a place and not as a code.
+  // Through the gated service, so a member who may read targets but not the
+  // territory registry simply gets codes back rather than the page refusing -
+  // planning.territory.view is a separate permission from the one above.
+  const territories = await listTerritories(ctx);
+  const territoryNames = new Map(
+    territories.ok ? territories.value.map((t) => [t.id, t.name]) : [],
   );
 
   if (!result.ok) {
@@ -46,9 +59,65 @@ export default async function PlanningPage() {
     );
   }
 
+  // The workspace row is the number this page exists for, so it is stated
+  // rather than left to be found in row one of a table. It may legitimately be
+  // absent - a period can be planned by territory only - and that is said
+  // rather than shown as a zero.
+  const workspaceRow = result.value.find(
+    (r) => r.target.scopeType === "workspace",
+  );
+  const unforecast = result.value.filter((r) => !r.hasSnapshot).length;
+
   return (
-    <Section title={`${PLANNING_TEXT.title} - ${period}`} description={PLANNING_TEXT.description}>
-      <PlanningTable rows={result.value} />
-    </Section>
+    <ViewLayout>
+      <Card className="p-lg">
+        {/* ONE child, so Card's gap-xl never fires between a title and its own
+            captions. */}
+        <div className="flex flex-col gap-2xs">
+          <h1 className="text-heading-2 text-foreground">
+            {PLANNING_TEXT.lead(period)}
+          </h1>
+          <p className="text-muted-foreground text-body-sm tabular-nums">
+            {workspaceRow
+              ? PLANNING_TEXT.leadAttained(
+                  workspaceRow.closed
+                    ? formatMoney(
+                        workspaceRow.closed.amount,
+                        workspaceRow.closed.currency,
+                      )
+                    : "-",
+                  formatMoney(
+                    workspaceRow.target.targetAmount.amount,
+                    workspaceRow.target.targetAmount.currency,
+                  ),
+                  workspaceRow.hasSnapshot
+                    ? formatPercent(workspaceRow.ratio)
+                    : PLANNING_TEXT.noSnapshot,
+                )
+              : PLANNING_TEXT.leadNoWorkspaceTarget}
+          </p>
+          {/* Counted and stated, because the whole point of this page's central
+              rule is that an unforecast scope is NOT a failed one. A reader who
+              sees three neutral badges and no explanation will read them as
+              zeroes. */}
+          {unforecast > 0 ? (
+            <p className="text-body-sm text-(color:--warning-text)">
+              {PLANNING_TEXT.leadUnforecast(unforecast)}
+            </p>
+          ) : null}
+          <p className="text-muted-foreground text-body-sm">
+            {PLANNING_TEXT.leadRule}
+          </p>
+        </div>
+      </Card>
+
+      <Section
+        icon="target"
+        title={PLANNING_TEXT.title}
+        description={PLANNING_TEXT.description}
+      >
+        <PlanningTable rows={result.value} territoryNames={territoryNames} />
+      </Section>
+    </ViewLayout>
   );
 }
