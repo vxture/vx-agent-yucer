@@ -219,28 +219,24 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
           )}
         </div>
 
-        {/* The reference mark. Drawn over the track rather than beside it: an
-            axis that sits outside the bar it scales is read as a second bar.
+        {/* The reference mark: a pure scale tick, carrying no label and no
+            hover of its own. Drawn over the track rather than beside it - an
+            axis that sits outside the bar it scales gets read as a second bar.
 
-            The hit area is deliberately wider than the mark. The line itself is
-            1px - any thicker and it starts reading as a fourth segment - but a
-            1px hover target is unhittable, and the mark now carries its label
-            only on hover, so a target nobody can land on would mean a number
-            nobody can reach. The trigger is a transparent band with the line
-            centred inside it: same drawing, reachable. */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className="absolute inset-y-0 flex w-md -translate-x-1/2 cursor-default justify-center"
-              style={{ left: pct(gauge.reference.amount) }}
-            >
-              <span className="bg-foreground h-full w-px" aria-hidden="true" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            {gauge.reference.label} {gauge.reference.value}
-          </TooltipContent>
-        </Tooltip>
+            pointer-events-none matters more than it looks. The mark lies on top
+            of the segments, and those DO have tooltips; without this it would
+            sit in front of them intercepting the hover for a tooltip it no
+            longer has, and the band of pipeline underneath would go quiet for
+            no visible reason.
+
+            The figure it marks is not lost with its label: the coverage
+            percentage beside the heading states the same relationship, and the
+            shortfall itself is the quota card's target minus its closed. */}
+        <span
+          className="bg-foreground pointer-events-none absolute inset-y-0 w-px"
+          style={{ left: pct(gauge.referenceAmount) }}
+          aria-hidden="true"
+        />
       </div>
 
       {/* Names only - every figure on this card, including the reference, is on

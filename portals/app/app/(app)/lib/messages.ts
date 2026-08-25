@@ -236,7 +236,6 @@ export const BOARD_TEXT = {
   quotaLeft: (pct: number) => `${pct}%`,
   // Pipeline coverage: the open pool against what still has to be closed.
   coverage: "覆盖缺口",
-  gapRow: "目标差额",
   poolRow: "资源储备",
   coverageOf: (pct: number) => `${pct}%`,
   coverageGap: (v: string) => `缺口 ${v}`,

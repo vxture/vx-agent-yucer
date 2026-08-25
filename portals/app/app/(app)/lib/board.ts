@@ -113,12 +113,15 @@ export interface BoardSection {
      * 881万 is only meaningful against what it has to cover.
      *
      * `scaleMax` is the pool the floor demands (floor x gap), so the track's
-     * full width is "enough". `reference` marks the bare gap inside it, which
-     * is where covering it exactly ONCE would land - the difference between
-     * those two marks is the redundancy the whole rule is about.
+     * full width is "enough". `referenceAmount` marks the bare gap inside it,
+     * which is where covering it exactly ONCE would land - the difference
+     * between the fill and that mark is the redundancy the rule is about.
+     *
+     * An amount and nothing else: the mark is a scale tick with no label and no
+     * hover, so a display string for it would have no reader.
      */
     readonly scaleMax: number;
-    readonly reference: { readonly label: string; readonly value: string; readonly amount: number };
+    readonly referenceAmount: number;
   };
 }
 
@@ -286,11 +289,7 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
               // already carries it. What is missing from every other card is
               // the SHORTFALL, and that is the number this pool has to answer.
               scaleMax: cover.gap * cover.floor,
-              reference: {
-                label: BOARD_TEXT.gapRow,
-                value: BOARD_TEXT.wan(cover.gap),
-                amount: cover.gap,
-              },
+              referenceAmount: cover.gap,
             }
           : undefined,
       metrics: cover
