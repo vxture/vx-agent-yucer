@@ -21,6 +21,7 @@ import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import { judgementFeed } from "../../domains/judgement/service";
+import { coverage, resolveCoverageFloor } from "../../domains/planning/lib/coverage";
 import { BOARD_TEXT } from "./messages";
 
 // The numbers behind the navigation board.
@@ -173,6 +174,19 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
   // proposals" and "you cannot see proposals" are different statements.
   const proposalCount = proposals.ok ? proposals.value.length : 0;
 
+  // Coverage needs all three of pipeline, target and closed. Without a
+  // committed target there is no gap to cover and the card stays as it was -
+  // an invented denominator would be worse than no ratio.
+  const cover =
+    wsTarget && wsRow
+      ? coverage(
+          worth,
+          wsTarget.targetAmount.amount,
+          wsRow.closed?.amount ?? 0,
+          resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
+        )
+      : null;
+
   const sections: BoardSection[] = [
     // ONE queue. These were two cards - "today's judgements" and "awaiting my
     // adjudication" - and both restated a panel already on screen: the first
@@ -210,6 +224,12 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       key: "resource",
       title: BOARD_TEXT.resource,
       href: "/pipeline",
+      // COVERAGE, not just a pile of money. An open pipeline figure on its own
+      // says nothing about whether the quarter lands: 881万 is healthy against a
+      // 400万 gap and hopeless against a 3000万 one. The bar states the ratio the
+      // number only implies, and it is the same reading a pipeline review opens
+      // with - see domains/planning/lib/coverage.ts for why it is measured
+      // against the remaining gap rather than the whole target.
       metrics: [
         ...(deals.ok
           ? [
@@ -217,9 +237,21 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
               { label: BOARD_TEXT.dealsWorth, value: BOARD_TEXT.wan(worth) },
             ]
           : []),
-        ...count(playbooks, BOARD_TEXT.playbooks),
+        ...(cover && cover.ratio !== null
+          ? [
+              {
+                label: BOARD_TEXT.coverage,
+                value: BOARD_TEXT.coverageOf(Math.round(cover.ratio * 100)),
+                tone: cover.thin ? ("bad" as const) : ("good" as const),
+              },
+            ]
+          : count(playbooks, BOARD_TEXT.playbooks)),
       ],
+      // Capped for the bar only - a 400% coverage is real and worth printing as
+      // a figure, but a track cannot draw past its own end.
+      progress: cover && cover.ratio !== null ? Math.min(100, Math.round(cover.ratio * 100)) : undefined,
     },
+
     // Who is on our side, from the coverage the feed already computed. Shown
     // only when at least one chain was readable: on a tier that cannot see
     // decision chains, "0 coaches" would be a claim about the customers rather

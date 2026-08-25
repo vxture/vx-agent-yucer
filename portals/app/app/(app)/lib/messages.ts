@@ -234,6 +234,12 @@ export const BOARD_TEXT = {
   quotaTarget: "目标",
   quotaOf: "已完成",
   quotaLeft: (pct: number) => `${pct}%`,
+  // Pipeline coverage: the open pool against what still has to be closed.
+  coverage: "覆盖缺口",
+  coverageOf: (pct: number) => `${pct}%`,
+  coverageGap: (v: string) => `缺口 ${v}`,
+  coverageThin: (floor: number) => `低于 ${floor}% 警戒线`,
+  coverageMet: "目标已达成",
   agent: "智能助手",
   agentScope: (n: number) => `正看着 ${n} 位客户`,
   capture: "记一笔",
