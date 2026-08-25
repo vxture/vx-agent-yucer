@@ -193,6 +193,35 @@ export function formatMoney(
   }).format(amount);
 }
 
+/**
+ * Money at scan size, for a metric card.
+ *
+ * A CARD IS NOT A LEDGER. Four of these sit side by side in a fixed-width
+ * pane, and `CN¥4,200,000` needs 147px inside a card that has 24px of padding
+ * on each side - so at four columns the reader got `CN¥4,20…`, which is not a
+ * smaller number but a WRONG one. A truncated figure is worse than a rounded
+ * one: rounding says "about this much" and the reader knows it, truncation says
+ * "exactly this much" and is lying.
+ *
+ * Compact notation is also what the page already does one block above - the
+ * headline reads 4.2M / 420 万 - so the card agreeing with it removes a
+ * discrepancy rather than introducing one. The exact figure is a column away in
+ * the table below, where a row has the width for it.
+ */
+export function formatMoneyCompact(
+  amount: number | null,
+  currency: string,
+  locale: string,
+): string {
+  if (amount == null) return "-";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(amount);
+}
+
 export function formatPercent(ratio: number | null, locale = "zh-CN"): string {
   if (ratio == null) return "-";
   return new Intl.NumberFormat(locale, {

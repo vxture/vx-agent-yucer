@@ -30,6 +30,7 @@ import {
   FORECAST_TONE,
   STAGE_TONE,
   formatMoney,
+  formatMoneyCompact,
   probabilityDisplay,
 } from "../lib/view-model";
 import { ACTION_MENU_LABEL } from "../lib/ds-labels";
@@ -86,7 +87,7 @@ export function PipelineBoard({
         {
           id: "commit",
           label: FORECAST_LABEL.commit,
-          value: formatMoney(
+          value: formatMoneyCompact(
             totals.value.commitAmount.amount,
             currency,
             locale,
@@ -96,7 +97,7 @@ export function PipelineBoard({
         {
           id: "best_case",
           label: FORECAST_LABEL.best_case,
-          value: formatMoney(
+          value: formatMoneyCompact(
             totals.value.bestCaseAmount.amount,
             currency,
             locale,
@@ -106,7 +107,7 @@ export function PipelineBoard({
         {
           id: "pipeline",
           label: FORECAST_LABEL.pipeline,
-          value: formatMoney(
+          value: formatMoneyCompact(
             totals.value.pipelineAmount.amount,
             currency,
             locale,
@@ -116,7 +117,7 @@ export function PipelineBoard({
         {
           id: "closed",
           label: FORECAST_LABEL.closed,
-          value: formatMoney(
+          value: formatMoneyCompact(
             totals.value.closedAmount.amount,
             currency,
             locale,
@@ -218,7 +219,23 @@ export function PipelineBoard({
         readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description
       }
     >
-      {totals.ok ? <MetricGrid items={metrics} /> : null}
+      {totals.ok ? (
+        <MetricGrid
+          items={metrics}
+          /* TWO COLUMNS, NOT FOUR, and the reason is that the DS's breakpoints
+             are on the VIEWPORT while this grid lives in a fixed-width pane.
+             At a 1600px window `lg:` applies and forces four cards into a
+             488px pane: 102px each, of which 48px is the card's own padding,
+             leaving 54px for a value that needs 92. The number was clipped, and
+             a clipped figure is not a smaller number - it is a wrong one that
+             looks exact.
+
+             Four headline metrics read perfectly well as 2x2, and this is the
+             only lever the component offers; a container query is what the case
+             actually calls for, and the DS does not have one. */
+          columns={2}
+        />
+      ) : null}
       {!totals.ok ? (
         <EmptyState
           title={PIPELINE_TEXT.rollupFailedTitle}
