@@ -1128,6 +1128,22 @@ export const TARGET_STATUS_LABEL: Record<string, string> = {
 export const STRATEGY_TEXT = {
   title: "市场战略",
   description: "战略是全链路的起点：下游的战役、线索、商机都能回指到它。",
+  // The headline. This page's claim is TRACEABILITY, and a list of two rows
+  // asserts it without showing it. The downstream count makes the claim
+  // checkable on the page that makes it.
+  lead: (n: number) => `${n} 个市场战略`,
+  leadTraced: (campaigns: number, orphan: number) =>
+    orphan > 0
+      ? `${campaigns} 场战役可回指到战略，另有 ${orphan} 场没有归属。`
+      : `${campaigns} 场战役全部可回指到战略。`,
+  leadNoCampaignRead: "没有战役读取权限，无法统计下游归属。",
+  leadRule:
+    "战略是全链路的起点。战役、线索、商机都能回指到它——所以「本季有多少来自我们选定要打的细分市场」是一次连接，不是一次人工统计。",
+  rowCount: (n: number) => `${n} 个战略`,
+  columnCampaigns: "下游战役",
+  campaignCount: (n: number) => `${n} 场`,
+  noCampaigns: "尚无",
+  ownerNone: "未指派",
   columnName: "战略",
   columnPeriod: "周期",
   columnOwner: "负责人",

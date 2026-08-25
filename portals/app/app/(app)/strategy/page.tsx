@@ -1,8 +1,8 @@
-import { EmptyState, Section } from "@vxture/design-ui";
+import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { SHELL_TEXT, STRATEGY_TEXT } from "../lib/messages";
 import { getStrategyStore } from "../../domains/shared/registry";
-import { listPlans } from "../../domains/strategy/service";
+import { listCampaigns, listPlans } from "../../domains/strategy/service";
 import { can } from "../../authz/decide";
 import { StrategyTable } from "../components/strategy-table";
 import { movePlan } from "./actions";
@@ -16,16 +16,22 @@ export const dynamic = "force-dynamic";
 export default async function StrategyPage() {
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
-  const result = await listPlans({
+  const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: getStrategyStore(),
-  });
+  };
+  const result = await listPlans(ctx);
 
   if (!result.ok) {
     return (
@@ -36,6 +42,29 @@ export default async function StrategyPage() {
     );
   }
 
+  // The downstream count, in ONE query rather than one per plan. campaign.view
+  // is a separate permission from the one guarding plans, so a member who holds
+  // only the latter gets no counts and the column says nothing - "none" and
+  // "you cannot see" are different facts and the table keeps them apart.
+  //
+  // Campaigns with a null planId are counted separately and stated: a campaign
+  // that traces back to no strategy is the exception to this page's whole
+  // claim, and a page that asserts traceability owes the reader its own
+  // exceptions rather than quietly omitting them from a total.
+  const campaigns = await listCampaigns(ctx);
+  const campaignCounts = campaigns.ok
+    ? campaigns.value.reduce((m, c) => {
+        if (c.planId) m.set(c.planId, (m.get(c.planId) ?? 0) + 1);
+        return m;
+      }, new Map<string, number>())
+    : undefined;
+  const orphanCampaigns = campaigns.ok
+    ? campaigns.value.filter((c) => !c.planId).length
+    : 0;
+  const tracedCampaigns = campaigns.ok
+    ? campaigns.value.length - orphanCampaigns
+    : 0;
+
   // The service picks its gate from the DESTINATION - strategy.plan.approve for
   // approving, strategy.plan.update otherwise - so the control is offered when
   // either is held and the refusal, if any, comes from the service.
@@ -45,12 +74,43 @@ export default async function StrategyPage() {
   // duties would move catalog.ts, the seed SQL and the role doc together, which
   // is a product decision rather than something to slip in here.
   const canMove =
-    can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed ||
-    can(session.authz, session.entitlement, "strategy.plan.approve", "ui").allowed;
+    can(session.authz, session.entitlement, "strategy.plan.update", "ui")
+      .allowed ||
+    can(session.authz, session.entitlement, "strategy.plan.approve", "ui")
+      .allowed;
 
   return (
-    <Section title={STRATEGY_TEXT.title} description={STRATEGY_TEXT.description}>
-      <StrategyTable rows={result.value} canMove={canMove} onMove={movePlan} />
-    </Section>
+    <ViewLayout>
+      <Card className="p-lg">
+        {/* ONE child, so Card's gap-xl never fires between a title and its own
+            captions. */}
+        <div className="flex flex-col gap-2xs">
+          <h1 className="text-heading-2 text-foreground">
+            {STRATEGY_TEXT.lead(result.value.length)}
+          </h1>
+          <p className="text-muted-foreground text-body-sm tabular-nums">
+            {campaigns.ok
+              ? STRATEGY_TEXT.leadTraced(tracedCampaigns, orphanCampaigns)
+              : STRATEGY_TEXT.leadNoCampaignRead}
+          </p>
+          <p className="text-muted-foreground text-body-sm">
+            {STRATEGY_TEXT.leadRule}
+          </p>
+        </div>
+      </Card>
+
+      <Section
+        icon="graph"
+        title={STRATEGY_TEXT.title}
+        description={STRATEGY_TEXT.description}
+      >
+        <StrategyTable
+          rows={result.value}
+          campaignCounts={campaignCounts}
+          canMove={canMove}
+          onMove={movePlan}
+        />
+      </Section>
+    </ViewLayout>
   );
 }
