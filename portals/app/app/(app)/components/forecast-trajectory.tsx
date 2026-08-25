@@ -25,7 +25,11 @@ export interface TrajectoryPoint {
 const SERIES = [
   { key: "commit", label: PIPELINE_TEXT.tCommit, cls: "bg-primary" },
   { key: "bestCase", label: PIPELINE_TEXT.tBestCase, cls: "bg-primary/50" },
-  { key: "pipeline", label: PIPELINE_TEXT.tPipeline, cls: "bg-muted-foreground/40" },
+  {
+    key: "pipeline",
+    label: PIPELINE_TEXT.tPipeline,
+    cls: "bg-muted-foreground/40",
+  },
   { key: "closed", label: PIPELINE_TEXT.tClosed, cls: "bg-success" },
 ] as const;
 
@@ -60,7 +64,10 @@ export function ForecastTrajectory({
   // Scaled to the WINDOW, not the full series. A baseline drawn from readings
   // that are no longer on screen would flatten the ones that are, with nothing
   // visible to explain why.
-  const max = Math.max(...shown.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed]), 1);
+  const max = Math.max(
+    ...shown.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed]),
+    1,
+  );
 
   return (
     /* Section, not Card+SectionHeader, so this reads the same way as the board
@@ -86,7 +93,6 @@ export function ForecastTrajectory({
         ) : undefined
       }
     >
-
       {/* The section keeps its heading when a period has no snapshots. It used
           to return null, which was harmless while the period was fixed and
           always had data - now that the period is switchable, vanishing would
@@ -100,8 +106,8 @@ export function ForecastTrajectory({
           />
         </div>
       ) : (
-      <Card className="p-md">
-        {/* Plot above, legend beneath it and centred.
+        <Card className="p-md">
+          {/* Plot above, legend beneath it and centred.
 
             The plot stretches: each column is flex-1, so five readings or eight
             fill whatever width the card is given and the spacing between them
@@ -115,45 +121,57 @@ export function ForecastTrajectory({
             reading as a fifth column of the chart rather than as its key. Below
             and centred it belongs to the whole plot instead of to its right
             edge, and the plot gets the full width back. */}
-        <div className="flex flex-col gap-md">
-          <div className="flex items-end gap-md">
-            {shown.map((p) => (
-              <div key={p.at} className="flex min-w-0 flex-1 flex-col items-center gap-xs">
-                <div className="flex h-28 items-end gap-2xs">
-                  {SERIES.map((s) => {
-                    const v = p[s.key];
-                    return (
-                      <div
-                        key={s.key}
-                        className={`w-3 rounded-t-sm ${s.cls}`}
-                        style={{ height: `${Math.max(2, (v / max) * 112)}px` }}
-                        title={`${s.label} ${wan(v)}`}
-                      />
-                    );
-                  })}
+          <div className="flex flex-col gap-md">
+            <div className="flex items-end gap-md">
+              {shown.map((p) => (
+                <div
+                  key={p.at}
+                  className="flex min-w-0 flex-1 flex-col items-center gap-xs"
+                >
+                  <div className="flex h-28 items-end gap-2xs">
+                    {SERIES.map((s) => {
+                      const v = p[s.key];
+                      return (
+                        <div
+                          key={s.key}
+                          className={`w-3 rounded-t-sm ${s.cls}`}
+                          style={{
+                            height: `${Math.max(2, (v / max) * 112)}px`,
+                          }}
+                          title={`${s.label} ${wan(v)}`}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span className="text-muted-foreground truncate text-xs tabular-nums">
+                    {p.at}
+                  </span>
                 </div>
-                <span className="text-muted-foreground truncate text-xs tabular-nums">{p.at}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* The figure beside each label is the LATEST reading, which is what
+            {/* The figure beside each label is the LATEST reading, which is what
               the rightmost column shows - the key doubles as the current
               position so the card answers "where are we" without the reader
               measuring a bar against nothing. */}
-          <ul className="border-border flex flex-wrap items-baseline justify-center gap-x-lg gap-y-xs border-t pt-md">
-            {SERIES.map((s) => (
-              <li key={s.key} className="flex items-baseline gap-xs">
-                <span className={`size-2 shrink-0 rounded-sm ${s.cls}`} aria-hidden />
-                <span className="text-muted-foreground text-xs">{s.label}</span>
-                <span className="text-foreground text-xs font-semibold tabular-nums">
-                  {wan(shown[shown.length - 1]![s.key])}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Card>
+            <ul className="border-border flex flex-wrap items-baseline justify-center gap-x-lg gap-y-xs border-t pt-md">
+              {SERIES.map((s) => (
+                <li key={s.key} className="flex items-baseline gap-xs">
+                  <span
+                    className={`size-2 shrink-0 rounded-sm ${s.cls}`}
+                    aria-hidden
+                  />
+                  <span className="text-muted-foreground text-xs">
+                    {s.label}
+                  </span>
+                  <span className="text-foreground text-xs font-semibold tabular-nums">
+                    {wan(shown[shown.length - 1]![s.key])}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Card>
       )}
     </Section>
   );

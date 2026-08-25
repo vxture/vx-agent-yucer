@@ -37,20 +37,33 @@ export interface AgentDockButtonProps {
   readonly onToggle: () => void;
 }
 
-export function AgentDockButton({ count, open, onToggle }: AgentDockButtonProps) {
+export function AgentDockButton({
+  count,
+  open,
+  onToggle,
+}: AgentDockButtonProps) {
   // The accessible name carries the count too. A screen reader landing on a bare
   // "智能助手" would get the badge as a separate, contextless number.
-  const label = count > 0 ? HEADER_TEXT.agentDockWithCount(count) : HEADER_TEXT.agentDock;
+  const label =
+    count > 0 ? HEADER_TEXT.agentDockWithCount(count) : HEADER_TEXT.agentDock;
 
   return (
     <span className="relative inline-flex">
-      <ShellIconButton icon="sparkles" label={label} active={open} onClick={onToggle} />
+      <ShellIconButton
+        icon="sparkles"
+        label={label}
+        active={open}
+        onClick={onToggle}
+      />
 
       {count > 0 ? (
         // aria-hidden because the count is already in the button's label; a
         // screen reader should hear it once, attached to the control it
         // describes, not twice as a loose number beside it.
-        <span className="pointer-events-none absolute -top-2xs -right-2xs" aria-hidden="true">
+        <span
+          className="pointer-events-none absolute -top-2xs -right-2xs"
+          aria-hidden="true"
+        >
           <Badge variant="destructive">
             {/* Past two digits the badge would be wider than the button it sits
                 on. The exact number stops being the point long before then - the

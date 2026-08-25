@@ -29,11 +29,20 @@ export interface PlaybookCatalogProps {
   readonly maxPerTurn: number;
 }
 
-export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps) {
+export function PlaybookCatalog({
+  playbooks,
+  maxPerTurn,
+}: PlaybookCatalogProps) {
   if (playbooks.length === 0) {
     return (
-      <Section title={PLAYBOOK_TEXT.title} description={PLAYBOOK_TEXT.description}>
-        <EmptyState title={PLAYBOOK_TEXT.emptyTitle} description={PLAYBOOK_TEXT.emptyDescription} />
+      <Section
+        title={PLAYBOOK_TEXT.title}
+        description={PLAYBOOK_TEXT.description}
+      >
+        <EmptyState
+          title={PLAYBOOK_TEXT.emptyTitle}
+          description={PLAYBOOK_TEXT.emptyDescription}
+        />
       </Section>
     );
   }
@@ -45,7 +54,11 @@ export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps)
       // The bound is part of the contract, not an implementation detail: a
       // reader who sees eight plays listed would otherwise assume all eight
       // shape every answer.
-      action={<StatusBadge tone="neutral">{PLAYBOOK_TEXT.grounding(maxPerTurn)}</StatusBadge>}
+      action={
+        <StatusBadge tone="neutral">
+          {PLAYBOOK_TEXT.grounding(maxPerTurn)}
+        </StatusBadge>
+      }
     >
       {playbooks.map((p) => (
         <PanelCard

@@ -1,8 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, DataTable, EmptyState, NativeSelect, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
-import { ROLE_CODES, ROLE_PERMISSIONS, type RoleCode } from "../../authz/catalog";
+import {
+  Button,
+  DataTable,
+  EmptyState,
+  NativeSelect,
+  Section,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type DataTableColumn,
+} from "@vxture/design-ui";
+import {
+  ROLE_CODES,
+  ROLE_PERMISSIONS,
+  type RoleCode,
+} from "../../authz/catalog";
 import { MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } from "../lib/messages";
 
 // Who is in the workspace and what they can do.
@@ -27,14 +42,26 @@ export interface MemberView {
 export interface MemberRolesProps {
   readonly members: readonly MemberView[];
   readonly canManage: boolean;
-  readonly onGrant: (sub: string, role: string) => Promise<{ ok: boolean; error?: string }>;
-  readonly onRevoke: (sub: string, role: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly onGrant: (
+    sub: string,
+    role: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  readonly onRevoke: (
+    sub: string,
+    role: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const isAdminRole = (role: string): boolean =>
-  role in ROLE_PERMISSIONS && ROLE_PERMISSIONS[role as RoleCode].includes("admin.manage");
+  role in ROLE_PERMISSIONS &&
+  ROLE_PERMISSIONS[role as RoleCode].includes("admin.manage");
 
-export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRolesProps) {
+export function MemberRoles({
+  members,
+  canManage,
+  onGrant,
+  onRevoke,
+}: MemberRolesProps) {
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,13 +71,17 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
   // does: "is anyone else able to administer this workspace".
   const adminCount = members.filter((m) => m.roles.some(isAdminRole)).length;
 
-  function run(key: string, op: () => Promise<{ ok: boolean; error?: string }>) {
+  function run(
+    key: string,
+    op: () => Promise<{ ok: boolean; error?: string }>,
+  ) {
     setBusy(key);
     setError(null);
     startTransition(() => {
       void op()
         .then((r) => {
-          if (!r.ok) setError(MEMBER_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+          if (!r.ok)
+            setError(MEMBER_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
         })
         .finally(() => setBusy(null));
     });
@@ -107,7 +138,9 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
                             </Button>
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent>{MEMBER_TEXT.lastAdminHint}</TooltipContent>
+                        <TooltipContent>
+                          {MEMBER_TEXT.lastAdminHint}
+                        </TooltipContent>
                       </Tooltip>
                     ) : (
                       <Button
@@ -144,7 +177,9 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
             <NativeSelect
               aria-label={MEMBER_TEXT.assignPlaceholder}
               value={chosen}
-              onChange={(e) => setPicked({ ...picked, [row.sub]: e.target.value })}
+              onChange={(e) =>
+                setPicked({ ...picked, [row.sub]: e.target.value })
+              }
               disabled={pending && busy === key}
             >
               <option value="">{MEMBER_TEXT.assignPlaceholder}</option>
@@ -176,12 +211,23 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
 
   return (
     <Section title={MEMBER_TEXT.title} description={MEMBER_TEXT.description}>
-      {!canManage ? <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge> : null}
+      {!canManage ? (
+        <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge>
+      ) : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {members.length === 0 ? (
-        <EmptyState title={MEMBER_TEXT.emptyTitle} description={MEMBER_TEXT.emptyDescription} />
+        <EmptyState
+          title={MEMBER_TEXT.emptyTitle}
+          description={MEMBER_TEXT.emptyDescription}
+        />
       ) : (
-        <DataTable leadingSpacer indexStart={1} columns={columns} rows={members} rowKey={(row) => row.memberId} />
+        <DataTable
+          leadingSpacer
+          indexStart={1}
+          columns={columns}
+          rows={members}
+          rowKey={(row) => row.memberId}
+        />
       )}
     </Section>
   );

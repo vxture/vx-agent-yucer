@@ -3,13 +3,37 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ActionMenu, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
+import {
+  ActionMenu,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
+  MetricGrid,
+  Section,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type DataTableColumn,
+  type MetricGridItem,
+} from "@vxture/design-ui";
 import { TableCard } from "./table-card";
 import type { Stage } from "../../domains/pipeline/lib/stage";
-import type { ForecastCategory, ForecastableOpportunity } from "../../domains/pipeline/lib/forecast";
+import type {
+  ForecastCategory,
+  ForecastableOpportunity,
+} from "../../domains/pipeline/lib/forecast";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
-import { FORECAST_TONE, STAGE_TONE, formatMoney, probabilityDisplay } from "../lib/view-model";
+import {
+  FORECAST_TONE,
+  STAGE_TONE,
+  formatMoney,
+  probabilityDisplay,
+} from "../lib/view-model";
 import { FORECAST_LABEL, PIPELINE_TEXT, STAGE_LABEL } from "../lib/messages";
+import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
@@ -37,7 +61,12 @@ export interface PipelineBoardProps {
   readonly readOnly?: boolean;
 }
 
-export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: PipelineBoardProps) {
+export function PipelineBoard({
+  rows,
+  currency = "CNY",
+  loading,
+  readOnly,
+}: PipelineBoardProps) {
   // Which arrangement the rows are in. Local: it is a preference about looking,
   // not about which data is on screen, so it has no business in the URL the way
   // the period filter does.
@@ -47,10 +76,30 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
 
   const metrics: MetricGridItem[] = totals.ok
     ? [
-        { id: "commit", label: FORECAST_LABEL.commit, value: formatMoney(totals.value.commitAmount.amount, currency), tone: "warning" },
-        { id: "best_case", label: FORECAST_LABEL.best_case, value: formatMoney(totals.value.bestCaseAmount.amount, currency), tone: "info" },
-        { id: "pipeline", label: FORECAST_LABEL.pipeline, value: formatMoney(totals.value.pipelineAmount.amount, currency), tone: "neutral" },
-        { id: "closed", label: FORECAST_LABEL.closed, value: formatMoney(totals.value.closedAmount.amount, currency), tone: "success" },
+        {
+          id: "commit",
+          label: FORECAST_LABEL.commit,
+          value: formatMoney(totals.value.commitAmount.amount, currency),
+          tone: "warning",
+        },
+        {
+          id: "best_case",
+          label: FORECAST_LABEL.best_case,
+          value: formatMoney(totals.value.bestCaseAmount.amount, currency),
+          tone: "info",
+        },
+        {
+          id: "pipeline",
+          label: FORECAST_LABEL.pipeline,
+          value: formatMoney(totals.value.pipelineAmount.amount, currency),
+          tone: "neutral",
+        },
+        {
+          id: "closed",
+          label: FORECAST_LABEL.closed,
+          value: formatMoney(totals.value.closedAmount.amount, currency),
+          tone: "success",
+        },
       ]
     : [];
 
@@ -86,7 +135,9 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
       id: "forecast",
       header: PIPELINE_TEXT.columnForecast,
       cell: (row) => (
-        <StatusBadge tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}>
+        <StatusBadge
+          tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
+        >
           {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
         </StatusBadge>
       ),
@@ -111,10 +162,14 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
-                <StatusBadge tone="info">{PIPELINE_TEXT.probabilityOverridden(p.value)}</StatusBadge>
+                <StatusBadge tone="info">
+                  {PIPELINE_TEXT.probabilityOverridden(p.value)}
+                </StatusBadge>
               </span>
             </TooltipTrigger>
-            <TooltipContent>{PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}</TooltipContent>
+            <TooltipContent>
+              {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
+            </TooltipContent>
           </Tooltip>
         ) : (
           <span>{p.value}%</span>
@@ -124,7 +179,10 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
     {
       id: "close",
       header: PIPELINE_TEXT.columnExpectedClose,
-      cell: (row) => (row.expectedCloseAt ? row.expectedCloseAt.toISOString().slice(0, 10) : "-"),
+      cell: (row) =>
+        row.expectedCloseAt
+          ? row.expectedCloseAt.toISOString().slice(0, 10)
+          : "-",
     },
   ];
 
@@ -132,7 +190,9 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
     <Section
       icon="table"
       title={PIPELINE_TEXT.title}
-      description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description}
+      description={
+        readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description
+      }
     >
       {totals.ok ? <MetricGrid items={metrics} /> : null}
       {!totals.ok ? (
@@ -141,7 +201,10 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
           description={totals.violations.map((v) => v.message).join("; ")}
         />
       ) : rows.length === 0 ? (
-        <EmptyState title={PIPELINE_TEXT.emptyTitle} description={PIPELINE_TEXT.emptyDescription} />
+        <EmptyState
+          title={PIPELINE_TEXT.emptyTitle}
+          description={PIPELINE_TEXT.emptyDescription}
+        />
       ) : (
         <>
           {/* The tool row: what this list looks like, and how many are in it.
@@ -172,6 +235,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
                    this table is eight columns before the actions. */
                 rowActions={(row) => (
                   <ActionMenu
+                    label={ACTION_MENU_LABEL}
                     items={[
                       {
                         id: "open",
@@ -197,6 +261,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
                     }
                     actions={
                       <ActionMenu
+                        label={ACTION_MENU_LABEL}
                         items={[
                           {
                             id: "open",
@@ -212,12 +277,19 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
                         <StatusBadge tone={STAGE_TONE[row.stage as Stage]}>
                           {STAGE_LABEL[row.stage as Stage] ?? row.stage}
                         </StatusBadge>
-                        <span className="tabular-nums">{formatMoney(row.amount?.amount ?? null, row.currency)}</span>
+                        <span className="tabular-nums">
+                          {formatMoney(
+                            row.amount?.amount ?? null,
+                            row.currency,
+                          )}
+                        </span>
                         {/* Same two-case reading as the column: a null win rate
                             prints a dash rather than a zero, because "nobody has
                             set one" and "we think we lose" are different. */}
                         <span className="tabular-nums">
-                          {probabilityDisplay(row).value == null ? "-" : `${probabilityDisplay(row).value}%`}
+                          {probabilityDisplay(row).value == null
+                            ? "-"
+                            : `${probabilityDisplay(row).value}%`}
                         </span>
                       </>
                     }

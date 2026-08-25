@@ -38,7 +38,10 @@ function daysBetween(from: Date, to: Date): number {
 export function StageJourney({ events, now }: StageJourneyProps) {
   if (events.length === 0) {
     return (
-      <Section title={OPPORTUNITY_TEXT.journeyTitle} description={OPPORTUNITY_TEXT.journeyDescription}>
+      <Section
+        title={OPPORTUNITY_TEXT.journeyTitle}
+        description={OPPORTUNITY_TEXT.journeyDescription}
+      >
         <EmptyState
           title={OPPORTUNITY_TEXT.journeyEmptyTitle}
           description={OPPORTUNITY_TEXT.journeyEmptyDescription}
@@ -78,12 +81,20 @@ export function StageJourney({ events, now }: StageJourneyProps) {
                   : OPPORTUNITY_TEXT.journeyCreated}
               </span>
 
-              <time dateTime={e.occurredAt.toISOString()}>{e.occurredAt.toISOString().slice(0, 10)}</time>
+              <time dateTime={e.occurredAt.toISOString()}>
+                {e.occurredAt.toISOString().slice(0, 10)}
+              </time>
 
               <StatusBadge tone={isCurrent ? "info" : "neutral"}>
-                {OPPORTUNITY_TEXT.journeyDuration(daysBetween(e.occurredAt, until))}
+                {OPPORTUNITY_TEXT.journeyDuration(
+                  daysBetween(e.occurredAt, until),
+                )}
               </StatusBadge>
-              {isCurrent ? <StatusBadge tone="info">{OPPORTUNITY_TEXT.journeyCurrent}</StatusBadge> : null}
+              {isCurrent ? (
+                <StatusBadge tone="info">
+                  {OPPORTUNITY_TEXT.journeyCurrent}
+                </StatusBadge>
+              ) : null}
 
               <span>
                 {OPPORTUNITY_TEXT.journeyBy}:{" "}

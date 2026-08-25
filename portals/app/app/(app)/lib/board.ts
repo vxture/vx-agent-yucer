@@ -14,7 +14,11 @@ import {
 import { listAccounts } from "../../domains/account/service";
 import { listPipeline } from "../../domains/pipeline/service";
 import { listPlans, listCampaigns } from "../../domains/strategy/service";
-import { listTargets, listTerritories, attainment } from "../../domains/planning/service";
+import {
+  listTargets,
+  listTerritories,
+  attainment,
+} from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects } from "../../domains/delivery/service";
 import { getCatalogStore } from "../../domains/shared/registry";
@@ -22,7 +26,10 @@ import { byProduct } from "../../domains/catalog/lib/pricing";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import { judgementFeed } from "../../domains/judgement/service";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
-import { coverage, resolveCoverageFloor } from "../../domains/planning/lib/coverage";
+import {
+  coverage,
+  resolveCoverageFloor,
+} from "../../domains/planning/lib/coverage";
 import { FORECAST_LABEL } from "./messages";
 import { BOARD_TEXT } from "./messages";
 
@@ -107,7 +114,11 @@ export interface BoardSection {
      * function the pipeline page and the snapshot writer use, so this card and
      * that page cannot report different money.
      */
-    readonly funnel: readonly { readonly label: string; readonly value: string; readonly weight: number }[];
+    readonly funnel: readonly {
+      readonly label: string;
+      readonly value: string;
+      readonly weight: number;
+    }[];
     /**
      * The axis. Without one a bar of pipeline is just a coloured rectangle -
      * 881万 is only meaningful against what it has to cover.
@@ -141,12 +152,17 @@ export interface BoardContext {
 export const cachedFeed = cache(judgementFeed);
 
 /** A count, or nothing at all if the gate refused. */
-function count(result: { ok: boolean; value?: unknown }, label: string): BoardMetric[] {
+function count(
+  result: { ok: boolean; value?: unknown },
+  label: string,
+): BoardMetric[] {
   if (!result.ok || !Array.isArray(result.value)) return [];
   return [{ label, value: String(result.value.length) }];
 }
 
-export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> {
+export async function boardSections(
+  ctx: BoardContext,
+): Promise<BoardSection[]> {
   const base = {
     workspaceId: ctx.workspaceId,
     sub: ctx.sub,
@@ -154,23 +170,40 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
     entitlement: ctx.entitlement,
   };
 
-  const [feed, deals, proposals, plans, campaigns, targets, territories, accounts, signals, leads, projects, playbooks, lines, catalogue] =
-    await Promise.all([
-      cachedFeed(base),
-      listPipeline({ ...base, store: getPipelineStore() }),
-      listProposals({ ...base, store: getCopilotStore() }, { status: "proposed" }),
-      listPlans({ ...base, store: getStrategyStore() }),
-      listCampaigns({ ...base, store: getStrategyStore() }),
-      listTargets({ ...base, store: getPlanningStore() }),
-      listTerritories({ ...base, store: getPlanningStore() }),
-      listAccounts({ ...base, store: getAccountStore() }),
-      listSignals({ ...base, store: getSignalStore() }),
-      listLeads({ ...base, store: getSignalStore() }),
-      listProjects({ ...base, store: getDeliveryStore() }),
-      listPlaybooks({ ...base, store: getCopilotStore() }),
-      getCatalogStore().allLines(ctx.workspaceId),
-      getCatalogStore().listProducts(ctx.workspaceId),
-    ]);
+  const [
+    feed,
+    deals,
+    proposals,
+    plans,
+    campaigns,
+    targets,
+    territories,
+    accounts,
+    signals,
+    leads,
+    projects,
+    playbooks,
+    lines,
+    catalogue,
+  ] = await Promise.all([
+    cachedFeed(base),
+    listPipeline({ ...base, store: getPipelineStore() }),
+    listProposals(
+      { ...base, store: getCopilotStore() },
+      { status: "proposed" },
+    ),
+    listPlans({ ...base, store: getStrategyStore() }),
+    listCampaigns({ ...base, store: getStrategyStore() }),
+    listTargets({ ...base, store: getPlanningStore() }),
+    listTerritories({ ...base, store: getPlanningStore() }),
+    listAccounts({ ...base, store: getAccountStore() }),
+    listSignals({ ...base, store: getSignalStore() }),
+    listLeads({ ...base, store: getSignalStore() }),
+    listProjects({ ...base, store: getDeliveryStore() }),
+    listPlaybooks({ ...base, store: getCopilotStore() }),
+    getCatalogStore().allLines(ctx.workspaceId),
+    getCatalogStore().listProducts(ctx.workspaceId),
+  ]);
 
   // Open deals only, and their value. "How many deals exist" is a database
   // fact; "what is still in play and what is it worth" is the question someone
@@ -193,15 +226,16 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
   // zero". Rendering both as 0% would report an unforecast quarter as a failed
   // one.
   const wsTarget = targets.ok
-    ? targets.value.find((t) => t.scopeType === "workspace" && t.status === "committed")
+    ? targets.value.find(
+        (t) => t.scopeType === "workspace" && t.status === "committed",
+      )
     : undefined;
   const rows = wsTarget
     ? await attainment({ ...base, store: getPlanningStore() }, wsTarget.period)
     : null;
-  const wsRow =
-    rows?.ok
-      ? rows.value.find((r) => r.target.id === wsTarget?.id)
-      : undefined;
+  const wsRow = rows?.ok
+    ? rows.value.find((r) => r.target.id === wsTarget?.id)
+    : undefined;
 
   // Narrowed once here rather than at the use site: proposals is a RuleResult,
   // and a member who cannot read them gets no figure rather than a zero - "0
@@ -250,11 +284,28 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       metrics: feed.ok
         ? [
             // The lede, and the only figure with a deadline attached.
-            { label: BOARD_TEXT.ledeToday, value: String(feed.value.counts.today), tone: "bad" },
-            { label: BOARD_TEXT.tierWeek, value: String(feed.value.counts.week), tone: "warn" },
-            { label: BOARD_TEXT.tierWatch, value: String(feed.value.counts.watch) },
+            {
+              label: BOARD_TEXT.ledeToday,
+              value: String(feed.value.counts.today),
+              tone: "bad",
+            },
+            {
+              label: BOARD_TEXT.tierWeek,
+              value: String(feed.value.counts.week),
+              tone: "warn",
+            },
+            {
+              label: BOARD_TEXT.tierWatch,
+              value: String(feed.value.counts.watch),
+            },
             ...(proposalCount > 0
-              ? [{ label: BOARD_TEXT.proposals, value: String(proposalCount), tone: "warn" as const }]
+              ? [
+                  {
+                    label: BOARD_TEXT.proposals,
+                    value: String(proposalCount),
+                    tone: "warn" as const,
+                  },
+                ]
               : []),
           ]
         : [],
@@ -276,15 +327,29 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
               // figure and the bar say the same thing. They are the same
               // judgement either way: pool < floor x gap is exactly pool <
               // scaleMax, so "under 100% here" and "thin" are one condition.
-              note: BOARD_TEXT.coverageOf(Math.round((worth / (cover.gap * cover.floor)) * 100)),
+              note: BOARD_TEXT.coverageOf(
+                Math.round((worth / (cover.gap * cover.floor)) * 100),
+              ),
               thin: cover.thin,
               // Descending confidence: what is committed, what is being worked,
               // what is merely held. The order IS the meaning, so it is fixed
               // here rather than sorted by size.
               funnel: [
-                { label: FORECAST_LABEL.commit, value: BOARD_TEXT.wan(totals.value.commitAmount.amount), weight: totals.value.commitAmount.amount },
-                { label: FORECAST_LABEL.best_case, value: BOARD_TEXT.wan(totals.value.bestCaseAmount.amount), weight: totals.value.bestCaseAmount.amount },
-                { label: FORECAST_LABEL.pipeline, value: BOARD_TEXT.wan(totals.value.pipelineAmount.amount), weight: totals.value.pipelineAmount.amount },
+                {
+                  label: FORECAST_LABEL.commit,
+                  value: BOARD_TEXT.wan(totals.value.commitAmount.amount),
+                  weight: totals.value.commitAmount.amount,
+                },
+                {
+                  label: FORECAST_LABEL.best_case,
+                  value: BOARD_TEXT.wan(totals.value.bestCaseAmount.amount),
+                  weight: totals.value.bestCaseAmount.amount,
+                },
+                {
+                  label: FORECAST_LABEL.pipeline,
+                  value: BOARD_TEXT.wan(totals.value.pipelineAmount.amount),
+                  weight: totals.value.pipelineAmount.amount,
+                },
               ],
               // The target itself is NOT repeated here - the quota card above
               // already carries it. What is missing from every other card is
@@ -298,7 +363,10 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
             ...(deals.ok
               ? [
                   { label: BOARD_TEXT.dealsOpen, value: String(open.length) },
-                  { label: BOARD_TEXT.dealsWorth, value: BOARD_TEXT.wan(worth) },
+                  {
+                    label: BOARD_TEXT.dealsWorth,
+                    value: BOARD_TEXT.wan(worth),
+                  },
                 ]
               : []),
             ...count(playbooks, BOARD_TEXT.playbooks),
@@ -323,7 +391,10 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
               {
                 label: BOARD_TEXT.alliesUnreachable,
                 value: String(feed.value.allies.unreachable),
-                tone: feed.value.allies.unreachable > 0 ? ("bad" as const) : undefined,
+                tone:
+                  feed.value.allies.unreachable > 0
+                    ? ("bad" as const)
+                    : undefined,
               },
               {
                 label: BOARD_TEXT.alliesCoaches,
@@ -356,11 +427,15 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
             href: "/pipeline",
             chart: "bars" as const,
             metrics: [
-              ...[...byProduct(lines.filter((l) => openIds.has(l.opportunityId)))]
+              ...[
+                ...byProduct(lines.filter((l) => openIds.has(l.opportunityId))),
+              ]
                 .sort((a, b) => b[1].amount - a[1].amount)
                 .slice(0, 3)
                 .map(([productId, agg]) => ({
-                  label: catalogue.find((p) => p.id === productId)?.name ?? productId,
+                  label:
+                    catalogue.find((p) => p.id === productId)?.name ??
+                    productId,
                   value: BOARD_TEXT.wan(agg.amount),
                   weight: agg.amount,
                 })),
@@ -370,7 +445,9 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
                 ? [
                     {
                       label: BOARD_TEXT.needsApproval,
-                      value: String(lines.filter((l) => l.needsApproval).length),
+                      value: String(
+                        lines.filter((l) => l.needsApproval).length,
+                      ),
                       tone: "warn" as const,
                     },
                   ]
@@ -381,22 +458,48 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       : []),
     // The archive, each with the one number that says whether it is worth
     // opening.
-    { key: "strategy", title: BOARD_TEXT.strategy, href: "/strategy", metrics: count(plans, BOARD_TEXT.plans) },
-    { key: "campaign", title: BOARD_TEXT.campaign, href: "/campaign", metrics: count(campaigns, BOARD_TEXT.campaigns) },
+    {
+      key: "strategy",
+      title: BOARD_TEXT.strategy,
+      href: "/strategy",
+      metrics: count(plans, BOARD_TEXT.plans),
+    },
+    {
+      key: "campaign",
+      title: BOARD_TEXT.campaign,
+      href: "/campaign",
+      metrics: count(campaigns, BOARD_TEXT.campaigns),
+    },
     {
       key: "planning",
       title: BOARD_TEXT.planning,
       href: "/planning",
-      metrics: [...count(targets, BOARD_TEXT.targets), ...count(territories, BOARD_TEXT.territories)],
+      metrics: [
+        ...count(targets, BOARD_TEXT.targets),
+        ...count(territories, BOARD_TEXT.territories),
+      ],
     },
-    { key: "account", title: BOARD_TEXT.account, href: "/account", metrics: count(accounts, BOARD_TEXT.accounts) },
+    {
+      key: "account",
+      title: BOARD_TEXT.account,
+      href: "/account",
+      metrics: count(accounts, BOARD_TEXT.accounts),
+    },
     {
       key: "signal",
       title: BOARD_TEXT.signal,
       href: "/signal",
-      metrics: [...count(signals, BOARD_TEXT.signals), ...count(leads, BOARD_TEXT.leads)],
+      metrics: [
+        ...count(signals, BOARD_TEXT.signals),
+        ...count(leads, BOARD_TEXT.leads),
+      ],
     },
-    { key: "delivery", title: BOARD_TEXT.delivery, href: "/delivery", metrics: count(projects, BOARD_TEXT.projects) },
+    {
+      key: "delivery",
+      title: BOARD_TEXT.delivery,
+      href: "/delivery",
+      metrics: count(projects, BOARD_TEXT.projects),
+    },
   ];
 
   // Shown only with a workspace-scope committed target AND a snapshot behind
@@ -413,11 +516,20 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       // already imply. Three figures over one track is also exactly the density
       // of the resource card, which is the shape this board settled on.
       metrics: [
-        { label: BOARD_TEXT.quotaWon, value: BOARD_TEXT.wan(wsRow.closed?.amount ?? 0), tone: "warn" },
-        { label: BOARD_TEXT.quotaTarget, value: BOARD_TEXT.wan(wsTarget.targetAmount.amount) },
+        {
+          label: BOARD_TEXT.quotaWon,
+          value: BOARD_TEXT.wan(wsRow.closed?.amount ?? 0),
+          tone: "warn",
+        },
+        {
+          label: BOARD_TEXT.quotaTarget,
+          value: BOARD_TEXT.wan(wsTarget.targetAmount.amount),
+        },
         {
           label: BOARD_TEXT.quotaOf,
-          value: BOARD_TEXT.quotaLeft(Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100)))),
+          value: BOARD_TEXT.quotaLeft(
+            Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100))),
+          ),
         },
       ],
       progress: Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100))),
@@ -437,11 +549,19 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
 
 export interface AgentPanelData {
   readonly scanned: number;
-  readonly pending: readonly { id: string; title: string; why: string; source: string }[];
+  readonly pending: readonly {
+    id: string;
+    title: string;
+    why: string;
+    source: string;
+  }[];
   readonly recent: readonly { id: string; text: string; when: string }[];
 }
 
-export async function agentPanel(ctx: BoardContext, now: Date): Promise<AgentPanelData> {
+export async function agentPanel(
+  ctx: BoardContext,
+  now: Date,
+): Promise<AgentPanelData> {
   const base = {
     workspaceId: ctx.workspaceId,
     sub: ctx.sub,
@@ -473,16 +593,25 @@ export async function agentPanel(ctx: BoardContext, now: Date): Promise<AgentPan
             // The claim, clipped. A queue of names says work exists without
             // saying what it is, so a reader has to open each one to find out
             // whether it is theirs to decide.
-            why: j.claim.length > 24 ? BOARD_TEXT.truncate(j.claim.slice(0, 24)) : j.claim,
+            why:
+              j.claim.length > 24
+                ? BOARD_TEXT.truncate(j.claim.slice(0, 24))
+                : j.claim,
             // The marker travels with the row: a decision queue has to let a
             // person see whether an item was counted out or thought up before
             // they sign it.
-            source: j.source === "rule" ? BOARD_TEXT.sourceRule : BOARD_TEXT.sourceModel,
+            source:
+              j.source === "rule"
+                ? BOARD_TEXT.sourceRule
+                : BOARD_TEXT.sourceModel,
           }))
       : [],
     recent: notes.map((n) => ({
       id: n.id,
-      text: n.rawNote.length > 40 ? BOARD_TEXT.truncate(n.rawNote.slice(0, 40)) : n.rawNote,
+      text:
+        n.rawNote.length > 40
+          ? BOARD_TEXT.truncate(n.rawNote.slice(0, 40))
+          : n.rawNote,
       when: day(n.occurredAt),
     })),
   };

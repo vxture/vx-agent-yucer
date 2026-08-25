@@ -25,13 +25,27 @@ function ctx(...roles: RoleCode[]): AuthzContext {
 }
 
 function ent(over: Partial<Entitlement> = {}): Entitlement {
-  return { ...EMPTY_ENTITLEMENT, workspace_id: "ws", product: "yucer", ...over };
+  return {
+    ...EMPTY_ENTITLEMENT,
+    workspace_id: "ws",
+    product: "yucer",
+    ...over,
+  };
 }
 
 test("the nav covers all eight domains, in chain order", () => {
   assert.deepEqual(
     DOMAIN_NAV_ENTRIES.map((e) => e.key),
-    ["strategy", "planning", "campaign", "account", "signal", "pipeline", "delivery", "copilot"],
+    [
+      "strategy",
+      "planning",
+      "campaign",
+      "account",
+      "signal",
+      "pipeline",
+      "delivery",
+      "copilot",
+    ],
   );
 });
 
@@ -47,7 +61,9 @@ test("administration is nav, but it is not a capability domain", () => {
   );
   assert.equal(
     NAV_ENTRIES.length,
-    WORK_NAV_ENTRIES.length + DOMAIN_NAV_ENTRIES.length + ADMIN_NAV_ENTRIES.length,
+    WORK_NAV_ENTRIES.length +
+      DOMAIN_NAV_ENTRIES.length +
+      ADMIN_NAV_ENTRIES.length,
   );
 });
 
@@ -56,7 +72,10 @@ test("the work entries are not domains either, and the copilot stays a domain", 
   // listed ninth in a flat menu - but it is still D8 (ADR-001). Demoting it out
   // of the domain inventory to express a layout decision would make the
   // eight-domain assertion above a statement about a sidebar.
-  assert.deepEqual(WORK_NAV_ENTRIES.map((e) => e.key), ["home"]);
+  assert.deepEqual(
+    WORK_NAV_ENTRIES.map((e) => e.key),
+    ["home"],
+  );
   assert.ok(DOMAIN_NAV_ENTRIES.some((e) => e.key === "copilot"));
 });
 
@@ -72,9 +91,19 @@ test("an entitlement gap is advertised, not hidden", () => {
 test("a permission gap is silent", () => {
   // Teasing someone with a door only their colleague can open is noise they can
   // do nothing about, and it leaks who-can-do-what across the team.
-  const nav = resolveNavigation(ctx("delivery_manager"), ent({ tier: "enterprise" }));
-  assert.equal(nav.some((e) => e.key === "strategy"), false, "delivery_manager has no strategy.read");
-  assert.equal(nav.some((e) => e.key === "delivery"), true);
+  const nav = resolveNavigation(
+    ctx("delivery_manager"),
+    ent({ tier: "enterprise" }),
+  );
+  assert.equal(
+    nav.some((e) => e.key === "strategy"),
+    false,
+    "delivery_manager has no strategy.read",
+  );
+  assert.equal(
+    nav.some((e) => e.key === "delivery"),
+    true,
+  );
 });
 
 test("the two gaps are never confused with each other", () => {
@@ -96,9 +125,15 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
 });
 
 test("an enterprise sales leader sees every domain", () => {
-  const nav = resolveNavigation(ctx("sales_leader"), ent({ tier: "enterprise" }));
+  const nav = resolveNavigation(
+    ctx("sales_leader"),
+    ent({ tier: "enterprise" }),
+  );
   assert.equal(nav.length, NAV_ENTRIES.length);
-  assert.equal(nav.every((e) => e.state === "visible"), true);
+  assert.equal(
+    nav.every((e) => e.state === "visible"),
+    true,
+  );
 });
 
 test("a viewer sees every domain their tier bought, all read-only", () => {
@@ -109,20 +144,29 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length,
   );
-  assert.equal(nav.some((e) => e.key === "admin"), false);
+  assert.equal(
+    nav.some((e) => e.key === "admin"),
+    false,
+  );
 });
 
 test("no tier at all locks everything, and that is detectable", () => {
   const nav = resolveNavigation(ctx("sales_leader"), ent({ tier: null }));
   assert.equal(isFullyLockedOut(nav), true);
   assert.equal(defaultLandingHref(nav), null);
-  assert.equal(nav.every((e) => e.decision.reason === "no_product_access"), true);
+  assert.equal(
+    nav.every((e) => e.decision.reason === "no_product_access"),
+    true,
+  );
 });
 
 test("bundled-only coverage does not light up the product surface", () => {
   // The ui formula is tier != null; bundled coverage keeps data reachable but
   // is not a product subscription.
-  const nav = resolveNavigation(ctx("sales_leader"), ent({ tier: null, bundled: true }));
+  const nav = resolveNavigation(
+    ctx("sales_leader"),
+    ent({ tier: null, bundled: true }),
+  );
   assert.equal(isFullyLockedOut(nav), true);
 });
 
@@ -165,7 +209,13 @@ test("nothing is reported as a lockout while anything is reachable", () => {
 test("an administrator of a paid workspace can always reach the members screen", () => {
   // The recovery path. If this entry were ever gated on a feature, a workspace
   // could reach a state with no way to grant anyone a role.
-  for (const tier of ["free", "starter", "pro", "business", "enterprise"] as const) {
+  for (const tier of [
+    "free",
+    "starter",
+    "pro",
+    "business",
+    "enterprise",
+  ] as const) {
     const nav = resolveNavigation(ctx("sales_ops"), ent({ tier }));
     assert.equal(
       nav.find((e) => e.key === "admin")?.state,
@@ -183,21 +233,30 @@ test("landing goes to the judgement stream, not to a list", () => {
   const rep = resolveNavigation(ctx("sales_rep"), ent({ tier: "free" }));
   assert.equal(defaultLandingHref(rep), "/");
 
-  const delivery = resolveNavigation(ctx("delivery_manager"), ent({ tier: "starter" }));
+  const delivery = resolveNavigation(
+    ctx("delivery_manager"),
+    ent({ tier: "starter" }),
+  );
   assert.equal(defaultLandingHref(delivery), "/");
 });
 
 test("a member who cannot read accounts lands somewhere they can read", () => {
   // home is gated on account.view. Without it there is nothing to land on, and
   // the fallback must still be a real destination rather than a dead href.
-  const pm = resolveNavigation(ctx("delivery_manager"), ent({ tier: "enterprise" }));
+  const pm = resolveNavigation(
+    ctx("delivery_manager"),
+    ent({ tier: "enterprise" }),
+  );
   const href = defaultLandingHref(pm);
   assert.ok(href, "somewhere");
   assert.ok(pm.some((e) => e.href === href && e.state === "visible"));
 });
 
 test("every nav entry points at a real action and a distinct route", () => {
-  assert.equal(new Set(NAV_ENTRIES.map((e) => e.href)).size, NAV_ENTRIES.length);
+  assert.equal(
+    new Set(NAV_ENTRIES.map((e) => e.href)).size,
+    NAV_ENTRIES.length,
+  );
   assert.equal(new Set(NAV_ENTRIES.map((e) => e.key)).size, NAV_ENTRIES.length);
   // Lowercase path segments; more than one is allowed (/admin/members).
   // Lowercase segments, or the root itself - home is "/" and that is a real
@@ -208,7 +267,11 @@ test("every nav entry points at a real action and a distinct route", () => {
 test("a locked entry carries the tier that would unlock it, so the CTA can be specific", () => {
   const nav = resolveNavigation(ctx("sales_leader"), ent({ tier: "starter" }));
   for (const e of nav.filter((x) => x.state === "locked")) {
-    assert.notEqual(e.decision.requiredTier, null, `${e.key} has no upgrade target`);
+    assert.notEqual(
+      e.decision.requiredTier,
+      null,
+      `${e.key} has no upgrade target`,
+    );
     assert.equal(e.decision.remedy, "upgrade");
   }
 });

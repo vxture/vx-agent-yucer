@@ -1,11 +1,33 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ActionMenu, Button, Card, DataTable, EmptyState, FilterBar, Input, Label, ListCard, ListCardGrid, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
+import {
+  ActionMenu,
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  Input,
+  Label,
+  ListCard,
+  ListCardGrid,
+  NativeSelect,
+  Section,
+  SegmentedControl,
+  StatusBadge,
+  Textarea,
+  type DataTableColumn,
+} from "@vxture/design-ui";
 import { TableCard } from "./table-card";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
-import { PIPELINE_TEXT, WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
+import {
+  PIPELINE_TEXT,
+  WINLOSS_REASON_LABEL,
+  WINLOSS_TEXT,
+} from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
+import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
 // Closed deals still owing a post-mortem.
 //
@@ -34,13 +56,29 @@ export interface PendingReviewsProps {
   readonly canRecord: boolean;
   readonly onRecord: (
     opportunityId: string,
-    input: { primaryReason: string | null; competitor?: string; lessons?: string },
+    input: {
+      primaryReason: string | null;
+      competitor?: string;
+      lessons?: string;
+    },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
-const REASONS = ["price", "fit", "timing", "competitor", "no_decision", "other"] as const;
+const REASONS = [
+  "price",
+  "fit",
+  "timing",
+  "competitor",
+  "no_decision",
+  "other",
+] as const;
 
-export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }: PendingReviewsProps) {
+export function PendingReviews({
+  opportunities,
+  allClosed,
+  canRecord,
+  onRecord,
+}: PendingReviewsProps) {
   const [scope, setScope] = useState<"pending" | "all">("pending");
   const [view, setView] = useState<"list" | "cards">("list");
   // Pending is a SUBSET of all, so the two lists share every row object - the
@@ -57,15 +95,17 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
   function submit(id: string) {
     setError(null);
     startTransition(() => {
-      void onRecord(id, { primaryReason: reason, competitor, lessons }).then((r) => {
-        if (!r.ok) {
-          setError(r.error ?? "denied");
-          return;
-        }
-        setOpenId(null);
-        setCompetitor("");
-        setLessons("");
-      });
+      void onRecord(id, { primaryReason: reason, competitor, lessons }).then(
+        (r) => {
+          if (!r.ok) {
+            setError(r.error ?? "denied");
+            return;
+          }
+          setOpenId(null);
+          setCompetitor("");
+          setLessons("");
+        },
+      );
     });
   }
 
@@ -85,7 +125,9 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
       header: WINLOSS_TEXT.columnOutcome,
       cell: (row) => (
         <StatusBadge tone={row.status === "won" ? "success" : "danger"} dot>
-          {row.status === "won" ? WINLOSS_TEXT.outcomeWon : WINLOSS_TEXT.outcomeLost}
+          {row.status === "won"
+            ? WINLOSS_TEXT.outcomeWon
+            : WINLOSS_TEXT.outcomeLost}
         </StatusBadge>
       ),
     },
@@ -98,7 +140,8 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
     {
       id: "closed",
       header: WINLOSS_TEXT.columnClosed,
-      cell: (row) => (row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-"),
+      cell: (row) =>
+        row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-",
     },
     {
       id: "state",
@@ -142,8 +185,16 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
             value={scope}
             onChange={setScope}
             items={[
-              { value: "pending", label: WINLOSS_TEXT.filterPending, count: opportunities.length },
-              { value: "all", label: WINLOSS_TEXT.filterAll, count: allClosed.length },
+              {
+                value: "pending",
+                label: WINLOSS_TEXT.filterPending,
+                count: opportunities.length,
+              },
+              {
+                value: "all",
+                label: WINLOSS_TEXT.filterAll,
+                count: allClosed.length,
+              },
             ]}
           />
         }
@@ -151,8 +202,16 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
 
       {shown.length === 0 ? (
         <EmptyState
-          title={scope === "pending" ? WINLOSS_TEXT.emptyTitle : WINLOSS_TEXT.allEmptyTitle}
-          description={scope === "pending" ? WINLOSS_TEXT.emptyDescription : WINLOSS_TEXT.allEmptyDescription}
+          title={
+            scope === "pending"
+              ? WINLOSS_TEXT.emptyTitle
+              : WINLOSS_TEXT.allEmptyTitle
+          }
+          description={
+            scope === "pending"
+              ? WINLOSS_TEXT.emptyDescription
+              : WINLOSS_TEXT.allEmptyDescription
+          }
         />
       ) : (
         /* Only the table is in the card - the heading and its tools stay
@@ -172,6 +231,7 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
                  where "why is it missing" is not. */
               rowActions={(row) => (
                 <ActionMenu
+                  label={ACTION_MENU_LABEL}
                   items={[
                     {
                       id: "record",
@@ -182,7 +242,8 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
                         : !pendingIds.has(row.id)
                           ? WINLOSS_TEXT.recordHintDone
                           : undefined,
-                      onSelect: () => setOpenId(openId === row.id ? null : row.id),
+                      onSelect: () =>
+                        setOpenId(openId === row.id ? null : row.id),
                     },
                   ]}
                 />
@@ -196,15 +257,25 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
                   title={row.name}
                   description={row.opportunityNo}
                   status={
-                    <StatusBadge tone={row.status === "won" ? "success" : "danger"}>
-                      {row.status === "won" ? WINLOSS_TEXT.outcomeWon : WINLOSS_TEXT.outcomeLost}
+                    <StatusBadge
+                      tone={row.status === "won" ? "success" : "danger"}
+                    >
+                      {row.status === "won"
+                        ? WINLOSS_TEXT.outcomeWon
+                        : WINLOSS_TEXT.outcomeLost}
                     </StatusBadge>
                   }
                   meta={
                     !pendingIds.has(row.id) ? (
-                      <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
+                      <StatusBadge tone="success">
+                        {WINLOSS_TEXT.reviewed}
+                      </StatusBadge>
                     ) : (
-                      <span>{row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-"}</span>
+                      <span>
+                        {row.closedAt
+                          ? row.closedAt.toISOString().slice(0, 10)
+                          : "-"}
+                      </span>
                     )
                   }
                 />
@@ -237,9 +308,17 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
           />
 
           <Label htmlFor="wlr-lessons">{WINLOSS_TEXT.lessonsLabel}</Label>
-          <Textarea id="wlr-lessons" value={lessons} onChange={(e) => setLessons(e.currentTarget.value)} />
+          <Textarea
+            id="wlr-lessons"
+            value={lessons}
+            onChange={(e) => setLessons(e.currentTarget.value)}
+          />
 
-          <Button variant="ghost" onClick={() => setOpenId(null)} disabled={pending}>
+          <Button
+            variant="ghost"
+            onClick={() => setOpenId(null)}
+            disabled={pending}
+          >
             {WINLOSS_TEXT.cancel}
           </Button>
           <Button onClick={() => submit(target.id)} disabled={pending}>

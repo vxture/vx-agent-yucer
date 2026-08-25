@@ -34,7 +34,10 @@ export interface LifecycleControlProps {
   readonly options: readonly string[];
   readonly label: Record<string, string>;
   readonly canChange: boolean;
-  readonly onChange: (id: string, to: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly onChange: (
+    id: string,
+    to: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function LifecycleControl({
@@ -64,7 +67,8 @@ export function LifecycleControl({
               // outstanding executions" is actionable; "failed" is not.
               toast({
                 tone: "danger",
-                title: LIFECYCLE_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
+                title:
+                  LIFECYCLE_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
               });
             });
           }),

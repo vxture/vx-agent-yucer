@@ -1309,6 +1309,15 @@ export const LEAD_TEXT = {
   sourceSelf: "自拓",
   qualify: "标记合格",
   disqualify: "判定不合格",
+  // The consequence, written from what the code actually does rather than from
+  // what the word suggests. advanceLead only refuses a CONVERTED lead, so the
+  // rule would let a disqualified one move again - but this list treats
+  // disqualified as terminal and greys every action, so from here it is
+  // one-way. The sentence states the interface's behaviour, because that is
+  // the one the reader is about to be held to.
+  disqualifyConsequence:
+    "判定后这条线索的所有动作都会灰掉，无法从这个列表改回。",
+  disqualifyTarget: (subject: string) => `线索「${subject}」`,
   convert: "转化为商机",
   converted: "已转化",
   hintTerminal: "线索已经结案，没有可做的动作",

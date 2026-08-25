@@ -50,14 +50,49 @@ export interface NavEntry {
  * copilot last because it cuts across all of them.
  */
 export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
-  { key: "strategy", href: "/strategy", icon: "graph", action: "strategy.plan.view" },
-  { key: "planning", href: "/planning", icon: "chart-bar", action: "planning.target.view" },
-  { key: "campaign", href: "/campaign", icon: "workflow", action: "campaign.view" },
-  { key: "account", href: "/account", icon: "buildings", action: "account.view" },
+  {
+    key: "strategy",
+    href: "/strategy",
+    icon: "graph",
+    action: "strategy.plan.view",
+  },
+  {
+    key: "planning",
+    href: "/planning",
+    icon: "chart-bar",
+    action: "planning.target.view",
+  },
+  {
+    key: "campaign",
+    href: "/campaign",
+    icon: "workflow",
+    action: "campaign.view",
+  },
+  {
+    key: "account",
+    href: "/account",
+    icon: "buildings",
+    action: "account.view",
+  },
   { key: "signal", href: "/signal", icon: "lightbulb", action: "signal.view" },
-  { key: "pipeline", href: "/pipeline", icon: "table", action: "pipeline.view" },
-  { key: "delivery", href: "/delivery", icon: "cube", action: "delivery.project.view" },
-  { key: "copilot", href: "/copilot", icon: "sparkles", action: "copilot.playbook.view" },
+  {
+    key: "pipeline",
+    href: "/pipeline",
+    icon: "table",
+    action: "pipeline.view",
+  },
+  {
+    key: "delivery",
+    href: "/delivery",
+    icon: "cube",
+    action: "delivery.project.view",
+  },
+  {
+    key: "copilot",
+    href: "/copilot",
+    icon: "sparkles",
+    action: "copilot.playbook.view",
+  },
 ];
 
 /**
@@ -90,8 +125,18 @@ export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
  * than dropping it into a shell containing only this entry.
  */
 export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
-  { key: "admin", href: "/admin/members", icon: "settings", action: "admin.member.view" },
-  { key: "adoption", href: "/admin/adoption", icon: "chart-bar", action: "admin.adoption.view" },
+  {
+    key: "admin",
+    href: "/admin/members",
+    icon: "settings",
+    action: "admin.member.view",
+  },
+  {
+    key: "adoption",
+    href: "/admin/adoption",
+    icon: "chart-bar",
+    action: "admin.adoption.view",
+  },
 ];
 
 export const NAV_ENTRIES: readonly NavEntry[] = [
@@ -135,13 +180,17 @@ export function resolveNavigation(
 }
 
 /** The first domain a member can actually open, for post-login landing. */
-export function defaultLandingHref(resolved: readonly ResolvedNavEntry[]): string | null {
+export function defaultLandingHref(
+  resolved: readonly ResolvedNavEntry[],
+): string | null {
   return resolved.find((e) => e.state === "visible")?.href ?? null;
 }
 
 /** True when nothing at all is reachable - the surface should say so plainly
  * rather than rendering an empty shell. */
-export function isFullyLockedOut(resolved: readonly ResolvedNavEntry[]): boolean {
+export function isFullyLockedOut(
+  resolved: readonly ResolvedNavEntry[],
+): boolean {
   return resolved.every((e) => e.state !== "visible");
 }
 
@@ -165,7 +214,9 @@ export function isFullyLockedOut(resolved: readonly ResolvedNavEntry[]): boolean
  */
 export type LockoutReason = "no_entitlement" | "no_roles";
 
-export function lockoutReason(resolved: readonly ResolvedNavEntry[]): LockoutReason | null {
+export function lockoutReason(
+  resolved: readonly ResolvedNavEntry[],
+): LockoutReason | null {
   if (!isFullyLockedOut(resolved)) return null;
   return resolved.length === 0 ? "no_roles" : "no_entitlement";
 }

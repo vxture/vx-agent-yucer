@@ -20,6 +20,7 @@ import { recomputeAccountHealth } from "../account/actions";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT } from "../lib/messages";
 import { healthTone } from "../lib/view-model";
 import { TableCard } from "./table-card";
+import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
 // The account list's table.
 //
@@ -88,6 +89,7 @@ export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
   function actions(row: AccountRecord) {
     return (
       <ActionMenu
+        label={ACTION_MENU_LABEL}
         disabled={pending && busyId === row.id}
         items={[
           {

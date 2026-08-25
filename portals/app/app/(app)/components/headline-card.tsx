@@ -41,7 +41,12 @@ export interface HeadlineCardProps {
   readonly awaiting: number;
 }
 
-export function HeadlineCard({ headline, filter, split, awaiting }: HeadlineCardProps) {
+export function HeadlineCard({
+  headline,
+  filter,
+  split,
+  awaiting,
+}: HeadlineCardProps) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -51,14 +56,20 @@ export function HeadlineCard({ headline, filter, split, awaiting }: HeadlineCard
           32px apart; with two children that 32px landed on top of this block's
           own margin and the collapsed state kept reserving space it no longer
           used. */}
-      <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-md">
+      <Collapsible
+        open={open}
+        onOpenChange={setOpen}
+        className="flex flex-col gap-md"
+      >
         <div className="flex flex-wrap items-end justify-between gap-md">
           {headline}
 
           <div className="flex items-end gap-xs">
             {filter}
             <CollapsibleTrigger
-              aria-label={open ? PIPELINE_TEXT.splitCollapse : PIPELINE_TEXT.splitExpand}
+              aria-label={
+                open ? PIPELINE_TEXT.splitCollapse : PIPELINE_TEXT.splitExpand
+              }
               className="text-muted-foreground hover:text-foreground"
             >
               <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
@@ -87,7 +98,9 @@ export function HeadlineCard({ headline, filter, split, awaiting }: HeadlineCard
           />
 
           {split.length === 0 ? (
-            <p className="text-muted-foreground mt-md text-body-sm">{PIPELINE_TEXT.splitEmpty}</p>
+            <p className="text-muted-foreground mt-md text-body-sm">
+              {PIPELINE_TEXT.splitEmpty}
+            </p>
           ) : (
             <ul className="border-border mt-md flex w-full flex-wrap items-stretch rounded-md border">
               {split.map((p) => (
@@ -103,7 +116,9 @@ export function HeadlineCard({ headline, filter, split, awaiting }: HeadlineCard
                   <div className="text-foreground truncate text-heading-4 tabular-nums">
                     {BOARD_TEXT.wan(p.amount)}
                   </div>
-                  <div className="text-muted-foreground truncate text-xs">{p.name}</div>
+                  <div className="text-muted-foreground truncate text-xs">
+                    {p.name}
+                  </div>
                 </li>
               ))}
             </ul>

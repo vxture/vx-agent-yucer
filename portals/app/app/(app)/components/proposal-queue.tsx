@@ -24,6 +24,7 @@ import {
   AGENT_SUBJECT_LABEL,
   PROPOSAL_TEXT,
 } from "../lib/messages";
+import { BULK_LABELS } from "../lib/ds-labels";
 
 // The copilot proposal queue - where a human decides what the agent may do.
 //
@@ -204,9 +205,18 @@ export function ProposalQueue({
           actions still open the confirmation rather than acting: ADR-003 is
           that a person decides, and a one-click "accept 200" is exactly the
           frictionless path batchRisk() exists to interrupt. */}
+      {/* ALL FOUR outlets passed, and the template and the noun move together
+          by necessity - the changelog names this pair, because passing only
+          the noun yields 「已选择 3 items」. The shipped defaults are English
+          ("{count} {noun} selected" / "items" / "Bulk actions" / "Clear");
+          note that the .d.ts comments still claim Chinese ones, so this was
+          verified against the bundle rather than the types. */}
       <BulkActionBar
         count={selected.size}
-        noun={PROPOSAL_TEXT.selectionNoun}
+        noun={BULK_LABELS.noun}
+        selectionTemplate={BULK_LABELS.selectionTemplate}
+        toolbarLabel={BULK_LABELS.toolbarLabel}
+        clearLabel={BULK_LABELS.clearLabel}
         onClear={() => setSelected(new Set())}
         actions={[
           {
@@ -299,8 +309,15 @@ function BatchConfirm({
           <Button variant="ghost" onClick={onCancel}>
             {PROPOSAL_TEXT.cancel}
           </Button>
+          {/* destructive-STRONG, not destructive, and that is the DS's own
+              distinction rather than a way around the new type obligation.
+              This button IS the confirmation - BatchConfirm is the interrupt
+              batchRisk() exists to raise - so asking it to raise a second one
+              would be a loop, and design-ui 6.0 leaves the strong grade
+              unconstrained for exactly that reason: it is the hammer, and a
+              hammer does not ask itself. */}
           <Button
-            variant={decision === "accept" ? "default" : "destructive"}
+            variant={decision === "accept" ? "default" : "destructive-strong"}
             onClick={onConfirm}
           >
             {PROPOSAL_TEXT.confirm(verb)}

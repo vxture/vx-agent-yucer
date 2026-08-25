@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, MetricGrid, Section, StatusBadge, type MetricGridItem } from "@vxture/design-ui";
+import {
+  Button,
+  MetricGrid,
+  Section,
+  StatusBadge,
+  type MetricGridItem,
+} from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { CHAIN_TEXT } from "../lib/messages";
 import { healthReasonText } from "../lib/messages";
@@ -28,10 +34,17 @@ export interface HealthPanelProps {
   readonly accountId: string;
   readonly health: HealthResult;
   readonly canRecompute: boolean;
-  readonly onRecompute: (accountId: string) => Promise<{ ok: boolean; score?: number; error?: string }>;
+  readonly onRecompute: (
+    accountId: string,
+  ) => Promise<{ ok: boolean; score?: number; error?: string }>;
 }
 
-export function HealthPanel({ accountId, health, canRecompute, onRecompute }: HealthPanelProps) {
+export function HealthPanel({
+  accountId,
+  health,
+  canRecompute,
+  onRecompute,
+}: HealthPanelProps) {
   const [current, setCurrent] = useState(health);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -62,17 +75,25 @@ export function HealthPanel({ accountId, health, canRecompute, onRecompute }: He
       description={CHAIN_TEXT.healthDescription}
       action={
         canRecompute ? (
-          <Button variant="outline" size="sm" onClick={recompute} disabled={pending}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={recompute}
+            disabled={pending}
+          >
             {CHAIN_TEXT.recompute}
           </Button>
         ) : null
       }
     >
-      <StatusBadge tone={healthTone(current.score)}>{current.score}</StatusBadge>
+      <StatusBadge tone={healthTone(current.score)}>
+        {current.score}
+      </StatusBadge>
 
       {current.primaryConcern ? (
         <StatusBadge tone="warning">
-          {CHAIN_TEXT.primaryConcern}: {healthReasonText(current.primaryConcern.reason)}
+          {CHAIN_TEXT.primaryConcern}:{" "}
+          {healthReasonText(current.primaryConcern.reason)}
         </StatusBadge>
       ) : null}
 

@@ -21,22 +21,37 @@ export interface RelationshipEvidenceProps {
 
 const DAY = 86_400_000;
 
-export function RelationshipEvidencePanel({ evidence, now }: RelationshipEvidenceProps) {
+export function RelationshipEvidencePanel({
+  evidence,
+  now,
+}: RelationshipEvidenceProps) {
   const at = now ?? new Date();
   const { lastContactAt, reliability, interactionCount } = evidence;
 
   const days =
-    lastContactAt === null ? null : Math.floor((at.getTime() - lastContactAt.getTime()) / DAY);
+    lastContactAt === null
+      ? null
+      : Math.floor((at.getTime() - lastContactAt.getTime()) / DAY);
 
   const items: MetricGridItem[] = [
     {
       id: "last-contact",
       label: FIELD_TEXT.evidenceLastContact,
       // Days, then the date. The gap is the fact; the date is the reference.
-      value: days === null ? FIELD_TEXT.evidenceNever : FIELD_TEXT.evidenceDaysAgo(days),
+      value:
+        days === null
+          ? FIELD_TEXT.evidenceNever
+          : FIELD_TEXT.evidenceDaysAgo(days),
       trend: lastContactAt?.toISOString().slice(0, 10),
       // Six weeks without contact on an account someone is meant to be working.
-      tone: days === null ? "neutral" : days > 42 ? "danger" : days > 21 ? "warning" : "success",
+      tone:
+        days === null
+          ? "neutral"
+          : days > 42
+            ? "danger"
+            : days > 21
+              ? "warning"
+              : "success",
     },
     {
       id: "interactions",
@@ -76,7 +91,10 @@ export function RelationshipEvidencePanel({ evidence, now }: RelationshipEvidenc
   ];
 
   return (
-    <Section title={FIELD_TEXT.evidenceTitle} description={FIELD_TEXT.evidenceDescription}>
+    <Section
+      title={FIELD_TEXT.evidenceTitle}
+      description={FIELD_TEXT.evidenceDescription}
+    >
       <MetricGrid items={items} />
     </Section>
   );

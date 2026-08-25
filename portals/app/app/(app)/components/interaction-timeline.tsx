@@ -27,18 +27,29 @@ export interface InteractionTimelineProps {
 export function InteractionTimeline({ items }: InteractionTimelineProps) {
   if (items.length === 0) {
     return (
-      <Section title={FIELD_TEXT.timelineTitle} description={FIELD_TEXT.timelineDescription}>
-        <EmptyState title={FIELD_TEXT.recordEmpty} description={FIELD_TEXT.recordEmptyDescription} />
+      <Section
+        title={FIELD_TEXT.timelineTitle}
+        description={FIELD_TEXT.timelineDescription}
+      >
+        <EmptyState
+          title={FIELD_TEXT.recordEmpty}
+          description={FIELD_TEXT.recordEmptyDescription}
+        />
       </Section>
     );
   }
 
   return (
-    <Section title={FIELD_TEXT.timelineTitle} description={FIELD_TEXT.timelineDescription}>
+    <Section
+      title={FIELD_TEXT.timelineTitle}
+      description={FIELD_TEXT.timelineDescription}
+    >
       <ol>
         {items.map((i) => (
           <li key={i.id}>
-            <StatusBadge tone="neutral">{CHANNEL_LABEL[i.channel] ?? i.channel}</StatusBadge>
+            <StatusBadge tone="neutral">
+              {CHANNEL_LABEL[i.channel] ?? i.channel}
+            </StatusBadge>
             <time dateTime={i.occurredAt.toISOString()}>
               {i.occurredAt.toISOString().slice(0, 16).replace("T", " ")}
             </time>
@@ -49,7 +60,9 @@ export function InteractionTimeline({ items }: InteractionTimelineProps) {
                 Saying so is the difference between "the record changed" and
                 "somebody corrected the record". */}
             {i.correctsInteractionId ? (
-              <StatusBadge tone="warning">{FIELD_TEXT.timelineCorrects}</StatusBadge>
+              <StatusBadge tone="warning">
+                {FIELD_TEXT.timelineCorrects}
+              </StatusBadge>
             ) : null}
             <p>{i.rawNote}</p>
           </li>

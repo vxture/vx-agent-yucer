@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Checkbox, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
+import {
+  Button,
+  Checkbox,
+  Label,
+  NativeSelect,
+  Section,
+  StatusBadge,
+  Textarea,
+} from "@vxture/design-ui";
 import {
   DEFAULT_PROBABILITY,
   OPEN_STAGE_ORDER,
@@ -11,7 +19,11 @@ import {
   isProbabilityOverridden,
   type Stage,
 } from "../../domains/pipeline/lib/stage";
-import { OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, STAGE_LABEL } from "../lib/messages";
+import {
+  OPPORTUNITY_ERROR,
+  OPPORTUNITY_TEXT,
+  STAGE_LABEL,
+} from "../lib/messages";
 
 // Moving a deal, with the rule visible before the click rather than after it.
 //
@@ -34,7 +46,12 @@ export interface StageControlProps {
   readonly onAdvance: (
     opportunityId: string,
     input: { to: string; reason?: string; reopen?: boolean },
-  ) => Promise<{ ok: boolean; stage?: string; reviewRequired?: boolean; error?: string }>;
+  ) => Promise<{
+    ok: boolean;
+    stage?: string;
+    reviewRequired?: boolean;
+    error?: string;
+  }>;
 }
 
 export function StageControl({
@@ -50,12 +67,17 @@ export function StageControl({
   const [reason, setReason] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ stage: string; reviewRequired: boolean } | null>(null);
+  const [done, setDone] = useState<{
+    stage: string;
+    reviewRequired: boolean;
+  } | null>(null);
 
   if (!canAdvance) {
     return (
       <Section title={OPPORTUNITY_TEXT.advanceTitle}>
-        <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.advanceReadOnly}</StatusBadge>
+        <StatusBadge tone="neutral">
+          {OPPORTUNITY_TEXT.advanceReadOnly}
+        </StatusBadge>
       </Section>
     );
   }
@@ -87,10 +109,15 @@ export function StageControl({
           // The server's own violation code, mapped to a sentence. A generic
           // "failed" would hide the difference between "you lack the
           // permission" and "that move needs a reason".
-          setError(OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+          setError(
+            OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
+          );
           return;
         }
-        setDone({ stage: r.stage ?? to, reviewRequired: r.reviewRequired === true });
+        setDone({
+          stage: r.stage ?? to,
+          reviewRequired: r.reviewRequired === true,
+        });
         setReason("");
         setTo("");
       });
@@ -98,7 +125,10 @@ export function StageControl({
   }
 
   return (
-    <Section title={OPPORTUNITY_TEXT.advanceTitle} description={OPPORTUNITY_TEXT.advanceDescription}>
+    <Section
+      title={OPPORTUNITY_TEXT.advanceTitle}
+      description={OPPORTUNITY_TEXT.advanceDescription}
+    >
       {closed ? (
         <>
           <StatusBadge tone="warning" dot>
@@ -146,18 +176,26 @@ export function StageControl({
               override silently overwritten on a terminal move is the surprise
               this line exists to prevent. */}
           {terminalTarget && overridden ? (
-            <StatusBadge tone="info">{OPPORTUNITY_TEXT.advanceOverrideReset}</StatusBadge>
+            <StatusBadge tone="info">
+              {OPPORTUNITY_TEXT.advanceOverrideReset}
+            </StatusBadge>
           ) : null}
           {!terminalTarget && overridden && to !== "" ? (
-            <StatusBadge tone="info">{OPPORTUNITY_TEXT.advanceOverrideKept}</StatusBadge>
+            <StatusBadge tone="info">
+              {OPPORTUNITY_TEXT.advanceOverrideKept}
+            </StatusBadge>
           ) : null}
           {terminalTarget ? (
-            <StatusBadge tone="warning">{OPPORTUNITY_TEXT.advanceTerminalHint}</StatusBadge>
+            <StatusBadge tone="warning">
+              {OPPORTUNITY_TEXT.advanceTerminalHint}
+            </StatusBadge>
           ) : null}
 
           {reasonRequired || reason ? (
             <>
-              <Label htmlFor="stage-reason">{OPPORTUNITY_TEXT.advanceReason}</Label>
+              <Label htmlFor="stage-reason">
+                {OPPORTUNITY_TEXT.advanceReason}
+              </Label>
               <Textarea
                 id="stage-reason"
                 value={reason}
@@ -180,7 +218,9 @@ export function StageControl({
             // Disabled on the two conditions the server would refuse anyway.
             // Everything else is left enabled: a button disabled for a reason
             // the user cannot see is worse than a refusal that explains itself.
-            disabled={pending || to === "" || (reasonRequired && !reason.trim())}
+            disabled={
+              pending || to === "" || (reasonRequired && !reason.trim())
+            }
           >
             {OPPORTUNITY_TEXT.advanceSubmit}
           </Button>
@@ -198,7 +238,9 @@ export function StageControl({
               would push people to leave dead deals open, which is worse for
               every number than a closed deal missing its post-mortem. */}
           {done.reviewRequired ? (
-            <StatusBadge tone="warning">{OPPORTUNITY_TEXT.advanceReviewRequired}</StatusBadge>
+            <StatusBadge tone="warning">
+              {OPPORTUNITY_TEXT.advanceReviewRequired}
+            </StatusBadge>
           ) : null}
         </>
       ) : null}

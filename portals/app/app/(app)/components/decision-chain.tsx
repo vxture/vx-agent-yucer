@@ -1,8 +1,18 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { EmptyState, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
-import type { ChainCoverage, ContactNode } from "../../domains/account/lib/health";
+import {
+  EmptyState,
+  Section,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@vxture/design-ui";
+import type {
+  ChainCoverage,
+  ContactNode,
+} from "../../domains/account/lib/health";
 import { CHAIN_TEXT, DECISION_ROLE_LABEL } from "../lib/messages";
 
 // The decision chain.
@@ -25,17 +35,26 @@ export interface DecisionChainProps {
   readonly linkForm?: ReactNode;
 }
 
-export function DecisionChain({ coverage, contacts, linkForm }: DecisionChainProps) {
+export function DecisionChain({
+  coverage,
+  contacts,
+  linkForm,
+}: DecisionChainProps) {
   if (contacts.length === 0) {
     return (
       <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
-        <EmptyState title={CHAIN_TEXT.emptyTitle} description={CHAIN_TEXT.emptyDescription} />
+        <EmptyState
+          title={CHAIN_TEXT.emptyTitle}
+          description={CHAIN_TEXT.emptyDescription}
+        />
         {linkForm}
       </Section>
     );
   }
 
-  const hasEconomicBuyer = contacts.some((c) => c.decisionRole === "economic" && c.status === "active");
+  const hasEconomicBuyer = contacts.some(
+    (c) => c.decisionRole === "economic" && c.status === "active",
+  );
 
   return (
     <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
@@ -45,7 +64,9 @@ export function DecisionChain({ coverage, contacts, linkForm }: DecisionChainPro
           <TooltipTrigger asChild>
             <span>
               <StatusBadge tone="danger" dot>
-                {hasEconomicBuyer ? CHAIN_TEXT.unreachable : CHAIN_TEXT.noEconomicBuyer}
+                {hasEconomicBuyer
+                  ? CHAIN_TEXT.unreachable
+                  : CHAIN_TEXT.noEconomicBuyer}
               </StatusBadge>
             </span>
           </TooltipTrigger>
@@ -85,7 +106,9 @@ export function DecisionChain({ coverage, contacts, linkForm }: DecisionChainPro
           {coverage.coaches.map((c) => (
             <StatusBadge key={c.id} tone="info">
               {c.id}
-              {c.influence != null ? ` (${CHAIN_TEXT.influence} ${c.influence})` : ""}
+              {c.influence != null
+                ? ` (${CHAIN_TEXT.influence} ${c.influence})`
+                : ""}
             </StatusBadge>
           ))}
         </div>

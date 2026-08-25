@@ -29,14 +29,22 @@ import type { AgentPanelData } from "../lib/board";
 export interface AgentPanelProps {
   readonly data: AgentPanelData;
   readonly canRecord: boolean;
-  readonly onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly onRecord?: (
+    text: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   /** Absent until the ask path reaches the agent plane; the button says so. */
   readonly onAsk?: (text: string) => void;
   /** Absent until attachment intake exists; same treatment. */
   readonly onAttach?: () => void;
 }
 
-export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: AgentPanelProps) {
+export function AgentPanel({
+  data,
+  canRecord,
+  onRecord,
+  onAsk,
+  onAttach,
+}: AgentPanelProps) {
   const [text, setText] = useState("");
   const [pendingSave, start] = useTransition();
 
@@ -51,7 +59,9 @@ export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: Agent
           <Avatar className="size-6">
             <AvatarFallback>{BOARD_TEXT.agent.slice(0, 1)}</AvatarFallback>
           </Avatar>
-          <span className="text-label-md text-foreground">{BOARD_TEXT.agent}</span>
+          <span className="text-label-md text-foreground">
+            {BOARD_TEXT.agent}
+          </span>
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
             {BOARD_TEXT.agentScope(data.scanned)}
           </span>
@@ -124,7 +134,9 @@ export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: Agent
 
       {data.pending.length > 0 ? (
         <Card className="p-sm">
-          <p className="text-label-md text-foreground">{BOARD_TEXT.pendingTitle}</p>
+          <p className="text-label-md text-foreground">
+            {BOARD_TEXT.pendingTitle}
+          </p>
           <PanelList className="mt-xs">
             {data.pending.map((p) => (
               <PanelItem
@@ -132,10 +144,16 @@ export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: Agent
                 main={
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-body-sm">{p.title}</span>
-                    <span className="text-muted-foreground truncate text-xs">{p.why}</span>
+                    <span className="text-muted-foreground truncate text-xs">
+                      {p.why}
+                    </span>
                   </span>
                 }
-                trail={<span className="text-muted-foreground text-xs">{p.source}</span>}
+                trail={
+                  <span className="text-muted-foreground text-xs">
+                    {p.source}
+                  </span>
+                }
               />
             ))}
           </PanelList>
@@ -157,18 +175,30 @@ export function AgentPanel({ data, canRecord, onRecord, onAsk, onAttach }: Agent
         <Button size="sm" variant="outline" className="mt-sm w-full" disabled>
           {BOARD_TEXT.reconCta}
         </Button>
-        <p className="text-muted-foreground mt-xs text-xs">{BOARD_TEXT.reconNote}</p>
+        <p className="text-muted-foreground mt-xs text-xs">
+          {BOARD_TEXT.reconNote}
+        </p>
       </Card>
 
       {data.recent.length > 0 ? (
         <Card className="p-sm">
-          <p className="text-label-md text-foreground">{BOARD_TEXT.recentTitle}</p>
+          <p className="text-label-md text-foreground">
+            {BOARD_TEXT.recentTitle}
+          </p>
           <PanelList className="mt-xs">
             {data.recent.map((r) => (
               <PanelItem
                 key={r.id}
-                main={<span className="text-muted-foreground text-body-sm">{r.text}</span>}
-                trail={<span className="text-muted-foreground text-xs">{r.when}</span>}
+                main={
+                  <span className="text-muted-foreground text-body-sm">
+                    {r.text}
+                  </span>
+                }
+                trail={
+                  <span className="text-muted-foreground text-xs">
+                    {r.when}
+                  </span>
+                }
               />
             ))}
           </PanelList>

@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Icon, StatusBadge, Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
+import {
+  Button,
+  Icon,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@vxture/design-ui";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DOMAIN_LABEL, NAV_TEXT } from "../lib/messages";
 
@@ -49,7 +56,9 @@ export function DomainNav({ entries, activeKey, upgradeHref }: DomainNavProps) {
                     <Button variant="ghost" disabled aria-disabled="true">
                       <Icon name={entry.icon} />
                       {DOMAIN_LABEL[entry.key] ?? entry.key}
-                      <StatusBadge tone="neutral">{entry.decision.requiredTier ?? "-"}</StatusBadge>
+                      <StatusBadge tone="neutral">
+                        {entry.decision.requiredTier ?? "-"}
+                      </StatusBadge>
                     </Button>
                   </span>
                 </TooltipTrigger>

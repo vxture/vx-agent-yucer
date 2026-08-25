@@ -118,9 +118,18 @@ function Ambience() {
         strokeLinecap="round"
       >
         <path d="M-80 690 C220 430,360 790,650 570 S1080 300,1680 480" />
-        <path d="M-100 760 C220 500,390 850,690 620 S1130 360,1700 540" opacity={0.7} />
-        <path d="M-120 830 C230 570,420 900,720 675 S1180 420,1710 600" opacity={0.45} />
-        <path d="M-60 600 C240 360,390 680,610 500 S1070 240,1640 410" opacity={0.3} />
+        <path
+          d="M-100 760 C220 500,390 850,690 620 S1130 360,1700 540"
+          opacity={0.7}
+        />
+        <path
+          d="M-120 830 C230 570,420 900,720 675 S1180 420,1710 600"
+          opacity={0.45}
+        />
+        <path
+          d="M-60 600 C240 360,390 680,610 500 S1070 240,1640 410"
+          opacity={0.3}
+        />
       </svg>
 
       {/* The wash. Without it the lines run under the wordmark and the door

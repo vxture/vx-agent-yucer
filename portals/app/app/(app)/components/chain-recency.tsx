@@ -74,7 +74,10 @@ export function ChainRecencyPanel({ recency, nameOf }: ChainRecencyProps) {
               {nameOf(c)}
             </StatusBadge>
           ))}
-          <EmptyState title={RECENCY_TEXT.unrecorded} description={RECENCY_TEXT.unrecordedHint} />
+          <EmptyState
+            title={RECENCY_TEXT.unrecorded}
+            description={RECENCY_TEXT.unrecordedHint}
+          />
         </div>
       ) : null}
     </Section>

@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ActionMenu, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, Section, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
+import {
+  ActionMenu,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
+  Section,
+  StatusBadge,
+  type DataTableColumn,
+} from "@vxture/design-ui";
 import { TableCard } from "./table-card";
 import type { LeadRecord } from "../../domains/signal/store";
 import { LEAD_STATUS_LABEL, LEAD_TEXT, PIPELINE_TEXT } from "../lib/messages";
+import { ACTION_MENU_LABEL, CONFIRM_LABELS } from "../lib/ds-labels";
 import { confidenceTone } from "../lib/view-model";
 import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
@@ -23,7 +34,10 @@ export interface LeadListProps {
   readonly leads: readonly LeadRecord[];
   readonly canTriage: boolean;
   readonly canConvert: boolean;
-  readonly onAct: (leadId: string, action: LeadAction) => Promise<LeadActionResult>;
+  readonly onAct: (
+    leadId: string,
+    action: LeadAction,
+  ) => Promise<LeadActionResult>;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -32,7 +46,12 @@ const SOURCE_LABEL: Record<string, string> = {
   self_sourced: LEAD_TEXT.sourceSelf,
 };
 
-export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps) {
+export function LeadList({
+  leads,
+  canTriage,
+  canConvert,
+  onAct,
+}: LeadListProps) {
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -75,7 +94,13 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
       header: LEAD_TEXT.columnScore,
       align: "right",
       cell: (row) =>
-        row.score == null ? "-" : <StatusBadge tone={confidenceTone(row.score)}>{row.score}</StatusBadge>,
+        row.score == null ? (
+          "-"
+        ) : (
+          <StatusBadge tone={confidenceTone(row.score)}>
+            {row.score}
+          </StatusBadge>
+        ),
     },
     {
       id: "source",
@@ -84,17 +109,26 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
         row.campaignId ? (
           <StatusBadge tone="info">{LEAD_TEXT.sourceCampaign}</StatusBadge>
         ) : row.signalId ? (
-          <StatusBadge tone="neutral">{LEAD_TEXT.sourceSignalCampaign}</StatusBadge>
+          <StatusBadge tone="neutral">
+            {LEAD_TEXT.sourceSignalCampaign}
+          </StatusBadge>
         ) : (
           <StatusBadge tone="neutral">{LEAD_TEXT.sourceSelf}</StatusBadge>
         ),
     },
-    { id: "owner", header: LEAD_TEXT.columnOwner, cell: (row) => row.ownerSub ?? "-" },
+    {
+      id: "owner",
+      header: LEAD_TEXT.columnOwner,
+      cell: (row) => row.ownerSub ?? "-",
+    },
     {
       id: "status",
       header: LEAD_TEXT.columnStatus,
       cell: (row) => (
-        <StatusBadge tone={row.status === "converted" ? "success" : "neutral"} dot>
+        <StatusBadge
+          tone={row.status === "converted" ? "success" : "neutral"}
+          dot
+        >
           {LEAD_STATUS_LABEL[row.status] ?? row.status}
         </StatusBadge>
       ),
@@ -108,11 +142,13 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
      most for convert, whose refusal has a real cause the reader can act on. */
   function LeadActions({ row }: { row: LeadRecord }) {
     const busy = pending && busyId === row.id;
-    const terminal = row.status === "converted" || row.status === "disqualified";
+    const terminal =
+      row.status === "converted" || row.status === "disqualified";
     const qualified = row.status === "qualified";
 
     return (
       <ActionMenu
+        label={ACTION_MENU_LABEL}
         disabled={busy}
         items={[
           {
@@ -151,8 +187,25 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
             danger: true,
             separatorBefore: true,
             disabled: terminal || !canTriage,
-            hint: terminal ? LEAD_TEXT.hintTerminal : !canTriage ? LEAD_TEXT.hintNoTriage : undefined,
-            onSelect: () => act(row.id, "disqualify"),
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canTriage
+                ? LEAD_TEXT.hintNoTriage
+                : undefined,
+            // GUARDED, not exempt. design-ui 5.0 makes every danger item choose
+            // between a confirmation and a written reason for not having one,
+            // and this action does not qualify for the exemption: the list
+            // treats disqualified as terminal, so it is one-way from here.
+            //
+            // No onSelect - the type forbids it alongside confirm, because
+            // wiring both fires both.
+            confirm: {
+              verb: LEAD_TEXT.disqualify,
+              target: LEAD_TEXT.disqualifyTarget(row.companyName),
+              consequence: LEAD_TEXT.disqualifyConsequence,
+              ...CONFIRM_LABELS,
+              onConfirm: () => act(row.id, "disqualify"),
+            },
           },
         ]}
       />
@@ -160,13 +213,24 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
   }
 
   return (
-    <Section icon="lightbulb" title={LEAD_TEXT.title} description={LEAD_TEXT.description}>
+    <Section
+      icon="lightbulb"
+      title={LEAD_TEXT.title}
+      description={LEAD_TEXT.description}
+    >
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
       {leads.length === 0 ? (
-        <EmptyState title={LEAD_TEXT.emptyTitle} description={LEAD_TEXT.emptyDescription} />
+        <EmptyState
+          title={LEAD_TEXT.emptyTitle}
+          description={LEAD_TEXT.emptyDescription}
+        />
       ) : (
         <>
-          <FilterBar view={view} onViewChange={setView} count={PIPELINE_TEXT.rowCount(leads.length)} />
+          <FilterBar
+            view={view}
+            onViewChange={setView}
+            count={PIPELINE_TEXT.rowCount(leads.length)}
+          />
 
           <TableCard>
             {view === "list" ? (
@@ -186,7 +250,12 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
                     title={row.companyName}
                     description={row.contactName ?? row.leadNo}
                     status={
-                      <StatusBadge tone={row.status === "converted" ? "success" : "neutral"} dot>
+                      <StatusBadge
+                        tone={
+                          row.status === "converted" ? "success" : "neutral"
+                        }
+                        dot
+                      >
                         {LEAD_STATUS_LABEL[row.status] ?? row.status}
                       </StatusBadge>
                     }

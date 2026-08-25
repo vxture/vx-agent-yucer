@@ -1,6 +1,11 @@
 import type { Entitlement } from "../../entitlement/types";
 import { getEntitlementResolver } from "../../entitlement/resolver";
-import { permissionsForRoles, isRoleCode, type PermCode, type RoleCode } from "../../authz/catalog";
+import {
+  permissionsForRoles,
+  isRoleCode,
+  type PermCode,
+  type RoleCode,
+} from "../../authz/catalog";
 import type { AuthUser } from "../../auth/lib/claims";
 import type { AuthzContext } from "../../authz/context";
 
@@ -60,7 +65,9 @@ export function devRole(env: EnvLike = process.env): RoleCode {
   return isRoleCode(requested) ? requested : "sales_leader";
 }
 
-export async function resolveDevSession(env: EnvLike = process.env): Promise<DevSession | null> {
+export async function resolveDevSession(
+  env: EnvLike = process.env,
+): Promise<DevSession | null> {
   if (!devSessionEnabled(env)) return null;
 
   const role = devRole(env);

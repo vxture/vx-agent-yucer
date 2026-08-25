@@ -1,9 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, EmptyState, Input, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
-import { COMMITMENT_DIRECTIONS, isOverdue } from "../../domains/account/lib/commitment";
-import { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } from "../lib/messages";
+import {
+  Button,
+  EmptyState,
+  Input,
+  Label,
+  NativeSelect,
+  Section,
+  StatusBadge,
+  Textarea,
+} from "@vxture/design-ui";
+import {
+  COMMITMENT_DIRECTIONS,
+  isOverdue,
+} from "../../domains/account/lib/commitment";
+import {
+  COMMIT_STATUS_LABEL,
+  DIRECTION_LABEL,
+  FIELD_ERROR,
+  FIELD_TEXT,
+} from "../lib/messages";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -42,7 +59,12 @@ export interface CommitmentListProps {
   readonly now?: Date;
   readonly onCreate: (
     accountId: string,
-    input: { direction: string; statement: string; dueAt: string; opportunityId?: string },
+    input: {
+      direction: string;
+      statement: string;
+      dueAt: string;
+      opportunityId?: string;
+    },
   ) => Promise<{ ok: boolean; error?: string }>;
   readonly onSettle: (
     accountId: string,
@@ -73,13 +95,18 @@ export function CommitmentList({
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [reason, setReason] = useState<Record<string, string>>({});
-  const [draft, setDraft] = useState({ direction: "they_owe", statement: "", dueAt: "" });
+  const [draft, setDraft] = useState({
+    direction: "they_owe",
+    statement: "",
+    dueAt: "",
+  });
 
   function run(op: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
     startTransition(() => {
       void op().then((r) => {
-        if (!r.ok) setError(FIELD_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+        if (!r.ok)
+          setError(FIELD_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
       });
     });
   }
@@ -88,16 +115,24 @@ export function CommitmentList({
   const settled = items.filter((c) => c.status !== "open");
 
   return (
-    <Section title={FIELD_TEXT.commitTitle} description={FIELD_TEXT.commitDescription}>
+    <Section
+      title={FIELD_TEXT.commitTitle}
+      description={FIELD_TEXT.commitDescription}
+    >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {items.length === 0 ? (
-        <EmptyState title={FIELD_TEXT.commitEmpty} description={FIELD_TEXT.commitEmptyDescription} />
+        <EmptyState
+          title={FIELD_TEXT.commitEmpty}
+          description={FIELD_TEXT.commitEmptyDescription}
+        />
       ) : null}
 
       {open.map((c) => {
         const overdue = isOverdue({ status: "open", dueAt: c.dueAt }, at);
-        const days = Math.floor(Math.abs(at.getTime() - c.dueAt.getTime()) / DAY);
+        const days = Math.floor(
+          Math.abs(at.getTime() - c.dueAt.getTime()) / DAY,
+        );
         const chosen = picked[c.id] ?? "";
         return (
           <div key={c.id}>
@@ -106,7 +141,9 @@ export function CommitmentList({
             </StatusBadge>
             <span>{c.statement}</span>
             <StatusBadge tone={overdue ? "danger" : "neutral"} dot={overdue}>
-              {overdue ? FIELD_TEXT.commitDaysOverdue(days) : FIELD_TEXT.commitDueIn(days)}
+              {overdue
+                ? FIELD_TEXT.commitDaysOverdue(days)
+                : FIELD_TEXT.commitDueIn(days)}
             </StatusBadge>
 
             {canWrite ? (
@@ -115,10 +152,14 @@ export function CommitmentList({
                 <NativeSelect
                   aria-label={FIELD_TEXT.commitCloseNeedsEvidence}
                   value={chosen}
-                  onChange={(e) => setPicked({ ...picked, [c.id]: e.target.value })}
+                  onChange={(e) =>
+                    setPicked({ ...picked, [c.id]: e.target.value })
+                  }
                   disabled={pending || evidence.length === 0}
                 >
-                  <option value="">{FIELD_TEXT.commitCloseNeedsEvidence}</option>
+                  <option value="">
+                    {FIELD_TEXT.commitCloseNeedsEvidence}
+                  </option>
                   {evidence.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.label}
@@ -147,7 +188,14 @@ export function CommitmentList({
                     variant="outline"
                     size="sm"
                     disabled={pending}
-                    onClick={() => run(() => onSettle(accountId, c.id, { to: "missed", opportunityId }))}
+                    onClick={() =>
+                      run(() =>
+                        onSettle(accountId, c.id, {
+                          to: "missed",
+                          opportunityId,
+                        }),
+                      )
+                    }
                   >
                     {FIELD_TEXT.commitMissed}
                   </Button>
@@ -157,7 +205,9 @@ export function CommitmentList({
                   aria-label={FIELD_TEXT.commitWaiveReason}
                   placeholder={FIELD_TEXT.commitWaiveReason}
                   value={reason[c.id] ?? ""}
-                  onChange={(e) => setReason({ ...reason, [c.id]: e.target.value })}
+                  onChange={(e) =>
+                    setReason({ ...reason, [c.id]: e.target.value })
+                  }
                   disabled={pending}
                 />
                 <Button
@@ -184,7 +234,15 @@ export function CommitmentList({
 
       {settled.map((c) => (
         <div key={c.id}>
-          <StatusBadge tone={c.status === "met" ? "success" : c.status === "missed" ? "danger" : "neutral"}>
+          <StatusBadge
+            tone={
+              c.status === "met"
+                ? "success"
+                : c.status === "missed"
+                  ? "danger"
+                  : "neutral"
+            }
+          >
             {COMMIT_STATUS_LABEL[c.status] ?? c.status}
           </StatusBadge>
           <span>{c.statement}</span>
@@ -229,7 +287,12 @@ export function CommitmentList({
             onClick={() =>
               run(() =>
                 onCreate(accountId, { ...draft, opportunityId }).then((r) => {
-                  if (r.ok) setDraft({ direction: "they_owe", statement: "", dueAt: "" });
+                  if (r.ok)
+                    setDraft({
+                      direction: "they_owe",
+                      statement: "",
+                      dueAt: "",
+                    });
                   return r;
                 }),
               )
