@@ -108,17 +108,22 @@ export default async function SignalPage() {
     <ViewLayout>
       {/* Opens with what came in, the same way the home screen does. */}
       <Card className="p-lg">
+        {/* ONE child, so Card's gap-xl never fires. Card is
+            `flex flex-col gap-xl`; with a heading and two captions as siblings
+            it put 32px between a title and its own subtitle. */}
+        <div className="flex flex-col gap-2xs">
         <h1 className="text-heading-2 text-foreground">
           {enriched.length > 0 ? SIGNAL_TEXT.lead(enriched.length) : SIGNAL_TEXT.leadNone}
         </h1>
         {staleCount > 0 ? (
-          <p className="text-warning mt-2xs text-body-sm">{SIGNAL_TEXT.staleCount(staleCount)}</p>
+          <p className="text-warning text-body-sm">{SIGNAL_TEXT.staleCount(staleCount)}</p>
         ) : null}
         {namedCount > 0 ? (
-          <p className="text-muted-foreground mt-2xs text-body-sm">
+          <p className="text-muted-foreground text-body-sm">
             {SIGNAL_TEXT.leadNamed(namedCount)}
           </p>
         ) : null}
+        </div>
       </Card>
 
       <SignalQueue

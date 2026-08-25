@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Badge, Button, Card, Icon, SectionHeader, StatusBadge } from "@vxture/design-ui";
+import { Badge, Button, Card, Icon, Section, SectionHeader, StatusBadge } from "@vxture/design-ui";
 import type { SignalRecord } from "../../domains/signal/store";
 import { SIGNAL_STATUS_LABEL, SIGNAL_TEXT, SIGNAL_TYPE_LABEL } from "../lib/messages";
 import { confidenceTone } from "../lib/view-model";
@@ -59,7 +59,10 @@ export function SignalQueue({ groups, canTriage, canRescore, onAct }: SignalQueu
   }
 
   return (
-    <div className="flex flex-col gap-md">
+    /* A named section, like every other block in the product. It was a bare div
+       of grouped cards, so the page went from its headline straight into three
+       unlabelled panels - the reader had to infer what they were a list OF. */
+    <Section icon="lightbulb" title={SIGNAL_TEXT.title} description={SIGNAL_TEXT.description}>
       {groups
         .filter((g) => g.items.length > 0)
         .map((g) => (
@@ -83,7 +86,7 @@ export function SignalQueue({ groups, canTriage, canRescore, onAct }: SignalQueu
             </div>
           </Card>
         ))}
-    </div>
+    </Section>
   );
 }
 

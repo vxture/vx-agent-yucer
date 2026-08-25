@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, DataTable, EmptyState, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
+import { ActionMenu, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, Section, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
+import { TableCard } from "./table-card";
 import type { LeadRecord } from "../../domains/signal/store";
-import { LEAD_STATUS_LABEL, LEAD_TEXT } from "../lib/messages";
+import { LEAD_STATUS_LABEL, LEAD_TEXT, PIPELINE_TEXT } from "../lib/messages";
 import { confidenceTone } from "../lib/view-model";
 import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
@@ -35,6 +36,7 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [view, setView] = useState<"list" | "cards">("list");
 
   function act(id: string, action: LeadAction) {
     setBusyId(id);
@@ -97,60 +99,104 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
         </StatusBadge>
       ),
     },
-    {
-      id: "actions",
-      header: "",
-      align: "right",
-      cell: (row) => {
-        const busy = pending && busyId === row.id;
-        if (row.status === "converted" || row.status === "disqualified") return null;
-
-        return (
-          <>
-            {canTriage && row.status !== "qualified" ? (
-              <>
-                <Button variant="ghost" size="sm" disabled={busy} onClick={() => act(row.id, "disqualify")}>
-                  {LEAD_TEXT.disqualify}
-                </Button>
-                <Button variant="outline" size="sm" disabled={busy} onClick={() => act(row.id, "qualify")}>
-                  {LEAD_TEXT.qualify}
-                </Button>
-              </>
-            ) : null}
-
-            {canConvert && row.status === "qualified" ? (
-              row.accountId ? (
-                <Button size="sm" disabled={busy} onClick={() => act(row.id, "convert")}>
-                  {LEAD_TEXT.convert}
-                </Button>
-              ) : (
-                // The rule refuses without an account. Say why rather than
-                // offering a button that is guaranteed to fail.
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button size="sm" disabled>
-                        {LEAD_TEXT.convert}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{LEAD_TEXT.needAccount}</TooltipContent>
-                </Tooltip>
-              )
-            ) : null}
-          </>
-        );
-      },
-    },
   ];
 
+  /* Every verb stays in the menu and the unusable ones say why, rather than the
+     row silently offering a different set each time. A menu whose contents
+     change per row teaches nobody what the product can do, and "why is this
+     greyed out" is answerable where "why is it missing" is not - which matters
+     most for convert, whose refusal has a real cause the reader can act on. */
+  function LeadActions({ row }: { row: LeadRecord }) {
+    const busy = pending && busyId === row.id;
+    const terminal = row.status === "converted" || row.status === "disqualified";
+    const qualified = row.status === "qualified";
+
+    return (
+      <ActionMenu
+        disabled={busy}
+        items={[
+          {
+            id: "qualify",
+            label: LEAD_TEXT.qualify,
+            disabled: terminal || !canTriage || qualified,
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canTriage
+                ? LEAD_TEXT.hintNoTriage
+                : qualified
+                  ? LEAD_TEXT.hintAlreadyQualified
+                  : undefined,
+            onSelect: () => act(row.id, "qualify"),
+          },
+          {
+            id: "convert",
+            label: LEAD_TEXT.convert,
+            disabled: terminal || !canConvert || !qualified || !row.accountId,
+            // The rule refuses without an account. Say why rather than offering
+            // something guaranteed to fail.
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canConvert
+                ? LEAD_TEXT.hintNoConvert
+                : !qualified
+                  ? LEAD_TEXT.hintNotQualified
+                  : !row.accountId
+                    ? LEAD_TEXT.needAccount
+                    : undefined,
+            onSelect: () => act(row.id, "convert"),
+          },
+          {
+            id: "disqualify",
+            label: LEAD_TEXT.disqualify,
+            danger: true,
+            separatorBefore: true,
+            disabled: terminal || !canTriage,
+            hint: terminal ? LEAD_TEXT.hintTerminal : !canTriage ? LEAD_TEXT.hintNoTriage : undefined,
+            onSelect: () => act(row.id, "disqualify"),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
-    <Section title={LEAD_TEXT.title} description={LEAD_TEXT.description}>
+    <Section icon="lightbulb" title={LEAD_TEXT.title} description={LEAD_TEXT.description}>
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
       {leads.length === 0 ? (
         <EmptyState title={LEAD_TEXT.emptyTitle} description={LEAD_TEXT.emptyDescription} />
       ) : (
-        <DataTable leadingSpacer indexStart={1} columns={columns} rows={leads} rowKey={(row) => row.id} />
+        <>
+          <FilterBar view={view} onViewChange={setView} count={PIPELINE_TEXT.rowCount(leads.length)} />
+
+          <TableCard>
+            {view === "list" ? (
+              <DataTable
+                leadingSpacer
+                indexStart={1}
+                columns={columns}
+                rows={leads}
+                rowKey={(row) => row.id}
+                rowActions={(row) => <LeadActions row={row} />}
+              />
+            ) : (
+              <ListCardGrid className="p-md">
+                {leads.map((row) => (
+                  <ListCard
+                    key={row.id}
+                    title={row.companyName}
+                    description={row.contactName ?? row.leadNo}
+                    status={
+                      <StatusBadge tone={row.status === "converted" ? "success" : "neutral"} dot>
+                        {LEAD_STATUS_LABEL[row.status] ?? row.status}
+                      </StatusBadge>
+                    }
+                    actions={<LeadActions row={row} />}
+                  />
+                ))}
+              </ListCardGrid>
+            )}
+          </TableCard>
+        </>
       )}
     </Section>
   );
