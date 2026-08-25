@@ -315,7 +315,8 @@ export const ADMIN_TEXT = {
   title: "管理",
   description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
   emptyTitle: "你没有管理权限",
-  emptyDescription: "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
+  emptyDescription:
+    "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
   entryHint: {
     admin: "谁能进这个工作区，各自能做什么",
     adoption: "跟进记录有没有被用起来。判据见 ADR-012",
@@ -324,7 +325,8 @@ export const ADMIN_TEXT = {
 
 export const HOME_TEXT = {
   title: "今日判断",
-  description: (n: number) => `由 ${n} 位客户的已记录跟进推出。同时只展开一条。`,
+  description: (n: number) =>
+    `由 ${n} 位客户的已记录跟进推出。同时只展开一条。`,
   emptyTitle: "现在没有要处理的",
   emptyDescription:
     "没有逾期承诺、没有长时间沉默、没有决策人零接触。这不是「暂无数据」——是扫过了，确实没有。",
@@ -418,7 +420,8 @@ export const RECENCY_TEXT = {
   warmPathYes: "有一条走得通的、且真的联系过的路径通向决策人",
   warmPathNo: "通向决策人的路径上，有人已经很久没联系过了",
   warmPathUnknown: "这个客户下没有任何跟进记录，无法判断",
-  warmPathUnknownHint: "答「否」会拿我们自己的记录缺口去陈述一个关于客户关系的事实。",
+  warmPathUnknownHint:
+    "答「否」会拿我们自己的记录缺口去陈述一个关于客户关系的事实。",
 } as const;
 
 export const ADOPTION_TEXT = {
@@ -429,7 +432,8 @@ export const ADOPTION_TEXT = {
   // The anti-scoreboard note is user-visible on purpose. If people believe it
   // is a ranking they will record for the ranking, and the number stops
   // measuring the thing it was built to measure.
-  notAScoreboard: "刻意不按人拆分。一旦这张表能当成绩效看，大家就会为它而记录，它也就不再测量它要测的东西。",
+  notAScoreboard:
+    "刻意不按人拆分。一旦这张表能当成绩效看，大家就会为它而记录，它也就不再测量它要测的东西。",
   coverage: "覆盖率",
   coverageHint: "当周有开放商机中，至少被记了一笔跟进的比例",
   rate: "密度",
@@ -448,11 +452,13 @@ export const ADOPTION_TEXT = {
   verdictNotAdoptedHint:
     "按 ADR-012 的判据，此时不应建二期。要改的是采集路径本身，不是在空数据上加推理。",
   verdictTooEarly: "观察期未满",
-  verdictTooEarlyHint: "尚不构成裁定依据。一个能提前失败的判据，一定会被提前引用。",
+  verdictTooEarlyHint:
+    "尚不构成裁定依据。一个能提前失败的判据，一定会被提前引用。",
   verdictNoData: "尚无开放商机",
   verdictNoDataHint: "没有可记录的对象，这不是失败。",
   darkDeals: "无近期跟进的开放商机",
-  darkDealsHint: "这些商机在观察窗口内一笔跟进都没有。停在推进阶段的那几条最值得先看。",
+  darkDealsHint:
+    "这些商机在观察窗口内一笔跟进都没有。停在推进阶段的那几条最值得先看。",
   darkDealsEmpty: "所有开放商机在窗口内都有跟进记录。",
 } as const;
 
@@ -467,7 +473,8 @@ export const PIPELINE_TEXT = {
   columnProbability: "赢率",
   columnExpectedClose: "预计成交",
   probabilityOverridden: (value: number) => `${value}% 人工`,
-  probabilityHintOverridden: (fallback: number) => `人工覆盖（阶段默认 ${fallback}%）`,
+  probabilityHintOverridden: (fallback: number) =>
+    `人工覆盖（阶段默认 ${fallback}%）`,
   probabilityHintDefault: "阶段默认值",
   emptyTitle: "暂无商机",
   emptyDescription: "线索合格转化后会出现在这里。",
@@ -486,20 +493,24 @@ export const PIPELINE_TEXT = {
   splitEmpty: "本周期没有可拆的产品线",
   /** Said only when readings were actually dropped - a window nobody hit is
    *  not worth explaining. */
-  trajectoryWindow: (shown: number, total: number) => `最近 ${shown} 次，共 ${total} 次`,
+  trajectoryWindow: (shown: number, total: number) =>
+    `最近 ${shown} 次，共 ${total} 次`,
   trajectoryEmptyTitle: "本周期还没有预测快照",
-  trajectoryEmptyDescription: "提交一次预测后，这里会按时间显示它的变化。轨迹只画已经存下来的快照，不回溯推算。",
+  trajectoryEmptyDescription:
+    "提交一次预测后，这里会按时间显示它的变化。轨迹只画已经存下来的快照，不回溯推算。",
   // --- Added for the redesigned page ---------------------------------------
   // The agent's opening sentence, same shape as the home screen's: what the
   // number MEANS this week, not the label "pipeline".
   lead: (commit: string) => `本季承诺 ${commit}`,
-  leadDelta: (delta: string, since: number) => `较 ${since} 天前的预测 ${delta}`,
+  leadDelta: (delta: string, since: number) =>
+    `较 ${since} 天前的预测 ${delta}`,
   leadFlat: "与上次预测持平",
   leadNoHistory: "本期尚无预测记录",
   periodOf: (p: string) => `${p} 口径`,
 
   trajectory: "预测轨迹",
-  trajectoryWhy: "快照只追加、不可修改——预测准确率是期末实际对期初快照，少一个点就算不出来。",
+  trajectoryWhy:
+    "快照只追加、不可修改——预测准确率是期末实际对期初快照，少一个点就算不出来。",
   tCommit: "承诺",
   tBestCase: "乐观",
   tPipeline: "管道",
@@ -536,16 +547,19 @@ export const FIELD_TEXT = {
   recordDescription:
     "把刚才发生的事倒进来就行——三句话、一段微信、一封转发的邮件都算。原文会原样保留,不会被改写。",
   recordNote: "发生了什么",
-  recordNotePlaceholder: "例:见了王总和陈总监。预算这条线要等 CFO 点头,王总说下周三给答复。",
+  recordNotePlaceholder:
+    "例:见了王总和陈总监。预算这条线要等 CFO 点头,王总说下周三给答复。",
   recordChannel: "方式",
   recordWhen: "什么时候",
   recordSubmit: "记下",
   recordSaved: "已记下",
   recordEmpty: "还没有跟进记录",
-  recordEmptyDescription: "记下第一笔之后,客户健康度和决策链就会开始用真实的接触时间,而不是靠商机阶段推算。",
+  recordEmptyDescription:
+    "记下第一笔之后,客户健康度和决策链就会开始用真实的接触时间,而不是靠商机阶段推算。",
 
   timelineTitle: "跟进时间线",
-  timelineDescription: "谁、什么时候、通过什么方式。原文逐字保留——后续所有分析都引用它。",
+  timelineDescription:
+    "谁、什么时候、通过什么方式。原文逐字保留——后续所有分析都引用它。",
   timelineBy: "记录人",
   timelineCorrects: "更正了一条更早的记录",
 
@@ -567,10 +581,28 @@ export const FIELD_TEXT = {
   commitWaiveReason: "为什么放弃",
   commitMissed: "标记错过",
   commitEmpty: "还没有承诺",
-  commitEmptyDescription: "从一次跟进里记下双方答应的事,它到期时系统会替你盯着。",
+  commitEmptyDescription:
+    "从一次跟进里记下双方答应的事,它到期时系统会替你盯着。",
   commitOverdueEmpty: "没有逾期承诺",
   commitOverdueEmptyDescription: "所有已记录的承诺都还在期限内。",
   commitDaysOverdue: (n: number) => `逾期 ${n} 天`,
+
+  // The overdue row's primary verb.
+  //
+  // It says GO and it says WORK. "查看" would invite reading, and reading has
+  // already happened - this list exists because someone looked. What it cannot
+  // say is "close it": settling a promise means deciding whether it was met,
+  // missed or waived, and met needs the interaction that proves it. That
+  // judgement belongs on the account, beside the history it is judged against,
+  // where the promise can also be amended - a date moved, an amount corrected -
+  // instead of being forced into met-or-missed by a list row that knows
+  // neither.
+  commitCount: (n: number) => `${n} 条`,
+  commitDueOn: (d: string) => `原定 ${d}`,
+  commitOwner: (who: string) => `负责人 ${who}`,
+  commitOwnerNone: "未指派负责人",
+  commitGoSettle: "去处理",
+  commitGoSettleHint: (name: string) => `打开 ${name}，处理这条承诺`,
   commitDueIn: (n: number) => `还有 ${n} 天`,
 
   evidenceTitle: "关系证据",
@@ -644,7 +676,8 @@ export const RELATION_TEXT = {
   pick: "选择联系人",
   readOnly: "你没有编辑关系图的权限。",
   needTwo: "至少需要两位联系人才能建立关系。",
-  hintUnreachable: "记录一条通往决策人的路径，可以让上面的判断从「不可达」变成「可达」。",
+  hintUnreachable:
+    "记录一条通往决策人的路径，可以让上面的判断从「不可达」变成「可达」。",
 } as const;
 
 export const RELATION_ERROR: Record<string, string> = {
@@ -672,7 +705,8 @@ export const OPPORTUNITY_TEXT = {
   journeyDescription:
     "每一次阶段变更都会写入事件流，速度与转化率由它计算——不从更新时间反推，因为更新时间只记得最后一次写入。",
   journeyEmptyTitle: "还没有阶段变更记录",
-  journeyEmptyDescription: "这条商机自创建后还没有推进过。推进一次后，这里会出现完整轨迹。",
+  journeyEmptyDescription:
+    "这条商机自创建后还没有推进过。推进一次后，这里会出现完整轨迹。",
   journeyFrom: "由",
   journeyCreated: "创建",
   journeyBy: "操作人",
@@ -691,9 +725,11 @@ export const OPPORTUNITY_TEXT = {
   advanceReasonRequiredReopen: "重开已关闭的商机必须写明理由",
   advanceReasonPlaceholder: "为什么做这次变更",
   advanceReopen: "重开这条商机",
-  advanceReopenHint: "重开会改写一个已经上报过的结果，因此需要显式确认并说明理由。",
+  advanceReopenHint:
+    "重开会改写一个已经上报过的结果，因此需要显式确认并说明理由。",
   advanceClosedTitle: "商机已关闭",
-  advanceClosedDescription: "已关闭的商机不能直接改阶段。若确需修正，请勾选「重开」并说明理由。",
+  advanceClosedDescription:
+    "已关闭的商机不能直接改阶段。若确需修正，请勾选「重开」并说明理由。",
   advanceReadOnly: "你没有推进商机的权限。",
   advanceReviewRequired: "该商机已进入终态，请补一份复盘。",
   advanceRegressionHint: (from: string) => `这是从「${from}」回退`,
@@ -734,7 +770,8 @@ export const OPPORTUNITY_ERROR: Record<string, string> = {
 
 export const PROPOSAL_TEXT = {
   title: "智能助手提案",
-  description: "智能体提出建议，由人裁决。采纳后才会执行，提案内容本身不可修改。",
+  description:
+    "智能体提出建议，由人裁决。采纳后才会执行，提案内容本身不可修改。",
   columnAction: "建议动作",
   columnRationale: "理由",
   columnConfidence: "置信度",
@@ -745,15 +782,19 @@ export const PROPOSAL_TEXT = {
   selectAll: "全选待裁决提案",
   selectOne: (actionType: string) => `选择提案 ${actionType}`,
   selectedLabel: (count: number, lowConfidence: number) =>
-    lowConfidence > 0 ? `已选 ${count} 条 · 其中 ${lowConfidence} 条低置信度` : `已选 ${count} 条`,
+    lowConfidence > 0
+      ? `已选 ${count} 条 · 其中 ${lowConfidence} 条低置信度`
+      : `已选 ${count} 条`,
   clearSelection: "取消选择",
   /** BulkActionBar counts for itself now; it needs the unit, not the sentence. */
   selectionNoun: "条提案",
   bulkReject: "批量拒绝",
   bulkAccept: "批量采纳",
   emptyTitle: "暂无提案",
-  emptyDescription: "智能助手还没有给出建议动作。向它提问，或等待信号评分产出提案。",
-  confirmTitle: (verb: string, count: number) => `确认批量${verb} ${count} 条提案`,
+  emptyDescription:
+    "智能助手还没有给出建议动作。向它提问，或等待信号评分产出提案。",
+  confirmTitle: (verb: string, count: number) =>
+    `确认批量${verb} ${count} 条提案`,
   confirmDetail: (opts: {
     actionTypes: string;
     subjectTypes: string;
@@ -764,7 +805,9 @@ export const PROPOSAL_TEXT = {
     (opts.meanConfidence == null
       ? "这些提案未给出置信度。"
       : `平均置信度 ${Math.round(opts.meanConfidence)}%。`) +
-    (opts.lowConfidenceCount > 0 ? ` 其中 ${opts.lowConfidenceCount} 条低于 60%。` : ""),
+    (opts.lowConfidenceCount > 0
+      ? ` 其中 ${opts.lowConfidenceCount} 条低于 60%。`
+      : ""),
   verbAccept: "采纳",
   verbReject: "拒绝",
   cancel: "取消",
@@ -785,7 +828,8 @@ export const SIGNAL_TEXT = {
   unmatchedAccount: "新客户",
   unscored: "未评分",
   emptyTitle: "收件箱是空的",
-  emptyDescription: "外部信号源接入后，发现的商机会出现在这里；也可以手工录入信号。",
+  emptyDescription:
+    "外部信号源接入后，发现的商机会出现在这里；也可以手工录入信号。",
   promote: "升级为线索",
   dismiss: "忽略",
   markDuplicate: "判重",
@@ -894,9 +938,11 @@ export const COPILOT_TEXT = {
   submit: "发送",
   thinking: "正在思考",
   emptyTitle: "还没有对话",
-  emptyDescription: "向助手提问。它会结合你的客户、商机和交付数据回答，并在需要改动时提出建议。",
+  emptyDescription:
+    "向助手提问。它会结合你的客户、商机和交付数据回答，并在需要改动时提出建议。",
   proposalsFromTurn: (n: number) => `本轮提出了 ${n} 条建议动作，待你裁决`,
-  droppedProposals: (n: number) => `另有 ${n} 条建议未记录：当前档位不含「助手主动建议」能力`,
+  droppedProposals: (n: number) =>
+    `另有 ${n} 条建议未记录：当前档位不含「助手主动建议」能力`,
   capabilitiesUsed: (names: string) => `调用了外部能力：${names}`,
   truncated: "本轮工具调用已达上限，回答基于已获取的信息",
   errorPrefix: "助手无法作答：",
@@ -912,7 +958,8 @@ export const PLAYBOOK_TEXT = {
   description:
     "助手回答时会引用这些剧本。放在这里是为了让它们可被看见、被质疑、被修订——你不同意某个回答时，能找到产生它的那句话。",
   emptyTitle: "还没有剧本",
-  emptyDescription: "剧本是本工作区自己写的做法。没有剧本时，助手只依据数据回答。",
+  emptyDescription:
+    "剧本是本工作区自己写的做法。没有剧本时，助手只依据数据回答。",
   version: "版本",
   grounding: (n: number) => `每轮对话最多引用 ${n} 条与主题相关的剧本`,
 } as const;
@@ -930,7 +977,15 @@ export const PLAYBOOK_SCOPE_LABEL: Record<string, string> = {
 
 export const ACCOUNT_TEXT = {
   title: "客户管理",
-  description: "健康度是派生值，随源数据重算；它用于排序和预警，不作为任何业务判断的唯一依据。",
+  // The headline. The ordering is a product decision - sickest first, never
+  // alphabetical - and a claim the page has to make out loud, because a reader
+  // who does not know it reads the top of the list as "most important".
+  lead: (n: number) => `${n} 家客户在管`,
+  leadOverdue: (n: number) => `${n} 条承诺已逾期，先处理它们`,
+  leadAtRisk: (n: number) => `${n} 家健康度低于 60，已排在最前`,
+  leadOrder: "按健康度升序排列，病得最重的排最前；未评估的排在最后。",
+  description:
+    "健康度是派生值，随源数据重算；它用于排序和预警，不作为任何业务判断的唯一依据。",
   columnName: "客户",
   columnIndustry: "行业",
   columnOwner: "负责人",
@@ -970,7 +1025,8 @@ export const PROJECT_HEALTH_LABEL: Record<string, string> = {
 
 export const PLANNING_TEXT = {
   title: "销售规划",
-  description: "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",
+  description:
+    "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",
   columnScope: "作用域",
   columnMetric: "指标",
   columnTarget: "目标",
@@ -978,7 +1034,8 @@ export const PLANNING_TEXT = {
   columnAttainment: "达成度",
   columnStatus: "状态",
   noSnapshot: "尚无快照",
-  noSnapshotHint: "该作用域本期还没有提交过预测快照，这与「达成 0%」不是一回事。",
+  noSnapshotHint:
+    "该作用域本期还没有提交过预测快照，这与「达成 0%」不是一回事。",
   emptyTitle: "本期没有目标",
   emptyDescription: "销售运营设定区域与配额后，会出现在这里。",
   scopeWorkspace: "全工作区",
@@ -1011,7 +1068,8 @@ export const PLAN_STATUS_LABEL: Record<string, string> = {
 
 export const CAMPAIGN_TEXT = {
   title: "市场执行",
-  description: "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
+  description:
+    "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
   columnName: "战役",
   columnChannel: "渠道",
   columnBudget: "预算",
@@ -1020,7 +1078,9 @@ export const CAMPAIGN_TEXT = {
   emptyTitle: "还没有战役",
   emptyDescription: "把战略与细分市场变成具体的触达动作。",
   progress: (done: number, total: number, skipped: number) =>
-    skipped > 0 ? `${done}/${total} 完成（${skipped} 跳过）` : `${done}/${total} 完成`,
+    skipped > 0
+      ? `${done}/${total} 完成（${skipped} 跳过）`
+      : `${done}/${total} 完成`,
 } as const;
 
 export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
@@ -1034,7 +1094,8 @@ export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
 
 export const LEAD_TEXT = {
   title: "线索",
-  description: "线索合格后转化为商机。转化那一刻，来源战役被复制到商机上并冻结——归因不靠事后填写。",
+  description:
+    "线索合格后转化为商机。转化那一刻，来源战役被复制到商机上并冻结——归因不靠事后填写。",
   columnCompany: "公司",
   columnScore: "评分",
   columnSource: "来源",
@@ -1078,7 +1139,8 @@ export const WINLOSS_TEXT = {
   recordHintDone: "这一单已经复盘过了",
   recordHintDenied: "你没有记录复盘的权限",
   title: "待复盘",
-  description: "已关闭但还没有复盘的商机。赢丢原因是结构化数据，回流给评分与建议——不写就没有闭环。",
+  description:
+    "已关闭但还没有复盘的商机。赢丢原因是结构化数据，回流给评分与建议——不写就没有闭环。",
   columnOpportunity: "商机",
   columnOutcome: "结果",
   columnAmount: "金额",
@@ -1107,20 +1169,23 @@ export const WINLOSS_REASON_LABEL: Record<string, string> = {
 
 export const CHAIN_TEXT = {
   title: "决策链",
-  description: "「档案里有经济决策人」和「有人能引荐到他」是两件事。只有后者能推进单子。",
+  description:
+    "「档案里有经济决策人」和「有人能引荐到他」是两件事。只有后者能推进单子。",
   covered: "已覆盖",
   missing: "缺失角色",
   blockers: "阻碍者",
   coaches: "内线",
   reachable: "经济决策人可达",
   unreachable: "经济决策人不可达",
-  unreachableHint: "没有从内线到经济决策人的路径——遍历会跳过对立关系和已离职的联系人。",
+  unreachableHint:
+    "没有从内线到经济决策人的路径——遍历会跳过对立关系和已离职的联系人。",
   noEconomicBuyer: "档案里还没有经济决策人",
   influence: "影响力",
   emptyTitle: "还没有联系人",
   emptyDescription: "录入联系人并标注决策角色后，这里会给出决策链分析。",
   healthTitle: "客户健康度",
-  healthDescription: "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
+  healthDescription:
+    "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
   primaryConcern: "首要问题",
   recompute: "重新计算",
   factorPipeline: "商机",
@@ -1255,8 +1320,10 @@ export const POSITION_TEXT = {
    */
   rivalWords: ["另一家", "竞争", "对手", "别家", "友商"] as readonly string[],
   competition: "竞争态势",
-  competitionNone: "尚无结构化的竞争情报。以下是跟进原文里提到对手的片段——这是目前唯一的依据。",
-  competitionNoMention: "跟进原文里没有出现竞争对手。这不等于没有对手，只等于没人记下来。",
+  competitionNone:
+    "尚无结构化的竞争情报。以下是跟进原文里提到对手的片段——这是目前唯一的依据。",
+  competitionNoMention:
+    "跟进原文里没有出现竞争对手。这不等于没有对手，只等于没人记下来。",
   scout: "发起竞争态势分析",
 
   internal: "我情 · 内部",
