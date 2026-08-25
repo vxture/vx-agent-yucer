@@ -768,10 +768,49 @@ export const OPPORTUNITY_ERROR: Record<string, string> = {
   terminal_requires_closed: "已关闭的商机只能是「已成交」类别",
 };
 
+/**
+ * Subject types, keyed off the database CHECK constraint
+ * (chk_agent_action_subject). The proposal table printed the raw value.
+ */
+export const AGENT_SUBJECT_LABEL: Record<string, string> = {
+  account: "客户",
+  lead: "线索",
+  opportunity: "商机",
+  project: "项目",
+  campaign: "战役",
+  plan: "战略",
+};
+
+/**
+ * Action types are an OPEN vocabulary - agent_action.action_type is a bare
+ * VARCHAR(64) with no CHECK, and the DDL comment says "e.g." - so this map
+ * cannot be exhaustive by construction and every caller must fall back to the
+ * raw value. Labelling what the product actually emits is still worth doing:
+ * `advance_stage` in a Chinese table is not a proposal anyone reads.
+ */
+export const AGENT_ACTION_LABEL: Record<string, string> = {
+  advance_stage: "推进阶段",
+  draft_email: "起草邮件",
+  draft_outreach: "起草触达",
+  promote_signal: "信号升级为线索",
+};
+
 export const PROPOSAL_TEXT = {
   title: "智能助手提案",
   description:
     "智能体提出建议，由人裁决。采纳后才会执行，提案内容本身不可修改。",
+  // The headline. ADR-003 is this page's whole shape - the agent proposes, a
+  // human decides - and it was stated only in a section subtitle below a chat
+  // box. A reader who scrolls onto a queue of confident-looking percentages
+  // should already know that none of them has happened yet.
+  lead: (n: number) => `${n} 条提案等你裁决`,
+  leadNone: "没有待裁决的提案",
+  leadLowConfidence: (n: number) =>
+    `其中 ${n} 条置信度低于 60%，值得先读理由。`,
+  leadRule:
+    "智能体只提议，采纳由人做出。提案内容本身不可修改——要改就拒绝它，让它重提。",
+  rowCount: (n: number) => `${n} 条提案`,
+  columnSubject: "作用对象",
   columnAction: "建议动作",
   columnRationale: "理由",
   columnConfidence: "置信度",
