@@ -565,8 +565,6 @@ export const PIPELINE_TEXT = {
   // both cadences - the quarter is what gets committed, the year is what gets
   // planned against.
   periodLabel: "统计周期",
-  periodYear: "Y2026",
-  periods: ["2026Q1", "2026Q2", "2026Q3", "2026Q4"] as const,
   // The composition block, which folds away.
   splitCollapse: "收起构成",
   splitExpand: "展开构成",

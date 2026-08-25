@@ -32,9 +32,9 @@ import {
   formatMoney,
   probabilityDisplay,
 } from "../lib/view-model";
-import { FORECAST_LABEL, PIPELINE_TEXT, STAGE_LABEL } from "../lib/messages";
 import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
+import { useLocale, useMessages } from "../lib/i18n/provider";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
 // A thin binding of DS elements to yucer's domain semantics, which is the one
@@ -67,6 +67,13 @@ export function PipelineBoard({
   loading,
   readOnly,
 }: PipelineBoardProps) {
+  const { DATA_TABLE_LABELS, FORECAST_LABEL, PIPELINE_TEXT, STAGE_LABEL } =
+    useMessages();
+  // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
+  // anything, so every figure in the product was formatted Chinese-style
+  // whatever the reader's locale. Threading it here fixes this page; the
+  // default is the real defect and it is listed in the commit.
+  const locale = useLocale();
   // Which arrangement the rows are in. Local: it is a preference about looking,
   // not about which data is on screen, so it has no business in the URL the way
   // the period filter does.
@@ -79,25 +86,41 @@ export function PipelineBoard({
         {
           id: "commit",
           label: FORECAST_LABEL.commit,
-          value: formatMoney(totals.value.commitAmount.amount, currency),
+          value: formatMoney(
+            totals.value.commitAmount.amount,
+            currency,
+            locale,
+          ),
           tone: "warning",
         },
         {
           id: "best_case",
           label: FORECAST_LABEL.best_case,
-          value: formatMoney(totals.value.bestCaseAmount.amount, currency),
+          value: formatMoney(
+            totals.value.bestCaseAmount.amount,
+            currency,
+            locale,
+          ),
           tone: "info",
         },
         {
           id: "pipeline",
           label: FORECAST_LABEL.pipeline,
-          value: formatMoney(totals.value.pipelineAmount.amount, currency),
+          value: formatMoney(
+            totals.value.pipelineAmount.amount,
+            currency,
+            locale,
+          ),
           tone: "neutral",
         },
         {
           id: "closed",
           label: FORECAST_LABEL.closed,
-          value: formatMoney(totals.value.closedAmount.amount, currency),
+          value: formatMoney(
+            totals.value.closedAmount.amount,
+            currency,
+            locale,
+          ),
           tone: "success",
         },
       ]
@@ -146,7 +169,8 @@ export function PipelineBoard({
       id: "amount",
       header: PIPELINE_TEXT.columnAmount,
       align: "right",
-      cell: (row) => formatMoney(row.amount?.amount ?? null, row.currency),
+      cell: (row) =>
+        formatMoney(row.amount?.amount ?? null, row.currency, locale),
     },
     {
       id: "probability",
@@ -223,6 +247,7 @@ export function PipelineBoard({
           <TableCard>
             {view === "list" ? (
               <DataTable
+                labels={DATA_TABLE_LABELS}
                 leadingSpacer
                 indexStart={1}
                 columns={columns}
@@ -281,6 +306,7 @@ export function PipelineBoard({
                           {formatMoney(
                             row.amount?.amount ?? null,
                             row.currency,
+                            locale,
                           )}
                         </span>
                         {/* Same two-case reading as the column: a null win rate

@@ -270,4 +270,93 @@ export const en: Dictionary = {
     selectRow: "Select this row",
     rowActions: "Actions",
   },
+
+  // --- /pipeline ----------------------------------------------------------
+
+  PIPELINE_TEXT: {
+    title: "Pipeline",
+    descriptionReadOnly:
+      "Read-only: you can see the pipeline but hold no permission to move a deal.",
+    description:
+      "Forecast and snapshot are computed by the same rule, so they cannot disagree.",
+    columnOpportunity: "Opportunity",
+    columnStage: "Stage",
+    columnForecast: "Forecast",
+    columnAmount: "Amount",
+    columnProbability: "Win rate",
+    columnExpectedClose: "Expected close",
+    probabilityOverridden: (value: number) => `${value}% set by hand`,
+    probabilityHintOverridden: (fallback: number) =>
+      `Set by hand (the stage default is ${fallback}%)`,
+    probabilityHintDefault: "Stage default",
+    emptyTitle: "No opportunities yet",
+    emptyDescription: "They appear here once a qualified lead is converted.",
+    rollupFailedTitle: "Could not roll up",
+    rowCount: (n: number) => `${n} deals`,
+    openDeal: "Open the deal",
+    periodLabel: "Period",
+    splitCollapse: "Collapse the split",
+    splitExpand: "Expand the split",
+    splitEmpty: "Nothing to split by product line this period",
+    trajectoryWindow: (shown: number, total: number) =>
+      `last ${shown} of ${total}`,
+    trajectoryEmptyTitle: "No forecast snapshot this period yet",
+    trajectoryEmptyDescription:
+      "Submit a forecast and its changes appear here over time. The trajectory draws only snapshots that were saved; it never reconstructs them.",
+    lead: (commit: string) => `${commit} committed this quarter`,
+    leadDelta: (delta: string, since: number) =>
+      `${delta} against the forecast ${since} days ago`,
+    leadFlat: "Unchanged since the last forecast",
+    leadNoHistory: "No forecast recorded this period",
+    periodOf: (p: string) => `${p} basis`,
+    trajectory: "Forecast trajectory",
+    trajectoryWhy:
+      "Snapshots are append-only. Forecast accuracy is the period's actual against its opening snapshot, and one missing point makes it uncomputable.",
+    tCommit: "Commit",
+    tBestCase: "Best case",
+    tPipeline: "Pipeline",
+    tClosed: "Closed",
+    productSplit: "What the commit is made of",
+    productSplitWhy:
+      "Split by product line. A single total cannot say what the money is for.",
+    needsApproval: "Discount pending approval",
+    noLines: "No product lines yet",
+  },
+
+  STAGE_LABEL: {
+    qualify: "Qualify",
+    discover: "Discover",
+    validate: "Validate",
+    propose: "Propose",
+    negotiate: "Negotiate",
+    won: "Won",
+    lost: "Lost",
+  },
+
+  FORECAST_LABEL: {
+    pipeline: "Pipeline",
+    best_case: "Best case",
+    commit: "Commit",
+    closed: "Closed",
+  },
+
+  // PARTIAL OVERRIDE, and the pattern is worth naming because it will recur.
+  // Spreading the Chinese constant inside gives per-KEY granularity, so a
+  // dictionary does not have to be translated all-or-nothing. BOARD_TEXT
+  // belongs to the left board and arrives with its own slice; `wan` is pulled
+  // forward because it leaks onto /pipeline's headline.
+  //
+  // A COMPACT NUMBER IS LOCALE-SPECIFIC, which is why it lives in a dictionary
+  // at all: Chinese groups by 万 (10^4), English by thousands. 4,200,000 is
+  // "420 万" and "4.2M" - not a translation of a word but a different way of
+  // cutting the number, and hardcoding either produces figures the reader has
+  // to convert in their head.
+  BOARD_TEXT: {
+    ...zh.BOARD_TEXT,
+    wan: (amount: number) =>
+      new Intl.NumberFormat("en-US", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(amount),
+  },
 };

@@ -10,8 +10,8 @@ import {
   SectionHeader,
   StatusBadge,
 } from "@vxture/design-ui";
-import { BOARD_TEXT, PIPELINE_TEXT } from "../lib/messages";
 
+import { useMessages } from "../lib/i18n/provider";
 // The page's opening card: the headline, the period filter, and - folded under
 // them - what the headline is made of.
 //
@@ -47,6 +47,7 @@ export function HeadlineCard({
   split,
   awaiting,
 }: HeadlineCardProps) {
+  const { BOARD_TEXT, PIPELINE_TEXT } = useMessages();
   const [open, setOpen] = useState(true);
 
   return (

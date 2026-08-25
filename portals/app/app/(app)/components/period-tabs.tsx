@@ -3,8 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@vxture/design-ui";
-import { PIPELINE_TEXT } from "../lib/messages";
 
+import { useMessages } from "../lib/i18n/provider";
 // The page's top-level filter: which period everything below is reported for.
 //
 // TABS, NOT SegmentedControl, and the reason is measurable rather than taste.
@@ -31,6 +31,7 @@ export interface PeriodTabsProps {
 }
 
 export function PeriodTabs({ value, periods, yearLabel }: PeriodTabsProps) {
+  const { PIPELINE_TEXT } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();

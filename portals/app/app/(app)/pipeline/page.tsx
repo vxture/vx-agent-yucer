@@ -1,6 +1,11 @@
-import { Card, EmptyState, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import {
+  Card,
+  EmptyState,
+  SectionHeader,
+  StatusBadge,
+  ViewLayout,
+} from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT } from "../lib/messages";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { PeriodTabs } from "../components/period-tabs";
 import { HeadlineCard } from "../components/headline-card";
@@ -8,11 +13,17 @@ import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
 import { getPipelineStore } from "../../domains/shared/registry";
-import { forecastHistory, listPendingReviews, listPipeline } from "../../domains/pipeline/service";
+import {
+  forecastHistory,
+  listPendingReviews,
+  listPipeline,
+} from "../../domains/pipeline/service";
 import { can } from "../../authz/decide";
 import { PendingReviews } from "../components/pending-reviews";
 import { recordReview } from "./winloss-action";
 
+import { getMessages } from "../lib/i18n/server";
+import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
 // D6 pipeline page.
 //
 // Dynamic, never cached: the rows are workspace-scoped and gate-filtered, and a
@@ -21,24 +32,22 @@ import { recordReview } from "./winloss-action";
 export const dynamic = "force-dynamic";
 
 /** Where the filter lands when the URL says nothing. Matches the demo's data. */
-const DEFAULT_PERIOD = "2026Q3";
-
-/** Only the periods the control offers are honoured - a hand-edited ?period=
- *  should not become an arbitrary string on its way into a query. */
-function resolvePeriod(raw: string | undefined): string {
-  const allowed: readonly string[] = [...PIPELINE_TEXT.periods, PIPELINE_TEXT.periodYear];
-  return raw && allowed.includes(raw) ? raw : DEFAULT_PERIOD;
-}
 
 export default async function PipelinePage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
+  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT } = await getMessages();
   const period = resolvePeriod((await searchParams).period);
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const ctx = {
@@ -87,16 +96,27 @@ export default async function PipelinePage({
   const prev = points[points.length - 2];
   const commit = last?.commitAmount.amount ?? 0;
   const delta = last && prev ? commit - prev.commitAmount.amount : 0;
-  const sinceDays = last && prev
-    ? Math.max(1, Math.round((last.snapshotAt.getTime() - prev.snapshotAt.getTime()) / 86_400_000))
-    : 0;
+  const sinceDays =
+    last && prev
+      ? Math.max(
+          1,
+          Math.round(
+            (last.snapshotAt.getTime() - prev.snapshotAt.getTime()) /
+              86_400_000,
+          ),
+        )
+      : 0;
 
   // Every closed deal, for the review section's "all" scope. Taken from the
   // list already fetched rather than queried again - two reads of the same
   // rows can disagree, and both would be on screen at once.
-  const closed = result.value.filter((o) => o.status === "won" || o.status === "lost");
+  const closed = result.value.filter(
+    (o) => o.status === "won" || o.status === "lost",
+  );
 
-  const openIds = new Set(result.value.filter((o) => o.status === "open").map((o) => o.id));
+  const openIds = new Set(
+    result.value.filter((o) => o.status === "open").map((o) => o.id),
+  );
   const openLines = lines.filter((l) => openIds.has(l.opportunityId));
   const split = [...byProduct(openLines)]
     .sort((a, b) => b[1].amount - a[1].amount)
@@ -137,8 +157,8 @@ export default async function PipelinePage({
         filter={
           <PeriodTabs
             value={period}
-            periods={PIPELINE_TEXT.periods}
-            yearLabel={PIPELINE_TEXT.periodYear}
+            periods={PERIODS}
+            yearLabel={PERIOD_YEAR}
           />
         }
       />
@@ -150,7 +170,12 @@ export default async function PipelinePage({
       <PipelineBoard
         rows={rows}
         readOnly={
-          !can(session.authz, session.entitlement, "pipeline.opportunity.advance", "ui").allowed
+          !can(
+            session.authz,
+            session.entitlement,
+            "pipeline.opportunity.advance",
+            "ui",
+          ).allowed
         }
       />
       {/* Only rendered when the workspace bought win/loss. The list is the debt
@@ -172,7 +197,14 @@ export default async function PipelinePage({
         <PendingReviews
           opportunities={pendingReviews.value}
           allClosed={closed}
-          canRecord={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}
+          canRecord={
+            can(
+              session.authz,
+              session.entitlement,
+              "pipeline.winloss.record",
+              "ui",
+            ).allowed
+          }
           onRecord={recordReview}
         />
       ) : null}

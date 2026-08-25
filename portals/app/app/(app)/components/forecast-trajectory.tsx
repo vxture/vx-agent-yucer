@@ -1,6 +1,6 @@
 import { Card, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
-import { PIPELINE_TEXT } from "../lib/messages";
 
+import { getMessages } from "../lib/i18n/server";
 // The forecast series, drawn.
 //
 // This component is the payoff for forecast_snapshot having UPDATE revoked.
@@ -22,17 +22,6 @@ export interface TrajectoryPoint {
   readonly closed: number;
 }
 
-const SERIES = [
-  { key: "commit", label: PIPELINE_TEXT.tCommit, cls: "bg-primary" },
-  { key: "bestCase", label: PIPELINE_TEXT.tBestCase, cls: "bg-primary/50" },
-  {
-    key: "pipeline",
-    label: PIPELINE_TEXT.tPipeline,
-    cls: "bg-muted-foreground/40",
-  },
-  { key: "closed", label: PIPELINE_TEXT.tClosed, cls: "bg-success" },
-] as const;
-
 /**
  * How many readings the plot shows.
  *
@@ -43,7 +32,7 @@ const SERIES = [
  */
 const VISIBLE_POINTS = 8;
 
-export function ForecastTrajectory({
+export async function ForecastTrajectory({
   points,
   wan,
 }: {
@@ -51,6 +40,24 @@ export function ForecastTrajectory({
   /** Formatter, passed in so the component holds no locale text of its own. */
   readonly wan: (n: number) => string;
 }) {
+  // A SERVER component, so it awaits rather than hooks - and it had to become
+  // async to do it, which is the honest shape: reading the request's locale is
+  // I/O, not state.
+  const { PIPELINE_TEXT } = await getMessages();
+
+  // Built here, not at module scope: it is made OF copy, so at import time it
+  // would have frozen one language - the same trap as a static messages import.
+  const SERIES = [
+    { key: "commit", label: PIPELINE_TEXT.tCommit, cls: "bg-primary" },
+    { key: "bestCase", label: PIPELINE_TEXT.tBestCase, cls: "bg-primary/50" },
+    {
+      key: "pipeline",
+      label: PIPELINE_TEXT.tPipeline,
+      cls: "bg-muted-foreground/40",
+    },
+    { key: "closed", label: PIPELINE_TEXT.tClosed, cls: "bg-success" },
+  ] as const;
+
   // One baseline across all four series: they are the same unit measured the
   // same way, so scaling each to its own max would make the small ones look
   // like the big ones.
