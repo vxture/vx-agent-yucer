@@ -6,6 +6,7 @@ import { Card, Icon, Progress } from "@vxture/design-ui";
 import { BOARD_TEXT } from "../lib/messages";
 import { BarList, Gauge, Lede } from "./board-chart";
 import type { BoardMetric, BoardSection } from "../lib/board";
+import { LEVEL_INK } from "../lib/view-model";
 
 // The left flank: where things stand for OUR side.
 //
@@ -39,12 +40,6 @@ const COLS: Record<number, string> = {
   1: "grid-cols-1",
   2: "grid-cols-2",
   3: "grid-cols-3",
-};
-
-const TONE_CLASS: Record<string, string> = {
-  bad: "text-destructive",
-  warn: "text-warning",
-  good: "text-success",
 };
 
 export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
@@ -86,7 +81,12 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
       {rest.length > 0 ? (
         <Card className="overflow-hidden py-none">
           {rest.map((s, i) => (
-            <Sector key={s.key} section={s} active={s.key === activeKey} first={i === 0} />
+            <Sector
+              key={s.key}
+              section={s}
+              active={s.key === activeKey}
+              first={i === 0}
+            />
           ))}
         </Card>
       ) : null}
@@ -118,7 +118,9 @@ function SectionHead({
         href={s.href}
         className={[
           "min-w-0 truncate text-xs font-semibold tracking-wide",
-          active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+          active
+            ? "text-foreground"
+            : "text-muted-foreground hover:text-foreground",
         ].join(" ")}
       >
         {s.title}
@@ -128,7 +130,7 @@ function SectionHead({
           <span
             className={[
               "text-label-md font-semibold tabular-nums",
-              total.tone ? TONE_CLASS[total.tone] : "text-foreground",
+              total.tone ? LEVEL_INK[total.tone] : "text-foreground",
             ].join(" ")}
           >
             {total.value}
@@ -193,12 +195,14 @@ function Readouts({ metrics }: { metrics: readonly BoardMetric[] }) {
           <div
             className={[
               "text-heading-4 truncate tabular-nums",
-              m.tone ? TONE_CLASS[m.tone] : "text-foreground",
+              m.tone ? LEVEL_INK[m.tone] : "text-foreground",
             ].join(" ")}
           >
             {m.value}
           </div>
-          <div className="text-muted-foreground truncate text-xs">{m.label}</div>
+          <div className="text-muted-foreground truncate text-xs">
+            {m.label}
+          </div>
         </div>
       ))}
     </div>
@@ -226,9 +230,17 @@ function Sector({
   const more = s.metrics.length > 1;
 
   return (
-    <div className={[first ? "" : "border-border border-t", active ? "bg-accent" : ""].join(" ")}>
+    <div
+      className={[
+        first ? "" : "border-border border-t",
+        active ? "bg-accent" : "",
+      ].join(" ")}
+    >
       <div className="flex items-center gap-xs px-sm py-xs">
-        <Link href={s.href} className="text-foreground min-w-0 flex-1 truncate text-sm hover:underline">
+        <Link
+          href={s.href}
+          className="text-foreground min-w-0 flex-1 truncate text-sm hover:underline"
+        >
           {s.title}
         </Link>
         {lead ? (
@@ -241,7 +253,9 @@ function Sector({
             type="button"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            aria-label={open ? BOARD_TEXT.collapse(s.title) : BOARD_TEXT.expand(s.title)}
+            aria-label={
+              open ? BOARD_TEXT.collapse(s.title) : BOARD_TEXT.expand(s.title)
+            }
             className="text-muted-foreground hover:text-foreground shrink-0"
           >
             <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
@@ -252,7 +266,9 @@ function Sector({
         <div className="flex flex-wrap gap-md px-sm pb-sm">
           {s.metrics.slice(1).map((m) => (
             <div key={m.label}>
-              <div className="text-foreground text-label-md tabular-nums">{m.value}</div>
+              <div className="text-foreground text-label-md tabular-nums">
+                {m.value}
+              </div>
               <div className="text-muted-foreground text-xs">{m.label}</div>
             </div>
           ))}

@@ -15,7 +15,12 @@ import {
 } from "@vxture/design-ui";
 import { HOME_TEXT } from "../lib/messages";
 import { dismissJudgement } from "../judgement-actions";
-import type { AnalysisKind, Judgement, Urgency } from "../../domains/judgement/lib/judgement";
+import type {
+  AnalysisKind,
+  Judgement,
+  Urgency,
+} from "../../domains/judgement/lib/judgement";
+import { TONE_INK } from "../lib/view-model";
 
 // The home screen: a decision queue with provenance.
 //
@@ -87,7 +92,8 @@ export function JudgementWorkspace({
   // without any row needing to know the others exist.
   const [openId, setOpenId] = useState<string>(judgements[0]?.id ?? "");
 
-  const shown = tier === "all" ? judgements : judgements.filter((j) => j.urgency === tier);
+  const shown =
+    tier === "all" ? judgements : judgements.filter((j) => j.urgency === tier);
 
   return (
     // ONE card. The headline used to float above the content as its own block,
@@ -97,7 +103,9 @@ export function JudgementWorkspace({
       <div className="border-border flex flex-wrap items-end justify-between gap-md border-b px-lg py-md">
         <div className="min-w-0">
           <h1 className="text-heading-2 text-foreground">
-            {counts.today > 0 ? HOME_TEXT.lead(counts.today) : HOME_TEXT.leadNone}
+            {counts.today > 0
+              ? HOME_TEXT.lead(counts.today)
+              : HOME_TEXT.leadNone}
           </h1>
           <p className="text-muted-foreground mt-2xs text-body-sm">
             {HOME_TEXT.leadSub(scanned, judgements.length)}
@@ -112,7 +120,8 @@ export function JudgementWorkspace({
               // Both branches explicit: a bare URL would re-enter the ownership
               // derivation and could land somewhere other than where the reader
               // just clicked.
-              window.location.search = v === "all" ? "?scope=all" : "?scope=mine";
+              window.location.search =
+                v === "all" ? "?scope=all" : "?scope=mine";
             }}
             items={[
               { value: "mine", label: HOME_TEXT.scopeMine },
@@ -124,10 +133,26 @@ export function JudgementWorkspace({
             value={tier}
             onChange={(v: Tier) => setTier(v)}
             items={[
-              { value: "all", label: HOME_TEXT.urgencyAll, count: judgements.length },
-              { value: "today", label: HOME_TEXT.urgencyToday, count: counts.today },
-              { value: "week", label: HOME_TEXT.urgencyWeek, count: counts.week },
-              { value: "watch", label: HOME_TEXT.urgencyWatch, count: counts.watch },
+              {
+                value: "all",
+                label: HOME_TEXT.urgencyAll,
+                count: judgements.length,
+              },
+              {
+                value: "today",
+                label: HOME_TEXT.urgencyToday,
+                count: counts.today,
+              },
+              {
+                value: "week",
+                label: HOME_TEXT.urgencyWeek,
+                count: counts.week,
+              },
+              {
+                value: "watch",
+                label: HOME_TEXT.urgencyWatch,
+                count: counts.watch,
+              },
             ]}
           />
         </Stack>
@@ -140,7 +165,11 @@ export function JudgementWorkspace({
             // Two different silences. "Nothing is wrong" and "nothing has been
             // recorded, so nothing can be concluded" look identical on a screen
             // and mean opposite things.
-            description={hasAnyRecord ? HOME_TEXT.emptyDescription : HOME_TEXT.emptyNoRecords}
+            description={
+              hasAnyRecord
+                ? HOME_TEXT.emptyDescription
+                : HOME_TEXT.emptyNoRecords
+            }
           />
         </div>
       ) : (
@@ -213,13 +242,15 @@ function Engagement({
             <span key={i} className="flex items-baseline gap-2xs">
               <b
                 className={[
-                  /^[0-9]/.test(f.value) ? "text-label-lg tabular-nums" : "text-body-sm",
+                  /^[0-9]/.test(f.value)
+                    ? "text-label-lg tabular-nums"
+                    : "text-body-sm",
                   f.tone === "danger"
-                    ? "text-destructive"
+                    ? TONE_INK.danger
                     : f.tone === "warning"
-                      ? "text-warning"
+                      ? TONE_INK.warning
                       : f.tone === "success"
-                        ? "text-success"
+                        ? TONE_INK.success
                         : "text-foreground",
                 ].join(" ")}
               >
@@ -230,14 +261,21 @@ function Engagement({
           ))}
         </div>
 
-        <Button variant="ghost" size="sm" aria-expanded={open} onClick={onToggle}>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={open}
+          onClick={onToggle}
+        >
           {open ? HOME_TEXT.collapse : HOME_TEXT.expand}
           <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
         </Button>
       </div>
 
       {/* Row 2: what it concluded. */}
-      <p className="text-foreground mt-xs max-w-[62ch] text-body-md">{j.claim}</p>
+      <p className="text-foreground mt-xs max-w-[62ch] text-body-md">
+        {j.claim}
+      </p>
 
       {/* Row 3: the orders. Available WITHOUT expanding, because opening the
           subject or asking for an analysis are the ordinary moves - only
@@ -248,7 +286,9 @@ function Engagement({
               position - it opens the adoption board. Sending it to the same
               label would name the destination wrongly. */}
           <Link href={href}>
-            {j.subjectType === "team" ? HOME_TEXT.openTeam : HOME_TEXT.openSubject}
+            {j.subjectType === "team"
+              ? HOME_TEXT.openTeam
+              : HOME_TEXT.openSubject}
           </Link>
         </Button>
         {j.analyses.map((a) => (
@@ -270,7 +310,9 @@ function Engagement({
           {HOME_TEXT.actDismiss}
         </Button>
         {j.analyses.length > 0 ? (
-          <span className="text-muted-foreground ml-auto text-xs">{HOME_TEXT.analysisHint}</span>
+          <span className="text-muted-foreground ml-auto text-xs">
+            {HOME_TEXT.analysisHint}
+          </span>
         ) : null}
       </Stack>
 
@@ -278,19 +320,27 @@ function Engagement({
         <Stack gap="sm" className="mt-md">
           {j.citations.length > 0 ? (
             <section className="bg-muted/40 border-border rounded-md border p-sm">
-              <SectionHeader level={4} title={HOME_TEXT.secEvidenceCount(j.citations.length)} />
+              <SectionHeader
+                level={4}
+                title={HOME_TEXT.secEvidenceCount(j.citations.length)}
+              />
               <Stack gap="sm" className="mt-xs">
                 {j.citations.map((c, i) => (
                   // Verbatim, and all of them. Everything downstream cites these
                   // rows, so what a reader can open must be what was cited - a
                   // tidied summary would make provenance a story.
-                  <blockquote key={i} className="border-primary/40 max-w-[62ch] border-l-2 pl-sm">
+                  <blockquote
+                    key={i}
+                    className="border-primary/40 max-w-[62ch] border-l-2 pl-sm"
+                  >
                     {c.who ? (
                       <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
                         {c.who}
                       </cite>
                     ) : null}
-                    <p className="text-muted-foreground text-body-sm leading-relaxed">{c.text}</p>
+                    <p className="text-muted-foreground text-body-sm leading-relaxed">
+                      {c.text}
+                    </p>
                   </blockquote>
                 ))}
               </Stack>
@@ -307,11 +357,16 @@ function Engagement({
                 {j.series.map((pt, i) => {
                   const last = i === j.series!.length - 1;
                   return (
-                    <div key={pt.label} className="flex min-w-0 flex-col items-center gap-2xs">
+                    <div
+                      key={pt.label}
+                      className="flex min-w-0 flex-col items-center gap-2xs"
+                    >
                       <span
                         className={[
                           "text-xs tabular-nums",
-                          last ? "text-foreground font-semibold" : "text-muted-foreground",
+                          last
+                            ? "text-foreground font-semibold"
+                            : "text-muted-foreground",
                         ].join(" ")}
                       >
                         {pt.percent}%
@@ -323,7 +378,9 @@ function Engagement({
                         ].join(" ")}
                         style={{ height: `${Math.max(4, pt.percent)}px` }}
                       />
-                      <span className="text-muted-foreground text-xs tabular-nums">{pt.label}</span>
+                      <span className="text-muted-foreground text-xs tabular-nums">
+                        {pt.label}
+                      </span>
                     </div>
                   );
                 })}
@@ -351,7 +408,10 @@ function Engagement({
 function SourceMark({ source }: { source: Judgement["source"] }) {
   const rule = source === "rule";
   return (
-    <Badge variant="outline" title={rule ? HOME_TEXT.sourceRuleHint : HOME_TEXT.sourceModelHint}>
+    <Badge
+      variant="outline"
+      title={rule ? HOME_TEXT.sourceRuleHint : HOME_TEXT.sourceModelHint}
+    >
       {rule ? HOME_TEXT.sourceRule : HOME_TEXT.sourceModel}
     </Badge>
   );

@@ -1,5 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { BoardMetric, BoardSection } from "../lib/board";
+import { LEVEL_INK } from "../lib/view-model";
 
 // Two ways of drawing a handful of numbers, for the left flank's cards.
 //
@@ -31,12 +32,10 @@ const FILL: Record<string, string> = {
   good: "bg-success",
 };
 
-/** Tone carries meaning here - board.ts sets it from the data, not from taste. */
-const TEXT: Record<string, string> = {
-  bad: "text-destructive",
-  warn: "text-warning",
-  good: "text-success",
-};
+/* The ink for a toned reading is LEVEL_INK, shared - see view-model.ts. The
+   FILL map above stays local and stays on the base tokens: a painted bar wants
+   the colour a surface is painted, which is the one thing `--warning` is
+   actually for. */
 
 /**
  * The ramp for segments that carry no tone.
@@ -57,7 +56,12 @@ const TEXT: Record<string, string> = {
  */
 const RAMP = ["bg-primary", "bg-primary/70", "bg-primary/45", "bg-primary/25"];
 /** The legend dot for each ramp step, so a figure ties to its segment. */
-const RAMP_TEXT = ["text-primary", "text-primary/70", "text-primary/45", "text-primary/25"];
+const RAMP_TEXT = [
+  "text-primary",
+  "text-primary/70",
+  "text-primary/45",
+  "text-primary/25",
+];
 
 /** Toned segments keep their meaning; untoned ones step down the ramp. */
 function fillFor(m: BoardMetric, untonedIndex: number): string {
@@ -102,10 +106,14 @@ export function Lede({ metrics }: { metrics: readonly BoardMetric[] }) {
   return (
     <div className="flex flex-col gap-2xs">
       <div className="flex items-baseline gap-xs">
-        <span className={`text-heading-2 tabular-nums ${lede.tone ? TEXT[lede.tone] : "text-foreground"}`}>
+        <span
+          className={`text-heading-2 tabular-nums ${lede.tone ? LEVEL_INK[lede.tone] : "text-foreground"}`}
+        >
           {lede.value}
         </span>
-        <span className="text-muted-foreground min-w-0 truncate text-xs">{lede.label}</span>
+        <span className="text-muted-foreground min-w-0 truncate text-xs">
+          {lede.label}
+        </span>
       </div>
 
       {rest.length > 0 ? (
@@ -116,7 +124,11 @@ export function Lede({ metrics }: { metrics: readonly BoardMetric[] }) {
           {rest.map((m, i) => (
             <span key={m.label}>
               {i > 0 ? <span aria-hidden="true"> · </span> : null}
-              <span className={`tabular-nums ${m.tone ? TEXT[m.tone] : "text-foreground"}`}>{m.value}</span>{" "}
+              <span
+                className={`tabular-nums ${m.tone ? LEVEL_INK[m.tone] : "text-foreground"}`}
+              >
+                {m.value}
+              </span>{" "}
               {m.label}
             </span>
           ))}
@@ -147,12 +159,20 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
            that matters is BETWEEN rows, and that is the list gap. */
         <li key={m.label} className="flex flex-col">
           <div className="flex items-baseline justify-between gap-xs">
-            <span className="text-foreground min-w-0 truncate text-xs">{m.label}</span>
-            <span className="text-foreground shrink-0 text-xs font-semibold tabular-nums">{m.value}</span>
+            <span className="text-foreground min-w-0 truncate text-xs">
+              {m.label}
+            </span>
+            <span className="text-foreground shrink-0 text-xs font-semibold tabular-nums">
+              {m.value}
+            </span>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="bg-muted h-2xs w-full overflow-hidden rounded-full" role="img" aria-label={`${m.label} ${m.value}`}>
+              <div
+                className="bg-muted h-2xs w-full overflow-hidden rounded-full"
+                role="img"
+                aria-label={`${m.label} ${m.value}`}
+              >
                 <span
                   className={`block h-full rounded-full ${fillFor(m, i)}`}
                   style={{ width: `${((m.weight ?? 0) / max) * 100}%` }}
@@ -186,7 +206,11 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
  * lines in a 256px column, and the amount belongs on hover anyway - the legend
  * exists to say which band is which, not to be a table.
  */
-export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) {
+export function Gauge({
+  gauge,
+}: {
+  gauge: NonNullable<BoardSection["gauge"]>;
+}) {
   // CLAMPED AS A WHOLE, not per segment. Clamping each segment to 100%
   // individually would still let three of them sum past the end of the track -
   // each one "fits" while the row overflows. Dividing by whichever is larger,
@@ -199,11 +223,19 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
   return (
     <div className="flex flex-col gap-xs">
       <div className="flex items-baseline justify-between gap-xs">
-        <span className="text-muted-foreground shrink-0 text-xs">{gauge.label}</span>
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {gauge.label}
+        </span>
         <span className="flex min-w-0 items-baseline gap-xs">
-          <span className="text-foreground text-label-md font-semibold tabular-nums">{gauge.value}</span>
+          <span className="text-foreground text-label-md font-semibold tabular-nums">
+            {gauge.value}
+          </span>
           {gauge.note ? (
-            <span className={`shrink-0 text-xs tabular-nums ${gauge.thin ? TEXT.bad : TEXT.good}`}>{gauge.note}</span>
+            <span
+              className={`shrink-0 text-xs tabular-nums ${gauge.thin ? LEVEL_INK.bad : LEVEL_INK.good}`}
+            >
+              {gauge.note}
+            </span>
           ) : null}
         </span>
       </div>
@@ -215,7 +247,10 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
             f.weight > 0 ? (
               <Tooltip key={f.label}>
                 <TooltipTrigger asChild>
-                  <span className={RAMP[i % RAMP.length]} style={{ width: pct(f.weight) }} />
+                  <span
+                    className={RAMP[i % RAMP.length]}
+                    style={{ width: pct(f.weight) }}
+                  />
                 </TooltipTrigger>
                 <TooltipContent>
                   {f.label} {f.value}
@@ -224,7 +259,6 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
             ) : null,
           )}
         </div>
-
       </div>
 
       {/* Names only - every figure on this card, including the reference, is on
@@ -232,7 +266,10 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
       <ul className="flex flex-wrap items-baseline gap-x-sm gap-y-2xs">
         {gauge.funnel.map((f, i) => (
           <li key={f.label} className="flex items-baseline gap-2xs">
-            <span aria-hidden="true" className={`text-xs leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}>
+            <span
+              aria-hidden="true"
+              className={`text-xs leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}
+            >
               &bull;
             </span>
             <span className="text-muted-foreground text-xs">{f.label}</span>

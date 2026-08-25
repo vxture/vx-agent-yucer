@@ -9,6 +9,7 @@ import { scoreSignal } from "../../domains/signal/lib/scoring";
 import { LeadList } from "../components/lead-list";
 import { actOnSignal } from "./actions";
 import { actOnLead } from "./lead-actions";
+import { TONE_INK } from "../lib/view-model";
 
 // D5 signal inbox.
 //
@@ -21,7 +22,12 @@ export const dynamic = "force-dynamic";
 export default async function SignalPage() {
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const ctx = {
@@ -74,26 +80,35 @@ export default async function SignalPage() {
   // The untargeted group is SHOWN, not hidden: aim decides what to read first,
   // never what is allowed in (ADR-016). Hiding it would quietly turn a reading
   // order into a filter.
-  const byScore = (a: QueueSignal, b: QueueSignal) => (b.record.score ?? 0) - (a.record.score ?? 0);
+  const byScore = (a: QueueSignal, b: QueueSignal) =>
+    (b.record.score ?? 0) - (a.record.score ?? 0);
   const groups = [
     {
       key: "named",
       title: SIGNAL_TEXT.groupNamed,
       why: SIGNAL_TEXT.groupNamedWhy,
-      items: enriched.filter((s) => s.record.targeting === "named_account").sort(byScore),
+      items: enriched
+        .filter((s) => s.record.targeting === "named_account")
+        .sort(byScore),
     },
     {
       key: "domain",
       title: SIGNAL_TEXT.groupDomain,
       why: SIGNAL_TEXT.groupDomainWhy,
-      items: enriched.filter((s) => s.record.targeting === "product_domain").sort(byScore),
+      items: enriched
+        .filter((s) => s.record.targeting === "product_domain")
+        .sort(byScore),
     },
     {
       key: "none",
       title: SIGNAL_TEXT.groupNone,
       why: SIGNAL_TEXT.groupNoneWhy,
       items: enriched
-        .filter((s) => s.record.targeting !== "named_account" && s.record.targeting !== "product_domain")
+        .filter(
+          (s) =>
+            s.record.targeting !== "named_account" &&
+            s.record.targeting !== "product_domain",
+        )
         .sort(byScore),
     },
   ];
@@ -101,7 +116,10 @@ export default async function SignalPage() {
   // Said once. Decay is continuous, so on a dataset of any age most rows are
   // stale; flagging each one turns a true statement into wallpaper.
   const staleCount = enriched.filter(
-    (s) => s.recomputed !== null && s.record.score !== null && Math.abs(s.recomputed - s.record.score) >= 5,
+    (s) =>
+      s.recomputed !== null &&
+      s.record.score !== null &&
+      Math.abs(s.recomputed - s.record.score) >= 5,
   ).length;
 
   return (
@@ -112,17 +130,21 @@ export default async function SignalPage() {
             `flex flex-col gap-xl`; with a heading and two captions as siblings
             it put 32px between a title and its own subtitle. */}
         <div className="flex flex-col gap-2xs">
-        <h1 className="text-heading-2 text-foreground">
-          {enriched.length > 0 ? SIGNAL_TEXT.lead(enriched.length) : SIGNAL_TEXT.leadNone}
-        </h1>
-        {staleCount > 0 ? (
-          <p className="text-warning text-body-sm">{SIGNAL_TEXT.staleCount(staleCount)}</p>
-        ) : null}
-        {namedCount > 0 ? (
-          <p className="text-muted-foreground text-body-sm">
-            {SIGNAL_TEXT.leadNamed(namedCount)}
-          </p>
-        ) : null}
+          <h1 className="text-heading-2 text-foreground">
+            {enriched.length > 0
+              ? SIGNAL_TEXT.lead(enriched.length)
+              : SIGNAL_TEXT.leadNone}
+          </h1>
+          {staleCount > 0 ? (
+            <p className={`text-body-sm ${TONE_INK.warning}`}>
+              {SIGNAL_TEXT.staleCount(staleCount)}
+            </p>
+          ) : null}
+          {namedCount > 0 ? (
+            <p className="text-muted-foreground text-body-sm">
+              {SIGNAL_TEXT.leadNamed(namedCount)}
+            </p>
+          ) : null}
         </div>
       </Card>
 
@@ -131,16 +153,27 @@ export default async function SignalPage() {
         // Both flags come from the SAME gate the server action re-runs. Naming
         // tiers here would be the product re-deriving a commercial conclusion,
         // and it would drift from the matrix the moment packaging changed.
-        canTriage={can(session.authz, session.entitlement, "signal.triage", "ui").allowed}
-        canRescore={can(session.authz, session.entitlement, "signal.rescore", "ui").allowed}
+        canTriage={
+          can(session.authz, session.entitlement, "signal.triage", "ui").allowed
+        }
+        canRescore={
+          can(session.authz, session.entitlement, "signal.rescore", "ui")
+            .allowed
+        }
         onAct={actOnSignal}
       />
       {/* Leads sit under the inbox because that is the order the chain runs in:
           a signal is promoted into a lead, and a qualified lead converts. */}
       <LeadList
         leads={leads.ok ? leads.value : []}
-        canTriage={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
-        canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}
+        canTriage={
+          can(session.authz, session.entitlement, "signal.lead.upsert", "ui")
+            .allowed
+        }
+        canConvert={
+          can(session.authz, session.entitlement, "signal.lead.convert", "ui")
+            .allowed
+        }
         onAct={actOnLead}
       />
     </ViewLayout>

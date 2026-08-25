@@ -1,6 +1,6 @@
 "use client";
 
-import type { Tone } from "../lib/view-model";
+import { TONE_INK, type Tone } from "../lib/view-model";
 
 // The signal score, drawn as a ring.
 //
@@ -31,15 +31,6 @@ const STROKE = 3;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-const ARC_TONE: Record<Tone, string> = {
-  success: "text-success",
-  info: "text-info",
-  warning: "text-warning",
-  danger: "text-destructive",
-  brand: "text-primary",
-  neutral: "text-muted-foreground",
-};
-
 export interface ScoreRingProps {
   /** null when the signal has not been scored - drawn as an empty track. */
   readonly score: number | null;
@@ -52,7 +43,11 @@ export function ScoreRing({ score, tone, label }: ScoreRingProps) {
   // Scores are a 0-100 scale but the rule is not bounded to it, so clamp:
   // an arc longer than the circle would wrap and read as a smaller one.
   const pct = score === null ? 0 : Math.max(0, Math.min(100, score)) / 100;
-  const arc = ARC_TONE[tone] ?? ARC_TONE.neutral;
+  // TONE_INK, not a local map. This file had its own and its warning entry was
+  // `text-warning` - the FILL token, 1.72:1 on white. A 3px arc in a colour
+  // that faint is not a low-contrast ring, it is an absent one, so every
+  // middling score drew a track with nothing in it.
+  const arc = TONE_INK[tone] ?? TONE_INK.neutral;
 
   return (
     <span
