@@ -15,7 +15,11 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import type { SignalRecord } from "../../domains/signal/store";
-import { SIGNAL_STATUS_LABEL, SIGNAL_TEXT, SIGNAL_TYPE_LABEL } from "../lib/messages";
+import {
+  SIGNAL_STATUS_LABEL,
+  SIGNAL_TEXT,
+  SIGNAL_TYPE_LABEL,
+} from "../lib/messages";
 import { confidenceTone } from "../lib/view-model";
 import { ScoreRing } from "./score-ring";
 
@@ -73,10 +77,18 @@ export interface QueueSignal {
 }
 
 export interface SignalQueueProps {
-  readonly groups: readonly { key: string; title: string; why: string; items: readonly QueueSignal[] }[];
+  readonly groups: readonly {
+    key: string;
+    title: string;
+    why: string;
+    items: readonly QueueSignal[];
+  }[];
   readonly canTriage: boolean;
   readonly canRescore: boolean;
-  readonly onAct: (signalId: string, action: SignalAction) => void | Promise<unknown>;
+  readonly onAct: (
+    signalId: string,
+    action: SignalAction,
+  ) => void | Promise<unknown>;
 }
 
 /**
@@ -125,13 +137,20 @@ function readings(s: QueueSignal): string[] {
   // one-point threshold flags essentially every row, and a marker that is
   // always on is a marker nobody reads.
   const drift =
-    s.recomputed !== null && s.record.score !== null ? s.record.score - s.recomputed : 0;
+    s.recomputed !== null && s.record.score !== null
+      ? s.record.score - s.recomputed
+      : 0;
   if (drift >= 5) out.push(SIGNAL_TEXT.fieldDrift(drift));
 
   return out;
 }
 
-export function SignalQueue({ groups, canTriage, canRescore, onAct }: SignalQueueProps) {
+export function SignalQueue({
+  groups,
+  canTriage,
+  canRescore,
+  onAct,
+}: SignalQueueProps) {
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string>("");
@@ -147,7 +166,11 @@ export function SignalQueue({ groups, canTriage, canRescore, onAct }: SignalQueu
     /* A named section, like every other block in the product. It was a bare div
        of grouped cards, so the page went from its headline straight into three
        unlabelled panels - the reader had to infer what they were a list OF. */
-    <Section icon="lightbulb" title={SIGNAL_TEXT.title} description={SIGNAL_TEXT.description}>
+    <Section
+      icon="lightbulb"
+      title={SIGNAL_TEXT.title}
+      description={SIGNAL_TEXT.description}
+    >
       {groups
         .filter((g) => g.items.length > 0)
         .map((g) => (
@@ -179,7 +202,9 @@ export function SignalQueue({ groups, canTriage, canRescore, onAct }: SignalQueu
                       busy={pending && busyId === s.record.id}
                       canTriage={canTriage}
                       canRescore={canRescore}
-                      onToggle={() => setOpenId(openId === s.record.id ? "" : s.record.id)}
+                      onToggle={() =>
+                        setOpenId(openId === s.record.id ? "" : s.record.id)
+                      }
                       onAct={act}
                     />
                   ))}
@@ -248,54 +273,89 @@ function Row({
     <div className="flex min-w-0 items-start gap-md py-sm">
       {/* The lead rail. items-start rather than centre: the ring lines up with
           the subject it scores, not with the middle of three lines. */}
-      <ScoreRing score={r.score} tone={tone} label={`${SIGNAL_TEXT.columnScore} ${r.score ?? "-"}`} />
+      <ScoreRing
+        score={r.score}
+        tone={tone}
+        label={`${SIGNAL_TEXT.columnScore} ${r.score ?? "-"}`}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-2xs">
-        {/* L1 - what it is | how it is classed and judged. */}
-        <div className="flex min-w-0 items-baseline justify-between gap-md">
-          <p className="text-foreground min-w-0 truncate text-body-md">{r.subject}</p>
-          <span className="flex shrink-0 items-center gap-xs">
-            <StatusBadge tone="neutral">{SIGNAL_TYPE_LABEL[r.signalType] ?? r.signalType}</StatusBadge>
+        {/* L1 - CLASSED, then named, then measured.
+            The tags lead the title rather than trailing it: they are how a
+            reader decides whether to read the sentence at all, and a filter
+            that comes after the thing it filters has already cost the reading
+            it was meant to save. */}
+        <div className="flex min-w-0 items-center justify-between gap-md">
+          <span className="flex min-w-0 flex-1 items-center gap-xs">
+            <StatusBadge tone="neutral">
+              {SIGNAL_TYPE_LABEL[r.signalType] ?? r.signalType}
+            </StatusBadge>
             <StatusBadge tone={tone}>{verdict(r.score)}</StatusBadge>
             {/* Never a blank: a company we do not recognise is the find. */}
             {r.accountId === null ? (
-              <StatusBadge tone="brand">{SIGNAL_TEXT.unmatchedAccount}</StatusBadge>
+              <StatusBadge tone="brand">
+                {SIGNAL_TEXT.unmatchedAccount}
+              </StatusBadge>
             ) : null}
-            <StatusBadge tone="neutral">{SIGNAL_STATUS_LABEL[r.status] ?? r.status}</StatusBadge>
+            <p className="text-foreground min-w-0 flex-1 truncate text-body-md">
+              {r.subject}
+            </p>
+          </span>
+          {/* The readings ride line one, beside the thing they measure. */}
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {readings(s).join(" \u00b7 ")}
           </span>
         </div>
 
-        {/* L2 - why that score | the objective readings. */}
-        <div className="text-muted-foreground flex min-w-0 items-baseline justify-between gap-md text-xs">
-          <p className="min-w-0 truncate">
-            {SIGNAL_TEXT.scoreExplain(s.baseWeight, s.decay, s.bonus)}
-          </p>
-          <span className="shrink-0 tabular-nums">{readings(s).join(" · ")}</span>
-        </div>
+        {/* L2 - the arithmetic behind the ring, and NOTHING on the right.
+            The blank is deliberate. Three loaded right ends make a column of
+            unrelated things that reads as a table it is not; leaving the
+            middle one empty lets line one's readings and line three's verbs
+            each be seen as what they are. */}
+        <p className="text-muted-foreground min-w-0 truncate text-xs">
+          {SIGNAL_TEXT.scoreExplain(s.baseWeight, s.decay, s.bonus)}
+        </p>
 
-        {/* L3 - when and where it came from | what to do about it. */}
+        {/* L3 - where it came from | what to do about it. */}
         <div className="flex min-w-0 items-center justify-between gap-md">
           <p className="text-muted-foreground min-w-0 truncate text-xs">
-            {SIGNAL_TEXT.detectedOn(r.detectedAt.toISOString().slice(0, 10), r.sourceRef ?? r.source)}
+            {SIGNAL_TEXT.detectedOn(
+              r.detectedAt.toISOString().slice(0, 10),
+              r.sourceRef ?? r.source,
+            )}
           </p>
           <span className="flex shrink-0 items-center gap-xs">
+            {/* THE STATUS IS THE HANDLE. It was a badge on line one saying
+                "scored", sitting a whole row away from the arithmetic that
+                word refers to - a label with nothing to do. As the drawer's
+                trigger it says the same thing and also opens the thing it is
+                talking about, and the chevron says which way. The word itself
+                survives on the control's name, so nothing is lost to a reader
+                who cannot see the icon. */}
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              aria-expanded={open}
+              onClick={onToggle}
+              title={SIGNAL_STATUS_LABEL[r.status] ?? r.status}
+              aria-label={`${SIGNAL_STATUS_LABEL[r.status] ?? r.status} \u00b7 ${
+                open ? SIGNAL_TEXT.collapse : SIGNAL_TEXT.expand
+              }`}
+            >
+              <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+            </Button>
             {/* The primary verb stays on the row. This is a triage queue:
                 burying the one action it exists for behind a menu would cost a
                 click on every single item. The other three are secondary and
                 go where secondary actions go everywhere else in the product. */}
-            <Button size="sm" disabled={!canTriage || busy} onClick={() => onAct(r.id, "promote")}>
+            <Button
+              size="sm"
+              disabled={!canTriage || busy}
+              onClick={() => onAct(r.id, "promote")}
+            >
               {SIGNAL_TEXT.promote}
             </Button>
             <ActionMenu items={menu} label={SIGNAL_TEXT.rowMenu} align="end" />
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-expanded={open}
-              onClick={onToggle}
-              aria-label={open ? SIGNAL_TEXT.collapse : SIGNAL_TEXT.expand}
-            >
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
-            </Button>
           </span>
         </div>
 
@@ -309,10 +369,15 @@ function Row({
                 { label: SIGNAL_TEXT.bdBase, value: String(s.baseWeight) },
                 { label: SIGNAL_TEXT.bdDecay, value: s.decay.toFixed(2) },
                 { label: SIGNAL_TEXT.bdBonus, value: String(s.bonus) },
-                { label: SIGNAL_TEXT.bdAge, value: String(Math.round(s.ageDays)) },
+                {
+                  label: SIGNAL_TEXT.bdAge,
+                  value: String(Math.round(s.ageDays)),
+                },
               ]}
             />
-            {s.recomputed !== null && r.score !== null && Math.abs(s.recomputed - r.score) >= 5 ? (
+            {s.recomputed !== null &&
+            r.score !== null &&
+            Math.abs(s.recomputed - r.score) >= 5 ? (
               <p className="text-warning mt-sm text-xs">
                 {SIGNAL_TEXT.staleWhy(r.score, s.recomputed)}
               </p>

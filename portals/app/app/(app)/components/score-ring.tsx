@@ -55,8 +55,17 @@ export function ScoreRing({ score, tone, label }: ScoreRingProps) {
   const arc = ARC_TONE[tone] ?? ARC_TONE.neutral;
 
   return (
-    <span className="relative inline-flex shrink-0" role="img" aria-label={label}>
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
+    <span
+      className="relative inline-flex shrink-0"
+      role="img"
+      aria-label={label}
+    >
+      <svg
+        width={SIZE}
+        height={SIZE}
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        aria-hidden="true"
+      >
         {/* Track. Always drawn, so an unscored signal still occupies the rail
             and the column stays a column. */}
         <circle
