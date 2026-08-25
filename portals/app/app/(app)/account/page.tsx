@@ -1,4 +1,5 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
+import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
 import { ACCOUNT_TEXT, SHELL_TEXT } from "../lib/messages";
 import { getAccountStore, getFieldStore } from "../../domains/shared/registry";
@@ -112,7 +113,18 @@ export default async function AccountPage() {
         title={ACCOUNT_TEXT.title}
         description={ACCOUNT_TEXT.description}
       >
-        <AccountTable rows={result.value} />
+        {/* Decides which menu item renders ENABLED, nothing more. The server
+            action re-runs the same gate on `account.upsert` before it writes,
+            so a stale flag costs a refused request rather than an unguarded
+            one - and the item stays visible either way, disabled with the
+            reason. */}
+        <AccountTable
+          rows={result.value}
+          canRecompute={
+            can(session.authz, session.entitlement, "account.upsert", "ui")
+              .allowed
+          }
+        />
       </Section>
     </ViewLayout>
   );

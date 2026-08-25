@@ -994,6 +994,24 @@ export const ACCOUNT_TEXT = {
   unscored: "未评估",
   emptyTitle: "还没有客户",
   emptyDescription: "线索转化或手工录入后，客户会出现在这里。",
+  rowCount: (n: number) => `${n} 家客户`,
+
+  // The action column. Both verbs are always listed; the one the member may not
+  // use is disabled with the reason, not hidden - a menu whose contents change
+  // with the viewer teaches nobody what the product can do.
+  openAccount: "打开客户",
+  recompute: "重算健康度",
+  recomputeHint: "按当前源数据重新计算，结果立即写回",
+  recomputeDenied: "没有重算健康度的权限",
+  recomputedTitle: "健康度已重算",
+  recomputedOn: (name: string, score: number | null) =>
+    score === null ? `${name}:数据不足，仍为未评估` : `${name}:${score} 分`,
+  recomputeFailed: "重算失败",
+
+  // The owner is a raw subject id and is rendered as one. There is no display
+  // name on the record to resolve it against; dressing a machine string as a
+  // person is how a UUID ends up in front of someone who then does not chase it.
+  ownerNone: "未指派",
 } as const;
 
 export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
