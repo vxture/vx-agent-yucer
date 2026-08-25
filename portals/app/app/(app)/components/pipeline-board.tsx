@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
+import { ActionMenu, Card, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory, ForecastableOpportunity } from "../../domains/pipeline/lib/forecast";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
@@ -40,6 +41,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
   // not about which data is on screen, so it has no business in the URL the way
   // the period filter does.
   const [view, setView] = useState<"list" | "cards">("list");
+  const router = useRouter();
   const totals = useMemo(() => rollUp(rows, currency), [rows, currency]);
 
   const metrics: MetricGridItem[] = totals.ok
@@ -156,7 +158,30 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
               it names. */}
           <Card className="p-xs">
             {view === "list" ? (
-              <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
+              <DataTable
+                leadingSpacer
+                indexStart={1}
+                columns={columns}
+                rows={rows}
+                rowKey={(row) => row.id}
+                loading={loading}
+                /* The fixed column: pinned right, locked during horizontal
+                   scroll, one trigger rather than a row of buttons. A wide
+                   table scrolls its own actions out of reach otherwise, and
+                   this table is eight columns before the actions. */
+                rowActions={(row) => (
+                  <ActionMenu
+                    items={[
+                      {
+                        id: "open",
+                        label: PIPELINE_TEXT.openDeal,
+                        icon: "arrow-right",
+                        onSelect: () => router.push(`/pipeline/${row.id}`),
+                      },
+                    ]}
+                  />
+                )}
+              />
             ) : (
               <ListCardGrid className="p-md">
                 {rows.map((row) => (
@@ -168,6 +193,18 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
                       <StatusBadge tone={FORECAST_TONE[row.forecastCategory]}>
                         {FORECAST_LABEL[row.forecastCategory]}
                       </StatusBadge>
+                    }
+                    actions={
+                      <ActionMenu
+                        items={[
+                          {
+                            id: "open",
+                            label: PIPELINE_TEXT.openDeal,
+                            icon: "arrow-right",
+                            onSelect: () => router.push(`/pipeline/${row.id}`),
+                          },
+                        ]}
+                      />
                     }
                     meta={
                       <>

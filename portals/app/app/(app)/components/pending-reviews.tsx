@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, DataTable, EmptyState, Input, Label, Card, FilterBar, ListCard, ListCardGrid, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
+import { ActionMenu, Button, Card, DataTable, EmptyState, FilterBar, Input, Label, ListCard, ListCardGrid, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { PIPELINE_TEXT, WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
@@ -101,24 +101,18 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
     },
     {
       id: "state",
-      header: "",
-      align: "right",
-      /* In the "all" view the two populations sit in one table, so each row has
-         to say which it is - otherwise a reviewed deal looks like outstanding
-         work. Reviewed rows carry a badge instead of the button, which is also
-         the truthful control: there is nothing left to record on them. */
+      header: WINLOSS_TEXT.columnState,
+      align: "center",
+      /* State only. In the "all" view the two populations sit in one table, so
+         each row has to say which it is - otherwise a reviewed deal looks like
+         outstanding work. The VERB that used to share this cell moved to the
+         fixed action column, where a row action belongs. */
       cell: (row) =>
         !pendingIds.has(row.id) ? (
           <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
-        ) : canRecord ? (
-          <Button
-            variant={openId === row.id ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setOpenId(openId === row.id ? null : row.id)}
-          >
-            {WINLOSS_TEXT.record}
-          </Button>
-        ) : null,
+        ) : (
+          <StatusBadge tone="warning">{WINLOSS_TEXT.filterPending}</StatusBadge>
+        ),
     },
   ];
 
@@ -164,7 +158,35 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
            outside it, the same as the board. */
         <Card className="p-xs">
           {view === "list" ? (
-            <DataTable leadingSpacer indexStart={1} columns={columns} rows={shown} rowKey={(row) => row.id} />
+            <DataTable
+              leadingSpacer
+              indexStart={1}
+              columns={columns}
+              rows={shown}
+              rowKey={(row) => row.id}
+              /* Pinned right, one trigger. Items stay VISIBLE and disabled
+                 rather than absent when they cannot be used, with the reason on
+                 the hint - a menu whose contents change per row teaches nobody
+                 what the product can do, and "why is it greyed" is answerable
+                 where "why is it missing" is not. */
+              rowActions={(row) => (
+                <ActionMenu
+                  items={[
+                    {
+                      id: "record",
+                      label: WINLOSS_TEXT.record,
+                      disabled: !canRecord || !pendingIds.has(row.id),
+                      hint: !canRecord
+                        ? WINLOSS_TEXT.recordHintDenied
+                        : !pendingIds.has(row.id)
+                          ? WINLOSS_TEXT.recordHintDone
+                          : undefined,
+                      onSelect: () => setOpenId(openId === row.id ? null : row.id),
+                    },
+                  ]}
+                />
+              )}
+            />
           ) : (
             <ListCardGrid className="p-md">
               {shown.map((row) => (

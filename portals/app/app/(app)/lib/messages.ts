@@ -473,6 +473,7 @@ export const PIPELINE_TEXT = {
   emptyDescription: "线索合格转化后会出现在这里。",
   rollupFailedTitle: "无法汇总",
   rowCount: (n: number) => `共 ${n} 条`,
+  openDeal: "打开阵地",
   // The period filter. Quarters plus the year, because a forecast is read at
   // both cadences - the quarter is what gets committed, the year is what gets
   // planned against.
@@ -1025,7 +1026,10 @@ export const WINLOSS_TEXT = {
   filterAll: "全部复盘",
   allEmptyTitle: "还没有关闭的商机",
   allEmptyDescription: "赢单或丢单后，商机会出现在这里等待复盘。",
+  columnState: "状态",
   reviewed: "已复盘",
+  recordHintDone: "这一单已经复盘过了",
+  recordHintDenied: "你没有记录复盘的权限",
   title: "待复盘",
   description: "已关闭但还没有复盘的商机。赢丢原因是结构化数据，回流给评分与建议——不写就没有闭环。",
   columnOpportunity: "商机",
