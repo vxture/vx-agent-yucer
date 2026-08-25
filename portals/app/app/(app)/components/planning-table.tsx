@@ -76,5 +76,5 @@ export function PlanningTable({ rows }: PlanningTableProps) {
     },
   ];
 
-  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.target.id} />;
+  return <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.target.id} />;
 }

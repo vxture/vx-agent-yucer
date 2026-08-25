@@ -80,5 +80,5 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
     { id: "status", header: DELIVERY_TEXT.columnStatus, cell: (row) => row.status },
   ];
 
-  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />;
+  return <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} />;
 }

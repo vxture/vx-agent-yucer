@@ -147,7 +147,7 @@ export function SignalInbox({ signals, canTriage, canRescore, onAct }: SignalInb
       {signals.length === 0 ? (
         <EmptyState title={SIGNAL_TEXT.emptyTitle} description={SIGNAL_TEXT.emptyDescription} />
       ) : (
-        <DataTable columns={columns} rows={signals} rowKey={(row) => row.id} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={signals} rowKey={(row) => row.id} />
       )}
     </Section>
   );

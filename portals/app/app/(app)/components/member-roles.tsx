@@ -181,7 +181,7 @@ export function MemberRoles({ members, canManage, onGrant, onRevoke }: MemberRol
       {members.length === 0 ? (
         <EmptyState title={MEMBER_TEXT.emptyTitle} description={MEMBER_TEXT.emptyDescription} />
       ) : (
-        <DataTable columns={columns} rows={members} rowKey={(row) => row.memberId} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={members} rowKey={(row) => row.memberId} />
       )}
     </Section>
   );

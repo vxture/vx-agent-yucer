@@ -102,5 +102,5 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     },
   ];
 
-  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />;
+  return <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} />;
 }

@@ -109,7 +109,7 @@ export function PendingReviews({ opportunities, canRecord, onRecord }: PendingRe
       {opportunities.length === 0 ? (
         <EmptyState title={WINLOSS_TEXT.emptyTitle} description={WINLOSS_TEXT.emptyDescription} />
       ) : (
-        <DataTable columns={columns} rows={opportunities} rowKey={(row) => row.id} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={opportunities} rowKey={(row) => row.id} />
       )}
 
       {target ? (

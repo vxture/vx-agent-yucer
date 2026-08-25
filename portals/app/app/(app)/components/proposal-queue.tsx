@@ -176,7 +176,7 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
           description={PROPOSAL_TEXT.emptyDescription}
         />
       ) : (
-        <DataTable columns={columns} rows={actions} rowKey={(row) => row.id} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={actions} rowKey={(row) => row.id} />
       )}
     </Section>
   );

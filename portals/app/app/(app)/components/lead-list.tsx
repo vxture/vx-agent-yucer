@@ -150,7 +150,7 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
       {leads.length === 0 ? (
         <EmptyState title={LEAD_TEXT.emptyTitle} description={LEAD_TEXT.emptyDescription} />
       ) : (
-        <DataTable columns={columns} rows={leads} rowKey={(row) => row.id} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={leads} rowKey={(row) => row.id} />
       )}
     </Section>
   );

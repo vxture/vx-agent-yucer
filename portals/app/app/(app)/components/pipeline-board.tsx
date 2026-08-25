@@ -135,7 +135,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
       ) : rows.length === 0 ? (
         <EmptyState title={PIPELINE_TEXT.emptyTitle} description={PIPELINE_TEXT.emptyDescription} />
       ) : (
-        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
       )}
     </Section>
   );

@@ -64,5 +64,5 @@ export function StrategyTable({ rows, canMove, onMove }: StrategyTableProps) {
     },
   ];
 
-  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />;
+  return <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} />;
 }
