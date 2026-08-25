@@ -1,14 +1,25 @@
 import Link from "next/link";
-import { EmptyState, MetricGrid, Section, StatusBadge, ViewHeader, ViewLayout, type MetricGridItem } from "@vxture/design-ui";
+import {
+  EmptyState,
+  MetricGrid,
+  Section,
+  StatusBadge,
+  ViewHeader,
+  ViewLayout,
+  type MetricGridItem,
+} from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
-import { ADOPTION_TEXT, SHELL_TEXT, STAGE_LABEL } from "../../lib/messages";
-import { getFieldStore, getPipelineStore } from "../../../domains/shared/registry";
+import {
+  getFieldStore,
+  getPipelineStore,
+} from "../../../domains/shared/registry";
 import { captureAdoption } from "../../../domains/account/field-service";
 import { CAPTURE_CRITERION } from "../../../domains/account/lib/capture-metric";
 import { listPipeline } from "../../../domains/pipeline/service";
 import type { OpportunityRecord } from "../../../domains/pipeline/store";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 
+import { getMessages } from "../../lib/i18n/server";
 // The instrument behind ADR-012's kill criterion.
 //
 // Stage 1 was shipped with a condition attached - if the capture habit does not
@@ -23,9 +34,15 @@ import type { Stage } from "../../../domains/pipeline/lib/stage";
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
+  const { ADOPTION_TEXT, SHELL_TEXT, STAGE_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const base = {
@@ -52,7 +69,9 @@ export default async function AdoptionPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={opportunities.violations.map((v: { message: string }) => v.message).join("; ")}
+        description={opportunities.violations
+          .map((v: { message: string }) => v.message)
+          .join("; ")}
       />
     );
   }
@@ -100,7 +119,8 @@ export default async function AdoptionPage() {
     },
   }[assessment.verdict];
 
-  const pct = (v: number | null) => (v === null ? "-" : `${Math.round(v * 100)}%`);
+  const pct = (v: number | null) =>
+    v === null ? "-" : `${Math.round(v * 100)}%`;
 
   const metrics: MetricGridItem[] = [
     {
@@ -144,7 +164,11 @@ export default async function AdoptionPage() {
         icon="chart-bar"
         title={ADOPTION_TEXT.title}
         description={ADOPTION_TEXT.description}
-        action={<StatusBadge tone={verdict.tone} dot>{verdict.label}</StatusBadge>}
+        action={
+          <StatusBadge tone={verdict.tone} dot>
+            {verdict.label}
+          </StatusBadge>
+        }
       />
 
       <MetricGrid items={metrics} />
@@ -176,10 +200,16 @@ export default async function AdoptionPage() {
                       artifact of the calendar, not a fact about the team, and
                       an unmarked artifact is indistinguishable from a verdict. */}
                   {w.complete ? null : (
-                    <StatusBadge tone="info">{ADOPTION_TEXT.weekInProgress}</StatusBadge>
+                    <StatusBadge tone="info">
+                      {ADOPTION_TEXT.weekInProgress}
+                    </StatusBadge>
                   )}
                 </th>
-                <td>{w.opportunities === 0 ? ADOPTION_TEXT.noDeals : w.opportunities}</td>
+                <td>
+                  {w.opportunities === 0
+                    ? ADOPTION_TEXT.noDeals
+                    : w.opportunities}
+                </td>
                 <td>{w.covered}</td>
                 <td>{w.interactions}</td>
                 {/* Null, not zero: a week with no open deals is not a week the
@@ -191,14 +221,22 @@ export default async function AdoptionPage() {
         </table>
       </Section>
 
-      <Section title={ADOPTION_TEXT.darkDeals} description={ADOPTION_TEXT.darkDealsHint}>
+      <Section
+        title={ADOPTION_TEXT.darkDeals}
+        description={ADOPTION_TEXT.darkDealsHint}
+      >
         {dark.length === 0 ? (
-          <EmptyState title={ADOPTION_TEXT.darkDealsEmpty} description={windowStart.toISOString().slice(0, 10)} />
+          <EmptyState
+            title={ADOPTION_TEXT.darkDealsEmpty}
+            description={windowStart.toISOString().slice(0, 10)}
+          />
         ) : (
           <ul>
             {dark.map((o: OpportunityRecord) => (
               <li key={o.id}>
-                <StatusBadge tone="neutral">{STAGE_LABEL[o.stage as Stage] ?? o.stage}</StatusBadge>
+                <StatusBadge tone="neutral">
+                  {STAGE_LABEL[o.stage as Stage] ?? o.stage}
+                </StatusBadge>
                 <Link href={`/pipeline/${o.id}`}>{o.name}</Link>
                 <span>{o.ownerSub ?? "-"}</span>
               </li>

@@ -11,9 +11,9 @@ import {
   PanelList,
   Textarea,
 } from "@vxture/design-ui";
-import { BOARD_TEXT } from "../lib/messages";
 import type { AgentPanelData } from "../lib/board";
 
+import { useMessages } from "../lib/i18n/provider";
 // The right-hand operation panel.
 //
 // Capture went to a bar along the bottom for one round and that was wrong: a
@@ -45,6 +45,7 @@ export function AgentPanel({
   onAsk,
   onAttach,
 }: AgentPanelProps) {
+  const { BOARD_TEXT } = useMessages();
   const [text, setText] = useState("");
   const [pendingSave, start] = useTransition();
 

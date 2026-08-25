@@ -30,8 +30,11 @@ import {
   coverage,
   resolveCoverageFloor,
 } from "../../domains/planning/lib/coverage";
-import { FORECAST_LABEL } from "./messages";
-import { BOARD_TEXT } from "./messages";
+// NOT a static import of the Chinese constants. board.ts builds the section
+// titles and metric labels the two flanks render, so it decides copy - and copy
+// follows the request's locale. Both entry points await the dictionary; it is
+// resolved once per render by next/headers, so two calls cost one resolution.
+import { getMessages } from "./i18n/server";
 
 // The numbers behind the navigation board.
 //
@@ -163,6 +166,7 @@ function count(
 export async function boardSections(
   ctx: BoardContext,
 ): Promise<BoardSection[]> {
+  const { BOARD_TEXT, FORECAST_LABEL } = await getMessages();
   const base = {
     workspaceId: ctx.workspaceId,
     sub: ctx.sub,
@@ -562,6 +566,7 @@ export async function agentPanel(
   ctx: BoardContext,
   now: Date,
 ): Promise<AgentPanelData> {
+  const { BOARD_TEXT, FORECAST_LABEL } = await getMessages();
   const base = {
     workspaceId: ctx.workspaceId,
     sub: ctx.sub,

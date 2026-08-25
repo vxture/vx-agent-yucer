@@ -13,7 +13,6 @@ import {
   Stack,
   StatusBadge,
 } from "@vxture/design-ui";
-import { CHANNEL_LABEL, HOME_TEXT } from "../lib/messages";
 import { dismissJudgement } from "../judgement-actions";
 import type {
   AnalysisKind,
@@ -22,6 +21,8 @@ import type {
 } from "../../domains/judgement/lib/judgement";
 import { TONE_INK } from "../lib/view-model";
 
+import { useMessages } from "../lib/i18n/provider";
+import type { Dictionary } from "../lib/i18n/dictionary";
 // The home screen: a decision queue with provenance.
 //
 // THE SHAPE IS AN INBOX, NOT A DASHBOARD. The job this screen exists for is to
@@ -66,19 +67,24 @@ const TIER_TONE: Record<Urgency, "danger" | "warning" | "info"> = {
 };
 
 /** One entry per kind, so adding a kind is a compile error rather than a
- *  silent fallthrough to whatever the last branch was. */
-const ANALYSIS_LABEL: Record<AnalysisKind, string> = {
-  risk: HOME_TEXT.analysisRisk,
-  competition: HOME_TEXT.analysisCompetition,
-  policy: HOME_TEXT.analysisPolicy,
-  chain: HOME_TEXT.analysisChain,
-};
+ *  silent fallthrough to whatever the last branch was.
+ *
+ *  FUNCTIONS OF THE DICTIONARY, not module constants: they are made of copy,
+ *  and a module constant would freeze one language at import time. */
+const analysisLabels = (
+  t: Dictionary["HOME_TEXT"],
+): Record<AnalysisKind, string> => ({
+  risk: t.analysisRisk,
+  competition: t.analysisCompetition,
+  policy: t.analysisPolicy,
+  chain: t.analysisChain,
+});
 
-const TIER_LABEL: Record<Urgency, string> = {
-  today: HOME_TEXT.urgencyToday,
-  week: HOME_TEXT.urgencyWeek,
-  watch: HOME_TEXT.urgencyWatch,
-};
+const tierLabels = (t: Dictionary["HOME_TEXT"]): Record<Urgency, string> => ({
+  today: t.urgencyToday,
+  week: t.urgencyWeek,
+  watch: t.urgencyWatch,
+});
 
 export function JudgementWorkspace({
   judgements,
@@ -87,6 +93,7 @@ export function JudgementWorkspace({
   scope,
   hasAnyRecord,
 }: JudgementWorkspaceProps) {
+  const { CHANNEL_LABEL, HOME_TEXT } = useMessages();
   const [tier, setTier] = useState<Tier>("all");
   // One id for the whole stack, so opening a row closes the previous one
   // without any row needing to know the others exist.
@@ -209,6 +216,7 @@ function Engagement({
   open: boolean;
   onToggle: () => void;
 }) {
+  const { CHANNEL_LABEL, HOME_TEXT } = useMessages();
   const [pendingDismiss, startDismiss] = useTransition();
 
   const href =
@@ -228,7 +236,7 @@ function Engagement({
       {/* Row 1: who, how urgent, how it was reached - and the numbers. */}
       <div className="flex flex-wrap items-center gap-xs">
         <StatusBadge tone={TIER_TONE[j.urgency]} dot>
-          {TIER_LABEL[j.urgency]}
+          {tierLabels(HOME_TEXT)[j.urgency]}
         </StatusBadge>
         <SourceMark source={j.source} />
         <span className="text-foreground text-label-md">{j.subjectName}</span>
@@ -293,7 +301,7 @@ function Engagement({
         </Button>
         {j.analyses.map((a) => (
           <Button key={a} size="sm" variant="outline">
-            {ANALYSIS_LABEL[a]}
+            {analysisLabels(HOME_TEXT)[a]}
           </Button>
         ))}
         <Button
@@ -426,6 +434,7 @@ function Engagement({
 }
 
 function SourceMark({ source }: { source: Judgement["source"] }) {
+  const { HOME_TEXT } = useMessages();
   const rule = source === "rule";
   return (
     <Badge

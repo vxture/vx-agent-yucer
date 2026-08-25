@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Card, Icon, Progress } from "@vxture/design-ui";
-import { BOARD_TEXT } from "../lib/messages";
 import { BarList, Gauge, Lede } from "./board-chart";
 import type { BoardMetric, BoardSection } from "../lib/board";
 import { LEVEL_INK } from "../lib/view-model";
 
+import { useMessages } from "../lib/i18n/provider";
 // The left flank: where things stand for OUR side.
 //
 // Not a menu. Nine links answer "where can I go", which nobody wonders about
@@ -43,6 +43,7 @@ const COLS: Record<number, string> = {
 };
 
 export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
+  const { BOARD_TEXT } = useMessages();
   const pinnedSet = new Set(pinned);
   const open = sections.filter((s) => pinnedSet.has(s.key));
   const rest = sections.filter((s) => !pinnedSet.has(s.key));
@@ -225,6 +226,7 @@ function Sector({
   active: boolean;
   first: boolean;
 }) {
+  const { BOARD_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
   const lead = s.metrics[0];
   const more = s.metrics.length > 1;

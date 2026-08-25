@@ -8,12 +8,12 @@ import {
   ViewLayout,
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { ADMIN_TEXT, DOMAIN_LABEL, SHELL_TEXT } from "../lib/messages";
 import { resolveNavigation, ADMIN_NAV_ENTRIES } from "../lib/navigation";
 import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
 import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
 
+import { getMessages } from "../lib/i18n/server";
 // Administration, as its own domain rather than a sidebar group.
 //
 // It is neither work nor data: it is setup, visited rarely and usually for one
@@ -29,6 +29,7 @@ import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHomePage() {
+  const { ADMIN_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

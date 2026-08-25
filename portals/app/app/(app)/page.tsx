@@ -1,10 +1,10 @@
 import { EmptyState } from "@vxture/design-ui";
 import { resolveAppSession } from "./lib/session";
-import { HOME_TEXT, SHELL_TEXT } from "./lib/messages";
 import { getFieldStore } from "../domains/shared/registry";
 import { cachedFeed } from "./lib/board";
 import { JudgementWorkspace } from "./components/judgement-workspace";
 
+import { getMessages } from "./lib/i18n/server";
 // The home screen.
 //
 // It used to be an eight-domain nav beside a list of accounts. A directory
@@ -25,15 +25,22 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ scope?: string }>;
 }) {
+  const { HOME_TEXT, SHELL_TEXT } = await getMessages();
   const { scope: rawScope } = await searchParams;
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   // Only a scope the reader actually asked for is pinned. Anything else stays
   // undefined so the service can derive it from what this member owns.
-  const requested = rawScope === "all" ? "all" : rawScope === "mine" ? "mine" : undefined;
+  const requested =
+    rawScope === "all" ? "all" : rawScope === "mine" ? "mine" : undefined;
   const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
@@ -56,7 +63,9 @@ export default async function HomePage({
   // Whether anything has been recorded at all. The empty state has to tell
   // "nothing is wrong" apart from "nothing has been recorded, so nothing can be
   // concluded" - they look identical on a screen and mean opposite things.
-  const recent = await getFieldStore().listInteractions(session.workspaceId, { limit: 1 });
+  const recent = await getFieldStore().listInteractions(session.workspaceId, {
+    limit: 1,
+  });
 
   return (
     <JudgementWorkspace

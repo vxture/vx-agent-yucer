@@ -18,8 +18,8 @@ import {
   ROLE_PERMISSIONS,
   type RoleCode,
 } from "../../authz/catalog";
-import { MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } from "../lib/messages";
 
+import { useMessages } from "../lib/i18n/provider";
 // Who is in the workspace and what they can do.
 //
 // The roleless member is the case this screen exists for, so it is called out
@@ -62,6 +62,7 @@ export function MemberRoles({
   onGrant,
   onRevoke,
 }: MemberRolesProps) {
+  const { MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } = useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -1,12 +1,12 @@
 import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
-import { SHELL_TEXT } from "../../lib/messages";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { MemberRoles } from "../../components/member-roles";
 import { grantMemberRole, removeMemberRole } from "./actions";
 
+import { getMessages } from "../../lib/i18n/server";
 // Member and role administration.
 //
 // Membership is LAZY: a row appears on the first sighting of (workspace, sub) at
@@ -19,9 +19,15 @@ import { grantMemberRole, removeMemberRole } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
+  const { SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const result = await listWorkspaceMembers({
@@ -48,7 +54,14 @@ export default async function MembersPage() {
         // Viewing and changing are separate actions on purpose: the list is
         // useful to anyone who can see it, and only an administrator gets the
         // controls.
-        canManage={can(session.authz, session.entitlement, "admin.member.role.assign", "ui").allowed}
+        canManage={
+          can(
+            session.authz,
+            session.entitlement,
+            "admin.member.role.assign",
+            "ui",
+          ).allowed
+        }
         onGrant={grantMemberRole}
         onRevoke={removeMemberRole}
       />

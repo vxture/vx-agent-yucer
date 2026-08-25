@@ -340,26 +340,6 @@ export const en: Dictionary = {
     closed: "Closed",
   },
 
-  // PARTIAL OVERRIDE, and the pattern is worth naming because it will recur.
-  // Spreading the Chinese constant inside gives per-KEY granularity, so a
-  // dictionary does not have to be translated all-or-nothing. BOARD_TEXT
-  // belongs to the left board and arrives with its own slice; `wan` is pulled
-  // forward because it leaks onto /pipeline's headline.
-  //
-  // A COMPACT NUMBER IS LOCALE-SPECIFIC, which is why it lives in a dictionary
-  // at all: Chinese groups by 万 (10^4), English by thousands. 4,200,000 is
-  // "420 万" and "4.2M" - not a translation of a word but a different way of
-  // cutting the number, and hardcoding either produces figures the reader has
-  // to convert in their head.
-  BOARD_TEXT: {
-    ...zh.BOARD_TEXT,
-    wan: (amount: number) =>
-      new Intl.NumberFormat("en-US", {
-        notation: "compact",
-        maximumFractionDigits: 1,
-      }).format(amount),
-  },
-
   // --- /account -----------------------------------------------------------
 
   ACCOUNT_TEXT: {
@@ -738,5 +718,267 @@ export const en: Dictionary = {
     pipeline: "Pipeline",
     delivery: "Delivery",
     copilot: "General",
+  },
+
+  // --- /admin -------------------------------------------------------------
+
+  MEMBER_TEXT: {
+    title: "Members and roles",
+    description:
+      "Roles decide what a member can see and change. A new member appears here after their first sign-in, holding no role - assign one here.",
+    columnMember: "Member",
+    columnRoles: "Roles",
+    columnActions: "",
+    noRoles: "No role",
+    noRolesHint: "This member can see nothing at all",
+    assign: "Assign",
+    revoke: "Remove",
+    assignPlaceholder: "Pick a role",
+    emptyTitle: "No members yet",
+    emptyDescription: "Members appear here after their first sign-in.",
+    readOnly: "You hold no permission to manage member roles.",
+    adminBadge: "Can manage members",
+    lastAdminHint:
+      "This is the workspace's last administrator; removing it leaves nobody able to assign roles",
+  },
+
+  MEMBER_ERROR: {
+    last_admin:
+      "This is the workspace's last administrator; removing it leaves nobody able to assign roles",
+    unknown_role: "That role is not in the catalog",
+    sub_required: "Pick a member",
+    not_found: "That member does not belong to this workspace",
+    not_authenticated: "Your session has expired; sign in again",
+    permission_denied: "You hold no permission to manage member roles",
+    no_data_access: "This workspace has no access",
+  },
+
+  ROLE_LABEL: {
+    sales_leader: "Sales leader",
+    marketing_manager: "Marketing manager",
+    sales_rep: "Sales rep",
+    presales: "Presales",
+    delivery_manager: "Delivery manager",
+    sales_ops: "Sales ops",
+    viewer: "Viewer",
+  },
+
+  ADOPTION_TEXT: {
+    navLabel: "Adoption",
+    title: "How the notes are being used",
+    description:
+      'This table does not answer "who is doing well" but "is any of this being used". Whether stage two - the agent reasoning over history - is worth building depends on these numbers (criteria in ADR-012). Over an empty evidence table, a reasoning layer only produces confident fiction.',
+    notAScoreboard:
+      "Deliberately not broken down by person. The moment this table can be read as a performance score, people record FOR it, and it stops measuring what it was meant to.",
+    coverage: "Coverage",
+    coverageHint:
+      "Share of that week's open deals that got at least one note recorded",
+    rate: "Density",
+    rateHint: "Notes that week over open deals that week; for reference only",
+    week: "Week",
+    weekInProgress: "This week (in progress, excluded from the verdict)",
+    openDeals: "Open deals",
+    touched: "Touched",
+    notes: "Notes",
+    noDeals: "No open deals",
+    criterion: (pct: number, weeks: number) =>
+      `Criterion: mean coverage over the last ${weeks} weeks reaches ${pct}%. Judged on the last two weeks rather than a six-week mean - the question is whether the habit exists NOW, not whether week one was enthusiastic.`,
+    verdictAdopted: "The recording habit has formed",
+    verdictAdoptedHint:
+      "The precondition for stage two - claims and judgements - holds.",
+    verdictNotAdopted: "The recording habit has not formed",
+    verdictNotAdoptedHint:
+      "By ADR-012's criteria, stage two should not be built yet. What needs fixing is the capture path itself, not more reasoning over empty data.",
+    verdictTooEarly: "The observation window is not complete",
+    verdictTooEarlyHint:
+      "Not yet a basis for a verdict. A criterion that can fail early will be cited early.",
+    verdictNoData: "No open deals yet",
+    verdictNoDataHint:
+      "There is nothing to record against. That is not a failure.",
+    darkDeals: "Open deals with no recent note",
+    darkDealsHint:
+      "These deals have not a single note inside the observation window. The ones parked in a late stage are worth looking at first.",
+    darkDealsEmpty: "Every open deal has a note inside the window.",
+  },
+
+  // --- the home screen and the two flanks ---------------------------------
+
+  HOME_TEXT: {
+    title: "Today's calls",
+    description: (n: number) =>
+      `Derived from recorded notes across ${n} accounts. One opens at a time.`,
+    emptyTitle: "Nothing needs you right now",
+    emptyDescription:
+      'No overdue promises, no long silences, no decision-maker left untouched. This is not "no data" - it was scanned, and there genuinely is nothing.',
+    emptyNoRecords:
+      "No notes have been recorded yet, so nothing can be derived. Judgements grow out of records; the first step is to write one down.",
+    scopeMine: "Mine",
+    scopeAll: "All",
+    urgencyAll: "All",
+    urgencyToday: "Today",
+    urgencyWeek: "This week",
+    urgencyWatch: "Watch",
+    sourceRule: "Rule",
+    sourceModel: "Model",
+    sourceRuleHint: "Computed - you can check the arithmetic yourself",
+    sourceModelHint: "Observed - you can only check the passages it cites",
+    secEvidence: "Evidence",
+    secEvidenceCount: (n: number) => `Evidence - ${n}`,
+    secFacts: "Key facts",
+    secSeries: "By week",
+    secRule: "Trigger",
+    lead: (n: number) => `${n} calls for you today`,
+    leadNone: "Nothing for you to decide today",
+    queueLabel: "Pending judgements",
+    leadSub: (accounts: number, judgements: number) =>
+      `Scanned notes across ${accounts} accounts and derived ${judgements} judgements`,
+    evidenceMore: (n: number) => `${n} more`,
+    evidenceLess: "Show only the latest",
+    factInline: (label: string, value: string) => `${label} ${value}`,
+    factJoin: " - ",
+    expand: "Expand",
+    collapse: "Collapse",
+    analysisRisk: "Risk",
+    analysisCompetition: "Competition",
+    analysisChain: "Decision chain",
+    analysisPolicy: "Policy and industry",
+    analysisHint: 'The result enters the feed as a "model" judgement',
+    citedBy: (days: number, channel: string) => `${days}d ago - ${channel}`,
+    actDismissHint: "Held for 7 days; it returns sooner if urgency rises",
+    actDismiss: "Not now",
+    agentTitle: "Copilot",
+    agentScope: (n: number) => `Watching ${n} accounts`,
+    agentNote: "Write one down",
+    agentAsk: "Ask",
+    agentPlaceholder: "Just got off the phone with Wang...",
+    agentHelp:
+      "Three sentences, a chat message, a forwarded email - all count. The original is kept verbatim.",
+    agentSend: "Save",
+    agentPending: "Awaiting me",
+    agentPendingCount: (n: number) => `Awaiting me - ${n}`,
+    agentPendingWhen: (source: string, when: string) => `${source} - ${when}`,
+    truncate: (text: string) => `${text}...`,
+    agentRecent: "Recently recorded",
+    // The mark inside the copilot's avatar. A single Chinese glyph is the
+    // product's own monogram, not a word - it stays as it is, the way a
+    // wordmark does.
+    agentAvatar: "\u807f",
+    agentComposeLabel: "Write a note or ask the copilot",
+    scopeLabel: "Scope",
+    urgencyLabel: "Urgency",
+    openSubject: "Open the deal",
+    openTeam: "See the adoption board",
+    whenToday: "today",
+    whenDaysAgo: (n: number) => `${n}d ago`,
+    pendingFromScan: "this morning's scan",
+    pendingFromClick: "you asked for analysis",
+    pendingTitle: (subject: string, claim: string) => `${subject} - ${claim}`,
+  },
+
+  CHANNEL_LABEL: {
+    meeting: "Meeting",
+    call: "Call",
+    visit: "Visit",
+    email: "Email",
+    im: "Message",
+    event: "Event",
+    other: "Other",
+  },
+
+  // The left board and the right deck - the two flanks, on every page.
+  // Replaces the partial override that pulled `wan` forward for /pipeline.
+  BOARD_TEXT: {
+    queue: "Your calls",
+    ledeToday: "For you today",
+    proposals: "proposals to sign",
+    today: "Today's calls",
+    adjudicate: "Awaiting me",
+    mydeals: "My deals",
+    strategy: "Market strategy",
+    campaign: "Campaigns",
+    planning: "Sales planning",
+    account: "Accounts",
+    signal: "Signal inbox",
+    delivery: "Delivery",
+    tierToday: "Today",
+    tierWeek: "This week",
+    tierWatch: "Watch",
+    pending: "awaiting a call",
+    actAdvance: "Advance the stage",
+    actOutreach: "Draft outreach",
+    actPromote: "Promote the lead",
+    actOther: "Other",
+    capUnlabelled: "Unlabelled",
+    capabilityLabels: {
+      "deal.stall_risk": "Stall risk",
+      "deal.competition": "Competition",
+      "account.chain_map": "Chain mapping",
+      "account.cadence": "Strategic cadence",
+      "signal.triage": "Signal triage",
+      "pricing.discount_approval": "Discount approval",
+      "delivery.payment_risk": "Payment risk",
+      "campaign.return": "Campaign return",
+    } as Record<string, string>,
+    dealsOpen: "open",
+    dealsWorth: "worth",
+    plans: "plans",
+    campaigns: "campaigns",
+    targets: "targets",
+    territories: "territories",
+    accounts: "accounts",
+    signals: "signals",
+    leads: "leads",
+    projects: "projects",
+    // English groups by thousands, Chinese by 万. Not a translated word but a
+    // different way of cutting the number - see the note this replaces.
+    wan: (amount: number) =>
+      new Intl.NumberFormat("en-US", {
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(amount),
+    expand: (title: string) => `Expand ${title}`,
+    collapse: (title: string) => `Collapse ${title}`,
+    boardLabel: "Board overview",
+    resource: "My resources",
+    productLines: "Product lines - open",
+    needsApproval: "discounts pending",
+    allies: "Allies - decision chain",
+    alliesCoaches: "coaches built",
+    alliesUnreachable: "decision-makers untouched",
+    alliesBlockers: "blockers",
+    playbooks: "playbooks available",
+    quota: (period: string) => `${period} target`,
+    quotaWon: "Won",
+    quotaTarget: "Target",
+    quotaOf: "Attained",
+    quotaLeft: (pct: number) => `${pct}%`,
+    coverage: "Coverage gap",
+    poolRow: "Resource pool",
+    coverageOf: (pct: number) => `${pct}%`,
+    coverageGap: (v: string) => `${v} short`,
+    coverageThin: (floor: number) => `below the ${floor}% floor`,
+    coverageMet: "Target met",
+    agent: "Copilot",
+    agentScope: (n: number) => `Watching ${n} accounts`,
+    capture: "Write one down",
+    ask: "Ask",
+    attach: "Attach a file",
+    notWired: "That capability is not connected yet",
+    reconTitle: "Competition",
+    reconEmpty:
+      "Nothing scouted yet. Rivals appear only inside note text so far; there is no formed intelligence.",
+    reconCta: "Run a competitive analysis",
+    reconNote: 'The result enters the feed as a "model" judgement.',
+    captureSend: "Save",
+    capturePlaceholder: "Just got off the phone with Wang...",
+    captureHelp:
+      "Three sentences, a chat message, a forwarded email - all count. The original is kept verbatim.",
+    pendingTitle: "For you today",
+    recentTitle: "Recently recorded",
+    sourceRule: "Rule",
+    sourceModel: "Model",
+    whenToday: "today",
+    whenDaysAgo: (n: number) => `${n}d ago`,
+    truncate: (t: string) => `${t}...`,
   },
 };
