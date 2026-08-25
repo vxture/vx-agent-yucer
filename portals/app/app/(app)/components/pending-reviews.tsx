@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, DataTable, EmptyState, Input, Label, NativeSelect, Section, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
+import { Button, DataTable, EmptyState, Input, Label, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
@@ -19,7 +19,17 @@ import { formatMoney } from "../lib/view-model";
 // dataset the whole learning loop reads.
 
 export interface PendingReviewsProps {
+  /** Closed and NOT yet reviewed - the debt the close rule creates. */
   readonly opportunities: readonly OpportunityRecord[];
+  /**
+   * Every closed opportunity, reviewed or not.
+   *
+   * Passed in rather than fetched: the page already lists the pipeline with
+   * closed rows included, so a second query would ask the database for rows it
+   * had just handed us - and could answer differently if anything changed in
+   * between, which would put two figures on one screen that disagree.
+   */
+  readonly allClosed: readonly OpportunityRecord[];
   readonly canRecord: boolean;
   readonly onRecord: (
     opportunityId: string,
@@ -29,7 +39,12 @@ export interface PendingReviewsProps {
 
 const REASONS = ["price", "fit", "timing", "competitor", "no_decision", "other"] as const;
 
-export function PendingReviews({ opportunities, canRecord, onRecord }: PendingReviewsProps) {
+export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }: PendingReviewsProps) {
+  const [scope, setScope] = useState<"pending" | "all">("pending");
+  // Pending is a SUBSET of all, so the two lists share every row object - the
+  // outstanding badge below reads the pending ids rather than a second flag.
+  const pendingIds = new Set(opportunities.map((o) => o.id));
+  const shown = scope === "pending" ? opportunities : allClosed;
   const [openId, setOpenId] = useState<string | null>(null);
   const [reason, setReason] = useState<string>("fit");
   const [competitor, setCompetitor] = useState("");
@@ -84,11 +99,17 @@ export function PendingReviews({ opportunities, canRecord, onRecord }: PendingRe
       cell: (row) => (row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-"),
     },
     {
-      id: "actions",
+      id: "state",
       header: "",
       align: "right",
+      /* In the "all" view the two populations sit in one table, so each row has
+         to say which it is - otherwise a reviewed deal looks like outstanding
+         work. Reviewed rows carry a badge instead of the button, which is also
+         the truthful control: there is nothing left to record on them. */
       cell: (row) =>
-        canRecord ? (
+        !pendingIds.has(row.id) ? (
+          <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
+        ) : canRecord ? (
           <Button
             variant={openId === row.id ? "secondary" : "outline"}
             size="sm"
@@ -103,13 +124,34 @@ export function PendingReviews({ opportunities, canRecord, onRecord }: PendingRe
   const target = opportunities.find((o) => o.id === openId) ?? null;
 
   return (
-    <Section title={WINLOSS_TEXT.title} description={WINLOSS_TEXT.description}>
+    <Section
+      title={WINLOSS_TEXT.sectionTitle}
+      description={WINLOSS_TEXT.description}
+      /* The filter is a property of the SECTION, not of the table: it chooses
+         which population the table is showing, so it belongs beside the title
+         that names that population. */
+      action={
+        <SegmentedControl
+          size="sm"
+          ariaLabel={WINLOSS_TEXT.sectionTitle}
+          value={scope}
+          onChange={setScope}
+          items={[
+            { value: "pending", label: WINLOSS_TEXT.filterPending, count: opportunities.length },
+            { value: "all", label: WINLOSS_TEXT.filterAll, count: allClosed.length },
+          ]}
+        />
+      }
+    >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
-      {opportunities.length === 0 ? (
-        <EmptyState title={WINLOSS_TEXT.emptyTitle} description={WINLOSS_TEXT.emptyDescription} />
+      {shown.length === 0 ? (
+        <EmptyState
+          title={scope === "pending" ? WINLOSS_TEXT.emptyTitle : WINLOSS_TEXT.allEmptyTitle}
+          description={scope === "pending" ? WINLOSS_TEXT.emptyDescription : WINLOSS_TEXT.allEmptyDescription}
+        />
       ) : (
-        <DataTable leadingSpacer indexStart={1} columns={columns} rows={opportunities} rowKey={(row) => row.id} />
+        <DataTable leadingSpacer indexStart={1} columns={columns} rows={shown} rowKey={(row) => row.id} />
       )}
 
       {target ? (

@@ -2,6 +2,8 @@ import { Card, EmptyState, SectionHeader, StatusBadge, ViewLayout } from "@vxtur
 import { resolveAppSession } from "../lib/session";
 import { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT } from "../lib/messages";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
+import { PeriodTabs } from "../components/period-tabs";
+import { CommitSplit } from "../components/commit-split";
 import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
@@ -18,10 +20,22 @@ import { recordReview } from "./winloss-action";
 
 export const dynamic = "force-dynamic";
 
-/** The period this page reports. Matches the demo's targets and snapshots. */
-const PERIOD = "2026Q3";
+/** Where the filter lands when the URL says nothing. Matches the demo's data. */
+const DEFAULT_PERIOD = "2026Q3";
 
-export default async function PipelinePage() {
+/** Only the periods the control offers are honoured - a hand-edited ?period=
+ *  should not become an arbitrary string on its way into a query. */
+function resolvePeriod(raw: string | undefined): string {
+  const allowed: readonly string[] = [...PIPELINE_TEXT.periods, PIPELINE_TEXT.periodYear];
+  return raw && allowed.includes(raw) ? raw : DEFAULT_PERIOD;
+}
+
+export default async function PipelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const period = resolvePeriod((await searchParams).period);
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -44,7 +58,7 @@ export default async function PipelinePage() {
     listPendingReviews(ctx),
     // The series, not the latest point. See forecastHistory: this read is the
     // only thing that makes forecast_snapshot's immutability pay for itself.
-    forecastHistory(ctx, PERIOD),
+    forecastHistory(ctx, period),
     getCatalogStore().allLines(session.workspaceId),
     getCatalogStore().listProducts(session.workspaceId),
   ]);
@@ -76,6 +90,11 @@ export default async function PipelinePage() {
   const sinceDays = last && prev
     ? Math.max(1, Math.round((last.snapshotAt.getTime() - prev.snapshotAt.getTime()) / 86_400_000))
     : 0;
+
+  // Every closed deal, for the review section's "all" scope. Taken from the
+  // list already fetched rather than queried again - two reads of the same
+  // rows can disagree, and both would be on screen at once.
+  const closed = result.value.filter((o) => o.status === "won" || o.status === "lost");
 
   const openIds = new Set(result.value.filter((o) => o.status === "open").map((o) => o.id));
   const openLines = lines.filter((l) => openIds.has(l.opportunityId));
@@ -109,49 +128,23 @@ export default async function PipelinePage() {
                     )}
             </p>
           </div>
-          <StatusBadge tone="neutral">{PIPELINE_TEXT.periodOf(PERIOD)}</StatusBadge>
+
+          {/* The page's top-level filter. Beside the headline because it
+              governs the headline: every figure below is reported for whichever
+              period this names. */}
+          <PeriodTabs
+            value={period}
+            periods={PIPELINE_TEXT.periods}
+            yearLabel={PIPELINE_TEXT.periodYear}
+          />
+        </div>
+
+        {/* The decomposition of that headline, not a subject of its own - so it
+            sits inside the same card, folded away when it is not wanted. */}
+        <div className="mt-lg">
+          <CommitSplit split={split} awaiting={awaiting} />
         </div>
       </Card>
-
-      <ForecastTrajectory
-        points={points.map((p) => ({
-          at: p.snapshotAt.toISOString().slice(5, 10),
-          commit: p.commitAmount.amount,
-          bestCase: p.bestCaseAmount.amount,
-          pipeline: p.pipelineAmount.amount,
-          closed: p.closedAmount.amount,
-        }))}
-        wan={BOARD_TEXT.wan}
-      />
-
-      {/* What the committed money is FOR. Only possible since ADR-014 - a total
-          cannot say what has to be delivered for it. */}
-      {split.length > 0 ? (
-        <Card className="p-md">
-          <SectionHeader
-            level={3}
-            title={PIPELINE_TEXT.productSplit}
-            description={PIPELINE_TEXT.productSplitWhy}
-            action={
-              awaiting > 0 ? (
-                <StatusBadge tone="warning">
-                  {PIPELINE_TEXT.needsApproval} {awaiting}
-                </StatusBadge>
-              ) : undefined
-            }
-          />
-          <div className="mt-md flex flex-wrap gap-xl">
-            {split.map((p) => (
-              <div key={p.name} className="min-w-0">
-                <div className="text-foreground text-heading-4 tabular-nums">
-                  {BOARD_TEXT.wan(p.amount)}
-                </div>
-                <div className="text-muted-foreground text-xs">{p.name}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
 
       {/* The gate, not the raw permission. Reading permissions.has() directly
           skips the ENTITLEMENT half entirely, so a workspace whose subscription
@@ -166,9 +159,22 @@ export default async function PipelinePage() {
       {/* Only rendered when the workspace bought win/loss. The list is the debt
           the "must review on close" rule creates; without it the rule is a
           sentence in a document. */}
+      {/* Its own section, after the board it is derived from. */}
+      <ForecastTrajectory
+        points={points.map((p) => ({
+          at: p.snapshotAt.toISOString().slice(5, 10),
+          commit: p.commitAmount.amount,
+          bestCase: p.bestCaseAmount.amount,
+          pipeline: p.pipelineAmount.amount,
+          closed: p.closedAmount.amount,
+        }))}
+        wan={BOARD_TEXT.wan}
+      />
+
       {pendingReviews.ok ? (
         <PendingReviews
           opportunities={pendingReviews.value}
+          allClosed={closed}
           canRecord={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}
           onRecord={recordReview}
         />

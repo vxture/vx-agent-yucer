@@ -1,4 +1,4 @@
-import { Card, SectionHeader } from "@vxture/design-ui";
+import { Card, EmptyState, SectionHeader } from "@vxture/design-ui";
 import { PIPELINE_TEXT } from "../lib/messages";
 
 // The forecast series, drawn.
@@ -37,7 +37,6 @@ export function ForecastTrajectory({
   /** Formatter, passed in so the component holds no locale text of its own. */
   readonly wan: (n: number) => string;
 }) {
-  if (points.length === 0) return null;
   // One baseline across all four series: they are the same unit measured the
   // same way, so scaling each to its own max would make the small ones look
   // like the big ones.
@@ -46,11 +45,28 @@ export function ForecastTrajectory({
   return (
     <Card className="p-md">
       <SectionHeader
-        level={3}
+        /* Level 2, level with the board and the review section. It was a 3,
+           which read as a sub-part of whatever preceded it; the trajectory is
+           its own subject - the board is this quarter, this is every quarter
+           that was forecast before it. */
+        level={2}
         title={PIPELINE_TEXT.trajectory}
         description={PIPELINE_TEXT.trajectoryWhy}
       />
 
+      {/* The section keeps its heading when a period has no snapshots. It used
+          to return null, which was harmless while the period was fixed and
+          always had data - now that the period is switchable, vanishing would
+          make a titled section disappear on selection, which reads as a broken
+          page rather than as an empty one. */}
+      {points.length === 0 ? (
+        <div className="mt-md">
+          <EmptyState
+            title={PIPELINE_TEXT.trajectoryEmptyTitle}
+            description={PIPELINE_TEXT.trajectoryEmptyDescription}
+          />
+        </div>
+      ) : (
       <div className="mt-md flex items-end gap-lg overflow-x-auto">
         {points.map((p) => (
           <div key={p.at} className="flex shrink-0 flex-col items-center gap-xs">
@@ -83,6 +99,7 @@ export function ForecastTrajectory({
           ))}
         </div>
       </div>
+      )}
     </Card>
   );
 }

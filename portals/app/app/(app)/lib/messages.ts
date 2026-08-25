@@ -472,6 +472,18 @@ export const PIPELINE_TEXT = {
   emptyTitle: "暂无商机",
   emptyDescription: "线索合格转化后会出现在这里。",
   rollupFailedTitle: "无法汇总",
+  // The period filter. Quarters plus the year, because a forecast is read at
+  // both cadences - the quarter is what gets committed, the year is what gets
+  // planned against.
+  periodLabel: "统计周期",
+  periodYear: "Y2026",
+  periods: ["2026Q1", "2026Q2", "2026Q3", "2026Q4"] as const,
+  // The composition block, which folds away.
+  splitCollapse: "收起构成",
+  splitExpand: "展开构成",
+  splitEmpty: "本周期没有可拆的产品线",
+  trajectoryEmptyTitle: "本周期还没有预测快照",
+  trajectoryEmptyDescription: "提交一次预测后，这里会按时间显示它的变化。轨迹只画已经存下来的快照，不回溯推算。",
   // --- Added for the redesigned page ---------------------------------------
   // The agent's opening sentence, same shape as the home screen's: what the
   // number MEANS this week, not the label "pipeline".
@@ -1005,6 +1017,14 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const WINLOSS_TEXT = {
+  // Its own section now, so the title names the SUBJECT rather than one of its
+  // two states - the pending list is a filter of this, not the whole of it.
+  sectionTitle: "总结复盘",
+  filterPending: "待复盘",
+  filterAll: "全部复盘",
+  allEmptyTitle: "还没有关闭的商机",
+  allEmptyDescription: "赢单或丢单后，商机会出现在这里等待复盘。",
+  reviewed: "已复盘",
   title: "待复盘",
   description: "已关闭但还没有复盘的商机。赢丢原因是结构化数据，回流给评分与建议——不写就没有闭环。",
   columnOpportunity: "商机",
