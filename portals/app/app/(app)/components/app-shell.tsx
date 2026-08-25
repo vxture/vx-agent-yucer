@@ -177,12 +177,19 @@ export function AppShell({
        carry its own padding, so both of those ride on wrappers inside its
        slots - composition, not modification.
 
-       PADDING IS PER ZONE. Each flank is padded on three sides and flush on the
-       side facing the centre, so its cards reach the boundary of their own zone
-       instead of stopping short of it. The standoff between a flank and the
-       centre's text therefore comes entirely from the CENTRE's px-page-inset:
-       one source, rather than two paddings meeting in the middle and summing to
-       something neither intended.
+       PADDING IS PER ZONE, and the four OUTER edges all sit at lg (24px): the
+       left flank's top/left/bottom, the right flank's top/right/bottom, and the
+       centre's top and bottom. The centre's vertical has to match the flanks'
+       or its first line starts above theirs, which reads as a misalignment
+       rather than as a margin.
+
+       Each flank is flush on the side facing the centre, so its cards reach the
+       boundary of their own zone instead of stopping short of it. The standoff
+       between a flank and the centre's text therefore comes entirely from the
+       CENTRE's px-page-inset: one source, rather than two paddings meeting in
+       the middle and summing to something neither intended. That gutter stays
+       fluid (clamp(lg, 3.2vw, 3xl)) - it is a different measurement from the
+       body inset and answers a different question.
 
        The scrollbars land where they belong as a consequence - inside each
        zone, against the gutter - instead of one bar at the window's edge
@@ -250,7 +257,7 @@ export function AppShell({
         /* LEFT FLANK - ours. Cards that state where things stand; opening one
            navigates, but that is a consequence of the card, not its purpose.
            Flush right: the cards end at the zone's right boundary. */
-        <div className="min-h-0 flex-1 overflow-y-auto pt-md pb-md pl-md">
+        <div className="min-h-0 flex-1 overflow-y-auto pt-lg pb-lg pl-lg">
           <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
         </div>
       }
@@ -258,7 +265,7 @@ export function AppShell({
         /* RIGHT FLANK - the agent, and what it is looking at. Flush left, for
            the same reason the board is flush right. */
         showDock ? (
-          <aside className="w-sidebar-expanded shrink-0 overflow-y-auto pt-md pr-md pb-md">
+          <aside className="w-sidebar-expanded shrink-0 overflow-y-auto pt-lg pr-lg pb-lg">
             <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
           </aside>
         ) : null
@@ -266,7 +273,7 @@ export function AppShell({
     >
       {/* CENTRE - the engagement. Its horizontal padding IS the gutter on both
           sides, which is why the flanks carry none facing it. */}
-      <div className="px-page-inset py-md">{children}</div>
+      <div className="px-page-inset py-lg">{children}</div>
     </ShellViewport>
   );
 }
