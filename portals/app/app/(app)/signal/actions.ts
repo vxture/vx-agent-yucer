@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getSignalStore } from "../../domains/shared/registry";
 import { promoteSignal, rescoreSignal, triageSignal } from "../../domains/signal/service";
-import type { SignalAction } from "../components/signal-inbox";
+import type { SignalAction } from "../components/signal-queue";
 
 // The only write path from the signal inbox.
 //

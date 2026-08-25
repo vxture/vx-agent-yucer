@@ -18,6 +18,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open |
 | TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
 | TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
+| TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -170,6 +171,36 @@ DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标
 
 **恢复条件**：向 DS 提出数据可视化族（至少：占比条、条形列表、迷你趋势线，
 外加一套分类色阶）。DS 提供后删除本地实现，三处消费点改为消费 DS 元素。
+
+### TD-009 - DS 无环形进度元素，信号评分环本地实现
+
+**缺失的元素**：环形／圆形进度。核对 `@vxture/design-ui@3.0.0` 的完整导出表，
+进度一族只有 `Progress` 一件，且是线性的 shadcn 条（`bg-accent` 轨道 +
+translateX 填充）。donut / circular / radial / ring 一件都没有，
+`@vxture/design-system` 同样没有。无从组合。
+
+**权宜位置**：`portals/app/app/(app)/components/score-ring.tsx`，
+由 `signal-queue.tsx` 的行首消费。
+
+**为什么不算违规的自建组件**：它**不替换任何 DS 元素** ——
+不覆写任何 DS 类名，不遮蔽任何 DS 导出。颜色全部经 `currentColor`
+取 DS 语义槽（`success` / `info` / `warning` / `destructive` / `muted-foreground`），
+不定义任何色值。尺寸对齐 `PanelItem` 的前导轨 `w-control-md`（32px）。
+
+**为什么需要环而不是数字**：裸数字要求读者在脑子里持有量表 —— 62 算高还是低？
+环把量表画出来，所以结论在读到数字之前就已经可读，这正是分拣队列要的。
+
+**顺带修掉的一个真错**：旧代码手工映射色调并判断
+`confidenceTone(...) === "danger"`，而 `confidenceTone` **从不返回 danger**，
+于是 info 档穿透到 success 的绿色 —— 65 分和 85 分画成同一个绿。
+现在色弧与"推荐程度"徽标同出 `confidenceTone`，两者不可能不一致。
+
+**已知限制**：前导轨宽 32px 是 DS 写死的，环心两位数字只能到 `text-label-sm`。
+若判定过小，正确的解法是向 DS 提（加宽前导轨或直接出评分环），
+不是在本地覆盖那个类名。
+
+**恢复条件**：DS 提供环形进度（带语义色档与环心插槽）。提供后**删除**本文件，
+而不是改造它。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 

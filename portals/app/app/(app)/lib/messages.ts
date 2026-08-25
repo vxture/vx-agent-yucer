@@ -818,6 +818,35 @@ export const SIGNAL_TEXT = {
   staleWhy: (stored: number, now: number) =>
     `入库时 ${stored} 分，按今天的时效重算是 ${now} 分。评分会随时间衰减，重新评分即可对齐。`,
   detectedOn: (d: string, src: string) => `发现于 ${d} · ${src}`,
+
+  // --- The three-line row --------------------------------------------------
+  // Each line reads left to right: what it is, then how it is judged.
+
+  // L1 right - the verdict. A VERBALISATION OF THE SAME SCORE the ring draws,
+  // off the same confidenceTone thresholds, so the badge and the arc cannot
+  // disagree. The ring says how much, the badge says so what.
+  verdictStrong: "强烈推荐",
+  verdictWorth: "值得一看",
+  verdictLater: "可延后",
+  verdictUnknown: "待评分",
+
+  // L2 left - why it scored what it scored. This was buried in the drawer,
+  // which made the ring a number nobody could check without a click.
+  // L2 right - the objective readings. Deadline and budget live in `payload`,
+  // which is untyped and empty in every row today, so the fallback is the two
+  // facts that always exist: how old it is, and whether it has drifted.
+  fieldDeadline: (d: string) => `截止 ${d}`,
+  fieldAmount: (a: string) => `额度 ${a}`,
+  fieldAge: (n: number) => `${n} 天前`,
+  fieldDrift: (n: number) => `已降 ${n} 分`,
+
+  // L3 right.
+  expand: "展开",
+  collapse: "收起",
+  rowMenu: "更多操作",
+  groupCount: (n: number) => `${n} 条`,
+  noPermission: "没有处置权限",
+  noRescorePermission: "没有重新评分权限",
 } as const;
 
 /**
