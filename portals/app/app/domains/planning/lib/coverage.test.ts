@@ -4,24 +4,24 @@ import { coverage, resolveCoverageFloor, DEFAULT_COVERAGE_FLOOR } from "./covera
 
 test("coverage measures the pool against the GAP, not the whole target", () => {
   // Half the target is already banked, so only half of it still needs covering.
-  const c = coverage(600, 1200, 600);
-  assert.equal(c.gap, 600);
-  assert.equal(c.ratio, 1);
-  // Against the whole target this would read 0.5 and look like a warning; the
-  // rep has in fact got exactly enough pipeline for what is left.
+  const c = coverage(1800, 1200, 600);
+  assert.equal(c.gap, 600, "600 left, not the full 1200");
+  assert.equal(c.ratio, 3);
+  // Against the whole target this would read 1.5 and warn; the rep has in fact
+  // got a full three times what is left.
   assert.equal(c.thin, false);
 });
 
-test("a pool the same size as the gap is not comfortable, but it is not thin", () => {
+test("a pool the same size as the gap is thin - one deal is not three", () => {
   const c = coverage(930, 1200, 270);
   assert.equal(c.gap, 930);
   assert.equal(c.ratio, 1);
-  assert.equal(c.thin, false, "1.0 is above the 0.5 floor");
+  assert.equal(c.thin, true, "1.0 coverage is far under the 3x line");
 });
 
 test("thin is reported strictly below the floor", () => {
-  assert.equal(coverage(464, 1200, 270).thin, true, "0.499 is below 0.5");
-  assert.equal(coverage(465, 1200, 270).thin, false, "0.5 exactly is not below");
+  assert.equal(coverage(2789, 1200, 270).thin, true, "2.999x is below 3");
+  assert.equal(coverage(2790, 1200, 270).thin, false, "3x exactly is not below");
 });
 
 test("a met target asks no coverage question", () => {
@@ -37,6 +37,10 @@ test("an overshot target behaves like a met one", () => {
   assert.equal(c.thin, false);
 });
 
+test("the default is the industry line, not a token value", () => {
+  assert.equal(DEFAULT_COVERAGE_FLOOR, 3, "a ratio - three times the gap, not 3%");
+});
+
 test("an empty pipeline against a real gap is thin", () => {
   const c = coverage(0, 1200, 0);
   assert.equal(c.ratio, 0);
@@ -44,9 +48,10 @@ test("an empty pipeline against a real gap is thin", () => {
 });
 
 test("the floor is configurable and reported back", () => {
-  const strict = coverage(930, 1200, 270, 1.5);
-  assert.equal(strict.thin, true, "1.0 coverage is thin when 1.5 is required");
-  assert.equal(strict.floor, 1.5, "the surface can name what it judged against");
+  // A team closing four deals in five does not need three times the gap.
+  const lenient = coverage(930, 1200, 270, 1);
+  assert.equal(lenient.thin, false, "1.0 coverage passes when only 1x is required");
+  assert.equal(lenient.floor, 1, "the surface can name what it judged against");
 });
 
 test("resolveCoverageFloor falls back rather than accepting nonsense", () => {

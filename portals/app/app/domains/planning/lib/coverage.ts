@@ -20,8 +20,19 @@
 // the pool of a team closing four in five. It is read from the environment at
 // the call site so it can be tuned without a deploy.
 
-/** Below this, the pool is called out. Overridable; see resolveCoverageFloor. */
-export const DEFAULT_COVERAGE_FLOOR = 0.5;
+/**
+ * Below this, the pool is called out. Overridable; see resolveCoverageFloor.
+ *
+ * Three, which is the line sales management has used for decades: the pool has
+ * to be about three times the gap, because roughly one deal in three closes.
+ * It is a coverage RATIO, so 3 means "three times what is still needed", not
+ * 3%.
+ *
+ * It started at 0.5 and that was too generous to be useful - at half the gap a
+ * quarter is already lost, so a warning that waits for it never warns in time
+ * to act. A floor that only fires when the outcome is settled is decoration.
+ */
+export const DEFAULT_COVERAGE_FLOOR = 3;
 
 export interface Coverage {
   /** Open pipeline over the remaining gap. Null when there is no gap to cover. */
