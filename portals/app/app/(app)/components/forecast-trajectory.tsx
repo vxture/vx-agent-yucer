@@ -101,45 +101,57 @@ export function ForecastTrajectory({
         </div>
       ) : (
       <Card className="p-md">
-        {/* The plot stretches; the legend does not. Left to shrink-0 the
-            columns clustered at the left edge of a wide card with the rest of
-            it empty - a chart that does not use its width reads as a chart with
-            missing data. Each column is flex-1 now, so the same series fills
-            whatever width the card is given and the spacing between readings
-            stays even at any viewport. */}
-        <div className="flex items-end gap-lg">
-        <div className="flex min-w-0 flex-1 items-end gap-md">
-        {shown.map((p) => (
-          <div key={p.at} className="flex min-w-0 flex-1 flex-col items-center gap-xs">
-            <div className="flex h-28 items-end gap-2xs">
-              {SERIES.map((s) => {
-                const v = p[s.key];
-                return (
-                  <div
-                    key={s.key}
-                    className={`w-3 rounded-t-sm ${s.cls}`}
-                    style={{ height: `${Math.max(2, (v / max) * 112)}px` }}
-                    title={`${s.label} ${wan(v)}`}
-                  />
-                );
-              })}
-            </div>
-            <span className="text-muted-foreground truncate text-xs tabular-nums">{p.at}</span>
-          </div>
-        ))}
-        </div>
+        {/* Plot above, legend beneath it and centred.
 
-        <div className="flex shrink-0 flex-col gap-2xs self-center">
-          {SERIES.map((s) => (
-            <div key={s.key} className="flex items-center gap-xs">
-              <span className={`size-2 rounded-sm ${s.cls}`} aria-hidden />
-              <span className="text-muted-foreground text-xs">{s.label}</span>
-              <span className="text-foreground ml-auto text-xs tabular-nums">
-                {wan(shown[shown.length - 1]![s.key])}
-              </span>
-            </div>
-          ))}
-        </div>
+            The plot stretches: each column is flex-1, so five readings or eight
+            fill whatever width the card is given and the spacing between them
+            stays even. Left as shrink-0 they clustered against the left edge of
+            a 992px card, and a chart that does not use its width reads as a
+            chart missing data.
+
+            The legend moved off the right flank to under the plot. On the flank
+            it was competing with the plot for the same horizontal space - every
+            pixel it took was a pixel the readings did not get - and it was
+            reading as a fifth column of the chart rather than as its key. Below
+            and centred it belongs to the whole plot instead of to its right
+            edge, and the plot gets the full width back. */}
+        <div className="flex flex-col gap-md">
+          <div className="flex items-end gap-md">
+            {shown.map((p) => (
+              <div key={p.at} className="flex min-w-0 flex-1 flex-col items-center gap-xs">
+                <div className="flex h-28 items-end gap-2xs">
+                  {SERIES.map((s) => {
+                    const v = p[s.key];
+                    return (
+                      <div
+                        key={s.key}
+                        className={`w-3 rounded-t-sm ${s.cls}`}
+                        style={{ height: `${Math.max(2, (v / max) * 112)}px` }}
+                        title={`${s.label} ${wan(v)}`}
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-muted-foreground truncate text-xs tabular-nums">{p.at}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* The figure beside each label is the LATEST reading, which is what
+              the rightmost column shows - the key doubles as the current
+              position so the card answers "where are we" without the reader
+              measuring a bar against nothing. */}
+          <ul className="border-border flex flex-wrap items-baseline justify-center gap-x-lg gap-y-xs border-t pt-md">
+            {SERIES.map((s) => (
+              <li key={s.key} className="flex items-baseline gap-xs">
+                <span className={`size-2 shrink-0 rounded-sm ${s.cls}`} aria-hidden />
+                <span className="text-muted-foreground text-xs">{s.label}</span>
+                <span className="text-foreground text-xs font-semibold tabular-nums">
+                  {wan(shown[shown.length - 1]![s.key])}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </Card>
       )}
