@@ -290,15 +290,49 @@ export const HEADER_TEXT = {
   searchPlaceholder: "搜索客户、商机、跟进记录",
   searchEmpty: "没有匹配的",
   searchLoading: "检索中",
+  searchResults: "搜索结果",
   groupAccounts: "客户",
   groupDeals: "商机",
-  subscription: (tier: string) => `${tier} 档`,
+
+  // THE TIER, WITHOUT THE WORD "档". It read "enterprise 档" - a Chinese
+  // measure word bolted onto an English identifier, which is neither. The tier
+  // name is the whole label; what it measures is already said by the badge's
+  // accessible name.
+  //
+  // It is also HIDDEN IN PRODUCTION. A build badge and a tier badge are
+  // developer-facing: they answer "which build am I looking at" during
+  // development and review. On a customer's screen the tier is a commercial
+  // fact they did not ask to be reminded of on every page.
+  subscription: (tier: string) => tier,
   subscriptionNone: "未订阅",
   subscriptionAria: "订阅档位",
   // Passed through. The "v" prefix used to be added here, which turned the
   // local build label "dev" into "vdev"; a prefix that only fits one of the
   // three shapes this label takes belongs where the label is chosen.
   version: (v: string) => v,
+
+  // The workspace and tenant, and the panel that explains them.
+  workspaceAria: "当前工作区与租户",
+  workspacePanelTitle: "工作区",
+  workspaceLabel: "工作区",
+  tenantLabel: "租户",
+  tenantUnknown: "未标识",
+  // Said plainly rather than offered as a control that does nothing: the token
+  // carries one workspace and one tenant, both chosen upstream at sign-in, and
+  // this product has no endpoint that could enumerate alternatives.
+  workspaceSwitchHint: "工作区与租户在登录时确定，如需切换请重新登录。",
+
+  // The four tools. Grouped because they are the same KIND of thing - they act
+  // on the shell, not on the data - and a reader who has found one has found
+  // all four.
+  toolsAria: "外壳工具",
+  fullscreen: "全屏",
+  fullscreenExit: "退出全屏",
+  help: "帮助",
+  notifications: "通知",
+  notificationsWithCount: (n: number) => `通知，${n} 条未读`,
+  settings: "设置",
+
   adminAria: "管理",
   userMenuOpen: "打开用户菜单",
   // The two flank toggles. Named for what the flank IS, not for the direction it
@@ -309,6 +343,10 @@ export const HEADER_TEXT = {
   agentDock: "智能助手",
   agentDockWithCount: (n: number) => `智能助手，${n} 件待你裁决`,
   countOverflow: "99+",
+
+  // The language switcher. The DS draws it; these are its names.
+  localeSwitch: "切换语言",
+  localePanel: "语言",
 } as const;
 
 export const ADMIN_TEXT = {

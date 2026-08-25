@@ -5,18 +5,22 @@ import { useRouter } from "next/navigation";
 import {
   ShellBrand,
   ShellIconButton,
-  ShellIconGroup,
   ShellSearchBox,
-  ShellThemeToggle,
   ShellUserMenu,
-  useTheme,
 } from "@vxture/design-system";
-import { ShellHeader, ShellViewport, StatusBadge } from "@vxture/design-ui";
+import {
+  Separator,
+  ShellHeader,
+  ShellViewport,
+  StatusBadge,
+} from "@vxture/design-ui";
 import { writeNavCollapsed } from "@vxture/shared";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { NavBoard } from "./nav-board";
 import { AgentPanel } from "./agent-panel";
 import { AgentDockButton } from "./agent-dock-button";
+import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
+import { WorkspaceScope } from "./workspace-scope";
 import type { AgentPanelData } from "../lib/board";
 import type { BoardSection } from "../lib/board";
 import { HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
@@ -30,7 +34,13 @@ import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
  * else is a title until asked for - nine equally-loud panels teach a reader
  * nothing about which one matters.
  */
-export const PINNED_SECTIONS = ["quota", "queue", "resource", "products", "allies"] as const;
+export const PINNED_SECTIONS = [
+  "quota",
+  "queue",
+  "resource",
+  "products",
+  "allies",
+] as const;
 
 // yucer's application shell: a command console, in three zones.
 //
@@ -69,7 +79,9 @@ export interface AppShellProps {
   /** The agent's own reading, for the right flank. */
   readonly agent: AgentPanelData;
   readonly canRecord: boolean;
-  readonly onRecord?: (text: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly onRecord?: (
+    text: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Administration. Reached from a single header icon rather than a sidebar
    * group: it is not work and not data, it is setup - visited rarely, and a
@@ -86,8 +98,27 @@ export interface AppShellProps {
   readonly appVersion: string;
   /** The tier itself, not its display label - null when unsubscribed. */
   readonly tier: string | null;
+  /**
+   * The tenant the workspace belongs to, from the token's `active_org`.
+   * Null when the platform issued no org - the panel says so rather than
+   * printing an empty row.
+   */
+  readonly tenantId: string | null;
+  /**
+   * True on a production deployment. The tier badge and the build label are
+   * DEVELOPER-FACING: they answer "which build am I looking at" during
+   * development and review. On a customer's screen the tier is a commercial
+   * fact they did not ask to be reminded of on every page.
+   */
+  readonly isProduction: boolean;
   /** What search can reach. Assembled on the server so it obeys both gates. */
-  readonly searchable: readonly { key: string; label: string; description?: string; href: string; group: "account" | "deal" }[];
+  readonly searchable: readonly {
+    key: string;
+    label: string;
+    description?: string;
+    href: string;
+    group: "account" | "deal";
+  }[];
   /**
    * The flank states, READ ON THE SERVER from their cookies.
    *
@@ -113,12 +144,13 @@ export function AppShell({
   workspaceLabel,
   appVersion,
   tier,
+  tenantId,
+  isProduction,
   searchable,
   boardOpen,
   dockOpen,
   children,
 }: AppShellProps) {
-  const { mode, setMode } = useTheme();
   const [query, setQuery] = useState("");
   const router = useRouter();
 
@@ -147,22 +179,34 @@ export function AppShell({
   // keystroke would buy nothing. It is also already gated - the server built
   // this list through the same services the pages use.
   const q = query.trim().toLowerCase();
-  const hits = q === "" ? [] : searchable.filter((s) => s.label.toLowerCase().includes(q));
-  const searchGroups = q === "" ? [] : [
-    { key: "account", heading: HEADER_TEXT.groupAccounts, items: hits.filter((h) => h.group === "account") },
-    { key: "deal", heading: HEADER_TEXT.groupDeals, items: hits.filter((h) => h.group === "deal") },
-  ]
-    .filter((g) => g.items.length > 0)
-    .map((g) => ({
-      key: g.key,
-      heading: g.heading,
-      items: g.items.slice(0, 6).map((h) => ({
-        key: h.key,
-        label: h.label,
-        description: h.description,
-        onSelect: () => router.push(h.href),
-      })),
-    }));
+  const hits =
+    q === "" ? [] : searchable.filter((s) => s.label.toLowerCase().includes(q));
+  const searchGroups =
+    q === ""
+      ? []
+      : [
+          {
+            key: "account",
+            heading: HEADER_TEXT.groupAccounts,
+            items: hits.filter((h) => h.group === "account"),
+          },
+          {
+            key: "deal",
+            heading: HEADER_TEXT.groupDeals,
+            items: hits.filter((h) => h.group === "deal"),
+          },
+        ]
+          .filter((g) => g.items.length > 0)
+          .map((g) => ({
+            key: g.key,
+            heading: g.heading,
+            items: g.items.slice(0, 6).map((h) => ({
+              key: h.key,
+              label: h.label,
+              description: h.description,
+              onSelect: () => router.push(h.href),
+            })),
+          }));
 
   return (
     /* FOUR SURFACES, EACH OWNING ITS OWN SCROLL.
@@ -201,68 +245,117 @@ export function AppShell({
     <ShellViewport
       sidebarMode={showBoard ? "expanded" : "hidden"}
       header={
-      <ShellHeader
-        leading={
-          <>
-            <ShellIconButton
-              icon="sidebar"
-              label={showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen}
-              active={showBoard}
-              onClick={toggleBoard}
-            />
-            <ShellBrand href="/" label={SHELL_TEXT.brandName} tag={HEADER_TEXT.version(appVersion)} />
-            {/* The workspace is the isolation key every row and every gate
-                decision is scoped by. A member with access to more than one has
-                to know which one they are reading before they read a single
-                number - so it rides the header, where it is true of every page,
-                rather than a panel that can be shut. */}
-            <StatusBadge tone="neutral">{workspaceLabel}</StatusBadge>
-            <StatusBadge tone={tier ? "brand" : "neutral"}>
-              {tier ? HEADER_TEXT.subscription(tier) : HEADER_TEXT.subscriptionNone}
-            </StatusBadge>
-          </>
-        }
-        center={
-          <ShellSearchBox
-            query={query}
-            onQueryChange={setQuery}
-            groups={searchGroups}
-            labels={{
-              placeholder: HEADER_TEXT.searchPlaceholder,
-              empty: HEADER_TEXT.searchEmpty,
-              loading: HEADER_TEXT.searchLoading,
-            }}
-          />
-        }
-        trailing={
-          <>
-            <ShellIconGroup label={NAV_TEXT.ariaLabel}>
-              {admin.some((e) => e.state === "visible") ? (
-                <a href="/admin" aria-label={HEADER_TEXT.adminAria} title={HEADER_TEXT.adminAria}>
-                  <ShellIconButton icon="settings" label={HEADER_TEXT.adminAria} />
-                </a>
-              ) : null}
-              <ShellThemeToggle
-                currentTheme={mode === "dark" ? "dark" : "light"}
-                onThemeChange={(next) => setMode(next)}
+        <ShellHeader
+          leading={
+            <>
+              {/* (1) The board toggle. */}
+              <ShellIconButton
+                icon="sidebar"
+                label={
+                  showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen
+                }
+                active={showBoard}
+                onClick={toggleBoard}
               />
-            </ShellIconGroup>
 
-            {/* The agent deck's handle, and the only place the pending count is
-                legible once the deck is shut. */}
-            <AgentDockButton count={agent.pending.length} open={showDock} onToggle={toggleDock} />
+              {/* (3)(4) Logo and product name. ShellBrand draws them as one
+                lockup rather than as an image beside a word - the tag slot is
+                the build label, which is part of the identity of what you are
+                looking at, not a separate line of text. */}
+              <ShellBrand
+                href="/"
+                label={SHELL_TEXT.brandName}
+                tag={isProduction ? undefined : HEADER_TEXT.version(appVersion)}
+              />
 
-            <ShellUserMenu user={{ displayName: userName, uniqueLine: workspaceLabel }} />
-          </>
-        }
-      />
+              {/* (5) The tier, WITHOUT the word "档" - a Chinese measure word
+                bolted onto an English identifier was neither - and absent
+                entirely in production. */}
+              {isProduction ? null : (
+                <StatusBadge tone={tier ? "brand" : "neutral"}>
+                  {tier
+                    ? HEADER_TEXT.subscription(tier)
+                    : HEADER_TEXT.subscriptionNone}
+                </StatusBadge>
+              )}
+
+              {/* (6) The rule. It separates identity from scope: everything to
+                its left is which PRODUCT this is, everything to its right is
+                which DATA you are in. Those are different questions and they
+                used to run together as two badges. */}
+              <Separator orientation="vertical" className="h-control-sm" />
+
+              {/* (7) Workspace and tenant. The isolation key every row and every
+                gate decision is scoped by - a member with access to more than
+                one has to know which they are reading before they read a single
+                number, so it rides the header rather than a panel that can be
+                shut. */}
+              <WorkspaceScope
+                workspaceLabel={workspaceLabel}
+                tenantId={tenantId}
+              />
+            </>
+          }
+          /* SEARCH SITS AT THE RIGHT POLE, not centred. centerAlign="end" is the
+           DS's own answer and its stated reason: it reads the header as two
+           poles - identity on the left, tools on the right - and puts the
+           centre slot into the right one. Centred, the search box was a third
+           pole competing with both. */
+          centerAlign="end"
+          center={
+            <ShellSearchBox
+              query={query}
+              onQueryChange={setQuery}
+              groups={searchGroups}
+              /* EVERY label passed, none defaulted. As of design-ui 5.0 the
+               DS's own fallbacks are English, and its changelog is explicit
+               that a default reaching a production interface means someone
+               forgot to pass one rather than that a default was chosen. */
+              labels={{
+                placeholder: HEADER_TEXT.searchPlaceholder,
+                empty: HEADER_TEXT.searchEmpty,
+                loading: HEADER_TEXT.searchLoading,
+                resultsLabel: HEADER_TEXT.searchResults,
+              }}
+            />
+          }
+          trailing={
+            <>
+              {/* (2) The agent deck's handle, and the only place the pending
+                count is legible once the deck is shut. */}
+              <AgentDockButton
+                count={agent.pending.length}
+                open={showDock}
+                onToggle={toggleDock}
+              />
+
+              {/* (3) The four shell tools. */}
+              <HeaderTools
+                onSettings={
+                  admin.some((e) => e.state === "visible")
+                    ? () => router.push("/admin")
+                    : undefined
+                }
+              />
+
+              {/* (4) The member, and their panel. */}
+              <ShellUserMenu
+                user={{ displayName: userName, uniqueLine: workspaceLabel }}
+              />
+            </>
+          }
+        />
       }
       sidebar={
         /* LEFT FLANK - ours. Cards that state where things stand; opening one
            navigates, but that is a consequence of the card, not its purpose.
            Flush right: the cards end at the zone's right boundary. */
         <div className="min-h-0 flex-1 overflow-y-auto pt-lg pb-6xl pl-lg">
-          <NavBoard sections={board} pinned={PINNED_SECTIONS} activeKey={activeKey} />
+          <NavBoard
+            sections={board}
+            pinned={PINNED_SECTIONS}
+            activeKey={activeKey}
+          />
         </div>
       }
       dock={
@@ -270,14 +363,25 @@ export function AppShell({
            the same reason the board is flush right. */
         showDock ? (
           <aside className="w-sidebar-expanded shrink-0 overflow-y-auto pt-lg pr-lg pb-6xl">
-            <AgentPanel data={agent} canRecord={canRecord} onRecord={onRecord} />
+            <AgentPanel
+              data={agent}
+              canRecord={canRecord}
+              onRecord={onRecord}
+            />
           </aside>
         ) : null
       }
     >
       {/* CENTRE - the engagement. Its horizontal padding IS the gutter on both
-          sides, which is why the flanks carry none facing it. */}
-      <div className="px-page-inset pt-lg pb-6xl">{children}</div>
+          sides, which is why the flanks carry none facing it.
+
+          It also carries the fullscreen target id. Fullscreen here means the
+          WORK gets all the glass, not the document: the header holds the way
+          back out, so expanding over it would trap the reader in the thing
+          they just expanded. */}
+      <div id={SHELL_BODY_ID} className="px-page-inset pt-lg pb-6xl">
+        {children}
+      </div>
     </ShellViewport>
   );
 }

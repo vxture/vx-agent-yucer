@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
-import { resolveAppSession } from "./lib/session";
+import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { can } from "../authz/decide";
@@ -71,7 +71,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   if (lockout === "no_roles") {
     return (
       <ViewLayout>
-        <EmptyState title={SHELL_TEXT.noRolesTitle} description={SHELL_TEXT.noRolesDescription} />
+        <EmptyState
+          title={SHELL_TEXT.noRolesTitle}
+          description={SHELL_TEXT.noRolesDescription}
+        />
       </ViewLayout>
     );
   }
@@ -86,7 +89,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           // /subscribe, so a first purchase reads as an upgrade from nothing.
           action={
             <Button asChild>
-              <a href={subscribeUrl({ intent: "upgrade" })}>{SHELL_TEXT.subscribeCta}</a>
+              <a href={subscribeUrl({ intent: "upgrade" })}>
+                {SHELL_TEXT.subscribeCta}
+              </a>
             </Button>
           }
         />
@@ -108,7 +113,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // setup rather than work, and it lives as a header icon.
   const admin = nav.filter((e) => e.key === "admin" || e.key === "adoption");
 
-  const canRecord = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
+  const canRecord = can(
+    session.authz,
+    session.entitlement,
+    "account.upsert",
+    "ui",
+  ).allowed;
   const agent = await agentPanel(
     {
       workspaceId: session.workspaceId,
@@ -186,6 +196,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         });
       }}
       appVersion={buildLabel()}
+      tenantId={tenantIdOf(session)}
+      /* APP_ENV, not a guess from the version string's shape. Beta ships a
+         `beta-YYYYMMDD.N` tag and production ships `vX.Y.Z`, so inferring the
+         tier from the label would make "is this production" depend on how
+         someone named a tag. One explicit key, defaulting to non-production:
+         a missing config should hide nothing it would be wrong to show, and
+         showing a build badge in dev is harmless while hiding it in prod is
+         the point. */
+      isProduction={process.env.APP_ENV === "prod"}
       tier={session.entitlement.tier}
       searchable={searchable}
       admin={admin}
