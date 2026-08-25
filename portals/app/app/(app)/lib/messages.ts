@@ -1088,11 +1088,20 @@ export const CAMPAIGN_TEXT = {
   title: "市场执行",
   description:
     "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
+  // The headline. The page's central claim is the RETURN RULE, and it lived
+  // only in a code comment and a section subtitle - so a reader could take the
+  // ROI column at face value without ever meeting the caveat that makes it
+  // mean something. It goes where the numbers are.
+  lead: (n: number) => `${n} 场战役`,
+  leadSpend: (budget: string, won: string) => `预算 ${budget} · 已回收 ${won}`,
+  leadRule: "回报只计赢单收入。管道额不算回报——未成交的钱还不是钱。",
+  rowCount: (n: number) => `${n} 场战役`,
   columnName: "战役",
   columnChannel: "渠道",
   columnBudget: "预算",
   columnProgress: "执行进度",
   columnStatus: "状态",
+  columnReturn: "回报",
   emptyTitle: "还没有战役",
   emptyDescription: "把战略与细分市场变成具体的触达动作。",
   progress: (done: number, total: number, skipped: number) =>

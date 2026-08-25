@@ -1,6 +1,7 @@
-import { EmptyState, Section } from "@vxture/design-ui";
+import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { CAMPAIGN_TEXT, SHELL_TEXT } from "../lib/messages";
+import { formatMoney } from "../lib/view-model";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { campaignReturn, listCampaigns } from "../../domains/strategy/service";
 import { can } from "../../authz/decide";
@@ -18,7 +19,12 @@ export const dynamic = "force-dynamic";
 export default async function CampaignPage() {
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const ctx = {
@@ -61,11 +67,57 @@ export default async function CampaignPage() {
     });
   }
 
-  const canMove = can(session.authz, session.entitlement, "campaign.upsert", "ui").allowed;
+  const canMove = can(
+    session.authz,
+    session.entitlement,
+    "campaign.upsert",
+    "ui",
+  ).allowed;
+
+  // Totalled here rather than in the table: the headline is a statement about
+  // the page, and a table that also had to produce page-level sums would be
+  // answering two questions at once.
+  //
+  // The currency is taken from the first row that carries one. Mixing
+  // currencies in a single total would be wrong, and this domain has no
+  // conversion - if that day comes the sum has to become per-currency rather
+  // than quietly adding yuan to dollars.
+  const currency = rows.find((r) => r.budget != null)?.currency ?? "CNY";
+  const budgetTotal = rows.reduce((n, r) => n + (r.budget ?? 0), 0);
+  const wonTotal = rows.reduce((n, r) => n + (r.wonAmount ?? 0), 0);
 
   return (
-    <Section title={CAMPAIGN_TEXT.title} description={CAMPAIGN_TEXT.description}>
-      <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
-    </Section>
+    <ViewLayout>
+      {/* Opens with what is true of the whole page. The RETURN RULE rides here
+          rather than only in the section subtitle: it is the one caveat that
+          makes the ROI column mean anything, and a reader who meets the number
+          first has already drawn the wrong conclusion. */}
+      <Card className="p-lg">
+        {/* ONE child, so Card's gap-xl never fires between a title and its own
+            captions. */}
+        <div className="flex flex-col gap-2xs">
+          <h1 className="text-heading-2 text-foreground">
+            {CAMPAIGN_TEXT.lead(rows.length)}
+          </h1>
+          <p className="text-muted-foreground text-body-sm tabular-nums">
+            {CAMPAIGN_TEXT.leadSpend(
+              formatMoney(budgetTotal, currency),
+              formatMoney(wonTotal, currency),
+            )}
+          </p>
+          <p className="text-muted-foreground text-body-sm">
+            {CAMPAIGN_TEXT.leadRule}
+          </p>
+        </div>
+      </Card>
+
+      <Section
+        icon="target"
+        title={CAMPAIGN_TEXT.title}
+        description={CAMPAIGN_TEXT.description}
+      >
+        <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
+      </Section>
+    </ViewLayout>
   );
 }
