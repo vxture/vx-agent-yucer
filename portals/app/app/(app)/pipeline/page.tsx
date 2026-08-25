@@ -3,7 +3,7 @@ import { resolveAppSession } from "../lib/session";
 import { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT } from "../lib/messages";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { PeriodTabs } from "../components/period-tabs";
-import { CommitSplit } from "../components/commit-split";
+import { HeadlineCard } from "../components/headline-card";
 import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
@@ -111,16 +111,10 @@ export default async function PipelinePage({
       {/* Opens with a statement, the same way the home screen does. A page that
           opens with a noun and a caption makes the reader work out what matters;
           the data already knows. */}
-      <Card className="p-lg">
-        {/* ONE child, so Card's own gap-xl never fires. Card is
-            `flex flex-col gap-xl` - built for page-level cards whose sections
-            stand 32px apart - and with two children that 32px landed on top of
-            this block's own mt-lg: 56px of reserved space above a 26px row,
-            which is why the collapsed state still read as half-open. Wrapping
-            makes the gap inapplicable rather than overriding it, and the rhythm
-            in here becomes ours to set. */}
-        <div className="flex flex-col gap-md">
-        <div className="flex flex-wrap items-end justify-between gap-md">
+      <HeadlineCard
+        split={split}
+        awaiting={awaiting}
+        headline={
           <div className="min-w-0">
             <h1 className="text-heading-2 text-foreground tabular-nums">
               {PIPELINE_TEXT.lead(BOARD_TEXT.wan(commit))}
@@ -136,22 +130,18 @@ export default async function PipelinePage({
                     )}
             </p>
           </div>
-
-          {/* The page's top-level filter. Beside the headline because it
-              governs the headline: every figure below is reported for whichever
-              period this names. */}
+        }
+        /* The page's top-level filter. It governs every figure below, so it
+           stays visible in the collapsed state - the fold hides the
+           decomposition, not the controls. */
+        filter={
           <PeriodTabs
             value={period}
             periods={PIPELINE_TEXT.periods}
             yearLabel={PIPELINE_TEXT.periodYear}
           />
-        </div>
-
-        {/* The decomposition of that headline, not a subject of its own - so it
-            sits inside the same card, folded away when it is not wanted. */}
-        <CommitSplit split={split} awaiting={awaiting} />
-        </div>
-      </Card>
+        }
+      />
 
       {/* The gate, not the raw permission. Reading permissions.has() directly
           skips the ENTITLEMENT half entirely, so a workspace whose subscription
