@@ -472,6 +472,7 @@ export const PIPELINE_TEXT = {
   emptyTitle: "暂无商机",
   emptyDescription: "线索合格转化后会出现在这里。",
   rollupFailedTitle: "无法汇总",
+  rowCount: (n: number) => `共 ${n} 条`,
   // The period filter. Quarters plus the year, because a forecast is read at
   // both cadences - the quarter is what gets committed, the year is what gets
   // planned against.

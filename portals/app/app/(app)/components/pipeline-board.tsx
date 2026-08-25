@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { DataTable, EmptyState, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
+import { Card, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory, ForecastableOpportunity } from "../../domains/pipeline/lib/forecast";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
@@ -36,6 +36,10 @@ export interface PipelineBoardProps {
 }
 
 export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: PipelineBoardProps) {
+  // Which arrangement the rows are in. Local: it is a preference about looking,
+  // not about which data is on screen, so it has no business in the URL the way
+  // the period filter does.
+  const [view, setView] = useState<"list" | "cards">("list");
   const totals = useMemo(() => rollUp(rows, currency), [rows, currency]);
 
   const metrics: MetricGridItem[] = totals.ok
@@ -123,6 +127,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
 
   return (
     <Section
+      icon="table"
       title={PIPELINE_TEXT.title}
       description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description}
     >
@@ -135,7 +140,55 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
       ) : rows.length === 0 ? (
         <EmptyState title={PIPELINE_TEXT.emptyTitle} description={PIPELINE_TEXT.emptyDescription} />
       ) : (
-        <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
+        <>
+          {/* The tool row: what this list looks like, and how many are in it.
+              FilterBar owns the arrangement - view switch left, count beside
+              it - so the page does not invent a second toolbar grammar. */}
+          <FilterBar
+            view={view}
+            onViewChange={setView}
+            count={PIPELINE_TEXT.rowCount(rows.length)}
+          />
+
+          {/* ONLY THE TABLE IS IN A CARD, not the section. The section is a
+              heading and its tools; the card is the surface the rows sit on, so
+              wrapping the whole section would put the heading inside the thing
+              it names. */}
+          <Card className="mt-md p-none">
+            {view === "list" ? (
+              <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
+            ) : (
+              <ListCardGrid className="p-md">
+                {rows.map((row) => (
+                  <ListCard
+                    key={row.id}
+                    title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
+                    description={`${row.opportunityNo} / ${row.accountName}`}
+                    status={
+                      <StatusBadge tone={FORECAST_TONE[row.forecastCategory]}>
+                        {FORECAST_LABEL[row.forecastCategory]}
+                      </StatusBadge>
+                    }
+                    meta={
+                      <>
+                        <StatusBadge tone={STAGE_TONE[row.stage as Stage]}>
+                          {STAGE_LABEL[row.stage as Stage] ?? row.stage}
+                        </StatusBadge>
+                        <span className="tabular-nums">{formatMoney(row.amount?.amount ?? null, row.currency)}</span>
+                        {/* Same two-case reading as the column: a null win rate
+                            prints a dash rather than a zero, because "nobody has
+                            set one" and "we think we lose" are different. */}
+                        <span className="tabular-nums">
+                          {probabilityDisplay(row).value == null ? "-" : `${probabilityDisplay(row).value}%`}
+                        </span>
+                      </>
+                    }
+                  />
+                ))}
+              </ListCardGrid>
+            )}
+          </Card>
+        </>
       )}
     </Section>
   );

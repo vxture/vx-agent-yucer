@@ -2,23 +2,26 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { SegmentedControl } from "@vxture/design-ui";
+import { Tabs, TabsList, TabsTrigger } from "@vxture/design-ui";
 import { PIPELINE_TEXT } from "../lib/messages";
 
 // The page's top-level filter: which period everything below is reported for.
 //
+// TABS, NOT SegmentedControl, and the reason is measurable rather than taste.
+// Both are the DS's "groove plus slider" shape, but SegmentedControl fills its
+// groove with surface-3 - oklch(98.5%) - and this control sits on a white card,
+// so the groove rendered at about 1.5% contrast and the whole thing read as
+// four loose words with one highlighted. TabsList uses bg-accent, which is an
+// actually visible recess. Tabs is also the right meaning: this switches which
+// DATA the page is showing, which is what a tab does; a segmented control is a
+// toggle inside a toolbar.
+//
 // IT WRITES TO THE URL, not to component state. A forecast is a thing people
-// send each other - "look at Q4" has to survive being pasted into a message, and
-// a reload has to land back on the period that was being read. State in a
-// component survives neither.
-//
-// That also keeps the fetching on the server: the page reads the param and
-// queries for that period, so switching periods asks the database for the right
-// snapshots rather than filtering a payload the client was already given. The
-// difference matters as soon as a period has data the current one does not.
-//
-// useTransition so the control stays responsive while the server renders, and
-// so the outgoing period is visibly pending rather than frozen.
+// send each other - "look at Q4" has to survive being pasted into a message,
+// and a reload has to land back on the period being read. State in a component
+// survives neither. It also keeps the fetching on the server: the page reads
+// the param and queries for that period, rather than filtering a payload the
+// client already holds.
 
 export interface PeriodTabsProps {
   readonly value: string;
@@ -39,12 +42,14 @@ export function PeriodTabs({ value, periods, yearLabel }: PeriodTabsProps) {
   };
 
   return (
-    <SegmentedControl
-      ariaLabel={PIPELINE_TEXT.periodLabel}
-      value={value}
-      onChange={select}
-      size="sm"
-      items={[...periods, yearLabel].map((p) => ({ value: p, label: p, disabled: pending }))}
-    />
+    <Tabs value={value} onValueChange={select}>
+      <TabsList aria-label={PIPELINE_TEXT.periodLabel}>
+        {[...periods, yearLabel].map((p) => (
+          <TabsTrigger key={p} value={p} disabled={pending}>
+            {p}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

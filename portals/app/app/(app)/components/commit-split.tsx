@@ -37,20 +37,26 @@ export function CommitSplit({ split, awaiting }: CommitSplitProps) {
         level={3}
         title={PIPELINE_TEXT.productSplit}
         description={PIPELINE_TEXT.productSplitWhy}
+        icon="chart-bar"
+        /* titleSuffix, not action: the DS keeps these apart on purpose - action
+           is the section's verb and sits right, titleSuffix belongs to the
+           title and sits against it. A count of lines awaiting a discount
+           decision is a property of this composition, not something to do to
+           it, so it rides the title and shares its baseline. */
+        titleSuffix={
+          awaiting > 0 ? (
+            <StatusBadge tone="warning">
+              {PIPELINE_TEXT.needsApproval} {awaiting}
+            </StatusBadge>
+          ) : undefined
+        }
         action={
-          <span className="flex items-center gap-xs">
-            {awaiting > 0 ? (
-              <StatusBadge tone="warning">
-                {PIPELINE_TEXT.needsApproval} {awaiting}
-              </StatusBadge>
-            ) : null}
-            <CollapsibleTrigger
-              aria-label={open ? PIPELINE_TEXT.splitCollapse : PIPELINE_TEXT.splitExpand}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
-            </CollapsibleTrigger>
-          </span>
+          <CollapsibleTrigger
+            aria-label={open ? PIPELINE_TEXT.splitCollapse : PIPELINE_TEXT.splitExpand}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
+          </CollapsibleTrigger>
         }
       />
 

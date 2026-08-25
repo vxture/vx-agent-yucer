@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, DataTable, EmptyState, Input, Label, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
+import { Button, DataTable, EmptyState, Input, Label, Card, FilterBar, ListCard, ListCardGrid, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
-import { WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
+import { PIPELINE_TEXT, WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
 
 // Closed deals still owing a post-mortem.
@@ -41,6 +41,7 @@ const REASONS = ["price", "fit", "timing", "competitor", "no_decision", "other"]
 
 export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }: PendingReviewsProps) {
   const [scope, setScope] = useState<"pending" | "all">("pending");
+  const [view, setView] = useState<"list" | "cards">("list");
   // Pending is a SUBSET of all, so the two lists share every row object - the
   // outstanding badge below reads the pending ids rather than a second flag.
   const pendingIds = new Set(opportunities.map((o) => o.id));
@@ -125,25 +126,33 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
 
   return (
     <Section
+      icon="lightbulb"
       title={WINLOSS_TEXT.sectionTitle}
       description={WINLOSS_TEXT.description}
-      /* The filter is a property of the SECTION, not of the table: it chooses
-         which population the table is showing, so it belongs beside the title
-         that names that population. */
-      action={
-        <SegmentedControl
-          size="sm"
-          ariaLabel={WINLOSS_TEXT.sectionTitle}
-          value={scope}
-          onChange={setScope}
-          items={[
-            { value: "pending", label: WINLOSS_TEXT.filterPending, count: opportunities.length },
-            { value: "all", label: WINLOSS_TEXT.filterAll, count: allClosed.length },
-          ]}
-        />
-      }
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+
+      {/* Tool row, same grammar as the board's: the DS keeps `scope` apart from
+          the filter group on the record - a filter shows fewer rows of one
+          population, a scope swaps the population. 待复盘 / 全部复盘 swaps it,
+          so it belongs in `scope`. */}
+      <FilterBar
+        view={view}
+        onViewChange={setView}
+        count={PIPELINE_TEXT.rowCount(shown.length)}
+        scope={
+          <SegmentedControl
+            size="sm"
+            ariaLabel={WINLOSS_TEXT.sectionTitle}
+            value={scope}
+            onChange={setScope}
+            items={[
+              { value: "pending", label: WINLOSS_TEXT.filterPending, count: opportunities.length },
+              { value: "all", label: WINLOSS_TEXT.filterAll, count: allClosed.length },
+            ]}
+          />
+        }
+      />
 
       {shown.length === 0 ? (
         <EmptyState
@@ -151,7 +160,35 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
           description={scope === "pending" ? WINLOSS_TEXT.emptyDescription : WINLOSS_TEXT.allEmptyDescription}
         />
       ) : (
-        <DataTable leadingSpacer indexStart={1} columns={columns} rows={shown} rowKey={(row) => row.id} />
+        /* Only the table is in the card - the heading and its tools stay
+           outside it, the same as the board. */
+        <Card className="mt-md p-none">
+          {view === "list" ? (
+            <DataTable leadingSpacer indexStart={1} columns={columns} rows={shown} rowKey={(row) => row.id} />
+          ) : (
+            <ListCardGrid className="p-md">
+              {shown.map((row) => (
+                <ListCard
+                  key={row.id}
+                  title={row.name}
+                  description={row.opportunityNo}
+                  status={
+                    <StatusBadge tone={row.status === "won" ? "success" : "danger"}>
+                      {row.status === "won" ? WINLOSS_TEXT.outcomeWon : WINLOSS_TEXT.outcomeLost}
+                    </StatusBadge>
+                  }
+                  meta={
+                    !pendingIds.has(row.id) ? (
+                      <StatusBadge tone="success">{WINLOSS_TEXT.reviewed}</StatusBadge>
+                    ) : (
+                      <span>{row.closedAt ? row.closedAt.toISOString().slice(0, 10) : "-"}</span>
+                    )
+                  }
+                />
+              ))}
+            </ListCardGrid>
+          )}
+        </Card>
       )}
 
       {target ? (

@@ -50,6 +50,7 @@ export function ForecastTrajectory({
            its own subject - the board is this quarter, this is every quarter
            that was forecast before it. */
         level={2}
+        icon="chart-line"
         title={PIPELINE_TEXT.trajectory}
         description={PIPELINE_TEXT.trajectoryWhy}
       />
