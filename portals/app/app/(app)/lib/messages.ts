@@ -314,8 +314,11 @@ export const HEADER_TEXT = {
   // The functional-domain control. Placed now, inert until the domains are
   // split - see the note in app-shell.tsx for why an inert control is the
   // honest shape rather than a menu of one.
-  scopeAria: "当前功能域",
-  scopeUnknown: "功能域",
+  // The launcher's accessible name. Icon-only on screen, so this is the ONLY
+  // place the current domain is still stated - which is why it names it rather
+  // than saying "功能域" and losing the information entirely.
+  scopeAria: (domain: string) => `功能域：${domain}`,
+  scopeAriaUnknown: "功能域",
 
   // The workspace and tenant, and the panel that explains them.
   workspaceAria: "当前工作区与租户",

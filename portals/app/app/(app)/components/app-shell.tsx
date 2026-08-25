@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ShellBrand,
   ShellIconButton,
-  ShellScopeButton,
   ShellSearchBox,
   ShellUserMenu,
 } from "@vxture/design-system";
@@ -273,33 +272,27 @@ export function AppShell({
                 label={
                   showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen
                 }
-                active={showBoard}
                 onClick={toggleBoard}
               />
 
-              {/* (2) The functional domain.
+              {/* (2) The functional domain: NINE DOTS, no label, no fill.
                 
-                PRESENT AND INERT, which is a deliberate shape rather than an
-                unfinished one. The domains have not been split yet, so there is
-                nothing to switch TO - and the DS anticipates exactly this
-                state: ShellScopeButton's `caret` prop documents itself as
-                "只作展示、不可点的场合传 false". A caret over a list of one
-                would promise a choice that does not exist, and a menu that
-                opens to a single item teaches a reader to stop opening it.
+                An app grid is a universal idiom and it does not need a word
+                beside it; the 110px of text it used to carry made the second
+                control in the header wider than the brand it sits before.
+                The current domain is not lost - it moves to the accessible
+                name, which is the only place it was ever load-bearing.
 
-                What it shows is real, not a placeholder: the domain you are in
-                right now, off activeKey through the same DOMAIN_LABEL the
-                navigation uses. When the domains are split, the caret and the
-                panel attach to this control rather than replacing it, and the
-                label it already shows becomes the menu's current value. */}
-              <ShellScopeButton
-                icon="squares-four"
+                STILL INERT until the domains are split. ShellIconButton with
+                no onClick renders exactly that, and unlike a caret it makes no
+                promise about what would open. */}
+              <ShellIconButton
+                icon="app-grid"
                 label={
-                  (activeKey ? DOMAIN_LABEL[activeKey] : null) ??
-                  HEADER_TEXT.scopeUnknown
+                  activeKey && DOMAIN_LABEL[activeKey]
+                    ? HEADER_TEXT.scopeAria(DOMAIN_LABEL[activeKey])
+                    : HEADER_TEXT.scopeAriaUnknown
                 }
-                ariaLabel={HEADER_TEXT.scopeAria}
-                caret={false}
               />
 
               {/* (3)(4) Logo and product name. ShellBrand draws them as one
@@ -383,7 +376,11 @@ export function AppShell({
               />
 
               {/* (4) The member, and their panel. */}
+              {/* openLabel, or the trigger announces itself as "User menu" -
+                  the DS's English fallback, and the one outlet the header audit
+                  caught still defaulting. */}
               <ShellUserMenu
+                openLabel={HEADER_TEXT.userMenuOpen}
                 user={{ displayName: userName, uniqueLine: workspaceLabel }}
               />
             </>

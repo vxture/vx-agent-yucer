@@ -16,6 +16,13 @@ import { HEADER_TEXT } from "../lib/messages";
 // generic unread tally: the agent proposes and a human decides (ADR-003), so the
 // only number worth interrupting someone with is the one they alone can clear.
 //
+// NO `active` FILL, for the same reason the board toggle dropped one: an
+// active state earns its weight when the state it reports is otherwise
+// invisible, and the deck is right there on screen when it is open. Two of the
+// three header icon buttons painting themselves accent-blue made the two
+// carrying the least information the heaviest objects in the bar. The count
+// badge is the thing worth seeing here, and it was competing with a fill.
+//
 // COMPOSITION, not restyling. The badge is a sibling of the DS button inside a
 // relative wrapper rather than a replacement for its children, so the button
 // keeps its own icon, sizing and focus ring exactly as the DS draws them, and
@@ -49,12 +56,7 @@ export function AgentDockButton({
 
   return (
     <span className="relative inline-flex">
-      <ShellIconButton
-        icon="sparkles"
-        label={label}
-        active={open}
-        onClick={onToggle}
-      />
+      <ShellIconButton icon="sparkles" label={label} onClick={onToggle} />
 
       {count > 0 ? (
         // aria-hidden because the count is already in the button's label; a
