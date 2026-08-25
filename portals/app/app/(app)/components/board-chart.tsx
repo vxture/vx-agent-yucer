@@ -220,14 +220,22 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
         </div>
 
         {/* The reference mark. Drawn over the track rather than beside it: an
-            axis that sits outside the bar it scales is read as a second bar. */}
+            axis that sits outside the bar it scales is read as a second bar.
+
+            The hit area is deliberately wider than the mark. The line itself is
+            1px - any thicker and it starts reading as a fourth segment - but a
+            1px hover target is unhittable, and the mark now carries its label
+            only on hover, so a target nobody can land on would mean a number
+            nobody can reach. The trigger is a transparent band with the line
+            centred inside it: same drawing, reachable. */}
         <Tooltip>
           <TooltipTrigger asChild>
             <span
-              className="bg-foreground absolute inset-y-0 w-px cursor-default"
+              className="absolute inset-y-0 flex w-md -translate-x-1/2 cursor-default justify-center"
               style={{ left: pct(gauge.reference.amount) }}
-              aria-hidden="true"
-            />
+            >
+              <span className="bg-foreground h-full w-px" aria-hidden="true" />
+            </span>
           </TooltipTrigger>
           <TooltipContent>
             {gauge.reference.label} {gauge.reference.value}
@@ -235,7 +243,8 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
         </Tooltip>
       </div>
 
-      {/* Names only. The figures are on hover. */}
+      {/* Names only - every figure on this card, including the reference, is on
+          hover. */}
       <ul className="flex flex-wrap items-baseline gap-x-sm gap-y-2xs">
         {gauge.funnel.map((f, i) => (
           <li key={f.label} className="flex items-baseline gap-2xs">
@@ -245,9 +254,6 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
             <span className="text-muted-foreground text-xs">{f.label}</span>
           </li>
         ))}
-        <li className="text-muted-foreground ml-auto text-xs tabular-nums">
-          {gauge.reference.label} {gauge.reference.value}
-        </li>
       </ul>
     </div>
   );
