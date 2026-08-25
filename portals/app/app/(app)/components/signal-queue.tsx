@@ -296,8 +296,14 @@ function Row({
             reader decides whether to read the sentence at all, and a filter
             that comes after the thing it filters has already cost the reading
             it was meant to save. */}
-        <div className="flex min-w-0 items-center justify-between gap-md">
-          <span className="flex min-w-0 flex-1 items-center gap-xs">
+        {/* NOT justify-between. Pushed to opposite ends, the readings landed
+            against the far edge of a wide column and stopped being about the
+            title they measure - on a short subject they were half a screen
+            away from it. Packed left instead, so they follow the sentence at a
+            fixed remove: gap-lg, wide enough to read as a separate register
+            and narrow enough to stay attached. */}
+        <div className="flex min-w-0 items-center gap-lg">
+          <span className="flex min-w-0 items-center gap-xs">
             <StatusBadge tone="neutral">
               {SIGNAL_TYPE_LABEL[r.signalType] ?? r.signalType}
             </StatusBadge>
@@ -312,7 +318,9 @@ function Row({
               {r.subject}
             </p>
           </span>
-          {/* The readings ride line one, beside the thing they measure. */}
+          {/* shrink-0: when the row runs out of width the SUBJECT gives way,
+              not the numbers. A truncated sentence still reads; a truncated
+              measurement is a wrong one. */}
           <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
             {readings(s).join(" \u00b7 ")}
           </span>
