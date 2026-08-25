@@ -17,11 +17,11 @@ import {
 } from "@vxture/design-ui";
 import type { AccountRecord } from "../../domains/account/store";
 import { recomputeAccountHealth } from "../account/actions";
-import { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT } from "../lib/messages";
 import { healthTone } from "../lib/view-model";
 import { TableCard } from "./table-card";
 import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
+import { useMessages } from "../lib/i18n/provider";
 // The account list's table.
 //
 // It lives in a CLIENT component because DataTableColumn.cell is a function,
@@ -47,6 +47,8 @@ export interface AccountTableProps {
 }
 
 export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
+  const { DATA_TABLE_LABELS, ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT } =
+    useMessages();
   const router = useRouter();
   const { toast } = useToast();
   const [view, setView] = useState<FilterBarView>("list");
@@ -209,6 +211,7 @@ export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
       <TableCard>
         {view === "list" ? (
           <DataTable
+            labels={DATA_TABLE_LABELS}
             leadingSpacer
             indexStart={1}
             columns={columns}

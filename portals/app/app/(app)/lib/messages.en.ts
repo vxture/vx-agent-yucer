@@ -359,4 +359,168 @@ export const en: Dictionary = {
         maximumFractionDigits: 1,
       }).format(amount),
   },
+
+  // --- /account -----------------------------------------------------------
+
+  ACCOUNT_TEXT: {
+    title: "Accounts",
+    lead: (n: number) => `${n} accounts`,
+    leadOverdue: (n: number) => `${n} promises are overdue - clear those first`,
+    leadAtRisk: (n: number) => `${n} below 60 health, sorted to the top`,
+    leadOrder:
+      "Ordered by health, sickest first. Never assessed sorts last - that is not the same as unhealthy.",
+    description:
+      "Health is derived and recomputed from source data. It orders and warns; it is never the sole basis for a business judgement.",
+    columnName: "Account",
+    columnIndustry: "Industry",
+    columnOwner: "Owner",
+    columnHealth: "Health",
+    columnStatus: "Status",
+    unscored: "Not assessed",
+    emptyTitle: "No accounts yet",
+    emptyDescription:
+      "They appear here once a lead converts or one is entered by hand.",
+    rowCount: (n: number) => `${n} accounts`,
+    openAccount: "Open the account",
+    recompute: "Recompute health",
+    recomputeHint:
+      "Recomputes from current source data and writes the result back",
+    recomputeDenied: "No permission to recompute health",
+    recomputedTitle: "Health recomputed",
+    recomputedOn: (name: string, score: number | null) =>
+      score === null
+        ? `${name}: not enough data, still unassessed`
+        : `${name}: ${score}`,
+    recomputeFailed: "Could not recompute",
+    ownerNone: "Unassigned",
+  },
+
+  ACCOUNT_STATUS_LABEL: {
+    prospect: "Prospect",
+    active: "Active",
+    dormant: "Dormant",
+    churned: "Churned",
+  },
+
+  // --- /campaign ----------------------------------------------------------
+
+  CAMPAIGN_TEXT: {
+    title: "Campaigns",
+    description:
+      "A campaign is the anchor attribution hangs on. Return counts won revenue, never pipeline - unclosed pipeline has returned nothing yet.",
+    lead: (n: number) => `${n} campaigns`,
+    leadSpend: (budget: string, won: string) =>
+      `${budget} budget - ${won} returned`,
+    leadRule:
+      "Return counts won revenue only. Pipeline is not return - money that has not closed is not money.",
+    rowCount: (n: number) => `${n} campaigns`,
+    columnName: "Campaign",
+    columnChannel: "Channel",
+    columnBudget: "Budget",
+    columnProgress: "Progress",
+    columnStatus: "Status",
+    columnReturn: "Return",
+    emptyTitle: "No campaigns yet",
+    emptyDescription: "Turn a strategy and a segment into concrete outreach.",
+    progress: (done: number, total: number, skipped: number) =>
+      skipped > 0
+        ? `${done}/${total} done (${skipped} skipped)`
+        : `${done}/${total} done`,
+  },
+
+  CAMPAIGN_STATUS_LABEL: {
+    draft: "Draft",
+    scheduled: "Scheduled",
+    running: "Running",
+    paused: "Paused",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  },
+
+  // --- /delivery ----------------------------------------------------------
+
+  DELIVERY_TEXT: {
+    title: "Delivery",
+    description:
+      "The chain does not end at a win, it ends when the money arrives. A project with an overdue instalment may not show as healthy.",
+    lead: (n: number) => `${n} delivery projects`,
+    leadContract: (total: string) => `${total} under contract`,
+    leadDowngraded: (n: number) =>
+      `${n} projects have been downgraded - delivery says fine, but the money has not arrived.`,
+    leadRule:
+      "Health shows the DERIVED value, not what the delivery team reported. An overdue instalment may not show as healthy.",
+    rowCount: (n: number) => `${n} projects`,
+    managerNone: "Unassigned",
+    columnName: "Project",
+    columnAccount: "Account",
+    columnManager: "Manager",
+    columnHealth: "Health",
+    columnContract: "Contract",
+    columnStatus: "Status",
+    healthOverridden: "Downgraded",
+    healthOverriddenWhy:
+      "Delivery reported healthy. The rule does not accept it: a project with unpaid overdue instalments may not show as healthy.",
+    healthOverriddenEvidence: "Basis",
+    emptyTitle: "No delivery projects yet",
+    emptyDescription:
+      "A won opportunity becomes a delivery project and appears here.",
+  },
+
+  PROJECT_STATUS_LABEL: {
+    planning: "Planning",
+    active: "Active",
+    on_hold: "On hold",
+    delivered: "Delivered",
+    closed: "Closed",
+    cancelled: "Cancelled",
+  },
+
+  PROJECT_HEALTH_LABEL: {
+    green: "Healthy",
+    amber: "Watch",
+    red: "At risk",
+  },
+
+  LIFECYCLE_TEXT: {
+    moveTo: "Move to",
+    apply: "Apply",
+  },
+
+  LIFECYCLE_ERROR: {
+    illegal_transition: "This status cannot move directly to that one",
+    unknown_status: "Unknown status",
+    executions_outstanding:
+      "Executions are still outstanding; finish or skip them before ending the campaign",
+    invalid_window: "The campaign's start and end dates are not valid",
+    not_found: "No such record, or it does not belong to this workspace",
+    not_authenticated: "Your session has expired; sign in again",
+    permission_denied: "You hold no permission for this action",
+    feature_not_in_tier: "This tier does not include that capability",
+    no_data_access: "This workspace has no access",
+  },
+
+  // PARTIAL. FIELD_TEXT belongs to the account detail page and arrives with it;
+  // these keys are pulled forward because the overdue block renders on /account.
+  FIELD_TEXT: {
+    ...zh.FIELD_TEXT,
+    commitCount: (n: number) => `${n}`,
+    commitDaysOverdue: (n: number) => `${n} days overdue`,
+    commitDueOn: (d: string) => `was due ${d}`,
+    commitGoSettle: "Go settle",
+    commitGoSettleHint: (name: string) =>
+      `Open ${name} and deal with this promise`,
+    commitOverdueDescription:
+      "Promises past their date that nobody has faced yet. A customer missing promises in a row is the earliest sign of a stall.",
+    commitOverdueEmpty: "No overdue promises",
+    commitOverdueEmptyDescription:
+      "Every recorded promise is still within its date.",
+    commitOverdueTitle: "Overdue promises",
+    commitOwner: (who: string) => `owner ${who}`,
+    commitOwnerNone: "No owner assigned",
+  },
+
+  DIRECTION_LABEL: {
+    we_owe: "We promised",
+    they_owe: "They promised",
+  },
 };

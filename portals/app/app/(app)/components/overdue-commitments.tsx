@@ -11,8 +11,8 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
-import { DIRECTION_LABEL, FIELD_TEXT } from "../lib/messages";
 
+import { getMessages } from "../lib/i18n/server";
 // The manager's first screen: promises that have gone past their date.
 //
 // This is the one derived view stage 1 ships, and it is derived from recorded
@@ -58,7 +58,11 @@ export interface OverdueCommitmentsProps {
 
 const DAY = 86_400_000;
 
-export function OverdueCommitments({ rows, now }: OverdueCommitmentsProps) {
+export async function OverdueCommitments({
+  rows,
+  now,
+}: OverdueCommitmentsProps) {
+  const { FIELD_TEXT } = await getMessages();
   const at = now ?? new Date();
 
   if (rows.length === 0) {
@@ -119,7 +123,10 @@ export function OverdueCommitments({ rows, now }: OverdueCommitmentsProps) {
   );
 }
 
-function Row({ row: r, days }: { row: OverdueRow; days: number }) {
+async function Row({ row: r, days }: { row: OverdueRow; days: number }) {
+  // An async SERVER sub-component. Reading the request's locale is I/O, and a
+  // sub-component that renders copy needs it as much as its parent does.
+  const { DIRECTION_LABEL, FIELD_TEXT } = await getMessages();
   return (
     <div className="flex min-w-0 items-start gap-md py-sm">
       <div className="flex min-w-0 flex-1 flex-col gap-xs">

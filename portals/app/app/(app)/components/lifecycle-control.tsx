@@ -2,8 +2,8 @@
 
 import { useTransition } from "react";
 import { ActionMenu, useToast } from "@vxture/design-ui";
-import { LIFECYCLE_ERROR, LIFECYCLE_TEXT } from "../lib/messages";
 
+import { useMessages } from "../lib/i18n/provider";
 // Moving a plan or a campaign through its lifecycle.
 //
 // The choices come from the state machine's own transition map, so the menu
@@ -47,6 +47,7 @@ export function LifecycleControl({
   canChange,
   onChange,
 }: LifecycleControlProps) {
+  const { LIFECYCLE_ERROR, LIFECYCLE_TEXT } = useMessages();
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 

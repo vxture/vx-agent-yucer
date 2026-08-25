@@ -1,13 +1,13 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
-import { ACCOUNT_TEXT, SHELL_TEXT } from "../lib/messages";
 import { getAccountStore, getFieldStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
+import { getMessages } from "../lib/i18n/server";
 // D4 account list.
 //
 // Ordered sickest-first by the store, which is a product decision rather than a
@@ -18,6 +18,7 @@ import { OverdueCommitments } from "../components/overdue-commitments";
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
+  const { ACCOUNT_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

@@ -1,6 +1,5 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { CAMPAIGN_TEXT, SHELL_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { campaignReturn, listCampaigns } from "../../domains/strategy/service";
@@ -8,6 +7,7 @@ import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
 import { moveCampaign } from "./actions";
 
+import { getMessages } from "../lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 // D3 market execution.
@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 // return is how the same spend gets justified twice.
 
 export default async function CampaignPage() {
+  const { CAMPAIGN_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

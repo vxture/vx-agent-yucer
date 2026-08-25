@@ -15,11 +15,11 @@ import {
   nextCampaignStatuses,
   type CampaignStatus,
 } from "../../domains/strategy/lib/lifecycle";
-import { CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
 import { LifecycleControl } from "./lifecycle-control";
 import { TableCard } from "./table-card";
 
+import { useMessages } from "../lib/i18n/provider";
 // The campaign table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -52,6 +52,8 @@ export interface CampaignTableProps {
 }
 
 export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
+  const { DATA_TABLE_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
+    useMessages();
   const [view, setView] = useState<FilterBarView>("list");
 
   if (rows.length === 0) {
@@ -144,6 +146,7 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
       <TableCard>
         {view === "list" ? (
           <DataTable
+            labels={DATA_TABLE_LABELS}
             leadingSpacer
             indexStart={1}
             /* Pinned right by the DS, fixed width, locked during horizontal

@@ -16,14 +16,10 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import type { ProjectHealth } from "../../domains/delivery/lib/revenue";
-import {
-  DELIVERY_TEXT,
-  PROJECT_HEALTH_LABEL,
-  PROJECT_STATUS_LABEL,
-} from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
 import { TableCard } from "./table-card";
 
+import { useMessages } from "../lib/i18n/provider";
 // The delivery table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -59,6 +55,12 @@ export interface DeliveryTableProps {
 }
 
 export function DeliveryTable({ rows }: DeliveryTableProps) {
+  const {
+    DATA_TABLE_LABELS,
+    DELIVERY_TEXT,
+    PROJECT_HEALTH_LABEL,
+    PROJECT_STATUS_LABEL,
+  } = useMessages();
   const [view, setView] = useState<FilterBarView>("list");
 
   if (rows.length === 0) {
@@ -161,6 +163,7 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
       <TableCard>
         {view === "list" ? (
           <DataTable
+            labels={DATA_TABLE_LABELS}
             leadingSpacer
             indexStart={1}
             columns={columns}
@@ -208,6 +211,7 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
  * the rule return a structured reason instead is TD-010.
  */
 function Health({ row }: { row: DeliveryRow }) {
+  const { DELIVERY_TEXT, PROJECT_HEALTH_LABEL } = useMessages();
   const badge = (
     <StatusBadge tone={HEALTH_TONE[row.derived]} dot>
       {PROJECT_HEALTH_LABEL[row.derived] ?? row.derived}

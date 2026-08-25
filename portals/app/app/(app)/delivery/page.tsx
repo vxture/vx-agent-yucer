@@ -1,6 +1,5 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { DELIVERY_TEXT, SHELL_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
 import {
   getAccountStore,
@@ -10,6 +9,7 @@ import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
 import { DeliveryTable, type DeliveryRow } from "../components/delivery-table";
 
+import { getMessages } from "../lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 // D7 delivery list.
@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 // failing engagement stays green until it is a crisis.
 
 export default async function DeliveryPage() {
+  const { DELIVERY_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
