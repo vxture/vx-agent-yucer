@@ -411,8 +411,12 @@ function Row({
             An arithmetic belongs where someone has asked to check it. */}
         {open ? (
           <div className="bg-muted/40 border-border mt-2xs rounded-md border p-sm">
-            <div className="flex items-start gap-lg">
-              {/* Left: the score itself, with the verdict it earned. */}
+            {/* items-STRETCH (the default), not items-start: the divider
+                between the two zones has to run the whole height, so the score
+                column reads as a column rather than as a first paragraph that
+                happens to sit on the left. */}
+            <div className="flex gap-lg">
+              {/* Left: the score, and nothing else. */}
               <div className="shrink-0">
                 <LabeledValue
                   label={SIGNAL_TEXT.columnScore}
@@ -423,10 +427,11 @@ function Row({
                 />
               </div>
 
-              {/* Middle: how it was reached - the sentence, then its four
-                  terms two by two. Two columns rather than four: paired, the
-                  weights sit above the adjustments, so the shape of the
-                  formula is visible before any number is read. */}
+              {/* Right: how it was reached - the sentence, its four terms two
+                  by two, and anything the arithmetic itself has to say. The
+                  staleness note belongs HERE and not across the foot: it is a
+                  remark about the method, so putting it under the score column
+                  as well would attach it to a number it is not about. */}
               <div className="border-border min-w-0 flex-1 border-l pl-lg">
                 <p className="text-foreground text-label-md">
                   {SIGNAL_TEXT.scoreMethod}
@@ -452,16 +457,27 @@ function Row({
                     value={String(Math.round(s.ageDays))}
                   />
                 </div>
+
+                {/* NOT text-warning. `--warning` is a FILL at 82.8%
+                    lightness - it is what a warning surface is PAINTED - and as
+                    ink on this near-white panel it measured 1.64:1, which is
+                    why it could not be read. The DS ships the answer two tokens
+                    over, and every semantic colour in the set carries the same
+                    pair, so this was a misuse of the palette rather than a gap
+                    in it: `--warning-text` (55.5%) for ink on a plain surface,
+                    `--warning-muted-foreground` (47.3%) for ink on a MUTED one.
+                    This panel is bg-muted/40, so it takes the second - and at
+                    12px the extra contrast is worth having: 6.73:1 against
+                    4.78:1, where the bar for small text is 4.5. */}
+                {s.recomputed !== null &&
+                r.score !== null &&
+                Math.abs(s.recomputed - r.score) >= 5 ? (
+                  <p className="border-border mt-sm border-t pt-sm text-xs text-(color:--warning-muted-foreground)">
+                    {SIGNAL_TEXT.staleWhy(r.score, s.recomputed)}
+                  </p>
+                ) : null}
               </div>
             </div>
-
-            {s.recomputed !== null &&
-            r.score !== null &&
-            Math.abs(s.recomputed - r.score) >= 5 ? (
-              <p className="text-warning border-border mt-sm border-t pt-sm text-xs">
-                {SIGNAL_TEXT.staleWhy(r.score, s.recomputed)}
-              </p>
-            ) : null}
           </div>
         ) : null}
       </div>
