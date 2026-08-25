@@ -154,7 +154,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
               heading and its tools; the card is the surface the rows sit on, so
               wrapping the whole section would put the heading inside the thing
               it names. */}
-          <Card className="mt-md p-none">
+          <Card className="mt-md p-xs">
             {view === "list" ? (
               <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
             ) : (

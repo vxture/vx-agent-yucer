@@ -36,7 +36,11 @@ export function CommitSplit({ split, awaiting }: CommitSplitProps) {
       <SectionHeader
         level={3}
         title={PIPELINE_TEXT.productSplit}
-        description={PIPELINE_TEXT.productSplitWhy}
+        /* The description folds with the body. Left standing it made the
+           collapsed state two lines of prose under a heading with nothing
+           beneath them - collapsed in name only. Shut, this is one row: icon,
+           title, the pending-approval count, and the control to open it. */
+        description={open ? PIPELINE_TEXT.productSplitWhy : undefined}
         icon="chart-bar"
         /* titleSuffix, not action: the DS keeps these apart on purpose - action
            is the section's verb and sits right, titleSuffix belongs to the
