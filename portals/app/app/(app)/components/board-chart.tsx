@@ -1,4 +1,4 @@
-import type { BoardMetric } from "../lib/board";
+import type { BoardMetric, BoardSection } from "../lib/board";
 
 // Two ways of drawing a handful of numbers, for the left flank's cards.
 //
@@ -55,6 +55,8 @@ const TEXT: Record<string, string> = {
  * of the chart, was invisible.
  */
 const RAMP = ["bg-primary", "bg-primary/70", "bg-primary/45", "bg-primary/25"];
+/** The legend dot for each ramp step, so a figure ties to its segment. */
+const RAMP_TEXT = ["text-primary", "text-primary/70", "text-primary/45", "text-primary/25"];
 
 /** Toned segments keep their meaning; untoned ones step down the ramp. */
 function fillFor(m: BoardMetric, untonedIndex: number): string {
@@ -160,5 +162,99 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * The two-row gauge: what the period asks for, against what is on hand.
+ *
+ * Two rows rather than four figures in a grid, because the card's subject is a
+ * RELATIONSHIP and a grid of numbers leaves the reader to divide them. Row one
+ * is the target and how much of it is banked; row two is the pool that has to
+ * cover the rest, split by the funnel.
+ *
+ * THE SPLIT IS THE POINT OF ROW TWO. 881万 of committed deals and 881万 of
+ * early-stage pipeline are not the same 881万, and a single bar would say they
+ * were. This is a genuine parts-of-a-whole - every open deal sits in exactly one
+ * forecast category, and they sum to the pool - which is what makes a segmented
+ * bar honest here and made it dishonest on the cards it was removed from.
+ *
+ * Monochrome, in descending confidence: commit, then best case, then pipeline.
+ * The three are the same substance at different certainties, so a ramp says what
+ * three hues would overstate. The ORDER carries the meaning, so it is fixed by
+ * board.ts rather than sorted by size - a quarter whose pipeline outweighs its
+ * commit should look top-heavy, and sorting would hide exactly that.
+ */
+export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) {
+  const { target, pool } = gauge;
+  const total = pool.funnel.reduce((sum, f) => sum + f.weight, 0);
+
+  return (
+    <div className="flex flex-col gap-sm">
+      <GaugeRow label={target.label} value={target.value} note={target.note}>
+        <div className="bg-muted h-2xs w-full overflow-hidden rounded-full">
+          <span className="bg-primary block h-full rounded-full" style={{ width: `${target.percent}%` }} />
+        </div>
+      </GaugeRow>
+
+      <GaugeRow label={pool.label} value={pool.value} note={pool.note} noteTone={pool.thin ? "bad" : "good"}>
+        <div
+          className="bg-muted flex h-2xs w-full gap-px overflow-hidden rounded-full"
+          role="img"
+          aria-label={pool.funnel.map((f) => `${f.label} ${f.value}`).join("; ")}
+        >
+          {total > 0
+            ? pool.funnel.map((f, i) => (
+                <span key={f.label} className={RAMP[i % RAMP.length]} style={{ width: `${(f.weight / total) * 100}%` }} />
+              ))
+            : null}
+        </div>
+
+        {/* Named, because an unlabelled three-part bar is the thing that made
+            these unreadable before. */}
+        <ul className="flex flex-wrap gap-x-sm gap-y-2xs">
+          {pool.funnel.map((f, i) => (
+            <li key={f.label} className="flex items-baseline gap-2xs">
+              <span aria-hidden="true" className={`text-xs leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}>
+                &bull;
+              </span>
+              <span className="text-foreground text-xs font-semibold tabular-nums">{f.value}</span>
+              <span className="text-muted-foreground text-xs">{f.label}</span>
+            </li>
+          ))}
+        </ul>
+      </GaugeRow>
+    </div>
+  );
+}
+
+function GaugeRow({
+  label,
+  value,
+  note,
+  noteTone,
+  children,
+}: {
+  label: string;
+  value: string;
+  note: string | null;
+  noteTone?: "bad" | "good";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2xs">
+      <div className="flex items-baseline justify-between gap-xs">
+        <span className="text-muted-foreground shrink-0 text-xs">{label}</span>
+        <span className="flex min-w-0 items-baseline gap-xs">
+          <span className="text-foreground text-label-md font-semibold tabular-nums">{value}</span>
+          {note ? (
+            <span className={`shrink-0 text-xs tabular-nums ${noteTone ? TEXT[noteTone] : "text-muted-foreground"}`}>
+              {note}
+            </span>
+          ) : null}
+        </span>
+      </div>
+      {children}
+    </div>
   );
 }

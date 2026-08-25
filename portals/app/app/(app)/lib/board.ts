@@ -21,7 +21,9 @@ import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import { judgementFeed } from "../../domains/judgement/service";
+import { rollUp } from "../../domains/pipeline/lib/forecast";
 import { coverage, resolveCoverageFloor } from "../../domains/planning/lib/coverage";
+import { FORECAST_LABEL } from "./messages";
 import { BOARD_TEXT } from "./messages";
 
 // The numbers behind the navigation board.
@@ -86,6 +88,32 @@ export interface BoardSection {
    * assert a relationship that is not there.
    */
   readonly chart?: "lede" | "bars";
+  /**
+   * The two-row gauge: what the period asks for, and what is on hand to meet it.
+   *
+   * Its own shape rather than more metrics, because it is the one card that
+   * states a RELATIONSHIP between two figures instead of listing figures. A
+   * target and a pipeline printed side by side leave the reader to divide them;
+   * this puts the division on screen.
+   */
+  readonly gauge?: {
+    /** Row one: the number the period is judged against. */
+    readonly target: { readonly label: string; readonly value: string; readonly percent: number; readonly note: string };
+    /** Row two: the pool that has to cover what is left of it. */
+    readonly pool: {
+      readonly label: string;
+      readonly value: string;
+      /** Coverage, or null when the target is already met. */
+      readonly note: string | null;
+      readonly thin: boolean;
+      /**
+       * The funnel, in descending confidence. Straight from rollUp() - the same
+       * function the pipeline page and the snapshot writer use, so this card
+       * and that page cannot report different money.
+       */
+      readonly funnel: readonly { readonly label: string; readonly value: string; readonly weight: number }[];
+    };
+  };
 }
 
 export interface BoardContext {
@@ -177,6 +205,11 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
   // Coverage needs all three of pipeline, target and closed. Without a
   // committed target there is no gap to cover and the card stays as it was -
   // an invented denominator would be worse than no ratio.
+  // The funnel split, from the SAME function the pipeline page and the snapshot
+  // writer use. Recomputing it here with a private sum is how a board and a page
+  // start reporting different money for the same quarter.
+  const totals = deals.ok ? rollUp(open) : null;
+
   const cover =
     wsTarget && wsRow
       ? coverage(
@@ -224,34 +257,50 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       key: "resource",
       title: BOARD_TEXT.resource,
       href: "/pipeline",
-      // COVERAGE, not just a pile of money. An open pipeline figure on its own
-      // says nothing about whether the quarter lands: 881万 is healthy against a
-      // 400万 gap and hopeless against a 3000万 one. The bar states the ratio the
-      // number only implies, and it is the same reading a pipeline review opens
-      // with - see domains/planning/lib/coverage.ts for why it is measured
-      // against the remaining gap rather than the whole target.
-      metrics: [
-        ...(deals.ok
-          ? [
-              { label: BOARD_TEXT.dealsOpen, value: String(open.length) },
-              { label: BOARD_TEXT.dealsWorth, value: BOARD_TEXT.wan(worth) },
-            ]
-          : []),
-        ...(cover && cover.ratio !== null
-          ? [
-              {
-                label: BOARD_TEXT.coverage,
-                value: BOARD_TEXT.coverageOf(Math.round(cover.ratio * 100)),
-                tone: cover.thin ? ("bad" as const) : ("good" as const),
+      // TWO ROWS, because this card states a relationship rather than a list.
+      // What the period asks for, then what is on hand to meet it - and the
+      // pool broken into the funnel, because 881万 of commit and 881万 of
+      // early-stage pipeline are not the same 881万.
+      gauge:
+        cover && wsTarget && totals?.ok
+          ? {
+              target: {
+                label: BOARD_TEXT.targetRow,
+                value: BOARD_TEXT.wan(wsTarget.targetAmount.amount),
+                percent: Math.max(0, Math.min(100, Math.round((wsRow?.ratio ?? 0) * 100))),
+                note: BOARD_TEXT.wonOf(Math.round((wsRow?.ratio ?? 0) * 100)),
               },
-            ]
-          : count(playbooks, BOARD_TEXT.playbooks)),
-      ],
-      // Capped for the bar only - a 400% coverage is real and worth printing as
-      // a figure, but a track cannot draw past its own end.
-      progress: cover && cover.ratio !== null ? Math.min(100, Math.round(cover.ratio * 100)) : undefined,
+              pool: {
+                label: BOARD_TEXT.poolRow,
+                value: BOARD_TEXT.wan(worth),
+                note:
+                  cover.ratio === null
+                    ? BOARD_TEXT.coverageMet
+                    : BOARD_TEXT.coverageOf(Math.round(cover.ratio * 100)),
+                thin: cover.thin,
+                // Descending confidence: what is committed, what is being
+                // worked, what is merely held. The order IS the meaning, so it
+                // is fixed here rather than sorted by size.
+                funnel: [
+                  { label: FORECAST_LABEL.commit, value: BOARD_TEXT.wan(totals.value.commitAmount.amount), weight: totals.value.commitAmount.amount },
+                  { label: FORECAST_LABEL.best_case, value: BOARD_TEXT.wan(totals.value.bestCaseAmount.amount), weight: totals.value.bestCaseAmount.amount },
+                  { label: FORECAST_LABEL.pipeline, value: BOARD_TEXT.wan(totals.value.pipelineAmount.amount), weight: totals.value.pipelineAmount.amount },
+                ],
+              },
+            }
+          : undefined,
+      metrics: cover
+        ? []
+        : [
+            ...(deals.ok
+              ? [
+                  { label: BOARD_TEXT.dealsOpen, value: String(open.length) },
+                  { label: BOARD_TEXT.dealsWorth, value: BOARD_TEXT.wan(worth) },
+                ]
+              : []),
+            ...count(playbooks, BOARD_TEXT.playbooks),
+          ],
     },
-
     // Who is on our side, from the coverage the feed already computed. Shown
     // only when at least one chain was readable: on a tier that cannot see
     // decision chains, "0 coaches" would be a claim about the customers rather

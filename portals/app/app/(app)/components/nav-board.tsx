@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, Icon, Progress } from "@vxture/design-ui";
 import { BOARD_TEXT } from "../lib/messages";
-import { BarList, Lede } from "./board-chart";
+import { BarList, Gauge, Lede } from "./board-chart";
 import type { BoardMetric, BoardSection } from "../lib/board";
 
 // The left flank: where things stand for OUR side.
@@ -141,12 +141,14 @@ function SectionHead({
 }
 
 function Metrics({ section: s }: { section: BoardSection }) {
+  // The gauge is checked FIRST and carries no metrics of its own - it already
+  // holds both figures, so listing them above it would print the same numbers
+  // twice. It therefore has to be reached before the empty-metrics guard, which
+  // would otherwise return null for exactly the card that has the most to say.
+  if (s.gauge) return <Gauge gauge={s.gauge} />;
+
   if (s.metrics.length === 0) return null;
 
-  // A charted section shows its HEADLINE figures as readouts and lets the chart
-  // carry the rest. For "share" that is the one metric with no weight - the
-  // total the segments add up to; for "bars" every figure is already printed on
-  // its own row, so nothing is repeated above it.
   // On a charted section the figures belong to the chart (and its total to the
   // title line), so nothing is printed twice above it.
   const headline = s.chart ? [] : s.metrics;
