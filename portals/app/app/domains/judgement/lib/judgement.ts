@@ -27,8 +27,18 @@
 // they would drift - which is exactly the defect class the self-review found
 // four times over.
 
-import { isOverdue, reliability, type CommitmentDirection, type CommitmentStatus } from "../../account/lib/commitment";
-import { analyzeChain, analyzeChainRecency, type ContactNode, type RelationEdge } from "../../account/lib/health";
+import {
+  isOverdue,
+  reliability,
+  type CommitmentDirection,
+  type CommitmentStatus,
+} from "../../account/lib/commitment";
+import {
+  analyzeChain,
+  analyzeChainRecency,
+  type ContactNode,
+  type RelationEdge,
+} from "../../account/lib/health";
 import type { CaptureWeek } from "../../account/lib/capture-metric";
 
 /** How soon this needs a person. The three tiers the home screen filters on. */
@@ -44,8 +54,21 @@ export interface Citation {
   /** Present for rows; absent for structural or computed observations. */
   ref?: string;
   when?: Date;
-  /** "62 days ago . WeChat . Wang Lei" - assembled by the caller, not here. */
-  who?: string;
+  /**
+   * The attribution, IN PARTS, for the caller to render.
+   *
+   * It used to be one pre-composed string - "62 天前 . im . usr_demo_rep" -
+   * built right here, and the doc line above it claimed the caller assembled
+   * it, which was never true. Composing it here meant the raw channel enum and
+   * the raw subject id went straight to the screen with no layer left that
+   * could label them: the product has a CHANNEL_LABEL map and the citation
+   * could not reach it.
+   *
+   * The rule decides WHAT is cited. How it reads is the caller's problem.
+   */
+  daysAgo?: number;
+  channel?: string;
+  actorSub?: string;
   text: string;
 }
 
@@ -111,7 +134,11 @@ export type AnalysisKind = (typeof ANALYSES)[number];
 //             blaming the market for it.
 //   quiet     silence with no broken promises - a competitor moving is the
 //             likeliest explanation worth checking.
-const ANALYSES_STALLED: readonly AnalysisKind[] = ["risk", "competition", "policy"];
+const ANALYSES_STALLED: readonly AnalysisKind[] = [
+  "risk",
+  "competition",
+  "policy",
+];
 const ANALYSES_UNREACHED: readonly AnalysisKind[] = ["chain", "risk"];
 const ANALYSES_WE_OWE: readonly AnalysisKind[] = ["risk"];
 const ANALYSES_QUIET: readonly AnalysisKind[] = ["competition", "risk"];
@@ -127,7 +154,13 @@ export interface AccountInput {
   accountName: string;
   ownerSub: string | null;
   /** Open opportunities on this account, for amount and stage context. */
-  openDeals: readonly { id: string; name: string; stage: string; amount: number | null; stageDays: number }[];
+  openDeals: readonly {
+    id: string;
+    name: string;
+    stage: string;
+    amount: number | null;
+    stageDays: number;
+  }[];
   lastContactAt: Date | null;
   /**
    * The account plan, when this customer is a strategic one - see ADR-013.
@@ -154,7 +187,13 @@ export interface AccountInput {
   /** contactId -> last recorded interaction they took part in. */
   contactActivity: readonly { contactId: string; lastContactAt: Date | null }[];
   /** Most recent notes, newest first, already scoped to this account. */
-  notes: readonly { id: string; occurredAt: Date; channel: string; who: string; text: string }[];
+  notes: readonly {
+    id: string;
+    occurredAt: Date;
+    channel: string;
+    who: string;
+    text: string;
+  }[];
 }
 
 export interface JudgementInput {
@@ -172,7 +211,8 @@ export interface JudgementInput {
 }
 
 const DAY = 86_400_000;
-const days = (from: Date, to: Date) => Math.floor((to.getTime() - from.getTime()) / DAY);
+const days = (from: Date, to: Date) =>
+  Math.floor((to.getTime() - from.getTime()) / DAY);
 
 /** Quiet long enough to matter. Below this a gap is just a normal week. */
 const QUIET_DAYS = 21;
@@ -184,7 +224,9 @@ function note(n: AccountInput["notes"][number], now: Date): Citation {
     kind: "interaction",
     ref: n.id,
     when: n.occurredAt,
-    who: `${days(n.occurredAt, now)} 天前 · ${n.channel} · ${n.who}`,
+    daysAgo: days(n.occurredAt, now),
+    channel: n.channel,
+    actorSub: n.who,
     text: n.text,
   };
 }
@@ -203,21 +245,39 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
   for (const a of input.accounts) {
     const rel = reliability(a.commitments, now);
     const theirOverdue = a.commitments.filter(
-      (c) => c.direction === "they_owe" && isOverdue({ status: c.status, dueAt: c.dueAt }, now),
+      (c) =>
+        c.direction === "they_owe" &&
+        isOverdue({ status: c.status, dueAt: c.dueAt }, now),
     );
     const ourOverdue = a.commitments.filter(
-      (c) => c.direction === "we_owe" && isOverdue({ status: c.status, dueAt: c.dueAt }, now),
+      (c) =>
+        c.direction === "we_owe" &&
+        isOverdue({ status: c.status, dueAt: c.dueAt }, now),
     );
     const quiet = a.lastContactAt === null ? null : days(a.lastContactAt, now);
-    const biggest = [...a.openDeals].sort((x, y) => (y.amount ?? 0) - (x.amount ?? 0))[0];
+    const biggest = [...a.openDeals].sort(
+      (x, y) => (y.amount ?? 0) - (x.amount ?? 0),
+    )[0];
 
-    const money = biggest?.amount == null ? null : `${Math.round(biggest.amount / 10_000)} 万`;
-    const baseTags: JudgementFact[] = [{ label: "", value: a.accountName, tone: "neutral" }];
+    const money =
+      biggest?.amount == null
+        ? null
+        : `${Math.round(biggest.amount / 10_000)} 万`;
+    const baseTags: JudgementFact[] = [
+      { label: "", value: a.accountName, tone: "neutral" },
+    ];
 
     // 1. Stalled AND they have broken promises. The two together are the signal;
     //    either alone is ordinary.
-    if (a.openDeals.length > 0 && quiet !== null && quiet > STALE_DAYS && theirOverdue.length > 0) {
-      const worst = [...theirOverdue].sort((x, y) => x.dueAt.getTime() - y.dueAt.getTime())[0];
+    if (
+      a.openDeals.length > 0 &&
+      quiet !== null &&
+      quiet > STALE_DAYS &&
+      theirOverdue.length > 0
+    ) {
+      const worst = [...theirOverdue].sort(
+        (x, y) => x.dueAt.getTime() - y.dueAt.getTime(),
+      )[0];
       out.push({
         id: `stalled:${a.accountId}`,
         source: "rule",
@@ -228,16 +288,41 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
         subjectName: a.accountName,
         tags: [
           ...baseTags,
-          { label: "守约", value: `${rel.theirKeptRate === null ? "无记录" : `${Math.round(rel.theirKeptRate * 100)}%`}`, tone: "danger" },
-          { label: "逾期", value: `${days(worst.dueAt, now)} 天`, tone: "danger" },
-          ...(money ? [{ label: "", value: money, tone: "neutral" as const }] : []),
+          {
+            label: "守约",
+            value: `${rel.theirKeptRate === null ? "无记录" : `${Math.round(rel.theirKeptRate * 100)}%`}`,
+            tone: "danger",
+          },
+          {
+            label: "逾期",
+            value: `${days(worst.dueAt, now)} 天`,
+            tone: "danger",
+          },
+          ...(money
+            ? [{ label: "", value: money, tone: "neutral" as const }]
+            : []),
         ],
         citations: a.notes.slice(0, 3).map((n) => note(n, now)),
         facts: [
           { label: "最近接触", value: `${quiet} 天前`, tone: "danger" },
-          { label: "对方守约率", value: `${rel.theyMissed} 件未兑现`, tone: "danger" },
-          { label: "我方守约率", value: rel.weMissed === 0 ? "未失约" : `${rel.weMissed} 件未兑现`, tone: rel.weMissed === 0 ? "success" : "warning" },
-          ...(biggest ? [{ label: "停留阶段", value: `${biggest.stage} ${biggest.stageDays} 天` }] : []),
+          {
+            label: "对方守约率",
+            value: `${rel.theyMissed} 件未兑现`,
+            tone: "danger",
+          },
+          {
+            label: "我方守约率",
+            value: rel.weMissed === 0 ? "未失约" : `${rel.weMissed} 件未兑现`,
+            tone: rel.weMissed === 0 ? "success" : "warning",
+          },
+          ...(biggest
+            ? [
+                {
+                  label: "停留阶段",
+                  value: `${biggest.stage} ${biggest.stageDays} 天`,
+                },
+              ]
+            : []),
         ],
         rule: "开放商机 且 最近接触 > 30 天 且 对方逾期承诺 >= 1",
         analyses: ANALYSES_STALLED,
@@ -251,8 +336,15 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     //    catches it.
     if (a.openDeals.length > 0 && a.contacts.length > 0) {
       const chain = analyzeChain(a.contacts, a.relations);
-      const recency = analyzeChainRecency(a.contacts, a.relations, a.contactActivity, { now });
-      const economic = a.contacts.filter((c) => c.decisionRole === "economic" && c.status === "active");
+      const recency = analyzeChainRecency(
+        a.contacts,
+        a.relations,
+        a.contactActivity,
+        { now },
+      );
+      const economic = a.contacts.filter(
+        (c) => c.decisionRole === "economic" && c.status === "active",
+      );
       const economicUnrecorded = economic.filter((c) =>
         recency.unrecorded.some((u) => u.id === c.id),
       );
@@ -271,7 +363,13 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
             ...baseTags,
             { label: "", value: "决策人零接触", tone: "danger" },
             ...(ourOverdue.length > 0
-              ? [{ label: "我方逾期", value: `${days(ourOverdue[0].dueAt, now)} 天`, tone: "warning" as const }]
+              ? [
+                  {
+                    label: "我方逾期",
+                    value: `${days(ourOverdue[0].dueAt, now)} 天`,
+                    tone: "warning" as const,
+                  },
+                ]
               : []),
           ],
           citations: [
@@ -290,9 +388,19 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
           facts: [
             { label: "接触次数", value: String(touches) },
             { label: "其中见决策人", value: "0", tone: "danger" },
-            { label: "结构可达", value: chain.economicBuyerUnreachable ? "否" : "是", tone: chain.economicBuyerUnreachable ? "danger" : "success" },
+            {
+              label: "结构可达",
+              value: chain.economicBuyerUnreachable ? "否" : "是",
+              tone: chain.economicBuyerUnreachable ? "danger" : "success",
+            },
             ...(ourOverdue.length > 0
-              ? [{ label: "我方欠的事", value: `逾期 ${days(ourOverdue[0].dueAt, now)} 天`, tone: "danger" as const }]
+              ? [
+                  {
+                    label: "我方欠的事",
+                    value: `逾期 ${days(ourOverdue[0].dueAt, now)} 天`,
+                    tone: "danger" as const,
+                  },
+                ]
               : []),
           ],
           rule: "存在决策人 且 该决策人从未出现在任何交互参与人记录中",
@@ -304,8 +412,13 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     // 3. We are the ones who broke a promise. Reported separately from theirs,
     //    and never folded into a "relationship health" number: it is the one
     //    kind of problem this team can fix without anyone else's cooperation.
-    if (ourOverdue.length > 0 && !out.some((j) => j.id === `unreached:${a.accountId}`)) {
-      const worst = [...ourOverdue].sort((x, y) => x.dueAt.getTime() - y.dueAt.getTime())[0];
+    if (
+      ourOverdue.length > 0 &&
+      !out.some((j) => j.id === `unreached:${a.accountId}`)
+    ) {
+      const worst = [...ourOverdue].sort(
+        (x, y) => x.dueAt.getTime() - y.dueAt.getTime(),
+      )[0];
       const late = days(worst.dueAt, now);
       out.push({
         id: `weowe:${a.accountId}`,
@@ -315,14 +428,26 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
         subjectType: "account",
         subjectId: a.accountId,
         subjectName: a.accountName,
-        tags: [...baseTags, { label: "我方逾期", value: `${late} 天`, tone: "danger" }],
+        tags: [
+          ...baseTags,
+          { label: "我方逾期", value: `${late} 天`, tone: "danger" },
+        ],
         citations: [
-          { kind: "commitment", ref: worst.id, when: worst.dueAt, text: worst.statement },
+          {
+            kind: "commitment",
+            ref: worst.id,
+            when: worst.dueAt,
+            text: worst.statement,
+          },
           ...a.notes.slice(0, 1).map((n) => note(n, now)),
         ],
         facts: [
           { label: "逾期", value: `${late} 天`, tone: "danger" },
-          { label: "我方未兑现", value: String(rel.weMissed), tone: rel.weMissed > 1 ? "danger" : "warning" },
+          {
+            label: "我方未兑现",
+            value: String(rel.weMissed),
+            tone: rel.weMissed > 1 ? "danger" : "warning",
+          },
         ],
         rule: "我方承诺 且 状态为 open 且 已过到期日",
         analyses: ANALYSES_WE_OWE,
@@ -346,7 +471,10 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
         subjectType: "account",
         subjectId: a.accountId,
         subjectName: a.accountName,
-        tags: [...baseTags, { label: "", value: `${quiet} 天未跟进`, tone: "warning" }],
+        tags: [
+          ...baseTags,
+          { label: "", value: `${quiet} 天未跟进`, tone: "warning" },
+        ],
         citations: a.notes.slice(0, 2).map((n) => note(n, now)),
         facts: [
           { label: "最近接触", value: `${quiet} 天前`, tone: "warning" },
@@ -372,8 +500,12 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     // See ADR-013 section 3.
     if (a.plan) {
       const sinceContact = quiet;
-      const sinceExec = a.plan.lastExecContactAt === null ? null : days(a.plan.lastExecContactAt, now);
-      const contactLate = sinceContact !== null && sinceContact > a.plan.contactCadenceDays;
+      const sinceExec =
+        a.plan.lastExecContactAt === null
+          ? null
+          : days(a.plan.lastExecContactAt, now);
+      const contactLate =
+        sinceContact !== null && sinceContact > a.plan.contactCadenceDays;
       // A decision-maker contact that has NEVER happened is late by definition -
       // it is the worse case, not the missing one.
       const execLate = sinceExec === null || sinceExec > a.plan.execCadenceDays;
@@ -437,9 +569,14 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
       // supports - there is no external benchmark for "how much this team
       // writes down".
       const before = done[done.length - 2];
-      const prev = before && before.coverage !== null ? Math.round(before.coverage * 100) : null;
+      const prev =
+        before && before.coverage !== null
+          ? Math.round(before.coverage * 100)
+          : null;
       const delta = prev === null ? 0 : pct - prev;
-      const worst = done.every((w) => (w.coverage ?? 1) >= (latest.coverage ?? 0));
+      const worst = done.every(
+        (w) => (w.coverage ?? 1) >= (latest.coverage ?? 0),
+      );
       out.push({
         id: "capture:team",
         source: "rule",
@@ -452,17 +589,26 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
         subjectName: "团队",
         tags: [
           { label: "", value: "团队", tone: "neutral" },
-          { label: "覆盖率", value: `${pct}%`, tone: pct < 50 ? "warning" : "success" },
+          {
+            label: "覆盖率",
+            value: `${pct}%`,
+            tone: pct < 50 ? "warning" : "success",
+          },
         ],
         citations: [],
         facts: [
-          { label: "覆盖率", value: `${pct}%`, tone: pct < 50 ? ("warning" as const) : ("success" as const) },
+          {
+            label: "覆盖率",
+            value: `${pct}%`,
+            tone: pct < 50 ? ("warning" as const) : ("success" as const),
+          },
           ...(prev !== null
             ? [
                 {
                   label: "较上周",
                   value: `${delta >= 0 ? "+" : ""}${delta} 点`,
-                  tone: delta >= 0 ? ("success" as const) : ("warning" as const),
+                  tone:
+                    delta >= 0 ? ("success" as const) : ("warning" as const),
                 },
               ]
             : []),
@@ -489,7 +635,9 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
 }
 
 /** Counts per tier, for the filter's badges. */
-export function countByUrgency(js: readonly Judgement[]): Record<Urgency, number> {
+export function countByUrgency(
+  js: readonly Judgement[],
+): Record<Urgency, number> {
   const c: Record<Urgency, number> = { today: 0, week: 0, watch: 0 };
   for (const j of js) c[j.urgency] += 1;
   return c;
@@ -510,7 +658,10 @@ export type Scope = "mine" | "all";
  * catalog - can learn nothing from "mine", so defaulting them into it renders
  * an empty screen that is indistinguishable from "nothing is wrong".
  */
-export function resolveScope(requested: Scope | undefined, ownedCount: number): Scope {
+export function resolveScope(
+  requested: Scope | undefined,
+  ownedCount: number,
+): Scope {
   if (requested) return requested;
   return ownedCount > 0 ? "mine" : "all";
 }

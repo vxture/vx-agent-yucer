@@ -382,6 +382,10 @@ export const HOME_TEXT = {
   analysisChain: "决策链分析",
   analysisPolicy: "政策与行业",
   analysisHint: "分析结果会作为「模型」判断入流",
+  // The citation attribution, composed HERE rather than in the rule. The rule
+  // decides what is cited; how it reads is this layer's problem, and only this
+  // layer can reach CHANNEL_LABEL.
+  citedBy: (days: number, channel: string) => `${days} 天前 · ${channel}`,
   /** Says what it really does. "忽略" would promise something this control
    *  deliberately does not do - the judgement returns in a week, and sooner if
    *  it gets worse. */

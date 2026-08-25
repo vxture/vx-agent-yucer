@@ -13,7 +13,7 @@ import {
   Stack,
   StatusBadge,
 } from "@vxture/design-ui";
-import { HOME_TEXT } from "../lib/messages";
+import { CHANNEL_LABEL, HOME_TEXT } from "../lib/messages";
 import { dismissJudgement } from "../judgement-actions";
 import type {
   AnalysisKind,
@@ -333,9 +333,29 @@ function Engagement({
                     key={i}
                     className="border-primary/40 max-w-[62ch] border-l-2 pl-sm"
                   >
-                    {c.who ? (
-                      <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
-                        {c.who}
+                    {/* Composed here, from parts. The rule used to hand down
+                        one finished string and the raw channel enum and subject
+                        id went straight to the screen - "58 天前 · call ·
+                        usr_demo_rep" - with no layer left that could label
+                        them. CHANNEL_LABEL lives in this layer and always did.
+
+                        The actor stays an id and is marked as one: there is no
+                        directory to resolve it against, and a machine string
+                        dressed as a person is how a UUID ends up in front of
+                        someone who then does not chase it. */}
+                    {c.daysAgo !== undefined ? (
+                      <cite className="text-muted-foreground flex flex-wrap items-center gap-xs text-xs not-italic tabular-nums">
+                        <span>
+                          {HOME_TEXT.citedBy(
+                            c.daysAgo,
+                            c.channel
+                              ? (CHANNEL_LABEL[c.channel] ?? c.channel)
+                              : "",
+                          )}
+                        </span>
+                        {c.actorSub ? (
+                          <span className="font-mono">{c.actorSub}</span>
+                        ) : null}
                       </cite>
                     ) : null}
                     <p className="text-muted-foreground text-body-sm leading-relaxed">
