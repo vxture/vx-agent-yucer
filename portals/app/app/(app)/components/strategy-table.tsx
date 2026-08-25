@@ -46,12 +46,15 @@ export function StrategyTable({ rows, canMove, onMove }: StrategyTableProps) {
         </StatusBadge>
       ),
     },
-    {
-      id: "actions",
-      header: "",
-      align: "right",
-      // Only the legal moves. An archived plan has none and renders nothing.
-      cell: (row) => (
+  ];
+
+  return <DataTable
+      leadingSpacer
+      indexStart={1}
+      /* Pinned right by the DS, fixed width, locked during horizontal scroll.
+         Moving it out of `columns` is what makes it behave that way - as an
+         ordinary column it scrolled away from the row it acts on. */
+      rowActions={(row) => (
         <LifecycleControl
           id={row.id}
           status={row.status}
@@ -60,9 +63,6 @@ export function StrategyTable({ rows, canMove, onMove }: StrategyTableProps) {
           canChange={canMove}
           onChange={onMove}
         />
-      ),
-    },
-  ];
-
-  return <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} />;
+      )}
+      columns={columns} rows={rows} rowKey={(row) => row.id} />;
 }

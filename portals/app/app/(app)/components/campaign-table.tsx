@@ -82,14 +82,15 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
         </StatusBadge>
       ),
     },
-    {
-      id: "actions",
-      header: "",
-      align: "right",
-      // Completing is guarded: a campaign with outstanding executions cannot be
-      // completed, and the refusal names the count. Both terminal states offer
-      // no further move and render nothing.
-      cell: (row) => (
+  ];
+
+  return <DataTable
+      leadingSpacer
+      indexStart={1}
+      /* Pinned right by the DS, fixed width, locked during horizontal scroll.
+         Moving it out of `columns` is what makes it behave that way - as an
+         ordinary column it scrolled away from the row it acts on. */
+      rowActions={(row) => (
         <LifecycleControl
           id={row.id}
           status={row.status}
@@ -98,9 +99,6 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
           canChange={canMove}
           onChange={onMove}
         />
-      ),
-    },
-  ];
-
-  return <DataTable leadingSpacer indexStart={1} columns={columns} rows={rows} rowKey={(row) => row.id} />;
+      )}
+      columns={columns} rows={rows} rowKey={(row) => row.id} />;
 }
