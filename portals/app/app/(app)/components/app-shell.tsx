@@ -5,8 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ShellBrand,
   ShellIconButton,
+  ShellPreferencePanel,
   ShellSearchBox,
   ShellUserMenu,
+  useTheme,
 } from "@vxture/design-system";
 import {
   Separator,
@@ -14,7 +16,13 @@ import {
   ShellViewport,
   StatusBadge,
 } from "@vxture/design-ui";
-import { writeNavCollapsed } from "@vxture/shared";
+import {
+  LOCALE_CONFIGS,
+  SUPPORTED_LOCALES,
+  writeNavCollapsed,
+  type Locale,
+} from "@vxture/shared";
+import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { NavBoard } from "./nav-board";
 import { AgentPanel } from "./agent-panel";
@@ -124,6 +132,8 @@ export interface AppShellProps {
    * fact they did not ask to be reminded of on every page.
    */
   readonly isProduction: boolean;
+  /** Resolved on the server so the first paint is already in this language. */
+  readonly locale: Locale;
   /** What search can reach. Assembled on the server so it obeys both gates. */
   readonly searchable: readonly {
     key: string;
@@ -158,6 +168,7 @@ export function AppShell({
   tier,
   tenantId,
   isProduction,
+  locale,
   searchable,
   boardOpen,
   dockOpen,
@@ -165,6 +176,7 @@ export function AppShell({
 }: AppShellProps) {
   const [query, setQuery] = useState("");
   const router = useRouter();
+  const { mode, setMode } = useTheme();
 
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
@@ -288,6 +300,11 @@ export function AppShell({
                 promise about what would open. */}
               <ShellIconButton
                 icon="app-grid"
+                /* 24px through the token, not a literal: size-icon-lg IS 24.
+                   ShellIconButton hardcodes Icon size="sm" (16px) and merges
+                   iconClassName after it, so the later size-* utility is the
+                   one that survives tailwind-merge. */
+                iconClassName="size-icon-lg"
                 label={
                   activeKey && DOMAIN_LABEL[activeKey]
                     ? HEADER_TEXT.scopeAria(DOMAIN_LABEL[activeKey])
@@ -299,8 +316,15 @@ export function AppShell({
                 lockup rather than as an image beside a word - the tag slot is
                 the build label, which is part of the identity of what you are
                 looking at, not a separate line of text. */}
+              {/* The mark, SERVED FROM OUR OWN public/. The DS ships the
+                  master under assets/ but deliberately does not export it, and
+                  its README says why: "运行时应用把需要的资产拷进自己的
+                  public/assets/... 自行伺服,不做跨包静态文件假设". Copied in,
+                  not deep-imported past the package's exports map. */}
               <ShellBrand
                 href="/"
+                logoSrc="/assets/brand/vxture-logo-icon.svg"
+                logoAlt={HEADER_TEXT.logoAlt}
                 label={SHELL_TEXT.brandName}
                 tag={isProduction ? undefined : HEADER_TEXT.version(appVersion)}
               />
@@ -381,7 +405,69 @@ export function AppShell({
                   caught still defaulting. */}
               <ShellUserMenu
                 openLabel={HEADER_TEXT.userMenuOpen}
-                user={{ displayName: userName, uniqueLine: workspaceLabel }}
+                user={{
+                  displayName: userName,
+                  uniqueLine: workspaceLabel,
+                  // The DS's own default face. The token carries no `picture`
+                  // claim, and an <img> with no src is worse than a silhouette.
+                  avatarSrc: "/assets/icons/avatar-default.svg",
+                  avatarAlt: userName,
+                }}
+                /* LANGUAGE LIVES HERE, not in the header. It is set once and
+                   then never again; a permanent header control for a
+                   once-a-lifetime decision spends width every session to serve
+                   the first one. The DS's preference panel already pairs it
+                   with the theme, which is the other setting of exactly that
+                   shape - and pairing them is why the theme toggle came out of
+                   the header too. */
+                settings={
+                  <ShellPreferencePanel
+                    locale={locale}
+                    localeOptions={SUPPORTED_LOCALES.map((l) => ({
+                      locale: l,
+                      label: LOCALE_CONFIGS[l].nativeName,
+                      nativeName: LOCALE_CONFIGS[l].nativeName,
+                      flag: LOCALE_CONFIGS[l].flag,
+                    }))}
+                    theme={mode === "dark" ? "dark" : "light"}
+                    labels={{
+                      title: HEADER_TEXT.prefTitle,
+                      locale: HEADER_TEXT.prefLocale,
+                      theme: HEADER_TEXT.prefTheme,
+                      themeOptions: {
+                        light: HEADER_TEXT.prefThemeLight,
+                        dark: HEADER_TEXT.prefThemeDark,
+                        system: HEADER_TEXT.prefThemeSystem,
+                      },
+                      // Density and font size arrive with this panel whether
+                      // asked for or not - showDensity/showFontSize default on
+                      // - so they get labelled rather than hidden. Turning off
+                      // working DS capability to avoid writing six words would
+                      // be the worse trade; leaving them in English is not a
+                      // trade at all.
+                      density: HEADER_TEXT.prefDensity,
+                      fontSize: HEADER_TEXT.prefFontSize,
+                      densityOptions: {
+                        compact: HEADER_TEXT.prefDensityCompact,
+                        default: HEADER_TEXT.prefDensityDefault,
+                        comfortable: HEADER_TEXT.prefDensityComfortable,
+                      },
+                      fontSizeOptions: {
+                        small: HEADER_TEXT.prefFontSmall,
+                        default: HEADER_TEXT.prefFontDefault,
+                        large: HEADER_TEXT.prefFontLarge,
+                      },
+                    }}
+                    onLocaleChange={(next) => {
+                      // Cookie first, then refresh: the server owns the
+                      // language, so the page has to be asked again rather
+                      // than re-rendered from what the client already holds.
+                      writeLocale(next as Locale);
+                      router.refresh();
+                    }}
+                    onThemeChange={(next) => setMode(next as "light" | "dark")}
+                  />
+                }
               />
             </>
           }

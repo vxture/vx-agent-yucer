@@ -353,9 +353,25 @@ export const HEADER_TEXT = {
   agentDockWithCount: (n: number) => `智能助手，${n} 件待你裁决`,
   countOverflow: "99+",
 
-  // The language switcher. The DS draws it; these are its names.
-  localeSwitch: "切换语言",
-  localePanel: "语言",
+  // The preference panel, inside the user menu. Language lives HERE and not in
+  // the header: it is set once and then never again, and a permanent control
+  // for a once-a-lifetime decision spends header width every session to serve
+  // the first one.
+  prefTitle: "偏好设置",
+  prefLocale: "语言",
+  prefTheme: "主题",
+  prefThemeLight: "浅色",
+  prefThemeDark: "深色",
+  prefThemeSystem: "跟随系统",
+  prefDensity: "密度",
+  prefDensityCompact: "紧凑",
+  prefDensityDefault: "标准",
+  prefDensityComfortable: "宽松",
+  prefFontSize: "字号",
+  prefFontSmall: "小",
+  prefFontDefault: "标准",
+  prefFontLarge: "大",
+  logoAlt: "Vxture",
 } as const;
 
 export const ADMIN_TEXT = {

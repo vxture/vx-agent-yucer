@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
+import { resolveLocale } from "./lib/i18n/locale";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { can } from "../authz/decide";
@@ -49,6 +50,8 @@ function buildLabel(): string {
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await resolveAppSession();
+  // Resolved on the SERVER so the first paint is already in the right language.
+  const locale = await resolveLocale();
 
   // No session: the product's front door, rendered in place. Auto-redirecting
   // to the IdP from a layout would bounce anyone who merely opened a stale tab,
@@ -197,6 +200,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       }}
       appVersion={buildLabel()}
       tenantId={tenantIdOf(session)}
+      locale={locale}
       /* APP_ENV, not a guess from the version string's shape. Beta ships a
          `beta-YYYYMMDD.N` tag and production ships `vX.Y.Z`, so inferring the
          tier from the label would make "is this production" depend on how
