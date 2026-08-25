@@ -112,16 +112,13 @@ export interface BoardSection {
      * The axis. Without one a bar of pipeline is just a coloured rectangle -
      * 881万 is only meaningful against what it has to cover.
      *
-     * `scaleMax` is the pool the floor demands (floor x gap), so the track's
-     * full width is "enough". `referenceAmount` marks the bare gap inside it,
-     * which is where covering it exactly ONCE would land - the difference
-     * between the fill and that mark is the redundancy the rule is about.
-     *
-     * An amount and nothing else: the mark is a scale tick with no label and no
-     * hover, so a display string for it would have no reader.
+     * The axis is the RESOURCE TARGET - what the pool has to be, which is the
+     * coverage multiple times what is still to close: 3 x (target - closed).
+     * The track's full width is therefore "enough pipeline", and a track that
+     * is not full IS the warning. No separate mark is needed inside it; the
+     * shortfall the mark used to show is now the empty part of the track.
      */
     readonly scaleMax: number;
-    readonly referenceAmount: number;
   };
 }
 
@@ -275,7 +272,11 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
           ? {
               label: BOARD_TEXT.poolRow,
               value: BOARD_TEXT.wan(worth),
-              note: BOARD_TEXT.coverageOf(Math.round(cover.ratio * 100)),
+              // Read against the resource target, not against the gap, so the
+              // figure and the bar say the same thing. They are the same
+              // judgement either way: pool < floor x gap is exactly pool <
+              // scaleMax, so "under 100% here" and "thin" are one condition.
+              note: BOARD_TEXT.coverageOf(Math.round((worth / (cover.gap * cover.floor)) * 100)),
               thin: cover.thin,
               // Descending confidence: what is committed, what is being worked,
               // what is merely held. The order IS the meaning, so it is fixed
@@ -289,7 +290,6 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
               // already carries it. What is missing from every other card is
               // the SHORTFALL, and that is the number this pool has to answer.
               scaleMax: cover.gap * cover.floor,
-              referenceAmount: cover.gap,
             }
           : undefined,
       metrics: cover

@@ -173,11 +173,10 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
  * The pool, on an axis.
  *
  * Without a scale a bar of pipeline is a coloured rectangle: 881万 means
- * nothing until you know what it has to cover. So the track's full width is
- * what the floor DEMANDS - the gap times the coverage multiple - and a mark
- * inside it shows where covering the gap exactly once would land. The distance
- * between the fill and that mark is the redundancy the whole rule is about, and
- * here it is visible rather than arithmetic.
+ * nothing until you know what it has to be. So the track IS the resource
+ * target - the coverage multiple times what is still to close - and the empty
+ * part of it is the shortfall. A track that does not fill is the warning, which
+ * needs no mark inside it and no second number to explain it.
  *
  * The target is deliberately absent: the quota card above already carries it,
  * and repeating it made two cards say the same 1200万. What no other card
@@ -188,7 +187,14 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
  * exists to say which band is which, not to be a table.
  */
 export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) {
-  const pct = (n: number) => `${Math.min(100, (n / gauge.scaleMax) * 100)}%`;
+  // CLAMPED AS A WHOLE, not per segment. Clamping each segment to 100%
+  // individually would still let three of them sum past the end of the track -
+  // each one "fits" while the row overflows. Dividing by whichever is larger,
+  // the axis or the pool, makes the total fill exactly min(axis, pool) and
+  // keeps the segments' proportions to each other intact.
+  const pool = gauge.funnel.reduce((sum, f) => sum + f.weight, 0);
+  const denominator = Math.max(gauge.scaleMax, pool);
+  const pct = (n: number) => `${(n / denominator) * 100}%`;
 
   return (
     <div className="flex flex-col gap-xs">
@@ -219,24 +225,6 @@ export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) 
           )}
         </div>
 
-        {/* The reference mark: a pure scale tick, carrying no label and no
-            hover of its own. Drawn over the track rather than beside it - an
-            axis that sits outside the bar it scales gets read as a second bar.
-
-            pointer-events-none matters more than it looks. The mark lies on top
-            of the segments, and those DO have tooltips; without this it would
-            sit in front of them intercepting the hover for a tooltip it no
-            longer has, and the band of pipeline underneath would go quiet for
-            no visible reason.
-
-            The figure it marks is not lost with its label: the coverage
-            percentage beside the heading states the same relationship, and the
-            shortfall itself is the quota card's target minus its closed. */}
-        <span
-          className="bg-foreground pointer-events-none absolute inset-y-0 w-px"
-          style={{ left: pct(gauge.referenceAmount) }}
-          aria-hidden="true"
-        />
       </div>
 
       {/* Names only - every figure on this card, including the reference, is on
