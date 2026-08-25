@@ -138,4 +138,136 @@ export const en: Dictionary = {
       `Judged over the last ${weeks} weeks; ${judge} consecutive weeks at target counts as adopted`,
     open: "Open",
   },
+  // --- /signal ------------------------------------------------------------
+
+  SIGNAL_TEXT: {
+    title: "Signal inbox",
+    description:
+      "Opportunities found without waiting for a rep to type one in. A higher score is worth reading first.",
+    columnSubject: "Signal",
+    columnType: "Type",
+    columnScore: "Score",
+    columnAccount: "Matched account",
+    columnDetected: "Found",
+    columnStatus: "Status",
+    unmatchedAccount: "New logo",
+    unscored: "Unscored",
+    emptyTitle: "The inbox is empty",
+    emptyDescription:
+      "Once an external signal source is connected, what it finds appears here; signals can also be entered by hand.",
+    promote: "Promote to lead",
+    dismiss: "Dismiss",
+    markDuplicate: "Mark duplicate",
+    rescore: "Rescore",
+    scoreExplain: (base: number, decay: number, bonus: number) =>
+      `type weight ${base} x recency ${decay.toFixed(2)} + match bonus ${bonus}`,
+
+    lead: (n: number) => `${n} signals awaiting your call`,
+    leadNamed: (n: number) => `${n} of them from named accounts`,
+    leadNone: "Nothing awaiting a call",
+
+    groupNamed: "Named accounts",
+    groupNamedWhy:
+      "Companies on the strategic account list, watched for tenders, hires and investment.",
+    groupDomain: "Product domains",
+    groupDomainWhy:
+      "The kinds of deal our product covers. New logos come in through this line.",
+    groupNone: "Untargeted",
+    groupNoneWhy:
+      "Signals from before targeted discovery. Left as they are, never backfilled.",
+
+    breakdown: "Score breakdown",
+    bdBase: "Type weight",
+    bdDecay: "Recency",
+    bdBonus: "Match bonus",
+    bdAge: "Days old",
+    stale: "Score is stale",
+    staleCount: (n: number) => `${n} scores are stale; rescoring realigns them`,
+    staleWhy: (stored: number, now: number) =>
+      `Stored at ${stored}; recomputed against today's recency it is ${now}. Scores decay over time, and rescoring realigns them.`,
+    detectedOn: (d: string, src: string) => `Found ${d} - ${src}`,
+
+    verdictStrong: "Strong",
+    verdictWorth: "Worth a look",
+    verdictLater: "Can wait",
+    verdictUnknown: "Unscored",
+
+    fieldDeadline: (d: string) => `closes ${d}`,
+    fieldAmount: (a: string) => `budget ${a}`,
+    fieldAge: (n: number) => `${n}d old`,
+    fieldDrift: (n: number) => `down ${n}`,
+
+    summaryUnavailable: "No summary could be fetched",
+    scoreMethod: "How it was scored",
+    expand: "Expand",
+    collapse: "Collapse",
+    rowMenu: "More actions",
+    groupCount: (n: number) => `${n}`,
+    noPermission: "No permission to triage",
+    noRescorePermission: "No permission to rescore",
+  },
+
+  SIGNAL_TYPE_LABEL: {
+    tender: "Tender",
+    compliance: "Policy",
+    intent: "Buying intent",
+    hiring: "Hiring",
+    funding: "Funding",
+    tech_change: "Tech change",
+    engagement: "Engagement",
+    referral: "Referral",
+    other: "Other",
+  },
+
+  SIGNAL_STATUS_LABEL: {
+    new: "New",
+    scored: "Scored",
+    promoted: "Promoted",
+    dismissed: "Dismissed",
+    duplicate: "Duplicate",
+  },
+  LEAD_TEXT: {
+    title: "Leads",
+    description:
+      "A qualified lead becomes an opportunity. At that moment the source campaign is copied onto the opportunity and frozen - attribution is not filled in afterwards.",
+    columnCompany: "Company",
+    columnScore: "Score",
+    columnSource: "Source",
+    columnOwner: "Owner",
+    columnStatus: "Status",
+    sourceCampaign: "Campaign",
+    sourceSignalCampaign: "Signal's campaign",
+    sourceSelf: "Self-sourced",
+    qualify: "Mark qualified",
+    disqualify: "Disqualify",
+    disqualifyConsequence:
+      "Every action on this lead greys out afterwards, and it cannot be reversed from this list.",
+    disqualifyTarget: (subject: string) => `the lead "${subject}"`,
+    convert: "Convert to opportunity",
+    converted: "Converted",
+    hintTerminal: "This lead is closed; nothing can be done to it",
+    hintNoTriage: "No permission to triage leads",
+    hintNotQualified: "The lead has not been marked qualified",
+    hintAlreadyQualified: "The lead is already marked qualified",
+    hintNoConvert: "No permission to convert leads",
+    needAccount: "An account has to be matched first",
+    emptyTitle: "No leads yet",
+    emptyDescription: "Promoted signals appear here.",
+  },
+
+  LEAD_STATUS_LABEL: {
+    new: "New",
+    working: "Working",
+    qualified: "Qualified",
+    converted: "Converted",
+    disqualified: "Disqualified",
+  },
+
+  DATA_TABLE_LABELS: {
+    expand: "Expand",
+    selectAll: "Select all on this page",
+    deselectAll: "Clear this page's selection",
+    selectRow: "Select this row",
+    rowActions: "Actions",
+  },
 };

@@ -1,6 +1,9 @@
 import { Card, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { SIGNAL_TEXT, SHELL_TEXT } from "../lib/messages";
+// A SERVER component, so the dictionary is awaited rather than hooked. The
+// locale comes from the request; next/headers caches it, so several server
+// components asking cost one resolution.
+import { getMessages } from "../lib/i18n/server";
 import { getSignalStore } from "../../domains/shared/registry";
 import { listLeads, listSignals } from "../../domains/signal/service";
 import { can } from "../../authz/decide";
@@ -20,6 +23,7 @@ import { TONE_INK } from "../lib/view-model";
 export const dynamic = "force-dynamic";
 
 export default async function SignalPage() {
+  const { SIGNAL_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

@@ -14,7 +14,7 @@ import {
 } from "@vxture/design-ui";
 import { TableCard } from "./table-card";
 import type { LeadRecord } from "../../domains/signal/store";
-import { LEAD_STATUS_LABEL, LEAD_TEXT, PIPELINE_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 import { ACTION_MENU_LABEL, CONFIRM_LABELS } from "../lib/ds-labels";
 import { confidenceTone } from "../lib/view-model";
 import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
@@ -40,18 +40,25 @@ export interface LeadListProps {
   ) => Promise<LeadActionResult>;
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  campaign: LEAD_TEXT.sourceCampaign,
-  signal_campaign: LEAD_TEXT.sourceSignalCampaign,
-  self_sourced: LEAD_TEXT.sourceSelf,
-};
-
 export function LeadList({
   leads,
   canTriage,
   canConvert,
   onAct,
 }: LeadListProps) {
+  const { DATA_TABLE_LABELS, LEAD_STATUS_LABEL, LEAD_TEXT, PIPELINE_TEXT } =
+    useMessages();
+
+  // Built here rather than at module scope: it is made OF copy, and copy now
+  // depends on the request's locale. A module-level map would have frozen one
+  // language at import time - the same trap as a static messages import, just
+  // one indirection further away.
+  const SOURCE_LABEL: Record<string, string> = {
+    campaign: LEAD_TEXT.sourceCampaign,
+    signal_campaign: LEAD_TEXT.sourceSignalCampaign,
+    self_sourced: LEAD_TEXT.sourceSelf,
+  };
+
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -235,6 +242,7 @@ export function LeadList({
           <TableCard>
             {view === "list" ? (
               <DataTable
+                labels={DATA_TABLE_LABELS}
                 leadingSpacer
                 indexStart={1}
                 columns={columns}

@@ -15,12 +15,10 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import type { SignalRecord } from "../../domains/signal/store";
-import {
-  SIGNAL_STATUS_LABEL,
-  SIGNAL_TEXT,
-  SIGNAL_TYPE_LABEL,
-} from "../lib/messages";
+import { useLocale, useMessages } from "../lib/i18n/provider";
+import type { Dictionary } from "../lib/i18n/dictionary";
 import { confidenceTone } from "../lib/view-model";
+import { formatNumber, type Locale } from "@vxture/shared";
 import { ScoreRing } from "./score-ring";
 
 // The detective's queue.
@@ -99,12 +97,12 @@ export interface SignalQueueProps {
  * returns, so its info branch fell through to the success colour and a 65 was
  * painted the same green as an 85.
  */
-function verdict(score: number | null): string {
+function verdict(score: number | null, t: Dictionary["SIGNAL_TEXT"]): string {
   const tone = confidenceTone(score);
-  if (score === null) return SIGNAL_TEXT.verdictUnknown;
-  if (tone === "success") return SIGNAL_TEXT.verdictStrong;
-  if (tone === "info") return SIGNAL_TEXT.verdictWorth;
-  return SIGNAL_TEXT.verdictLater;
+  if (score === null) return t.verdictUnknown;
+  if (tone === "success") return t.verdictStrong;
+  if (tone === "info") return t.verdictWorth;
+  return t.verdictLater;
 }
 
 /**
@@ -118,20 +116,24 @@ function verdict(score: number | null): string {
  * the day ingestion starts carrying a tender deadline it appears without a
  * further change here.
  */
-function readings(s: QueueSignal): string[] {
+function readings(
+  s: QueueSignal,
+  t: Dictionary["SIGNAL_TEXT"],
+  locale: Locale,
+): string[] {
   const out: string[] = [];
   const p = s.record.payload;
 
   const deadline = p["deadline"] ?? p["closesAt"];
   if (typeof deadline === "string" && deadline.length > 0) {
-    out.push(SIGNAL_TEXT.fieldDeadline(deadline.slice(0, 10)));
+    out.push(t.fieldDeadline(deadline.slice(0, 10)));
   }
   const amount = p["amount"] ?? p["budget"];
   if (typeof amount === "number" && Number.isFinite(amount)) {
-    out.push(SIGNAL_TEXT.fieldAmount(amount.toLocaleString("zh-CN")));
+    out.push(t.fieldAmount(formatNumber(amount, locale)));
   }
 
-  out.push(SIGNAL_TEXT.fieldAge(Math.round(s.ageDays)));
+  out.push(t.fieldAge(Math.round(s.ageDays)));
 
   // Only when it would actually move the row. Scores decay continuously, so a
   // one-point threshold flags essentially every row, and a marker that is
@@ -140,7 +142,7 @@ function readings(s: QueueSignal): string[] {
     s.recomputed !== null && s.record.score !== null
       ? s.record.score - s.recomputed
       : 0;
-  if (drift >= 5) out.push(SIGNAL_TEXT.fieldDrift(drift));
+  if (drift >= 5) out.push(t.fieldDrift(drift));
 
   return out;
 }
@@ -171,6 +173,7 @@ export function SignalQueue({
   canRescore,
   onAct,
 }: SignalQueueProps) {
+  const { SIGNAL_TEXT } = useMessages();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string>("");
@@ -254,6 +257,8 @@ function Row({
   onToggle: () => void;
   onAct: (id: string, a: SignalAction) => void;
 }) {
+  const { SIGNAL_TEXT, SIGNAL_STATUS_LABEL, SIGNAL_TYPE_LABEL } = useMessages();
+  const locale = useLocale();
   const r = s.record;
   const tone = confidenceTone(r.score);
   const brief = summary(r);
@@ -307,7 +312,9 @@ function Row({
             <StatusBadge tone="neutral">
               {SIGNAL_TYPE_LABEL[r.signalType] ?? r.signalType}
             </StatusBadge>
-            <StatusBadge tone={tone}>{verdict(r.score)}</StatusBadge>
+            <StatusBadge tone={tone}>
+              {verdict(r.score, SIGNAL_TEXT)}
+            </StatusBadge>
             {/* Never a blank: a company we do not recognise is the find. */}
             {r.accountId === null ? (
               <StatusBadge tone="brand">
@@ -322,7 +329,7 @@ function Row({
               not the numbers. A truncated sentence still reads; a truncated
               measurement is a wrong one. */}
           <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-            {readings(s).join(" \u00b7 ")}
+            {readings(s, SIGNAL_TEXT, locale).join(" \u00b7 ")}
           </span>
         </div>
 
@@ -430,7 +437,7 @@ function Row({
                   label={SIGNAL_TEXT.columnScore}
                   value={r.score ?? "-"}
                   tone={tone}
-                  valueTag={verdict(r.score)}
+                  valueTag={verdict(r.score, SIGNAL_TEXT)}
                   valueTagTone={tone}
                 />
               </div>

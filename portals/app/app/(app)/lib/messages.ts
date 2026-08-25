@@ -935,6 +935,27 @@ export const PROPOSAL_TEXT = {
   rejectNote: "拒绝同样需要裁决人落章，被拒绝的提案会保留完整记录。",
 } as const;
 
+/**
+ * Copy this product hands to the DS's DataTable.
+ *
+ * It lives in messages.ts rather than in ds-labels.ts because it is COPY, and
+ * copy now follows the request's locale. ds-labels.ts is a plain module frozen
+ * at import time - fine before there were two languages, wrong the moment
+ * there were.
+ *
+ * The shipped default for `rowActions` is "Actions", not the 「操作」 the type's
+ * doc comment claims. That one English word sat in an otherwise Chinese header
+ * row - and it was NOT a DS gap, which is what it looked like at first: the
+ * prop exists, this product simply was not passing it.
+ */
+export const DATA_TABLE_LABELS = {
+  expand: "展开",
+  selectAll: "全选本页",
+  deselectAll: "取消本页全选",
+  selectRow: "选择本行",
+  rowActions: "操作",
+} as const;
+
 export const SIGNAL_TEXT = {
   title: "商机信号收件箱",
   description: "不等销售录入，主动发现的商机线索。评分越高越值得先看。",

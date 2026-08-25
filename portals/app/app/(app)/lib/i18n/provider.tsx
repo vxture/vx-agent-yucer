@@ -18,7 +18,12 @@ import { getDictionary, type Dictionary } from "./dictionary";
 // which is a change to this file alone, because nothing outside it names a
 // dictionary.
 
-const MessagesContext = createContext<Dictionary | null>(null);
+interface MessagesValue {
+  readonly t: Dictionary;
+  readonly locale: Locale;
+}
+
+const MessagesContext = createContext<MessagesValue | null>(null);
 
 export function MessagesProvider({
   locale,
@@ -27,7 +32,7 @@ export function MessagesProvider({
   readonly locale: Locale;
   readonly children: ReactNode;
 }) {
-  const value = useMemo(() => getDictionary(locale), [locale]);
+  const value = useMemo(() => ({ t: getDictionary(locale), locale }), [locale]);
   return (
     <MessagesContext.Provider value={value}>
       {children}
@@ -44,6 +49,23 @@ export function MessagesProvider({
  * only appears for the users least able to report it.
  */
 export function useMessages(): Dictionary {
+  return useMessagesValue().t;
+}
+
+/**
+ * The active locale itself, for the platform's formatters.
+ *
+ * Separate from useMessages because most callers want copy and only a few want
+ * to format a number or a date - and `formatNumber(n, "zh-CN")` hardcoded into
+ * a component is the same class of bug as a hardcoded string, just harder to
+ * see: it renders 1,234 where a locale wanted 1.234 and nobody notices until
+ * the reader is in a country that groups differently.
+ */
+export function useLocale(): Locale {
+  return useMessagesValue().locale;
+}
+
+function useMessagesValue(): MessagesValue {
   const value = useContext(MessagesContext);
   if (!value) {
     throw new Error("useMessages must be called inside <MessagesProvider>");
