@@ -97,22 +97,28 @@ export interface BoardSection {
    * this puts the division on screen.
    */
   readonly gauge?: {
-    /** Row one: the number the period is judged against. */
-    readonly target: { readonly label: string; readonly value: string; readonly percent: number; readonly note: string };
-    /** Row two: the pool that has to cover what is left of it. */
-    readonly pool: {
-      readonly label: string;
-      readonly value: string;
-      /** Coverage, or null when the target is already met. */
-      readonly note: string | null;
-      readonly thin: boolean;
-      /**
-       * The funnel, in descending confidence. Straight from rollUp() - the same
-       * function the pipeline page and the snapshot writer use, so this card
-       * and that page cannot report different money.
-       */
-      readonly funnel: readonly { readonly label: string; readonly value: string; readonly weight: number }[];
-    };
+    readonly label: string;
+    readonly value: string;
+    /** Coverage, or null when the target is already met. */
+    readonly note: string | null;
+    readonly thin: boolean;
+    /**
+     * The funnel, in descending confidence. Straight from rollUp() - the same
+     * function the pipeline page and the snapshot writer use, so this card and
+     * that page cannot report different money.
+     */
+    readonly funnel: readonly { readonly label: string; readonly value: string; readonly weight: number }[];
+    /**
+     * The axis. Without one a bar of pipeline is just a coloured rectangle -
+     * 881万 is only meaningful against what it has to cover.
+     *
+     * `scaleMax` is the pool the floor demands (floor x gap), so the track's
+     * full width is "enough". `reference` marks the bare gap inside it, which
+     * is where covering it exactly ONCE would land - the difference between
+     * those two marks is the redundancy the whole rule is about.
+     */
+    readonly scaleMax: number;
+    readonly reference: { readonly label: string; readonly value: string; readonly amount: number };
   };
 }
 
@@ -262,30 +268,28 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       // pool broken into the funnel, because 881万 of commit and 881万 of
       // early-stage pipeline are not the same 881万.
       gauge:
-        cover && wsTarget && totals?.ok
+        cover && cover.ratio !== null && totals?.ok
           ? {
-              target: {
-                label: BOARD_TEXT.targetRow,
-                value: BOARD_TEXT.wan(wsTarget.targetAmount.amount),
-                percent: Math.max(0, Math.min(100, Math.round((wsRow?.ratio ?? 0) * 100))),
-                note: BOARD_TEXT.wonOf(Math.round((wsRow?.ratio ?? 0) * 100)),
-              },
-              pool: {
-                label: BOARD_TEXT.poolRow,
-                value: BOARD_TEXT.wan(worth),
-                note:
-                  cover.ratio === null
-                    ? BOARD_TEXT.coverageMet
-                    : BOARD_TEXT.coverageOf(Math.round(cover.ratio * 100)),
-                thin: cover.thin,
-                // Descending confidence: what is committed, what is being
-                // worked, what is merely held. The order IS the meaning, so it
-                // is fixed here rather than sorted by size.
-                funnel: [
-                  { label: FORECAST_LABEL.commit, value: BOARD_TEXT.wan(totals.value.commitAmount.amount), weight: totals.value.commitAmount.amount },
-                  { label: FORECAST_LABEL.best_case, value: BOARD_TEXT.wan(totals.value.bestCaseAmount.amount), weight: totals.value.bestCaseAmount.amount },
-                  { label: FORECAST_LABEL.pipeline, value: BOARD_TEXT.wan(totals.value.pipelineAmount.amount), weight: totals.value.pipelineAmount.amount },
-                ],
+              label: BOARD_TEXT.poolRow,
+              value: BOARD_TEXT.wan(worth),
+              note: BOARD_TEXT.coverageOf(Math.round(cover.ratio * 100)),
+              thin: cover.thin,
+              // Descending confidence: what is committed, what is being worked,
+              // what is merely held. The order IS the meaning, so it is fixed
+              // here rather than sorted by size.
+              funnel: [
+                { label: FORECAST_LABEL.commit, value: BOARD_TEXT.wan(totals.value.commitAmount.amount), weight: totals.value.commitAmount.amount },
+                { label: FORECAST_LABEL.best_case, value: BOARD_TEXT.wan(totals.value.bestCaseAmount.amount), weight: totals.value.bestCaseAmount.amount },
+                { label: FORECAST_LABEL.pipeline, value: BOARD_TEXT.wan(totals.value.pipelineAmount.amount), weight: totals.value.pipelineAmount.amount },
+              ],
+              // The target itself is NOT repeated here - the quota card above
+              // already carries it. What is missing from every other card is
+              // the SHORTFALL, and that is the number this pool has to answer.
+              scaleMax: cover.gap * cover.floor,
+              reference: {
+                label: BOARD_TEXT.gapRow,
+                value: BOARD_TEXT.wan(cover.gap),
+                amount: cover.gap,
               },
             }
           : undefined,

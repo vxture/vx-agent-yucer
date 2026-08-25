@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from "@vxture/design-ui";
 import type { BoardMetric, BoardSection } from "../lib/board";
 
 // Two ways of drawing a handful of numbers, for the left flank's cards.
@@ -149,16 +150,19 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
             <span className="text-foreground min-w-0 truncate text-xs">{m.label}</span>
             <span className="text-foreground shrink-0 text-xs font-semibold tabular-nums">{m.value}</span>
           </div>
-          <div
-            className="bg-muted h-2xs w-full overflow-hidden rounded-full"
-            role="img"
-            aria-label={`${m.label} ${m.value}`}
-          >
-            <span
-              className={`block h-full rounded-full ${fillFor(m, i)}`}
-              style={{ width: `${((m.weight ?? 0) / max) * 100}%` }}
-            />
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="bg-muted h-2xs w-full overflow-hidden rounded-full" role="img" aria-label={`${m.label} ${m.value}`}>
+                <span
+                  className={`block h-full rounded-full ${fillFor(m, i)}`}
+                  style={{ width: `${((m.weight ?? 0) / max) * 100}%` }}
+                />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              {m.label} {m.value}
+            </TooltipContent>
+          </Tooltip>
         </li>
       ))}
     </ul>
@@ -166,95 +170,85 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
 }
 
 /**
- * The two-row gauge: what the period asks for, against what is on hand.
+ * The pool, on an axis.
  *
- * Two rows rather than four figures in a grid, because the card's subject is a
- * RELATIONSHIP and a grid of numbers leaves the reader to divide them. Row one
- * is the target and how much of it is banked; row two is the pool that has to
- * cover the rest, split by the funnel.
+ * Without a scale a bar of pipeline is a coloured rectangle: 881万 means
+ * nothing until you know what it has to cover. So the track's full width is
+ * what the floor DEMANDS - the gap times the coverage multiple - and a mark
+ * inside it shows where covering the gap exactly once would land. The distance
+ * between the fill and that mark is the redundancy the whole rule is about, and
+ * here it is visible rather than arithmetic.
  *
- * THE SPLIT IS THE POINT OF ROW TWO. 881万 of committed deals and 881万 of
- * early-stage pipeline are not the same 881万, and a single bar would say they
- * were. This is a genuine parts-of-a-whole - every open deal sits in exactly one
- * forecast category, and they sum to the pool - which is what makes a segmented
- * bar honest here and made it dishonest on the cards it was removed from.
+ * The target is deliberately absent: the quota card above already carries it,
+ * and repeating it made two cards say the same 1200万. What no other card
+ * carries is the SHORTFALL, which is the number this pool actually answers to.
  *
- * Monochrome, in descending confidence: commit, then best case, then pipeline.
- * The three are the same substance at different certainties, so a ramp says what
- * three hues would overstate. The ORDER carries the meaning, so it is fixed by
- * board.ts rather than sorted by size - a quarter whose pipeline outweighs its
- * commit should look top-heavy, and sorting would hide exactly that.
+ * Segments are labelled but not numbered. With amounts the legend ran to two
+ * lines in a 256px column, and the amount belongs on hover anyway - the legend
+ * exists to say which band is which, not to be a table.
  */
 export function Gauge({ gauge }: { gauge: NonNullable<BoardSection["gauge"]> }) {
-  const { target, pool } = gauge;
-  const total = pool.funnel.reduce((sum, f) => sum + f.weight, 0);
+  const pct = (n: number) => `${Math.min(100, (n / gauge.scaleMax) * 100)}%`;
 
   return (
-    <div className="flex flex-col gap-sm">
-      <GaugeRow label={target.label} value={target.value} note={target.note}>
-        <div className="bg-muted h-2xs w-full overflow-hidden rounded-full">
-          <span className="bg-primary block h-full rounded-full" style={{ width: `${target.percent}%` }} />
-        </div>
-      </GaugeRow>
-
-      <GaugeRow label={pool.label} value={pool.value} note={pool.note} noteTone={pool.thin ? "bad" : "good"}>
-        <div
-          className="bg-muted flex h-2xs w-full gap-px overflow-hidden rounded-full"
-          role="img"
-          aria-label={pool.funnel.map((f) => `${f.label} ${f.value}`).join("; ")}
-        >
-          {total > 0
-            ? pool.funnel.map((f, i) => (
-                <span key={f.label} className={RAMP[i % RAMP.length]} style={{ width: `${(f.weight / total) * 100}%` }} />
-              ))
-            : null}
-        </div>
-
-        {/* Named, because an unlabelled three-part bar is the thing that made
-            these unreadable before. */}
-        <ul className="flex flex-wrap gap-x-sm gap-y-2xs">
-          {pool.funnel.map((f, i) => (
-            <li key={f.label} className="flex items-baseline gap-2xs">
-              <span aria-hidden="true" className={`text-xs leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}>
-                &bull;
-              </span>
-              <span className="text-foreground text-xs font-semibold tabular-nums">{f.value}</span>
-              <span className="text-muted-foreground text-xs">{f.label}</span>
-            </li>
-          ))}
-        </ul>
-      </GaugeRow>
-    </div>
-  );
-}
-
-function GaugeRow({
-  label,
-  value,
-  note,
-  noteTone,
-  children,
-}: {
-  label: string;
-  value: string;
-  note: string | null;
-  noteTone?: "bad" | "good";
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2xs">
+    <div className="flex flex-col gap-xs">
       <div className="flex items-baseline justify-between gap-xs">
-        <span className="text-muted-foreground shrink-0 text-xs">{label}</span>
+        <span className="text-muted-foreground shrink-0 text-xs">{gauge.label}</span>
         <span className="flex min-w-0 items-baseline gap-xs">
-          <span className="text-foreground text-label-md font-semibold tabular-nums">{value}</span>
-          {note ? (
-            <span className={`shrink-0 text-xs tabular-nums ${noteTone ? TEXT[noteTone] : "text-muted-foreground"}`}>
-              {note}
-            </span>
+          <span className="text-foreground text-label-md font-semibold tabular-nums">{gauge.value}</span>
+          {gauge.note ? (
+            <span className={`shrink-0 text-xs tabular-nums ${gauge.thin ? TEXT.bad : TEXT.good}`}>{gauge.note}</span>
           ) : null}
         </span>
       </div>
-      {children}
+
+      {/* The track is the required pool; the fill is what exists. */}
+      <div className="relative">
+        <div className="bg-muted flex h-xs w-full gap-px overflow-hidden rounded-full">
+          {gauge.funnel.map((f, i) =>
+            f.weight > 0 ? (
+              <Tooltip key={f.label}>
+                <TooltipTrigger asChild>
+                  <span className={RAMP[i % RAMP.length]} style={{ width: pct(f.weight) }} />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {f.label} {f.value}
+                </TooltipContent>
+              </Tooltip>
+            ) : null,
+          )}
+        </div>
+
+        {/* The reference mark. Drawn over the track rather than beside it: an
+            axis that sits outside the bar it scales is read as a second bar. */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="bg-foreground absolute inset-y-0 w-px cursor-default"
+              style={{ left: pct(gauge.reference.amount) }}
+              aria-hidden="true"
+            />
+          </TooltipTrigger>
+          <TooltipContent>
+            {gauge.reference.label} {gauge.reference.value}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+
+      {/* Names only. The figures are on hover. */}
+      <ul className="flex flex-wrap items-baseline gap-x-sm gap-y-2xs">
+        {gauge.funnel.map((f, i) => (
+          <li key={f.label} className="flex items-baseline gap-2xs">
+            <span aria-hidden="true" className={`text-xs leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}>
+              &bull;
+            </span>
+            <span className="text-muted-foreground text-xs">{f.label}</span>
+          </li>
+        ))}
+        <li className="text-muted-foreground ml-auto text-xs tabular-nums">
+          {gauge.reference.label} {gauge.reference.value}
+        </li>
+      </ul>
     </div>
   );
 }
