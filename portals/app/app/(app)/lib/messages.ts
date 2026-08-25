@@ -321,6 +321,19 @@ export const ADMIN_TEXT = {
     admin: "谁能进这个工作区，各自能做什么",
     adoption: "跟进记录有没有被用起来。判据见 ADR-012",
   } as Record<string, string>,
+  // What each card says about the state behind it. The cards used to print
+  // their own href as body text - a URL is not something a reader wants and
+  // not something they can act on.
+  memberCount: (members: number, roles: number) =>
+    `${members} 位成员 · ${roles} 个角色在用`,
+  // Zero members is the NORMAL state of a fresh workspace, not an error and
+  // not a number worth printing. A card reading "0 位成员" reads as broken; the
+  // subpage's own empty state says the true thing, so the card says it too.
+  memberNone: "还没有成员——首次登录后才会出现",
+  memberNoRead: "没有成员读取权限",
+  adoptionCriterion: (weeks: number, judge: number) =>
+    `按最近 ${weeks} 周判定，连续 ${judge} 周达标才算被用起来`,
+  open: "打开",
 } as const;
 
 export const HOME_TEXT = {
