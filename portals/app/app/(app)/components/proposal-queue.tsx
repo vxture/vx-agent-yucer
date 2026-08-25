@@ -18,14 +18,9 @@ import {
   type Decision,
 } from "../../domains/copilot/lib/action";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
-import {
-  ACTION_STATUS_LABEL,
-  AGENT_ACTION_LABEL,
-  AGENT_SUBJECT_LABEL,
-  PROPOSAL_TEXT,
-} from "../lib/messages";
 import { BULK_LABELS } from "../lib/ds-labels";
 
+import { useMessages } from "../lib/i18n/provider";
 // The copilot proposal queue - where a human decides what the agent may do.
 //
 // ADR-003 named the risk this surface exists to answer: one-at-a-time
@@ -73,6 +68,13 @@ export function ProposalQueue({
   canDecide,
   onDecide,
 }: ProposalQueueProps) {
+  const {
+    DATA_TABLE_LABELS,
+    ACTION_STATUS_LABEL,
+    AGENT_ACTION_LABEL,
+    AGENT_SUBJECT_LABEL,
+    PROPOSAL_TEXT,
+  } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState<Decision | null>(null);
 
@@ -249,6 +251,7 @@ export function ProposalQueue({
       ) : (
         <TableCard>
           <DataTable
+            labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
             rows={actions}
@@ -292,6 +295,7 @@ function BatchConfirm({
   onCancel,
   onConfirm,
 }: BatchConfirmProps) {
+  const { PROPOSAL_TEXT } = useMessages();
   const verb =
     decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
   return (

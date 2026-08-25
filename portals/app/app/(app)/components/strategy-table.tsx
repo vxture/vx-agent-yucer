@@ -13,10 +13,10 @@ import {
 } from "@vxture/design-ui";
 import type { PlanRecord } from "../../domains/strategy/store";
 import { nextPlanStatuses } from "../../domains/strategy/lib/lifecycle";
-import { PLAN_STATUS_LABEL, STRATEGY_TEXT } from "../lib/messages";
 import { LifecycleControl } from "./lifecycle-control";
 import { TableCard } from "./table-card";
 
+import { useMessages } from "../lib/i18n/provider";
 // The plan list's table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -47,6 +47,7 @@ export function StrategyTable({
   canMove,
   onMove,
 }: StrategyTableProps) {
+  const { DATA_TABLE_LABELS, PLAN_STATUS_LABEL, STRATEGY_TEXT } = useMessages();
   const [view, setView] = useState<FilterBarView>("list");
 
   if (rows.length === 0) {
@@ -132,6 +133,7 @@ export function StrategyTable({
       <TableCard>
         {view === "list" ? (
           <DataTable
+            labels={DATA_TABLE_LABELS}
             leadingSpacer
             indexStart={1}
             /* Pinned right by the DS, fixed width, locked during horizontal
@@ -177,6 +179,7 @@ export function StrategyTable({
  * which is worth seeing rather than hiding behind a dash.
  */
 function Campaigns({ count }: { count: number | undefined }) {
+  const { STRATEGY_TEXT } = useMessages();
   if (count === undefined)
     return <span className="text-muted-foreground">-</span>;
   if (count === 0)

@@ -1,6 +1,6 @@
 import { EmptyState, PanelCard, Section, StatusBadge } from "@vxture/design-ui";
-import { PLAYBOOK_SCOPE_LABEL, PLAYBOOK_TEXT } from "../lib/messages";
 
+import { getMessages } from "../lib/i18n/server";
 // The plays the agent is grounded on.
 //
 // This panel exists because grounding is otherwise INVISIBLE. Workspace-authored
@@ -29,10 +29,11 @@ export interface PlaybookCatalogProps {
   readonly maxPerTurn: number;
 }
 
-export function PlaybookCatalog({
+export async function PlaybookCatalog({
   playbooks,
   maxPerTurn,
 }: PlaybookCatalogProps) {
+  const { PLAYBOOK_SCOPE_LABEL, PLAYBOOK_TEXT } = await getMessages();
   if (playbooks.length === 0) {
     return (
       <Section

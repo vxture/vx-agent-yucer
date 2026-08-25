@@ -523,4 +523,220 @@ export const en: Dictionary = {
     we_owe: "We promised",
     they_owe: "They promised",
   },
+
+  // --- /planning ----------------------------------------------------------
+
+  PLANNING_TEXT: {
+    title: "Sales planning",
+    description:
+      "Targets are set by this domain; attainment is computed from the pipeline domain's forecast snapshots. Neither writes the other's data.",
+    lead: (period: string) => `${period} sales planning`,
+    leadAttained: (closed: string, target: string, pct: string) =>
+      `Workspace ${closed} / ${target} - ${pct} attained`,
+    leadNoWorkspaceTarget: "No workspace-wide target was set this period.",
+    leadUnforecast: (n: number) =>
+      `${n} scopes have submitted no forecast snapshot this period - that is not 0% attained.`,
+    leadRule:
+      "Targets are set here; attainment is computed from the pipeline's forecast snapshots. The two domains never write each other's data.",
+    rowCount: (n: number) => `${n} scopes`,
+    ownerScope: (sub: string) => sub,
+    scopeUnnamed: "Unnamed",
+    columnScope: "Scope",
+    columnMetric: "Metric",
+    columnTarget: "Target",
+    columnClosed: "Closed",
+    columnAttainment: "Attainment",
+    columnStatus: "Status",
+    noSnapshot: "No snapshot",
+    noSnapshotHint:
+      "This scope has submitted no forecast snapshot this period, which is not the same as 0% attained.",
+    emptyTitle: "No targets this period",
+    emptyDescription:
+      "They appear here once sales ops sets territories and quotas.",
+    scopeWorkspace: "Whole workspace",
+  },
+
+  TARGET_STATUS_LABEL: {
+    draft: "Draft",
+    committed: "Committed",
+    closed: "Closed",
+  },
+
+  TARGET_METRIC_LABEL: {
+    revenue: "Revenue",
+    new_logo: "New logos",
+    pipeline: "Pipeline",
+    margin: "Margin",
+  },
+
+  // --- /strategy ----------------------------------------------------------
+
+  STRATEGY_TEXT: {
+    title: "Market strategy",
+    description:
+      "Strategy is where the chain starts: campaigns, leads and opportunities downstream can all point back to it.",
+    lead: (n: number) => `${n} market strategies`,
+    leadTraced: (campaigns: number, orphan: number) =>
+      orphan > 0
+        ? `${campaigns} campaigns trace back to a strategy; ${orphan} have no owner.`
+        : `All ${campaigns} campaigns trace back to a strategy.`,
+    leadNoCampaignRead:
+      "No permission to read campaigns, so downstream cannot be counted.",
+    leadRule:
+      'Strategy is where the chain starts. Campaigns, leads and opportunities all point back to it - which is what makes "how much of this quarter came from the segment we chose to attack" a join rather than a manual tally.',
+    rowCount: (n: number) => `${n} strategies`,
+    columnCampaigns: "Downstream",
+    campaignCount: (n: number) => `${n}`,
+    noCampaigns: "None",
+    ownerNone: "Unassigned",
+    columnName: "Strategy",
+    columnPeriod: "Period",
+    columnOwner: "Owner",
+    columnStatus: "Status",
+    emptyTitle: "No strategies yet",
+    emptyDescription:
+      "Define which market to attack this period and what to achieve.",
+  },
+
+  PLAN_STATUS_LABEL: {
+    draft: "Draft",
+    approved: "Approved",
+    active: "Active",
+    closed: "Closed",
+    archived: "Archived",
+  },
+
+  // --- /copilot -----------------------------------------------------------
+
+  PROPOSAL_TEXT: {
+    title: "Copilot proposals",
+    description:
+      "The agent proposes, a human decides. Nothing runs until it is accepted, and a proposal's content cannot be edited.",
+    lead: (n: number) => `${n} proposals awaiting your call`,
+    leadNone: "Nothing awaiting a decision",
+    leadLowConfidence: (n: number) =>
+      `${n} of them are below 60% confidence - read the reasoning on those first.`,
+    leadRule:
+      "The agent only proposes; a human accepts. A proposal's content cannot be edited - to change it, reject it and let the agent propose again.",
+    rowCount: (n: number) => `${n} proposals`,
+    columnSubject: "Subject",
+    columnAction: "Proposed action",
+    columnRationale: "Reasoning",
+    columnConfidence: "Confidence",
+    columnStatus: "Status",
+    columnDecider: "Decided by",
+    confidenceMissing: "Not given",
+    autopilotMarker: "Ran unattended",
+    selectAll: "Select all proposals awaiting a decision",
+    selectOne: (actionType: string) => `Select the ${actionType} proposal`,
+    selectedLabel: (count: number, lowConfidence: number) =>
+      lowConfidence > 0
+        ? `${count} selected - ${lowConfidence} of low confidence`
+        : `${count} selected`,
+    clearSelection: "Clear",
+    selectionNoun: "proposals",
+    bulkReject: "Reject selected",
+    bulkAccept: "Accept selected",
+    emptyTitle: "No proposals",
+    emptyDescription:
+      "The copilot has proposed nothing yet. Ask it something, or wait for signal scoring to produce one.",
+    confirmTitle: (verb: string, count: number) =>
+      `${verb} ${count} proposals?`,
+    confirmDetail: (opts: {
+      actionTypes: string;
+      subjectTypes: string;
+      meanConfidence: number | null;
+      lowConfidenceCount: number;
+    }) =>
+      `Action types: ${opts.actionTypes}; subjects: ${opts.subjectTypes}. ` +
+      (opts.meanConfidence == null
+        ? "These proposals carry no confidence figure."
+        : `Mean confidence ${Math.round(opts.meanConfidence)}%.`) +
+      (opts.lowConfidenceCount > 0
+        ? ` ${opts.lowConfidenceCount} are below 60%.`
+        : ""),
+    verbAccept: "Accept",
+    verbReject: "Reject",
+    cancel: "Cancel",
+    confirm: (verb: string) => verb,
+    acceptNote:
+      "Each one records you as the decider. Doing them in bulk does not reduce the trail.",
+    rejectNote:
+      "A rejection is signed too, and a rejected proposal keeps its full record.",
+  },
+
+  AGENT_SUBJECT_LABEL: {
+    account: "Account",
+    lead: "Lead",
+    opportunity: "Opportunity",
+    project: "Project",
+    campaign: "Campaign",
+    plan: "Strategy",
+  },
+
+  AGENT_ACTION_LABEL: {
+    advance_stage: "Advance the stage",
+    draft_email: "Draft an email",
+    draft_outreach: "Draft outreach",
+    promote_signal: "Promote the signal to a lead",
+  },
+
+  ACTION_STATUS_LABEL: {
+    proposed: "Awaiting decision",
+    accepted: "Accepted",
+    rejected: "Rejected",
+    executed: "Executed",
+    failed: "Failed",
+    expired: "Expired",
+  },
+
+  COPILOT_TEXT: {
+    title: "Sales copilot",
+    description:
+      "Ask it what to do next. What it gives back are proposed actions; nothing runs until you accept one.",
+    placeholder:
+      "For example: which deals most need attention this quarter? Who should we approach next at East China Retail?",
+    submit: "Send",
+    thinking: "Thinking",
+    emptyTitle: "No conversation yet",
+    emptyDescription:
+      "Ask the copilot something. It answers from your accounts, deals and delivery data, and proposes an action when one is needed.",
+    proposalsFromTurn: (n: number) =>
+      `${n} proposed actions from this turn, awaiting your decision`,
+    droppedProposals: (n: number) =>
+      `${n} further suggestions were not recorded: this tier does not include unprompted proposals`,
+    capabilitiesUsed: (names: string) => `External capabilities used: ${names}`,
+    truncated:
+      "This turn hit the tool-call limit; the answer is based on what was retrieved",
+    errorPrefix: "The copilot could not answer: ",
+    errorNotConfigured:
+      "The model plane is not connected yet (operations has to register and authorise it)",
+    errorNoGrant: "This product has no grant on the model plane",
+    errorQuota: "The model usage quota is exhausted",
+    errorGeneric: "Try again shortly; if it keeps failing, contact operations",
+    newSession: "New conversation",
+  },
+
+  PLAYBOOK_TEXT: {
+    title: "Playbooks",
+    description:
+      "The copilot cites these when it answers. They are here to be seen, questioned and revised - when you disagree with an answer, you can find the sentence that produced it.",
+    emptyTitle: "No playbooks yet",
+    emptyDescription:
+      "A playbook is how this workspace does things. Without one, the copilot answers from data alone.",
+    version: "Version",
+    grounding: (n: number) =>
+      `At most ${n} relevant playbooks are cited per turn`,
+  },
+
+  PLAYBOOK_SCOPE_LABEL: {
+    strategy: "Strategy",
+    planning: "Planning",
+    campaign: "Campaign",
+    account: "Account",
+    signal: "Signal",
+    pipeline: "Pipeline",
+    delivery: "Delivery",
+    copilot: "General",
+  },
 };

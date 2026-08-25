@@ -1,12 +1,12 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { SHELL_TEXT, STRATEGY_TEXT } from "../lib/messages";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { listCampaigns, listPlans } from "../../domains/strategy/service";
 import { can } from "../../authz/decide";
 import { StrategyTable } from "../components/strategy-table";
 import { movePlan } from "./actions";
 
+import { getMessages } from "../lib/i18n/server";
 // D1 strategy: the top of the chain. Everything downstream can trace back here,
 // which is what makes "how much of this quarter came from the segment we chose
 // to attack" a join rather than a manual tally.
@@ -14,6 +14,7 @@ import { movePlan } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function StrategyPage() {
+  const { SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

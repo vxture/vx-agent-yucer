@@ -15,14 +15,11 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import type { AttainmentRow } from "../../domains/planning/service";
-import {
-  PLANNING_TEXT,
-  TARGET_METRIC_LABEL,
-  TARGET_STATUS_LABEL,
-} from "../lib/messages";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { TableCard } from "./table-card";
 
+import { useMessages } from "../lib/i18n/provider";
+import type { Dictionary } from "../lib/i18n/dictionary";
 // The attainment table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -43,6 +40,7 @@ import { TableCard } from "./table-card";
 function scopeLabel(
   row: AttainmentRow,
   names: ReadonlyMap<string, string>,
+  PLANNING_TEXT: Dictionary["PLANNING_TEXT"],
 ): string {
   const t = row.target;
   if (t.scopeType === "workspace") return PLANNING_TEXT.scopeWorkspace;
@@ -60,6 +58,12 @@ export interface PlanningTableProps {
 }
 
 export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
+  const {
+    DATA_TABLE_LABELS,
+    PLANNING_TEXT,
+    TARGET_METRIC_LABEL,
+    TARGET_STATUS_LABEL,
+  } = useMessages();
   const [view, setView] = useState<FilterBarView>("list");
   const names = territoryNames ?? new Map<string, string>();
 
@@ -76,7 +80,7 @@ export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
     {
       id: "scope",
       header: PLANNING_TEXT.columnScope,
-      cell: (row) => scopeLabel(row, names),
+      cell: (row) => scopeLabel(row, names, PLANNING_TEXT),
     },
     {
       id: "metric",
@@ -140,6 +144,7 @@ export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
       <TableCard>
         {view === "list" ? (
           <DataTable
+            labels={DATA_TABLE_LABELS}
             leadingSpacer
             indexStart={1}
             columns={columns}
@@ -151,7 +156,7 @@ export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
             {rows.map((row) => (
               <ListCard
                 key={row.target.id}
-                title={scopeLabel(row, names)}
+                title={scopeLabel(row, names, PLANNING_TEXT)}
                 description={
                   TARGET_METRIC_LABEL[row.target.metric] ?? row.target.metric
                 }
@@ -192,6 +197,7 @@ export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
  * unforecast quarter as a failed one.
  */
 function Attainment({ row }: { row: AttainmentRow }) {
+  const { PLANNING_TEXT } = useMessages();
   if (!row.hasSnapshot) {
     return (
       <Tooltip>

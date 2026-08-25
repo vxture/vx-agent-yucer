@@ -1,6 +1,5 @@
 import { Card, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { PROPOSAL_TEXT, SHELL_TEXT } from "../lib/messages";
 import {
   getAccountStore,
   getCopilotStore,
@@ -15,6 +14,7 @@ import { ProposalQueue } from "../components/proposal-queue";
 import { adjudicateProposals } from "./actions";
 import { askCopilot } from "./ask-action";
 
+import { getMessages } from "../lib/i18n/server";
 // D8 copilot: the conversation and the proposal queue on one page.
 //
 // They belong together and stay VISUALLY SEPARATE. The conversation is where
@@ -30,6 +30,7 @@ export default async function CopilotPage({
 }: {
   searchParams: Promise<{ account?: string }>;
 }) {
+  const { PROPOSAL_TEXT, SHELL_TEXT } = await getMessages();
   const { account: accountId } = await searchParams;
   const session = await resolveAppSession();
   if (!session) {

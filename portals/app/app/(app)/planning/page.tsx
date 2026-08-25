@@ -1,11 +1,11 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
-import { PLANNING_TEXT, SHELL_TEXT } from "../lib/messages";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
 
+import { getMessages } from "../lib/i18n/server";
 // D2 planning: targets against what actually closed.
 //
 // The column that matters is attainment, and the thing it must never do is
@@ -21,6 +21,7 @@ function currentPeriod(now = new Date()): string {
 }
 
 export default async function PlanningPage() {
+  const { PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

@@ -8,8 +8,9 @@ import {
   StatusBadge,
   Textarea,
 } from "@vxture/design-ui";
-import { ASK_ABOUT_TEXT, COPILOT_TEXT } from "../lib/messages";
 
+import { useMessages } from "../lib/i18n/provider";
+import type { Dictionary } from "../lib/i18n/dictionary";
 // The copilot conversation.
 //
 // The design decision that matters here is what the surface REFUSES to imply.
@@ -60,7 +61,10 @@ export interface CopilotChatProps {
 }
 
 /** The model plane's error codes, translated into what the reader should do. */
-function explainError(code: string): string {
+function explainError(
+  code: string,
+  COPILOT_TEXT: Dictionary["COPILOT_TEXT"],
+): string {
   if (code === "atlas_ATLAS_NOT_CONFIGURED" || code === "no_active_tenant") {
     return COPILOT_TEXT.errorNotConfigured;
   }
@@ -82,6 +86,7 @@ export function CopilotChat({
   account,
   onAsk,
 }: CopilotChatProps) {
+  const { ASK_ABOUT_TEXT, COPILOT_TEXT } = useMessages();
   const [messages, setMessages] = useState<ChatMessageView[]>([
     ...initialMessages,
   ]);
@@ -106,7 +111,7 @@ export function CopilotChat({
     startTransition(() => {
       void onAsk(question, session, account?.id).then((result) => {
         if (!result.ok) {
-          setError(explainError(result.error));
+          setError(explainError(result.error, COPILOT_TEXT));
           return;
         }
         setSession(result.sessionId);
