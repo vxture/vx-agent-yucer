@@ -19,6 +19,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
 | TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
+| TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -210,6 +211,30 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 
 **恢复条件**：DS 提供环形进度（带语义色档与环心插槽）。提供后**删除**本文件，
 而不是改造它。
+
+### TD-010 - 规则层的英文理由串直接当界面文案外泄
+
+**症状**：`/delivery` 的「已下调」提示框整条内容是
+`1 overdue instalment(s): a project with unpaid instalments cannot be green`
+—— 一句英文散文，出现在一个全中文的产品里，而且是提示框的**全部**内容。
+
+**根因是 TD-002 的镜像。** TD-002 说的是中文漏进了要求 ASCII 的 source；这一条说
+的是**英文从 source 漏进了界面**。`domains/delivery/lib/revenue.ts:178` 的
+`deriveProjectHealth` 直接把理由拼成一句英文散文放进 `overriddenBecause`，而它所在
+的文件必须 ASCII-only，所以那句话**永远不可能**是产品文案。
+
+**当前处置（权宜）**：提示框改为「中文规则句 + 机器判定依据」两行，把那句英文降级为
+**证据**而不是文案。降级是诚实的 —— 它本来就是规则层的自述，不是写给用户看的话。
+
+**正确的修法**：规则返回**结构化理由**（`{ code: "overdue_instalment", count: 1 }`）
+而不是散文，由界面层渲染。牵动 `revenue.ts` / `service.ts` 与两处断言
+`/cannot be green/` 的测试（`revenue.test.ts:157`、`service.test.ts:84`），属于
+域服务层改动，不在页面重构范围内。
+
+**同类风险**：`deriveProjectHealth` 里还有第二句
+`${missed} missed milestone(s)`，同一路径同一问题。改结构化理由时一并处理。
+
+**恢复条件**：规则层改为结构化理由，界面层删除本条的权宜渲染。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 

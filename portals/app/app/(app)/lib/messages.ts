@@ -1024,6 +1024,17 @@ export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
 export const DELIVERY_TEXT = {
   title: "项目落地",
   description: "链路终点不是赢单，是钱到账。逾期回款的项目不允许显示为健康。",
+  // The headline. This page's central claim is the DOWNGRADE RULE, and it lived
+  // only in the section subtitle - so a reader could read a green row without
+  // ever learning that green here is derived, not reported.
+  lead: (n: number) => `${n} 个交付项目`,
+  leadContract: (total: string) => `合同额合计 ${total}`,
+  leadDowngraded: (n: number) =>
+    `${n} 个项目的健康度已被下调——交付说没问题，但钱没到。`,
+  leadRule:
+    "健康度显示的是派生值，不是交付团队报的值。逾期回款不允许显示为健康。",
+  rowCount: (n: number) => `${n} 个项目`,
+  managerNone: "未指派",
   columnName: "项目",
   columnAccount: "客户",
   columnManager: "项目经理",
@@ -1031,9 +1042,33 @@ export const DELIVERY_TEXT = {
   columnContract: "合同额",
   columnStatus: "状态",
   healthOverridden: "已下调",
+  // The tooltip states the RULE in the product's language, and shows the rule
+  // layer's own sentence underneath as the machine's evidence. That sentence is
+  // English because deriveProjectHealth lives in a source file the repo requires
+  // to be ASCII-only, so it cannot be product copy - see TD-010.
+  healthOverriddenWhy:
+    "交付团队报的是「健康」。规则不接受：有逾期未收的款项时，项目不允许显示为健康。",
+  healthOverriddenEvidence: "判定依据",
   emptyTitle: "还没有交付项目",
   emptyDescription: "商机赢单后建立交付项目，会出现在这里。",
 } as const;
+
+/**
+ * Keyed off the database's own CHECK constraint (00_baseline.sql
+ * chk_project_status), not off what the demo fixtures happen to contain - the
+ * fixtures only ever produce "active", so a map built from them would have
+ * shipped four holes. The delivery table was rendering the raw enum: `active`,
+ * `planning`, `delivered` in English, the one table in the product not
+ * labelling its own status column.
+ */
+export const PROJECT_STATUS_LABEL: Record<string, string> = {
+  planning: "筹备",
+  active: "进行中",
+  on_hold: "已暂停",
+  delivered: "已交付",
+  closed: "已关闭",
+  cancelled: "已取消",
+};
 
 export const PROJECT_HEALTH_LABEL: Record<string, string> = {
   green: "健康",
