@@ -1,4 +1,4 @@
-import { Card, EmptyState, SectionHeader } from "@vxture/design-ui";
+import { Card, EmptyState, Section } from "@vxture/design-ui";
 import { PIPELINE_TEXT } from "../lib/messages";
 
 // The forecast series, drawn.
@@ -43,17 +43,16 @@ export function ForecastTrajectory({
   const max = Math.max(...points.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed]), 1);
 
   return (
-    <Card className="p-md">
-      <SectionHeader
-        /* Level 2, level with the board and the review section. It was a 3,
-           which read as a sub-part of whatever preceded it; the trajectory is
-           its own subject - the board is this quarter, this is every quarter
-           that was forecast before it. */
-        level={2}
-        icon="chart-line"
-        title={PIPELINE_TEXT.trajectory}
-        description={PIPELINE_TEXT.trajectoryWhy}
-      />
+    /* Section, not Card+SectionHeader, so this reads the same way as the board
+       and the review section: the heading and its description sit OUTSIDE the
+       surface, and only the content goes on it. This was the odd one of the
+       three - its heading lived inside its own card, which made the page's
+       three subjects look like two subjects and one boxed aside. */
+    <Section
+      icon="chart-line"
+      title={PIPELINE_TEXT.trajectory}
+      description={PIPELINE_TEXT.trajectoryWhy}
+    >
 
       {/* The section keeps its heading when a period has no snapshots. It used
           to return null, which was harmless while the period was fixed and
@@ -68,7 +67,8 @@ export function ForecastTrajectory({
           />
         </div>
       ) : (
-      <div className="mt-md flex items-end gap-lg overflow-x-auto">
+      <Card className="mt-md p-md">
+        <div className="flex items-end gap-lg overflow-x-auto">
         {points.map((p) => (
           <div key={p.at} className="flex shrink-0 flex-col items-center gap-xs">
             <div className="flex h-28 items-end gap-2xs">
@@ -99,8 +99,9 @@ export function ForecastTrajectory({
             </div>
           ))}
         </div>
-      </div>
+        </div>
+      </Card>
       )}
-    </Card>
+    </Section>
   );
 }
