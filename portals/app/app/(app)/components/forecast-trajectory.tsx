@@ -1,4 +1,4 @@
-import { Card, EmptyState, Section } from "@vxture/design-ui";
+import { Card, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { PIPELINE_TEXT } from "../lib/messages";
 
 // The forecast series, drawn.
@@ -29,6 +29,16 @@ const SERIES = [
   { key: "closed", label: PIPELINE_TEXT.tClosed, cls: "bg-success" },
 ] as const;
 
+/**
+ * How many readings the plot shows.
+ *
+ * Eight because it is what the card's width carries without the columns
+ * becoming hairlines, and because a forecast is argued over a quarter - eight
+ * weekly snapshots is roughly that. Older readings are not lost, they are
+ * simply not what this chart is for.
+ */
+const VISIBLE_POINTS = 8;
+
 export function ForecastTrajectory({
   points,
   wan,
@@ -40,7 +50,17 @@ export function ForecastTrajectory({
   // One baseline across all four series: they are the same unit measured the
   // same way, so scaling each to its own max would make the small ones look
   // like the big ones.
-  const max = Math.max(...points.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed]), 1);
+  // THE MOST RECENT WINDOW, not the whole history. A trajectory is read for
+  // where the number is heading, and a quarter that has been forecast weekly
+  // for months would squeeze every reading to a hairline to show movement
+  // nobody is looking at. Taking the tail rather than the head is the point:
+  // the newest reading must always be the rightmost one.
+  const shown = points.slice(-VISIBLE_POINTS);
+
+  // Scaled to the WINDOW, not the full series. A baseline drawn from readings
+  // that are no longer on screen would flatten the ones that are, with nothing
+  // visible to explain why.
+  const max = Math.max(...shown.flatMap((p) => [p.commit, p.bestCase, p.pipeline, p.closed]), 1);
 
   return (
     /* Section, not Card+SectionHeader, so this reads the same way as the board
@@ -52,6 +72,19 @@ export function ForecastTrajectory({
       icon="chart-line"
       title={PIPELINE_TEXT.trajectory}
       description={PIPELINE_TEXT.trajectoryWhy}
+      /* Says so when readings were dropped. Windowing silently would let a
+         chart of the last eight weeks pass for the whole quarter, and the
+         reader has no way to tell the difference from the plot alone. Absent
+         when everything is on screen - a window nobody hit needs no caption.
+         `action` rather than `titleSuffix` because Section forwards icon,
+         title, description and action to its header but not titleSuffix. */
+      action={
+        points.length > shown.length ? (
+          <StatusBadge tone="neutral">
+            {PIPELINE_TEXT.trajectoryWindow(shown.length, points.length)}
+          </StatusBadge>
+        ) : undefined
+      }
     >
 
       {/* The section keeps its heading when a period has no snapshots. It used
@@ -68,9 +101,16 @@ export function ForecastTrajectory({
         </div>
       ) : (
       <Card className="p-md">
-        <div className="flex items-end gap-lg overflow-x-auto">
-        {points.map((p) => (
-          <div key={p.at} className="flex shrink-0 flex-col items-center gap-xs">
+        {/* The plot stretches; the legend does not. Left to shrink-0 the
+            columns clustered at the left edge of a wide card with the rest of
+            it empty - a chart that does not use its width reads as a chart with
+            missing data. Each column is flex-1 now, so the same series fills
+            whatever width the card is given and the spacing between readings
+            stays even at any viewport. */}
+        <div className="flex items-end gap-lg">
+        <div className="flex min-w-0 flex-1 items-end gap-md">
+        {shown.map((p) => (
+          <div key={p.at} className="flex min-w-0 flex-1 flex-col items-center gap-xs">
             <div className="flex h-28 items-end gap-2xs">
               {SERIES.map((s) => {
                 const v = p[s.key];
@@ -84,9 +124,10 @@ export function ForecastTrajectory({
                 );
               })}
             </div>
-            <span className="text-muted-foreground text-xs tabular-nums">{p.at}</span>
+            <span className="text-muted-foreground truncate text-xs tabular-nums">{p.at}</span>
           </div>
         ))}
+        </div>
 
         <div className="flex shrink-0 flex-col gap-2xs self-center">
           {SERIES.map((s) => (
@@ -94,7 +135,7 @@ export function ForecastTrajectory({
               <span className={`size-2 rounded-sm ${s.cls}`} aria-hidden />
               <span className="text-muted-foreground text-xs">{s.label}</span>
               <span className="text-foreground ml-auto text-xs tabular-nums">
-                {wan(points[points.length - 1]![s.key])}
+                {wan(shown[shown.length - 1]![s.key])}
               </span>
             </div>
           ))}

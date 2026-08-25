@@ -484,6 +484,9 @@ export const PIPELINE_TEXT = {
   splitCollapse: "收起构成",
   splitExpand: "展开构成",
   splitEmpty: "本周期没有可拆的产品线",
+  /** Said only when readings were actually dropped - a window nobody hit is
+   *  not worth explaining. */
+  trajectoryWindow: (shown: number, total: number) => `最近 ${shown} 次，共 ${total} 次`,
   trajectoryEmptyTitle: "本周期还没有预测快照",
   trajectoryEmptyDescription: "提交一次预测后，这里会按时间显示它的变化。轨迹只画已经存下来的快照，不回溯推算。",
   // --- Added for the redesigned page ---------------------------------------
