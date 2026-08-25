@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ActionMenu, Card, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
+import { ActionMenu, DataTable, EmptyState, FilterBar, ListCard, ListCardGrid, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
+import { TableCard } from "./table-card";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory, ForecastableOpportunity } from "../../domains/pipeline/lib/forecast";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
@@ -156,7 +157,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
               heading and its tools; the card is the surface the rows sit on, so
               wrapping the whole section would put the heading inside the thing
               it names. */}
-          <Card className="p-xs">
+          <TableCard>
             {view === "list" ? (
               <DataTable
                 leadingSpacer
@@ -224,7 +225,7 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
                 ))}
               </ListCardGrid>
             )}
-          </Card>
+          </TableCard>
         </>
       )}
     </Section>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ActionMenu, Button, Card, DataTable, EmptyState, FilterBar, Input, Label, ListCard, ListCardGrid, NativeSelect, Section, SegmentedControl, StatusBadge, Textarea, type DataTableColumn } from "@vxture/design-ui";
+import { TableCard } from "./table-card";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { PIPELINE_TEXT, WINLOSS_REASON_LABEL, WINLOSS_TEXT } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
@@ -156,7 +157,7 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
       ) : (
         /* Only the table is in the card - the heading and its tools stay
            outside it, the same as the board. */
-        <Card className="p-xs">
+        <TableCard>
           {view === "list" ? (
             <DataTable
               leadingSpacer
@@ -210,7 +211,7 @@ export function PendingReviews({ opportunities, allClosed, canRecord, onRecord }
               ))}
             </ListCardGrid>
           )}
-        </Card>
+        </TableCard>
       )}
 
       {target ? (
