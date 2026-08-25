@@ -311,6 +311,12 @@ export const HEADER_TEXT = {
   // three shapes this label takes belongs where the label is chosen.
   version: (v: string) => v,
 
+  // The functional-domain control. Placed now, inert until the domains are
+  // split - see the note in app-shell.tsx for why an inert control is the
+  // honest shape rather than a menu of one.
+  scopeAria: "当前功能域",
+  scopeUnknown: "功能域",
+
   // The workspace and tenant, and the panel that explains them.
   workspaceAria: "当前工作区与租户",
   workspacePanelTitle: "工作区",

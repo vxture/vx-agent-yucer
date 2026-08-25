@@ -208,7 +208,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       tier={session.entitlement.tier}
       searchable={searchable}
       admin={admin}
-      activeKey={null}
       userName={session.user.sub}
       // NOT the tier. The header already states the tier in its own badge, and
       // passing it here printed "enterprise" twice - once as the place you are

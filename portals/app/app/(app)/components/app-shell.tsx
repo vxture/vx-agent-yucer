@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ShellBrand,
   ShellIconButton,
+  ShellScopeButton,
   ShellSearchBox,
   ShellUserMenu,
 } from "@vxture/design-system";
@@ -23,7 +24,12 @@ import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { WorkspaceScope } from "./workspace-scope";
 import type { AgentPanelData } from "../lib/board";
 import type { BoardSection } from "../lib/board";
-import { HEADER_TEXT, NAV_TEXT, SHELL_TEXT } from "../lib/messages";
+import {
+  DOMAIN_LABEL,
+  HEADER_TEXT,
+  NAV_TEXT,
+  SHELL_TEXT,
+} from "../lib/messages";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 
 /**
@@ -90,7 +96,15 @@ export interface AppShellProps {
    * icon is not a locked door they cannot do anything about.
    */
   readonly admin: readonly ResolvedNavEntry[];
-  readonly activeKey: string | null;
+  /**
+   * REMOVED as a prop and derived here instead.
+   *
+   * The layout passed a literal `null` - it is a server component and cannot
+   * read the pathname - so nothing on the board has ever highlighted, and the
+   * domain control had nothing to name. Deriving it from usePathname() in this
+   * client component is the only place that CAN know, and it fixes both at
+   * once.
+   */
   readonly userName: string;
   readonly workspaceLabel: string;
   readonly upgradeHref: string;
@@ -139,7 +153,6 @@ export function AppShell({
   canRecord,
   onRecord,
   admin,
-  activeKey,
   userName,
   workspaceLabel,
   appVersion,
@@ -153,6 +166,12 @@ export function AppShell({
 }: AppShellProps) {
   const [query, setQuery] = useState("");
   const router = useRouter();
+
+  // The first path segment IS the domain key: the routes are named for the
+  // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
+  const pathname = usePathname();
+  const activeKey =
+    pathname === "/" ? "home" : (pathname.split("/")[1] ?? null);
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
@@ -256,6 +275,31 @@ export function AppShell({
                 }
                 active={showBoard}
                 onClick={toggleBoard}
+              />
+
+              {/* (2) The functional domain.
+                
+                PRESENT AND INERT, which is a deliberate shape rather than an
+                unfinished one. The domains have not been split yet, so there is
+                nothing to switch TO - and the DS anticipates exactly this
+                state: ShellScopeButton's `caret` prop documents itself as
+                "只作展示、不可点的场合传 false". A caret over a list of one
+                would promise a choice that does not exist, and a menu that
+                opens to a single item teaches a reader to stop opening it.
+
+                What it shows is real, not a placeholder: the domain you are in
+                right now, off activeKey through the same DOMAIN_LABEL the
+                navigation uses. When the domains are split, the caret and the
+                panel attach to this control rather than replacing it, and the
+                label it already shows becomes the menu's current value. */}
+              <ShellScopeButton
+                icon="squares-four"
+                label={
+                  (activeKey ? DOMAIN_LABEL[activeKey] : null) ??
+                  HEADER_TEXT.scopeUnknown
+                }
+                ariaLabel={HEADER_TEXT.scopeAria}
+                caret={false}
               />
 
               {/* (3)(4) Logo and product name. ShellBrand draws them as one
