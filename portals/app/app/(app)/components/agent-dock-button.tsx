@@ -2,7 +2,7 @@
 
 import { ShellIconButton } from "@vxture/design-system";
 import { Badge } from "@vxture/design-ui";
-import { HEADER_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // The header's handle on the agent deck.
 //
@@ -49,6 +49,7 @@ export function AgentDockButton({
   open,
   onToggle,
 }: AgentDockButtonProps) {
+  const { HEADER_TEXT } = useMessages();
   // The accessible name carries the count too. A screen reader landing on a bare
   // "智能助手" would get the badge as a separate, contextless number.
   const label =

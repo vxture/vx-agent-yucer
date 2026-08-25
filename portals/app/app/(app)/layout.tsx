@@ -4,6 +4,7 @@ import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
 import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
+import { MessagesProvider } from "./lib/i18n/provider";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { can } from "../authz/decide";
@@ -181,45 +182,47 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     .join("; ");
 
   return (
-    <AppShell
-      boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
-      dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
-      board={board}
-      agent={agent}
-      canRecord={canRecord}
-      onRecord={async (text: string) => {
-        "use server";
-        // No account id: an unanchored note is still worth keeping, and
-        // demanding one at capture time is the friction ADR-012's kill
-        // criterion is measuring.
-        return recordFollowUp("", {
-          channel: "other",
-          occurredAt: new Date().toISOString(),
-          rawNote: text,
-        });
-      }}
-      appVersion={buildLabel()}
-      tenantId={tenantIdOf(session)}
-      locale={locale}
-      /* APP_ENV, not a guess from the version string's shape. Beta ships a
+    <MessagesProvider locale={locale}>
+      <AppShell
+        boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
+        dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
+        board={board}
+        agent={agent}
+        canRecord={canRecord}
+        onRecord={async (text: string) => {
+          "use server";
+          // No account id: an unanchored note is still worth keeping, and
+          // demanding one at capture time is the friction ADR-012's kill
+          // criterion is measuring.
+          return recordFollowUp("", {
+            channel: "other",
+            occurredAt: new Date().toISOString(),
+            rawNote: text,
+          });
+        }}
+        appVersion={buildLabel()}
+        tenantId={tenantIdOf(session)}
+        locale={locale}
+        /* APP_ENV, not a guess from the version string's shape. Beta ships a
          `beta-YYYYMMDD.N` tag and production ships `vX.Y.Z`, so inferring the
          tier from the label would make "is this production" depend on how
          someone named a tag. One explicit key, defaulting to non-production:
          a missing config should hide nothing it would be wrong to show, and
          showing a build badge in dev is harmless while hiding it in prod is
          the point. */
-      isProduction={process.env.APP_ENV === "prod"}
-      tier={session.entitlement.tier}
-      searchable={searchable}
-      admin={admin}
-      userName={session.user.sub}
-      // NOT the tier. The header already states the tier in its own badge, and
-      // passing it here printed "enterprise" twice - once as the place you are
-      // in and once as what you pay for, which are different facts.
-      workspaceLabel={SHELL_TEXT.workspaceFallback}
-      upgradeHref={subscribeUrl({ intent: "upgrade" })}
-    >
-      {children}
-    </AppShell>
+        isProduction={process.env.APP_ENV === "prod"}
+        tier={session.entitlement.tier}
+        searchable={searchable}
+        admin={admin}
+        userName={session.user.sub}
+        // NOT the tier. The header already states the tier in its own badge, and
+        // passing it here printed "enterprise" twice - once as the place you are
+        // in and once as what you pay for, which are different facts.
+        workspaceLabel={SHELL_TEXT.workspaceFallback}
+        upgradeHref={subscribeUrl({ intent: "upgrade" })}
+      >
+        {children}
+      </AppShell>
+    </MessagesProvider>
   );
 }

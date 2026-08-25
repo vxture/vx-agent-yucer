@@ -8,7 +8,7 @@ import {
   ShellScopeButton,
 } from "@vxture/design-system";
 import { Popover, PopoverContent, PopoverTrigger } from "@vxture/design-ui";
-import { HEADER_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // The workspace and the tenant it belongs to.
 //
@@ -39,6 +39,7 @@ export function WorkspaceScope({
   workspaceLabel,
   tenantId,
 }: WorkspaceScopeProps) {
+  const { HEADER_TEXT } = useMessages();
   return (
     <Popover>
       <PopoverTrigger asChild>

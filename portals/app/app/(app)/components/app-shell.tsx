@@ -31,12 +31,10 @@ import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { WorkspaceScope } from "./workspace-scope";
 import type { AgentPanelData } from "../lib/board";
 import type { BoardSection } from "../lib/board";
-import {
-  DOMAIN_LABEL,
-  HEADER_TEXT,
-  NAV_TEXT,
-  SHELL_TEXT,
-} from "../lib/messages";
+// NOT a static import of the Chinese constants any more. This component is
+// the shell - it renders on every page, in whatever language the request
+// resolved to - so it reads the dictionary rather than one locale's copy of it.
+import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 
 /**
@@ -177,6 +175,7 @@ export function AppShell({
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { mode, setMode } = useTheme();
+  const { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } = useMessages();
 
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.

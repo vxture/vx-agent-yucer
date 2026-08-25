@@ -6,7 +6,7 @@ import {
   ShellIconGroup,
 } from "@vxture/design-system";
 import { Badge } from "@vxture/design-ui";
-import { HEADER_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 /**
  * The id the fullscreen toggle expands.
@@ -64,6 +64,7 @@ export function HeaderTools({
   onNotifications,
   fullscreenTarget,
 }: HeaderToolsProps) {
+  const { HEADER_TEXT } = useMessages();
   return (
     <ShellIconGroup label={HEADER_TEXT.toolsAria}>
       {/* The DS owns the fullscreen mechanics - the API, the escape key, the
