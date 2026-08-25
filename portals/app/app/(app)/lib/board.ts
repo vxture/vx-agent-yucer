@@ -19,7 +19,6 @@ import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects } from "../../domains/delivery/service";
 import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
-import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import { judgementFeed } from "../../domains/judgement/service";
 import { BOARD_TEXT } from "./messages";
@@ -67,17 +66,25 @@ export interface BoardSection {
    * How this section's numbers should be DRAWN, decided here rather than in the
    * component, because it is a claim about what they mean:
    *
-   *   "share" - the metrics partition one population, so their relative sizes
-   *             are the point (today/week/watch is every open judgement, split
-   *             three ways). Drawn as one bar in segments.
-   *   "bars"  - the metrics are independent magnitudes on a common unit, so the
-   *             comparison is between them (money per product line). Drawn as a
-   *             row each.
+   *   "lede" - ONE of these figures is the reason to look, and the rest are
+   *            context for it. The first metric is the lede; it is drawn large
+   *            and in its own tone, the others compress onto a single muted
+   *            line beneath. board.ts decides which comes first, because which
+   *            number demands action is a business judgement, not a layout one.
+   *   "bars" - the metrics are independent magnitudes on a common unit, so the
+   *            comparison is between them (money per product line). Drawn as a
+   *            row each.
+   *
+   * A "share" shape existed here and was removed. A stacked proportion bar
+   * asserts that the SPLIT of a whole is the point, and for these numbers it
+   * never was: nobody needs the ratio of today to this-week, they need "4
+   * today". The encoding answered a question no one had asked, which is why it
+   * read as decorative.
    *
    * Absent means the numbers do not relate to each other and drawing them would
    * assert a relationship that is not there.
    */
-  readonly chart?: "share" | "bars";
+  readonly chart?: "lede" | "bars";
 }
 
 export interface BoardContext {
@@ -97,48 +104,6 @@ export interface BoardContext {
  * so both callers share one computation and every other page pays for it once.
  */
 export const cachedFeed = cache(judgementFeed);
-
-const ACTION_LABEL: Record<string, string> = {
-  advance_stage: BOARD_TEXT.actAdvance,
-  draft_outreach: BOARD_TEXT.actOutreach,
-  promote_signal: BOARD_TEXT.actPromote,
-};
-
-/**
- * What is waiting, by what it would DO.
- *
- * A lone "4" says work exists without saying what kind, and these are not
- * interchangeable: waving through a stage advance and signing off an outreach
- * draft are different acts with different risk. Grouped by action type, which
- * is a fact on the row - not by a confidence threshold, which would be a
- * number invented here.
- */
-function proposalBreakdown(result: { ok: boolean; value?: unknown }): BoardMetric[] {
-  if (!result.ok || !Array.isArray(result.value)) return [];
-  const rows = result.value as { actionType: string; capability: string | null }[];
-  if (rows.length === 0) return [];
-  // Grouped by CAPABILITY where one is recorded, falling back to the action
-  // type. ADR-015: the action type says what would be DONE (advance a stage),
-  // the capability says what expertise concluded it should be - and those are
-  // the units accuracy is measured and noise is muted in.
-  //
-  // Rows without a capability show as unlabelled rather than being folded into
-  // a guess: they are the history from before the key existed, and inventing
-  // one would put manufactured data next to measured data.
-  const byKind = new Map<string, number>();
-  for (const r of rows) {
-    const label = r.capability
-      ? capabilityLabel(r.capability, BOARD_TEXT.capabilityLabels, BOARD_TEXT.capUnlabelled)
-      : (ACTION_LABEL[r.actionType] ?? BOARD_TEXT.actOther);
-    byKind.set(label, (byKind.get(label) ?? 0) + 1);
-  }
-  return [
-    // No weight: this is the total the segments below add up to, so drawing it
-    // as one of them would double the population.
-    { label: BOARD_TEXT.pending, value: String(rows.length), tone: "warn" },
-    ...[...byKind].map(([label, n]) => ({ label, value: String(n), weight: n })),
-  ];
-}
 
 /** A count, or nothing at all if the gate refused. */
 function count(result: { ok: boolean; value?: unknown }, label: string): BoardMetric[] {
@@ -203,17 +168,41 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
       ? rows.value.find((r) => r.target.id === wsTarget?.id)
       : undefined;
 
+  // Narrowed once here rather than at the use site: proposals is a RuleResult,
+  // and a member who cannot read them gets no figure rather than a zero - "0
+  // proposals" and "you cannot see proposals" are different statements.
+  const proposalCount = proposals.ok ? proposals.value.length : 0;
+
   const sections: BoardSection[] = [
+    // ONE queue. These were two cards - "today's judgements" and "awaiting my
+    // adjudication" - and both restated a panel already on screen: the first
+    // reproduced the centre's own tier filter figure for figure, the second
+    // reproduced the agent deck's pending list. Two restatements of two
+    // neighbours is not a board, it is an echo.
+    //
+    // They also answer one question between them: what is waiting on ME. The
+    // streams behind them differ - a judgement is a conclusion the agent
+    // reached, a proposal is an action it wants to take and cannot without a
+    // signature (ADR-003) - but that distinction belongs where the work is
+    // done, not on a standing summary that has to survive on every route.
+    //
+    // Deliberately NOT summed into one total: agent_action carries
+    // origin_assessment_id, so a proposal can descend from a judgement, and
+    // adding them would report the same piece of work twice.
     {
-      key: "today",
-      title: BOARD_TEXT.today,
+      key: "queue",
+      title: BOARD_TEXT.queue,
       href: "/",
-      chart: "share",
+      chart: "lede",
       metrics: feed.ok
         ? [
-            { label: BOARD_TEXT.tierToday, value: String(feed.value.counts.today), tone: "bad", weight: feed.value.counts.today },
-            { label: BOARD_TEXT.tierWeek, value: String(feed.value.counts.week), tone: "warn", weight: feed.value.counts.week },
-            { label: BOARD_TEXT.tierWatch, value: String(feed.value.counts.watch), weight: feed.value.counts.watch },
+            // The lede, and the only figure with a deadline attached.
+            { label: BOARD_TEXT.ledeToday, value: String(feed.value.counts.today), tone: "bad" },
+            { label: BOARD_TEXT.tierWeek, value: String(feed.value.counts.week), tone: "warn" },
+            { label: BOARD_TEXT.tierWatch, value: String(feed.value.counts.watch) },
+            ...(proposalCount > 0
+              ? [{ label: BOARD_TEXT.proposals, value: String(proposalCount), tone: "warn" as const }]
+              : []),
           ]
         : [],
     },
@@ -240,20 +229,22 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
           {
             key: "allies",
             title: BOARD_TEXT.allies,
-            chart: "share" as const,
+            chart: "lede" as const,
             href: "/account",
+            // Unreached decision-makers lead. This card exists to raise an
+            // alarm, and the alarm is that a deal has nobody in it who can say
+            // yes - not that some coaches were built. Coaches and blockers are
+            // the context that tells you how bad it is.
             metrics: [
-              {
-                label: BOARD_TEXT.alliesCoaches,
-                value: String(feed.value.allies.coaches),
-                tone: "good" as const,
-                weight: feed.value.allies.coaches,
-              },
               {
                 label: BOARD_TEXT.alliesUnreachable,
                 value: String(feed.value.allies.unreachable),
                 tone: feed.value.allies.unreachable > 0 ? ("bad" as const) : undefined,
-                weight: feed.value.allies.unreachable,
+              },
+              {
+                label: BOARD_TEXT.alliesCoaches,
+                value: String(feed.value.allies.coaches),
+                tone: "good" as const,
               },
               ...(feed.value.allies.blockers > 0
                 ? [
@@ -261,7 +252,6 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
                       label: BOARD_TEXT.alliesBlockers,
                       value: String(feed.value.allies.blockers),
                       tone: "warn" as const,
-                      weight: feed.value.allies.blockers,
                     },
                   ]
                 : []),
@@ -305,15 +295,6 @@ export async function boardSections(ctx: BoardContext): Promise<BoardSection[]> 
           },
         ]
       : []),
-    {
-      key: "adjudicate",
-      title: BOARD_TEXT.adjudicate,
-      href: "/copilot",
-      chart: "share",
-      // Proposals awaiting a person, under ADR-003: the agent proposes and a
-      // human decides, so this is work owed by a person, not by the system.
-      metrics: proposalBreakdown(proposals),
-    },
     // The archive, each with the one number that says whether it is worth
     // opening.
     { key: "strategy", title: BOARD_TEXT.strategy, href: "/strategy", metrics: count(plans, BOARD_TEXT.plans) },

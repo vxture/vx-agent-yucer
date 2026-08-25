@@ -157,6 +157,16 @@ export const SIGNIN_TEXT = {
  * elements makes the reader reassemble it.
  */
 export const BOARD_TEXT = {
+  // ONE queue, because it is one question: what is waiting on me right now.
+  // "今日判断" and "待我裁决" were two cards restating two panels already on
+  // screen - the centre's own tier filter and the agent deck's pending list.
+  // The verb matches the centre's headline ("今天有 N 件要你定") on purpose:
+  // same word for the same act, so the board and the queue read as one product.
+  queue: "等你定",
+  ledeToday: "今天要定的",
+  proposals: "待签提案",
+  // The two cards this replaced, kept so the archive rows and the copilot page
+  // can still name them.
   today: "今日判断",
   adjudicate: "待我裁决",
   mydeals: "我的商机",

@@ -30,7 +30,7 @@ import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
  * else is a title until asked for - nine equally-loud panels teach a reader
  * nothing about which one matters.
  */
-export const PINNED_SECTIONS = ["quota", "today", "adjudicate", "resource", "products", "allies"] as const;
+export const PINNED_SECTIONS = ["quota", "queue", "resource", "products", "allies"] as const;
 
 // yucer's application shell: a command console, in three zones.
 //

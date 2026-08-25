@@ -30,7 +30,8 @@ const FILL: Record<string, string> = {
   good: "bg-success",
 };
 
-const DOT: Record<string, string> = {
+/** Tone carries meaning here - board.ts sets it from the data, not from taste. */
+const TEXT: Record<string, string> = {
   bad: "text-destructive",
   warn: "text-warning",
   good: "text-success",
@@ -54,14 +55,10 @@ const DOT: Record<string, string> = {
  * of the chart, was invisible.
  */
 const RAMP = ["bg-primary", "bg-primary/70", "bg-primary/45", "bg-primary/25"];
-const RAMP_DOT = ["text-primary", "text-primary/70", "text-primary/45", "text-primary/25"];
 
 /** Toned segments keep their meaning; untoned ones step down the ramp. */
 function fillFor(m: BoardMetric, untonedIndex: number): string {
   return m.tone ? FILL[m.tone] : RAMP[untonedIndex % RAMP.length];
-}
-function dotFor(m: BoardMetric, untonedIndex: number): string {
-  return m.tone ? DOT[m.tone] : RAMP_DOT[untonedIndex % RAMP_DOT.length];
 }
 
 /** Index within the untoned subset, so the ramp starts at full strength. */
@@ -76,51 +73,52 @@ function drawable(metrics: readonly BoardMetric[]): BoardMetric[] {
 }
 
 /**
- * One population, split.
+ * One figure that demands action, and the rest as context.
  *
- * A single track in segments, then a legend that carries the actual figures.
- * The bar answers "which of these dominates" at a glance and the legend answers
- * "by how much" - putting the numbers ON the segments would fail at the width
- * this card actually gets, where a one-unit segment is four pixels wide.
+ * This replaced a stacked proportion bar, and the reason is worth keeping: a
+ * segmented bar asserts that the SPLIT of a whole is what matters. For these
+ * cards it never was. Nobody needs the ratio of today to this-week to watch -
+ * they need "4 today", and then, only if they are still reading, the rest. The
+ * bar spent the card's whole visual budget encoding a relationship no one had
+ * asked about, which is exactly why it read as decoration.
+ *
+ * So the hierarchy IS the design. The lede is set at display size and carries
+ * its own tone, so the eye lands on the number with a deadline before it lands
+ * on anything else; everything after it compresses onto one muted line, present
+ * for the reader who wants it and silent for the one who does not.
+ *
+ * Which metric leads is not decided here - board.ts puts it first, because
+ * "which number demands action" is a business judgement. For the queue that is
+ * today's count; for the decision chain it is unreached decision-makers, since
+ * that card exists to say a deal has nobody in it who can approve.
  */
-export function ShareBar({ metrics }: { metrics: readonly BoardMetric[] }) {
-  const parts = drawable(metrics);
-  const total = parts.reduce((sum, m) => sum + (m.weight ?? 0), 0);
-  if (parts.length === 0 || total === 0) return null;
-
-  const idx = untonedIndexes(parts);
+export function Lede({ metrics }: { metrics: readonly BoardMetric[] }) {
+  const [lede, ...rest] = metrics;
+  if (!lede) return null;
 
   return (
-    <div className="flex flex-col gap-xs">
-      <div
-        className="bg-muted flex h-2xs w-full gap-px overflow-hidden rounded-full"
-        role="img"
-        aria-label={parts.map((m) => `${m.label} ${m.value}`).join("; ")}
-      >
-        {parts.map((m, i) => (
-          <span
-            key={m.label}
-            className={fillFor(m, idx[i])}
-            /* The one computed value in this file, and it is the datum. */
-            style={{ width: `${((m.weight ?? 0) / total) * 100}%` }}
-          />
-        ))}
+    <div className="flex flex-col gap-2xs">
+      <div className="flex items-baseline gap-xs">
+        <span className={`text-heading-2 tabular-nums ${lede.tone ? TEXT[lede.tone] : "text-foreground"}`}>
+          {lede.value}
+        </span>
+        <span className="text-muted-foreground min-w-0 truncate text-xs">{lede.label}</span>
       </div>
 
-      {/* Legend on one line per pair, wrapping. The dot ties a figure to its
-          segment; without it the reader has to match by position, which breaks
-          the moment a segment is too small to see. */}
-      <ul className="flex flex-wrap gap-x-md gap-y-2xs">
-        {parts.map((m, i) => (
-          <li key={m.label} className="flex items-baseline gap-2xs">
-            <span aria-hidden="true" className={`text-xs leading-none ${dotFor(m, idx[i])}`}>
-              &bull;
+      {rest.length > 0 ? (
+        /* One line, dot-separated, and it wraps rather than truncating - these
+           are the figures a reader goes looking for, so losing the tail to an
+           ellipsis would defeat the point of keeping them. */
+        <p className="text-muted-foreground text-xs">
+          {rest.map((m, i) => (
+            <span key={m.label}>
+              {i > 0 ? <span aria-hidden="true"> · </span> : null}
+              <span className={`tabular-nums ${m.tone ? TEXT[m.tone] : "text-foreground"}`}>{m.value}</span>{" "}
+              {m.label}
             </span>
-            <span className="text-foreground text-xs font-semibold tabular-nums">{m.value}</span>
-            <span className="text-muted-foreground truncate text-xs">{m.label}</span>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </p>
+      ) : null}
     </div>
   );
 }

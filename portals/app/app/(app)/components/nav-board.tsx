@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Card, Icon, Progress } from "@vxture/design-ui";
 import { BOARD_TEXT } from "../lib/messages";
-import { BarList, ShareBar } from "./board-chart";
+import { BarList, Lede } from "./board-chart";
 import type { BoardMetric, BoardSection } from "../lib/board";
 
 // The left flank: where things stand for OUR side.
@@ -73,7 +73,7 @@ export function NavBoard({ sections, pinned, activeKey }: NavBoardProps) {
             <SectionHead
               section={s}
               active={s.key === activeKey}
-              total={s.chart === "share" ? s.metrics.find((m) => m.weight === undefined) : undefined}
+              total={undefined}
             />
             <Metrics section={s} />
           </div>
@@ -154,7 +154,7 @@ function Metrics({ section: s }: { section: BoardSection }) {
   return (
     <>
       {headline.length > 0 ? <Readouts metrics={headline} /> : null}
-      {s.chart === "share" ? <ShareBar metrics={s.metrics} /> : null}
+      {s.chart === "lede" ? <Lede metrics={s.metrics} /> : null}
       {s.chart === "bars" ? <BarList metrics={s.metrics} /> : null}
 
       {/* Bare track. The percentage it represents is one of the figures above
