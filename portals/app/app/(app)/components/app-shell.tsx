@@ -273,7 +273,19 @@ export function AppShell({
        zone, against the gutter - instead of one bar at the window's edge
        governing everything at once. */
     <ShellViewport
-      sidebarMode={showBoard ? "expanded" : "hidden"}
+      /* THE DS SLOTS ARE NOT USED FOR THE FLANKS, and that is a considered
+         departure. ShellSidebarFrame hardcodes w-sidebar-expanded (256px) and
+         ShellViewport forwards it no className, so the nav pane could not be
+         280 through that path - and the row it lays out carries no gap, so the
+         32px between panes had to come from somewhere anyway. Both flanks are
+         ordinary panes in `children` now; the viewport keeps what it is good
+         at, which is the header and the h-dvh frame.
+
+         The consequence to know: the collapse TRANSITION on the sidebar frame
+         is gone. The flanks still collapse - they unmount - they just no longer
+         animate their width. That is the price of the two widths and the gap. */
+      sidebarMode="hidden"
+      sidebar={null}
       header={
         <ShellHeader
           leading={
@@ -392,6 +404,12 @@ export function AppShell({
 
               {/* (3) The four shell tools. */}
               <HeaderTools
+                /* FULLSCREEN TAKES THE DOCUMENT, header included. The earlier
+                 version expanded only the shell body on the reasoning that the
+                 header holds the way out - but the browser's own escape key
+                 does, the DS wires it, and a "fullscreen" that leaves a bar on
+                 screen is not the thing the button is named after. */
+                fullscreenTarget={() => document.documentElement}
                 onSettings={
                   admin.some((e) => e.state === "visible")
                     ? () => router.push("/admin")
@@ -473,41 +491,48 @@ export function AppShell({
           }
         />
       }
-      sidebar={
-        /* LEFT FLANK - ours. Cards that state where things stand; opening one
-           navigates, but that is a consequence of the card, not its purpose.
-           Flush right: the cards end at the zone's right boundary. */
-        <div className="min-h-0 flex-1 overflow-y-auto pt-lg pb-6xl pl-lg">
-          <NavBoard
-            sections={board}
-            pinned={PINNED_SECTIONS}
-            activeKey={activeKey}
-          />
+    >
+      {/* THE SHELL BODY: one inset, three panes, one gap.
+
+          p-lg is the 24px inset on all four sides. The panes themselves carry
+          NO padding - their cards reach their own edges - so the only
+          horizontal space in here is the gap and the centre's own measure.
+
+          gap-xl is 32px. Each pane owns its scroll, which is why the inset is
+          on this row and not inside them: a pane that padded itself would
+          scroll its own bottom padding away, and the safe area at the foot of
+          a long list would vanish exactly when the list got long enough to
+          need it. */}
+      <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
+        {/* LEFT - ours. Cards that state where things stand; opening one
+            navigates, but that is a consequence of the card, not its purpose. */}
+        {showBoard ? (
+          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
+            <NavBoard
+              sections={board}
+              pinned={PINNED_SECTIONS}
+              activeKey={activeKey}
+            />
+          </aside>
+        ) : null}
+
+        {/* CENTRE - the engagement. Its 16px is the only padding in the body,
+            and it is here rather than on the row because it is a MEASURE, not
+            an inset: it keeps prose off the pane edge at any window width. */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-md">
+          {children}
         </div>
-      }
-      dock={
-        /* RIGHT FLANK - the agent, and what it is looking at. Flush left, for
-           the same reason the board is flush right. */
-        showDock ? (
-          <aside className="w-sidebar-expanded shrink-0 overflow-y-auto pt-lg pr-lg pb-6xl">
+
+        {/* RIGHT - the agent, and what it is looking at. */}
+        {showDock ? (
+          <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto">
             <AgentPanel
               data={agent}
               canRecord={canRecord}
               onRecord={onRecord}
             />
           </aside>
-        ) : null
-      }
-    >
-      {/* CENTRE - the engagement. Its horizontal padding IS the gutter on both
-          sides, which is why the flanks carry none facing it.
-
-          It also carries the fullscreen target id. Fullscreen here means the
-          WORK gets all the glass, not the document: the header holds the way
-          back out, so expanding over it would trap the reader in the thing
-          they just expanded. */}
-      <div id={SHELL_BODY_ID} className="px-page-inset pt-lg pb-6xl">
-        {children}
+        ) : null}
       </div>
     </ShellViewport>
   );

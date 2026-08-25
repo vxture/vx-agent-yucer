@@ -105,3 +105,31 @@
     display: none;
   }
 }
+
+/*
+ * THE TWO PANE WIDTHS, AND WHY THEY ARE DECLARED HERE.
+ *
+ * CLAUDE.md bans naked CSS and asks for a reason before a product invents a
+ * token. The reason is that the DS does not own this measurement and does not
+ * claim to: `--sidebar-expanded` is 256px, sized for a NAV RAIL of links, and
+ * this product's left pane is not that - it is a board of cards carrying
+ * figures, which is why it was widened. The DS's own dock does the same thing
+ * in reverse: ShellDock hardcodes `w-[26.25rem]`, an arbitrary value, because
+ * dock width is not a token there either.
+ *
+ * So these are declared once, named, and consumed as `w-(--vx-pane-nav)`.
+ * A named custom property is not a naked value: it has one definition, it says
+ * what it is for, and changing the console's proportions is one edit rather
+ * than a search. `w-[280px]` scattered across three files would be the thing
+ * the rule is actually against.
+ *
+ * The `vx-` prefix keeps them out of the DS's own namespace, so a future DS
+ * token of the same name cannot be silently shadowed by these.
+ */
+:root {
+  /* 280px. The own-forces board: wide enough for a two-column figure card. */
+  --vx-pane-nav: 17.5rem;
+  /* 400px. The agent deck: wide enough for a paragraph of the agent's reading
+     at the body measure, which is what it is mostly made of. */
+  --vx-pane-action: 25rem;
+}

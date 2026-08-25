@@ -46,6 +46,13 @@ export interface HeaderToolsProps {
    * side of that trade; an href mode on ShellIconButton is a DS request.
    */
   readonly onSettings?: () => void;
+  /**
+   * What fullscreen expands. Defaults to the shell body by id; the shell hands
+   * down the document element, because "fullscreen" that leaves a header on
+   * screen is not the thing the button is named after - and the browser's own
+   * escape key, which the DS wires, is the way back out.
+   */
+  readonly fullscreenTarget?: () => HTMLElement | null;
   readonly onHelp?: () => void;
   readonly onNotifications?: () => void;
 }
@@ -55,6 +62,7 @@ export function HeaderTools({
   onSettings,
   onHelp,
   onNotifications,
+  fullscreenTarget,
 }: HeaderToolsProps) {
   return (
     <ShellIconGroup label={HEADER_TEXT.toolsAria}>
@@ -63,6 +71,7 @@ export function HeaderTools({
           rather than left to the icon. */}
       <ShellFullscreenToggle
         targetId={SHELL_BODY_ID}
+        getTargetElement={fullscreenTarget}
         enterLabel={HEADER_TEXT.fullscreen}
         exitLabel={HEADER_TEXT.fullscreenExit}
       />
