@@ -7,7 +7,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  FactList,
+  LabeledValue,
   Icon,
   PanelCard,
   PanelList,
@@ -145,6 +145,26 @@ function readings(s: QueueSignal): string[] {
   return out;
 }
 
+/**
+ * Line two: the project in a sentence.
+ *
+ * There is NO summary field on the record - `SignalRecord` carries evidence
+ * (source, type, subject) and resolution (account, score, status), and nothing
+ * descriptive - and `payload` is `{}` on every row the product currently
+ * produces. So this reads defensively and says so plainly when it comes up
+ * empty. An absent summary rendered as a blank line teaches a reader that the
+ * ROW is thin; one that says it could not be fetched teaches them the
+ * INGESTION is, which is the true and actionable version.
+ */
+function summary(r: SignalRecord): string | null {
+  const p = r.payload;
+  for (const key of ["summary", "abstract", "description", "brief"]) {
+    const v = p[key];
+    if (typeof v === "string" && v.trim().length > 0) return v.trim();
+  }
+  return null;
+}
+
 export function SignalQueue({
   groups,
   canTriage,
@@ -236,6 +256,7 @@ function Row({
 }) {
   const r = s.record;
   const tone = confidenceTone(r.score);
+  const brief = summary(r);
 
   // Every verb is always PRESENT, disabled with a reason rather than absent.
   // A menu whose contents change with the viewer teaches nobody what the
@@ -257,16 +278,6 @@ function Row({
       hint: canRescore ? undefined : SIGNAL_TEXT.noRescorePermission,
       onSelect: () => onAct(r.id, "rescore"),
     },
-    {
-      id: "dismiss",
-      label: SIGNAL_TEXT.dismiss,
-      icon: "x" as const,
-      danger: true,
-      separatorBefore: true,
-      disabled: !canTriage || busy,
-      hint: canTriage ? undefined : SIGNAL_TEXT.noPermission,
-      onSelect: () => onAct(r.id, "dismiss"),
-    },
   ];
 
   return (
@@ -279,7 +290,7 @@ function Row({
         label={`${SIGNAL_TEXT.columnScore} ${r.score ?? "-"}`}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2xs">
+      <div className="flex min-w-0 flex-1 flex-col gap-xs">
         {/* L1 - CLASSED, then named, then measured.
             The tags lead the title rather than trailing it: they are how a
             reader decides whether to read the sentence at all, and a filter
@@ -307,17 +318,37 @@ function Row({
           </span>
         </div>
 
-        {/* L2 - the arithmetic behind the ring, and NOTHING on the right.
-            The blank is deliberate. Three loaded right ends make a column of
-            unrelated things that reads as a table it is not; leaving the
-            middle one empty lets line one's readings and line three's verbs
-            each be seen as what they are. */}
-        <p className="text-muted-foreground min-w-0 truncate text-xs">
-          {SIGNAL_TEXT.scoreExplain(s.baseWeight, s.decay, s.bonus)}
+        {/* L2 - the project in a sentence, and NOTHING on the right.
+            The blank right end is deliberate. Three loaded right ends made a
+            column of unrelated things that read as a table it is not; emptying
+            the middle one lets line one's readings and line three's verbs each
+            be seen as what they are.
+
+            WIDTH IS CAPPED AND THE TEXT WRAPS. A summary is prose, and prose
+            set to the full width of a wide column is read by nobody. The cap is
+            the cap names the DS container token DIRECTLY. Tailwind's own
+            `max-w-2xl` is DEAD IN THIS APP: it emits `var(--container-2xl)`,
+            and the DS publishes the scale as `--vx-container-*` without
+            aliasing Tailwind's name, so the variable is empty and the width
+            collapsed to 40px - eight characters wrapped over three lines. */}
+        <p
+          className={`max-w-(--vx-container-2xl) text-xs ${
+            brief === null
+              ? "text-muted-foreground/70 italic"
+              : "text-muted-foreground"
+          }`}
+        >
+          {brief ?? SIGNAL_TEXT.summaryUnavailable}
         </p>
 
-        {/* L3 - where it came from | what to do about it. */}
-        <div className="flex min-w-0 items-center justify-between gap-md">
+        {/* L3 - where it came from | what to do about it.
+            items-START, not centre. The controls are taller than a line of
+            text, so centring them pushes the text down inside its own box and
+            the gap between line two and line three READS as double the gap
+            between one and two - even though both box gaps are the same 8px.
+            Aligning to the top makes the three sections sit on one rhythm,
+            which is what a reader is actually judging. */}
+        <div className="flex min-w-0 items-start justify-between gap-md">
           <p className="text-muted-foreground min-w-0 truncate text-xs">
             {SIGNAL_TEXT.detectedOn(
               r.detectedAt.toISOString().slice(0, 10),
@@ -344,10 +375,12 @@ function Row({
             >
               <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
             </Button>
-            {/* The primary verb stays on the row. This is a triage queue:
-                burying the one action it exists for behind a menu would cost a
-                click on every single item. The other three are secondary and
-                go where secondary actions go everywhere else in the product. */}
+            {/* BOTH OUTCOMES ON THE ROW. Triage is a two-sided decision -
+                this one is worth pursuing, or it is not - and a queue that
+                offers only the yes makes the no cost an extra click, which is
+                how an inbox fills with rows nobody ever closed. What is left in
+                the menu is not an outcome: judging a duplicate or re-running
+                the score are corrections to the record, not verdicts on it. */}
             <Button
               size="sm"
               disabled={!canTriage || busy}
@@ -355,30 +388,77 @@ function Row({
             >
               {SIGNAL_TEXT.promote}
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canTriage || busy}
+              onClick={() => onAct(r.id, "dismiss")}
+            >
+              {SIGNAL_TEXT.dismiss}
+            </Button>
             <ActionMenu items={menu} label={SIGNAL_TEXT.rowMenu} align="end" />
           </span>
         </div>
 
-        {/* The drawer holds only what the three lines could not: the arithmetic
-            term by term, and the staleness sentence. One row open at a time -
-            two open drawers is a comparison nobody asked for. */}
+        {/* THE DRAWER IS THE SCORING METHOD, and it is laid out as one:
+            the score on the left, the terms that produced it in the middle.
+            It used to be a flat stack of four numbers, which is a list of
+            values rather than an account of an arithmetic - a reader could see
+            what the inputs were but not that they were inputs TO anything.
+
+            The formula moved here from line two, where it was displacing the
+            thing a reader actually needs while scanning: what the project is.
+            An arithmetic belongs where someone has asked to check it. */}
         {open ? (
           <div className="bg-muted/40 border-border mt-2xs rounded-md border p-sm">
-            <FactList
-              facts={[
-                { label: SIGNAL_TEXT.bdBase, value: String(s.baseWeight) },
-                { label: SIGNAL_TEXT.bdDecay, value: s.decay.toFixed(2) },
-                { label: SIGNAL_TEXT.bdBonus, value: String(s.bonus) },
-                {
-                  label: SIGNAL_TEXT.bdAge,
-                  value: String(Math.round(s.ageDays)),
-                },
-              ]}
-            />
+            <div className="flex items-start gap-lg">
+              {/* Left: the score itself, with the verdict it earned. */}
+              <div className="shrink-0">
+                <LabeledValue
+                  label={SIGNAL_TEXT.columnScore}
+                  value={r.score ?? "-"}
+                  tone={tone}
+                  valueTag={verdict(r.score)}
+                  valueTagTone={tone}
+                />
+              </div>
+
+              {/* Middle: how it was reached - the sentence, then its four
+                  terms two by two. Two columns rather than four: paired, the
+                  weights sit above the adjustments, so the shape of the
+                  formula is visible before any number is read. */}
+              <div className="border-border min-w-0 flex-1 border-l pl-lg">
+                <p className="text-foreground text-label-md">
+                  {SIGNAL_TEXT.scoreMethod}
+                </p>
+                <p className="text-muted-foreground mt-2xs text-xs">
+                  {SIGNAL_TEXT.scoreExplain(s.baseWeight, s.decay, s.bonus)}
+                </p>
+                <div className="mt-sm grid grid-cols-2 gap-x-lg gap-y-sm">
+                  <LabeledValue
+                    label={SIGNAL_TEXT.bdBase}
+                    value={String(s.baseWeight)}
+                  />
+                  <LabeledValue
+                    label={SIGNAL_TEXT.bdDecay}
+                    value={s.decay.toFixed(2)}
+                  />
+                  <LabeledValue
+                    label={SIGNAL_TEXT.bdBonus}
+                    value={String(s.bonus)}
+                  />
+                  <LabeledValue
+                    label={SIGNAL_TEXT.bdAge}
+                    value={String(Math.round(s.ageDays))}
+                  />
+                </div>
+              </div>
+            </div>
+
             {s.recomputed !== null &&
             r.score !== null &&
             Math.abs(s.recomputed - r.score) >= 5 ? (
-              <p className="text-warning mt-sm text-xs">
+              <p className="text-warning border-border mt-sm border-t pt-sm text-xs">
                 {SIGNAL_TEXT.staleWhy(r.score, s.recomputed)}
               </p>
             ) : null}

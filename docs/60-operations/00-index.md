@@ -139,6 +139,15 @@ DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标
 **恢复条件**：向 DS 提出 measure token（建议 `--container-measure` 或
 `--spacing-measure`，取值随字号档走）。DS 提供后，8 处替换为该 token 类名。
 
+**2026-08-25 补记 - Tailwind 自带的 `max-w-{档}` 在本应用里是死的。**
+DS 把容器刻度发布为 `--vx-container-*`，**没有**同时别名 Tailwind 的
+`--container-*`。于是 `max-w-2xl` 生成 `max-width: var(--container-2xl)`，
+而该变量为空 —— 实测宽度塌到 40px，八个汉字折成三行。
+**正确写法是直接点名 DS token**：`max-w-(--vx-container-2xl)`（实测 672px）。
+信号行的项目概要已按此写。这七处 `62ch` 也可以据此收编 ——
+`--vx-container-*` 是 rem 刻度不是 ch 刻度，不等于正文行宽 token，
+所以本条债不因此关闭，但修的时候不该再写方括号任意值。
+
 ### TD-008 - DS 无任何数据可视化元素，战况板图表本地实现
 
 **缺失的元素**：设计系统**一件图表都没有**。`MetricCard` / `MetricGrid` /

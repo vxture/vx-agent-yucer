@@ -840,6 +840,16 @@ export const SIGNAL_TEXT = {
   fieldAge: (n: number) => `${n} 天前`,
   fieldDrift: (n: number) => `已降 ${n} 分`,
 
+  // L2 left - the project in a sentence. There is no summary field on the
+  // record and `payload` is empty on every row today, so this is read
+  // defensively and says so plainly when it comes up empty. An absent summary
+  // that renders as a blank line teaches a reader that the row is thin; one
+  // that says it could not be fetched teaches them the ingestion is.
+  summaryUnavailable: "概要信息无法获取",
+
+  // The drawer.
+  scoreMethod: "评分方式",
+
   // L3 right.
   expand: "展开",
   collapse: "收起",
