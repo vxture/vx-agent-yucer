@@ -112,6 +112,14 @@ export default async function PipelinePage({
           opens with a noun and a caption makes the reader work out what matters;
           the data already knows. */}
       <Card className="p-lg">
+        {/* ONE child, so Card's own gap-xl never fires. Card is
+            `flex flex-col gap-xl` - built for page-level cards whose sections
+            stand 32px apart - and with two children that 32px landed on top of
+            this block's own mt-lg: 56px of reserved space above a 26px row,
+            which is why the collapsed state still read as half-open. Wrapping
+            makes the gap inapplicable rather than overriding it, and the rhythm
+            in here becomes ours to set. */}
+        <div className="flex flex-col gap-md">
         <div className="flex flex-wrap items-end justify-between gap-md">
           <div className="min-w-0">
             <h1 className="text-heading-2 text-foreground tabular-nums">
@@ -141,8 +149,7 @@ export default async function PipelinePage({
 
         {/* The decomposition of that headline, not a subject of its own - so it
             sits inside the same card, folded away when it is not wanted. */}
-        <div className="mt-lg">
-          <CommitSplit split={split} awaiting={awaiting} />
+        <CommitSplit split={split} awaiting={awaiting} />
         </div>
       </Card>
 
