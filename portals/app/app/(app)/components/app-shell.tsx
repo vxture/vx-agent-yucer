@@ -180,14 +180,36 @@ export function AppShell({
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
   const pathname = usePathname();
-  const activeKey =
-    pathname === "/" ? "home" : (pathname.split("/")[1] ?? null);
+  const segments = pathname.split("/").filter(Boolean);
+  const activeKey = segments[0] ?? "home";
+
+  /**
+   * THE SHELL HAS TWO MODES, and this is the switch.
+   *
+   * A first-level page answers "how are things across the board", so the board
+   * belongs beside it. A DETAIL page answers "how is THIS one thing" - and
+   * those two questions compete for the same attention. On a detail page the
+   * second one wins by definition: you are here because you chose this object.
+   * The width it frees is a consequence, not the reason.
+   *
+   * Named routes rather than a pattern: /admin/members and /admin/adoption are
+   * two segments deep and are NOT detail pages, they are first-level pages that
+   * happen to live under a prefix. A rule keyed on segment count would have
+   * stripped the board from them and been wrong in a way nobody would notice
+   * until they went looking for it.
+   */
+  const DETAIL_ROOTS = ["account", "pipeline"];
+  const isDetail = segments.length >= 2 && DETAIL_ROOTS.includes(segments[0]!);
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
   // right even if this tab is killed.
   const [showBoard, setShowBoard] = useState(boardOpen);
   const [showDock, setShowDock] = useState(dockOpen);
+
+  /** The board is shown when the member wants it AND the page has room for the
+   *  question it answers. */
+  const boardVisible = showBoard && !isDetail;
 
   const toggleBoard = () =>
     setShowBoard((prev) => {
@@ -289,14 +311,20 @@ export function AppShell({
         <ShellHeader
           leading={
             <>
-              {/* (1) The board toggle. */}
-              <ShellIconButton
-                icon="sidebar"
-                label={
-                  showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen
-                }
-                onClick={toggleBoard}
-              />
+              {/* (1) The board toggle - ABSENT on a detail page, because the
+                  board is. A toggle for something that is not there is a
+                  control that does nothing, and this product has now removed
+                  three of those for the same reason: the tier badge in
+                  production, the caret over a menu of one, and this. */}
+              {isDetail ? null : (
+                <ShellIconButton
+                  icon="sidebar"
+                  label={
+                    showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen
+                  }
+                  onClick={toggleBoard}
+                />
+              )}
 
               {/* (2) The functional domain: NINE DOTS, no label, no fill.
                 
@@ -505,7 +533,7 @@ export function AppShell({
       <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
         {/* LEFT - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
-        {showBoard ? (
+        {boardVisible ? (
           <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
             <NavBoard
               sections={board}
