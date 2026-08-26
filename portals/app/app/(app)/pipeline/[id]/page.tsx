@@ -1,5 +1,19 @@
 import Link from "next/link";
-import { EmptyState, MetricGrid, Section, StatusBadge, ViewHeader, ViewLayout, type MetricGridItem } from "@vxture/design-ui";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  EmptyState,
+  MetricGrid,
+  Section,
+  StatusBadge,
+  ViewHeader,
+  ViewLayout,
+  type MetricGridItem,
+} from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import {
   FORECAST_LABEL,
@@ -8,11 +22,25 @@ import {
   SHELL_TEXT,
   STAGE_LABEL,
 } from "../../lib/messages";
-import { FORECAST_TONE, STAGE_TONE, formatMoney, probabilityDisplay } from "../../lib/view-model";
+import {
+  FORECAST_TONE,
+  STAGE_TONE,
+  formatMoney,
+  probabilityDisplay,
+} from "../../lib/view-model";
 import { can } from "../../../authz/decide";
-import { getFieldStore, getPipelineStore } from "../../../domains/shared/registry";
-import { getOpportunityDetail, stageHistory } from "../../../domains/pipeline/service";
-import { getAccountDetail, decisionChain } from "../../../domains/account/service";
+import {
+  getFieldStore,
+  getPipelineStore,
+} from "../../../domains/shared/registry";
+import {
+  getOpportunityDetail,
+  stageHistory,
+} from "../../../domains/pipeline/service";
+import {
+  getAccountDetail,
+  decisionChain,
+} from "../../../domains/account/service";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import {
@@ -31,9 +59,16 @@ import { StageJourney } from "../../components/stage-journey";
 import { RecordFollowUp } from "../../components/record-follow-up";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
-import { listCommitments, listInteractions } from "../../../domains/account/field-service";
+import {
+  listCommitments,
+  listInteractions,
+} from "../../../domains/account/field-service";
 import { CHANNEL_LABEL } from "../../lib/messages";
-import { addCommitment, recordFollowUp, settleCommitment } from "../../account/field-actions";
+import {
+  addCommitment,
+  recordFollowUp,
+  settleCommitment,
+} from "../../account/field-actions";
 import { advanceOpportunityStage, repriceOpportunity } from "../stage-action";
 
 // D6 opportunity detail: where the deal is, how it got there, and where it goes.
@@ -59,7 +94,12 @@ export default async function OpportunityDetailPage({
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const ctx = {
@@ -75,7 +115,12 @@ export default async function OpportunityDetailPage({
   // enforce - the same mistake getAccountDetail() was added to correct.
   const detail = await getOpportunityDetail(ctx, id);
   if (!detail.ok) {
-    return <EmptyState title={SHELL_TEXT.loadFailed} description={OPPORTUNITY_TEXT.notFound} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.loadFailed}
+        description={OPPORTUNITY_TEXT.notFound}
+      />
+    );
   }
   const opportunity = detail.value;
 
@@ -87,15 +132,29 @@ export default async function OpportunityDetailPage({
   const [account, chain, projects, feed, proposals] = await Promise.all([
     getAccountDetail(accountCtx, opportunity.accountId),
     decisionChain(accountCtx, opportunity.accountId),
-    listProjects({ ...ctx, store: getDeliveryStore() }, { accountId: opportunity.accountId }),
-    cachedFeed({ workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement }),
+    listProjects(
+      { ...ctx, store: getDeliveryStore() },
+      { accountId: opportunity.accountId },
+    ),
+    cachedFeed({
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+    }),
     listProposals({ ...ctx, store: getCopilotStore() }, { status: "proposed" }),
   ]);
-  const plan = account.ok && account.value.account.tier === "strategic"
-    ? await getAccountStore().getAccountPlan(session.workspaceId, opportunity.accountId)
-    : null;
+  const plan =
+    account.ok && account.value.account.tier === "strategic"
+      ? await getAccountStore().getAccountPlan(
+          session.workspaceId,
+          opportunity.accountId,
+        )
+      : null;
 
-  const accountName = account.ok ? account.value.account.name : opportunity.accountId;
+  const accountName = account.ok
+    ? account.value.account.name
+    : opportunity.accountId;
   const tier = account.ok ? account.value.account.tier : "standard";
 
   // The chain, as facts. `unreachable` is reported as the GAP rather than the
@@ -103,13 +162,20 @@ export default async function OpportunityDetailPage({
   const cov = chain.ok ? chain.value : null;
   const chainFacts = cov
     ? [
-        { label: POSITION_TEXT.chainCovered, value: String(cov.covered.length) },
+        {
+          label: POSITION_TEXT.chainCovered,
+          value: String(cov.covered.length),
+        },
         {
           label: POSITION_TEXT.chainMissing,
           value: String(cov.missing.length),
           tone: cov.missing.length > 0 ? ("bad" as const) : undefined,
         },
-        { label: POSITION_TEXT.chainCoaches, value: String(cov.coaches.length), tone: "good" as const },
+        {
+          label: POSITION_TEXT.chainCoaches,
+          value: String(cov.coaches.length),
+          tone: "good" as const,
+        },
         {
           label: POSITION_TEXT.chainBlockers,
           value: String(cov.blockers.length),
@@ -117,7 +183,6 @@ export default async function OpportunityDetailPage({
         },
       ]
     : [];
-
 
   // The problems are the JUDGEMENTS that landed on this account - rules over
   // recorded evidence, not a hand-kept risk list that goes stale.
@@ -168,7 +233,9 @@ export default async function OpportunityDetailPage({
   // Rival mentions, found in the notes rather than inferred. The words are the
   // evidence; naming an opponent nobody wrote down would be fabrication.
   const rivalMentions = (interactions.ok ? interactions.value : [])
-    .filter((n: { rawNote: string }) => POSITION_TEXT.rivalWords.some((w) => n.rawNote.includes(w)))
+    .filter((n: { rawNote: string }) =>
+      POSITION_TEXT.rivalWords.some((w) => n.rawNote.includes(w)),
+    )
     .slice(0, 3)
     .map((n) => ({
       id: n.id,
@@ -176,14 +243,22 @@ export default async function OpportunityDetailPage({
       text: n.rawNote,
     }));
 
-  const canRecord = can(fieldCtx.holder, fieldCtx.entitlement, "account.upsert", "data").allowed;
+  const canRecord = can(
+    fieldCtx.holder,
+    fieldCtx.entitlement,
+    "account.upsert",
+    "data",
+  ).allowed;
 
   const probability = probabilityDisplay(opportunity);
   const metrics: MetricGridItem[] = [
     {
       id: "amount",
       label: OPPORTUNITY_TEXT.amount,
-      value: formatMoney(opportunity.amount?.amount ?? null, opportunity.currency),
+      value: formatMoney(
+        opportunity.amount?.amount ?? null,
+        opportunity.currency,
+      ),
       tone: "neutral",
     },
     {
@@ -200,8 +275,13 @@ export default async function OpportunityDetailPage({
     },
     {
       id: "close",
-      label: opportunity.closedAt ? OPPORTUNITY_TEXT.closedAt : OPPORTUNITY_TEXT.expectedClose,
-      value: (opportunity.closedAt ?? opportunity.expectedCloseAt)?.toISOString().slice(0, 10) ?? "-",
+      label: opportunity.closedAt
+        ? OPPORTUNITY_TEXT.closedAt
+        : OPPORTUNITY_TEXT.expectedClose,
+      value:
+        (opportunity.closedAt ?? opportunity.expectedCloseAt)
+          ?.toISOString()
+          .slice(0, 10) ?? "-",
       tone: "neutral",
     },
     {
@@ -214,6 +294,22 @@ export default async function OpportunityDetailPage({
 
   return (
     <ViewLayout>
+      {/* THE WAY BACK. With the board gone this page carries no navigation of
+          its own, and returning to the list is the most common next action. */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/pipeline">
+              {PIPELINE_TEXT.title}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{opportunity.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <ViewHeader
         secondary={opportunity.opportunityNo}
         icon="table"
@@ -224,7 +320,11 @@ export default async function OpportunityDetailPage({
             <StatusBadge tone={STAGE_TONE[opportunity.stage as Stage]} dot>
               {STAGE_LABEL[opportunity.stage as Stage] ?? opportunity.stage}
             </StatusBadge>
-            <StatusBadge tone={FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]}>
+            <StatusBadge
+              tone={
+                FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]
+              }
+            >
               {FORECAST_LABEL[opportunity.forecastCategory as ForecastCategory]}
             </StatusBadge>
           </>
@@ -235,7 +335,15 @@ export default async function OpportunityDetailPage({
           pursuit from a one-off deal, and the page should say which before it
           says anything else. */}
       <div className="flex flex-wrap items-center gap-xs">
-        <StatusBadge tone={tier === "strategic" ? "brand" : tier === "key" ? "warning" : "neutral"}>
+        <StatusBadge
+          tone={
+            tier === "strategic"
+              ? "brand"
+              : tier === "key"
+                ? "warning"
+                : "neutral"
+          }
+        >
           {tier === "strategic"
             ? POSITION_TEXT.tierStrategic
             : tier === "key"
@@ -244,7 +352,9 @@ export default async function OpportunityDetailPage({
         </StatusBadge>
         {plan ? (
           <>
-            <StatusBadge tone="neutral">{POSITION_TEXT.planOf(plan.period)}</StatusBadge>
+            <StatusBadge tone="neutral">
+              {POSITION_TEXT.planOf(plan.period)}
+            </StatusBadge>
             <span className="text-muted-foreground text-xs">
               {POSITION_TEXT.triangleOf(
                 plan.ownerSub ?? POSITION_TEXT.roleUnset,
@@ -256,7 +366,11 @@ export default async function OpportunityDetailPage({
         ) : null}
       </div>
 
-      <MetricGrid items={metrics} />
+      {/* columns={2}: the DS's breakpoints watch the viewport while this grid
+          sits in a pane of viewport minus a fixed 400px deck. Four money
+          figures across that pane clip, and a clipped figure is not a smaller
+          number - it is a wrong one that looks exact. */}
+      <MetricGrid items={metrics} columns={2} />
 
       <PositionBrief
         chain={chainFacts}
@@ -271,32 +385,55 @@ export default async function OpportunityDetailPage({
         proposals={positionProposals}
       />
 
-      <Section title={OPPORTUNITY_TEXT.account} description={OPPORTUNITY_TEXT.attributionFrozen}>
-        {/* The href is the ID and the label is the NAME. They were both the id,
-            so the page printed "acc_demo_1" where the customer's name belongs. */}
-        <Link href={`/account/${opportunity.accountId}`}>{accountName}</Link>
-        <div>
-          <span>{OPPORTUNITY_TEXT.campaign}: </span>
-          {opportunity.campaignId ? (
-            <StatusBadge tone="neutral">{opportunity.campaignId}</StatusBadge>
-          ) : (
-            // A blank cell would read as missing data. Not every deal starts as
-            // a campaign response, and that is a fact rather than a gap.
-            <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.noAttribution}</StatusBadge>
-          )}
-        </div>
-      </Section>
+      {/* A SMALL FACT BESIDE A SHORT LIST. Both are read, neither is a grid
+          and neither is a form, which is what makes them safe to pair - the
+          account page learned that a panel which lays itself out across a width
+          cannot be given half of one. The two forms below stay full width for
+          that reason. */}
+      <div className="grid gap-lg xl:grid-cols-2">
+        <Section
+          title={OPPORTUNITY_TEXT.account}
+          description={OPPORTUNITY_TEXT.attributionFrozen}
+        >
+          {/* The href is the ID and the label is the NAME. They were both the id,
+              so the page printed "acc_demo_1" where the customer's name belongs. */}
+          <Link href={`/account/${opportunity.accountId}`}>{accountName}</Link>
+          <div>
+            <span>{OPPORTUNITY_TEXT.campaign}: </span>
+            {opportunity.campaignId ? (
+              <StatusBadge tone="neutral">{opportunity.campaignId}</StatusBadge>
+            ) : (
+              // A blank cell would read as missing data. Not every deal starts as
+              // a campaign response, and that is a fact rather than a gap.
+              <StatusBadge tone="neutral">
+                {OPPORTUNITY_TEXT.noAttribution}
+              </StatusBadge>
+            )}
+          </div>
+        </Section>
 
-      {/* Capture sits ABOVE the controls that move the deal. Recording what
-          happened is what a rep came here to do after a meeting; deciding the
-          stage is a conclusion drawn from it, and putting the conclusion first
-          is how a stage gets advanced on optimism. */}
-      <RecordFollowUp
-        accountId={opportunity.accountId}
-        opportunityId={id}
-        canRecord={canRecord}
-        onRecord={recordFollowUp}
-      />
+        {/* RecordFollowUp IS GONE from here. The deck beside this page is
+            anchored to this deal and captures against it; two capture boxes on
+            one screen is not a convenience, it is a question about which one is
+            real. The old note argued capture should sit above the controls that
+            move the deal - that argument is now served better, because the deck
+            is beside them rather than above them and never scrolls away. */}
+
+        {commitments.ok ? (
+          <CommitmentList
+            accountId={opportunity.accountId}
+            opportunityId={id}
+            items={commitments.value}
+            evidence={(interactions.ok ? interactions.value : []).map((i) => ({
+              id: i.id,
+              label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+            }))}
+            canWrite={canRecord}
+            onCreate={addCommitment}
+            onSettle={settleCommitment}
+          />
+        ) : null}
+      </div>
 
       <DealTerms
         opportunityId={id}
@@ -306,12 +443,24 @@ export default async function OpportunityDetailPage({
         probability={opportunity.probability}
         expectedCloseAt={opportunity.expectedCloseAt}
         forecastCategory={opportunity.forecastCategory}
-        canEdit={can(session.authz, session.entitlement, "pipeline.opportunity.update", "ui").allowed}
+        canEdit={
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.opportunity.update",
+            "ui",
+          ).allowed
+        }
         // The bucket is a pro capability the catalog withholds from the rep who
         // owns the deal, so it gets its own gate rather than riding on the
         // editing one.
         canCategorize={
-          can(session.authz, session.entitlement, "pipeline.forecast.categorize", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.forecast.categorize",
+            "ui",
+          ).allowed
         }
         onSave={repriceOpportunity}
       />
@@ -320,30 +469,24 @@ export default async function OpportunityDetailPage({
         opportunityId={id}
         stage={opportunity.stage}
         probability={opportunity.probability}
-        canAdvance={can(session.authz, session.entitlement, "pipeline.opportunity.advance", "ui").allowed}
+        canAdvance={
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.opportunity.advance",
+            "ui",
+          ).allowed
+        }
         onAdvance={advanceOpportunityStage}
       />
-
-      {commitments.ok ? (
-        <CommitmentList
-          accountId={opportunity.accountId}
-          opportunityId={id}
-          items={commitments.value}
-          evidence={(interactions.ok ? interactions.value : []).map((i) => ({
-            id: i.id,
-            label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-          }))}
-          canWrite={canRecord}
-          onCreate={addCommitment}
-          onSettle={settleCommitment}
-        />
-      ) : null}
 
       {/* Deliberately adjacent to the stage journey. One says what we recorded
           about the deal's state, the other says what actually happened - and a
           deal that advanced two stages with nothing beside it in the timeline
           is the single most useful thing this page can show a manager. */}
-      {interactions.ok ? <InteractionTimeline items={interactions.value} /> : null}
+      {interactions.ok ? (
+        <InteractionTimeline items={interactions.value} limit={5} />
+      ) : null}
 
       {history.ok ? (
         <StageJourney events={history.value} />

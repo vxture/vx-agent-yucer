@@ -576,6 +576,21 @@ export interface AgentScope {
   readonly type: "account" | "opportunity";
   readonly id: string;
   readonly name: string;
+  /**
+   * Where this object's judgements actually live, when that is not itself.
+   *
+   * EVERY RULE IN judgement.ts KEYS ITS OUTPUT TO AN ACCOUNT - six of them do,
+   * and the seventh is the team reading. No rule produces an
+   * opportunity-subject judgement, so filtering a deal's deck by the deal's own
+   * id finds nothing, forever, silently.
+   *
+   * The truthful nearest thing is the deal's ACCOUNT: "this account has been
+   * stalled in negotiate for 59 days" is a judgement about the deal in front of
+   * you, filed under the account because that is where the rule filed it. So a
+   * deal passes its account id here rather than showing an empty panel and
+   * implying nothing is wrong.
+   */
+  readonly judgementSubjectId?: string;
 }
 
 export async function agentPanel(
@@ -623,7 +638,9 @@ export async function agentPanel(
           // there", and a watch-tier item about the account you are reading is
           // exactly what you came to find out.
           .filter((j) =>
-            scope ? j.subjectId === scope.id : j.urgency === "today",
+            scope
+              ? j.subjectId === (scope.judgementSubjectId ?? scope.id)
+              : j.urgency === "today",
           )
           .slice(0, 3)
           .map((j) => ({
