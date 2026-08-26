@@ -1,4 +1,13 @@
-import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+"use client";
+
+import { useState } from "react";
+import {
+  Button,
+  EmptyState,
+  Icon,
+  Section,
+  StatusBadge,
+} from "@vxture/design-ui";
 import { CHANNEL_LABEL, FIELD_TEXT } from "../lib/messages";
 
 // What actually happened, newest first.
@@ -22,9 +31,27 @@ export interface TimelineItem {
 
 export interface InteractionTimelineProps {
   readonly items: readonly TimelineItem[];
+  /**
+   * How many to show before the fold. Absent = all of them.
+   *
+   * A DETAIL PAGE BOUNDS IT; a page that is only the timeline does not. The
+   * account page carries seven other dimensions, and dumping twenty-three notes
+   * into the middle of them buries every one of the others - the reader loses
+   * the map to gain a history they did not ask for yet.
+   */
+  readonly limit?: number;
 }
 
-export function InteractionTimeline({ items }: InteractionTimelineProps) {
+export function InteractionTimeline({
+  items,
+  limit,
+}: InteractionTimelineProps) {
+  const [open, setOpen] = useState(false);
+  // Expands IN PLACE rather than opening a page. A note is read in the context
+  // of the account it belongs to, and a route that shows the same notes without
+  // the health score beside them is a worse version of this page.
+  const bounded = limit !== undefined && !open && items.length > limit;
+  const shown = bounded ? items.slice(0, limit) : items;
   if (items.length === 0) {
     return (
       <Section
@@ -43,9 +70,19 @@ export function InteractionTimeline({ items }: InteractionTimelineProps) {
     <Section
       title={FIELD_TEXT.timelineTitle}
       description={FIELD_TEXT.timelineDescription}
+      action={
+        limit !== undefined && items.length > limit ? (
+          <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>
+            {open
+              ? FIELD_TEXT.timelineCollapse
+              : FIELD_TEXT.timelineShown(limit, items.length)}
+            <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
+          </Button>
+        ) : null
+      }
     >
       <ol>
-        {items.map((i) => (
+        {shown.map((i) => (
           <li key={i.id}>
             <StatusBadge tone="neutral">
               {CHANNEL_LABEL[i.channel] ?? i.channel}

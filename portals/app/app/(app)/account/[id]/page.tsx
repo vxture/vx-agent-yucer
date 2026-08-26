@@ -1,9 +1,28 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  EmptyState,
+  StatusBadge,
+  ViewHeader,
+  ViewLayout,
+} from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import Link from "next/link";
-import { ACCOUNT_STATUS_LABEL, ASK_ABOUT_TEXT, SHELL_TEXT } from "../../lib/messages";
+import {
+  ACCOUNT_STATUS_LABEL,
+  ACCOUNT_TEXT,
+  ASK_ABOUT_TEXT,
+  SHELL_TEXT,
+} from "../../lib/messages";
 import { can } from "../../../authz/decide";
-import { getAccountStore, getFieldStore } from "../../../domains/shared/registry";
+import {
+  getAccountStore,
+  getFieldStore,
+} from "../../../domains/shared/registry";
 import {
   accountRelations,
   decisionChain,
@@ -26,7 +45,11 @@ import {
 } from "../../../domains/account/field-service";
 import { CHANNEL_LABEL } from "../../lib/messages";
 import { linkAccountContacts, recomputeAccountHealth } from "../actions";
-import { addCommitment, recordFollowUp, settleCommitment } from "../field-actions";
+import {
+  addCommitment,
+  recordFollowUp,
+  settleCommitment,
+} from "../field-actions";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -37,11 +60,20 @@ import { addCommitment, recordFollowUp, settleCommitment } from "../field-action
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AccountDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
+    return (
+      <EmptyState
+        title={SHELL_TEXT.signedOutTitle}
+        description={SHELL_TEXT.signedOutDescription}
+      />
+    );
   }
 
   const ctx = {
@@ -66,7 +98,12 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   }
   const { account, contacts } = detail.value;
 
-  const canWrite = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
+  const canWrite = can(
+    session.authz,
+    session.entitlement,
+    "account.upsert",
+    "ui",
+  ).allowed;
 
   const fieldCtx = { ...ctx, store: getFieldStore() };
   const now = new Date();
@@ -79,7 +116,9 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const [health, chain, relations] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
     // read-only member gets no panel rather than a silently failing one.
-    canWrite ? recomputeHealth(ctx, id, { persist: false }) : Promise.resolve(null),
+    canWrite
+      ? recomputeHealth(ctx, id, { persist: false })
+      : Promise.resolve(null),
     decisionChain(ctx, id),
     accountRelations(ctx, id),
   ]);
@@ -92,18 +131,55 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
 
   return (
     <ViewLayout>
+      {/* THE WAY BACK. With the board gone this page offers no navigation of
+          its own, and returning to the list you came from is the most common
+          next action - the shell no longer covers it, so the page must. */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/account">
+              {ACCOUNT_TEXT.backToList}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>{account.name}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <ViewHeader
         secondary={account.accountNo}
         icon="buildings"
         title={account.name}
-        description={[account.industry, account.region].filter(Boolean).join(" / ")}
+        description={[account.industry, account.region]
+          .filter(Boolean)
+          .join(" / ")}
         action={
-          <StatusBadge tone={account.status === "churned" ? "danger" : "neutral"} dot>
+          <StatusBadge
+            tone={account.status === "churned" ? "danger" : "neutral"}
+            dot
+          >
             {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
           </StatusBadge>
         }
       />
 
+      {/* THE DIMENSIONS, LAID OUT - not stacked.
+          
+          Eight full-width blocks in a column ran to a dozen screens and the
+          reader lost the map. The same eight as a dashboard of the object fits
+          in two or three: the health headline across the top, the four
+          card-sized dimensions paired, and the one deep dimension bounded at
+          the foot.
+
+          xl:grid-cols-2, NOT lg. Tailwind's breakpoints watch the VIEWPORT
+          while this grid lives in a pane whose width is viewport minus a fixed
+          400px deck and 80px of insets. At the lg breakpoint (1024) the pane is
+          544 and two columns would be 256 each - narrower than the cards need.
+          At xl (1280) it is 800, so two columns of 384. The lesson is the one
+          MetricGrid taught: a viewport breakpoint inside a fixed-width pane is
+          measuring the wrong thing. */}
       {health && health.ok ? (
         <HealthPanel
           accountId={id}
@@ -113,44 +189,39 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         />
       ) : null}
 
-      {/* The entry point to a grounded conversation. Deliberately here rather
-          than on the copilot page: the question "why has this stalled" occurs
-          to someone while they are looking at the account, and making them
-          navigate away and re-identify the customer is how a feature goes
-          unused. */}
-      {can(session.authz, session.entitlement, "copilot.ask", "ui").allowed ? (
-        <Link href={`/copilot?account=${id}`}>{ASK_ABOUT_TEXT.linkFromAccount}</Link>
+      {/* A ROW OF FOUR CARDS IS ALREADY A ROW. Putting this panel in a 384px
+          column crushed its own four cards to one glyph each - the same trap
+          MetricGrid taught, one level down: a component that lays itself out
+          across a width cannot be given half of one. What pairs well in two
+          columns is a LIST; what does not is anything that is itself a grid. */}
+      {evidence.ok ? (
+        <RelationshipEvidencePanel evidence={evidence.value} now={now} />
       ) : null}
 
-      {/* What the recorded facts say about this relationship, above the health
-          score they are meant to explain. */}
-      {evidence.ok ? <RelationshipEvidencePanel evidence={evidence.value} now={now} /> : null}
+      <div className="grid gap-lg xl:grid-cols-2">
+        {commitments.ok ? (
+          <CommitmentList
+            accountId={id}
+            items={commitments.value}
+            // Only real interactions can close a promise, so the picker is
+            // literally the evidence requirement made visible.
+            evidence={(interactions.ok ? interactions.value : []).map((i) => ({
+              id: i.id,
+              label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+            }))}
+            canWrite={canWrite}
+            onCreate={addCommitment}
+            onSettle={settleCommitment}
+          />
+        ) : null}
 
-      {/* Capture first, above everything derived. The page a rep opens after a
-          meeting should let them dump it before it asks them to read anything. */}
-      <RecordFollowUp
-        accountId={id}
-        canRecord={canWrite}
-        onRecord={recordFollowUp}
-      />
-
-      {commitments.ok ? (
-        <CommitmentList
-          accountId={id}
-          items={commitments.value}
-          // Only real interactions can close a promise, so the picker is
-          // literally the evidence requirement made visible.
-          evidence={(interactions.ok ? interactions.value : []).map((i) => ({
-            id: i.id,
-            label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-          }))}
-          canWrite={canWrite}
-          onCreate={addCommitment}
-          onSettle={settleCommitment}
-        />
-      ) : null}
-
-      {interactions.ok ? <InteractionTimeline items={interactions.value} /> : null}
+        {recency?.ok ? (
+          <ChainRecencyPanel
+            recency={recency.value}
+            nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
+          />
+        ) : null}
+      </div>
 
       {chain.ok ? (
         <DecisionChain
@@ -160,7 +231,14 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
             <LinkContacts
               accountId={id}
               contacts={contacts}
-              canLink={can(session.authz, session.entitlement, "account.graph.link", "ui").allowed}
+              canLink={
+                can(
+                  session.authz,
+                  session.entitlement,
+                  "account.graph.link",
+                  "ui",
+                ).allowed
+              }
               unreachable={chain.value.economicBuyerUnreachable}
               onLink={linkAccountContacts}
             />
@@ -175,14 +253,20 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         />
       )}
 
-      {/* Directly under the org chart, because it is a commentary on it: the
-          panel above says who exists, this one says who has been in a recorded
-          room. Separate panels so neither gap can be read as the other. */}
-      {recency?.ok ? (
-        <ChainRecencyPanel
-          recency={recency.value}
-          nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
-        />
+      {/* Beside the org chart, because it is a commentary on it: that panel
+          says who exists, this one says who has been in a recorded room.
+          Separate panels so neither gap can be read as the other. */}
+
+      {/* The one deep dimension, bounded and expandable in place. Full width
+          because a note is a paragraph, and a paragraph in a 384px column is a
+          worse read than the same paragraph across the pane.
+
+          RecordFollowUp is GONE from here: the deck beside this page is
+          anchored to this account now and captures a note against it. Two
+          capture boxes on one screen is not a convenience, it is a question
+          about which one is the real one. */}
+      {interactions.ok ? (
+        <InteractionTimeline items={interactions.value} limit={5} />
       ) : null}
     </ViewLayout>
   );

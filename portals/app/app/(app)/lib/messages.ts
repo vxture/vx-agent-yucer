@@ -635,6 +635,13 @@ export const FIELD_TEXT = {
   recordEmptyDescription:
     "记下第一笔之后,客户健康度和决策链就会开始用真实的接触时间,而不是靠商机阶段推算。",
 
+  // The bounded timeline. A detail page shows the recent few and opens the
+  // rest in place - the alternative was dumping every note on a page that
+  // already carries seven other dimensions.
+  timelineShown: (shown: number, total: number) =>
+    `最近 ${shown} 条，共 ${total} 条`,
+  timelineExpand: "展开全部",
+  timelineCollapse: "只看最近",
   timelineTitle: "跟进时间线",
   timelineDescription:
     "谁、什么时候、通过什么方式。原文逐字保留——后续所有分析都引用它。",
@@ -1137,6 +1144,10 @@ export const ACCOUNT_TEXT = {
   // The action column. Both verbs are always listed; the one the member may not
   // use is disabled with the reason, not hidden - a menu whose contents change
   // with the viewer teaches nobody what the product can do.
+  // The way back. A detail page reached from a list owes the reader the list -
+  // it is the most common next action, and with the board gone the shell no
+  // longer offers it.
+  backToList: "客户管理",
   openAccount: "打开客户",
   recompute: "重算健康度",
   recomputeHint: "按当前源数据重新计算，结果立即写回",

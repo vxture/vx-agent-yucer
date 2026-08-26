@@ -361,6 +361,7 @@ export const en: Dictionary = {
     emptyDescription:
       "They appear here once a lead converts or one is entered by hand.",
     rowCount: (n: number) => `${n} accounts`,
+    backToList: "Accounts",
     openAccount: "Open the account",
     recompute: "Recompute health",
     recomputeHint:
@@ -494,6 +495,10 @@ export const en: Dictionary = {
     commitOverdueEmpty: "No overdue promises",
     commitOverdueEmptyDescription:
       "Every recorded promise is still within its date.",
+    timelineShown: (shown: number, total: number) =>
+      `latest ${shown} of ${total}`,
+    timelineExpand: "Show all",
+    timelineCollapse: "Show recent only",
     commitOverdueTitle: "Overdue promises",
     commitOwner: (who: string) => `owner ${who}`,
     commitOwnerNone: "No owner assigned",
