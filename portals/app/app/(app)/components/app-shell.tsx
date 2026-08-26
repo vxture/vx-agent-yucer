@@ -25,11 +25,9 @@ import {
 import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { NavBoard } from "./nav-board";
-import { AgentPanel } from "./agent-panel";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { WorkspaceScope } from "./workspace-scope";
-import type { AgentPanelData } from "../lib/board";
 import type { BoardSection } from "../lib/board";
 // NOT a static import of the Chinese constants any more. This component is
 // the shell - it renders on every page, in whatever language the request
@@ -87,12 +85,25 @@ export const PINNED_SECTIONS = [
 export interface AppShellProps {
   /** The sections and their real numbers, gathered server-side in board.ts. */
   readonly board: readonly BoardSection[];
-  /** The agent's own reading, for the right flank. */
-  readonly agent: AgentPanelData;
-  readonly canRecord: boolean;
-  readonly onRecord?: (
-    text: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * The right deck, as a SLOT rather than data.
+   *
+   * It arrives from the @deck parallel route, so the route that knows which
+   * object is on screen supplies the deck for it. A layout cannot know that -
+   * it has no params and cannot read the pathname - so a deck built here could
+   * only ever report across the workspace, which on a detail page is not
+   * clutter but a wrong answer.
+   */
+  readonly deck: ReactNode;
+  /**
+   * How many proposals the deck is holding, for the header badge.
+   *
+   * Passed separately BECAUSE the deck is opaque: it is a rendered node, and
+   * the shell cannot count what is inside a node it did not build. The count
+   * has to reach the header some other way, and a number beside the slot is
+   * the honest version of that.
+   */
+  readonly deckCount: number;
   /**
    * Administration. Reached from a single header icon rather than a sidebar
    * group: it is not work and not data, it is setup - visited rarely, and a
@@ -156,9 +167,8 @@ export interface AppShellProps {
 
 export function AppShell({
   board,
-  agent,
-  canRecord,
-  onRecord,
+  deck,
+  deckCount,
   admin,
   userName,
   workspaceLabel,
@@ -424,7 +434,7 @@ export function AppShell({
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
               <AgentDockButton
-                count={agent.pending.length}
+                count={deckCount}
                 open={showDock}
                 onToggle={toggleDock}
               />
@@ -553,11 +563,7 @@ export function AppShell({
         {/* RIGHT - the agent, and what it is looking at. */}
         {showDock ? (
           <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto">
-            <AgentPanel
-              data={agent}
-              canRecord={canRecord}
-              onRecord={onRecord}
-            />
+            {deck}
           </aside>
         ) : null}
       </div>

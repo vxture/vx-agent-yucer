@@ -552,6 +552,8 @@ export async function boardSections(
 // single screen - a note is worth keeping whatever you were looking at.
 
 export interface AgentPanelData {
+  /** Present when the deck is scoped to one object; names it. */
+  readonly scope?: { readonly name: string };
   readonly scanned: number;
   readonly pending: readonly {
     id: string;
@@ -562,9 +564,24 @@ export interface AgentPanelData {
   readonly recent: readonly { id: string; text: string; when: string }[];
 }
 
+/**
+ * What the deck is looking at, when it is looking at ONE thing.
+ *
+ * Absent on a first-level page, where the deck reports across the workspace.
+ * Present on a detail page, where a deck listing OTHER objects is not clutter
+ * but a wrong answer - it tells a reader that this is what needs deciding about
+ * the thing in front of them, and it is not.
+ */
+export interface AgentScope {
+  readonly type: "account" | "opportunity";
+  readonly id: string;
+  readonly name: string;
+}
+
 export async function agentPanel(
   ctx: BoardContext,
   now: Date,
+  scope?: AgentScope,
 ): Promise<AgentPanelData> {
   const { BOARD_TEXT, FORECAST_LABEL } = await getMessages();
   const base = {
@@ -576,7 +593,13 @@ export async function agentPanel(
 
   const [feed, notes] = await Promise.all([
     cachedFeed(base),
-    getFieldStore().listInteractions(ctx.workspaceId, { limit: 3 }),
+    getFieldStore().listInteractions(ctx.workspaceId, {
+      limit: 3,
+      // Scoped to the object when there is one. The filter is the store's, so
+      // this is a narrower query rather than a wider one filtered afterwards.
+      ...(scope?.type === "account" ? { accountId: scope.id } : {}),
+      ...(scope?.type === "opportunity" ? { opportunityId: scope.id } : {}),
+    }),
   ]);
 
   const day = (d: Date) => {
@@ -588,9 +611,20 @@ export async function agentPanel(
     scanned: feed.ok ? feed.value.scanned : 0,
     // Only what is owed a decision today. A panel that listed everything would
     // be a second copy of the queue rather than a reason to look right.
+    scope: scope ? { name: scope.name } : undefined,
     pending: feed.ok
       ? feed.value.judgements
-          .filter((j) => j.urgency === "today")
+          // UNSCOPED: only what is owed a decision TODAY - a panel that listed
+          // everything would be a second copy of the queue rather than a reason
+          // to look right.
+          //
+          // SCOPED: everything about this one object, whatever its urgency. On
+          // one thing the question is not "what is due today" but "what is
+          // there", and a watch-tier item about the account you are reading is
+          // exactly what you came to find out.
+          .filter((j) =>
+            scope ? j.subjectId === scope.id : j.urgency === "today",
+          )
           .slice(0, 3)
           .map((j) => ({
             id: j.id,

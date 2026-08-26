@@ -8,7 +8,6 @@ import { MessagesProvider } from "./lib/i18n/provider";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { can } from "../authz/decide";
-import { recordFollowUp } from "./account/field-actions";
 import { AppShell } from "./components/app-shell";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
@@ -49,7 +48,14 @@ function buildLabel(): string {
   return gitSha.slice(0, 7);
 }
 
-export default async function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({
+  children,
+  deck,
+}: {
+  children: ReactNode;
+  /** The right deck, from the @deck parallel route - see @deck/deck-data.ts. */
+  deck: ReactNode;
+}) {
   const session = await resolveAppSession();
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
@@ -117,12 +123,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // setup rather than work, and it lives as a header icon.
   const admin = nav.filter((e) => e.key === "admin" || e.key === "adoption");
 
-  const canRecord = can(
-    session.authz,
-    session.entitlement,
-    "account.upsert",
-    "ui",
-  ).allowed;
+  // ONLY for the header badge. The deck itself is a parallel route now, so the
+  // layout does not build it - but the count has to reach the header, and the
+  // header is here. Unscoped on purpose: the badge answers "is anything waiting
+  // for me anywhere", which is a question about the workspace even while you
+  // are reading one account.
   const agent = await agentPanel(
     {
       workspaceId: session.workspaceId,
@@ -187,19 +192,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
         board={board}
-        agent={agent}
-        canRecord={canRecord}
-        onRecord={async (text: string) => {
-          "use server";
-          // No account id: an unanchored note is still worth keeping, and
-          // demanding one at capture time is the friction ADR-012's kill
-          // criterion is measuring.
-          return recordFollowUp("", {
-            channel: "other",
-            occurredAt: new Date().toISOString(),
-            rawNote: text,
-          });
-        }}
+        deck={deck}
+        deckCount={agent.pending.length}
         appVersion={buildLabel()}
         tenantId={tenantIdOf(session)}
         locale={locale}
