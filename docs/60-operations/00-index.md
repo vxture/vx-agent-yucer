@@ -20,6 +20,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
+| TD-011 | DS 的 Section 用 jsx 而非 jsxs 渲染 children，多孩子必报 key 警告 | 2026-08-25 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -235,6 +236,40 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 `${missed} missed milestone(s)`，同一路径同一问题。改结构化理由时一并处理。
 
 **恢复条件**：规则层改为结构化理由，界面层删除本条的权宜渲染。
+
+### TD-011 - DS 的 `Section` 用 `jsx` 渲染 children，多孩子必报 key 警告
+
+**症状**：`/account/[id]` 开发期报
+`Each child in a list should have a unique "key" prop. Check the render method
+of 'Section'. It was passed a child from AccountDetailPage.`
+指认的那个「孩子」是 `page.tsx:231` 的 `<LinkContacts>` —— 一个**作为 prop 传给
+`DecisionChain`、再由它放进 `Section` 的元素**。给它加 key 没有意义，它不在任何
+调用方写的数组里。
+
+**根因在 DS**（`design-ui@6.0.0`，`chunk-QPS4MEVI.mjs:1253`）：
+
+```js
+/* Section 的实现 */
+jsx("div", { className: "flex flex-col gap-md", children })
+```
+
+用的是 **`jsx`**（单孩子变体）而不是 **`jsxs`**（静态数组变体）。
+
+调用方写 `<Section>{a}{b}{c}</Section>` 时，编译器发出
+`jsxs(Section, { children: [a,b,c] })` —— 这一层是静态的、不报警。但 `Section`
+把同一个数组转手交给 **`jsx`**，React 就无法知道它是静态的，于是逐项校验 key，
+并且**归咎于每个元素的创建者**——所以警告指着 `AccountDetailPage`。
+
+**`jsxs` 存在的唯一理由就是标记「这个数组是静态的」。** 这里少用了那个变体。
+
+**影响面**：本仓 24 个组件文件用到 `Section`，**任何给它多个孩子的调用点都会命中**。
+只是 React 按组件类型去重，一次只显示一条，所以看起来像个别页面的问题。
+
+**不在产品侧绕**：绕法是把每个多孩子 `Section` 的内容包进一个 `<div>` 或
+Fragment，让它只收一个孩子 —— 24 个文件里加一层无意义的包裹节点，为的是抵消一个
+上游一个字符的疏漏。**这会把 DS 的缺陷变成产品的形状。**
+
+**恢复条件**：DS 把那一处 `jsx` 改成 `jsxs`（或显式包裹）。改完删除本条。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 
