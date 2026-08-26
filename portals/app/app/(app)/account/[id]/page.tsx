@@ -12,12 +12,6 @@ import {
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import Link from "next/link";
-import {
-  ACCOUNT_STATUS_LABEL,
-  ACCOUNT_TEXT,
-  ASK_ABOUT_TEXT,
-  SHELL_TEXT,
-} from "../../lib/messages";
 import { can } from "../../../authz/decide";
 import {
   getAccountStore,
@@ -43,7 +37,19 @@ import {
   chainRecency,
   relationshipEvidence,
 } from "../../../domains/account/field-service";
-import { CHANNEL_LABEL } from "../../lib/messages";
+import { getMessages } from "../../lib/i18n/server";
+import type { Stage } from "../../../domains/pipeline/lib/stage";
+import { listPipeline } from "../../../domains/pipeline/service";
+import { listProjects } from "../../../domains/delivery/service";
+import { listProposals } from "../../../domains/copilot/service";
+import {
+  getCopilotStore,
+  getDeliveryStore,
+  getPipelineStore,
+} from "../../../domains/shared/registry";
+import { cachedFeed } from "../../lib/board";
+import { TheatreRoster } from "../../components/theatre-roster";
+import { TheatrePlan } from "../../components/theatre-plan";
 import { linkAccountContacts, recomputeAccountHealth } from "../actions";
 import {
   addCommitment,
@@ -65,6 +71,16 @@ export default async function AccountDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const {
+    ACCOUNT_STATUS_LABEL,
+    ACCOUNT_TEXT,
+    AGENT_ACTION_LABEL,
+    BOARD_TEXT,
+    CHANNEL_LABEL,
+    PROJECT_HEALTH_LABEL,
+    SHELL_TEXT,
+    STAGE_LABEL,
+  } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) {
@@ -123,6 +139,63 @@ export default async function AccountDetailPage({
     accountRelations(ctx, id),
   ]);
 
+  // THE POSITIONS ON THIS THEATRE, and the theatre-level plan over them.
+  //
+  // A page about an account that cannot say which pursuits are running on it is
+  // the one thing it most owes its reader - and it could not, until
+  // OpportunityFilter gained accountId. Each list links onward: the chain
+  // 战略 -> 战役 -> 信号 -> 线索 -> 商机 -> 交付 has to be walkable in both
+  // directions, and an account that only ever receives links is a dead end in
+  // the middle of it.
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+  const [deals, projects, feed, proposals] = await Promise.all([
+    listPipeline({ ...base, store: getPipelineStore() }, { accountId: id }),
+    listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
+    cachedFeed(base),
+    listProposals(
+      { ...base, store: getCopilotStore() },
+      { status: "proposed" },
+    ),
+  ]);
+
+  const rosterDeals = (deals.ok ? deals.value : []).map((d) => ({
+    id: d.id,
+    name: d.name,
+    stageLabel: STAGE_LABEL[d.stage as Stage] ?? d.stage,
+    amount: d.amount?.amount ?? null,
+    currency: d.currency,
+  }));
+  const rosterProjects = (projects.ok ? projects.value : []).map((pr) => ({
+    id: pr.id,
+    name: pr.name,
+    healthLabel: PROJECT_HEALTH_LABEL[pr.health] ?? pr.health,
+    healthTone: (pr.health === "green"
+      ? "success"
+      : pr.health === "amber"
+        ? "warning"
+        : "danger") as "success" | "warning" | "danger",
+  }));
+
+  // THEATRE-LEVEL proposals: those whose subject is this account. A proposal
+  // about one of its deals belongs on that deal's page - mixing them here would
+  // ask a reader to sign a tactical move from a page about a relationship.
+  const planProposals = (proposals.ok ? proposals.value : [])
+    .filter((a) => a.subjectId === id)
+    .map((a) => ({
+      id: a.id,
+      title: AGENT_ACTION_LABEL[a.actionType] ?? a.actionType,
+      group:
+        BOARD_TEXT.capabilityLabels[a.capability ?? ""] ??
+        BOARD_TEXT.capUnlabelled,
+      rationale: a.rationale,
+      confidence: a.confidence,
+    }));
+
   // A second analysis over the same graph: who has actually been in a recorded
   // room. Deliberately not folded into `chain` - see chain-recency.tsx.
   const recency = relations.ok
@@ -165,109 +238,119 @@ export default async function AccountDetailPage({
         }
       />
 
-      {/* THE DIMENSIONS, LAID OUT - not stacked.
-          
-          Eight full-width blocks in a column ran to a dozen screens and the
-          reader lost the map. The same eight as a dashboard of the object fits
-          in two or three: the health headline across the top, the four
-          card-sized dimensions paired, and the one deep dimension bounded at
-          the foot.
+      {/* THE THEATRE, IN THREE LAYERS.
 
-          xl:grid-cols-2, NOT lg. Tailwind's breakpoints watch the VIEWPORT
-          while this grid lives in a pane whose width is viewport minus a fixed
-          400px deck and 80px of insets. At the lg breakpoint (1024) the pane is
-          544 and two columns would be 256 each - narrower than the cards need.
-          At xl (1280) it is 800, so two columns of 384. The lesson is the one
-          MetricGrid taught: a viewport breakpoint inside a fixed-width pane is
-          measuring the wrong thing. */}
-      {health && health.ok ? (
-        <HealthPanel
-          accountId={id}
-          health={health.value}
-          canRecompute={canWrite}
-          onRecompute={recomputeAccountHealth}
-        />
-      ) : null}
+          A page about an account is not a record card. It is where a
+          multi-year relationship is commanded from, and the three things it
+          owes a reader are what is HERE, how it STANDS, and what to do NEXT.
 
-      {/* A ROW OF FOUR CARDS IS ALREADY A ROW. Putting this panel in a 384px
-          column crushed its own four cards to one glyph each - the same trap
-          MetricGrid taught, one level down: a component that lays itself out
-          across a width cannot be given half of one. What pairs well in two
-          columns is a LIST; what does not is anything that is itself a grid. */}
-      {evidence.ok ? (
-        <RelationshipEvidencePanel evidence={evidence.value} now={now} />
-      ) : null}
+          LEFT is the dossier and the roster - facts that do not need reading,
+          and the positions being fought. It is the answer to "what is on this
+          theatre", and it is stable enough to sit still while the middle
+          column is worked through.
 
-      <div className="grid gap-lg xl:grid-cols-2">
-        {commitments.ok ? (
-          <CommitmentList
-            accountId={id}
-            items={commitments.value}
-            // Only real interactions can close a promise, so the picker is
-            // literally the evidence requirement made visible.
-            evidence={(interactions.ok ? interactions.value : []).map((i) => ({
-              id: i.id,
-              label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-            }))}
-            canWrite={canWrite}
-            onCreate={addCommitment}
-            onSettle={settleCommitment}
-          />
-        ) : null}
+          CENTRE is one chain of reasoning, top to bottom: the judgement, then
+          the evidence it rests on, then the plan drawn from both. That order is
+          the argument. A plan read before its evidence is a plan signed on
+          trust, and ADR-003 exists because the frictionless path is the
+          dangerous one.
 
-        {recency?.ok ? (
-          <ChainRecencyPanel
-            recency={recency.value}
-            nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
-          />
-        ) : null}
-      </div>
+          RIGHT is the shell's deck, already anchored to this account.
 
-      {chain.ok ? (
-        <DecisionChain
-          coverage={chain.value}
-          contacts={contacts}
-          linkForm={
-            <LinkContacts
-              accountId={id}
+          xl:grid-cols-[20rem_1fr], not lg: this grid sits in a pane of viewport
+          minus a fixed 400px deck and 80px of insets, so at lg the pane is 544
+          and a 320px column would leave 190 for everything else. */}
+      <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
+        <div className="flex min-w-0 flex-col gap-lg">
+          <TheatreRoster deals={rosterDeals} projects={rosterProjects} />
+
+          {/* Who is on this theatre. The chart and the reachability verdict,
+              beside the roster rather than buried below the evidence: knowing
+              the economic buyer is untouched changes how every number in the
+              middle column reads. */}
+          {chain.ok ? (
+            <DecisionChain
+              coverage={chain.value}
               contacts={contacts}
-              canLink={
-                can(
-                  session.authz,
-                  session.entitlement,
-                  "account.graph.link",
-                  "ui",
-                ).allowed
+              linkForm={
+                <LinkContacts
+                  accountId={id}
+                  contacts={contacts}
+                  canLink={
+                    can(
+                      session.authz,
+                      session.entitlement,
+                      "account.graph.link",
+                      "ui",
+                    ).allowed
+                  }
+                  unreachable={chain.value.economicBuyerUnreachable}
+                  onLink={linkAccountContacts}
+                />
               }
-              unreachable={chain.value.economicBuyerUnreachable}
-              onLink={linkAccountContacts}
             />
-          }
-        />
-      ) : (
-        // account.graph is a pro-tier capability. The page still renders - a
-        // starter workspace sees the account without the relationship map.
-        <EmptyState
-          title={SHELL_TEXT.loadFailed}
-          description={chain.violations.map((v) => v.message).join("; ")}
-        />
-      )}
+          ) : (
+            // account.graph is a pro-tier capability. The page still renders -
+            // a starter workspace sees the account without the relationship map.
+            <EmptyState
+              title={SHELL_TEXT.loadFailed}
+              description={chain.violations.map((v) => v.message).join("; ")}
+            />
+          )}
+        </div>
 
-      {/* Beside the org chart, because it is a commentary on it: that panel
-          says who exists, this one says who has been in a recorded room.
-          Separate panels so neither gap can be read as the other. */}
+        <div className="flex min-w-0 flex-col gap-lg">
+          {/* 1. HOW IT STANDS. */}
+          {health && health.ok ? (
+            <HealthPanel
+              accountId={id}
+              health={health.value}
+              canRecompute={canWrite}
+              onRecompute={recomputeAccountHealth}
+            />
+          ) : null}
 
-      {/* The one deep dimension, bounded and expandable in place. Full width
-          because a note is a paragraph, and a paragraph in a 384px column is a
-          worse read than the same paragraph across the pane.
+          {evidence.ok ? (
+            <RelationshipEvidencePanel evidence={evidence.value} now={now} />
+          ) : null}
 
-          RecordFollowUp is GONE from here: the deck beside this page is
-          anchored to this account now and captures a note against it. Two
-          capture boxes on one screen is not a convenience, it is a question
-          about which one is the real one. */}
-      {interactions.ok ? (
-        <InteractionTimeline items={interactions.value} limit={5} />
-      ) : null}
+          {/* 2. WHAT IT RESTS ON. Promises first: a broken one is the single
+                 hardest fact in this section, and the timeline is where it can
+                 be checked. */}
+          {commitments.ok ? (
+            <CommitmentList
+              accountId={id}
+              items={commitments.value}
+              // Only real interactions can close a promise, so the picker is
+              // literally the evidence requirement made visible.
+              evidence={(interactions.ok ? interactions.value : []).map(
+                (i) => ({
+                  id: i.id,
+                  label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+                }),
+              )}
+              canWrite={canWrite}
+              onCreate={addCommitment}
+              onSettle={settleCommitment}
+            />
+          ) : null}
+
+          {recency?.ok ? (
+            <ChainRecencyPanel
+              recency={recency.value}
+              nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
+            />
+          ) : null}
+
+          {interactions.ok ? (
+            <InteractionTimeline items={interactions.value} limit={5} />
+          ) : null}
+
+          {/* 3. WHAT TO DO NEXT - last, because it is drawn from the two
+                 layers above it. */}
+          <TheatrePlan proposals={planProposals} />
+        </div>
+      </div>
     </ViewLayout>
   );
 }

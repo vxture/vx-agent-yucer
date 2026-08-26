@@ -1147,6 +1147,32 @@ export const ACCOUNT_TEXT = {
   // The way back. A detail page reached from a list owes the reader the list -
   // it is the most common next action, and with the board gone the shell no
   // longer offers it.
+  // The theatre command post. This page is not a record card - it is where a
+  // multi-year relationship is commanded from, and its two new blocks are the
+  // two things it could not previously say: what is being fought here, and
+  // what to do next.
+  roster: "阵地清单",
+  rosterWhy: "这个客户身上正在打的仗。战区不知道自己有几个阵地，是荒谬的。",
+  rosterDeals: "在办商机",
+  rosterProjects: "交付项目",
+  rosterNoDeals: "没有在办商机",
+  rosterNoProjects: "没有交付项目",
+  rosterOpenDeal: "打开阵地",
+  rosterOpenProjects: "去项目落地",
+  dossier: "战区档案",
+  dossierOwner: "负责人",
+  dossierIndustry: "行业",
+  dossierRegion: "区域",
+  dossierContacts: "联系人",
+  dossierCoaches: "已建内线",
+  dossierBlockers: "有阻力",
+  dossierUnreachable: "决策人未触达",
+  plan: "战区作战方案",
+  planWhy:
+    "关系层面的下一步，不是某一单怎么推——那属于阵地。智能体提议，你裁决。",
+  planEmpty: "暂无待裁决的方案",
+  planEmptyWhy:
+    "没有提案时不是没有问题，是还没有人问。向参谋提问会产出建议动作。",
   backToList: "客户管理",
   openAccount: "打开客户",
   recompute: "重算健康度",

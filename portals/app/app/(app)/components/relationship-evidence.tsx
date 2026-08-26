@@ -95,7 +95,14 @@ export function RelationshipEvidencePanel({
       title={FIELD_TEXT.evidenceTitle}
       description={FIELD_TEXT.evidenceDescription}
     >
-      <MetricGrid items={items} />
+      {/* columns={2}, and the third time this has come up is worth naming as a
+          rule: the DS's grids break on the VIEWPORT while every grid in this
+          product sits in a pane sized by the shell. On the theatre page the
+          centre column is 768px - viewport, less a 320px dossier, a 400px deck
+          and the insets - so four cards get ~170 each and their labels clip to
+          one glyph. Two columns is the only lever MetricGrid offers; a
+          container query is what the case wants, and the DS has none. */}
+      <MetricGrid items={items} columns={2} />
     </Section>
   );
 }
