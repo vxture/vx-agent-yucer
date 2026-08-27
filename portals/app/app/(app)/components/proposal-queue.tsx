@@ -1,11 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge, BulkActionBar, Button, Checkbox, DataTable, EmptyState, Section, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
-import { batchRisk, type AgentAction, type Decision } from "../../domains/copilot/lib/action";
+import {
+  Badge,
+  BulkActionBar,
+  Button,
+  DataTable,
+  EmptyState,
+  Section,
+  StatusBadge,
+  type DataTableColumn,
+} from "@vxture/design-ui";
+import { TableCard } from "./table-card";
+import {
+  batchRisk,
+  type AgentAction,
+  type Decision,
+} from "../../domains/copilot/lib/action";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
-import { ACTION_STATUS_LABEL, PROPOSAL_TEXT } from "../lib/messages";
 
+import { useMessages } from "../lib/i18n/provider";
 // The copilot proposal queue - where a human decides what the agent may do.
 //
 // ADR-003 named the risk this surface exists to answer: one-at-a-time
@@ -42,15 +56,33 @@ export interface ProposalQueueProps {
    * sign someone else's name to an approval, which is exactly the record the
    * whole domain exists to keep honest.
    */
-  readonly onDecide: (ids: string[], decision: Decision) => void | Promise<unknown>;
+  readonly onDecide: (
+    ids: string[],
+    decision: Decision,
+  ) => void | Promise<unknown>;
 }
 
-export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueueProps) {
+export function ProposalQueue({
+  actions,
+  canDecide,
+  onDecide,
+}: ProposalQueueProps) {
+  const {
+    ACTION_STATUS_LABEL,
+    AGENT_ACTION_LABEL,
+    AGENT_SUBJECT_LABEL,
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    PROPOSAL_TEXT,
+  } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState<Decision | null>(null);
 
   // Only pending proposals are selectable. A decided one is history.
-  const pending = useMemo(() => actions.filter((a) => a.status === "proposed"), [actions]);
+  const pending = useMemo(
+    () => actions.filter((a) => a.status === "proposed"),
+    [actions],
+  );
   const selectedActions = useMemo(
     () => pending.filter((a) => selected.has(a.id)),
     [pending, selected],
@@ -67,45 +99,53 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
   }
 
   function toggleAll() {
-    setSelected((prev) => (prev.size === pending.length ? new Set() : new Set(pending.map((a) => a.id))));
+    setSelected((prev) =>
+      prev.size === pending.length
+        ? new Set()
+        : new Set(pending.map((a) => a.id)),
+    );
   }
 
   async function apply(decision: Decision) {
-    await onDecide(selectedActions.map((a) => a.id), decision);
+    await onDecide(
+      selectedActions.map((a) => a.id),
+      decision,
+    );
     setSelected(new Set());
     setConfirming(null);
   }
 
   const columns: readonly DataTableColumn<AgentAction>[] = [
     {
-      id: "select",
-      header: (
-        <Checkbox
-          checked={pending.length > 0 && selected.size === pending.length}
-          onCheckedChange={toggleAll}
-          aria-label={PROPOSAL_TEXT.selectAll}
-          disabled={!canDecide || pending.length === 0}
-        />
-      ),
+      id: "action",
+      header: PROPOSAL_TEXT.columnAction,
+      // LABELLED. This printed the raw action_type, so a Chinese table proposed
+      // `advance_stage` - and action_type is an open vocabulary (bare
+      // VARCHAR(64), no CHECK), so the map cannot be exhaustive and the raw
+      // value is the fallback rather than a blank.
       cell: (row) => (
-        <Checkbox
-          checked={selected.has(row.id)}
-          onCheckedChange={() => toggle(row.id)}
-          aria-label={PROPOSAL_TEXT.selectOne(row.actionType)}
-          disabled={!canDecide || row.status !== "proposed"}
-        />
+        <span className="text-foreground">
+          {AGENT_ACTION_LABEL[row.actionType] ?? row.actionType}
+        </span>
       ),
     },
     {
-      id: "action",
-      header: PROPOSAL_TEXT.columnAction,
+      id: "subject",
+      header: PROPOSAL_TEXT.columnSubject,
+      // The subject was a badge reading `opportunity / opp_demo` - an English
+      // enum next to eight characters of an id. The type is a closed set with a
+      // CHECK behind it, so it gets a label; the id stays because it is how a
+      // reader tells two proposals on the same kind of thing apart, and it is
+      // marked as machine text rather than dressed as a name.
       cell: (row) => (
-        <div>
-          <div>{row.actionType}</div>
+        <span className="flex flex-col gap-3xs">
           <Badge variant="secondary">
-            {row.subjectType} / {row.subjectId.slice(0, 8)}
+            {AGENT_SUBJECT_LABEL[row.subjectType] ?? row.subjectType}
           </Badge>
-        </div>
+          <span className="text-muted-foreground font-mono text-xs">
+            {row.subjectId}
+          </span>
+        </span>
       ),
     },
     {
@@ -118,16 +158,19 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
     {
       id: "confidence",
       header: PROPOSAL_TEXT.columnConfidence,
-      align: "right",
+      align: "center",
       cell: (row) => (
         <StatusBadge tone={confidenceTone(row.confidence)}>
-          {row.confidence == null ? PROPOSAL_TEXT.confidenceMissing : `${row.confidence}%`}
+          {row.confidence == null
+            ? PROPOSAL_TEXT.confidenceMissing
+            : `${row.confidence}%`}
         </StatusBadge>
       ),
     },
     {
       id: "status",
       header: PROPOSAL_TEXT.columnStatus,
+      align: "center",
       cell: (row) => (
         <StatusBadge tone={ACTION_STATUS_TONE[row.status]} dot>
           {ACTION_STATUS_LABEL[row.status]}
@@ -141,9 +184,15 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
         // A null decider on an executed row is the autopilot marker, not missing
         // data - it is how the record says no human signed for this.
         row.status === "executed" && !row.decidedBySub ? (
-          <StatusBadge tone="warning">{PROPOSAL_TEXT.autopilotMarker}</StatusBadge>
+          <StatusBadge tone="warning">
+            {PROPOSAL_TEXT.autopilotMarker}
+          </StatusBadge>
+        ) : row.decidedBySub ? (
+          <span className="text-muted-foreground font-mono text-xs">
+            {row.decidedBySub}
+          </span>
         ) : (
-          (row.decidedBySub ?? "-")
+          <span className="text-muted-foreground">-</span>
         ),
     },
   ];
@@ -158,17 +207,41 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
           actions still open the confirmation rather than acting: ADR-003 is
           that a person decides, and a one-click "accept 200" is exactly the
           frictionless path batchRisk() exists to interrupt. */}
+      {/* ALL FOUR outlets passed, and the template and the noun move together
+          by necessity - the changelog names this pair, because passing only
+          the noun yields 「已选择 3 items」. The shipped defaults are English
+          ("{count} {noun} selected" / "items" / "Bulk actions" / "Clear");
+          note that the .d.ts comments still claim Chinese ones, so this was
+          verified against the bundle rather than the types. */}
       <BulkActionBar
         count={selected.size}
         noun={PROPOSAL_TEXT.selectionNoun}
+        selectionTemplate={DS_LABELS.bulkSelectionTemplate}
+        toolbarLabel={DS_LABELS.bulkToolbar}
+        clearLabel={PROPOSAL_TEXT.clearSelection}
         onClear={() => setSelected(new Set())}
         actions={[
-          { id: "reject", label: PROPOSAL_TEXT.bulkReject, onSelect: () => setConfirming("reject") },
-          { id: "accept", label: PROPOSAL_TEXT.bulkAccept, onSelect: () => setConfirming("accept") },
+          {
+            id: "reject",
+            label: PROPOSAL_TEXT.bulkReject,
+            onSelect: () => setConfirming("reject"),
+          },
+          {
+            id: "accept",
+            label: PROPOSAL_TEXT.bulkAccept,
+            onSelect: () => setConfirming("accept"),
+          },
         ]}
       />
 
-      {confirming ? <BatchConfirm decision={confirming} risk={risk} onCancel={() => setConfirming(null)} onConfirm={() => void apply(confirming)} /> : null}
+      {confirming ? (
+        <BatchConfirm
+          decision={confirming}
+          risk={risk}
+          onCancel={() => setConfirming(null)}
+          onConfirm={() => void apply(confirming)}
+        />
+      ) : null}
 
       {actions.length === 0 ? (
         <EmptyState
@@ -176,7 +249,29 @@ export function ProposalQueue({ actions, canDecide, onDecide }: ProposalQueuePro
           description={PROPOSAL_TEXT.emptyDescription}
         />
       ) : (
-        <DataTable columns={columns} rows={actions} rowKey={(row) => row.id} />
+        <TableCard>
+          <DataTable
+            labels={DATA_TABLE_LABELS}
+            indexStart={1}
+            columns={columns}
+            rows={actions}
+            rowKey={(row) => row.id}
+            /* SELECTION IS THE DS'S NOW. It was a hand-rolled `select` column
+               with two Checkboxes, which landed the boxes AFTER the index
+               instead of first - the convention is select, then index, then
+               title - and duplicated the select-all logic the DS already has.
+               `leadingSpacer` comes off with it: the checkbox column IS the
+               leading column once the DS draws it, and keeping both left two
+               empty cells before the first number.
+
+               Only a still-proposed row is selectable. A decided one is not a
+               thing a batch can act on, and offering a box that does nothing is
+               how a reader learns to distrust the boxes. */
+            selectedKeys={[...selected]}
+            onSelectionChange={(keys) => setSelected(new Set(keys))}
+            isRowSelectable={(row) => canDecide && row.status === "proposed"}
+          />
+        </TableCard>
       )}
     </Section>
   );
@@ -194,8 +289,15 @@ interface BatchConfirmProps {
  * as "accept 200 items" is precisely what makes bulk approval dangerous, so the
  * count, the kinds, the targets and the low-confidence share are all named.
  */
-function BatchConfirm({ decision, risk, onCancel, onConfirm }: BatchConfirmProps) {
-  const verb = decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
+function BatchConfirm({
+  decision,
+  risk,
+  onCancel,
+  onConfirm,
+}: BatchConfirmProps) {
+  const { PROPOSAL_TEXT } = useMessages();
+  const verb =
+    decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
   return (
     <Section
       tone="default"
@@ -211,7 +313,17 @@ function BatchConfirm({ decision, risk, onCancel, onConfirm }: BatchConfirmProps
           <Button variant="ghost" onClick={onCancel}>
             {PROPOSAL_TEXT.cancel}
           </Button>
-          <Button variant={decision === "accept" ? "default" : "destructive"} onClick={onConfirm}>
+          {/* destructive-STRONG, not destructive, and that is the DS's own
+              distinction rather than a way around the new type obligation.
+              This button IS the confirmation - BatchConfirm is the interrupt
+              batchRisk() exists to raise - so asking it to raise a second one
+              would be a loop, and design-ui 6.0 leaves the strong grade
+              unconstrained for exactly that reason: it is the hammer, and a
+              hammer does not ask itself. */}
+          <Button
+            variant={decision === "accept" ? "default" : "destructive-strong"}
+            onClick={onConfirm}
+          >
             {PROPOSAL_TEXT.confirm(verb)}
           </Button>
         </>

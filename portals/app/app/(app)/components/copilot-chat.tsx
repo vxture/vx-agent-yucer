@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AIAssistantBubble, EmptyState, PromptInput, Section, StatusBadge } from "@vxture/design-ui";
-import { ASK_ABOUT_TEXT, COPILOT_TEXT } from "../lib/messages";
+import {
+  Button,
+  EmptyState,
+  Section,
+  StatusBadge,
+  Textarea,
+} from "@vxture/design-ui";
 
+import { useMessages } from "../lib/i18n/provider";
+import type { Dictionary } from "../lib/i18n/dictionary";
 // The copilot conversation.
 //
 // The design decision that matters here is what the surface REFUSES to imply.
@@ -48,12 +55,16 @@ export interface CopilotChatProps {
     sessionId: string | null,
     accountId?: string,
   ) => Promise<
-    { ok: true; sessionId: string; outcome: TurnOutcome } | { ok: false; error: string }
+    | { ok: true; sessionId: string; outcome: TurnOutcome }
+    | { ok: false; error: string }
   >;
 }
 
 /** The model plane's error codes, translated into what the reader should do. */
-function explainError(code: string): string {
+function explainError(
+  code: string,
+  COPILOT_TEXT: Dictionary["COPILOT_TEXT"],
+): string {
   if (code === "atlas_ATLAS_NOT_CONFIGURED" || code === "no_active_tenant") {
     return COPILOT_TEXT.errorNotConfigured;
   }
@@ -68,8 +79,17 @@ function explainError(code: string): string {
   return COPILOT_TEXT.errorGeneric;
 }
 
-export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk }: CopilotChatProps) {
-  const [messages, setMessages] = useState<ChatMessageView[]>([...initialMessages]);
+export function CopilotChat({
+  initialMessages,
+  sessionId,
+  canAsk,
+  account,
+  onAsk,
+}: CopilotChatProps) {
+  const { ASK_ABOUT_TEXT, COPILOT_TEXT } = useMessages();
+  const [messages, setMessages] = useState<ChatMessageView[]>([
+    ...initialMessages,
+  ]);
   const [session, setSession] = useState<string | null>(sessionId);
   const [draft, setDraft] = useState("");
   const [outcome, setOutcome] = useState<TurnOutcome | null>(null);
@@ -91,12 +111,15 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
     startTransition(() => {
       void onAsk(question, session, account?.id).then((result) => {
         if (!result.ok) {
-          setError(explainError(result.error));
+          setError(explainError(result.error, COPILOT_TEXT));
           return;
         }
         setSession(result.sessionId);
         setOutcome(result.outcome);
-        setMessages((prev) => [...prev, { role: "assistant", content: result.outcome.answer }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: result.outcome.answer },
+        ]);
       });
     });
   }
@@ -116,15 +139,20 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
       ) : null}
 
       {messages.length === 0 && !pending ? (
-        <EmptyState title={COPILOT_TEXT.emptyTitle} description={COPILOT_TEXT.emptyDescription} />
+        <EmptyState
+          title={COPILOT_TEXT.emptyTitle}
+          description={COPILOT_TEXT.emptyDescription}
+        />
       ) : (
         <div>
           {messages.map((m, i) => (
-            <AIAssistantBubble key={i} role={m.role === "user" ? "user" : "ai"}>
+            <div key={i} data-role={m.role}>
               {m.content}
-            </AIAssistantBubble>
+            </div>
           ))}
-          {pending ? <AIAssistantBubble role="ai">{COPILOT_TEXT.thinking}</AIAssistantBubble> : null}
+          {pending ? (
+            <div data-role="assistant">{COPILOT_TEXT.thinking}</div>
+          ) : null}
         </div>
       )}
 
@@ -138,33 +166,51 @@ export function CopilotChat({ initialMessages, sessionId, canAsk, account, onAsk
       {outcome && outcome.proposalCount > 0 ? (
         // A count and a pointer - never an inline accept. Approving a change
         // from inside a chat bubble is how the human step becomes a formality.
-        <StatusBadge tone="warning">{COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}</StatusBadge>
+        <StatusBadge tone="warning">
+          {COPILOT_TEXT.proposalsFromTurn(outcome.proposalCount)}
+        </StatusBadge>
       ) : null}
 
       {outcome && outcome.droppedProposals > 0 ? (
-        <StatusBadge tone="neutral">{COPILOT_TEXT.droppedProposals(outcome.droppedProposals)}</StatusBadge>
+        <StatusBadge tone="neutral">
+          {COPILOT_TEXT.droppedProposals(outcome.droppedProposals)}
+        </StatusBadge>
       ) : null}
 
       {outcome && outcome.capabilitiesUsed.length > 0 ? (
         <StatusBadge tone="info">
-          {COPILOT_TEXT.capabilitiesUsed([...new Set(outcome.capabilitiesUsed)].join(", "))}
+          {COPILOT_TEXT.capabilitiesUsed(
+            [...new Set(outcome.capabilitiesUsed)].join(", "),
+          )}
         </StatusBadge>
       ) : null}
 
-      {outcome?.truncated ? <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge> : null}
+      {outcome?.truncated ? (
+        <StatusBadge tone="warning">{COPILOT_TEXT.truncated}</StatusBadge>
+      ) : null}
 
-      <PromptInput
-        value={draft}
-        onChange={setDraft}
-        onSubmit={submit}
-        placeholder={COPILOT_TEXT.placeholder}
-        submitLabel={COPILOT_TEXT.submit}
-        busy={pending}
-        // A member without copilot.use gets a disabled input rather than a
-        // hidden one: knowing the assistant exists is not a leak, and silently
-        // omitting it reads as a broken page.
-        hint={canAsk ? undefined : COPILOT_TEXT.errorGeneric}
-      />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit(draft);
+        }}
+      >
+        <Textarea
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder={COPILOT_TEXT.placeholder}
+          disabled={!canAsk || pending}
+          rows={3}
+          aria-label={COPILOT_TEXT.placeholder}
+        />
+        <Button
+          type="submit"
+          disabled={!canAsk || pending || draft.trim() === ""}
+        >
+          {COPILOT_TEXT.submit}
+        </Button>
+        {!canAsk ? <p>{COPILOT_TEXT.errorGeneric}</p> : null}
+      </form>
     </Section>
   );
 }

@@ -1,9 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, DataTable, EmptyState, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn } from "@vxture/design-ui";
+import {
+  ActionMenu,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
+  Section,
+  StatusBadge,
+  type DataTableColumn,
+} from "@vxture/design-ui";
+import { TableCard } from "./table-card";
 import type { LeadRecord } from "../../domains/signal/store";
-import { LEAD_STATUS_LABEL, LEAD_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
 import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
@@ -22,19 +33,40 @@ export interface LeadListProps {
   readonly leads: readonly LeadRecord[];
   readonly canTriage: boolean;
   readonly canConvert: boolean;
-  readonly onAct: (leadId: string, action: LeadAction) => Promise<LeadActionResult>;
+  readonly onAct: (
+    leadId: string,
+    action: LeadAction,
+  ) => Promise<LeadActionResult>;
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  campaign: LEAD_TEXT.sourceCampaign,
-  signal_campaign: LEAD_TEXT.sourceSignalCampaign,
-  self_sourced: LEAD_TEXT.sourceSelf,
-};
+export function LeadList({
+  leads,
+  canTriage,
+  canConvert,
+  onAct,
+}: LeadListProps) {
+  const {
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    LEAD_STATUS_LABEL,
+    LEAD_TEXT,
+    PIPELINE_TEXT,
+  } = useMessages();
 
-export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps) {
+  // Built here rather than at module scope: it is made OF copy, and copy now
+  // depends on the request's locale. A module-level map would have frozen one
+  // language at import time - the same trap as a static messages import, just
+  // one indirection further away.
+  const SOURCE_LABEL: Record<string, string> = {
+    campaign: LEAD_TEXT.sourceCampaign,
+    signal_campaign: LEAD_TEXT.sourceSignalCampaign,
+    self_sourced: LEAD_TEXT.sourceSelf,
+  };
+
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [view, setView] = useState<"list" | "cards">("list");
 
   function act(id: string, action: LeadAction) {
     setBusyId(id);
@@ -73,7 +105,13 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
       header: LEAD_TEXT.columnScore,
       align: "right",
       cell: (row) =>
-        row.score == null ? "-" : <StatusBadge tone={confidenceTone(row.score)}>{row.score}</StatusBadge>,
+        row.score == null ? (
+          "-"
+        ) : (
+          <StatusBadge tone={confidenceTone(row.score)}>
+            {row.score}
+          </StatusBadge>
+        ),
     },
     {
       id: "source",
@@ -82,75 +120,166 @@ export function LeadList({ leads, canTriage, canConvert, onAct }: LeadListProps)
         row.campaignId ? (
           <StatusBadge tone="info">{LEAD_TEXT.sourceCampaign}</StatusBadge>
         ) : row.signalId ? (
-          <StatusBadge tone="neutral">{LEAD_TEXT.sourceSignalCampaign}</StatusBadge>
+          <StatusBadge tone="neutral">
+            {LEAD_TEXT.sourceSignalCampaign}
+          </StatusBadge>
         ) : (
           <StatusBadge tone="neutral">{LEAD_TEXT.sourceSelf}</StatusBadge>
         ),
     },
-    { id: "owner", header: LEAD_TEXT.columnOwner, cell: (row) => row.ownerSub ?? "-" },
+    {
+      id: "owner",
+      header: LEAD_TEXT.columnOwner,
+      cell: (row) => row.ownerSub ?? "-",
+    },
     {
       id: "status",
       header: LEAD_TEXT.columnStatus,
       cell: (row) => (
-        <StatusBadge tone={row.status === "converted" ? "success" : "neutral"} dot>
+        <StatusBadge
+          tone={row.status === "converted" ? "success" : "neutral"}
+          dot
+        >
           {LEAD_STATUS_LABEL[row.status] ?? row.status}
         </StatusBadge>
       ),
     },
-    {
-      id: "actions",
-      header: "",
-      align: "right",
-      cell: (row) => {
-        const busy = pending && busyId === row.id;
-        if (row.status === "converted" || row.status === "disqualified") return null;
-
-        return (
-          <>
-            {canTriage && row.status !== "qualified" ? (
-              <>
-                <Button variant="ghost" size="sm" disabled={busy} onClick={() => act(row.id, "disqualify")}>
-                  {LEAD_TEXT.disqualify}
-                </Button>
-                <Button variant="outline" size="sm" disabled={busy} onClick={() => act(row.id, "qualify")}>
-                  {LEAD_TEXT.qualify}
-                </Button>
-              </>
-            ) : null}
-
-            {canConvert && row.status === "qualified" ? (
-              row.accountId ? (
-                <Button size="sm" disabled={busy} onClick={() => act(row.id, "convert")}>
-                  {LEAD_TEXT.convert}
-                </Button>
-              ) : (
-                // The rule refuses without an account. Say why rather than
-                // offering a button that is guaranteed to fail.
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button size="sm" disabled>
-                        {LEAD_TEXT.convert}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{LEAD_TEXT.needAccount}</TooltipContent>
-                </Tooltip>
-              )
-            ) : null}
-          </>
-        );
-      },
-    },
   ];
 
+  /* Every verb stays in the menu and the unusable ones say why, rather than the
+     row silently offering a different set each time. A menu whose contents
+     change per row teaches nobody what the product can do, and "why is this
+     greyed out" is answerable where "why is it missing" is not - which matters
+     most for convert, whose refusal has a real cause the reader can act on. */
+  function LeadActions({ row }: { row: LeadRecord }) {
+    const busy = pending && busyId === row.id;
+    const terminal =
+      row.status === "converted" || row.status === "disqualified";
+    const qualified = row.status === "qualified";
+
+    return (
+      <ActionMenu
+        label={DS_LABELS.actionMenu}
+        disabled={busy}
+        items={[
+          {
+            id: "qualify",
+            label: LEAD_TEXT.qualify,
+            disabled: terminal || !canTriage || qualified,
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canTriage
+                ? LEAD_TEXT.hintNoTriage
+                : qualified
+                  ? LEAD_TEXT.hintAlreadyQualified
+                  : undefined,
+            onSelect: () => act(row.id, "qualify"),
+          },
+          {
+            id: "convert",
+            label: LEAD_TEXT.convert,
+            disabled: terminal || !canConvert || !qualified || !row.accountId,
+            // The rule refuses without an account. Say why rather than offering
+            // something guaranteed to fail.
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canConvert
+                ? LEAD_TEXT.hintNoConvert
+                : !qualified
+                  ? LEAD_TEXT.hintNotQualified
+                  : !row.accountId
+                    ? LEAD_TEXT.needAccount
+                    : undefined,
+            onSelect: () => act(row.id, "convert"),
+          },
+          {
+            id: "disqualify",
+            label: LEAD_TEXT.disqualify,
+            danger: true,
+            separatorBefore: true,
+            disabled: terminal || !canTriage,
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canTriage
+                ? LEAD_TEXT.hintNoTriage
+                : undefined,
+            // GUARDED, not exempt. design-ui 5.0 makes every danger item choose
+            // between a confirmation and a written reason for not having one,
+            // and this action does not qualify for the exemption: the list
+            // treats disqualified as terminal, so it is one-way from here.
+            //
+            // No onSelect - the type forbids it alongside confirm, because
+            // wiring both fires both.
+            confirm: {
+              verb: LEAD_TEXT.disqualify,
+              target: LEAD_TEXT.disqualifyTarget(row.companyName),
+              consequence: LEAD_TEXT.disqualifyConsequence,
+              titleTemplate: DS_LABELS.confirmTitleTemplate,
+              cancelLabel: DS_LABELS.confirmCancel,
+              pendingLabel: DS_LABELS.confirmPending,
+              onConfirm: () => act(row.id, "disqualify"),
+            },
+          },
+        ]}
+      />
+    );
+  }
+
   return (
-    <Section title={LEAD_TEXT.title} description={LEAD_TEXT.description}>
+    <Section
+      icon="lightbulb"
+      title={LEAD_TEXT.title}
+      description={LEAD_TEXT.description}
+    >
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
       {leads.length === 0 ? (
-        <EmptyState title={LEAD_TEXT.emptyTitle} description={LEAD_TEXT.emptyDescription} />
+        <EmptyState
+          title={LEAD_TEXT.emptyTitle}
+          description={LEAD_TEXT.emptyDescription}
+        />
       ) : (
-        <DataTable columns={columns} rows={leads} rowKey={(row) => row.id} />
+        <>
+          <FilterBar
+            view={view}
+            onViewChange={setView}
+            count={PIPELINE_TEXT.rowCount(leads.length)}
+          />
+
+          <TableCard>
+            {view === "list" ? (
+              <DataTable
+                labels={DATA_TABLE_LABELS}
+                leadingSpacer
+                indexStart={1}
+                columns={columns}
+                rows={leads}
+                rowKey={(row) => row.id}
+                rowActions={(row) => <LeadActions row={row} />}
+              />
+            ) : (
+              <ListCardGrid className="p-md">
+                {leads.map((row) => (
+                  <ListCard
+                    key={row.id}
+                    title={row.companyName}
+                    description={row.contactName ?? row.leadNo}
+                    status={
+                      <StatusBadge
+                        tone={
+                          row.status === "converted" ? "success" : "neutral"
+                        }
+                        dot
+                      >
+                        {LEAD_STATUS_LABEL[row.status] ?? row.status}
+                      </StatusBadge>
+                    }
+                    actions={<LeadActions row={row} />}
+                  />
+                ))}
+              </ListCardGrid>
+            )}
+          </TableCard>
+        </>
       )}
     </Section>
   );

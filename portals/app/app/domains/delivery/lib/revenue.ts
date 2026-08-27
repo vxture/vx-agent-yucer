@@ -27,6 +27,18 @@ export type MilestoneStatus = "pending" | "in_progress" | "done" | "missed";
  * is an accounting decision that is reversed by a new schedule, not by editing
  * this row.
  */
+/**
+ * EXPORTED so the interface can offer exactly the legal moves.
+ *
+ * The lifecycle control in this product reads the machine's own map rather than
+ * listing every status and letting the machine refuse four of five - a menu
+ * that says no for reasons the reader cannot predict teaches them the product
+ * is arbitrary, and it is the map, not the surface, that knows.
+ */
+export function allowedRevenueMoves(from: RevenueStatus): readonly RevenueStatus[] {
+  return ALLOWED[from] ?? [];
+}
+
 const ALLOWED: Record<RevenueStatus, readonly RevenueStatus[]> = {
   planned: ["invoiced", "overdue", "written_off"],
   invoiced: ["settled", "overdue", "written_off"],

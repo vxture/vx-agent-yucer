@@ -59,6 +59,7 @@ function unreachableAccount(): InMemoryAccountStore {
         ownerSub: null,
         healthScore: null,
         status: "active",
+    tier: "standard" as const,
       },
     ],
     contacts: [contact("ct_buyer", "economic"), contact("ct_coach", "coach"), contact("ct_tech", "technical")],

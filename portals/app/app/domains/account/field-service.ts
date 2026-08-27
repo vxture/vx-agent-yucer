@@ -64,7 +64,7 @@ export async function recordInteraction(
   ctx: FieldContext,
   input: Omit<NewInteraction, "actorSub">,
 ): Promise<RuleResult<InteractionRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "account.interaction.record", "data");
   if (!gate.allowed) return denied(gate);
 
   const valid = validateInteraction({
@@ -101,7 +101,7 @@ export async function createCommitment(
   ctx: FieldContext,
   input: NewCommitment,
 ): Promise<RuleResult<CommitmentRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "account.commitment.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
   if (!isDirection(input.direction)) {
@@ -145,7 +145,7 @@ export async function closeCommitment(
   id: string,
   input: Omit<CloseInput, "waivedBySub">,
 ): Promise<RuleResult<CommitmentRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "account.commitment.settle", "data");
   if (!gate.allowed) return denied(gate);
 
   const current = await ctx.store.getCommitment(ctx.workspaceId, id);

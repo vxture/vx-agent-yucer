@@ -2,8 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getPipelineStore } from "../../domains/shared/registry";
-import { advanceStage, updateCommercialTerms } from "../../domains/pipeline/service";
+import { getCatalogStore, getPipelineStore } from "../../domains/shared/registry";
+import {
+  advanceStage,
+  replaceOpportunityLines,
+  updateCommercialTerms,
+} from "../../domains/pipeline/service";
 import { isStage, type Stage } from "../../domains/pipeline/lib/stage";
 import { isForecastCategory } from "../../domains/pipeline/lib/forecast";
 import { money } from "../../domains/shared/money";
@@ -149,4 +153,47 @@ export async function repriceOpportunity(
   revalidatePath("/pipeline");
   revalidatePath(`/pipeline/${opportunityId}`);
   return { ok: true };
+}
+
+export interface LinesResult {
+  ok: boolean;
+  lines?: number;
+  amount?: number;
+  needsApproval?: number;
+  error?: string;
+}
+
+/**
+ * Replacing a deal's product lines.
+ *
+ * REPLACE, not patch. A deal's line set is a statement about what is being
+ * sold; merging a partial list into the last one leaves a removed product
+ * silently in the quote. The client sends the list it wants.
+ */
+export async function saveOpportunityLines(
+  opportunityId: string,
+  lines: readonly { productId: string; quantity: number; unitPrice: number }[],
+): Promise<LinesResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await replaceOpportunityLines(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getPipelineStore(),
+      catalog: getCatalogStore(),
+    },
+    opportunityId,
+    lines,
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath(`/pipeline/${opportunityId}`);
+  revalidatePath("/pipeline");
+  return { ok: true, ...result.value };
 }

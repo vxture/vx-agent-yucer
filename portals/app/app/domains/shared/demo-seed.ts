@@ -30,7 +30,12 @@ import {
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
   DEMO_MILESTONES,
+  DEMO_LONG_HISTORY,
   DEMO_NOTES,
+  DEMO_PRODUCTS,
+  DEMO_QUIET_NOTES,
+  DEMO_SOLUTIONS,
+  DEMO_TENDER_SIGNALS,
   DEMO_OPPORTUNITIES,
   DEMO_PLANS,
   DEMO_PLAYBOOKS,
@@ -48,6 +53,7 @@ import type {
   ParticipantRecord,
 } from "../account/field-store";
 import type { CommitmentDirection, CommitmentStatus, InteractionChannel } from "../account/lib/commitment";
+import type { InMemoryCatalogStore } from "../catalog/store";
 import type { InMemoryCopilotStore } from "../copilot/store";
 import type { InMemoryDeliveryStore } from "../delivery/store";
 import type { InMemoryPipelineStore } from "../pipeline/store";
@@ -77,6 +83,7 @@ export interface DemoStores {
   pipeline: InMemoryPipelineStore;
   delivery: InMemoryDeliveryStore;
   copilot: InMemoryCopilotStore;
+  catalog: InMemoryCatalogStore;
 }
 
 /**
@@ -117,6 +124,7 @@ export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void
   seedPipeline(workspaceId, stores);
   seedDelivery(workspaceId, stores);
   seedCopilot(workspaceId, stores);
+  seedCatalog(workspaceId, stores);
 }
 
 function seedStrategy(workspaceId: string, stores: DemoStores): void {
@@ -199,12 +207,38 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
 
 function seedAccounts(workspaceId: string, stores: DemoStores): void {
   stores.account.seed({
+    // One plan, on the strategic account. Its executive cadence is 60 days and
+    // nobody has ever met the decision maker, so the cadence rule fires at the
+    // most serious tier - which is the demo's whole job here: to show that an
+    // account with no deal and no event can still be the most important row.
+    plans: [
+      {
+        id: "plan_demo_3",
+        workspaceId,
+        accountId: "acc_demo_3",
+        period: PERIOD,
+        targetAmount: 3_000_000,
+        contactCadenceDays: 30,
+        execCadenceDays: 60,
+        ownerSub: REP1,
+        presalesSub: PM,
+        deliverySub: null,
+        status: "active",
+      },
+    ],
     accounts: [
       account("acc_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0], "MIDMARKET", REP1, 34, "active"),
       account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
-      account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect"),
+      // Strategic, and deliberately a PROSPECT with no open opportunity: this is
+      // the case every other rule is structurally blind to. Nothing has
+      // happened here, and that is precisely what has to be reported.
+      account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect", "strategic"),
       account("acc_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3], "MIDMARKET", REP2, 61, "active"),
       account("acc_demo_5", workspaceId, 5, DEMO_ACCOUNTS[4], "MIDMARKET", REP1, 45, "active"),
+      // Two accounts that exist to exercise rules the first five never reach:
+      // 6 goes quiet with nobody having broken a promise, 7 is one WE owe.
+      account("acc_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5], "MIDMARKET", REP1, 52, "active"),
+      account("acc_demo_7", workspaceId, 7, DEMO_ACCOUNTS[6], "ENTERPRISE", REP1, 66, "active"),
     ],
     contacts: [
       contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90),
@@ -399,6 +433,23 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       person("pt_20", "int_demo_d7b", "ct_9"),
     ],
     interactions: [
+      // Five months on the flagship account, so the timeline shows a pursuit
+      // rather than three samples: the technical objection that turns out to be
+      // personal, the budget that arrives, the price pressure, and then the
+      // silence. The gaps between them are as much of the story as the entries.
+      note("int_demo_a1z1", "acc_demo_1", "meeting", 152, REP1, DEMO_LONG_HISTORY.d1, "opp_demo_1"),
+      note("int_demo_a1z2", "acc_demo_1", "email", 138, REP1, DEMO_LONG_HISTORY.d2, "opp_demo_1"),
+      note("int_demo_a1z3", "acc_demo_1", "meeting", 121, REP1, DEMO_LONG_HISTORY.d3, "opp_demo_1"),
+      note("int_demo_a1z4", "acc_demo_1", "call", 116, REP1, DEMO_LONG_HISTORY.d4, "opp_demo_1"),
+      note("int_demo_a1z5", "acc_demo_1", "email", 104, REP1, DEMO_LONG_HISTORY.d5, "opp_demo_1"),
+      note("int_demo_a1z6", "acc_demo_1", "call", 92, REP1, DEMO_LONG_HISTORY.d6, "opp_demo_1"),
+      note("int_demo_a1z7", "acc_demo_1", "email", 84, REP1, DEMO_LONG_HISTORY.d7, "opp_demo_1"),
+      note("int_demo_a1z8", "acc_demo_1", "call", 58, REP1, DEMO_LONG_HISTORY.d8, "opp_demo_1"),
+      note("int_demo_a1z9", "acc_demo_1", "im", 55, REP1, DEMO_LONG_HISTORY.d9, "opp_demo_1"),
+      // acc_demo_3 deliberately gets NO interactions. A strategic account nobody
+      // has ever contacted is the strongest case ADR-013 exists for, and a
+      // seed test pins it: "no contact date at all" and "a very old contact
+      // date" are different findings, and the first is the one this demo needs.
       note("int_demo_a1a", "acc_demo_1", "meeting", 75, REP1, DEMO_NOTES.a1_kickoff, "opp_demo_1"),
       note("int_demo_a1b", "acc_demo_1", "im", 62, REP1, DEMO_NOTES.a1_followup, "opp_demo_1"),
       note("int_demo_a1c", "acc_demo_1", "call", 48, REP1, DEMO_NOTES.a1_blocked, "opp_demo_1"),
@@ -406,6 +457,10 @@ function seedField(workspaceId: string, stores: DemoStores): void {
       note("int_demo_a2b", "acc_demo_2", "email", 4, REP2, DEMO_NOTES.a2_evidence),
       note("int_demo_a4a", "acc_demo_4", "call", 12, REP2, DEMO_NOTES.a4_slip),
       note("int_demo_a5a", "acc_demo_5", "event", 35, REP1, DEMO_NOTES.a5_intro),
+      note("int_demo_a6a", "acc_demo_6", "meeting", 35, REP1, DEMO_QUIET_NOTES.a6_demo, "opp_demo_11"),
+      note("int_demo_a6b", "acc_demo_6", "event", 58, REP1, DEMO_QUIET_NOTES.a6_intro),
+      note("int_demo_a7a", "acc_demo_7", "meeting", 20, REP1, DEMO_QUIET_NOTES.a7_kickoff, "opp_demo_12"),
+      note("int_demo_a7b", "acc_demo_7", "call", 9, REP1, DEMO_QUIET_NOTES.a7_followup, "opp_demo_12"),
 
       // Deal-level follow-ups. Every one carries an opportunityId, which is what
       // the adoption metric counts - an account-level note does not move it,
@@ -447,6 +502,9 @@ function seedField(workspaceId: string, stores: DemoStores): void {
         closureEvidenceId: "int_demo_a2b",
         metAt: daysAgo(4),
       }),
+      // Ours, four days late. Under the 7-day cut, so the rule tiers it "week"
+      // rather than "today" - the tier boundary itself now has a demo case.
+      promise("cm_demo_7", "acc_demo_7", "we_owe", DEMO_COMMITMENT_TEXT.a7_lims, 4, "open"),
       // Ours, 9 days late. It sits in the same manager list as theirs.
       promise("cm_demo_5", "acc_demo_4", "we_owe", DEMO_COMMITMENT_TEXT.a4_pilot, 9, "open", {
         ownerSub: REP2,
@@ -466,10 +524,28 @@ function seedField(workspaceId: string, stores: DemoStores): void {
 function seedSignals(workspaceId: string, stores: DemoStores): void {
   stores.signal.seed({
     signals: [
-      signal("sig_demo_1", workspaceId, "campaign", "camp_demo_1", "intent", DEMO_SIGNALS[0], "acc_demo_1", 88, "promoted", 40),
+      signal("sig_demo_1", workspaceId, "campaign", "camp_demo_1", "intent", DEMO_SIGNALS[0], "acc_demo_1", 47, "promoted", 40),
       // Unmatched and high-scoring: the new-logo case the rule exists for.
-      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 71, "scored", 6),
-      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 26, "scored", 95),
+      signal("sig_demo_2", workspaceId, "news", "https://news.example/funding/992", "funding", DEMO_SIGNALS[1], null, 61, "scored", 6),
+      // Scored 95 days ago when the posting was fresh, and never re-scored.
+      // Today the rule gives 22 - the gap IS the point: it is the one row where
+      // "score is stale" is true, so the marker means something everywhere else.
+      signal("sig_demo_3", workspaceId, "web", "https://jobs.example/8821", "hiring", DEMO_SIGNALS[2], "acc_demo_3", 52, "scored", 95),
+      // Tenders. The strongest public evidence there is: a procurement already
+      // running, with a budget and a deadline attached (ADR-016).
+      //
+      // The first two came in along the NAMED ACCOUNT line, the third along the
+      // product line from a buyer nobody has ever dealt with - which is the case
+      // a named-account-only crawler would never see, and the reason targeting
+      // orders the inbox instead of scoring it.
+      signal("sig_demo_11", workspaceId, "web", "https://tender.example/2026/9912", "tender",
+        DEMO_TENDER_SIGNALS.strategic, "acc_demo_3", 100, "scored", 3, "named_account"),
+      signal("sig_demo_12", workspaceId, "web", "https://tender.example/2026/9931", "tender",
+        DEMO_TENDER_SIGNALS.known, "acc_demo_1", 94, "scored", 8, "named_account"),
+      signal("sig_demo_13", workspaceId, "web", "https://tender.example/2026/9948", "tender",
+        DEMO_TENDER_SIGNALS.newLogo, null, 91, "new", 2, "product_domain"),
+      signal("sig_demo_14", workspaceId, "news", "https://gov.example/notice/551", "compliance",
+        DEMO_TENDER_SIGNALS.policy, "acc_demo_4", 61, "scored", 15, "product_domain"),
       signal("sig_demo_4", workspaceId, "partner", "ref-4471", "referral", DEMO_SIGNALS[3], null, null, "new", 2),
       signal("sig_demo_5", workspaceId, "campaign", "camp_demo_3", "intent", DEMO_SIGNALS[4], "acc_demo_5", 79, "promoted", 25),
       signal("sig_demo_6", workspaceId, "crm", "crm-3312", "tech_change", DEMO_SIGNALS[5], "acc_demo_2", 58, "scored", 18),
@@ -506,6 +582,10 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       opp("opp_demo_8", workspaceId, 8, DEMO_OPPORTUNITIES[7], "acc_demo_2", null, "terr_east", REP2, "won", "closed", 1_400_000, 100, daysAgo(40), daysAgo(40), "won"),
       opp("opp_demo_9", workspaceId, 9, DEMO_OPPORTUNITIES[8], "acc_demo_4", null, "terr_south", REP2, "negotiate", "best_case", 950_000, 90, daysAhead(20), null, "open"),
       opp("opp_demo_10", workspaceId, 10, DEMO_OPPORTUNITIES[9], "acc_demo_5", "camp_demo_3", "terr_south", REP1, "won", "closed", 540_000, 100, daysAgo(8), daysAgo(8), "won"),
+      // Rule-coverage deals. Both open, both with a real amount, so the two
+      // new accounts appear in the pipeline the judgement rules read.
+      opp("opp_demo_11", workspaceId, 11, DEMO_OPPORTUNITIES[10], "acc_demo_6", null, "terr_south", REP1, "qualify", "pipeline", 480_000, 25, daysAhead(75), null, "open"),
+      opp("opp_demo_12", workspaceId, 12, DEMO_OPPORTUNITIES[11], "acc_demo_7", null, "terr_east", REP1, "validate", "best_case", 930_000, 45, daysAhead(52), null, "open"),
     ],
     {
       // A stage never jumps: every event names the stage it came from, and the
@@ -543,6 +623,32 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           reviewerSub: "usr_demo_leader",
           reviewedAt: daysAgo(35),
         },
+      ],
+      // A forecast SERIES, five points across the quarter.
+      //
+      // This is the only reason forecast_snapshot has UPDATE revoked: accuracy
+      // is period-end actual against what was forecast at period start, and
+      // that is unanswerable unless every point survives. Nothing read it back
+      // until now, so the immutability was a cost the product paid and never
+      // collected on.
+      //
+      // The shape tells a true story rather than a flattering one: commit rose
+      // through the quarter, then fell when one deal slipped - which is what a
+      // forecast actually does and what makes the history worth keeping.
+      snapshots: [
+        snapshot(workspaceId, daysAgo(75), 3_200_000, 2_100_000, 1_900_000, 0),
+        snapshot(workspaceId, daysAgo(60), 3_800_000, 2_400_000, 1_800_000, 760_000),
+        snapshot(workspaceId, daysAgo(45), 4_600_000, 2_900_000, 1_700_000, 1_300_000),
+        snapshot(workspaceId, daysAgo(30), 4_900_000, 3_100_000, 1_600_000, 2_700_000),
+        // The slip: commit came down because one deal moved out of the quarter.
+        //
+        // The LAST point equals what the live board computes right now
+        // (4,200,000 / 3,030,000 / 1,580,000 / 2,700,000). A snapshot taken
+        // today that disagreed with today would be a demo teaching the exact
+        // "total and detail disagree" mess this repo keeps arguing against -
+        // and the closed figure also has to match the quota card,
+        // because both are the same three won deals.
+        snapshot(workspaceId, daysAgo(14), 4_200_000, 3_030_000, 1_580_000, 2_700_000),
       ],
     },
   );
@@ -705,8 +811,10 @@ function account(
   ownerSub: string,
   healthScore: number | null,
   status: string,
+  tier: "strategic" | "key" | "standard" = "standard",
 ) {
   return {
+    tier,
     id,
     workspaceId,
     accountNo: `ACC-${String(n).padStart(4, "0")}`,
@@ -752,10 +860,13 @@ function signal(
   score: number | null,
   status: string,
   agedDays: number,
+  // ADR-016: WHY we were looking. Ordering only - it never enters the score.
+  targeting: "named_account" | "product_domain" | "none" | null = null,
 ) {
   return {
     id,
     workspaceId,
+    targeting,
     source,
     sourceRef,
     signalType: signalType as never,
@@ -909,6 +1020,13 @@ function instalment(
   };
 }
 
+const CAPABILITY_BY_ACTION: Record<string, string> = {
+  advance_stage: "deal.stall_risk",
+  draft_outreach: "account.chain_map",
+  promote_signal: "signal.triage",
+  adjust_forecast: "deal.stall_risk",
+};
+
 function proposal(
   id: string,
   status: string,
@@ -922,6 +1040,8 @@ function proposal(
   agedDays: number,
 ) {
   return {
+    // ADR-015: which capability proposed it, chosen by what it proposes.
+    capability: CAPABILITY_BY_ACTION[actionType] ?? null,
     id,
     status: status as never,
     actionType,
@@ -934,5 +1054,141 @@ function proposal(
     decidedAt: decidedBySub ? daysAgo(agedDays - 1) : null,
     executedAt: null,
     createdAt: daysAgo(agedDays),
+  };
+}
+
+// The catalogue, and the lines that give six deals a composition (ADR-014).
+//
+// The lines are built to RECONCILE with the header amounts already seeded, not
+// invented alongside them: a demo where the total and the detail disagree would
+// teach the exact mess the reconciliation rule exists to prevent. The unit
+// prices are therefore derived from each deal's total, and one line is priced
+// below its floor on purpose so the approval flag has a case.
+function seedCatalog(workspaceId: string, stores: DemoStores): void {
+  const products = DEMO_PRODUCTS.map((p, i) => ({
+    id: `prd_demo_${i + 1}`,
+    workspaceId,
+    productCode: p.code,
+    name: p.name,
+    category: p.category,
+    unit: p.unit,
+    status: "active" as const,
+  }));
+  const byCode = new Map(products.map((p, i) => [DEMO_PRODUCTS[i].code, p.id]));
+
+  const solutions = DEMO_SOLUTIONS.map((sol, i) => ({
+    id: `sol_demo_${i + 1}`,
+    workspaceId,
+    solutionCode: sol.code,
+    name: sol.name,
+    summary: sol.summary,
+    status: "active" as const,
+  }));
+
+  const items = DEMO_SOLUTIONS.flatMap((sol, si) =>
+    sol.items.map((it, ii) => ({
+      id: `sit_demo_${si + 1}_${ii + 1}`,
+      workspaceId,
+      solutionId: `sol_demo_${si + 1}`,
+      productId: byCode.get(it.code)!,
+      quantity: it.qty,
+    })),
+  );
+
+  const prices = DEMO_PRODUCTS.map((p, i) => ({
+    id: `pbe_demo_${i + 1}`,
+    workspaceId,
+    productId: `prd_demo_${i + 1}`,
+    currency: CNY,
+    listPrice: p.list,
+    floorPrice: p.floor,
+    effectiveAt: daysAgo(180),
+  }));
+
+  // Each entry: deal, solution it was quoted from, and the products with the
+  // quantities that add up to that deal's seeded amount.
+  const composition: Array<{
+    opp: string;
+    sol: string | null;
+    lines: Array<{ code: (typeof DEMO_PRODUCTS)[number]["code"]; qty: number; unit: number }>;
+  }> = [
+    // The explicit numbers below; the seed test proves they add up.
+    { opp: "opp_demo_1", sol: "sol_demo_1", lines: [
+      { code: "PRD-CORE", qty: 1, unit: 800_000 },
+      { code: "PRD-ANALYTICS", qty: 1, unit: 400_000 },
+      { code: "PRD-INTEGRATION", qty: 16, unit: 62_500 },
+      { code: "PRD-SUPPORT", qty: 1, unit: 200_000 },
+    ] },
+    { opp: "opp_demo_2", sol: "sol_demo_2", lines: [
+      { code: "PRD-WMS", qty: 1, unit: 600_000 },
+      { code: "PRD-INTEGRATION", qty: 10, unit: 55_000 },
+    ] },
+    { opp: "opp_demo_4", sol: "sol_demo_1", lines: [
+      { code: "PRD-CORE", qty: 1, unit: 600_000 },
+      { code: "PRD-SUPPORT", qty: 1, unit: 160_000 },
+    ] },
+    { opp: "opp_demo_6", sol: "sol_demo_2", lines: [
+      { code: "PRD-WMS", qty: 2, unit: 600_000 },
+      { code: "PRD-INTEGRATION", qty: 10, unit: 60_000 },
+    ] },
+    { opp: "opp_demo_9", sol: "sol_demo_1", lines: [
+      { code: "PRD-ANALYTICS", qty: 1, unit: 400_000 },
+      { code: "PRD-INTEGRATION", qty: 5, unit: 60_000 },
+      { code: "PRD-SUPPORT", qty: 1, unit: 250_000 },
+    ] },
+    // Below floor on the platform line (600k floor, quoted 520k): the approval
+    // flag needs a real case or nobody ever sees what it looks like.
+    { opp: "opp_demo_12", sol: "sol_demo_1", lines: [
+      { code: "PRD-CORE", qty: 1, unit: 520_000 },
+      { code: "PRD-ANALYTICS", qty: 1, unit: 330_000 },
+      { code: "PRD-INTEGRATION", qty: 1, unit: 80_000 },
+    ] },
+  ];
+
+  let seq = 0;
+  const lines = composition.flatMap((c) =>
+    c.lines.map((l) => {
+      const productId = byCode.get(l.code)!;
+      const price = DEMO_PRODUCTS.find((p) => p.code === l.code)!;
+      return {
+        id: `oln_demo_${++seq}`,
+        workspaceId,
+        opportunityId: c.opp,
+        productId,
+        solutionId: c.sol,
+        quantity: l.qty,
+        unitPrice: l.unit,
+        amount: Math.round(l.qty * l.unit * 100) / 100,
+        currency: CNY,
+        // Computed from the book, never hand-set - same rule as the service.
+        needsApproval: l.unit < price.floor,
+      };
+    }),
+  );
+
+  stores.catalog.seed({ products, solutions, items, prices, lines });
+}
+
+/** One point on the forecast trajectory. Workspace scope, CNY. */
+function snapshot(
+  workspaceId: string,
+  at: Date,
+  commit: number,
+  bestCase: number,
+  pipelineAmt: number,
+  closed: number,
+) {
+  return {
+    workspaceId,
+    period: PERIOD,
+    scopeType: "workspace" as const,
+    territoryId: null,
+    ownerSub: null,
+    currency: CNY,
+    snapshotAt: at,
+    commitAmount: money(commit, CNY),
+    bestCaseAmount: money(bestCase, CNY),
+    pipelineAmount: money(pipelineAmt, CNY),
+    closedAmount: money(closed, CNY),
   };
 }

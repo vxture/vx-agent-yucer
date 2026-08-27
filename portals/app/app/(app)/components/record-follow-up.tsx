@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label, NativeSelect, Section, StatusBadge, Textarea } from "@vxture/design-ui";
+import {
+  Button,
+  Input,
+  Label,
+  NativeSelect,
+  Section,
+  StatusBadge,
+  Textarea,
+} from "@vxture/design-ui";
 import { INTERACTION_CHANNELS } from "../../domains/account/lib/commitment";
-import { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // Capture.
 //
@@ -31,7 +39,12 @@ export interface RecordFollowUpProps {
   readonly canRecord: boolean;
   readonly onRecord: (
     accountId: string,
-    input: { channel: string; occurredAt: string; rawNote: string; opportunityId?: string },
+    input: {
+      channel: string;
+      occurredAt: string;
+      rawNote: string;
+      opportunityId?: string;
+    },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -43,7 +56,13 @@ function localNow(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function RecordFollowUp({ accountId, opportunityId, canRecord, onRecord }: RecordFollowUpProps) {
+export function RecordFollowUp({
+  accountId,
+  opportunityId,
+  canRecord,
+  onRecord,
+}: RecordFollowUpProps) {
+  const { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } = useMessages();
   const [note, setNote] = useState("");
   const [channel, setChannel] = useState<string>("meeting");
   const [occurredAt, setOccurredAt] = useState(localNow());
@@ -57,8 +76,14 @@ export function RecordFollowUp({ accountId, opportunityId, canRecord, onRecord }
     setError(null);
     setSaved(false);
     startTransition(() => {
-      void onRecord(accountId, { channel, occurredAt, rawNote: note, opportunityId }).then((r) => {
-        if (!r.ok) setError(FIELD_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+      void onRecord(accountId, {
+        channel,
+        occurredAt,
+        rawNote: note,
+        opportunityId,
+      }).then((r) => {
+        if (!r.ok)
+          setError(FIELD_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
         else {
           setSaved(true);
           setNote("");
@@ -69,7 +94,10 @@ export function RecordFollowUp({ accountId, opportunityId, canRecord, onRecord }
   }
 
   return (
-    <Section title={FIELD_TEXT.recordTitle} description={FIELD_TEXT.recordDescription}>
+    <Section
+      title={FIELD_TEXT.recordTitle}
+      description={FIELD_TEXT.recordDescription}
+    >
       <Label htmlFor="fu-note">{FIELD_TEXT.recordNote}</Label>
       <Textarea
         id="fu-note"
@@ -108,7 +136,9 @@ export function RecordFollowUp({ accountId, opportunityId, canRecord, onRecord }
       </Button>
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-      {saved ? <StatusBadge tone="success">{FIELD_TEXT.recordSaved}</StatusBadge> : null}
+      {saved ? (
+        <StatusBadge tone="success">{FIELD_TEXT.recordSaved}</StatusBadge>
+      ) : null}
     </Section>
   );
 }

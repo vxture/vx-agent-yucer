@@ -98,7 +98,7 @@ test("the score explains itself - a red account can be argued with", () => {
   });
   const factors = r.contributions.map((c) => c.factor).sort();
   assert.deepEqual(factors, ["collections", "delivery", "pipeline", "recency"]);
-  for (const c of r.contributions) assert.ok(c.detail.length > 0, `${c.factor} has no detail`);
+  for (const c of r.contributions) assert.ok(c.reason.code.length > 0, `${c.factor} has no detail`);
 });
 
 test("the primary concern is the single worst contributor, or null when nothing is wrong", () => {
@@ -111,7 +111,7 @@ test("the primary concern is the single worst contributor, or null when nothing 
 
 test("terminal opportunities do not count as open pipeline", () => {
   const r = health({ openOpportunities: [{ stage: "won" }, { stage: "lost" }] });
-  assert.equal(r.contributions.find((c) => c.factor === "pipeline")?.detail, "no open opportunities");
+  assert.equal(r.contributions.find((c) => c.factor === "pipeline")?.reason.code, "no_open_deals");
 });
 
 test("green projects help, and no projects at all is neutral", () => {

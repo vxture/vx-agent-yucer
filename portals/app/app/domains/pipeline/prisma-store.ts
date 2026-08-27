@@ -119,6 +119,7 @@ export class PrismaPipelineStore implements PipelineStore {
         workspaceId,
         deletedAt: null,
         ...(filter.includeClosed ? {} : { status: "open" }),
+        ...(filter.accountId ? { accountId: filter.accountId } : {}),
         ...(filter.stage ? { stage: filter.stage } : {}),
         ...(filter.ownerSub ? { ownerSub: filter.ownerSub } : {}),
         ...(filter.territoryId ? { territoryId: filter.territoryId } : {}),

@@ -82,6 +82,15 @@ export interface StageEventRecord {
 }
 
 export interface OpportunityFilter {
+  /**
+   * Whose deals. Added so an account can list its own positions.
+   *
+   * The delivery store has always filtered projects by accountId; this one
+   * did not, which meant the account page could not say which pursuits were
+   * running on it - the one thing a page about an account most owes its
+   * reader. That asymmetry was the gap, not the absence of a feature.
+   */
+  accountId?: string;
   stage?: Stage;
   ownerSub?: string;
   territoryId?: string;
@@ -197,11 +206,15 @@ export class InMemoryPipelineStore implements PipelineStore {
     extra: {
       events?: StageEventRecord[];
       reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
+      /** A forecast series. Append-only in the DDL; seeded as a series here so
+       *  the trajectory the immutability exists for is actually visible. */
+      snapshots?: Array<SnapshotRow & { workspaceId: string }>;
     } = {},
   ): void {
     for (const r of records) this.opportunities.set(r.id, { ...r });
     this.events.push(...(extra.events ?? []));
     for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
+    this.snapshots.push(...(extra.snapshots ?? []));
   }
 
   async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {
@@ -236,6 +249,8 @@ export class InMemoryPipelineStore implements PipelineStore {
   ): Promise<OpportunityRecord[]> {
     let rows = [...this.opportunities.values()].filter((o) => o.workspaceId === workspaceId);
     if (!filter.includeClosed) rows = rows.filter((o) => o.status === "open");
+    if (filter.accountId)
+      rows = rows.filter((o) => o.accountId === filter.accountId);
     if (filter.stage) rows = rows.filter((o) => o.stage === filter.stage);
     if (filter.ownerSub) rows = rows.filter((o) => o.ownerSub === filter.ownerSub);
     if (filter.territoryId) rows = rows.filter((o) => o.territoryId === filter.territoryId);

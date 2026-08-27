@@ -1,5 +1,5 @@
 import { MetricGrid, Section, type MetricGridItem } from "@vxture/design-ui";
-import { FIELD_TEXT } from "../lib/messages";
+import { getMessages } from "../lib/i18n/server";
 import type { RelationshipEvidence as Evidence } from "../../domains/account/field-service";
 
 // What the evidence plane says about one relationship.
@@ -21,22 +21,38 @@ export interface RelationshipEvidenceProps {
 
 const DAY = 86_400_000;
 
-export function RelationshipEvidencePanel({ evidence, now }: RelationshipEvidenceProps) {
+export async function RelationshipEvidencePanel({
+  evidence,
+  now,
+}: RelationshipEvidenceProps) {
+  const { FIELD_TEXT } = await getMessages();
   const at = now ?? new Date();
   const { lastContactAt, reliability, interactionCount } = evidence;
 
   const days =
-    lastContactAt === null ? null : Math.floor((at.getTime() - lastContactAt.getTime()) / DAY);
+    lastContactAt === null
+      ? null
+      : Math.floor((at.getTime() - lastContactAt.getTime()) / DAY);
 
   const items: MetricGridItem[] = [
     {
       id: "last-contact",
       label: FIELD_TEXT.evidenceLastContact,
       // Days, then the date. The gap is the fact; the date is the reference.
-      value: days === null ? FIELD_TEXT.evidenceNever : FIELD_TEXT.evidenceDaysAgo(days),
+      value:
+        days === null
+          ? FIELD_TEXT.evidenceNever
+          : FIELD_TEXT.evidenceDaysAgo(days),
       trend: lastContactAt?.toISOString().slice(0, 10),
       // Six weeks without contact on an account someone is meant to be working.
-      tone: days === null ? "neutral" : days > 42 ? "danger" : days > 21 ? "warning" : "success",
+      tone:
+        days === null
+          ? "neutral"
+          : days > 42
+            ? "danger"
+            : days > 21
+              ? "warning"
+              : "success",
     },
     {
       id: "interactions",
@@ -76,8 +92,18 @@ export function RelationshipEvidencePanel({ evidence, now }: RelationshipEvidenc
   ];
 
   return (
-    <Section title={FIELD_TEXT.evidenceTitle} description={FIELD_TEXT.evidenceDescription}>
-      <MetricGrid items={items} />
+    <Section
+      title={FIELD_TEXT.evidenceTitle}
+      description={FIELD_TEXT.evidenceDescription}
+    >
+      {/* columns={2}, and the third time this has come up is worth naming as a
+          rule: the DS's grids break on the VIEWPORT while every grid in this
+          product sits in a pane sized by the shell. On the theatre page the
+          centre column is 768px - viewport, less a 320px dossier, a 400px deck
+          and the insets - so four cards get ~170 each and their labels clip to
+          one glyph. Two columns is the only lever MetricGrid offers; a
+          container query is what the case wants, and the DS has none. */}
+      <MetricGrid items={items} columns={2} />
     </Section>
   );
 }

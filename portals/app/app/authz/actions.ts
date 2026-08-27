@@ -24,14 +24,35 @@ export const DOMAINS = [
   "pipeline",
   "delivery",
   "copilot",
+  // D9 catalogue - what we sell. ADR-014 decided this was a domain when it gave
+  // it its own schema ("建一个域，不是给商机加几个字段"); the list was never
+  // updated, so until 2026-08-26 a `catalog.*` action id was a type error.
+  //
+  // IT CARRIES NO FEATURE KEY, and that is the whole design. The 19 keys are
+  // the complete commercial surface (owner, 2026-08-26) and the catalogue is
+  // not one of them: it is chain infrastructure, not a sellable capability -
+  // you cannot sell anything without knowing what you sell. ADR-014 says the
+  // same thing from the data side: everyone reads it, nobody writes it.
+  //
+  // So its actions are `feature: null` and the real control moves one layer
+  // down, to permissions - which is the honest question anyway. "Did you buy
+  // the price book" is not a question worth asking; "may this person set the
+  // floor price" very much is. See ADR-017.
+  "catalog",
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];
 
 /**
  * Where an action is filed. "admin" is product administration, which is NOT a
- * ninth capability domain - it has no feature key, no schema and no page of its
- * own; it is the settings surface the other eight share.
+ * capability partition - it has no feature key, no schema and no page of its
+ * own; it is the settings surface the partitions share.
+ *
+ * The catalogue IS a partition and is in DOMAINS, even though it also carries
+ * no feature key. The two are not the same case, and the difference is what the
+ * partition boundary is actually for: admin owns no business object, while the
+ * catalogue owns four tables that nothing else may write. "No feature key"
+ * describes how it is SOLD; owning objects is what makes it a partition.
  */
 export type ActionScope = Domain | "admin";
 
@@ -50,88 +71,384 @@ export interface ActionSpec {
 // API route serving data passes "data".
 export const ACTIONS = {
   // --- D1 strategy ---------------------------------------------------------
-  "strategy.plan.view": { domain: "strategy", feature: "strategy.plan", permission: "strategy.read", writes: false },
-  "strategy.plan.create": { domain: "strategy", feature: "strategy.plan", permission: "strategy.write", writes: true },
-  "strategy.plan.update": { domain: "strategy", feature: "strategy.plan", permission: "strategy.write", writes: true },
-  "strategy.plan.approve": { domain: "strategy", feature: "strategy.plan", permission: "strategy.approve", writes: true },
-  "strategy.segment.view": { domain: "strategy", feature: "strategy.segment", permission: "strategy.read", writes: false },
-  "strategy.segment.upsert": { domain: "strategy", feature: "strategy.segment", permission: "strategy.write", writes: true },
+  "strategy.plan.view": {
+    domain: "strategy",
+    feature: "strategy.plan",
+    permission: "strategy.read",
+    writes: false,
+  },
+  "strategy.plan.create": {
+    domain: "strategy",
+    feature: "strategy.plan",
+    permission: "strategy.write",
+    writes: true,
+  },
+  "strategy.plan.update": {
+    domain: "strategy",
+    feature: "strategy.plan",
+    permission: "strategy.write",
+    writes: true,
+  },
+  "strategy.plan.approve": {
+    domain: "strategy",
+    feature: "strategy.plan",
+    permission: "strategy.approve",
+    writes: true,
+  },
+  "strategy.segment.view": {
+    domain: "strategy",
+    feature: "strategy.segment",
+    permission: "strategy.read",
+    writes: false,
+  },
+  "strategy.segment.upsert": {
+    domain: "strategy",
+    feature: "strategy.segment",
+    permission: "strategy.write",
+    writes: true,
+  },
 
   // --- D2 planning ---------------------------------------------------------
-  "planning.territory.view": { domain: "planning", feature: "planning.territory", permission: "planning.read", writes: false },
-  "planning.territory.upsert": { domain: "planning", feature: "planning.territory", permission: "planning.write", writes: true },
-  "planning.target.view": { domain: "planning", feature: "planning.target", permission: "planning.read", writes: false },
-  "planning.target.create": { domain: "planning", feature: "planning.target", permission: "planning.write", writes: true },
-  "planning.target.update": { domain: "planning", feature: "planning.target", permission: "planning.write", writes: true },
+  "planning.territory.view": {
+    domain: "planning",
+    feature: "planning.territory",
+    permission: "planning.read",
+    writes: false,
+  },
+  "planning.territory.upsert": {
+    domain: "planning",
+    feature: "planning.territory",
+    permission: "planning.write",
+    writes: true,
+  },
+  "planning.target.view": {
+    domain: "planning",
+    feature: "planning.target",
+    permission: "planning.read",
+    writes: false,
+  },
+  "planning.target.create": {
+    domain: "planning",
+    feature: "planning.target",
+    permission: "planning.write",
+    writes: true,
+  },
+  "planning.target.update": {
+    domain: "planning",
+    feature: "planning.target",
+    permission: "planning.write",
+    writes: true,
+  },
   // Attainment is computed by D6 from forecast snapshots but read on a D2
   // surface; it is gated as a planning read, not a forecast submission.
-  "planning.attainment.view": { domain: "planning", feature: "planning.target", permission: "planning.read", writes: false },
+  "planning.attainment.view": {
+    domain: "planning",
+    feature: "planning.target",
+    permission: "planning.read",
+    writes: false,
+  },
 
   // --- D3 campaign ---------------------------------------------------------
-  "campaign.view": { domain: "campaign", feature: "campaign.manage", permission: "campaign.read", writes: false },
-  "campaign.upsert": { domain: "campaign", feature: "campaign.manage", permission: "campaign.write", writes: true },
-  "campaign.execution.view": { domain: "campaign", feature: "campaign.execute", permission: "campaign.read", writes: false },
-  "campaign.execution.upsert": { domain: "campaign", feature: "campaign.execute", permission: "campaign.write", writes: true },
+  "campaign.view": {
+    domain: "campaign",
+    feature: "campaign.manage",
+    permission: "campaign.read",
+    writes: false,
+  },
+  "campaign.upsert": {
+    domain: "campaign",
+    feature: "campaign.manage",
+    permission: "campaign.write",
+    writes: true,
+  },
+  "campaign.execution.view": {
+    domain: "campaign",
+    feature: "campaign.execute",
+    permission: "campaign.read",
+    writes: false,
+  },
+  "campaign.execution.upsert": {
+    domain: "campaign",
+    feature: "campaign.execute",
+    permission: "campaign.write",
+    writes: true,
+  },
 
   // --- D4 account ----------------------------------------------------------
-  "account.view": { domain: "account", feature: "account.manage", permission: "account.read", writes: false },
-  "account.upsert": { domain: "account", feature: "account.manage", permission: "account.write", writes: true },
-  "account.contact.upsert": { domain: "account", feature: "account.manage", permission: "account.write", writes: true },
-  "account.graph.view": { domain: "account", feature: "account.graph", permission: "account.read", writes: false },
-  "account.graph.link": { domain: "account", feature: "account.graph", permission: "account.write", writes: true },
-  "account.offering.view": { domain: "account", feature: "account.manage", permission: "account.read", writes: false },
-  "account.offering.upsert": { domain: "account", feature: "account.manage", permission: "account.write", writes: true },
+  "account.view": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.read",
+    writes: false,
+  },
+  "account.upsert": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.write",
+    writes: true,
+  },
+  "account.contact.upsert": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.write",
+    writes: true,
+  },
+  // --- evidence capture (ADR-018) -------------------------------------------
+  // FEATURE KEY IS account.manage - the free one - and that is a decision, not
+  // an omission. ADR-006 prescribed account.interaction / account.commitment as
+  // new keys and neither was ever added; ADR-018 resolves that by deciding the
+  // evidence plane is NOT separately sold. Paywalling capture would make
+  // /admin/adoption measure willingness to pay instead of habit formation, and
+  // that reading is what ADR-012 uses to decide whether phase 2 gets built.
+  //
+  // The PERMISSION is its own, and that is the real fix. Recording what
+  // happened is not editing the customer master record: account.write was held
+  // by three roles, so a delivery manager who sat in a customer meeting could
+  // not write down that it happened - a hole in exactly the evidence base the
+  // kill criterion reads.
+  "account.interaction.record": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.record",
+    writes: true,
+  },
+  "account.commitment.upsert": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.record",
+    writes: true,
+  },
+  "account.commitment.settle": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.record",
+    writes: true,
+  },
+  "account.graph.view": {
+    domain: "account",
+    feature: "account.graph",
+    permission: "account.read",
+    writes: false,
+  },
+  "account.graph.link": {
+    domain: "account",
+    feature: "account.graph",
+    permission: "account.write",
+    writes: true,
+  },
+  "account.offering.view": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.read",
+    writes: false,
+  },
+  "account.offering.upsert": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.write",
+    writes: true,
+  },
 
   // --- D5 signal -----------------------------------------------------------
-  "signal.view": { domain: "signal", feature: "signal.inbox", permission: "signal.read", writes: false },
-  "signal.triage": { domain: "signal", feature: "signal.inbox", permission: "signal.triage", writes: true },
+  "signal.view": {
+    domain: "signal",
+    feature: "signal.inbox",
+    permission: "signal.read",
+    writes: false,
+  },
+  "signal.triage": {
+    domain: "signal",
+    feature: "signal.inbox",
+    permission: "signal.triage",
+    writes: true,
+  },
   // Re-scoring is the automatic scorer, a pro-tier capability; triaging by hand
   // stays available on starter.
-  "signal.rescore": { domain: "signal", feature: "signal.autoscore", permission: "signal.triage", writes: true },
-  "signal.feed.configure": { domain: "signal", feature: "signal.external_feed", permission: "admin.manage", writes: true },
+  "signal.rescore": {
+    domain: "signal",
+    feature: "signal.autoscore",
+    permission: "signal.triage",
+    writes: true,
+  },
+  "signal.feed.configure": {
+    domain: "signal",
+    feature: "signal.external_feed",
+    permission: "admin.manage",
+    writes: true,
+  },
   // Ingesting is not configuring. Configuring a feed is an administrative act;
   // writing the rows it produces is triage work, and the background subject
   // that does it must not need the catalogue's strongest permission to run -
   // that is the back door ADR-010 rule 2 exists to close. Reuses signal.triage,
   // so no new permission code, no increment, no seed change.
-  "signal.feed.ingest": { domain: "signal", feature: "signal.external_feed", permission: "signal.triage", writes: true },
-  "signal.lead.view": { domain: "signal", feature: "signal.inbox", permission: "signal.read", writes: false },
-  "signal.lead.upsert": { domain: "signal", feature: "signal.inbox", permission: "signal.triage", writes: true },
+  "signal.feed.ingest": {
+    domain: "signal",
+    feature: "signal.external_feed",
+    permission: "signal.triage",
+    writes: true,
+  },
+  "signal.lead.view": {
+    domain: "signal",
+    feature: "signal.inbox",
+    permission: "signal.read",
+    writes: false,
+  },
+  "signal.lead.upsert": {
+    domain: "signal",
+    feature: "signal.inbox",
+    permission: "signal.triage",
+    writes: true,
+  },
   // Conversion creates an opportunity, so it is gated as a pipeline write even
   // though the button lives on the lead. The seam belongs to the receiving side.
-  "signal.lead.convert": { domain: "pipeline", feature: "pipeline.manage", permission: "pipeline.write", writes: true },
+  "signal.lead.convert": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
 
   // --- D6 pipeline ---------------------------------------------------------
-  "pipeline.view": { domain: "pipeline", feature: "pipeline.manage", permission: "pipeline.read", writes: false },
-  "pipeline.opportunity.create": { domain: "pipeline", feature: "pipeline.manage", permission: "pipeline.write", writes: true },
-  "pipeline.opportunity.update": { domain: "pipeline", feature: "pipeline.manage", permission: "pipeline.write", writes: true },
-  "pipeline.opportunity.advance": { domain: "pipeline", feature: "pipeline.manage", permission: "pipeline.write", writes: true },
-  "pipeline.forecast.view": { domain: "pipeline", feature: "pipeline.forecast", permission: "pipeline.read", writes: false },
+  "pipeline.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
+  "pipeline.opportunity.create": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
+  "pipeline.opportunity.update": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
+  "pipeline.opportunity.advance": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.write",
+    writes: true,
+  },
+  "pipeline.forecast.view": {
+    domain: "pipeline",
+    feature: "pipeline.forecast",
+    permission: "pipeline.read",
+    writes: false,
+  },
   // Submitting a snapshot is a commitment upward, which is why it needs the
   // dedicated pipeline.forecast permission rather than pipeline.write.
-  "pipeline.forecast.snapshot": { domain: "pipeline", feature: "pipeline.forecast", permission: "pipeline.forecast", writes: true },
-  "pipeline.forecast.categorize": { domain: "pipeline", feature: "pipeline.forecast", permission: "pipeline.forecast", writes: true },
-  "pipeline.winloss.view": { domain: "pipeline", feature: "pipeline.winloss", permission: "pipeline.read", writes: false },
-  "pipeline.winloss.record": { domain: "pipeline", feature: "pipeline.winloss", permission: "pipeline.write", writes: true },
+  "pipeline.forecast.snapshot": {
+    domain: "pipeline",
+    feature: "pipeline.forecast",
+    permission: "pipeline.forecast",
+    writes: true,
+  },
+  "pipeline.forecast.categorize": {
+    domain: "pipeline",
+    feature: "pipeline.forecast",
+    permission: "pipeline.forecast",
+    writes: true,
+  },
+  "pipeline.winloss.view": {
+    domain: "pipeline",
+    feature: "pipeline.winloss",
+    permission: "pipeline.read",
+    writes: false,
+  },
+  "pipeline.winloss.record": {
+    domain: "pipeline",
+    feature: "pipeline.winloss",
+    permission: "pipeline.write",
+    writes: true,
+  },
 
   // --- D7 delivery ---------------------------------------------------------
-  "delivery.project.view": { domain: "delivery", feature: "delivery.project", permission: "delivery.read", writes: false },
-  "delivery.project.upsert": { domain: "delivery", feature: "delivery.project", permission: "delivery.write", writes: true },
-  "delivery.milestone.upsert": { domain: "delivery", feature: "delivery.project", permission: "delivery.write", writes: true },
-  "delivery.task.upsert": { domain: "delivery", feature: "delivery.project", permission: "delivery.write", writes: true },
-  "delivery.revenue.view": { domain: "delivery", feature: "delivery.revenue", permission: "delivery.read", writes: false },
-  "delivery.revenue.upsert": { domain: "delivery", feature: "delivery.revenue", permission: "delivery.write", writes: true },
+  "delivery.project.view": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.read",
+    writes: false,
+  },
+  "delivery.project.upsert": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.write",
+    writes: true,
+  },
+  "delivery.milestone.upsert": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.write",
+    writes: true,
+  },
+  "delivery.task.upsert": {
+    domain: "delivery",
+    feature: "delivery.project",
+    permission: "delivery.write",
+    writes: true,
+  },
+  "delivery.revenue.view": {
+    domain: "delivery",
+    feature: "delivery.revenue",
+    permission: "delivery.read",
+    writes: false,
+  },
+  "delivery.revenue.upsert": {
+    domain: "delivery",
+    feature: "delivery.revenue",
+    permission: "delivery.write",
+    writes: true,
+  },
 
   // --- D8 copilot ----------------------------------------------------------
-  "copilot.session.open": { domain: "copilot", feature: "copilot.ask", permission: "copilot.use", writes: true },
-  "copilot.ask": { domain: "copilot", feature: "copilot.ask", permission: "copilot.use", writes: true },
+  "copilot.session.open": {
+    domain: "copilot",
+    feature: "copilot.ask",
+    permission: "copilot.use",
+    writes: true,
+  },
+  "copilot.ask": {
+    domain: "copilot",
+    feature: "copilot.ask",
+    permission: "copilot.use",
+    writes: true,
+  },
   // Asking for proposals is a higher tier than asking a question: a proposal is
   // the copilot reaching into the domain, an answer is not.
-  "copilot.suggest": { domain: "copilot", feature: "copilot.suggest", permission: "copilot.use", writes: true },
-  "copilot.action.decide": { domain: "copilot", feature: "copilot.suggest", permission: "copilot.decide", writes: true },
-  "copilot.action.decide_batch": { domain: "copilot", feature: "copilot.suggest", permission: "copilot.decide", writes: true },
-  "copilot.autopilot.enable": { domain: "copilot", feature: "copilot.autopilot", permission: "copilot.autopilot", writes: true },
-  "copilot.playbook.view": { domain: "copilot", feature: "copilot.ask", permission: "copilot.use", writes: false },
+  "copilot.suggest": {
+    domain: "copilot",
+    feature: "copilot.suggest",
+    permission: "copilot.use",
+    writes: true,
+  },
+  "copilot.action.decide": {
+    domain: "copilot",
+    feature: "copilot.suggest",
+    permission: "copilot.decide",
+    writes: true,
+  },
+  "copilot.action.decide_batch": {
+    domain: "copilot",
+    feature: "copilot.suggest",
+    permission: "copilot.decide",
+    writes: true,
+  },
+  "copilot.autopilot.enable": {
+    domain: "copilot",
+    feature: "copilot.autopilot",
+    permission: "copilot.autopilot",
+    writes: true,
+  },
+  "copilot.playbook.view": {
+    domain: "copilot",
+    feature: "copilot.ask",
+    permission: "copilot.use",
+    writes: false,
+  },
   // Reading the proposal QUEUE, which is not the same thing as reading the
   // playbooks it used to borrow its gate from. Deliberately free-tier: nothing
   // can CREATE a proposal below pro (recordProposals needs copilot.suggest) and
@@ -139,20 +456,97 @@ export const ACTIONS = {
   // workspace DOWNGRADED - and letting a downgraded workspace still see what
   // the agent proposed while they were paying is the retention surface, not a
   // giveaway. Costs nothing to serve: the rows already exist.
-  "copilot.action.view": { domain: "copilot", feature: "copilot.ask", permission: "copilot.use", writes: false },
-  "copilot.playbook.upsert": { domain: "copilot", feature: "copilot.suggest", permission: "admin.manage", writes: true },
+  "copilot.action.view": {
+    domain: "copilot",
+    feature: "copilot.ask",
+    permission: "copilot.use",
+    writes: false,
+  },
+  "copilot.playbook.upsert": {
+    domain: "copilot",
+    feature: "copilot.suggest",
+    permission: "admin.manage",
+    writes: true,
+  },
+
+  // --- D9 catalog (baseline, no feature key) --------------------------------
+  // See the note on DOMAINS above and ADR-017: the catalogue is a partition
+  // that is not sold separately, so every action here is `feature: null`.
+  "catalog.product.view": {
+    domain: "catalog",
+    feature: null,
+    permission: "catalog.read",
+    writes: false,
+  },
+  "catalog.product.upsert": {
+    domain: "catalog",
+    feature: null,
+    permission: "catalog.write",
+    writes: true,
+  },
+  "catalog.solution.view": {
+    domain: "catalog",
+    feature: null,
+    permission: "catalog.read",
+    writes: false,
+  },
+  "catalog.solution.upsert": {
+    domain: "catalog",
+    feature: null,
+    permission: "catalog.write",
+    writes: true,
+  },
+  "catalog.pricebook.view": {
+    domain: "catalog",
+    feature: null,
+    permission: "catalog.read",
+    writes: false,
+  },
+  // THE FLOOR PRICE GETS ITS OWN PERMISSION, and it is the reason this
+  // increment exists. `price_book_entry.floor_price` decides whether a discount
+  // needs a signature - domains/catalog/lib/pricing.ts already computes that -
+  // so whoever can move the floor can silently approve every discount in the
+  // product. Same shape as pipeline.forecast splitting off pipeline.write:
+  // "may edit the catalogue" and "may set what we will not go below" are two
+  // different jobs.
+  "catalog.pricebook.upsert": {
+    domain: "catalog",
+    feature: null,
+    permission: "catalog.price",
+    writes: true,
+  },
 
   // --- Product administration (baseline, no feature key) --------------------
   // Role assignment must not be tier-gated: a workspace that can use the product
   // at all must be able to say who does what inside it.
-  "admin.member.view": { domain: "admin", feature: null, permission: "admin.manage", writes: false },
+  "admin.member.view": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: false,
+  },
   // Adoption is workspace administration, not a sales capability: it says
   // whether the product is being used, which is nobody's quota and everybody's
   // problem. No feature key - withholding the answer from a tier would mean the
   // people paying least get the least warning that they are not using it.
-  "admin.adoption.view": { domain: "admin", feature: null, permission: "admin.manage", writes: false },
-  "admin.member.role.assign": { domain: "admin", feature: null, permission: "admin.manage", writes: true },
-  "admin.member.role.revoke": { domain: "admin", feature: null, permission: "admin.manage", writes: true },
+  "admin.adoption.view": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: false,
+  },
+  "admin.member.role.assign": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
+  "admin.member.role.revoke": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
 } as const satisfies Record<string, ActionSpec>;
 
 export type ActionId = keyof typeof ACTIONS;

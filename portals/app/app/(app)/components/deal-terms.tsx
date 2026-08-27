@@ -1,10 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Input, Label, NativeSelect, Section, StatusBadge } from "@vxture/design-ui";
-import { FORECAST_CATEGORIES, type ForecastCategory } from "../../domains/pipeline/lib/forecast";
-import { DEFAULT_PROBABILITY, isTerminal, type Stage } from "../../domains/pipeline/lib/stage";
-import { FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } from "../lib/messages";
+import {
+  Button,
+  Input,
+  Label,
+  NativeSelect,
+  Section,
+  StatusBadge,
+} from "@vxture/design-ui";
+import {
+  FORECAST_CATEGORIES,
+  type ForecastCategory,
+} from "../../domains/pipeline/lib/forecast";
+import {
+  DEFAULT_PROBABILITY,
+  isTerminal,
+  type Stage,
+} from "../../domains/pipeline/lib/stage";
+import { useMessages } from "../lib/i18n/provider";
 
 // What the deal is worth, and how sure we are.
 //
@@ -55,6 +69,7 @@ export function DealTerms({
   canCategorize,
   onSave,
 }: DealTermsProps) {
+  const { FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } = useMessages();
   const closed = isTerminal(stage);
   const initial = {
     amount: amount == null ? "" : String(amount),
@@ -79,7 +94,9 @@ export function DealTerms({
   if (!canEdit) {
     return (
       <Section title={OPPORTUNITY_TEXT.termsTitle}>
-        <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsReadOnly}</StatusBadge>
+        <StatusBadge tone="neutral">
+          {OPPORTUNITY_TEXT.termsReadOnly}
+        </StatusBadge>
       </Section>
     );
   }
@@ -106,14 +123,20 @@ export function DealTerms({
         expectedCloseAt: dirty("expectedCloseAt"),
         forecastCategory: canCategorize ? dirty("forecastCategory") : undefined,
       }).then((r) => {
-        if (!r.ok) setError(OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+        if (!r.ok)
+          setError(
+            OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
+          );
         else setSaved(true);
       });
     });
   }
 
   return (
-    <Section title={OPPORTUNITY_TEXT.termsTitle} description={OPPORTUNITY_TEXT.termsDescription}>
+    <Section
+      title={OPPORTUNITY_TEXT.termsTitle}
+      description={OPPORTUNITY_TEXT.termsDescription}
+    >
       <Label htmlFor="terms-amount">
         {OPPORTUNITY_TEXT.termsAmount} ({currency})
       </Label>
@@ -125,7 +148,9 @@ export function DealTerms({
         disabled={pending}
       />
 
-      <Label htmlFor="terms-probability">{OPPORTUNITY_TEXT.termsProbability}</Label>
+      <Label htmlFor="terms-probability">
+        {OPPORTUNITY_TEXT.termsProbability}
+      </Label>
       <Input
         id="terms-probability"
         inputMode="numeric"
@@ -133,7 +158,11 @@ export function DealTerms({
         onChange={(e) => setForm({ ...form, probability: e.target.value })}
         disabled={pending || closed}
       />
-      {closed ? <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsTerminalLocked}</StatusBadge> : null}
+      {closed ? (
+        <StatusBadge tone="neutral">
+          {OPPORTUNITY_TEXT.termsTerminalLocked}
+        </StatusBadge>
+      ) : null}
 
       <Label htmlFor="terms-close">{OPPORTUNITY_TEXT.termsExpectedClose}</Label>
       <Input
@@ -146,22 +175,33 @@ export function DealTerms({
 
       {canCategorize ? (
         <>
-      <Label htmlFor="terms-forecast">{OPPORTUNITY_TEXT.termsForecast}</Label>
-      <NativeSelect
-        id="terms-forecast"
-        value={form.forecastCategory}
-        onChange={(e) => setForm({ ...form, forecastCategory: e.target.value as ForecastCategory })}
-        disabled={pending}
-      >
-        {FORECAST_CATEGORIES.map((c) => (
-          // `closed` is offered only on a terminal deal, and the open three only
-          // on an open one - planCategoryChange refuses the other pairings in
-          // both directions, so offering them would be offering a refusal.
-          <option key={c} value={c} disabled={c === "closed" ? !closed : closed}>
-            {FORECAST_LABEL[c]}
-          </option>
-        ))}
-      </NativeSelect>
+          <Label htmlFor="terms-forecast">
+            {OPPORTUNITY_TEXT.termsForecast}
+          </Label>
+          <NativeSelect
+            id="terms-forecast"
+            value={form.forecastCategory}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                forecastCategory: e.target.value as ForecastCategory,
+              })
+            }
+            disabled={pending}
+          >
+            {FORECAST_CATEGORIES.map((c) => (
+              // `closed` is offered only on a terminal deal, and the open three only
+              // on an open one - planCategoryChange refuses the other pairings in
+              // both directions, so offering them would be offering a refusal.
+              <option
+                key={c}
+                value={c}
+                disabled={c === "closed" ? !closed : closed}
+              >
+                {FORECAST_LABEL[c]}
+              </option>
+            ))}
+          </NativeSelect>
         </>
       ) : null}
 
@@ -170,7 +210,9 @@ export function DealTerms({
       </Button>
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-      {saved ? <StatusBadge tone="success">{OPPORTUNITY_TEXT.termsSaved}</StatusBadge> : null}
+      {saved ? (
+        <StatusBadge tone="success">{OPPORTUNITY_TEXT.termsSaved}</StatusBadge>
+      ) : null}
     </Section>
   );
 }

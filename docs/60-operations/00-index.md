@@ -14,6 +14,13 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-002 | 产品界面文案违反 source ASCII-only 规则 | 2026-08-15 | open |
 | TD-003 | 逾期承诺扫描的读后写竞态，缺一条部分唯一索引 | 2026-08-17 | open |
 | TD-004 | 能力依赖用浮动别名 `stable`，不钉版本、不收弃用信号（L1 规范 X-4） | 2026-08-17 | open |
+| TD-005 | 登录页的环境背景无 DS 元素可用，本地实现为权宜 | 2026-08-17 | open |
+| TD-006 | DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替 | 2026-08-24 | open |
+| TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
+| TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
+| TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
+| TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
+| TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -57,6 +64,228 @@ here. This register restarts its numbering for `yucer`.
 这五个域的服务与持久化属于**未建功能**，跟踪在 `docs/70-workplan/00-index.md` 批次 2c，
 不再计为技术债——未实现的功能不是债。
 
+### TD-005 - 登录页的环境背景无 DS 元素可用，本地实现为权宜
+
+**缺失的元素**：设计系统没有「环境背景」这类元素——铺满视口、承载产品气质、不携带
+任何信息的装饰层。同时 `@vxture/design-system/styles/auth.css` **已退役**，其文件头
+写明「原 8 个 auth-* 模块整体引用遗留 token，随其一并退役；认证页样式在 accounts
+收敛时以工具类重建」。也就是说认证形态的样式当前处于收敛中间态，没有可组合的成品。
+
+**权宜位置**：`portals/app/app/(app)/components/sign-in.tsx` 的 `Ambience()`。
+
+**为什么不算违规的自建组件**：它不复刻、不覆写、不 fork 任何 DS 元素，颜色全部取自
+DS token（`text-primary` / `var(--background)`），本地不定义任何色值。设计稿里的
+`#2563eb` 与 `#cbdff5` **没有被搬进来**——若照抄，这个产品就把一套调色板钉死在自己
+仓里，既不跟随品牌也不跟随主题。
+
+**已知缺口**：设计稿中线条有 18s 漂移动效，本实现是**静态**的。Tailwind 的
+`animate-[drift_...]` 需要一条本仓自定义的 `@keyframes`，那是在产品仓里发明动效设计值；
+DS 目前只提供 `vx-boot-splash-in` 一条 keyframe，且无任何 `--animate-*` token。
+因此动效一并挂在本条债上，而不是偷偷落地。
+
+**为什么不用 `UnifiedAuthPage`**：那是**平台**认证页——桌面端强制渲染营销视觉栏
+（`AuthVisualPanel` 在 visual 缺省时填 DS 默认文案），且其存在意义是承载密码 / 手机号 /
+社交登录面板。本产品不实现任何一种登录方式，认证是平台的职责，本页全部内容只是一个
+按钮。套用该模板等于承诺一个并不存在的登录表单。
+
+**恢复条件**：DS 提供环境背景元素（或 accounts 收敛后重建的认证页样式）时，删除
+`Ambience()` 改为消费 DS 元素，并在同一次改动中恢复漂移动效。
+
+### TD-006 - DS 无计数徽标元素，助手入口的待办数用 destructive Badge 顶替
+
+**缺失的元素**：设计系统没有「计数徽标」——挂在图标按钮角上、只承载一个数字、
+用高对比实底把"有事等你"从一屏信息里拔出来的那种小气泡。DS 有 `Badge` 与
+`StatusBadge`，但两者都是**行内状态标签**，为成簇并排而设计。
+
+**权宜位置**：`portals/app/app/(app)/components/agent-dock-button.tsx`，
+右翼收起时 header 上助手图标的角标。
+
+**owner 要求的是实底红**。DS 明确拒绝提供，而且理由写在 `badgeVariants` 的注释里：
+destructive 档取 `bg-destructive-muted`（淡底）而非实心红，因为「徽章常成片出现，
+满屏实心红会把整页的视觉重心压到异常状态上」。那条判断对**行内状态标签**是对的；
+对**角标计数**不成立——角标一屏只有一两个，它存在的全部意义就是打断视线。
+两种用途共用一个元素，所以这个分歧现在没有出口。
+
+**为什么不本地覆写**：把 `bg-destructive` 写在调用点上，就是在产品仓里就地重定义
+DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标的尺寸同理：
+`Badge` 定高 `h-control-2xs` + `px-sm`，单个数字渲染成 30x20，比它挂着的 32px
+按钮还宽——但那个定高在 DS 里也是有理由的（成簇时要对齐），不该由消费方改掉。
+
+**当前表现**：淡红底、红字、红描边的 `Badge variant="destructive"`，尺寸偏大。
+可读、语义正确、但不是被要求的那枚实底小气泡。
+
+**恢复条件**：向 DS 提出计数徽标元素（实底、圆形或胶囊、随图标按钮尺寸档走、
+带 99+ 溢出规则）。DS 提供后，删除本地组合，改为消费该元素。
+
+### TD-007 - DS 无正文行宽（measure）token，八处手写 `62ch`
+
+**缺失的元素**：设计系统没有「行宽」token —— 一行正文最多允许多宽。DS 的
+`--container-content-narrow-lg`(64rem) / `--container-base-xl`(80rem) 是**版面宽度**，
+量的是栏能有多宽；行宽量的是**一行字读起来会不会串行**，两者语义不同，
+数值也差一个量级（62ch 约 31rem，narrow-lg 是 64rem）。拿版面宽度当行宽用，
+判断正文会拉到 1024px 一行，正是这个 token 要防的事。
+
+**权宜位置**：8 处 `max-w-[62ch]`，分布在
+`judgement-workspace.tsx`(3) / `position-brief.tsx`(4) / `signal-queue.tsx`(1)。
+
+**为什么值得要一个 token**：行宽是**排版常量**，不是每个页面各自的选择。现在
+8 处都写着 62ch，靠的是抄；下一个人写 68 或 72 不会有任何东西拦他，而串行的
+那一屏没人会归因到这里。它和字号档一样属于 T1 排版层 —— DS 已经管了字号、
+行高、字距，唯独漏了行宽，而行宽是这四项里唯一与「读得下去」直接相关的。
+
+**为什么不在本仓自造 token**：CLAUDE.md 刚性区规定排版取值属于 DS。产品仓自造
+`--yucer-measure` 会让五个门户各有一份行宽，正是 DS 存在的理由所要消除的分叉。
+
+**当前表现**：功能正确，8 处数值一致，但没有任何机制保证第 9 处也是 62ch。
+
+**恢复条件**：向 DS 提出 measure token（建议 `--container-measure` 或
+`--spacing-measure`，取值随字号档走）。DS 提供后，8 处替换为该 token 类名。
+
+**2026-08-25 补记 - Tailwind 自带的 `max-w-{档}` 在本应用里是死的。**
+DS 把容器刻度发布为 `--vx-container-*`，**没有**同时别名 Tailwind 的
+`--container-*`。于是 `max-w-2xl` 生成 `max-width: var(--container-2xl)`，
+而该变量为空 —— 实测宽度塌到 40px，八个汉字折成三行。
+**正确写法是直接点名 DS token**：`max-w-(--vx-container-2xl)`（实测 672px）。
+信号行的项目概要已按此写。这七处 `62ch` 也可以据此收编 ——
+`--vx-container-*` 是 rem 刻度不是 ch 刻度，不等于正文行宽 token，
+所以本条债不因此关闭，但修的时候不该再写方括号任意值。
+
+### TD-008 - DS 无任何数据可视化元素，战况板图表本地实现
+
+**缺失的元素**：设计系统**一件图表都没有**。`MetricCard` / `MetricGrid` /
+`PanelItem` / `FactList` / `LabeledValue` 全部是文字读数；`Progress` 只画一个比例，
+且只有一条轨。占比条、条形列表、迷你趋势线一件都没有，无从组合。
+
+**权宜位置**：`portals/app/app/(app)/components/board-chart.tsx`
+（`ShareBar` 占比条 / `BarList` 条形列表），由左翼六张卡消费。
+**同一条债还覆盖两处更早的手写图表**（随 PR #56 进入，此前未登记）：
+`forecast-trajectory.tsx` 的预测柱状图、`judgement-workspace.tsx` 的覆盖率迷你柱。
+
+**为什么不算违规的自建组件**：
+· 颜色全部是 DS 语义槽（`primary` / `destructive` / `warning` / `success` / `muted`），
+  不定义任何色值，不引入任何调色板条目；
+· 间距、圆角、字号全部走 DS token；
+· **唯一的计算值是百分比宽度，而那就是数据本身** —— 没有类名能表达连续值，
+  硬造一套宽度档反而是在发明尺度。
+
+**分类色是这条债的核心**：无语气的分段（"停滞风险 / 决策链测绘 / 信号分拣" ——
+是种类不是好坏）需要彼此可辨。本地实现用**单色阶**（`bg-primary` →
+`/70` → `/45` → `/25`）而**不是四个色相**：挑四个可辨的色相就是在设计分类色阶，
+而颜色归 DS。单色阶同时也是更诚实的读法 —— 四个颜色会暗示四种含义，
+而数据里没有。**修之前所有无语气分段都渲染成同一个 `bg-primary`，
+三段的条看起来是一整块，图表的全部内容（怎么分的）不可见。**
+
+**图形选择不在组件里**：`BoardSection.chart` 由 `board.ts` 声明
+（`"share"` = 这些数分割同一个总体；`"bars"` = 各自独立、同一单位）。
+把互不相关的数画成一条占比条，是在断言一个并不存在的关系，
+而组件没有办法知道 —— 这个判断属于取数那一层。
+
+**恢复条件**：向 DS 提出数据可视化族（至少：占比条、条形列表、迷你趋势线，
+外加一套分类色阶）。DS 提供后删除本地实现，三处消费点改为消费 DS 元素。
+
+### TD-009 - DS 无环形进度元素，信号评分环本地实现
+
+**缺失的元素**：环形／圆形进度。核对 `@vxture/design-ui@3.0.0` 的完整导出表，
+进度一族只有 `Progress` 一件，且是线性的 shadcn 条（`bg-accent` 轨道 +
+translateX 填充）。donut / circular / radial / ring 一件都没有，
+`@vxture/design-system` 同样没有。无从组合。
+
+**权宜位置**：`portals/app/app/(app)/components/score-ring.tsx`，
+由 `signal-queue.tsx` 的行首消费。
+
+**为什么不算违规的自建组件**：它**不替换任何 DS 元素** ——
+不覆写任何 DS 类名，不遮蔽任何 DS 导出。颜色全部经 `currentColor`
+取 DS 语义槽（`success` / `info` / `warning` / `destructive` / `muted-foreground`），
+不定义任何色值。尺寸对齐 `PanelItem` 的前导轨 `w-control-md`（32px）。
+
+**为什么需要环而不是数字**：裸数字要求读者在脑子里持有量表 —— 62 算高还是低？
+环把量表画出来，所以结论在读到数字之前就已经可读，这正是分拣队列要的。
+
+**顺带修掉的一个真错**：旧代码手工映射色调并判断
+`confidenceTone(...) === "danger"`，而 `confidenceTone` **从不返回 danger**，
+于是 info 档穿透到 success 的绿色 —— 65 分和 85 分画成同一个绿。
+现在色弧与"推荐程度"徽标同出 `confidenceTone`，两者不可能不一致。
+
+**已知限制**：前导轨宽 32px 是 DS 写死的，环心两位数字只能到 `text-label-sm`。
+若判定过小，正确的解法是向 DS 提（加宽前导轨或直接出评分环），
+不是在本地覆盖那个类名。
+
+**恢复条件**：DS 提供环形进度（带语义色档与环心插槽）。提供后**删除**本文件，
+而不是改造它。
+
+### TD-010 - 规则层的英文理由串直接当界面文案外泄
+
+**症状**：`/delivery` 的「已下调」提示框整条内容是
+`1 overdue instalment(s): a project with unpaid instalments cannot be green`
+—— 一句英文散文，出现在一个全中文的产品里，而且是提示框的**全部**内容。
+
+**根因是 TD-002 的镜像。** TD-002 说的是中文漏进了要求 ASCII 的 source；这一条说
+的是**英文从 source 漏进了界面**。`domains/delivery/lib/revenue.ts:178` 的
+`deriveProjectHealth` 直接把理由拼成一句英文散文放进 `overriddenBecause`，而它所在
+的文件必须 ASCII-only，所以那句话**永远不可能**是产品文案。
+
+**当前处置（权宜）**：提示框改为「中文规则句 + 机器判定依据」两行，把那句英文降级为
+**证据**而不是文案。降级是诚实的 —— 它本来就是规则层的自述，不是写给用户看的话。
+
+**正确的修法**：规则返回**结构化理由**（`{ code: "overdue_instalment", count: 1 }`）
+而不是散文，由界面层渲染。牵动 `revenue.ts` / `service.ts` 与两处断言
+`/cannot be green/` 的测试（`revenue.test.ts:157`、`service.test.ts:84`），属于
+域服务层改动，不在页面重构范围内。
+
+**同类风险**：`deriveProjectHealth` 里还有第二句
+`${missed} missed milestone(s)`，同一路径同一问题。改结构化理由时一并处理。
+
+**恢复条件**：规则层改为结构化理由，界面层删除本条的权宜渲染。
+
+### TD-011 - `/account/[id]` 的 key 警告 —— 一次把根因推给上游的误判
+
+**已关闭 2026-08-25。修复在本仓，两行。**
+
+**症状**：`/account/[id]` 开发期报
+`Each child in a list should have a unique "key" prop. Check the render method
+of 'Section'. It was passed a child from AccountDetailPage.`
+指认的「孩子」是页面里的 `<LinkContacts>` —— 一个作为 prop 传给 `DecisionChain`、
+再由它放进 `Section` 的元素。
+
+**警告本身指不出正确的位置。** 它报出两个组件：接住 children 的那个（`Section`）
+和创建元素的那个（`AccountDetailPage`）。真正**把 children 拼成数组**的那一层
+（`DecisionChain`）一个字都没被提到。本条最初据此把根因写成 DS 的
+`Section` 用了 `jsx` 而非 `jsxs`，并断言「24 个组件文件全部命中」。**这是错的。**
+
+**证伪（消费端做的对照组）**：
+
+| 对照组 | 结果 |
+|--------|------|
+| 静态多孩子 → `Section` | 不报警 |
+| 中间层拼数组 → `Section` | 报警 |
+| 中间层拼数组 → 裸 `<div>` | **同样报警**，DS 不在链路里 |
+| 中间层改用带 key 的 Fragment → `Section` | 不报警 |
+
+第三组决定了结论：换掉 DS 组件，警告原样出现。所谓「一行修复」也不存在 ——
+DS 源码写的是 `{children}`，`jsx` 与 `jsxs` 由编译器按调用点的字面孩子选择，
+不是 DS 能改的一个字符。
+
+**真实根因**：`DecisionChain` 的 `Section` 有六个孩子，其中五个写在本文件里，
+第六个 `linkForm` 是页面创建后传进来的。缺 key 的是这一个，而 `DecisionChain`
+是唯一有资格给它 key 的地方。
+
+**修法**（`portals/app/app/(app)/components/decision-chain.tsx`，两处返回各一行）：
+
+```tsx
+{linkForm ? <Fragment key="link-form">{linkForm}</Fragment> : null}
+```
+
+**为什么不能压**：`Section` 里紧挨着的四个兄弟都是条件渲染。少一个，后面的就落进
+更早的下标，React 按下标复用实例，state 会串到另一个兄弟身上。实测：改动前
+A:0 / B:3，A 消失后 B:0 —— B 的状态被 A 的实例带走了。稳定 key 挡的是这个；
+控制台安静只是副作用。`Children.toArray`、外包一层 `<div>`、以及本条原先写的
+「24 个文件各包一层」的绕法，都是把这个缺陷藏起来。
+
+**留下的规矩**（比这条债本身更值钱）：**说「根因在上游」之前，先造一个不含上游的
+对照组。** 本条的原始版本从产物（编译后的 `jsx(...)` 调用）反推机制，没有做这一步，
+于是把自己的缺陷写成了别人的。DS 侧已把同一条判据写进 `docs/070-audit-playbook.md`
+§1.4，并在 PR #21 里让 key 警告直接判测试失败。
+
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 
 `CLAUDE.md`「Repository hygiene」要求 source 文件 ASCII-only。下列文件**违反这一条**，
@@ -66,13 +295,20 @@ here. This register restarts its numbering for `yucer`.
 |------|------|----------|
 | `portals/app/app/(app)/lib/messages.ts` | 全部界面文案 | 2026-08-15 |
 | `portals/app/app/domains/shared/demo-fixtures.ts` | 演示数据的展示文本（客户名、商机名、剧本正文） | 2026-08-15 |
+| `portals/app/app/domains/judgement/lib/judgement.ts` | 判断句、事实标签与触发条件的中文表述 | 2026-08-17 |
 
 **为什么存在**：yucer 的主市场是中国企业销售组织（`brand.ts` 的
 `defaultLocale: "zh-CN"`，全部产品规格以中文撰写）。界面文案不可能既是 ASCII 又是
 这个产品该有的样子。演示数据同理：一份用拼音或英文假名填充的销售数据，无法向目标
 用户演示这个产品，也无法被评审。
 
-**已做的收敛**：全部非 ASCII 文本集中在这**两个**文件里，且两者都只含数据、不含逻辑。
+**2026-08-17 新增第三个文件。** `judgement.ts` 生成判断句本身（"华东零售集团在 negotiate
+阶段停了 50 天"），这些句子由规则内插数值构成，不是可查表的静态文案，因此没有随
+`messages.ts` 一起外提。它与前两个文件不同：**它含逻辑**，所以此前"两个文件都只含数据"
+的收敛论证对它不成立。这一条是本仓自己引入的，不是模板遗留，登记于此以免它被当成
+既有状态默认接受。
+
+**已做的收敛**：非 ASCII 文本集中在这**三个**文件里，前两个只含数据、不含逻辑。
 因此：
 
 - `app/` 下含非 ASCII 的 source 文件**可穷举**，可用一行命令机器校验；
@@ -92,6 +328,31 @@ here. This register restarts its numbering for `yucer`.
 `CLAUDE.md` 明确规定「标准的缺口先在平台仓修，不得在产品仓内自造标准」，所以这里
 **只登记，不裁定**。在裁定之前，收敛状态维持不变：新增中文文本只能进入上表已列出的
 文件，不得散落到第三处。
+
+**2026-08-26 补记 —— 收敛更紧了一格，债本身没变。**
+
+这一天把 16 个组件从「直接 import `messages.ts`」改成走字典
+（`useMessages()` / `getMessages()`），并把 `lib/ds-labels.ts`（传给 DS 的那组
+文案：`取消` / `更多操作` / `重置筛选` / `已选择 {count} {noun}`）整组并入
+`messages.ts`，原文件删除。于是含中文的 source 文件从**四个回到三个**，上表不变。
+
+顺带修掉的是一个此前看不见的缺陷：`ds-labels.ts` 和那 16 个组件用的都是
+**模块级常量**。模块级常量在 import 时求值，等于把第一个加载的语言冻住发给之后
+所有读者——所以在字典里补英文是不生效的，详情页无论如何都是中文。**接线是一半，
+翻译是另一半**，此前只做了后一半。
+
+覆盖率现在可机器校验，两条 grep：
+
+```
+grep -c "^export \(const\|function\) " messages.ts      # 分母 67
+grep -c "^  [A-Za-z_]*: [{([]"          messages.en.ts    # 分子 65
+```
+
+差的两条是 `PREVIEW_FIXTURES` / `PREVIEW_TEXT`，属于 `/product-preview`——按构造钉
+在 zh-CN 的夹具页，是演示数据不是产品文案，不计入。
+
+**本条债不因此关闭**：两份字典仍在 source 树里，偿还条件（平台仓开口子，或文案移出
+source 树）一条都没满足。变的只是收敛质量——中文的落点更少、更可数。
 
 
 ### TD-003 - 逾期承诺扫描的读后写竞态

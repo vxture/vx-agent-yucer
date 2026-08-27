@@ -1,14 +1,40 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DataTable, EmptyState, MetricGrid, Section, StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type DataTableColumn, type MetricGridItem } from "@vxture/design-ui";
+import {
+  ActionMenu,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
+  MetricGrid,
+  Section,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type DataTableColumn,
+  type MetricGridItem,
+} from "@vxture/design-ui";
+import { TableCard } from "./table-card";
 import type { Stage } from "../../domains/pipeline/lib/stage";
-import type { ForecastCategory, ForecastableOpportunity } from "../../domains/pipeline/lib/forecast";
+import type {
+  ForecastCategory,
+  ForecastableOpportunity,
+} from "../../domains/pipeline/lib/forecast";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
-import { FORECAST_TONE, STAGE_TONE, formatMoney, probabilityDisplay } from "../lib/view-model";
-import { FORECAST_LABEL, PIPELINE_TEXT, STAGE_LABEL } from "../lib/messages";
+import {
+  FORECAST_TONE,
+  STAGE_TONE,
+  formatMoney,
+  formatMoneyCompact,
+  probabilityDisplay,
+} from "../lib/view-model";
 
+import { useLocale, useMessages } from "../lib/i18n/provider";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
 // A thin binding of DS elements to yucer's domain semantics, which is the one
@@ -35,15 +61,73 @@ export interface PipelineBoardProps {
   readonly readOnly?: boolean;
 }
 
-export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: PipelineBoardProps) {
+export function PipelineBoard({
+  rows,
+  currency = "CNY",
+  loading,
+  readOnly,
+}: PipelineBoardProps) {
+  const {
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    FORECAST_LABEL,
+    PIPELINE_TEXT,
+    STAGE_LABEL,
+  } = useMessages();
+  // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
+  // anything, so every figure in the product was formatted Chinese-style
+  // whatever the reader's locale. Threading it here fixes this page; the
+  // default is the real defect and it is listed in the commit.
+  const locale = useLocale();
+  // Which arrangement the rows are in. Local: it is a preference about looking,
+  // not about which data is on screen, so it has no business in the URL the way
+  // the period filter does.
+  const [view, setView] = useState<"list" | "cards">("list");
+  const router = useRouter();
   const totals = useMemo(() => rollUp(rows, currency), [rows, currency]);
 
   const metrics: MetricGridItem[] = totals.ok
     ? [
-        { id: "commit", label: FORECAST_LABEL.commit, value: formatMoney(totals.value.commitAmount.amount, currency), tone: "warning" },
-        { id: "best_case", label: FORECAST_LABEL.best_case, value: formatMoney(totals.value.bestCaseAmount.amount, currency), tone: "info" },
-        { id: "pipeline", label: FORECAST_LABEL.pipeline, value: formatMoney(totals.value.pipelineAmount.amount, currency), tone: "neutral" },
-        { id: "closed", label: FORECAST_LABEL.closed, value: formatMoney(totals.value.closedAmount.amount, currency), tone: "success" },
+        {
+          id: "commit",
+          label: FORECAST_LABEL.commit,
+          value: formatMoneyCompact(
+            totals.value.commitAmount.amount,
+            currency,
+            locale,
+          ),
+          tone: "warning",
+        },
+        {
+          id: "best_case",
+          label: FORECAST_LABEL.best_case,
+          value: formatMoneyCompact(
+            totals.value.bestCaseAmount.amount,
+            currency,
+            locale,
+          ),
+          tone: "info",
+        },
+        {
+          id: "pipeline",
+          label: FORECAST_LABEL.pipeline,
+          value: formatMoneyCompact(
+            totals.value.pipelineAmount.amount,
+            currency,
+            locale,
+          ),
+          tone: "neutral",
+        },
+        {
+          id: "closed",
+          label: FORECAST_LABEL.closed,
+          value: formatMoneyCompact(
+            totals.value.closedAmount.amount,
+            currency,
+            locale,
+          ),
+          tone: "success",
+        },
       ]
     : [];
 
@@ -79,7 +163,9 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
       id: "forecast",
       header: PIPELINE_TEXT.columnForecast,
       cell: (row) => (
-        <StatusBadge tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}>
+        <StatusBadge
+          tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
+        >
           {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
         </StatusBadge>
       ),
@@ -88,7 +174,8 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
       id: "amount",
       header: PIPELINE_TEXT.columnAmount,
       align: "right",
-      cell: (row) => formatMoney(row.amount?.amount ?? null, row.currency),
+      cell: (row) =>
+        formatMoney(row.amount?.amount ?? null, row.currency, locale),
     },
     {
       id: "probability",
@@ -104,10 +191,14 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
-                <StatusBadge tone="info">{PIPELINE_TEXT.probabilityOverridden(p.value)}</StatusBadge>
+                <StatusBadge tone="info">
+                  {PIPELINE_TEXT.probabilityOverridden(p.value)}
+                </StatusBadge>
               </span>
             </TooltipTrigger>
-            <TooltipContent>{PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}</TooltipContent>
+            <TooltipContent>
+              {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
+            </TooltipContent>
           </Tooltip>
         ) : (
           <span>{p.value}%</span>
@@ -117,25 +208,144 @@ export function PipelineBoard({ rows, currency = "CNY", loading, readOnly }: Pip
     {
       id: "close",
       header: PIPELINE_TEXT.columnExpectedClose,
-      cell: (row) => (row.expectedCloseAt ? row.expectedCloseAt.toISOString().slice(0, 10) : "-"),
+      cell: (row) =>
+        row.expectedCloseAt
+          ? row.expectedCloseAt.toISOString().slice(0, 10)
+          : "-",
     },
   ];
 
   return (
     <Section
+      icon="table"
       title={PIPELINE_TEXT.title}
-      description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description}
+      description={
+        readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description
+      }
     >
-      {totals.ok ? <MetricGrid items={metrics} /> : null}
+      {totals.ok ? (
+        <MetricGrid
+          items={metrics}
+          /* TWO COLUMNS, NOT FOUR, and the reason is that the DS's breakpoints
+             are on the VIEWPORT while this grid lives in a fixed-width pane.
+             At a 1600px window `lg:` applies and forces four cards into a
+             488px pane: 102px each, of which 48px is the card's own padding,
+             leaving 54px for a value that needs 92. The number was clipped, and
+             a clipped figure is not a smaller number - it is a wrong one that
+             looks exact.
+
+             Four headline metrics read perfectly well as 2x2, and this is the
+             only lever the component offers; a container query is what the case
+             actually calls for, and the DS does not have one. */
+          columns={2}
+        />
+      ) : null}
       {!totals.ok ? (
         <EmptyState
           title={PIPELINE_TEXT.rollupFailedTitle}
           description={totals.violations.map((v) => v.message).join("; ")}
         />
       ) : rows.length === 0 ? (
-        <EmptyState title={PIPELINE_TEXT.emptyTitle} description={PIPELINE_TEXT.emptyDescription} />
+        <EmptyState
+          title={PIPELINE_TEXT.emptyTitle}
+          description={PIPELINE_TEXT.emptyDescription}
+        />
       ) : (
-        <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} loading={loading} />
+        <>
+          {/* The tool row: what this list looks like, and how many are in it.
+              FilterBar owns the arrangement - view switch left, count beside
+              it - so the page does not invent a second toolbar grammar. */}
+          <FilterBar
+            view={view}
+            onViewChange={setView}
+            count={PIPELINE_TEXT.rowCount(rows.length)}
+          />
+
+          {/* ONLY THE TABLE IS IN A CARD, not the section. The section is a
+              heading and its tools; the card is the surface the rows sit on, so
+              wrapping the whole section would put the heading inside the thing
+              it names. */}
+          <TableCard>
+            {view === "list" ? (
+              <DataTable
+                labels={DATA_TABLE_LABELS}
+                leadingSpacer
+                indexStart={1}
+                columns={columns}
+                rows={rows}
+                rowKey={(row) => row.id}
+                loading={loading}
+                /* The fixed column: pinned right, locked during horizontal
+                   scroll, one trigger rather than a row of buttons. A wide
+                   table scrolls its own actions out of reach otherwise, and
+                   this table is eight columns before the actions. */
+                rowActions={(row) => (
+                  <ActionMenu
+                    label={DS_LABELS.actionMenu}
+                    items={[
+                      {
+                        id: "open",
+                        label: PIPELINE_TEXT.openDeal,
+                        icon: "arrow-right",
+                        onSelect: () => router.push(`/pipeline/${row.id}`),
+                      },
+                    ]}
+                  />
+                )}
+              />
+            ) : (
+              <ListCardGrid className="p-md">
+                {rows.map((row) => (
+                  <ListCard
+                    key={row.id}
+                    title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
+                    description={`${row.opportunityNo} / ${row.accountName}`}
+                    status={
+                      <StatusBadge tone={FORECAST_TONE[row.forecastCategory]}>
+                        {FORECAST_LABEL[row.forecastCategory]}
+                      </StatusBadge>
+                    }
+                    actions={
+                      <ActionMenu
+                        label={DS_LABELS.actionMenu}
+                        items={[
+                          {
+                            id: "open",
+                            label: PIPELINE_TEXT.openDeal,
+                            icon: "arrow-right",
+                            onSelect: () => router.push(`/pipeline/${row.id}`),
+                          },
+                        ]}
+                      />
+                    }
+                    meta={
+                      <>
+                        <StatusBadge tone={STAGE_TONE[row.stage as Stage]}>
+                          {STAGE_LABEL[row.stage as Stage] ?? row.stage}
+                        </StatusBadge>
+                        <span className="tabular-nums">
+                          {formatMoney(
+                            row.amount?.amount ?? null,
+                            row.currency,
+                            locale,
+                          )}
+                        </span>
+                        {/* Same two-case reading as the column: a null win rate
+                            prints a dash rather than a zero, because "nobody has
+                            set one" and "we think we lose" are different. */}
+                        <span className="tabular-nums">
+                          {probabilityDisplay(row).value == null
+                            ? "-"
+                            : `${probabilityDisplay(row).value}%`}
+                        </span>
+                      </>
+                    }
+                  />
+                ))}
+              </ListCardGrid>
+            )}
+          </TableCard>
+        </>
       )}
     </Section>
   );

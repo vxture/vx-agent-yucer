@@ -1,7 +1,7 @@
 /**
  * The application's single stylesheet entry.
  *
- * Both imports come from @vxture/design-system and nothing is defined locally:
+ * Every import comes from @vxture/design-system and nothing is defined locally:
  * globals.css carries the L0 foundation (Tailwind baseline, tokens, typography,
  * components, platform patterns), and exactly ONE brand entry follows it.
  * yucer is a Vxture product, so it takes the vxture brand; importing a second
@@ -11,28 +11,125 @@
  * radius or a shadow. Those are the design system's, and a local override here
  * is the exact deviation CLAUDE.md's rigid-zone rule exists to prevent.
  */
+
+/*
+ * Self-hosted fonts, and NOT optional despite being a separate entry.
+ *
+ * The token layer hardcodes the family names - --vx-font-sans starts at Inter,
+ * --vx-font-brand at 'Funnel Display', --vx-font-mono at 'Geist Mono' - but
+ * ships no @font-face for any of them. Without this import all three resolve
+ * past their first choice into the CJK/system fallbacks further down each
+ * stack, which is silent: text still lays out, the wordmark and every metric
+ * and ID code just render in the wrong face. Measured 2026-08-24 before the
+ * fix: Inter, Funnel Display and Geist Mono each measured identical to a
+ * deliberately nonexistent family, i.e. none of them was ever loaded.
+ *
+ * The three @fontsource packages this pulls in are declared in THIS package's
+ * package.json as well as the DS's, which is not redundant - Turbopack resolves
+ * a PostCSS @import from the consumer's own node_modules upward and does not
+ * look inside the DS's, so declaring them only there fails to resolve.
+ */
+@import "@vxture/design-system/styles/fonts.css";
+
 @import "@vxture/design-system/styles/globals.css";
 @import "@vxture/design-system/styles/brands/vxture.css";
 
 /*
- * The portal shell chrome (.app / .vxh / .sidebar / .nav-* / .content-*).
+ * Workbench page canvas. Must follow the brand entry - it overrides
+ * --background, so anything that re-declares the token afterwards wins.
  *
- * Loaded AFTER the base packs, which is what its own header requires: the
- * template chrome and its ergonomic aliases must win over the base rules.
- *
- * This is the same chrome the console and admin portals consume, so the three
- * Vxture surfaces stay visually identical. yucer composes its own SHELL from
- * these classes - which sections exist, what goes in the header, how the eight
- * domains are grouped - but does not restyle them.
+ * yucer is a workbench (the same shape as console / admin / opera / accounts),
+ * not a marketing site, so it takes the branded canvas rather than the DS's
+ * neutral default. This is a recovery, not a new choice: until DS 6 the tint
+ * arrived through shell-template.css, whose --vx-color-shell-bg was
+ * var(--vx-color-brand-20) - the identical value workbench.css sets. Without
+ * it the canvas and the cards sit on nearly the same near-white and the whole
+ * surface reads flat.
  */
-@import "@vxture/design-system/styles/shell-template.css";
+@import "@vxture/design-system/styles/workbench.css";
 
 /*
  * Tailwind v4 discovers utility classes by scanning source files, and skips
- * node_modules by default. The DS ships its components pre-built, so the class
- * names they render live in its dist bundle - without this the components mount
- * with class names that have no CSS behind them and the whole UI renders
- * unstyled. Pointing at the package root rather than a file keeps it working if
- * the DS changes its bundle layout.
+ * node_modules by default. Both packages ship their components pre-built, so
+ * the class names they render live in their dist bundles - without this the
+ * components mount with class names that have no CSS behind them and the whole
+ * UI renders unstyled.
+ *
+ * The DS's own globals.css already carries @source lines, and they are NOT
+ * enough here: they point at `../components` and `../../../design-ui/src`,
+ * which exist in the design-system workspace but not in the published tarballs
+ * (design-system publishes src/styles only, design-ui publishes dist only).
+ * A missing @source path is silent, so the two lines below are load-bearing
+ * rather than belt-and-braces. Both packages need one: the shell chrome is in
+ * design-system, every other component is in design-ui.
  */
 @source "../node_modules/@vxture/design-system/dist";
+@source "../node_modules/@vxture/design-ui/dist";
+
+/*
+ * Scrollbars hidden everywhere; scrolling itself untouched.
+ *
+ * Deliberately ONE global rule rather than a utility repeated per scroller.
+ * The product has four independent scroll areas in the shell alone, plus every
+ * dropdown, dialog and overflow list the DS mounts - sprinkling a class on the
+ * ones we happen to remember produces a console where some panels have a bar
+ * and some do not, which reads as a defect rather than as a choice.
+ *
+ * This defines no token, colour, spacing, radius or shadow, so it stays inside
+ * what this file is allowed to say. Scrollbar chrome is a behaviour, not a
+ * design value, and the DS offers no switch for it - it applies the same three
+ * declarations inline in ShellSidebarNav, which is where this idiom comes from.
+ *
+ * Inside @layer base on purpose. Unlayered CSS beats every @layer including
+ * utilities (globals-base.css carries a long note about exactly that trap), so
+ * an unlayered rule here would make a visible scrollbar impossible to opt back
+ * into anywhere. In base, any component that genuinely needs one can still say
+ * so with a utility.
+ *
+ * Three declarations because three engines disagree: scrollbar-width is the
+ * standard (and Firefox), -ms-overflow-style is legacy Edge, and the
+ * ::-webkit-scrollbar pseudo-element is WebKit/Blink. None of them stops wheel,
+ * trackpad, keyboard or programmatic scrolling - they hide the indicator only.
+ *
+ * The cost, stated: a hidden scrollbar removes both the visual cue that a
+ * region CAN scroll and the drag target for scrolling it. Mouse-wheel and
+ * keyboard users are unaffected; anyone who relies on dragging the bar is not.
+ */
+@layer base {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * THE TWO PANE WIDTHS, AND WHY THEY ARE DECLARED HERE.
+ *
+ * CLAUDE.md bans naked CSS and asks for a reason before a product invents a
+ * token. The reason is that the DS does not own this measurement and does not
+ * claim to: `--sidebar-expanded` is 256px, sized for a NAV RAIL of links, and
+ * this product's left pane is not that - it is a board of cards carrying
+ * figures, which is why it was widened. The DS's own dock does the same thing
+ * in reverse: ShellDock hardcodes `w-[26.25rem]`, an arbitrary value, because
+ * dock width is not a token there either.
+ *
+ * So these are declared once, named, and consumed as `w-(--vx-pane-nav)`.
+ * A named custom property is not a naked value: it has one definition, it says
+ * what it is for, and changing the console's proportions is one edit rather
+ * than a search. `w-[280px]` scattered across three files would be the thing
+ * the rule is actually against.
+ *
+ * The `vx-` prefix keeps them out of the DS's own namespace, so a future DS
+ * token of the same name cannot be silently shadowed by these.
+ */
+:root {
+  /* 280px. The own-forces board: wide enough for a two-column figure card. */
+  --vx-pane-nav: 17.5rem;
+  /* 400px. The agent deck: wide enough for a paragraph of the agent's reading
+     at the body measure, which is what it is mostly made of. */
+  --vx-pane-action: 25rem;
+}

@@ -1,4 +1,4 @@
-# design_yucer_100 - 能力域架构设计
+# design_yucer_100 - 能力分区架构设计
 
 规格对应：`docs/20-specs/20-capability-domains.md`（产品边界）。本文件回答**怎么落到
 代码与存储结构上**。
@@ -41,8 +41,21 @@
 
 ### UI 层：组织设计系统是唯一来源
 
-产品页面的视觉与交互元件**一律取自 `@vxture/design-system`（^2.0.0）**，不自建组件、
-不复制其源码、不为了"改一点样式"而 fork 出本地副本。
+产品页面的视觉与交互元件**一律取自组织设计系统**，不自建组件、不复制其源码、
+不为了"改一点样式"而 fork 出本地副本。
+
+**装哪两个包，以及为什么 `design-ui` 必须钉死**（2026-08-26，升 9.0.4 时确立）：
+应用装 `@vxture/design-system`（伞包，带主题 / 密度 / 字号的运行时接线），版本用
+脱字号；但本仓的组件同时直接 import `@vxture/design-ui`（`DataTable`、`Section`
+这一族在那里），所以 pnpm 的严格 node_modules 下它**必须也出现在
+`package.json`**——未声明的依赖解析不到。
+
+那一条的版本**写精确值，跟伞包 `dependencies` 里的钉法逐字一致**（当前
+`"@vxture/design-ui": "6.0.4"`，无脱字号）。写成 `^6.0.0` 的后果实测过：伞包升到
+9.0.4 钉了 design-ui 6.0.4，而本仓那条 `^6.0.0` 判定"已满足"、原地不动，于是一棵树
+里出现**两份 design-ui**——两个 `Button`、两套 Popover / Tooltip / Fullscreen 的
+React context。不报错，只是弹层偶尔不认自己的 provider。精确值让这种分叉变成一次
+安装失败，而不是一个跑起来才发现的怪现象。
 
 - 需要 DS 没有的元件时，**先向 DS 提需求**，而不是在本仓造一个。确实必须临时自建的，
   按偏差纪律登记 TD 条目（写明缺失的 DS 元件、临时实现位置、回收条件），不得静默偏离。
@@ -51,7 +64,7 @@
 - 主题与设计令牌以 DS 为准；`@yucer/shared` 的 `brand.ts` 只承载产品标识
   （productCode / displayName / defaultLocale），**不承载颜色、间距、字体**。
 
-这条约束现在就写死，是因为它极难回补：等批次 3 把八域页面写完再换 DS，等于重做 UI 层。
+这条约束现在就写死，是因为它极难回补：等批次 3 把八个能力分区页面写完再换 DS，等于重做 UI 层。
 
 ## 2. 域 -> schema 的映射
 
@@ -64,7 +77,7 @@
 | `yucer_gtm` | D1 D2 D3 | 制定战略时常同时落细分市场、区域、目标、战役 |
 | `yucer_pipeline` | D5 D6 | 信号->线索->商机是一条连续管道，转化是单事务 |
 | `yucer_delivery` | D7 | 赢单后才产生，生命周期与前面几段解耦 |
-| `yucer_agent` | D8 | 横切八域，但自身数据独立，可独立扩容与清理 |
+| `yucer_agent` | D8 | 横切八个能力分区，但自身数据独立，可独立扩容与清理 |
 
 完整理由见 `decisions/ADR-002-five-schemas-for-eight-domains.md`。
 

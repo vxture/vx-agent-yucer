@@ -139,7 +139,11 @@ test("attribution keys are absent from every writable list", () => {
 
 test("signal evidence is frozen and only the resolution is writable", () => {
   const cols = writableColumns("yucer_pipeline.signal");
-  assert.deepEqual([...cols].sort(), ["account_id", "score", "status", "updated_at"]);
+  // targeting is writable (ADR-016) and the evidence is not: re-mining can
+  // reclassify WHY we were looking, and a signal matched to an account after
+  // the fact moves from product_domain to named_account. What was published,
+  // when, and by whom cannot move at all.
+  assert.deepEqual([...cols].sort(), ["account_id", "score", "status", "targeting", "updated_at"]);
   for (const evidence of ["source", "source_ref", "signal_type", "subject", "payload", "detected_at"]) {
     assert.ok(!cols.includes(evidence), `${evidence} must stay frozen`);
   }
@@ -235,4 +239,92 @@ test("toSnakeCase maps Prisma fields onto DDL columns", () => {
   assert.equal(toSnakeCase("expectedCloseAt"), "expected_close_at");
   assert.equal(toSnakeCase("decidedBySub"), "decided_by_sub");
   assert.equal(toSnakeCase("status"), "status");
+});
+
+/**
+ * EVERY GRANTED COLUMN MUST EXIST.
+ *
+ * The parity tests above prove mirror == DDL. They do NOT prove DDL == the
+ * schema, and on 2026-08-26 that gap let a real defect through: incr/0010
+ * granted UPDATE on `price_book_entry (list_price, floor_price, status,
+ * updated_at)` and the mirror matched it exactly - both wrong together, both
+ * green. The table has neither `status` nor `updated_at`, so db-init would have
+ * died on `column "status" ... does not exist`, in production, at deploy time.
+ *
+ * Two mirrors of each other agreeing says nothing about whether either is true.
+ * This test is the third point of reference: the CREATE TABLE statements.
+ */
+const CREATE_FILES = [
+  join(ROOT, "deploy/database/ddl/00_baseline.sql"),
+  ...readdirSync(join(ROOT, "deploy/database/ddl/incr"))
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => join(ROOT, "deploy/database/ddl/incr", f)),
+];
+
+function declaredColumns(): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  const all = CREATE_FILES.map((f) => readFileSync(f, "utf8")).join("\n");
+
+  const create = /CREATE TABLE IF NOT EXISTS\s+([a-z_]+\.[a-z_]+)\s*\(([\s\S]*?)\n\);/gi;
+  for (const m of all.matchAll(create)) {
+    const cols = new Set<string>();
+    for (const line of m[2]!.split("\n")) {
+      const t = line.trim();
+      // Column definitions only. A constraint or table-level clause starts with
+      // a keyword; a column starts with its own name.
+      if (!t || t.startsWith("--")) continue;
+      if (/^(constraint|primary|unique|foreign|check|references)\b/i.test(t)) continue;
+      const name = t.match(/^([a-z_]+)\s/i);
+      if (name) cols.add(name[1]!.toLowerCase());
+    }
+    out.set(m[1]!.toLowerCase(), cols);
+  }
+
+  // ALTER TABLE ... ADD COLUMN declares columns too, and it is read PER
+  // STATEMENT rather than across the joined text. A lazy `[\s\S]*?` between
+  // "ALTER TABLE x" and "ADD COLUMN" bridges a semicolon happily, so an ALTER
+  // that only adds a CONSTRAINT swallows the next file's ADD COLUMN and files
+  // that column under the wrong table - which then reports a column that really
+  // exists as missing. That false positive appeared on the first run against
+  // `yucer_core.account.tier`. Splitting on `;` gives each statement its own
+  // universe.
+  for (const stmt of all.split(";")) {
+    const t = stmt.match(/ALTER TABLE\s+([a-z_]+\.[a-z_]+)/i);
+    if (!t) continue;
+    const table = t[1]!.toLowerCase();
+    for (const c of stmt.matchAll(/ADD COLUMN(?: IF NOT EXISTS)?\s+([a-z_]+)/gi)) {
+      if (!out.has(table)) out.set(table, new Set());
+      out.get(table)!.add(c[1]!.toLowerCase());
+    }
+  }
+  return out;
+}
+
+test("every granted column exists in the table it is granted on", () => {
+  const declared = declaredColumns();
+  assert.ok(declared.size > 20, `only ${declared.size} tables parsed - the regex broke`);
+
+  const missing: string[] = [];
+  // `grants` is a Map. The first version of this test used Object.entries on
+  // it, which yields [] - so the loop never ran and the test passed vacuously,
+  // which is precisely the failure the first test in this file exists to
+  // prevent. It was caught by putting the bad column back and watching this
+  // stay green. A test that cannot be made to fail is not a test.
+  let checked = 0;
+  for (const [table, cols] of grants) {
+    const known = declared.get(table.toLowerCase());
+    // Platform-reserved tables may be created outside this repo's DDL.
+    if (!known || known.size === 0) continue;
+    for (const c of cols) {
+      checked += 1;
+      if (!known.has(c.toLowerCase())) missing.push(`${table}.${c}`);
+    }
+  }
+  assert.ok(checked > 50, `only ${checked} columns checked - the loop went empty`);
+  assert.deepEqual(
+    missing,
+    [],
+    `granted on columns that do not exist - db-init would fail on these: ${missing.join(", ")}`,
+  );
 });

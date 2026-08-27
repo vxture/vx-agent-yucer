@@ -6,8 +6,8 @@ meta-rule section 4). New decisions append; IDs may skip.
 
 | ID | Title | Status | Date |
 |----|-------|--------|------|
-| ADR-001 | [以八个能力域切分产品](ADR-001-eight-capability-domains.md) | accepted | 2026-08-12 |
-| ADR-002 | [八个域映射到五个 DB schema](ADR-002-five-schemas-for-eight-domains.md) | accepted | 2026-08-12 |
+| ADR-001 | [产品切成八个能力分区](ADR-001-eight-capability-domains.md) | accepted | 2026-08-12 |
+| ADR-002 | [八个能力分区映射到五个 DB schema](ADR-002-five-schemas-for-eight-domains.md) | accepted | 2026-08-12 |
 | ADR-003 | [智能体的写操作一律是「可审阅提案」](ADR-003-agent-actions-are-proposals.md) | accepted | 2026-08-12 |
 | ADR-004 | [模型走 Atlas，能力与技能走 Runos](ADR-004-atlas-and-runos-as-the-only-agent-planes.md) | accepted | 2026-08-15 |
 | ADR-005 | [审批计划是与编辑计划不同的权限](ADR-005-approving-a-plan-is-not-editing-it.md) | accepted | 2026-08-16 |
@@ -16,3 +16,9 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-010 | [后台作业面：内部令牌路由 + 外部定时器](ADR-010-recurring-jobs.md) | accepted | 2026-08-16 |
 | ADR-011 | [arda 接在信号缝上：一期只取数、不外发、零 DDL](ADR-011-arda-on-the-signal-seam.md) | accepted | 2026-08-16 |
 | ADR-012 | [采集习惯的杀死判据](ADR-012-the-capture-kill-criterion.md) | accepted | 2026-08-17 |
+| ADR-013 | [战略客户与跟进节奏](ADR-013-strategic-accounts-and-the-cadence.md) | accepted | 2026-08-17 |
+| ADR-014 | [产品体系](ADR-014-the-product-catalogue.md) | accepted | 2026-08-17 |
+| ADR-015 | [能力键而非智能体身份](ADR-015-capability-keys-not-agent-identities.md) | accepted | 2026-08-18 |
+| ADR-016 | [招标信号与定向挖掘](ADR-016-tender-signals-and-targeted-mining.md) | accepted | 2026-08-18 |
+| ADR-017 | [目录是一个不带功能键的能力分区](ADR-017-the-catalogue-is-a-partition-without-a-key.md) | accepted | 2026-08-26 |
+| ADR-018 | [证据面不单独售卖，但记录不等于编辑](ADR-018-the-evidence-plane-is-not-sold-separately.md) | accepted | 2026-08-26 |

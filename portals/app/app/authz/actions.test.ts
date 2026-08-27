@@ -18,7 +18,7 @@ test("every action names a real feature key (or null) and a real permission", ()
   }
 });
 
-test("every action is filed under one of the eight domains or admin", () => {
+test("every action is filed under one of the nine partitions or admin", () => {
   const scopes = new Set<string>([...DOMAINS, "admin"]);
   for (const id of ACTION_IDS) {
     assert.ok(scopes.has(specFor(id).domain), `${id} has scope ${specFor(id).domain}`);

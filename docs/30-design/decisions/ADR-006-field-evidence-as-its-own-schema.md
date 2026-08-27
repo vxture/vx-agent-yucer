@@ -27,8 +27,8 @@
 
 新增 **`yucer_field`** schema,归属**现有的 D4 客户域**。
 
-**schema 不等于域。** ADR-002 已经把八个能力域映射到五个 schema,这次也不例外：不新增
-能力域,ADR-001 的八域划分不变,新功能键沿用 `<D1..D8>.<feature>` 规则
+**schema 不等于域。** ADR-002 已经把八个能力分区映射到五个 schema,这次也不例外：不新增
+能力分区,ADR-001 的八个能力分区划分不变,新功能键沿用 `<D1..D8>.<feature>` 规则
 （`account.interaction`、`account.commitment`）。
 
 ## 理由
@@ -70,3 +70,15 @@ db-init 的应用顺序是 `00_baseline` → `97_service_role` → `98_column_lo
 所以：**增量建的表,授权与列锁写在同一个增量文件里**,并在 `98_column_locks.sql` 留
 一条指向该增量的镜像注释,让白名单仍然可以从一处查到。
 `scripts/guardrails/check-incr-grants.mjs` 在 CI 里强制前半条（PR #38）。
+
+## 2026-08-26 追记 - 本文规定的两个功能键已作废
+
+本 ADR 的决策段写着「新功能键沿用 `<D1..D8>.<feature>` 规则
+（`account.interaction`、`account.commitment`）」。**两个都没有被加过**，
+而 owner 于 2026-08-26 裁定 19 个功能键即完整商业面。
+
+**ADR-018 取代这一段**：证据面不带自己的功能键，随免费的 `account.manage` 提供
+（理由是杀死判据的有效性），另立 `account.record` 权限解决真正的缺口——
+`account.write` 只有三个角色持有，交付经理与市场经理**记不了一笔跟进**。
+
+本文其余部分（独立 schema 的取舍、增量必须自带授权与列锁）不变。

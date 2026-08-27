@@ -50,9 +50,9 @@ Inherited from the template and NOT rebuilt here: the governance shell, the
 platform integration layer (C1 OIDC RP / C2 entitlement / C3 provisioning and
 usage), the business-face contract schemas, and the tag-to-env deploy pipeline.
 
-Batch 1 (this framework) delivers the product domain STRUCTURE: the product spec
-and the eight capability domains, the business-rule canon, the capability matrix,
-the role/permission catalog and its seed, the five domain schemas (24 tables) with
+Batch 1 (this framework) delivered the product domain STRUCTURE: the product spec
+and the capability partitions, the business-rule canon, the capability matrix,
+the role/permission catalog and its seed, the domain schemas with
 service-role grants and column locks, the Prisma lockstep mirror, and the domain
 design docs plus three ADRs. It does NOT include domain services (batch 2) or any
 product UI (batch 3) - both are explicit blank slots.
@@ -232,10 +232,10 @@ ADR, not a free edit:
 
 | Slot | yucer's fill | Authority |
 |------|--------------|-----------|
-| product definition | eight capability domains D1-D8, split by object ownership | `docs/20-specs/20-capability-domains.md`, ADR-001 |
-| domain schemas | five: `yucer_core` / `yucer_gtm` / `yucer_pipeline` / `yucer_delivery` / `yucer_agent` (24 tables) | `docs/30-design/data_yucer_200_domain-schemas.md`, ADR-002 |
-| capability matrix | 19 feature keys across five tiers, cumulative | `portals/app/app/entitlement/capability.ts`, `docs/20-specs/40-capability-matrix.md` |
-| role/permission catalog | 20 permissions, 7 roles, 68 grants | `deploy/database/ddl/incr/*.sql`, `docs/20-specs/50-role-permission-catalog.md` |
+| product definition | NINE capability partitions D1-D9, split by object ownership | `docs/20-specs/20-capability-domains.md`, ADR-001, ADR-017 |
+| domain schemas | seven product schemas, 44 tables total across ten | `docs/30-design/data_yucer_200_domain-schemas.md`, ADR-002, ADR-006, ADR-014 |
+| capability matrix | 19 feature keys across five tiers, cumulative. **FROZEN at 19** (owner, 2026-08-26) | `portals/app/app/entitlement/capability.ts`, `docs/20-specs/40-capability-matrix.md` |
+| role/permission catalog | 24 permissions, 7 roles, 84 grants | `deploy/database/ddl/incr/*.sql`, `docs/20-specs/50-role-permission-catalog.md` |
 | domain guardrails | append-only tables, frozen attribution keys, agent proposals immutable | `deploy/database/ddl/98_column_locks.sql`, ADR-003 |
 
 Still blank (batches 2-3): domain pages and components, the permission-gate module
@@ -260,7 +260,7 @@ so violating them fails at runtime rather than at review:
   gating formula locally (UI `tier != null`, data `tier != null || bundled`).
 - Adding a writable domain column REQUIRES updating `98_column_locks.sql`, or the
   service-role write fails with permission denied. That failure is the design.
-- Product UI is built from `@vxture/design-system` (^2.0.0) only. Do not hand-roll
+- Product UI is built from `@vxture/design-system` (^9.0.4) only. Do not hand-roll
   components, copy DS source into the repo, or fork it locally to tweak styling.
   A missing element is a request to the DS, not a local build; if a stopgap is
   genuinely unavoidable, register it as a TD entry (missing element, stopgap
@@ -269,6 +269,70 @@ so violating them fails at runtime rather than at review:
   product's domain semantics; it must not restyle the DS. Theme and design tokens
   come from the DS - `@yucer/shared`'s `brand.ts` carries product identity only,
   never colours, spacing, or type.
+- `@vxture/design-ui` is declared at an EXACT version matching the umbrella's own
+  pin (`"6.0.4"`, no caret). It has to be declared at all because components here
+  import it directly and pnpm does not resolve phantom dependencies; it has to be
+  exact because a caret range lets the two diverge silently. Verified 2026-08-26:
+  design-system 9.0.4 pins design-ui 6.0.4 while our `^6.0.0` stayed on 6.0.0,
+  putting TWO design-ui copies in one tree - two `Button`s and two Popover /
+  Tooltip / Fullscreen React contexts, with no error. When the umbrella moves,
+  move this pin in the same commit.
+
+## Product vocabulary (2026-08-26)
+
+Three words that look interchangeable and are not. Getting them wrong in a
+document is how the eight-vs-five confusion started.
+
+| Word | Chinese | Count | What it is |
+|------|---------|-------|------------|
+| capability PARTITION | neng-li fen-qu | 9, D1-D9 | object ownership. The namespace both catalogs prefix with. Renamed from the older "capability domain" wording on 2026-08-26 - see ADR-001's rename note |
+| functional DOMAIN | gong-neng yu | 5 | a grouping of ROUTES for navigation only. Owns no data, appears in no key, gates nothing |
+| PLANE | mian | - | a platform surface: Atlas is the model plane, Runos the capability plane (ADR-004). Never use this word for a partition |
+
+The Chinese word for "capability plane" is Runos's and cannot be reused; the
+Chinese word for "domain" now belongs to the five functional ones. When adding a
+classifying concept, CHECK THE WORD IS NOT ALREADY TAKEN before writing it down -
+the vocabulary needs a uniqueness constraint the same way the data model does.
+Two collisions were caught this way on 2026-08-26; the second was one edit from
+being applied.
+
+## Two gates, and what may not be added
+
+- FEATURE KEYS ARE FROZEN AT 19 (owner, 2026-08-26). They are the complete
+  commercial surface. A new capability that is not separately sellable does not
+  get a key - it gets `feature: null` and lives behind a permission. ADR-017 (the
+  catalogue) and ADR-018 (the evidence plane) are both worked examples.
+- PERMISSIONS ARE NOT FROZEN. "Who inside a workspace may do this" is a product
+  design question and the answer grows with the product. Both recent increments
+  were permission-side: `catalog.price` (the floor price decides which discounts
+  need a signature) and `account.record` (recording what happened is not editing
+  the customer master record).
+- Changing either one means changing THREE things together: the seed increment,
+  the TS mirror, and `docs/20-specs/50-role-permission-catalog.md`. The mirror
+  tests parse the seed and fail on any drift, in both directions.
+
+## Two guards worth knowing before you write code
+
+- `domains/shared/wired.test.ts` - EVERY exported domain verb must have a caller
+  outside its own domain. This repo shipped the same defect five times: a
+  service with a full gate, rule function, port and green tests that no
+  interface ever called. An unwired verb is allowed, but it has to be NAMED in
+  KNOWN_UNWIRED with the reason and the batch that removes it. That turns "we
+  forgot" into "we decided, and here is when it ends".
+- `domains/shared/column-locks.test.ts` - the mirror tests prove mirror == DDL,
+  which is NOT the same as DDL == the schema. A grant naming a column that does
+  not exist passed both directions on 2026-08-26 and would have killed db-init
+  at deploy time, so a third reference point was added: the CREATE TABLE
+  statements. Two mirrors agreeing says nothing about whether either is true.
+
+## Violation messages are keys, not copy
+
+A `RuleResult` violation carries a `message` written for the rule layer's own
+reader, in English. Server actions return `violations[0].code`; the sentence
+lives in the message dictionary (`*_ERROR` maps). Passing the message straight
+to the interface is TD-010 and it has recurred in new code twice - most recently
+rendering "a floor above list price would make every sale need approval" inside
+a Chinese page.
 
 ## Repository hygiene
 

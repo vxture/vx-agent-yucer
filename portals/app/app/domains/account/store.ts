@@ -21,6 +21,31 @@ export interface AccountRecord {
   ownerSub: string | null;
   healthScore: number | null;
   status: AccountStatus;
+  /** strategic | key | standard - set by D1, not by the owner. See ADR-013. */
+  tier: AccountTier;
+}
+
+export const ACCOUNT_TIERS = ["strategic", "key", "standard"] as const;
+export type AccountTier = (typeof ACCOUNT_TIERS)[number];
+
+/**
+ * How we intend to work one strategic customer - see ADR-013.
+ *
+ * The cadence fields are why this exists: they let a judgement fire on an
+ * ABSENCE, which every event-triggered rule is structurally unable to do.
+ */
+export interface AccountPlanRecord {
+  id: string;
+  workspaceId: string;
+  accountId: string;
+  period: string;
+  targetAmount: number | null;
+  contactCadenceDays: number;
+  execCadenceDays: number;
+  ownerSub: string | null;
+  presalesSub: string | null;
+  deliverySub: string | null;
+  status: "active" | "closed";
 }
 
 export interface ContactRecord extends ContactNode {
@@ -32,6 +57,8 @@ export interface ContactRecord extends ContactNode {
 }
 
 export interface AccountFilter {
+  /** Restrict to one tier - the cadence scan asks only for strategic ones. */
+  tier?: AccountTier;
   status?: AccountStatus;
   ownerSub?: string;
   segmentCode?: string;
@@ -48,13 +75,33 @@ export interface HealthInputs {
 
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
+  /** The live plan for one account, or null when it has none. */
+  getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null>;
   getAccount(workspaceId: string, id: string): Promise<AccountRecord | null>;
   /** Whitelisted columns only; the adapter checks against the column-lock mirror. */
   updateAccount(
     workspaceId: string,
     id: string,
-    patch: Partial<Pick<AccountRecord, "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore" | "status">>,
+    // `tier` joined the patch on 2026-08-26 (batch 6c). The column lock has
+    // allowed it since incr/0006 and this type did not, so nothing could
+    // designate a strategic account - the tier existed, the cadence rule read
+    // it, and no path could set it.
+    patch: Partial<Pick<AccountRecord, "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore" | "status" | "tier">>,
   ): Promise<boolean>;
+
+  /**
+   * Create or replace an account's plan for a period.
+   *
+   * `(account, period)` IS the plan's identity - re-planning the same period
+   * edits that row, a different period is a new row. The port takes the whole
+   * plan rather than a patch for the same reason `replaceLines` does: a plan is
+   * a statement about a period, and merging half of one into the last one
+   * produces a plan nobody wrote.
+   */
+  upsertAccountPlan(
+    workspaceId: string,
+    plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
+  ): Promise<AccountPlanRecord>;
 
   listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]>;
   /** Append-only edge. There is deliberately no updateRelation. */
@@ -67,6 +114,33 @@ export interface AccountStore {
 }
 
 export class InMemoryAccountStore implements AccountStore {
+  private plans = new Map<string, AccountPlanRecord>();
+
+  async getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
+    const p = this.plans.get(`${workspaceId}|${accountId}`);
+    return p && p.status === "active" ? p : null;
+  }
+
+  /** Demo/seed entry point; the real write path is the planning service. */
+  async upsertAccountPlan(
+    workspaceId: string,
+    plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
+  ): Promise<AccountPlanRecord> {
+    const key = `${workspaceId}:${plan.accountId}`;
+    const existing = this.plans.get(key);
+    const row: AccountPlanRecord = {
+      id: existing?.id ?? `apl_${this.plans.size + 1}`,
+      workspaceId,
+      ...plan,
+    };
+    this.plans.set(key, row);
+    return row;
+  }
+
+  setAccountPlan(plan: AccountPlanRecord): void {
+    this.plans.set(`${plan.workspaceId}|${plan.accountId}`, plan);
+  }
+
   private accounts = new Map<string, AccountRecord>();
   private contacts: ContactRecord[] = [];
   private relations: Array<RelationEdge & { workspaceId: string; accountId: string }> = [];
@@ -74,10 +148,12 @@ export class InMemoryAccountStore implements AccountStore {
 
   seed(input: {
     accounts?: AccountRecord[];
+    plans?: AccountPlanRecord[];
     contacts?: ContactRecord[];
     relations?: Array<RelationEdge & { workspaceId: string; accountId: string }>;
     healthInputs?: Record<string, HealthInputs>;
   }): void {
+    for (const pl of input.plans ?? []) this.plans.set(`${pl.workspaceId}|${pl.accountId}`, pl);
     for (const a of input.accounts ?? []) this.accounts.set(a.id, { ...a });
     this.contacts.push(...(input.contacts ?? []));
     this.relations.push(...(input.relations ?? []));
@@ -94,6 +170,7 @@ export class InMemoryAccountStore implements AccountStore {
     // is not "in trouble". Name breaks the tie so `limit` is deterministic.
     rows.sort(by(asc((a: AccountRecord) => a.healthScore), asc((a: AccountRecord) => a.name)));
     return filter.limit ? rows.slice(0, filter.limit) : rows;
+    // tier filter applied by callers that ask for it
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {

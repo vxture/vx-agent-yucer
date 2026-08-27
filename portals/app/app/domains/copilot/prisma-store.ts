@@ -26,6 +26,7 @@ function toAction(r: Record<string, unknown>): AgentAction {
     id: String(r.id),
     status: r.status as AgentAction["status"],
     actionType: String(r.actionType),
+  capability: (r.capability as string | null) ?? null,
     subjectType: r.subjectType as SubjectType,
     subjectId: String(r.subjectId),
     payload: (r.payload ?? {}) as Record<string, unknown>,
@@ -216,6 +217,51 @@ export class PrismaCopilotStore implements CopilotStore {
     }
     return moved;
   }
+
+  async snoozeJudgement(
+    workspaceId: string,
+    input: { sub: string; judgementId: string; urgency: string; until: Date },
+  ): Promise<void> {
+    // Upsert on the unique (workspace, sub, judgement) index. Re-snoozing moves
+    // the existing row rather than adding one, so the record stays "when did
+    // this member first defer this" plus "until when now".
+    const p = await getPrismaClient();
+    await p.judgementSnooze.upsert({
+      where: {
+        workspaceId_sub_judgementId: {
+          workspaceId,
+          sub: input.sub,
+          judgementId: input.judgementId,
+        },
+      },
+      create: {
+        workspaceId,
+        sub: input.sub,
+        judgementId: input.judgementId,
+        urgencyAtSnooze: input.urgency,
+        snoozedUntil: input.until,
+      },
+      // Only the two columns 98-style locks allow to move.
+      update: { urgencyAtSnooze: input.urgency, snoozedUntil: input.until },
+    });
+  }
+
+  async listSnoozes(
+    workspaceId: string,
+    sub: string,
+    now: Date,
+  ): Promise<{ judgementId: string; urgency: string; until: Date }[]> {
+    const p = await getPrismaClient();
+    const rows = await p.judgementSnooze.findMany({
+      where: { workspaceId, sub, snoozedUntil: { gt: now } },
+    });
+    return (rows as Record<string, unknown>[]).map((r) => ({
+      judgementId: String(r.judgementId),
+      urgency: String(r.urgencyAtSnooze),
+      until: r.snoozedUntil as Date,
+    }));
+  }
+
 }
 
 function toPlaybook(r: Record<string, unknown>): PlaybookRecord {

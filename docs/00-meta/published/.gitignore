@@ -1,0 +1,2 @@
+*.html
+# rendered output is not source; the generator plus urls.json is.

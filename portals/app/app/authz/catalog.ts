@@ -54,6 +54,18 @@ export const PERM_CODES = [
   // and the same shape as the pipeline.write / pipeline.forecast split one level
   // down - "owns the deal, not the forecast commitment".
   "strategy.approve",
+  // --- catalog (incr/0010), ADR-017 -----------------------------------------
+  // The catalogue partition carries no feature key, so permissions are the ONLY
+  // gate on it. Three, not two, because the floor price is a different job from
+  // editing the catalogue - see the note in actions.ts.
+  "catalog.read",
+  "catalog.write",
+  "catalog.price",
+  // --- evidence capture (incr/0011), ADR-018 --------------------------------
+  // Recording what happened is NOT editing the customer master record, and
+  // collapsing them left the people who meet customers most unable to write
+  // anything down. See ADR-018.
+  "account.record",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -97,6 +109,10 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "copilot.autopilot",
     "admin.manage",
+    "catalog.read",
+    "catalog.write",
+    "catalog.price",
+    "account.record",
   ],
   // Demand side, up to the lead handoff: triages signals but never edits a deal.
   marketing_manager: [
@@ -110,6 +126,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "copilot.use",
     "copilot.decide",
+    "catalog.read",
+    "account.record",
   ],
   // Owns the deal, not the forecast commitment (pipeline.write without
   // pipeline.forecast is the deliberate split).
@@ -124,8 +142,18 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "campaign.read",
     "copilot.use",
     "copilot.decide",
+    "catalog.read",
+    "account.record",
   ],
-  presales: ["account.read", "account.write", "pipeline.read", "delivery.read", "copilot.use"],
+  presales: [
+    "account.read",
+    "account.write",
+    "pipeline.read",
+    "delivery.read",
+    "copilot.use",
+    "catalog.read",
+    "account.record",
+  ],
   delivery_manager: [
     "delivery.read",
     "delivery.write",
@@ -133,6 +161,8 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "copilot.use",
     "copilot.decide",
+    "catalog.read",
+    "account.record",
   ],
   // Sets the rules (quota, territory, forecast discipline, role assignment) but
   // does not edit the deals - the rule-setter is not also the data-editor.
@@ -146,6 +176,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "strategy.read",
     "admin.manage",
     "copilot.use",
+    "catalog.read",
+    "catalog.write",
+    "catalog.price",
   ],
   // Read-only, but keeps copilot.use: asking a question produces no write.
   viewer: [
@@ -157,6 +190,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "delivery.read",
     "copilot.use",
+    "catalog.read",
   ],
 };
 

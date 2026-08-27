@@ -34,11 +34,31 @@ export interface HealthInput {
   now?: Date;
 }
 
+/**
+ * Why a factor moved the score, as a CODE plus its numbers.
+ *
+ * It used to be an English sentence built here, which put user-visible text
+ * inside a domain module and then rendered "1 overdue instalment(s)" into a
+ * Chinese product. A domain that writes its own display strings has both
+ * inverted the dependency and chosen a language on the UI's behalf.
+ */
+export type HealthReason =
+  | { code: "no_open_deals" }
+  | { code: "open_deals"; count: number; furthestStage: string }
+  | { code: "never_contacted" }
+  | { code: "quiet_days"; days: number }
+  | { code: "contacted_days"; days: number }
+  | { code: "projects_red"; count: number }
+  | { code: "projects_amber"; count: number }
+  | { code: "projects_green"; count: number }
+  | { code: "overdue_revenue"; count: number }
+  | { code: "revenue_clean" };
+
 export interface HealthContribution {
   factor: "pipeline" | "recency" | "delivery" | "collections";
   /** Signed points this factor moved the score by. */
   points: number;
-  detail: string;
+  reason: HealthReason;
 }
 
 export interface HealthResult {
@@ -67,7 +87,7 @@ export function deriveHealth(input: HealthInput): RuleResult<HealthResult> {
     contributions.push({
       factor: "pipeline",
       points: -15,
-      detail: "no open opportunities",
+      reason: { code: "no_open_deals" },
     });
   } else {
     const depth = open.reduce((best, o) => Math.max(best, OPEN_STAGE_ORDER.indexOf(o.stage)), -1);
@@ -75,31 +95,30 @@ export function deriveHealth(input: HealthInput): RuleResult<HealthResult> {
     contributions.push({
       factor: "pipeline",
       points,
-      detail: `${open.length} open opportunit${open.length === 1 ? "y" : "ies"}, furthest at ${
-        OPEN_STAGE_ORDER[Math.max(0, depth)]
-      }`,
+      reason: { code: "open_deals", count: open.length, furthestStage: OPEN_STAGE_ORDER[Math.max(0, depth)]
+       },
     });
   }
 
   // Recency: silence is the cheapest early warning there is.
   if (input.lastInteractionAt == null) {
-    contributions.push({ factor: "recency", points: -20, detail: "no recorded interaction" });
+    contributions.push({ factor: "recency", points: -20, reason: { code: "never_contacted" } });
   } else {
     const days = Math.max(0, (now.getTime() - input.lastInteractionAt.getTime()) / 86_400_000);
     if (days > VERY_STALE_AFTER_DAYS) {
       contributions.push({
         factor: "recency",
         points: -25,
-        detail: `no contact for ${Math.round(days)} days`,
+        reason: { code: "quiet_days", days: Math.round(days) },
       });
     } else if (days > STALE_AFTER_DAYS) {
       contributions.push({
         factor: "recency",
         points: -10,
-        detail: `no contact for ${Math.round(days)} days`,
+        reason: { code: "quiet_days", days: Math.round(days) },
       });
     } else {
-      contributions.push({ factor: "recency", points: 15, detail: `contacted ${Math.round(days)} days ago` });
+      contributions.push({ factor: "recency", points: 15, reason: { code: "contacted_days", days: Math.round(days) } });
     }
   }
 
@@ -108,14 +127,14 @@ export function deriveHealth(input: HealthInput): RuleResult<HealthResult> {
   const red = input.projectHealth.filter((h) => h === "red").length;
   const amber = input.projectHealth.filter((h) => h === "amber").length;
   if (red > 0) {
-    contributions.push({ factor: "delivery", points: -30, detail: `${red} project(s) red` });
+    contributions.push({ factor: "delivery", points: -30, reason: { code: "projects_red", count: red } });
   } else if (amber > 0) {
-    contributions.push({ factor: "delivery", points: -12, detail: `${amber} project(s) amber` });
+    contributions.push({ factor: "delivery", points: -12, reason: { code: "projects_amber", count: amber } });
   } else if (input.projectHealth.length > 0) {
     contributions.push({
       factor: "delivery",
       points: 12,
-      detail: `${input.projectHealth.length} project(s) green`,
+      reason: { code: "projects_green", count: input.projectHealth.length },
     });
   }
 
@@ -125,7 +144,7 @@ export function deriveHealth(input: HealthInput): RuleResult<HealthResult> {
     contributions.push({
       factor: "collections",
       points: -Math.min(30, 15 * input.overdueRevenueCount),
-      detail: `${input.overdueRevenueCount} overdue instalment(s)`,
+      reason: { code: "overdue_revenue", count: input.overdueRevenueCount },
     });
   }
 

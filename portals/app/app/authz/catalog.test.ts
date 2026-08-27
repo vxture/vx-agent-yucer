@@ -105,13 +105,20 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 20 permissions, 7 roles, 68 grants", () => {
+test("the catalog is the documented size: 24 permissions, 7 roles, 84 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
-  assert.equal(PERM_CODES.length, 20);
+  //
+  // 20 -> 23 and 68 -> 79 by incr/0010: the catalogue partition (ADR-017). It
+  // carries no feature key, so permissions are the only gate it has - which is
+  // why it needed three and not two, the third being the floor price.
+  //
+  // 23 -> 24 and 79 -> 84 by incr/0011: account.record (ADR-018). Recording
+  // what happened is not editing the customer master record.
+  assert.equal(PERM_CODES.length, 24);
   assert.equal(ROLE_CODES.length, 7);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 68);
+  assert.equal(total, 84);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
@@ -128,7 +135,7 @@ test("every permission is granted to at least one role", () => {
   for (const p of PERM_CODES) assert.ok(granted.has(p), `${p} is granted to no role`);
 });
 
-test("permission codes are <domain>.<action> over the eight domains plus admin", () => {
+test("permission codes are <partition>.<action> over the nine partitions plus admin", () => {
   const domains = new Set([
     "strategy",
     "planning",
@@ -138,6 +145,10 @@ test("permission codes are <domain>.<action> over the eight domains plus admin",
     "pipeline",
     "delivery",
     "copilot",
+    // D9. It carries no feature key - the catalogue is not sold separately -
+    // but it owns four tables, and permissions are therefore the ONLY gate on
+    // it. See ADR-017.
+    "catalog",
     "admin",
   ]);
   for (const p of PERM_CODES) {

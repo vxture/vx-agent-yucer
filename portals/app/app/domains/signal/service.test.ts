@@ -33,6 +33,7 @@ function signal(over: Partial<SignalRecord> = {}): SignalRecord {
     payload: {},
     detectedAt: daysAgo(3),
     accountId: null,
+    targeting: null,
     score: null,
     status: "new",
     ...over,

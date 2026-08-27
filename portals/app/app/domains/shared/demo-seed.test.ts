@@ -4,6 +4,7 @@ import { seedDemoWorkspace, type DemoStores } from "./demo-seed";
 import { demoDataEnabled, ensureDemoData, resetDemoSeed, setPipelineStore } from "./registry";
 import { InMemoryAccountStore } from "../account/store";
 import { InMemoryFieldStore } from "../account/field-store";
+import { InMemoryCatalogStore } from "../catalog/store";
 import { InMemoryCopilotStore } from "../copilot/store";
 import { InMemoryDeliveryStore } from "../delivery/store";
 import { InMemoryPipelineStore } from "../pipeline/store";
@@ -28,6 +29,7 @@ function stores(): DemoStores {
     pipeline: new InMemoryPipelineStore(),
     delivery: new InMemoryDeliveryStore(),
     copilot: new InMemoryCopilotStore(),
+    catalog: new InMemoryCatalogStore(),
   };
 }
 
@@ -88,7 +90,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 10);
+    assert.equal(rows.length, 12);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -100,7 +102,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 5 accounts, 10 deals, 4 projects", async () => {
+test("the demo has the working set it claims: 7 accounts, 12 deals, 4 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -111,8 +113,8 @@ test("the demo has the working set it claims: 5 accounts, 10 deals, 4 projects",
     s.delivery.listProjects(WS),
   ]);
 
-  assert.equal(accounts.length, 5);
-  assert.equal(opportunities.length, 10);
+  assert.equal(accounts.length, 7);
+  assert.equal(opportunities.length, 12);
   assert.equal(projects.length, 4);
 });
 
@@ -592,4 +594,78 @@ test("demo: an account with recorded contact answers the warm-path question", as
   const l3 = await s.field.lastContactByContact(WS, "acc_demo_3");
   const r3 = analyzeChainRecency(c3, [], c3.map((c) => ({ contactId: c.id, lastContactAt: l3.get(c.id) ?? null })), { now: at });
   assert.equal(r3.warmPathToEconomic, null);
+});
+
+// ADR-014 section 2, checked against the demo itself.
+//
+// A demo where the header and its lines disagree would teach exactly the mess
+// the reconciliation rule exists to prevent, and it would do it silently -
+// nobody reads a total and its detail at the same time.
+test("every seeded deal with lines reconciles to their sum", async () => {
+  const saved = process.env.YUCER_DEMO_DATA;
+  const savedDb = process.env.DATABASE_URL;
+  process.env.YUCER_DEMO_DATA = "on";
+  delete process.env.DATABASE_URL;
+  try {
+    resetDemoSeed();
+    assert.equal(ensureDemoData(WS), true);
+    const { getPipelineStore, getCatalogStore } = await import("./registry");
+    const deals = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
+    const lines = await getCatalogStore().allLines(WS);
+
+    const { reconciles } = await import("../catalog/lib/pricing");
+    let checked = 0;
+    for (const d of deals) {
+      const mine = lines.filter((l) => l.opportunityId === d.id);
+      if (mine.length === 0) continue;
+      checked += 1;
+      assert.equal(
+        reconciles(d.amount?.amount ?? null, mine),
+        true,
+        `${d.id}: header ${d.amount?.amount} does not equal its lines`,
+      );
+    }
+    assert.ok(checked >= 5, "the demo must actually exercise composed deals");
+
+    // And the approval flag needs a real case, or nobody ever sees it render.
+    assert.ok(
+      lines.some((l) => l.needsApproval),
+      "at least one seeded line must be below floor",
+    );
+  } finally {
+    if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
+    else delete process.env.YUCER_DEMO_DATA;
+    if (savedDb !== undefined) process.env.DATABASE_URL = savedDb;
+    resetDemoSeed();
+  }
+});
+
+// A duplicate id silently overwrote four seeded signals and only one of them
+// was visibly missing, because the page shows a subset. Ids are cheap to check
+// and expensive to debug.
+test("no seeded record shares an id with another of its kind", async () => {
+  const saved = process.env.YUCER_DEMO_DATA;
+  const savedDb = process.env.DATABASE_URL;
+  process.env.YUCER_DEMO_DATA = "on";
+  delete process.env.DATABASE_URL;
+  try {
+    resetDemoSeed();
+    assert.equal(ensureDemoData(WS), true);
+    const { getSignalStore, getPipelineStore, getAccountStore } = await import("./registry");
+    const groups: Array<[string, { id: string }[]]> = [
+      ["signals", await getSignalStore().listSignals(WS, { limit: 500 })],
+      ["leads", await getSignalStore().listLeads(WS, { limit: 500 })],
+      ["opportunities", await getPipelineStore().listOpportunities(WS, { includeClosed: true })],
+      ["accounts", await getAccountStore().listAccounts(WS)],
+    ];
+    for (const [name, rows] of groups) {
+      const ids = rows.map((r) => r.id);
+      assert.equal(new Set(ids).size, ids.length, `${name} has duplicate ids`);
+    }
+  } finally {
+    if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
+    else delete process.env.YUCER_DEMO_DATA;
+    if (savedDb !== undefined) process.env.DATABASE_URL = savedDb;
+    resetDemoSeed();
+  }
 });

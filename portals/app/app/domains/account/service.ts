@@ -16,7 +16,7 @@ import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { analyzeChain, deriveHealth, type ChainCoverage, type HealthResult } from "./lib/health";
 import type { Stage } from "../pipeline/lib/stage";
-import type { AccountFilter, AccountRecord, AccountStore, ContactRecord } from "./store";
+import type { AccountFilter, AccountRecord, AccountStore, AccountTier, ContactRecord } from "./store";
 import type { RelationEdge } from "./lib/health";
 
 export interface AccountContext {
@@ -173,4 +173,86 @@ export async function linkContacts(
 
   await ctx.store.addRelation(ctx.workspaceId, edge);
   return ok(edge);
+}
+
+/**
+ * Designate an account's tier, and set the plan that goes with a strategic one.
+ *
+ * WHY BOTH IN ONE VERB. ADR-013's load-bearing consequence is in the judgement
+ * engine: every existing rule is EVENT-TRIGGERED and needs an open opportunity,
+ * which is exactly wrong for a strategic account - a locked-in customer with no
+ * open deal going quiet is the most important thing to report, and no event
+ * will ever fire to say so. The cadence rule is what fires instead, and it
+ * reads the PLAN. So a strategic account without a plan is a designation that
+ * changes nothing, and letting one exist would make the tier decorative.
+ *
+ * The tier column has been writable since incr/0006 and the patch type did not
+ * include it, so until now nothing could set it - the tier existed, the rule
+ * read it, and no path led there.
+ */
+export async function designateAccount(
+  ctx: AccountContext,
+  input: {
+    accountId: string;
+    tier: AccountTier;
+    plan?: {
+      period: string;
+      targetAmount: number | null;
+      contactCadenceDays: number;
+      execCadenceDays: number;
+      ownerSub: string | null;
+      presalesSub: string | null;
+      deliverySub: string | null;
+    };
+  },
+): Promise<RuleResult<{ tier: AccountTier; planned: boolean }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (input.tier === "strategic" && !input.plan) {
+    return fail(
+      violation(
+        "plan_required",
+        "a strategic account needs a plan - the cadence rule reads it, and without one the designation changes nothing",
+        "plan",
+      ),
+    );
+  }
+  if (input.plan) {
+    if (!input.plan.period.trim()) {
+      return fail(violation("period_required", "a plan must name its period", "period"));
+    }
+    for (const [field, days] of [
+      ["contactCadenceDays", input.plan.contactCadenceDays],
+      ["execCadenceDays", input.plan.execCadenceDays],
+    ] as const) {
+      if (!Number.isInteger(days) || days <= 0) {
+        return fail(
+          violation("cadence_positive", "a cadence of zero days is not a cadence", field),
+        );
+      }
+    }
+  }
+
+  const moved = await ctx.store.updateAccount(ctx.workspaceId, input.accountId, {
+    tier: input.tier,
+  });
+  if (!moved) {
+    return fail(violation("not_found", `account ${input.accountId} was not found`, "accountId"));
+  }
+
+  if (input.plan) {
+    await ctx.store.upsertAccountPlan(ctx.workspaceId, {
+      accountId: input.accountId,
+      period: input.plan.period.trim(),
+      targetAmount: input.plan.targetAmount,
+      contactCadenceDays: input.plan.contactCadenceDays,
+      execCadenceDays: input.plan.execCadenceDays,
+      ownerSub: input.plan.ownerSub,
+      presalesSub: input.plan.presalesSub,
+      deliverySub: input.plan.deliverySub,
+      status: "active",
+    });
+  }
+  return ok({ tier: input.tier, planned: input.plan != null });
 }

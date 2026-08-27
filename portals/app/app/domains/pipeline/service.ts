@@ -15,9 +15,11 @@
 
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
+import { lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
+import type { CatalogStore } from "../catalog/store";
 import type { Decision } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
-import { isNonNegative } from "../shared/money";
+import { isNonNegative, money } from "../shared/money";
 import {
   planCategoryChange,
   planSnapshot,
@@ -38,6 +40,9 @@ import type {
   StageEventRecord,
   WinLossReviewRecord,
 } from "./store";
+
+/** What a line is priced in when the deal has no amount yet to inherit from. */
+const DEFAULT_LINE_CURRENCY = "CNY";
 
 export interface PipelineContext {
   workspaceId: string;
@@ -336,6 +341,29 @@ export async function recordWinLossReview(
  * pipeline.forecast permission rather than pipeline.write: advancing a deal and
  * committing a number upward are different acts by different people.
  */
+/**
+ * Every snapshot taken for a period, oldest first.
+ *
+ * THIS IS THE ONLY REASON forecast_snapshot IS APPEND-ONLY. The DDL revokes
+ * UPDATE on it so accuracy can be measured - period-end actual against what was
+ * forecast at period start - and that measurement is impossible unless the
+ * whole series survives. Until now nothing read it back, so the immutability
+ * was a cost the product paid and never collected on.
+ *
+ * Gated on pipeline.forecast.view, the read half of the forecast permission:
+ * seeing what the team committed to and having committed it are the same
+ * privilege, and a rep who may not forecast may not audit the forecast either.
+ */
+export async function forecastHistory(
+  ctx: PipelineContext,
+  period: string,
+  scopeType: "workspace" | "territory" | "owner" = "workspace",
+): Promise<RuleResult<SnapshotRow[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType }));
+}
+
 export async function submitForecast(
   ctx: PipelineContext,
   input: { period: string; scope: ForecastScope; currency?: string; snapshotAt?: Date },
@@ -351,4 +379,90 @@ export async function submitForecast(
 
   await ctx.store.appendForecastSnapshot(ctx.workspaceId, row.value);
   return ok(row.value);
+}
+
+/**
+ * Replace an opportunity's product lines, and make the header agree.
+ *
+ * ADR-014 section 2 is the whole of this function: WHEN LINES EXIST, THE LINES
+ * ARE AUTHORITATIVE and `opportunity.amount` must equal their sum. The
+ * constraint is written here rather than in the DDL because it is cross-row - a
+ * header against many lines - which a CHECK cannot express and a trigger would
+ * hide the business rule inside the database. So the service recomputes the
+ * header in the same call that writes the lines, and this is the ONLY path
+ * allowed to do it; two numbers that drift apart is the single most common and
+ * hardest-to-find kind of bad accounting in a system like this.
+ *
+ * `needsApproval` is COMPUTED from the price book and never taken from the
+ * caller. A flag the client can set is a flag the client can clear, and this
+ * one decides whether a discount reaches a human - see priceLine.
+ *
+ * THE GATE IS D6's, not the catalogue's. A line lives in `yucer_pipeline` and
+ * by ADR-001 the owning partition is the deal: pricing a deal is
+ * `pipeline.opportunity.update`. The catalogue is read here, not written.
+ */
+export async function replaceOpportunityLines(
+  ctx: PipelineContext & { catalog: CatalogStore },
+  opportunityId: string,
+  drafts: readonly DraftLine[],
+): Promise<RuleResult<{ lines: number; amount: number; needsApproval: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.update", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+  // A closed deal's amount is the reported result. Re-pricing it would rewrite
+  // a number the forecast has already been measured against.
+  if (current.closedAt !== null) {
+    return fail(
+      violation(
+        "terminal_stage",
+        "a closed deal's lines are the record of what was sold and cannot be repriced",
+        "opportunityId",
+      ),
+    );
+  }
+
+  for (const d of drafts) {
+    if (!(d.quantity > 0)) {
+      return fail(violation("quantity_positive", `${d.productId} needs a quantity above zero`, "quantity"));
+    }
+    if (d.unitPrice < 0) {
+      return fail(violation("amount_negative", "a unit price cannot be negative", "unitPrice"));
+    }
+  }
+
+  const currency = current.amount?.currency ?? DEFAULT_LINE_CURRENCY;
+  const priced = [];
+  for (const d of drafts) {
+    // Priced ONE AT A TIME against the entry in force for that product and
+    // currency. Pricing the batch off a single lookup would let a stale floor
+    // decide approval for a product it never applied to.
+    const entry = await ctx.catalog.priceFor(ctx.workspaceId, d.productId, currency);
+    priced.push(priceLine({ ...d, currency }, entry));
+  }
+
+  const written = await ctx.catalog.replaceLines(ctx.workspaceId, opportunityId, priced);
+  const total = lineTotal(written);
+
+  // The header follows the lines - including down to zero lines, where it is
+  // left alone rather than zeroed: removing every line returns the deal to the
+  // legacy shape where the header stands on its own, which `reconciles` treats
+  // as legal precisely because it is.
+  if (written.length > 0) {
+    const applied = await ctx.store.updateCommercialTerms(ctx.workspaceId, opportunityId, {
+      amount: money(total, currency),
+    });
+    if (!applied) {
+      return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+    }
+  }
+
+  return ok({
+    lines: written.length,
+    amount: total,
+    needsApproval: written.filter((l) => l.needsApproval).length,
+  });
 }

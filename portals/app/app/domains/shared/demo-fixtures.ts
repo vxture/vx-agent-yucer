@@ -14,6 +14,11 @@ export const DEMO_ACCOUNTS = [
   { name: "北方通信", industry: "通信", region: "华北" },
   { name: "长江物流", industry: "物流", region: "华中" },
   { name: "华南连锁药房", industry: "零售", region: "华南" },
+  // Added to exercise two rules the first five never reached. Without them the
+  // "本周" tier was permanently 0 and two of the four judgement rules had no
+  // demo case at all - a screen nobody could review is not a demo.
+  { name: "西部能源装备", industry: "能源", region: "西北" },
+  { name: "东海精密仪器", industry: "制造", region: "华东" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */
@@ -59,6 +64,8 @@ export const DEMO_OPPORTUNITIES = [
   "智能仓储升级",
   "网点运营分析平台",
   "处方流转系统",
+  "技改能效监测",
+  "实验室数据对接",
 ] as const;
 
 export const DEMO_PROJECTS = [
@@ -152,6 +159,16 @@ export const DEMO_NOTES = {
     "行业会上碰到王磊,聊了二十分钟。他们今年重点是门店数字化,预算在总部。留了微信,说节后可以正式聊。",
 } as const;
 
+/** Notes for the two rule-coverage accounts. */
+export const DEMO_QUIET_NOTES = {
+  a6_demo:
+    "给设备部做了一轮演示，现场反馈还行。他们说要等集团那边的技改预算批下来，没给具体时间。",
+  a6_intro: "行业会上加的联系人，回来后通了一次电话，介绍了大致情况。",
+  a7_kickoff:
+    "见了采购和质量两条线。质量那边最关心的是校准数据能不能对接他们的 LIMS，让我们出个方案。",
+  a7_followup: "电话确认了方案范围，他们说下周内部评审。",
+} as const;
+
 export const DEMO_COMMITMENT_TEXT = {
   a1_cfo: "CFO 给出预算是否批复的答复",
   a1_interface: "我方提供与既有系统的接口方案说明",
@@ -159,6 +176,8 @@ export const DEMO_COMMITMENT_TEXT = {
   a4_pilot: "我方提供试点门店的运行数据",
   a5_meeting: "对方安排节后与总部信息化负责人正式会面",
   a1_procurement: "对方安排与采购负责人赵强的当面沟通",
+  /** Ours, and only a few days late - the "本周" case for the we-owe rule. */
+  a7_lims: "把 LIMS 对接方案发给质量部张工",
 } as const;
 
 export const DEMO_WAIVE_REASON = "对方组织调整,原对接人离任,该承诺不再适用";
@@ -188,4 +207,77 @@ export const DEMO_DEAL_NOTES = {
   d9_c: "合同条款回来两条修改意见,都不涉及价格。",
   d7_a: "第一次正式拜访,主要是摸情况。对方今年确实有预算。",
   d7_b: "把行业案例发过去了,对方问了两个很具体的问题。",
+} as const;
+
+/**
+ * The catalogue this demo company sells - see ADR-014.
+ *
+ * Five products across three lines, so whitespace analysis has something to be
+ * about: an account that bought the platform but not the analytics module is a
+ * different sales conversation from one that bought neither.
+ */
+export const DEMO_PRODUCTS = [
+  { code: "PRD-CORE", name: "零售中台基础平台", category: "平台", unit: "套", list: 800_000, floor: 600_000 },
+  { code: "PRD-ANALYTICS", name: "经营分析模块", category: "平台", unit: "套", list: 400_000, floor: 300_000 },
+  { code: "PRD-WMS", name: "智能仓储调度", category: "供应链", unit: "套", list: 600_000, floor: 450_000 },
+  { code: "PRD-INTEGRATION", name: "系统对接实施", category: "服务", unit: "人月", list: 60_000, floor: 45_000 },
+  { code: "PRD-SUPPORT", name: "年度技术支持", category: "服务", unit: "年", list: 200_000, floor: 160_000 },
+] as const;
+
+export const DEMO_SOLUTIONS = [
+  {
+    code: "SOL-RETAIL",
+    name: "零售数字化整体方案",
+    summary: "基础平台 + 经营分析 + 实施与首年支持，面向连锁零售。",
+    items: [
+      { code: "PRD-CORE", qty: 1 },
+      { code: "PRD-ANALYTICS", qty: 1 },
+      { code: "PRD-INTEGRATION", qty: 6 },
+      { code: "PRD-SUPPORT", qty: 1 },
+    ],
+  },
+  {
+    code: "SOL-SUPPLY",
+    name: "供应链协同方案",
+    summary: "仓储调度 + 对接实施，面向物流与制造。",
+    items: [
+      { code: "PRD-WMS", qty: 1 },
+      { code: "PRD-INTEGRATION", qty: 4 },
+    ],
+  },
+] as const;
+
+/**
+ * Tender and policy signals - see ADR-016.
+ *
+ * The third one is deliberately from a company NOT on the named list: a system
+ * that only mined its own account list would systematically miss every new
+ * logo, and new-logo signals are the reason the detective domain exists.
+ */
+export const DEMO_TENDER_SIGNALS = {
+  strategic: "北方通信发布省级政企客户管理平台公开招标，预算 1200 万，投标截止 9 月 26 日",
+  known: "华东零售集团门店数字化二期招标公示，含经营分析模块",
+  newLogo: "西城市政数据集团发布数据中台采购公告，采购人此前无往来记录",
+  policy: "省工信厅发文要求二级以上物流企业 2027 年前完成运输数据联网",
+} as const;
+
+/**
+ * A longer follow-up history on the flagship account.
+ *
+ * The demo had three notes per account, which is enough to prove the timeline
+ * renders and not enough to show what a real pursuit looks like: the swings,
+ * the people who change their minds, the months where nothing happens. These
+ * span five months on 华东零售集团 so the account page has a story rather than
+ * a sample.
+ */
+export const DEMO_LONG_HISTORY = {
+  d1: "第一次拜访。王总说集团今年要统一门店系统，但预算还没批，让我们先出个初步方案。",
+  d2: "把初步方案发过去了。陈总监回了很细的问题，主要在数据迁移和历史订单的对账口径。",
+  d3: "现场做了一轮演示。运营的人反馈不错，说比现在的系统快很多。陈总监全程没怎么说话。",
+  d4: "陈总监私下讲了顾虑：去年上过一个系统，数据对不上，他被追责过。这次他要看到迁移的验证方案。",
+  d5: "按他说的补了数据迁移验证方案，附了两个同行业案例。他说要拿去内部过一轮。",
+  d6: "王总说预算批下来了，但要走集团采购流程，让我们准备正式报价。",
+  d7: "报价发出。采购赵强要求再降 15%，理由是有其他家报得更低。",
+  d8: "刘敏私下说赵强倾向另一家，理由是价格。她建议别硬碰，先把陈总监的接口顾虑解决掉，他说话 CFO 会听。",
+  d9: "微信问王总进展，回复说 CFO 出差，要往后拖。没给新日期。",
 } as const;

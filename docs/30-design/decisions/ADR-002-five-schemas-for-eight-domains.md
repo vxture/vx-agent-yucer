@@ -1,11 +1,11 @@
-# ADR-002 - 八个域映射到五个 DB schema
+# ADR-002 - 八个能力分区映射到五个 DB schema
 
 - 状态：已接受
 - 日期：2026-08-12
 
 ## 背景
 
-[ADR-001](ADR-001-eight-capability-domains.md) 把产品切成八个能力域。存储侧需要决定
+[ADR-001](ADR-001-eight-capability-domains.md) 把产品切成八个能力分区。存储侧需要决定
 schema 的数量与边界。模板保留了三个契约 schema（`vx_provision` / `local_authz` /
 `local_usage`）作为刚性区，产品域 schema 的命名与数量是留白区，由产品自行决定。
 
@@ -44,7 +44,7 @@ schema 的数量与边界。模板保留了三个契约 schema（`vx_provision` 
 - **D4 独立 -> `yucer_core`**：客户主数据被所有域引用，是稳定的引用中心，读多写少，
   生命周期与其他域完全不同。
 - **D7 独立 -> `yucer_delivery`**：只在赢单后产生，与前面几段解耦，可以独立归档。
-- **D8 独立 -> `yucer_agent`**：横切八域但自身数据独立，且增长最快（消息、动作），
+- **D8 独立 -> `yucer_agent`**：横切八个能力分区但自身数据独立，且增长最快（消息、动作），
   独立 schema 便于单独扩容、单独设置保留期与清理策略。
 
 ## 后果

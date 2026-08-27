@@ -26,6 +26,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 
 /** Icon names are the DS's closed set; these are checked at compile time. */
 export type NavIcon =
+  | "stack"
   | "graph"
   | "chart-bar"
   | "workflow"
@@ -50,14 +51,77 @@ export interface NavEntry {
  * copilot last because it cuts across all of them.
  */
 export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
-  { key: "strategy", href: "/strategy", icon: "graph", action: "strategy.plan.view" },
-  { key: "planning", href: "/planning", icon: "chart-bar", action: "planning.target.view" },
-  { key: "campaign", href: "/campaign", icon: "workflow", action: "campaign.view" },
-  { key: "account", href: "/account", icon: "buildings", action: "account.view" },
+  {
+    key: "strategy",
+    href: "/strategy",
+    icon: "graph",
+    action: "strategy.plan.view",
+  },
+  {
+    key: "planning",
+    href: "/planning",
+    icon: "chart-bar",
+    action: "planning.target.view",
+  },
+  {
+    key: "campaign",
+    href: "/campaign",
+    icon: "workflow",
+    action: "campaign.view",
+  },
+  {
+    key: "account",
+    href: "/account",
+    icon: "buildings",
+    action: "account.view",
+  },
   { key: "signal", href: "/signal", icon: "lightbulb", action: "signal.view" },
-  { key: "pipeline", href: "/pipeline", icon: "table", action: "pipeline.view" },
-  { key: "delivery", href: "/delivery", icon: "cube", action: "delivery.project.view" },
-  { key: "copilot", href: "/copilot", icon: "sparkles", action: "copilot.playbook.view" },
+  {
+    key: "pipeline",
+    href: "/pipeline",
+    icon: "table",
+    action: "pipeline.view",
+  },
+  {
+    key: "delivery",
+    href: "/delivery",
+    icon: "cube",
+    action: "delivery.project.view",
+  },
+  {
+    key: "copilot",
+    href: "/copilot",
+    icon: "sparkles",
+    action: "copilot.playbook.view",
+  },
+  // D9. Its action carries `feature: null` - the catalogue is not sold
+  // separately (ADR-017) - so this entry can never be "locked", only present or
+  // absent. That is the correct shape for it: a workspace that has bought
+  // anything at all needs to know what it sells.
+  {
+    key: "catalog",
+    href: "/catalog",
+    icon: "stack",
+    action: "catalog.product.view",
+  },
+];
+
+/**
+ * Where work happens, as opposed to where data lives.
+ *
+ * Kept OUT of DOMAIN_NAV_ENTRIES so the eight-domain invariant stays an
+ * assertion about the product rather than becoming "nine things, one of which
+ * is not a domain". D8 (the copilot) remains a domain and stays in that list -
+ * what changed is only where the shell PUTS it, which is a presentation
+ * decision and does not belong in the product's own inventory.
+ *
+ * The rearrangement it serves: the copilot used to be the ninth thing in a flat
+ * menu, which said it was one more optional feature to remember to click. It is
+ * the product. The home stream is its output and it also sits permanently in a
+ * column beside the work.
+ */
+export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
+  { key: "home", href: "/", icon: "sparkles", action: "account.view" },
 ];
 
 /**
@@ -72,11 +136,25 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
  * than dropping it into a shell containing only this entry.
  */
 export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
-  { key: "admin", href: "/admin/members", icon: "settings", action: "admin.member.view" },
-  { key: "adoption", href: "/admin/adoption", icon: "chart-bar", action: "admin.adoption.view" },
+  {
+    key: "admin",
+    href: "/admin/members",
+    icon: "settings",
+    action: "admin.member.view",
+  },
+  {
+    key: "adoption",
+    href: "/admin/adoption",
+    icon: "chart-bar",
+    action: "admin.adoption.view",
+  },
 ];
 
-export const NAV_ENTRIES: readonly NavEntry[] = [...DOMAIN_NAV_ENTRIES, ...ADMIN_NAV_ENTRIES];
+export const NAV_ENTRIES: readonly NavEntry[] = [
+  ...WORK_NAV_ENTRIES,
+  ...DOMAIN_NAV_ENTRIES,
+  ...ADMIN_NAV_ENTRIES,
+];
 
 export type NavState = "visible" | "locked";
 
@@ -113,13 +191,17 @@ export function resolveNavigation(
 }
 
 /** The first domain a member can actually open, for post-login landing. */
-export function defaultLandingHref(resolved: readonly ResolvedNavEntry[]): string | null {
+export function defaultLandingHref(
+  resolved: readonly ResolvedNavEntry[],
+): string | null {
   return resolved.find((e) => e.state === "visible")?.href ?? null;
 }
 
 /** True when nothing at all is reachable - the surface should say so plainly
  * rather than rendering an empty shell. */
-export function isFullyLockedOut(resolved: readonly ResolvedNavEntry[]): boolean {
+export function isFullyLockedOut(
+  resolved: readonly ResolvedNavEntry[],
+): boolean {
   return resolved.every((e) => e.state !== "visible");
 }
 
@@ -143,7 +225,9 @@ export function isFullyLockedOut(resolved: readonly ResolvedNavEntry[]): boolean
  */
 export type LockoutReason = "no_entitlement" | "no_roles";
 
-export function lockoutReason(resolved: readonly ResolvedNavEntry[]): LockoutReason | null {
+export function lockoutReason(
+  resolved: readonly ResolvedNavEntry[],
+): LockoutReason | null {
   if (!isFullyLockedOut(resolved)) return null;
   return resolved.length === 0 ? "no_roles" : "no_entitlement";
 }

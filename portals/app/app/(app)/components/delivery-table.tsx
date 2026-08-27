@@ -1,10 +1,27 @@
 "use client";
 
-import { DataTable, EmptyState, StatusBadge, type DataTableColumn } from "@vxture/design-ui";
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import {
+  ActionMenu,
+  useToast,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type DataTableColumn,
+  type FilterBarView,
+} from "@vxture/design-ui";
 import type { ProjectHealth } from "../../domains/delivery/lib/revenue";
-import { DELIVERY_TEXT, PROJECT_HEALTH_LABEL } from "../lib/messages";
 import { formatMoney } from "../lib/view-model";
+import { TableCard } from "./table-card";
 
+import { useMessages } from "../lib/i18n/provider";
 // The delivery table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -31,15 +48,46 @@ export interface DeliveryRow {
   reported: ProjectHealth;
   derived: ProjectHealth;
   overriddenBecause: string | null;
+  /** Resolved on the page. Null when the member may not read accounts. */
+  accountName: string | null;
 }
 
 export interface DeliveryTableProps {
+  /** False when the member may read delivery but not change it. */
+  readonly canWrite?: boolean;
+  readonly onReconcile?: (projectId: string) => Promise<{
+    ok: boolean;
+    health?: string;
+    changed?: boolean;
+    because?: string | null;
+    error?: string;
+  }>;
   readonly rows: readonly DeliveryRow[];
 }
 
-export function DeliveryTable({ rows }: DeliveryTableProps) {
+export function DeliveryTable({
+  rows,
+  canWrite = false,
+  onReconcile,
+}: DeliveryTableProps) {
+  const {
+    DATA_TABLE_LABELS,
+    DELIVERY_TEXT,
+    DS_LABELS,
+    PROJECT_HEALTH_LABEL,
+    PROJECT_STATUS_LABEL,
+  } = useMessages();
+  const { toast } = useToast();
+  const [, start] = useTransition();
+  const [view, setView] = useState<FilterBarView>("list");
+
   if (rows.length === 0) {
-    return <EmptyState title={DELIVERY_TEXT.emptyTitle} description={DELIVERY_TEXT.emptyDescription} />;
+    return (
+      <EmptyState
+        title={DELIVERY_TEXT.emptyTitle}
+        description={DELIVERY_TEXT.emptyDescription}
+      />
+    );
   }
 
   const columns: readonly DataTableColumn<DeliveryRow>[] = [
@@ -53,23 +101,46 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
         </div>
       ),
     },
-    { id: "account", header: DELIVERY_TEXT.columnAccount, cell: (row) => row.accountId.slice(0, 8) },
-    { id: "manager", header: DELIVERY_TEXT.columnManager, cell: (row) => row.managerSub ?? "-" },
+    {
+      id: "account",
+      header: DELIVERY_TEXT.columnAccount,
+      // A LINK, and the name when we have it. This printed
+      // `row.accountId.slice(0, 8)` - the first eight characters of an id, which
+      // identifies nothing to a reader, cannot be clicked, and on this dataset
+      // is the same string on every row, so the column distinguished the rows
+      // from each other not at all. The full id was right there and
+      // /account/[id] already exists.
+      cell: (row) => (
+        <Link
+          href={`/account/${row.accountId}`}
+          className="text-foreground hover:underline"
+        >
+          {row.accountName ?? row.accountId}
+        </Link>
+      ),
+    },
+    {
+      id: "manager",
+      header: DELIVERY_TEXT.columnManager,
+      // A raw subject, marked as one - the same call as the account list's
+      // owner column. Dressing a machine string as a person is how a UUID ends
+      // up in front of someone who then does not chase it.
+      cell: (row) =>
+        row.managerSub ? (
+          <span className="text-muted-foreground font-mono text-xs">
+            {row.managerSub}
+          </span>
+        ) : (
+          <span className="text-muted-foreground text-xs">
+            {DELIVERY_TEXT.managerNone}
+          </span>
+        ),
+    },
     {
       id: "health",
       header: DELIVERY_TEXT.columnHealth,
-      cell: (row) => (
-        <>
-          <StatusBadge tone={HEALTH_TONE[row.derived]} dot>
-            {PROJECT_HEALTH_LABEL[row.derived] ?? row.derived}
-          </StatusBadge>
-          {/* The downgrade is shown, with its reason, rather than quietly
-              replacing what the team reported. */}
-          {row.overriddenBecause ? (
-            <StatusBadge tone="warning">{DELIVERY_TEXT.healthOverridden}</StatusBadge>
-          ) : null}
-        </>
-      ),
+      align: "center",
+      cell: (row) => <Health row={row} />,
     },
     {
       id: "contract",
@@ -77,8 +148,163 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
       align: "right",
       cell: (row) => formatMoney(row.contractAmount, row.currency),
     },
-    { id: "status", header: DELIVERY_TEXT.columnStatus, cell: (row) => row.status },
+    {
+      id: "status",
+      header: DELIVERY_TEXT.columnStatus,
+      align: "center",
+      // Labelled. This rendered the raw enum - `active`, `planning`,
+      // `delivered` in English - and was the one status column in the product
+      // not mapped through a label record.
+      cell: (row) => (
+        <StatusBadge tone="neutral" dot>
+          {PROJECT_STATUS_LABEL[row.status] ?? row.status}
+        </StatusBadge>
+      ),
+    },
   ];
 
-  return <DataTable columns={columns} rows={rows} rowKey={(row) => row.id} />;
+  function actions(row: DeliveryRow) {
+    if (!onReconcile) return null;
+    return (
+      <ActionMenu
+        label={DS_LABELS.actionMenu}
+        items={[
+          {
+            id: "reconcile",
+            label: DELIVERY_TEXT.reconcile,
+            icon: "refresh",
+            hint: DELIVERY_TEXT.reconcileHint,
+            onSelect: () =>
+              start(() => {
+                void onReconcile(row.id).then((r) => {
+                  if (!r.ok)
+                    return toast({ tone: "danger", title: r.error ?? "" });
+                  // THREE OUTCOMES, THREE MESSAGES. Saying "recomputed" for all
+                  // of them would hide the one that matters: the report and the
+                  // rows agreed, which is a different fact from having just
+                  // corrected a misreport.
+                  if (!r.changed) {
+                    return toast({
+                      tone: "info",
+                      title: DELIVERY_TEXT.reconcileAgreed,
+                    });
+                  }
+                  toast({
+                    tone: "warning",
+                    title: DELIVERY_TEXT.reconcileChanged(
+                      PROJECT_HEALTH_LABEL[r.health ?? ""] ?? r.health ?? "",
+                    ),
+                    description: r.because
+                      ? DELIVERY_TEXT.reconcileWhy(r.because)
+                      : undefined,
+                  });
+                });
+              }),
+          },
+        ]}
+      />
+    );
+  }
+
+  return (
+    <>
+      <FilterBar
+        view={view}
+        onViewChange={setView}
+        count={DELIVERY_TEXT.rowCount(rows.length)}
+      />
+
+      {/* THE ACTION COLUMN CARRIES ONE VERB (batch 6a-3a), and the other one
+          is not missing from it by oversight.
+
+          `reconcileProjectHealth` is a project-row action and is here.
+          `transitionInstalment` is not: this table's rows are PROJECTS, and an
+          instalment is not one of them. It needs a collections surface that
+          does not exist yet - `projectView` already returns the instalments and
+          nothing renders them - so wiring it here would mean inventing a row
+          type this table does not have. Tracked as its own item, not as part of
+          this one. */}
+      <TableCard>
+        {view === "list" ? (
+          <DataTable
+            labels={DATA_TABLE_LABELS}
+            rowActions={canWrite && onReconcile ? actions : undefined}
+            leadingSpacer
+            indexStart={1}
+            columns={columns}
+            rows={rows}
+            rowKey={(row) => row.id}
+          />
+        ) : (
+          <ListCardGrid className="p-md">
+            {rows.map((row) => (
+              <ListCard
+                key={row.id}
+                title={row.name}
+                description={`${row.projectNo} / ${row.accountName ?? row.accountId}`}
+                status={<Health row={row} />}
+                meta={
+                  <>
+                    <span>{formatMoney(row.contractAmount, row.currency)}</span>
+                    <span>
+                      {PROJECT_STATUS_LABEL[row.status] ?? row.status}
+                    </span>
+                  </>
+                }
+              />
+            ))}
+          </ListCardGrid>
+        )}
+      </TableCard>
+    </>
+  );
+}
+
+/**
+ * The derived health, and the downgrade when there is one.
+ *
+ * The REASON rides a tooltip rather than the row. "Downgraded" without a why is
+ * an accusation the reader cannot check, and checkable is the property this
+ * whole domain is built on - but the reason is a sentence, and a sentence per
+ * row would make the column the widest thing on the table.
+ *
+ * The rule is stated in the product's own language and the rule layer's
+ * sentence sits under it as evidence. That sentence arrives in ENGLISH -
+ * deriveProjectHealth writes it in a source file the repo requires to be
+ * ASCII-only - so it cannot serve as product copy, and it was previously the
+ * entire tooltip. Demoting it to evidence is honest about what it is; making
+ * the rule return a structured reason instead is TD-010.
+ */
+function Health({ row }: { row: DeliveryRow }) {
+  const { DELIVERY_TEXT, PROJECT_HEALTH_LABEL } = useMessages();
+  const badge = (
+    <StatusBadge tone={HEALTH_TONE[row.derived]} dot>
+      {PROJECT_HEALTH_LABEL[row.derived] ?? row.derived}
+    </StatusBadge>
+  );
+
+  if (!row.overriddenBecause) return badge;
+
+  return (
+    <span className="inline-flex items-center gap-xs">
+      {badge}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span>
+            <StatusBadge tone="warning">
+              {DELIVERY_TEXT.healthOverridden}
+            </StatusBadge>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <span className="flex flex-col gap-2xs">
+            <span>{DELIVERY_TEXT.healthOverriddenWhy}</span>
+            <span className="opacity-70">
+              {DELIVERY_TEXT.healthOverriddenEvidence}: {row.overriddenBecause}
+            </span>
+          </span>
+        </TooltipContent>
+      </Tooltip>
+    </span>
+  );
 }

@@ -8,8 +8,12 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 // The pure decision module, not authz/context.ts - see the note there.
 import type { PermissionHolder } from "../../authz/decide";
 import { resolveNavigation } from "../../(app)/lib/navigation";
-import { DomainNav } from "../../(app)/components/domain-nav";
-import { PipelineBoard, type PipelineRow } from "../../(app)/components/pipeline-board";
+import { DomainLauncher } from "../../(app)/components/domain-launcher";
+import { MessagesProvider } from "../../(app)/lib/i18n/provider";
+import {
+  PipelineBoard,
+  type PipelineRow,
+} from "../../(app)/components/pipeline-board";
 import { ProposalQueue } from "../../(app)/components/proposal-queue";
 import type { AgentAction } from "../../domains/copilot/lib/action";
 import { money } from "../../domains/shared/money";
@@ -106,6 +110,7 @@ const PROPOSALS: AgentAction[] = [
     id: "act_1",
     status: "proposed",
     actionType: "advance_stage",
+    capability: "deal.stall_risk",
     subjectType: "opportunity",
     subjectId: "opp_2f4c8a11",
     payload: { to: "propose" },
@@ -120,6 +125,7 @@ const PROPOSALS: AgentAction[] = [
     id: "act_2",
     status: "proposed",
     actionType: "update_forecast_category",
+    capability: "deal.stall_risk",
     subjectType: "opportunity",
     subjectId: "opp_9b21ee03",
     payload: { forecastCategory: "best_case" },
@@ -134,6 +140,7 @@ const PROPOSALS: AgentAction[] = [
     id: "act_3",
     status: "proposed",
     actionType: "draft_outreach",
+    capability: "account.chain_map",
     subjectType: "account",
     subjectId: "acc_77f0c2d5",
     payload: { channel: "email" },
@@ -148,6 +155,7 @@ const PROPOSALS: AgentAction[] = [
     id: "act_4",
     status: "executed",
     actionType: "rescore_signal",
+    capability: "signal.triage",
     subjectType: "lead",
     subjectId: "lead_1188aa0f",
     payload: { score: 74 },
@@ -163,6 +171,7 @@ const PROPOSALS: AgentAction[] = [
     id: "act_5",
     status: "rejected",
     actionType: "advance_stage",
+    capability: "deal.stall_risk",
     subjectType: "opportunity",
     subjectId: "opp_5510bb77",
     payload: { to: "negotiate" },
@@ -188,68 +197,109 @@ export default function ProductPreviewPage() {
     status: tier === "none" ? null : "active",
   };
 
-  const holder: PermissionHolder = { permissions: new Set(permissionsForRoles([role])) };
+  const holder: PermissionHolder = {
+    permissions: new Set(permissionsForRoles([role])),
+  };
 
   const nav = resolveNavigation(holder, entitlement);
   const canDecide = holder.permissions.has("copilot.decide");
   const canWritePipeline = holder.permissions.has("pipeline.write");
 
   return (
-    <ViewLayout>
-      <ViewHeader
-        secondary={PREVIEW_TEXT.eyebrow}
-        icon="sparkles"
-        title={PREVIEW_TEXT.title}
-        description={PREVIEW_TEXT.description}
-      />
+    /* THE WHOLE PAGE, not just one component.
 
-      <fieldset>
-        <legend>{PREVIEW_TEXT.roleLegend}</legend>
-        {ROLES.map((r) => (
-          <label key={r}>
-            <input type="radio" name="role" checked={role === r} onChange={() => setRole(r)} />
-            {r}
-          </label>
-        ))}
-      </fieldset>
+       This route has no shell around it - that is its point, it renders the
+       domain surfaces with fixtures and no session - and three of the things
+       it renders (the launcher, the pipeline board, the proposal queue) read
+       their copy from the dictionary. Without a provider useMessages throws,
+       which is what it is built to do rather than silently falling back, and
+       this page has been returning 500 since those components were localised.
 
-      <fieldset>
-        <legend>{PREVIEW_TEXT.tierLegend}</legend>
-        {(["none", ...TIERS] as const).map((t) => (
-          <label key={t}>
-            <input type="radio" name="tier" checked={tier === t} onChange={() => setTier(t)} />
-            {t}
-          </label>
-        ))}
-      </fieldset>
+       zh-CN by construction: it is a fixture page for reviewing the gates, not
+       a localised surface, and pinning the locale keeps what a reviewer sees
+       independent of their own cookie. */
+    <MessagesProvider locale="zh-CN">
+      <ViewLayout>
+        <ViewHeader
+          secondary={PREVIEW_TEXT.eyebrow}
+          icon="sparkles"
+          title={PREVIEW_TEXT.title}
+          description={PREVIEW_TEXT.description}
+        />
 
-      <Separator />
-
-      <DomainNav
-        entries={nav}
-        activeKey="pipeline"
-        upgradeHref={subscribeUrl({ intent: "upgrade" })}
-      />
-
-      <Separator />
-
-      <PipelineBoard rows={OPPORTUNITIES} readOnly={!canWritePipeline} />
-
-      <ProposalQueue
-        actions={PROPOSALS}
-        canDecide={canDecide}
-        onDecide={(ids, decision) =>
-          setLog((prev) => [...prev, PREVIEW_TEXT.decisionLog(ids.length, `${decision}: ${ids.join(", ")}`)])
-        }
-      />
-
-      {log.length > 0 ? (
-        <ul>
-          {log.map((line, i) => (
-            <li key={i}>{line}</li>
+        <fieldset>
+          <legend>{PREVIEW_TEXT.roleLegend}</legend>
+          {ROLES.map((r) => (
+            <label key={r}>
+              <input
+                type="radio"
+                name="role"
+                checked={role === r}
+                onChange={() => setRole(r)}
+              />
+              {r}
+            </label>
           ))}
-        </ul>
-      ) : null}
-    </ViewLayout>
+        </fieldset>
+
+        <fieldset>
+          <legend>{PREVIEW_TEXT.tierLegend}</legend>
+          {(["none", ...TIERS] as const).map((t) => (
+            <label key={t}>
+              <input
+                type="radio"
+                name="tier"
+                checked={tier === t}
+                onChange={() => setTier(t)}
+              />
+              {t}
+            </label>
+          ))}
+        </fieldset>
+
+        <Separator />
+
+        {/* The launcher rather than the retired flat nav: it is now the only
+          entrance to the domain pages, so it is the surface where the two
+          gates are actually felt. Switch the role picker and rows vanish
+          (permission - silent); switch the tier and they stay but read
+          需升级 (entitlement - advertised).
+
+          Its own provider because this route has no shell around it. The demo
+          is zh-CN by construction - it is a fixture page, not a localised
+          surface. */}
+        <DomainLauncher
+          nav={nav}
+          activeKey="pipeline"
+          upgradeHref={subscribeUrl({ intent: "upgrade" })}
+        />
+
+        <Separator />
+
+        <PipelineBoard rows={OPPORTUNITIES} readOnly={!canWritePipeline} />
+
+        <ProposalQueue
+          actions={PROPOSALS}
+          canDecide={canDecide}
+          onDecide={(ids, decision) =>
+            setLog((prev) => [
+              ...prev,
+              PREVIEW_TEXT.decisionLog(
+                ids.length,
+                `${decision}: ${ids.join(", ")}`,
+              ),
+            ])
+          }
+        />
+
+        {log.length > 0 ? (
+          <ul>
+            {log.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        ) : null}
+      </ViewLayout>
+    </MessagesProvider>
   );
 }

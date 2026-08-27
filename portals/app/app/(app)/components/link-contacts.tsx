@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Label, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { RELATION_TYPES } from "../../domains/account/lib/health";
 import type { ContactNode } from "../../domains/account/lib/health";
-import { DECISION_ROLE_LABEL, RELATION_ERROR, RELATION_TEXT, RELATION_TYPE_LABEL } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // Recording a path to the buyer.
 //
@@ -29,7 +29,19 @@ export interface LinkContactsProps {
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink }: LinkContactsProps) {
+export function LinkContacts({
+  accountId,
+  contacts,
+  canLink,
+  unreachable,
+  onLink,
+}: LinkContactsProps) {
+  const {
+    DECISION_ROLE_LABEL,
+    RELATION_ERROR,
+    RELATION_TEXT,
+    RELATION_TYPE_LABEL,
+  } = useMessages();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [type, setType] = useState<string>("reports_to");
@@ -37,8 +49,10 @@ export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  if (!canLink) return <StatusBadge tone="neutral">{RELATION_TEXT.readOnly}</StatusBadge>;
-  if (contacts.length < 2) return <StatusBadge tone="neutral">{RELATION_TEXT.needTwo}</StatusBadge>;
+  if (!canLink)
+    return <StatusBadge tone="neutral">{RELATION_TEXT.readOnly}</StatusBadge>;
+  if (contacts.length < 2)
+    return <StatusBadge tone="neutral">{RELATION_TEXT.needTwo}</StatusBadge>;
 
   const label = (c: ContactNode) =>
     `${c.id} (${DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole})`;
@@ -47,8 +61,13 @@ export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink
     setError(null);
     setSaved(false);
     startTransition(() => {
-      void onLink(accountId, { fromContactId: from, toContactId: to, relationType: type }).then((r) => {
-        if (!r.ok) setError(RELATION_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+      void onLink(accountId, {
+        fromContactId: from,
+        toContactId: to,
+        relationType: type,
+      }).then((r) => {
+        if (!r.ok)
+          setError(RELATION_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
         else {
           setSaved(true);
           setFrom("");
@@ -61,10 +80,17 @@ export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink
   return (
     <div>
       <p>{RELATION_TEXT.description}</p>
-      {unreachable ? <StatusBadge tone="info">{RELATION_TEXT.hintUnreachable}</StatusBadge> : null}
+      {unreachable ? (
+        <StatusBadge tone="info">{RELATION_TEXT.hintUnreachable}</StatusBadge>
+      ) : null}
 
       <Label htmlFor="rel-from">{RELATION_TEXT.from}</Label>
-      <NativeSelect id="rel-from" value={from} onChange={(e) => setFrom(e.target.value)} disabled={pending}>
+      <NativeSelect
+        id="rel-from"
+        value={from}
+        onChange={(e) => setFrom(e.target.value)}
+        disabled={pending}
+      >
         <option value="">{RELATION_TEXT.pick}</option>
         {contacts.map((c) => (
           <option key={c.id} value={c.id}>
@@ -74,7 +100,12 @@ export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink
       </NativeSelect>
 
       <Label htmlFor="rel-type">{RELATION_TEXT.type}</Label>
-      <NativeSelect id="rel-type" value={type} onChange={(e) => setType(e.target.value)} disabled={pending}>
+      <NativeSelect
+        id="rel-type"
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        disabled={pending}
+      >
         {RELATION_TYPES.map((t) => (
           <option key={t} value={t}>
             {RELATION_TYPE_LABEL[t] ?? t}
@@ -83,7 +114,12 @@ export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink
       </NativeSelect>
 
       <Label htmlFor="rel-to">{RELATION_TEXT.to}</Label>
-      <NativeSelect id="rel-to" value={to} onChange={(e) => setTo(e.target.value)} disabled={pending}>
+      <NativeSelect
+        id="rel-to"
+        value={to}
+        onChange={(e) => setTo(e.target.value)}
+        disabled={pending}
+      >
         <option value="">{RELATION_TEXT.pick}</option>
         {/* The same person on both ends is refused by the rule AND by a CHECK
             constraint; leaving it out of the list keeps the form from offering
@@ -97,12 +133,17 @@ export function LinkContacts({ accountId, contacts, canLink, unreachable, onLink
           ))}
       </NativeSelect>
 
-      <Button onClick={submit} disabled={pending || from === "" || to === "" || from === to}>
+      <Button
+        onClick={submit}
+        disabled={pending || from === "" || to === "" || from === to}
+      >
         {RELATION_TEXT.submit}
       </Button>
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-      {saved ? <StatusBadge tone="success">{RELATION_TEXT.saved}</StatusBadge> : null}
+      {saved ? (
+        <StatusBadge tone="success">{RELATION_TEXT.saved}</StatusBadge>
+      ) : null}
     </div>
   );
 }

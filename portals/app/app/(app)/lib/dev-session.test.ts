@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { devRole, devSessionEnabled, resolveDevSession, type EnvLike } from "./dev-session";
+import {
+  devRole,
+  devSessionEnabled,
+  resolveDevSession,
+  type EnvLike,
+} from "./dev-session";
 import { ROLE_PERMISSIONS, permissionsForRoles } from "../../authz/catalog";
 
 // The guard, not the convenience.
@@ -19,7 +24,7 @@ test("absent means OFF", () => {
   assert.equal(devSessionEnabled({ NODE_ENV: "development" }), false);
 });
 
-test("only the literal \"on\" counts", () => {
+test('only the literal "on" counts', () => {
   // A truthy-string check would make YUCER_DEV_SESSION=off turn it ON, which is
   // the single most embarrassing way for a switch like this to fail.
   for (const v of ["true", "1", "yes", "ON", "On", "off", "false", ""]) {
@@ -55,7 +60,11 @@ test("the three conditions are independent - no single mistake opens it", async 
   ];
   for (const env of breaks) {
     assert.equal(devSessionEnabled(env), false, JSON.stringify(env));
-    assert.equal(await resolveDevSession(env), null, "and no session is produced");
+    assert.equal(
+      await resolveDevSession(env),
+      null,
+      "and no session is produced",
+    );
   }
 });
 
@@ -89,13 +98,17 @@ test("a role outside the catalog falls back rather than inventing one", async ()
   assert.ok(s);
   assert.deepEqual(s.authz.roles, ["sales_leader"]);
   assert.ok(
-    [...s.authz.permissions].every((p) => ROLE_PERMISSIONS.sales_leader.includes(p)),
+    [...s.authz.permissions].every((p) =>
+      ROLE_PERMISSIONS.sales_leader.includes(p),
+    ),
     "every permission must come from the catalog",
   );
 });
 
 test("every catalog role can be selected, so the gates can be seen from each side", async () => {
-  for (const role of Object.keys(ROLE_PERMISSIONS) as Array<keyof typeof ROLE_PERMISSIONS>) {
+  for (const role of Object.keys(ROLE_PERMISSIONS) as Array<
+    keyof typeof ROLE_PERMISSIONS
+  >) {
     const s = await resolveDevSession({ ...ON, YUCER_DEV_ROLE: role });
     assert.ok(s, `${role} produced no session`);
     assert.deepEqual(s.authz.roles, [role]);
@@ -111,7 +124,11 @@ test("the entitlement comes from the resolver, not from a literal", async () => 
     const s = await resolveDevSession(ON);
     assert.ok(s);
     assert.equal(s.entitlement.tier, "free");
-    assert.equal(s.entitlement.workspace_id, s.workspaceId, "scoped to the same workspace");
+    assert.equal(
+      s.entitlement.workspace_id,
+      s.workspaceId,
+      "scoped to the same workspace",
+    );
   } finally {
     if (saved === undefined) delete process.env.MOCK_TIER;
     else process.env.MOCK_TIER = saved;
@@ -123,5 +140,8 @@ test("the workspace id is a real uuid shape, because it is the isolation key", a
   // like "dev" would fail at the database boundary in a confusing way.
   const s = await resolveDevSession(ON);
   assert.ok(s);
-  assert.match(s.workspaceId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  assert.match(
+    s.workspaceId,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
 });

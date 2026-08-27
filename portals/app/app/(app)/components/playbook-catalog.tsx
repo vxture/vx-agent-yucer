@@ -1,6 +1,6 @@
 import { EmptyState, PanelCard, Section, StatusBadge } from "@vxture/design-ui";
-import { PLAYBOOK_SCOPE_LABEL, PLAYBOOK_TEXT } from "../lib/messages";
 
+import { getMessages } from "../lib/i18n/server";
 // The plays the agent is grounded on.
 //
 // This panel exists because grounding is otherwise INVISIBLE. Workspace-authored
@@ -29,11 +29,21 @@ export interface PlaybookCatalogProps {
   readonly maxPerTurn: number;
 }
 
-export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps) {
+export async function PlaybookCatalog({
+  playbooks,
+  maxPerTurn,
+}: PlaybookCatalogProps) {
+  const { PLAYBOOK_SCOPE_LABEL, PLAYBOOK_TEXT } = await getMessages();
   if (playbooks.length === 0) {
     return (
-      <Section title={PLAYBOOK_TEXT.title} description={PLAYBOOK_TEXT.description}>
-        <EmptyState title={PLAYBOOK_TEXT.emptyTitle} description={PLAYBOOK_TEXT.emptyDescription} />
+      <Section
+        title={PLAYBOOK_TEXT.title}
+        description={PLAYBOOK_TEXT.description}
+      >
+        <EmptyState
+          title={PLAYBOOK_TEXT.emptyTitle}
+          description={PLAYBOOK_TEXT.emptyDescription}
+        />
       </Section>
     );
   }
@@ -45,7 +55,11 @@ export function PlaybookCatalog({ playbooks, maxPerTurn }: PlaybookCatalogProps)
       // The bound is part of the contract, not an implementation detail: a
       // reader who sees eight plays listed would otherwise assume all eight
       // shape every answer.
-      action={<StatusBadge tone="neutral">{PLAYBOOK_TEXT.grounding(maxPerTurn)}</StatusBadge>}
+      action={
+        <StatusBadge tone="neutral">
+          {PLAYBOOK_TEXT.grounding(maxPerTurn)}
+        </StatusBadge>
+      }
     >
       {playbooks.map((p) => (
         <PanelCard
