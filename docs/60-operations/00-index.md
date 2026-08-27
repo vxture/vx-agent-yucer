@@ -20,7 +20,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
-| TD-011 | DS 的 Section 用 jsx 而非 jsxs 渲染 children，多孩子必报 key 警告 | 2026-08-25 | open |
+| TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -237,39 +237,54 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 
 **恢复条件**：规则层改为结构化理由，界面层删除本条的权宜渲染。
 
-### TD-011 - DS 的 `Section` 用 `jsx` 渲染 children，多孩子必报 key 警告
+### TD-011 - `/account/[id]` 的 key 警告 —— 一次把根因推给上游的误判
+
+**已关闭 2026-08-25。修复在本仓，两行。**
 
 **症状**：`/account/[id]` 开发期报
 `Each child in a list should have a unique "key" prop. Check the render method
 of 'Section'. It was passed a child from AccountDetailPage.`
-指认的那个「孩子」是 `page.tsx:231` 的 `<LinkContacts>` —— 一个**作为 prop 传给
-`DecisionChain`、再由它放进 `Section` 的元素**。给它加 key 没有意义，它不在任何
-调用方写的数组里。
+指认的「孩子」是页面里的 `<LinkContacts>` —— 一个作为 prop 传给 `DecisionChain`、
+再由它放进 `Section` 的元素。
 
-**根因在 DS**（`design-ui@6.0.0`，`chunk-QPS4MEVI.mjs:1253`）：
+**警告本身指不出正确的位置。** 它报出两个组件：接住 children 的那个（`Section`）
+和创建元素的那个（`AccountDetailPage`）。真正**把 children 拼成数组**的那一层
+（`DecisionChain`）一个字都没被提到。本条最初据此把根因写成 DS 的
+`Section` 用了 `jsx` 而非 `jsxs`，并断言「24 个组件文件全部命中」。**这是错的。**
 
-```js
-/* Section 的实现 */
-jsx("div", { className: "flex flex-col gap-md", children })
+**证伪（消费端做的对照组）**：
+
+| 对照组 | 结果 |
+|--------|------|
+| 静态多孩子 → `Section` | 不报警 |
+| 中间层拼数组 → `Section` | 报警 |
+| 中间层拼数组 → 裸 `<div>` | **同样报警**，DS 不在链路里 |
+| 中间层改用带 key 的 Fragment → `Section` | 不报警 |
+
+第三组决定了结论：换掉 DS 组件，警告原样出现。所谓「一行修复」也不存在 ——
+DS 源码写的是 `{children}`，`jsx` 与 `jsxs` 由编译器按调用点的字面孩子选择，
+不是 DS 能改的一个字符。
+
+**真实根因**：`DecisionChain` 的 `Section` 有六个孩子，其中五个写在本文件里，
+第六个 `linkForm` 是页面创建后传进来的。缺 key 的是这一个，而 `DecisionChain`
+是唯一有资格给它 key 的地方。
+
+**修法**（`portals/app/app/(app)/components/decision-chain.tsx`，两处返回各一行）：
+
+```tsx
+{linkForm ? <Fragment key="link-form">{linkForm}</Fragment> : null}
 ```
 
-用的是 **`jsx`**（单孩子变体）而不是 **`jsxs`**（静态数组变体）。
+**为什么不能压**：`Section` 里紧挨着的四个兄弟都是条件渲染。少一个，后面的就落进
+更早的下标，React 按下标复用实例，state 会串到另一个兄弟身上。实测：改动前
+A:0 / B:3，A 消失后 B:0 —— B 的状态被 A 的实例带走了。稳定 key 挡的是这个；
+控制台安静只是副作用。`Children.toArray`、外包一层 `<div>`、以及本条原先写的
+「24 个文件各包一层」的绕法，都是把这个缺陷藏起来。
 
-调用方写 `<Section>{a}{b}{c}</Section>` 时，编译器发出
-`jsxs(Section, { children: [a,b,c] })` —— 这一层是静态的、不报警。但 `Section`
-把同一个数组转手交给 **`jsx`**，React 就无法知道它是静态的，于是逐项校验 key，
-并且**归咎于每个元素的创建者**——所以警告指着 `AccountDetailPage`。
-
-**`jsxs` 存在的唯一理由就是标记「这个数组是静态的」。** 这里少用了那个变体。
-
-**影响面**：本仓 24 个组件文件用到 `Section`，**任何给它多个孩子的调用点都会命中**。
-只是 React 按组件类型去重，一次只显示一条，所以看起来像个别页面的问题。
-
-**不在产品侧绕**：绕法是把每个多孩子 `Section` 的内容包进一个 `<div>` 或
-Fragment，让它只收一个孩子 —— 24 个文件里加一层无意义的包裹节点，为的是抵消一个
-上游一个字符的疏漏。**这会把 DS 的缺陷变成产品的形状。**
-
-**恢复条件**：DS 把那一处 `jsx` 改成 `jsxs`（或显式包裹）。改完删除本条。
+**留下的规矩**（比这条债本身更值钱）：**说「根因在上游」之前，先造一个不含上游的
+对照组。** 本条的原始版本从产物（编译后的 `jsx(...)` 调用）反推机制，没有做这一步，
+于是把自己的缺陷写成了别人的。DS 侧已把同一条判据写进 `docs/070-audit-playbook.md`
+§1.4，并在 PR #21 里让 key 警告直接判测试失败。
 
 ### TD-002 - 产品界面文案违反 source ASCII-only 规则
 
@@ -313,6 +328,31 @@ Fragment，让它只收一个孩子 —— 24 个文件里加一层无意义的�
 `CLAUDE.md` 明确规定「标准的缺口先在平台仓修，不得在产品仓内自造标准」，所以这里
 **只登记，不裁定**。在裁定之前，收敛状态维持不变：新增中文文本只能进入上表已列出的
 文件，不得散落到第三处。
+
+**2026-08-26 补记 —— 收敛更紧了一格，债本身没变。**
+
+这一天把 16 个组件从「直接 import `messages.ts`」改成走字典
+（`useMessages()` / `getMessages()`），并把 `lib/ds-labels.ts`（传给 DS 的那组
+文案：`取消` / `更多操作` / `重置筛选` / `已选择 {count} {noun}`）整组并入
+`messages.ts`，原文件删除。于是含中文的 source 文件从**四个回到三个**，上表不变。
+
+顺带修掉的是一个此前看不见的缺陷：`ds-labels.ts` 和那 16 个组件用的都是
+**模块级常量**。模块级常量在 import 时求值，等于把第一个加载的语言冻住发给之后
+所有读者——所以在字典里补英文是不生效的，详情页无论如何都是中文。**接线是一半，
+翻译是另一半**，此前只做了后一半。
+
+覆盖率现在可机器校验，两条 grep：
+
+```
+grep -c "^export \(const\|function\) " messages.ts      # 分母 67
+grep -c "^  [A-Za-z_]*: [{([]"          messages.en.ts    # 分子 65
+```
+
+差的两条是 `PREVIEW_FIXTURES` / `PREVIEW_TEXT`，属于 `/product-preview`——按构造钉
+在 zh-CN 的夹具页，是演示数据不是产品文案，不计入。
+
+**本条债不因此关闭**：两份字典仍在 source 树里，偿还条件（平台仓开口子，或文案移出
+source 树）一条都没满足。变的只是收敛质量——中文的落点更少、更可数。
 
 
 ### TD-003 - 逾期承诺扫描的读后写竞态
