@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, Stack } from "@vxture/design-ui";
 import { ShellBrand } from "@vxture/design-system";
-import { SHELL_TEXT, SIGNIN_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // The product's front door.
 //
@@ -32,6 +32,8 @@ import { SHELL_TEXT, SIGNIN_TEXT } from "../lib/messages";
 // auth surfaces are to be rebuilt with utility classes.
 
 export function SignIn() {
+  const { SHELL_TEXT, SIGNIN_TEXT } = useMessages();
+
   // Built client-side because a server layout cannot see the path. Starts as
   // the bare route so the markup is a real link before hydration and with JS
   // off - the returnTo is an upgrade, never a precondition for signing in.

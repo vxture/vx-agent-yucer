@@ -1,5 +1,5 @@
 import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
-import { RECENCY_TEXT } from "../lib/messages";
+import { getMessages } from "../lib/i18n/server";
 import type { ChainRecency } from "../../domains/account/lib/health";
 import type { ContactNode } from "../../domains/account/lib/health";
 
@@ -20,7 +20,11 @@ export interface ChainRecencyProps {
   readonly nameOf: (contact: ContactNode) => string;
 }
 
-export function ChainRecencyPanel({ recency, nameOf }: ChainRecencyProps) {
+export async function ChainRecencyPanel({
+  recency,
+  nameOf,
+}: ChainRecencyProps) {
+  const { RECENCY_TEXT } = await getMessages();
   const { warm, cold, unrecorded, warmPathToEconomic, windowDays } = recency;
 
   if (warm.length === 0 && cold.length === 0 && unrecorded.length === 0) {

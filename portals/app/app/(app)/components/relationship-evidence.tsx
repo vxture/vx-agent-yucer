@@ -1,5 +1,5 @@
 import { MetricGrid, Section, type MetricGridItem } from "@vxture/design-ui";
-import { FIELD_TEXT } from "../lib/messages";
+import { getMessages } from "../lib/i18n/server";
 import type { RelationshipEvidence as Evidence } from "../../domains/account/field-service";
 
 // What the evidence plane says about one relationship.
@@ -21,10 +21,11 @@ export interface RelationshipEvidenceProps {
 
 const DAY = 86_400_000;
 
-export function RelationshipEvidencePanel({
+export async function RelationshipEvidencePanel({
   evidence,
   now,
 }: RelationshipEvidenceProps) {
+  const { FIELD_TEXT } = await getMessages();
   const at = now ?? new Date();
   const { lastContactAt, reliability, interactionCount } = evidence;
 

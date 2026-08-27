@@ -33,7 +33,6 @@ import {
   formatMoneyCompact,
   probabilityDisplay,
 } from "../lib/view-model";
-import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
 import { useLocale, useMessages } from "../lib/i18n/provider";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
@@ -68,8 +67,13 @@ export function PipelineBoard({
   loading,
   readOnly,
 }: PipelineBoardProps) {
-  const { DATA_TABLE_LABELS, FORECAST_LABEL, PIPELINE_TEXT, STAGE_LABEL } =
-    useMessages();
+  const {
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    FORECAST_LABEL,
+    PIPELINE_TEXT,
+    STAGE_LABEL,
+  } = useMessages();
   // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
   // anything, so every figure in the product was formatted Chinese-style
   // whatever the reader's locale. Threading it here fixes this page; the
@@ -277,7 +281,7 @@ export function PipelineBoard({
                    this table is eight columns before the actions. */
                 rowActions={(row) => (
                   <ActionMenu
-                    label={ACTION_MENU_LABEL}
+                    label={DS_LABELS.actionMenu}
                     items={[
                       {
                         id: "open",
@@ -303,7 +307,7 @@ export function PipelineBoard({
                     }
                     actions={
                       <ActionMenu
-                        label={ACTION_MENU_LABEL}
+                        label={DS_LABELS.actionMenu}
                         items={[
                           {
                             id: "open",

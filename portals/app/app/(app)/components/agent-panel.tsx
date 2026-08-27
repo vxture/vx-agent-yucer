@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState, useTransition } from "react";
 import {
   Avatar,
@@ -66,6 +68,22 @@ export function AgentPanel({
           <span className="text-muted-foreground ml-auto text-xs tabular-nums">
             {BOARD_TEXT.agentScope(data.scanned)}
           </span>
+
+          {/* THE WAY INTO THE FULL CONVERSATION, and the only one.
+
+              The copilot has no entry in the domain launcher on purpose - it
+              is not a place you go, it is the thing that reads the record and
+              puts what it wants decided in front of you. But the full thread
+              is a real page, and with the menu entry gone this is where it has
+              to be reachable from: beside the assistant you are already
+              talking to, not in a list of business domains it does not belong
+              to. Without this the page is orphaned, which is what
+              functional-domains.test.ts asserts against. */}
+          <Button asChild variant="ghost" size="sm" className="-mr-xs">
+            <Link href="/copilot" aria-label={BOARD_TEXT.openThread}>
+              <Icon name="chat-circle" size="xs" />
+            </Link>
+          </Button>
         </div>
 
         {canRecord ? (

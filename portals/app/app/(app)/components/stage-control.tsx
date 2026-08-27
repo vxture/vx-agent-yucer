@@ -19,11 +19,7 @@ import {
   isProbabilityOverridden,
   type Stage,
 } from "../../domains/pipeline/lib/stage";
-import {
-  OPPORTUNITY_ERROR,
-  OPPORTUNITY_TEXT,
-  STAGE_LABEL,
-} from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // Moving a deal, with the rule visible before the click rather than after it.
 //
@@ -61,6 +57,7 @@ export function StageControl({
   canAdvance,
   onAdvance,
 }: StageControlProps) {
+  const { OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, STAGE_LABEL } = useMessages();
   const closed = isTerminal(stage);
   const [reopen, setReopen] = useState(false);
   const [to, setTo] = useState<Stage | "">("");

@@ -11,7 +11,7 @@ import {
   Textarea,
 } from "@vxture/design-ui";
 import { INTERACTION_CHANNELS } from "../../domains/account/lib/commitment";
-import { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // Capture.
 //
@@ -62,6 +62,7 @@ export function RecordFollowUp({
   canRecord,
   onRecord,
 }: RecordFollowUpProps) {
+  const { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } = useMessages();
   const [note, setNote] = useState("");
   const [channel, setChannel] = useState<string>("meeting");
   const [occurredAt, setOccurredAt] = useState(localNow());

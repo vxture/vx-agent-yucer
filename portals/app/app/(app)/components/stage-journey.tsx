@@ -1,6 +1,6 @@
 import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import type { Stage } from "../../domains/pipeline/lib/stage";
-import { OPPORTUNITY_TEXT, STAGE_LABEL } from "../lib/messages";
+import { getMessages } from "../lib/i18n/server";
 import { STAGE_TONE } from "../lib/view-model";
 
 // The stage journal, oldest first.
@@ -35,7 +35,8 @@ function daysBetween(from: Date, to: Date): number {
   return Math.max(0, Math.round((to.getTime() - from.getTime()) / DAY));
 }
 
-export function StageJourney({ events, now }: StageJourneyProps) {
+export async function StageJourney({ events, now }: StageJourneyProps) {
+  const { OPPORTUNITY_TEXT, STAGE_LABEL } = await getMessages();
   if (events.length === 0) {
     return (
       <Section

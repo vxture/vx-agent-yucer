@@ -15,7 +15,6 @@ import {
 import { TableCard } from "./table-card";
 import type { LeadRecord } from "../../domains/signal/store";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_MENU_LABEL, CONFIRM_LABELS } from "../lib/ds-labels";
 import { confidenceTone } from "../lib/view-model";
 import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
@@ -46,8 +45,13 @@ export function LeadList({
   canConvert,
   onAct,
 }: LeadListProps) {
-  const { DATA_TABLE_LABELS, LEAD_STATUS_LABEL, LEAD_TEXT, PIPELINE_TEXT } =
-    useMessages();
+  const {
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    LEAD_STATUS_LABEL,
+    LEAD_TEXT,
+    PIPELINE_TEXT,
+  } = useMessages();
 
   // Built here rather than at module scope: it is made OF copy, and copy now
   // depends on the request's locale. A module-level map would have frozen one
@@ -155,7 +159,7 @@ export function LeadList({
 
     return (
       <ActionMenu
-        label={ACTION_MENU_LABEL}
+        label={DS_LABELS.actionMenu}
         disabled={busy}
         items={[
           {
@@ -210,7 +214,9 @@ export function LeadList({
               verb: LEAD_TEXT.disqualify,
               target: LEAD_TEXT.disqualifyTarget(row.companyName),
               consequence: LEAD_TEXT.disqualifyConsequence,
-              ...CONFIRM_LABELS,
+              titleTemplate: DS_LABELS.confirmTitleTemplate,
+              cancelLabel: DS_LABELS.confirmCancel,
+              pendingLabel: DS_LABELS.confirmPending,
               onConfirm: () => act(row.id, "disqualify"),
             },
           },

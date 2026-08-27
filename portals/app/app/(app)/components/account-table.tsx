@@ -19,7 +19,6 @@ import type { AccountRecord } from "../../domains/account/store";
 import { recomputeAccountHealth } from "../account/actions";
 import { healthTone } from "../lib/view-model";
 import { TableCard } from "./table-card";
-import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
 import { useMessages } from "../lib/i18n/provider";
 // The account list's table.
@@ -47,7 +46,7 @@ export interface AccountTableProps {
 }
 
 export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
-  const { DATA_TABLE_LABELS, ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT } =
+  const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS } =
     useMessages();
   const router = useRouter();
   const { toast } = useToast();
@@ -91,7 +90,7 @@ export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
   function actions(row: AccountRecord) {
     return (
       <ActionMenu
-        label={ACTION_MENU_LABEL}
+        label={DS_LABELS.actionMenu}
         disabled={pending && busyId === row.id}
         items={[
           {

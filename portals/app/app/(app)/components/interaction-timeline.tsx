@@ -8,7 +8,7 @@ import {
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
-import { CHANNEL_LABEL, FIELD_TEXT } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // What actually happened, newest first.
 //
@@ -46,6 +46,7 @@ export function InteractionTimeline({
   items,
   limit,
 }: InteractionTimelineProps) {
+  const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
   // Expands IN PLACE rather than opening a page. A note is read in the context
   // of the account it belongs to, and a route that shows the same notes without

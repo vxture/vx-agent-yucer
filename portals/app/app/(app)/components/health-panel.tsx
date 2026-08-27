@@ -9,8 +9,7 @@ import {
   type MetricGridItem,
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
-import { CHAIN_TEXT } from "../lib/messages";
-import { healthReasonText } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 import { healthTone } from "../lib/view-model";
 
 // Account health, with its reasons.
@@ -22,13 +21,6 @@ import { healthTone } from "../lib/view-model";
 //
 // "This account is at 34" is not actionable. "No contact for 48 days, one
 // overdue instalment, delivery amber" is.
-
-const FACTOR_LABEL: Record<string, string> = {
-  pipeline: CHAIN_TEXT.factorPipeline,
-  recency: CHAIN_TEXT.factorRecency,
-  delivery: CHAIN_TEXT.factorDelivery,
-  collections: CHAIN_TEXT.factorCollections,
-};
 
 export interface HealthPanelProps {
   readonly accountId: string;
@@ -45,6 +37,20 @@ export function HealthPanel({
   canRecompute,
   onRecompute,
 }: HealthPanelProps) {
+  const { CHAIN_TEXT, healthReasonText } = useMessages();
+
+  // INSIDE the component, not at module scope. It was a module constant, which
+  // reads as the cheaper thing to do - build the map once - and is wrong the
+  // moment the labels come from a dictionary: a module constant is evaluated
+  // when the file is imported, so it would freeze whichever locale happened to
+  // load first and hand every later reader that one.
+  const FACTOR_LABEL: Record<string, string> = {
+    pipeline: CHAIN_TEXT.factorPipeline,
+    recency: CHAIN_TEXT.factorRecency,
+    delivery: CHAIN_TEXT.factorDelivery,
+    collections: CHAIN_TEXT.factorCollections,
+  };
+
   const [current, setCurrent] = useState(health);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

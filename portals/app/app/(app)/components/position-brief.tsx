@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge, Card, SectionHeader, StatusBadge } from "@vxture/design-ui";
-import { POSITION_TEXT } from "../lib/messages";
+import { getMessages } from "../lib/i18n/server";
 import { LEVEL_INK } from "../lib/view-model";
 
 // The position: an opportunity read as a pursuit rather than a record.
@@ -53,13 +53,14 @@ export interface PositionBriefProps {
   readonly proposals: readonly PositionProposal[];
 }
 
-export function PositionBrief({
+export async function PositionBrief({
   chain,
   projects,
   rivalMentions,
   problems,
   proposals,
 }: PositionBriefProps) {
+  const { POSITION_TEXT } = await getMessages();
   return (
     <div className="flex flex-col gap-md">
       {/* ---- The other side ------------------------------------------------ */}

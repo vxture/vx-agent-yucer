@@ -18,11 +18,7 @@ import {
   isTerminal,
   type Stage,
 } from "../../domains/pipeline/lib/stage";
-import {
-  FORECAST_LABEL,
-  OPPORTUNITY_ERROR,
-  OPPORTUNITY_TEXT,
-} from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // What the deal is worth, and how sure we are.
 //
@@ -73,6 +69,7 @@ export function DealTerms({
   canCategorize,
   onSave,
 }: DealTermsProps) {
+  const { FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } = useMessages();
   const closed = isTerminal(stage);
   const initial = {
     amount: amount == null ? "" : String(amount),

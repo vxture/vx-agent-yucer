@@ -62,7 +62,8 @@ export function MemberRoles({
   onGrant,
   onRevoke,
 }: MemberRolesProps) {
-  const { MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } = useMessages();
+  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -223,6 +224,11 @@ export function MemberRoles({
         />
       ) : (
         <DataTable
+          /* Every DS copy outlet must be passed - the fallbacks are English
+               and exist so a missed prop renders something legible, not so
+               anyone can rely on them. This table shipped with an "Actions"
+               column header in a Chinese interface. */
+          labels={DATA_TABLE_LABELS}
           leadingSpacer
           indexStart={1}
           columns={columns}

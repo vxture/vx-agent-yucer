@@ -15,12 +15,7 @@ import {
   COMMITMENT_DIRECTIONS,
   isOverdue,
 } from "../../domains/account/lib/commitment";
-import {
-  COMMIT_STATUS_LABEL,
-  DIRECTION_LABEL,
-  FIELD_ERROR,
-  FIELD_TEXT,
-} from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -90,6 +85,8 @@ export function CommitmentList({
   onCreate,
   onSettle,
 }: CommitmentListProps) {
+  const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
+    useMessages();
   const at = now ?? new Date();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

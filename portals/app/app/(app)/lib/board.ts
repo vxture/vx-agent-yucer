@@ -24,6 +24,10 @@ import { listProjects } from "../../domains/delivery/service";
 import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
+import {
+  listOpportunityLines,
+  listProducts as listCatalogProducts,
+} from "../../domains/catalog/service";
 import { judgementFeed } from "../../domains/judgement/service";
 import { rollUp } from "../../domains/pipeline/lib/forecast";
 import {
@@ -187,8 +191,8 @@ export async function boardSections(
     leads,
     projects,
     playbooks,
-    lines,
-    catalogue,
+    lineResult,
+    catalogueResult,
   ] = await Promise.all([
     cachedFeed(base),
     listPipeline({ ...base, store: getPipelineStore() }),
@@ -205,9 +209,19 @@ export async function boardSections(
     listLeads({ ...base, store: getSignalStore() }),
     listProjects({ ...base, store: getDeliveryStore() }),
     listPlaybooks({ ...base, store: getCopilotStore() }),
-    getCatalogStore().allLines(ctx.workspaceId),
-    getCatalogStore().listProducts(ctx.workspaceId),
+    // THROUGH THE SERVICE, like every sibling on this list. These two were the
+    // only reads on the board holding a store handle directly, which skips both
+    // gates - and a board is the one surface where that is easiest to miss,
+    // because every card is a number rather than a page you notice opening.
+    listOpportunityLines({ ...base, store: getCatalogStore() }),
+    listCatalogProducts({ ...base, store: getCatalogStore() }),
   ]);
+
+  // Gate-aware now that these go through the service. A refused read degrades
+  // to an empty card, which is what every other card on this board already
+  // does - the board reports what you may see, and says nothing about the rest.
+  const lines = lineResult.ok ? lineResult.value : [];
+  const catalogue = catalogueResult.ok ? catalogueResult.value : [];
 
   // Open deals only, and their value. "How many deals exist" is a database
   // fact; "what is still in play and what is it worth" is the question someone

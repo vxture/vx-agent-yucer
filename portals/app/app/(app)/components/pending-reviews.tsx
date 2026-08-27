@@ -21,13 +21,8 @@ import {
 } from "@vxture/design-ui";
 import { TableCard } from "./table-card";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
-import {
-  PIPELINE_TEXT,
-  WINLOSS_REASON_LABEL,
-  WINLOSS_TEXT,
-} from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
-import { ACTION_MENU_LABEL } from "../lib/ds-labels";
 
 // Closed deals still owing a post-mortem.
 //
@@ -79,6 +74,13 @@ export function PendingReviews({
   canRecord,
   onRecord,
 }: PendingReviewsProps) {
+  const {
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    PIPELINE_TEXT,
+    WINLOSS_REASON_LABEL,
+    WINLOSS_TEXT,
+  } = useMessages();
   const [scope, setScope] = useState<"pending" | "all">("pending");
   const [view, setView] = useState<"list" | "cards">("list");
   // Pending is a SUBSET of all, so the two lists share every row object - the
@@ -219,6 +221,11 @@ export function PendingReviews({
         <TableCard>
           {view === "list" ? (
             <DataTable
+              /* Every DS copy outlet must be passed - the fallbacks are English
+               and exist so a missed prop renders something legible, not so
+               anyone can rely on them. This table shipped with an "Actions"
+               column header in a Chinese interface. */
+              labels={DATA_TABLE_LABELS}
               leadingSpacer
               indexStart={1}
               columns={columns}
@@ -231,7 +238,7 @@ export function PendingReviews({
                  where "why is it missing" is not. */
               rowActions={(row) => (
                 <ActionMenu
-                  label={ACTION_MENU_LABEL}
+                  label={DS_LABELS.actionMenu}
                   items={[
                     {
                       id: "record",

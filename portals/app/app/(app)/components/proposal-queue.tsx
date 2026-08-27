@@ -18,7 +18,6 @@ import {
   type Decision,
 } from "../../domains/copilot/lib/action";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
-import { BULK_LABELS } from "../lib/ds-labels";
 
 import { useMessages } from "../lib/i18n/provider";
 // The copilot proposal queue - where a human decides what the agent may do.
@@ -69,10 +68,11 @@ export function ProposalQueue({
   onDecide,
 }: ProposalQueueProps) {
   const {
-    DATA_TABLE_LABELS,
     ACTION_STATUS_LABEL,
     AGENT_ACTION_LABEL,
     AGENT_SUBJECT_LABEL,
+    DATA_TABLE_LABELS,
+    DS_LABELS,
     PROPOSAL_TEXT,
   } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -215,10 +215,10 @@ export function ProposalQueue({
           verified against the bundle rather than the types. */}
       <BulkActionBar
         count={selected.size}
-        noun={BULK_LABELS.noun}
-        selectionTemplate={BULK_LABELS.selectionTemplate}
-        toolbarLabel={BULK_LABELS.toolbarLabel}
-        clearLabel={BULK_LABELS.clearLabel}
+        noun={PROPOSAL_TEXT.selectionNoun}
+        selectionTemplate={DS_LABELS.bulkSelectionTemplate}
+        toolbarLabel={DS_LABELS.bulkToolbar}
+        clearLabel={PROPOSAL_TEXT.clearSelection}
         onClear={() => setSelected(new Set())}
         actions={[
           {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import {
   EmptyState,
   Section,
@@ -13,7 +13,7 @@ import type {
   ChainCoverage,
   ContactNode,
 } from "../../domains/account/lib/health";
-import { CHAIN_TEXT, DECISION_ROLE_LABEL } from "../lib/messages";
+import { useMessages } from "../lib/i18n/provider";
 
 // The decision chain.
 //
@@ -40,6 +40,7 @@ export function DecisionChain({
   contacts,
   linkForm,
 }: DecisionChainProps) {
+  const { CHAIN_TEXT, DECISION_ROLE_LABEL } = useMessages();
   if (contacts.length === 0) {
     return (
       <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
@@ -47,7 +48,7 @@ export function DecisionChain({
           title={CHAIN_TEXT.emptyTitle}
           description={CHAIN_TEXT.emptyDescription}
         />
-        {linkForm}
+        {linkForm ? <Fragment key="link-form">{linkForm}</Fragment> : null}
       </Section>
     );
   }
@@ -128,7 +129,27 @@ export function DecisionChain({
       {/* The action that can change the verdict above, in the place the verdict
           is delivered. Sending a rep elsewhere to fix what this panel just told
           them is how a finding turns into something people learn to ignore. */}
-      {linkForm}
+      {/* A KEYED FRAGMENT, and the key is load-bearing.
+
+          `linkForm` is the one child of this Section created somewhere else -
+          the page builds the element and hands it down as a prop. React reports
+          the component that RECEIVED the children (Section) and the one that
+          CREATED the element (AccountDetailPage), and names neither this file
+          nor this line, which is why the warning read as a Design System defect
+          for a while. It is not: the same warning appears with a bare <div> in
+          Section's place. The layer that assembles the children array is this
+          one, so the key belongs here.
+
+          Measured: with the key, the account detail page reports zero issues;
+          without it, one.
+
+          Do not silence this instead. Children.toArray, or a wrapper element,
+          would hide a real defect - four of the siblings above are conditional,
+          so when one disappears the ones after it shift into earlier indices,
+          React matches by index, and state carries across to a different
+          sibling. A stable key is what prevents that. Quieting the console is
+          a side effect of the fix, not the point of it. */}
+      {linkForm ? <Fragment key="link-form">{linkForm}</Fragment> : null}
     </Section>
   );
 }
