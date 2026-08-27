@@ -191,6 +191,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_catalog.product": ["name", "category", "unit", "status", "updated_at"],
   "yucer_catalog.solution": ["name", "summary", "status", "updated_at"],
   "yucer_catalog.solution_item": ["quantity"],
+  // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table
+  // was insert-only: a price could be entered and never corrected. Prices are
+  // meant to be editable; the anchors (product, currency, workspace) are not.
+  "yucer_catalog.price_book_entry": ["list_price", "floor_price"],
   // opportunity_id and product_id are the line's identity - moving a line to
   // another deal or another product is a different line.
   "yucer_pipeline.opportunity_line": [
@@ -221,7 +225,6 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // A price entry is a point in time. Correcting one means a new effective_at
   // row - editing it would rewrite what the price USED to be, and every past
   // discount approval was judged against that number.
-  "yucer_catalog.price_book_entry",
   // yucer_field, added by incr/0004. Evidence is frozen: a correction is a new
   // row carrying corrects_interaction_id, never an edit of the original.
   "yucer_field.interaction",

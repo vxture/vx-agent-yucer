@@ -1,4 +1,5 @@
 import type { PriceEntryRecord } from "../store";
+import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
 // Pricing and reconciliation - the two rules the catalogue exists to carry.
 // Pure, so both can be tested without a store and without a deal.
@@ -89,4 +90,144 @@ export function byProduct(
     });
   }
   return out;
+}
+
+// --- catalogue writes (batch 6b-1b) -----------------------------------------
+
+export interface ProductDraft {
+  productCode: string;
+  name: string;
+  category: string | null;
+  unit: string;
+  status: "active" | "retired";
+}
+
+/**
+ * A product needs a code, a name and a unit.
+ *
+ * THE UNIT IS NOT DECORATION. Every line multiplies quantity by unit price, so
+ * a product whose unit nobody declared produces a number whose meaning nobody
+ * can state - "10 x 1000" is ten seats or ten days or ten sites, and those are
+ * three different deals. The DDL defaults it to "set", which is a shipping
+ * default, not permission to leave it blank when a person is typing.
+ */
+export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
+  if (!input.productCode.trim()) {
+    return fail(violation("code_required", "a product needs a code", "productCode"));
+  }
+  if (!input.name.trim()) {
+    return fail(violation("name_required", "a product needs a name", "name"));
+  }
+  if (!input.unit.trim()) {
+    return fail(violation("unit_required", "a product needs a unit of sale", "unit"));
+  }
+  return ok({
+    ...input,
+    productCode: input.productCode.trim(),
+    name: input.name.trim(),
+    unit: input.unit.trim(),
+    category: input.category?.trim() || null,
+  });
+}
+
+export interface SolutionDraft {
+  solutionCode: string;
+  name: string;
+  summary: string | null;
+  status: "active" | "retired";
+}
+
+export interface SolutionItemDraft {
+  productId: string;
+  quantity: number;
+}
+
+/**
+ * A solution is a bundle, so it must contain something.
+ *
+ * An empty solution is a name with nothing behind it, and the read service
+ * already treats items as part of what a solution IS. Quantities must be
+ * positive: a zero-quantity item is a product someone meant to remove and
+ * did not, and it would silently contribute nothing to every quote built from
+ * the template.
+ */
+export function planSolution(
+  input: SolutionDraft,
+  items: readonly SolutionItemDraft[],
+): RuleResult<{ solution: SolutionDraft; items: SolutionItemDraft[] }> {
+  if (!input.solutionCode.trim()) {
+    return fail(violation("code_required", "a solution needs a code", "solutionCode"));
+  }
+  if (!input.name.trim()) {
+    return fail(violation("name_required", "a solution needs a name", "name"));
+  }
+  if (items.length === 0) {
+    return fail(
+      violation("items_required", "a solution with no products is a name, not a bundle", "items"),
+    );
+  }
+  const seen = new Set<string>();
+  for (const it of items) {
+    if (!(it.quantity > 0)) {
+      return fail(
+        violation("quantity_positive", `${it.productId} needs a quantity above zero`, "quantity"),
+      );
+    }
+    if (seen.has(it.productId)) {
+      return fail(
+        violation("duplicate_product", `${it.productId} appears twice; use one line with the total`, "productId"),
+      );
+    }
+    seen.add(it.productId);
+  }
+  return ok({
+    solution: {
+      ...input,
+      solutionCode: input.solutionCode.trim(),
+      name: input.name.trim(),
+      summary: input.summary?.trim() || null,
+    },
+    items: [...items],
+  });
+}
+
+export interface PriceDraft {
+  productId: string;
+  currency: string;
+  listPrice: number;
+  floorPrice: number;
+  effectiveAt: Date;
+}
+
+/**
+ * A price entry, and the floor is the whole reason this validation exists.
+ *
+ * `floor > list` is refused because it would make EVERY sale need a signature,
+ * which is the same as having no floor at all - the DDL says so in its own
+ * CHECK and this restates it where the caller can be told why rather than
+ * getting a constraint name.
+ *
+ * A floor EQUAL to list is allowed and is meaningful: it says this product is
+ * not discountable. That is a real commercial position, not a mistake.
+ */
+export function planPrice(input: PriceDraft): RuleResult<PriceDraft> {
+  if (!input.productId) {
+    return fail(violation("product_required", "a price needs a product", "productId"));
+  }
+  if (!input.currency.trim()) {
+    return fail(violation("currency_required", "a price needs a currency", "currency"));
+  }
+  if (input.listPrice < 0 || input.floorPrice < 0) {
+    return fail(violation("amount_negative", "a price cannot be negative", "listPrice"));
+  }
+  if (input.floorPrice > input.listPrice) {
+    return fail(
+      violation(
+        "floor_above_list",
+        "a floor above list price would make every sale need approval, which is the same as having no floor",
+        "floorPrice",
+      ),
+    );
+  }
+  return ok({ ...input, currency: input.currency.trim() });
 }

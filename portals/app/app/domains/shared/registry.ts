@@ -13,6 +13,7 @@ import { seedDemoWorkspace } from "./demo-seed";
 import { InMemoryPipelineStore, type PipelineStore } from "../pipeline/store";
 import { PrismaPipelineStore } from "../pipeline/prisma-store";
 import { InMemoryCatalogStore } from "../catalog/store";
+import { PrismaCatalogStore } from "../catalog/prisma-store";
 import type { CatalogStore } from "../catalog/store";
 import { InMemoryCopilotStore, type CopilotStore } from "../copilot/store";
 import { PrismaCopilotStore } from "../copilot/prisma-store";
@@ -84,7 +85,13 @@ let copilotOverride: CopilotStore | null = null;
 export function getCatalogStore(): CatalogStore {
   if (catalogOverride) return catalogOverride;
   const memo = memoTable();
-  if (!memo.catalog) memo.catalog = new InMemoryCatalogStore();
+  // The catalogue joined the adapter-backed domains on 2026-08-26 (batch
+  // 6b-1b). It ran in-memory only from incr/0007 until then, which is why it
+  // was the last domain whose writes had never been checked against the column
+  // locks.
+  if (!memo.catalog) {
+    memo.catalog = prismaEnabled() ? new PrismaCatalogStore() : new InMemoryCatalogStore();
+  }
   return memo.catalog as CatalogStore;
 }
 

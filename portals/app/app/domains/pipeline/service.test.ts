@@ -5,7 +5,14 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
-import { advanceStage, listPipeline, submitForecast, type PipelineContext } from "./service";
+import { InMemoryCatalogStore } from "../catalog/store";
+import {
+  advanceStage,
+  listPipeline,
+  replaceOpportunityLines,
+  submitForecast,
+  type PipelineContext,
+} from "./service";
 
 const WS = "ws_1";
 
@@ -182,4 +189,109 @@ test("snapshots accumulate rather than replace - that is the whole point", async
 
   const history = await store.listForecastSnapshots(WS, { period: "2026Q3" });
   assert.equal(history.length, 2, "forecast accuracy needs every historical snapshot");
+});
+
+// --- opportunity lines (batch 6b-3, ADR-014 section 2) ----------------------
+//
+// The claim under test is one sentence from ADR-014: WHEN LINES EXIST, THE
+// LINES ARE AUTHORITATIVE and the header equals their sum. It cannot be a DDL
+// constraint - it spans a header and many rows - so it is only true if this
+// service keeps it true, which makes these the tests that hold the rule up.
+
+function catalogWith(floor: number | null): InMemoryCatalogStore {
+  const store = new InMemoryCatalogStore();
+  store.seed({
+    products: [
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", category: null, unit: "seat", status: "active" },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", category: null, unit: "day", status: "active" },
+    ],
+    prices:
+      floor === null
+        ? []
+        : [
+            {
+              id: "e1",
+              workspaceId: WS,
+              productId: "p1",
+              currency: "CNY",
+              listPrice: 1000,
+              floorPrice: floor,
+              effectiveAt: new Date("2026-01-01"),
+            },
+          ],
+  });
+  return store;
+}
+
+function lineCtx(role: RoleCode, tier: Entitlement["tier"], floor: number | null = 800) {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  return { ...ctx(role, tier, store), catalog: catalogWith(floor) };
+}
+
+test("the header becomes the sum of the lines - ADR-014 section 2", async () => {
+  const c = lineCtx("sales_rep", "free");
+  const r = unwrap(
+    await replaceOpportunityLines(c, "opp_1", [
+      { productId: "p1", quantity: 10, unitPrice: 900 },
+      { productId: "p2", quantity: 2, unitPrice: 5000 },
+    ]),
+  );
+  assert.equal(r.amount, 19_000);
+
+  // The header, not just the return value. A function that reported a total it
+  // had not written would pass a test on its own output and leave the two
+  // numbers drifting, which is exactly the accounting this rule exists to stop.
+  const after = await c.store.getOpportunity(WS, "opp_1");
+  assert.equal(after?.amount?.amount, 19_000);
+});
+
+test("needsApproval is computed from the floor, never taken from the caller", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  // 900 is above the 800 floor; 700 is below it.
+  const ok1 = unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 900 }]));
+  assert.equal(ok1.needsApproval, 0);
+
+  const flagged = unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  assert.equal(flagged.needsApproval, 1);
+});
+
+test("an unpriced product is not a discount", async () => {
+  // "Below floor" and "has no floor" are different states. Flagging an unpriced
+  // product would send every new product to approval on its first quote.
+  const c = lineCtx("sales_rep", "free", null);
+  const r = unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 1 }]));
+  assert.equal(r.needsApproval, 0);
+});
+
+test("replacing with no lines leaves the header alone", async () => {
+  const c = lineCtx("sales_rep", "free");
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 10, unitPrice: 900 }]));
+  const r = unwrap(await replaceOpportunityLines(c, "opp_1", []));
+  assert.equal(r.lines, 0);
+
+  // NOT zeroed. Removing every line returns the deal to the legacy shape where
+  // the header stands on its own, and `reconciles` calls that legal - so
+  // writing 0 here would invent a number nobody asked for.
+  const after = await c.store.getOpportunity(WS, "opp_1");
+  assert.equal(after?.amount?.amount, 9_000);
+});
+
+test("a closed deal cannot be repriced", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ closedAt: new Date("2026-07-01"), status: "won", stage: "won" })]);
+  const c = { ...ctx("sales_rep", "free", store), catalog: catalogWith(800) };
+  const r = await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 1 }]);
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.violations[0]!.code, "terminal_stage");
+});
+
+test("a zero quantity is refused before anything is written", async () => {
+  const c = lineCtx("sales_rep", "free");
+  const r = await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 0, unitPrice: 900 }]);
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.violations[0]!.code, "quantity_positive");
+  // Nothing partial: the header is untouched.
+  const after = await c.store.getOpportunity(WS, "opp_1");
+  assert.equal(after?.amount?.amount, 100_000);
 });

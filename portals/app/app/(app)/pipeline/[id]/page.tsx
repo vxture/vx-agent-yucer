@@ -15,13 +15,7 @@ import {
   type MetricGridItem,
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
-import {
-  FORECAST_LABEL,
-  OPPORTUNITY_TEXT,
-  PIPELINE_TEXT,
-  SHELL_TEXT,
-  STAGE_LABEL,
-} from "../../lib/messages";
+import { getMessages } from "../../lib/i18n/server";
 import {
   FORECAST_TONE,
   STAGE_TONE,
@@ -30,6 +24,7 @@ import {
 } from "../../lib/view-model";
 import { can } from "../../../authz/decide";
 import {
+  getCatalogStore,
   getFieldStore,
   getPipelineStore,
 } from "../../../domains/shared/registry";
@@ -50,10 +45,15 @@ import {
 } from "../../../domains/shared/registry";
 import { cachedFeed } from "../../lib/board";
 import { PositionBrief } from "../../components/position-brief";
-import { POSITION_TEXT } from "../../lib/messages";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
+import { LineEditor } from "../../components/line-editor";
+import { saveOpportunityLines } from "../stage-action";
+import {
+  listOpportunityLines,
+  listProducts as listCatalogProducts,
+} from "../../../domains/catalog/service";
 import { StageControl } from "../../components/stage-control";
 import { StageJourney } from "../../components/stage-journey";
 import { RecordFollowUp } from "../../components/record-follow-up";
@@ -63,7 +63,6 @@ import {
   listCommitments,
   listInteractions,
 } from "../../../domains/account/field-service";
-import { CHANNEL_LABEL } from "../../lib/messages";
 import {
   addCommitment,
   recordFollowUp,
@@ -91,6 +90,15 @@ export default async function OpportunityDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const {
+    FORECAST_LABEL,
+    OPPORTUNITY_TEXT,
+    PIPELINE_TEXT,
+    SHELL_TEXT,
+    STAGE_LABEL,
+    POSITION_TEXT,
+    CHANNEL_LABEL,
+  } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
   if (!session) {
@@ -129,21 +137,30 @@ export default async function OpportunityDetailPage({
   // Everything the position brief needs. Each read goes through its domain's
   // own service, so this page cannot show what another page would refuse.
   const accountCtx = { ...ctx, store: getAccountStore() };
-  const [account, chain, projects, feed, proposals] = await Promise.all([
-    getAccountDetail(accountCtx, opportunity.accountId),
-    decisionChain(accountCtx, opportunity.accountId),
-    listProjects(
-      { ...ctx, store: getDeliveryStore() },
-      { accountId: opportunity.accountId },
-    ),
-    cachedFeed({
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-    }),
-    listProposals({ ...ctx, store: getCopilotStore() }, { status: "proposed" }),
-  ]);
+  // The catalogue reads go through the SERVICE, like every other cross-domain
+  // read on this page - a store handle here would skip both gates.
+  const catalogCtx = { ...ctx, store: getCatalogStore() };
+  const [account, chain, projects, feed, proposals, lineRows, productRows] =
+    await Promise.all([
+      getAccountDetail(accountCtx, opportunity.accountId),
+      decisionChain(accountCtx, opportunity.accountId),
+      listProjects(
+        { ...ctx, store: getDeliveryStore() },
+        { accountId: opportunity.accountId },
+      ),
+      cachedFeed({
+        workspaceId: session.workspaceId,
+        sub: session.user.sub,
+        holder: session.authz,
+        entitlement: session.entitlement,
+      }),
+      listProposals(
+        { ...ctx, store: getCopilotStore() },
+        { status: "proposed" },
+      ),
+      listOpportunityLines(catalogCtx),
+      listCatalogProducts(catalogCtx),
+    ]);
   const plan =
     account.ok && account.value.account.tier === "strategic"
       ? await getAccountStore().getAccountPlan(
@@ -434,6 +451,37 @@ export default async function OpportunityDetailPage({
           />
         ) : null}
       </div>
+
+      {/* BEFORE the commercial terms, because the lines DECIDE the amount that
+          the terms panel then shows. Reading them the other way round would put
+          the derived number above the thing it is derived from. */}
+      <LineEditor
+        opportunityId={id}
+        lines={(lineRows.ok ? lineRows.value : [])
+          .filter((l) => l.opportunityId === id)
+          .map((l) => ({
+            productId: l.productId,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            amount: l.amount,
+            needsApproval: l.needsApproval,
+          }))}
+        products={(productRows.ok ? productRows.value : []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          unit: p.unit,
+        }))}
+        canEdit={
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.opportunity.update",
+            "ui",
+          ).allowed
+        }
+        closed={opportunity.closedAt !== null}
+        onSave={saveOpportunityLines}
+      />
 
       <DealTerms
         opportunityId={id}

@@ -69,6 +69,46 @@ export interface CatalogStore {
   listSolutionItems(workspaceId: string, solutionId: string): Promise<SolutionItemRecord[]>;
   /** The entry in force for a product, or null when it is not priced. */
   priceFor(workspaceId: string, productId: string, currency: string): Promise<PriceEntryRecord | null>;
+  /**
+   * Every price entry in the workspace, newest first.
+   *
+   * Separate from priceFor because a price BOOK is a different question from a
+   * price: the book shows what is on offer and at what floor, including the
+   * superseded rows that explain how today's number was arrived at. Fanning
+   * priceFor out over the product list could not produce it - the caller would
+   * have to guess the currencies.
+   */
+  listPrices(workspaceId: string): Promise<PriceEntryRecord[]>;
+
+  // --- writes (batch 6b-1b, ADR-017) ---------------------------------------
+  //
+  // UPSERT BY BUSINESS CODE, not by id. `product_code` and `solution_code` are
+  // the workspace-unique keys the DDL declares, and they are what a person
+  // types; ids are generated. Keying on the code means importing the same
+  // catalogue twice updates rather than duplicating, which is the normal way
+  // catalogues arrive.
+  upsertProduct(
+    workspaceId: string,
+    input: Omit<ProductRecord, "id" | "workspaceId">,
+  ): Promise<ProductRecord>;
+  upsertSolution(
+    workspaceId: string,
+    input: Omit<SolutionRecord, "id" | "workspaceId">,
+    items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
+  ): Promise<SolutionRecord>;
+  /**
+   * A price is APPENDED, never edited in place.
+   *
+   * `effective_at` is part of the unique key, so a new price at a new instant
+   * is a new row and the superseded one stays readable - which is what makes a
+   * price BOOK different from a price. The UPDATE grant on list/floor exists
+   * for correcting a typo in a row that was just written, not for rewriting
+   * history, and this port deliberately does not expose that.
+   */
+  appendPrice(
+    workspaceId: string,
+    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
+  ): Promise<PriceEntryRecord>;
 
   listLines(workspaceId: string, opportunityId: string): Promise<OpportunityLineRecord[]>;
   /** Every line in the workspace, for product-level rollups. */
@@ -121,6 +161,68 @@ export class InMemoryCatalogStore implements CatalogStore {
       .filter((p) => p.workspaceId === workspaceId && p.productId === productId && p.currency === currency)
       .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime());
     return rows[0] ?? null;
+  }
+
+  async upsertProduct(
+    workspaceId: string,
+    input: Omit<ProductRecord, "id" | "workspaceId">,
+  ): Promise<ProductRecord> {
+    const at = this.products.findIndex(
+      (x) => x.workspaceId === workspaceId && x.productCode === input.productCode,
+    );
+    if (at >= 0) {
+      // The code and the workspace are the identity - they are what was matched
+      // on, so they are not among the fields an upsert may move.
+      const next = { ...this.products[at]!, ...input, productCode: this.products[at]!.productCode };
+      this.products[at] = next;
+      return next;
+    }
+    const row: ProductRecord = { id: `prd_${++this.seq}`, workspaceId, ...input };
+    this.products.push(row);
+    return row;
+  }
+
+  async upsertSolution(
+    workspaceId: string,
+    input: Omit<SolutionRecord, "id" | "workspaceId">,
+    items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
+  ): Promise<SolutionRecord> {
+    const at = this.solutions.findIndex(
+      (x) => x.workspaceId === workspaceId && x.solutionCode === input.solutionCode,
+    );
+    let row: SolutionRecord;
+    if (at >= 0) {
+      row = { ...this.solutions[at]!, ...input, solutionCode: this.solutions[at]!.solutionCode };
+      this.solutions[at] = row;
+    } else {
+      row = { id: `sol_${++this.seq}`, workspaceId, ...input };
+      this.solutions.push(row);
+    }
+    // REPLACED WHOLE, like opportunity lines. A solution's contents are a set,
+    // and merging by product id would leave a removed product silently in the
+    // bundle - the caller sent the list it wants, not a patch.
+    this.items = this.items.filter(
+      (i) => !(i.workspaceId === workspaceId && i.solutionId === row.id),
+    );
+    for (const it of items) {
+      this.items.push({ id: `sit_${++this.seq}`, workspaceId, solutionId: row.id, ...it });
+    }
+    return row;
+  }
+
+  async appendPrice(
+    workspaceId: string,
+    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
+  ): Promise<PriceEntryRecord> {
+    const row: PriceEntryRecord = { id: `pbe_${++this.seq}`, workspaceId, ...input };
+    this.prices.push(row);
+    return row;
+  }
+
+  async listPrices(workspaceId: string): Promise<PriceEntryRecord[]> {
+    return this.prices
+      .filter((p) => p.workspaceId === workspaceId)
+      .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime());
   }
 
   async listLines(workspaceId: string, opportunityId: string): Promise<OpportunityLineRecord[]> {
