@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
+import { readFileSync, readdirSync } from "node:fs";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { ddlTables } from "../../../../../scripts/guardrails/check-data-architecture.mjs";
 
 // The DDL, tested against a real Postgres.
 //
@@ -31,41 +35,75 @@ async function withDb<T>(fn: (c: Client) => Promise<T>): Promise<T> {
 
 const WS = "11111111-1111-1111-1111-111111111111";
 
-// --- The lane itself works -------------------------------------------------
+// --- The lane itself works ---------------------------------------------------
 
-test("the DDL applied: every contract and domain schema exists", { skip }, async () => {
+/**
+ * Every table the DDL declares: baseline plus every increment, in the order
+ * db-init.yml applies them. Parsed from the files, not written down here.
+ *
+ * These two tests used to carry the literals `8` and `34` and both had been
+ * wrong for several increments. The schema list never gained yucer_field or
+ * yucer_catalog, so the count query did not even look at the tables incr/0004
+ * and incr/0007 added, and three more had arrived inside the eight schemas it
+ * did look at. Nothing said so, because the only place the truth was written
+ * was a number a person had to remember to bump.
+ *
+ * Deriving it also changes what a failure tells you. `37 !== 34` says a number
+ * moved; a set difference names the table.
+ */
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
+
+function declaredTables(): Set<string> {
+  const incr = join(REPO, "deploy/database/ddl/incr");
+  let sql = readFileSync(join(REPO, "deploy/database/ddl/00_baseline.sql"), "utf8");
+  for (const f of readdirSync(incr)
+    .filter((x) => x.endsWith(".sql"))
+    .sort()) {
+    sql += "\n" + readFileSync(join(incr, f), "utf8");
+  }
+  return ddlTables(sql) as Set<string>;
+}
+
+function declaredSchemas(tables: Set<string>): string[] {
+  return [...new Set([...tables].map((t) => t.split(".")[0]))].sort();
+}
+
+test("the DDL applied: every schema the DDL declares exists", { skip }, async () => {
+  const want = declaredSchemas(declaredTables());
   await withDb(async (c) => {
     const { rows } = await c.query<{ nspname: string }>(
       `SELECT nspname FROM pg_namespace WHERE nspname = ANY($1) ORDER BY 1`,
-      [
-        [
-          "vx_provision",
-          "local_authz",
-          "local_usage",
-          "yucer_core",
-          "yucer_gtm",
-          "yucer_pipeline",
-          "yucer_delivery",
-          "yucer_agent",
-        ],
-      ],
+      [want],
     );
-    assert.equal(rows.length, 8, `missing schemas: ${JSON.stringify(rows.map((r) => r.nspname))}`);
+    assert.deepEqual(
+      rows.map((r) => r.nspname),
+      want,
+    );
   });
 });
 
-test("the data-architecture count is a real table count, not a parse", { skip }, async () => {
-  // The offline guardrail counts 34 tables by parsing SQL text. This asserts the
-  // same number against the database that actually got built.
+test("the built database holds exactly the tables the DDL declares", { skip }, async () => {
+  // The offline guardrail proves DDL == prisma by parsing SQL text. This is the
+  // third reference point: what a real db-init actually built.
+  const want = declaredTables();
   await withDb(async (c) => {
-    const { rows } = await c.query<{ n: string }>(
-      `SELECT count(*)::text AS n FROM information_schema.tables
-       WHERE table_schema IN ('vx_provision','local_authz','local_usage',
-                              'yucer_core','yucer_gtm','yucer_pipeline',
-                              'yucer_delivery','yucer_agent')
-         AND table_type = 'BASE TABLE'`,
+    const { rows } = await c.query<{ t: string }>(
+      `SELECT table_schema || '.' || table_name AS t
+         FROM information_schema.tables
+        WHERE table_schema = ANY($1) AND table_type = 'BASE TABLE'`,
+      [declaredSchemas(want)],
     );
-    assert.equal(Number(rows[0].n), 34);
+    const built = new Set(rows.map((r) => r.t));
+    assert.deepEqual(
+      [...want].filter((t) => !built.has(t)).sort(),
+      [],
+      "declared in the DDL but not built",
+    );
+    assert.deepEqual(
+      [...built].filter((t) => !want.has(t)).sort(),
+      [],
+      "built but not declared in the DDL",
+    );
   });
 });
 
