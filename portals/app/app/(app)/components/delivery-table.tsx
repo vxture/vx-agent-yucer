@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
+  ActionMenu,
+  useToast,
   DataTable,
   EmptyState,
   FilterBar,
@@ -51,16 +53,32 @@ export interface DeliveryRow {
 }
 
 export interface DeliveryTableProps {
+  /** False when the member may read delivery but not change it. */
+  readonly canWrite?: boolean;
+  readonly onReconcile?: (projectId: string) => Promise<{
+    ok: boolean;
+    health?: string;
+    changed?: boolean;
+    because?: string | null;
+    error?: string;
+  }>;
   readonly rows: readonly DeliveryRow[];
 }
 
-export function DeliveryTable({ rows }: DeliveryTableProps) {
+export function DeliveryTable({
+  rows,
+  canWrite = false,
+  onReconcile,
+}: DeliveryTableProps) {
   const {
     DATA_TABLE_LABELS,
     DELIVERY_TEXT,
+    DS_LABELS,
     PROJECT_HEALTH_LABEL,
     PROJECT_STATUS_LABEL,
   } = useMessages();
+  const { toast } = useToast();
+  const [, start] = useTransition();
   const [view, setView] = useState<FilterBarView>("list");
 
   if (rows.length === 0) {
@@ -145,6 +163,49 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
     },
   ];
 
+  function actions(row: DeliveryRow) {
+    if (!onReconcile) return null;
+    return (
+      <ActionMenu
+        label={DS_LABELS.actionMenu}
+        items={[
+          {
+            id: "reconcile",
+            label: DELIVERY_TEXT.reconcile,
+            icon: "refresh",
+            hint: DELIVERY_TEXT.reconcileHint,
+            onSelect: () =>
+              start(() => {
+                void onReconcile(row.id).then((r) => {
+                  if (!r.ok)
+                    return toast({ tone: "danger", title: r.error ?? "" });
+                  // THREE OUTCOMES, THREE MESSAGES. Saying "recomputed" for all
+                  // of them would hide the one that matters: the report and the
+                  // rows agreed, which is a different fact from having just
+                  // corrected a misreport.
+                  if (!r.changed) {
+                    return toast({
+                      tone: "info",
+                      title: DELIVERY_TEXT.reconcileAgreed,
+                    });
+                  }
+                  toast({
+                    tone: "warning",
+                    title: DELIVERY_TEXT.reconcileChanged(
+                      PROJECT_HEALTH_LABEL[r.health ?? ""] ?? r.health ?? "",
+                    ),
+                    description: r.because
+                      ? DELIVERY_TEXT.reconcileWhy(r.because)
+                      : undefined,
+                  });
+                });
+              }),
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <>
       <FilterBar
@@ -153,17 +214,21 @@ export function DeliveryTable({ rows }: DeliveryTableProps) {
         count={DELIVERY_TEXT.rowCount(rows.length)}
       />
 
-      {/* NO ACTION COLUMN, and that is a gap rather than a decision. The
-          delivery domain HAS verbs - reconcileProjectHealth and
-          transitionInstalment both exist in service.ts - but neither is wired
-          to a server action and there is no delivery/actions.ts at all, so
-          there is nothing for a menu to call. Inventing the write path here
-          would be inventing gate and revalidation semantics this file has no
-          standing to decide. */}
+      {/* THE ACTION COLUMN CARRIES ONE VERB (batch 6a-3a), and the other one
+          is not missing from it by oversight.
+
+          `reconcileProjectHealth` is a project-row action and is here.
+          `transitionInstalment` is not: this table's rows are PROJECTS, and an
+          instalment is not one of them. It needs a collections surface that
+          does not exist yet - `projectView` already returns the instalments and
+          nothing renders them - so wiring it here would mean inventing a row
+          type this table does not have. Tracked as its own item, not as part of
+          this one. */}
       <TableCard>
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
+            rowActions={canWrite && onReconcile ? actions : undefined}
             leadingSpacer
             indexStart={1}
             columns={columns}

@@ -7,6 +7,8 @@ import {
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
+import { SubmitForecast } from "../components/submit-forecast";
+import { submitForecastSnapshot } from "./forecast-action";
 import { PeriodTabs } from "../components/period-tabs";
 import { HeadlineCard } from "../components/headline-card";
 import { getCatalogStore } from "../../domains/shared/registry";
@@ -24,6 +26,10 @@ import { recordReview } from "./winloss-action";
 
 import { getMessages } from "../lib/i18n/server";
 import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
+import {
+  listOpportunityLines,
+  listProducts as listCatalogProducts,
+} from "../../domains/catalog/service";
 // D6 pipeline page.
 //
 // Dynamic, never cached: the rows are workspace-scoped and gate-filtered, and a
@@ -57,6 +63,10 @@ export default async function PipelinePage({
     entitlement: session.entitlement,
     store: getPipelineStore(),
   };
+  // Same session, different port. The context carries the store because the
+  // gate is decided from the session and the DATA comes from the port - two
+  // domains reading the same request need two contexts, not one with a union.
+  const catalogCtx = { ...ctx, store: getCatalogStore() };
 
   const [result, pendingReviews, history, lines, products] = await Promise.all([
     // includeClosed, or the "closed" tile reports zero on a workspace that has
@@ -68,8 +78,12 @@ export default async function PipelinePage({
     // The series, not the latest point. See forecastHistory: this read is the
     // only thing that makes forecast_snapshot's immutability pay for itself.
     forecastHistory(ctx, period),
-    getCatalogStore().allLines(session.workspaceId),
-    getCatalogStore().listProducts(session.workspaceId),
+    // THROUGH THE SERVICE, not the store handle. Both of these used to call
+    // getCatalogStore() straight from the page, which skips BOTH gates - the
+    // same defect PR #26 fixed on the account detail page. The catalogue read
+    // service exists now, so there is no reason left to reach past it.
+    listOpportunityLines(catalogCtx),
+    listCatalogProducts(catalogCtx),
   ]);
 
   if (!result.ok) {
@@ -117,11 +131,17 @@ export default async function PipelinePage({
   const openIds = new Set(
     result.value.filter((o) => o.status === "open").map((o) => o.id),
   );
-  const openLines = lines.filter((l) => openIds.has(l.opportunityId));
+  // The two catalogue reads are gated now, so they return a RuleResult. A
+  // refusal degrades to an empty split rather than failing the page: the
+  // product breakdown is a decomposition OF the totals above it, and a reader
+  // who may see the totals but not the lines should still get the totals.
+  const lineRows = lines.ok ? lines.value : [];
+  const productRows = products.ok ? products.value : [];
+  const openLines = lineRows.filter((l) => openIds.has(l.opportunityId));
   const split = [...byProduct(openLines)]
     .sort((a, b) => b[1].amount - a[1].amount)
     .map(([id, agg]) => ({
-      name: products.find((p) => p.id === id)?.name ?? id,
+      name: productRows.find((p) => p.id === id)?.name ?? id,
       amount: agg.amount,
     }));
   const awaiting = openLines.filter((l) => l.needsApproval).length;
@@ -191,6 +211,25 @@ export default async function PipelinePage({
           closed: p.closedAmount.amount,
         }))}
         wan={BOARD_TEXT.wan}
+        /* The gate is decided HERE and re-decided inside the action: this only
+           chooses which control renders. `pipeline.forecast.snapshot`, not
+           `pipeline.view` - reading a forecast and committing to one are
+           different acts, which is why the permission was split off
+           pipeline.write in the first place. */
+        submit={
+          <SubmitForecast
+            period={period}
+            canSubmit={
+              can(
+                session.authz,
+                session.entitlement,
+                "pipeline.forecast.snapshot",
+                "ui",
+              ).allowed
+            }
+            onSubmit={submitForecastSnapshot}
+          />
+        }
       />
 
       {pendingReviews.ok ? (

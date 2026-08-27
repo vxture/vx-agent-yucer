@@ -35,10 +35,17 @@ const VISIBLE_POINTS = 8;
 export async function ForecastTrajectory({
   points,
   wan,
+  submit,
 }: {
   readonly points: readonly TrajectoryPoint[];
   /** Formatter, passed in so the component holds no locale text of its own. */
   readonly wan: (n: number) => string;
+  /**
+   * The control that adds a point. A SLOT rather than a prop bundle: it is a
+   * client component with a server action bound to it, and this component is a
+   * server component - it can render the node, it cannot construct it.
+   */
+  readonly submit?: React.ReactNode;
 }) {
   // A SERVER component, so it awaits rather than hooks - and it had to become
   // async to do it, which is the honest shape: reading the request's locale is
@@ -93,11 +100,14 @@ export async function ForecastTrajectory({
          `action` rather than `titleSuffix` because Section forwards icon,
          title, description and action to its header but not titleSuffix. */
       action={
-        points.length > shown.length ? (
-          <StatusBadge tone="neutral">
-            {PIPELINE_TEXT.trajectoryWindow(shown.length, points.length)}
-          </StatusBadge>
-        ) : undefined
+        <div className="flex items-center gap-xs">
+          {points.length > shown.length ? (
+            <StatusBadge tone="neutral">
+              {PIPELINE_TEXT.trajectoryWindow(shown.length, points.length)}
+            </StatusBadge>
+          ) : null}
+          {submit}
+        </div>
       }
     >
       {/* The section keeps its heading when a period has no snapshots. It used

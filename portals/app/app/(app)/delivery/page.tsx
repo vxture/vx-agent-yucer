@@ -8,6 +8,13 @@ import {
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
 import { DeliveryTable, type DeliveryRow } from "../components/delivery-table";
+import {
+  CollectionsPanel,
+  type CollectionRow,
+} from "../components/collections-panel";
+import { moveInstalment } from "./actions";
+import { reconcileHealth } from "./actions";
+import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
 export const dynamic = "force-dynamic";
@@ -66,8 +73,27 @@ export default async function DeliveryPage() {
   // Done per project because the rule needs both, and a list query cannot carry
   // them; the page is capped at 100 rows for the same reason.
   const rows: DeliveryRow[] = [];
+  // The collection rows are gathered in the SAME loop as the health rows,
+  // because both come out of one projectView call. Fetching them separately
+  // would double the per-project round trips to render one more section.
+  const collections: CollectionRow[] = [];
   for (const p of projects.value) {
     const view = await projectView(ctx, p.id);
+    if (view.ok) {
+      for (const inst of view.value.instalments) {
+        collections.push({
+          id: inst.id,
+          projectId: p.id,
+          projectName: p.name,
+          sequence: inst.sequence,
+          status: inst.status,
+          plannedAmount: inst.plannedAmount.amount,
+          actualAmount: inst.actualAmount?.amount ?? null,
+          currency: inst.plannedAmount.currency,
+          dueAt: inst.dueAt ? inst.dueAt.toISOString().slice(0, 10) : null,
+        });
+      }
+    }
     rows.push({
       id: p.id,
       name: p.name,
@@ -89,6 +115,9 @@ export default async function DeliveryPage() {
   // paid" is the single most common way a failing engagement stays green until
   // it is a crisis.
   const downgraded = rows.filter((r) => r.overriddenBecause !== null).length;
+  const overdueInstalments = collections.filter(
+    (c) => c.status === "overdue",
+  ).length;
   const currency =
     rows.find((r) => r.contractAmount != null)?.currency ?? "CNY";
   const contractTotal = rows.reduce((n, r) => n + (r.contractAmount ?? 0), 0);
@@ -125,8 +154,39 @@ export default async function DeliveryPage() {
         title={DELIVERY_TEXT.title}
         description={DELIVERY_TEXT.description}
       >
-        <DeliveryTable rows={rows} />
+        <DeliveryTable
+          rows={rows}
+          /* Decided here, re-decided inside the action - this only chooses
+             whether the menu renders. */
+          canWrite={
+            can(
+              session.authz,
+              session.entitlement,
+              "delivery.project.upsert",
+              "ui",
+            ).allowed
+          }
+          onReconcile={reconcileHealth}
+        />
       </Section>
+
+      {/* AFTER the projects, because a project is the thing a person opens this
+          page for and its instalments are what that project owes. Putting the
+          money first would make the page a ledger; putting it second makes it
+          the answer to "and has it been paid". */}
+      <CollectionsPanel
+        rows={collections}
+        overdue={overdueInstalments}
+        canWrite={
+          can(
+            session.authz,
+            session.entitlement,
+            "delivery.revenue.upsert",
+            "ui",
+          ).allowed
+        }
+        onMove={moveInstalment}
+      />
     </ViewLayout>
   );
 }

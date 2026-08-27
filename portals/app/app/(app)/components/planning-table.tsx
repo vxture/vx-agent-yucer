@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  ActionMenu,
   DataTable,
   EmptyState,
   FilterBar,
@@ -55,15 +56,35 @@ export interface PlanningTableProps {
   readonly rows: readonly AttainmentRow[];
   /** territoryId -> name, resolved on the page. Empty when unreadable. */
   readonly territoryNames?: ReadonlyMap<string, string>;
+  /** False when the member may read targets but not move them. */
+  readonly canUpdate?: boolean;
+  readonly onUpdate?: (
+    id: string,
+    patch: { amount?: number; status?: string },
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
+export function PlanningTable({
+  rows,
+  territoryNames,
+  canUpdate = false,
+  onUpdate,
+}: PlanningTableProps) {
   const {
     DATA_TABLE_LABELS,
+    DS_LABELS,
     PLANNING_TEXT,
     TARGET_METRIC_LABEL,
     TARGET_STATUS_LABEL,
   } = useMessages();
+  // The DS confirm outlets, passed together. Word order and full-width
+  // punctuation are the caller's job since design-ui 5.0 made the fallback
+  // neutral.
+  const CONFIRM = {
+    titleTemplate: DS_LABELS.confirmTitleTemplate,
+    cancelLabel: DS_LABELS.confirmCancel,
+    pendingLabel: DS_LABELS.confirmPending,
+  };
   const [view, setView] = useState<FilterBarView>("list");
   const names = territoryNames ?? new Map<string, string>();
 
@@ -127,6 +148,78 @@ export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
     },
   ];
 
+  function actions(row: AttainmentRow) {
+    // A CLOSED target gets an empty menu rather than a disabled one. It is
+    // frozen by rule - planTargetUpdate refuses every patch on it - so every
+    // item would be a click that can only fail.
+    if (!onUpdate || row.target.status === "closed") return null;
+    const label = scopeLabel(row, names, PLANNING_TEXT);
+    return (
+      <ActionMenu
+        label={DS_LABELS.actionMenu}
+        items={[
+          {
+            id: "adjust",
+            label: PLANNING_TEXT.adjust,
+            icon: "edit",
+            onSelect: () => {
+              const next = window.prompt(
+                PLANNING_TEXT.setAmount,
+                String(row.target.targetAmount.amount),
+              );
+              if (next === null) return;
+              const n = Number(next);
+              if (!Number.isFinite(n) || n < 0) return;
+              void onUpdate(row.target.id, { amount: n });
+            },
+          },
+          // Committing is offered only from draft, because the rule layer
+          // refuses committed -> draft. An item that can only ever be refused
+          // is worse than an absent one: it teaches that the product is broken.
+          //
+          // PLAIN, NOT GUARDED, and the DS forced the question in a useful way:
+          // it only lets a `confirm` sit on a `danger: true` item, so asking for
+          // a dialog means calling the action dangerous. Committing a quota is
+          // one-way but it is the NORMAL step - it is what the page is for.
+          // Painting the happy path red would spend the colour that close needs.
+          // The one-way part is said in the hint, and enforced by the rule layer
+          // either way.
+          ...(row.target.status === "draft"
+            ? [
+                {
+                  id: "commit",
+                  label: PLANNING_TEXT.commit,
+                  icon: "check" as const,
+                  hint: PLANNING_TEXT.commitWhy,
+                  onSelect: () =>
+                    void onUpdate(row.target.id, { status: "committed" }),
+                },
+              ]
+            : []),
+          {
+            id: "close",
+            label: PLANNING_TEXT.closeTarget,
+            icon: "lock" as const,
+            // GUARDED, and this one earns it: closing freezes the historical
+            // record of what was committed for a finished period. Re-opening it
+            // to change the number is how a missed quarter becomes a met one,
+            // which is precisely what planTargetUpdate refuses afterwards.
+            danger: true as const,
+            separatorBefore: true,
+            confirm: {
+              verb: PLANNING_TEXT.closeTarget,
+              target: label,
+              consequence: PLANNING_TEXT.closeWhy,
+              ...CONFIRM,
+              onConfirm: () =>
+                void onUpdate(row.target.id, { status: "closed" }),
+            },
+          },
+        ]}
+      />
+    );
+  }
+
   return (
     <>
       <FilterBar
@@ -135,16 +228,23 @@ export function PlanningTable({ rows, territoryNames }: PlanningTableProps) {
         count={PLANNING_TEXT.rowCount(rows.length)}
       />
 
-      {/* NO ACTION COLUMN. createTarget and updateTarget exist in the planning
-          service but nothing is wired - there is no planning/actions.ts - so
-          there is nothing for a menu to call. Setting a quota is also not a
-          list-row gesture: it is a form with a scope, a metric, a period and an
-          amount, and a three-dot menu would be the wrong doorway even once the
-          action exists. */}
+      {/* THE ACTION COLUMN IS FOR ADJUSTING, NOT FOR SETTING (batch 6a-2).
+          This comment used to say there was nothing for a menu to call, which
+          was true until planning/actions.ts existed. The half of it that still
+          holds is the half worth keeping: CREATING a target is not a row
+          gesture - it needs a period, a scope, a metric and an amount that do
+          not exist yet - so that lives in the form above the table. What a row
+          menu is right for is changing a number you are already looking at, and
+          moving its state forward. Both of those are here.
+
+          A CLOSED target gets no menu at all rather than a disabled one: it is
+          frozen by rule (planTargetUpdate refuses every patch), and a greyed
+          menu invites a click that can only ever fail. */}
       <TableCard>
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
+            rowActions={canUpdate && onUpdate ? actions : undefined}
             leadingSpacer
             indexStart={1}
             columns={columns}
