@@ -21,6 +21,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
+| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
@@ -402,6 +403,90 @@ Runos 提供的 `deprecated` 生命周期字段本仓一处都没声明。
 **修法**（本仓这一半）：`resolve()` 钉解析后的 semver 并读回 `version_resolved`；
 声明 `deprecated` 并在解析到已弃用能力时记录；`latest` 加警告——它可能**回拨**
 （先注册 2.0.0 后补 1.0.1，Runos 侧语义未裁定）。
+
+### TD-012 - 两张 SCA 的网同时是破的，而它们本该互补
+
+2026-08-27 合并 PR #62 后清点告警时发现。Dependabot 告警 #1
+（`deepmerge-ts < 8.0.0`，high，GHSA-ggr8-5vv4-36mx，栈耗尽）于 2026-08-17T14:54Z
+建立，而 `main` 一直停在 `3138c04` 带着 `deepmerge-ts@7.1.5`，**十天无人处置**。
+
+它最后是被**顺手**修掉的：有人在做别的事时加了一条 pnpm override，随 PR #62 一起进
+`main`（`7.1.5 -> 8.0.1`）。**没有任何机制促成这件事**——这才是要记的部分。
+
+两个洞各自独立，合起来正好把两张网都撤了。
+
+**洞一：npm 侧 Dependabot 从来没成功过。** 证据是运行
+[32564752124](https://github.com/vxture/vx-agent-yucer/actions/runs/32564752124)：
+每一个依赖都以 `private_source_authentication_failure {source: "npm.pkg.github.com"}`
+失败（`pg` / `tsx` / `jose` / `ioredis` / `react` / `typescript` / `@prisma/*` 全部）。
+
+版本探测那一步是**成功**的，`@vxture/*` 的 ignore 也按设计生效。失败发生在
+`corepack pnpm update <pkg> --lockfile-only`：pnpm 要重解析整个工作区，其中包含
+从 GitHub Packages 取的 `@vxture/*`，而 Dependabot 环境里没有那个 registry 的凭据——
+`.github/dependabot.yml` 没有 `registries:` 块。**把 `@vxture/*` 从更新里 ignore 掉，
+并不能让解析器不需要它**，这是这条 bug 唯一反直觉的地方。
+
+旁证够硬：本仓迄今产生过的 Dependabot PR 共 9 条（#1-#5、#58-#61），
+**全部是 `github-actions` 生态**。npm 那一半产出为零。
+
+**洞二：`audit` 只在代码移动时跑。** `ci.yml` 的触发器是 `pull_request` 加
+`push: main`，**没有 `schedule:`**。`3138c04` 上最后一次 ci 跑在 2026-08-17T13:16Z，
+而该条公告 14:54Z 才落库——晚了 1 小时 38 分。osv-scanner 当时并没有漏报，它只是
+**再也没有跑过**。一条针对**未变动**的 lockfile 新增的公告，在静止的主干上直到下一次
+推送为止都是不可见的。
+
+两张网的分工本来是清楚的：`audit` 是**硬门禁**，管「这次改动别引进新洞」；Dependabot
+是**连续监视**，管「已经躺在那儿的洞有人盯」。第一张网按设计就不看静止的主干，第二张
+网坏了，于是没有任何东西在看。
+
+**为什么不在本仓修。** 两处修法都在模板层：`dependabot.yml` 与工作流触发器语义都是
+从 `vxture-template` 原样继承的，而**任何消费 `@vxture/*` 的产品仓都有同一个洞**——
+这不是 yucer 的产品决定。按 `CLAUDE.md`：标准缺口先在平台仓修，再镜像回来，不得在
+产品仓自造标准。工作流触发器语义另外还明确落在刚性区里。
+
+**修法**（平台仓，`vxture-template`）：
+
+```yaml
+# .github/dependabot.yml
+registries:
+  vxture-github-packages:
+    type: npm-registry
+    url: https://npm.pkg.github.com
+    token: ${{secrets.DEPENDABOT_PACKAGES_TOKEN}}
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    registries:
+      - vxture-github-packages
+```
+
+外加给 `audit` 一个定时触发（`ci.yml` 加 `schedule:`，或单独一条只跑 osv-scanner 的
+定时工作流），让 SCA 门禁在静止主干上仍然复扫。
+
+**这条有一个本仓改不动的前置**：`DEPENDABOT_PACKAGES_TOKEN` 需要一个带 `read:packages`
+的 PAT，配成 org 或仓库级的 **Dependabot secret**（注意不是 Actions secret，两者是
+分开的命名空间）。铸 token 是 owner 动作。
+
+**关闭条件**：模板修好并镜像回本仓后，npm 生态产出第一条 Dependabot PR；且能演示
+一次「静止主干上新公告触发 `audit` 变红」。在那之前，本仓的 SCA 姿态实际是
+「只在有人推代码时检查」，不要按「连续监视」来读。
+
+**补记（2026-08-28，收尾清理未合并 PR 时发现）**：这条公告其实**是**被报出来过的，
+而且是四次。#58-#61 四条 Dependabot PR 全部开于 2026-08-22，四条的 `audit`
+**全部红**，红的原因逐字就是这一条：
+
+```
+| https://osv.dev/GHSA-ggr8-5vv4-36mx | 8.2 | npm | deepmerge-ts | 7.1.5 | 8.0.0 | pnpm-lock.yaml |
+```
+
+所以准确的说法不是「没有任何东西在看」，是**看到了、喊了四遍、没人听见**——
+因为信号出现的地方是「Dependabot PR 红了」,而那句话读起来像**那条 PR** 有问题，
+不像**主干**有一个 high 公告。四条一起红本该是这个误读的解药，结果只是让它更容易
+被当成 Dependabot 自己的老毛病而整批忽略。
+
+**这给关闭条件加了一条**：定时 `audit` 的价值不只是「跑到」,是把结论放在**主干**
+名下。一条挂在别人 PR 上的红叉，不是主干的健康报告。
 
 ### TD-013 - 计数指标装在货币类型里
 
