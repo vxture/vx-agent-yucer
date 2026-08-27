@@ -5,6 +5,7 @@ import { subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
 import { MessagesProvider } from "./lib/i18n/provider";
+import { getMessages } from "./lib/i18n/server";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { can } from "../authz/decide";
@@ -16,7 +17,6 @@ import { BRAND } from "@yucer/shared/brand";
 import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
 import { listAccounts } from "../domains/account/service";
 import { listPipeline } from "../domains/pipeline/service";
-import { SHELL_TEXT } from "./lib/messages";
 
 // The product shell.
 //
@@ -59,6 +59,7 @@ export default async function AppLayout({
   const session = await resolveAppSession();
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
+  const { SHELL_TEXT } = await getMessages();
 
   // No session: the product's front door, rendered in place. Auto-redirecting
   // to the IdP from a layout would bounce anyone who merely opened a stale tab,
@@ -69,7 +70,19 @@ export default async function AppLayout({
   // there is no address in the product that answers a session-less visitor
   // with anything else.
   if (!session) {
-    return <SignIn />;
+    // WRAPPED, and every early return below is too.
+    //
+    // The provider used to sit only around the shell, so the three screens
+    // that return before it - signed out, no roles, no subscription - were
+    // outside it. A client component there calling useMessages() throws by
+    // design (a silent Chinese fallback would hide the missing provider until
+    // someone switched locale), which means the sign-in page could never be
+    // translated at all: it is the FIRST thing an English reader sees.
+    return (
+      <MessagesProvider locale={locale}>
+        <SignIn />
+      </MessagesProvider>
+    );
   }
 
   const nav = resolveNavigation(session.authz, session.entitlement);
@@ -80,32 +93,36 @@ export default async function AppLayout({
   // sending them to checkout is worse than saying nothing.
   if (lockout === "no_roles") {
     return (
-      <ViewLayout>
-        <EmptyState
-          title={SHELL_TEXT.noRolesTitle}
-          description={SHELL_TEXT.noRolesDescription}
-        />
-      </ViewLayout>
+      <MessagesProvider locale={locale}>
+        <ViewLayout>
+          <EmptyState
+            title={SHELL_TEXT.noRolesTitle}
+            description={SHELL_TEXT.noRolesDescription}
+          />
+        </ViewLayout>
+      </MessagesProvider>
     );
   }
 
   if (lockout === "no_entitlement") {
     return (
-      <ViewLayout>
-        <EmptyState
-          title={SHELL_TEXT.noAccessTitle}
-          description={SHELL_TEXT.noAccessDescription}
-          // Intent is upgrade | renew | addon; the console route is already
-          // /subscribe, so a first purchase reads as an upgrade from nothing.
-          action={
-            <Button asChild>
-              <a href={subscribeUrl({ intent: "upgrade" })}>
-                {SHELL_TEXT.subscribeCta}
-              </a>
-            </Button>
-          }
-        />
-      </ViewLayout>
+      <MessagesProvider locale={locale}>
+        <ViewLayout>
+          <EmptyState
+            title={SHELL_TEXT.noAccessTitle}
+            description={SHELL_TEXT.noAccessDescription}
+            // Intent is upgrade | renew | addon; the console route is already
+            // /subscribe, so a first purchase reads as an upgrade from nothing.
+            action={
+              <Button asChild>
+                <a href={subscribeUrl({ intent: "upgrade" })}>
+                  {SHELL_TEXT.subscribeCta}
+                </a>
+              </Button>
+            }
+          />
+        </ViewLayout>
+      </MessagesProvider>
     );
   }
 
@@ -207,6 +224,7 @@ export default async function AppLayout({
         isProduction={process.env.APP_ENV === "prod"}
         tier={session.entitlement.tier}
         searchable={searchable}
+        nav={nav}
         admin={admin}
         userName={session.user.sub}
         // NOT the tier. The header already states the tier in its own badge, and

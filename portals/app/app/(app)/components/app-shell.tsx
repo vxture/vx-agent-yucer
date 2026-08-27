@@ -24,6 +24,8 @@ import {
 } from "@vxture/shared";
 import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
+import { DomainLauncher } from "./domain-launcher";
+import { DomainModuleNav } from "./domain-module-nav";
 import { NavBoard } from "./nav-board";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
@@ -105,6 +107,15 @@ export interface AppShellProps {
    */
   readonly deckCount: number;
   /**
+   * The member's resolved navigation, for the functional-domain launcher.
+   *
+   * The WHOLE resolved list, not just the eight domain entries: the launcher
+   * also shows the home stream and the copilot above the five columns, and
+   * both are resolved by the same call. Filtering here and re-adding two keys
+   * in the launcher would put the membership rule in two places.
+   */
+  readonly nav: readonly ResolvedNavEntry[];
+  /**
    * Administration. Reached from a single header icon rather than a sidebar
    * group: it is not work and not data, it is setup - visited rarely, and a
    * permanent group for it spends sidebar height on something nobody opens on
@@ -169,9 +180,11 @@ export function AppShell({
   board,
   deck,
   deckCount,
+  nav,
   admin,
   userName,
   workspaceLabel,
+  upgradeHref,
   appVersion,
   tier,
   tenantId,
@@ -185,7 +198,7 @@ export function AppShell({
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { mode, setMode } = useTheme();
-  const { DOMAIN_LABEL, HEADER_TEXT, NAV_TEXT, SHELL_TEXT } = useMessages();
+  const { DOMAIN_LABEL, HEADER_TEXT, SHELL_TEXT } = useMessages();
 
   // The first path segment IS the domain key: the routes are named for the
   // domains they serve, and DOMAIN_LABEL is keyed the same way. "/" is home.
@@ -337,28 +350,22 @@ export function AppShell({
               )}
 
               {/* (2) The functional domain: NINE DOTS, no label, no fill.
-                
+
                 An app grid is a universal idiom and it does not need a word
                 beside it; the 110px of text it used to carry made the second
                 control in the header wider than the brand it sits before.
-                The current domain is not lost - it moves to the accessible
-                name, which is the only place it was ever load-bearing.
+                The current domain is not lost - it moves to the panel, where
+                the active row is marked, and that is a better place for it
+                than a label that could only ever name one of the five.
 
-                STILL INERT until the domains are split. ShellIconButton with
-                no onClick renders exactly that, and unlike a caret it makes no
-                promise about what would open. */}
-              <ShellIconButton
-                icon="app-grid"
-                /* 24px through the token, not a literal: size-icon-lg IS 24.
-                   ShellIconButton hardcodes Icon size="sm" (16px) and merges
-                   iconClassName after it, so the later size-* utility is the
-                   one that survives tailwind-merge. */
-                iconClassName="size-icon-lg"
-                label={
-                  activeKey && DOMAIN_LABEL[activeKey]
-                    ? HEADER_TEXT.scopeAria(DOMAIN_LABEL[activeKey])
-                    : HEADER_TEXT.scopeAriaUnknown
-                }
+                NOW LIVE. It is the only entrance to the eight domain pages -
+                the left flank is the board and the right is the deck, neither
+                of which is a menu - so while this was inert those routes were
+                reachable only by typing the URL. */}
+              <DomainLauncher
+                nav={nav}
+                activeKey={activeKey}
+                upgradeHref={upgradeHref}
               />
 
               {/* (3)(4) Logo and product name. ShellBrand draws them as one
@@ -557,6 +564,21 @@ export function AppShell({
             and it is here rather than on the row because it is a MEASURE, not
             an inset: it keeps prose off the pane edge at any window width. */}
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-md">
+          {/* THE DOMAIN YOU ARE STANDING IN, and its other modules.
+
+              Above the page rather than in the left pane: the left pane is the
+              board, which answers "how are things" and is not navigation, and
+              a second column of links would put two different questions in the
+              same place. It rides with the page because it is about the page.
+
+              Gated by the same isDetail switch as the board, for the same
+              reason - on a detail page you chose one object, and a menu of
+              sibling modules is a question you are not asking. */}
+          {boardVisible ? (
+            <div className="pb-md">
+              <DomainModuleNav nav={nav} activeKey={activeKey} />
+            </div>
+          ) : null}
           {children}
         </div>
 

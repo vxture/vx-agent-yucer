@@ -26,6 +26,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 
 /** Icon names are the DS's closed set; these are checked at compile time. */
 export type NavIcon =
+  | "stack"
   | "graph"
   | "chart-bar"
   | "workflow"
@@ -92,6 +93,16 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
     href: "/copilot",
     icon: "sparkles",
     action: "copilot.playbook.view",
+  },
+  // D9. Its action carries `feature: null` - the catalogue is not sold
+  // separately (ADR-017) - so this entry can never be "locked", only present or
+  // absent. That is the correct shape for it: a workspace that has bought
+  // anything at all needs to know what it sells.
+  {
+    key: "catalog",
+    href: "/catalog",
+    icon: "stack",
+    action: "catalog.product.view",
   },
 ];
 

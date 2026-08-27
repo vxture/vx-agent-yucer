@@ -37,11 +37,13 @@ test("every nav entry has a display label", () => {
   }
 });
 
-test("all eight capability domains are reachable from the nav", () => {
-  assert.equal(DOMAIN_NAV_ENTRIES.length, 8);
+test("all nine capability partitions are reachable from the nav", () => {
+  // Nine since 2026-08-26: the catalogue (ADR-017).
+  assert.equal(DOMAIN_NAV_ENTRIES.length, 9);
   assert.deepEqual(DOMAIN_NAV_ENTRIES.map((e) => e.key).sort(), [
     "account",
     "campaign",
+    "catalog",
     "copilot",
     "delivery",
     "pipeline",

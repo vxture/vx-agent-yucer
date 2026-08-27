@@ -33,7 +33,7 @@ function ent(over: Partial<Entitlement> = {}): Entitlement {
   };
 }
 
-test("the nav covers all eight domains, in chain order", () => {
+test("the nav covers all nine partitions, in chain order", () => {
   assert.deepEqual(
     DOMAIN_NAV_ENTRIES.map((e) => e.key),
     [
@@ -45,6 +45,9 @@ test("the nav covers all eight domains, in chain order", () => {
       "pipeline",
       "delivery",
       "copilot",
+      // D9, appended rather than slotted into the chain: the catalogue is not a
+      // step in the sales motion, it is the dimension every step reads.
+      "catalog",
     ],
   );
 });
@@ -121,7 +124,17 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
   const visible = nav.filter((e) => e.state === "visible").map((e) => e.key);
   // home rides account.view, so a rep who can read accounts can read the
   // judgements drawn from them - and a rep who cannot has nothing to land on.
-  assert.deepEqual(visible.sort(), ["account", "copilot", "home", "pipeline"]);
+  // The catalogue joins the free tier because it carries NO FEATURE KEY at all
+  // (ADR-017) - not because free buys it. A workspace that has bought anything
+  // needs to know what it sells, so this entry is present at every tier and
+  // absent only on a permission gap.
+  assert.deepEqual(visible.sort(), [
+    "account",
+    "catalog",
+    "copilot",
+    "home",
+    "pipeline",
+  ]);
 });
 
 test("an enterprise sales leader sees every domain", () => {
