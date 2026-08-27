@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getAccountStore } from "../../domains/shared/registry";
-import { linkContacts, recomputeHealth } from "../../domains/account/service";
+import {
+  designateAccount,
+  linkContacts,
+  recomputeHealth,
+} from "../../domains/account/service";
+import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
 import { isRelationType } from "../../domains/account/lib/health";
 
 // Recomputing an account's health.
@@ -87,4 +92,69 @@ export async function linkAccountContacts(
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath(`/account/${accountId}`);
   return { ok: true };
+}
+
+export interface DesignateResult {
+  ok: boolean;
+  tier?: string;
+  planned?: boolean;
+  error?: string;
+}
+
+/**
+ * Designating a strategic account, with the plan that makes it mean something.
+ *
+ * The plan is not optional for `strategic` and the rule layer says so: the
+ * cadence rule (ADR-013) is what fires for an account with no open deal, and it
+ * reads the plan. A strategic designation without one is a label.
+ */
+export async function designateAccountTier(input: {
+  accountId: string;
+  tier: string;
+  plan?: {
+    period: string;
+    targetAmount: number | null;
+    contactCadenceDays: number;
+    execCadenceDays: number;
+  };
+}): Promise<DesignateResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  if (!(ACCOUNT_TIERS as readonly string[]).includes(input.tier)) {
+    return { ok: false, error: "unknown_tier" };
+  }
+
+  const result = await designateAccount(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getAccountStore(),
+    },
+    {
+      accountId: input.accountId,
+      tier: input.tier as AccountTier,
+      ...(input.plan
+        ? {
+            plan: {
+              ...input.plan,
+              // The three roles default to the person doing the designating.
+              // A plan is a commitment about who works the account, and an
+              // unowned commitment is the thing the cadence rule cannot chase.
+              ownerSub: session.user.sub,
+              presalesSub: null,
+              deliverySub: null,
+            },
+          }
+        : {}),
+    },
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath(`/account/${input.accountId}`);
+  revalidatePath("/account");
+  return { ok: true, tier: result.value.tier, planned: result.value.planned };
 }

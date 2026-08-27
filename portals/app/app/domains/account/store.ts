@@ -82,8 +82,26 @@ export interface AccountStore {
   updateAccount(
     workspaceId: string,
     id: string,
-    patch: Partial<Pick<AccountRecord, "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore" | "status">>,
+    // `tier` joined the patch on 2026-08-26 (batch 6c). The column lock has
+    // allowed it since incr/0006 and this type did not, so nothing could
+    // designate a strategic account - the tier existed, the cadence rule read
+    // it, and no path could set it.
+    patch: Partial<Pick<AccountRecord, "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore" | "status" | "tier">>,
   ): Promise<boolean>;
+
+  /**
+   * Create or replace an account's plan for a period.
+   *
+   * `(account, period)` IS the plan's identity - re-planning the same period
+   * edits that row, a different period is a new row. The port takes the whole
+   * plan rather than a patch for the same reason `replaceLines` does: a plan is
+   * a statement about a period, and merging half of one into the last one
+   * produces a plan nobody wrote.
+   */
+  upsertAccountPlan(
+    workspaceId: string,
+    plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
+  ): Promise<AccountPlanRecord>;
 
   listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]>;
   /** Append-only edge. There is deliberately no updateRelation. */
@@ -104,6 +122,21 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   /** Demo/seed entry point; the real write path is the planning service. */
+  async upsertAccountPlan(
+    workspaceId: string,
+    plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
+  ): Promise<AccountPlanRecord> {
+    const key = `${workspaceId}:${plan.accountId}`;
+    const existing = this.plans.get(key);
+    const row: AccountPlanRecord = {
+      id: existing?.id ?? `apl_${this.plans.size + 1}`,
+      workspaceId,
+      ...plan,
+    };
+    this.plans.set(key, row);
+    return row;
+  }
+
   setAccountPlan(plan: AccountPlanRecord): void {
     this.plans.set(`${plan.workspaceId}|${plan.accountId}`, plan);
   }

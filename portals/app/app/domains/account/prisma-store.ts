@@ -20,6 +20,7 @@ import type {
 // what "one object, one owning domain; everyone else references it read-only"
 // permits. Writing any of those rows from here would be the violation.
 
+const PLAN_TABLE = "yucer_core.account_plan";
 const ACCOUNT_TABLE = "yucer_core.account";
 
 export class PrismaAccountStore implements AccountStore {
@@ -210,6 +211,56 @@ export class PrismaAccountStore implements AccountStore {
       presalesSub: (r.presalesSub as string | null) ?? null,
       deliverySub: (r.deliverySub as string | null) ?? null,
       status: r.status as "active" | "closed",
+    };
+  }
+
+  async upsertAccountPlan(
+    workspaceId: string,
+    plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
+  ): Promise<AccountPlanRecord> {
+    const p = await getPrismaClient();
+    const data = {
+      targetAmount: plan.targetAmount,
+      contactCadenceDays: plan.contactCadenceDays,
+      execCadenceDays: plan.execCadenceDays,
+      ownerSub: plan.ownerSub,
+      presalesSub: plan.presalesSub,
+      deliverySub: plan.deliverySub,
+      status: plan.status,
+      updatedAt: new Date(),
+    };
+    // The update half only. account_id and period are the identity that was
+    // matched on, so they are not among the columns a re-plan may move - which
+    // is exactly what 98's whitelist says for this table.
+    const guard = assertWritable(PLAN_TABLE, data);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked account_plan column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const row = (await p.accountPlan.upsert({
+      where: {
+        workspaceId_accountId_period: {
+          workspaceId,
+          accountId: plan.accountId,
+          period: plan.period,
+        },
+      },
+      update: data,
+      create: { workspaceId, accountId: plan.accountId, period: plan.period, ...data },
+    })) as Record<string, unknown>;
+    return {
+      id: String(row.id),
+      workspaceId: String(row.workspaceId),
+      accountId: String(row.accountId),
+      period: String(row.period),
+      targetAmount: row.targetAmount === null ? null : Number(row.targetAmount),
+      contactCadenceDays: Number(row.contactCadenceDays),
+      execCadenceDays: Number(row.execCadenceDays),
+      ownerSub: (row.ownerSub as string | null) ?? null,
+      presalesSub: (row.presalesSub as string | null) ?? null,
+      deliverySub: (row.deliverySub as string | null) ?? null,
+      status: row.status as "active" | "closed",
     };
   }
 }

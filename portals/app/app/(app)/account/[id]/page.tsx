@@ -50,6 +50,9 @@ import {
 import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
+import { DesignateAccount } from "../../components/designate-account";
+import { designateAccountTier } from "../actions";
+import { DEFAULT_PERIOD } from "../../lib/periods";
 import { linkAccountContacts, recomputeAccountHealth } from "../actions";
 import {
   addCommitment,
@@ -349,6 +352,24 @@ export default async function AccountDetailPage({
           {/* 3. WHAT TO DO NEXT - last, because it is drawn from the two
                  layers above it. */}
           <TheatrePlan proposals={planProposals} />
+
+          {/* LAST, after the plan the copilot proposes. Designating a tier is a
+              decision about how the team will spend a year on this customer,
+              and it reads better as the conclusion of the page than as a
+              setting at the top of it. */}
+          <DesignateAccount
+            accountId={id}
+            tier={detail.value.account.tier}
+            /* The default period, not a picker. A plan is written for the
+               current quarter; choosing a different one is a different action
+               and there is no surface for it yet. */
+            period={DEFAULT_PERIOD}
+            canWrite={
+              can(session.authz, session.entitlement, "account.upsert", "ui")
+                .allowed
+            }
+            onDesignate={designateAccountTier}
+          />
         </div>
       </div>
     </ViewLayout>
