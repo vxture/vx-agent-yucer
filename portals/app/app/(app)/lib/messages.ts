@@ -71,10 +71,213 @@ export const DOMAIN_LABEL: Record<string, string> = {
   pipeline: "商机管理",
   delivery: "项目落地",
   copilot: "销售助手",
+  catalog: "产品目录",
   home: "今日判断",
   queue: "待我裁决",
   admin: "成员与角色",
   adoption: "使用情况",
+};
+
+/**
+ * The five functional domains - see functional-domains.ts for why these five
+ * and why they speak in this register.
+ */
+export const DOMAIN_GROUP_LABEL: Record<string, string> = {
+  armory: "战略武备域",
+  deployment: "兵力部署域",
+  recon: "火力侦察域",
+  position: "阵地经营域",
+  settlement: "战果结算域",
+};
+
+/**
+ * One line under each domain name, phrased as the QUESTION it answers rather
+ * than a summary of its contents. The contents are already listed underneath;
+ * a second list of them in prose would be the same information twice, and it
+ * is not what a reader hovering over a new word needs.
+ */
+export const DOMAIN_GROUP_QUESTION: Record<string, string> = {
+  armory: "打什么仗，拿什么打",
+  deployment: "打谁，谁去打，背多少",
+  recon: "怎么把火力变成线索",
+  position: "这一仗怎么拿下",
+  settlement: "赢了之后钱怎么到账",
+};
+
+/**
+ * Labels for modules that have no page yet. Modules that DO have a page take
+ * their label from DOMAIN_LABEL via the nav entry, so a built module never
+ * appears in both tables.
+ */
+export const PLANNED_MODULE_LABEL: Record<string, string> = {
+  segment: "细分市场",
+  catalog: "产品目录",
+  solution: "解决方案",
+  pricebook: "价目折扣",
+  territory: "销售区域",
+  namedAccount: "战略客户",
+  forecastRule: "预测口径",
+  routing: "线索分配",
+  quote: "报价管理",
+  winLossReview: "赢丢复盘",
+  collection: "回款计划",
+  renewal: "合同续约",
+};
+
+export const LAUNCHER_TEXT = {
+  buttonLabel: "切换功能域",
+  panelLabel: "功能域",
+  crosscutting: "贯穿全局",
+  /** On a module whose page is not built yet. */
+  planned: "开发中",
+  // A module that IS built but lives inside another page. Not "开发中" - that
+  // said a shipped feature did not exist - and not silent either, because the
+  // reader needs to know the click leaves for another page.
+  section: "在其他页面",
+  /** On a built module the workspace has not bought. */
+  locked: "需升级",
+};
+
+/**
+ * The copy this product hands to the design system.
+ *
+ * IT LIVES IN THE DICTIONARY, and was moved here on 2026-08-26 from its own
+ * module of `as const` objects. That module had the same defect the sixteen
+ * detail-page components had - a module constant is evaluated on import, so it
+ * freezes whichever locale loaded first. Five components pass these to
+ * DataTable, ActionMenu and BulkActionBar, so an English reader was getting
+ * Chinese confirm dialogs and row menus regardless of the rest of the page.
+ *
+ * WHY A SHARED GROUP AND NOT A STRING AT EACH CALL SITE. As of design-ui 5.0
+ * every DS copy outlet falls back to ENGLISH, and its changelog is explicit
+ * about what that means: the fallback exists so a missed prop renders
+ * something legible instead of `undefined`, not so anyone can rely on it. An
+ * English default reaching a production screen means someone forgot to pass
+ * one. The DS ships no locale context and does not intend to, so passing is
+ * the product's job - and the compiler cannot help, because every one of these
+ * props is optional. That leaves two failure modes, and one group answers
+ * both: the same 「取消」 growing three different spellings across three pages,
+ * and nobody being able to say which outlets are still unpassed.
+ *
+ * VERIFIED AGAINST THE SHIPPED BUNDLE, not against the .d.ts. The type's own
+ * doc comment still claims titleTemplate defaults to the Chinese
+ * `"{verb}{target}？"`; the compiled default is `"{verb} {target}?"`. The
+ * comment is stale and a product that trusted it would ship
+ * 「判定不合格 线索？」 with a half-width question mark and a stray space.
+ */
+export const DS_LABELS = {
+  /**
+   * Confirmation dialogs for destructive actions.
+   *
+   * Chinese word order and full-width punctuation, passed explicitly. The DS
+   * used to compose `${verb}${target}？` itself and 4.1 opened this prop
+   * precisely to hand word order back to the caller. 5.0 finished the job by
+   * making the fallback neutral, which means a Chinese product must now say so.
+   */
+  confirmTitleTemplate: "{verb}{target}？",
+  confirmCancel: "取消",
+  confirmPending: "处理中…",
+
+  /** The row-level action trigger. Its default accessible name is English. */
+  actionMenu: "更多操作",
+
+  /** The list toolbar. */
+  filterReset: "重置筛选",
+  filterViewMode: "视图模式",
+
+  /**
+   * Bulk selection. The template and the noun MUST move together - the
+   * changelog calls this out by name, because passing only one yields
+   * 「已选择 3 items」.
+   */
+  bulkToolbar: "批量操作",
+  bulkSelectionTemplate: "已选择 {count} {noun}",
+
+  /** Toasts. Both outlets are accessible names a reader never sees but hears. */
+  toastRegion: "通知",
+  toastDismiss: "关闭通知",
+} as const;
+
+export const CATALOG_TEXT = {
+  title: "产品目录",
+  description:
+    "目录是被所有域引用的维度：商机、合同、交付、信号匹配都读它，而它谁都不写。",
+  lead: (n: number) => `${n} 个在售产品`,
+  leadWhy: "不知道自己卖什么，就没法卖任何东西——所以目录不按档位售卖，全档可读。",
+
+  products: "产品",
+  productsWhy: "单品或服务。**单位**不是装饰：每条行项都是数量乘单价，没有单位的「10 × 1000」是十个坐席、十天还是十个站点，那是三笔不同的生意。",
+  colCode: "编码",
+  colName: "名称",
+  colCategory: "类别",
+  colUnit: "单位",
+  colStatus: "状态",
+  statusActive: "在售",
+  statusRetired: "已下架",
+  noCategory: "未分类",
+  addProduct: "新增/更新产品",
+  saveProduct: "保存产品",
+  productSaved: "已保存",
+  codeHint: "按编码更新：同一个编码再保存一次是修改，不是新增一条",
+
+  solutions: "解决方案",
+  solutionsWhy: "组合模板。行项从不引用它做计算（ADR-014 §4）——模板是起点，不是权威。",
+  solutionItems: (n: number) => `${n} 个产品`,
+  noSolutions: "还没有解决方案",
+  emptyBundle: "一个不装产品的方案只是个名字",
+
+  pricebook: "价目与底价",
+  pricebookWhy:
+    "底价是这张表存在的理由：低于它的报价需要签字。价格只追加不改写——被取代的那一行解释了今天这个数字是怎么来的。",
+  colList: "标价",
+  colFloor: "底价",
+  colCurrency: "币种",
+  colEffective: "生效时间",
+  noPrices: "还没有价目",
+  setPrice: "记一次价格",
+  priceSaved: "已记入",
+  floorEqualsList: "底价等于标价 = 此产品不打折，这是一个立场，不是笔误",
+  priceDenied: "你没有定价权限——能移动底价的人等于能批准每一笔折扣",
+  writeDenied: "你没有维护目录的权限",
+} as const;
+
+export const REVENUE_ERROR: Record<string, string> = {
+  actual_amount_required: "标记为已回款必须写明实际收到多少",
+  amount_negative: "金额不能为负",
+  currency_mismatch: "币种与计划不一致",
+  illegal_transition: "当前状态不能这样变更",
+  unknown_status: "未知状态",
+  not_found: "记录不存在，或不属于当前工作区",
+  permission_denied: "你没有执行这个操作的权限",
+  not_authenticated: "登录状态已失效，请重新登录",
+  denied: "操作被拒绝",
+};
+
+export const ACCOUNT_ERROR: Record<string, string> = {
+  plan_required: "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
+  period_required: "计划必须写明周期",
+  cadence_positive: "零天的节奏不是节奏",
+  unknown_tier: "未知的客户分级",
+  not_found: "客户不存在，或不属于当前工作区",
+  permission_denied: "你没有执行这个操作的权限",
+  not_authenticated: "登录状态已失效，请重新登录",
+  denied: "操作被拒绝",
+};
+
+export const CATALOG_ERROR: Record<string, string> = {
+  code_required: "需要填写编码",
+  name_required: "需要填写名称",
+  unit_required: "需要填写单位——没有单位的数量说不出卖的是什么",
+  items_required: "一个不装产品的方案只是个名字",
+  quantity_positive: "数量必须大于零",
+  duplicate_product: "同一个产品出现了两次，请合并成一行",
+  product_required: "需要选择产品",
+  currency_required: "需要币种",
+  amount_negative: "价格不能为负",
+  floor_above_list: "底价高于标价会让每一笔都需要签字，等于没有底价",
+  permission_denied: "你没有执行这个操作的权限",
+  not_authenticated: "登录状态已失效，请重新登录",
+  denied: "操作被拒绝",
 };
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -245,6 +448,11 @@ export const BOARD_TEXT = {
   agentScope: (n: number) => `正看着 ${n} 位客户`,
   capture: "记一笔",
   ask: "问参谋",
+  // Icon-only, so this is the whole label. It names the destination rather
+  // than the action ("完整对话" not "打开") because the button sits beside a
+  // box you can already type into - the question it answers is what is over
+  // there, not what will happen.
+  openThread: "完整对话",
   attach: "添加附件",
   notWired: "该能力尚未接通",
   reconTitle: "敌情",
@@ -261,20 +469,6 @@ export const BOARD_TEXT = {
   whenToday: "今天",
   whenDaysAgo: (n: number) => `${n} 天前`,
   truncate: (t: string) => `${t}……`,
-} as const;
-
-export const NAV_TEXT = {
-  ariaLabel: "能力域导航",
-  // The sidebar groups are a business statement, not a tidy-up: D1-D7 are a
-  // sequence, the copilot cuts across all of them, and administration sits
-  // outside the chain.
-  groupWork: "工作台",
-  groupChain: "档案",
-  groupAgent: "智能助手",
-  groupAdmin: "管理",
-  requiresTier: (tier: string) => `需要 ${tier} 档位`,
-  notSubscribed: "当前工作区尚未订阅本产品",
-  upgradeCta: "升级以解锁更多能力",
 } as const;
 
 export const ASK_ABOUT_TEXT = {
@@ -594,6 +788,14 @@ export const PIPELINE_TEXT = {
   tPipeline: "管道",
   tClosed: "已成交",
 
+  // The snapshot control. "存快照" rather than "保存": a snapshot is appended
+  // and can never be edited or removed (UPDATE is revoked on the table), and
+  // "保存" implies an undo this action does not have.
+  snapshot: "存一次快照",
+  snapshotPending: "记录中…",
+  snapshotTaken: "已记入轨迹",
+  snapshotFailed: "快照没有存成",
+  snapshotDenied: "你没有提交预测的权限——读预测的人常常不是对它承诺的人",
   productSplit: "承诺的构成",
   productSplitWhy: "按产品行项拆开。一个总额说不出这笔钱要交付什么。",
   needsApproval: "折扣待批",
@@ -834,6 +1036,25 @@ export const OPPORTUNITY_TEXT = {
   termsUnchanged: "没有改动",
   termsTerminalLocked: "商机已关闭，赢率固定，不能再改",
   termsReadOnly: "你没有修改商务条款的权限。",
+
+  // --- product lines (batch 6b-3, ADR-014 section 2) ------------------------
+  linesTitle: "产品行项",
+  linesWhy:
+    "行项存在时，行项是权威——商机金额等于行项之和，由服务层在写行项的同一次调用里重算。一个总额说不出这笔钱要交付什么。",
+  lineProduct: "产品",
+  lineQty: "数量",
+  linePrice: "单价",
+  lineAmount: "小计",
+  lineAdd: "加一行",
+  lineRemove: "删除",
+  lineSave: "保存行项并重算金额",
+  lineSaved: (n: number, amount: string) => `${n} 行，金额已重算为 ${amount}`,
+  lineNone: "还没有行项——金额是手填的总额",
+  lineNoneWhy: "这是合法的旧形态：没有行项时，总额独立成立。",
+  lineBelowFloor: "低于底价，需要签字",
+  lineFloorHint: (floor: string) => `底价 ${floor}`,
+  lineDenied: "你没有修改商机的权限",
+  lineClosedHint: "已关闭的商机不能重新定价——它的行项是卖出了什么的记录",
 } as const;
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
@@ -1226,6 +1447,34 @@ export const DELIVERY_TEXT = {
   healthOverriddenEvidence: "判定依据",
   emptyTitle: "还没有交付项目",
   emptyDescription: "商机赢单后建立交付项目，会出现在这里。",
+
+  // --- reconciling reported health (batch 6a-3a) ----------------------------
+  reconcile: "重算健康度",
+  reconcileHint: "按这个项目自己的里程碑与分期重新推导，覆盖人工填报的值",
+  // Three outcomes, three sentences. "已重算" for all of them would hide the
+  // one that matters: the report and the rows AGREED, which is a different
+  // fact from having just corrected a lie.
+  reconcileAgreed: "填报与推导一致，未改动",
+  reconcileChanged: (health: string) => `已改为 ${health}`,
+  reconcileWhy: (because: string) => `原因：${because}`,
+  reconcileDenied: "你没有修改交付项目的权限",
+
+  // --- collections (batch 6a-3b) --------------------------------------------
+  collections: "回款计划",
+  collectionsWhy:
+    "链路终点不是赢单，是钱到账。分期只能按迁移表走，已回款与坏账是终态——钱到了就是到了，坏账要靠新排期纠正，不靠改这一行。",
+  colProject: "项目",
+  colSeq: "期次",
+  colPlanned: "计划金额",
+  colActual: "实收",
+  colDue: "到期",
+  colRevStatus: "状态",
+  noInstalments: "还没有回款计划",
+  overdueCount: (n: number) => `${n} 笔逾期`,
+  settleAsk: "实际收到多少？短收是常态，写实收才有意义",
+  moveTo: "变更为",
+  moved: (s: string) => `已变更为 ${s}`,
+  moveDenied: "你没有修改回款的权限",
 } as const;
 
 /**
@@ -1280,6 +1529,42 @@ export const PLANNING_TEXT = {
   emptyTitle: "本期没有目标",
   emptyDescription: "销售运营设定区域与配额后，会出现在这里。",
   scopeWorkspace: "全工作区",
+
+  // --- setting a quota (batch 6a-2) -----------------------------------------
+  // A FORM, not a row menu. A target needs a period, a scope, a metric and an
+  // amount, and none of them exist until someone types them - see the note in
+  // planning-table.tsx for why a three-dot menu is the wrong doorway.
+  setTarget: "设定目标",
+  setTargetWhy:
+    "目标的作用域元组就是它的身份：同一周期、同一作用域、同一指标只能有一个目标。要改数字，调整已有的那一条，不要再加一条。",
+  setScope: "作用域",
+  // Their own keys. Reusing columnScope ("作用域", a COLUMN HEADER) as the
+  // territory option rendered the word "作用域" inside a scope picker, and
+  // ownerScope is `(sub) => sub` so it rendered an empty option. Borrowing a
+  // key because the word looks right is how a label ends up describing the
+  // wrong thing.
+  scopeTerritory: "销售区域",
+  scopeOwner: "我自己",
+  setMetric: "指标",
+  setAmount: "目标金额",
+  setSubmit: "建立目标",
+  setSaved: "已建立",
+  setDenied: "你没有设定目标的权限",
+  // Row-level adjustment. This one IS a row gesture: the number is on screen.
+  adjust: "调整金额",
+  adjustSaved: "已调整",
+  commit: "提交为承诺",
+  commitWhy: "提交后不能退回草稿——已经报上去的数字撤不回来",
+  closeTarget: "关闭本期",
+  closeWhy: "关闭后冻结。它记录的是一个已结束周期上承诺过什么，改它等于把没达成的季度改成达成",
+  rowDenied: "你没有调整目标的权限",
+  metricRevenue: "收入",
+  metricNewLogo: "新客",
+  metricPipeline: "管道",
+  metricMargin: "毛利",
+  statusDraft: "草稿",
+  statusCommitted: "已承诺",
+  statusClosed: "已关闭",
 } as const;
 
 /**
@@ -1645,4 +1930,16 @@ export const POSITION_TEXT = {
   approve: "批准",
   reject: "否决",
   confidence: (n: number) => `置信度 ${n}`,
+
+  // --- designating a strategic account (batch 6c) ---------------------------
+  designate: "定级",
+  designateWhy:
+    "战略客户走的是另一套判断：其余规则都由事件触发、都需要一条开放商机，而战略客户最该报的恰恰是「没有开放商机却安静下来」——没有任何事件会为此触发。节奏规则是那时唯一会响的东西，而它读的是计划。",
+  planRequired: "战略客户必须配计划，否则定级只是一个标签",
+  planPeriod: "计划周期",
+  cadenceContact: "接触节奏（天）",
+  cadenceExec: "高层节奏（天）",
+  designateSubmit: "确认定级",
+  designated: (tier: string) => `已定为${tier}`,
+  designateDenied: "你没有修改客户的权限",
 } as const;

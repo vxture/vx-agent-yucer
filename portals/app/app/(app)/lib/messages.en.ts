@@ -12,9 +12,23 @@ import * as zh from "./messages";
 // Each override is TYPE-CHECKED against its Chinese counterpart, so a renamed
 // key breaks the build and a function cannot quietly change its arity.
 //
-// TRANSLATED SO FAR: the shell chrome - what surrounds every page. Page
-// dictionaries follow. `grep -c "^  [A-Z_]*:" ` against this file counts what
-// is done; the 61 constants in messages.ts are the denominator.
+// COVERAGE, 2026-08-26: 65 of the 67 constants in messages.ts. The two that
+// are not here are PREVIEW_FIXTURES and PREVIEW_TEXT, which belong to
+// /product-preview - a fixture page pinned to zh-CN by construction, because a
+// reviewer checking the two gates should see the same screen whatever their
+// own cookie says. They are demo data, not product copy.
+//
+// The count is machine-checkable rather than a claim in a comment:
+//
+//   grep -c "^export \(const\|function\) " messages.ts     <- denominator
+//   grep -c "^  [A-Za-z_]*: [{([]"          messages.en.ts   <- numerator
+//
+// WIRING IS THE OTHER HALF, and it was the half missing until 2026-08-26.
+// Sixteen components imported messages.ts directly, so no dictionary lookup
+// ever ran in them and adding a translation here changed nothing on screen -
+// the detail pages stayed Chinese no matter what this file said. They now go
+// through useMessages() / getMessages(). If a page renders Chinese under
+// en-US, look for a static import before assuming a missing key.
 
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
@@ -35,17 +49,6 @@ export const en: Dictionary = {
     loadFailed: "Could not load the data",
   },
 
-  NAV_TEXT: {
-    ariaLabel: "Capability domains",
-    groupWork: "Workbench",
-    groupChain: "Records",
-    groupAgent: "Copilot",
-    groupAdmin: "Administration",
-    requiresTier: (tier: string) => `Requires the ${tier} tier`,
-    notSubscribed: "This workspace has no subscription to this product",
-    upgradeCta: "Upgrade to unlock more",
-  },
-
   DOMAIN_LABEL: {
     strategy: "Market strategy",
     planning: "Sales planning",
@@ -55,10 +58,589 @@ export const en: Dictionary = {
     pipeline: "Pipeline",
     delivery: "Delivery",
     copilot: "Copilot",
+    catalog: "Catalogue",
     home: "Today's calls",
     queue: "Awaiting me",
     admin: "Members and roles",
     adoption: "Adoption",
+  },
+
+  // The five domain names are the product's loudest claim about itself, so
+  // they are translated for STANCE, not word-for-word. 武备 is literally
+  // "arms and materiel"; "Armory" carries the same idea in one English word,
+  // where "Strategic products" would land back in the CRM register the Chinese
+  // deliberately left.
+  DOMAIN_GROUP_LABEL: {
+    armory: "Armory",
+    deployment: "Deployment",
+    recon: "Reconnaissance",
+    position: "Frontline",
+    settlement: "Settlement",
+  },
+
+  DOMAIN_GROUP_QUESTION: {
+    armory: "What we fight with",
+    deployment: "Who we aim at, and who carries the number",
+    recon: "Turning fire into leads",
+    position: "How this one is won",
+    settlement: "How the money actually arrives",
+  },
+
+  PLANNED_MODULE_LABEL: {
+    // Trimmed against the Chinese, not translated from it. The column header
+    // already says Armory, so "Market segments" spends five characters
+    // restating it - and those characters were coming out of the label, which
+    // clipped, rather than out of the badge, which did not.
+    segment: "Segments",
+    catalog: "Catalogue",
+    solution: "Solutions",
+    pricebook: "Price book",
+    territory: "Territories",
+    namedAccount: "Key accounts",
+    forecastRule: "Forecast rules",
+    routing: "Lead routing",
+    quote: "Quotes",
+    winLossReview: "Win/loss",
+    collection: "Collections",
+    renewal: "Renewals",
+  },
+
+  LAUNCHER_TEXT: {
+    buttonLabel: "Switch domain",
+    panelLabel: "Domains",
+    crosscutting: "Across all five",
+    // SHORT, and not a stylistic preference. This sits on the right of a row
+    // whose left is the module name, in a column roughly 280px wide. The
+    // Chinese badge is three characters; "In development" is fourteen, and it
+    // pushed every English label into an ellipsis - "Market se...",
+    // "Win/loss ..." - so the badge explaining what is missing was the reason
+    // you could not read what was missing.
+    planned: "Planned",
+    section: "On another page",
+    locked: "Upgrade",
+  },
+
+  // --- detail pages ---------------------------------------------------------
+  // Wired 2026-08-26. These 15 constants were already reachable from the
+  // account and deal detail pages; what they were not was translated, because
+  // those components imported the Chinese module directly and no dictionary
+  // lookup ever happened. The import is the half that makes translation
+  // possible; this is the half that makes it true.
+
+  // The DS's own English defaults, passed explicitly rather than relied on.
+  // The changelog is clear that the fallback exists so a missed prop renders
+  // something legible instead of `undefined` - not so anyone can lean on it.
+  // Passing them here also means the en-US screen is not a mix of what we said
+  // and what the DS guessed, which is the state that makes a missing prop
+  // invisible.
+  DS_LABELS: {
+    confirmTitleTemplate: "{verb} {target}?",
+    confirmCancel: "Cancel",
+    confirmPending: "Working...",
+    actionMenu: "More actions",
+    filterReset: "Reset filters",
+    filterViewMode: "View mode",
+    bulkToolbar: "Bulk actions",
+    bulkSelectionTemplate: "{count} {noun} selected",
+    toastRegion: "Notifications",
+    toastDismiss: "Dismiss notification",
+  },
+
+  REVENUE_ERROR: {
+    actual_amount_required: "Settling requires the amount actually received",
+    amount_negative: "The amount cannot be negative",
+    currency_mismatch: "The currency does not match the plan",
+    illegal_transition: "That move is not allowed from here",
+    unknown_status: "Unknown status",
+    not_found: "No such record, or it belongs to another workspace",
+    permission_denied: "You cannot perform this action",
+    not_authenticated: "Your session has expired - please sign in again",
+    denied: "Refused",
+  },
+
+  ACCOUNT_ERROR: {
+    plan_required:
+      "A strategic account needs a plan - the cadence rule reads it, and without one this designation changes nothing",
+    period_required: "The plan must name its period",
+    cadence_positive: "A cadence of zero days is not a cadence",
+    unknown_tier: "Unknown account tier",
+    not_found: "No such account, or it belongs to another workspace",
+    permission_denied: "You cannot perform this action",
+    not_authenticated: "Your session has expired - please sign in again",
+    denied: "Refused",
+  },
+
+  CATALOG_ERROR: {
+    code_required: "A code is required",
+    name_required: "A name is required",
+    unit_required: "A unit is required - a quantity with no unit cannot say what was sold",
+    items_required: "A solution with no products is just a name",
+    quantity_positive: "The quantity must be above zero",
+    duplicate_product: "That product appears twice - use one line with the total",
+    product_required: "Pick a product",
+    currency_required: "A currency is required",
+    amount_negative: "A price cannot be negative",
+    floor_above_list:
+      "A floor above list would make every sale need approval, which is the same as having no floor",
+    permission_denied: "You cannot perform this action",
+    not_authenticated: "Your session has expired - please sign in again",
+    denied: "Refused",
+  },
+
+  CATALOG_TEXT: {
+    title: "Catalogue",
+    description:
+      "The catalogue is the dimension every domain references: deals, contracts, delivery and signal matching all read it, and it writes to none of them.",
+    lead: (n: number) => `${n} products on sale`,
+    leadWhy:
+      "You cannot sell anything without knowing what you sell - so the catalogue is not sold by tier and every tier can read it.",
+    products: "Products",
+    productsWhy:
+      "A single product or service. The **unit** is not decoration: every line multiplies quantity by unit price, and \"10 x 1000\" with no unit is ten seats, ten days or ten sites - three different deals.",
+    colCode: "Code",
+    colName: "Name",
+    colCategory: "Category",
+    colUnit: "Unit",
+    colStatus: "Status",
+    statusActive: "On sale",
+    statusRetired: "Retired",
+    noCategory: "Uncategorised",
+    addProduct: "Add or update a product",
+    saveProduct: "Save product",
+    productSaved: "Saved",
+    codeHint: "Keyed by code: saving the same code again edits it rather than adding a second",
+    solutions: "Solutions",
+    solutionsWhy:
+      "Quoting templates. Lines never reference one for calculation (ADR-014 s4) - a template is a starting point, not the authority.",
+    solutionItems: (n: number) => `${n} products`,
+    noSolutions: "No solutions yet",
+    emptyBundle: "A solution with no products is just a name",
+    pricebook: "Prices and floors",
+    pricebookWhy:
+      "The floor is why this table exists: a quote below it needs a signature. Prices are appended, never rewritten - the superseded row is what explains how today's number was arrived at.",
+    colList: "List",
+    colFloor: "Floor",
+    colCurrency: "Currency",
+    colEffective: "Effective",
+    noPrices: "No prices yet",
+    setPrice: "Record a price",
+    priceSaved: "Recorded",
+    floorEqualsList: "Floor equal to list = this product is not discountable. That is a position, not a typo",
+    priceDenied:
+      "You cannot set prices - whoever moves the floor can approve every discount in the product",
+    writeDenied: "You cannot maintain the catalogue",
+  },
+
+  REVENUE_STATUS_LABEL: {
+    planned: "Planned",
+    invoiced: "Invoiced",
+    settled: "Settled",
+    overdue: "Overdue",
+    written_off: "Written off",
+  },
+
+  ASK_ABOUT_TEXT: {
+    anchored: (name: string) => `This conversation is anchored to ${name}`,
+    // Says what the model can and cannot see. A grounded answer that looked
+    // omniscient would get trusted past what it actually read.
+    anchoredHint:
+      "The copilot can read the follow-up notes and promises recorded against this account, and it cites which one it used. It will not fill in what it cannot see - anything nobody wrote down, it does not know either.",
+    linkFromAccount: "Ask about this account",
+  },
+
+  CHAIN_TEXT: {
+    title: "Decision chain",
+    description:
+      '"There is an economic buyer on file" and "someone can introduce us to them" are two different facts. Only the second one moves a deal.',
+    covered: "Covered",
+    missing: "Missing roles",
+    blockers: "Blockers",
+    coaches: "Coaches",
+    reachable: "Economic buyer reachable",
+    unreachable: "Economic buyer unreachable",
+    unreachableHint:
+      "No path from a coach to the economic buyer - the walk skips opposed relationships and contacts who have left.",
+    noEconomicBuyer: "No economic buyer on file yet",
+    influence: "Influence",
+    emptyTitle: "No contacts yet",
+    emptyDescription:
+      "Add contacts and mark their decision roles, and the chain analysis appears here.",
+    healthTitle: "Account health",
+    healthDescription:
+      "A derived value, recomputed from its sources. For sorting and alerting - never the sole basis for a business decision.",
+    primaryConcern: "Biggest problem",
+    recompute: "Recompute",
+    factorPipeline: "Pipeline",
+    factorRecency: "Contact recency",
+    factorDelivery: "Delivery",
+    factorCollections: "Collections",
+  },
+
+  DECISION_ROLE_LABEL: {
+    economic: "Economic buyer",
+    technical: "Technical buyer",
+    user: "User",
+    coach: "Coach",
+    blocker: "Blocker",
+    unknown: "Unknown",
+  },
+
+  RELATION_TYPE_LABEL: {
+    reports_to: "Reports to",
+    peer_of: "Peer of",
+    allied_with: "Allied with",
+    opposed_to: "Opposed to",
+    referred_by: "Referred by",
+  },
+
+  COMMIT_STATUS_LABEL: {
+    open: "Open",
+    met: "Met",
+    missed: "Missed",
+    waived: "Waived",
+  },
+
+  WINLOSS_REASON_LABEL: {
+    price: "Price",
+    fit: "Solution fit",
+    timing: "Timing",
+    competitor: "Competitor",
+    no_decision: "No decision",
+    other: "Other",
+  },
+
+  RECENCY_TEXT: {
+    title: "Who has actually been spoken to",
+    description:
+      'The panel above reads the org chart - the people on file and who reports to whom. This one reads the follow-up record: who actually appears in it. They are deliberately not merged. Follow-up coverage is not yet complete, so "no record" is not "no contact", and folding it into "missing roles" would let a gap in our own habits pose as a gap in the relationship.',
+    warm: (days: number) =>
+      `Contacted within ${days} day${days === 1 ? "" : "s"}`,
+    cold: (days: number) =>
+      `No contact for over ${days} day${days === 1 ? "" : "s"}`,
+    unrecorded: "No follow-up on record at all",
+    unrecordedHint:
+      'Not the same as "not contacted in a long time" - it may simply never have been written down.',
+    warmPathYes:
+      "There is a workable path to the decision-maker, and it has actually been used",
+    warmPathNo:
+      "Someone on the path to the decision-maker has not been contacted in a long time",
+    warmPathUnknown:
+      "No follow-up on record for this account, so we cannot say",
+    warmPathUnknownHint:
+      'Answering "no" would use a gap in our own records to state a fact about the customer relationship.',
+  },
+
+  SIGNIN_TEXT: {
+    description: "Sign in to verify your subscription and open the product.",
+    cta: "Sign in",
+    hint: "You will come back to this page after signing in",
+    ariaLabel: "Sign in",
+  },
+
+  RELATION_TEXT: {
+    title: "Add a relationship",
+    description:
+      'The relationship graph is append-only: when a relationship changes you add a new edge rather than rewriting the old one - "who reported to whom last quarter" is a fact the chain analysis has to read.',
+    from: "From",
+    to: "To",
+    type: "Relationship",
+    submit: "Record",
+    saved: "Recorded",
+    pick: "Pick a contact",
+    readOnly: "You cannot edit the relationship graph.",
+    needTwo: "At least two contacts are needed to record a relationship.",
+    hintUnreachable:
+      "Recording a path to the decision-maker can turn the verdict above from unreachable to reachable.",
+  },
+
+  RELATION_ERROR: {
+    self_relation: "A person cannot be related to themselves",
+    unknown_relation_type: "Unknown relationship type",
+    not_authenticated: "Your session has expired - please sign in again",
+    permission_denied: "You cannot edit the relationship graph",
+    feature_not_in_tier: "Your tier does not include the relationship graph",
+    no_data_access: "This workspace has no access",
+  },
+
+  FIELD_ERROR: {
+    note_required:
+      "Write a line about what happened - recording only that it happened is worth nothing",
+    occurred_in_future: "A follow-up cannot have happened in the future",
+    unknown_channel: "Unknown follow-up channel",
+    evidence_required:
+      "Settling a promise has to point at a real follow-up, not just your word for it",
+    reason_required: "Waiving a promise requires a reason",
+    not_yet_due: "Not due yet, so it cannot be marked missed",
+    illegal_transition: "That status change is not allowed from here",
+    status_unchanged: "The status did not change",
+    statement_required: "Write down what was promised",
+    not_found: "No such record, or it belongs to another workspace",
+    not_authenticated: "Your session has expired - please sign in again",
+    permission_denied: "You cannot record follow-ups",
+    no_data_access: "This workspace has no access",
+  },
+
+  OPPORTUNITY_ERROR: {
+    stage_unchanged: "Already at this stage - an empty change is not recorded",
+    terminal_stage:
+      "This deal is closed; reopening needs explicit confirmation",
+    reason_required: "This change requires a reason",
+    unknown_stage: "Unknown stage",
+    not_found: "No such deal, or it belongs to another workspace",
+    not_authenticated: "Your session has expired - please sign in again",
+    permission_denied: "You cannot perform this action",
+    feature_not_in_tier: "Your tier does not include this capability",
+    probability_range: "Win rate must be a whole number between 0 and 100",
+    terminal_probability_fixed:
+      "A closed deal has a fixed win rate and cannot be changed",
+    amount_negative: "The amount cannot be negative",
+    empty_patch: "Nothing changed",
+    closed_requires_terminal_stage:
+      "A deal that is not closed cannot be marked won",
+    terminal_requires_closed: "A closed deal can only be in a closed category",
+  },
+
+  OPPORTUNITY_TEXT: {
+    linesTitle: "Product lines",
+    linesWhy:
+      "When lines exist, the lines are authoritative - the deal amount equals their sum, recomputed by the service in the same call that writes them. A single total cannot say what the money buys.",
+    lineProduct: "Product",
+    lineQty: "Qty",
+    linePrice: "Unit price",
+    lineAmount: "Amount",
+    lineAdd: "Add a line",
+    lineRemove: "Remove",
+    lineSave: "Save lines and recompute the amount",
+    lineSaved: (n: number, amount: string) => `${n} lines, amount recomputed to ${amount}`,
+    lineNone: "No lines yet - the amount is a hand-entered total",
+    lineNoneWhy: "That is the legal legacy shape: with no lines, the header stands on its own.",
+    lineBelowFloor: "Below floor - needs a signature",
+    lineFloorHint: (floor: string) => `Floor ${floor}`,
+    lineDenied: "You cannot change this deal",
+    lineClosedHint: "A closed deal cannot be repriced - its lines are the record of what was sold",
+    notFound: "No such deal, or it belongs to another workspace",
+    amount: "Amount",
+    probability: "Win rate",
+    expectedClose: "Expected close",
+    owner: "Owner",
+    account: "Account",
+    campaign: "Source campaign",
+    closedAt: "Closed at",
+    noAttribution: "No attribution (not from a campaign)",
+    attributionFrozen:
+      "Attribution keys are immutable once created; corrections go through db-init",
+    journeyTitle: "Stage journey",
+    journeyDescription:
+      "Every stage change writes an event, and velocity and conversion are computed from those - not inferred from the updated-at column, which only remembers the last write.",
+    journeyEmptyTitle: "No stage changes recorded yet",
+    journeyEmptyDescription:
+      "This deal has not moved since it was created. Advance it once and the full journey appears here.",
+    journeyFrom: "from",
+    journeyCreated: "Created",
+    journeyBy: "By",
+    journeyByAgent: "Copilot",
+    journeyReason: "Reason",
+    journeyDuration: (days: number) =>
+      `${days} day${days === 1 ? "" : "s"} in stage`,
+    journeyCurrent: "Current stage",
+    journeyTotal: (days: number) =>
+      `${days} day${days === 1 ? "" : "s"} in total`,
+    advanceTitle: "Advance the stage",
+    advanceDescription:
+      "The stage, the status and the close date change together, and an event is written.",
+    advanceTo: "Advance to",
+    advanceSubmit: "Confirm change",
+    advanceReason: "Reason",
+    advanceReasonRequired: "Moving a deal backwards requires a reason",
+    advanceReasonRequiredReopen: "Reopening a closed deal requires a reason",
+    advanceReasonPlaceholder: "Why this change",
+    advanceReopen: "Reopen this deal",
+    advanceReopenHint:
+      "Reopening rewrites a result that has already been reported, so it needs explicit confirmation and a reason.",
+    advanceClosedTitle: "This deal is closed",
+    advanceClosedDescription:
+      "A closed deal's stage cannot be changed directly. To correct it, tick reopen and give a reason.",
+    advanceReadOnly: "You cannot advance deals.",
+    advanceReviewRequired: "This deal has closed - a review is still owed.",
+    advanceRegressionHint: (from: string) => `This moves back from ${from}`,
+    advanceTerminalHint:
+      "Closing also writes the close date and requires a review",
+    advanceOverrideKept:
+      "A manual win rate is set; this change will not overwrite it",
+    advanceOverrideReset:
+      "Closing fixes the win rate at 100% / 0% and drops the manual value",
+    termsTitle: "Commercial terms",
+    termsDescription:
+      "Amount, win rate, expected close and forecast category. Once the win rate is set by hand, later stage changes leave it alone - except on close.",
+    termsAmount: "Amount",
+    termsProbability: "Win rate (0-100)",
+    termsExpectedClose: "Expected close",
+    termsForecast: "Forecast category",
+    termsSubmit: "Save",
+    termsSaved: "Saved",
+    termsUnchanged: "Nothing changed",
+    termsTerminalLocked:
+      "The deal is closed, so the win rate is fixed and cannot be changed",
+    termsReadOnly: "You cannot change the commercial terms.",
+  },
+
+  WINLOSS_TEXT: {
+    sectionTitle: "Win/loss reviews",
+    filterPending: "Awaiting review",
+    filterAll: "All reviews",
+    allEmptyTitle: "No closed deals yet",
+    allEmptyDescription:
+      "Once a deal is won or lost it appears here awaiting its review.",
+    columnState: "State",
+    reviewed: "Reviewed",
+    recordHintDone: "This one has already been reviewed",
+    recordHintDenied: "You cannot record reviews",
+    title: "Awaiting review",
+    description:
+      "Closed deals with no review yet. The win/loss reason is structured data that feeds back into scoring and suggestions - unwritten, there is no loop.",
+    columnOpportunity: "Deal",
+    columnOutcome: "Outcome",
+    columnAmount: "Amount",
+    columnClosed: "Closed",
+    outcomeWon: "Won",
+    outcomeLost: "Lost",
+    record: "Write the review",
+    reasonLabel: "Main reason",
+    competitorLabel: "Competitor",
+    lessonsLabel: "Lessons",
+    save: "Save",
+    cancel: "Cancel",
+    saved: "Recorded",
+    emptyTitle: "No deals awaiting review",
+    emptyDescription:
+      "Deals appear here when they close, and stay until the review is written.",
+  },
+
+  POSITION_TEXT: {
+    designate: "Set tier",
+    designateWhy:
+      "A strategic account is judged differently: every other rule is event-triggered and needs an open opportunity, while the thing most worth reporting about a strategic account is that it went quiet WITHOUT one - and no event will ever fire to say so. The cadence rule is what fires instead, and it reads the plan.",
+    planRequired: "A strategic account needs a plan, or the tier is just a label",
+    planPeriod: "Plan period",
+    cadenceContact: "Contact cadence (days)",
+    cadenceExec: "Executive cadence (days)",
+    designateSubmit: "Set the tier",
+    designated: (tier: string) => `Set to ${tier}`,
+    designateDenied: "You cannot change this account",
+    tierStrategic: "Strategic account",
+    tierKey: "Key account",
+    tierStandard: "Standard account",
+    planOf: (period: string) => `${period} account plan`,
+    planTarget: "Plan target",
+    planDeals: "Open deals",
+    triangle: "The team on it",
+    triangleOf: (sales: string, presales: string, delivery: string) =>
+      `Sales ${sales} - Presales ${presales} - Delivery ${delivery}`,
+    roleOwner: "Sales",
+    rolePresales: "Presales",
+    roleDelivery: "Delivery",
+    roleUnset: "Unassigned",
+    external: "Their side",
+    externalWhy:
+      "How they decide, what we are delivering to them, and who else is in the room.",
+    chain: "Decision chain",
+    chainCovered: "Roles covered",
+    chainMissing: "Roles missing",
+    chainCoaches: "Coaches",
+    chainBlockers: "Resistance",
+    chainUnreachable: "Decision-maker unreachable",
+    chainReachable: "Decision-maker reachable",
+    projects: "Projects in delivery",
+    noProjects: "Nothing is in delivery for this account",
+    // Words that betray a rival in a free-text note. NOT translations of the
+    // Chinese list: an English-speaking rep writes "the other vendor", not a
+    // rendering of "友商". A word list only works in the language it was
+    // written in.
+    rivalWords: [
+      "competitor",
+      "rival",
+      "the other vendor",
+      "incumbent",
+      "another vendor",
+      // Widen<> strips the readonly, so the zh side's `as readonly string[]`
+      // does not carry over - the dictionary type wants a mutable array here.
+    ],
+    competition: "Competition",
+    competitionNone:
+      "No structured competitive intelligence yet. Below are the passages in the follow-up notes that mention a rival - currently the only evidence there is.",
+    competitionNoMention:
+      "No competitor appears in the follow-up notes. That does not mean there is none, only that nobody wrote one down.",
+    scout: "Run a competitive analysis",
+    internal: "Our side",
+    internalWhy: "Who is on it, what has been done, and where it is stuck.",
+    problems: "Problems worth naming",
+    problemsWhy:
+      "Derived by rules from recorded evidence - not a risk list somebody filled in.",
+    noProblems: "The rules found no problems on this account.",
+    history: "Follow-up history",
+    historyCount: (n: number) => `${n} record${n === 1 ? "" : "s"}`,
+    plan: "What we intend to do next",
+    planWhy:
+      "The copilot proposes, a person signs. Nothing runs until somebody accepts it.",
+    planEmpty: "The copilot has nothing proposed for this account.",
+    planCommercial: "Commercial",
+    planTechnical: "Product and technical",
+    planRelation: "Relationship",
+    actionLabels: {
+      advance_stage: "Advance to the next stage",
+      draft_outreach: "Draft an outreach",
+      promote_signal: "Promote the signal to a lead",
+      adjust_forecast: "Adjust the forecast",
+      draft_email: "Draft an email",
+    } as Record<string, string>,
+    approve: "Approve",
+    reject: "Reject",
+    confidence: (n: number) => `Confidence ${n}`,
+  },
+
+  // A FUNCTION, so the whole switch is re-implemented rather than a table
+  // being swapped. It reads STAGE_LABEL, and it has to read the ENGLISH one -
+  // closing over the Chinese import here would have produced a sentence in
+  // both languages at once.
+  healthReasonText: (r: {
+    code: string;
+    count?: number;
+    days?: number;
+    furthestStage?: string;
+  }): string => {
+    const stage =
+      (en.STAGE_LABEL as Record<string, string>)[r.furthestStage ?? ""] ??
+      r.furthestStage;
+    // ENGLISH HAS PLURALS AND CHINESE DOES NOT, which is why this helper has
+    // no counterpart on the zh side and is not an oversight there. Without it
+    // the panel read "1 instalments overdue" - a defect that literally could
+    // not appear until the first sentence was rendered in English.
+    const n = (count: number | undefined, one: string, many: string) =>
+      `${count} ${count === 1 ? one : many}`;
+    switch (r.code) {
+      case "no_open_deals":
+        return "No open deals";
+      case "open_deals":
+        return `${n(r.count, "open deal", "open deals")}, furthest at ${stage}`;
+      case "never_contacted":
+        return "No follow-up on record at all";
+      case "quiet_days":
+        return `No contact for ${n(r.days, "day", "days")}`;
+      case "contacted_days":
+        return `Last contact ${n(r.days, "day", "days")} ago`;
+      case "projects_red":
+        return `${n(r.count, "project", "projects")} red`;
+      case "projects_amber":
+        return `${n(r.count, "project", "projects")} amber`;
+      case "projects_green":
+        return `${n(r.count, "project", "projects")} green`;
+      case "overdue_revenue":
+        return `${n(r.count, "instalment", "instalments")} overdue`;
+      case "revenue_clean":
+        return "No overdue collections";
+      default:
+        return r.code;
+    }
   },
 
   HEADER_TEXT: {
@@ -316,6 +898,12 @@ export const en: Dictionary = {
     tBestCase: "Best case",
     tPipeline: "Pipeline",
     tClosed: "Closed",
+    snapshot: "Take a snapshot",
+    snapshotPending: "Recording...",
+    snapshotTaken: "Added to the series",
+    snapshotFailed: "The snapshot was not stored",
+    snapshotDenied:
+      "You cannot submit a forecast - the person who reads one is often not the person who commits to it",
     productSplit: "What the commit is made of",
     productSplitWhy:
       "Split by product line. A single total cannot say what the money is for.",
@@ -444,6 +1032,28 @@ export const en: Dictionary = {
   // --- /delivery ----------------------------------------------------------
 
   DELIVERY_TEXT: {
+    collections: "Collections",
+    collectionsWhy:
+      "The chain does not end at the win, it ends when the money arrives. Instalments follow the transition map; settled and written-off are terminal - money that arrived did arrive, and a write-off is corrected by a new schedule, not by editing this row.",
+    colProject: "Project",
+    colSeq: "No.",
+    colPlanned: "Planned",
+    colActual: "Received",
+    colDue: "Due",
+    colRevStatus: "Status",
+    noInstalments: "No collection schedule yet",
+    overdueCount: (n: number) => `${n} overdue`,
+    settleAsk: "How much actually arrived? Short payment is normal - the received amount is the point",
+    moveTo: "Move to",
+    moved: (s: string) => `Moved to ${s}`,
+    moveDenied: "You cannot change collections",
+    reconcile: "Recompute health",
+    reconcileHint:
+      "Re-derive it from this project's own milestones and instalments, overriding what was reported by hand",
+    reconcileAgreed: "The report already matched the rows - nothing changed",
+    reconcileChanged: (health: string) => `Changed to ${health}`,
+    reconcileWhy: (because: string) => `Because: ${because}`,
+    reconcileDenied: "You cannot change delivery projects",
     title: "Delivery",
     description:
       "The chain does not end at a win, it ends when the money arrives. A project with an overdue instalment may not show as healthy.",
@@ -535,6 +1145,32 @@ export const en: Dictionary = {
   // --- /planning ----------------------------------------------------------
 
   PLANNING_TEXT: {
+    setTarget: "Set a target",
+    setTargetWhy:
+      "A target's scope tuple is its identity: one target per period, scope and metric. To change the number, adjust the one that exists rather than adding a second.",
+    setScope: "Scope",
+    scopeTerritory: "Territory",
+    scopeOwner: "Me",
+    setMetric: "Metric",
+    setAmount: "Target amount",
+    setSubmit: "Create target",
+    setSaved: "Created",
+    setDenied: "You cannot set targets",
+    adjust: "Adjust the amount",
+    adjustSaved: "Adjusted",
+    commit: "Commit it",
+    commitWhy: "Committing cannot be undone - a number already reported upward does not come back",
+    closeTarget: "Close the period",
+    closeWhy:
+      "Closing freezes it. It records what was committed for a finished period, and editing that is how a missed quarter becomes a met one",
+    rowDenied: "You cannot adjust targets",
+    metricRevenue: "Revenue",
+    metricNewLogo: "New logos",
+    metricPipeline: "Pipeline",
+    metricMargin: "Margin",
+    statusDraft: "Draft",
+    statusCommitted: "Committed",
+    statusClosed: "Closed",
     title: "Sales planning",
     description:
       "Targets are set by this domain; attainment is computed from the pipeline domain's forecast snapshots. Neither writes the other's data.",
@@ -916,6 +1552,7 @@ export const en: Dictionary = {
   // The left board and the right deck - the two flanks, on every page.
   // Replaces the partial override that pulled `wan` forward for /pipeline.
   BOARD_TEXT: {
+    openThread: "Full conversation",
     queue: "Your calls",
     ledeToday: "For you today",
     proposals: "proposals to sign",
