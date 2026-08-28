@@ -10,9 +10,17 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
-import { attainment as computeAttainment } from "../pipeline/lib/forecast";
-import { planTargetCreation, planTargetUpdate, type SalesTarget, type TargetScope, type TargetStatus } from "./lib/target";
-import type { Money } from "../shared/money";
+import {
+  measure,
+  planTargetCreation,
+  planTargetUpdate,
+  targetValue,
+  type Measurement,
+  type SalesTarget,
+  type TargetScope,
+  type TargetStatus,
+} from "./lib/target";
+import { DEFAULT_CURRENCY } from "../shared/money";
 import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
 
 export interface PlanningContext {
@@ -40,9 +48,17 @@ export async function listTerritories(
   return ok(await ctx.store.listTerritories(ctx.workspaceId));
 }
 
+/**
+ * The caller sends a NUMBER and a currency, never a typed value.
+ *
+ * The unit is a pure function of the metric (`unitOf`), so deriving it here
+ * makes "a count target that carries a currency" unrepresentable rather than
+ * merely discouraged. TD-013 existed because the caller chose the shape, and
+ * the only shape on offer was money.
+ */
 export async function createTarget(
   ctx: PlanningContext,
-  input: { scope: TargetScope; targetAmount: Money; planId?: string | null },
+  input: { scope: TargetScope; amount: number; currency?: string; planId?: string | null },
 ): Promise<RuleResult<TargetRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.target.create", "data");
   if (!gate.allowed) return denied(gate);
@@ -50,7 +66,12 @@ export async function createTarget(
   // The duplicate check is done against the scope tuple, so the caller gets
   // "a target already exists for this scope" instead of a unique-index error.
   const existing = await ctx.store.listTargets(ctx.workspaceId, { period: input.scope.period });
-  const plan = planTargetCreation({ ...input, existing });
+  const plan = planTargetCreation({
+    scope: input.scope,
+    targetValue: targetValue(input.scope.metric, input.amount, input.currency ?? DEFAULT_CURRENCY),
+    planId: input.planId,
+    existing,
+  });
   if (!plan.ok) return plan as RuleResult<TargetRecord>;
 
   return ok(await ctx.store.createTarget(ctx.workspaceId, plan.value as SalesTarget));
@@ -59,7 +80,7 @@ export async function createTarget(
 export async function updateTarget(
   ctx: PlanningContext,
   id: string,
-  patch: { targetAmount?: Money; status?: TargetStatus; planId?: string | null },
+  patch: { amount?: number; status?: TargetStatus; planId?: string | null },
 ): Promise<RuleResult<{ id: string }>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.target.update", "data");
   if (!gate.allowed) return denied(gate);
@@ -67,7 +88,20 @@ export async function updateTarget(
   const current = await ctx.store.getTarget(ctx.workspaceId, id);
   if (!current) return fail(violation("not_found", `target ${id} was not found`, "id"));
 
-  const plan = planTargetUpdate(current, patch);
+  // The unit and the currency come from the target being edited, never from the
+  // caller: changing either is what `planTargetUpdate` refuses outright.
+  const plan = planTargetUpdate(current, {
+    ...(patch.amount === undefined
+      ? {}
+      : {
+          targetValue:
+            current.targetValue.unit === "count"
+              ? ({ unit: "count", amount: patch.amount } as const)
+              : ({ unit: "money", amount: patch.amount, currency: current.targetValue.currency } as const),
+        }),
+    ...(patch.status === undefined ? {} : { status: patch.status }),
+    ...(patch.planId === undefined ? {} : { planId: patch.planId }),
+  });
   if (!plan.ok) return plan as RuleResult<{ id: string }>;
 
   const applied = await ctx.store.updateTarget(ctx.workspaceId, id, plan.value);
@@ -77,11 +111,15 @@ export async function updateTarget(
 
 export interface AttainmentRow {
   target: TargetRecord;
-  closed: Money | null;
-  /** Achieved over target. Null when no target was set OR nothing has closed. */
-  ratio: number | null;
-  /** Distinguishes "no snapshot yet" from "0% attained" for the caller. */
-  hasSnapshot: boolean;
+  /**
+   * What the target has achieved, or why it could not be measured.
+   *
+   * WAS `{closed, ratio, hasSnapshot}` - three fields the caller had to combine
+   * correctly, and which could not express "this metric has no numerator at
+   * all". A discriminated union means a page cannot render a percentage for a
+   * target that was never measured, because there is no number to render.
+   */
+  measurement: Measurement;
 }
 
 /**
@@ -103,14 +141,8 @@ export async function attainment(
   const rows: AttainmentRow[] = [];
 
   for (const target of targets) {
-    const closed = await ctx.store.closedAmountFor(ctx.workspaceId, target);
-    if (!closed) {
-      rows.push({ target, closed: null, ratio: null, hasSnapshot: false });
-      continue;
-    }
-    const ratio = computeAttainment(closed, target.targetAmount);
-    if (!ratio.ok) return ratio as RuleResult<AttainmentRow[]>;
-    rows.push({ target, closed, ratio: ratio.value, hasSnapshot: true });
+    const totals = await ctx.store.publishedTotalsFor(ctx.workspaceId, target);
+    rows.push({ target, measurement: measure(target, totals) });
   }
   return ok(rows);
 }

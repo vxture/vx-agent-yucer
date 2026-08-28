@@ -197,10 +197,26 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
       // different from "0% attained".
       target("tgt_north", workspaceId, "territory", "terr_north", null, 2_500_000, "draft"),
     ],
-    closed: {
-      [`${workspaceId}|${PERIOD}|workspace||`]: money(2_700_000, CNY),
-      [`${workspaceId}|${PERIOD}|territory|terr_east|`]: money(760_000, CNY),
-      [`${workspaceId}|${PERIOD}|territory|terr_south|`]: money(540_000, CNY),
+    // The numbers D6 has PUBLISHED for each scope, which is what attainment
+    // reads. Pipeline amounts match the live board's own split so a pipeline
+    // target measures against the same figure the pipeline page shows; new-logo
+    // counts are the three accounts whose first win landed in this period.
+    published: {
+      [`${workspaceId}|${PERIOD}|workspace||`]: {
+        closedAmount: money(2_700_000, CNY),
+        pipelineAmount: money(1_580_000, CNY),
+        newLogoCount: 3,
+      },
+      [`${workspaceId}|${PERIOD}|territory|terr_east|`]: {
+        closedAmount: money(760_000, CNY),
+        pipelineAmount: money(480_000, CNY),
+        newLogoCount: 1,
+      },
+      [`${workspaceId}|${PERIOD}|territory|terr_south|`]: {
+        closedAmount: money(540_000, CNY),
+        pipelineAmount: money(620_000, CNY),
+        newLogoCount: 1,
+      },
     },
   });
 }
@@ -636,10 +652,10 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // through the quarter, then fell when one deal slipped - which is what a
       // forecast actually does and what makes the history worth keeping.
       snapshots: [
-        snapshot(workspaceId, daysAgo(75), 3_200_000, 2_100_000, 1_900_000, 0),
-        snapshot(workspaceId, daysAgo(60), 3_800_000, 2_400_000, 1_800_000, 760_000),
-        snapshot(workspaceId, daysAgo(45), 4_600_000, 2_900_000, 1_700_000, 1_300_000),
-        snapshot(workspaceId, daysAgo(30), 4_900_000, 3_100_000, 1_600_000, 2_700_000),
+        snapshot(workspaceId, daysAgo(75), 3_200_000, 2_100_000, 1_900_000, 0, 0),
+        snapshot(workspaceId, daysAgo(60), 3_800_000, 2_400_000, 1_800_000, 760_000, 1),
+        snapshot(workspaceId, daysAgo(45), 4_600_000, 2_900_000, 1_700_000, 1_300_000, 2),
+        snapshot(workspaceId, daysAgo(30), 4_900_000, 3_100_000, 1_600_000, 2_700_000, 3),
         // The slip: commit came down because one deal moved out of the quarter.
         //
         // The LAST point equals what the live board computes right now
@@ -648,7 +664,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
         // "total and detail disagree" mess this repo keeps arguing against -
         // and the closed figure also has to match the quota card,
         // because both are the same three won deals.
-        snapshot(workspaceId, daysAgo(14), 4_200_000, 3_030_000, 1_580_000, 2_700_000),
+        snapshot(workspaceId, daysAgo(14), 4_200_000, 3_030_000, 1_580_000, 2_700_000, 3),
       ],
     },
   );
@@ -796,7 +812,7 @@ function target(
     territoryId,
     ownerSub,
     metric: "revenue" as const,
-    targetAmount: money(amount, CNY),
+    targetValue: { unit: "money" as const, amount, currency: CNY },
     status: status as never,
     planId: "plan_demo_1",
   };
@@ -1177,6 +1193,7 @@ function snapshot(
   bestCase: number,
   pipelineAmt: number,
   closed: number,
+  newLogos: number,
 ) {
   return {
     workspaceId,
@@ -1190,5 +1207,6 @@ function snapshot(
     bestCaseAmount: money(bestCase, CNY),
     pipelineAmount: money(pipelineAmt, CNY),
     closedAmount: money(closed, CNY),
+    newLogoCount: newLogos,
   };
 }

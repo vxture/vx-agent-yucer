@@ -343,7 +343,7 @@ test("planning has a target with no snapshot, so the two null cases are visible"
   const targets = await s.planning.listTargets(WS, { period: "2026Q3" });
   const withoutSnapshot: string[] = [];
   for (const t of targets) {
-    if ((await s.planning.closedAmountFor(WS, t)) == null) withoutSnapshot.push(t.id);
+    if ((await s.planning.publishedTotalsFor(WS, t)) == null) withoutSnapshot.push(t.id);
   }
   assert.ok(withoutSnapshot.length > 0, "one scope must be unforecast, to distinguish it from 0%");
   assert.ok(withoutSnapshot.length < targets.length, "and others must have snapshots");

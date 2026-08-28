@@ -72,7 +72,10 @@ export async function createSalesTarget(input: {
         ownerSub: input.scopeType === "owner" ? session.user.sub : null,
         metric: input.metric,
       },
-      targetAmount: money(input.amount, input.currency),
+      // A number and a currency, not a Money. The service derives the unit from
+      // the metric, so a count target cannot arrive carrying a currency.
+      amount: input.amount,
+      currency: input.currency,
     },
   );
 

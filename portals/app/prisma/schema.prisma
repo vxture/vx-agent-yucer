@@ -296,7 +296,8 @@ model SalesTarget {
   ownerSub     String?  @map("owner_sub") @db.VarChar(128)
   metric       String   @default("revenue") @db.VarChar(64)
   targetAmount Decimal  @map("target_amount") @db.Decimal(18, 2)
-  currency     String   @default("CNY") @db.VarChar(8)
+  /// incr/0013: NULL for a count metric. A CHECK ties it to `metric`.
+  currency     String?  @db.VarChar(8)
   status       String   @default("draft") @db.VarChar(32)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
@@ -445,6 +446,10 @@ model ForecastSnapshot {
   pipelineAmount  Decimal  @default(0) @map("pipeline_amount") @db.Decimal(18, 2)
   closedAmount    Decimal  @default(0) @map("closed_amount") @db.Decimal(18, 2)
   currency        String   @default("CNY") @db.VarChar(8)
+  /// incr/0013. Nullable and no default: a snapshot from before that
+  /// increment, or one whose period label could not be parsed, was never
+  /// counted - which is a different fact from having counted zero.
+  newLogoCount    Int?     @map("new_logo_count")
   snapshotAt      DateTime @default(now()) @map("snapshot_at") @db.Timestamptz()
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
 

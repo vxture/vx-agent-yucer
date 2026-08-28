@@ -1165,6 +1165,18 @@ export const en: Dictionary = {
     scopeOwner: "Me",
     setMetric: "Metric",
     setAmount: "Target amount",
+    setCount: "Target customer count",
+    countUnit: (n: string) => `${n} customers`,
+    gapLabel: {
+      no_snapshot: "No snapshot",
+      no_cost_data: "Not measurable",
+      not_counted: "Not counted",
+    } as Record<string, string>,
+    gapHint: {
+      no_snapshot: "No forecast snapshot has been submitted for this scope this period - that is not 0% attained",
+      no_cost_data: "This product holds no cost data, so margin cannot be computed. Not a missed period - an unmeasurable metric",
+      not_counted: "This snapshot carries no new-logo count - it predates the field, or its period label could not be parsed into dates",
+    } as Record<string, string>,
     setSubmit: "Create target",
     setSaved: "Created",
     setDenied: "You cannot set targets",

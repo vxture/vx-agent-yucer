@@ -39,6 +39,7 @@ import {
 // follows the request's locale. Both entry points await the dictionary; it is
 // resolved once per render by next/headers, so two calls cost one resolution.
 import { getMessages } from "./i18n/server";
+import { summaryTarget } from "../../domains/planning/lib/target";
 
 // The numbers behind the navigation board.
 //
@@ -244,11 +245,12 @@ export async function boardSections(
   // could most easily lie about: "nobody has forecast this yet" and "attained
   // zero". Rendering both as 0% would report an unforecast quarter as a failed
   // one.
-  const wsTarget = targets.ok
-    ? targets.value.find(
-        (t) => t.scopeType === "workspace" && t.status === "committed",
-      )
-    : undefined;
+  // A MONEY target, via the shared rule. This card formats in wan and feeds
+  // `coverage`, which is money arithmetic end to end; a committed new-logo
+  // target picked up here would render "10 customers" as 10 wan and divide a
+  // pipeline by it (TD-013). The selection lives in the rule layer because the
+  // planning page needed the same one and both had written it inline.
+  const wsTarget = targets.ok ? (summaryTarget(targets.value) ?? undefined) : undefined;
   const rows = wsTarget
     ? await attainment({ ...base, store: getPlanningStore() }, wsTarget.period)
     : null;
@@ -273,8 +275,8 @@ export async function boardSections(
     wsTarget && wsRow
       ? coverage(
           worth,
-          wsTarget.targetAmount.amount,
-          wsRow.closed?.amount ?? 0,
+          wsTarget.targetValue.amount,
+          wsRow.measurement.kind === "measured" ? wsRow.measurement.achieved.amount : 0,
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
         )
       : null;
@@ -524,7 +526,11 @@ export async function boardSections(
   // Shown only with a workspace-scope committed target AND a snapshot behind
   // it. No target means no denominator; no snapshot means nobody has forecast
   // the period, which is not the same as having attained nothing.
-  if (wsTarget && wsRow?.hasSnapshot && wsRow.ratio !== null) {
+  const wsMeasured =
+    wsRow?.measurement.kind === "measured" && wsRow.measurement.ratio !== null
+      ? wsRow.measurement
+      : null;
+  if (wsTarget && wsMeasured) {
     sections.unshift({
       key: "quota",
       title: BOARD_TEXT.quota(wsTarget.period),
@@ -537,21 +543,21 @@ export async function boardSections(
       metrics: [
         {
           label: BOARD_TEXT.quotaWon,
-          value: BOARD_TEXT.wan(wsRow.closed?.amount ?? 0),
+          value: BOARD_TEXT.wan(wsMeasured.achieved.amount),
           tone: "warn",
         },
         {
           label: BOARD_TEXT.quotaTarget,
-          value: BOARD_TEXT.wan(wsTarget.targetAmount.amount),
+          value: BOARD_TEXT.wan(wsTarget.targetValue.amount),
         },
         {
           label: BOARD_TEXT.quotaOf,
           value: BOARD_TEXT.quotaLeft(
-            Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100))),
+            Math.max(0, Math.min(100, Math.round((wsMeasured.ratio ?? 0) * 100))),
           ),
         },
       ],
-      progress: Math.max(0, Math.min(100, Math.round(wsRow.ratio * 100))),
+      progress: Math.max(0, Math.min(100, Math.round((wsMeasured.ratio ?? 0) * 100))),
     });
   }
 
