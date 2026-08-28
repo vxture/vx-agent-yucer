@@ -705,15 +705,28 @@ watch 悄悄不再应用 ignore 基线）、以及 watch 里**不得有任何 jo
 | 步骤 | 谁 | 状态 |
 |------|-----|------|
 | 1. 在 SonarCloud 项目设置里**关闭 Automatic Analysis**（与 CI 分析互斥，不关会冲突） | owner，控制台 | 已完成 2026-08-28 |
-| 2. 建 Actions secret `SONAR_TOKEN` | owner，凭据 | **待办** |
+| 2. 建 Actions secret `SONAR_TOKEN` | owner，凭据 | 已完成 2026-08-28 |
 | 3. `sonar-project.properties` + `sonar` job，把 lcov 指过去 | 代码侧 | 本次完成 |
 
 第 2 步只能由 owner 做，代码侧碰不到凭据。在它完成之前 `sonar` job 会失败——**但它
 刻意不在必需的五项检查里**，所以不阻塞合并，理由与 `db-contract` 相同：把一个第三方
 服务折进必需检查，等于让它宕机时全仓无法合并。
 
-**注意此刻的空窗**：Automatic Analysis 已关闭，而 `sonar` job 还没有令牌，所以现在
-**完全没有 Sonar 分析**。这个空窗由第 2 步关闭。
+**第一次 CI 分析就证明了这条门的价值。** 切换后 SonarCloud 报出 `coverage = 90.1%`
+（node 报 91.41，两者口径略有差别），0.0% 结束。而质量门当场失败：
+
+```
+Quality Gate failed
+0.0% Coverage on New Code (required >= 80%)
+```
+
+它抓到的是**本次新加的 `scripts/ci/lcov-to-repo-root.mjs`，一行测试都没有**。
+
+这不是门太严，而是它从「结构性无法触发」变成了「真的会响」——以前没有覆盖率数据，这个
+条件根本不适用，所以它一直是绿的。**正确的回应是补测试，不是把 `scripts/` 从覆盖率里
+排除掉**；后者会让这条门重新变成装饰。补完后该文件 85.15%，未覆盖的只剩
+`import.meta.url` 那个入口块——进程内无法执行，而子进程执行不计入覆盖率（覆盖率按进程
+算），所以 CLI 的决策被提成 `run(args, io)` 由测试直接调用。
 
 **覆盖率表现在写进 GitHub 的 run summary。** 这个数一直存在，但只活在日志里，不翻开
 作业滚到底就看不见。它**不是门**——不设阈值，选阈值是 owner 的决定，悄悄加一个等于加了
