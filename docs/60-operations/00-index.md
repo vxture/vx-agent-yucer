@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 4，删除 1，余 5） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 5，删除 1，余 4） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -868,6 +868,18 @@ PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts`
 `DROP`**——按 README 规矩「只在增量里删表」的人，第一次删除就会被报成 Prisma 漂移。已改为
 按文件顺序读两者。
 
-余下五条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
-`campaign.execution.upsert`、`account.offering.view` / `.upsert`。（`delivery.milestone.upsert`
-已还，`delivery.task.upsert` 已删。）
+**已还第五笔 2026-08-28**：`strategy.plan.create`。端口有 list / get / update，`/strategy`
+渲染列表并推进生命周期——**所以一个计划可以被批准、启动、结束、归档，唯独不能被创建**。
+
+它上游于不止自己：`sales_target.plan_id` 与 `campaign.plan_id` 都指向计划，没有计划，目标和
+战役就没有可挂之处。
+
+**创建不是 upsert。** `plan_no` 虽然是工作区内唯一且不可变，本可以当 upsert 的键——但计划带
+生命周期（草稿→批准→执行→结束）。重发一个已有编号会静默改写一个别人已据以批准的计划。
+区域和产品没有这种状态，计划有，所以重号是**拒绝**而不是覆盖。
+
+**新计划一律是草稿，状态不是入参。** 审批由 `transitionPlan` 负责，`approved_at` 只有那条
+路径会写；让调用方从 `approved` 起步，等于绕过记录这次审批的那次转换。
+
+余下四条：`strategy.segment.view` / `.upsert`、`campaign.execution.upsert`、
+`account.offering.view` / `.upsert`。

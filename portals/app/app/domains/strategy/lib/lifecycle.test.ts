@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
 import {
+  planNewPlan,
   CAMPAIGN_STATUSES,
   PLAN_STATUSES,
   canCompleteCampaign,
@@ -141,4 +142,51 @@ test("explicitly skipped work does not block completion", () => {
 
 test("a campaign with no executions completes trivially", () => {
   assert.ok(canCompleteCampaign([]).ok);
+});
+
+// --- Creating a plan (TD-016) ------------------------------------------------
+
+const planDraft = {
+  planNo: "PLAN-2027H1",
+  name: "Enterprise push",
+  period: "2027H1",
+  objective: "  ",
+  ownerSub: null as string | null,
+};
+
+test("a plan needs a number, a name and a period", () => {
+  for (const [field, over] of [
+    ["plan_no_required", { planNo: "  " }],
+    ["name_required", { name: " " }],
+    ["period_required", { period: "" }],
+  ] as const) {
+    const r = planNewPlan({ ...planDraft, ...over });
+    assert.equal(r.ok === false && r.violations[0].code, field);
+  }
+});
+
+test("a period is required because every downstream reader joins on it", () => {
+  // Targets carry a period, campaigns hang off a plan, and "which half-year is
+  // this" is not derivable from anything else on the row.
+  const r = planNewPlan({ ...planDraft, period: "   " });
+  assert.equal(r.ok === false && r.violations[0].code, "period_required");
+});
+
+test("a new plan is ALWAYS a draft, and the status is not an input", () => {
+  // planStrategyTransition owns every move after this, including the approval
+  // that stamps approved_at. Starting at "approved" would be a way to reach
+  // that state without the transition that records it - the same reason a
+  // target starts as a draft and a deal starts at qualify.
+  const t = unwrap(planNewPlan(planDraft));
+  assert.equal(t.status, "draft");
+});
+
+test("blank optional text becomes null rather than an empty string", () => {
+  assert.equal(unwrap(planNewPlan(planDraft)).objective, null);
+});
+
+test("the anchor and the name are trimmed", () => {
+  const t = unwrap(planNewPlan({ ...planDraft, planNo: " PLAN-X ", name: " Push " }));
+  assert.equal(t.planNo, "PLAN-X");
+  assert.equal(t.name, "Push");
 });

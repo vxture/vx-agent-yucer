@@ -5,7 +5,14 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryStrategyStore, type CampaignRecord, type ExecutionRecord, type PlanRecord } from "./store";
-import { campaignReturn, listPlans, transitionCampaign, transitionPlan, type StrategyContext } from "./service";
+import {
+  campaignReturn,
+  createPlan,
+  listPlans,
+  transitionCampaign,
+  transitionPlan,
+  type StrategyContext,
+} from "./service";
 
 const WS = "ws_1";
 const AT = new Date("2026-08-15T00:00:00Z");
@@ -210,4 +217,59 @@ test("campaigns never cross a workspace boundary", async () => {
   store.seed({ campaigns: [campaign({ workspaceId: "ws_other" })] });
   const r = await campaignReturn(ctx("marketing_manager", "business", store), "camp_1");
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+// --- Creating a plan, which nothing could do until now (TD-016) --------------
+
+const newPlan = {
+  planNo: "PLAN-2027H1",
+  name: "Enterprise push",
+  period: "2027H1",
+  objective: null as string | null,
+  ownerSub: null as string | null,
+};
+
+test("a viewer may read plans and may not create one", async () => {
+  // viewer holds strategy.read and not strategy.write - the pair that pins this
+  // to the WRITE action rather than to any strategy access.
+  const c = ctx("viewer", "business");
+  assert.equal((await listPlans(c)).ok, true, "reading is allowed");
+  const r = await createPlan(c, newPlan);
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+});
+
+test("a created plan is a draft with no approval stamp", async () => {
+  // The state and the timestamp move together, and only the transition writes
+  // them. A plan that arrived already approved would have an approval nobody
+  // performed.
+  const store = new InMemoryStrategyStore();
+  const made = unwrap(await createPlan(ctx("sales_leader", "business", store), newPlan));
+  assert.equal(made.status, "draft");
+  assert.equal(made.approvedAt, null);
+});
+
+test("a duplicate plan number is refused by name, not by a unique index", async () => {
+  const store = new InMemoryStrategyStore();
+  const c = ctx("sales_leader", "business", store);
+  unwrap(await createPlan(c, newPlan));
+  const again = await createPlan(c, newPlan);
+  assert.equal(again.ok === false && again.violations[0]!.code, "plan_no_taken");
+  assert.equal((await store.listPlans(WS)).length, 1, "and no second row");
+});
+
+test("the same number in ANOTHER workspace is free", async () => {
+  // plan_no is unique per workspace, not globally. Refusing it across tenants
+  // would leak one workspace's numbering into another's.
+  const store = new InMemoryStrategyStore();
+  unwrap(await createPlan(ctx("sales_leader", "business", store), newPlan));
+  const other = { ...ctx("sales_leader", "business", store), workspaceId: "ws_other" };
+  assert.equal((await createPlan(other, newPlan)).ok, true);
+});
+
+test("a created plan is immediately in the list the page reads", async () => {
+  const store = new InMemoryStrategyStore();
+  const c = ctx("sales_leader", "business", store);
+  unwrap(await createPlan(c, newPlan));
+  const listed = unwrap(await listPlans(c));
+  assert.equal(listed.some((p) => p.planNo === "PLAN-2027H1"), true);
 });

@@ -19,6 +19,8 @@ import {
   validateCampaignWindow,
   type CampaignStatus,
   type PlanStatus,
+  planNewPlan,
+  type NewPlanDraft,
 } from "./lib/lifecycle";
 import type { CampaignRecord, PlanRecord, StrategyStore } from "./store";
 
@@ -37,6 +39,44 @@ export async function listPlans(
   const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listPlans(ctx.workspaceId, filter));
+}
+
+/**
+ * Bring a plan into existence.
+ *
+ * `strategy.plan.create` has been in the action catalogue since batch 1 with
+ * nothing behind it (TD-016). The port had list, get and update, and
+ * `/strategy` renders the list and moves plans through their lifecycle - so a
+ * plan could be approved, activated, closed and archived, and could not be
+ * created. Every plan in every workspace would have had to arrive by db-init.
+ *
+ * It is upstream of more than itself: `sales_target.plan_id` and
+ * `campaign.plan_id` both point here, so with no plan there is nothing for a
+ * target or a campaign to hang off.
+ *
+ * A NEW PLAN IS A DRAFT and the status is not an argument - `transitionPlan`
+ * below owns every move after this one, including the approval that stamps
+ * `approved_at`.
+ */
+export async function createPlan(
+  ctx: StrategyContext,
+  input: NewPlanDraft,
+): Promise<RuleResult<PlanRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.create", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planNewPlan(input);
+  if (!plan.ok) return plan as RuleResult<PlanRecord>;
+
+  const created = await ctx.store.createPlan(ctx.workspaceId, plan.value);
+  if (!created) {
+    // The unique index would refuse it anyway; saying so here names the reason
+    // and the field instead of surfacing a constraint name.
+    return fail(
+      violation("plan_no_taken", `plan ${plan.value.planNo} already exists`, "planNo"),
+    );
+  }
+  return ok(created);
 }
 
 export async function transitionPlan(

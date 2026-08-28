@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getStrategyStore } from "../../domains/shared/registry";
-import { transitionPlan } from "../../domains/strategy/service";
+import { createPlan, transitionPlan } from "../../domains/strategy/service";
 import { PLAN_STATUSES, type PlanStatus } from "../../domains/strategy/lib/lifecycle";
 
 // Moving a plan through its lifecycle.
@@ -42,6 +42,40 @@ export async function movePlan(id: string, to: string): Promise<TransitionResult
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/strategy");
+  return { ok: true };
+}
+
+/**
+ * Creating a plan.
+ *
+ * The neighbour of `movePlan` above, which shipped first and could only ever
+ * move plans that db-init had put there (TD-016).
+ */
+export async function createStrategyPlan(input: {
+  planNo: string;
+  name: string;
+  period: string;
+  objective: string | null;
+  ownerSub: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await createPlan(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getStrategyStore(),
+    },
+    input,
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
   revalidatePath("/strategy");
   return { ok: true };
 }

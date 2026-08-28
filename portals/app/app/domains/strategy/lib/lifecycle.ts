@@ -190,3 +190,56 @@ export function canCompleteCampaign(
   }
   return ok(true);
 }
+
+// --- Bringing a plan into existence (TD-016) ---------------------------------
+
+export interface NewPlanDraft {
+  /** Unique per workspace and NOT writable - the anchor, like a territory code. */
+  planNo: string;
+  name: string;
+  period: string;
+  objective: string | null;
+  ownerSub: string | null;
+}
+
+/**
+ * Validate a plan before it is written.
+ *
+ * `strategy.plan.create` shipped in batch 1 with nothing behind it (TD-016).
+ * The port has `listPlans`, `getPlan` and `updatePlan`, and `/strategy` renders
+ * the list and moves plans through their lifecycle - so a plan could be
+ * approved, activated, closed and archived, and could not be created.
+ *
+ * A NEW PLAN IS ALWAYS A DRAFT, and the status is not an argument. `planPlanTransition`
+ * above owns every move after this one, including the approval that stamps
+ * `approved_at`; letting a caller start a plan at `approved` would be a way to
+ * reach that state without the transition that records it. The same reason a
+ * target starts as a draft and a deal starts at qualify.
+ */
+export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { status: "draft" }> {
+  const planNo = input.planNo.trim();
+  const name = input.name.trim();
+  const period = input.period.trim();
+
+  if (!planNo) {
+    return fail(violation("plan_no_required", "a plan needs a number", "planNo"));
+  }
+  if (!name) {
+    return fail(violation("name_required", "a plan needs a name", "name"));
+  }
+  if (!period) {
+    // Every downstream reader joins on it: targets carry a period, campaigns
+    // hang off a plan, and "which half-year is this" is not derivable from
+    // anything else on the row.
+    return fail(violation("period_required", "a plan needs a period", "period"));
+  }
+
+  return ok({
+    ...input,
+    planNo,
+    name,
+    period,
+    objective: input.objective?.trim() || null,
+    status: "draft",
+  });
+}
