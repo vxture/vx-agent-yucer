@@ -45,8 +45,8 @@ for r in D.ROLES:
     got = re.findall(r'"([^"]+)"', re.search(re.escape(r) + r':\s*\[(.*?)\]', rp, re.S).group(1))
     total += len(got)
     chk('  ' + r, got, D.GRANTS[r])
-print('  授权合计 %d，文档写 84 -> %s' % (total, 'OK' if total == 84 else 'FAIL'))
-if total != 84:
+print('  授权合计 %d，文档写 86 -> %s' % (total, 'OK' if total == 86 else 'FAIL'))
+if total != 86:
     fails.append('grant total')
 
 print()

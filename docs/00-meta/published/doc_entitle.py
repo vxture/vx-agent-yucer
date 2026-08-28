@@ -66,13 +66,16 @@ PERMS = ["strategy.read", "strategy.write",
          # these three are the ONLY gate it has.
          "catalog.read", "catalog.write", "catalog.price",
          # incr/0011, ADR-018 - recording is not editing.
-         "account.record"]
+         "account.record",
+         # incr/0012, ADR-019 - quoting below the floor and signing it off are
+         # deliberately not the same permission.
+         "pipeline.discount"]
 GRANTS = {
     "sales_leader": ["strategy.read", "strategy.write", "strategy.approve", "planning.read",
                      "planning.write", "campaign.read", "campaign.write", "account.read",
                      "account.write", "signal.read", "signal.triage", "pipeline.read",
                      "pipeline.write", "pipeline.forecast", "delivery.read", "delivery.write",
-                     "copilot.use", "copilot.decide", "copilot.autopilot", "admin.manage", "catalog.read", "catalog.write", "catalog.price", "account.record"],
+                     "copilot.use", "copilot.decide", "copilot.autopilot", "admin.manage", "catalog.read", "catalog.write", "catalog.price", "account.record", "pipeline.discount"],
     "marketing_manager": ["strategy.read", "strategy.write", "campaign.read", "campaign.write",
                           "signal.read", "signal.triage", "account.read", "pipeline.read",
                           "copilot.use", "copilot.decide", "catalog.read", "account.record"],
@@ -83,7 +86,7 @@ GRANTS = {
     "delivery_manager": ["delivery.read", "delivery.write", "account.read", "pipeline.read",
                          "copilot.use", "copilot.decide", "catalog.read", "account.record"],
     "sales_ops": ["planning.read", "planning.write", "pipeline.read", "pipeline.forecast",
-                  "account.read", "campaign.read", "strategy.read", "admin.manage", "copilot.use", "catalog.read", "catalog.write", "catalog.price"],
+                  "account.read", "campaign.read", "strategy.read", "admin.manage", "copilot.use", "catalog.read", "catalog.write", "catalog.price", "pipeline.discount"],
     "viewer": ["strategy.read", "planning.read", "campaign.read", "account.read",
                "signal.read", "pipeline.read", "delivery.read", "copilot.use", "catalog.read"],
 }
@@ -171,7 +174,7 @@ def _grid():
     counts = "".join('<td class="cell" style="color:var(--text-dim);font-size:11px">%d</td>'
                      % len(GRANTS[r]) for r in ROLES)
     return ('<div class="mx"><table><thead><tr><th>权限</th>%s</tr></thead><tbody>%s'
-            '<tr style="border-top:2px solid var(--border)"><td style="color:var(--text-dim)">合计 84</td>%s</tr>'
+            '<tr style="border-top:2px solid var(--border)"><td style="color:var(--text-dim)">合计 86</td>%s</tr>'
             '</tbody></table></div>' % (head, "".join(rows), counts))
 
 
@@ -295,7 +298,7 @@ ADR-006 曾写明要给它两个功能键，一个都没加；19 键冻结后，
 到 enterprise 才成为一条可以被买下的例外，而例外本身仍需人先采纳。</div>
 </section>
 
-<section id="perms"><h2><span class="num">04</span>权限与角色<span class="h2-meta">20 / 7</span></h2><div class="rule"></div>
+<section id="perms"><h2><span class="num">04</span>权限与角色<span class="h2-meta">25 / 7</span></h2><div class="rule"></div>
 
 <p>权限码按域分 <span class='key'>read</span> / <span class='key'>write</span> 两级，三处例外，每一处都是一次业务裁定：</p>
 
@@ -313,6 +316,14 @@ ADR-006 曾写明要给它两个功能键，一个都没加；19 键冻结后，
 <p style='margin:0'>这两个洞正开在 ADR-012 杀死判据要读的那份证据上，而 ADR-006 的全部前提是
 「记录必须是完整的」。新权限授予五个见客户的角色；不给 <span class='mono'>sales_ops</span>
 （运营不见客户），不给 <span class='mono'>viewer</span>（只读按定义就是只读）。</p></div>
+
+<div class="card"><div class="card-head"><span class="card-title">pipeline.discount</span><span class="card-sub">incr/0012 · ADR-019</span></div>
+<p><strong>底价从一开始就有，能越过它的人是后来才有的。</strong>定价规则一直在低于底价时把行项标成待批，
+战况板一直在计数——而权限目录里<strong>没有任何一条能把它降下来</strong>。
+「折扣待批」于是不是流程里的一步，是商机的永久属性；一个只会说不的控制不是控制。</p>
+<p style='margin:0'><strong>刻意不并进 <span class='mono'>pipeline.write</span></strong>：报出低于底价的人，
+不能是给它签字的人。授予范围与 <span class='mono'>catalog.price</span> 完全相同——
+定底价和为底价开例外是同一份权力的两半，而 <span class='mono'>sales_ops</span> 本来就能移动底价。</p></div>
 
 <div class="card"><div class="card-head"><span class="card-title">strategy.approve</span><span class="card-sub">incr/0002 · ADR-005</span></div>
 <p style='margin:0'>批准一份计划不是编辑它——那是计划变成<strong>其余链路被考核的那个数字</strong>的时刻。

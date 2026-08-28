@@ -398,6 +398,9 @@ export const en: Dictionary = {
     closed_requires_terminal_stage:
       "A deal that is not closed cannot be marked won",
     terminal_requires_closed: "A closed deal can only be in a closed category",
+    not_below_floor: "This line is at or above its floor - there is nothing to approve",
+    already_approved: "This price has already been signed off",
+    not_priced: "This product has no price entry, so there is no floor to approve against",
   },
 
   OPPORTUNITY_TEXT: {
@@ -418,6 +421,15 @@ export const en: Dictionary = {
     lineFloorHint: (floor: string) => `Floor ${floor}`,
     lineDenied: "You cannot change this deal",
     lineClosedHint: "A closed deal cannot be repriced - its lines are the record of what was sold",
+    lineApprovalHeader: "Discount",
+    lineApprove: "Approve",
+    lineApproved: "Approved",
+    lineAwaiting: "Awaiting",
+    lineApproveTitle: "Approve a price below floor",
+    lineApproveWhy: (product: string) =>
+      `${product} is quoted below its floor. The signature records this price; changing it voids the signature.`,
+    lineApproveReason: "Why this floor is worth breaking",
+    lineApproveCancel: "Cancel",
     notFound: "No such deal, or it belongs to another workspace",
     amount: "Amount",
     probability: "Win rate",

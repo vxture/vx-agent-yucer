@@ -2,6 +2,7 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type {
   CatalogStore,
+  DiscountApprovalRecord,
   OpportunityLineRecord,
   PriceEntryRecord,
   ProductRecord,
@@ -241,6 +242,76 @@ export class PrismaCatalogStore implements CatalogStore {
       const rows = await tx.opportunityLine.findMany({ where: { workspaceId, opportunityId } });
       return rows.map((r) => this.toLine(r));
     });
+  }
+
+  async listApprovals(
+    workspaceId: string,
+    opportunityId: string,
+  ): Promise<DiscountApprovalRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.lineDiscountApproval.findMany({
+      where: { workspaceId, opportunityId },
+      orderBy: { approvedAt: "desc" },
+    });
+    return rows.map((r) => this.toApproval(r));
+  }
+
+  async allApprovals(workspaceId: string): Promise<DiscountApprovalRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.lineDiscountApproval.findMany({ where: { workspaceId } });
+    return rows.map((r) => this.toApproval(r));
+  }
+
+  /**
+   * `create`, never upsert. A second signature on the same price is a second
+   * row - the table records who signed and when, and collapsing two signings
+   * into one would lose the earlier one.
+   */
+  async appendApproval(
+    workspaceId: string,
+    input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,
+  ): Promise<DiscountApprovalRecord> {
+    const p = await getPrismaClient();
+    const row = await p.lineDiscountApproval.create({
+      data: {
+        workspaceId,
+        opportunityId: input.opportunityId,
+        productId: input.productId,
+        unitPrice: input.unitPrice,
+        currency: input.currency,
+        floorPrice: input.floorPrice,
+        reason: input.reason,
+        approvedBySub: input.approvedBySub,
+        approvedAt: input.approvedAt,
+      },
+    });
+    return this.toApproval(row);
+  }
+
+  private toApproval(r: {
+    id: string;
+    workspaceId: string;
+    opportunityId: string;
+    productId: string;
+    unitPrice: unknown;
+    currency: string;
+    floorPrice: unknown;
+    reason: string;
+    approvedBySub: string;
+    approvedAt: Date;
+  }): DiscountApprovalRecord {
+    return {
+      id: r.id,
+      workspaceId: r.workspaceId,
+      opportunityId: r.opportunityId,
+      productId: r.productId,
+      unitPrice: Number(String(r.unitPrice)),
+      currency: r.currency,
+      floorPrice: Number(String(r.floorPrice)),
+      reason: r.reason,
+      approvedBySub: r.approvedBySub,
+      approvedAt: r.approvedAt,
+    };
   }
 
   private toPrice(r: {

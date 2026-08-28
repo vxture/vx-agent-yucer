@@ -49,7 +49,7 @@ import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
 import { LineEditor } from "../../components/line-editor";
-import { saveOpportunityLines } from "../stage-action";
+import { approveDiscount, saveOpportunityLines } from "../stage-action";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
@@ -465,6 +465,7 @@ export default async function OpportunityDetailPage({
             unitPrice: l.unitPrice,
             amount: l.amount,
             needsApproval: l.needsApproval,
+            approved: l.approved,
           }))}
         products={(productRows.ok ? productRows.value : []).map((p) => ({
           id: p.id,
@@ -479,8 +480,20 @@ export default async function OpportunityDetailPage({
             "ui",
           ).allowed
         }
+        // A DIFFERENT permission from canEdit, and deliberately so: sales_ops
+        // holds this one and not pipeline.write, sales_rep the other way round.
+        // The person who quotes below the floor is not the one who signs it.
+        canApprove={
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.discount.approve",
+            "ui",
+          ).allowed
+        }
         closed={opportunity.closedAt !== null}
         onSave={saveOpportunityLines}
+        onApprove={approveDiscount}
       />
 
       <DealTerms

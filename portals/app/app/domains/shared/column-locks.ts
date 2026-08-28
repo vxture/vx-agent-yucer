@@ -222,9 +222,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",
   "yucer_agent.agent_message",
-  // A price entry is a point in time. Correcting one means a new effective_at
-  // row - editing it would rewrite what the price USED to be, and every past
-  // discount approval was judged against that number.
+  // incr/0012. A signature is a decision record: withdrawing an approval is a
+  // superseded row, not a deleted one. Keyed by the price it authorised, so it
+  // survives the replace-not-patch rewrite that editing any other line causes.
+  "yucer_pipeline.line_discount_approval",
   // yucer_field, added by incr/0004. Evidence is frozen: a correction is a new
   // row carrying corrects_interaction_id, never an edit of the original.
   "yucer_field.interaction",

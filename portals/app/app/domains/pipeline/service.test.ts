@@ -6,9 +6,11 @@ import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import { InMemoryCatalogStore } from "../catalog/store";
+import { approvalFor } from "../catalog/lib/pricing";
 import {
   advanceStage,
   listPipeline,
+  approveLineDiscount,
   replaceOpportunityLines,
   submitForecast,
   type PipelineContext,
@@ -226,7 +228,10 @@ function catalogWith(floor: number | null): InMemoryCatalogStore {
 function lineCtx(role: RoleCode, tier: Entitlement["tier"], floor: number | null = 800) {
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
-  return { ...ctx(role, tier, store), catalog: catalogWith(floor) };
+  // `deals` keeps the CONCRETE store alongside the context, so a second context
+  // on the same data (a quoter and an approver, which is the normal case for
+  // this feature) can be built without re-seeding and drifting apart.
+  return { ...ctx(role, tier, store), catalog: catalogWith(floor), deals: store };
 }
 
 test("the header becomes the sum of the lines - ADR-014 section 2", async () => {
@@ -294,4 +299,144 @@ test("a zero quantity is refused before anything is written", async () => {
   // Nothing partial: the header is untouched.
   const after = await c.store.getOpportunity(WS, "opp_1");
   assert.equal(after?.amount?.amount, 100_000);
+});
+
+// --- Signing off a below-floor price (ADR-019) ------------------------------
+//
+// The whole point of these: before incr/0012 the floor could raise a flag that
+// nothing could ever lower, so "pending approval" was a permanent property of a
+// deal rather than a step in a process.
+
+test("a rep who can quote below the floor cannot sign off their own discount", async () => {
+  // The separation IS the feature. If pipeline.write carried the signature,
+  // the floor would constrain nobody.
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  const r = await approveLineDiscount(c, { opportunityId: "opp_1", productId: "p1", reason: "strategic" });
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+});
+
+test("a leader signs off, and the flagged line reads as approved afterwards", async () => {
+  const quoting = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(quoting, "opp_1", [{ productId: "p1", quantity: 2, unitPrice: 700 }]));
+
+  const signing = { ...ctx("sales_leader", "free", quoting.deals), catalog: quoting.catalog };
+  const appr = unwrap(
+    await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "multi-year" }),
+  );
+
+  // The price and the floor come off the line and the price book, not off the
+  // caller: an approver signs what is there.
+  assert.equal(appr.unitPrice, 700);
+  assert.equal(appr.floorPrice, 800);
+  assert.equal(appr.approvedBySub, "usr_me");
+
+  const lines = await quoting.catalog.listLines(WS, "opp_1");
+  assert.equal(approvalFor(lines[0]!, await quoting.catalog.listApprovals(WS, "opp_1")) !== null, true);
+});
+
+test("a signature survives an edit to a DIFFERENT line on the same deal", async () => {
+  // This is why the approval is keyed by price and not held on the line: lines
+  // are rewritten wholesale, so an id-matched signature would evaporate here.
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(
+    await replaceOpportunityLines(c, "opp_1", [
+      { productId: "p1", quantity: 1, unitPrice: 700 },
+      { productId: "p2", quantity: 1, unitPrice: 500 },
+    ]),
+  );
+  const signing = { ...ctx("sales_leader", "free", c.deals), catalog: c.catalog };
+  unwrap(await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "multi-year" }));
+
+  // p2's quantity changes; p1 is untouched.
+  unwrap(
+    await replaceOpportunityLines(c, "opp_1", [
+      { productId: "p1", quantity: 1, unitPrice: 700 },
+      { productId: "p2", quantity: 9, unitPrice: 500 },
+    ]),
+  );
+
+  const lines = await c.catalog.listLines(WS, "opp_1");
+  const approvals = await c.catalog.listApprovals(WS, "opp_1");
+  const p1 = lines.find((l) => l.productId === "p1")!;
+  assert.equal(approvalFor(p1, approvals) !== null, true);
+});
+
+test("re-quoting LOWER voids the signature, and re-quoting back UP restores it", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  const signing = { ...ctx("sales_leader", "free", c.deals), catalog: c.catalog };
+  unwrap(await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "multi-year" }));
+
+  // Nobody signed off 600.
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 600 }]));
+  let approvals = await c.catalog.listApprovals(WS, "opp_1");
+  let line = (await c.catalog.listLines(WS, "opp_1"))[0]!;
+  assert.equal(approvalFor(line, approvals), null);
+
+  // 700 was signed off, and still is.
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  approvals = await c.catalog.listApprovals(WS, "opp_1");
+  line = (await c.catalog.listLines(WS, "opp_1"))[0]!;
+  assert.equal(approvalFor(line, approvals) !== null, true);
+});
+
+test("a line at or above its floor has nothing to approve", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 900 }]));
+  const signing = { ...ctx("sales_leader", "free", c.deals), catalog: c.catalog };
+  const r = await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "why not" });
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.violations[0]!.code, "not_below_floor");
+});
+
+test("an approval without a stated reason is refused", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  const signing = { ...ctx("sales_leader", "free", c.deals), catalog: c.catalog };
+  const r = await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "   " });
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.violations[0]!.code, "reason_required");
+});
+
+test("the same price is not signed twice", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  const signing = { ...ctx("sales_leader", "free", c.deals), catalog: c.catalog };
+  unwrap(await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "multi-year" }));
+  const again = await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "again" });
+  assert.equal(again.ok, false);
+  assert.equal(again.ok === false && again.violations[0]!.code, "already_approved");
+});
+
+test("a closed deal's prices cannot be signed off after the fact", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  await c.store.updateCommercialTerms(WS, "opp_1", {});
+  const closedStore = new InMemoryPipelineStore();
+  closedStore.seed([opp({ closedAt: new Date("2026-07-01"), status: "won", stage: "won" })]);
+  const signing = { ...ctx("sales_leader", "free", closedStore), catalog: c.catalog };
+  const r = await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "late" });
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.violations[0]!.code, "terminal_stage");
+});
+
+test("the floor is copied in, so a later price change cannot rewrite what was authorised", async () => {
+  const c = lineCtx("sales_rep", "free", 800);
+  unwrap(await replaceOpportunityLines(c, "opp_1", [{ productId: "p1", quantity: 1, unitPrice: 700 }]));
+  const signing = { ...ctx("sales_leader", "free", c.deals), catalog: c.catalog };
+  const appr = unwrap(
+    await approveLineDiscount(signing, { opportunityId: "opp_1", productId: "p1", reason: "multi-year" }),
+  );
+  await c.catalog.appendPrice(WS, {
+    productId: "p1",
+    currency: "CNY",
+    listPrice: 1000,
+    floorPrice: 200,
+    effectiveAt: new Date("2026-06-01"),
+  });
+  const stored = (await c.catalog.listApprovals(WS, "opp_1"))[0]!;
+  assert.equal(stored.floorPrice, 800);
+  assert.equal(appr.floorPrice, 800);
 });

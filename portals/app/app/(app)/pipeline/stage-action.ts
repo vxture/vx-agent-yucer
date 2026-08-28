@@ -5,6 +5,7 @@ import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getPipelineStore } from "../../domains/shared/registry";
 import {
   advanceStage,
+  approveLineDiscount,
   replaceOpportunityLines,
   updateCommercialTerms,
 } from "../../domains/pipeline/service";
@@ -196,4 +197,42 @@ export async function saveOpportunityLines(
   revalidatePath(`/pipeline/${opportunityId}`);
   revalidatePath("/pipeline");
   return { ok: true, ...result.value };
+}
+
+/**
+ * Signing off one below-floor price.
+ *
+ * Neither the price nor the floor crosses this boundary. The service reads both
+ * off the line that is on the deal, so a caller cannot approve a number nobody
+ * quoted - the same reason `needsApproval` is computed rather than sent.
+ *
+ * Revalidates `/pipeline` as well as the deal, because the board's
+ * "pending approval" count is what this signature is meant to bring down.
+ */
+export async function approveDiscount(
+  opportunityId: string,
+  productId: string,
+  reason: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await approveLineDiscount(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getPipelineStore(),
+      catalog: getCatalogStore(),
+    },
+    { opportunityId, productId, reason },
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath(`/pipeline/${opportunityId}`);
+  revalidatePath("/pipeline");
+  return { ok: true };
 }

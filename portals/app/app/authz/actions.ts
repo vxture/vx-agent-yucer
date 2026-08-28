@@ -327,6 +327,15 @@ export const ACTIONS = {
     permission: "pipeline.write",
     writes: true,
   },
+  // Authorising a below-floor price. Same feature key as the deal it sits on -
+  // a discount approval is not separately sellable (keys frozen at 19) - but a
+  // permission of its own, held by nobody who edits deals.
+  "pipeline.discount.approve": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.discount",
+    writes: true,
+  },
   "pipeline.opportunity.advance": {
     domain: "pipeline",
     feature: "pipeline.manage",

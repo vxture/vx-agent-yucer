@@ -231,3 +231,40 @@ export function planPrice(input: PriceDraft): RuleResult<PriceDraft> {
   }
   return ok({ ...input, currency: input.currency.trim() });
 }
+
+/** What an approval has to look like to be matched against a line. */
+export interface PricedApproval {
+  readonly productId: string;
+  readonly unitPrice: number;
+  readonly currency: string;
+}
+
+/**
+ * The signature covering this line, or null when nobody has signed this number.
+ *
+ * MATCHED ON THE PRICE, not on the line's id, and every property this feature
+ * needs falls out of that (ADR-019):
+ *
+ *   * lines are rewritten wholesale whenever any one of them is edited, so an
+ *     id-matched approval would evaporate on an unrelated edit;
+ *   * re-quoting the product LOWER matches nothing and needs a new signature,
+ *     which is the point - nobody signed off the new number;
+ *   * re-quoting it back UP to a number that was signed off matches again, and
+ *     correctly so.
+ *
+ * Currency is part of the match because 800 CNY and 800 USD are not the same
+ * concession.
+ */
+export function approvalFor<A extends PricedApproval>(
+  line: { readonly productId: string; readonly unitPrice: number; readonly currency: string },
+  approvals: readonly A[],
+): A | null {
+  return (
+    approvals.find(
+      (a) =>
+        a.productId === line.productId &&
+        a.currency === line.currency &&
+        a.unitPrice === line.unitPrice,
+    ) ?? null
+  );
+}

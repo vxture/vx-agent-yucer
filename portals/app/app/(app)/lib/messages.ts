@@ -1055,6 +1055,15 @@ export const OPPORTUNITY_TEXT = {
   lineFloorHint: (floor: string) => `底价 ${floor}`,
   lineDenied: "你没有修改商机的权限",
   lineClosedHint: "已关闭的商机不能重新定价——它的行项是卖出了什么的记录",
+  lineApprovalHeader: "折扣",
+  lineApprove: "批准",
+  lineApproved: "已批准",
+  lineAwaiting: "待批",
+  lineApproveTitle: "批准低于底价的报价",
+  lineApproveWhy: (product: string) =>
+    `${product} 的单价低于底价。签字记录的是这个价格，改价后签字自动失效。`,
+  lineApproveReason: "为什么值得破这个底价",
+  lineApproveCancel: "取消",
 } as const;
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
@@ -1072,6 +1081,9 @@ export const OPPORTUNITY_ERROR: Record<string, string> = {
   empty_patch: "没有改动",
   closed_requires_terminal_stage: "未关闭的商机不能标记为「已成交」",
   terminal_requires_closed: "已关闭的商机只能是「已成交」类别",
+  not_below_floor: "这一行没有低于底价，没有需要批准的东西",
+  already_approved: "这个价格已经签过字了",
+  not_priced: "这个产品没有价格表条目，无法说明在批准什么",
 };
 
 /**
