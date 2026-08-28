@@ -4,7 +4,14 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryAccountStore, type AccountRecord, type ContactRecord } from "./store";
-import { decisionChain, linkContacts, listAccounts, recomputeHealth, type AccountContext } from "./service";
+import {
+  decisionChain,
+  linkContacts,
+  listAccounts,
+  recomputeHealth,
+  upsertContact,
+  type AccountContext,
+} from "./service";
 
 const WS = "ws_1";
 const NOW = new Date("2026-08-15T00:00:00Z");
@@ -227,4 +234,73 @@ test("linking needs the graph write permission and the graph tier", async () => 
 
   const lowTier = await linkContacts(ctx("sales_rep", "starter", store), edge);
   assert.equal(lowTier.ok === false && lowTier.violations[0].code, "feature_not_in_tier");
+});
+
+// --- Contacts, which nothing could create until now (TD-016) ----------------
+
+const contactDraft = {
+  id: null,
+  name: "Zhang Gong",
+  title: "QA Director",
+  department: "Quality",
+  decisionRole: "technical" as const,
+  influence: 60,
+  status: "active" as const,
+};
+
+test("a viewer may read an account and may not add a contact", () => {
+  // viewer holds account.read and not account.write, which is the pair that
+  // pins the gate to the WRITE action rather than to any account access.
+  return upsertContact(ctx("viewer", "free"), "acc_1", contactDraft).then((r) => {
+    assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+  });
+});
+
+test("a contact created here is immediately what the decision chain reads", async () => {
+  // The whole point. The board's "N decision makers not reached" is computed
+  // from decision_role, and before this verb existed that figure could only
+  // describe seed data.
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account()] });
+  const c = ctx("sales_rep", "pro", store);
+  unwrap(await upsertContact(c, "acc_1", { ...contactDraft, decisionRole: "economic" }));
+
+  const chain = unwrap(await decisionChain(c, "acc_1"));
+  assert.ok(chain.covered.includes("economic"), "the role is covered the moment it is recorded");
+});
+
+test("editing by id changes that row rather than making a second person", async () => {
+  const store = new InMemoryAccountStore();
+  const c = ctx("sales_rep", "pro", store);
+  const made = unwrap(await upsertContact(c, "acc_1", contactDraft));
+  const again = unwrap(
+    await upsertContact(c, "acc_1", { ...contactDraft, id: made.id, title: "VP Quality" }),
+  );
+  assert.equal(again.id, made.id);
+  assert.equal(again.title, "VP Quality");
+  assert.equal((await store.listContacts(WS, "acc_1")).length, 1);
+});
+
+test("two people at one customer may share a name", async () => {
+  // Why the identity is the id and not the name: matching on a name would
+  // merge colleagues, and "Zhang" is not a unique person.
+  const store = new InMemoryAccountStore();
+  const c = ctx("sales_rep", "pro", store);
+  unwrap(await upsertContact(c, "acc_1", contactDraft));
+  unwrap(await upsertContact(c, "acc_1", contactDraft));
+  assert.equal((await store.listContacts(WS, "acc_1")).length, 2);
+});
+
+test("an id from ANOTHER account is not found, and does not move the person", async () => {
+  // The predicate carries the account as well as the workspace. Without it an
+  // edit would silently move a contact between customers - and every judgement
+  // rule in D4 reads deals through the account they hang off.
+  const store = new InMemoryAccountStore();
+  const c = ctx("sales_rep", "pro", store);
+  const made = unwrap(await upsertContact(c, "acc_1", contactDraft));
+
+  const r = await upsertContact(c, "acc_2", { ...contactDraft, id: made.id });
+  assert.equal(r.ok === false && r.violations[0]!.code, "not_found");
+  assert.equal((await store.listContacts(WS, "acc_1")).length, 1, "still on the first customer");
+  assert.equal((await store.listContacts(WS, "acc_2")).length, 0);
 });

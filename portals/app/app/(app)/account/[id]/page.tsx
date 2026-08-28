@@ -27,6 +27,7 @@ import { DecisionChain } from "../../components/decision-chain";
 import { ChainRecencyPanel } from "../../components/chain-recency";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
+import { ContactRoster } from "../../components/contact-roster";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import { RelationshipEvidencePanel } from "../../components/relationship-evidence";
@@ -53,7 +54,7 @@ import { TheatrePlan } from "../../components/theatre-plan";
 import { DesignateAccount } from "../../components/designate-account";
 import { designateAccountTier } from "../actions";
 import { DEFAULT_PERIOD } from "../../lib/periods";
-import { linkAccountContacts, recomputeAccountHealth } from "../actions";
+import { linkAccountContacts, recomputeAccountHealth, saveContact } from "../actions";
 import {
   addCommitment,
   recordFollowUp,
@@ -266,6 +267,26 @@ export default async function AccountDetailPage({
       <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
         <div className="flex min-w-0 flex-col gap-lg">
           <TheatreRoster deals={rosterDeals} projects={rosterProjects} />
+
+          {/* OUTSIDE the chain block below, and that is the point. The chain is
+              gated by `account.graph`, a pro capability; recording who you met
+              rides the free `account.manage`. Nesting the roster inside the
+              chain would leave a starter workspace unable to write down a
+              single contact - and then the coverage figure it cannot see would
+              be computed from nothing. */}
+          <ContactRoster
+            accountId={id}
+            contacts={contacts}
+            canEdit={
+              can(
+                session.authz,
+                session.entitlement,
+                "account.contact.upsert",
+                "ui",
+              ).allowed
+            }
+            onSave={saveContact}
+          />
 
           {/* Who is on this theatre. The chart and the reachability verdict,
               beside the roster rather than buried below the evidence: knowing

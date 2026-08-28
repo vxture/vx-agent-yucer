@@ -1,5 +1,6 @@
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
+import type { ContactDraft } from "./lib/contact";
 import type { AccountStatus, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
@@ -22,6 +23,7 @@ import type {
 
 const PLAN_TABLE = "yucer_core.account_plan";
 const ACCOUNT_TABLE = "yucer_core.account";
+const CONTACT_TABLE = "yucer_core.contact";
 
 export class PrismaAccountStore implements AccountStore {
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
@@ -73,17 +75,47 @@ export class PrismaAccountStore implements AccountStore {
       where: { workspaceId, accountId, deletedAt: null },
       orderBy: { influence: { sort: "desc", nulls: "last" } },
     });
-    return rows.map((r: Record<string, unknown>) => ({
-      id: String(r.id),
-      workspaceId: String(r.workspaceId),
-      accountId: String(r.accountId),
-      name: String(r.name),
-      title: (r.title as string | null) ?? null,
-      department: (r.department as string | null) ?? null,
-      decisionRole: r.decisionRole as ContactRecord["decisionRole"],
-      influence: (r.influence as number | null) ?? null,
-      status: String(r.status),
-    }));
+    return rows.map((r: Record<string, unknown>) => toContact(r));
+  }
+
+  async upsertContact(
+    workspaceId: string,
+    accountId: string,
+    input: ContactDraft,
+  ): Promise<ContactRecord | null> {
+    const p = await getPrismaClient();
+    const writable = {
+      name: input.name,
+      title: input.title,
+      department: input.department,
+      decisionRole: input.decisionRole,
+      influence: input.influence,
+      status: input.status,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(CONTACT_TABLE, writable);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked contact column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    if (input.id) {
+      // updateMany with the workspace AND the account in the predicate, so an
+      // id from another tenant or another customer updates nothing rather than
+      // moving a person between customers. count === 0 is the "not found" the
+      // service reports.
+      const res = await p.contact.updateMany({
+        where: { id: input.id, workspaceId, accountId, deletedAt: null },
+        data: writable,
+      });
+      if (res.count === 0) return null;
+      const row = await p.contact.findFirst({ where: { id: input.id, workspaceId } });
+      return row ? toContact(row as Record<string, unknown>) : null;
+    }
+
+    const row = await p.contact.create({ data: { workspaceId, accountId, ...writable } });
+    return toContact(row as Record<string, unknown>);
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {
@@ -278,5 +310,19 @@ function toAccount(r: Record<string, unknown>): AccountRecord {
     healthScore: (r.healthScore as number | null) ?? null,
     status: r.status as AccountStatus,
     tier: (r.tier as AccountTier | undefined) ?? "standard",
+  };
+}
+
+function toContact(r: Record<string, unknown>): ContactRecord {
+  return {
+    id: String(r.id),
+    workspaceId: String(r.workspaceId),
+    accountId: String(r.accountId),
+    name: String(r.name),
+    title: (r.title as string | null) ?? null,
+    department: (r.department as string | null) ?? null,
+    decisionRole: r.decisionRole as ContactRecord["decisionRole"],
+    influence: (r.influence as number | null) ?? null,
+    status: String(r.status),
   };
 }

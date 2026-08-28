@@ -1448,6 +1448,23 @@ export const ACCOUNT_TEXT = {
     score === null ? `${name}:数据不足，仍为未评估` : `${name}:${score} 分`,
   recomputeFailed: "重算失败",
 
+  contactsTitle: "联系人",
+  contactsWhy:
+    "客户内部的人，以及每个人对这笔生意是什么角色。上面那张决策链图和首页的「决策人未触达」都是从这里的角色算出来的。",
+  contactsNone: "还没有联系人",
+  contactsNoneWhy: "先把见过的人记下来，决策链才有东西可算。",
+  contactName: "姓名",
+  contactTitle: "职务",
+  contactDepartment: "部门",
+  contactRole: "决策角色",
+  contactInfluence: "影响力 0-100",
+  contactStatus: "状态",
+  contactStatusLabel: { active: "在职", left: "已离职", invalid: "信息作废" } as Record<string, string>,
+  contactEditing: "编辑谁",
+  contactNew: "新建联系人",
+  contactSave: "保存联系人",
+  contactSaved: "已保存",
+  contactsDenied: "你没有维护联系人的权限",
   // The owner is a raw subject id and is rendered as one. There is no display
   // name on the record to resolve it against; dressing a machine string as a
   // person is how a UUID ends up in front of someone who then does not chase it.
@@ -1842,6 +1859,17 @@ export const CHAIN_TEXT = {
   factorDelivery: "交付",
   factorCollections: "回款",
 } as const;
+
+export const CONTACT_ERROR: Record<string, string> = {
+  name_required: "联系人需要一个姓名",
+  unknown_decision_role: "未知的决策角色",
+  unknown_status: "未知的联系人状态",
+  influence_range: "影响力是 0 到 100 之间的整数",
+  not_found: "这个联系人不在该客户名下",
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有执行这个操作的权限",
+  feature_not_in_tier: "当前档位不含这个能力",
+};
 
 export const DECISION_ROLE_LABEL: Record<string, string> = {
   economic: "经济决策人",

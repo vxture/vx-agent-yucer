@@ -17,6 +17,7 @@ import { denied } from "../pipeline/service";
 import { analyzeChain, deriveHealth, type ChainCoverage, type HealthResult } from "./lib/health";
 import type { Stage } from "../pipeline/lib/stage";
 import type { AccountFilter, AccountRecord, AccountStore, AccountTier, ContactRecord } from "./store";
+import { planContact, type ContactDraft } from "./lib/contact";
 import type { RelationEdge } from "./lib/health";
 
 export interface AccountContext {
@@ -159,6 +160,41 @@ export async function accountRelations(
  * Record a relationship. Append-only: there is no edit path, because the edge
  * table has no UPDATE grant and a changed relationship is a new edge.
  */
+/**
+ * Create a contact, or edit one.
+ *
+ * `account.contact.upsert` has been in the action catalogue since batch 1 with
+ * nothing behind it (TD-016), and this is the sharpest instance of that shape
+ * in the repo: the NEIGHBOUR works. `linkContacts` below is implemented and
+ * wired to a surface, so a member could draw relations between contacts while
+ * having no way to create one - and the board's headline "N decision makers
+ * not reached" is computed from `decision_role`, so that figure could only
+ * ever describe seed data.
+ *
+ * BY ID, not by a business key: two people at one customer can share a name,
+ * so absent id creates and present id edits that row. An id belonging to
+ * another workspace or another account updates nothing and comes back as
+ * not_found - creating a row instead would quietly move a person between
+ * customers.
+ */
+export async function upsertContact(
+  ctx: AccountContext,
+  accountId: string,
+  input: ContactDraft,
+): Promise<RuleResult<ContactRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planContact(input);
+  if (!plan.ok) return plan as RuleResult<ContactRecord>;
+
+  const written = await ctx.store.upsertContact(ctx.workspaceId, accountId, plan.value);
+  if (!written) {
+    return fail(violation("not_found", `contact ${input.id} was not found on this account`, "id"));
+  }
+  return ok(written);
+}
+
 export async function linkContacts(
   ctx: AccountContext,
   edge: RelationEdge,
