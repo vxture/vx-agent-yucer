@@ -12,11 +12,11 @@ import { submitForecastSnapshot } from "./forecast-action";
 import { createDeal } from "./stage-action";
 import { PeriodTabs } from "../components/period-tabs";
 import { HeadlineCard } from "../components/headline-card";
-import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
 import {
   getAccountStore,
+  getCatalogStore,
   getPipelineStore,
   getPlanningStore,
 } from "../../domains/shared/registry";
