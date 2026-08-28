@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import {
-  Button,
   DataTable,
   EmptyState,
   Field,
@@ -13,6 +12,8 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { useSaveAction } from "../lib/use-save-action";
+import { SaveRow } from "./save-row";
 
 // The territory roster: who carries which patch of the market.
 //
@@ -60,9 +61,7 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
   const [parentId, setParentId] = useState("");
   const [ownerSub, setOwnerSub] = useState("");
   const [status, setStatus] = useState("active");
-  const [err, setErr] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [pending, start] = useTransition();
+  const save = useSaveAction(TERRITORY_ERROR);
 
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   const ready = code.trim() !== "" && name.trim() !== "";
@@ -156,33 +155,28 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
               <option value="retired">{PLANNING_TEXT.territoryRetired}</option>
             </NativeSelect>
           </Field>
-          <Button
-            disabled={!ready || pending}
-            onClick={() =>
-              start(() => {
-                void onSave({
-                  territoryCode: code.trim(),
-                  name: name.trim(),
-                  parentId: parentId === "" ? null : parentId,
-                  ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
-                  status,
-                }).then((r) => {
-                  setErr(r.ok ? null : (TERRITORY_ERROR[r.error ?? "denied"] ?? r.error ?? ""));
-                  setSaved(r.ok);
-                  if (r.ok) {
-                    setCode("");
-                    setName("");
-                  }
-                });
-              })
+          <SaveRow
+            action={save}
+            label={PLANNING_TEXT.territorySave}
+            savedLabel={PLANNING_TEXT.territorySaved}
+            disabled={!ready}
+            onSave={() =>
+              save.run(
+                () =>
+                  onSave({
+                    territoryCode: code.trim(),
+                    name: name.trim(),
+                    parentId: parentId === "" ? null : parentId,
+                    ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
+                    status,
+                  }),
+                () => {
+                  setCode("");
+                  setName("");
+                },
+              )
             }
-          >
-            {PLANNING_TEXT.territorySave}
-          </Button>
-          {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-          {saved && !err ? (
-            <StatusBadge tone="success">{PLANNING_TEXT.territorySaved}</StatusBadge>
-          ) : null}
+          />
         </div>
       )}
     </Section>

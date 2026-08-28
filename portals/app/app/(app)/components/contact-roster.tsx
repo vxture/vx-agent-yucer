@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import {
-  Button,
   DataTable,
   EmptyState,
   Field,
@@ -13,6 +12,8 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { useSaveAction } from "../lib/use-save-action";
+import { SaveRow } from "./save-row";
 
 // The people inside a customer.
 //
@@ -86,9 +87,7 @@ const BLANK = {
 export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactRosterProps) {
   const { DATA_TABLE_LABELS, ACCOUNT_TEXT, DECISION_ROLE_LABEL, CONTACT_ERROR } = useMessages();
   const [form, setForm] = useState(BLANK);
-  const [err, setErr] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [pending, start] = useTransition();
+  const save = useSaveAction(CONTACT_ERROR);
 
   // Choosing an existing person fills the form from that row. Without this the
   // control would say "editing X" and then write whatever happened to be in the
@@ -244,32 +243,27 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
               ))}
             </NativeSelect>
           </Field>
-          <Button
-            disabled={!ready || pending}
-            onClick={() =>
-              start(() => {
-                void onSave(accountId, {
-                  id: form.id === "" ? null : form.id,
-                  name: form.name.trim(),
-                  title: form.title.trim() === "" ? null : form.title.trim(),
-                  department: form.department.trim() === "" ? null : form.department.trim(),
-                  decisionRole: form.decisionRole,
-                  influence,
-                  status: form.status,
-                }).then((r) => {
-                  setErr(r.ok ? null : (CONTACT_ERROR[r.error ?? "denied"] ?? r.error ?? ""));
-                  setSaved(r.ok);
-                  if (r.ok) setForm(BLANK);
-                });
-              })
+          <SaveRow
+            action={save}
+            label={ACCOUNT_TEXT.contactSave}
+            savedLabel={ACCOUNT_TEXT.contactSaved}
+            disabled={!ready}
+            onSave={() =>
+              save.run(
+                () =>
+                  onSave(accountId, {
+                    id: form.id === "" ? null : form.id,
+                    name: form.name.trim(),
+                    title: form.title.trim() === "" ? null : form.title.trim(),
+                    department: form.department.trim() === "" ? null : form.department.trim(),
+                    decisionRole: form.decisionRole,
+                    influence,
+                    status: form.status,
+                  }),
+                () => setForm(BLANK),
+              )
             }
-          >
-            {ACCOUNT_TEXT.contactSave}
-          </Button>
-          {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-          {saved && !err ? (
-            <StatusBadge tone="success">{ACCOUNT_TEXT.contactSaved}</StatusBadge>
-          ) : null}
+          />
         </div>
       )}
     </Section>
