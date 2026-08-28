@@ -21,7 +21,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
-| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open |
+| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
@@ -518,6 +518,43 @@ TD-012 原文说这条公告是「被顺手修掉的」。准确的说法是：*
 **关闭条件因此再加一条**：模板修好后，告警 #1 应当由 Dependabot **自己**转成
 `fixed`（`auto_dismissed_at` 或 `fixed_at` 非空）。它自己关掉这一条，才证明这只眼睛
 真的睁开了；由人关掉只证明有人点了按钮。
+
+---
+
+### TD-012 的修复进度（2026-08-28）
+
+按 `CLAUDE.md` 先在模板仓修：**vxtpl#59**,再镜像到本仓。两个洞的进度不同，
+分开记，因为「PR 合了」不等于「洞堵上了」。
+
+| 洞 | 状态 | 卡在哪里 |
+|----|------|---------|
+| 洞二：`audit` 看不见静止主干 | **已修**,不需要任何密钥 | 无 |
+| 洞一：npm 侧 Dependabot 认证失败 | 配置已落，**未生效** | 等 owner 铸 token |
+
+**洞二的修法是 `sca-watch.yml`**：每日 cron + 手动触发，对 `main` 当前状态跑
+osv-scanner。两个决定值得写下来：
+
+- **它开 issue,不只是把 job 跑红。** 本条 TD 补记的那件事就是证据：门**响过**,
+  四条 PR 一起红，读起来却像「那几条 PR 坏了」。结论必须落在**追踪主干问题的地方**,
+  否则它不是报告，是一行日志。
+- **它在主干重新干净时把 issue 关掉。** 一个能拉警报却不能撤警报的看门狗，
+  产出的是一张带假条目的清单，而带假条目的清单会教人不再读清单——本条 TD 上面
+  记的告警 #1，正是这个形状。
+
+**新守卫 `check-sca-consistency.mjs`**：把一次扫描拆成两份，买到了覆盖，也造出一种
+新的错法——两份会漂移。它断言四件事：同一个 `OSV_SCANNER_VERSION`、同一个
+`sha256`（版本不是制品，sha 才让钉版本有意义）、同一串参数（漏掉 `--config` 会让
+watch 悄悄不再应用 ignore 基线）、以及 watch 里**不得有任何 job 名撞上五个必需检查
+上下文**。五条失败路径逐条反证过，包括 watch 文件整个不存在那条。
+
+**洞一还差一个 owner 动作**：`VXTURE_PACKAGES_READ_TOKEN`,只带 `read:packages` 的
+**classic** PAT（GitHub Packages 的 npm registry 不收 fine-grained token）,配成
+**Dependabot** 密钥——不是 Actions 密钥，两者互相看不见，这正是本仓已有的
+`NODE_AUTH_TOKEN` 帮不上忙的原因。
+
+配好之后**要验，不要假设**：在 Insights -> Dependency graph -> Dependabot 上对 npm
+那一项点 "Check for updates",确认 job 日志里没有 `ERR_PNPM_FETCH_401`。
+**「配了应该就好了」正是这个洞活到今天的原因**——它从来不报错，它只是不产出。
 
 ### TD-013 - 计数指标装在货币类型里
 
