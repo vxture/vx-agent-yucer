@@ -1,6 +1,7 @@
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { DEFAULT_CURRENCY, money } from "../shared/money";
+import type { TerritoryDraft } from "./lib/territory";
 import { currencyOf, targetValue, type PublishedTotals, type SalesTarget, type TargetMetric, type TargetScope, type TargetStatus, type TargetValue } from "./lib/target";
 import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
 
@@ -16,6 +17,7 @@ import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from 
 // snapshot rather than recomputing a closed amount that already has an owner.
 
 const TARGET_TABLE = "yucer_gtm.sales_target";
+const TERRITORY_TABLE = "yucer_gtm.territory";
 
 export class PrismaPlanningStore implements PlanningStore {
   async listTargets(workspaceId: string, filter: TargetFilter = {}): Promise<TargetRecord[]> {
@@ -37,6 +39,31 @@ export class PrismaPlanningStore implements PlanningStore {
     const p = await getPrismaClient();
     const row = await p.salesTarget.findFirst({ where: { id, workspaceId } });
     return row ? toTarget(row as Record<string, unknown>) : null;
+  }
+
+  async upsertTerritory(workspaceId: string, input: TerritoryDraft): Promise<TerritoryRecord> {
+    const p = await getPrismaClient();
+    const update = {
+      name: input.name,
+      parentId: input.parentId,
+      ownerSub: input.ownerSub,
+      status: input.status,
+      updatedAt: new Date(),
+    };
+    // The update half only - the create half writes the anchor once, which is
+    // exactly what the column lock permits and what assertWritable checks.
+    const guard = assertWritable(TERRITORY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked territory column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const row = await p.territory.upsert({
+      where: { workspaceId_territoryCode: { workspaceId, territoryCode: input.territoryCode } },
+      update,
+      create: { workspaceId, territoryCode: input.territoryCode, ...update },
+    });
+    return toTerritory(row as Record<string, unknown>);
   }
 
   async createTarget(workspaceId: string, target: SalesTarget): Promise<TargetRecord> {
@@ -84,21 +111,22 @@ export class PrismaPlanningStore implements PlanningStore {
     return res.count > 0;
   }
 
-  async listTerritories(workspaceId: string): Promise<TerritoryRecord[]> {
+  async listTerritories(
+    workspaceId: string,
+    opts: { includeRetired?: boolean } = {},
+  ): Promise<TerritoryRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.territory.findMany({
-      where: { workspaceId, status: "active" },
+      // Active only by DEFAULT, and explicit about it. This adapter filtered on
+      // status while the in-memory one did not, so the two answered the same
+      // question differently: every test saw retired rows and production never
+      // did. The default is the one the scope selector needs - you should not
+      // be able to set a target on a region that has been wound down - and the
+      // management panel asks for the rest by name.
+      where: { workspaceId, ...(opts.includeRetired ? {} : { status: "active" }) },
       orderBy: { territoryCode: "asc" },
     });
-    return rows.map((r: Record<string, unknown>) => ({
-      id: String(r.id),
-      workspaceId: String(r.workspaceId),
-      territoryCode: String(r.territoryCode),
-      name: String(r.name),
-      parentId: (r.parentId as string | null) ?? null,
-      ownerSub: (r.ownerSub as string | null) ?? null,
-      status: String(r.status),
-    }));
+    return rows.map((r: Record<string, unknown>) => toTerritory(r));
   }
 
   async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {
@@ -123,6 +151,18 @@ export class PrismaPlanningStore implements PlanningStore {
       newLogoCount: row.newLogoCount ?? null,
     };
   }
+}
+
+function toTerritory(r: Record<string, unknown>): TerritoryRecord {
+  return {
+    id: String(r.id),
+    workspaceId: String(r.workspaceId),
+    territoryCode: String(r.territoryCode),
+    name: String(r.name),
+    parentId: (r.parentId as string | null) ?? null,
+    ownerSub: (r.ownerSub as string | null) ?? null,
+    status: String(r.status),
+  };
 }
 
 function toTarget(r: Record<string, unknown>): TargetRecord {

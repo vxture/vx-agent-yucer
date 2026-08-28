@@ -380,6 +380,17 @@ export const en: Dictionary = {
     no_data_access: "This workspace has no access",
   },
 
+  TERRITORY_ERROR: {
+    code_required: "A territory needs a code",
+    name_required: "A territory needs a name",
+    unknown_status: "Unknown territory status",
+    parent_not_found: "The parent territory does not exist",
+    parent_cycle: "A territory cannot report to itself, directly or through a chain",
+    not_authenticated: "Your session has expired - please sign in again",
+    permission_denied: "You cannot perform this action",
+    feature_not_in_tier: "Your tier does not include this capability",
+  },
+
   OPPORTUNITY_ERROR: {
     stage_unchanged: "Already at this stage - an empty change is not recorded",
     terminal_stage:
@@ -1166,6 +1177,23 @@ export const en: Dictionary = {
     scopeTerritory: "Territory",
     scopeOwner: "Me",
     setMetric: "Metric",
+    territoryTitle: "Sales territories",
+    territoryWhy:
+      "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target. The code is the identity: an existing code edits that territory, a new one creates it.",
+    territoryNone: "No territories yet",
+    territoryNoneWhy: "Create one before setting a target on it or attributing deals to it.",
+    territoryCode: "Code",
+    territoryName: "Name",
+    territoryParent: "Parent",
+    territoryNoParent: "Top level",
+    territoryOwner: "Owner",
+    territoryNoOwner: "Unassigned",
+    territoryStatus: "Status",
+    territoryActive: "Active",
+    territoryRetired: "Retired",
+    territorySave: "Save territory",
+    territorySaved: "Saved",
+    territoryDenied: "You cannot maintain territories",
     setAmount: "Target amount",
     setCount: "Target customer count",
     countUnit: (n: string) => `${n} customers`,

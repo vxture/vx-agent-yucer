@@ -118,7 +118,11 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     key: "deployment",
     icon: "users",
     modules: [
-      planned("territory", "map-pin"),
+      // A SECTION OF /planning, not a route. The host is /planning, which IS a
+      // nav entry - the test `namedAccount` fails, since its only host would be
+      // a detail page. The roster sits directly above the target table because
+      // a territory is a PRECONDITION for a regional target.
+      section("territory", "map-pin", "planning", "territories"),
       // STAYS PLANNED, and it is the closest call in this file. 6c shipped the
       // write path - /account/[id] renders DesignateAccount, which marks one
       // account strategic and attaches the plan the cadence rule reads. The
