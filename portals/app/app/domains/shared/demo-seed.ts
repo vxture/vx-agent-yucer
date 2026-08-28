@@ -204,17 +204,20 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
     published: {
       [`${workspaceId}|${PERIOD}|workspace||`]: {
         closedAmount: money(2_700_000, CNY),
-        pipelineAmount: money(1_580_000, CNY),
+        // The QUARTER's pipeline, matching the last snapshot point and the
+        // live tiles. Was 1,580,000 - every open pipeline deal in the book,
+        // most of them dated into Q4 (TD-014).
+        pipelineAmount: money(480_000, CNY),
         newLogoCount: 3,
       },
       [`${workspaceId}|${PERIOD}|territory|terr_east|`]: {
         closedAmount: money(760_000, CNY),
-        pipelineAmount: money(480_000, CNY),
+        pipelineAmount: money(0, CNY),
         newLogoCount: 1,
       },
       [`${workspaceId}|${PERIOD}|territory|terr_south|`]: {
         closedAmount: money(540_000, CNY),
-        pipelineAmount: money(620_000, CNY),
+        pipelineAmount: money(480_000, CNY),
         newLogoCount: 1,
       },
     },
@@ -600,7 +603,15 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       opp("opp_demo_10", workspaceId, 10, DEMO_OPPORTUNITIES[9], "acc_demo_5", "camp_demo_3", "terr_south", REP1, "won", "closed", 540_000, 100, daysAgo(8), daysAgo(8), "won"),
       // Rule-coverage deals. Both open, both with a real amount, so the two
       // new accounts appear in the pipeline the judgement rules read.
-      opp("opp_demo_11", workspaceId, 11, DEMO_OPPORTUNITIES[10], "acc_demo_6", null, "terr_south", REP1, "qualify", "pipeline", 480_000, 25, daysAhead(75), null, "open"),
+      //
+      // opp_demo_11 CLOSES IN Q3 (+40, not +75). Every date here was chosen
+      // when nothing read them; after TD-014 the tiles and the snapshot are
+      // period-filtered, and all three pipeline-category deals sat in Q4, so
+      // the pipeline tile and the pipeline metric would have read zero on every
+      // run with nothing to demonstrate. One is moved, not all three - the
+      // other two stay in Q4 and are visibly excluded, which is the behaviour
+      // this demo now has to show.
+      opp("opp_demo_11", workspaceId, 11, DEMO_OPPORTUNITIES[10], "acc_demo_6", null, "terr_south", REP1, "qualify", "pipeline", 480_000, 25, daysAhead(40), null, "open"),
       opp("opp_demo_12", workspaceId, 12, DEMO_OPPORTUNITIES[11], "acc_demo_7", null, "terr_east", REP1, "validate", "best_case", 930_000, 45, daysAhead(52), null, "open"),
     ],
     {
@@ -652,19 +663,24 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // through the quarter, then fell when one deal slipped - which is what a
       // forecast actually does and what makes the history worth keeping.
       snapshots: [
-        snapshot(workspaceId, daysAgo(75), 3_200_000, 2_100_000, 1_900_000, 0, 0),
-        snapshot(workspaceId, daysAgo(60), 3_800_000, 2_400_000, 1_800_000, 760_000, 1),
-        snapshot(workspaceId, daysAgo(45), 4_600_000, 2_900_000, 1_700_000, 1_300_000, 2),
-        snapshot(workspaceId, daysAgo(30), 4_900_000, 3_100_000, 1_600_000, 2_700_000, 3),
+        snapshot(workspaceId, daysAgo(75), 3_200_000, 1_500_000, 900_000, 0, 0),
+        snapshot(workspaceId, daysAgo(60), 3_800_000, 1_400_000, 800_000, 760_000, 1),
+        snapshot(workspaceId, daysAgo(45), 4_600_000, 1_200_000, 700_000, 1_300_000, 2),
+        snapshot(workspaceId, daysAgo(30), 4_900_000, 1_100_000, 600_000, 2_700_000, 3),
         // The slip: commit came down because one deal moved out of the quarter.
         //
         // The LAST point equals what the live board computes right now
-        // (4,200,000 / 3,030,000 / 1,580,000 / 2,700,000). A snapshot taken
-        // today that disagreed with today would be a demo teaching the exact
-        // "total and detail disagree" mess this repo keeps arguing against -
-        // and the closed figure also has to match the quota card,
-        // because both are the same three won deals.
-        snapshot(workspaceId, daysAgo(14), 4_200_000, 3_030_000, 1_580_000, 2_700_000, 3),
+        // (4,200,000 / 950,000 / 480,000 / 2,700,000). A snapshot taken today
+        // that disagreed with today would be a demo teaching the exact "total
+        // and detail disagree" mess this repo keeps arguing against - and the
+        // closed figure also has to match the quota card, because both are the
+        // same three won deals.
+        //
+        // These numbers moved with TD-014. They used to be the WHOLE BOOK
+        // (3,030,000 best case, 1,580,000 pipeline) on a row labelled 2026Q3;
+        // now they are the quarter, and the deals dated into Q4 are not in
+        // them.
+        snapshot(workspaceId, daysAgo(14), 4_200_000, 950_000, 480_000, 2_700_000, 3),
       ],
     },
   );

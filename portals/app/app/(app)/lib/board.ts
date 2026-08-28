@@ -29,7 +29,7 @@ import {
   listProducts as listCatalogProducts,
 } from "../../domains/catalog/service";
 import { judgementFeed } from "../../domains/judgement/service";
-import { rollUp } from "../../domains/pipeline/lib/forecast";
+import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
 import {
   coverage,
   resolveCoverageFloor,
@@ -40,6 +40,7 @@ import {
 // resolved once per render by next/headers, so two calls cost one resolution.
 import { getMessages } from "./i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
+import { currentPeriod } from "../../domains/shared/period";
 
 // The numbers behind the navigation board.
 //
@@ -269,12 +270,29 @@ export async function boardSections(
   // The funnel split, from the SAME function the pipeline page and the snapshot
   // writer use. Recomputing it here with a private sum is how a board and a page
   // start reporting different money for the same quarter.
-  const totals = deals.ok ? rollUp(open) : null;
+  //
+  // FILTERED TO THIS QUARTER (TD-014). The card says "this quarter's commit"
+  // and until now said it over every open deal in the book, including ones
+  // expected to land next year. `worth` above is deliberately NOT filtered -
+  // "what is still in play" is not a claim about a quarter, and its card does
+  // not make one.
+  const thisQuarter = deals.ok ? inPeriod(open, currentPeriod(new Date())) : null;
+  const quarterOpen = thisQuarter ? thisQuarter.kept : open;
+  const totals = rollUp(quarterOpen);
+
+  // THE POOL IS THIS QUARTER'S TOO, and it has to be, because the gauge divides
+  // it by this quarter's gap. A deal expected to land in December does not
+  // cover a September shortfall, and counting it made the coverage ratio
+  // report a pool that could not do the job it was being measured against.
+  //
+  // `worth` above stays unfiltered: it feeds "product lines in play", which
+  // claims no period and should not acquire one.
+  const quarterWorth = quarterOpen.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
 
   const cover =
     wsTarget && wsRow
       ? coverage(
-          worth,
+          quarterWorth,
           wsTarget.targetValue.amount,
           wsRow.measurement.kind === "measured" ? wsRow.measurement.achieved.amount : 0,
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
@@ -343,13 +361,13 @@ export async function boardSections(
         cover && cover.ratio !== null && totals?.ok
           ? {
               label: BOARD_TEXT.poolRow,
-              value: BOARD_TEXT.wan(worth),
+              value: BOARD_TEXT.wan(quarterWorth),
               // Read against the resource target, not against the gap, so the
               // figure and the bar say the same thing. They are the same
               // judgement either way: pool < floor x gap is exactly pool <
               // scaleMax, so "under 100% here" and "thin" are one condition.
               note: BOARD_TEXT.coverageOf(
-                Math.round((worth / (cover.gap * cover.floor)) * 100),
+                Math.round((quarterWorth / (cover.gap * cover.floor)) * 100),
               ),
               thin: cover.thin,
               // Descending confidence: what is committed, what is being worked,

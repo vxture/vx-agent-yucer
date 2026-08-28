@@ -24,3 +24,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-018 | [证据面不单独售卖，但记录不等于编辑](ADR-018-the-evidence-plane-is-not-sold-separately.md) | accepted | 2026-08-26 |
 | ADR-019 | [底价必须有人能签字，签字不能挂在行项上](ADR-019-a-floor-nobody-could-cross.md) | accepted | 2026-08-28 |
 | ADR-020 | [计数不是金额，指标必须自己决定分子](ADR-020-a-count-is-not-an-amount.md) | accepted | 2026-08-28 |
+| ADR-021 | [预测总是对某个周期的，而周期要真的过滤](ADR-021-a-forecast-is-always-for-a-period.md) | accepted | 2026-08-28 |
