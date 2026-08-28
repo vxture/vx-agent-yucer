@@ -391,6 +391,17 @@ export const en: Dictionary = {
     feature_not_in_tier: "Your tier does not include this capability",
   },
 
+  CONTACT_ERROR: {
+    name_required: "A contact needs a name",
+    unknown_decision_role: "Unknown decision role",
+    unknown_status: "Unknown contact status",
+    influence_range: "Influence is a whole number from 0 to 100",
+    not_found: "That contact is not on this customer",
+    not_authenticated: "Your session has expired - please sign in again",
+    permission_denied: "You cannot perform this action",
+    feature_not_in_tier: "Your tier does not include this capability",
+  },
+
   OPPORTUNITY_ERROR: {
     stage_unchanged: "Already at this stage - an empty change is not recorded",
     terminal_stage:
@@ -1025,6 +1036,23 @@ export const en: Dictionary = {
         ? `${name}: not enough data, still unassessed`
         : `${name}: ${score}`,
     recomputeFailed: "Could not recompute",
+    contactsTitle: "Contacts",
+    contactsWhy:
+      "The people inside this customer and what each is to the deal. The chain above and the board's decision-maker coverage are both computed from these roles.",
+    contactsNone: "No contacts yet",
+    contactsNoneWhy: "Write down who you have met - the decision chain has nothing to compute until then.",
+    contactName: "Name",
+    contactTitle: "Title",
+    contactDepartment: "Department",
+    contactRole: "Decision role",
+    contactInfluence: "Influence 0-100",
+    contactStatus: "Status",
+    contactStatusLabel: { active: "Active", left: "Left", invalid: "Invalid" } as Record<string, string>,
+    contactEditing: "Editing",
+    contactNew: "New contact",
+    contactSave: "Save contact",
+    contactSaved: "Saved",
+    contactsDenied: "You cannot maintain contacts",
     ownerNone: "Unassigned",
   },
 

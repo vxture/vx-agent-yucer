@@ -9,6 +9,7 @@
 
 import type { AccountStatus, ContactNode, ProjectHealth, RelationEdge } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
+import type { ContactDraft } from "./lib/contact";
 
 export interface AccountRecord {
   id: string;
@@ -104,6 +105,19 @@ export interface AccountStore {
   ): Promise<AccountPlanRecord>;
 
   listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]>;
+  /**
+   * Create a contact, or edit one by id.
+   *
+   * BY ID, not by a business key. A territory has a code and a product has a
+   * code; a person has a name, and two people at one customer can share one.
+   * So `id` absent means create and `id` present means edit that row -
+   * anything else would silently merge two colleagues.
+   */
+  upsertContact(
+    workspaceId: string,
+    accountId: string,
+    input: ContactDraft,
+  ): Promise<ContactRecord | null>;
   /** Append-only edge. There is deliberately no updateRelation. */
   addRelation(workspaceId: string, edge: RelationEdge): Promise<void>;
   removeRelation(workspaceId: string, edge: RelationEdge): Promise<void>;
@@ -115,6 +129,7 @@ export interface AccountStore {
 
 export class InMemoryAccountStore implements AccountStore {
   private plans = new Map<string, AccountPlanRecord>();
+  private seq = 0;
 
   async getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
     const p = this.plans.get(`${workspaceId}|${accountId}`);
@@ -193,6 +208,43 @@ export class InMemoryAccountStore implements AccountStore {
     return this.contacts
       .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
       .sort(by(desc((c: ContactRecord) => c.influence, { nulls: "last" })));
+  }
+
+  async upsertContact(
+    workspaceId: string,
+    accountId: string,
+    input: ContactDraft,
+  ): Promise<ContactRecord | null> {
+    if (input.id) {
+      const held = this.contacts.find(
+        (c) => c.id === input.id && c.workspaceId === workspaceId && c.accountId === accountId,
+      );
+      // Null, not a throw and not a silent create: an id that belongs to
+      // another workspace or another account is a caller error the service
+      // turns into "not found", and creating a row instead would move a person
+      // between customers.
+      if (!held) return null;
+      held.name = input.name;
+      held.title = input.title;
+      held.department = input.department;
+      held.decisionRole = input.decisionRole;
+      held.influence = input.influence;
+      held.status = input.status;
+      return held;
+    }
+    const created: ContactRecord = {
+      id: `con_${++this.seq}`,
+      workspaceId,
+      accountId,
+      name: input.name,
+      title: input.title,
+      department: input.department,
+      decisionRole: input.decisionRole,
+      influence: input.influence,
+      status: input.status,
+    };
+    this.contacts.push(created);
+    return created;
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {

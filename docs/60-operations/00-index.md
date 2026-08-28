@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 1，余 9） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 2，余 8） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -807,6 +807,34 @@ Quality Gate failed
 归因在规则层结算而不是让调用方留空：`campaign_id` 没有 UPDATE 授权，创建时写下的就是
 可追溯性联接永远会报的答案——让同一个函数回答自拓单和转化单，好过让它由一次遗漏决定。
 
-余下九条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
-`campaign.execution.upsert`、`account.contact.upsert`、`account.offering.view` /
-`.upsert`、`delivery.milestone.upsert`、`delivery.task.upsert`。
+**已还第三笔 2026-08-28**：`account.contact.upsert`。这是这类缺口里最尖锐的一个，因为
+**邻居是好的**：`linkContacts` 早已实现并接了界面，所以成员可以在联系人之间连线，却没有
+任何路径创建一个联系人。而首页头条「N 决策人未触达」正是从 `contact.decision_role` 算
+出来的——**那个数字此前只能描述种子数据**。
+
+身份取 id 不取业务码：一个客户里两个人可以同名，按名字匹配会把同事合并成一个人。编辑
+的谓词同时带工作区**和客户**，否则一次编辑会把人悄悄搬到另一个客户名下——而 D4 的每条
+判断规则都是透过所属客户去读商机的。
+
+`influence` 可空且不默认为 0：「还没有人判断过」和「判断过，此人没有影响力」是两个事实，
+与未设配额不等于达成 0% 是同一条道理。
+
+**这一笔顺带还了 TD-015 留下的那个缺口的一部分。** 上次把覆盖率门划到「被测的那一层」时，
+Prisma 适配器**故意留在比率里**，理由是「它是最大的未覆盖块，留着才看得见」。这次它挡住了
+PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts` 的 37/57）。
+
+**把它排除掉就是上次拒绝过的那种做法**，所以补了测试：给 `PrismaAccountStore` 加一个
+**构造参数**（不是可变全局）注入客户端，生产侧构造时不传、行为不变。被测的不是 Prisma，
+是这个文件在 Prisma 前后做的判断——列锁守卫、决定「这次编辑能碰哪一行」的谓词、空值与
+实值的映射、以及几个短路（没有联系人就不问关系表，没有项目就不数逾期回款）。
+
+**中间有一步是自找的，值得记下来**：让客户端可注入改动了**每一个方法**，于是整个适配器
+都变成了「新代码」，覆盖率先从 79.4% 掉到 75.0% 才回升。那些行本来就没被测，重构只是让
+门开始数它们。半个文件用一种机制、半个用另一种去迁就指标，比补完更糟，所以补完了：
+`account/prisma-store.ts` 从零测试到 **81.45%**。
+
+其余四个 Prisma 适配器仍然没有测试（46%–58%），注入点的形状现在是现成的。
+
+余下八条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
+`campaign.execution.upsert`、`account.offering.view` / `.upsert`、
+`delivery.milestone.upsert`、`delivery.task.upsert`。

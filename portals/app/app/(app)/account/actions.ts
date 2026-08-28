@@ -6,6 +6,7 @@ import { getAccountStore } from "../../domains/shared/registry";
 import {
   designateAccount,
   linkContacts,
+  upsertContact,
   recomputeHealth,
 } from "../../domains/account/service";
 import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
@@ -157,4 +158,57 @@ export async function designateAccountTier(input: {
   revalidatePath(`/account/${input.accountId}`);
   revalidatePath("/account");
   return { ok: true, tier: result.value.tier, planned: result.value.planned };
+}
+
+/**
+ * Creating or editing a contact.
+ *
+ * The neighbour of `linkAccountContacts` above, which shipped first and could
+ * only ever link people that seed data had put there (TD-016).
+ *
+ * The role and status arrive as plain strings from two selects and are checked
+ * against the value domains in the rule layer, not here - a server action that
+ * validates is a second place the rule lives, and the two drift.
+ */
+export async function saveContact(
+  accountId: string,
+  input: {
+    id: string | null;
+    name: string;
+    title: string | null;
+    department: string | null;
+    decisionRole: string;
+    influence: number | null;
+    status: string;
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await upsertContact(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getAccountStore(),
+    },
+    accountId,
+    {
+      id: input.id,
+      name: input.name,
+      title: input.title,
+      department: input.department,
+      decisionRole: input.decisionRole as never,
+      influence: input.influence,
+      status: input.status as never,
+    },
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath(`/account/${accountId}`);
+  revalidatePath("/");
+  return { ok: true };
 }

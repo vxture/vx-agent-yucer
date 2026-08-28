@@ -1,0 +1,70 @@
+// The people inside a customer, and what each of them is to the deal.
+//
+// The decision chain - the board's headline "N 决策人未触达" - is computed
+// entirely from `contact.decision_role`, and until now nothing in the product
+// could create a contact. The table, its column locks and the action
+// `account.contact.upsert` all shipped in batch 1; the verb never did
+// (TD-016).
+//
+// It is the sharpest version of that shape in the repo, because the NEIGHBOUR
+// works: `linkContacts` is implemented and wired to a surface, so a member
+// could draw relations between contacts while having no way to create one. The
+// coverage figure on the front page could only ever describe seed data.
+
+import { fail, ok, violation, type RuleResult } from "../../shared/result";
+import { DECISION_ROLES, type DecisionRole } from "./health";
+
+/** Mirrors chk_contact_status. */
+export const CONTACT_STATUSES = ["active", "left", "invalid"] as const;
+export type ContactStatus = (typeof CONTACT_STATUSES)[number];
+
+export interface ContactDraft {
+  /** Absent creates; present edits that contact. Contacts have no business
+   *  key - unlike a territory or a product, two people can share a name. */
+  id?: string | null;
+  name: string;
+  title: string | null;
+  department: string | null;
+  decisionRole: DecisionRole;
+  influence: number | null;
+  status: ContactStatus;
+}
+
+/**
+ * Validate a contact before it is written.
+ *
+ * `decision_role` and `status` are CHECK constraints in the DDL, so an invalid
+ * one would be refused by Postgres with a constraint name. Refusing it here
+ * means the person hears which field and why instead of a database error.
+ *
+ * `influence` is 0-100 and NULLABLE, and the two are different statements:
+ * null is "nobody has judged this yet", 0 is "judged, and this person has
+ * none". Defaulting null to 0 would turn an unanswered question into an
+ * answer - the same distinction the attainment rules keep for an unset quota.
+ */
+export function planContact(input: ContactDraft): RuleResult<ContactDraft> {
+  const name = input.name.trim();
+  if (!name) {
+    return fail(violation("name_required", "a contact needs a name", "name"));
+  }
+  if (!(DECISION_ROLES as readonly string[]).includes(input.decisionRole)) {
+    return fail(
+      violation("unknown_decision_role", `${String(input.decisionRole)} is not a decision role`, "decisionRole"),
+    );
+  }
+  if (!(CONTACT_STATUSES as readonly string[]).includes(input.status)) {
+    return fail(violation("unknown_status", `${String(input.status)} is not a contact status`, "status"));
+  }
+  if (input.influence !== null) {
+    if (!Number.isInteger(input.influence) || input.influence < 0 || input.influence > 100) {
+      return fail(violation("influence_range", "influence is a whole number from 0 to 100", "influence"));
+    }
+  }
+
+  return ok({
+    ...input,
+    name,
+    title: input.title?.trim() || null,
+    department: input.department?.trim() || null,
+  });
+}
