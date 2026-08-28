@@ -13,8 +13,7 @@ import {
   type CollectionRow,
 } from "../components/collections-panel";
 import { MilestonePanel, type MilestoneRow } from "../components/milestone-panel";
-import { moveInstalment, saveMilestone } from "./actions";
-import { reconcileHealth } from "./actions";
+import { moveInstalment, reconcileHealth, saveMilestone } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";

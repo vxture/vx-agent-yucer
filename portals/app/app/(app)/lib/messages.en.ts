@@ -30,6 +30,18 @@ import * as zh from "./messages";
 // through useMessages() / getMessages(). If a page renders Chinese under
 // en-US, look for a static import before assuming a missing key.
 
+/**
+ * The three codes that come from the GATE rather than from any domain. See the
+ * note on GATE_ERROR in messages.ts: `can()` produces exactly these, so every
+ * domain dictionary carried its own copy. Spread FIRST, so a domain with
+ * something more specific to say still overrides it.
+ */
+const GATE_ERROR = {
+  not_authenticated: "Your session has expired - please sign in again",
+  permission_denied: "You cannot perform this action",
+  feature_not_in_tier: "Your tier does not include this capability",
+} as const;
+
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
 
@@ -147,30 +159,29 @@ export const en: Dictionary = {
   },
 
   REVENUE_ERROR: {
+    ...GATE_ERROR,
     actual_amount_required: "Settling requires the amount actually received",
     amount_negative: "The amount cannot be negative",
     currency_mismatch: "The currency does not match the plan",
     illegal_transition: "That move is not allowed from here",
     unknown_status: "Unknown status",
     not_found: "No such record, or it belongs to another workspace",
-    permission_denied: "You cannot perform this action",
-    not_authenticated: "Your session has expired - please sign in again",
     denied: "Refused",
   },
 
   ACCOUNT_ERROR: {
+    ...GATE_ERROR,
     plan_required:
       "A strategic account needs a plan - the cadence rule reads it, and without one this designation changes nothing",
     period_required: "The plan must name its period",
     cadence_positive: "A cadence of zero days is not a cadence",
     unknown_tier: "Unknown account tier",
     not_found: "No such account, or it belongs to another workspace",
-    permission_denied: "You cannot perform this action",
-    not_authenticated: "Your session has expired - please sign in again",
     denied: "Refused",
   },
 
   CATALOG_ERROR: {
+    ...GATE_ERROR,
     code_required: "A code is required",
     name_required: "A name is required",
     unit_required: "A unit is required - a quantity with no unit cannot say what was sold",
@@ -182,8 +193,6 @@ export const en: Dictionary = {
     amount_negative: "A price cannot be negative",
     floor_above_list:
       "A floor above list would make every sale need approval, which is the same as having no floor",
-    permission_denied: "You cannot perform this action",
-    not_authenticated: "Your session has expired - please sign in again",
     denied: "Refused",
   },
 
@@ -354,15 +363,16 @@ export const en: Dictionary = {
   },
 
   RELATION_ERROR: {
+    ...GATE_ERROR,
     self_relation: "A person cannot be related to themselves",
     unknown_relation_type: "Unknown relationship type",
-    not_authenticated: "Your session has expired - please sign in again",
     permission_denied: "You cannot edit the relationship graph",
     feature_not_in_tier: "Your tier does not include the relationship graph",
     no_data_access: "This workspace has no access",
   },
 
   FIELD_ERROR: {
+    ...GATE_ERROR,
     note_required:
       "Write a line about what happened - recording only that it happened is worth nothing",
     occurred_in_future: "A follow-up cannot have happened in the future",
@@ -375,55 +385,46 @@ export const en: Dictionary = {
     status_unchanged: "The status did not change",
     statement_required: "Write down what was promised",
     not_found: "No such record, or it belongs to another workspace",
-    not_authenticated: "Your session has expired - please sign in again",
     permission_denied: "You cannot record follow-ups",
     no_data_access: "This workspace has no access",
   },
 
   TERRITORY_ERROR: {
+    ...GATE_ERROR,
     code_required: "A territory needs a code",
     name_required: "A territory needs a name",
     unknown_status: "Unknown territory status",
     parent_not_found: "The parent territory does not exist",
     parent_cycle: "A territory cannot report to itself, directly or through a chain",
-    not_authenticated: "Your session has expired - please sign in again",
-    permission_denied: "You cannot perform this action",
-    feature_not_in_tier: "Your tier does not include this capability",
   },
 
   MILESTONE_ERROR: {
+    ...GATE_ERROR,
     name_required: "A milestone needs a name",
     sequence_invalid: "Sequence is a whole number from zero",
     unknown_status: "Unknown milestone status",
     done_needs_completion: "A milestone marked done must say when it was done",
     completion_needs_done: "A completion time belongs to a milestone that is done - a missed one did not happen",
     not_found: "No such project, or it belongs to another workspace",
-    not_authenticated: "Your session has expired - please sign in again",
-    permission_denied: "You cannot perform this action",
-    feature_not_in_tier: "Your tier does not include this capability",
   },
 
   CONTACT_ERROR: {
+    ...GATE_ERROR,
     name_required: "A contact needs a name",
     unknown_decision_role: "Unknown decision role",
     unknown_status: "Unknown contact status",
     influence_range: "Influence is a whole number from 0 to 100",
     not_found: "That contact is not on this customer",
-    not_authenticated: "Your session has expired - please sign in again",
-    permission_denied: "You cannot perform this action",
-    feature_not_in_tier: "Your tier does not include this capability",
   },
 
   OPPORTUNITY_ERROR: {
+    ...GATE_ERROR,
     stage_unchanged: "Already at this stage - an empty change is not recorded",
     terminal_stage:
       "This deal is closed; reopening needs explicit confirmation",
     reason_required: "This change requires a reason",
     unknown_stage: "Unknown stage",
     not_found: "No such deal, or it belongs to another workspace",
-    not_authenticated: "Your session has expired - please sign in again",
-    permission_denied: "You cannot perform this action",
-    feature_not_in_tier: "Your tier does not include this capability",
     probability_range: "Win rate must be a whole number between 0 and 100",
     terminal_probability_fixed:
       "A closed deal has a fixed win rate and cannot be changed",

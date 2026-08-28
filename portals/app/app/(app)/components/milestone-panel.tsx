@@ -43,6 +43,44 @@ function MilestoneStatusCell({
   return <span className="text-muted-foreground">{labels[status] ?? status}</span>;
 }
 
+/**
+ * The column definitions, at MODULE SCOPE with the dictionary passed in.
+ *
+ * They were inline in the component body, where every `cell` is an arrow that
+ * returns an element - and a function defined inside a component that returns
+ * JSX is indistinguishable from a nested component to a reader and to a linter
+ * (typescript:S6478). Lifting them out settles the question instead of arguing
+ * about the heuristic, and the component body is left as state plus a form.
+ */
+function milestoneColumns(text: {
+  milestoneProject: string;
+  milestoneSequence: string;
+  milestoneName: string;
+  milestoneDue: string;
+  milestoneStatus: string;
+  milestoneStatusLabel: Record<string, string>;
+}) {
+  return [
+    { id: "project", header: text.milestoneProject, cell: (r: MilestoneRow) => r.projectName },
+    {
+      id: "seq",
+      header: text.milestoneSequence,
+      align: "right" as const,
+      cell: (r: MilestoneRow) => r.sequence,
+    },
+    { id: "name", header: text.milestoneName, cell: (r: MilestoneRow) => r.name },
+    { id: "due", header: text.milestoneDue, cell: (r: MilestoneRow) => r.dueAt ?? "" },
+    {
+      id: "status",
+      header: text.milestoneStatus,
+      align: "center" as const,
+      cell: (r: MilestoneRow) => (
+        <MilestoneStatusCell status={r.status} labels={text.milestoneStatusLabel} />
+      ),
+    },
+  ];
+}
+
 export interface MilestoneRow {
   readonly id: string;
   readonly projectId: string;
@@ -104,33 +142,7 @@ export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePan
           labels={DATA_TABLE_LABELS}
           rowKey={(r: MilestoneRow) => r.id}
           rows={[...rows]}
-          columns={[
-            {
-              id: "project",
-              header: DELIVERY_TEXT.milestoneProject,
-              cell: (r: MilestoneRow) => r.projectName,
-            },
-            {
-              id: "seq",
-              header: DELIVERY_TEXT.milestoneSequence,
-              align: "right" as const,
-              cell: (r: MilestoneRow) => r.sequence,
-            },
-            { id: "name", header: DELIVERY_TEXT.milestoneName, cell: (r: MilestoneRow) => r.name },
-            {
-              id: "due",
-              header: DELIVERY_TEXT.milestoneDue,
-              cell: (r: MilestoneRow) => r.dueAt ?? "",
-            },
-            {
-              id: "status",
-              header: DELIVERY_TEXT.milestoneStatus,
-              align: "center" as const,
-              cell: (r: MilestoneRow) => (
-                <MilestoneStatusCell status={r.status} labels={DELIVERY_TEXT.milestoneStatusLabel} />
-              ),
-            },
-          ]}
+          columns={milestoneColumns(DELIVERY_TEXT)}
         />
       )}
 
