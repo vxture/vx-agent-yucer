@@ -5,7 +5,8 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
 import { SetTarget } from "../components/set-target";
-import { createSalesTarget, updateSalesTarget } from "./actions";
+import { TerritoryPanel } from "../components/territory-panel";
+import { createSalesTarget, saveTerritory, updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -46,7 +47,14 @@ export default async function PlanningPage() {
   // Through the gated service, so a member who may read targets but not the
   // territory registry simply gets codes back rather than the page refusing -
   // planning.territory.view is a separate permission from the one above.
-  const territories = await listTerritories(ctx);
+  // RETIRED ONES INCLUDED, once. The roster has to show a wound-down region -
+  // it still holds its code, and un-retiring it is done from that row - while
+  // the target scope selector below must not offer one. One read, and the
+  // narrowing stated at the site that needs it.
+  const territories = await listTerritories(ctx, { includeRetired: true });
+  const activeTerritories = territories.ok
+    ? territories.value.filter((t) => t.status === "active")
+    : [];
   const territoryNames = new Map(
     territories.ok ? territories.value.map((t) => [t.id, t.name]) : [],
   );
@@ -138,11 +146,28 @@ export default async function PlanningPage() {
           ).allowed
         }
         territories={
-          territories.ok
-            ? territories.value.map((t) => ({ id: t.id, name: t.name }))
+          activeTerritories.length > 0
+            ? activeTerritories.map((t) => ({ id: t.id, name: t.name }))
             : []
         }
         onCreate={createSalesTarget}
+      />
+
+      {/* BELOW the target form and above the table. A territory is a
+          PRECONDITION for a regional target, so a reader who finds the scope
+          selector empty needs the next thing they see to be where regions come
+          from - not a list of targets they cannot yet scope. */}
+      <TerritoryPanel
+        rows={territories.ok ? territories.value : []}
+        canEdit={
+          can(
+            session.authz,
+            session.entitlement,
+            "planning.territory.upsert",
+            "ui",
+          ).allowed
+        }
+        onSave={saveTerritory}
       />
 
       <Section

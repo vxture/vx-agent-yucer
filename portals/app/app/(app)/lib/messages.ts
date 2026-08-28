@@ -1071,6 +1071,17 @@ export const OPPORTUNITY_TEXT = {
   lineApproveCancel: "取消",
 } as const;
 
+export const TERRITORY_ERROR: Record<string, string> = {
+  code_required: "区域代码不能为空",
+  name_required: "区域名称不能为空",
+  unknown_status: "未知的区域状态",
+  parent_not_found: "上级区域不存在",
+  parent_cycle: "区域不能直接或间接地成为自己的上级",
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有执行这个操作的权限",
+  feature_not_in_tier: "当前档位不含这个能力",
+};
+
 export const OPPORTUNITY_ERROR: Record<string, string> = {
   stage_unchanged: "已经在这个阶段了，不会记录空变更",
   terminal_stage: "商机已关闭；重开需要显式确认",
@@ -1563,6 +1574,23 @@ export const PLANNING_TEXT = {
   scopeTerritory: "销售区域",
   scopeOwner: "我自己",
   setMetric: "指标",
+  territoryTitle: "销售区域",
+  territoryWhy:
+    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。",
+  territoryNone: "还没有销售区域",
+  territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
+  territoryCode: "区域代码",
+  territoryName: "名称",
+  territoryParent: "上级区域",
+  territoryNoParent: "顶级区域",
+  territoryOwner: "负责人",
+  territoryNoOwner: "未指派",
+  territoryStatus: "状态",
+  territoryActive: "在用",
+  territoryRetired: "已停用",
+  territorySave: "保存区域",
+  territorySaved: "已保存",
+  territoryDenied: "你没有维护销售区域的权限",
   setAmount: "目标金额",
   setCount: "目标客户数",
   // The unit a count target is measured in. Money gets a currency symbol from

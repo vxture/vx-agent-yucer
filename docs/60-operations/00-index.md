@@ -24,7 +24,8 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
-| TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | open |
+| TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -753,3 +754,45 @@ Quality Gate failed
 （另注：`sed` 的前缀剥离用 `[^ ]* ` 而不是定宽 `....`。node 的行首标记是多字节字符，
 `.` 在 C locale 下按字节、在 UTF-8 locale 下按字符，定宽在一种 runner 上对、在另一种
 上会吃掉表格两列。）
+
+### TD-016 - 声明了门，背后没有动词
+
+**怎么发现的**：建销售区域时看到 `planning.territory.upsert` 在 action 目录里躺了一整个
+批次——带着 `planning.territory`，**19 个冻结功能键之一，PRO 档起售**——而没有服务动词、
+没有端口方法、没有界面。一个付费工作区买到了「销售区域」，却只能读它无法创建的行；又
+因为 territory 作用域的目标需要 `territory_id`，它连区域目标也设不了。
+
+数据库、授权、列锁、门全都就位，**只有中间那段是空的**。与 ADR-019 的底价同一形状（一个
+闭不上的环），只是缺口更靠前一层。
+
+**普查结果**：68 个 action 里，**14 个从未在任何地方被 `can()` 求值**。
+
+| 类别 | 数量 | 说明 |
+|------|------|------|
+| 外部阻塞 | 4 | `signal.feed.configure`（批次 5，等 arda 契约）、三个 copilot 的（等智能体面） |
+| **本条债** | **10** | 门声明在动词之前，没人写那个动词 |
+
+十条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
+`campaign.execution.upsert`、`account.contact.upsert`、`account.offering.view` /
+`.upsert`、`pipeline.opportunity.create`、`delivery.milestone.upsert`、
+`delivery.task.upsert`。
+
+**同时确认了令人安心的另一半**：没有一条是反过来的形状——「有界面在写、却没有门」。这两
+类看起来相似，严重性差一个量级，所以是分开查的。
+
+**守卫已就位**（`app/authz/gated.test.ts`），四条断言：
+
+1. 每个 action 要么真的在把门，要么在 `KNOWN_UNGATED` 里具名并写明什么能了结它；
+2. 白名单里不能留已经接线的（否则名单会慢慢不再描述任何东西）；
+3. 白名单里不能有目录里不存在的 action；
+4. **每个写操作必须在服务端把门，不能只在界面上把**——一个页面决定要不要画按钮不是门。
+
+第 4 条的第一版按目录判断（`app/domains/` 下才算），当场误报了
+`admin.member.role.assign`：它的门在 `authz/admin.ts`，是服务端代码只是住在别处。改成
+按 `.tsx`（界面）与 `.ts`（服务端）区分。**一个会误报的守卫比没有守卫更贵**，所以这次
+是先反证再采信。
+
+**恢复条件**：十条各自要么实现动词，要么被明确裁定为不做而从目录里删掉。每关掉一条，
+`KNOWN_UNGATED` 少一行——守卫的第 2 条断言保证它不会忘。
+
+**已还第一笔**：`planning.territory.upsert`（销售区域）已实现并接线，白名单里没有它。

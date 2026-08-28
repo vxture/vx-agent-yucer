@@ -20,6 +20,7 @@ import {
   type TargetScope,
   type TargetStatus,
 } from "./lib/target";
+import { planTerritory, type TerritoryDraft } from "./lib/territory";
 import { DEFAULT_CURRENCY } from "../shared/money";
 import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
 
@@ -42,10 +43,47 @@ export async function listTargets(
 
 export async function listTerritories(
   ctx: PlanningContext,
+  opts: { includeRetired?: boolean } = {},
 ): Promise<RuleResult<TerritoryRecord[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.territory.view", "data");
   if (!gate.allowed) return denied(gate);
-  return ok(await ctx.store.listTerritories(ctx.workspaceId));
+  return ok(await ctx.store.listTerritories(ctx.workspaceId, opts));
+}
+
+/**
+ * Create or update a territory.
+ *
+ * THE VERB THAT WAS NEVER WRITTEN. `planning.territory.upsert` has been in the
+ * action catalogue since batch 1, carrying the frozen feature key
+ * `planning.territory` and sold from PRO up - and nothing implemented it. A
+ * paying workspace could read territories it had no way to create, and because
+ * a territory-scoped target needs a territory_id, it could not set a regional
+ * target either. The database, the grants, the column locks and the gate were
+ * all in place; only the middle was missing.
+ *
+ * UPSERT BY CODE. `territory_code` is the anchor - immutable in the DDL, absent
+ * from the writable columns - so the code identifies the row and everything
+ * else may move. Re-importing a regional structure updates it rather than
+ * duplicating it.
+ *
+ * The existing list is read first so the rule can refuse a parent that does not
+ * exist or one that would close a cycle. A cycle is legal to the FK and
+ * nonsense to every reader of the hierarchy.
+ */
+export async function upsertTerritory(
+  ctx: PlanningContext,
+  input: TerritoryDraft,
+): Promise<RuleResult<TerritoryRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  // Retired ones included: they still occupy their code, and a parent that has
+  // been wound down is still a real ancestor for cycle purposes.
+  const existing = await ctx.store.listTerritories(ctx.workspaceId, { includeRetired: true });
+  const plan = planTerritory(input, existing);
+  if (!plan.ok) return plan as RuleResult<TerritoryRecord>;
+
+  return ok(await ctx.store.upsertTerritory(ctx.workspaceId, plan.value));
 }
 
 /**

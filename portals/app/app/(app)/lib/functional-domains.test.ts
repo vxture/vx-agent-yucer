@@ -230,6 +230,12 @@ test("every section anchor exists as an id on some page", () => {
  * planned check below, where eleven of twelve names were fiction.
  */
 const SHIPPED_AS: Record<string, string> = {
+  // `TerritoryPanel`, and the real name matters more here than anywhere else in
+  // this map: the planned check looks for the component NAME, so had this
+  // stayed in NOT_BUILT as the guessed "TerritoryTable" it would have gone on
+  // passing while the surface existed under a different name. That is the
+  // blind spot the note below admits to, hit for real.
+  territory: "TerritoryPanel",
   winLossReview: "PendingReviews",
   collection: "CollectionsPanel",
   catalog: "CatalogPanels",
@@ -245,7 +251,6 @@ const SHIPPED_AS: Record<string, string> = {
  */
 const NOT_BUILT: Record<string, string> = {
   segment: "SegmentTable",
-  territory: "TerritoryTable",
   namedAccount: "NamedAccountRoster",
   forecastRule: "ForecastRuleTable",
   routing: "LeadRouting",

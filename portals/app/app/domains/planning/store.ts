@@ -9,6 +9,7 @@
 
 import type { Money } from "../shared/money";
 import type { PublishedTotals, SalesTarget, TargetScope, TargetStatus, TargetValue } from "./lib/target";
+import type { TerritoryDraft } from "./lib/territory";
 
 export interface TargetRecord extends SalesTarget {
   id: string;
@@ -44,7 +45,19 @@ export interface PlanningStore {
     patch: { targetValue?: TargetValue; status?: TargetStatus; planId?: string | null },
   ): Promise<boolean>;
 
-  listTerritories(workspaceId: string): Promise<TerritoryRecord[]>;
+  /** Active territories, unless the caller asks for the retired ones too. */
+  listTerritories(
+    workspaceId: string,
+    opts?: { includeRetired?: boolean },
+  ): Promise<TerritoryRecord[]>;
+  /**
+   * UPSERT BY CODE, not by id. `territory_code` is the anchor the DDL marks
+   * immutable and the column locks refuse UPDATE on, and it is what a person
+   * types; ids are generated. Keying on it means importing the same regional
+   * structure twice updates rather than duplicating - the way a territory list
+   * actually arrives.
+   */
+  upsertTerritory(workspaceId: string, input: TerritoryDraft): Promise<TerritoryRecord>;
   /**
    * The published numbers for a scope and period, read from D6's snapshot.
    *
@@ -109,8 +122,36 @@ export class InMemoryPlanningStore implements PlanningStore {
     return true;
   }
 
-  async listTerritories(workspaceId: string): Promise<TerritoryRecord[]> {
-    return this.territories.filter((t) => t.workspaceId === workspaceId);
+  async listTerritories(
+    workspaceId: string,
+    opts: { includeRetired?: boolean } = {},
+  ): Promise<TerritoryRecord[]> {
+    // The status filter matches the Prisma adapter. It did not, and that is a
+    // whole class of defect on its own: every test saw retired rows because
+    // this one returned them, and production never did because that one
+    // filtered. Two adapters answering the same question differently is a
+    // fixture that lies.
+    return this.territories
+      .filter((t) => t.workspaceId === workspaceId)
+      .filter((t) => opts.includeRetired || t.status === "active")
+      .sort((a, b) => a.territoryCode.localeCompare(b.territoryCode));
+  }
+
+  async upsertTerritory(workspaceId: string, input: TerritoryDraft): Promise<TerritoryRecord> {
+    const held = this.territories.find(
+      (t) => t.workspaceId === workspaceId && t.territoryCode === input.territoryCode,
+    );
+    if (held) {
+      // The code is the identity and never moves; everything else may.
+      held.name = input.name;
+      held.parentId = input.parentId;
+      held.ownerSub = input.ownerSub;
+      held.status = input.status;
+      return held;
+    }
+    const created: TerritoryRecord = { ...input, id: `terr_${++this.seq}`, workspaceId };
+    this.territories.push(created);
+    return created;
   }
 
   async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {

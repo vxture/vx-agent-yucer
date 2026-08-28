@@ -5,7 +5,15 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPlanningStore, type TargetRecord } from "./store";
-import { attainment, createTarget, listTargets, updateTarget, type PlanningContext } from "./service";
+import {
+  attainment,
+  createTarget,
+  listTargets,
+  listTerritories,
+  updateTarget,
+  upsertTerritory,
+  type PlanningContext,
+} from "./service";
 import type { TargetScope } from "./lib/target";
 
 const WS = "ws_1";
@@ -145,4 +153,138 @@ test("targets never cross a workspace boundary", async () => {
   store.seed({ targets: [target({ id: "mine" }), target({ id: "theirs", workspaceId: "ws_other" })] });
   const rows = unwrap(await listTargets(ctx("sales_ops", "pro", store)));
   assert.deepEqual(rows.map((r) => r.id), ["mine"]);
+});
+
+// --- Territories (the verb that was gated but never written) -----------------
+
+test("a VIEWER may read territories and may not write one", async () => {
+  // The test that actually pins the gate to the WRITE action. `sales_rep` has
+  // no planning access at all, so a rep is refused whichever action the verb
+  // names - a counter-proof that swapped upsert for view reddened nothing, and
+  // said so. `viewer` holds planning.read and not planning.write, which is the
+  // only pair that can tell the two apart.
+  const store = new InMemoryPlanningStore();
+  const c = ctx("viewer", "pro", store);
+  assert.equal((await listTerritories(c)).ok, true, "reading is allowed");
+
+  const r = await upsertTerritory(c, {
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: null,
+    status: "active",
+  });
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+});
+
+test("a rep cannot maintain territories, a leader can", async () => {
+  const store = new InMemoryPlanningStore();
+  const denied = await upsertTerritory(ctx("sales_rep", "pro", store), {
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: null,
+    status: "active",
+  });
+  assert.equal(denied.ok, false);
+  assert.equal(denied.ok === false && denied.violations[0]!.code, "permission_denied");
+
+  const allowed = await upsertTerritory(ctx("sales_leader", "pro", store), {
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: null,
+    status: "active",
+  });
+  assert.equal(allowed.ok, true);
+});
+
+test("the feature key gates it too - a starter workspace is told about the tier", async () => {
+  // planning.territory is sold from PRO up. Before this verb existed, that key
+  // unlocked a read of rows nothing could create.
+  const r = await upsertTerritory(ctx("sales_leader", "starter", new InMemoryPlanningStore()), {
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: null,
+    status: "active",
+  });
+  assert.equal(r.ok === false && r.violations[0]!.code, "feature_not_in_tier");
+});
+
+test("the same code UPDATES rather than creating a twin", async () => {
+  const store = new InMemoryPlanningStore();
+  const c = ctx("sales_leader", "pro", store);
+  const first = unwrap(
+    await upsertTerritory(c, {
+      territoryCode: "EAST",
+      name: "East China",
+      parentId: null,
+      ownerSub: null,
+      status: "active",
+    }),
+  );
+  const again = unwrap(
+    await upsertTerritory(c, {
+      territoryCode: "EAST",
+      name: "East China (renamed)",
+      parentId: null,
+      ownerSub: "usr_1",
+      status: "active",
+    }),
+  );
+  assert.equal(again.id, first.id, "same row - the code is the identity");
+  assert.equal(again.name, "East China (renamed)");
+  assert.equal((await store.listTerritories(WS)).length, 1, "and not a second one");
+});
+
+test("a retired territory leaves the active list but keeps its code", async () => {
+  const store = new InMemoryPlanningStore();
+  const c = ctx("sales_leader", "pro", store);
+  const base = {
+    territoryCode: "NORTH",
+    name: "North China",
+    parentId: null,
+    ownerSub: null,
+  };
+  unwrap(await upsertTerritory(c, { ...base, status: "active" }));
+  unwrap(await upsertTerritory(c, { ...base, status: "retired" }));
+
+  assert.deepEqual(await store.listTerritories(WS), [], "gone from the scope selector");
+  const all = await store.listTerritories(WS, { includeRetired: true });
+  assert.equal(all.length, 1, "still on file, still holding NORTH");
+  assert.equal(all[0]!.status, "retired");
+});
+
+test("the cycle check sees retired ancestors", async () => {
+  // A wound-down parent is still a real ancestor. Reading only the active list
+  // would let a loop close through a retired row - invisible, and permanent.
+  const store = new InMemoryPlanningStore();
+  const c = ctx("sales_leader", "pro", store);
+  const east = unwrap(
+    await upsertTerritory(c, {
+      territoryCode: "EAST",
+      name: "East",
+      parentId: null,
+      ownerSub: null,
+      status: "active",
+    }),
+  );
+  const north = unwrap(
+    await upsertTerritory(c, {
+      territoryCode: "NORTH",
+      name: "North",
+      parentId: east.id,
+      ownerSub: null,
+      status: "retired",
+    }),
+  );
+  const r = await upsertTerritory(c, {
+    territoryCode: "EAST",
+    name: "East",
+    parentId: north.id,
+    ownerSub: null,
+    status: "active",
+  });
+  assert.equal(r.ok === false && r.violations[0]!.code, "parent_cycle");
 });
