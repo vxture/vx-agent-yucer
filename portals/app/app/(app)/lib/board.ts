@@ -221,6 +221,7 @@ export async function boardSections(
   // to an empty card, which is what every other card on this board already
   // does - the board reports what you may see, and says nothing about the rest.
   const lines = lineResult.ok ? lineResult.value : [];
+  const pendingApproval = lines.filter((l) => l.needsApproval && !l.approved);
   const catalogue = catalogueResult.ok ? catalogueResult.value : [];
 
   // Open deals only, and their value. "How many deals exist" is a database
@@ -458,14 +459,14 @@ export async function boardSections(
                   weight: agg.amount,
                 })),
               // Below-floor lines are a decision someone owes, so they belong
-              // beside the money rather than buried in a deal.
-              ...(lines.some((l) => l.needsApproval)
+              // beside the money rather than buried in a deal. ALREADY-SIGNED
+              // ones are not owed by anybody: counting them would leave the
+              // number permanently raised and teach people to ignore it.
+              ...(pendingApproval.length > 0
                 ? [
                     {
                       label: BOARD_TEXT.needsApproval,
-                      value: String(
-                        lines.filter((l) => l.needsApproval).length,
-                      ),
+                      value: String(pendingApproval.length),
                       tone: "warn" as const,
                     },
                   ]

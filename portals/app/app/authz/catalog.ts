@@ -66,6 +66,12 @@ export const PERM_CODES = [
   // collapsing them left the people who meet customers most unable to write
   // anything down. See ADR-018.
   "account.record",
+  // --- discount authority (incr/0012), ADR-019 ------------------------------
+  // Separate from pipeline.write on purpose: the person who quotes below the
+  // floor must not be the person who signs it off, or the floor constrains
+  // nobody. Not a feature key - keys are frozen at 19 and a signature is not
+  // separately sellable.
+  "pipeline.discount",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -112,6 +118,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "catalog.write",
     "catalog.price",
+    "pipeline.discount",
     "account.record",
   ],
   // Demand side, up to the lead handoff: triages signals but never edits a deal.
@@ -179,6 +186,10 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "catalog.write",
     "catalog.price",
+    // Setting the floor and granting an exception to it are two halves of one
+    // authority; ops can already move a floor, so withholding the
+    // transaction-level exception would be theatre, not separation of duties.
+    "pipeline.discount",
   ],
   // Read-only, but keeps copilot.use: asking a question produces no write.
   viewer: [

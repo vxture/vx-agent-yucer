@@ -22,3 +22,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-016 | [招标信号与定向挖掘](ADR-016-tender-signals-and-targeted-mining.md) | accepted | 2026-08-18 |
 | ADR-017 | [目录是一个不带功能键的能力分区](ADR-017-the-catalogue-is-a-partition-without-a-key.md) | accepted | 2026-08-26 |
 | ADR-018 | [证据面不单独售卖，但记录不等于编辑](ADR-018-the-evidence-plane-is-not-sold-separately.md) | accepted | 2026-08-26 |
+| ADR-019 | [底价必须有人能签字，签字不能挂在行项上](ADR-019-a-floor-nobody-could-cross.md) | accepted | 2026-08-28 |

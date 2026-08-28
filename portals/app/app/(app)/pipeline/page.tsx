@@ -144,7 +144,9 @@ export default async function PipelinePage({
       name: productRows.find((p) => p.id === id)?.name ?? id,
       amount: agg.amount,
     }));
-  const awaiting = openLines.filter((l) => l.needsApproval).length;
+  // Signed-off lines are not awaiting anything. A badge that never clears is a
+  // badge people stop reading.
+  const awaiting = openLines.filter((l) => l.needsApproval && !l.approved).length;
 
   return (
     <ViewLayout>

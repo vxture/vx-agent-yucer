@@ -6,16 +6,24 @@ import {
   planProduct,
   planSolution,
   type SolutionItemDraft,
+  approvalFor,
 } from "./lib/pricing";
 import { denied } from "../pipeline/service";
 import type {
   CatalogStore,
+  DiscountApprovalRecord,
   OpportunityLineRecord,
   PriceEntryRecord,
   ProductRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "./store";
+
+/**
+ * A line with the one fact a reader cannot derive from it: whether the
+ * signature its `needsApproval` flag demands has actually been given.
+ */
+export type ApprovedLine = OpportunityLineRecord & { readonly approved: boolean };
 
 // D9 catalogue application service - the READ half (ADR-014, ADR-017).
 //
@@ -117,10 +125,30 @@ export async function listPrices(
  */
 export async function listOpportunityLines(
   ctx: CatalogContext,
-): Promise<RuleResult<OpportunityLineRecord[]>> {
+): Promise<RuleResult<ApprovedLine[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
   if (!gate.allowed) return denied(gate);
-  return ok(await ctx.store.allLines(ctx.workspaceId));
+  const [lines, approvals] = await Promise.all([
+    ctx.store.allLines(ctx.workspaceId),
+    ctx.store.allApprovals(ctx.workspaceId),
+  ]);
+  // The join happens HERE rather than in each caller, because `needsApproval`
+  // without `approved` reads as "still pending" and every surface that shows
+  // one would have to remember to fetch the other. Three of them exist today
+  // and a caller that CAN forget the join will forget it - the same reasoning
+  // that put this read behind a service instead of a store handle.
+  const byDeal = new Map<string, DiscountApprovalRecord[]>();
+  for (const a of approvals) {
+    const list = byDeal.get(a.opportunityId);
+    if (list) list.push(a);
+    else byDeal.set(a.opportunityId, [a]);
+  }
+  return ok(
+    lines.map((l) => ({
+      ...l,
+      approved: approvalFor(l, byDeal.get(l.opportunityId) ?? []) !== null,
+    })),
+  );
 }
 
 // --- writes ------------------------------------------------------------------

@@ -15,8 +15,8 @@
 
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
-import { lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
-import type { CatalogStore } from "../catalog/store";
+import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
+import type { CatalogStore, DiscountApprovalRecord } from "../catalog/store";
 import type { Decision } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
 import { isNonNegative, money } from "../shared/money";
@@ -465,4 +465,103 @@ export async function replaceOpportunityLines(
     amount: total,
     needsApproval: written.filter((l) => l.needsApproval).length,
   });
+}
+
+/**
+ * Sign off one quoted price that fell below its product's floor.
+ *
+ * WHY THIS EXISTS AT ALL. incr/0007 gave every product a floor and 6b-3 made
+ * the pricing rule raise `needsApproval` when a quote went under it, but
+ * nothing could ever lower the flag. A control that can only say no is not a
+ * control - it is an obstacle people learn to route around, and "discount
+ * pending" degrades into a permanent property of half the pipeline.
+ *
+ * THE PRICE IS NOT AN ARGUMENT. It is read from the line that is actually on
+ * the deal, for the same reason `needsApproval` is computed rather than
+ * accepted: a caller who can name the number they are approving can approve a
+ * number nobody quoted. The approver signs what is there.
+ *
+ * THE FLOOR IS COPIED IN, not referenced. A price book moves; what this person
+ * was overriding must not move with it, or a later floor change would silently
+ * rewrite the size of a concession somebody already authorised.
+ *
+ * SEPARATE PERMISSION from pipeline.write on purpose - see incr/0012. The
+ * person who quotes below the floor must not be the person who signs it off.
+ */
+export async function approveLineDiscount(
+  ctx: PipelineContext & { catalog: CatalogStore },
+  input: { opportunityId: string; productId: string; reason: string },
+): Promise<RuleResult<DiscountApprovalRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.discount.approve", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const reason = input.reason.trim();
+  if (!reason) {
+    return fail(
+      violation(
+        "reason_required",
+        "an approval without a stated reason is a click, not a decision",
+        "reason",
+      ),
+    );
+  }
+
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, input.opportunityId);
+  if (!current) {
+    return fail(
+      violation("not_found", `opportunity ${input.opportunityId} was not found`, "opportunityId"),
+    );
+  }
+  // Approving a discount on a closed deal would be signing off a price after
+  // the result it produced has already been reported.
+  if (current.closedAt !== null) {
+    return fail(
+      violation("terminal_stage", "a closed deal's prices are the record of what was sold", "opportunityId"),
+    );
+  }
+
+  const lines = await ctx.catalog.listLines(ctx.workspaceId, input.opportunityId);
+  const line = lines.find((l) => l.productId === input.productId);
+  if (!line) {
+    return fail(violation("not_found", `${input.productId} is not on this deal`, "productId"));
+  }
+  if (!line.needsApproval) {
+    return fail(
+      violation(
+        "not_below_floor",
+        "this line is at or above its floor and there is nothing to authorise",
+        "productId",
+      ),
+    );
+  }
+
+  const existing = await ctx.catalog.listApprovals(ctx.workspaceId, input.opportunityId);
+  if (approvalFor(line, existing)) {
+    return fail(
+      violation("already_approved", "this price has already been signed off", "productId"),
+    );
+  }
+
+  // The flag was raised from a price entry, so one must exist. If the product
+  // has since been de-listed we cannot say what floor is being overridden, and
+  // recording a signature against an unknown floor would make the record a lie.
+  const entry = await ctx.catalog.priceFor(ctx.workspaceId, line.productId, line.currency);
+  if (!entry) {
+    return fail(
+      violation("not_priced", `${input.productId} has no price entry to approve against`, "productId"),
+    );
+  }
+
+  return ok(
+    await ctx.catalog.appendApproval(ctx.workspaceId, {
+      opportunityId: input.opportunityId,
+      productId: line.productId,
+      unitPrice: line.unitPrice,
+      currency: line.currency,
+      floorPrice: entry.floorPrice,
+      reason,
+      approvedBySub: ctx.sub,
+      approvedAt: new Date(),
+    }),
+  );
 }

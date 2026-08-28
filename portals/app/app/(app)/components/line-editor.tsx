@@ -4,12 +4,19 @@ import { useState, useTransition } from "react";
 import {
   Button,
   DataTable,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   Icon,
   Input,
   NativeSelect,
   Section,
   StatusBadge,
+  Textarea,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -28,6 +35,14 @@ import { useMessages } from "../lib/i18n/provider";
 // computed from the price book's floor server-side; a flag the client can set
 // is a flag the client can clear, and this one is what sends a discount to a
 // human.
+//
+// APPROVING IS NOT EDITING, and the two controls are gated separately. Signing
+// off a below-floor price is `pipeline.discount`, which sales_ops holds and
+// sales_rep does not; editing lines is `pipeline.write`, which is the other way
+// round. So the approve control sits in the READ view of the table, not inside
+// the editor below it - an approver who cannot edit still has to be able to
+// reach it, and a rep who can edit must not be able to sign off their own
+// discount.
 
 export interface EditorLine {
   readonly productId: string;
@@ -35,6 +50,8 @@ export interface EditorLine {
   readonly unitPrice: number;
   readonly amount: number;
   readonly needsApproval: boolean;
+  /** Whether the signature `needsApproval` demands has been given (ADR-019). */
+  readonly approved: boolean;
 }
 
 export interface LineEditorProps {
@@ -46,7 +63,13 @@ export interface LineEditorProps {
     readonly unit: string;
   }[];
   readonly canEdit: boolean;
+  readonly canApprove: boolean;
   readonly closed: boolean;
+  readonly onApprove: (
+    opportunityId: string,
+    productId: string,
+    reason: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   readonly onSave: (
     opportunityId: string,
     lines: readonly {
@@ -73,8 +96,10 @@ export function LineEditor({
   lines,
   products,
   canEdit,
+  canApprove,
   closed,
   onSave,
+  onApprove,
 }: LineEditorProps) {
   const { DATA_TABLE_LABELS, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
     useMessages();
@@ -88,6 +113,11 @@ export function LineEditor({
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // The line being signed off, or null when the dialog is closed. Holding the
+  // product id rather than a boolean keeps "which one" and "is it open" as one
+  // fact - two would let them disagree.
+  const [signing, setSigning] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
 
   const name = new Map(products.map((p) => [p.id, p.name]));
   const parsed = drafts.map((d) => ({
@@ -118,7 +148,7 @@ export function LineEditor({
       title={OPPORTUNITY_TEXT.linesTitle}
       description={OPPORTUNITY_TEXT.linesWhy}
       action={
-        lines.some((l) => l.needsApproval) ? (
+        lines.some((l) => l.needsApproval && !l.approved) ? (
           <StatusBadge tone="warning">
             {OPPORTUNITY_TEXT.lineBelowFloor}
           </StatusBadge>
@@ -168,6 +198,35 @@ export function LineEditor({
               header: OPPORTUNITY_TEXT.lineAmount,
               align: "right" as const,
               cell: (r: EditorLine) => r.amount.toLocaleString(),
+            },
+            {
+              id: "approval",
+              header: OPPORTUNITY_TEXT.lineApprovalHeader,
+              // Empty for a line at or above its floor. A column that says
+              // "nothing to decide" on most rows buries the rows where there
+              // IS something to decide.
+              cell: (r: EditorLine) =>
+                !r.needsApproval ? null : r.approved ? (
+                  <StatusBadge tone="success">
+                    {OPPORTUNITY_TEXT.lineApproved}
+                  </StatusBadge>
+                ) : canApprove && !closed ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSigning(r.productId);
+                      setReason("");
+                      setErr(null);
+                    }}
+                  >
+                    {OPPORTUNITY_TEXT.lineApprove}
+                  </Button>
+                ) : (
+                  <StatusBadge tone="warning">
+                    {OPPORTUNITY_TEXT.lineAwaiting}
+                  </StatusBadge>
+                ),
             },
           ]}
         />
@@ -295,6 +354,65 @@ export function LineEditor({
           </div>
         </div>
       )}
+
+      {/* The signature. A reason is REQUIRED, not optional: the rule refuses a
+          blank one, because the value of this record is not that somebody
+          clicked but why the floor was worth breaking. The floor and the price
+          are not fields here - the server reads both off the line that is
+          actually on the deal, so an approver signs what is there rather than
+          a number they typed. */}
+      <Dialog
+        open={signing !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open) setSigning(null);
+        }}
+      >
+        <DialogContent width="sm">
+          <DialogHeader>
+            <DialogTitle>{OPPORTUNITY_TEXT.lineApproveTitle}</DialogTitle>
+            <DialogDescription>
+              {OPPORTUNITY_TEXT.lineApproveWhy(
+                (signing ? name.get(signing) : null) ?? signing ?? "",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reason}
+            aria-label={OPPORTUNITY_TEXT.lineApproveReason}
+            placeholder={OPPORTUNITY_TEXT.lineApproveReason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSigning(null)}>
+              {OPPORTUNITY_TEXT.lineApproveCancel}
+            </Button>
+            <Button
+              disabled={!reason.trim() || pending}
+              onClick={() => {
+                const productId = signing;
+                if (!productId) return;
+                start(() => {
+                  void onApprove(opportunityId, productId, reason).then((r) => {
+                    if (r.ok) {
+                      setSigning(null);
+                      setErr(null);
+                    } else {
+                      setErr(
+                        OPPORTUNITY_ERROR[r.error ?? "denied"] ??
+                          r.error ??
+                          "",
+                      );
+                    }
+                  });
+                });
+              }}
+            >
+              {OPPORTUNITY_TEXT.lineApprove}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Section>
   );
 }

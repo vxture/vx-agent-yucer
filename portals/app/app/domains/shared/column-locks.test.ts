@@ -78,12 +78,45 @@ function ddlRevokes(): Set<string> {
   return out;
 }
 
+/**
+ * Tables whose table-level GRANT never included UPDATE at all.
+ *
+ * A SECOND WAY TO BE APPEND-ONLY, and the guard was blind to it. Every table in
+ * the original design got `GRANT SELECT, INSERT, UPDATE, DELETE` and then had
+ * UPDATE revoked, so deriving the append-only set from REVOKE worked. A table
+ * that is granted only what it needs in the first place - the tighter and
+ * better shape - never appears in a REVOKE and was therefore invisible here.
+ *
+ * That is not hypothetical: it hid `yucer_field.commitment`, whose grant omits
+ * UPDATE even though its own columns (status, met_at, waived_by_sub) exist to
+ * be changed. Neither map mentioned the table, so the mirror could not warn
+ * anybody, and the first code to close a commitment would have found out from
+ * Postgres at runtime. Both mirrors agreeing says nothing when both are silent.
+ */
+function ddlGrantsWithoutUpdate(): Set<string> {
+  const out = new Set<string>();
+  const re = /GRANT\s+([A-Z,\s]+?)\s+ON\s+(\w+\.\w+)\s+TO\s+\w+/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(uncommented))) {
+    const privs = m[1].toUpperCase();
+    if (!/\bUPDATE\b/.test(privs)) out.add(m[2]);
+  }
+  return out;
+}
+
 const grants = ddlGrants();
 const revokes = ddlRevokes();
+const neverUpdatable = ddlGrantsWithoutUpdate();
 
 test("the DDL was parsed at all - guards against a silently empty test", () => {
   assert.ok(grants.size > 10, `expected many GRANT UPDATE statements, parsed ${grants.size}`);
   assert.ok(revokes.size > 10, `expected many REVOKE UPDATE statements, parsed ${revokes.size}`);
+  // Non-vacuity for the second derivation too. A regex that matched nothing
+  // would make the append-only check pass by finding no tables to check.
+  assert.ok(
+    neverUpdatable.size > 0,
+    `expected some table-level grants without UPDATE, parsed ${neverUpdatable.size}`,
+  );
 });
 
 test("every table with a grant mirrors that grant exactly, column for column", () => {
@@ -104,8 +137,12 @@ test("the mirror invents nothing the DDL does not grant", () => {
   }
 });
 
-test("every revoked-and-never-granted table is listed as append-only", () => {
-  const appendOnlyFromDdl = [...revokes].filter((t) => !grants.has(t)).sort();
+test("every table the DDL cannot UPDATE is listed as append-only", () => {
+  // Both routes to append-only: granted-then-revoked, and never granted at all.
+  // A table with a column-level GRANT UPDATE is writable by either route.
+  const appendOnlyFromDdl = [...new Set([...revokes, ...neverUpdatable])]
+    .filter((t) => !grants.has(t))
+    .sort();
   assert.deepEqual([...APPEND_ONLY_TABLES].sort(), appendOnlyFromDdl);
 });
 

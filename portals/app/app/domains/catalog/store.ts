@@ -63,6 +63,29 @@ export interface OpportunityLineRecord {
   needsApproval: boolean;
 }
 
+/**
+ * One signature authorising one price below one product's floor (incr/0012).
+ *
+ * Deliberately NOT a column on the line. Lines are written by replace, so an
+ * approval held on a line would be destroyed whenever any OTHER line on the
+ * same deal was edited. Keyed by the price instead: re-quoting lower matches
+ * nothing and needs a new signature, re-quoting back up matches again.
+ */
+export interface DiscountApprovalRecord {
+  id: string;
+  workspaceId: string;
+  opportunityId: string;
+  productId: string;
+  /** The exact number signed off. A line matches only on equality. */
+  unitPrice: number;
+  currency: string;
+  /** The floor in force at signing, copied in - a price book moves. */
+  floorPrice: number;
+  reason: string;
+  approvedBySub: string;
+  approvedAt: Date;
+}
+
 export interface CatalogStore {
   listProducts(workspaceId: string): Promise<ProductRecord[]>;
   listSolutions(workspaceId: string): Promise<SolutionRecord[]>;
@@ -118,6 +141,15 @@ export interface CatalogStore {
     opportunityId: string,
     lines: readonly Omit<OpportunityLineRecord, "id" | "workspaceId" | "opportunityId">[],
   ): Promise<OpportunityLineRecord[]>;
+
+  /** Every signature on this deal, newest first. Append-only (ADR-019). */
+  listApprovals(workspaceId: string, opportunityId: string): Promise<DiscountApprovalRecord[]>;
+  /** Every signature in the workspace, for the same rollups allLines feeds. */
+  allApprovals(workspaceId: string): Promise<DiscountApprovalRecord[]>;
+  appendApproval(
+    workspaceId: string,
+    input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,
+  ): Promise<DiscountApprovalRecord>;
 }
 
 export class InMemoryCatalogStore implements CatalogStore {
@@ -126,6 +158,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   private items: SolutionItemRecord[] = [];
   private prices: PriceEntryRecord[] = [];
   private lines: OpportunityLineRecord[] = [];
+  private approvals: DiscountApprovalRecord[] = [];
   private seq = 0;
 
   seed(input: {
@@ -134,12 +167,14 @@ export class InMemoryCatalogStore implements CatalogStore {
     items?: SolutionItemRecord[];
     prices?: PriceEntryRecord[];
     lines?: OpportunityLineRecord[];
+    approvals?: DiscountApprovalRecord[];
   }): void {
     if (input.products) this.products = [...input.products];
     if (input.solutions) this.solutions = [...input.solutions];
     if (input.items) this.items = [...input.items];
     if (input.prices) this.prices = [...input.prices];
     if (input.lines) this.lines = [...input.lines];
+    if (input.approvals) this.approvals = [...input.approvals];
   }
 
   async listProducts(workspaceId: string): Promise<ProductRecord[]> {
@@ -248,6 +283,28 @@ export class InMemoryCatalogStore implements CatalogStore {
       opportunityId,
     }));
     this.lines.push(...created);
+    return created;
+  }
+
+  async listApprovals(
+    workspaceId: string,
+    opportunityId: string,
+  ): Promise<DiscountApprovalRecord[]> {
+    return this.approvals
+      .filter((a) => a.workspaceId === workspaceId && a.opportunityId === opportunityId)
+      .sort((a, b) => b.approvedAt.getTime() - a.approvedAt.getTime());
+  }
+
+  async allApprovals(workspaceId: string): Promise<DiscountApprovalRecord[]> {
+    return this.approvals.filter((a) => a.workspaceId === workspaceId);
+  }
+
+  async appendApproval(
+    workspaceId: string,
+    input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,
+  ): Promise<DiscountApprovalRecord> {
+    const created = { ...input, id: `appr_${++this.seq}`, workspaceId };
+    this.approvals.push(created);
     return created;
   }
 }

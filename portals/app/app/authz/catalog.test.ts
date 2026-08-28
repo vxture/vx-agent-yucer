@@ -105,7 +105,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 24 permissions, 7 roles, 84 grants", () => {
+test("the catalog is the documented size: 25 permissions, 7 roles, 86 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -115,10 +115,17 @@ test("the catalog is the documented size: 24 permissions, 7 roles, 84 grants", (
   //
   // 23 -> 24 and 79 -> 84 by incr/0011: account.record (ADR-018). Recording
   // what happened is not editing the customer master record.
-  assert.equal(PERM_CODES.length, 24);
+  //
+  // 24 -> 25 and 84 -> 86 by incr/0012: pipeline.discount (ADR-019). The floor
+  // raised a signature requirement that no role could satisfy; the signature
+  // is its own permission because the person who quotes below the floor must
+  // not be the person who signs it off. Two grants - the same two roles that
+  // hold catalog.price, since setting the floor and excepting it are halves of
+  // one authority.
+  assert.equal(PERM_CODES.length, 25);
   assert.equal(ROLE_CODES.length, 7);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 84);
+  assert.equal(total, 86);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
