@@ -21,6 +21,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
+| TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -401,3 +402,28 @@ Runos 提供的 `deprecated` 生命周期字段本仓一处都没声明。
 **修法**（本仓这一半）：`resolve()` 钉解析后的 semver 并读回 `version_resolved`；
 声明 `deprecated` 并在解析到已弃用能力时记录；`latest` 加警告——它可能**回拨**
 （先注册 2.0.0 后补 1.0.1，Runos 侧语义未裁定）。
+
+### TD-013 - 计数指标装在货币类型里
+
+**缺陷**：`TARGET_METRICS` 有四个值——`revenue` / `new_logo` / `pipeline` /
+`margin`，而 `SalesTarget.targetAmount` 只有一个类型 `Money`，携带 `currency`。
+`new_logo`（新客户数）是**计数**：十个新客户不是十块钱，也没有币种。
+
+**表现**：`/planning` 的建立目标表单在指标选到「新客户数」时，仍然要求填一个金额，
+并把它按货币格式化显示回去。数据库侧 `sales_target` 同样存 `targetAmount + currency`，
+所以一条计数目标在库里永远带着一个无意义的币种。
+
+**不是本次引入**：6a-2 把表单接上时发现的既有建模缺口，当时记在
+`docs/70-workplan/00-index.md` 的 6a-2 记录里。按 `CLAUDE.md`，技术债登记在本文件，
+所以补这一条；工作计划里那段是发现经过，这一条是登记。
+
+**为什么现在不改**：`targetAmount` 是 `sales_target` 的列，改它的形态要走
+`db-init` 增量 + Prisma lockstep + 列锁三处联动，而 `attainment()` 有八个调用方
+读它。这属于一次有范围的建模修正，不是接线批次里顺手能带的改动。
+
+**修法**（择一，需要一次裁定）：把 `targetAmount` 拆成
+`targetValue: number + unit`（`money` | `count`），由指标决定单位；或者把计数指标
+移出 `sales_target`，承认它是另一张表。前者保住「一个目标一行」，后者承认两种目标
+本来就不是一回事。
+
+**恢复条件**：上述任一裁定落地，且表单不再对计数指标显示币种。

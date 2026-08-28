@@ -42,9 +42,6 @@ const KNOWN_UNWIRED: Record<string, string> = {
   // for a UI that shows "this lead will be attributed to X" before converting,
   // and that surface is not designed yet.
   "signal.previewAttribution": "no surface designed - see ADR-016",
-  // D9 read half shipped 2026-08-26. listProducts and listOpportunityLines are
-  // already consumed (they replaced two direct store handles on /pipeline and
-  // the board); these two wait for the catalogue pages - see workplan 6b-2.
 };
 
 /** Helpers that live in service.ts but are not domain verbs. */
