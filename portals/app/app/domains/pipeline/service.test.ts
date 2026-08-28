@@ -11,6 +11,7 @@ import {
   advanceStage,
   listPipeline,
   approveLineDiscount,
+  createOpportunity,
   replaceOpportunityLines,
   submitForecast,
   type PipelineContext,
@@ -439,4 +440,80 @@ test("the floor is copied in, so a later price change cannot rewrite what was au
   const stored = (await c.catalog.listApprovals(WS, "opp_1"))[0]!;
   assert.equal(stored.floorPrice, 800);
   assert.equal(appr.floorPrice, 800);
+});
+
+// --- Creating a deal directly (TD-016) --------------------------------------
+
+test("a viewer may read the pipeline and may not create a deal", async () => {
+  // The pair that pins the gate to the WRITE action: viewer holds pipeline.read
+  // and not pipeline.write, so a guard mistakenly checking the read action
+  // would let this through.
+  const c = ctx("viewer", "free");
+  const r = await createOpportunity(c, {
+    name: "Corridor deal",
+    accountId: "acc_1",
+    territoryId: null,
+    ownerSub: null,
+    amount: null,
+    expectedCloseAt: null,
+  });
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+});
+
+test("a deal created directly carries no campaign, and the creator owns it", async () => {
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_rep", "free", store);
+  const made = unwrap(
+    await createOpportunity(c, {
+      name: "Corridor deal",
+      accountId: "acc_1",
+      territoryId: null,
+      ownerSub: null,
+      amount: money(500_000),
+      expectedCloseAt: null,
+    }),
+  );
+  // campaign_id has no UPDATE grant, so what is written here is what the
+  // traceability join reports forever.
+  assert.equal(made.campaignId, null);
+  assert.equal(made.planId, null);
+  assert.equal(made.ownerSub, "usr_me", "whoever created it owns it until reassigned");
+  assert.equal(made.stage, "qualify", "and the stage machine owns every move after this");
+  assert.equal(made.status, "open");
+});
+
+test("an explicit owner survives, rather than being overwritten by the creator", async () => {
+  const c = ctx("sales_leader", "free", new InMemoryPipelineStore());
+  const made = unwrap(
+    await createOpportunity(c, {
+      name: "Handed over",
+      accountId: "acc_1",
+      territoryId: null,
+      ownerSub: "usr_rep",
+      amount: null,
+      expectedCloseAt: null,
+    }),
+  );
+  assert.equal(made.ownerSub, "usr_rep");
+});
+
+test("a created deal is immediately in the pipeline it was created into", async () => {
+  // The thing a create form is actually for. A verb that returns a record but
+  // does not put it where the page reads from is the defect this batch exists
+  // to stop.
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_rep", "free", store);
+  unwrap(
+    await createOpportunity(c, {
+      name: "Corridor deal",
+      accountId: "acc_1",
+      territoryId: null,
+      ownerSub: null,
+      amount: null,
+      expectedCloseAt: null,
+    }),
+  );
+  const listed = unwrap(await listPipeline(c, {}));
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0]!.name, "Corridor deal");
 });

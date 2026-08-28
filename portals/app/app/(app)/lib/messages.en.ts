@@ -409,6 +409,8 @@ export const en: Dictionary = {
     closed_requires_terminal_stage:
       "A deal that is not closed cannot be marked won",
     terminal_requires_closed: "A closed deal can only be in a closed category",
+    name_required: "A deal needs a name",
+    account_required: "A deal must belong to a customer",
     not_below_floor: "This line is at or above its floor - there is nothing to approve",
     already_approved: "This price has already been signed off",
     not_priced: "This product has no price entry, so there is no floor to approve against",
@@ -927,6 +929,20 @@ export const en: Dictionary = {
     snapshotFailed: "The snapshot was not stored",
     snapshotDenied:
       "You cannot submit a forecast - the person who reads one is often not the person who commits to it",
+    newTitle: "New deal",
+    newWhy:
+      "Not every deal comes from a lead. Self-sourced, referred, or a customer who walked in - they start here.",
+    newName: "Deal name",
+    newAccount: "Customer",
+    newPickAccount: "Pick a customer",
+    newTerritory: "Territory",
+    newNoTerritory: "Unassigned",
+    newAmount: "Amount (optional for now)",
+    newExpectedClose: "Expected close",
+    newSave: "Create deal",
+    newMade: (no: string) => `Created ${no}`,
+    newSelfSourced:
+      "A deal entered here is attributed as self-sourced, and that cannot be changed afterwards - the attribution keys carry no UPDATE grant. A campaign-sourced deal should arrive by converting its lead.",
     productSplit: "What the commit is made of",
     productSplitWhy:
       "Split by product line. A single total cannot say what the money is for.",

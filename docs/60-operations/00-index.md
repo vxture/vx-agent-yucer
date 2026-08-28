@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 1，余 9） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -796,3 +796,17 @@ Quality Gate failed
 `KNOWN_UNGATED` 少一行——守卫的第 2 条断言保证它不会忘。
 
 **已还第一笔**：`planning.territory.upsert`（销售区域）已实现并接线，白名单里没有它。
+
+**已还第二笔 2026-08-28**：`pipeline.opportunity.create`。在此之前**商机只能由线索转化
+而来**——`createOpportunity` 的唯一调用方是转化接缝，销售在走廊里听来一单没有地方录。
+
+模型早就裁定过这是允许的，而且写在两个都到不了的地方：`AttributionSource` 里有
+`self_sourced`，`resolveAttribution({})` 有一支 basis 直接就是 `"no lead"`。两者都无法
+产生，因为唯一的调用方总会传一个 lead。**规则层预备了这个场景，产品从没提供入口。**
+
+归因在规则层结算而不是让调用方留空：`campaign_id` 没有 UPDATE 授权，创建时写下的就是
+可追溯性联接永远会报的答案——让同一个函数回答自拓单和转化单，好过让它由一次遗漏决定。
+
+余下九条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
+`campaign.execution.upsert`、`account.contact.upsert`、`account.offering.view` /
+`.upsert`、`delivery.milestone.upsert`、`delivery.task.upsert`。
