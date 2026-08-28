@@ -166,6 +166,11 @@ export function PendingReviews({
 
   return (
     <Section
+      /* The launcher lists this as a SECTION of /pipeline and links to
+         /pipeline#winloss. Without the id that link lands on the page and
+         scrolls nowhere: the 6d fix relabelled the module honestly and left
+         the destination it now promised unbuilt. */
+      id="winloss"
       icon="lightbulb"
       title={WINLOSS_TEXT.sectionTitle}
       description={WINLOSS_TEXT.description}

@@ -119,6 +119,13 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     icon: "users",
     modules: [
       planned("territory", "map-pin"),
+      // STAYS PLANNED, and it is the closest call in this file. 6c shipped the
+      // write path - /account/[id] renders DesignateAccount, which marks one
+      // account strategic and attaches the plan the cadence rule reads. The
+      // MODULE is the roster: who our key accounts are, together. That does
+      // not exist, and it cannot be a `section` either, because a section
+      // inherits its host's nav entry and the host here is /account/[id],
+      // which is not one. A control on a detail page is not a surface.
       planned("namedAccount", "star"),
       built("planning"),
       planned("forecastRule", "trend-up"),

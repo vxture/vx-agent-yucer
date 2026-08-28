@@ -169,6 +169,106 @@ test("activeDomainKey finds the domain holding a route", () => {
   assert.equal(activeDomainKey("copilot"), null);
 });
 
+/** Every `.tsx` under `(app)/`, read once and shared by the guards below. */
+const TSX: readonly { readonly file: string; readonly source: string }[] = (() => {
+  const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const out: { file: string; source: string }[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (name.endsWith(".tsx"))
+        out.push({ file: p, source: readFileSync(p, "utf8") });
+    }
+  };
+  walk(appDir);
+  return out;
+})();
+
+/** Source of the pages only - a component rendering a sibling is not a route. */
+const RENDERED = TSX.filter((f) => !f.file.includes("/components/"))
+  .map((f) => f.source)
+  .join("\n");
+
+/**
+ * A section promises a PLACE on a page, and the anchor has to be there.
+ *
+ * `section()` resolves to `/{host}#{anchor}`. A `#` that matches no `id`
+ * opens the right page and scrolls nowhere, which reads - to the person who
+ * clicked it - exactly like the feature not existing. That is the same lie the
+ * section form was added to stop telling, one step further in.
+ *
+ * It shipped that way: 6d relabelled the win/loss review from planned to a
+ * section of /pipeline and pointed it at `#winloss`, and no element carried
+ * that id. The label became honest and the destination it now promised did
+ * not exist.
+ */
+test("every section anchor exists as an id on some page", () => {
+  const ids = new Set<string>();
+  for (const { source } of TSX) {
+    for (const m of source.matchAll(/\bid="([^"]+)"/g)) ids.add(m[1]);
+  }
+  const dangling = allModules
+    .filter(
+      (m): m is Extract<DomainModule, { kind: "section" }> =>
+        m.kind === "section",
+    )
+    .filter((m) => !ids.has(m.anchor))
+    .map((m) => `${m.key} -> #${m.anchor}`);
+  assert.deepEqual(
+    dangling,
+    [],
+    `these sections link to an anchor no element carries: ${dangling.join(", ")}`,
+  );
+});
+
+/**
+ * The component a module is guarded by, for modules that are already built.
+ *
+ * Asserted to EXIST. Without that half, a rename leaves a dead name behind
+ * that matches nothing and therefore passes forever - see the note on the
+ * planned check below, where eleven of twelve names were fiction.
+ */
+const SHIPPED_AS: Record<string, string> = {
+  winLossReview: "PendingReviews",
+  collection: "CollectionsPanel",
+  catalog: "CatalogPanels",
+  solution: "CatalogPanels",
+  pricebook: "CatalogPanels",
+};
+
+/**
+ * What the component WOULD be called if someone built these.
+ *
+ * Asserted to be rendered by nothing. Building one under this name turns the
+ * planned check red, which is the moment the label has to move.
+ */
+const NOT_BUILT: Record<string, string> = {
+  segment: "SegmentTable",
+  territory: "TerritoryTable",
+  namedAccount: "NamedAccountRoster",
+  forecastRule: "ForecastRuleTable",
+  routing: "LeadRouting",
+  quote: "QuoteEditor",
+  renewal: "RenewalTable",
+};
+
+test("the component names this file guards by are real", () => {
+  const defined = TSX.map((f) => f.source).join("\n");
+  const fiction = Object.entries(SHIPPED_AS)
+    .filter(
+      ([, c]) =>
+        !new RegExp(`export (?:function|const) ${c}\\b`).test(defined),
+    )
+    .map(([key, c]) => `${key} -> ${c}`);
+  assert.deepEqual(
+    fiction,
+    [],
+    `these modules are guarded by a component that does not exist, so the ` +
+      `guard cannot fire: ${fiction.join(", ")}`,
+  );
+});
+
 /**
  * A module that is built must not be labelled planned.
  *
@@ -180,47 +280,25 @@ test("activeDomainKey finds the domain holding a route", () => {
  * The check is crude on purpose: for each planned module, look for a component
  * whose name matches its key and see whether any page renders it. Crude catches
  * the real case - somebody builds the surface and forgets this file.
+ *
+ * WHAT IT PROVES, AND WHAT IT DOES NOT. It matches a component NAME, so it
+ * only fires when the surface is built under the name written above. The first
+ * version had one map of twelve names of which ELEVEN matched no component in
+ * the repo - it could not have failed. Splitting the names in two and
+ * asserting both halves fixes that, but not the case underneath it: a surface
+ * built under a name nobody guessed is still invisible here. `namedAccount` is
+ * the live example - 6c shipped its write path as `DesignateAccount` on
+ * /account/[id]. It stays planned because the MODULE is the roster and the
+ * roster does not exist (see the note in functional-domains.ts), but the guard
+ * did not decide that, a person did.
  */
 test("nothing marked planned is already rendered somewhere", () => {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const appDir = join(here, "..");
-
-  const pages: string[] = [];
-  const walk = (dir: string) => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name);
-      if (statSync(p).isDirectory()) walk(p);
-      else if (name.endsWith(".tsx")) pages.push(p);
-    }
-  };
-  walk(appDir);
-  const rendered = pages
-    .filter((f) => !f.includes("/components/"))
-    .map((f) => readFileSync(f, "utf8"))
-    .join("\n");
-
-  // key -> the component that would render it, if it existed.
-  const COMPONENT: Record<string, string> = {
-    winLossReview: "PendingReviews",
-    collection: "InstalmentList",
-    quote: "QuoteEditor",
-    namedAccount: "NamedAccountControl",
-    territory: "TerritoryTable",
-    segment: "SegmentTable",
-    catalog: "ProductTable",
-    solution: "SolutionList",
-    pricebook: "PriceBook",
-    forecastRule: "ForecastRuleTable",
-    routing: "LeadRouting",
-    renewal: "RenewalTable",
-  };
-
   const lying: string[] = [];
   for (const m of allModules) {
     if (m.kind !== "planned") continue;
-    const component = COMPONENT[m.key];
+    const component = NOT_BUILT[m.key] ?? SHIPPED_AS[m.key];
     if (!component) continue;
-    if (new RegExp(`<${component}\\b`).test(rendered)) lying.push(m.key);
+    if (new RegExp(`<${component}\\b`).test(RENDERED)) lying.push(m.key);
   }
   assert.deepEqual(
     lying,
