@@ -11,6 +11,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { unitOf, type TargetMetric } from "../../domains/planning/lib/target";
 
 // Creating a sales target.
 //
@@ -66,11 +67,19 @@ export function SetTarget({
     ["margin", PLANNING_TEXT.metricMargin],
   ] as const;
 
+  // The field asks for what the METRIC is measured in. Before ADR-020 it always
+  // said "target amount" and always formatted the result as money, so setting a
+  // new-customer target meant typing a currency figure for a headcount.
+  const isCount = unitOf(metric as TargetMetric) === "count";
+
   const n = Number(amount);
   const ready =
     amount.trim() !== "" &&
     Number.isFinite(n) &&
     n >= 0 &&
+    // A count is whole. Refusing 2.5 here rather than only in the rule layer
+    // means the reader learns it while the number is still in front of them.
+    (!isCount || Number.isInteger(n)) &&
     (scopeType !== "territory" || territoryId !== "");
 
   return (
@@ -132,10 +141,13 @@ export function SetTarget({
         </Field>
 
         <Field>
-          <FieldLabel>{PLANNING_TEXT.setAmount}</FieldLabel>
+          <FieldLabel>
+            {isCount ? PLANNING_TEXT.setCount : PLANNING_TEXT.setAmount}
+          </FieldLabel>
           <Input
             type="number"
             min="0"
+            step={isCount ? 1 : undefined}
             inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}

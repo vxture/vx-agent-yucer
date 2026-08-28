@@ -16,6 +16,7 @@ import {
   type FilterBarView,
 } from "@vxture/design-ui";
 import type { AttainmentRow } from "../../domains/planning/service";
+import type { TargetValue } from "../../domains/planning/lib/target";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { TableCard } from "./table-card";
 
@@ -114,18 +115,18 @@ export function PlanningTable({
       id: "target",
       header: PLANNING_TEXT.columnTarget,
       align: "right",
-      cell: (row) =>
-        formatMoney(
-          row.target.targetAmount.amount,
-          row.target.targetAmount.currency,
-        ),
+      cell: (row) => formatValue(row.target.targetValue, PLANNING_TEXT),
     },
     {
       id: "closed",
       header: PLANNING_TEXT.columnClosed,
       align: "right",
+      // Blank, not zero, when the metric could not be measured: there is no
+      // achieved number, which is a different fact from having achieved none.
       cell: (row) =>
-        row.closed ? formatMoney(row.closed.amount, row.closed.currency) : "-",
+        row.measurement.kind === "measured"
+          ? formatValue(row.measurement.achieved, PLANNING_TEXT)
+          : "-",
     },
     {
       id: "attainment",
@@ -164,8 +165,10 @@ export function PlanningTable({
             icon: "edit",
             onSelect: () => {
               const next = window.prompt(
-                PLANNING_TEXT.setAmount,
-                String(row.target.targetAmount.amount),
+                row.target.targetValue.unit === "count"
+                  ? PLANNING_TEXT.setCount
+                  : PLANNING_TEXT.setAmount,
+                String(row.target.targetValue.amount),
               );
               if (next === null) return;
               const n = Number(next);
@@ -263,15 +266,10 @@ export function PlanningTable({
                 status={<Attainment row={row} />}
                 meta={
                   <>
+                    <span>{formatValue(row.target.targetValue, PLANNING_TEXT)}</span>
                     <span>
-                      {formatMoney(
-                        row.target.targetAmount.amount,
-                        row.target.targetAmount.currency,
-                      )}
-                    </span>
-                    <span>
-                      {row.closed
-                        ? formatMoney(row.closed.amount, row.closed.currency)
+                      {row.measurement.kind === "measured"
+                        ? formatValue(row.measurement.achieved, PLANNING_TEXT)
                         : "-"}
                     </span>
                     <span>
@@ -289,6 +287,23 @@ export function PlanningTable({
   );
 }
 
+
+/**
+ * A target's number, in the unit its metric actually uses.
+ *
+ * The whole of TD-013 in one function: `formatMoney(count, currency)` was the
+ * only formatter on offer, so "10 new customers" rendered as "¥10". The union
+ * makes the count branch impossible to skip.
+ */
+function formatValue(
+  value: TargetValue,
+  text: { countUnit: (n: string) => string },
+): string {
+  return value.unit === "count"
+    ? text.countUnit(value.amount.toLocaleString())
+    : formatMoney(value.amount, value.currency);
+}
+
 /**
  * Attainment, with "no snapshot yet" kept as its own state.
  *
@@ -298,23 +313,27 @@ export function PlanningTable({
  */
 function Attainment({ row }: { row: AttainmentRow }) {
   const { PLANNING_TEXT } = useMessages();
-  if (!row.hasSnapshot) {
+  const m = row.measurement;
+  if (m.kind === "not_measurable") {
+    // Each gap says WHY in its own words. "-" for all three would tell the
+    // reader nothing about whether to wait, to forecast, or to stop expecting
+    // a number at all.
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <span>
-            <StatusBadge tone="neutral">{PLANNING_TEXT.noSnapshot}</StatusBadge>
+            <StatusBadge tone="neutral">
+              {PLANNING_TEXT.gapLabel[m.code]}
+            </StatusBadge>
           </span>
         </TooltipTrigger>
-        <TooltipContent>{PLANNING_TEXT.noSnapshotHint}</TooltipContent>
+        <TooltipContent>{PLANNING_TEXT.gapHint[m.code]}</TooltipContent>
       </Tooltip>
     );
   }
   return (
-    <StatusBadge
-      tone={row.ratio != null && row.ratio >= 1 ? "success" : "neutral"}
-    >
-      {formatPercent(row.ratio)}
+    <StatusBadge tone={m.ratio != null && m.ratio >= 1 ? "success" : "neutral"}>
+      {formatPercent(m.ratio)}
     </StatusBadge>
   );
 }

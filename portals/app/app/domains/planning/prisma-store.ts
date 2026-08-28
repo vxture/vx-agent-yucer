@@ -1,7 +1,7 @@
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
-import { money, type Money } from "../shared/money";
-import type { SalesTarget, TargetMetric, TargetScope, TargetStatus } from "./lib/target";
+import { DEFAULT_CURRENCY, money } from "../shared/money";
+import { currencyOf, targetValue, type PublishedTotals, type SalesTarget, type TargetMetric, type TargetScope, type TargetStatus, type TargetValue } from "./lib/target";
 import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
 
 // Prisma-backed PlanningStore over yucer_gtm.
@@ -50,8 +50,10 @@ export class PrismaPlanningStore implements PlanningStore {
         territoryId: target.territoryId,
         ownerSub: target.ownerSub,
         metric: target.metric,
-        targetAmount: target.targetAmount.amount,
-        currency: target.targetAmount.currency,
+        targetAmount: target.targetValue.amount,
+        // NULL for a count metric - incr/0013's CHECK enforces the pairing, and
+        // currencyOf is the single place that decides it.
+        currency: currencyOf(target.targetValue),
       },
     });
     return toTarget(row as Record<string, unknown>);
@@ -60,15 +62,15 @@ export class PrismaPlanningStore implements PlanningStore {
   async updateTarget(
     workspaceId: string,
     id: string,
-    patch: { targetAmount?: Money; status?: TargetStatus; planId?: string | null },
+    patch: { targetValue?: TargetValue; status?: TargetStatus; planId?: string | null },
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const data: Record<string, unknown> = { updatedAt: new Date() };
     if (patch.status !== undefined) data.status = patch.status;
     if (patch.planId !== undefined) data.planId = patch.planId;
-    if (patch.targetAmount !== undefined) {
-      data.targetAmount = patch.targetAmount.amount;
-      data.currency = patch.targetAmount.currency;
+    if (patch.targetValue !== undefined) {
+      data.targetAmount = patch.targetValue.amount;
+      data.currency = currencyOf(patch.targetValue);
     }
 
     const guard = assertWritable(TARGET_TABLE, data);
@@ -99,7 +101,7 @@ export class PrismaPlanningStore implements PlanningStore {
     }));
   }
 
-  async closedAmountFor(workspaceId: string, scope: TargetScope): Promise<Money | null> {
+  async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {
     const p = await getPrismaClient();
     // The LATEST snapshot for the scope. Snapshots are append-only and a period
     // accumulates many; attainment is measured against the most recent one, and
@@ -115,7 +117,11 @@ export class PrismaPlanningStore implements PlanningStore {
       orderBy: { snapshotAt: "desc" },
     });
     if (!row) return null;
-    return money(Number(String(row.closedAmount)), String(row.currency));
+    return {
+      closedAmount: money(Number(String(row.closedAmount)), String(row.currency)),
+      pipelineAmount: money(Number(String(row.pipelineAmount)), String(row.currency)),
+      newLogoCount: row.newLogoCount ?? null,
+    };
   }
 }
 
@@ -128,7 +134,14 @@ function toTarget(r: Record<string, unknown>): TargetRecord {
     territoryId: (r.territoryId as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     metric: r.metric as TargetMetric,
-    targetAmount: money(Number(String(r.targetAmount)), String(r.currency)),
+    // The unit is derived from the metric, never read back from the row: a row
+    // whose currency disagreed with its metric would otherwise reintroduce the
+    // exact ambiguity incr/0013 removed.
+    targetValue: targetValue(
+      r.metric as TargetMetric,
+      Number(String(r.targetAmount)),
+      r.currency == null ? DEFAULT_CURRENCY : String(r.currency),
+    ),
     status: r.status as TargetStatus,
     planId: (r.planId as string | null) ?? null,
   };

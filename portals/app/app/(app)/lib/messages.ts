@@ -1559,6 +1559,22 @@ export const PLANNING_TEXT = {
   scopeOwner: "我自己",
   setMetric: "指标",
   setAmount: "目标金额",
+  setCount: "目标客户数",
+  // The unit a count target is measured in. Money gets a currency symbol from
+  // formatMoney; a count needs the noun instead, or "10" says nothing.
+  countUnit: (n: string) => `${n} 家`,
+  // Why a target has no attainment number. Three different situations, three
+  // different things for the reader to do about them.
+  gapLabel: {
+    no_snapshot: "尚无快照",
+    no_cost_data: "不可测",
+    not_counted: "未统计",
+  } as Record<string, string>,
+  gapHint: {
+    no_snapshot: "这个作用域本期还没有提交预测快照——那不是达成 0%",
+    no_cost_data: "产品里没有任何成本数据，毛利算不出来。这不是本期没达成，是这个指标目前无法度量",
+    not_counted: "这条快照没有新客计数——它早于该字段，或者它的周期标签无法解析成日期",
+  } as Record<string, string>,
   setSubmit: "建立目标",
   setSaved: "已建立",
   setDenied: "你没有设定目标的权限",

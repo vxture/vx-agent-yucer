@@ -9,6 +9,7 @@ import { createSalesTarget, updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
+import { summaryTarget } from "../../domains/planning/lib/target";
 // D2 planning: targets against what actually closed.
 //
 // The column that matters is attainment, and the thing it must never do is
@@ -67,10 +68,18 @@ export default async function PlanningPage() {
   // rather than left to be found in row one of a table. It may legitimately be
   // absent - a period can be planned by territory only - and that is said
   // rather than shown as a zero.
-  const workspaceRow = result.value.find(
-    (r) => r.target.scopeType === "workspace",
-  );
-  const unforecast = result.value.filter((r) => !r.hasSnapshot).length;
+  // A MONEY target. The lead line formats money and quotes a percentage of it;
+  // a workspace-scope new-logo target picked up here would print a customer
+  // count with a yuan sign, which is TD-013 in one sentence. Same rule the
+  // board's quota card uses - it was written inline twice and got it wrong
+  // both times.
+  const summary = summaryTarget(result.value.map((r) => r.target));
+  const workspaceRow = summary
+    ? result.value.find((r) => r.target.id === summary.id)
+    : undefined;
+  const unforecast = result.value.filter(
+    (r) => r.measurement.kind === "not_measurable" && r.measurement.code === "no_snapshot",
+  ).length;
 
   return (
     <ViewLayout>
@@ -84,19 +93,23 @@ export default async function PlanningPage() {
           <p className="text-muted-foreground text-body-sm tabular-nums">
             {workspaceRow
               ? PLANNING_TEXT.leadAttained(
-                  workspaceRow.closed
+                  workspaceRow.measurement.kind === "measured"
                     ? formatMoney(
-                        workspaceRow.closed.amount,
-                        workspaceRow.closed.currency,
+                        workspaceRow.measurement.achieved.amount,
+                        workspaceRow.measurement.achieved.unit === "money"
+                          ? workspaceRow.measurement.achieved.currency
+                          : "",
                       )
                     : "-",
-                  formatMoney(
-                    workspaceRow.target.targetAmount.amount,
-                    workspaceRow.target.targetAmount.currency,
-                  ),
-                  workspaceRow.hasSnapshot
-                    ? formatPercent(workspaceRow.ratio)
-                    : PLANNING_TEXT.noSnapshot,
+                  workspaceRow.target.targetValue.unit === "money"
+                    ? formatMoney(
+                        workspaceRow.target.targetValue.amount,
+                        workspaceRow.target.targetValue.currency,
+                      )
+                    : String(workspaceRow.target.targetValue.amount),
+                  workspaceRow.measurement.kind === "measured"
+                    ? formatPercent(workspaceRow.measurement.ratio)
+                    : PLANNING_TEXT.gapLabel[workspaceRow.measurement.code]!,
                 )
               : PLANNING_TEXT.leadNoWorkspaceTarget}
           </p>

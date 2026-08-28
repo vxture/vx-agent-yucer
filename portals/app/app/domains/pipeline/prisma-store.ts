@@ -267,6 +267,7 @@ export class PrismaPipelineStore implements PipelineStore {
         bestCaseAmount: row.bestCaseAmount.amount,
         pipelineAmount: row.pipelineAmount.amount,
         closedAmount: row.closedAmount.amount,
+        newLogoCount: row.newLogoCount,
         currency: row.currency,
         snapshotAt: row.snapshotAt,
       },
@@ -388,6 +389,7 @@ function decimalSnapshot(r: Record<string, unknown>): SnapshotRow {
     bestCaseAmount: num(r.bestCaseAmount),
     pipelineAmount: num(r.pipelineAmount),
     closedAmount: num(r.closedAmount),
+    newLogoCount: (r.newLogoCount as number | null) ?? null,
     currency,
     snapshotAt: r.snapshotAt as Date,
   };

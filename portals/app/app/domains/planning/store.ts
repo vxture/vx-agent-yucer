@@ -8,7 +8,7 @@
 // its history.
 
 import type { Money } from "../shared/money";
-import type { SalesTarget, TargetScope, TargetStatus } from "./lib/target";
+import type { PublishedTotals, SalesTarget, TargetScope, TargetStatus, TargetValue } from "./lib/target";
 
 export interface TargetRecord extends SalesTarget {
   id: string;
@@ -41,29 +41,38 @@ export interface PlanningStore {
   updateTarget(
     workspaceId: string,
     id: string,
-    patch: { targetAmount?: Money; status?: TargetStatus; planId?: string | null },
+    patch: { targetValue?: TargetValue; status?: TargetStatus; planId?: string | null },
   ): Promise<boolean>;
 
   listTerritories(workspaceId: string): Promise<TerritoryRecord[]>;
-  /** Closed amount for a scope and period, read from D6's snapshots. D2 sets
-   * targets and D6 computes achievement; neither writes the other's data. */
-  closedAmountFor(workspaceId: string, scope: TargetScope): Promise<Money | null>;
+  /**
+   * The published numbers for a scope and period, read from D6's snapshot.
+   *
+   * WAS `closedAmountFor`, returning one Money. That shape is what let `metric`
+   * be ignored: with only a closed amount on offer, every metric was measured
+   * against it. Returning the whole published set makes choosing the numerator
+   * a decision the rule layer has to actually make - see `measure`.
+   *
+   * D2 sets targets and D6 computes achievement; neither writes the other's
+   * data, and this port is the seam.
+   */
+  publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null>;
 }
 
 export class InMemoryPlanningStore implements PlanningStore {
   private targets = new Map<string, TargetRecord>();
   private territories: TerritoryRecord[] = [];
-  private closed = new Map<string, Money>();
+  private published = new Map<string, PublishedTotals>();
   private seq = 0;
 
   seed(input: {
     targets?: TargetRecord[];
     territories?: TerritoryRecord[];
-    closed?: Record<string, Money>;
+    published?: Record<string, PublishedTotals>;
   }): void {
     for (const t of input.targets ?? []) this.targets.set(t.id, { ...t });
     this.territories.push(...(input.territories ?? []));
-    for (const [k, v] of Object.entries(input.closed ?? {})) this.closed.set(k, v);
+    for (const [k, v] of Object.entries(input.published ?? {})) this.published.set(k, v);
   }
 
   async listTargets(workspaceId: string, filter: TargetFilter = {}): Promise<TargetRecord[]> {
@@ -90,11 +99,11 @@ export class InMemoryPlanningStore implements PlanningStore {
   async updateTarget(
     workspaceId: string,
     id: string,
-    patch: { targetAmount?: Money; status?: TargetStatus; planId?: string | null },
+    patch: { targetValue?: TargetValue; status?: TargetStatus; planId?: string | null },
   ): Promise<boolean> {
     const t = this.targets.get(id);
     if (!t || t.workspaceId !== workspaceId) return false;
-    if (patch.targetAmount !== undefined) t.targetAmount = patch.targetAmount;
+    if (patch.targetValue !== undefined) t.targetValue = patch.targetValue;
     if (patch.status !== undefined) t.status = patch.status;
     if (patch.planId !== undefined) t.planId = patch.planId;
     return true;
@@ -104,9 +113,9 @@ export class InMemoryPlanningStore implements PlanningStore {
     return this.territories.filter((t) => t.workspaceId === workspaceId);
   }
 
-  async closedAmountFor(workspaceId: string, scope: TargetScope): Promise<Money | null> {
+  async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {
     return (
-      this.closed.get(
+      this.published.get(
         [workspaceId, scope.period, scope.scopeType, scope.territoryId ?? "", scope.ownerSub ?? ""].join("|"),
       ) ?? null
     );

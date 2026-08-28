@@ -17,6 +17,7 @@
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 import { DEFAULT_CURRENCY, ratio, sumMoney, toMinor, type Money } from "../../shared/money";
 import { isTerminal, type Stage } from "./stage";
+import { periodRange, within } from "../../shared/period";
 
 export const FORECAST_CATEGORIES = ["pipeline", "best_case", "commit", "closed"] as const;
 export type ForecastCategory = (typeof FORECAST_CATEGORIES)[number];
@@ -50,6 +51,10 @@ export interface ForecastableOpportunity {
   amount: Money | null;
   territoryId: string | null;
   ownerSub: string | null;
+  /** Which customer this is for. Needed to tell a NEW one from a repeat. */
+  accountId?: string | null;
+  /** When it was won. Needed to place a new logo in a period. */
+  closedAt?: Date | null;
 }
 
 export interface ForecastTotals {
@@ -57,6 +62,12 @@ export interface ForecastTotals {
   bestCaseAmount: Money;
   pipelineAmount: Money;
   closedAmount: Money;
+  /**
+   * Customers won for the FIRST time inside this period, or null when nobody
+   * counted - a snapshot from before incr/0013, or one whose period label this
+   * product cannot parse into dates. Null is not zero; see periodRange.
+   */
+  newLogoCount: number | null;
 }
 
 /**
@@ -110,7 +121,55 @@ export function rollUp(
     bestCaseAmount: (best as { ok: true; value: Money }).value,
     pipelineAmount: (pipe as { ok: true; value: Money }).value,
     closedAmount: (closed as { ok: true; value: Money }).value,
+    // rollUp sees only the in-scope slice, and "first ever" is a workspace-wide
+    // question. planSnapshot computes it from the unfiltered list and overwrites
+    // this; leaving it null here means a caller who rolls up directly gets
+    // "nobody counted" rather than a wrong count.
+    newLogoCount: null,
   });
+}
+
+/**
+ * Customers won for the first time inside a period.
+ *
+ * DEFINITION, and both halves of it matter:
+ *
+ *   * FIRST EVER, decided across the whole workspace - not the first win in
+ *     this territory. Otherwise winning the same customer in two regions makes
+ *     them a new logo twice, and the company's new-customer count exceeds the
+ *     number of customers it actually acquired.
+ *   * ATTRIBUTED TO THE SCOPE OF THAT FIRST DEAL. The credit follows the deal
+ *     that broke the account, which is the deal the target was set against.
+ *
+ * Takes the UNFILTERED opportunity list plus the scope, rather than a filtered
+ * one, because the first condition cannot be evaluated on a filtered list.
+ *
+ * Returns null when the period label cannot be parsed - see periodRange. A
+ * count needs a range, and inventing one would report a number nobody can
+ * reproduce.
+ */
+export function countNewLogos(
+  all: readonly ForecastableOpportunity[],
+  period: string,
+  scope: ForecastScope,
+): number | null {
+  const range = periodRange(period);
+  if (!range) return null;
+
+  // Each account's earliest win, over everything the workspace has ever won.
+  const firstWin = new Map<string, ForecastableOpportunity>();
+  for (const o of all) {
+    if (o.status !== "won" || !o.closedAt || !o.accountId) continue;
+    const held = firstWin.get(o.accountId);
+    if (!held || o.closedAt.getTime() < held.closedAt!.getTime()) firstWin.set(o.accountId, o);
+  }
+
+  let count = 0;
+  for (const o of firstWin.values()) {
+    if (!within(range, o.closedAt ?? null)) continue;
+    if (inScope([o], scope).length === 1) count += 1;
+  }
+  return count;
 }
 
 /** Keep only the opportunities a scope covers. */
@@ -160,6 +219,7 @@ export function planSnapshot(input: {
 
   return ok({
     ...totals.value,
+    newLogoCount: countNewLogos(input.opportunities, input.period, input.scope),
     period: input.period.trim(),
     scopeType: input.scope.scopeType,
     territoryId: input.scope.territoryId,
