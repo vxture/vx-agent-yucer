@@ -118,8 +118,10 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "catalog.write",
     "catalog.price",
-    "pipeline.discount",
     "account.record",
+    // incr/0012: signing off a below-floor price. Separate from pipeline.write
+    // so the person who quotes the discount is not the person who allows it.
+    "pipeline.discount",
   ],
   // Demand side, up to the lead handoff: triages signals but never edits a deal.
   marketing_manager: [
