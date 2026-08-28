@@ -702,18 +702,36 @@ watch 悄悄不再应用 ignore 基线）、以及 watch 里**不得有任何 jo
 
 **恢复条件**（三步，前两步只有 owner 能做）：
 
-| 步骤 | 谁 |
-|------|-----|
-| 1. 在 SonarCloud 项目设置里**关闭 Automatic Analysis**（与 CI 分析互斥，不关会冲突） | owner，控制台 |
-| 2. 建 Actions secret `SONAR_TOKEN` | owner，凭据 |
-| 3. 加 `sonar-project.properties` 与 `sonar-scanner` 步骤，把 lcov 路径指过去 | 代码侧 |
+| 步骤 | 谁 | 状态 |
+|------|-----|------|
+| 1. 在 SonarCloud 项目设置里**关闭 Automatic Analysis**（与 CI 分析互斥，不关会冲突） | owner，控制台 | 已完成 2026-08-28 |
+| 2. 建 Actions secret `SONAR_TOKEN` | owner，凭据 | **待办** |
+| 3. `sonar-project.properties` + `sonar` job，把 lcov 指过去 | 代码侧 | 本次完成 |
 
-第三步单独做没有意义，所以本次没有提前提交那份配置——一份要等外部开关才生效的配置，
-放进仓里就是死配置。
+第 2 步只能由 owner 做，代码侧碰不到凭据。在它完成之前 `sonar` job 会失败——**但它
+刻意不在必需的五项检查里**，所以不阻塞合并，理由与 `db-contract` 相同：把一个第三方
+服务折进必需检查，等于让它宕机时全仓无法合并。
 
-**本次做了的那半边**：`test-coverage` 现在把覆盖率表写进 GitHub 的 run summary。这个数
-一直存在，但只活在日志里，不翻开作业滚到底就看不见。它**不是门**——不设阈值，选阈值是
-owner 的决定，悄悄加一个等于加了一条没人同意的规则。
+**注意此刻的空窗**：Automatic Analysis 已关闭，而 `sonar` job 还没有令牌，所以现在
+**完全没有 Sonar 分析**。这个空窗由第 2 步关闭。
+
+**覆盖率表现在写进 GitHub 的 run summary。** 这个数一直存在，但只活在日志里，不翻开
+作业滚到底就看不见。它**不是门**——不设阈值，选阈值是 owner 的决定，悄悄加一个等于加了
+一条没人同意的规则。
+
+**lcov 的路径必须重写，而且不能用固定前缀。** node 把 `SF:` 路径写成相对它自己的 cwd
+（`portals/app`），扫描器则相对仓根解析。显然的一行 `sed 's#^SF:app/#SF:portals/app/app/#'`
+对 111 条里的 109 条成立，对**跑出工作区的那两条**是错的：
+
+```
+../packages/shared/src/brand.ts
+../../scripts/guardrails/check-data-architecture.mjs
+```
+
+加前缀之后它们解析不到任何文件，而**扫描器对匹配不上的 lcov 条目不报错，只是当它不
+存在**——于是覆盖率被悄悄漏掉，回到 TD-015 的起点，只是换了条路。所以走
+`scripts/ci/lcov-to-repo-root.mjs`：真正做路径解析，并且**任何一条改写后的路径不存在就
+非零退出**。反证过：喂一个错的基准目录，111 条全部报缺失，退出码 1。
 
 顺带修掉一个新引入的坑：这一步用 `tee` 接管道，所以加了 `set -o pipefail`。没有它，
 管道的退出码是 `tee` 的，**一个红的测试套件会报绿**——这是这条必需检查唯一可能说谎的
