@@ -313,6 +313,16 @@ export async function boardSections(
         )
       : null;
 
+  // Narrowed once, next to the thing it narrows. `cover?.ratio == null` covers
+  // both "no coverage at all" and "coverage with no ratio" in one expression,
+  // and returning `cover` itself rather than a boolean keeps gap/floor/thin
+  // narrowed at the four places below that read them.
+  //
+  // NOT `cover?.ratio !== null`, which is what the obvious optional-chain
+  // rewrite produces and is the opposite condition: with no coverage that
+  // reads `undefined !== null` and renders a gauge over nothing.
+  const gaugeCover = cover?.ratio == null ? null : cover;
+
   const sections: BoardSection[] = [
     // ONE queue. These were two cards - "today's judgements" and "awaiting my
     // adjudication" - and both restated a panel already on screen: the first
@@ -372,7 +382,7 @@ export async function boardSections(
       // pool broken into the funnel, because 881万 of commit and 881万 of
       // early-stage pipeline are not the same 881万.
       gauge:
-        wsTarget && cover && cover.ratio !== null && totals?.ok
+        wsTarget && gaugeCover && totals?.ok
           ? {
               label: BOARD_TEXT.poolRow(wsTarget.period),
               value: BOARD_TEXT.wan(quarterWorth),
@@ -381,9 +391,9 @@ export async function boardSections(
               // judgement either way: pool < floor x gap is exactly pool <
               // scaleMax, so "under 100% here" and "thin" are one condition.
               note: BOARD_TEXT.coverageOf(
-                Math.round((quarterWorth / (cover.gap * cover.floor)) * 100),
+                Math.round((quarterWorth / (gaugeCover.gap * gaugeCover.floor)) * 100),
               ),
-              thin: cover.thin,
+              thin: gaugeCover.thin,
               // Descending confidence: what is committed, what is being worked,
               // what is merely held. The order IS the meaning, so it is fixed
               // here rather than sorted by size.
@@ -407,7 +417,7 @@ export async function boardSections(
               // The target itself is NOT repeated here - the quota card above
               // already carries it. What is missing from every other card is
               // the SHORTFALL, and that is the number this pool has to answer.
-              scaleMax: cover.gap * cover.floor,
+              scaleMax: gaugeCover.gap * gaugeCover.floor,
             }
           : undefined,
       metrics: cover
