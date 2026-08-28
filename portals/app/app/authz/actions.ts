@@ -394,12 +394,6 @@ export const ACTIONS = {
     permission: "delivery.write",
     writes: true,
   },
-  "delivery.task.upsert": {
-    domain: "delivery",
-    feature: "delivery.project",
-    permission: "delivery.write",
-    writes: true,
-  },
   "delivery.revenue.view": {
     domain: "delivery",
     feature: "delivery.revenue",

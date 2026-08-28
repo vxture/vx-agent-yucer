@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 3，余 6 + 1 待裁定） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 4，删除 1，余 5） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -851,15 +851,23 @@ PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts`
 `status`，所以没有这条就会出现「标了完成、却答不出何时完成」的里程碑；「已错过」同样不
 能带完成时间——那是它没有发生的陈述，而它正是推翻绿色的那个值。
 
-### `delivery.task.upsert` 不属于这笔债 —— 待产品裁定
+### `delivery.task.upsert` —— 已裁定删除（ADR-022，2026-08-28）
 
 查证时发现它和其余几条**不是同一形状**。`project_task` 有表、有列锁、有这个 action，
 **其余什么都没有**：没有记录类型、没有端口方法、没有读、没有界面、连一行 demo 数据都没有。
 不是「中间缺一段」，是**只有两头**。
 
 建它等于设计一个新功能——任务是干什么的、谁指派、和里程碑什么关系——那是产品裁定，不是
-还债。已在 `gated.test.ts` 的白名单里按这个理由单独标注，等 owner 决定：**建，还是把
-action 和表一起删掉。**
+还债。
 
-余下六条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
-`campaign.execution.upsert`、`account.offering.view` / `.upsert`。
+**owner 裁定 2026-08-28：删。** 表、列锁、action 一起移除（ADR-022）。判据不是「它没用」，
+是**这个产品从没说过要管任务**——yucer 是销售超级智能体，任务管理是交付工具的领地。留着
+一张七个批次没人碰的表和一道门着空气的门，比承认不做它更贵。
+
+顺带补上一个守卫的盲区：`check-data-architecture.mjs` 只找 `CREATE TABLE`，**不认识
+`DROP`**——按 README 规矩「只在增量里删表」的人，第一次删除就会被报成 Prisma 漂移。已改为
+按文件顺序读两者。
+
+余下五条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
+`campaign.execution.upsert`、`account.offering.view` / `.upsert`。（`delivery.milestone.upsert`
+已还，`delivery.task.upsert` 已删。）

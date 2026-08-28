@@ -156,14 +156,6 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "updated_at",
   ],
   "yucer_delivery.project_milestone": ["name", "due_at", "completed_at", "status", "updated_at"],
-  "yucer_delivery.project_task": [
-    "title",
-    "milestone_id",
-    "assignee_sub",
-    "due_at",
-    "status",
-    "updated_at",
-  ],
   "yucer_delivery.revenue_schedule": [
     "milestone_id",
     "planned_amount",

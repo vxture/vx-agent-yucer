@@ -1,0 +1,33 @@
+-- 0014_drop_project_task.sql - a front this product never declared it was
+-- opening (ADR-022).
+--
+-- Authority: ADR-022 and docs/60-operations/00-index.md TD-016. This file and
+-- those documents must be changed together.
+--
+-- WHY. `project_task` shipped in batch 1 along with its column locks and the
+-- action `delivery.task.upsert`. In the seven batches since, NOTHING ever
+-- touched it: no record type, no port method, no read, no surface, no ADR, not
+-- one row of demo data. It is the only table in this schema with that property
+-- - project, project_milestone and revenue_schedule are all read, and two of
+-- the three are now written.
+--
+-- That is not "the middle is missing", which is the shape TD-016 collects and
+-- which gets repaid by writing the verb. Only the two ends exist. Building the
+-- middle would mean designing a feature - what a task is for, who assigns one,
+-- how it relates to a milestone - and this product is a SALES super-agent.
+-- Task management is a delivery tool's territory.
+--
+-- Keeping it costs a standing lie: a gate that gates nothing, a table in the
+-- data documentation that no reader can reach, and a permanent line in a
+-- guard's allowlist. Deleting it costs one increment. If the need arrives, the
+-- requirement will be sharper than batch 1's guess and the rebuild is the same
+-- work either way.
+--
+-- The baseline was edited too, which incr/README forbids in general. It is safe
+-- here for a checkable reason: this DDL has never built a database - zero
+-- deployment environments, zero release tags, zero db-init runs. This file
+-- exists so that a checkout which DID apply the old baseline converges anyway.
+--
+-- Idempotent: re-applying is a no-op.
+
+DROP TABLE IF EXISTS yucer_delivery.project_task;

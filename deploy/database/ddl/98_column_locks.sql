@@ -141,10 +141,6 @@ REVOKE UPDATE ON yucer_delivery.project_milestone FROM yucer_svc;
 GRANT UPDATE (name, due_at, completed_at, status, updated_at)
   ON yucer_delivery.project_milestone TO yucer_svc;
 
-REVOKE UPDATE ON yucer_delivery.project_task FROM yucer_svc;
-GRANT UPDATE (title, milestone_id, assignee_sub, due_at, status, updated_at)
-  ON yucer_delivery.project_task TO yucer_svc;
-
 -- revenue_schedule.sequence is part of uidx_revenue_schedule_seq -> immutable.
 REVOKE UPDATE ON yucer_delivery.revenue_schedule FROM yucer_svc;
 GRANT UPDATE (milestone_id, planned_amount, actual_amount, currency, due_at, settled_at,

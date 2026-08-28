@@ -45,7 +45,6 @@
 |----|------|-------|
 | `project` | 交付项目 | `project_no` |
 | `project_milestone` | 里程碑（`sequence` 唯一） | - |
-| `project_task` | 任务 | - |
 | `revenue_schedule` | 回款期次（`sequence` 唯一） | - |
 
 ### yucer_agent（4）
@@ -74,7 +73,7 @@
 （`uidx_account_ws_no`、`uidx_opportunity_ws_no` ...），保证业务号只在工作区内唯一，
 不同工作区可以各自有 `OPP-0001`。
 
-从属表（`contact` / `project_task` / `agent_message` ...）同样冗余 `workspace_id`，
+从属表（`contact` / `project_milestone` / `agent_message` ...）同样冗余 `workspace_id`，
 目的是让所有查询都能不经 JOIN 直接带上隔离条件——这是防止跨租户泄漏最有效的一层。
 
 ## 4. 不可变约束一览
