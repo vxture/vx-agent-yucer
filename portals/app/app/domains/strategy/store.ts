@@ -12,7 +12,14 @@
 // accomplished fact and a tidy-up upstream must not erase it.
 
 import type { Money } from "../shared/money";
-import type { CampaignStatus, ExecutionStatus, NewPlanDraft, PlanStatus } from "./lib/lifecycle";
+import type {
+  CampaignStatus,
+  ExecutionActionType,
+  ExecutionDraft,
+  ExecutionStatus,
+  NewPlanDraft,
+  PlanStatus,
+} from "./lib/lifecycle";
 import { asc, by, desc } from "../shared/order";
 
 export interface PlanRecord {
@@ -47,7 +54,7 @@ export interface ExecutionRecord {
   id: string;
   campaignId: string;
   title: string;
-  actionType: string;
+  actionType: ExecutionActionType;
   assigneeSub: string | null;
   dueAt: Date | null;
   status: ExecutionStatus;
@@ -84,6 +91,19 @@ export interface StrategyStore {
   ): Promise<boolean>;
 
   listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]>;
+  /**
+   * Create an execution, or edit one by id.
+   *
+   * BY ID: campaign_execution has no business key, and two outreach items on
+   * one campaign can share a title. Null when the id belongs to another
+   * workspace or another campaign - the service turns that into "not found"
+   * rather than moving the item between campaigns.
+   */
+  upsertExecution(
+    workspaceId: string,
+    campaignId: string,
+    input: ExecutionDraft,
+  ): Promise<ExecutionRecord | null>;
 
   /** Opportunities attributed to a campaign. Read-only across the domain
    * boundary: D3 owns the campaign, D6 owns the opportunity. */
@@ -179,6 +199,31 @@ export class InMemoryStrategyStore implements StrategyStore {
     if (!c || c.workspaceId !== workspaceId) return false;
     Object.assign(c, patch);
     return true;
+  }
+
+  async upsertExecution(
+    workspaceId: string,
+    campaignId: string,
+    input: ExecutionDraft,
+  ): Promise<ExecutionRecord | null> {
+    if (input.id) {
+      const held = this.executions.find(
+        (e) => e.id === input.id && e.workspaceId === workspaceId && e.campaignId === campaignId,
+      );
+      // Null rather than a silent create: an id from another campaign would
+      // otherwise move the item, and the campaign's completion rule counts what
+      // is on IT.
+      if (!held) return null;
+      held.title = input.title;
+      held.actionType = input.actionType;
+      held.assigneeSub = input.assigneeSub;
+      held.dueAt = input.dueAt;
+      held.status = input.status;
+      return held;
+    }
+    const row = { ...input, id: `exec_${++this.seq}`, campaignId, workspaceId };
+    this.executions.push(row);
+    return row;
   }
 
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {

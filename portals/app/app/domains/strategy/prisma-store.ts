@@ -1,7 +1,14 @@
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
-import type { CampaignStatus, ExecutionStatus, NewPlanDraft, PlanStatus } from "./lib/lifecycle";
+import type {
+  CampaignStatus,
+  ExecutionActionType,
+  ExecutionDraft,
+  ExecutionStatus,
+  NewPlanDraft,
+  PlanStatus,
+} from "./lib/lifecycle";
 import type {
   CampaignRecord,
   ExecutionRecord,
@@ -24,6 +31,7 @@ import type {
 
 const PLAN_TABLE = "yucer_gtm.strategy_plan";
 const CAMPAIGN_TABLE = "yucer_gtm.campaign";
+const EXECUTION_TABLE = "yucer_gtm.campaign_execution";
 
 export class PrismaStrategyStore implements StrategyStore {
   async listPlans(
@@ -135,21 +143,51 @@ export class PrismaStrategyStore implements StrategyStore {
     return res.count > 0;
   }
 
+  async upsertExecution(
+    workspaceId: string,
+    campaignId: string,
+    input: ExecutionDraft,
+  ): Promise<ExecutionRecord | null> {
+    const p = await getPrismaClient();
+    const writable = {
+      title: input.title,
+      actionType: input.actionType,
+      assigneeSub: input.assigneeSub,
+      dueAt: input.dueAt,
+      status: input.status,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(EXECUTION_TABLE, writable);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked execution column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    if (input.id) {
+      // The campaign is in the predicate as well as the workspace: an id from
+      // another campaign must update nothing rather than move the item, because
+      // the completion rule counts what is on ITS campaign.
+      const res = await p.campaignExecution.updateMany({
+        where: { id: input.id, workspaceId, campaignId },
+        data: writable,
+      });
+      if (res.count === 0) return null;
+      const row = await p.campaignExecution.findFirst({ where: { id: input.id, workspaceId } });
+      return row ? toExecution(row as Record<string, unknown>) : null;
+    }
+
+    const row = await p.campaignExecution.create({ data: { workspaceId, campaignId, ...writable } });
+    return toExecution(row as Record<string, unknown>);
+  }
+
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.campaignExecution.findMany({
       where: { workspaceId, campaignId },
       orderBy: { dueAt: "asc" },
     });
-    return rows.map((r: Record<string, unknown>) => ({
-      id: String(r.id),
-      campaignId: String(r.campaignId),
-      title: String(r.title),
-      actionType: String(r.actionType),
-      assigneeSub: (r.assigneeSub as string | null) ?? null,
-      dueAt: (r.dueAt as Date | null) ?? null,
-      status: r.status as ExecutionStatus,
-    }));
+    return rows.map((r: Record<string, unknown>) => toExecution(r));
   }
 
   async attributedOpportunities(
@@ -202,5 +240,17 @@ function toCampaign(r: Record<string, unknown>): CampaignRecord {
     endsAt: (r.endsAt as Date | null) ?? null,
     status: r.status as CampaignStatus,
     currency,
+  };
+}
+
+function toExecution(r: Record<string, unknown>): ExecutionRecord {
+  return {
+    id: String(r.id),
+    campaignId: String(r.campaignId),
+    title: String(r.title),
+    actionType: r.actionType as ExecutionActionType,
+    assigneeSub: (r.assigneeSub as string | null) ?? null,
+    dueAt: (r.dueAt as Date | null) ?? null,
+    status: r.status as ExecutionStatus,
   };
 }

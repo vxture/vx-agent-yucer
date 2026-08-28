@@ -804,7 +804,16 @@ function execution(
   status: string,
   dueAt: Date,
 ) {
-  return { id, workspaceId, campaignId, title, actionType, assigneeSub: "usr_demo_mkt", dueAt, status: status as never };
+  return {
+    id,
+    workspaceId,
+    campaignId,
+    title,
+    actionType: actionType as never,
+    assigneeSub: "usr_demo_mkt",
+    dueAt,
+    status: status as never,
+  };
 }
 
 function territory(id: string, workspaceId: string, code: string, name: string, ownerSub: string) {

@@ -19,10 +19,12 @@ import {
   validateCampaignWindow,
   type CampaignStatus,
   type PlanStatus,
+  planExecution,
   planNewPlan,
+  type ExecutionDraft,
   type NewPlanDraft,
 } from "./lib/lifecycle";
-import type { CampaignRecord, PlanRecord, StrategyStore } from "./store";
+import type { CampaignRecord, ExecutionRecord, PlanRecord, StrategyStore } from "./store";
 
 export interface StrategyContext {
   workspaceId: string;
@@ -148,6 +150,16 @@ export async function transitionCampaign(
 export interface CampaignReturn {
   campaign: CampaignRecord;
   progress: ReturnType<typeof executionProgress>;
+  /**
+   * The rows the progress is computed from.
+   *
+   * This read has always loaded them and thrown them away after summarising.
+   * Nothing could edit an execution (TD-016), so a list of them had nowhere to
+   * go - and `canCompleteCampaign` refuses to complete a campaign while any is
+   * outstanding, which made a campaign with one pending item permanently
+   * uncompletable.
+   */
+  executions: ExecutionRecord[];
   /** Opportunities whose frozen campaign_id points at this campaign. */
   attributedCount: number;
   wonCount: number;
@@ -167,6 +179,43 @@ export interface CampaignReturn {
  * column locks - if attribution were editable, this number would measure
  * whoever last edited it rather than where the demand came from.
  */
+/**
+ * Create or edit one execution on a campaign.
+ *
+ * `campaign.execution.upsert` shipped in batch 1 with nothing behind it, and
+ * this one was not merely unfinished - it was LOCKING something.
+ * `canCompleteCampaign` refuses to complete a campaign while any execution is
+ * outstanding, and nothing could move an execution to done or skipped. Measured
+ * on the demo before this was written: camp_demo_1 (done/done/pending) was
+ * refused with `executions_outstanding`; camp_demo_3 (done) completed. The lock
+ * was real and the key did not exist.
+ *
+ * The campaign is read first: the upsert key carries no workspace of its own,
+ * and the freeze rule needs the campaign's status.
+ */
+export async function upsertExecution(
+  ctx: StrategyContext,
+  campaignId: string,
+  input: ExecutionDraft,
+): Promise<RuleResult<ExecutionRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "campaign.execution.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const campaign = await ctx.store.getCampaign(ctx.workspaceId, campaignId);
+  if (!campaign) {
+    return fail(violation("not_found", `campaign ${campaignId} was not found`, "campaignId"));
+  }
+
+  const plan = planExecution(input, campaign);
+  if (!plan.ok) return plan as RuleResult<ExecutionRecord>;
+
+  const written = await ctx.store.upsertExecution(ctx.workspaceId, campaignId, plan.value);
+  if (!written) {
+    return fail(violation("not_found", `execution ${input.id} is not on this campaign`, "id"));
+  }
+  return ok(written);
+}
+
 export async function campaignReturn(
   ctx: StrategyContext,
   campaignId: string,
@@ -203,6 +252,7 @@ export async function campaignReturn(
   return ok({
     campaign,
     progress: executionProgress(executions),
+    executions,
     attributedCount: attributed.length,
     wonCount: attributed.filter((o) => o.status === "won").length,
     attributedAmount: allTotal.value,
