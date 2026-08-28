@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import {
-  Button,
   DataTable,
   EmptyState,
   Field,
@@ -13,6 +12,8 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { useSaveAction } from "../lib/use-save-action";
+import { SaveRow } from "./save-row";
 
 // The delivery plan, across projects.
 //
@@ -113,9 +114,7 @@ const BLANK = { projectId: "", sequence: "", name: "", dueAt: "", completedAt: "
 export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePanelProps) {
   const { DATA_TABLE_LABELS, DELIVERY_TEXT, MILESTONE_ERROR } = useMessages();
   const [form, setForm] = useState(BLANK);
-  const [err, setErr] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [pending, start] = useTransition();
+  const save = useSaveAction(MILESTONE_ERROR);
 
   const sequence = Number(form.sequence);
   const ready =
@@ -208,30 +207,25 @@ export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePan
               onChange={(e) => setForm({ ...form, completedAt: e.target.value })}
             />
           </Field>
-          <Button
-            disabled={!ready || pending}
-            onClick={() =>
-              start(() => {
-                void onSave(form.projectId, {
-                  sequence,
-                  name: form.name.trim(),
-                  dueAt: form.dueAt === "" ? null : form.dueAt,
-                  completedAt: form.completedAt === "" ? null : form.completedAt,
-                  status: form.status,
-                }).then((r) => {
-                  setErr(r.ok ? null : (MILESTONE_ERROR[r.error ?? "denied"] ?? r.error ?? ""));
-                  setSaved(r.ok);
-                  if (r.ok) setForm(BLANK);
-                });
-              })
+          <SaveRow
+            action={save}
+            label={DELIVERY_TEXT.milestoneSave}
+            savedLabel={DELIVERY_TEXT.milestoneSaved}
+            disabled={!ready}
+            onSave={() =>
+              save.run(
+                () =>
+                  onSave(form.projectId, {
+                    sequence,
+                    name: form.name.trim(),
+                    dueAt: form.dueAt === "" ? null : form.dueAt,
+                    completedAt: form.completedAt === "" ? null : form.completedAt,
+                    status: form.status,
+                  }),
+                () => setForm(BLANK),
+              )
             }
-          >
-            {DELIVERY_TEXT.milestoneSave}
-          </Button>
-          {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-          {saved && !err ? (
-            <StatusBadge tone="success">{DELIVERY_TEXT.milestoneSaved}</StatusBadge>
-          ) : null}
+          />
         </div>
       )}
       {/* Said out loud, because it is the reason this panel is not bookkeeping:
