@@ -1,7 +1,7 @@
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
-import type { CampaignStatus, ExecutionStatus, PlanStatus } from "./lib/lifecycle";
+import type { CampaignStatus, ExecutionStatus, NewPlanDraft, PlanStatus } from "./lib/lifecycle";
 import type {
   CampaignRecord,
   ExecutionRecord,
@@ -40,6 +40,33 @@ export class PrismaStrategyStore implements StrategyStore {
       orderBy: [{ period: "desc" }, { createdAt: "desc" }],
     });
     return rows.map((r: Record<string, unknown>) => toPlan(r));
+  }
+
+  async createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null> {
+    const p = await getPrismaClient();
+    // findFirst before create rather than catching the unique violation: the
+    // service turns null into "that number is taken", and a caught error would
+    // have to guess WHICH constraint fired to say the same thing.
+    const taken = await p.strategyPlan.findFirst({
+      where: { workspaceId, planNo: input.planNo },
+      select: { id: true },
+    });
+    if (taken) return null;
+
+    const row = await p.strategyPlan.create({
+      data: {
+        workspaceId,
+        planNo: input.planNo,
+        name: input.name,
+        period: input.period,
+        objective: input.objective,
+        ownerSub: input.ownerSub,
+        // Not from the caller. A plan starts as a draft and every move after
+        // that belongs to the transition verb, which is what stamps approved_at.
+        status: "draft",
+      },
+    });
+    return toPlan(row as Record<string, unknown>);
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {

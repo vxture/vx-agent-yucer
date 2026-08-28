@@ -12,7 +12,7 @@
 // accomplished fact and a tidy-up upstream must not erase it.
 
 import type { Money } from "../shared/money";
-import type { CampaignStatus, ExecutionStatus, PlanStatus } from "./lib/lifecycle";
+import type { CampaignStatus, ExecutionStatus, NewPlanDraft, PlanStatus } from "./lib/lifecycle";
 import { asc, by, desc } from "../shared/order";
 
 export interface PlanRecord {
@@ -56,6 +56,16 @@ export interface ExecutionRecord {
 export interface StrategyStore {
   listPlans(workspaceId: string, filter?: { period?: string; status?: PlanStatus }): Promise<PlanRecord[]>;
   getPlan(workspaceId: string, id: string): Promise<PlanRecord | null>;
+  /**
+   * Create a plan.
+   *
+   * CREATE, not upsert. `plan_no` is workspace-unique and immutable, so it
+   * could key an upsert - but a plan carries a LIFECYCLE (draft -> approved ->
+   * active -> closed), and re-sending an existing number would silently rewrite
+   * a plan that people have already been approved against. Territories and
+   * products have no such state; plans do. A duplicate number is refused.
+   */
+  createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null>;
   updatePlan(
     workspaceId: string,
     id: string,
@@ -85,6 +95,7 @@ export interface StrategyStore {
 
 export class InMemoryStrategyStore implements StrategyStore {
   private plans = new Map<string, PlanRecord>();
+  private seq = 0;
   private campaigns = new Map<string, CampaignRecord>();
   private executions: Array<ExecutionRecord & { workspaceId: string }> = [];
   private attributed = new Map<string, Array<{ id: string; amount: Money | null; status: string }>>();
@@ -110,6 +121,25 @@ export class InMemoryStrategyStore implements StrategyStore {
     if (filter.status) rows = rows.filter((p) => p.status === filter.status);
     rows.sort(by(desc((p: PlanRecord) => p.period)));
     return rows;
+  }
+
+  async createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null> {
+    // Null, not a throw: the unique index would refuse it anyway, and the
+    // service turns this into "that number is taken" rather than a constraint
+    // name.
+    const taken = [...this.plans.values()].some(
+      (p) => p.workspaceId === workspaceId && p.planNo === input.planNo,
+    );
+    if (taken) return null;
+    const created: PlanRecord = {
+      ...input,
+      id: `plan_${++this.seq}`,
+      workspaceId,
+      status: "draft",
+      approvedAt: null,
+    };
+    this.plans.set(created.id, created);
+    return created;
   }
 
   async getPlan(workspaceId: string, id: string): Promise<PlanRecord | null> {
