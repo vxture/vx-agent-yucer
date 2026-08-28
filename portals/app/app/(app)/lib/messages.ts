@@ -439,7 +439,10 @@ export const BOARD_TEXT = {
   quotaLeft: (pct: number) => `${pct}%`,
   // Pipeline coverage: the open pool against what still has to be closed.
   coverage: "覆盖缺口",
-  poolRow: "本季资源储备",
+  // Named after the TARGET's period, like `quota` above. It said "本季" while
+  // the figure follows whichever period the committed target is for - which
+  // is the same period the card's own title names, and is not always this one.
+  poolRow: (period: string) => `${period} 资源储备`,
   coverageOf: (pct: number) => `${pct}%`,
   coverageGap: (v: string) => `缺口 ${v}`,
   coverageThin: (floor: number) => `低于 ${floor}% 警戒线`,

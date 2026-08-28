@@ -1644,7 +1644,7 @@ export const en: Dictionary = {
     quotaOf: "Attained",
     quotaLeft: (pct: number) => `${pct}%`,
     coverage: "Coverage gap",
-    poolRow: "This quarter's pool",
+    poolRow: (period: string) => `${period} pool`,
     coverageOf: (pct: number) => `${pct}%`,
     coverageGap: (v: string) => `${v} short`,
     coverageThin: (floor: number) => `below the ${floor}% floor`,

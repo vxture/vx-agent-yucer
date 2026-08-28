@@ -40,7 +40,6 @@ import {
 // resolved once per render by next/headers, so two calls cost one resolution.
 import { getMessages } from "./i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
-import { currentPeriod } from "../../domains/shared/period";
 
 // The numbers behind the navigation board.
 //
@@ -276,9 +275,24 @@ export async function boardSections(
   // expected to land next year. `worth` above is deliberately NOT filtered -
   // "what is still in play" is not a claim about a quarter, and its card does
   // not make one.
-  const thisQuarter = deals.ok ? inPeriod(open, currentPeriod(new Date())) : null;
-  const quarterOpen = thisQuarter ? thisQuarter.kept : open;
-  const totals = rollUp(quarterOpen);
+  // THE TARGET'S PERIOD, NOT TODAY'S. Every figure below belongs to one card,
+  // and that card is about attaining ONE target: its title names the target's
+  // period, `attainment` above reconciles against the target's period, and the
+  // gauge divides this pool by that target's gap.
+  //
+  // It shipped reading `currentPeriod(new Date())` (PR #71). Today the two
+  // agree, so nothing looked wrong - but on the first day of a new quarter, or
+  // for a workspace that commits next quarter's target early, the gauge would
+  // divide one period's pipeline by another period's gap. That is exactly the
+  // numerator/denominator mismatch TD-014 existed to remove, reached by a
+  // different route and silent about it.
+  const window =
+    deals.ok && wsTarget ? inPeriod(open, wsTarget.period) : null;
+  // NO FALLBACK TO THE UNFILTERED LIST. A target whose period this product
+  // cannot parse gets no gauge rather than a pool measured over the whole book:
+  // falling back would restore the defect and hide it behind a rendered number.
+  const quarterOpen = window ? window.kept : [];
+  const totals = window ? rollUp(quarterOpen) : null;
 
   // THE POOL IS THIS QUARTER'S TOO, and it has to be, because the gauge divides
   // it by this quarter's gap. A deal expected to land in December does not
@@ -358,9 +372,9 @@ export async function boardSections(
       // pool broken into the funnel, because 881万 of commit and 881万 of
       // early-stage pipeline are not the same 881万.
       gauge:
-        cover && cover.ratio !== null && totals?.ok
+        wsTarget && cover && cover.ratio !== null && totals?.ok
           ? {
-              label: BOARD_TEXT.poolRow,
+              label: BOARD_TEXT.poolRow(wsTarget.period),
               value: BOARD_TEXT.wan(quarterWorth),
               // Read against the resource target, not against the gap, so the
               // figure and the bar say the same thing. They are the same
