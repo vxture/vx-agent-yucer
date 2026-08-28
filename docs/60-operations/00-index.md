@@ -556,6 +556,24 @@ watch 悄悄不再应用 ignore 基线）、以及 watch 里**不得有任何 jo
 那一项点 "Check for updates",确认 job 日志里没有 `ERR_PNPM_FETCH_401`。
 **「配了应该就好了」正是这个洞活到今天的原因**——它从来不报错，它只是不产出。
 
+#### 洞二的修复是**验过**的，不是部署过的（2026-08-28）
+
+这一整轮反复出现的教训是「一个从未失败过的守卫，说不出自己能不能失败」。
+新看门狗自己也适用，所以它上线后立刻在一条一次性分支上被**故意触发**过一遍——
+把 `pnpm-lock.yaml` 里的 `deepmerge-ts` 文本改回 7.1.5（osv-scanner 只读锁文件，
+不安装，所以这就够了）。`main` 全程未受影响。
+
+| 主干状态 | run | 结果 |
+|---------|-----|------|
+| 干净 | [33148562013](https://github.com/vxture/vx-agent-yucer/actions/runs/33148562013) | 成功，不开 issue |
+| 带漏洞 | [33148627015](https://github.com/vxture/vx-agent-yucer/actions/runs/33148627015) | 失败，**开出 issue #67** |
+| 恢复干净 | [33148664485](https://github.com/vxture/vx-agent-yucer/actions/runs/33148664485) | 成功，**自动关掉 #67** |
+
+**第三行才是这次最要紧的证据。** 本条 TD 上面记的告警 #1，症结正是「能报不能撤」;
+一个只验证了报警路径的看门狗，会长成同一个形状。三行都跑过，才叫这个循环是闭的。
+
+一次性分支 `test/sca-watch-selftest` 已删除，#67 已关闭并在评论里写明它是自测。
+
 ### TD-013 - 计数指标装在货币类型里
 
 **缺陷**：`TARGET_METRICS` 有四个值——`revenue` / `new_logo` / `pipeline` /
