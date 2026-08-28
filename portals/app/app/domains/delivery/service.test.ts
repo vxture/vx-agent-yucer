@@ -5,7 +5,14 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryDeliveryStore, type InstalmentRecord, type MilestoneRecord, type ProjectRecord } from "./store";
-import { listProjects, projectView, reconcileProjectHealth, transitionInstalment, type DeliveryContext } from "./service";
+import {
+  listProjects,
+  projectView,
+  reconcileProjectHealth,
+  transitionInstalment,
+  upsertMilestone,
+  type DeliveryContext,
+} from "./service";
 
 const WS = "ws_1";
 const NOW = new Date("2026-08-15T00:00:00Z");
@@ -242,4 +249,63 @@ test("listing is gated and workspace-scoped", async () => {
   const rows = unwrap(await listProjects(ctx("delivery_manager", "starter", store)));
   assert.deepEqual(rows.map((r) => r.id), ["mine"]);
   assert.equal((await listProjects(ctx("delivery_manager", "free", store))).ok, false);
+});
+
+// --- Milestones, which nothing could write until now (TD-016) ---------------
+
+const msDraft = {
+  sequence: 1,
+  name: "Kickoff",
+  dueAt: new Date("2026-09-01T00:00:00Z"),
+  completedAt: null as Date | null,
+  status: "pending" as const,
+};
+
+test("a viewer may read a project and may not edit its plan", async () => {
+  // viewer holds delivery.read and not delivery.write, the pair that pins this
+  // to the WRITE action rather than to any delivery access.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const r = await upsertMilestone(ctx("viewer", "starter", store), "prj_1", msDraft);
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+});
+
+test("a milestone cannot be hung off a project in another workspace", async () => {
+  // The upsert key is (project, sequence) and carries no workspace of its own,
+  // so this read is what keeps the write inside the tenant. Without it the
+  // sequence collision alone would decide which row got edited.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project({ workspaceId: "ws_other" })] });
+  const r = await upsertMilestone(ctx("delivery_manager", "starter", store), "prj_1", msDraft);
+  assert.equal(r.ok === false && r.violations[0]!.code, "not_found");
+});
+
+test("the same sequence EDITS that step rather than adding a second one", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const c = ctx("delivery_manager", "starter", store);
+  const first = unwrap(await upsertMilestone(c, "prj_1", msDraft));
+  const again = unwrap(await upsertMilestone(c, "prj_1", { ...msDraft, name: "Kickoff (moved)" }));
+
+  assert.equal(again.id, first.id, "sequence is the identity");
+  assert.equal(again.name, "Kickoff (moved)");
+  assert.equal((await store.listMilestones(WS, "prj_1")).length, 1);
+});
+
+test("a missed milestone overrides the manager's reported green", async () => {
+  // The reason this panel is not bookkeeping. deriveProjectHealth reads
+  // milestone status, and this is the only place in the product that
+  // contradicts what a person reported.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project({ health: "green" })] });
+  const c = ctx("delivery_manager", "starter", store);
+
+  const before = unwrap(await projectView(c, "prj_1"));
+  assert.equal(before.derivedHealth, "green");
+
+  unwrap(await upsertMilestone(c, "prj_1", { ...msDraft, status: "missed" }));
+
+  const after = unwrap(await projectView(c, "prj_1"));
+  assert.notEqual(after.derivedHealth, "green", "the plan changed the verdict");
+  assert.match(after.healthOverriddenBecause ?? "", /missed/);
 });

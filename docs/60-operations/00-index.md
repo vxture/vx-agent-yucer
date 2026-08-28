@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 2，余 8） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 3，余 6 + 1 待裁定） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -835,6 +835,31 @@ PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts`
 
 其余四个 Prisma 适配器仍然没有测试（46%–58%），注入点的形状现在是现成的。
 
-余下八条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
-`campaign.execution.upsert`、`account.offering.view` / `.upsert`、
-`delivery.milestone.upsert`、`delivery.task.upsert`。
+**已还第四笔 2026-08-28**：`delivery.milestone.upsert`。端口有 `listMilestones` 没有写，
+而 `projectView` 一直把里程碑取回来、**没有任何东西渲染它们**——和 6a-3b 之前的分期回款
+同一形状。所以交付计划此前只能是 db-init 放进去的样子。
+
+**它不是记账**：`deriveProjectHealth` 读里程碑状态，**一个「已错过」会推翻项目经理上报的
+绿色**，而「已完成」的条数就是进度数字。这是产品里唯一会当面反驳一个人上报结论的地方，
+而它的输入没人能写。
+
+按 (项目, 序号) upsert——`sequence` 在项目内唯一且无 UPDATE 授权，是锚，与区域代码同型。
+顺带把 `MilestoneStatus` 从手写联合类型改成从数组派生（`MILESTONE_STATUSES`），与
+`REVENUE_STATUSES` / `STAGES` 一致：手写的数组和手写的联合是两份会漂移的清单。
+
+新增一条 DDL 管不到的规则：**`done` 与 `completed_at` 必须双向一致**。健康规则只读
+`status`，所以没有这条就会出现「标了完成、却答不出何时完成」的里程碑；「已错过」同样不
+能带完成时间——那是它没有发生的陈述，而它正是推翻绿色的那个值。
+
+### `delivery.task.upsert` 不属于这笔债 —— 待产品裁定
+
+查证时发现它和其余几条**不是同一形状**。`project_task` 有表、有列锁、有这个 action，
+**其余什么都没有**：没有记录类型、没有端口方法、没有读、没有界面、连一行 demo 数据都没有。
+不是「中间缺一段」，是**只有两头**。
+
+建它等于设计一个新功能——任务是干什么的、谁指派、和里程碑什么关系——那是产品裁定，不是
+还债。已在 `gated.test.ts` 的白名单里按这个理由单独标注，等 owner 决定：**建，还是把
+action 和表一起删掉。**
+
+余下六条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
+`campaign.execution.upsert`、`account.offering.view` / `.upsert`。

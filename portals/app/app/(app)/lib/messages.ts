@@ -1535,6 +1535,29 @@ export const DELIVERY_TEXT = {
   settleAsk: "实际收到多少？短收是常态，写实收才有意义",
   moveTo: "变更为",
   moved: (s: string) => `已变更为 ${s}`,
+  milestonesTitle: "交付计划",
+  milestonesWhy:
+    "项目按什么节点交付。里程碑一直被读出来却没有地方显示，也没有地方写——所以交付计划此前只能是 db-init 放进去的样子。",
+  milestonesNone: "还没有里程碑",
+  milestonesNoneWhy: "先把节点排出来，上面那张表的健康度才有据可依。",
+  milestoneProject: "项目",
+  milestonePickProject: "选择项目",
+  milestoneSequence: "序号",
+  milestoneName: "节点名称",
+  milestoneDue: "计划完成",
+  milestoneCompleted: "实际完成",
+  milestoneStatus: "状态",
+  milestoneStatusLabel: {
+    pending: "未开始",
+    in_progress: "进行中",
+    done: "已完成",
+    missed: "已错过",
+  } as Record<string, string>,
+  milestoneSave: "保存里程碑",
+  milestoneSaved: "已保存",
+  milestonesDenied: "你没有维护交付计划的权限",
+  milestoneAffectsHealth:
+    "序号在一个项目内唯一且不可改，它就是这个节点的身份——同一序号再存一次是修改那一条。一个「已错过」的里程碑会推翻上面表里项目经理上报的绿色。",
   moveDenied: "你没有修改回款的权限",
 } as const;
 
@@ -1866,6 +1889,18 @@ export const CONTACT_ERROR: Record<string, string> = {
   unknown_status: "未知的联系人状态",
   influence_range: "影响力是 0 到 100 之间的整数",
   not_found: "这个联系人不在该客户名下",
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有执行这个操作的权限",
+  feature_not_in_tier: "当前档位不含这个能力",
+};
+
+export const MILESTONE_ERROR: Record<string, string> = {
+  name_required: "里程碑需要一个名称",
+  sequence_invalid: "序号是从零开始的整数",
+  unknown_status: "未知的里程碑状态",
+  done_needs_completion: "标记为已完成的里程碑必须写明何时完成",
+  completion_needs_done: "实际完成时间只属于已完成的里程碑——错过的那个并没有发生",
+  not_found: "项目不存在，或不属于当前工作区",
   not_authenticated: "登录状态已失效，请重新登录",
   permission_denied: "你没有执行这个操作的权限",
   feature_not_in_tier: "当前档位不含这个能力",

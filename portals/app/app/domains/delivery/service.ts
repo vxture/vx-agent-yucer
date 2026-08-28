@@ -6,6 +6,7 @@
 // engagement stays green until it is a crisis. projectView() therefore always
 // returns the DERIVED health, and says when it downgraded a report and why.
 
+import { planMilestone, type MilestoneDraft } from "./lib/milestone";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
@@ -120,6 +121,45 @@ export async function projectView(
  * delivery manager who may edit milestones does not automatically get to mark an
  * invoice settled.
  */
+/**
+ * Create or edit a milestone on a project.
+ *
+ * `delivery.milestone.upsert` shipped in batch 1 with nothing behind it
+ * (TD-016). The port had `listMilestones` and no write, so a delivery plan
+ * could only ever be what db-init put there - and `projectView` already
+ * returned the milestones while nothing rendered them, the same shape the
+ * instalments were in before 6a-3b.
+ *
+ * IT DECIDES A VERDICT ON THE PAGE. `deriveProjectHealth` reads milestone
+ * status: one `missed` milestone overrides a manager's reported green, and the
+ * done count is the progress figure. So this is not bookkeeping - it is the
+ * input to the only place the product contradicts what a person reported.
+ *
+ * By (project, sequence), because `sequence` is unique per project and carries
+ * no UPDATE grant: it is the anchor, and re-importing a plan updates it rather
+ * than producing a second copy of every step.
+ */
+export async function upsertMilestone(
+  ctx: DeliveryContext,
+  projectId: string,
+  input: MilestoneDraft,
+): Promise<RuleResult<MilestoneRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.milestone.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  // The project must exist and belong to this workspace before a milestone can
+  // hang off it. The FK would catch a bad id, but as a constraint name - and
+  // the milestone table has no workspace predicate of its own in the upsert
+  // key, so this read is what keeps the write inside the tenant.
+  const project = await ctx.store.getProject(ctx.workspaceId, projectId);
+  if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
+
+  const plan = planMilestone(input);
+  if (!plan.ok) return plan as RuleResult<MilestoneRecord>;
+
+  return ok(await ctx.store.upsertMilestone(ctx.workspaceId, projectId, plan.value));
+}
+
 export async function transitionInstalment(
   ctx: DeliveryContext,
   input: { projectId: string; instalmentId: string; to: RevenueStatus; actualAmount?: Money; at?: Date },

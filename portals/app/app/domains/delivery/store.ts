@@ -12,6 +12,7 @@
 //     silently receiving a different colour than the delivery team submitted.
 
 import type { Money } from "../shared/money";
+import type { MilestoneDraft } from "./lib/milestone";
 import type {
   MilestoneStatus,
   ProjectHealth,
@@ -67,6 +68,19 @@ export interface DeliveryStore {
   ): Promise<boolean>;
 
   listMilestones(workspaceId: string, projectId: string): Promise<MilestoneRecord[]>;
+  /**
+   * Create a milestone, or edit the one at that sequence.
+   *
+   * UPSERT BY (project, sequence). `sequence` is UNIQUE per project in the DDL
+   * and carries no UPDATE grant, so it is the anchor - the same shape as a
+   * territory code or a product code. Re-importing a delivery plan updates it
+   * rather than producing a second copy of every step.
+   */
+  upsertMilestone(
+    workspaceId: string,
+    projectId: string,
+    input: MilestoneDraft,
+  ): Promise<MilestoneRecord>;
   listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]>;
 
   /** Whitelisted columns only; `sequence` is deliberately not among them. */
@@ -80,6 +94,7 @@ export interface DeliveryStore {
 export class InMemoryDeliveryStore implements DeliveryStore {
   private projects = new Map<string, ProjectRecord>();
   private milestones: Array<MilestoneRecord & { workspaceId: string }> = [];
+  private seq = 0;
   private instalments: Array<InstalmentRecord & { workspaceId: string }> = [];
 
   seed(input: {
@@ -114,6 +129,29 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     if (!p || p.workspaceId !== workspaceId) return false;
     Object.assign(p, patch);
     return true;
+  }
+
+  async upsertMilestone(
+    workspaceId: string,
+    projectId: string,
+    input: MilestoneDraft,
+  ): Promise<MilestoneRecord> {
+    const held = this.milestones.find(
+      (m) =>
+        m.workspaceId === workspaceId &&
+        m.projectId === projectId &&
+        m.sequence === input.sequence,
+    );
+    if (held) {
+      held.name = input.name;
+      held.dueAt = input.dueAt;
+      held.completedAt = input.completedAt;
+      held.status = input.status;
+      return held;
+    }
+    const created = { ...input, id: `ms_${++this.seq}`, projectId, workspaceId };
+    this.milestones.push(created);
+    return created;
   }
 
   async listMilestones(workspaceId: string, projectId: string): Promise<MilestoneRecord[]> {

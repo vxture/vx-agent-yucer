@@ -391,6 +391,18 @@ export const en: Dictionary = {
     feature_not_in_tier: "Your tier does not include this capability",
   },
 
+  MILESTONE_ERROR: {
+    name_required: "A milestone needs a name",
+    sequence_invalid: "Sequence is a whole number from zero",
+    unknown_status: "Unknown milestone status",
+    done_needs_completion: "A milestone marked done must say when it was done",
+    completion_needs_done: "A completion time belongs to a milestone that is done - a missed one did not happen",
+    not_found: "No such project, or it belongs to another workspace",
+    not_authenticated: "Your session has expired - please sign in again",
+    permission_denied: "You cannot perform this action",
+    feature_not_in_tier: "Your tier does not include this capability",
+  },
+
   CONTACT_ERROR: {
     name_required: "A contact needs a name",
     unknown_decision_role: "Unknown decision role",
@@ -1115,6 +1127,29 @@ export const en: Dictionary = {
     settleAsk: "How much actually arrived? Short payment is normal - the received amount is the point",
     moveTo: "Move to",
     moved: (s: string) => `Moved to ${s}`,
+    milestonesTitle: "Delivery plan",
+    milestonesWhy:
+      "The milestones a project is delivered against. They were always read and never rendered, and never writable - so a delivery plan could only be whatever db-init put there.",
+    milestonesNone: "No milestones yet",
+    milestonesNoneWhy: "Lay out the steps - the health verdict in the table above reads them.",
+    milestoneProject: "Project",
+    milestonePickProject: "Pick a project",
+    milestoneSequence: "Sequence",
+    milestoneName: "Milestone",
+    milestoneDue: "Due",
+    milestoneCompleted: "Completed",
+    milestoneStatus: "Status",
+    milestoneStatusLabel: {
+      pending: "Pending",
+      in_progress: "In progress",
+      done: "Done",
+      missed: "Missed",
+    } as Record<string, string>,
+    milestoneSave: "Save milestone",
+    milestoneSaved: "Saved",
+    milestonesDenied: "You cannot maintain the delivery plan",
+    milestoneAffectsHealth:
+      "Sequence is unique within a project and cannot be changed - it IS the milestone's identity, so saving the same sequence again edits that one. A missed milestone overrides the manager's reported green in the table above.",
     moveDenied: "You cannot change collections",
     reconcile: "Recompute health",
     reconcileHint:
