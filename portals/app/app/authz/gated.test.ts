@@ -17,7 +17,7 @@ import { join } from "node:path";
 // the product could create, and since a territory-scoped target needs a
 // territory_id, it could not set a regional target either.
 //
-// Six more are in the same state (TD-016), and one was deleted rather than
+// Four more are in the same state (TD-016), and one was deleted rather than
 // built: see ADR-022 on project_task. None of them is the OTHER shape -
 // a surface that writes without a gate - which was checked at the same time and
 // is the reassuring half of the finding.
@@ -84,7 +84,6 @@ const KNOWN_UNGATED: Record<string, string> = {
   "copilot.autopilot.enable": "agent plane not connected",
   "copilot.playbook.upsert": "playbooks are read-only until the agent plane lands",
   // Declared ahead of a verb nobody has written. TD-016.
-  "strategy.plan.create": "plans can be transitioned but not created; no verb, no form - TD-016",
   "strategy.segment.view": "细分市场 is a planned module; no segment table, no service - TD-016",
   "strategy.segment.upsert": "same as strategy.segment.view - TD-016",
   "campaign.execution.upsert": "executions are seeded and read, never written - TD-016",

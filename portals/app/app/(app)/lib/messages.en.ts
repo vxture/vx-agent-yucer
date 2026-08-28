@@ -398,6 +398,14 @@ export const en: Dictionary = {
     parent_cycle: "A territory cannot report to itself, directly or through a chain",
   },
 
+  PLAN_ERROR: {
+    ...GATE_ERROR,
+    plan_no_required: "A plan needs a number",
+    name_required: "A plan needs a name",
+    period_required: "A plan needs a period",
+    plan_no_taken: "That number is already taken",
+  },
+
   MILESTONE_ERROR: {
     ...GATE_ERROR,
     name_required: "A milestone needs a name",
@@ -1350,6 +1358,18 @@ export const en: Dictionary = {
   // --- /strategy ----------------------------------------------------------
 
   STRATEGY_TEXT: {
+    newPlanTitle: "New plan",
+    newPlanWhy:
+      "A plan is where the chain starts - targets and campaigns hang off one. Until now a plan could be moved through its lifecycle and not created.",
+    newPlanNo: "Plan number",
+    newPlanName: "Name",
+    newPlanPeriod: "Period",
+    newPlanOwner: "Owner",
+    newPlanObjective: "Objective",
+    newPlanSave: "Create plan",
+    newPlanSaved: "Created",
+    newPlanAnchor:
+      "The number is unique per workspace and cannot be changed after creation - it IS the plan's identity. A new plan is always a draft; approval and every later move belong to the table below, which is what stamps the approval time.",
     title: "Market strategy",
     description:
       "Strategy is where the chain starts: campaigns, leads and opportunities downstream can all point back to it.",

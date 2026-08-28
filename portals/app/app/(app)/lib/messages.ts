@@ -1712,6 +1712,18 @@ export const TARGET_STATUS_LABEL: Record<string, string> = {
 };
 
 export const STRATEGY_TEXT = {
+  newPlanTitle: "新建战略计划",
+  newPlanWhy:
+    "计划是全链路的起点——目标和战役都挂在它下面。此前只能推进计划的状态，不能新建一个。",
+  newPlanNo: "计划编号",
+  newPlanName: "名称",
+  newPlanPeriod: "周期",
+  newPlanOwner: "负责人",
+  newPlanObjective: "目标陈述",
+  newPlanSave: "建立计划",
+  newPlanSaved: "已建立",
+  newPlanAnchor:
+    "编号在工作区内唯一且创建后不可修改——它是这个计划的身份。新计划一律是草稿，审批等状态变更由下面的表负责，审批时间戳只有那条路径会写。",
   title: "市场战略",
   description: "战略是全链路的起点：下游的战役、线索、商机都能回指到它。",
   // The headline. This page's claim is TRACEABILITY, and a list of two rows
@@ -1899,6 +1911,14 @@ export const CONTACT_ERROR: Record<string, string> = {
   unknown_status: "未知的联系人状态",
   influence_range: "影响力是 0 到 100 之间的整数",
   not_found: "这个联系人不在该客户名下",
+};
+
+export const PLAN_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  plan_no_required: "计划需要一个编号",
+  name_required: "计划需要一个名称",
+  period_required: "计划需要一个周期",
+  plan_no_taken: "这个编号已经被占用了",
 };
 
 export const MILESTONE_ERROR: Record<string, string> = {
