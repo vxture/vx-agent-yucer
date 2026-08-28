@@ -1171,12 +1171,12 @@ export const en: Dictionary = {
     countUnit: (n: string) => `${n} customers`,
     gapLabel: {
       no_snapshot: "No snapshot",
-      no_cost_data: "Not measurable",
+      no_cost_data: "Needs cost data",
       not_counted: "Not counted",
     } as Record<string, string>,
     gapHint: {
       no_snapshot: "No forecast snapshot has been submitted for this scope this period - that is not 0% attained",
-      no_cost_data: "This product holds no cost data, so margin cannot be computed. Not a missed period - an unmeasurable metric",
+      no_cost_data: "Margin needs cost, and cost is not in the model yet. Not a missed period, and not a metric that cannot be computed - supply cost and it can be",
       not_counted: "This snapshot carries no new-logo count - it predates the field, or its period label could not be parsed into dates",
     } as Record<string, string>,
     setSubmit: "Create target",

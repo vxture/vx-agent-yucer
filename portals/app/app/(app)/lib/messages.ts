@@ -1572,12 +1572,12 @@ export const PLANNING_TEXT = {
   // different things for the reader to do about them.
   gapLabel: {
     no_snapshot: "尚无快照",
-    no_cost_data: "不可测",
+    no_cost_data: "需补充成本",
     not_counted: "未统计",
   } as Record<string, string>,
   gapHint: {
     no_snapshot: "这个作用域本期还没有提交预测快照——那不是达成 0%",
-    no_cost_data: "产品里没有任何成本数据，毛利算不出来。这不是本期没达成，是这个指标目前无法度量",
+    no_cost_data: "毛利需要成本，而成本目前还没有进入模型。这不是本期没达成，也不是这个指标算不了——补上成本它就能算",
     not_counted: "这条快照没有新客计数——它早于该字段，或者它的周期标签无法解析成日期",
   } as Record<string, string>,
   setSubmit: "建立目标",
