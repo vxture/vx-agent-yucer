@@ -241,30 +241,47 @@ export const CATALOG_TEXT = {
   writeDenied: "你没有维护目录的权限",
 } as const;
 
+/**
+ * The three codes that come from the GATE rather than from any domain.
+ *
+ * `can()` produces exactly these, so every domain dictionary carried its own
+ * copy - eight, ten and five copies of one sentence each. A wording change had
+ * to be made in every one of them, and SonarCloud flagged the block as
+ * duplication once a twelfth dictionary arrived.
+ *
+ * Spread FIRST in each dictionary, so a domain that has something more specific
+ * to say - "you cannot record follow-ups", "you cannot edit the relationship
+ * graph" - still overrides it. The shared default is the floor, not a ceiling.
+ */
+const GATE_ERROR = {
+  not_authenticated: "登录状态已失效，请重新登录",
+  permission_denied: "你没有执行这个操作的权限",
+  feature_not_in_tier: "当前档位不含这个能力",
+} as const;
+
 export const REVENUE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   actual_amount_required: "标记为已回款必须写明实际收到多少",
   amount_negative: "金额不能为负",
   currency_mismatch: "币种与计划不一致",
   illegal_transition: "当前状态不能这样变更",
   unknown_status: "未知状态",
   not_found: "记录不存在，或不属于当前工作区",
-  permission_denied: "你没有执行这个操作的权限",
-  not_authenticated: "登录状态已失效，请重新登录",
   denied: "操作被拒绝",
 };
 
 export const ACCOUNT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   plan_required: "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
   period_required: "计划必须写明周期",
   cadence_positive: "零天的节奏不是节奏",
   unknown_tier: "未知的客户分级",
   not_found: "客户不存在，或不属于当前工作区",
-  permission_denied: "你没有执行这个操作的权限",
-  not_authenticated: "登录状态已失效，请重新登录",
   denied: "操作被拒绝",
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   code_required: "需要填写编码",
   name_required: "需要填写名称",
   unit_required: "需要填写单位——没有单位的数量说不出卖的是什么",
@@ -275,8 +292,6 @@ export const CATALOG_ERROR: Record<string, string> = {
   currency_required: "需要币种",
   amount_negative: "价格不能为负",
   floor_above_list: "底价高于标价会让每一笔都需要签字，等于没有底价",
-  permission_denied: "你没有执行这个操作的权限",
-  not_authenticated: "登录状态已失效，请重新登录",
   denied: "操作被拒绝",
 };
 
@@ -310,11 +325,11 @@ export const MEMBER_TEXT = {
 } as const;
 
 export const MEMBER_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   last_admin: "这是工作区最后一位管理员；移除后将无人能再分配角色",
   unknown_role: "角色不在目录中",
   sub_required: "请选择成员",
   not_found: "该成员不属于当前工作区",
-  not_authenticated: "登录状态已失效，请重新登录",
   permission_denied: "你没有管理成员角色的权限",
   no_data_access: "当前工作区无权访问",
 };
@@ -827,14 +842,12 @@ export const LIFECYCLE_TEXT = {
 } as const;
 
 export const LIFECYCLE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   illegal_transition: "当前状态不能直接变更为该状态",
   unknown_status: "未知状态",
   executions_outstanding: "还有未完成的执行项；先完成或跳过它们再结束战役",
   invalid_window: "战役的起止时间不合法",
   not_found: "记录不存在，或不属于当前工作区",
-  not_authenticated: "登录状态已失效，请重新登录",
-  permission_denied: "你没有执行这个操作的权限",
-  feature_not_in_tier: "当前档位不含这个能力",
   no_data_access: "当前工作区无权访问",
 };
 
@@ -987,9 +1000,9 @@ export const RELATION_TEXT = {
 } as const;
 
 export const RELATION_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   self_relation: "同一个人不能和自己建立关系",
   unknown_relation_type: "未知的关系类型",
-  not_authenticated: "登录状态已失效，请重新登录",
   permission_denied: "你没有编辑关系图的权限",
   feature_not_in_tier: "当前档位不含关系图能力",
   no_data_access: "当前工作区无权访问",
@@ -1086,25 +1099,21 @@ export const OPPORTUNITY_TEXT = {
 } as const;
 
 export const TERRITORY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   code_required: "区域代码不能为空",
   name_required: "区域名称不能为空",
   unknown_status: "未知的区域状态",
   parent_not_found: "上级区域不存在",
   parent_cycle: "区域不能直接或间接地成为自己的上级",
-  not_authenticated: "登录状态已失效，请重新登录",
-  permission_denied: "你没有执行这个操作的权限",
-  feature_not_in_tier: "当前档位不含这个能力",
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   stage_unchanged: "已经在这个阶段了，不会记录空变更",
   terminal_stage: "商机已关闭；重开需要显式确认",
   reason_required: "这次变更必须写明理由",
   unknown_stage: "未知阶段",
   not_found: "商机不存在，或不属于当前工作区",
-  not_authenticated: "登录状态已失效，请重新登录",
-  permission_denied: "你没有执行这个操作的权限",
-  feature_not_in_tier: "当前档位不含这个能力",
   probability_range: "赢率必须是 0 到 100 之间的整数",
   terminal_probability_fixed: "已关闭的商机赢率固定，不能修改",
   amount_negative: "金额不能为负",
@@ -1535,6 +1544,29 @@ export const DELIVERY_TEXT = {
   settleAsk: "实际收到多少？短收是常态，写实收才有意义",
   moveTo: "变更为",
   moved: (s: string) => `已变更为 ${s}`,
+  milestonesTitle: "交付计划",
+  milestonesWhy:
+    "项目按什么节点交付。里程碑一直被读出来却没有地方显示，也没有地方写——所以交付计划此前只能是 db-init 放进去的样子。",
+  milestonesNone: "还没有里程碑",
+  milestonesNoneWhy: "先把节点排出来，上面那张表的健康度才有据可依。",
+  milestoneProject: "项目",
+  milestonePickProject: "选择项目",
+  milestoneSequence: "序号",
+  milestoneName: "节点名称",
+  milestoneDue: "计划完成",
+  milestoneCompleted: "实际完成",
+  milestoneStatus: "状态",
+  milestoneStatusLabel: {
+    pending: "未开始",
+    in_progress: "进行中",
+    done: "已完成",
+    missed: "已错过",
+  } as Record<string, string>,
+  milestoneSave: "保存里程碑",
+  milestoneSaved: "已保存",
+  milestonesDenied: "你没有维护交付计划的权限",
+  milestoneAffectsHealth:
+    "序号在一个项目内唯一且不可改，它就是这个节点的身份——同一序号再存一次是修改那一条。一个「已错过」的里程碑会推翻上面表里项目经理上报的绿色。",
   moveDenied: "你没有修改回款的权限",
 } as const;
 
@@ -1861,14 +1893,22 @@ export const CHAIN_TEXT = {
 } as const;
 
 export const CONTACT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   name_required: "联系人需要一个姓名",
   unknown_decision_role: "未知的决策角色",
   unknown_status: "未知的联系人状态",
   influence_range: "影响力是 0 到 100 之间的整数",
   not_found: "这个联系人不在该客户名下",
-  not_authenticated: "登录状态已失效，请重新登录",
-  permission_denied: "你没有执行这个操作的权限",
-  feature_not_in_tier: "当前档位不含这个能力",
+};
+
+export const MILESTONE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  name_required: "里程碑需要一个名称",
+  sequence_invalid: "序号是从零开始的整数",
+  unknown_status: "未知的里程碑状态",
+  done_needs_completion: "标记为已完成的里程碑必须写明何时完成",
+  completion_needs_done: "实际完成时间只属于已完成的里程碑——错过的那个并没有发生",
+  not_found: "项目不存在，或不属于当前工作区",
 };
 
 export const DECISION_ROLE_LABEL: Record<string, string> = {

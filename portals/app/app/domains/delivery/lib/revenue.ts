@@ -17,7 +17,15 @@ export const REVENUE_STATUSES = ["planned", "invoiced", "settled", "overdue", "w
 export type RevenueStatus = (typeof REVENUE_STATUSES)[number];
 
 export type ProjectHealth = "green" | "amber" | "red";
-export type MilestoneStatus = "pending" | "in_progress" | "done" | "missed";
+
+/**
+ * Mirrors chk_project_milestone_status. An ARRAY with the type derived from it,
+ * like REVENUE_STATUSES above and STAGES in the pipeline: a hand-written union
+ * beside a hand-written array is two lists that drift, and the surface offering
+ * a status the CHECK refuses is how that drift is discovered.
+ */
+export const MILESTONE_STATUSES = ["pending", "in_progress", "done", "missed"] as const;
+export type MilestoneStatus = (typeof MILESTONE_STATUSES)[number];
 
 /**
  * planned -> invoiced -> settled is the happy path. `overdue` is a state a

@@ -6,6 +6,7 @@ import { getDeliveryStore } from "../../domains/shared/registry";
 import {
   reconcileProjectHealth,
   transitionInstalment,
+  upsertMilestone,
 } from "../../domains/delivery/service";
 import { money } from "../../domains/shared/money";
 import {
@@ -117,4 +118,59 @@ export async function moveInstalment(input: {
   }
   revalidatePath("/delivery");
   return { ok: true, status: result.value.status };
+}
+
+/**
+ * Creating or editing a milestone.
+ *
+ * Dates arrive as `yyyy-mm-dd` from two <input type="date"> and are parsed
+ * HERE: a Date crossing a server-action boundary is serialised and revived, and
+ * a bad string should be refused on the server where the rule lives rather than
+ * silently becoming an Invalid Date the health rule then reads.
+ */
+export async function saveMilestone(
+  projectId: string,
+  input: {
+    sequence: number;
+    name: string;
+    dueAt: string | null;
+    completedAt: string | null;
+    status: string;
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const day = (v: string | null): Date | null | "bad" => {
+    if (!v) return null;
+    const d = new Date(`${v}T00:00:00Z`);
+    return Number.isNaN(d.getTime()) ? "bad" : d;
+  };
+  const dueAt = day(input.dueAt);
+  const completedAt = day(input.completedAt);
+  if (dueAt === "bad" || completedAt === "bad") return { ok: false, error: "invalid_date" };
+
+  const result = await upsertMilestone(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getDeliveryStore(),
+    },
+    projectId,
+    {
+      sequence: input.sequence,
+      name: input.name,
+      dueAt,
+      completedAt,
+      status: input.status as never,
+    },
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath("/delivery");
+  return { ok: true };
 }

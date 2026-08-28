@@ -12,8 +12,8 @@ import {
   CollectionsPanel,
   type CollectionRow,
 } from "../components/collections-panel";
-import { moveInstalment } from "./actions";
-import { reconcileHealth } from "./actions";
+import { MilestonePanel, type MilestoneRow } from "../components/milestone-panel";
+import { moveInstalment, reconcileHealth, saveMilestone } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -77,9 +77,25 @@ export default async function DeliveryPage() {
   // because both come out of one projectView call. Fetching them separately
   // would double the per-project round trips to render one more section.
   const collections: CollectionRow[] = [];
+  // Gathered in the SAME loop, from the same projectView call the health row
+  // and the collections already come out of. `projectView` has always returned
+  // the milestones; until now nothing read them off it.
+  const milestones: MilestoneRow[] = [];
   for (const p of projects.value) {
     const view = await projectView(ctx, p.id);
     if (view.ok) {
+      for (const m of view.value.milestones) {
+        milestones.push({
+          id: m.id,
+          projectId: p.id,
+          projectName: p.name,
+          sequence: m.sequence,
+          name: m.name,
+          status: m.status,
+          dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
+          completedAt: m.completedAt ? m.completedAt.toISOString().slice(0, 10) : null,
+        });
+      }
       for (const inst of view.value.instalments) {
         collections.push({
           id: inst.id,
@@ -174,6 +190,23 @@ export default async function DeliveryPage() {
           page for and its instalments are what that project owes. Putting the
           money first would make the page a ledger; putting it second makes it
           the answer to "and has it been paid". */}
+      {/* ABOVE the collections, because a milestone is what an instalment is
+          usually tied to - the money follows the plan, and reading them the
+          other way round puts the consequence before the cause. */}
+      <MilestonePanel
+        rows={milestones}
+        projects={projects.ok ? projects.value.map((p) => ({ id: p.id, name: p.name })) : []}
+        canEdit={
+          can(
+            session.authz,
+            session.entitlement,
+            "delivery.milestone.upsert",
+            "ui",
+          ).allowed
+        }
+        onSave={saveMilestone}
+      />
+
       <CollectionsPanel
         rows={collections}
         overdue={overdueInstalments}

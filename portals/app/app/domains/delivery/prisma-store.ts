@@ -2,6 +2,7 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
+import type { MilestoneDraft } from "./lib/milestone";
 import type {
   DeliveryStore,
   InstalmentRecord,
@@ -19,6 +20,7 @@ import type {
 // signatures make it unexpressible in the first place.
 
 const PROJECT_TABLE = "yucer_delivery.project";
+const MILESTONE_TABLE = "yucer_delivery.project_milestone";
 const REVENUE_TABLE = "yucer_delivery.revenue_schedule";
 
 /** NUMERIC arrives as a Decimal; parsing from its string form keeps precision. */
@@ -81,15 +83,37 @@ export class PrismaDeliveryStore implements DeliveryStore {
       where: { workspaceId, projectId },
       orderBy: { sequence: "asc" },
     });
-    return rows.map((r: Record<string, unknown>) => ({
-      id: String(r.id),
-      projectId: String(r.projectId),
-      name: String(r.name),
-      sequence: Number(r.sequence),
-      status: r.status as MilestoneStatus,
-      dueAt: (r.dueAt as Date | null) ?? null,
-      completedAt: (r.completedAt as Date | null) ?? null,
-    }));
+    return rows.map((r: Record<string, unknown>) => toMilestone(r));
+  }
+
+  async upsertMilestone(
+    workspaceId: string,
+    projectId: string,
+    input: MilestoneDraft,
+  ): Promise<MilestoneRecord> {
+    const p = await getPrismaClient();
+    const writable = {
+      name: input.name,
+      dueAt: input.dueAt,
+      completedAt: input.completedAt,
+      status: input.status,
+      updatedAt: new Date(),
+    };
+    // The update half only. `sequence` is the anchor and carries no UPDATE
+    // grant, which is exactly what the mirror is checking here.
+    const guard = assertWritable(MILESTONE_TABLE, writable);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked milestone column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    const row = await p.projectMilestone.upsert({
+      where: { projectId_sequence: { projectId, sequence: input.sequence } },
+      update: writable,
+      create: { workspaceId, projectId, sequence: input.sequence, ...writable },
+    });
+    return toMilestone(row as Record<string, unknown>);
   }
 
   async listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]> {
@@ -154,5 +178,17 @@ function toProject(r: Record<string, unknown>): ProjectRecord {
     health: r.health as ProjectHealth,
     status: String(r.status),
     currency,
+  };
+}
+
+function toMilestone(r: Record<string, unknown>): MilestoneRecord {
+  return {
+    id: String(r.id),
+    projectId: String(r.projectId),
+    name: String(r.name),
+    sequence: Number(r.sequence),
+    status: r.status as MilestoneStatus,
+    dueAt: (r.dueAt as Date | null) ?? null,
+    completedAt: (r.completedAt as Date | null) ?? null,
   };
 }
