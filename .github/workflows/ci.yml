@@ -195,8 +195,85 @@ jobs:
           # "all" - every org repo's Actions can read it).
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
+      # `tee` with pipefail, so a failing suite still fails the job. Without
+      # pipefail the pipeline's exit code is tee's, and a red suite would report
+      # green - the one way this required check could lie.
       - name: Run tests
-        run: pnpm --filter @yucer/app test
+        run: |
+          set -o pipefail
+          pnpm --filter @yucer/app test:lcov | tee "$RUNNER_TEMP/test.log"
+
+      # Node writes SF: paths relative to ITS cwd; the scanner resolves them
+      # against the repo root. The script also refuses to write a report whose
+      # paths do not exist - a report the scanner cannot match comes back as a
+      # number rather than a gap, which is where TD-015 started.
+      - name: Make coverage paths repo-root relative
+        run: node scripts/ci/lcov-to-repo-root.mjs portals/app/coverage/lcov.info portals/app
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: portals/app/coverage/lcov.info
+          retention-days: 7
+
+      # The coverage figure exists on every run and, until now, was thrown away:
+      # it lived in the log and nowhere else, so nobody could see it without
+      # opening the job and scrolling. Lifting it into the run summary costs one
+      # step and makes the number a thing people notice moving.
+      #
+      # NOT A GATE. No threshold is enforced here - picking one is an owner
+      # decision, and a threshold added quietly is a threshold nobody agreed to.
+      # See TD-015 for why SonarCloud reports 0.0% while this reports ~91%.
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "### Test coverage"
+            echo
+            echo '```'
+            # Strips node's leading marker glyph and its space. `[^ ]* ` and
+            # not `....` : the glyph is multibyte, and `.` counts bytes under a
+            # C locale and characters under a UTF-8 one, so a fixed width is
+            # right on one runner and eats two columns of the table on another.
+            sed -n '/start of coverage report/,/end of coverage report/p' \
+              "$RUNNER_TEMP/test.log" | sed 's/^[^ ]* //'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # -- SonarCloud (NOT a required check): static analysis plus the coverage
+  # figure the project reported as 0.0% until 2026-08-28 (TD-015).
+  #
+  # ITS OWN JOB, not a step inside test-coverage, and deliberately so:
+  # test-coverage IS one of the required five, and folding a third-party service
+  # into it would let a SonarCloud outage block every merge. `db-contract` is
+  # kept out of the required set for the same reason.
+  #
+  # This replaces Automatic Analysis, which cannot read coverage at all - the
+  # two modes are mutually exclusive and Automatic Analysis must stay off.
+  sonar:
+    name: sonar
+    needs: test-coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Full history: new-code detection and blame both need it, and a
+          # shallow clone makes every line look like it was written today.
+          fetch-depth: 0
+
+      - name: Download coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage
+          path: coverage
+
+      - name: Scan
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # -- DB contract (NOT a required check): the DDL against a real Postgres.
   #

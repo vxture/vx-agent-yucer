@@ -24,6 +24,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
+| TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -682,3 +683,73 @@ watch 悄悄不再应用 ignore 基线）、以及 watch 里**不得有任何 jo
 都是在没人读它们的时候定的，过滤上线后三条管道类商机全在 Q4，管道数据块与管道指标会
 永远显示零、无从演示。只移了一条；另外两条留在 Q4 并被可见地排除——那正是这次改动
 要展示的行为。
+
+### TD-015 - 覆盖率这道门结构性地不可能工作
+
+**表现**：每个 PR 的 SonarCloud 摘要都写着 `0.0% Coverage on New Code`。仓里有 1048 条
+测试，实测覆盖率是**行 91.41% / 分支 87.40% / 函数 79.58%**。
+
+**不是「少传了一个 lcov」**，而这正是这条值得写下来的原因——那个显然的修法是错的，会白
+花一天。
+
+`ci.yml` 与整个仓里**没有任何 sonar 配置**（无 `sonar-project.properties`、无扫描器
+步骤），但 SonarCloud 已经产出 17 次分析。也就是说它跑的是 GitHub App 的
+**自动分析（Automatic Analysis）**。该模式的官方文档对测试覆盖率一节只有一句：
+
+> Code coverage information is not supported.
+
+所以在切换分析模式之前，**加 lcov 一行都不会改变那个 0.0%**。
+
+**恢复条件**（三步，前两步只有 owner 能做）：
+
+| 步骤 | 谁 | 状态 |
+|------|-----|------|
+| 1. 在 SonarCloud 项目设置里**关闭 Automatic Analysis**（与 CI 分析互斥，不关会冲突） | owner，控制台 | 已完成 2026-08-28 |
+| 2. 建 Actions secret `SONAR_TOKEN` | owner，凭据 | 已完成 2026-08-28 |
+| 3. `sonar-project.properties` + `sonar` job，把 lcov 指过去 | 代码侧 | 本次完成 |
+
+第 2 步只能由 owner 做，代码侧碰不到凭据。在它完成之前 `sonar` job 会失败——**但它
+刻意不在必需的五项检查里**，所以不阻塞合并，理由与 `db-contract` 相同：把一个第三方
+服务折进必需检查，等于让它宕机时全仓无法合并。
+
+**第一次 CI 分析就证明了这条门的价值。** 切换后 SonarCloud 报出 `coverage = 90.1%`
+（node 报 91.41，两者口径略有差别），0.0% 结束。而质量门当场失败：
+
+```
+Quality Gate failed
+0.0% Coverage on New Code (required >= 80%)
+```
+
+它抓到的是**本次新加的 `scripts/ci/lcov-to-repo-root.mjs`，一行测试都没有**。
+
+这不是门太严，而是它从「结构性无法触发」变成了「真的会响」——以前没有覆盖率数据，这个
+条件根本不适用，所以它一直是绿的。**正确的回应是补测试，不是把 `scripts/` 从覆盖率里
+排除掉**；后者会让这条门重新变成装饰。补完后该文件 85.15%，未覆盖的只剩
+`import.meta.url` 那个入口块——进程内无法执行，而子进程执行不计入覆盖率（覆盖率按进程
+算），所以 CLI 的决策被提成 `run(args, io)` 由测试直接调用。
+
+**覆盖率表现在写进 GitHub 的 run summary。** 这个数一直存在，但只活在日志里，不翻开
+作业滚到底就看不见。它**不是门**——不设阈值，选阈值是 owner 的决定，悄悄加一个等于加了
+一条没人同意的规则。
+
+**lcov 的路径必须重写，而且不能用固定前缀。** node 把 `SF:` 路径写成相对它自己的 cwd
+（`portals/app`），扫描器则相对仓根解析。显然的一行 `sed 's#^SF:app/#SF:portals/app/app/#'`
+对 111 条里的 109 条成立，对**跑出工作区的那两条**是错的：
+
+```
+../packages/shared/src/brand.ts
+../../scripts/guardrails/check-data-architecture.mjs
+```
+
+加前缀之后它们解析不到任何文件，而**扫描器对匹配不上的 lcov 条目不报错，只是当它不
+存在**——于是覆盖率被悄悄漏掉，回到 TD-015 的起点，只是换了条路。所以走
+`scripts/ci/lcov-to-repo-root.mjs`：真正做路径解析，并且**任何一条改写后的路径不存在就
+非零退出**。反证过：喂一个错的基准目录，111 条全部报缺失，退出码 1。
+
+顺带修掉一个新引入的坑：这一步用 `tee` 接管道，所以加了 `set -o pipefail`。没有它，
+管道的退出码是 `tee` 的，**一个红的测试套件会报绿**——这是这条必需检查唯一可能说谎的
+方式。
+
+（另注：`sed` 的前缀剥离用 `[^ ]* ` 而不是定宽 `....`。node 的行首标记是多字节字符，
+`.` 在 C locale 下按字节、在 UTF-8 locale 下按字符，定宽在一种 runner 上对、在另一种
+上会吃掉表格两列。）
