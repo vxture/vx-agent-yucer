@@ -53,8 +53,10 @@ export interface ForecastableOpportunity {
   ownerSub: string | null;
   /** Which customer this is for. Needed to tell a NEW one from a repeat. */
   accountId?: string | null;
-  /** When it was won. Needed to place a new logo in a period. */
+  /** When it was won. Places a closed deal in the period it landed in. */
   closedAt?: Date | null;
+  /** When it is expected to close. Places an OPEN deal in a period. */
+  expectedCloseAt?: Date | null;
 }
 
 export interface ForecastTotals {
@@ -172,6 +174,59 @@ export function countNewLogos(
   return count;
 }
 
+/**
+ * Keep only the opportunities a PERIOD covers. The sibling of `inScope`, and
+ * the fix for TD-014.
+ *
+ * A forecast is always for a period - `forecast_snapshot` has carried a
+ * `period` column since the baseline - but nothing ever filtered by it. A
+ * 2026Q3 snapshot's `closed_amount` was every deal the workspace had ever won,
+ * and its pipeline included deals expected to land in Q4. The board said
+ * "this quarter's commit" over a number that was not a quarter's anything, and
+ * the pipeline page grew a period selector that moved the trajectory beneath
+ * tiles it did not move.
+ *
+ * TWO DATES, because "which period is this deal in" has two different answers
+ * depending on whether it has happened yet:
+ *
+ *   * a WON deal belongs to the period it CLOSED in - that is a fact;
+ *   * an OPEN deal belongs to the period it is EXPECTED to close in - that is
+ *     a forecast, and it is the whole content of one.
+ *
+ * A LOST deal belongs to no period here. rollUp already contributes nothing for
+ * it, and keeping it would only make the excluded count misleading.
+ *
+ * AN UNDATED OPEN DEAL BELONGS TO NO PERIOD EITHER, and this is the one
+ * judgement in the function: you cannot commit to a quarter a deal you have not
+ * dated. It is excluded rather than defaulted into the current period, and
+ * `undated` reports how many so a surface can say so out loud instead of
+ * quietly reporting less money than the list behind it shows.
+ *
+ * Returns null for a period label `periodRange` cannot parse. A caller that
+ * cannot bound its period must not pretend to have filtered.
+ */
+export function inPeriod(
+  opportunities: readonly ForecastableOpportunity[],
+  period: string,
+): { kept: ForecastableOpportunity[]; undated: number } | null {
+  const range = periodRange(period);
+  if (!range) return null;
+
+  const kept: ForecastableOpportunity[] = [];
+  let undated = 0;
+  for (const o of opportunities) {
+    if (o.status === "lost") continue;
+    const closed = o.forecastCategory === "closed";
+    const at = closed ? (o.closedAt ?? null) : (o.expectedCloseAt ?? null);
+    if (!at) {
+      undated += 1;
+      continue;
+    }
+    if (within(range, at)) kept.push(o);
+  }
+  return { kept, undated };
+}
+
 /** Keep only the opportunities a scope covers. */
 export function inScope(
   opportunities: readonly ForecastableOpportunity[],
@@ -185,6 +240,13 @@ export function inScope(
 }
 
 export interface SnapshotRow extends ForecastTotals {
+  /**
+   * Open deals in this scope with no expected close date, excluded from every
+   * total above. Not persisted - it describes the INPUT to a snapshot, not the
+   * snapshot, and a reader needs it at the moment they are being shown a total
+   * that is smaller than the list behind it.
+   */
+  undated?: number;
   period: string;
   scopeType: ScopeType;
   territoryId: string | null;
@@ -214,11 +276,31 @@ export function planSnapshot(input: {
   const scopeCheck = validateScope(input.scope);
   if (!scopeCheck.ok) return scopeCheck as RuleResult<SnapshotRow>;
 
-  const totals = rollUp(inScope(input.opportunities, input.scope), currency);
+  // SCOPE THEN PERIOD. Both filters, in either order, produce the same set -
+  // but doing period second lets `undated` count only the deals this scope
+  // actually owns, which is the number the reader can act on.
+  const scoped = inScope(input.opportunities, input.scope);
+  const period = inPeriod(scoped, input.period);
+  if (!period) {
+    // A snapshot names a period; one this product cannot turn into dates cannot
+    // be filtered, and an unfiltered snapshot is the whole of TD-014. Refusing
+    // is the honest answer - naming the forms it accepts is what makes the
+    // refusal actionable.
+    return fail(
+      violation(
+        "period_unparsed",
+        `${input.period} is not a period this product can bound - use 2026Q3, 2026-07, 2026 or Y2026`,
+        "period",
+      ),
+    );
+  }
+
+  const totals = rollUp(period.kept, currency);
   if (!totals.ok) return totals as RuleResult<SnapshotRow>;
 
   return ok({
     ...totals.value,
+    undated: period.undated,
     newLogoCount: countNewLogos(input.opportunities, input.period, input.scope),
     period: input.period.trim(),
     scopeType: input.scope.scopeType,

@@ -18,7 +18,11 @@ export interface PeriodRange {
 
 const QUARTER = /^(\d{4})Q([1-4])$/;
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
-const YEAR = /^(\d{4})$/;
+// Two spellings of a year, because the product already ships both: the pipeline
+// page's whole-year tab is "Y2026" (see (app)/lib/periods.ts) while a bare
+// "2026" is the obvious thing for anyone to type. Accepting only one of them
+// would make the year tab unforecastable.
+const YEAR = /^Y?(\d{4})$/;
 
 /**
  * The half-open range [start, end) a period label covers, in UTC.
@@ -60,4 +64,21 @@ export function periodRange(period: string): PeriodRange | null {
 export function within(range: PeriodRange, at: Date | null): boolean {
   if (!at) return false;
   return at.getTime() >= range.start.getTime() && at.getTime() < range.end.getTime();
+}
+
+/**
+ * The period today falls in.
+ *
+ * Here rather than on a page because it was written on one and needed on
+ * another: `/planning` had a private copy, and the board needed the same notion
+ * to say "this quarter" about a number. Two definitions of "this quarter" is
+ * how two surfaces come to disagree about the same money.
+ *
+ * Quarters, matching what `periodRange` parses first and what the pipeline
+ * page's tabs offer. A workspace on a non-calendar fiscal year gets the wrong
+ * default here, which is a real limitation and not a hidden one - D2 replaces
+ * this with a picker when it gets one.
+ */
+export function currentPeriod(now: Date): string {
+  return `${now.getUTCFullYear()}Q${Math.floor(now.getUTCMonth() / 3) + 1}`;
 }

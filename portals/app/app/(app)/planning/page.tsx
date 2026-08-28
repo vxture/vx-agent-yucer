@@ -10,6 +10,7 @@ import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
+import { currentPeriod } from "../../domains/shared/period";
 // D2 planning: targets against what actually closed.
 //
 // The column that matters is attainment, and the thing it must never do is
@@ -18,11 +19,6 @@ import { summaryTarget } from "../../domains/planning/lib/target";
 // badly - and collapsing them reports an unforecast quarter as a failed one.
 
 export const dynamic = "force-dynamic";
-
-/** Current period, derived from today. Replaced by a picker when D2 gets one. */
-function currentPeriod(now = new Date()): string {
-  return `${now.getUTCFullYear()}Q${Math.floor(now.getUTCMonth() / 3) + 1}`;
-}
 
 export default async function PlanningPage() {
   const { PLANNING_TEXT, SHELL_TEXT } = await getMessages();
@@ -36,7 +32,7 @@ export default async function PlanningPage() {
     );
   }
 
-  const period = currentPeriod();
+  const period = currentPeriod(new Date());
   const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,

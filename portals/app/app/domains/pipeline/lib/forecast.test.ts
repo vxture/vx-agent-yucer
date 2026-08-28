@@ -7,6 +7,7 @@ import {
   accuracy,
   attainment,
   countNewLogos,
+  inPeriod,
   inScope,
   isZero,
   openPipelineTotal,
@@ -27,6 +28,12 @@ function o(over: Partial<ForecastableOpportunity> = {}): ForecastableOpportunity
     amount: money(100),
     territoryId: null,
     ownerSub: null,
+    // Dated into 2026Q3 by default. Before TD-014 a fixture needed no date at
+    // all, because nothing filtered by one; now an undated open deal is
+    // excluded from every period, so an undated fixture would test exclusion
+    // rather than whatever the test is about.
+    expectedCloseAt: new Date("2026-09-15T00:00:00Z"),
+    closedAt: null,
     ...over,
   };
 }
@@ -332,4 +339,90 @@ test("a snapshot carries the count, and rollUp on its own does not invent one", 
   // rollUp sees only the in-scope slice and cannot answer "first ever", so it
   // reports null rather than a count derived from a partial list.
   assert.equal(unwrap(rollUp(all)).newLogoCount, null);
+});
+
+// --- Period filtering (TD-014) ----------------------------------------------
+
+test("a won deal belongs to the period it CLOSED in, not the one it was expected in", () => {
+  // The two dates disagree all the time: a deal slips, then lands. What it
+  // contributed to Q3 is decided by when it actually landed.
+  const slipped = o({
+    forecastCategory: "closed",
+    stage: "won",
+    status: "won",
+    expectedCloseAt: new Date("2026-06-01"),
+    closedAt: new Date("2026-07-20"),
+  });
+  assert.equal(inPeriod([slipped], "2026Q3")!.kept.length, 1);
+  assert.equal(inPeriod([slipped], "2026Q2")!.kept.length, 0);
+});
+
+test("an open deal belongs to the period it is EXPECTED to close in", () => {
+  const q4 = o({ forecastCategory: "commit", expectedCloseAt: new Date("2026-11-01") });
+  assert.equal(inPeriod([q4], "2026Q3")!.kept.length, 0);
+  assert.equal(inPeriod([q4], "2026Q4")!.kept.length, 1);
+});
+
+test("an undated open deal is in no period, and is counted rather than dropped", () => {
+  // You cannot commit to a quarter a deal you have not dated. Excluding it
+  // silently would make the total smaller than the list behind it with nothing
+  // on screen to say why.
+  const r = inPeriod([o({ expectedCloseAt: null })], "2026Q3")!;
+  assert.equal(r.kept.length, 0);
+  assert.equal(r.undated, 1);
+});
+
+test("a lost deal is neither kept nor counted as undated", () => {
+  const r = inPeriod([o({ status: "lost", expectedCloseAt: null })], "2026Q3")!;
+  assert.equal(r.kept.length, 0);
+  assert.equal(r.undated, 0, "rollUp already ignores it; counting it would misdirect the reader");
+});
+
+test("an unparseable period filters nothing, and says so with null", () => {
+  assert.equal(inPeriod([o()], "FY26H1"), null);
+});
+
+test("a snapshot rolls up only the period it names", () => {
+  // The whole of TD-014: this row said 2026Q3 and contained every deal the
+  // workspace had, including next quarter's.
+  const row = unwrap(
+    planSnapshot({
+      period: "2026Q3",
+      scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
+      opportunities: [
+        o({ id: "q3", forecastCategory: "commit", amount: money(100) }),
+        o({ id: "q4", forecastCategory: "commit", amount: money(900), expectedCloseAt: new Date("2026-11-01") }),
+      ],
+      snapshotAt: AT,
+    }),
+  );
+  assert.equal(row.commitAmount.amount, 100);
+});
+
+test("a snapshot refuses a period it cannot bound", () => {
+  // An unfiltered snapshot is the defect. Refusing names the accepted forms so
+  // the refusal is actionable.
+  const r = planSnapshot({
+    period: "FY26H1",
+    scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
+    opportunities: [o()],
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "period_unparsed");
+});
+
+test("the whole-year tab is a period the snapshot accepts", () => {
+  // (app)/lib/periods.ts offers Y2026 beside the quarters. A year label the
+  // parser rejected would make that tab the one you cannot forecast from.
+  const row = unwrap(
+    planSnapshot({
+      period: "Y2026",
+      scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
+      opportunities: [
+        o({ forecastCategory: "commit", amount: money(100) }),
+        o({ forecastCategory: "commit", amount: money(900), expectedCloseAt: new Date("2026-11-01") }),
+      ],
+      snapshotAt: AT,
+    }),
+  );
+  assert.equal(row.commitAmount.amount, 1000);
 });

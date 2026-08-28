@@ -59,6 +59,14 @@ export interface PipelineBoardProps {
   readonly loading?: boolean;
   /** Shown when the member may read but not advance anything. */
   readonly readOnly?: boolean;
+  /**
+   * Open deals excluded from these totals for having no expected close date.
+   *
+   * Shown rather than swallowed: after TD-014 the tiles report a PERIOD, and a
+   * deal nobody has dated belongs to none. Dropping it silently would make the
+   * totals smaller than the book with nothing on screen to explain why.
+   */
+  readonly undated?: number;
 }
 
 export function PipelineBoard({
@@ -66,6 +74,7 @@ export function PipelineBoard({
   currency = "CNY",
   loading,
   readOnly,
+  undated = 0,
 }: PipelineBoardProps) {
   const {
     DATA_TABLE_LABELS,
@@ -239,6 +248,11 @@ export function PipelineBoard({
              actually calls for, and the DS does not have one. */
           columns={2}
         />
+      ) : null}
+      {undated > 0 ? (
+        <p className="text-muted-foreground mt-sm text-xs">
+          {PIPELINE_TEXT.undatedExcluded(undated)}
+        </p>
       ) : null}
       {!totals.ok ? (
         <EmptyState

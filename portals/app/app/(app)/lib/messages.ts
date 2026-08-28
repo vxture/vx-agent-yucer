@@ -439,7 +439,7 @@ export const BOARD_TEXT = {
   quotaLeft: (pct: number) => `${pct}%`,
   // Pipeline coverage: the open pool against what still has to be closed.
   coverage: "覆盖缺口",
-  poolRow: "资源储备",
+  poolRow: "本季资源储备",
   coverageOf: (pct: number) => `${pct}%`,
   coverageGap: (v: string) => `缺口 ${v}`,
   coverageThin: (floor: number) => `低于 ${floor}% 警戒线`,
@@ -799,6 +799,8 @@ export const PIPELINE_TEXT = {
   productSplit: "承诺的构成",
   productSplitWhy: "按产品行项拆开。一个总额说不出这笔钱要交付什么。",
   needsApproval: "折扣待批",
+  undatedExcluded: (n: number) =>
+    `${n} 笔在办商机没有预计成交时间，未计入本期任何一档——没有日期就不属于任何一个周期`,
   noLines: "尚无产品行项",
 } as const;
 

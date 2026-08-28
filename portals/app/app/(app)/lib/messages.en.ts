@@ -920,6 +920,8 @@ export const en: Dictionary = {
     productSplitWhy:
       "Split by product line. A single total cannot say what the money is for.",
     needsApproval: "Discount pending approval",
+    undatedExcluded: (n: number) =>
+      `${n} open deals carry no expected close date and are in none of these totals - a deal with no date belongs to no period`,
     noLines: "No product lines yet",
   },
 
@@ -1642,7 +1644,7 @@ export const en: Dictionary = {
     quotaOf: "Attained",
     quotaLeft: (pct: number) => `${pct}%`,
     coverage: "Coverage gap",
-    poolRow: "Resource pool",
+    poolRow: "This quarter's pool",
     coverageOf: (pct: number) => `${pct}%`,
     coverageGap: (v: string) => `${v} short`,
     coverageThin: (floor: number) => `below the ${floor}% floor`,

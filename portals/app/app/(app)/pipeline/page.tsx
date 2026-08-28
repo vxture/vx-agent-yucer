@@ -20,6 +20,7 @@ import {
   listPendingReviews,
   listPipeline,
 } from "../../domains/pipeline/service";
+import { inPeriod } from "../../domains/pipeline/lib/forecast";
 import { can } from "../../authz/decide";
 import { PendingReviews } from "../components/pending-reviews";
 import { recordReview } from "./winloss-action";
@@ -97,9 +98,25 @@ export default async function PipelinePage({
     );
   }
 
-  const rows: PipelineRow[] = result.value.map((o) => ({
-    ...o,
-    accountName: o.accountName ?? o.accountId,
+  // THE PERIOD SELECTOR NOW MOVES THE PAGE, not just the trajectory beneath it
+  // (TD-014). It shipped controlling only the snapshot series, so switching to
+  // 2026Q4 redrew the chart and left the tiles and the table reporting the whole
+  // book - a control that appeared to filter and did not.
+  //
+  // A won deal belongs to the period it closed in, an open one to the period it
+  // is expected to close in; `inPeriod` holds that rule. `resolvePeriod` only
+  // ever returns a label from `PERIODS`, so the null branch is unreachable here
+  // - it is written as a fallback to the unfiltered list rather than a throw,
+  // because a page that cannot filter should still render the deals.
+  const window = inPeriod(result.value, period);
+  const inWindow = window ? window.kept : result.value;
+  const undated = window?.undated ?? 0;
+
+  const rows: PipelineRow[] = inWindow.map((o) => ({
+    ...(o as (typeof result.value)[number]),
+    accountName:
+      (o as (typeof result.value)[number]).accountName ??
+      (o as (typeof result.value)[number]).accountId,
   }));
 
   // What the page opens with. The number alone is a label; what it MEANS this
@@ -191,6 +208,7 @@ export default async function PipelinePage({
           are ordered precisely so the tier answer comes first. */}
       <PipelineBoard
         rows={rows}
+        undated={undated}
         readOnly={
           !can(
             session.authz,
