@@ -249,7 +249,13 @@ export function assertScopeUnchanged(patch: Record<string, unknown>): RuleResult
 export type MeasurementGap =
   /** No forecast snapshot exists for this scope and period. */
   | "no_snapshot"
-  /** The product holds no cost data, so margin cannot be computed at all. */
+  /**
+   * The product does not record cost yet, so margin has no inputs.
+   *
+   * A MISSING INPUT, not a dead metric (owner, 2026-08-28). Margin stays in
+   * the catalogue and the surfaces say what is missing - "supply cost" is
+   * something someone can act on, "not measurable" tells them to stop looking.
+   */
   | "no_cost_data"
   /** The snapshot predates incr/0013, or its period label could not be parsed. */
   | "not_counted";
@@ -281,8 +287,11 @@ export function measure(target: SalesTarget, totals: PublishedTotals | null): Me
 
   if (target.metric === "margin") {
     // Not a gap in this function - a gap in the model. Nothing in this product
-    // records cost, so gross margin has no inputs. Saying so is the only
-    // honest answer available until it does.
+    // records cost yet, so gross margin has no inputs.
+    //
+    // The metric STAYS (owner, 2026-08-28). It is not measurable today, which
+    // is a statement about the data and not about the metric, and the surfaces
+    // say so in those terms: the input is missing, not the capability.
     return { kind: "not_measurable", code: "no_cost_data" };
   }
 
