@@ -24,6 +24,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
+| TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -682,3 +683,42 @@ watch 悄悄不再应用 ignore 基线）、以及 watch 里**不得有任何 jo
 都是在没人读它们的时候定的，过滤上线后三条管道类商机全在 Q4，管道数据块与管道指标会
 永远显示零、无从演示。只移了一条；另外两条留在 Q4 并被可见地排除——那正是这次改动
 要展示的行为。
+
+### TD-015 - 覆盖率这道门结构性地不可能工作
+
+**表现**：每个 PR 的 SonarCloud 摘要都写着 `0.0% Coverage on New Code`。仓里有 1048 条
+测试，实测覆盖率是**行 91.41% / 分支 87.40% / 函数 79.58%**。
+
+**不是「少传了一个 lcov」**，而这正是这条值得写下来的原因——那个显然的修法是错的，会白
+花一天。
+
+`ci.yml` 与整个仓里**没有任何 sonar 配置**（无 `sonar-project.properties`、无扫描器
+步骤），但 SonarCloud 已经产出 17 次分析。也就是说它跑的是 GitHub App 的
+**自动分析（Automatic Analysis）**。该模式的官方文档对测试覆盖率一节只有一句：
+
+> Code coverage information is not supported.
+
+所以在切换分析模式之前，**加 lcov 一行都不会改变那个 0.0%**。
+
+**恢复条件**（三步，前两步只有 owner 能做）：
+
+| 步骤 | 谁 |
+|------|-----|
+| 1. 在 SonarCloud 项目设置里**关闭 Automatic Analysis**（与 CI 分析互斥，不关会冲突） | owner，控制台 |
+| 2. 建 Actions secret `SONAR_TOKEN` | owner，凭据 |
+| 3. 加 `sonar-project.properties` 与 `sonar-scanner` 步骤，把 lcov 路径指过去 | 代码侧 |
+
+第三步单独做没有意义，所以本次没有提前提交那份配置——一份要等外部开关才生效的配置，
+放进仓里就是死配置。
+
+**本次做了的那半边**：`test-coverage` 现在把覆盖率表写进 GitHub 的 run summary。这个数
+一直存在，但只活在日志里，不翻开作业滚到底就看不见。它**不是门**——不设阈值，选阈值是
+owner 的决定，悄悄加一个等于加了一条没人同意的规则。
+
+顺带修掉一个新引入的坑：这一步用 `tee` 接管道，所以加了 `set -o pipefail`。没有它，
+管道的退出码是 `tee` 的，**一个红的测试套件会报绿**——这是这条必需检查唯一可能说谎的
+方式。
+
+（另注：`sed` 的前缀剥离用 `[^ ]* ` 而不是定宽 `....`。node 的行首标记是多字节字符，
+`.` 在 C locale 下按字节、在 UTF-8 locale 下按字符，定宽在一种 runner 上对、在另一种
+上会吃掉表格两列。）

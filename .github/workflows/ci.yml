@@ -195,8 +195,37 @@ jobs:
           # "all" - every org repo's Actions can read it).
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
+      # `tee` with pipefail, so a failing suite still fails the job. Without
+      # pipefail the pipeline's exit code is tee's, and a red suite would report
+      # green - the one way this required check could lie.
       - name: Run tests
-        run: pnpm --filter @yucer/app test
+        run: |
+          set -o pipefail
+          pnpm --filter @yucer/app test | tee "$RUNNER_TEMP/test.log"
+
+      # The coverage figure exists on every run and, until now, was thrown away:
+      # it lived in the log and nowhere else, so nobody could see it without
+      # opening the job and scrolling. Lifting it into the run summary costs one
+      # step and makes the number a thing people notice moving.
+      #
+      # NOT A GATE. No threshold is enforced here - picking one is an owner
+      # decision, and a threshold added quietly is a threshold nobody agreed to.
+      # See TD-015 for why SonarCloud reports 0.0% while this reports ~91%.
+      - name: Coverage summary
+        if: always()
+        run: |
+          {
+            echo "### Test coverage"
+            echo
+            echo '```'
+            # Strips node's leading marker glyph and its space. `[^ ]* ` and
+            # not `....` : the glyph is multibyte, and `.` counts bytes under a
+            # C locale and characters under a UTF-8 one, so a fixed width is
+            # right on one runner and eats two columns of the table on another.
+            sed -n '/start of coverage report/,/end of coverage report/p' \
+              "$RUNNER_TEMP/test.log" | sed 's/^[^ ]* //'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # -- DB contract (NOT a required check): the DDL against a real Postgres.
   #
