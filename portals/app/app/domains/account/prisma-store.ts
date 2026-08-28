@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
@@ -26,8 +27,24 @@ const ACCOUNT_TABLE = "yucer_core.account";
 const CONTACT_TABLE = "yucer_core.contact";
 
 export class PrismaAccountStore implements AccountStore {
+  /**
+   * How this adapter reaches the database, injectable for tests.
+   *
+   * A CONSTRUCTOR PARAMETER, not a mutable global. The five Prisma adapters in
+   * this repo have no tests at all - not unit, and not db either, since
+   * adapters.db.test.ts drives raw `pg` rather than the stores - and the
+   * coverage gate said so the first time it could (TD-015's own first catch was
+   * the same shape). What lives here is real: the column-lock guard, the
+   * workspace-AND-account predicate that stops an edit moving a person between
+   * customers, and the null-versus-value mapping. All three are worth pinning,
+   * and none of them needs a running Postgres to pin.
+   *
+   * Production constructs this with no argument and nothing changes.
+   */
+  constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
+
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const rows = await p.account.findMany({
       where: {
         workspaceId,
@@ -45,7 +62,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const row = await p.account.findFirst({ where: { id, workspaceId, deletedAt: null } });
     return row ? toAccount(row as Record<string, unknown>) : null;
   }
@@ -55,7 +72,7 @@ export class PrismaAccountStore implements AccountStore {
     id: string,
     patch: Partial<AccountRecord>,
   ): Promise<boolean> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const data: Record<string, unknown> = { ...patch, updatedAt: new Date() };
 
     const guard = assertWritable(ACCOUNT_TABLE, data);
@@ -70,7 +87,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const rows = await p.contact.findMany({
       where: { workspaceId, accountId, deletedAt: null },
       orderBy: { influence: { sort: "desc", nulls: "last" } },
@@ -83,7 +100,7 @@ export class PrismaAccountStore implements AccountStore {
     accountId: string,
     input: ContactDraft,
   ): Promise<ContactRecord | null> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const writable = {
       name: input.name,
       title: input.title,
@@ -119,7 +136,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     try {
       await p.accountRelation.create({
         data: {
@@ -137,7 +154,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async removeRelation(workspaceId: string, edge: RelationEdge): Promise<void> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     await p.accountRelation.deleteMany({
       where: {
         workspaceId,
@@ -149,7 +166,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async listRelations(workspaceId: string, accountId: string): Promise<RelationEdge[]> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const contacts = await p.contact.findMany({
       where: { workspaceId, accountId },
       select: { id: true },
@@ -171,7 +188,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs> {
-    const p = await getPrismaClient();
+    const p = await this.client();
 
     const [opportunities, projects] = await Promise.all([
       // Every opportunity, not only the open ones: the open set drives the
@@ -225,7 +242,7 @@ export class PrismaAccountStore implements AccountStore {
   }
 
   async getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const r = (await p.accountPlan.findFirst({
       where: { workspaceId, accountId, status: "active" },
       orderBy: { period: "desc" },
@@ -250,7 +267,7 @@ export class PrismaAccountStore implements AccountStore {
     workspaceId: string,
     plan: Omit<AccountPlanRecord, "id" | "workspaceId">,
   ): Promise<AccountPlanRecord> {
-    const p = await getPrismaClient();
+    const p = await this.client();
     const data = {
       targetAmount: plan.targetAmount,
       contactCadenceDays: plan.contactCadenceDays,

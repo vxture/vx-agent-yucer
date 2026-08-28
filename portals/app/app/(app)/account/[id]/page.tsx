@@ -52,9 +52,13 @@ import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
 import { DesignateAccount } from "../../components/designate-account";
-import { designateAccountTier } from "../actions";
 import { DEFAULT_PERIOD } from "../../lib/periods";
-import { linkAccountContacts, recomputeAccountHealth, saveContact } from "../actions";
+import {
+  designateAccountTier,
+  linkAccountContacts,
+  recomputeAccountHealth,
+  saveContact,
+} from "../actions";
 import {
   addCommitment,
   recordFollowUp,

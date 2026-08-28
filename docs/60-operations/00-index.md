@@ -819,6 +819,15 @@ Quality Gate failed
 `influence` 可空且不默认为 0：「还没有人判断过」和「判断过，此人没有影响力」是两个事实，
 与未设配额不等于达成 0% 是同一条道理。
 
+**这一笔顺带还了 TD-015 留下的那个缺口的一部分。** 上次把覆盖率门划到「被测的那一层」时，
+Prisma 适配器**故意留在比率里**，理由是「它是最大的未覆盖块，留着才看得见」。这次它挡住了
+PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts` 的 37/57）。
+
+**把它排除掉就是上次拒绝过的那种做法**，所以补了测试：给 `PrismaAccountStore` 加一个
+**构造参数**（不是可变全局）注入客户端，生产侧构造时不传、行为不变。被测的不是 Prisma，
+是这个文件在 Prisma 前后做的三个判断——列锁守卫、决定「这次编辑能碰哪一行」的谓词、以及
+空值与实值的映射。其余四个适配器仍然没有测试。
+
 余下八条：`strategy.plan.create`、`strategy.segment.view` / `.upsert`、
 `campaign.execution.upsert`、`account.offering.view` / `.upsert`、
 `delivery.milestone.upsert`、`delivery.task.upsert`。

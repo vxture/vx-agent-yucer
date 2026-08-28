@@ -32,6 +32,19 @@ import { useMessages } from "../lib/i18n/provider";
 // a guess: two people at one customer can share a name, and matching on one
 // would merge colleagues.
 
+function ContactStatus({
+  status,
+  labels,
+}: {
+  readonly status: string;
+  readonly labels: Record<string, string>;
+}) {
+  // Nothing for the ordinary case: a column of "active" badges is noise that
+  // hides the two rows where the status is the point.
+  if (status === "active") return null;
+  return <StatusBadge tone="neutral">{labels[status] ?? status}</StatusBadge>;
+}
+
 export interface ContactRow {
   readonly id: string;
   readonly name: string;
@@ -143,12 +156,15 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
               id: "status",
               header: ACCOUNT_TEXT.contactStatus,
               align: "center" as const,
-              cell: (r: ContactRow) =>
-                r.status === "active" ? null : (
-                  <StatusBadge tone="neutral">
-                    {ACCOUNT_TEXT.contactStatusLabel[r.status] ?? r.status}
-                  </StatusBadge>
-                ),
+              // A component at module scope rather than an inline arrow that
+              // returns JSX. The DS makes `cell` a render callback so either
+              // works, but a function defined in a component body and returning
+              // an element is indistinguishable from a nested component to a
+              // reader and to a linter - and the fix the linter asks for
+              // (module scope, data as props) is the clearer shape anyway.
+              cell: (r: ContactRow) => (
+                <ContactStatus status={r.status} labels={ACCOUNT_TEXT.contactStatusLabel} />
+              ),
             },
           ]}
         />
