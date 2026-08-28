@@ -17,7 +17,7 @@ import { join } from "node:path";
 // the product could create, and since a territory-scoped target needs a
 // territory_id, it could not set a regional target either.
 //
-// Thirteen more are in the same state (TD-016). None of them is the OTHER shape -
+// Twelve more are in the same state (TD-016). None of them is the OTHER shape -
 // a surface that writes without a gate - which was checked at the same time and
 // is the reassuring half of the finding.
 //
@@ -90,7 +90,6 @@ const KNOWN_UNGATED: Record<string, string> = {
   "account.contact.upsert": "contacts are read by the decision chain, never written - TD-016",
   "account.offering.view": "no offering surface and no service verb - TD-016",
   "account.offering.upsert": "same as account.offering.view - TD-016",
-  "pipeline.opportunity.create": "deals arrive by conversion from a lead; no create form - TD-016",
   "delivery.milestone.upsert": "milestones are seeded and read, never written - TD-016",
   "delivery.task.upsert": "tasks are seeded and read, never written - TD-016",
 };

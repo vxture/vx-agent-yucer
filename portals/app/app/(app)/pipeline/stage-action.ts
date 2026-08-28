@@ -6,6 +6,7 @@ import { getCatalogStore, getPipelineStore } from "../../domains/shared/registry
 import {
   advanceStage,
   approveLineDiscount,
+  createOpportunity,
   replaceOpportunityLines,
   updateCommercialTerms,
 } from "../../domains/pipeline/service";
@@ -235,4 +236,54 @@ export async function approveDiscount(
   revalidatePath(`/pipeline/${opportunityId}`);
   revalidatePath("/pipeline");
   return { ok: true };
+}
+
+/**
+ * Entering a deal that no lead produced.
+ *
+ * The date arrives as a `yyyy-mm-dd` string from an <input type="date"> and is
+ * parsed HERE rather than in the component: a Date crossing the server-action
+ * boundary is serialised and revived, and a bad string should be refused on the
+ * server where the rule lives, not silently become an Invalid Date.
+ */
+export async function createDeal(input: {
+  name: string;
+  accountId: string;
+  territoryId: string | null;
+  amount: number | null;
+  expectedCloseAt: string | null;
+}): Promise<{ ok: boolean; opportunityNo?: string; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  let expectedCloseAt: Date | null = null;
+  if (input.expectedCloseAt) {
+    const parsed = new Date(`${input.expectedCloseAt}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return { ok: false, error: "invalid_date" };
+    expectedCloseAt = parsed;
+  }
+
+  const result = await createOpportunity(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getPipelineStore(),
+    },
+    {
+      name: input.name,
+      accountId: input.accountId,
+      territoryId: input.territoryId,
+      ownerSub: null,
+      amount: input.amount === null ? null : money(input.amount),
+      expectedCloseAt,
+    },
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath("/pipeline");
+  return { ok: true, opportunityNo: result.value.opportunityNo };
 }

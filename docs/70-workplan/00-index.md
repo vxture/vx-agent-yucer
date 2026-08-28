@@ -718,3 +718,27 @@ signal.previewAttribution  → 无设计好的界面，见 ADR-016
 断言，其中「写操作必须在服务端把门、不能只在界面上把」的第一版当场误报了
 `admin.member.role.assign`——它的门在 `authz/admin.ts`，服务端代码住在别处。判据从「按
 目录」改成「按 .tsx / .ts」。
+
+### 7c 直接新建商机 —— 已交付（2026-08-28）
+
+TD-016 的第二笔。`pipeline.opportunity.create` 自批次 1 起在目录里，而
+`createOpportunity` 的**唯一**调用方是线索转化接缝——**一笔生意只能从线索里生出来**。
+
+判据不是我定的，是模型自己写下的：`AttributionSource` 有 `self_sourced`，
+`resolveAttribution({})` 有一支 basis 是 `"no lead"`，两支都无法到达。
+
+| 层 | 落点 |
+|----|------|
+| 规则 | `pipeline/lib/opportunity.ts` —— `planNewOpportunity`，校验名称/客户/金额，并**在规则层结算归因** |
+| 服务 | `createOpportunity`，门是 `pipeline.opportunity.create`（与 `.update` 分开：创建冻结一段此后不可编辑的归因） |
+| 界面 | `NewOpportunity`，/pipeline 看板之上；客户是**选择器不是输入框**；不提供阶段/赢率/预测类别——新单从 qualify 起步，之后归阶段机 |
+
+**没有阶段选择**是有意的：给一个入口让人把商机开在一个它自己的历史解释不了的状态里，
+等于制造以后没人能复盘的数据。
+
+**实测**：建「走廊里听来的单子 / 西部能源装备 / ¥800,000 / 2026-09-25」→
+`OPP-00001`，合格判定 / 管道 / 10%（阶段默认赢率），落在 Q3 所以进了周期过滤后的看板；
+详情页归因显示**「无归因（非战役来源）」**——那条此前不可达的分支。
+
+**反证**：把门换成读 → 服务测试与**上一批建的 `gated.test.ts` 同时变红**（守卫上线一天
+就抓到了）；把归因改成不经规则直接写 → 自拓那条变红。

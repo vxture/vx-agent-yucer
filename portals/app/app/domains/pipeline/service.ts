@@ -16,6 +16,7 @@
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
+import { planNewOpportunity, type NewOpportunityDraft } from "./lib/opportunity";
 import type { CatalogStore, DiscountApprovalRecord } from "../catalog/store";
 import type { Decision } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
@@ -81,6 +82,56 @@ export async function listPipeline(
  * that could name the actor could attribute its own stage change to someone
  * else, and the journal is the record of who moved the deal.
  */
+/**
+ * Create a deal directly, with no lead behind it.
+ *
+ * `pipeline.opportunity.create` has been in the action catalogue since batch 1
+ * gating nothing: `createOpportunity` had exactly one caller, the lead
+ * conversion seam, so a deal could only be born from a lead (TD-016). The model
+ * disagreed with the product in two places - `AttributionSource.self_sourced`
+ * and `resolveAttribution`'s "no lead" branch - both unreachable.
+ *
+ * SEPARATE ACTION FROM `pipeline.opportunity.update`, and separate for a
+ * reason the catalogue already recorded by declaring it: creating a deal
+ * commits an attribution that can never be edited afterwards, because
+ * `campaign_id` carries no UPDATE grant. Editing one is a smaller act than
+ * bringing one into being with its lineage frozen.
+ *
+ * The account is NOT verified here. The foreign key is the backstop and the
+ * form offers a picker, so an invented id fails at the database rather than
+ * silently creating an unreachable deal - and D6 has no read of D4 to check
+ * with, which is the ownership rule rather than an omission.
+ */
+export async function createOpportunity(
+  ctx: PipelineContext,
+  input: NewOpportunityDraft & { currency?: string },
+): Promise<RuleResult<OpportunityRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.create", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planNewOpportunity(input);
+  if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
+
+  return ok(
+    await ctx.store.createOpportunity(ctx.workspaceId, {
+      name: plan.value.name,
+      accountId: plan.value.accountId,
+      // Both null, and written by the rule rather than by this function: a
+      // self-sourced deal has no campaign and no plan, and the attribution the
+      // rule settled is what freezes that.
+      campaignId: plan.value.attribution.campaignId,
+      planId: null,
+      territoryId: plan.value.territoryId,
+      // Whoever creates it owns it until somebody reassigns it deliberately -
+      // the same rule conversion applies to a lead's owner.
+      ownerSub: plan.value.ownerSub ?? ctx.sub,
+      amount: plan.value.amount,
+      currency: plan.value.amount?.currency ?? input.currency ?? DEFAULT_LINE_CURRENCY,
+      expectedCloseAt: plan.value.expectedCloseAt,
+    }),
+  );
+}
+
 export async function advanceStage(
   ctx: PipelineContext,
   opportunityId: string,

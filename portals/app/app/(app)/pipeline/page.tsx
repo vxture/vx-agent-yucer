@@ -9,12 +9,20 @@ import { resolveAppSession } from "../lib/session";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { SubmitForecast } from "../components/submit-forecast";
 import { submitForecastSnapshot } from "./forecast-action";
+import { createDeal } from "./stage-action";
 import { PeriodTabs } from "../components/period-tabs";
 import { HeadlineCard } from "../components/headline-card";
-import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { PipelineBoard, type PipelineRow } from "../components/pipeline-board";
-import { getPipelineStore } from "../../domains/shared/registry";
+import {
+  getAccountStore,
+  getCatalogStore,
+  getPipelineStore,
+  getPlanningStore,
+} from "../../domains/shared/registry";
+import { listAccounts } from "../../domains/account/service";
+import { listTerritories } from "../../domains/planning/service";
+import { NewOpportunity } from "../components/new-opportunity";
 import {
   forecastHistory,
   listPendingReviews,
@@ -69,7 +77,8 @@ export default async function PipelinePage({
   // domains reading the same request need two contexts, not one with a union.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
 
-  const [result, pendingReviews, history, lines, products] = await Promise.all([
+  const [result, pendingReviews, history, lines, products, accounts, territories] =
+    await Promise.all([
     // includeClosed, or the "closed" tile reports zero on a workspace that has
     // closed 2.7M - the same false zero that hit the quota card, in a third
     // place. The board rolls all four categories from this one list, and a
@@ -85,6 +94,11 @@ export default async function PipelinePage({
     // service exists now, so there is no reason left to reach past it.
     listOpportunityLines(catalogCtx),
     listCatalogProducts(catalogCtx),
+    // Two cross-domain reads, for the new-deal form's two pickers. Through the
+    // services, so both gates run - a page reaching a store handle directly is
+    // the defect PR #26 fixed on the account page.
+    listAccounts({ ...ctx, store: getAccountStore() }),
+    listTerritories({ ...ctx, store: getPlanningStore() }),
   ]);
 
   if (!result.ok) {
@@ -206,6 +220,30 @@ export default async function PipelinePage({
           skips the ENTITLEMENT half entirely, so a workspace whose subscription
           lapsed would still render the board as writable - and the two gates
           are ordered precisely so the tier answer comes first. */}
+      {/* ABOVE the board, for the same reason the target form sits above its
+          table: on a fresh workspace the board is empty, and a create form
+          tucked under a list nobody can populate is a doorway behind a locked
+          door. */}
+      <NewOpportunity
+        accounts={
+          accounts.ok ? accounts.value.map((a) => ({ id: a.id, name: a.name })) : []
+        }
+        territories={
+          territories.ok
+            ? territories.value.map((t) => ({ id: t.id, name: t.name }))
+            : []
+        }
+        canCreate={
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.opportunity.create",
+            "ui",
+          ).allowed
+        }
+        onCreate={createDeal}
+      />
+
       <PipelineBoard
         rows={rows}
         undated={undated}
