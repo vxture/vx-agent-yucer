@@ -249,3 +249,17 @@ test("a summary target must be committed and workspace-scoped", () => {
   const territory = { scopeType: "territory" as const, status: "committed" as const, metric: "revenue" as const };
   assert.equal(summaryTarget([draft, territory]), null);
 });
+
+test("margin's gap names the missing INPUT, not a missing capability", () => {
+  // owner, 2026-08-28: the metric stays. `no_cost_data` says cost is not in
+  // the model - which is a fact about the data, and something someone can act
+  // on. A code meaning "this metric cannot be computed" would tell the reader
+  // to stop looking, and then nobody supplies the input.
+  const m = measure(target({ metric: "margin" }), totals());
+  assert.equal(m.kind === "not_measurable" && m.code, "no_cost_data");
+  assert.notEqual(
+    m.kind === "not_measurable" && m.code,
+    "not_counted",
+    "and it is not confused with a snapshot that simply did not count",
+  );
+});
