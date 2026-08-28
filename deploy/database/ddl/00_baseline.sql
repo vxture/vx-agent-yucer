@@ -599,23 +599,18 @@ CREATE TABLE IF NOT EXISTS yucer_delivery.project_milestone (
   CONSTRAINT uidx_project_milestone_seq UNIQUE (project_id, sequence)
 );
 
-CREATE TABLE IF NOT EXISTS yucer_delivery.project_task (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id UUID NOT NULL,                         -- [ref]
-  project_id   UUID NOT NULL,
-  milestone_id UUID,
-  title        VARCHAR(255) NOT NULL,
-  assignee_sub VARCHAR(128),                          -- [ref]
-  due_at       TIMESTAMPTZ,
-  status       VARCHAR(32) NOT NULL DEFAULT 'todo'
-                 CONSTRAINT chk_project_task_status
-                 CHECK (status IN ('todo', 'in_progress', 'blocked', 'done', 'cancelled')),
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT fk_project_task_project FOREIGN KEY (project_id) REFERENCES yucer_delivery.project (id) ON DELETE CASCADE,
-  CONSTRAINT fk_project_task_milestone FOREIGN KEY (milestone_id) REFERENCES yucer_delivery.project_milestone (id) ON DELETE SET NULL
-);
-CREATE INDEX IF NOT EXISTS idx_project_task_ws_status ON yucer_delivery.project_task (workspace_id, status);
+-- project_task was here. Removed 2026-08-28 (ADR-022): a table, its column
+-- locks and an action shipped in batch 1, and in the seven batches since,
+-- nothing ever touched it - no record type, no port, no read, no surface, not
+-- one demo row. This product is a SALES agent; task management belongs to a
+-- delivery tool, and the table was a front it never declared it was opening.
+--
+-- Edited out of the create-once baseline rather than only dropped by an
+-- increment, which incr/README forbids in general and which is safe here for a
+-- reason that can be checked: this DDL has never built a database. Zero
+-- deployment environments, zero release tags, zero db-init runs. incr/0014
+-- ships the DROP anyway, for any checkout that applied the old baseline.
+
 
 -- Planned vs recognized revenue instalments (the money side of landing).
 CREATE TABLE IF NOT EXISTS yucer_delivery.revenue_schedule (

@@ -30,11 +30,27 @@ const INCR_DIR = "deploy/database/ddl/incr";
 const PRISMA = "portals/app/prisma/schema.prisma";
 const STRICT = process.argv.includes("--strict");
 
+/**
+ * The tables the DDL leaves behind, reading CREATE and DROP in file order.
+ *
+ * DROP USED TO BE INVISIBLE HERE, and the caller concatenates the baseline with
+ * every increment - so a table created by the baseline and dropped by an
+ * increment, which is exactly what incr/README prescribes for a removal, stayed
+ * in this set forever. The first such removal would have been reported as
+ * Prisma drift, and the honest fix (delete the model) would have made it worse.
+ *
+ * Order matters and is the caller's: baseline first, then increments by name.
+ * A table dropped and later recreated is present; the last statement wins.
+ */
 export function ddlTables(sql) {
   const set = new Set();
-  const re = /CREATE TABLE IF NOT EXISTS\s+(\w+)\.(\w+)/gi;
+  const re = /(CREATE TABLE IF NOT EXISTS|DROP TABLE(?: IF EXISTS)?)\s+(\w+)\.(\w+)/gi;
   let m;
-  while ((m = re.exec(sql))) set.add(`${m[1]}.${m[2]}`);
+  while ((m = re.exec(sql))) {
+    const table = `${m[2]}.${m[3]}`;
+    if (/^CREATE/i.test(m[1])) set.add(table);
+    else set.delete(table);
+  }
   return set;
 }
 

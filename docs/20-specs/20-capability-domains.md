@@ -115,7 +115,7 @@ owner_sub, metric)` 是行标识，一旦建立不可改；能改的只有金额
 ## D7 项目落地
 
 **职责**：中标后把合同变成交付和回款。产出是 `project`、`project_milestone`、
-`project_task`、`revenue_schedule`。
+`revenue_schedule`。（`project_task` 于 2026-08-28 删除，见 ADR-022。）
 
 **边界**：只覆盖「中标 -> 交付 -> 回款」，不做研发看板、工时、资源排程。
 

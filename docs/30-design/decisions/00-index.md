@@ -25,3 +25,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-019 | [底价必须有人能签字，签字不能挂在行项上](ADR-019-a-floor-nobody-could-cross.md) | accepted | 2026-08-28 |
 | ADR-020 | [计数不是金额，指标必须自己决定分子](ADR-020-a-count-is-not-an-amount.md) | accepted | 2026-08-28 |
 | ADR-021 | [预测总是对某个周期的，而周期要真的过滤](ADR-021-a-forecast-is-always-for-a-period.md) | accepted | 2026-08-28 |
+| ADR-022 | [任务表删除：一条产品从没声明要开的战线](ADR-022-a-front-this-product-never-opened.md) | accepted | 2026-08-28 |

@@ -17,7 +17,8 @@ import { join } from "node:path";
 // the product could create, and since a territory-scoped target needs a
 // territory_id, it could not set a regional target either.
 //
-// Ten more are in the same state (TD-016). None of them is the OTHER shape -
+// Six more are in the same state (TD-016), and one was deleted rather than
+// built: see ADR-022 on project_task. None of them is the OTHER shape -
 // a surface that writes without a gate - which was checked at the same time and
 // is the reassuring half of the finding.
 //
@@ -89,13 +90,6 @@ const KNOWN_UNGATED: Record<string, string> = {
   "campaign.execution.upsert": "executions are seeded and read, never written - TD-016",
   "account.offering.view": "no offering surface and no service verb - TD-016",
   "account.offering.upsert": "same as account.offering.view - TD-016",
-  // NOT the same shape as the others. project_task has a table, column locks
-  // and this action - and NOTHING else: no record type, no port method, no
-  // read, no surface, not even a demo row. The middle is not missing, only the
-  // two ends exist. Building it means designing a feature (what a task is for,
-  // who assigns it, how it relates to a milestone), which is an owner decision
-  // rather than a debt repayment. See TD-016.
-  "delivery.task.upsert": "the task concept has never been built at all - a product decision, not a gap",
 };
 
 test("the catalogue was parsed at all - guards against a silently empty test", () => {
