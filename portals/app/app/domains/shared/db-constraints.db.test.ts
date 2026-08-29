@@ -306,7 +306,14 @@ test("one OPEN sweep proposal per commitment; a decided one frees the slot", { s
           [WS],
         );
       await insert();
+      // The violation ABORTS the enclosing transaction (25P02: every later
+      // statement is refused until rollback) - so the collision is staged on a
+      // savepoint, proven, and rolled back to keep the transaction usable for
+      // the second half of the proof. The sibling tests never hit this because
+      // each ends at its first violation; this one has to keep going.
+      await c.query("SAVEPOINT dup");
       await assert.rejects(insert, /uidx_agent_action_sweep_open/);
+      await c.query("ROLLBACK TO SAVEPOINT dup");
 
       // A human decides the first; the same commitment may then be raised again.
       await c.query(
