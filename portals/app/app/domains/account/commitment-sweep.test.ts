@@ -193,3 +193,80 @@ test("a workspace whose tier refuses proposals is skipped before any work", asyn
   assert.equal((await copilot.listProposals("ws_1", {})).length, 0);
   teardown();
 });
+
+// --- TD-003: the race has a floor -------------------------------------------
+
+test("the store refuses a second OPEN proposal for the same commitment", async () => {
+  // The exact interleaving the read-then-write dedup cannot see: both writers
+  // passed the read, both write. The second write must be absorbed, not
+  // doubled and not an error.
+  const { copilot } = setup([commitment()]);
+  try {
+    const first = await runCommitmentSweep({ workspaces: WS, now: NOW });
+    assert.equal(first.proposed, 1);
+
+    // Simulate the losing writer arriving after the read: file the same
+    // commitment directly at the store, as the concurrent sweep would.
+    const pending = await copilot.listProposals("ws_1", { status: "proposed" });
+    const dup = await copilot.createProposals("ws_1", [
+      {
+        sessionId: null,
+        actionType: "chase_overdue_commitment",
+        subjectType: "account",
+        subjectId: "acc_1",
+        payload: { commitmentId: "cm_1" },
+        rationale: "the race's second writer",
+        confidence: null,
+      },
+    ]);
+    assert.equal(dup.length, 0, "the floor must absorb the duplicate");
+    const after = await copilot.listProposals("ws_1", { status: "proposed" });
+    assert.equal(after.length, pending.length, "no second row may exist");
+  } finally {
+    teardown();
+  }
+});
+
+test("a decided proposal does not block re-proposing - the WHERE clause is load-bearing", async () => {
+  const { copilot } = setup([commitment()]);
+  try {
+    const first = await runCommitmentSweep({ workspaces: WS, now: NOW });
+    assert.equal(first.proposed, 1);
+
+    // A human rejects it. The promise is still broken, so tomorrow's sweep
+    // must be able to raise it again - re-asking is what the sweep is FOR.
+    const [p] = await copilot.listProposals("ws_1", { status: "proposed" });
+    await copilot.applyDecision("ws_1", [
+      {
+        id: p.id,
+        patch: { status: "rejected", decidedBySub: "usr_1", decidedAt: NOW },
+        from: ["proposed"],
+      },
+    ]);
+
+    const second = await runCommitmentSweep({ workspaces: WS, now: NOW });
+    assert.equal(second.proposed, 1, "a rejected proposal must not block the re-ask");
+  } finally {
+    teardown();
+  }
+});
+
+test("proposals without a commitmentId are unconstrained, like the index's NULLs", async () => {
+  const { copilot } = setup([]);
+  try {
+    const mk = () => ({
+      sessionId: null,
+      actionType: "chase_overdue_commitment",
+      subjectType: "account" as const,
+      subjectId: "acc_1",
+      payload: {},
+      rationale: "no commitment key",
+      confidence: null,
+    });
+    const a = await copilot.createProposals("ws_1", [mk()]);
+    const b = await copilot.createProposals("ws_1", [mk()]);
+    assert.equal(a.length + b.length, 2, "NULL keys are distinct; both must land");
+  } finally {
+    teardown();
+  }
+});

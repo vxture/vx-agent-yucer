@@ -290,3 +290,46 @@ test("two workspaces may hold the same scope tuple", { skip }, async () => {
     }
   });
 });
+
+test("one OPEN sweep proposal per commitment; a decided one frees the slot", { skip }, async () => {
+  // TD-003's floor (0016). The WHERE clause is load-bearing: rejected must
+  // free the slot, or the sweep can never re-ask about a still-broken promise.
+  await withDb(async (c) => {
+    await c.query("BEGIN");
+    try {
+      const insert = () =>
+        c.query(
+          `INSERT INTO yucer_agent.agent_action
+             (workspace_id, action_type, subject_type, subject_id, payload, rationale)
+           VALUES ($1, 'chase_overdue_commitment', 'account', '55555555-5555-5555-5555-555555555555',
+                   '{"commitmentId":"cm_race"}'::jsonb, 'race probe')`,
+          [WS],
+        );
+      await insert();
+      await assert.rejects(insert, /uidx_agent_action_sweep_open/);
+
+      // A human decides the first; the same commitment may then be raised again.
+      await c.query(
+        `UPDATE yucer_agent.agent_action
+            SET status = 'rejected', decided_by_sub = 'usr_test', decided_at = now()
+          WHERE workspace_id = $1 AND payload->>'commitmentId' = 'cm_race'`,
+        [WS],
+      );
+      await insert();
+
+      // And a NULL key never collides - other proposal kinds are unconstrained.
+      const nul = () =>
+        c.query(
+          `INSERT INTO yucer_agent.agent_action
+             (workspace_id, action_type, subject_type, subject_id, payload, rationale)
+           VALUES ($1, 'chase_overdue_commitment', 'account', '55555555-5555-5555-5555-555555555555',
+                   '{}'::jsonb, 'null key probe')`,
+          [WS],
+        );
+      await nul();
+      await nul();
+    } finally {
+      await c.query("ROLLBACK");
+    }
+  });
+});
