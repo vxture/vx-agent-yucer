@@ -23,6 +23,9 @@ import { useMessages } from "../lib/i18n/provider";
  * the element this points at; two literals would drift apart silently and the
  * failure mode is a button that does nothing.
  */
+/** The platform documentation site - see the onHelp prop note. */
+const HELP_URL = "https://docs.vxture.com";
+
 export const SHELL_BODY_ID = "yucer-shell-body";
 
 // The four shell tools, in one group.
@@ -65,6 +68,12 @@ export interface HeaderToolsProps {
    * escape key, which the DS wires, is the way back out.
    */
   readonly fullscreenTarget?: () => HTMLElement | null;
+  /**
+   * Where help lives: the platform documentation site (owner decision,
+   * 2026-08-30). A custom handler may still override it - the default opens
+   * the docs in a new tab, noopener because the docs site needs no handle
+   * back into a signed-in product.
+   */
   readonly onHelp?: () => void;
   readonly onNotifications?: () => void;
 }
@@ -90,7 +99,11 @@ export function HeaderTools({
         exitLabel={HEADER_TEXT.fullscreenExit}
       />
 
-      <ShellIconButton icon="help" label={HEADER_TEXT.help} onClick={onHelp} />
+      <ShellIconButton
+        icon="help"
+        label={HEADER_TEXT.help}
+        onClick={onHelp ?? (() => window.open(HELP_URL, "_blank", "noopener"))}
+      />
 
       <Popover>
         <PopoverTrigger asChild>
