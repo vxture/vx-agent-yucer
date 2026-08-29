@@ -43,9 +43,17 @@ export interface AccountTableProps {
   readonly rows: readonly AccountRecord[];
   /** False when the member may read accounts but not recompute them. */
   readonly canRecompute?: boolean;
+  /**
+   * segment_code -> display name, resolved on the page. account.segment_code
+   * is a plain string with no foreign key behind it, so a code CAN point at a
+   * definition that does not exist - and when it does, the raw code is shown
+   * rather than a blank, because a dangling anchor is a finding to surface,
+   * not a cell to tidy.
+   */
+  readonly segmentNames?: ReadonlyMap<string, string>;
 }
 
-export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
+export function AccountTable({ rows, canRecompute = true, segmentNames }: AccountTableProps) {
   const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS } =
     useMessages();
   const router = useRouter();
@@ -148,6 +156,15 @@ export function AccountTable({ rows, canRecompute = true }: AccountTableProps) {
       id: "industry",
       header: ACCOUNT_TEXT.columnIndustry,
       cell: (row) => row.industry ?? "-",
+    },
+    {
+      id: "segment",
+      header: ACCOUNT_TEXT.columnSegment,
+      // The D1 cut this customer is filed under. Read-only here on purpose:
+      // D4 references the segment, D1 owns it, and the place to change a
+      // definition is /strategy.
+      cell: (row) =>
+        row.segmentCode ? (segmentNames?.get(row.segmentCode) ?? row.segmentCode) : "-",
     },
     {
       id: "owner",

@@ -1085,6 +1085,7 @@ export const en: Dictionary = {
       "Health is derived and recomputed from source data. It orders and warns; it is never the sole basis for a business judgement.",
     columnName: "Account",
     columnIndustry: "Industry",
+    columnSegment: "Segment",
     columnOwner: "Owner",
     columnHealth: "Health",
     columnStatus: "Status",
