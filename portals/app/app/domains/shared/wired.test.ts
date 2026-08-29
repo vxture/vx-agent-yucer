@@ -38,10 +38,8 @@ const APP = join(DOMAINS, "..");
 
 /** Deliberately unwired, with the batch item that removes each one. */
 const KNOWN_UNWIRED: Record<string, string> = {
-  // Attribution is computed on creation by the conversion path; the preview is
-  // for a UI that shows "this lead will be attributed to X" before converting,
-  // and that surface is not designed yet.
-  "signal.previewAttribution": "no surface designed - see ADR-016",
+  // (empty since 2026-08-29 - every exported domain verb has a caller. A name
+  // added here must say why it exists and which batch removes it.)
 };
 
 /** Helpers that live in service.ts but are not domain verbs. */

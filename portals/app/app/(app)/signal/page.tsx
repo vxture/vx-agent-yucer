@@ -5,7 +5,7 @@ import { resolveAppSession } from "../lib/session";
 // components asking cost one resolution.
 import { getMessages } from "../lib/i18n/server";
 import { getSignalStore } from "../../domains/shared/registry";
-import { listLeads, listSignals } from "../../domains/signal/service";
+import { listLeads, listSignals, previewAttribution } from "../../domains/signal/service";
 import { can } from "../../authz/decide";
 import { SignalQueue, type QueueSignal } from "../components/signal-queue";
 import { scoreSignal } from "../../domains/signal/lib/scoring";
@@ -47,6 +47,30 @@ export default async function SignalPage() {
     listSignals(ctx, { limit: 100 }),
     listLeads(ctx, { limit: 100 }),
   ]);
+
+  // What each convertible lead WOULD attribute to, before anyone converts.
+  // Attribution freezes at conversion (ADR-016) and can never be corrected in
+  // the application afterwards - so the one moment the answer is useful is the
+  // moment BEFORE the click, which is exactly the surface previewAttribution
+  // was built for and never had. Only qualified leads are asked: the others
+  // cannot be converted, and the answer would decorate a door that does not
+  // open. Failures degrade to "no preview" rather than failing the page.
+  const attributionPreviews = new Map<string, { source: string; campaignId: string | null }>();
+  if (leads.ok) {
+    await Promise.all(
+      leads.value
+        .filter((l) => l.status === "qualified")
+        .map(async (l) => {
+          const prev = await previewAttribution(ctx, l.id);
+          if (prev.ok) {
+            attributionPreviews.set(l.id, {
+              source: prev.value.source,
+              campaignId: prev.value.campaignId,
+            });
+          }
+        }),
+    );
+  }
 
   if (!result.ok) {
     return (
@@ -171,6 +195,7 @@ export default async function SignalPage() {
           a signal is promoted into a lead, and a qualified lead converts. */}
       <LeadList
         leads={leads.ok ? leads.value : []}
+        attributionPreviews={attributionPreviews}
         canTriage={
           can(session.authz, session.entitlement, "signal.lead.upsert", "ui")
             .allowed
