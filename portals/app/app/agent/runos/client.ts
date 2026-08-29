@@ -164,7 +164,21 @@ export class RunosClient {
     return payload?.capabilities ?? [];
   }
 
-  /** Full contract for one capability, including input/output schemas. */
+  /**
+   * Full contract for one capability, including input/output schemas.
+   *
+   * TD-004 notes, both of which are the CONSUMER's problem, not the gateway's:
+   *
+   * "latest" can move BACKWARDS. Runos has not ruled on the semantics of
+   * registering 2.0.0 and then adding 1.0.1, so "latest" is not merely
+   * floating, it is unordered. Nothing in this repo passes it; anything that
+   * starts to should pin the returned `version` immediately.
+   *
+   * A deprecated capability still resolves. The lifecycle lives in `state`,
+   * and a consumer that never reads it will keep building on something already
+   * scheduled to go away - the warning below is the only place the signal
+   * surfaces in this repo today.
+   */
   async resolve(
     capabilityId: string,
     ctx: RunosContext,
@@ -179,6 +193,12 @@ export class RunosClient {
         message: `runos_resolve returned no contract for ${capabilityId}`,
         retryable: false,
       });
+    }
+    if (typeof payload.state === "string" && /deprecat/i.test(payload.state)) {
+      console.warn(
+        `[runos] ${capabilityId} resolved to ${payload.version} with state "${payload.state}" - ` +
+          `this capability is on its way out; plan the migration before it stops resolving`,
+      );
     }
     return payload;
   }

@@ -43,6 +43,14 @@ export interface ToolInvocation {
   ok: boolean;
   callId?: string;
   errorCode?: string;
+  /**
+   * The version the gateway actually served (TD-004). "stable" is a FLOATING
+   * alias: an operator can repoint it and the same conversation would silently
+   * change behaviour mid-turn. Recording what was served is what makes
+   * "yesterday this worked" answerable; pinning below is what stops it
+   * changing between two calls of one turn.
+   */
+  versionResolved?: string;
 }
 
 export interface TurnResult {
@@ -78,6 +86,13 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
 
   const proposals: ProposalDraft[] = [];
   const invocations: ToolInvocation[] = [];
+  // What the gateway served per capability, learned from the first call and
+  // handed back on every later one (TD-004). "stable" is a floating alias an
+  // operator can repoint at any moment; without this pin, two calls to one
+  // capability inside ONE turn could run different versions and nothing would
+  // say so. First call floats by design - the pin freezes a turn, it does not
+  // freeze the product.
+  const pinnedVersions = new Map<string, string>();
   let answer = "";
   let rounds = 0;
   let truncated = false;
@@ -115,7 +130,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
 
     rounds += 1;
     for (const call of calls) {
-      const outcome = await handleToolCall(call, surface, input, deps, proposals);
+      const outcome = await handleToolCall(call, surface, input, deps, proposals, pinnedVersions);
       if (outcome.invocation) invocations.push(outcome.invocation);
       messages.push({
         role: "tool",
@@ -167,6 +182,7 @@ async function handleToolCall(
   input: TurnInput,
   deps: TurnDeps,
   proposals: ProposalDraft[],
+  pinnedVersions: Map<string, string>,
 ): Promise<ToolOutcome> {
   const args = parseArgs(call.arguments);
 
@@ -208,10 +224,19 @@ async function handleToolCall(
   }
 
   try {
+    const pinned = pinnedVersions.get(binding.capabilityId);
     const result = await deps.runosClient.invoke(
-      { capability_id: binding.capabilityId, operation: binding.operation, arguments: args },
+      {
+        capability_id: binding.capabilityId,
+        operation: binding.operation,
+        arguments: args,
+        ...(pinned ? { version: pinned } : {}),
+      },
       input.runos,
     );
+    const versionResolved =
+      typeof result.meta.version_resolved === "string" ? result.meta.version_resolved : undefined;
+    if (versionResolved && !pinned) pinnedVersions.set(binding.capabilityId, versionResolved);
     return {
       content: JSON.stringify({ ok: true, result: result.structured ?? textOf(result.content) }),
       invocation: {
@@ -220,6 +245,7 @@ async function handleToolCall(
         operation: binding.operation,
         ok: true,
         callId: typeof result.meta.call_id === "string" ? result.meta.call_id : undefined,
+        versionResolved,
       },
     };
   } catch (e) {
