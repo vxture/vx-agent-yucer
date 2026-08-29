@@ -442,3 +442,69 @@ test("playbooks and skills both land in the prompt, each inside its own fence", 
   assert.match(p, /<playbook code="pb_1"/);
   assert.match(p, /<skill id="acme.deal-qual"/);
 });
+
+// --- TD-004: versions are recorded, and pinned within a turn -----------------
+
+test("the version the gateway served is recorded on the invocation", async () => {
+  const h = harness({
+    replies: [
+      { toolCalls: [{ id: "t1", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+      { content: "done" },
+    ],
+    capabilities: [cap()],
+    invoke: async () => ({
+      content: [{ type: "text", text: "ok" }],
+      structured: {},
+      meta: { call_id: "call_1", version_resolved: "1.2.0" },
+    }),
+  });
+  const r = await runTurn({ ...BASE, question: "q" }, h);
+  assert.equal(r.invocations[0].versionResolved, "1.2.0");
+});
+
+test("a second call to the same capability is pinned to what the first was served", async () => {
+  // "stable" is a floating alias. If an operator repoints it mid-turn, the
+  // second call would run a different version than the first and nothing would
+  // say so. The pin freezes a TURN, not the product: the next turn floats
+  // again.
+  const h = harness({
+    replies: [
+      { toolCalls: [{ id: "t1", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+      { toolCalls: [{ id: "t2", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+      { content: "done" },
+    ],
+    capabilities: [cap()],
+    invoke: async () => ({
+      content: [{ type: "text", text: "ok" }],
+      structured: {},
+      meta: { call_id: "c", version_resolved: "1.2.0" },
+    }),
+  });
+  await runTurn({ ...BASE, question: "q" }, h);
+
+  assert.equal(h.invoked.length, 2);
+  assert.equal(
+    (h.invoked[0] as { version?: string }).version,
+    undefined,
+    "the first call floats - the pin must not freeze the product",
+  );
+  assert.equal(
+    (h.invoked[1] as { version?: string }).version,
+    "1.2.0",
+    "the second call must carry the version the first was served",
+  );
+});
+
+test("a gateway that reports no version leaves the turn floating rather than pinning garbage", async () => {
+  const h = harness({
+    replies: [
+      { toolCalls: [{ id: "t1", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+      { toolCalls: [{ id: "t2", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] },
+      { content: "done" },
+    ],
+    capabilities: [cap()],
+  });
+  const r = await runTurn({ ...BASE, question: "q" }, h);
+  assert.equal((h.invoked[1] as { version?: string }).version, undefined);
+  assert.equal(r.invocations[0].versionResolved, undefined);
+});
