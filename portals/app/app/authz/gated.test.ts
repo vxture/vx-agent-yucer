@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { FEATURE_KEYS } from "../entitlement/capability";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -129,4 +130,23 @@ test("the writing actions were parsed at all", () => {
 test("KNOWN_UNGATED names no action the catalogue does not declare", () => {
   const ghosts = Object.keys(KNOWN_UNGATED).filter((a) => !ACTIONS.includes(a));
   assert.deepEqual(ghosts, [], `these are not actions at all: ${ghosts.join(", ")}`);
+});
+
+test("every frozen feature key is carried by at least one action", () => {
+  // The commercial surface is FROZEN AT 19 (owner, 2026-08-26): those keys are
+  // the complete sellable catalogue. A key no action references is a tier
+  // matrix selling something the product cannot gate - the mirror image of a
+  // gate with no verb. The ghost direction (an action naming a key outside the
+  // frozen list) needs no test: `feature` is typed FeatureKey and the compiler
+  // refuses it.
+  const carried = new Set(
+    [...CATALOGUE.matchAll(/feature:\s*"([a-z._]+)"/g)].map((m) => m[1]),
+  );
+  const orphans = FEATURE_KEYS.filter((k) => !carried.has(k));
+  assert.deepEqual(
+    orphans,
+    [],
+    `these keys are in the sellable matrix but no action carries them - the ` +
+      `tier table is selling something the product cannot gate: ${orphans.join(", ")}`,
+  );
 });
