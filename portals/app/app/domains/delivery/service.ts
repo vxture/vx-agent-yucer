@@ -19,6 +19,7 @@ import {
   type CollectionSummary,
   type ProjectHealth,
   type RevenueStatus,
+  type HealthOverride,
 } from "./lib/revenue";
 import type { Money } from "../shared/money";
 import type {
@@ -55,7 +56,7 @@ export interface ProjectView {
   collections: CollectionSummary | null;
   reportedHealth: ProjectHealth;
   derivedHealth: ProjectHealth;
-  healthOverriddenBecause: string | null;
+  healthOverriddenBecause: HealthOverride | null;
 }
 
 /**
@@ -197,7 +198,7 @@ export async function reconcileProjectHealth(
   ctx: DeliveryContext,
   projectId: string,
   opts: { now?: Date } = {},
-): Promise<RuleResult<{ health: ProjectHealth; changed: boolean; because: string | null }>> {
+): Promise<RuleResult<{ health: ProjectHealth; changed: boolean; because: HealthOverride | null }>> {
   const gate = can(ctx.holder, ctx.entitlement, "delivery.project.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -216,7 +217,7 @@ export async function reconcileProjectHealth(
     now: opts.now,
   });
   if (!derived.ok) {
-    return derived as RuleResult<{ health: ProjectHealth; changed: boolean; because: string | null }>;
+    return derived as RuleResult<{ health: ProjectHealth; changed: boolean; because: HealthOverride | null }>;
   }
 
   const changed = derived.value.health !== project.health;

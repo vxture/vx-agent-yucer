@@ -39,6 +39,7 @@ import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
 } from "../../domains/catalog/service";
+import { loadFailureText } from "../lib/load-failure";
 // D6 pipeline page.
 //
 // Dynamic, never cached: the rows are workspace-scoped and gate-filtered, and a
@@ -53,7 +54,7 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT } = await getMessages();
+  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const period = resolvePeriod((await searchParams).period);
   const session = await resolveAppSession();
   if (!session) {
@@ -107,7 +108,7 @@ export default async function PipelinePage({
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }

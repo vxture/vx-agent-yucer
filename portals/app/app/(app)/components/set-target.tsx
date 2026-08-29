@@ -45,7 +45,7 @@ export function SetTarget({
   territories,
   onCreate,
 }: SetTargetProps) {
-  const { PLANNING_TEXT } = useMessages();
+  const { PLANNING_TEXT, TARGET_ERROR } = useMessages();
   const [scopeType, setScopeType] = useState<
     "workspace" | "territory" | "owner"
   >("workspace");
@@ -165,7 +165,7 @@ export function SetTarget({
                 metric,
                 amount: n,
               }).then((r) => {
-                setError(r.ok ? null : (r.error ?? ""));
+                setError(r.ok ? null : (TARGET_ERROR[r.error ?? "denied"] ?? TARGET_ERROR.not_found));
                 setSaved(r.ok);
                 if (r.ok) setAmount("");
               });

@@ -173,9 +173,20 @@ export interface ProjectHealthInput {
 
 export interface ProjectHealthResult {
   health: ProjectHealth;
-  /** Set when the derived health is worse than what was reported. */
-  overriddenBecause: string | null;
+  /**
+   * Set when the derived health is worse than what was reported.
+   *
+   * STRUCTURED, not a sentence. This file must be ASCII-only, so anything it
+   * writes in prose is by definition not product copy - and a sentence built
+   * here went straight to the screen of a Chinese product for weeks (TD-010).
+   * The interface renders this; the rule layer says only what happened.
+   */
+  overriddenBecause: HealthOverride | null;
 }
+
+export type HealthOverride =
+  | { readonly code: "overdue_instalment"; readonly count: number }
+  | { readonly code: "missed_milestone"; readonly count: number };
 
 /**
  * Reconcile reported health against the facts.
@@ -195,7 +206,7 @@ export function deriveProjectHealth(input: ProjectHealthInput): RuleResult<Proje
     if (input.reported === "green") {
       return ok({
         health: "amber",
-        overriddenBecause: `${overdue} overdue instalment(s): a project with unpaid instalments cannot be green`,
+        overriddenBecause: { code: "overdue_instalment", count: overdue },
       });
     }
     return ok({ health: input.reported, overriddenBecause: null });
@@ -204,7 +215,7 @@ export function deriveProjectHealth(input: ProjectHealthInput): RuleResult<Proje
   if (missed > 0 && input.reported === "green") {
     return ok({
       health: "amber",
-      overriddenBecause: `${missed} missed milestone(s)`,
+      overriddenBecause: { code: "missed_milestone", count: missed },
     });
   }
 

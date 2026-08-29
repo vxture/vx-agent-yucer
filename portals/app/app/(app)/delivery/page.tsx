@@ -17,6 +17,7 @@ import { moveInstalment, reconcileHealth, saveMilestone } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
+import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 // D7 delivery list.
@@ -28,7 +29,7 @@ export const dynamic = "force-dynamic";
 // failing engagement stays green until it is a crisis.
 
 export default async function DeliveryPage() {
-  const { DELIVERY_TEXT, SHELL_TEXT } = await getMessages();
+  const { DELIVERY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -52,7 +53,7 @@ export default async function DeliveryPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={projects.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(projects.violations, LOAD_ERROR)}
       />
     );
   }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { HealthOverride } from "../../domains/delivery/lib/revenue";
 import { resolveAppSession } from "../lib/session";
 import { getDeliveryStore } from "../../domains/shared/registry";
 import {
@@ -33,7 +34,7 @@ export interface ReconcileResult {
   /** True when the stored value actually moved. */
   changed?: boolean;
   /** Why the derivation disagreed with the report. Null when it agreed. */
-  because?: string | null;
+  because?: HealthOverride | null;
   error?: string;
 }
 
@@ -55,7 +56,7 @@ export async function reconcileHealth(
   );
 
   if (!result.ok) {
-    return { ok: false, error: result.violations.map((v) => v.message).join("; ") };
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
   revalidatePath("/delivery");
   return {

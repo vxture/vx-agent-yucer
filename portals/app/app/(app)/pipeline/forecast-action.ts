@@ -51,7 +51,7 @@ export async function submitForecastSnapshot(
   );
 
   if (!result.ok) {
-    return { ok: false, error: result.violations.map((v) => v.message).join("; ") };
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
 
   // The snapshot is append-only, so the page must re-read rather than patch:

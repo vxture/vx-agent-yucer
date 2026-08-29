@@ -88,7 +88,7 @@ test("an overdue instalment downgrades a reported green, and says why", async ()
 
   assert.equal(view.reportedHealth, "green");
   assert.equal(view.derivedHealth, "amber");
-  assert.match(String(view.healthOverriddenBecause), /cannot be green/);
+  assert.deepEqual(view.healthOverriddenBecause, { code: "overdue_instalment", count: 1 });
 });
 
 test("the overdue rule applies even when the revenue view is not bought", async () => {
@@ -307,5 +307,5 @@ test("a missed milestone overrides the manager's reported green", async () => {
 
   const after = unwrap(await projectView(c, "prj_1"));
   assert.notEqual(after.derivedHealth, "green", "the plan changed the verdict");
-  assert.match(after.healthOverriddenBecause ?? "", /missed/);
+  assert.deepEqual(after.healthOverriddenBecause, { code: "missed_milestone", count: 1 });
 });

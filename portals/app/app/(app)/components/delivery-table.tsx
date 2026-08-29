@@ -22,6 +22,7 @@ import { formatMoney } from "../lib/view-model";
 import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
+import type { HealthOverride } from "../../domains/delivery/lib/revenue";
 // The delivery table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -47,7 +48,7 @@ export interface DeliveryRow {
   status: string;
   reported: ProjectHealth;
   derived: ProjectHealth;
-  overriddenBecause: string | null;
+  overriddenBecause: HealthOverride | null;
   /** Resolved on the page. Null when the member may not read accounts. */
   accountName: string | null;
 }
@@ -59,7 +60,7 @@ export interface DeliveryTableProps {
     ok: boolean;
     health?: string;
     changed?: boolean;
-    because?: string | null;
+    because?: HealthOverride | null;
     error?: string;
   }>;
   readonly rows: readonly DeliveryRow[];
@@ -76,6 +77,8 @@ export function DeliveryTable({
     DS_LABELS,
     PROJECT_HEALTH_LABEL,
     PROJECT_STATUS_LABEL,
+    PROJECT_ERROR,
+    healthOverrideText,
   } = useMessages();
   const { toast } = useToast();
   const [, start] = useTransition();
@@ -178,7 +181,10 @@ export function DeliveryTable({
               start(() => {
                 void onReconcile(row.id).then((r) => {
                   if (!r.ok)
-                    return toast({ tone: "danger", title: r.error ?? "" });
+                    return toast({
+                      tone: "danger",
+                      title: PROJECT_ERROR[r.error ?? "denied"] ?? PROJECT_ERROR.not_found,
+                    });
                   // THREE OUTCOMES, THREE MESSAGES. Saying "recomputed" for all
                   // of them would hide the one that matters: the report and the
                   // rows agreed, which is a different fact from having just
@@ -195,7 +201,7 @@ export function DeliveryTable({
                       PROJECT_HEALTH_LABEL[r.health ?? ""] ?? r.health ?? "",
                     ),
                     description: r.because
-                      ? DELIVERY_TEXT.reconcileWhy(r.because)
+                      ? DELIVERY_TEXT.reconcileWhy(healthOverrideText(r.because))
                       : undefined,
                   });
                 });
@@ -276,7 +282,7 @@ export function DeliveryTable({
  * the rule return a structured reason instead is TD-010.
  */
 function Health({ row }: { row: DeliveryRow }) {
-  const { DELIVERY_TEXT, PROJECT_HEALTH_LABEL } = useMessages();
+  const { DELIVERY_TEXT, PROJECT_HEALTH_LABEL, healthOverrideText } = useMessages();
   const badge = (
     <StatusBadge tone={HEALTH_TONE[row.derived]} dot>
       {PROJECT_HEALTH_LABEL[row.derived] ?? row.derived}
@@ -300,7 +306,7 @@ function Health({ row }: { row: DeliveryRow }) {
           <span className="flex flex-col gap-2xs">
             <span>{DELIVERY_TEXT.healthOverriddenWhy}</span>
             <span className="opacity-70">
-              {DELIVERY_TEXT.healthOverriddenEvidence}: {row.overriddenBecause}
+              {DELIVERY_TEXT.healthOverriddenEvidence}: {healthOverrideText(row.overriddenBecause)}
             </span>
           </span>
         </TooltipContent>

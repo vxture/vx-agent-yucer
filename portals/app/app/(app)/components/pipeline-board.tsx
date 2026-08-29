@@ -35,6 +35,7 @@ import {
 } from "../lib/view-model";
 
 import { useLocale, useMessages } from "../lib/i18n/provider";
+import { loadFailureText } from "../lib/load-failure";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
 // A thin binding of DS elements to yucer's domain semantics, which is the one
@@ -82,6 +83,7 @@ export function PipelineBoard({
     FORECAST_LABEL,
     PIPELINE_TEXT,
     STAGE_LABEL,
+    LOAD_ERROR,
   } = useMessages();
   // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
   // anything, so every figure in the product was formatted Chinese-style
@@ -257,7 +259,7 @@ export function PipelineBoard({
       {!totals.ok ? (
         <EmptyState
           title={PIPELINE_TEXT.rollupFailedTitle}
-          description={totals.violations.map((v) => v.message).join("; ")}
+          description={loadFailureText(totals.violations, LOAD_ERROR)}
         />
       ) : rows.length === 0 ? (
         <EmptyState

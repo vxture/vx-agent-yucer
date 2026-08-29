@@ -12,6 +12,7 @@ import { can } from "../../authz/decide";
 import { getMessages } from "../lib/i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
 import { currentPeriod } from "../../domains/shared/period";
+import { loadFailureText } from "../lib/load-failure";
 // D2 planning: targets against what actually closed.
 //
 // The column that matters is attainment, and the thing it must never do is
@@ -22,7 +23,7 @@ import { currentPeriod } from "../../domains/shared/period";
 export const dynamic = "force-dynamic";
 
 export default async function PlanningPage() {
-  const { PLANNING_TEXT, SHELL_TEXT } = await getMessages();
+  const { PLANNING_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -63,7 +64,7 @@ export default async function PlanningPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }

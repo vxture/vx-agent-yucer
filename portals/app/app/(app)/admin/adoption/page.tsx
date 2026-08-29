@@ -20,6 +20,7 @@ import type { OpportunityRecord } from "../../../domains/pipeline/store";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 
 import { getMessages } from "../../lib/i18n/server";
+import { loadFailureText } from "../../lib/load-failure";
 // The instrument behind ADR-012's kill criterion.
 //
 // Stage 1 was shipped with a condition attached - if the capture habit does not
@@ -34,7 +35,7 @@ import { getMessages } from "../../lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
-  const { ADOPTION_TEXT, SHELL_TEXT, STAGE_LABEL } = await getMessages();
+  const { ADOPTION_TEXT, SHELL_TEXT, STAGE_LABEL, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -69,9 +70,7 @@ export default async function AdoptionPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={opportunities.violations
-          .map((v: { message: string }) => v.message)
-          .join("; ")}
+        description={loadFailureText(opportunities.violations, LOAD_ERROR)}
       />
     );
   }
@@ -89,7 +88,7 @@ export default async function AdoptionPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }

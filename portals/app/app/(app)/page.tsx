@@ -5,6 +5,7 @@ import { cachedFeed } from "./lib/board";
 import { JudgementWorkspace } from "./components/judgement-workspace";
 
 import { getMessages } from "./lib/i18n/server";
+import { loadFailureText } from "./lib/load-failure";
 // The home screen.
 //
 // It used to be an eight-domain nav beside a list of accounts. A directory
@@ -25,7 +26,7 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ scope?: string }>;
 }) {
-  const { HOME_TEXT, SHELL_TEXT } = await getMessages();
+  const { HOME_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const { scope: rawScope } = await searchParams;
   const session = await resolveAppSession();
   if (!session) {
@@ -55,7 +56,7 @@ export default async function HomePage({
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={feed.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(feed.violations, LOAD_ERROR)}
       />
     );
   }

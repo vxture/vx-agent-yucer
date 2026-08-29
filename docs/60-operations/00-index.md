@@ -19,7 +19,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
 | TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
-| TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open |
+| TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open（泄漏已全部堵死并加守卫；余「code 无句子」29 条） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
@@ -242,6 +242,61 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 `${missed} missed milestone(s)`，同一路径同一问题。改结构化理由时一并处理。
 
 **恢复条件**：规则层改为结构化理由，界面层删除本条的权宜渲染。
+
+---
+
+### 2026-08-29：修完了，但先量出来的数字比记录的大一个量级
+
+**记录说「复发两次」。实际是 21 处，跨 18 个文件。** 没有人数过。
+
+写守卫先于修代码，让它对着现存缺陷失败一次：
+
+```
+✖ no rule-layer sentence is rendered as product copy
+  account/[id]/page.tsx  account/page.tsx  admin/adoption/page.tsx
+  admin/members/page.tsx  campaign/page.tsx  catalog/page.tsx
+  components/pipeline-board.tsx  copilot/page.tsx  delivery/actions.ts
+  delivery/page.tsx  page.tsx  pipeline/[id]/page.tsx
+  pipeline/forecast-action.ts  pipeline/page.tsx  planning/actions.ts
+  planning/page.tsx  signal/page.tsx  strategy/page.tsx
+```
+
+**每一个页面的加载失败路径都在泄漏。** 被拒的读取渲染出来的是
+`missing permission strategy.read`——英文，而且把内部权限码摆给了终端用户。
+而正确的句子（`你没有执行这个操作的权限`）在 `GATE_ERROR` 里一直躺着，页面只是没用它。
+
+#### 修法与其中一个必须先解决的连带问题
+
+三部分：`LOAD_ERROR` 字典 + `loadFailureText()`（15 个页面）；三个服务端动作改回
+返回 `code`；`deriveProjectHealth` 改为结构化理由 `{ code, count }`，句子进
+`healthOverrideText()`。
+
+**连带问题**：那三个服务端动作的消费方（`set-target` / `submit-forecast` /
+`delivery-table` 的行操作 toast）**根本没有字典**，直接渲染 `r.error`。改之前显示英文
+散文，改之后就会显示裸码——**只是把一种错换成另一种**。所以同时补了
+`TARGET_ERROR` / `FORECAST_ERROR` / `PROJECT_ERROR` 三本字典，覆盖这三个域会发出的
+全部 code。
+
+**实测**：`/delivery` 的「已下调」提示框，判定依据一行从
+`1 overdue instalment(s): a project with unpaid instalments cannot be green`
+变成 `1 期逾期未回款——有欠款的项目不能是健康`。
+
+**反证**：把 `signal/page.tsx` 一处改回泄漏写法，守卫立刻点名该文件；改回即绿。
+
+#### 仍然开着的那一半
+
+**97 个违规 code 里，29 个在任何字典里都没有句子。** 这是「code 过界、句子留在字典」
+这个约定成立的前提，而它目前只成立了一部分——`useSaveAction` 的兜底是
+`errors[code] ?? code`，所以一个没登记的 code 会以裸码形式出现在界面上。
+
+**但不是这 29 个都是缺陷。** 其中 `column_not_writable` / `append_only_table` /
+`unknown_table` / `attribution_immutable` / `evidence_immutable` /
+`proposal_immutable` / `tenant_required` 是适配层的内部不变量，它们**抛异常而不是
+返回给界面**，本来就不需要产品文案。剩下的需要逐条判「这条会不会走到用户面前」。
+
+**下一步不是补 29 句话，是先把这个判据变成机器能问的问题**——否则补完还是不知道
+补全了没有。守卫要能区分「能到达界面的 code」和「适配层自证」，那需要一条从服务端
+动作出发的可达性分析，不是一个正则。
 
 ### TD-011 - `/account/[id]` 的 key 警告 —— 一次把根因推给上游的误判
 

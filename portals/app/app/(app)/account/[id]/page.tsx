@@ -64,6 +64,7 @@ import {
   recordFollowUp,
   settleCommitment,
 } from "../field-actions";
+import { loadFailureText } from "../../lib/load-failure";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -88,6 +89,7 @@ export default async function AccountDetailPage({
     PROJECT_HEALTH_LABEL,
     SHELL_TEXT,
     STAGE_LABEL,
+    LOAD_ERROR,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -116,7 +118,7 @@ export default async function AccountDetailPage({
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={detail.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(detail.violations, LOAD_ERROR)}
       />
     );
   }
@@ -322,7 +324,7 @@ export default async function AccountDetailPage({
             // a starter workspace sees the account without the relationship map.
             <EmptyState
               title={SHELL_TEXT.loadFailed}
-              description={chain.violations.map((v) => v.message).join("; ")}
+              description={loadFailureText(chain.violations, LOAD_ERROR)}
             />
           )}
         </div>

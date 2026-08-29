@@ -7,6 +7,7 @@ import { MemberRoles } from "../../components/member-roles";
 import { grantMemberRole, removeMemberRole } from "./actions";
 
 import { getMessages } from "../../lib/i18n/server";
+import { loadFailureText } from "../../lib/load-failure";
 // Member and role administration.
 //
 // Membership is LAZY: a row appears on the first sighting of (workspace, sub) at
@@ -19,7 +20,7 @@ import { getMessages } from "../../lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
-  const { SHELL_TEXT } = await getMessages();
+  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -42,7 +43,7 @@ export default async function MembersPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }
