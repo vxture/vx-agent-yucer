@@ -239,6 +239,14 @@ export const CATALOG_TEXT = {
   floorEqualsList: "底价等于标价 = 此产品不打折，这是一个立场，不是笔误",
   priceDenied: "你没有定价权限——能移动底价的人等于能批准每一笔折扣",
   writeDenied: "你没有维护目录的权限",
+  solutionSummary: "一句话说明",
+  solutionProduct: "产品",
+  solutionQuantity: "数量",
+  pickProduct: "选择产品",
+  addItem: "加一行",
+  removeItem: "移除",
+  saveSolution: "保存方案",
+  solutionSaved: "已保存",
 } as const;
 
 /**
@@ -346,7 +354,6 @@ export const CATALOG_ERROR: Record<string, string> = {
   currency_required: "需要币种",
   amount_negative: "价格不能为负",
   floor_above_list: "底价高于标价会让每一笔都需要签字，等于没有底价",
-  denied: "操作被拒绝",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

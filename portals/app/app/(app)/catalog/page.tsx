@@ -5,7 +5,7 @@ import { can } from "../../authz/decide";
 import { getCatalogStore } from "../../domains/shared/registry";
 import { listPrices, listProducts, listSolutions } from "../../domains/catalog/service";
 import { CatalogPanels } from "../components/catalog-panels";
-import { saveProduct, savePrice } from "./actions";
+import { saveProduct, savePrice, saveSolution } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 
 // D9 catalogue page.
@@ -81,7 +81,11 @@ export default async function CatalogPage() {
         canPrice={
           can(session.authz, session.entitlement, "catalog.pricebook.upsert", "ui").allowed
         }
+        canSolution={
+          can(session.authz, session.entitlement, "catalog.solution.upsert", "ui").allowed
+        }
         onSaveProduct={saveProduct}
+        onSaveSolution={saveSolution}
         onSavePrice={savePrice}
       />
     </ViewLayout>

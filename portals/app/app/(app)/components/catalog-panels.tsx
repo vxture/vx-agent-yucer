@@ -42,11 +42,18 @@ export interface CatalogPanelsProps {
   readonly prices: readonly PriceEntryRecord[];
   readonly canWrite: boolean;
   readonly canPrice: boolean;
+  readonly canSolution: boolean;
   readonly onSaveProduct: (input: {
     productCode: string;
     name: string;
     category: string | null;
     unit: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
+  readonly onSaveSolution: (input: {
+    solutionCode: string;
+    name: string;
+    summary: string | null;
+    items: readonly { productId: string; quantity: number }[];
   }) => Promise<{ ok: boolean; error?: string }>;
   readonly onSavePrice: (input: {
     productId: string;
@@ -62,7 +69,9 @@ export function CatalogPanels({
   prices,
   canWrite,
   canPrice,
+  canSolution,
   onSaveProduct,
+  onSaveSolution,
   onSavePrice,
 }: CatalogPanelsProps) {
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
@@ -121,6 +130,7 @@ export function CatalogPanels({
             ))}
           </div>
         )}
+        {canSolution ? <SolutionForm products={products} onSave={onSaveSolution} /> : null}
       </Section>
 
       <Section id="pricebook" icon="currency-cny" title={CATALOG_TEXT.pricebook} description={CATALOG_TEXT.pricebookWhy}>
@@ -215,7 +225,7 @@ function ProductForm({
               category: category.trim() || null,
               unit,
             }).then((r) => {
-              setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? r.error ?? ""));
+              setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied));
               setDone(r.ok);
               if (r.ok) {
                 setCode("");
@@ -232,6 +242,127 @@ function ProductForm({
       <span className="text-muted-foreground text-xs">{CATALOG_TEXT.codeHint}</span>
       {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
       {done && !err ? <StatusBadge tone="success">{CATALOG_TEXT.productSaved}</StatusBadge> : null}
+    </div>
+  );
+}
+
+function SolutionForm({
+  products,
+  onSave,
+}: {
+  readonly products: readonly ProductRecord[];
+  readonly onSave: CatalogPanelsProps["onSaveSolution"];
+}) {
+  const { CATALOG_ERROR, CATALOG_TEXT } = useMessages();
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [summary, setSummary] = useState("");
+  // One row per product line. The rule refuses an empty list ("a solution with
+  // no products is a name, not a bundle"), so the form starts with one row
+  // rather than a bare add-button - the shape of the data teaches the shape of
+  // the rule.
+  const [items, setItems] = useState<readonly { productId: string; quantity: string }[]>([
+    { productId: "", quantity: "1" },
+  ]);
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [pending, start] = useTransition();
+
+  const active = products.filter((pr) => pr.status === "active");
+  function patch(i: number, next: Partial<{ productId: string; quantity: string }>) {
+    setItems(items.map((it, j) => (j === i ? { ...it, ...next } : it)));
+  }
+  const parsed = items
+    .filter((it) => it.productId !== "")
+    .map((it) => ({ productId: it.productId, quantity: Number(it.quantity) }));
+  const ready =
+    code.trim() !== "" &&
+    name.trim() !== "" &&
+    parsed.length > 0 &&
+    parsed.every((it) => Number.isFinite(it.quantity) && it.quantity > 0);
+
+  return (
+    <div className="mt-md flex flex-col gap-sm">
+      <div className="flex flex-wrap items-end gap-md">
+        <Field>
+          <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
+          <Input value={code} onChange={(e) => setCode(e.target.value)} />
+        </Field>
+        <Field>
+          <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field>
+          <FieldLabel>{CATALOG_TEXT.solutionSummary}</FieldLabel>
+          <Input value={summary} onChange={(e) => setSummary(e.target.value)} />
+        </Field>
+      </div>
+      {items.map((it, i) => (
+        /* Index as key is safe here: rows are only appended or removed from a
+           local draft, never reordered, and each row's state lives in `items`
+           itself rather than in the row component. */
+        <div key={i} className="flex flex-wrap items-end gap-md">
+          <Field>
+            <FieldLabel>{CATALOG_TEXT.solutionProduct}</FieldLabel>
+            <NativeSelect value={it.productId} onChange={(e) => patch(i, { productId: e.target.value })}>
+              <option value="">{CATALOG_TEXT.pickProduct}</option>
+              {active.map((pr) => (
+                <option key={pr.id} value={pr.id}>
+                  {pr.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field>
+            <FieldLabel>{CATALOG_TEXT.solutionQuantity}</FieldLabel>
+            <Input
+              type="number"
+              min={1}
+              value={it.quantity}
+              onChange={(e) => patch(i, { quantity: e.target.value })}
+            />
+          </Field>
+          {items.length > 1 ? (
+            <Button variant="ghost" onClick={() => setItems(items.filter((_, j) => j !== i))}>
+              {CATALOG_TEXT.removeItem}
+            </Button>
+          ) : null}
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-md">
+        <Button
+          variant="secondary"
+          onClick={() => setItems([...items, { productId: "", quantity: "1" }])}
+        >
+          {CATALOG_TEXT.addItem}
+        </Button>
+        <Button
+          disabled={pending || !ready}
+          onClick={() =>
+            start(() => {
+              void onSave({
+                solutionCode: code.trim(),
+                name: name.trim(),
+                summary: summary.trim() === "" ? null : summary.trim(),
+                items: parsed,
+              }).then((r) => {
+                setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied));
+                setDone(r.ok);
+                if (r.ok) {
+                  setCode("");
+                  setName("");
+                  setSummary("");
+                  setItems([{ productId: "", quantity: "1" }]);
+                }
+              });
+            })
+          }
+        >
+          {CATALOG_TEXT.saveSolution}
+        </Button>
+        {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
+        {done && !err ? <StatusBadge tone="success">{CATALOG_TEXT.solutionSaved}</StatusBadge> : null}
+      </div>
     </div>
   );
 }
@@ -285,7 +416,7 @@ function PriceForm({
         onClick={() =>
           start(() => {
             void onSave({ productId, currency: "CNY", listPrice: l, floorPrice: f }).then((r) => {
-              setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? r.error ?? ""));
+              setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied));
               setDone(r.ok);
               if (r.ok) {
                 setList("");

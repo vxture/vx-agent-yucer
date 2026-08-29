@@ -352,7 +352,17 @@ code 集可能混入邻居的。**过近似的代价是多译一句话；欠近�
 
 `saveSolution`（`catalog/actions.ts`）没有任何界面绑定——一个没人能走进的服务端
 动作。`gated.test.ts` 管的是 action 声明有没有门，`wired.test.ts` 管的是域动词有没有
-调用者，**「action 有没有绑定点」两个守卫都不管**。与 TD-016 同族，暂记于此。
+调用者，**「action 有没有绑定点」两个守卫都不管**。与 TD-016 同族。
+
+**已处理（同日）**：与 offering 相反，判据全绿——solution 的读路径全通（页面读、
+面板渲染、种子有两条、报价流程从它出发），规则、动词、action、字典的句子
+（`items_required` / `quantity_positive` / `duplicate_product`）**全都早已写好**，
+缺的只是表单。建 `SolutionForm`（编码/名称/说明 + 产品行编辑器）。守卫自动接管：
+删掉 `items_required` 那句，`reachable-codes` 立刻点名
+`CATALOG_ERROR lacks "items_required" (reachable via saveSolution)`——新绑定点
+不需要任何登记就进了监控。实测新建 `SOL-PHARMA 医药零售合规方案` 落库进花名册。
+顺带把同文件 Product/Price 两个表单的裸 code 兜底（`?? r.error ?? ""`）改为
+`?? CATALOG_ERROR.denied`。
 
 ### TD-011 - `/account/[id]` 的 key 警告 —— 一次把根因推给上游的误判
 
