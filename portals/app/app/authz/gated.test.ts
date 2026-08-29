@@ -17,7 +17,7 @@ import { join } from "node:path";
 // the product could create, and since a territory-scoped target needs a
 // territory_id, it could not set a regional target either.
 //
-// Four more are in the same state (TD-016), and one was deleted rather than
+// Three more are in the same state (TD-016), and one was deleted rather than
 // built: see ADR-022 on project_task. None of them is the OTHER shape -
 // a surface that writes without a gate - which was checked at the same time and
 // is the reassuring half of the finding.
@@ -86,7 +86,6 @@ const KNOWN_UNGATED: Record<string, string> = {
   // Declared ahead of a verb nobody has written. TD-016.
   "strategy.segment.view": "细分市场 is a planned module; no segment table, no service - TD-016",
   "strategy.segment.upsert": "same as strategy.segment.view - TD-016",
-  "campaign.execution.upsert": "executions are seeded and read, never written - TD-016",
   "account.offering.view": "no offering surface and no service verb - TD-016",
   "account.offering.upsert": "same as account.offering.view - TD-016",
 };

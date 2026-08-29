@@ -206,7 +206,7 @@ export const CATALOG_TEXT = {
   leadWhy: "不知道自己卖什么，就没法卖任何东西——所以目录不按档位售卖，全档可读。",
 
   products: "产品",
-  productsWhy: "单品或服务。**单位**不是装饰：每条行项都是数量乘单价，没有单位的「10 × 1000」是十个坐席、十天还是十个站点，那是三笔不同的生意。",
+  productsWhy: "单品或服务。单位不是装饰：每条行项都是数量乘单价，没有单位的「10 × 1000」是十个坐席、十天还是十个站点，那是三笔不同的生意。",
   colCode: "编码",
   colName: "名称",
   colCategory: "类别",
@@ -884,7 +884,7 @@ export const FIELD_TEXT = {
 
   commitTitle: "承诺",
   commitDescription:
-    "有日期的承诺,双向。**完成必须有证据**——指向一次真实的跟进,不能自己说完成了。错过不需要任何操作。",
+    "有日期的承诺,双向。完成必须有证据——指向一次真实的跟进,不能自己说完成了。错过不需要任何操作。",
   commitOverdueTitle: "逾期承诺",
   commitOverdueDescription:
     "已经过期、还没有人面对的承诺。客户连续错过承诺,是停滞最早的信号。",
@@ -1759,6 +1759,38 @@ export const PLAN_STATUS_LABEL: Record<string, string> = {
 };
 
 export const CAMPAIGN_TEXT = {
+  executionsTitle: "战役执行项",
+  executionsWhy:
+    "一场战役由哪些动作构成。上面那列「N/M 完成」就是从这里数出来的——而且还有未完成项时，战役无法标记完成。",
+  executionsNone: "还没有执行项",
+  executionsNoneWhy: "先把要做的动作列出来，战役才能被推进和收尾。",
+  executionCampaign: "战役",
+  executionPickCampaign: "选择战役",
+  executionTitle: "动作",
+  executionType: "类型",
+  executionTypeLabel: {
+    outreach: "外呼触达",
+    content: "内容投放",
+    event: "活动",
+    nurture: "培育",
+    handoff: "转交销售",
+  } as Record<string, string>,
+  executionAssignee: "负责人",
+  executionDue: "计划完成",
+  executionStatus: "状态",
+  executionStatusLabel: {
+    pending: "未开始",
+    in_progress: "进行中",
+    done: "已完成",
+    skipped: "已跳过",
+  } as Record<string, string>,
+  executionEditing: "编辑哪一项",
+  executionNew: "新建执行项",
+  executionSave: "保存执行项",
+  executionSaved: "已保存",
+  executionsDenied: "你没有维护战役执行项的权限",
+  executionBlocks:
+    "「未开始」和「进行中」都算未完成——只要还有一项，这场战役就不能标记为已完成。做完或跳过它，两者都算结清。已完成的战役其执行项被冻结：它们正是这场战役据以收尾的记录。",
   title: "市场执行",
   description:
     "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
@@ -1911,6 +1943,15 @@ export const CONTACT_ERROR: Record<string, string> = {
   unknown_status: "未知的联系人状态",
   influence_range: "影响力是 0 到 100 之间的整数",
   not_found: "这个联系人不在该客户名下",
+};
+
+export const EXECUTION_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  title_required: "执行项需要一个动作名称",
+  unknown_action_type: "未知的动作类型",
+  unknown_status: "未知的执行状态",
+  campaign_completed: "这场战役已完成，它的执行项是它据以收尾的记录，不能再改",
+  not_found: "战役不存在，或这一项不属于它",
 };
 
 export const PLAN_ERROR: Record<string, string> = {

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
 import {
+  planExecution,
   planNewPlan,
   CAMPAIGN_STATUSES,
   PLAN_STATUSES,
@@ -189,4 +190,55 @@ test("the anchor and the name are trimmed", () => {
   const t = unwrap(planNewPlan({ ...planDraft, planNo: " PLAN-X ", name: " Push " }));
   assert.equal(t.planNo, "PLAN-X");
   assert.equal(t.name, "Push");
+});
+
+// --- Executions, the lock whose key did not exist (TD-016) -------------------
+
+const execDraft = {
+  id: null as string | null,
+  title: "Webinar invite wave",
+  actionType: "outreach" as const,
+  assigneeSub: null as string | null,
+  dueAt: null as Date | null,
+  status: "pending" as const,
+};
+
+test("an execution needs a title", () => {
+  const r = planExecution({ ...execDraft, title: "  " }, { status: "running" });
+  assert.equal(r.ok === false && r.violations[0].code, "title_required");
+});
+
+test("the action type must be one the database will accept", () => {
+  // chk_campaign_execution_action. The record's actionType was a bare `string`
+  // until this batch, so a surface could offer a value Postgres refuses and
+  // only the write would find out.
+  const r = planExecution({ ...execDraft, actionType: "webinar" as never }, { status: "running" });
+  assert.equal(r.ok === false && r.violations[0].code, "unknown_action_type");
+});
+
+test("a COMPLETED campaign's executions are frozen", () => {
+  // The campaign was completed on the basis that nothing was outstanding.
+  // Reopening an item afterwards makes that completion retroactively untrue,
+  // and canCompleteCampaign is never consulted again to notice. The same reason
+  // a closed deal's lines are the record of what was sold.
+  const r = planExecution(execDraft, { status: "completed" });
+  assert.equal(r.ok === false && r.violations[0].code, "campaign_completed");
+});
+
+test("a running campaign's executions are editable, including back to pending", () => {
+  // Deliberately permissive between the open states: whether an item is done or
+  // still going is the marketer's judgement, and the only thing the product
+  // enforces is that outstanding items block completion.
+  for (const status of ["pending", "in_progress", "done", "skipped"] as const) {
+    assert.ok(planExecution({ ...execDraft, status }, { status: "running" }).ok, status);
+  }
+});
+
+test("done and skipped both settle an item - that is what canCompleteCampaign counts", () => {
+  // The pair that makes the campaign completable. Skipping is a real outcome,
+  // not a failure to do the work: a webinar nobody signed up for is skipped,
+  // and the campaign should still be able to close.
+  assert.equal(canCompleteCampaign([{ status: "done" }, { status: "skipped" }]).ok, true);
+  assert.equal(canCompleteCampaign([{ status: "done" }, { status: "pending" }]).ok, false);
+  assert.equal(canCompleteCampaign([{ status: "in_progress" }]).ok, false);
 });

@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 5，删除 1，余 4） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 6，删除 1，余 3） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -881,5 +881,24 @@ PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts`
 **新计划一律是草稿，状态不是入参。** 审批由 `transitionPlan` 负责，`approved_at` 只有那条
 路径会写；让调用方从 `approved` 起步，等于绕过记录这次审批的那次转换。
 
-余下四条：`strategy.segment.view` / `.upsert`、`campaign.execution.upsert`、
-`account.offering.view` / `.upsert`。
+**已还第六笔 2026-08-28**：`campaign.execution.upsert`。这一条与其余几条不同——**它不是没写完，
+它锁着东西**。
+
+`canCompleteCampaign` 在还有执行项未结清时拒绝完成战役，而产品里没有任何路径能把执行项推到
+「已完成」或「已跳过」。**一场带任何未完成项的战役因此永远无法完成，对任何人、任何时候。**
+
+动手前先在 demo 数据上量过：`camp_demo_1`（done/done/pending）被 `executions_outstanding` 拒绝，
+`camp_demo_3`（done）完成成功。锁是真的，钥匙不存在。
+
+读是免费的：`campaignReturn` 一直用 `campaign.execution.view` 把着门、也一直把这些行查出来，
+只是汇总成「N/M 完成」后**把行丢掉了**。把它们带出来即可，不新增一次读——两次读会让两个答案漂移。
+
+新规则：**已完成战役的执行项被冻结**。战役正是据「没有未结清项」才得以收尾的；事后重开一项会让
+那次收尾追溯地变成假的，而 `canCompleteCampaign` 再也不会被问一次来发现它。与「已关闭商机的行项
+是卖出了什么的记录」同一条。
+
+顺带把 `ExecutionRecord.actionType` 从裸 `string` 改成从 `EXECUTION_ACTION_TYPES` 派生——DDL 有
+CHECK 而类型没有，界面本可以提供一个 Postgres 会拒绝的值，只有写入时才发现。
+
+余下三条：`strategy.segment.view` / `.upsert`、`account.offering.view` / `.upsert`（两对读写，
+其中 offering 两条算一组）。

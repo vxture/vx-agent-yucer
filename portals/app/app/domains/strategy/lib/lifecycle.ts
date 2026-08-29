@@ -137,6 +137,14 @@ export function validateCampaignWindow(
   return ok(true);
 }
 
+/**
+ * Mirrors chk_campaign_execution_action. `ExecutionRecord.actionType` was a
+ * bare `string` while the database held a CHECK - so a surface could offer a
+ * type Postgres refuses, and only the write would find out.
+ */
+export const EXECUTION_ACTION_TYPES = ["outreach", "content", "event", "nurture", "handoff"] as const;
+export type ExecutionActionType = (typeof EXECUTION_ACTION_TYPES)[number];
+
 export const EXECUTION_STATUSES = ["pending", "in_progress", "done", "skipped"] as const;
 export type ExecutionStatus = (typeof EXECUTION_STATUSES)[number];
 
@@ -242,4 +250,64 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
     objective: input.objective?.trim() || null,
     status: "draft",
   });
+}
+
+// --- Writing an execution (TD-016) -------------------------------------------
+
+export interface ExecutionDraft {
+  /** Absent creates; present edits that row. Executions have no business key. */
+  id?: string | null;
+  title: string;
+  actionType: ExecutionActionType;
+  assigneeSub: string | null;
+  dueAt: Date | null;
+  status: ExecutionStatus;
+}
+
+/**
+ * Validate one campaign execution before it is written.
+ *
+ * `campaign.execution.upsert` shipped in batch 1 with nothing behind it
+ * (TD-016), and this one was not merely unfinished - it was LOCKING something.
+ * `canCompleteCampaign` above refuses to complete a campaign while any
+ * execution is outstanding, and nothing in the product could move an execution
+ * to done or skipped. A campaign with one pending item could therefore never be
+ * completed, by anyone, ever. Proven on the demo data before this was written:
+ * camp_demo_1 (done/done/pending) was refused with `executions_outstanding`
+ * while camp_demo_3 (done) completed.
+ *
+ * A COMPLETED CAMPAIGN'S EXECUTIONS ARE FROZEN. The campaign was completed on
+ * the basis that nothing was outstanding; reopening an item afterwards would
+ * make that completion retroactively untrue, and `canCompleteCampaign` would
+ * never be consulted again to notice. The same reason a closed deal's lines are
+ * the record of what was sold.
+ */
+export function planExecution(
+  input: ExecutionDraft,
+  campaign: { status: CampaignStatus },
+): RuleResult<ExecutionDraft> {
+  if (campaign.status === "completed") {
+    return fail(
+      violation(
+        "campaign_completed",
+        "this campaign is complete; its executions are the record it was completed on",
+        "status",
+      ),
+    );
+  }
+
+  const title = input.title.trim();
+  if (!title) {
+    return fail(violation("title_required", "an execution needs a title", "title"));
+  }
+  if (!(EXECUTION_ACTION_TYPES as readonly string[]).includes(input.actionType)) {
+    return fail(
+      violation("unknown_action_type", `${String(input.actionType)} is not an action type`, "actionType"),
+    );
+  }
+  if (!(EXECUTION_STATUSES as readonly string[]).includes(input.status)) {
+    return fail(violation("unknown_status", `${String(input.status)} is not an execution status`, "status"));
+  }
+
+  return ok({ ...input, title });
 }

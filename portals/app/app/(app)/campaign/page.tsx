@@ -2,10 +2,16 @@ import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
 import { getStrategyStore } from "../../domains/shared/registry";
-import { campaignReturn, listCampaigns } from "../../domains/strategy/service";
+import {
+  campaignReturn,
+  listCampaigns,
+  type CampaignReturn,
+} from "../../domains/strategy/service";
+import type { CampaignRecord } from "../../domains/strategy/store";
 import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
-import { moveCampaign } from "./actions";
+import { moveCampaign, saveExecution } from "./actions";
+import { ExecutionPanel, type ExecutionRow } from "../components/execution-panel";
 
 import { getMessages } from "../lib/i18n/server";
 export const dynamic = "force-dynamic";
@@ -15,6 +21,46 @@ export const dynamic = "force-dynamic";
 // The return column reads WON revenue, never pipeline. A campaign that generated
 // a lot of unclosed pipeline has returned nothing yet, and showing pipeline as
 // return is how the same spend gets justified twice.
+
+function campaignRow(
+  c: CampaignRecord,
+  detail: CampaignReturn | null,
+): CampaignRow {
+  return {
+    id: c.id,
+    name: c.name,
+    campaignNo: c.campaignNo,
+    channel: c.channel,
+    budget: c.budgetAmount?.amount ?? null,
+    currency: c.currency,
+    status: c.status,
+    done: detail?.progress.done ?? 0,
+    total: detail?.progress.total ?? 0,
+    skipped: detail?.progress.skipped ?? 0,
+    wonAmount: detail?.wonAmount.amount ?? null,
+    returnOnBudget: detail?.returnOnBudget ?? null,
+  };
+}
+
+// Read off the SAME campaignReturn call the progress figure comes out of. It
+// has always loaded these rows; until now nothing read them off it (TD-016).
+// A second read would let the roster and the "N/M done" badge drift apart.
+function executionRows(
+  c: CampaignRecord,
+  detail: CampaignReturn | null,
+): ExecutionRow[] {
+  return (detail?.executions ?? []).map((e) => ({
+    id: e.id,
+    campaignId: c.id,
+    campaignName: c.name,
+    campaignStatus: c.status,
+    title: e.title,
+    actionType: e.actionType,
+    assigneeSub: e.assigneeSub,
+    dueAt: e.dueAt ? e.dueAt.toISOString().slice(0, 10) : null,
+    status: e.status,
+  }));
+}
 
 export default async function CampaignPage() {
   const { CAMPAIGN_TEXT, SHELL_TEXT } = await getMessages();
@@ -47,25 +93,15 @@ export default async function CampaignPage() {
   }
 
   const rows: CampaignRow[] = [];
+  const executions: ExecutionRow[] = [];
   for (const c of campaigns.value) {
     // campaignReturn is business-tier. When it is not bought the campaign still
     // lists - the row simply carries no return figures, rather than the whole
     // page refusing.
     const detail = await campaignReturn(ctx, c.id);
-    rows.push({
-      id: c.id,
-      name: c.name,
-      campaignNo: c.campaignNo,
-      channel: c.channel,
-      budget: c.budgetAmount?.amount ?? null,
-      currency: c.currency,
-      status: c.status,
-      done: detail.ok ? detail.value.progress.done : 0,
-      total: detail.ok ? detail.value.progress.total : 0,
-      skipped: detail.ok ? detail.value.progress.skipped : 0,
-      wonAmount: detail.ok ? detail.value.wonAmount.amount : null,
-      returnOnBudget: detail.ok ? detail.value.returnOnBudget : null,
-    });
+    const value = detail.ok ? detail.value : null;
+    rows.push(campaignRow(c, value));
+    executions.push(...executionRows(c, value));
   }
 
   const canMove = can(
@@ -119,6 +155,21 @@ export default async function CampaignPage() {
       >
         <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
       </Section>
+
+      {/* BELOW the table, because the table is where a campaign is completed
+          and this is what blocks that: a campaign with one outstanding item
+          cannot be marked complete. The reader meets the refusal first and
+          then what to do about it. */}
+      <ExecutionPanel
+        rows={executions}
+        campaigns={rows
+          .filter((r) => r.status !== "completed")
+          .map((r) => ({ id: r.id, name: r.name }))}
+        canEdit={
+          can(session.authz, session.entitlement, "campaign.execution.upsert", "ui").allowed
+        }
+        onSave={saveExecution}
+      />
     </ViewLayout>
   );
 }

@@ -205,7 +205,7 @@ export const en: Dictionary = {
       "You cannot sell anything without knowing what you sell - so the catalogue is not sold by tier and every tier can read it.",
     products: "Products",
     productsWhy:
-      "A single product or service. The **unit** is not decoration: every line multiplies quantity by unit price, and \"10 x 1000\" with no unit is ten seats, ten days or ten sites - three different deals.",
+      "A single product or service. The unit is not decoration: every line multiplies quantity by unit price, and \"10 x 1000\" with no unit is ten seats, ten days or ten sites - three different deals.",
     colCode: "Code",
     colName: "Name",
     colCategory: "Category",
@@ -396,6 +396,15 @@ export const en: Dictionary = {
     unknown_status: "Unknown territory status",
     parent_not_found: "The parent territory does not exist",
     parent_cycle: "A territory cannot report to itself, directly or through a chain",
+  },
+
+  EXECUTION_ERROR: {
+    ...GATE_ERROR,
+    title_required: "An execution needs a title",
+    unknown_action_type: "Unknown action type",
+    unknown_status: "Unknown execution status",
+    campaign_completed: "This campaign is complete; its executions are the record it was completed on",
+    not_found: "No such campaign, or that item is not on it",
   },
 
   PLAN_ERROR: {
@@ -1087,6 +1096,38 @@ export const en: Dictionary = {
   // --- /campaign ----------------------------------------------------------
 
   CAMPAIGN_TEXT: {
+    executionsTitle: "Campaign executions",
+    executionsWhy:
+      "What a campaign is actually made of. The \"N/M done\" column above counts these - and a campaign cannot be marked complete while any is outstanding.",
+    executionsNone: "No executions yet",
+    executionsNoneWhy: "List the actions first - a campaign cannot be run or closed without them.",
+    executionCampaign: "Campaign",
+    executionPickCampaign: "Pick a campaign",
+    executionTitle: "Action",
+    executionType: "Type",
+    executionTypeLabel: {
+      outreach: "Outreach",
+      content: "Content",
+      event: "Event",
+      nurture: "Nurture",
+      handoff: "Handoff",
+    } as Record<string, string>,
+    executionAssignee: "Assignee",
+    executionDue: "Due",
+    executionStatus: "Status",
+    executionStatusLabel: {
+      pending: "Pending",
+      in_progress: "In progress",
+      done: "Done",
+      skipped: "Skipped",
+    } as Record<string, string>,
+    executionEditing: "Editing",
+    executionNew: "New execution",
+    executionSave: "Save execution",
+    executionSaved: "Saved",
+    executionsDenied: "You cannot maintain campaign executions",
+    executionBlocks:
+      "Pending and in-progress both count as outstanding - one of either keeps the campaign from being completed. Finish it or skip it; both settle. A completed campaign's executions are frozen: they are the record it was completed on.",
     title: "Campaigns",
     description:
       "A campaign is the anchor attribution hangs on. Return counts won revenue, never pipeline - unclosed pipeline has returned nothing yet.",

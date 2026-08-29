@@ -8,6 +8,7 @@ import { InMemoryStrategyStore, type CampaignRecord, type ExecutionRecord, type 
 import {
   campaignReturn,
   createPlan,
+  upsertExecution,
   listPlans,
   transitionCampaign,
   transitionPlan,
@@ -272,4 +273,82 @@ test("a created plan is immediately in the list the page reads", async () => {
   unwrap(await createPlan(c, newPlan));
   const listed = unwrap(await listPlans(c));
   assert.equal(listed.some((p) => p.planNo === "PLAN-2027H1"), true);
+});
+
+// --- The lock whose key did not exist (TD-016) -------------------------------
+
+test("finishing the outstanding execution is what lets a campaign complete", async () => {
+  // The whole point, end to end. Before this verb existed the second half was
+  // unreachable: canCompleteCampaign refused while anything was outstanding and
+  // nothing could settle an item, so a campaign with one pending row could
+  // never be completed by anyone.
+  const store = new InMemoryStrategyStore();
+  store.seed({
+    campaigns: [campaign({ id: "camp_1", status: "running" })],
+    executions: [
+      { id: "e1", workspaceId: WS, campaignId: "camp_1", title: "a", actionType: "outreach", assigneeSub: null, dueAt: null, status: "done" },
+      { id: "e2", workspaceId: WS, campaignId: "camp_1", title: "b", actionType: "event", assigneeSub: null, dueAt: null, status: "pending" },
+    ],
+  });
+  const c = ctx("marketing_manager", "business", store);
+
+  const blocked = await transitionCampaign(c, "camp_1", "completed");
+  assert.equal(blocked.ok === false && blocked.violations[0]!.code, "executions_outstanding");
+
+  unwrap(await upsertExecution(c, "camp_1", {
+    id: "e2",
+    title: "b",
+    actionType: "event",
+    assigneeSub: null,
+    dueAt: null,
+    status: "skipped",
+  }));
+
+  assert.equal((await transitionCampaign(c, "camp_1", "completed")).ok, true);
+});
+
+test("a viewer may read a campaign and may not write its executions", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ campaigns: [campaign({ id: "camp_1", status: "running" })] });
+  const r = await upsertExecution(ctx("viewer", "business", store), "camp_1", {
+    ...({ id: null, title: "x", actionType: "outreach", assigneeSub: null, dueAt: null, status: "pending" } as const),
+  });
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
+});
+
+test("an execution id from ANOTHER campaign is not found, and does not move", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({
+    campaigns: [campaign({ id: "camp_1", status: "running" }), campaign({ id: "camp_2", status: "running" })],
+    executions: [
+      { id: "e1", workspaceId: WS, campaignId: "camp_1", title: "a", actionType: "outreach", assigneeSub: null, dueAt: null, status: "pending" },
+    ],
+  });
+  const c = ctx("marketing_manager", "business", store);
+  const r = await upsertExecution(c, "camp_2", {
+    id: "e1",
+    title: "moved",
+    actionType: "outreach",
+    assigneeSub: null,
+    dueAt: null,
+    status: "done",
+  });
+  assert.equal(r.ok === false && r.violations[0]!.code, "not_found");
+  const still = await store.listExecutions(WS, "camp_1");
+  assert.equal(still[0]!.status, "pending", "and the item stays where it was, unchanged");
+});
+
+test("campaignReturn hands back the rows its progress is computed from", async () => {
+  // They were always loaded and always discarded. The panel needs them, and
+  // adding a second read would let the two answers drift.
+  const store = new InMemoryStrategyStore();
+  store.seed({
+    campaigns: [campaign({ id: "camp_1", status: "running" })],
+    executions: [
+      { id: "e1", workspaceId: WS, campaignId: "camp_1", title: "a", actionType: "outreach", assigneeSub: null, dueAt: null, status: "done" },
+    ],
+  });
+  const view = unwrap(await campaignReturn(ctx("marketing_manager", "business", store), "camp_1"));
+  assert.equal(view.executions.length, 1);
+  assert.equal(view.executions.length, view.progress.total);
 });
