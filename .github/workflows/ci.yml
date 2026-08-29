@@ -322,17 +322,21 @@ jobs:
 
       - name: Install (frozen lockfile, no lifecycle scripts)
         # --ignore-scripts: a dependency's postinstall is arbitrary code running
-        # with the runner's token in the environment. This job needs none of it -
-        # the DB tests talk to Postgres through `pg` and never load the Prisma
-        # client, and the DDL is applied by psql.
-        #
-        # The build and test-coverage jobs above still install WITH scripts, and
-        # should probably not; that is a separate change, because `build` runs
-        # prisma generate and is a required check, so tightening it belongs in a
-        # PR that can be judged on its own.
+        # with the runner's token in the environment. This job needs none of it
+        # at install time - the DDL is applied by psql, and the one generated
+        # artifact the tests need is produced by the EXPLICIT step below, not
+        # by whatever every dependency's postinstall happens to run.
         run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+      - name: Generate the Prisma client
+        # One named command, not a blanket lifecycle pass - the security
+        # argument for --ignore-scripts above survives this step. Needed since
+        # adapters-prisma.db.test.ts drives the real Prisma stores against the
+        # applied DDL; before it, the db lane proved constraints and grants but
+        # never the TRANSLATION layer that production actually runs through.
+        run: pnpm --filter @yucer/app exec prisma generate
 
       - name: Apply the DDL, in the order db-init.yml applies it
         # Same sequence as .github/workflows/db-init.yml: the three-part baseline
