@@ -15,7 +15,6 @@
 | `account` | 客户 | `account_no` |
 | `contact` | 联系人（含决策角色、影响力） | - |
 | `account_relation` | 关系图谱有向边（只追加） | - |
-| `offering` | 销售侧产品目录 | `offering_code` |
 
 ### yucer_gtm（6）
 

@@ -236,18 +236,6 @@ export const ACTIONS = {
     permission: "account.write",
     writes: true,
   },
-  "account.offering.view": {
-    domain: "account",
-    feature: "account.manage",
-    permission: "account.read",
-    writes: false,
-  },
-  "account.offering.upsert": {
-    domain: "account",
-    feature: "account.manage",
-    permission: "account.write",
-    writes: true,
-  },
 
   // --- D5 signal -----------------------------------------------------------
   "signal.view": {

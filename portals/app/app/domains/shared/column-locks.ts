@@ -49,7 +49,6 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "updated_at",
     "deleted_at",
   ],
-  "yucer_core.offering": ["name", "category", "list_price", "currency", "status", "updated_at"],
 
   // --- yucer_gtm ---
   "yucer_gtm.strategy_plan": [
