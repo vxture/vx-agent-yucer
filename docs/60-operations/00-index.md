@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 6，删除 1，余 3） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 6，删除 3，余 2） |
 | TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 3 已反证关闭；层 1 已启用但未证明） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
@@ -901,8 +901,23 @@ PR（新代码覆盖率 79.4%，差 0.6，全部来自 `account/prisma-store.ts`
 顺带把 `ExecutionRecord.actionType` 从裸 `string` 改成从 `EXECUTION_ACTION_TYPES` 派生——DDL 有
 CHECK 而类型没有，界面本可以提供一个 Postgres 会拒绝的值，只有写入时才发现。
 
-余下三条：`strategy.segment.view` / `.upsert`、`account.offering.view` / `.upsert`（两对读写，
-其中 offering 两条算一组）。
+**第二次删除 2026-08-29**：`account.offering.view` / `.upsert`。查下去发现这不是
+「中间没写」，是**重复**——`yucer_core.offering` 与 `yucer_catalog.product` 是同一个
+概念的两套实现，而且 ADR-014 是在一个错误前提上建的第二套（它断言 baseline 里没有
+产品目录，baseline 里有，同一批文档里就写着）。`product` 是严格超集，`offering` 零外键、
+零服务、零界面、零种子、零行。删之，见 ADR-023。
+
+留着的代价不是不整洁：两张表都能给我们卖的东西定价，一旦有人往 `offering` 写价格，
+它就与底价规则读的 `price_book_entry` 分叉——**底价错了就是错误的一批单子跳过签字**，
+正是 ADR-019 要防的那件事从一扇没人记得开着的门进来。
+
+顺带修了守卫豁免里的一句假话：`strategy.segment.view` 的理由写着「no segment table」，
+而 `yucer_gtm.market_segment` 表、列锁、Prisma 模型齐全，缺的只有服务。
+
+余下两条：`strategy.segment.view` / `.upsert`。这一对**不是重复，是真空缺**，而且已经
+有两个活的引用者——`campaign.segment_id` 是真外键，`account.segment_code` 按业务号
+指向它，demo 数据里七个客户全都带着 `MIDMARKET` / `ENTERPRISE`，**指向一张零行、
+且没有任何途径能写入的表**。与执行项那把「有锁没钥匙」同族，下一步建。
 
 ## TD-017 - 四层密钥防护里有两层从未上电
 

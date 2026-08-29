@@ -69,10 +69,6 @@ GRANT UPDATE (name, title, department, decision_role, influence, status, updated
 -- account_relation: append-only graph edge -> no UPDATE.
 REVOKE UPDATE ON yucer_core.account_relation FROM yucer_svc;
 
-REVOKE UPDATE ON yucer_core.offering FROM yucer_svc;
-GRANT UPDATE (name, category, list_price, currency, status, updated_at)
-  ON yucer_core.offering TO yucer_svc;
-
 -- --- yucer_gtm ---
 REVOKE UPDATE ON yucer_gtm.strategy_plan FROM yucer_svc;
 GRANT UPDATE (name, period, objective, owner_sub, status, approved_at, updated_at)

@@ -1,0 +1,45 @@
+-- 0015_drop_offering.sql - the second catalogue, built on a false premise
+-- (ADR-023).
+--
+-- Authority: ADR-023 and docs/60-operations/00-index.md TD-016. This file and
+-- those documents must be changed together.
+--
+-- WHY. `yucer_core.offering` is the baseline's sales-side product catalogue -
+-- offering_code / name / category / list_price / currency / status, documented
+-- in 20-capability-domains.md as "what we sell to customers".
+--
+-- 0007_product_catalogue.sql then built a SECOND one, and it opened with:
+--
+--   "WHY: the model could not say WHAT WE SELL. The only 'product' in the
+--    baseline is the platform's own product_code (yucer itself, from C2)."
+--
+-- That premise was false when it was written. `offering` was already there and
+-- already documented as exactly that. ADR-014 designed around a table it did
+-- not see, and the product has carried two answers to one question ever since.
+--
+-- Which one survives is not close. yucer_catalog.product is a strict superset:
+-- every field offering has, plus unit, plus price_book_entry (which carries the
+-- FLOOR price the discount-signature rule reads), plus solution/solution_item
+-- quoting templates. It is referenced by opportunity_line and by
+-- line_discount_approval, has a service, a store, a surface and seed rows.
+--
+-- offering has none of that. Zero foreign keys point at it, no TypeScript
+-- outside the column-lock mirror and two never-evaluated action entries
+-- mentions it, and it has never held a row in any environment.
+--
+-- KEEPING IT IS NOT FREE, and the cost is not tidiness. Two tables claim to
+-- price what we sell. The day someone writes a list_price here, it diverges
+-- from the price book the floor rule reads - and a wrong floor means the wrong
+-- deals skip a signature. That is the same failure ADR-019 was written to
+-- prevent, arriving through a door nobody remembered was open.
+--
+-- Deleting it costs one increment and loses no capability.
+--
+-- The baseline was edited too, which incr/README forbids in general. Safe here
+-- for the same checkable reason as 0014: this DDL has never built a database -
+-- zero deployment environments, zero release tags, zero db-init runs. This file
+-- exists so that a checkout which DID apply the old baseline converges anyway.
+--
+-- Idempotent: re-applying is a no-op.
+
+DROP TABLE IF EXISTS yucer_core.offering;

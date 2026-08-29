@@ -239,24 +239,6 @@ CREATE TABLE IF NOT EXISTS yucer_core.account_relation (
   CONSTRAINT uidx_account_relation_edge UNIQUE (from_contact_id, to_contact_id, relation_type)
 );
 
--- Sellable offering catalog (product/solution). Local sales catalog - NOT the
--- platform commercial catalog (tier/subscription stay platform-owned via C2).
-CREATE TABLE IF NOT EXISTS yucer_core.offering (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  workspace_id  UUID NOT NULL,                        -- [ref]
-  offering_code VARCHAR(64) NOT NULL,                 -- anchor, immutable
-  name          VARCHAR(255) NOT NULL,
-  category      VARCHAR(64),
-  list_price    NUMERIC(18, 2),
-  currency      VARCHAR(8) NOT NULL DEFAULT 'CNY',
-  status        VARCHAR(32) NOT NULL DEFAULT 'active'
-                  CONSTRAINT chk_offering_status CHECK (status IN ('draft', 'active', 'retired')),
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT chk_offering_price CHECK (list_price IS NULL OR list_price >= 0),
-  CONSTRAINT uidx_offering_ws_code UNIQUE (workspace_id, offering_code)
-);
-
 -- ===========================================================================
 -- yucer_gtm  (D1 strategy, D2 planning, D3 campaign execution)
 -- ===========================================================================

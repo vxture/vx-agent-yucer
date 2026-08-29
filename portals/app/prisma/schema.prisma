@@ -216,23 +216,6 @@ model AccountRelation {
   @@schema("yucer_core")
 }
 
-model Offering {
-  id           String   @id @default(uuid()) @db.Uuid
-  workspaceId  String   @map("workspace_id") @db.Uuid
-  offeringCode String   @map("offering_code") @db.VarChar(64)
-  name         String   @db.VarChar(255)
-  category     String?  @db.VarChar(64)
-  listPrice    Decimal? @map("list_price") @db.Decimal(18, 2)
-  currency     String   @default("CNY") @db.VarChar(8)
-  status       String   @default("active") @db.VarChar(32)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
-
-  @@unique([workspaceId, offeringCode], map: "uidx_offering_ws_code")
-  @@map("offering")
-  @@schema("yucer_core")
-}
-
 // ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
 
 model StrategyPlan {
@@ -516,7 +499,6 @@ model ProjectMilestone {
   @@map("project_milestone")
   @@schema("yucer_delivery")
 }
-
 
 model RevenueSchedule {
   id             String    @id @default(uuid()) @db.Uuid
