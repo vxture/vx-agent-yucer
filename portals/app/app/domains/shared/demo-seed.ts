@@ -44,6 +44,7 @@ import {
   DEMO_SIGNALS,
   DEMO_UNMATCHED_COMPANY,
   DEMO_WAIVE_REASON,
+  DEMO_SEGMENTS,
 } from "./demo-fixtures";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
@@ -136,8 +137,8 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
       {
         id: "seg_demo_1",
         workspaceId,
-        segmentCode: "ENTERPRISE",
-        name: "大型企业",
+        segmentCode: DEMO_SEGMENTS[0].code,
+        name: DEMO_SEGMENTS[0].name,
         planId: "plan_demo_1",
         priority: 1,
         status: "active" as const,
@@ -145,8 +146,8 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
       {
         id: "seg_demo_2",
         workspaceId,
-        segmentCode: "MIDMARKET",
-        name: "中型市场",
+        segmentCode: DEMO_SEGMENTS[1].code,
+        name: DEMO_SEGMENTS[1].name,
         planId: "plan_demo_1",
         priority: 2,
         status: "active" as const,
