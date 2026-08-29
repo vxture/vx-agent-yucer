@@ -31,6 +31,13 @@ import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
 export interface LeadListProps {
   readonly leads: readonly LeadRecord[];
+  /**
+   * What each qualified lead WOULD attribute to, computed by the rule layer
+   * (previewAttribution) before anyone converts. Attribution freezes at
+   * conversion and is uncorrectable afterwards (ADR-016), so the moment before
+   * the click is the one moment this answer is worth anything.
+   */
+  readonly attributionPreviews: ReadonlyMap<string, { source: string; campaignId: string | null }>;
   readonly canTriage: boolean;
   readonly canConvert: boolean;
   readonly onAct: (
@@ -41,6 +48,7 @@ export interface LeadListProps {
 
 export function LeadList({
   leads,
+  attributionPreviews,
   canTriage,
   canConvert,
   onAct,
@@ -127,16 +135,26 @@ export function LeadList({
     {
       id: "source",
       header: LEAD_TEXT.columnSource,
-      cell: (row) =>
-        row.campaignId ? (
-          <StatusBadge tone="info">{LEAD_TEXT.sourceCampaign}</StatusBadge>
-        ) : row.signalId ? (
-          <StatusBadge tone="neutral">
-            {LEAD_TEXT.sourceSignalCampaign}
+      // The RULE's answer where it has one. This cell used to re-derive the
+      // attribution client-side (campaignId ? campaign : signalId ? ... ), a
+      // second implementation of resolveAttribution that could drift from what
+      // conversion would actually freeze. For qualified leads the rule is
+      // asked; for the rest the derivation stays, labelled by the same map.
+      cell: (row) => {
+        const preview = attributionPreviews.get(row.id);
+        const source = preview
+          ? preview.source
+          : row.campaignId
+            ? "campaign"
+            : row.signalId
+              ? "signal_campaign"
+              : "self_sourced";
+        return (
+          <StatusBadge tone={source === "campaign" ? "info" : "neutral"}>
+            {SOURCE_LABEL[source] ?? source}
           </StatusBadge>
-        ) : (
-          <StatusBadge tone="neutral">{LEAD_TEXT.sourceSelf}</StatusBadge>
-        ),
+        );
+      },
     },
     {
       id: "owner",
