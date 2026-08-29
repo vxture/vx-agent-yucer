@@ -918,10 +918,20 @@ GET /repos/vxture/vx-agent-yucer/secret-scanning/alerts
 在这里“反而更强”。**免费不等于开着。** 文档把一个从未查过的设置当事实写下，
 比不写更坏——它让每个后来读到的人停止检查。
 
-同一次排查里又掉出第二层死的：本机主 clone 的 `core.hooksPath` 是 **unset**，
-且 `gitleaks` 二进制**未安装**。这两件事各自都不报错：钩子没接就不跑，接了钩子
-但缺二进制则“警告并通过”——后者是故意设计（不能把新 clone 卡死），代价是
-一个从没装过它的人永远静默地通过。
+同一次排查里又掉出第二层死的，而且它有**三个各自独立、各自静默的失效点**：
+
+| 失效点 | 表现 | 范围 |
+|--------|------|------|
+| `core.hooksPath` unset | 钩子根本不跑 | 每个 clone 各自 |
+| `.husky/pre-commit` 模式 `100644` | git 明确忽略它（`hook was ignored because it's not set as executable`） | **整个仓库，所有 clone** |
+| `gitleaks` 未安装 | 跑了，但“警告并通过” | 每台机器各自 |
+
+三个全中。第二个最坏：模式位记在 git 里，所以**这一层对每一个 clone 都是死的**，
+从模板实例化那天起。前两个不发一声，第三个只发一行警告——而那行警告在模式位
+修好之前根本不会被打印，因为钩子压根没被执行。
+
+“警告并通过”是故意设计（不能把新 clone 卡死），代价是一个从没装过它的人永远
+静默通过。
 
 四层里只有第 2 层（CI gitleaks，必需检查）和第 4 层（公开仓保留全部权利的姿态）
 是真在的。
@@ -931,7 +941,11 @@ GET /repos/vxture/vx-agent-yucer/secret-scanning/alerts
 - 层 1：2026-08-29 开启 `secret_scanning` 与 `secret_scanning_push_protection`。
   开启后全历史扫描结果为 **0 条告警**，与 gitleaks 一致——没有已泄露的凭据。
   `secret_scanning_validity_checks` 的 repo 级 PATCH 被接受但未生效，疑需先在组织级打开，仍关。
-- 层 3：已 `git config core.hooksPath .husky`。**仍需装 `gitleaks` 才有牙**（owner 操作）。
+- 层 3：已 `git config core.hooksPath .husky`，并把 `.husky/pre-commit` 的模式
+  从 `100644` 改成 `100755`（`git update-index --chmod=+x`，对所有 clone 生效）。
+  反证：改模式前提交毫无输出，改后打印
+  `WARN: gitleaks not installed; local secret scan skipped (CI gate still applies).`
+  ——管路通了。**仍需装 `gitleaks` 才有牙**（owner 操作）。
 - `CLAUDE.md` 已改成记录事实，并写下两个核验命令。
 
 ### 真正的缺陷不是两个开关
