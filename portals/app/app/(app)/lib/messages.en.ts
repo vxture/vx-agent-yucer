@@ -197,6 +197,14 @@ export const en: Dictionary = {
   },
 
   CATALOG_TEXT: {
+    solutionSummary: "One-line summary",
+    solutionProduct: "Product",
+    solutionQuantity: "Quantity",
+    pickProduct: "Pick a product",
+    addItem: "Add a line",
+    removeItem: "Remove",
+    saveSolution: "Save solution",
+    solutionSaved: "Saved",
     title: "Catalogue",
     description:
       "The catalogue is the dimension every domain references: deals, contracts, delivery and signal matching all read it, and it writes to none of them.",
