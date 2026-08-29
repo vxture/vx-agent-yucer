@@ -357,7 +357,14 @@ test("campaignReturn hands back the rows its progress is computed from", async (
 
 // --- market segments -------------------------------------------------------
 
-const SEG = { segmentCode: "ENTERPRISE", name: "Large enterprise", planId: null, priority: 1, status: "active" as const };
+const SEG = {
+  segmentCode: "ENTERPRISE",
+  name: "Large enterprise",
+  planId: null,
+  priority: 1,
+  status: "active" as const,
+  criteria: { industries: [], regions: [] },
+};
 
 test("a segment can be created, and then read back", async () => {
   const c = ctx("sales_leader", "business");

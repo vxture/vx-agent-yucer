@@ -34,8 +34,20 @@ export const DEMO_CONTACTS = [
 ] as const;
 
 export const DEMO_SEGMENTS = [
-  { code: "ENTERPRISE", name: "大型企业" },
-  { code: "MIDMARKET", name: "中型市场" },
+  {
+    code: "ENTERPRISE",
+    name: "大型企业",
+    // Matches its members (西南制造/北方通信/东海精密) exactly.
+    criteria: { industries: ["制造", "通信"], regions: [] },
+  },
+  {
+    code: "MIDMARKET",
+    name: "中型市场",
+    // 零售 and 物流 cover three of its four members. 西部能源装备 carries the
+    // code but matches no criterion - a deliberate seam: "assigned but not
+    // matching" is a finding the surface should make visible, not a tidy row.
+    criteria: { industries: ["零售", "物流"], regions: [] },
+  },
 ] as const;
 
 export const DEMO_PLANS = [

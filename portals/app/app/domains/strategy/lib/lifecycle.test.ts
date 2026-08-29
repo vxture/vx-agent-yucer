@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
 import {
+  accountMatchesCriteria,
   planExecution,
   planNewPlan,
   CAMPAIGN_STATUSES,
@@ -252,6 +253,7 @@ const DRAFT = {
   planId: null,
   priority: 1,
   status: "active" as const,
+  criteria: { industries: [], regions: [] },
 };
 
 test("a segment needs a code and a name", () => {
@@ -293,4 +295,40 @@ test("a closed or archived plan freezes its segmentation, an open one does not",
   for (const status of ["draft", "approved", "active"] as const) {
     assert.ok(planSegment(DRAFT, { status }).ok, `${status} should not freeze`);
   }
+});
+
+// --- accountMatchesCriteria --------------------------------------------------
+
+test("empty criteria match nothing - an unfiltered cut is not a cut", () => {
+  assert.equal(
+    accountMatchesCriteria({ industry: "零售", region: "华东" }, { industries: [], regions: [] }),
+    false,
+  );
+});
+
+test("dimensions are AND, values within one are OR", () => {
+  const c = { industries: ["零售", "物流"], regions: ["华东"] };
+  assert.ok(accountMatchesCriteria({ industry: "零售", region: "华东" }, c));
+  assert.ok(accountMatchesCriteria({ industry: "物流", region: "华东" }, c));
+  assert.equal(accountMatchesCriteria({ industry: "零售", region: "华南" }, c), false);
+  assert.equal(accountMatchesCriteria({ industry: "制造", region: "华东" }, c), false);
+});
+
+test("an empty dimension constrains nothing", () => {
+  const c = { industries: ["制造"], regions: [] };
+  assert.ok(accountMatchesCriteria({ industry: "制造", region: null }, c));
+  assert.ok(accountMatchesCriteria({ industry: "制造", region: "任意" }, c));
+});
+
+test("a null account value never matches a named criterion", () => {
+  assert.equal(
+    accountMatchesCriteria({ industry: null, region: "华东" }, { industries: ["零售"], regions: [] }),
+    false,
+  );
+});
+
+test("criteria values are trimmed and de-duplicated on the way in", () => {
+  const r = planSegment({ ...DRAFT, criteria: { industries: [" 零售 ", "零售", ""], regions: ["  "] } }, null);
+  assert.ok(r.ok);
+  assert.deepEqual(r.ok && r.value.criteria, { industries: ["零售"], regions: [] });
 });
