@@ -249,14 +249,20 @@ export default async function AppLayout({
         appVersion={buildLabel()}
         tenantId={tenantIdOf(session)}
         locale={locale}
-        /* APP_ENV, not a guess from the version string's shape. Beta ships a
-         `beta-YYYYMMDD.N` tag and production ships `vX.Y.Z`, so inferring the
-         tier from the label would make "is this production" depend on how
-         someone named a tag. One explicit key, defaulting to non-production:
-         a missing config should hide nothing it would be wrong to show, and
-         showing a build badge in dev is harmless while hiding it in prod is
-         the point. */
-        isProduction={process.env.APP_ENV === "prod"}
+        /* NEXT_PUBLIC_APP_ENV, not a guess from the version string's shape.
+         Beta ships a `beta-YYYYMMDD.N` tag and production ships `vX.Y.Z`, so
+         inferring the tier from the label would make "is this production"
+         depend on how someone named a tag. One explicit key, defaulting to
+         non-production: a missing config should hide nothing it would be
+         wrong to show, and showing a build badge in dev is harmless while
+         hiding it in prod is the point.
+
+         This line used to read APP_ENV === "prod" - a key no config declares
+         AND a value the declared key never takes (.env.example ships
+         NEXT_PUBLIC_APP_ENV=production). Doubly disconnected, so production
+         would have shown the build badge it exists to hide. Found by the
+         2026-08-30 connectivity audit's declared-vs-read env diff. */
+        isProduction={process.env.NEXT_PUBLIC_APP_ENV === "production"}
         tier={session.entitlement.tier}
         searchable={searchable}
         nav={nav}

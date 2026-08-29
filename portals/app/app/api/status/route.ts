@@ -72,6 +72,29 @@ async function probeRedis(url?: string): Promise<boolean | null> {
   );
 }
 
+/**
+ * Reachability at the CONNECTION layer, which is the question a connectivity
+ * check actually asks. Any HTTP response - 404 and 405 included - proves the
+ * service answered on that address; only a connect failure or the timeout says
+ * unreachable. The three planes are tailnet-internal, so the browser cannot
+ * probe them itself the way the client-side channel probes do.
+ */
+async function probeHttp(base?: string | null): Promise<boolean | null> {
+  if (!base) return null;
+  return withTimeout(
+    (async () => {
+      try {
+        await fetch(base, { method: "HEAD", cache: "no-store", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+        return true;
+      } catch {
+        return false;
+      }
+    })(),
+    PROBE_TIMEOUT_MS + 200,
+    false,
+  );
+}
+
 export async function GET(): Promise<Response> {
   const mode = statusMode(process.env);
   // Deliberately indistinguishable from a route that does not exist: a status
@@ -88,12 +111,18 @@ export async function GET(): Promise<Response> {
   }
 
   const status = buildStatus(process.env, new Date().toISOString());
-  const [dbReachable, redisReachable] = await Promise.all([
+  const [dbReachable, redisReachable, runos, atlas, arda] = await Promise.all([
     probeDb(process.env.DATABASE_URL),
     probeRedis(process.env.REDIS_URL),
+    probeHttp(process.env.RUNOS_BASE_URL),
+    probeHttp(process.env.ATLAS_BASE_URL),
+    probeHttp(process.env.ARDA_BASE_URL),
   ]);
   status.data.database.reachable = dbReachable;
   status.data.redis.reachable = redisReachable;
+  status.planes.runos.reachable = runos;
+  status.planes.atlas.reachable = atlas;
+  status.planes.arda.reachable = arda;
 
   return NextResponse.json(status);
 }

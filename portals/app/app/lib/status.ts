@@ -54,6 +54,18 @@ export interface IntegrationStatus {
     webhookRotationConfigured: boolean;
     internalJobTokenConfigured: boolean;
   };
+  /**
+   * The three planes the C-channels never covered. The dashboard existed to
+   * answer "is this product wired to the platform" and could not say a word
+   * about the capability plane, the model plane, or the shared-data plane -
+   * the 2026-08-30 connectivity audit found every blind spot filled with
+   * exactly nothing. Base URLs are tailnet-internal identifiers, not secrets.
+   */
+  planes: {
+    runos: { configured: boolean; baseUrl: string | null; mcpPath: string | null; reachable: boolean | null };
+    atlas: { configured: boolean; baseUrl: string | null; reachable: boolean | null };
+    arda: { configured: boolean; baseUrl: string | null; reachable: boolean | null };
+  };
   data: { database: DbInfo; redis: RedisInfo };
   showInfra: boolean;
 }
@@ -112,6 +124,24 @@ export function buildStatus(env: Env, now: string): IntegrationStatus {
       webhookSecretConfigured: Boolean(env.PROVISION_WEBHOOK_SECRET),
       webhookRotationConfigured: Boolean(env.PROVISION_WEBHOOK_SECRET_NEXT),
       internalJobTokenConfigured: Boolean(env.INTERNAL_JOB_TOKEN),
+    },
+    planes: {
+      runos: {
+        configured: Boolean(env.RUNOS_BASE_URL),
+        baseUrl: env.RUNOS_BASE_URL ?? null,
+        mcpPath: env.RUNOS_MCP_PATH ?? null,
+        reachable: null,
+      },
+      atlas: {
+        configured: Boolean(env.ATLAS_BASE_URL),
+        baseUrl: env.ATLAS_BASE_URL ?? null,
+        reachable: null,
+      },
+      arda: {
+        configured: Boolean(env.ARDA_BASE_URL),
+        baseUrl: env.ARDA_BASE_URL ?? null,
+        reachable: null,
+      },
     },
     data: {
       database: {

@@ -26,6 +26,10 @@ const FULL_ENV = {
   NEXT_PUBLIC_CONSOLE_URL: "https://console.vxture.com",
   DATABASE_URL: `postgresql://yucer_svc:${SECRETS.POSTGRES_PASSWORD}@yucer-db:5432/vxturebiz_yucer_prod`,
   REDIS_URL: "redis://yucer-redis:6379",
+  RUNOS_BASE_URL: "http://runos.internal",
+  RUNOS_MCP_PATH: "/v1/mcp",
+  ATLAS_BASE_URL: "http://atlas.internal",
+  ARDA_BASE_URL: "http://arda.internal",
 };
 
 test("NO SECRET VALUE ever appears in the status output", () => {
@@ -76,4 +80,17 @@ test("statusMode defaults to public and accepts off/authed", () => {
   assert.equal(statusMode({ STATUS_PAGE: "off" }), "off");
   assert.equal(statusMode({ STATUS_PAGE: "authed" }), "authed");
   assert.equal(statusMode({ STATUS_PAGE: "garbage" }), "public");
+});
+
+test("the three planes report configuration and identifiers, never credentials", () => {
+  const s = buildStatus(FULL_ENV, "t");
+  assert.deepEqual(s.planes, {
+    runos: { configured: true, baseUrl: "http://runos.internal", mcpPath: "/v1/mcp", reachable: null },
+    atlas: { configured: true, baseUrl: "http://atlas.internal", reachable: null },
+    arda: { configured: true, baseUrl: "http://arda.internal", reachable: null },
+  });
+  const empty = buildStatus({}, "t");
+  assert.equal(empty.planes.runos.configured, false);
+  assert.equal(empty.planes.atlas.configured, false);
+  assert.equal(empty.planes.arda.configured, false);
 });

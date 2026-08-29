@@ -34,7 +34,7 @@ export async function flushUsage(opts: FlushOptions = {}): Promise<FlushSummary>
   if (!consume) return { scanned: 0, flushed: 0, gated: 0, retried: 0, skipped: true };
 
   const rows = await store.unflushed(opts.batchSize ?? 50);
-  const done: string[] = [];
+  const done: UsageRow[] = [];
   let flushed = 0;
   let gated = 0;
   let retried = 0;
@@ -48,12 +48,12 @@ export async function flushUsage(opts: FlushOptions = {}): Promise<FlushSummary>
       continue; // stays buffered
     }
     if (res.status === 200) {
-      done.push(row.idempotencyKey);
+      done.push(row);
       flushed++;
     } else if (res.status === 409) {
       // Gated is terminal: the platform recorded the attempt and refused the
       // quota; do not retry, and refresh entitlement so the UI reflects it.
-      done.push(row.idempotencyKey);
+      done.push(row);
       gated++;
       (opts.onGated ?? ((ws: string) => getEntitlementResolver().invalidate(ws)))(row.workspaceId);
     } else {

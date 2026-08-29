@@ -44,6 +44,8 @@ async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
 
 async function cleanup() {
   await withPg(async (c) => {
+    await c.query(`DELETE FROM local_usage.raw WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM local_usage.checkpoint WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign_execution WHERE campaign_id IN (SELECT id FROM yucer_gtm.campaign WHERE workspace_id = $1)`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.market_segment WHERE workspace_id = $1`, [WS]);
@@ -197,4 +199,29 @@ test("an append-only table has no UPDATE for the service role at all", { skip },
     );
     await c.query(`RESET ROLE`);
   });
+});
+
+test("markFlushed advances the real checkpoint watermark", { skip }, async () => {
+  // The other half of the connectivity fix: prove the upsert really lands on
+  // local_usage.checkpoint's (workspace_id, metric) unique row, twice.
+  const { PrismaUsageStore } = await import("../../usage/lib/prisma-store");
+  const store = new PrismaUsageStore();
+  try {
+    await store.record({ workspaceId: WS, metric: "copilot.turns", amount: 1, idempotencyKey: "dbt_u1" });
+    await store.markFlushed([{ idempotencyKey: "dbt_u1", workspaceId: WS, metric: "copilot.turns" }]);
+    const first = await withPg((c) =>
+      c.query(`SELECT flushed_at FROM local_usage.checkpoint WHERE workspace_id = $1 AND metric = 'copilot.turns'`, [WS]),
+    );
+    assert.equal(first.rows.length, 1, "the watermark row must exist after a flush");
+
+    // A second flush UPDATES the same row rather than violating the unique.
+    await store.record({ workspaceId: WS, metric: "copilot.turns", amount: 2, idempotencyKey: "dbt_u2" });
+    await store.markFlushed([{ idempotencyKey: "dbt_u2", workspaceId: WS, metric: "copilot.turns" }]);
+    const second = await withPg((c) =>
+      c.query(`SELECT count(*)::int AS n FROM local_usage.checkpoint WHERE workspace_id = $1`, [WS]),
+    );
+    assert.equal(second.rows[0].n, 1, "one watermark per (workspace, metric)");
+  } finally {
+    await cleanup();
+  }
 });

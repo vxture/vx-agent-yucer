@@ -1202,3 +1202,52 @@ cron 是 `17 6 * * *`（06:17 UTC），文件 08-28 06:35 UTC 落地，当天那
 写法正确、默认分支正确，可能是 GitHub 对新增计划任务的激活延迟。只错一班还不能定罪，
 但这正是 TD-012 那个盲区的唯一覆盖机制，它必须被证明会自己响。**下一班：
 08-30 06:17 UTC。到点去看。**
+
+
+## 平台接通体检（2026-08-30）
+
+owner 授权的全面检查：每个平台合同面，查「代码、配置、文档三方是否说同一件事」，
+本地可测的拒绝路径全部实测。结论先行：**入站合同面全部健康；修了三处出站/观测缺陷。**
+
+### 健康的面（查过，不只是没报错）
+
+| 面 | 实测 |
+|----|------|
+| C3 webhook | `POST /provisioning/webhook` 无签名 → 401 `WEBHOOK_SIGNATURE_INVALID`；幂等（delivery id）、序列水位（`seq <= lastSeq` 忽略）、双密钥轮换（`_NEXT`）齐全有测试 |
+| 内部作业 | `/api/usage/flush`、`/api/arda/sync`、`/api/jobs/commitment-sweep` 无 token → 403 `JOB_TOKEN_INVALID` |
+| C2 entitlement | 未认证 → 401；resolver 在 `PLATFORM_API_URL`+token 齐时走 platform、否则 mock，status 如实报告 |
+| C1 OIDC | 配置装配集中在 `auth/lib/config.ts`，issuer 缺省 accounts.vxture.com |
+| /api/health | 200，带产品身份 |
+| usage flush 主链 | 200→flushed、409（配额尽）→ 终态+失效 C2 缓存、其余→留桶重试 |
+
+### 修掉的三处
+
+1. **`local_usage.checkpoint` 水位表从未被写**。DDL 在 baseline 里就把它叫
+   「product-local flush watermark」，flush 只翻 `raw.flushed`，「这个 workspace 的
+   这个 metric 最后一次成功上报是什么时候」——平台说 usage 缺失时的第一问——在任何
+   行上都没有答案。`markFlushed` 签名从裸 key 改为带 (workspace, metric) 的行，
+   Prisma 端 upsert 水位（每 (ws,metric) 一行去重），内存端同语义。反证：拿掉水位
+   写入 → 「flushed metric must carry a watermark」红。真库测试进 `adapters-prisma`：
+   两次 flush 同 (ws,metric) 只有一行。
+2. **status 仪表对三个 plane 全盲**。仪表存在的意义就是「这个产品接没接上平台」，
+   却对 Runos（能力）、Atlas（模型）、arda（共享数据）一个字说不出。补 `planes`
+   区块（configured + baseUrl + mcpPath；base URL 是 tailnet 内部标识符，非密钥，
+   无泄漏测试不变式照守），并加**服务端**活性探测——三个 plane 在 tailnet 内，
+   浏览器侧的 channel probes 够不到；判据是连接层（任何 HTTP 响应=可达，含 404/405；
+   连接失败/超时=不可达），1s 超时与 DB/Redis 探测同款竞态清理。
+3. **`isProduction` 双重断线**。layout 读 `APP_ENV === "prod"`：键没有任何配置声明
+   （骨架和 status 都是 `NEXT_PUBLIC_APP_ENV`），值也不是声明键的取值
+   （`production`/`beta`）。两头都错，生产环境会显示它存在就是为了隐藏的构建徽标。
+   由「声明 vs 读取」的 env 全量对账掉出来。已三方对齐。
+
+### 判为非漂移的
+
+`APP_VERSION` 由 compose build arg 注入（`${APP_VERSION:-dev}`），不属 .env 骨架；
+资源类键（`APP_CPUS` 等）是 compose 消费的；`OIDC_*`/`RUNOS_*`/`ATLAS_*`/`ARDA_*`
+经 `env.X` 解构读取，第一轮 grep 的「未读」是误报——对账工具要认三种读法。
+
+### 本地测不了、等部署后验的
+
+真实平台可达性（tailnet + 凭据）：status 页部署后一屏给答案。`production` 环境的
+7 个部署 secrets、`YUCER_WEBHOOK_BASE_URL` 平台侧注册、共享 edge 域名——见
+`50-deployment/20-github-bootstrap-checklist.md`，owner 侧待办。

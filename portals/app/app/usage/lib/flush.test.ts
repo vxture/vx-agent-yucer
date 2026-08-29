@@ -48,3 +48,26 @@ test("a thrown consume error leaves rows buffered", async () => {
   assert.equal(summary.retried, 2);
   assert.equal((await store.unflushed(10)).length, 2);
 });
+
+test("a successful flush advances the (workspace, metric) watermark", async () => {
+  // local_usage.checkpoint shipped in the baseline as the flush watermark and
+  // nothing ever wrote it - the first question when the platform says usage is
+  // missing ("when did this metric last flush?") had no answer on any row.
+  const store = new InMemoryUsageStore();
+  await store.record({ workspaceId: "ws_1", metric: "copilot.turns", amount: 3, idempotencyKey: "k1" });
+  await store.record({ workspaceId: "ws_1", metric: "copilot.turns", amount: 1, idempotencyKey: "k2" });
+  await store.record({ workspaceId: "ws_2", metric: "signals.scored", amount: 5, idempotencyKey: "k3" });
+
+  await flushUsage({ store, consume: async () => ({ status: 200 }) });
+
+  assert.ok(store.checkpoints.has("ws_1|copilot.turns"), "flushed metric must carry a watermark");
+  assert.ok(store.checkpoints.has("ws_2|signals.scored"));
+  assert.equal(store.checkpoints.size, 2, "one watermark per (workspace, metric), not per row");
+});
+
+test("a failed flush leaves the watermark unmoved", async () => {
+  const store = new InMemoryUsageStore();
+  await store.record({ workspaceId: "ws_1", metric: "copilot.turns", amount: 3, idempotencyKey: "k1" });
+  await flushUsage({ store, consume: async () => ({ status: 500 }) });
+  assert.equal(store.checkpoints.size, 0, "a retryable failure is not a flush");
+});
