@@ -3,13 +3,14 @@ import type { Entitlement } from "../../entitlement/types";
 import type { AuthzContext } from "../../authz/context";
 import {
   getAccountStore,
+  getCatalogStore,
   getCopilotStore,
   getDeliveryStore,
+  getFieldStore,
   getPipelineStore,
   getPlanningStore,
   getSignalStore,
   getStrategyStore,
-  getFieldStore,
 } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listPipeline } from "../../domains/pipeline/service";
@@ -21,7 +22,6 @@ import {
 } from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects } from "../../domains/delivery/service";
-import { getCatalogStore } from "../../domains/shared/registry";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { listProposals, listPlaybooks } from "../../domains/copilot/service";
 import {

@@ -8,9 +8,8 @@ import {
   PanelList,
   StatusBadge,
 } from "@vxture/design-ui";
-import { useMessages } from "../lib/i18n/provider";
+import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
-import { useLocale } from "../lib/i18n/provider";
 
 // What is being fought on this theatre.
 //

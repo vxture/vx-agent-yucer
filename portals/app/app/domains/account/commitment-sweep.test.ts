@@ -1,14 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { InMemoryCopilotStore } from "../copilot/store";
-import { InMemoryFieldStore } from "./field-store";
+import { type CommitmentRecord, InMemoryFieldStore } from "./field-store";
 import { setCopilotStore, setFieldStore } from "../shared/registry";
 import {
   SWEEP_ACTION_TYPE,
   SWEEP_PERMISSIONS,
   runCommitmentSweep,
 } from "./commitment-sweep";
-import type { CommitmentRecord } from "./field-store";
 
 // The sweep.
 //

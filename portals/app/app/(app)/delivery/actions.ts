@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { HealthOverride } from "../../domains/delivery/lib/revenue";
 import { resolveAppSession } from "../lib/session";
 import { getDeliveryStore } from "../../domains/shared/registry";
 import {
@@ -12,6 +11,7 @@ import {
 import { money } from "../../domains/shared/money";
 import {
   REVENUE_STATUSES,
+  type HealthOverride,
   type RevenueStatus,
 } from "../../domains/delivery/lib/revenue";
 

@@ -17,12 +17,11 @@ import {
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
-import type { ProjectHealth } from "../../domains/delivery/lib/revenue";
+import type { HealthOverride, ProjectHealth } from "../../domains/delivery/lib/revenue";
 import { formatMoney } from "../lib/view-model";
 import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
-import type { HealthOverride } from "../../domains/delivery/lib/revenue";
 // The delivery table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //

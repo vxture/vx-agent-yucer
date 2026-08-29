@@ -1,5 +1,4 @@
-import type { Entitlement, Tier } from "./types";
-import { TIERS, hasProductAccess } from "./types";
+import { type Entitlement, TIERS, type Tier, hasProductAccess } from "./types";
 
 // Capability matrix (product_220 section 3). tier -> feature keys is PRODUCT
 // knowledge - the platform never configures feature keys. The template shipped

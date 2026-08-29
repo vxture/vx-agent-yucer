@@ -14,11 +14,10 @@
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { ok, type RuleResult } from "../shared/result";
-import { denied } from "../pipeline/service";
+import { denied, listPipeline } from "../pipeline/service";
 import { getAccountStore, getCopilotStore, getFieldStore, getPipelineStore } from "../shared/registry";
 import type { CopilotStore } from "../copilot/store";
 import { listAccounts, decisionChain, accountRelations } from "../account/service";
-import { listPipeline } from "../pipeline/service";
 import { captureAdoption } from "../account/field-service";
 import {
   deriveJudgements,

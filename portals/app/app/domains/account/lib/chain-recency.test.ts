@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CHAIN_WARM_DAYS, analyzeChain, analyzeChainRecency } from "./health";
-import type { ContactNode, RelationEdge } from "./health";
+import {
+  CHAIN_WARM_DAYS,
+  type ContactNode,
+  type RelationEdge,
+  analyzeChain,
+  analyzeChainRecency,
+} from "./health";
 
 // Recency over the decision chain.
 //

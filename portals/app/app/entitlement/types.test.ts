@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { hasProductAccess, hasDataAccess, ctaFor, EMPTY_ENTITLEMENT } from "./types";
-import type { Entitlement } from "./types";
+import {
+  EMPTY_ENTITLEMENT,
+  type Entitlement,
+  ctaFor,
+  hasDataAccess,
+  hasProductAccess,
+} from "./types";
 
 function ent(over: Partial<Entitlement>): Entitlement {
   return { ...EMPTY_ENTITLEMENT, workspace_id: "ws", product: "p", ...over };

@@ -612,7 +612,13 @@ export const HEADER_TEXT = {
   fullscreenExit: "退出全屏",
   help: "帮助",
   notifications: "通知",
-  notificationsWithCount: (n: number) => `通知，${n} 条未读`,
+  notificationsWithCount: (n: number) => `通知，${n} 件待处理`,
+  notificationsEmpty: "没有等你处理的事",
+  notificationLabel: {
+    overdue: "逾期未兑现的承诺",
+    reviews: "已关闭待复盘的商机",
+    downgraded: "健康度被下调的项目",
+  } as Record<string, string>,
   settings: "设置",
 
   adminAria: "管理",

@@ -1,12 +1,15 @@
 import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
-import { getAccountStore, getFieldStore } from "../../domains/shared/registry";
+import {
+  getAccountStore,
+  getFieldStore,
+  getStrategyStore,
+} from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
 import { listSegments } from "../../domains/strategy/service";
-import { getStrategyStore } from "../../domains/shared/registry";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
 import { getMessages } from "../lib/i18n/server";

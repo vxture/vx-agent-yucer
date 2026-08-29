@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button, Label, NativeSelect, StatusBadge } from "@vxture/design-ui";
-import { RELATION_TYPES } from "../../domains/account/lib/health";
-import type { ContactNode } from "../../domains/account/lib/health";
+import { RELATION_TYPES, type ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 
 // Recording a path to the buyer.

@@ -14,8 +14,12 @@
 // imported from entitlement/types.ts and never restated here, so there is exactly
 // one place they could ever be widened - and it is not this file.
 
-import type { Entitlement, Tier } from "../entitlement/types";
-import { hasProductAccess, hasDataAccess } from "../entitlement/types";
+import {
+  type Entitlement,
+  type Tier,
+  hasDataAccess,
+  hasProductAccess,
+} from "../entitlement/types";
 import { canUseFeature, minTierFor, type FeatureKey } from "../entitlement/capability";
 import type { PermCode } from "./catalog";
 

@@ -9,9 +9,9 @@
 // Nothing here defines a colour. It selects a DS semantic tone, and the DS
 // decides what that looks like.
 
-import type { Stage } from "../../domains/pipeline/lib/stage";
 import {
   DEFAULT_PROBABILITY,
+  type Stage,
   isProbabilityOverridden,
 } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";

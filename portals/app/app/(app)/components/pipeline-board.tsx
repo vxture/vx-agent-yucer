@@ -21,11 +21,11 @@ import {
 } from "@vxture/design-ui";
 import { TableCard } from "./table-card";
 import type { Stage } from "../../domains/pipeline/lib/stage";
-import type {
-  ForecastCategory,
-  ForecastableOpportunity,
+import {
+  rollUp,
+  type ForecastCategory,
+  type ForecastableOpportunity,
 } from "../../domains/pipeline/lib/forecast";
-import { rollUp } from "../../domains/pipeline/lib/forecast";
 import {
   FORECAST_TONE,
   STAGE_TONE,

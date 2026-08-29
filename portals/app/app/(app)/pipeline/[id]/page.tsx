@@ -24,7 +24,10 @@ import {
 } from "../../lib/view-model";
 import { can } from "../../../authz/decide";
 import {
+  getAccountStore,
   getCatalogStore,
+  getCopilotStore,
+  getDeliveryStore,
   getFieldStore,
   getPipelineStore,
 } from "../../../domains/shared/registry";
@@ -38,18 +41,18 @@ import {
 } from "../../../domains/account/service";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
-import {
-  getAccountStore,
-  getCopilotStore,
-  getDeliveryStore,
-} from "../../../domains/shared/registry";
 import { cachedFeed } from "../../lib/board";
 import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
 import { LineEditor } from "../../components/line-editor";
-import { approveDiscount, saveOpportunityLines } from "../stage-action";
+import {
+  advanceOpportunityStage,
+  approveDiscount,
+  repriceOpportunity,
+  saveOpportunityLines,
+} from "../stage-action";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
@@ -68,7 +71,6 @@ import {
   recordFollowUp,
   settleCommitment,
 } from "../../account/field-actions";
-import { advanceOpportunityStage, repriceOpportunity } from "../stage-action";
 import { loadFailureText } from "../../lib/load-failure";
 
 // D6 opportunity detail: where the deal is, how it got there, and where it goes.
