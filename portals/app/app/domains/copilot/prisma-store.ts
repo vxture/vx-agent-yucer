@@ -126,6 +126,7 @@ export class PrismaCopilotStore implements CopilotStore {
     const p = await getPrismaClient();
     const created: AgentAction[] = [];
     for (const proposal of proposals) {
+      try {
       const row = await p.agentAction.create({
         data: {
           workspaceId,
@@ -144,6 +145,15 @@ export class PrismaCopilotStore implements CopilotStore {
         },
       });
       created.push(toAction(row as Record<string, unknown>));
+      } catch (e) {
+        // 0016's partial unique index: one OPEN proposal per (workspace,
+        // actionType, payload.commitmentId). Losing the race is not a fault -
+        // the other writer's proposal is already in the queue, which is the
+        // outcome the caller wanted. Anything that is not that violation
+        // rethrows.
+        if ((e as { code?: string }).code === "P2002") continue;
+        throw e;
+      }
     }
     return created;
   }

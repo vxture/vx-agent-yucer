@@ -230,6 +230,22 @@ export class InMemoryCopilotStore implements CopilotStore {
   async createProposals(workspaceId: string, proposals: readonly NewProposal[]): Promise<AgentAction[]> {
     const created: AgentAction[] = [];
     for (const p of proposals) {
+      // The same floor the database enforces (0016): one OPEN proposal per
+      // (workspace, actionType, payload.commitmentId). A duplicate arriving
+      // second is skipped, not an error - it is the race being won by the
+      // other writer. Proposals without a commitmentId are unconstrained,
+      // matching the index's NULL semantics.
+      const cid = (p.payload as { commitmentId?: unknown }).commitmentId;
+      if (typeof cid === "string") {
+        const open = [...this.actions.values()].some(
+          (a) =>
+            a.workspaceId === workspaceId &&
+            a.actionType === p.actionType &&
+            a.status === "proposed" &&
+            (a.payload as { commitmentId?: unknown }).commitmentId === cid,
+        );
+        if (open) continue;
+      }
       const action: AgentAction & { workspaceId: string } = {
         id: this.nextId("act"),
         workspaceId,

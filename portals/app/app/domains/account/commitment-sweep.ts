@@ -108,16 +108,13 @@ export async function runCommitmentSweep(options: SweepOptions): Promise<SweepLe
       // BOTH ledgers report a clean run. There is no database constraint to
       // catch it: agent_action carries only non-unique indexes.
       //
-      // Not fixed here, because the fix is a partial unique index on
-      // (workspace_id, action_type, payload->>'commitmentId') WHERE
-      // status='proposed' - an increment, and one whose WHERE clause is
-      // load-bearing: a full unique index would permanently block re-proposing
-      // after a human rejects. Registered as TD-003 rather than papered over
-      // with an application-level lock that would be wrong under two replicas.
-      //
-      // Tolerable meanwhile because the timer is external and single: the
-      // exposure is an operator firing the route twice, not a race the system
-      // creates for itself.
+      // The FAST path only. The floor under the race is 0016's partial unique
+      // index (workspace_id, action_type, payload->>'commitmentId') WHERE
+      // status='proposed' - the WHERE clause is load-bearing, because a full
+      // unique index would permanently block re-proposing after a human
+      // rejects, and re-asking about a still-broken promise is what this sweep
+      // is FOR. The store maps a violation to a silent skip, and the ledger
+      // counts the difference as alreadyQueued (TD-003, repaid 2026-08-29).
       //
       // Matched on the commitment id in the payload rather than on the subject,
       // because one account can carry several overdue promises and they are
@@ -150,6 +147,11 @@ export async function runCommitmentSweep(options: SweepOptions): Promise<SweepLe
         continue;
       }
       ledger.proposed += result.value.length;
+      // The floor under the race (0016): a concurrent sweep may have filed
+      // some of these first, in which case the store silently skips them.
+      // They are already queued - by the other writer - and the ledger says
+      // so instead of losing them between two counters.
+      ledger.alreadyQueued += fresh.length - result.value.length;
     } catch {
       ledger.failed += 1;
     }
