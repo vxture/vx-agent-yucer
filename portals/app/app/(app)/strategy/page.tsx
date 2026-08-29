@@ -10,6 +10,7 @@ import { NewPlan } from "../components/new-plan";
 import { SegmentPanel, type SegmentRow } from "../components/segment-panel";
 
 import { getMessages } from "../lib/i18n/server";
+import { loadFailureText } from "../lib/load-failure";
 // D1 strategy: the top of the chain. Everything downstream can trace back here,
 // which is what makes "how much of this quarter came from the segment we chose
 // to attack" a join rather than a manual tally.
@@ -17,7 +18,7 @@ import { getMessages } from "../lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 export default async function StrategyPage() {
-  const { SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
+  const { SHELL_TEXT, STRATEGY_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -41,7 +42,7 @@ export default async function StrategyPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }

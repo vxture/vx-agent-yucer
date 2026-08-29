@@ -29,7 +29,7 @@ export function SubmitForecast({
   canSubmit,
   onSubmit,
 }: SubmitForecastProps) {
-  const { PIPELINE_TEXT } = useMessages();
+  const { PIPELINE_TEXT, FORECAST_ERROR } = useMessages();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -62,7 +62,9 @@ export function SubmitForecast({
         onClick={() =>
           start(() => {
             void onSubmit(period).then((r) => {
-              setError(r.ok ? null : (r.error ?? PIPELINE_TEXT.snapshotFailed));
+              setError(
+                r.ok ? null : (FORECAST_ERROR[r.error ?? "denied"] ?? PIPELINE_TEXT.snapshotFailed),
+              );
               setDone(r.ok);
             });
           })

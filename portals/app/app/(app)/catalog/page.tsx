@@ -6,6 +6,7 @@ import { getCatalogStore } from "../../domains/shared/registry";
 import { listPrices, listProducts, listSolutions } from "../../domains/catalog/service";
 import { CatalogPanels } from "../components/catalog-panels";
 import { saveProduct, savePrice } from "./actions";
+import { loadFailureText } from "../lib/load-failure";
 
 // D9 catalogue page.
 //
@@ -20,7 +21,7 @@ import { saveProduct, savePrice } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function CatalogPage() {
-  const { CATALOG_TEXT, SHELL_TEXT } = await getMessages();
+  const { CATALOG_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -49,7 +50,7 @@ export default async function CatalogPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={products.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(products.violations, LOAD_ERROR)}
       />
     );
   }

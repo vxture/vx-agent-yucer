@@ -8,6 +8,7 @@ import { AccountTable } from "../components/account-table";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
 import { getMessages } from "../lib/i18n/server";
+import { loadFailureText } from "../lib/load-failure";
 // D4 account list.
 //
 // Ordered sickest-first by the store, which is a product decision rather than a
@@ -18,7 +19,7 @@ import { getMessages } from "../lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
-  const { ACCOUNT_TEXT, SHELL_TEXT } = await getMessages();
+  const { ACCOUNT_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -49,7 +50,7 @@ export default async function AccountPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }

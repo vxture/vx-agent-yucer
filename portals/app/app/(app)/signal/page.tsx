@@ -13,6 +13,7 @@ import { LeadList } from "../components/lead-list";
 import { actOnSignal } from "./actions";
 import { actOnLead } from "./lead-actions";
 import { TONE_INK } from "../lib/view-model";
+import { loadFailureText } from "../lib/load-failure";
 
 // D5 signal inbox.
 //
@@ -23,7 +24,7 @@ import { TONE_INK } from "../lib/view-model";
 export const dynamic = "force-dynamic";
 
 export default async function SignalPage() {
-  const { SIGNAL_TEXT, SHELL_TEXT } = await getMessages();
+  const { SIGNAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -51,7 +52,7 @@ export default async function SignalPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={result.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(result.violations, LOAD_ERROR)}
       />
     );
   }

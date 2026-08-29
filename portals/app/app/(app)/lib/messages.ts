@@ -259,6 +259,22 @@ const GATE_ERROR = {
   feature_not_in_tier: "当前档位不含这个能力",
 } as const;
 
+/**
+ * 读取失败时页面显示什么。
+ *
+ * 页面此前把 `violation.message` 直接渲染出来，那是规则层写给自己看的英文散文，
+ * 而它所在的文件必须 ASCII-only —— 所以它永远不可能是产品文案（TD-010）。
+ * 被拒的加载因此会显示 `missing permission strategy.read`：英文，还把内部权限码
+ * 摆给了终端用户。
+ *
+ * `unknown` 是刻意的兜底：一个没有登记的 code 显示一句通用的话，而不是退回散文。
+ * 少一句翻译是缺陷，泄露一句英文规则自述是同一个缺陷换个样子。
+ */
+export const LOAD_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  unknown: "数据加载失败，请稍后重试",
+};
+
 export const REVENUE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   actual_amount_required: "标记为已回款必须写明实际收到多少",
@@ -1105,6 +1121,48 @@ export const TERRITORY_ERROR: Record<string, string> = {
   unknown_status: "未知的区域状态",
   parent_not_found: "上级区域不存在",
   parent_cycle: "区域不能直接或间接地成为自己的上级",
+};
+
+/**
+ * 销售目标。
+ *
+ * 此前 `set-target` 把服务端动作的 `error` 直接渲染出来，既没有字典也没有兜底 ——
+ * 于是屏幕上出现的是规则层的英文自述。TD-010。
+ */
+export const TARGET_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  name_required: "目标需要一个名称",
+  period_required: "目标必须写明周期",
+  unknown_metric: "未知的指标类型",
+  unknown_status: "未知的目标状态",
+  count_not_integer: "计数类指标必须是整数——家数、个数不存在小数",
+  unit_mismatch: "单位与该指标不符",
+  amount_negative: "金额不能为负",
+  currency_mismatch: "币种与上级目标不一致",
+  scope_incomplete: "这个口径还缺必填项，无法确定它指向谁",
+  scope_overspecified: "这个口径同时指定了互相排斥的对象",
+  scope_immutable: "目标的口径建好后不能改——换口径等于换一个目标",
+  duplicate_scope: "同一周期同一口径已经有一个目标了",
+  target_closed: "这个目标已收尾，它是当期据以考核的记录",
+  status_regression: "目标状态不能倒退",
+  parent_not_found: "上级目标不存在",
+  parent_cycle: "目标不能直接或间接地成为自己的上级",
+  not_found: "目标不存在，或不属于当前工作区",
+};
+
+/**
+ * 预测快照。同上：`submit-forecast` 也是直接渲染 `error`。
+ */
+export const FORECAST_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  period_required: "快照必须写明它服务的周期",
+  period_unparsed: "无法识别这个周期的写法",
+  unknown_forecast_category: "未知的预测类别",
+  unknown_scope_type: "未知的口径类型",
+  scope_incomplete: "这个口径还缺必填项，无法确定它指向谁",
+  scope_overspecified: "这个口径同时指定了互相排斥的对象",
+  closed_requires_terminal_stage: "未关闭的商机不能标记为「已成交」",
+  terminal_requires_closed: "已关闭的商机只能是「已成交」类别",
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
@@ -1995,6 +2053,19 @@ export const PLAN_ERROR: Record<string, string> = {
   plan_no_taken: "这个编号已经被占用了",
 };
 
+/**
+ * 项目健康度重算。`delivery-table` 的行操作 toast 此前直接显示 `error`。
+ */
+export const PROJECT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "项目不存在，或不属于当前工作区",
+  name_required: "项目需要一个名称",
+  unknown_status: "未知的项目状态",
+  illegal_transition: "当前状态不能这样变更",
+  sequence_immutable: "分期的序号是这一行的身份，调序意味着写新行而不是改旧行",
+  sequence_invalid: "分期序号不合法",
+};
+
 export const MILESTONE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   name_required: "里程碑需要一个名称",
@@ -2053,6 +2124,28 @@ export const PREVIEW_FIXTURES = {
  * product. It now emits a code and its numbers; the words live here with every
  * other user-visible string.
  */
+/**
+ * 项目健康度为什么被下调。
+ *
+ * 规则层给的是 `{ code, count }`，句子在这里。此前规则层直接拼一句英文散文，
+ * 而它所在的文件必须 ASCII-only —— 于是中文产品的提示框里出现了
+ * `1 overdue instalment(s): a project with unpaid instalments cannot be green`。
+ * TD-010 的原始症状。
+ */
+export function healthOverrideText(
+  r: { code: string; count: number } | null,
+): string {
+  if (!r) return "";
+  switch (r.code) {
+    case "overdue_instalment":
+      return `${r.count} 期逾期未回款——有欠款的项目不能是健康`;
+    case "missed_milestone":
+      return `${r.count} 个里程碑已错期`;
+    default:
+      return "";
+  }
+}
+
 export function healthReasonText(r: {
   code: string;
   count?: number;

@@ -84,7 +84,7 @@ export async function createSalesTarget(input: {
   );
 
   if (!result.ok) {
-    return { ok: false, error: result.violations.map((v) => v.message).join("; ") };
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
   revalidatePath("/planning");
   return { ok: true };
@@ -120,7 +120,7 @@ export async function updateSalesTarget(
   );
 
   if (!result.ok) {
-    return { ok: false, error: result.violations.map((v) => v.message).join("; ") };
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
   revalidatePath("/planning");
   return { ok: true };

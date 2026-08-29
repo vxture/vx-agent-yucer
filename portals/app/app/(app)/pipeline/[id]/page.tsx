@@ -69,6 +69,7 @@ import {
   settleCommitment,
 } from "../../account/field-actions";
 import { advanceOpportunityStage, repriceOpportunity } from "../stage-action";
+import { loadFailureText } from "../../lib/load-failure";
 
 // D6 opportunity detail: where the deal is, how it got there, and where it goes.
 //
@@ -98,6 +99,7 @@ export default async function OpportunityDetailPage({
     STAGE_LABEL,
     POSITION_TEXT,
     CHANNEL_LABEL,
+    LOAD_ERROR,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -554,7 +556,7 @@ export default async function OpportunityDetailPage({
       ) : (
         <EmptyState
           title={SHELL_TEXT.loadFailed}
-          description={history.violations.map((v) => v.message).join("; ")}
+          description={loadFailureText(history.violations, LOAD_ERROR)}
         />
       )}
     </ViewLayout>

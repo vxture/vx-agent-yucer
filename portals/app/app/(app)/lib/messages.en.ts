@@ -407,6 +407,23 @@ export const en: Dictionary = {
     not_found: "No such campaign, or that item is not on it",
   },
 
+  healthOverrideText: (r: { code: string; count: number } | null): string => {
+    if (!r) return "";
+    switch (r.code) {
+      case "overdue_instalment":
+        return `${r.count} overdue instalment(s) - a project with unpaid instalments cannot be green`;
+      case "missed_milestone":
+        return `${r.count} missed milestone(s)`;
+      default:
+        return "";
+    }
+  },
+  LOAD_ERROR: {
+    not_authenticated: "Your session has expired. Please sign in again.",
+    permission_denied: "You do not have permission to view this.",
+    feature_not_in_tier: "Your plan does not include this capability.",
+    unknown: "Could not load the data. Please try again.",
+  },
   SEGMENT_ERROR: {
     segment_code_required: "A segment needs a code.",
     name_required: "A segment needs a name.",

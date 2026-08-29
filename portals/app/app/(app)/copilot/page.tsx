@@ -15,6 +15,7 @@ import { adjudicateProposals } from "./actions";
 import { askCopilot } from "./ask-action";
 
 import { getMessages } from "../lib/i18n/server";
+import { loadFailureText } from "../lib/load-failure";
 // D8 copilot: the conversation and the proposal queue on one page.
 //
 // They belong together and stay VISUALLY SEPARATE. The conversation is where
@@ -30,7 +31,7 @@ export default async function CopilotPage({
 }: {
   searchParams: Promise<{ account?: string }>;
 }) {
-  const { PROPOSAL_TEXT, SHELL_TEXT } = await getMessages();
+  const { PROPOSAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const { account: accountId } = await searchParams;
   const session = await resolveAppSession();
   if (!session) {
@@ -71,7 +72,7 @@ export default async function CopilotPage({
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={proposals.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(proposals.violations, LOAD_ERROR)}
       />
     );
   }

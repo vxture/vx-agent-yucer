@@ -154,7 +154,7 @@ test("an overdue instalment forbids green", () => {
     }),
   );
   assert.equal(r.health, "amber");
-  assert.match(String(r.overriddenBecause), /cannot be green/);
+  assert.deepEqual(r.overriddenBecause, { code: "overdue_instalment", count: 1 });
 });
 
 test("the derived health only ever downgrades, never upgrades", () => {
@@ -186,7 +186,7 @@ test("a missed milestone also forbids green", () => {
     }),
   );
   assert.equal(r.health, "amber");
-  assert.match(String(r.overriddenBecause), /missed milestone/);
+  assert.deepEqual(r.overriddenBecause, { code: "missed_milestone", count: 1 });
 });
 
 test("a genuinely clean project stays green", () => {

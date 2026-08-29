@@ -14,6 +14,7 @@ import { moveCampaign, saveExecution } from "./actions";
 import { ExecutionPanel, type ExecutionRow } from "../components/execution-panel";
 
 import { getMessages } from "../lib/i18n/server";
+import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 // D3 market execution.
@@ -63,7 +64,7 @@ function executionRows(
 }
 
 export default async function CampaignPage() {
-  const { CAMPAIGN_TEXT, SHELL_TEXT } = await getMessages();
+  const { CAMPAIGN_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -87,7 +88,7 @@ export default async function CampaignPage() {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={campaigns.violations.map((v) => v.message).join("; ")}
+        description={loadFailureText(campaigns.violations, LOAD_ERROR)}
       />
     );
   }
