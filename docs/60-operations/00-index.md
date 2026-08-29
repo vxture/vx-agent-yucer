@@ -19,7 +19,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-007 | DS 无正文行宽（measure）token，八处判断文案手写 `max-w-[62ch]` | 2026-08-24 | open |
 | TD-008 | DS 无任何数据可视化元素，战况板的图表本地实现 | 2026-08-24 | open |
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
-| TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | open（泄漏已全部堵死并加守卫；余「code 无句子」29 条） |
+| TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
 | TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
@@ -297,6 +297,62 @@ translateX 填充）。donut / circular / radial / ring 一件都没有，
 **下一步不是补 29 句话，是先把这个判据变成机器能问的问题**——否则补完还是不知道
 补全了没有。守卫要能区分「能到达界面的 code」和「适配层自证」，那需要一条从服务端
 动作出发的可达性分析，不是一个正则。
+
+---
+
+### 2026-08-29（二）：可达性守卫上线，本条收敛
+
+`reachable-codes.test.ts` 把「这条 code 会不会走到用户面前」变成了机器回答的问题。
+它静态走真实的链：**绑定点**（`on*={action}`，跟着 prop 转发链 page → Table →
+Control）→ **该链上渲染错误的字典**；**action 函数切片** → 调用的服务动词 →
+`violation("...")` code（沿同域调用下探数层）。然后断言两件事：
+
+1. 每个绑定点的转发链上必须有字典在渲染错误（自带完整映射的组件豁免，目前只有
+   `copilot-chat`——它的 `explainError` 有保证兜底）。
+2. 每个可达 code 在渲染它的字典里必须有句子。
+
+近似方向是刻意保守的：函数切片从一个 `export function` 划到下一个 export，动词的
+code 集可能混入邻居的。**过近似的代价是多译一句话；欠近似的代价是裸码上屏。**
+只有一种可以接受。
+
+#### 首跑抓到的东西，比预想的严重
+
+**七个绑定点整条链上没有任何字典**，其中**四个把结果整个扔掉**：
+
+| 组件 | 症状 |
+|------|------|
+| `lead-list` | `.then` 只读成功分支——转化失败，界面纹丝不动 |
+| `signal-queue` | 回调类型是 `void \| Promise<unknown>`——**类型先把错误扔了**，代码想读也读不到 |
+| `proposal-queue` | 结果被丢弃后照样清空选择、关掉确认框——被拒和成功不可区分 |
+| `planning-table` | 三处 `void onUpdate(...)`——规则拒绝后菜单一关，行没变化读起来像「产品坏了」 |
+
+另外三个（`pending-reviews` / `health-panel` / `lifecycle-control` 兜底）把裸 code
+当句子显示。**无声失败比错句子更糟**：用户重试、怀疑自己点错、最后怪产品。
+
+修法：四个吞失败的组件把回调类型收紧为 `Promise<{ok, error?}>` 并渲染拒绝句；
+三本新字典（`SIGNAL_ACTION_ERROR` / `PROPOSAL_ERROR` / `REVIEW_ERROR`）；
+`GATE_ERROR` 增通用兜底 `denied: "操作被拒绝"`，所有 spread 它的字典继承——
+兜底不再退到裸 code。守卫随后又点名三句缺失（`unknown_forecast_category` /
+`quantity_positive` / `currency_mismatch`），补齐。
+
+#### 反证
+
+- 删掉 `lead_converted` 那句 → 守卫点名 `SIGNAL_ACTION_ERROR lacks "lead_converted"`
+- 把 `lead-list` 的字典拿掉（回到吞失败） → 守卫点名 `actOnLead in <lead-list>`
+
+#### 验证的边界，如实记
+
+这四条拒绝路径**无法从正常交互自然触发**——行菜单的第一层防守（disabled + hint）
+把 terminal 状态挡在点击之前，这是比错误提示更早的一层，也说明这些拒绝只在并发或
+权限竞态下出现。两次端到端尝试都被第一层防守拦下（这个拦下本身是产品行为正确的
+证据）。修复的正确性由组件模式一致性（与 `set-target` / `record-follow-up` 同型）、
+单元反证与守卫覆盖背书，不由一次浏览器截图背书。
+
+#### 顺带发现，未在本次处理
+
+`saveSolution`（`catalog/actions.ts`）没有任何界面绑定——一个没人能走进的服务端
+动作。`gated.test.ts` 管的是 action 声明有没有门，`wired.test.ts` 管的是域动词有没有
+调用者，**「action 有没有绑定点」两个守卫都不管**。与 TD-016 同族，暂记于此。
 
 ### TD-011 - `/account/[id]` 的 key 警告 —— 一次把根因推给上游的误判
 

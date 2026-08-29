@@ -83,7 +83,7 @@ export function RecordFollowUp({
         opportunityId,
       }).then((r) => {
         if (!r.ok)
-          setError(FIELD_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+          setError(FIELD_ERROR[r.error ?? "denied"] ?? FIELD_ERROR.denied);
         else {
           setSaved(true);
           setNote("");

@@ -59,7 +59,7 @@ export interface ProposalQueueProps {
   readonly onDecide: (
     ids: string[],
     decision: Decision,
-  ) => void | Promise<unknown>;
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 export function ProposalQueue({
@@ -74,9 +74,11 @@ export function ProposalQueue({
     DATA_TABLE_LABELS,
     DS_LABELS,
     PROPOSAL_TEXT,
+    PROPOSAL_ERROR,
   } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState<Decision | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Only pending proposals are selectable. A decided one is history.
   const pending = useMemo(
@@ -107,10 +109,14 @@ export function ProposalQueue({
   }
 
   async function apply(decision: Decision) {
-    await onDecide(
+    // The result used to be discarded, so a refused adjudication cleared the
+    // selection and closed the dialog exactly like a successful one. The two
+    // outcomes must not be indistinguishable (TD-010 sweep).
+    const r = await onDecide(
       selectedActions.map((a) => a.id),
       decision,
     );
+    setError(r.ok ? null : (PROPOSAL_ERROR[r.error ?? "denied"] ?? PROPOSAL_ERROR.not_found));
     setSelected(new Set());
     setConfirming(null);
   }
@@ -202,6 +208,7 @@ export function ProposalQueue({
       title={PROPOSAL_TEXT.title}
       description={PROPOSAL_TEXT.description}
     >
+      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {/* The bar takes data now, not three JSX slots, and returns null itself
           when nothing is selected - so the outer guard is gone. Both bulk
           actions still open the confirmation rather than acting: ADR-003 is

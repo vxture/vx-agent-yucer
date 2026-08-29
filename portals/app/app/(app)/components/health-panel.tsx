@@ -37,7 +37,7 @@ export function HealthPanel({
   canRecompute,
   onRecompute,
 }: HealthPanelProps) {
-  const { CHAIN_TEXT, healthReasonText } = useMessages();
+  const { CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
 
   // INSIDE the component, not at module scope. It was a module constant, which
   // reads as the cheaper thing to do - build the map once - and is wrong the
@@ -59,7 +59,7 @@ export function HealthPanel({
     setError(null);
     startTransition(() => {
       void onRecompute(accountId).then((r) => {
-        if (!r.ok) setError(r.error ?? "denied");
+        if (!r.ok) setError(ACCOUNT_ERROR[r.error ?? "denied"] ?? ACCOUNT_ERROR.denied);
         else if (r.score != null) setCurrent({ ...current, score: r.score });
       });
     });

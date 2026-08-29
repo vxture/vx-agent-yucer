@@ -51,6 +51,7 @@ export function LeadList({
     LEAD_STATUS_LABEL,
     LEAD_TEXT,
     PIPELINE_TEXT,
+    SIGNAL_ACTION_ERROR,
   } = useMessages();
 
   // Built here rather than at module scope: it is made OF copy, and copy now
@@ -66,14 +67,24 @@ export function LeadList({
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"list" | "cards">("list");
 
   function act(id: string, action: LeadAction) {
     setBusyId(id);
     setNote(null);
+    setError(null);
     startTransition(() => {
       void onAct(id, action)
         .then((r) => {
+          // A refusal used to vanish here: only the success branch was read,
+          // so a failed conversion left the screen exactly as it was. Silence
+          // is worse than a wrong sentence - the user retries, then blames the
+          // click, then the product (TD-010 sweep).
+          if (!r.ok) {
+            setError(SIGNAL_ACTION_ERROR[r.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.not_found);
+            return;
+          }
           if (r.ok && r.opportunityNo) {
             // Attribution is frozen from here. This is the only moment it is
             // worth stating, because it can never be changed afterwards.
@@ -232,6 +243,7 @@ export function LeadList({
       description={LEAD_TEXT.description}
     >
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
+      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {leads.length === 0 ? (
         <EmptyState
           title={LEAD_TEXT.emptyTitle}

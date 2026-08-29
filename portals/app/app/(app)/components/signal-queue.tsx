@@ -86,7 +86,7 @@ export interface SignalQueueProps {
   readonly onAct: (
     signalId: string,
     action: SignalAction,
-  ) => void | Promise<unknown>;
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 /**
@@ -173,15 +173,26 @@ export function SignalQueue({
   canRescore,
   onAct,
 }: SignalQueueProps) {
-  const { SIGNAL_TEXT } = useMessages();
+  const { SIGNAL_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   function act(id: string, action: SignalAction) {
     setBusyId(id);
+    setError(null);
     start(() => {
-      void Promise.resolve(onAct(id, action)).finally(() => setBusyId(null));
+      // The result used to be typed void | Promise<unknown> and discarded, so
+      // a refused action left the screen unchanged. The type carried the
+      // defect: you cannot read an error a signature has already thrown away.
+      void onAct(id, action)
+        .then((r) => {
+          if (!r.ok) {
+            setError(SIGNAL_ACTION_ERROR[r.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.not_found);
+          }
+        })
+        .finally(() => setBusyId(null));
     });
   }
 
@@ -194,6 +205,7 @@ export function SignalQueue({
       title={SIGNAL_TEXT.title}
       description={SIGNAL_TEXT.description}
     >
+      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {groups
         .filter((g) => g.items.length > 0)
         .map((g) => (
