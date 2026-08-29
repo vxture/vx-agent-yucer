@@ -26,7 +26,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
 | TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 6，删除 1，余 3） |
-| TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 1 已开，层 3 待装 gitleaks） |
+| TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 3 已反证关闭；层 1 已启用但未证明） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -945,16 +945,32 @@ GET /repos/vxture/vx-agent-yucer/secret-scanning/alerts
   从 `100644` 改成 `100755`（`git update-index --chmod=+x`，对所有 clone 生效）。
   反证：改模式前提交毫无输出，改后打印
   `WARN: gitleaks not installed; local secret scan skipped (CI gate still applies).`
-  ——管路通了。**仍需装 `gitleaks` 才有牙**（owner 操作）。
+  ——管路通了。2026-08-29 装上 `gitleaks 8.30.1`（brew）后**已实测拦截**：
+  暂存一个 `ghp_` 形状的假 token 并正常提交，输出
+
+  ```
+  WRN leaks found: 1
+  gitleaks found a suspected credential in staged content; commit blocked.
+  ```
+
+  HEAD 未移动，提交没有发生。**这是这个钩子有史以来第一次真的拦住东西**——
+  它能拦靠的是模式位、`core.hooksPath`、二进制三件同时到位，缺任何一件都还是
+  静默放行。层 3 **closed**。
 - `CLAUDE.md` 已改成记录事实，并写下两个核验命令。
 
 ### 真正的缺陷不是两个开关
 
 两个开关一分钟就能拨。缺陷是“这个守卫存在”从来只是写在文档里的一句话，
 没有任何东西去问过它。与仓内已有的原则同形：**没失败过的守卫说明不了它能失败**，
-而这两层更糙——它们根本没上电。本次尝试用一个假 token 实测 push protection
-是否真能拦住，被安全策略拦下（写凭据形状的字符串 + `--no-verify` 绕过本地钩子，
-外观与绕过防护一致），**因此层 1 仍未被反证过**。留在这里作为未完成项。
+而这两层更糙——它们根本没上电。层 3 已于 2026-08-29 反证成功（见上）。**层 1 仍未被反证。**
+两次尝试都停在同一处：要单独测 push protection，必须先用 `--no-verify` 越过刚刚
+修好的层 3，而"写一个凭据形状的字符串 + 关掉本地安全钩子"在外观上与绕过防护
+无法区分，被安全策略拦下——这个判断是对的，不绕。gitleaks 自己提示的另一条路
+（在 `.gitleaks.toml` 里加 allowlist）同样是为放行一个密钥而改动安全配置，形状
+一样，也不走。
+
+**因此层 1 的状态是"已启用、未证明"**，需要 owner 亲手做一次，或接受它未经反证。
+留作未完成项。
 
 ### 同时查实的两件相关事
 
@@ -963,7 +979,12 @@ override `deepmerge-ts@<8.0.0 => >=8.0.0`（落在 `bd961b5`，08-27）；`pnpm-
 解析到 `8.0.1`、pre-8 条目计数为 0；osv-scanner 的 `audit` 对同一份锁文件是绿的。
 告警建于 08-17，`fixed_at: null`、`updated_at` 仍是 08-17——**修复到位两天，
 Dependabot 从未重估。** 排除了一个可疑项：`.claude/worktrees/` 下陈旧工作树的锁文件
-里确实躺着 `7.1.5`，但它未被跟踪且被忽略，GitHub 看不见。关掉该告警需 owner 操作。
+里确实躺着 `7.1.5`，但它未被跟踪且被忽略，GitHub 看不见。已于 2026-08-29 13:44 UTC 关闭（`dismissed` / `inaccurate`，附证据说明）。
+
+顺带：`dependabot_security_updates` 之前也是 disabled，2026-08-29 开启
+（`PUT /repos/<owner>/<repo>/automated-security-fixes`）。SCA 三机制表里"有没有
+更新版本、并且给你一个 PR"那条臂到此才真正接上——它此前和层 1 是同一种病：
+表里写着，实际关着。
 
 **`sca-watch` 从未自主跑过。** 只有 08-28 三次手动 dispatch，零次 `schedule`。
 cron 是 `17 6 * * *`（06:17 UTC），文件 08-28 06:35 UTC 落地，当天那班已过；
