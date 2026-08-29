@@ -5,6 +5,8 @@ import { getAccountStore, getFieldStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
+import { listSegments } from "../../domains/strategy/service";
+import { getStrategyStore } from "../../domains/shared/registry";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
 import { getMessages } from "../lib/i18n/server";
@@ -38,12 +40,17 @@ export default async function AccountPage() {
   };
 
   const now = new Date();
-  const [result, overdue] = await Promise.all([
+  const [result, overdue, segments] = await Promise.all([
     listAccounts({ ...ctx, store: getAccountStore() }),
     listCommitments(
       { ...ctx, store: getFieldStore() },
       { overdueAt: now, limit: 20 },
     ),
+    // D1's definitions, read across the domain boundary to turn segment codes
+    // into names. Gated separately (strategy.segment.view) - a member without
+    // it sees the raw codes, which is the honest degradation: the reference on
+    // the account is theirs to see, the definition is not.
+    listSegments({ ...ctx, store: getStrategyStore() }),
   ]);
 
   if (!result.ok) {
@@ -122,6 +129,11 @@ export default async function AccountPage() {
             reason. */}
         <AccountTable
           rows={result.value}
+          segmentNames={
+            segments.ok
+              ? new Map(segments.value.map((g) => [g.segmentCode, g.name]))
+              : undefined
+          }
           canRecompute={
             can(session.authz, session.entitlement, "account.upsert", "ui")
               .allowed

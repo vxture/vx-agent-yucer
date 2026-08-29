@@ -1520,6 +1520,7 @@ export const ACCOUNT_TEXT = {
     "健康度是派生值，随源数据重算；它用于排序和预警，不作为任何业务判断的唯一依据。",
   columnName: "客户",
   columnIndustry: "行业",
+  columnSegment: "细分市场",
   columnOwner: "负责人",
   columnHealth: "健康度",
   columnStatus: "状态",
