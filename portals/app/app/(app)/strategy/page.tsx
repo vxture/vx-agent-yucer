@@ -2,6 +2,7 @@ import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getAccountStore, getStrategyStore } from "../../domains/shared/registry";
 import { listCampaigns, listPlans, listSegments } from "../../domains/strategy/service";
+import { accountMatchesCriteria } from "../../domains/strategy/lib/lifecycle";
 import { listAccounts } from "../../domains/account/service";
 import { can } from "../../authz/decide";
 import { StrategyTable } from "../components/strategy-table";
@@ -113,6 +114,13 @@ export default async function StrategyPage() {
         priority: g.priority,
         status: g.status,
         accountCount: perCode.get(g.segmentCode) ?? 0,
+        criteria: g.criteria,
+        // Counted against the accounts this member can see, same as the
+        // assigned count beside it - the two numbers must share a population
+        // or their difference stops meaning anything.
+        matchedCount: accounts.ok
+          ? accounts.value.filter((a) => accountMatchesCriteria(a, g.criteria)).length
+          : 0,
       }))
     : [];
   // Closed and archived plans are absent on purpose: their segmentation is

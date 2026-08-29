@@ -9,6 +9,7 @@ import type {
   NewPlanDraft,
   PlanStatus,
   SegmentDraft,
+  SegmentCriteria,
   SegmentStatus,
 } from "./lib/lifecycle";
 import type {
@@ -201,6 +202,8 @@ export class PrismaStrategyStore implements StrategyStore {
       planId: input.planId,
       priority: input.priority,
       status: input.status,
+      // JSONB; the column locks grant UPDATE on criteria alongside the rest.
+      criteria: input.criteria as unknown as Record<string, never>,
       updatedAt: new Date(),
     };
     // segmentCode is absent on purpose, and the column locks agree: the DDL
@@ -285,6 +288,7 @@ function toCampaign(r: Record<string, unknown>): CampaignRecord {
 }
 
 function toSegment(r: Record<string, unknown>): SegmentRecord {
+  const raw = (r.criteria ?? {}) as { industries?: unknown; regions?: unknown };
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
@@ -293,6 +297,11 @@ function toSegment(r: Record<string, unknown>): SegmentRecord {
     planId: (r.planId as string | null) ?? null,
     priority: Number(r.priority ?? 0),
     status: r.status as SegmentStatus,
+    // Tolerant of pre-criteria rows: {} reads as no filters, not a crash.
+    criteria: {
+      industries: Array.isArray(raw.industries) ? raw.industries.map(String) : [],
+      regions: Array.isArray(raw.regions) ? raw.regions.map(String) : [],
+    },
   };
 }
 

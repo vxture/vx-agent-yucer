@@ -19,6 +19,7 @@ import type {
   ExecutionStatus,
   NewPlanDraft,
   PlanStatus,
+  SegmentCriteria,
   SegmentDraft,
   SegmentStatus,
 } from "./lib/lifecycle";
@@ -60,6 +61,7 @@ export interface SegmentRecord {
   planId: string | null;
   priority: number;
   status: SegmentStatus;
+  criteria: SegmentCriteria;
 }
 
 export interface ExecutionRecord {
@@ -269,6 +271,7 @@ export class InMemoryStrategyStore implements StrategyStore {
       held.planId = input.planId;
       held.priority = input.priority;
       held.status = input.status;
+      held.criteria = input.criteria;
       return held;
     }
     const row: SegmentRecord = { ...input, id: `seg_${++this.seq}`, workspaceId };

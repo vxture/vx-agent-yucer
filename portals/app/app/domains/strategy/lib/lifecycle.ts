@@ -326,12 +326,38 @@ export function planExecution(
 export const SEGMENT_STATUSES = ["active", "paused", "retired"] as const;
 export type SegmentStatus = (typeof SEGMENT_STATUSES)[number];
 
+/**
+ * The industry/size/region filters the DDL always promised. Only the two
+ * dimensions accounts actually carry are modelled - industry and region - so
+ * a criterion is checkable against real rows rather than aspirational.
+ */
+export interface SegmentCriteria {
+  industries: readonly string[];
+  regions: readonly string[];
+}
+
 export interface SegmentDraft {
   segmentCode: string;
   name: string;
   planId: string | null;
   priority: number;
   status: SegmentStatus;
+  criteria: SegmentCriteria;
+}
+
+/** An account matches when every non-empty dimension names its value. */
+export function accountMatchesCriteria(
+  account: { industry: string | null; region: string | null },
+  criteria: SegmentCriteria,
+): boolean {
+  if (criteria.industries.length === 0 && criteria.regions.length === 0) return false;
+  const industryOk =
+    criteria.industries.length === 0 ||
+    (account.industry !== null && criteria.industries.includes(account.industry));
+  const regionOk =
+    criteria.regions.length === 0 ||
+    (account.region !== null && criteria.regions.includes(account.region));
+  return industryOk && regionOk;
 }
 
 export function planSegment(
@@ -355,6 +381,12 @@ export function planSegment(
 
   const segmentCode = input.segmentCode.trim();
   const name = input.name.trim();
+  // Trimmed and de-duplicated, not merely accepted: " 零售" would never match
+  // an account whose industry is "零售", and nothing downstream would say why.
+  const criteria: SegmentCriteria = {
+    industries: [...new Set(input.criteria.industries.map((v) => v.trim()).filter(Boolean))],
+    regions: [...new Set(input.criteria.regions.map((v) => v.trim()).filter(Boolean))],
+  };
 
   if (!segmentCode) {
     return fail(violation("segment_code_required", "a segment needs a code", "segmentCode"));
@@ -376,5 +408,5 @@ export function planSegment(
     );
   }
 
-  return ok({ ...input, segmentCode, name });
+  return ok({ ...input, segmentCode, name, criteria });
 }
