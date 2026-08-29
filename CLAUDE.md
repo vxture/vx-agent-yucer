@@ -181,13 +181,28 @@ revoked at the source console, not scrubbed from history. Dev-phase repos are
 PUBLIC (no private fallback), so "credentials never committed" is an absolute
 rule, not a posture backed by a private boundary.
 
-1. GitHub secret scanning + push protection (repo setting) - blocks on push. On a
-   public repo these are free and fully enabled (a private repo would need GHAS),
-   so this layer is actually stronger here.
-2. `gitleaks` CI (`.github/workflows/secret-scan.yml`) - CI layer 2.
+1. GitHub secret scanning + push protection (repo setting) - blocks at the push,
+   before CI. On a public repo these are FREE, which is not the same as ON. This
+   paragraph used to assert they were "fully enabled" and they were not: on
+   2026-08-29 the API answered `404 Secret scanning is disabled on this
+   repository`, so layer 1 had never existed. Enabled that day. Free means
+   available at no cost; a repo setting still has to be turned on, and a document
+   asserting a setting it never queried is worse than one that says nothing.
+   Verify, do not assume:
+   `gh api repos/vxture/<repo> --jq .security_and_analysis`
+   (`secret_scanning_validity_checks` did not take from the repo-level PATCH -
+   it appears to need enabling at the org level first, and is still off.)
+2. `gitleaks` CI (`.github/workflows/secret-scan.yml`) - CI layer 2. This one has
+   always run; it is a required check.
 3. Local `.husky/pre-commit` - wire once per clone with
    `git config core.hooksPath .husky` (and install gitleaks locally, e.g.
-   `scoop install gitleaks`). Missing binary warns and passes, never blocks.
+   `brew install gitleaks` on macOS, `scoop install gitleaks` on Windows).
+   TWO SEPARATE THINGS CAN BE MISSING AND NEITHER SAYS SO. An unwired
+   `core.hooksPath` means the hook never runs; a wired hook with no gitleaks
+   binary warns and passes, never blocks - by design, so a fresh clone is not
+   bricked, which also means a developer who never installed it gets a silent
+   pass forever. Both were true of the primary macOS clone on 2026-08-29.
+   Check both: `git config core.hooksPath` and `command -v gitleaks`.
 4. Public posture, all-rights-reserved. A public repo defaults to
    all-rights-reserved; ship NO LICENSE file and NO `license` field / `@license`
    marker - a stray open-source marker would actually grant rights (public != open
