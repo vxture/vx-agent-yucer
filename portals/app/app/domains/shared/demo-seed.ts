@@ -129,6 +129,29 @@ export function seedDemoWorkspace(workspaceId: string, stores: DemoStores): void
 
 function seedStrategy(workspaceId: string, stores: DemoStores): void {
   stores.strategy.seed({
+    // The two codes the demo accounts have always carried. Until segments could
+    // be created they pointed at nothing; these are the definitions they were
+    // missing, not new data. ENTERPRISE first because it is the priority.
+    segments: [
+      {
+        id: "seg_demo_1",
+        workspaceId,
+        segmentCode: "ENTERPRISE",
+        name: "大型企业",
+        planId: "plan_demo_1",
+        priority: 1,
+        status: "active" as const,
+      },
+      {
+        id: "seg_demo_2",
+        workspaceId,
+        segmentCode: "MIDMARKET",
+        name: "中型市场",
+        planId: "plan_demo_1",
+        priority: 2,
+        status: "active" as const,
+      },
+    ],
     plans: [
       {
         id: "plan_demo_1",

@@ -1712,6 +1712,29 @@ export const TARGET_STATUS_LABEL: Record<string, string> = {
 };
 
 export const STRATEGY_TEXT = {
+  segmentsTitle: "细分市场",
+  segmentsWhy:
+    "把要打的市场切成有名字的块，按优先级排。客户身上的细分代码指向这里，战役也可以瞄准其中一块——在此之前这些指向都是悬空的。",
+  segmentsNone: "还没有细分市场",
+  segmentsNoneWhy:
+    "客户档案里已经在用细分代码了，但它们还没有对应的定义。在下面建一个，代码对上就能连起来。",
+  segmentsDenied: "你没有编辑细分市场的权限。",
+  segmentEditing: "编辑哪一块",
+  segmentNew: "新建细分市场",
+  segmentNoPlan: "不挂在计划下",
+  segmentCodeHeader: "细分代码",
+  segmentNameHeader: "名称",
+  segmentPlanHeader: "所属计划",
+  segmentPriorityHeader: "优先级",
+  segmentAccountsHeader: "在册客户",
+  segmentStatusHeader: "状态",
+  segmentSave: "保存细分市场",
+  segmentSaved: "已保存",
+  segmentStatusLabel: {
+    active: "进行中",
+    paused: "已暂停",
+    retired: "已停用",
+  },
   newPlanTitle: "新建战略计划",
   newPlanWhy:
     "计划是全链路的起点——目标和战役都挂在它下面。此前只能推进计划的状态，不能新建一个。",
@@ -1952,6 +1975,16 @@ export const EXECUTION_ERROR: Record<string, string> = {
   unknown_status: "未知的执行状态",
   campaign_completed: "这场战役已完成，它的执行项是它据以收尾的记录，不能再改",
   not_found: "战役不存在，或这一项不属于它",
+};
+
+export const SEGMENT_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  segment_code_required: "细分市场需要一个代码",
+  name_required: "细分市场需要一个名称",
+  unknown_status: "未知的细分状态",
+  priority_out_of_range: "优先级是 0 到 9999 之间的整数",
+  plan_closed: "这个计划已收尾，它的市场切分是当期据以执行的记录，不能再改",
+  not_found: "计划不存在",
 };
 
 export const PLAN_ERROR: Record<string, string> = {

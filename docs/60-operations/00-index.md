@@ -25,7 +25,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
-| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | open（已还 6，删除 3，余 2） |
+| TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | **closed 2026-08-29**（已还 7，删除 3） |
 | TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 3 已反证关闭；层 1 已启用但未证明） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
@@ -914,10 +914,43 @@ CHECK 而类型没有，界面本可以提供一个 Postgres 会拒绝的值，�
 顺带修了守卫豁免里的一句假话：`strategy.segment.view` 的理由写着「no segment table」，
 而 `yucer_gtm.market_segment` 表、列锁、Prisma 模型齐全，缺的只有服务。
 
-余下两条：`strategy.segment.view` / `.upsert`。这一对**不是重复，是真空缺**，而且已经
-有两个活的引用者——`campaign.segment_id` 是真外键，`account.segment_code` 按业务号
-指向它，demo 数据里七个客户全都带着 `MIDMARKET` / `ENTERPRISE`，**指向一张零行、
-且没有任何途径能写入的表**。与执行项那把「有锁没钥匙」同族，下一步建。
+**已还第七笔，本条结清 2026-08-29**：`strategy.segment.view` / `.upsert`。
+
+这一对不是重复，是真空缺，而且已经有两个活的引用者——`campaign.segment_id` 是真外键，
+`account.segment_code` 按业务号指向它。动手前在运行时量过：
+
+```
+account segment anchors (n=7):
+  MIDMARKET  x4     ENTERPRISE x3
+campaign segmentId: CAMP-0001/2/3 全部 null
+strategy 端口方法表：一个 segment 方法都没有
+```
+
+**七个客户的业务号指着一张问都问不出来的表。**
+
+**代码是身份，所以它锁。** `campaign.segment_id` 有外键兜底，`account.segment_code`
+只是个字符串、背后什么都没有——改名会静默打断后者，数据库不会抗议，也没有任何页面
+会显示出缺口。列锁从另一侧说了同一件事：`segment_code` 没有 UPDATE 授权。界面上
+编辑既有段时代码字段 `disabled`，三处一致。
+
+新规则：**已收尾或已归档计划的市场切分被冻结**。计划正是据这份切分收的尾、战役也是
+据它瞄的准，事后重切会让那些战役的依据追溯地变成另一回事，而不会有任何东西被再问
+一次。与「已完成战役的执行项」同一条。
+
+**实测**：`/strategy` 的细分市场表出现 `ENTERPRISE 在册客户 3` / `MIDMARKET 在册客户 4`
+——正是那七个先前悬空的锚；新建 `SMB` 落库并显示 `在册客户 0`（没人在打的切分是一个
+发现，不是该藏起来的行）。
+
+**四条反证**：写门换读门 → viewer 那条与 `gated.test.ts` 同红；拿掉计划冻结 → 冻结那条红；
+upsert 改用 id 而非代码 → 「同代码不得建出第二条」红；计划读取丢掉 workspace 作用域 →
+跨租户那条红。
+
+**`criteria` 字段刻意未做**：DDL 里它是 industry/size/region 过滤器，但今天没有任何东西
+读它——客户的细分代码是人工指派的。做成自由 JSON 编辑框是假功能；它值得一次单独的
+设计（那是客户自动归类的入口）。留空 `{}` 是诚实的。
+
+至此 `KNOWN_UNGATED` 只剩 4 条外部阻塞项（signal feed 等 arda 合约、copilot 三条等 agent
+plane），**没有一条是「声明了门却没人写动词」**。TD-016 结清。
 
 ## TD-017 - 四层密钥防护里有两层从未上电
 

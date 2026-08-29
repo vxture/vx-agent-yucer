@@ -8,12 +8,15 @@ import type {
   ExecutionStatus,
   NewPlanDraft,
   PlanStatus,
+  SegmentDraft,
+  SegmentStatus,
 } from "./lib/lifecycle";
 import type {
   CampaignRecord,
   ExecutionRecord,
   PlanRecord,
   StrategyStore,
+  SegmentRecord,
 } from "./store";
 
 // Prisma-backed StrategyStore over yucer_gtm (D1 plans, D3 campaigns).
@@ -32,6 +35,7 @@ import type {
 const PLAN_TABLE = "yucer_gtm.strategy_plan";
 const CAMPAIGN_TABLE = "yucer_gtm.campaign";
 const EXECUTION_TABLE = "yucer_gtm.campaign_execution";
+const SEGMENT_TABLE = "yucer_gtm.market_segment";
 
 export class PrismaStrategyStore implements StrategyStore {
   async listPlans(
@@ -181,6 +185,43 @@ export class PrismaStrategyStore implements StrategyStore {
     return toExecution(row as Record<string, unknown>);
   }
 
+  async listSegments(workspaceId: string): Promise<SegmentRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.marketSegment.findMany({
+      where: { workspaceId },
+      orderBy: [{ priority: "asc" }, { segmentCode: "asc" }],
+    });
+    return rows.map((r) => toSegment(r as Record<string, unknown>));
+  }
+
+  async upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord> {
+    const p = await getPrismaClient();
+    const writable = {
+      name: input.name,
+      planId: input.planId,
+      priority: input.priority,
+      status: input.status,
+      updatedAt: new Date(),
+    };
+    // segmentCode is absent on purpose, and the column locks agree: the DDL
+    // grants UPDATE on name/plan_id/criteria/priority/status only. An edit that
+    // tried to rename the anchor would be refused by the database.
+    const guard = assertWritable(SEGMENT_TABLE, writable);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked segment column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    // By the anchor, not by id: this is the one identity accounts carry.
+    const row = await p.marketSegment.upsert({
+      where: { workspaceId_segmentCode: { workspaceId, segmentCode: input.segmentCode } },
+      update: writable,
+      create: { workspaceId, segmentCode: input.segmentCode, ...writable },
+    });
+    return toSegment(row as Record<string, unknown>);
+  }
+
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.campaignExecution.findMany({
@@ -240,6 +281,18 @@ function toCampaign(r: Record<string, unknown>): CampaignRecord {
     endsAt: (r.endsAt as Date | null) ?? null,
     status: r.status as CampaignStatus,
     currency,
+  };
+}
+
+function toSegment(r: Record<string, unknown>): SegmentRecord {
+  return {
+    id: String(r.id),
+    workspaceId: String(r.workspaceId),
+    segmentCode: String(r.segmentCode),
+    name: String(r.name),
+    planId: (r.planId as string | null) ?? null,
+    priority: Number(r.priority ?? 0),
+    status: r.status as SegmentStatus,
   };
 }
 
