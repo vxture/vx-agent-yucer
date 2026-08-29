@@ -55,14 +55,12 @@ import type {
 } from "../account/field-store";
 import type { CommitmentDirection, CommitmentStatus, InteractionChannel } from "../account/lib/commitment";
 import type { InMemoryCatalogStore } from "../catalog/store";
-import type { InMemoryCopilotStore } from "../copilot/store";
+import type { InMemoryCopilotStore, PlaybookScope } from "../copilot/store";
 import type { InMemoryDeliveryStore } from "../delivery/store";
-import type { InMemoryPipelineStore } from "../pipeline/store";
+import type { InMemoryPipelineStore, StageEventRecord } from "../pipeline/store";
 import type { InMemoryPlanningStore } from "../planning/store";
 import type { InMemorySignalStore } from "../signal/store";
 import type { InMemoryStrategyStore } from "../strategy/store";
-import type { StageEventRecord } from "../pipeline/store";
-import type { PlaybookScope } from "../copilot/store";
 
 /** Anchored so the demo reads the same on every run rather than drifting. */
 const NOW = new Date("2026-08-15T00:00:00Z");

@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { AuthUser } from "../auth/lib/claims";
-import { toAuthUser } from "../auth/lib/claims";
+import { type AuthUser, toAuthUser } from "../auth/lib/claims";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../entitlement/types";
 import { InMemoryAuthzStore } from "./store";
 import { OWNER_BOOTSTRAP_ROLE, permissionsForRoles } from "./catalog";

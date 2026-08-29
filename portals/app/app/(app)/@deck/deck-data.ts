@@ -1,8 +1,7 @@
 import { can } from "../../authz/decide";
-import { agentPanel, type AgentScope } from "../lib/board";
+import { agentPanel, type AgentPanelData, type AgentScope } from "../lib/board";
 import { resolveAppSession } from "../lib/session";
 import { recordFollowUp } from "../account/field-actions";
-import type { AgentPanelData } from "../lib/board";
 
 // What every deck route needs, gathered once.
 //

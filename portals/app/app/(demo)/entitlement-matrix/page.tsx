@@ -1,5 +1,12 @@
-import { TIERS, SUBSCRIPTION_STATUSES, hasProductAccess, hasDataAccess, ctaFor } from "../../entitlement/types";
-import type { Tier, SubscriptionStatus } from "../../entitlement/types";
+import {
+  SUBSCRIPTION_STATUSES,
+  type SubscriptionStatus,
+  TIERS,
+  type Tier,
+  ctaFor,
+  hasDataAccess,
+  hasProductAccess,
+} from "../../entitlement/types";
 import { makeEntitlement } from "../../entitlement/resolver";
 
 // Subscription-tier verification (product_240 section 7): the five tiers x six

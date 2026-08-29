@@ -1,7 +1,6 @@
 import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
-import type { ChainRecency } from "../../domains/account/lib/health";
-import type { ContactNode } from "../../domains/account/lib/health";
+import type { ChainRecency, ContactNode } from "../../domains/account/lib/health";
 
 // Who on the decision chain anyone has actually spoken to.
 //

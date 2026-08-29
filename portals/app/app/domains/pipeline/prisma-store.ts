@@ -2,8 +2,12 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
-import { DEFAULT_PROBABILITY } from "./lib/stage";
-import type { OpportunityStatus, Stage, StageChangePlan } from "./lib/stage";
+import {
+  DEFAULT_PROBABILITY,
+  type OpportunityStatus,
+  type Stage,
+  type StageChangePlan,
+} from "./lib/stage";
 import type {
   CommercialTermsPatch,
   NewOpportunity,

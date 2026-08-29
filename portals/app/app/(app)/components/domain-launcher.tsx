@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Popover, PopoverTrigger } from "@vxture/design-ui";
+import { Icon, Popover, PopoverTrigger } from "@vxture/design-ui";
 import {
   ShellIconButton,
   ShellPanelContent,
   ShellPanelRow,
   ShellPanelSection,
 } from "@vxture/design-system";
-import { Icon } from "@vxture/design-ui";
 import {
   activeDomainKey,
   primaryHref,

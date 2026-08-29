@@ -21,7 +21,11 @@ import { can, type PermissionHolder } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
 import type { RunosClient, RunosContext } from "../../agent/runos/client";
 import { runTurn, type TurnResult } from "../../agent/orchestrator/turn";
-import type { EvidenceGrounding, PromptContext } from "../../agent/orchestrator/prompt";
+import type {
+  EvidenceGrounding,
+  PlaybookGrounding,
+  PromptContext,
+} from "../../agent/orchestrator/prompt";
 import { AtlasError } from "../../agent/atlas/errors";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
@@ -29,7 +33,6 @@ import { recordProposals, type CopilotContext } from "./service";
 import { TASK_ID_MAX_LENGTH } from "../../agent/runos/types";
 import type { AgentAction, SubjectType } from "./lib/action";
 import type { PlaybookScope, SessionRecord } from "./store";
-import type { PlaybookGrounding } from "../../agent/orchestrator/prompt";
 
 export interface TurnInput {
   question: string;

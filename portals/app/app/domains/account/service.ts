@@ -14,11 +14,16 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
-import { analyzeChain, deriveHealth, type ChainCoverage, type HealthResult } from "./lib/health";
+import {
+  type ChainCoverage,
+  type HealthResult,
+  type RelationEdge,
+  analyzeChain,
+  deriveHealth,
+} from "./lib/health";
 import type { Stage } from "../pipeline/lib/stage";
 import type { AccountFilter, AccountRecord, AccountStore, AccountTier, ContactRecord } from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
-import type { RelationEdge } from "./lib/health";
 
 export interface AccountContext {
   workspaceId: string;

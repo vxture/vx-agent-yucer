@@ -15,7 +15,10 @@ import Link from "next/link";
 import { can } from "../../../authz/decide";
 import {
   getAccountStore,
+  getCopilotStore,
+  getDeliveryStore,
   getFieldStore,
+  getPipelineStore,
 } from "../../../domains/shared/registry";
 import {
   accountRelations,
@@ -43,11 +46,6 @@ import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { listPipeline } from "../../../domains/pipeline/service";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
-import {
-  getCopilotStore,
-  getDeliveryStore,
-  getPipelineStore,
-} from "../../../domains/shared/registry";
 import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";

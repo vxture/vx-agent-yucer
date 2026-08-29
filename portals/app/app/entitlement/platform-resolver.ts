@@ -1,5 +1,4 @@
-import type { EntitlementResolver } from "./resolver";
-import { makeEntitlement } from "./resolver";
+import { type EntitlementResolver, makeEntitlement } from "./resolver";
 import { fetchEntitlement, type PlatformClientConfig } from "./platform-client";
 import type { Entitlement } from "./types";
 

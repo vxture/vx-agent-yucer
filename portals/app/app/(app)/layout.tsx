@@ -14,12 +14,16 @@ import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
 import { readNavCollapsed, serviceIdentity } from "@vxture/shared";
 import { BRAND } from "@yucer/shared/brand";
-import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
+import {
+  getAccountStore,
+  getDeliveryStore,
+  getFieldStore,
+  getPipelineStore,
+} from "../domains/shared/registry";
 import { listAccounts } from "../domains/account/service";
 import { listPipeline, listPendingReviews } from "../domains/pipeline/service";
 import { listCommitments } from "../domains/account/field-service";
 import { listProjects, projectView } from "../domains/delivery/service";
-import { getDeliveryStore, getFieldStore } from "../domains/shared/registry";
 import { notificationItems, notificationTotal } from "./lib/notifications";
 
 // The product shell.
