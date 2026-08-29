@@ -23,8 +23,16 @@ import {
   planNewPlan,
   type ExecutionDraft,
   type NewPlanDraft,
+  planSegment,
+  type SegmentDraft,
 } from "./lib/lifecycle";
-import type { CampaignRecord, ExecutionRecord, PlanRecord, StrategyStore } from "./store";
+import type {
+  CampaignRecord,
+  ExecutionRecord,
+  PlanRecord,
+  SegmentRecord,
+  StrategyStore,
+} from "./store";
 
 export interface StrategyContext {
   workspaceId: string;
@@ -214,6 +222,38 @@ export async function upsertExecution(
     return fail(violation("not_found", `execution ${input.id} is not on this campaign`, "id"));
   }
   return ok(written);
+}
+
+export async function listSegments(
+  ctx: StrategyContext,
+): Promise<RuleResult<SegmentRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listSegments(ctx.workspaceId));
+}
+
+export async function upsertSegment(
+  ctx: StrategyContext,
+  input: SegmentDraft,
+): Promise<RuleResult<SegmentRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  // The plan is read before the rule, and scoped to this workspace, so that a
+  // plan id from another tenant reads as "not found" rather than being handed
+  // to the rule as a status it can freeze on.
+  let plan: { status: PlanStatus } | null = null;
+  if (input.planId) {
+    plan = await ctx.store.getPlan(ctx.workspaceId, input.planId);
+    if (!plan) {
+      return fail(violation("not_found", `plan ${input.planId} was not found`, "planId"));
+    }
+  }
+
+  const checked = planSegment(input, plan);
+  if (!checked.ok) return checked as RuleResult<SegmentRecord>;
+
+  return ok(await ctx.store.upsertSegment(ctx.workspaceId, checked.value));
 }
 
 export async function campaignReturn(

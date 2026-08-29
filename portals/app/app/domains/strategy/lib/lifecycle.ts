@@ -311,3 +311,70 @@ export function planExecution(
 
   return ok({ ...input, title });
 }
+
+// --- D1 market segments ----------------------------------------------------
+//
+// A segment is the addressable-market decomposition of a strategy: who we are
+// going after, cut into named pieces, ordered by priority.
+//
+// It is the anchor two other records already point at. `campaign.segment_id` is
+// a real foreign key; `account.segment_code` points at it BY VALUE, with no
+// foreign key to enforce it. That second one is why the code is immutable here:
+// nothing in the database would stop a rename, and nothing would tell you that
+// seven accounts had just stopped resolving.
+
+export const SEGMENT_STATUSES = ["active", "paused", "retired"] as const;
+export type SegmentStatus = (typeof SEGMENT_STATUSES)[number];
+
+export interface SegmentDraft {
+  segmentCode: string;
+  name: string;
+  planId: string | null;
+  priority: number;
+  status: SegmentStatus;
+}
+
+export function planSegment(
+  input: SegmentDraft,
+  plan: { status: PlanStatus } | null,
+): RuleResult<SegmentDraft> {
+  // A closed or archived plan's segmentation is the record of how the market
+  // was cut for that period, and campaigns were aimed using it. Re-cutting it
+  // afterwards rewrites the reasoning those campaigns were built on, and
+  // nothing would ever be asked to notice. Same rule as a completed campaign's
+  // executions.
+  if (plan && (plan.status === "closed" || plan.status === "archived")) {
+    return fail(
+      violation(
+        "plan_closed",
+        "this plan is closed; its segmentation is how the market was cut for that period",
+        "planId",
+      ),
+    );
+  }
+
+  const segmentCode = input.segmentCode.trim();
+  const name = input.name.trim();
+
+  if (!segmentCode) {
+    return fail(violation("segment_code_required", "a segment needs a code", "segmentCode"));
+  }
+  if (!name) {
+    return fail(violation("name_required", "a segment needs a name", "name"));
+  }
+  if (!(SEGMENT_STATUSES as readonly string[]).includes(input.status)) {
+    return fail(
+      violation("unknown_status", `${String(input.status)} is not a segment status`, "status"),
+    );
+  }
+  // Priority orders the list a reader works down. A negative or fractional one
+  // sorts somewhere nobody predicted, and SMALLINT would reject the large end
+  // at write time rather than here.
+  if (!Number.isInteger(input.priority) || input.priority < 0 || input.priority > 9999) {
+    return fail(
+      violation("priority_out_of_range", "priority is a whole number from 0 to 9999", "priority"),
+    );
+  }
+
+  return ok({ ...input, segmentCode, name });
+}

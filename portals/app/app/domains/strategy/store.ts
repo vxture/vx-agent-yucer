@@ -19,6 +19,8 @@ import type {
   ExecutionStatus,
   NewPlanDraft,
   PlanStatus,
+  SegmentDraft,
+  SegmentStatus,
 } from "./lib/lifecycle";
 import { asc, by, desc } from "../shared/order";
 
@@ -48,6 +50,16 @@ export interface CampaignRecord {
   endsAt: Date | null;
   status: CampaignStatus;
   currency: string;
+}
+
+export interface SegmentRecord {
+  id: string;
+  workspaceId: string;
+  segmentCode: string;
+  name: string;
+  planId: string | null;
+  priority: number;
+  status: SegmentStatus;
 }
 
 export interface ExecutionRecord {
@@ -105,6 +117,18 @@ export interface StrategyStore {
     input: ExecutionDraft,
   ): Promise<ExecutionRecord | null>;
 
+  listSegments(workspaceId: string): Promise<SegmentRecord[]>;
+  /**
+   * Create a segment, or edit one BY ITS CODE.
+   *
+   * By code, not by id, because segment_code is the anchor: accounts carry it
+   * as a plain string with no foreign key behind it. An edit therefore finds
+   * the existing row by code and never changes that column, which is the only
+   * thing standing between a rename and seven accounts silently ceasing to
+   * resolve.
+   */
+  upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord>;
+
   /** Opportunities attributed to a campaign. Read-only across the domain
    * boundary: D3 owns the campaign, D6 owns the opportunity. */
   attributedOpportunities(
@@ -117,17 +141,20 @@ export class InMemoryStrategyStore implements StrategyStore {
   private plans = new Map<string, PlanRecord>();
   private seq = 0;
   private campaigns = new Map<string, CampaignRecord>();
+  private segments = new Map<string, SegmentRecord>();
   private executions: Array<ExecutionRecord & { workspaceId: string }> = [];
   private attributed = new Map<string, Array<{ id: string; amount: Money | null; status: string }>>();
 
   seed(input: {
     plans?: PlanRecord[];
     campaigns?: CampaignRecord[];
+    segments?: SegmentRecord[];
     executions?: Array<ExecutionRecord & { workspaceId: string }>;
     attributed?: Record<string, Array<{ id: string; amount: Money | null; status: string }>>;
   }): void {
     for (const p of input.plans ?? []) this.plans.set(p.id, { ...p });
     for (const c of input.campaigns ?? []) this.campaigns.set(c.id, { ...c });
+    for (const g of input.segments ?? []) this.segments.set(g.id, { ...g });
     this.executions.push(...(input.executions ?? []));
     for (const [k, v] of Object.entries(input.attributed ?? {})) this.attributed.set(k, v);
   }
@@ -223,6 +250,29 @@ export class InMemoryStrategyStore implements StrategyStore {
     }
     const row = { ...input, id: `exec_${++this.seq}`, campaignId, workspaceId };
     this.executions.push(row);
+    return row;
+  }
+
+  async listSegments(workspaceId: string): Promise<SegmentRecord[]> {
+    return [...this.segments.values()]
+      .filter((g) => g.workspaceId === workspaceId)
+      .sort(by(asc((g: SegmentRecord) => g.priority), asc((g: SegmentRecord) => g.segmentCode)));
+  }
+
+  async upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord> {
+    const held = [...this.segments.values()].find(
+      (g) => g.workspaceId === workspaceId && g.segmentCode === input.segmentCode,
+    );
+    if (held) {
+      // segmentCode is deliberately not assigned - it is how this row was found.
+      held.name = input.name;
+      held.planId = input.planId;
+      held.priority = input.priority;
+      held.status = input.status;
+      return held;
+    }
+    const row: SegmentRecord = { ...input, id: `seg_${++this.seq}`, workspaceId };
+    this.segments.set(row.id, row);
     return row;
   }
 

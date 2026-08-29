@@ -8,6 +8,8 @@ import { InMemoryStrategyStore, type CampaignRecord, type ExecutionRecord, type 
 import {
   campaignReturn,
   createPlan,
+  listSegments,
+  upsertSegment,
   upsertExecution,
   listPlans,
   transitionCampaign,
@@ -351,4 +353,78 @@ test("campaignReturn hands back the rows its progress is computed from", async (
   const view = unwrap(await campaignReturn(ctx("marketing_manager", "business", store), "camp_1"));
   assert.equal(view.executions.length, 1);
   assert.equal(view.executions.length, view.progress.total);
+});
+
+// --- market segments -------------------------------------------------------
+
+const SEG = { segmentCode: "ENTERPRISE", name: "Large enterprise", planId: null, priority: 1, status: "active" as const };
+
+test("a segment can be created, and then read back", async () => {
+  const c = ctx("sales_leader", "business");
+  assert.equal(unwrap(await upsertSegment(c, SEG)).segmentCode, "ENTERPRISE");
+  const rows = unwrap(await listSegments(c));
+  assert.deepEqual(rows.map((r) => r.segmentCode), ["ENTERPRISE"]);
+});
+
+test("editing finds the row by its CODE and leaves the code alone", async () => {
+  // The anchor accounts point at. A second upsert with the same code must edit
+  // the row rather than add a second one, or every account carrying that string
+  // becomes ambiguous.
+  const c = ctx("sales_leader", "business");
+  await upsertSegment(c, SEG);
+  await upsertSegment(c, { ...SEG, name: "Enterprise, renamed", priority: 5 });
+  const rows = unwrap(await listSegments(c));
+  assert.equal(rows.length, 1, "same code must not create a second segment");
+  assert.equal(rows[0].name, "Enterprise, renamed");
+  assert.equal(rows[0].segmentCode, "ENTERPRISE");
+});
+
+test("a viewer may read segments and may not write one", async () => {
+  // The only pair that pins the gate. viewer holds strategy.read and not
+  // strategy.write, so a read-yes/write-no result proves the write gate is the
+  // write gate and not the read one.
+  const store = new InMemoryStrategyStore();
+  const reader = ctx("viewer", "business", store);
+  assert.ok((await listSegments(reader)).ok, "viewer should read segments");
+  const denied = await upsertSegment(reader, SEG);
+  assert.equal(denied.ok, false);
+  assert.equal(denied.ok ? "" : denied.violations[0].code, "permission_denied");
+});
+
+test("a segment on a CLOSED plan is frozen", async () => {
+  // The plan was closed on a segmentation, and campaigns were aimed using it.
+  // Re-cutting the market afterwards rewrites what those campaigns were built
+  // on, and nothing would ever be asked to notice.
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ id: "plan_closed", status: "closed" })] });
+  const c = ctx("sales_leader", "business", store);
+  const r = await upsertSegment(c, { ...SEG, planId: "plan_closed" });
+  assert.equal(r.ok, false);
+  assert.equal(r.ok ? "" : r.violations[0].code, "plan_closed");
+});
+
+test("an open plan does not freeze it", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ id: "plan_open", status: "active" })] });
+  const c = ctx("sales_leader", "business", store);
+  assert.ok((await upsertSegment(c, { ...SEG, planId: "plan_open" })).ok);
+});
+
+test("a plan id from another workspace reads as not found, not as a status", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ id: "plan_other", workspaceId: "ws_other", status: "closed" })] });
+  const c = ctx("sales_leader", "business", store);
+  const r = await upsertSegment(c, { ...SEG, planId: "plan_other" });
+  assert.equal(r.ok, false);
+  assert.equal(r.ok ? "" : r.violations[0].code, "not_found");
+});
+
+test("segments come back in priority order", async () => {
+  const c = ctx("sales_leader", "business");
+  await upsertSegment(c, { ...SEG, segmentCode: "SMB", priority: 9 });
+  await upsertSegment(c, { ...SEG, segmentCode: "ENTERPRISE", priority: 1 });
+  assert.deepEqual(
+    unwrap(await listSegments(c)).map((r) => r.segmentCode),
+    ["ENTERPRISE", "SMB"],
+  );
 });

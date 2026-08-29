@@ -83,9 +83,6 @@ const KNOWN_UNGATED: Record<string, string> = {
   "copilot.session.open": "agent plane not connected; 问参谋 is disabled in the launcher",
   "copilot.autopilot.enable": "agent plane not connected",
   "copilot.playbook.upsert": "playbooks are read-only until the agent plane lands",
-  // Declared ahead of a verb nobody has written. TD-016.
-  "strategy.segment.view": "细分市场 has a table and two live referents (campaign.segment_id, account.segment_code) but no service - TD-016",
-  "strategy.segment.upsert": "same as strategy.segment.view - TD-016",
 };
 
 test("the catalogue was parsed at all - guards against a silently empty test", () => {

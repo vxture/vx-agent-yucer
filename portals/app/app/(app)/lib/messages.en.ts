@@ -407,6 +407,15 @@ export const en: Dictionary = {
     not_found: "No such campaign, or that item is not on it",
   },
 
+  SEGMENT_ERROR: {
+    segment_code_required: "A segment needs a code.",
+    name_required: "A segment needs a name.",
+    unknown_status: "That is not a segment status.",
+    priority_out_of_range: "Priority is a whole number from 0 to 9999.",
+    plan_closed:
+      "This plan is closed. Its segmentation is the record of how the market was cut for that period.",
+    not_found: "That plan does not exist.",
+  },
   PLAN_ERROR: {
     ...GATE_ERROR,
     plan_no_required: "A plan needs a number",
@@ -1399,6 +1408,29 @@ export const en: Dictionary = {
   // --- /strategy ----------------------------------------------------------
 
   STRATEGY_TEXT: {
+    segmentsTitle: "Market segments",
+    segmentsWhy:
+      "The market you are going after, cut into named pieces and ordered by priority. Accounts carry a segment code that points here, and a campaign can aim at one - until now every one of those references pointed at nothing.",
+    segmentsNone: "No segments yet",
+    segmentsNoneWhy:
+      "Account records already use segment codes, but nothing defines them yet. Create one below and matching codes connect.",
+    segmentsDenied: "You do not have permission to edit segments.",
+    segmentEditing: "Editing which",
+    segmentNew: "New segment",
+    segmentNoPlan: "Not under a plan",
+    segmentCodeHeader: "Code",
+    segmentNameHeader: "Name",
+    segmentPlanHeader: "Plan",
+    segmentPriorityHeader: "Priority",
+    segmentAccountsHeader: "Accounts",
+    segmentStatusHeader: "Status",
+    segmentSave: "Save segment",
+    segmentSaved: "Saved",
+    segmentStatusLabel: {
+      active: "Active",
+      paused: "Paused",
+      retired: "Retired",
+    },
     newPlanTitle: "New plan",
     newPlanWhy:
       "A plan is where the chain starts - targets and campaigns hang off one. Until now a plan could be moved through its lifecycle and not created.",
