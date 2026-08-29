@@ -106,6 +106,9 @@ export interface AppShellProps {
    * the honest version of that.
    */
   readonly deckCount: number;
+  /** The bell's total and its queue list - see lib/notifications.ts. */
+  readonly notificationsTotal?: number;
+  readonly notificationItems?: readonly { key: string; count: number; href: string }[];
   /**
    * The member's resolved navigation, for the functional-domain launcher.
    *
@@ -180,6 +183,8 @@ export function AppShell({
   board,
   deck,
   deckCount,
+  notificationsTotal = 0,
+  notificationItems = [],
   nav,
   admin,
   userName,
@@ -448,6 +453,8 @@ export function AppShell({
 
               {/* (3) The four shell tools. */}
               <HeaderTools
+                notifications={notificationsTotal}
+                notificationItems={notificationItems}
                 /* FULLSCREEN TAKES THE DOCUMENT, header included. The earlier
                  version expanded only the shell body on the reasoning that the
                  header holds the way out - but the browser's own escape key

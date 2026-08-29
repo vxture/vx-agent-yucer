@@ -800,7 +800,13 @@ export const en: Dictionary = {
     fullscreenExit: "Exit full screen",
     help: "Help",
     notifications: "Notifications",
-    notificationsWithCount: (n: number) => `Notifications, ${n} unread`,
+    notificationsWithCount: (n: number) => `Notifications, ${n} waiting`,
+    notificationsEmpty: "Nothing waiting on you",
+    notificationLabel: {
+      overdue: "Overdue commitments",
+      reviews: "Closed deals awaiting review",
+      downgraded: "Projects with downgraded health",
+    } as Record<string, string>,
     settings: "Settings",
 
     adminAria: "Administration",

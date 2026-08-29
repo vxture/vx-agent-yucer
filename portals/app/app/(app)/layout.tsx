@@ -16,7 +16,11 @@ import { readNavCollapsed, serviceIdentity } from "@vxture/shared";
 import { BRAND } from "@yucer/shared/brand";
 import { getAccountStore, getPipelineStore } from "../domains/shared/registry";
 import { listAccounts } from "../domains/account/service";
-import { listPipeline } from "../domains/pipeline/service";
+import { listPipeline, listPendingReviews } from "../domains/pipeline/service";
+import { listCommitments } from "../domains/account/field-service";
+import { listProjects, projectView } from "../domains/delivery/service";
+import { getDeliveryStore, getFieldStore } from "../domains/shared/registry";
+import { notificationItems, notificationTotal } from "./lib/notifications";
 
 // The product shell.
 //
@@ -172,10 +176,35 @@ export default async function AppLayout({
     holder: session.authz,
     entitlement: session.entitlement,
   };
-  const [accounts, deals] = await Promise.all([
+  const [accounts, deals, overdue, reviews, projects] = await Promise.all([
     listAccounts({ ...base, store: getAccountStore() }),
     listPipeline({ ...base, store: getPipelineStore() }),
+    // The bell's three queues, through the SAME gated services their pages
+    // use. A refusal counts as zero - the bell must not leak the size of work
+    // a member is not allowed to see (lib/notifications.ts).
+    listCommitments({ ...base, store: getFieldStore() }, { overdueAt: new Date(), limit: 100 }),
+    listPendingReviews({ ...base, store: getPipelineStore() }),
+    listProjects({ ...base, store: getDeliveryStore() }),
   ]);
+  // Derived health lives on projectView, not on the row - same shape the
+  // delivery page uses. One view per project is an N+1 that is fine at this
+  // catalogue's size; the day it is not, the fix is a counting read on the
+  // delivery service, not a cache here.
+  const downgradedProjects = projects.ok
+    ? (
+        await Promise.all(
+          projects.value.map(async (pr) => {
+            const view = await projectView({ ...base, store: getDeliveryStore() }, pr.id);
+            return view.ok && view.value.derivedHealth !== view.value.reportedHealth ? 1 : 0;
+          }),
+        )
+      ).reduce((a: number, b: number) => a + b, 0)
+    : 0;
+  const bellItems = notificationItems({
+    overdueCommitments: overdue.ok ? overdue.value.length : 0,
+    pendingReviews: reviews.ok ? reviews.value.length : 0,
+    downgradedProjects,
+  });
   const searchable = [
     ...(accounts.ok ? accounts.value : []).map((a) => ({
       key: `a:${a.id}`,
@@ -211,6 +240,8 @@ export default async function AppLayout({
         board={board}
         deck={deck}
         deckCount={agent.pending.length}
+        notificationsTotal={notificationTotal(bellItems)}
+        notificationItems={bellItems}
         appVersion={buildLabel()}
         tenantId={tenantIdOf(session)}
         locale={locale}

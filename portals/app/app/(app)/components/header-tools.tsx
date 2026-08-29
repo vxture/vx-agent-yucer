@@ -1,11 +1,17 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   ShellFullscreenToggle,
   ShellIconButton,
   ShellIconGroup,
 } from "@vxture/design-system";
-import { Badge } from "@vxture/design-ui";
+import { Badge,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
 /**
@@ -33,6 +39,12 @@ export const SHELL_BODY_ID = "yucer-shell-body";
 export interface HeaderToolsProps {
   /** Unread notifications. Zero draws no badge rather than a "0". */
   readonly notifications?: number;
+  /** The queues behind the number. See lib/notifications.ts for what counts. */
+  readonly notificationItems?: readonly {
+    readonly key: string;
+    readonly count: number;
+    readonly href: string;
+  }[];
   /**
    * Absent when the member holds no admin permission - a locked door they
    * cannot do anything about is not access control.
@@ -59,6 +71,7 @@ export interface HeaderToolsProps {
 
 export function HeaderTools({
   notifications = 0,
+  notificationItems = [],
   onSettings,
   onHelp,
   onNotifications,
@@ -79,31 +92,59 @@ export function HeaderTools({
 
       <ShellIconButton icon="help" label={HEADER_TEXT.help} onClick={onHelp} />
 
-      <span className="relative inline-flex">
-        <ShellIconButton
-          icon="bell"
-          label={
-            notifications > 0
-              ? HEADER_TEXT.notificationsWithCount(notifications)
-              : HEADER_TEXT.notifications
-          }
-          onClick={onNotifications}
-        />
-        {notifications > 0 ? (
-          // aria-hidden: the count is already in the button's accessible name,
-          // and a screen reader should hear it once attached to its control
-          // rather than twice as a loose number beside it. Same construction
-          // and the same DS gap as the agent badge - see TD-006.
-          <span
-            className="pointer-events-none absolute -top-2xs -right-2xs"
-            aria-hidden="true"
-          >
-            <Badge variant="destructive">
-              {notifications > 99 ? HEADER_TEXT.countOverflow : notifications}
-            </Badge>
+      <Popover>
+        <PopoverTrigger asChild>
+          <span className="relative inline-flex">
+            <ShellIconButton
+              icon="bell"
+              label={
+                notifications > 0
+                  ? HEADER_TEXT.notificationsWithCount(notifications)
+                  : HEADER_TEXT.notifications
+              }
+            />
+            {notifications > 0 ? (
+              // aria-hidden: the count is already in the button's accessible
+              // name, and a screen reader should hear it once attached to its
+              // control rather than twice as a loose number beside it. Same
+              // construction and the same DS gap as the agent badge - TD-006.
+              <span
+                className="pointer-events-none absolute -top-2xs -right-2xs"
+                aria-hidden="true"
+              >
+                <Badge variant="destructive">
+                  {notifications > 99 ? HEADER_TEXT.countOverflow : notifications}
+                </Badge>
+              </span>
+            ) : null}
           </span>
-        ) : null}
-      </span>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 p-sm">
+          {notificationItems.length === 0 ? (
+            <p className="text-muted-foreground p-xs text-sm">
+              {HEADER_TEXT.notificationsEmpty}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2xs">
+              {/* Each row is the queue, not an event: the count is live and the
+                  link lands on the page that owns it. No read-state exists to
+                  manage, so nothing here pretends to be dismissible. */}
+              {notificationItems.map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className="hover:bg-accent flex items-center justify-between gap-sm rounded-sm p-xs text-sm"
+                >
+                  <span>
+                    {HEADER_TEXT.notificationLabel[item.key] ?? item.key}
+                  </span>
+                  <Badge variant="destructive">{item.count}</Badge>
+                </Link>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
 
       {onSettings ? (
         <ShellIconButton
