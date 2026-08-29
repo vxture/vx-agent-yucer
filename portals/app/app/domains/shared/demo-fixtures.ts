@@ -33,6 +33,11 @@ export const DEMO_CONTACTS = [
   { name: "周涛", title: "首席运营官", department: "管理层" },
 ] as const;
 
+export const DEMO_SEGMENTS = [
+  { code: "ENTERPRISE", name: "大型企业" },
+  { code: "MIDMARKET", name: "中型市场" },
+] as const;
+
 export const DEMO_PLANS = [
   { name: "2026 下半年 - 主攻中型零售", objective: "以门店 POS 替换方案拿下 12 家中型零售客户。" },
   { name: "2026 上半年 - 制造业滩头阵地", objective: null },
