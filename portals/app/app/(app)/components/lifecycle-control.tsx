@@ -69,7 +69,7 @@ export function LifecycleControl({
               toast({
                 tone: "danger",
                 title:
-                  LIFECYCLE_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
+                  LIFECYCLE_ERROR[r.error ?? "denied"] ?? LIFECYCLE_ERROR.denied,
               });
             });
           }),

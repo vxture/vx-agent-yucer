@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
   type DataTableColumn,
   type FilterBarView,
+  useToast,
 } from "@vxture/design-ui";
 import type { AttainmentRow } from "../../domains/planning/service";
 import type { TargetValue } from "../../domains/planning/lib/target";
@@ -77,6 +78,7 @@ export function PlanningTable({
     PLANNING_TEXT,
     TARGET_METRIC_LABEL,
     TARGET_STATUS_LABEL,
+    TARGET_ERROR,
   } = useMessages();
   // The DS confirm outlets, passed together. Word order and full-width
   // punctuation are the caller's job since design-ui 5.0 made the fallback
@@ -87,6 +89,21 @@ export function PlanningTable({
     pendingLabel: DS_LABELS.confirmPending,
   };
   const [view, setView] = useState<FilterBarView>("list");
+  const { toast } = useToast();
+
+  // A refused update used to be discarded (`void onUpdate(...)`), so a rule
+  // refusal - a closed target, a regressing status - looked exactly like
+  // success: the menu closed and nothing moved. The row not changing was the
+  // only signal, and it reads as "the product is broken", not "the rule said
+  // no" (TD-010 sweep).
+  function runUpdate(id: string, patch: Parameters<NonNullable<typeof onUpdate>>[1]) {
+    if (!onUpdate) return;
+    void onUpdate(id, patch).then((r) => {
+      if (!r.ok) {
+        toast({ tone: "danger", title: TARGET_ERROR[r.error ?? "denied"] ?? TARGET_ERROR.denied });
+      }
+    });
+  }
   const names = territoryNames ?? new Map<string, string>();
 
   if (rows.length === 0) {
@@ -173,7 +190,7 @@ export function PlanningTable({
               if (next === null) return;
               const n = Number(next);
               if (!Number.isFinite(n) || n < 0) return;
-              void onUpdate(row.target.id, { amount: n });
+              runUpdate(row.target.id, { amount: n });
             },
           },
           // Committing is offered only from draft, because the rule layer
@@ -194,8 +211,7 @@ export function PlanningTable({
                   label: PLANNING_TEXT.commit,
                   icon: "check" as const,
                   hint: PLANNING_TEXT.commitWhy,
-                  onSelect: () =>
-                    void onUpdate(row.target.id, { status: "committed" }),
+                  onSelect: () => runUpdate(row.target.id, { status: "committed" }),
                 },
               ]
             : []),
@@ -214,8 +230,7 @@ export function PlanningTable({
               target: label,
               consequence: PLANNING_TEXT.closeWhy,
               ...CONFIRM,
-              onConfirm: () =>
-                void onUpdate(row.target.id, { status: "closed" }),
+              onConfirm: () => runUpdate(row.target.id, { status: "closed" }),
             },
           },
         ]}

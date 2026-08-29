@@ -80,6 +80,7 @@ export function PendingReviews({
     PIPELINE_TEXT,
     WINLOSS_REASON_LABEL,
     WINLOSS_TEXT,
+    REVIEW_ERROR,
   } = useMessages();
   const [scope, setScope] = useState<"pending" | "all">("pending");
   const [view, setView] = useState<"list" | "cards">("list");
@@ -100,7 +101,7 @@ export function PendingReviews({
       void onRecord(id, { primaryReason: reason, competitor, lessons }).then(
         (r) => {
           if (!r.ok) {
-            setError(r.error ?? "denied");
+            setError(REVIEW_ERROR[r.error ?? "denied"] ?? REVIEW_ERROR.denied);
             return;
           }
           setOpenId(null);

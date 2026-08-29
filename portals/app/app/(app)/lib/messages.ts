@@ -257,6 +257,9 @@ const GATE_ERROR = {
   not_authenticated: "登录状态已失效，请重新登录",
   permission_denied: "你没有执行这个操作的权限",
   feature_not_in_tier: "当前档位不含这个能力",
+  // 通用兜底。一个没登记的 code 显示这句，而不是把裸 code 摆给用户——
+  // 少一句翻译是缺陷，泄露内部代号是同一个缺陷换个样子（TD-010）。
+  denied: "操作被拒绝",
 } as const;
 
 /**
@@ -293,7 +296,42 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   cadence_positive: "零天的节奏不是节奏",
   unknown_tier: "未知的客户分级",
   not_found: "客户不存在，或不属于当前工作区",
-  denied: "操作被拒绝",
+};
+
+/**
+ * 信号与线索的行操作。
+ *
+ * `signal-queue` 与 `lead-list` 此前对失败**毫无反应**——`.then` 只处理成功分支，
+ * 用户点了「转商机」失败，界面一动不动。比裸码更糟的一类（TD-010 巡检发现）。
+ */
+export const SIGNAL_ACTION_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "记录不存在，或不属于当前工作区",
+  illegal_transition: "当前状态不能这样变更",
+  unknown_status: "未知状态",
+  signal_closed: "信号已关闭，不能再操作",
+  score_required: "先评分，才能推进",
+  company_required: "信号必须先关联公司",
+  unknown_signal_type: "未知的信号类型",
+  account_required: "转商机必须先匹配客户",
+  conversion_incomplete: "转化信息不完整",
+  lead_converted: "这条线索已经转成商机了",
+  lead_not_qualified: "线索还没有通过资格判定",
+};
+
+/** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
+export const PROPOSAL_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "提案不存在，或不属于当前工作区",
+  not_pending: "这条提案已经被裁决过了",
+  decider_required: "接受提案必须落到一个具体的人",
+};
+
+/** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
+export const REVIEW_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "商机不存在，或不属于当前工作区",
+  not_closed: "只有已关闭的商机才能复盘——过程未定，结论还不存在",
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
@@ -863,6 +901,8 @@ export const LIFECYCLE_ERROR: Record<string, string> = {
   unknown_status: "未知状态",
   executions_outstanding: "还有未完成的执行项；先完成或跳过它们再结束战役",
   invalid_window: "战役的起止时间不合法",
+  window_inverted: "结束时间不能早于开始时间",
+  start_required: "写了结束时间就必须写开始时间",
   not_found: "记录不存在，或不属于当前工作区",
   no_data_access: "当前工作区无权访问",
 };
@@ -963,6 +1003,11 @@ export const FIELD_ERROR: Record<string, string> = {
   illegal_transition: "当前状态不能这样变更",
   status_unchanged: "状态没有变化",
   statement_required: "写明承诺的内容",
+  unknown_evidence_kind: "未知的凭据类型",
+  unknown_status: "未知状态",
+  waiver_required: "放弃承诺必须写明理由",
+  unknown_direction: "未知的承诺方向",
+  feature_not_in_tier: "当前档位不含这个能力",
   not_found: "记录不存在,或不属于当前工作区",
   not_authenticated: "登录状态已失效,请重新登录",
   permission_denied: "你没有记录跟进的权限",
@@ -1157,6 +1202,7 @@ export const FORECAST_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   period_required: "快照必须写明它服务的周期",
   period_unparsed: "无法识别这个周期的写法",
+  currency_mismatch: "币种与商机不一致",
   unknown_forecast_category: "未知的预测类别",
   unknown_scope_type: "未知的口径类型",
   scope_incomplete: "这个口径还缺必填项，无法确定它指向谁",
@@ -1180,6 +1226,8 @@ export const OPPORTUNITY_ERROR: Record<string, string> = {
   terminal_requires_closed: "已关闭的商机只能是「已成交」类别",
   name_required: "商机需要一个名称",
   account_required: "商机必须挂在一个客户下",
+  unknown_forecast_category: "未知的预测类别",
+  quantity_positive: "数量必须大于零",
   not_below_floor: "这一行没有低于底价，没有需要批准的东西",
   already_approved: "这个价格已经签过字了",
   not_priced: "这个产品没有价格表条目，无法说明在批准什么",

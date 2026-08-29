@@ -376,6 +376,10 @@ export const en: Dictionary = {
     note_required:
       "Write a line about what happened - recording only that it happened is worth nothing",
     occurred_in_future: "A follow-up cannot have happened in the future",
+    unknown_evidence_kind: "Unknown evidence type",
+    unknown_status: "Unknown status",
+    waiver_required: "Waiving a commitment needs a written reason",
+    unknown_direction: "Unknown commitment direction",
     unknown_channel: "Unknown follow-up channel",
     evidence_required:
       "Settling a promise has to point at a real follow-up, not just your word for it",
@@ -417,6 +421,28 @@ export const en: Dictionary = {
       default:
         return "";
     }
+  },
+  SIGNAL_ACTION_ERROR: {
+    not_found: "Not found, or not in this workspace.",
+    illegal_transition: "That status change is not allowed from here.",
+    unknown_status: "Unknown status.",
+    signal_closed: "This signal is closed.",
+    score_required: "Score it first.",
+    company_required: "Link a company first.",
+    unknown_signal_type: "Unknown signal type.",
+    account_required: "Match an account before converting.",
+    conversion_incomplete: "The conversion is incomplete.",
+    lead_converted: "This lead has already been converted.",
+    lead_not_qualified: "This lead has not been qualified.",
+  },
+  PROPOSAL_ERROR: {
+    not_found: "Not found, or not in this workspace.",
+    not_pending: "This proposal has already been decided.",
+    decider_required: "Accepting must land on a named person.",
+  },
+  REVIEW_ERROR: {
+    not_found: "Not found, or not in this workspace.",
+    not_closed: "Only a closed opportunity can be reviewed.",
   },
   LOAD_ERROR: {
     not_authenticated: "Your session has expired. Please sign in again.",
@@ -461,6 +487,8 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+    unknown_forecast_category: "Unknown forecast category",
+    quantity_positive: "Quantity must be greater than zero",
     ...GATE_ERROR,
     stage_unchanged: "Already at this stage - an empty change is not recorded",
     terminal_stage:
@@ -1286,6 +1314,8 @@ export const en: Dictionary = {
     executions_outstanding:
       "Executions are still outstanding; finish or skip them before ending the campaign",
     invalid_window: "The campaign's start and end dates are not valid",
+    window_inverted: "The end date cannot be before the start date",
+    start_required: "An end date needs a start date",
     not_found: "No such record, or it does not belong to this workspace",
     not_authenticated: "Your session has expired; sign in again",
     permission_denied: "You hold no permission for this action",

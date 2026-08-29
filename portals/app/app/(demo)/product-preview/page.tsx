@@ -281,15 +281,16 @@ export default function ProductPreviewPage() {
         <ProposalQueue
           actions={PROPOSALS}
           canDecide={canDecide}
-          onDecide={(ids, decision) =>
+          onDecide={async (ids, decision) => {
             setLog((prev) => [
               ...prev,
               PREVIEW_TEXT.decisionLog(
                 ids.length,
                 `${decision}: ${ids.join(", ")}`,
               ),
-            ])
-          }
+            ]);
+            return { ok: true };
+          }}
         />
 
         {log.length > 0 ? (
