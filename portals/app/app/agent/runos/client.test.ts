@@ -332,3 +332,38 @@ test("transport 5xx is retryable and 4xx is not", () => {
   assert.equal(transportError(403, {}).retryable, false);
   assert.equal(transportError(400, {}).retryable, false);
 });
+
+test("resolving a deprecated capability warns; a stable one stays silent", async () => {
+  // TD-004: the lifecycle lives in `state`, and until 2026-08-29 nothing read
+  // it - a consumer building on something already scheduled to go away got no
+  // signal at all. The warning is that signal's only surfacing in this repo.
+  const contract = (state: string) => () =>
+    rpcOk({
+      structuredContent: {
+        capability_id: "acme.old",
+        title: "t",
+        primitive_type: "connector",
+        provider: "acme",
+        version: "0.9.0",
+        state,
+        contract: { summary: "s", useWhen: "u", avoidWhen: "a", operations: [] },
+      },
+    });
+
+  const warned: string[] = [];
+  const orig = console.warn;
+  console.warn = (msg: unknown) => void warned.push(String(msg));
+  try {
+    const a = harness([contract("deprecated")]);
+    await a.client.resolve("acme.old", CTX);
+    assert.equal(warned.length, 1, "a deprecated state must warn");
+    assert.match(warned[0], /acme\.old/);
+    assert.match(warned[0], /deprecated/);
+
+    const b = harness([contract("stable")]);
+    await b.client.resolve("acme.old", CTX);
+    assert.equal(warned.length, 1, "a stable state must not warn");
+  } finally {
+    console.warn = orig;
+  }
+});
