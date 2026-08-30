@@ -38,6 +38,14 @@ on:
     # published in business hours and a ten-day miss is the failure being
     # fixed - the difference between 1h and 24h detection is not what went
     # wrong here.
+    #
+    # THIS TIME IS NOT A PROMISE, and the off-hour minute buys less than it
+    # sounds. First observed self-run: scheduled 06:17 UTC, actually started
+    # 12:41 UTC - SIX HOURS TWENTY-FOUR MINUTES late. Fine for a daily
+    # advisory watch, and worth knowing before anyone reads this field as a
+    # clock: the real semantics are "once a day, some time after 06:17".
+    # Anyone checking whether it fired must allow hours, not minutes - the
+    # 2026-08-29 check called it dead 32 minutes before it landed.
     - cron: "17 6 * * *"
   # A scheduled workflow is disabled automatically after 60 days without repo
   # activity, and manual dispatch is how you confirm it still works.
