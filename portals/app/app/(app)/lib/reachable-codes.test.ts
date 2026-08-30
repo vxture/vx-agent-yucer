@@ -124,6 +124,25 @@ for (const f of walk(join(UI, "components")).filter(
 }
 const kebab = (n: string) => n.replace(/([A-Z])/g, (m) => "-" + m.toLowerCase()).replace(/^-/, "");
 
+/**
+ * A component name to the file that DEFINES it.
+ *
+ * The kebab of the name is right for the common case, where a file exports one
+ * component named after it. It is wrong whenever a file exports several -
+ * catalog-panels.tsx exports CatalogPanels, SolutionSection and PriceSection
+ * since 2026-08-30 - and the fallback matters: the guard reported two working
+ * components as dictionary-less because "solution-section.tsx" does not exist,
+ * not because anything was unwired. So: try the kebab, then find whoever
+ * exports the name.
+ */
+function fileOf(comp: string, pascal: string): string | null {
+  if (compFiles.has(comp)) return comp;
+  for (const [name, text] of compFiles) {
+    if (new RegExp(`export function ${pascal}\\b`).test(text)) return name;
+  }
+  return null;
+}
+
 function dictsReached(comp: string, depth: number): Set<string> {
   if (depth > 3 || !compFiles.has(comp)) return new Set();
   const text = compFiles.get(comp)!;
@@ -135,8 +154,9 @@ function dictsReached(comp: string, depth: number): Set<string> {
       if ((o.index ?? 0) < (am.index ?? 0)) host = o[1];
       else break;
     }
-    if (host && kebab(host) !== comp) {
-      for (const d of dictsReached(kebab(host), depth + 1)) out.add(d);
+    const inner = host ? fileOf(kebab(host), host) : null;
+    if (inner && inner !== comp) {
+      for (const d of dictsReached(inner, depth + 1)) out.add(d);
     }
   }
   return out;
@@ -161,7 +181,7 @@ for (const f of walk(UI).filter((p) => p.endsWith(".tsx") && !p.endsWith(".test.
       else break;
     }
     if (!host) continue;
-    const comp = kebab(host);
+    const comp = fileOf(kebab(host), host) ?? kebab(host);
     if (SELF_MAPPED.has(comp)) continue;
     const ds = dictsReached(comp, 0);
     if (ds.size === 0) unrendered.add(`${a} in <${comp}>`);

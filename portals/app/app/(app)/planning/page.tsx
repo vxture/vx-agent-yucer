@@ -5,8 +5,7 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
 import { SetTarget } from "../components/set-target";
-import { TerritoryPanel } from "../components/territory-panel";
-import { createSalesTarget, saveTerritory, updateSalesTarget } from "./actions";
+import { createSalesTarget, updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -158,18 +157,7 @@ export default async function PlanningPage() {
           PRECONDITION for a regional target, so a reader who finds the scope
           selector empty needs the next thing they see to be where regions come
           from - not a list of targets they cannot yet scope. */}
-      <TerritoryPanel
-        rows={territories.ok ? territories.value : []}
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "planning.territory.upsert",
-            "ui",
-          ).allowed
-        }
-        onSave={saveTerritory}
-      />
+
 
       <Section
         icon="target"

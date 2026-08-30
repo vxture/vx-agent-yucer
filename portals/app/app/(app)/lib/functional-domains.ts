@@ -104,13 +104,10 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     icon: "package",
     modules: [
       built("strategy"),
-      planned("segment", "chart-pie-slice"),
+      built("segment"),
       built("catalog"),
-      // One page, three parts. A catalogue of five products does not need three
-      // routes, and splitting it would make the module nav a list of siblings
-      // that are really one screen.
-      section("solution", "puzzle", "catalog", "solutions"),
-      section("pricebook", "currency-cny", "catalog", "pricebook"),
+      built("solution"),
+      built("pricebook"),
     ],
   },
   {
@@ -118,11 +115,11 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     key: "deployment",
     icon: "users",
     modules: [
-      // A SECTION OF /planning, not a route. The host is /planning, which IS a
-      // nav entry - the test `namedAccount` fails, since its only host would be
-      // a detail page. The roster sits directly above the target table because
-      // a territory is a PRECONDITION for a regional target.
-      section("territory", "map-pin", "planning", "territories"),
+      // A page of its own since 2026-08-30. It sat above the target table on
+      // /planning because a territory is a PRECONDITION for a regional target;
+      // that relationship is still stated there, and the module is now where
+      // the menu says it is.
+      built("territory"),
       // STAYS PLANNED, and it is the closest call in this file. 6c shipped the
       // write path - /account/[id] renders DesignateAccount, which marks one
       // account strategic and attaches the plan the cadence rule reads. The
@@ -153,9 +150,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       built("account"),
       built("pipeline"),
       planned("quote", "receipt"),
-      // Shipped on /pipeline since batch 3, and mislabelled "planned" here
-      // until 2026-08-26.
-      section("winLossReview", "clock-counter-clockwise", "pipeline", "winloss"),
+      built("winLossReview"),
     ],
   },
   {
@@ -164,9 +159,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     icon: "coins",
     modules: [
       built("delivery"),
-      // Instalments render inside /delivery. Not a route of its own, which is
-      // not the same as not existing.
-      section("collection", "wallet", "delivery", "collections"),
+      built("collection"),
       planned("renewal", "file-text"),
     ],
   },

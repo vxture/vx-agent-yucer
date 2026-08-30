@@ -64,6 +64,12 @@ export const REVENUE_STATUS_LABEL: Record<RevenueStatus, string> = {
 /** Domain navigation labels, keyed by the nav entry key. */
 export const DOMAIN_LABEL: Record<string, string> = {
   strategy: "市场战略",
+  segment: "细分市场",
+  solution: "解决方案",
+  pricebook: "价格本",
+  territory: "销售区域",
+  winLossReview: "赢丢复盘",
+  collection: "回款计划",
   planning: "销售规划",
   campaign: "市场执行",
   account: "客户管理",

@@ -12,6 +12,7 @@ import {
   isFullyLockedOut,
   lockoutReason,
   resolveNavigation,
+  MODULE_NAV_ENTRIES,
 } from "./navigation";
 
 function ctx(...roles: RoleCode[]): AuthzContext {
@@ -62,12 +63,27 @@ test("administration is nav, but it is not a capability domain", () => {
     ADMIN_NAV_ENTRIES.map((e) => e.key),
     ["admin", "adoption"],
   );
+  // The identity that keeps the four lists from silently overlapping. It gained
+  // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
+  // sections, kept OUT of DOMAIN_NAV_ENTRIES so the nine-partition assertion
+  // above stays an assertion about the product rather than being widened to
+  // make room. A new entry that forgets to join a sublist fails here.
   assert.equal(
     NAV_ENTRIES.length,
     WORK_NAV_ENTRIES.length +
       DOMAIN_NAV_ENTRIES.length +
+      MODULE_NAV_ENTRIES.length +
       ADMIN_NAV_ENTRIES.length,
   );
+  // And none of the six is a capability partition, which is the whole reason
+  // they live in their own list.
+  for (const m of MODULE_NAV_ENTRIES) {
+    assert.equal(
+      DOMAIN_NAV_ENTRIES.some((d) => d.key === m.key),
+      false,
+      `${m.key} is a module page, not a partition`,
+    );
+  }
 });
 
 test("the work entries are not domains either, and the copilot stays a domain", () => {
@@ -128,12 +144,18 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
   // (ADR-017) - not because free buys it. A workspace that has bought anything
   // needs to know what it sells, so this entry is present at every tier and
   // absent only on a permission gap.
+  // solution and pricebook joined on 2026-08-30 for exactly the same reason as
+  // catalog: they were sections of it, they carry its actions, and those
+  // actions carry no feature key. Promoting a section to a page must not
+  // change who can see it - if it did, the promotion would have moved a gate.
   assert.deepEqual(visible.sort(), [
     "account",
     "catalog",
     "copilot",
     "home",
     "pipeline",
+    "pricebook",
+    "solution",
   ]);
 });
 
@@ -153,9 +175,13 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   const nav = resolveNavigation(ctx("viewer"), ent({ tier: "enterprise" }));
   // Every DOMAIN, not every entry: a viewer holds no admin.manage, so the
   // administration entry is a silent permission gap for them.
+  // Every DOMAIN and every MODULE PAGE: the six promoted on 2026-08-30 all
+  // carry a *.view action a viewer holds, so an enterprise viewer reaches
+  // them. That is the promotion behaving - a page that appeared but could not
+  // be opened would mean the split had invented a gate.
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
-    DOMAIN_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length,
+    DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length,
   );
   assert.equal(
     nav.some((e) => e.key === "admin"),

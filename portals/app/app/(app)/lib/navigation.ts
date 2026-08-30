@@ -35,7 +35,16 @@ export type NavIcon =
   | "table"
   | "cube"
   | "sparkles"
-  | "settings";
+  | "settings"
+  // The six promoted from sections (2026-08-30). Their icons come from the
+  // launcher rows they used to be, so the same module keeps the same glyph in
+  // the menu, the launcher and its own page.
+  | "chart-pie-slice"
+  | "puzzle"
+  | "currency-cny"
+  | "map-pin"
+  | "clock-counter-clockwise"
+  | "wallet";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -104,6 +113,7 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
     icon: "stack",
     action: "catalog.product.view",
   },
+
 ];
 
 /**
@@ -150,9 +160,73 @@ export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
   },
 ];
 
+/**
+ * Modules that are pages of their own but are NOT capability partitions.
+ *
+ * Kept out of DOMAIN_NAV_ENTRIES for the same reason admin is: that list is an
+ * assertion about the product's nine partitions, and a route guard checks its
+ * length. Six more entries in it would turn "nine partitions, each reachable"
+ * into "fifteen things, six of which are not partitions" - and the assertion
+ * would have been deleted to make room, which is how an invariant dies.
+ *
+ * Each was a SECTION of a partition's page until 2026-08-30. Owner decision:
+ * every module is a page, because with a per-domain menu of three to five
+ * entries, two of them landing on the same page with different anchors reads
+ * as a broken menu rather than as one screen with parts.
+ */
+export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
+  // THE SIX THAT USED TO BE SECTIONS.
+  //
+  // Each was a panel inside another module's page, reachable only as an
+  // anchor. That was defensible while the menu was one flat list - a catalogue
+  // of five products does not need three routes. It stopped being defensible
+  // when the menu became per-domain: with three to five entries in a section's
+  // own menu, two of them landing on the same page with different anchors
+  // reads as a broken menu rather than as one screen with parts.
+  //
+  // Owner decision 2026-08-30: every module is a page.
+  {
+    key: "segment",
+    href: "/segment",
+    icon: "chart-pie-slice",
+    action: "strategy.segment.view",
+  },
+  {
+    key: "solution",
+    href: "/solution",
+    icon: "puzzle",
+    action: "catalog.solution.view",
+  },
+  {
+    key: "pricebook",
+    href: "/pricebook",
+    icon: "currency-cny",
+    action: "catalog.pricebook.view",
+  },
+  {
+    key: "territory",
+    href: "/territory",
+    icon: "map-pin",
+    action: "planning.territory.view",
+  },
+  {
+    key: "winLossReview",
+    href: "/winloss",
+    icon: "clock-counter-clockwise",
+    action: "pipeline.winloss.view",
+  },
+  {
+    key: "collection",
+    href: "/collection",
+    icon: "wallet",
+    action: "delivery.revenue.view",
+  },
+];
+
 export const NAV_ENTRIES: readonly NavEntry[] = [
   ...WORK_NAV_ENTRIES,
   ...DOMAIN_NAV_ENTRIES,
+  ...MODULE_NAV_ENTRIES,
   ...ADMIN_NAV_ENTRIES,
 ];
 

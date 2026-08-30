@@ -33,6 +33,14 @@ import type {
 // and a single form guarded by the weaker of the two would hand the floor to
 // whoever can rename a product.
 
+/**
+ * The shapes the three catalogue sections take between them.
+ *
+ * No component takes all of it: each section Picks the three or four fields it
+ * uses. It stays one declaration because the fields are the same fields - a
+ * price entry's shape does not change depending on which page renders it - and
+ * three copies would be three things to keep in step.
+ */
 export interface CatalogPanelsProps {
   readonly products: readonly ProductRecord[];
   readonly solutions: readonly {
@@ -63,22 +71,13 @@ export interface CatalogPanelsProps {
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export function CatalogPanels({
+export function ProductSection({
   products,
-  solutions,
-  prices,
   canWrite,
-  canPrice,
-  canSolution,
   onSaveProduct,
-  onSaveSolution,
-  onSavePrice,
-}: CatalogPanelsProps) {
+}: Pick<CatalogPanelsProps, "products" | "canWrite" | "onSaveProduct">) {
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
-  const productName = new Map(products.map((p) => [p.id, p.name]));
-
   return (
-    <>
       <Section id="products" icon="stack" title={CATALOG_TEXT.products} description={CATALOG_TEXT.productsWhy}>
         {products.length === 0 ? (
           <EmptyState title={CATALOG_TEXT.products} description={CATALOG_TEXT.productsWhy} />
@@ -112,7 +111,26 @@ export function CatalogPanels({
         )}
         {canWrite ? <ProductForm onSave={onSaveProduct} /> : null}
       </Section>
+  );
+}
 
+/**
+ * THE THREE WERE ONE COMPONENT AND ARE NOW THREE.
+ *
+ * They rendered together while /catalog was one route with three anchors. The
+ * per-domain menu ended that: with armory holding five entries, three of them
+ * landing on /catalog read as a broken menu rather than as one screen with
+ * parts. Each section keeps its own id so existing anchors still resolve.
+ */
+export function SolutionSection({
+  products,
+  solutions,
+  canSolution,
+  onSaveSolution,
+}: Pick<CatalogPanelsProps, "products" | "solutions" | "canSolution" | "onSaveSolution">) {
+  const { CATALOG_TEXT } = useMessages();
+  const productName = new Map(products.map((p) => [p.id, p.name]));
+  return (
       <Section id="solutions" icon="puzzle" title={CATALOG_TEXT.solutions} description={CATALOG_TEXT.solutionsWhy}>
         {solutions.length === 0 ? (
           <EmptyState title={CATALOG_TEXT.noSolutions} description={CATALOG_TEXT.emptyBundle} />
@@ -132,7 +150,18 @@ export function CatalogPanels({
         )}
         {canSolution ? <SolutionForm products={products} onSave={onSaveSolution} /> : null}
       </Section>
+  );
+}
 
+export function PriceSection({
+  products,
+  prices,
+  canPrice,
+  onSavePrice,
+}: Pick<CatalogPanelsProps, "products" | "prices" | "canPrice" | "onSavePrice">) {
+  const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
+  const productName = new Map(products.map((p) => [p.id, p.name]));
+  return (
       <Section id="pricebook" icon="currency-cny" title={CATALOG_TEXT.pricebook} description={CATALOG_TEXT.pricebookWhy}>
         {prices.length === 0 ? (
           <EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.pricebookWhy} />
@@ -176,9 +205,9 @@ export function CatalogPanels({
           <p className="text-muted-foreground mt-sm text-xs">{CATALOG_TEXT.priceDenied}</p>
         )}
       </Section>
-    </>
   );
 }
+
 
 function ProductForm({
   onSave,

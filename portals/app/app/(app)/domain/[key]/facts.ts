@@ -6,12 +6,17 @@ import {
   getFieldStore,
   getPipelineStore,
   getSignalStore,
+  getDeliveryStore,
+  getPlanningStore,
   getStrategyStore,
 } from "../../../domains/shared/registry";
 import { listCampaigns, listPlans, listSegments } from "../../../domains/strategy/service";
 import { listPrices, listProducts, listSolutions } from "../../../domains/catalog/service";
 import { listSignals, listLeads } from "../../../domains/signal/service";
 import { listPendingReviews, listPipeline } from "../../../domains/pipeline/service";
+import { attainment, listTerritories } from "../../../domains/planning/service";
+import { listProjects, projectView } from "../../../domains/delivery/service";
+import { DEFAULT_PERIOD } from "../../lib/periods";
 import { listCommitments } from "../../../domains/account/field-service";
 import { listAccounts } from "../../../domains/account/service";
 import { accountMatchesCriteria } from "../../../domains/strategy/lib/lifecycle";
@@ -124,10 +129,64 @@ async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
   ]);
 }
 
+/** Who carries the number, and where the ground is cut. */
+async function deploymentFacts(ctx: FactsContext): Promise<DomainFact[]> {
+  const [targets, territories] = await Promise.all([
+    attainment({ ...ctx, store: getPlanningStore() }, DEFAULT_PERIOD),
+    listTerritories({ ...ctx, store: getPlanningStore() }, { includeRetired: false }),
+  ]);
+
+  // The fact neither page holds alone: a territory nobody has a target for is
+  // ground assigned to no number, and a target scoped to a territory that has
+  // been retired is a number pointing at nothing. /territory knows the first
+  // half, /planning the second.
+  const rows = targets.ok ? targets.value : null;
+  const covered = new Set(
+    (rows ?? [])
+      .map((r) => r.target.territoryId)
+      .filter((v): v is string => Boolean(v)),
+  );
+  const uncovered = territories.ok
+    ? territories.value.filter((t) => !covered.has(t.id)).length
+    : null;
+
+  return visibleFacts([
+    fact("territories", territories.ok ? territories.value.length : null, "/territory"),
+    fact("activeTargets", rows ? rows.length : null, "/planning"),
+    fact("uncoveredTerritories", uncovered, "/territory", true),
+  ]);
+}
+
+/** What was promised, and whether the money arrived. */
+async function settlementFacts(ctx: FactsContext): Promise<DomainFact[]> {
+  const projects = await listProjects({ ...ctx, store: getDeliveryStore() });
+  if (!projects.ok) return [];
+
+  // One view per project - the same read /delivery and /collection both use,
+  // and the only place holding both halves at once: a project's health and the
+  // instalments behind it.
+  let overdue = 0;
+  let downgraded = 0;
+  for (const p of projects.value) {
+    const view = await projectView({ ...ctx, store: getDeliveryStore() }, p.id);
+    if (!view.ok) continue;
+    if (view.value.derivedHealth !== view.value.reportedHealth) downgraded += 1;
+    overdue += view.value.instalments.filter((i) => i.status === "overdue").length;
+  }
+
+  return visibleFacts([
+    fact("liveProjects", projects.value.filter((p) => p.status !== "closed").length, "/delivery"),
+    fact("overdueInstalments", overdue, "/collection", true),
+    fact("downgradedProjects", downgraded, "/delivery", true),
+  ]);
+}
+
 const BY_DOMAIN: Record<string, (ctx: FactsContext) => Promise<DomainFact[]>> = {
   armory: armoryFacts,
   recon: reconFacts,
   position: positionFacts,
+  deployment: deploymentFacts,
+  settlement: settlementFacts,
 };
 
 /** Empty for a domain with no home - the page never asks for one. */
