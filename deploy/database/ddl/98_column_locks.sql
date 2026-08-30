@@ -81,6 +81,11 @@ GRANT UPDATE (name, plan_id, criteria, priority, status, updated_at)
 REVOKE UPDATE ON yucer_gtm.territory FROM yucer_svc;
 GRANT UPDATE (name, parent_id, owner_sub, status, updated_at)
   ON yucer_gtm.territory TO yucer_svc;
+-- `regions` is NOT here, and belongs to increment 0017 for the same reason
+-- engagement_type belongs to 0018: this file runs BEFORE incr/, so granting a
+-- column an increment has yet to add fails with "column does not exist" and
+-- takes the whole apply down. The increment carries the full GRANT for its
+-- table; this stays the pre-increment baseline.
 
 -- sales_target: the scope tuple (period, scope_type, territory_id, owner_sub,
 -- metric) is the row identity -> immutable; only the number and state move.
@@ -129,8 +134,13 @@ GRANT UPDATE (outcome, primary_reason, competitor, lessons, reviewer_sub, review
 -- --- yucer_delivery ---
 REVOKE UPDATE ON yucer_delivery.project FROM yucer_svc;
 GRANT UPDATE (name, manager_sub, contract_amount, currency, health, starts_at, ends_at,
-              engagement_type, status, updated_at)
+              status, updated_at)
   ON yucer_delivery.project TO yucer_svc;
+-- engagement_type is NOT here: 98 runs BEFORE incr/, so a column an increment
+-- adds cannot be granted from this file - the grant fails with "column does
+-- not exist" and takes the whole apply down with it. Increment 0018 carries
+-- its own grant, which is the rule incr/README states and the reason every
+-- column-adding increment re-states the full GRANT for its table.
 
 -- project_milestone.sequence is part of uidx_project_milestone_seq -> immutable.
 REVOKE UPDATE ON yucer_delivery.project_milestone FROM yucer_svc;
