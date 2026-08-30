@@ -90,6 +90,32 @@ export const en: Dictionary = {
     settlement: "Settlement",
   },
 
+  DOMAIN_FACT_LABEL: {
+    activePlans: "Active plans",
+    segments: "Segments",
+    emptySegments: "Segments matching nobody",
+    products: "Active products",
+    solutions: "Solutions",
+    unpricedProducts: "Products with no price",
+    runningCampaigns: "Running campaigns",
+    untriagedSignals: "Signals awaiting triage",
+    stalledLeads: "Qualified, not converted",
+    activeAccounts: "Active accounts",
+    openDeals: "Open deals",
+    overdueCommitments: "Overdue commitments",
+    pendingReviews: "Deals awaiting review",
+  } as Record<string, string>,
+  DOMAIN_HOME_TEXT: {
+    factsTitle: "Where this domain stands",
+    factsWhy:
+      "Only what crosses its modules - each of these needs two module pages read against each other, which is the reading nobody does.",
+    factsDeniedTitle: "You cannot see this domain's summary",
+    factsDeniedWhy:
+      "Every figure here goes through the same gate its module page uses. None passed, so nothing is shown.",
+    needsAttention: "waiting",
+    modulesTitle: "What is in this domain",
+    modulesWhy: "Its modules. Built ones open; unbuilt ones say so.",
+  },
   DOMAIN_GROUP_QUESTION: {
     armory: "What we fight with",
     deployment: "Who we aim at, and who carries the number",

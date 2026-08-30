@@ -5,11 +5,16 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   CROSSCUTTING_MODULES,
+  DOMAINS_WITH_HOME,
   FUNCTIONAL_DOMAINS,
   activeDomainKey,
+  hasHome,
+  primaryHref,
   resolveFunctionalDomains,
+  routeCount,
   type DomainModule,
 } from "./functional-domains";
+import { FACT_DOMAINS } from "../domain/[key]/facts";
 import {
   ADMIN_NAV_ENTRIES,
   DOMAIN_NAV_ENTRIES,
@@ -310,4 +315,57 @@ test("nothing marked planned is already rendered somewhere", () => {
     [],
     `these are marked planned but a page already renders them - mark them "section" or "built": ${lying.join(", ")}`,
   );
+});
+
+// --- domain homes: the rule, and the two things that can drift from it ------
+
+test("a domain home exists exactly where the domain holds two or more routes", () => {
+  // The rule is measured, never listed: deployment IS /planning and settlement
+  // IS /delivery, so a home for either would be a door in front of a door.
+  for (const d of FUNCTIONAL_DOMAINS) {
+    const routes = d.modules.filter((m) => m.kind === "built").length;
+    assert.equal(
+      hasHome(d.key),
+      routes >= 2,
+      `${d.key} has ${routes} route(s); hasHome must follow that, not a hand-kept list`,
+    );
+  }
+  assert.deepEqual([...DOMAINS_WITH_HOME].sort(), ["armory", "position", "recon"]);
+});
+
+test("the domain name never resolves to one of its own module rows", () => {
+  // The defect this replaced: clicking 阵地 landed on /account, the same
+  // destination as the 客户 row directly under it - a name promising a place
+  // and delivering one of its parts, picked by list order.
+  const nav: ResolvedNavEntry[] = NAV_ENTRIES.map((e) => ({
+    ...e,
+    state: "visible" as const,
+    decision: { allowed: true } as never,
+  }));
+  for (const d of resolveFunctionalDomains(nav)) {
+    const href = primaryHref(d);
+    if (!href) continue;
+    const moduleHrefs = d.modules
+      .filter((m) => m.kind !== "planned")
+      .map((m) => (m as { href: string }).href);
+    if (routeCount(d.key) >= 2) {
+      assert.equal(
+        moduleHrefs.includes(href),
+        false,
+        `${d.key}'s name lands on one of its own modules (${href})`,
+      );
+      assert.equal(href, `/domain/${d.key}`);
+    } else {
+      // One route: the name IS that page, and saying so is the fact about
+      // this domain rather than a lie about it.
+      assert.ok(moduleHrefs.includes(href), `${d.key} has one route; its name must go there`);
+    }
+  }
+});
+
+test("every domain with a home has a fact assembler, and no assembler is orphaned", () => {
+  // Two halves that drift in opposite directions: a home with no facts renders
+  // the module list this page was argued against, and an assembler for a
+  // domain with no home is code nothing can reach.
+  assert.deepEqual([...FACT_DOMAINS].sort(), [...DOMAINS_WITH_HOME].sort());
 });

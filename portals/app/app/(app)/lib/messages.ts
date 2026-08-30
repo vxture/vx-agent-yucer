@@ -96,6 +96,37 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  * a second list of them in prose would be the same information twice, and it
  * is not what a reader hovering over a new word needs.
  */
+/** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
+export const DOMAIN_FACT_LABEL: Record<string, string> = {
+  // armory
+  activePlans: "进行中的战略计划",
+  segments: "细分市场",
+  emptySegments: "无人匹配的细分",
+  products: "在售产品",
+  solutions: "解决方案",
+  unpricedProducts: "未定价的产品",
+  // recon
+  runningCampaigns: "进行中的战役",
+  untriagedSignals: "待分诊的信号",
+  stalledLeads: "已合格未转化的线索",
+  // position
+  activeAccounts: "活跃客户",
+  openDeals: "开放商机",
+  overdueCommitments: "逾期未兑现的承诺",
+  pendingReviews: "待复盘的商机",
+};
+
+export const DOMAIN_HOME_TEXT = {
+  factsTitle: "这个域此刻",
+  factsWhy:
+    "只列跨模块的事实——每一条都要把两个模块页对着读才看得见，而那正是没人会做的阅读。",
+  factsDeniedTitle: "你无权查看这个域的汇总",
+  factsDeniedWhy: "这里的每一项都走各自模块页同一道门；一项也没通过，所以什么都不显示。",
+  needsAttention: "待处理",
+  modulesTitle: "这个域里有什么",
+  modulesWhy: "域内的模块。已建的可以进去，未建的照实说未建。",
+} as const;
+
 export const DOMAIN_GROUP_QUESTION: Record<string, string> = {
   armory: "打什么仗，拿什么打",
   deployment: "打谁，谁去打，背多少",
