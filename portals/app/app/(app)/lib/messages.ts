@@ -68,6 +68,8 @@ export const DOMAIN_LABEL: Record<string, string> = {
   solution: "解决方案",
   pricebook: "价格本",
   territory: "销售区域",
+  namedAccount: "重点客户",
+  quote: "报价管理",
   winLossReview: "赢丢复盘",
   collection: "回款计划",
   planning: "销售规划",
@@ -103,6 +105,27 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  * is not what a reader hovering over a new word needs.
  */
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
+export const NAMED_ACCOUNT_TEXT = {
+  none: "还没有重点客户",
+  noneWhy:
+    "在客户详情页把一家标为战略或重点，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
+} as const;
+
+export const QUOTE_TEXT = {
+  title: "报价",
+  why:
+    "每笔商机当前报出去的是什么。行项、底价和签字本来就都在，只是从没有一处把它们放在一起——「我们给这家报过什么价」以前只能一单一单翻。",
+  none: "还没有报价",
+  noneWhy: "给商机加上行项，这里就会出现它当前的报价。",
+  colDeal: "商机",
+  colAccount: "客户",
+  colStage: "阶段",
+  colLines: "行项",
+  colAmount: "报价金额",
+  colSignature: "待签字",
+  awaiting: (n: number) => `${n} 行待签`,
+} as const;
+
 export const DOMAIN_FACT_LABEL: Record<string, string> = {
   // armory
   activePlans: "进行中的战略计划",

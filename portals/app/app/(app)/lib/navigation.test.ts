@@ -153,8 +153,16 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "catalog",
     "copilot",
     "home",
+    // /named rides account.view: the roster is a filtered account list, so
+    // whoever may read accounts may read which of them are named. The TIER is
+    // written under account.upsert on the detail page.
+    "namedAccount",
     "pipeline",
     "pricebook",
+    // /quote rides pipeline.view: a quote is the current state of a deal's
+    // lines, so whoever may read the deal may read what it offers. It appears
+    // wherever /pipeline does, on every tier.
+    "quote",
     "solution",
   ]);
 });

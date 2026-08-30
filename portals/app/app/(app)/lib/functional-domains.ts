@@ -120,14 +120,11 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // that relationship is still stated there, and the module is now where
       // the menu says it is.
       built("territory"),
-      // STAYS PLANNED, and it is the closest call in this file. 6c shipped the
-      // write path - /account/[id] renders DesignateAccount, which marks one
-      // account strategic and attaches the plan the cadence rule reads. The
-      // MODULE is the roster: who our key accounts are, together. That does
-      // not exist, and it cannot be a `section` either, because a section
-      // inherits its host's nav entry and the host here is /account/[id],
-      // which is not one. A control on a detail page is not a surface.
-      planned("namedAccount", "star"),
+      // A page since 2026-08-30. The write path shipped in 6c on
+      // /account/[id]; what was missing was the ROSTER - who our named
+      // accounts are, together - and a control on a detail page is not a
+      // surface.
+      built("namedAccount"),
       built("planning"),
       planned("forecastRule", "trend-up"),
     ],
@@ -149,7 +146,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     modules: [
       built("account"),
       built("pipeline"),
-      planned("quote", "receipt"),
+      built("quote"),
       built("winLossReview"),
     ],
   },

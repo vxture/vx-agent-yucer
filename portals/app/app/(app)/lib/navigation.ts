@@ -44,7 +44,9 @@ export type NavIcon =
   | "currency-cny"
   | "map-pin"
   | "clock-counter-clockwise"
-  | "wallet";
+  | "wallet"
+  | "receipt"
+  | "star";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -204,6 +206,15 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
     action: "catalog.pricebook.view",
   },
   {
+    key: "namedAccount",
+    href: "/named",
+    icon: "star",
+    // account.view: the roster is a filtered account list, and whoever may
+    // read accounts may read which of them are named. The tier is WRITTEN
+    // under account.upsert, on the detail page where the evidence is.
+    action: "account.view",
+  },
+  {
     key: "territory",
     href: "/territory",
     icon: "map-pin",
@@ -214,6 +225,16 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
     href: "/winloss",
     icon: "clock-counter-clockwise",
     action: "pipeline.winloss.view",
+  },
+  {
+    key: "quote",
+    href: "/quote",
+    icon: "receipt",
+    // The VIEW gate of the thing it assembles. A quote is the current state of
+    // an opportunity's lines, so whoever may read the deal may read what it
+    // offers - inventing a quote.view permission would gate a page behind a
+    // door that guards nothing of its own.
+    action: "pipeline.view",
   },
   {
     key: "collection",
