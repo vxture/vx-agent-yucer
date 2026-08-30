@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { errorResponse } from "../../platform/envelope";
 import { NextResponse } from "next/server";
 import { buildStatus, statusMode } from "../../lib/status";
+import { PROBE_TIMEOUT_MS, probeHttp, withTimeout } from "../../lib/status-probe";
 import { getOidcConfig } from "../../auth/lib/config";
 import { getAuthUser } from "../../auth/lib/session";
 
@@ -11,20 +12,6 @@ import { getAuthUser } from "../../auth/lib/session";
 // DB/Redis reachability probe. Never returns a secret value (see status.test.ts).
 export const dynamic = "force-dynamic";
 
-const PROBE_TIMEOUT_MS = 1000;
-
-// The loser of the race still has to be cleaned up. Without the clear, a probe
-// that answers quickly leaves its timer armed for the full budget, so a polled
-// status page accumulates one pending timer per probe per request.
-function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return Promise.race([
-    p,
-    new Promise<T>((r) => {
-      timer = setTimeout(() => r(fallback), ms);
-    }),
-  ]).finally(() => clearTimeout(timer));
-}
 
 async function probeDb(url?: string): Promise<boolean | null> {
   if (!url) return null;
@@ -65,29 +52,6 @@ async function probeRedis(url?: string): Promise<boolean | null> {
         return false;
       } finally {
         r.disconnect();
-      }
-    })(),
-    PROBE_TIMEOUT_MS + 200,
-    false,
-  );
-}
-
-/**
- * Reachability at the CONNECTION layer, which is the question a connectivity
- * check actually asks. Any HTTP response - 404 and 405 included - proves the
- * service answered on that address; only a connect failure or the timeout says
- * unreachable. The three planes are tailnet-internal, so the browser cannot
- * probe them itself the way the client-side channel probes do.
- */
-async function probeHttp(base?: string | null): Promise<boolean | null> {
-  if (!base) return null;
-  return withTimeout(
-    (async () => {
-      try {
-        await fetch(base, { method: "HEAD", cache: "no-store", signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
-        return true;
-      } catch {
-        return false;
       }
     })(),
     PROBE_TIMEOUT_MS + 200,
