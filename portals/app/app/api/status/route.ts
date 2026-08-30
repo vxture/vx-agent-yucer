@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { errorResponse } from "../../platform/envelope";
 import { NextResponse } from "next/server";
 import { buildStatus, statusMode } from "../../lib/status";
+import { PROBE_TIMEOUT_MS, probeHttp, withTimeout } from "../../lib/status-probe";
 import { getOidcConfig } from "../../auth/lib/config";
 import { getAuthUser } from "../../auth/lib/session";
 
@@ -11,20 +12,6 @@ import { getAuthUser } from "../../auth/lib/session";
 // DB/Redis reachability probe. Never returns a secret value (see status.test.ts).
 export const dynamic = "force-dynamic";
 
-const PROBE_TIMEOUT_MS = 1000;
-
-// The loser of the race still has to be cleaned up. Without the clear, a probe
-// that answers quickly leaves its timer armed for the full budget, so a polled
-// status page accumulates one pending timer per probe per request.
-function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return Promise.race([
-    p,
-    new Promise<T>((r) => {
-      timer = setTimeout(() => r(fallback), ms);
-    }),
-  ]).finally(() => clearTimeout(timer));
-}
 
 async function probeDb(url?: string): Promise<boolean | null> {
   if (!url) return null;
@@ -88,12 +75,18 @@ export async function GET(): Promise<Response> {
   }
 
   const status = buildStatus(process.env, new Date().toISOString());
-  const [dbReachable, redisReachable] = await Promise.all([
+  const [dbReachable, redisReachable, runos, atlas, arda] = await Promise.all([
     probeDb(process.env.DATABASE_URL),
     probeRedis(process.env.REDIS_URL),
+    probeHttp(process.env.RUNOS_BASE_URL),
+    probeHttp(process.env.ATLAS_BASE_URL),
+    probeHttp(process.env.ARDA_BASE_URL),
   ]);
   status.data.database.reachable = dbReachable;
   status.data.redis.reachable = redisReachable;
+  status.planes.runos.reachable = runos;
+  status.planes.atlas.reachable = atlas;
+  status.planes.arda.reachable = arda;
 
   return NextResponse.json(status);
 }

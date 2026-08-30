@@ -19,6 +19,12 @@ const CHANNELS: Omit<Probe, "status">[] = [
   { name: "C2 entitlement", endpoint: "/api/entitlement" },
 ];
 
+function planeSuffix(p: { configured: boolean; reachable: boolean | null }): string {
+  if (!p.configured) return "";
+  if (p.reachable === null) return " (not probed)";
+  return p.reachable ? ", reachable" : ", UNREACHABLE";
+}
+
 const card: React.CSSProperties = {
   border: "1px solid #d0d0d0",
   borderRadius: 8,
@@ -120,6 +126,22 @@ export default function StatusPage() {
             <Field k="webhook secret" v={`${boolBadge(status.c3.webhookSecretConfigured)} configured`} />
             <Field k="webhook rotation (_NEXT)" v={`${boolBadge(status.c3.webhookRotationConfigured)} configured`} />
             <Field k="internal job token" v={`${boolBadge(status.c3.internalJobTokenConfigured)} configured`} />
+          </section>
+
+          <section style={card}>
+            <h3 style={{ margin: "0 0 8px" }}>Planes - Runos / Atlas / arda</h3>
+            <Field
+              k="runos (capability)"
+              v={`${boolBadge(status.planes.runos.reachable ?? status.planes.runos.configured)} ${status.planes.runos.baseUrl ?? "not configured"}${status.planes.runos.mcpPath ?? ""}${planeSuffix(status.planes.runos)}`}
+            />
+            <Field
+              k="atlas (model)"
+              v={`${boolBadge(status.planes.atlas.reachable ?? status.planes.atlas.configured)} ${status.planes.atlas.baseUrl ?? "not configured"}${planeSuffix(status.planes.atlas)}`}
+            />
+            <Field
+              k="arda (shared data)"
+              v={`${boolBadge(status.planes.arda.reachable ?? status.planes.arda.configured)} ${status.planes.arda.baseUrl ?? "not configured"}${planeSuffix(status.planes.arda)}`}
+            />
           </section>
 
           <section style={card}>

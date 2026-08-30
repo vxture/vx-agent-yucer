@@ -15,7 +15,17 @@ export interface UsageRow {
 export interface UsageStore {
   record(row: Omit<UsageRow, "flushed">): Promise<void>;
   unflushed(limit: number): Promise<UsageRow[]>;
-  markFlushed(idempotencyKeys: string[]): Promise<void>;
+  /**
+   * Rows, not bare keys: marking a flush also advances the per-(workspace,
+   * metric) watermark in local_usage.checkpoint, and the watermark needs the
+   * dimensions. The DDL shipped that table in the baseline as the
+   * "product-local flush watermark" and NOTHING EVER WROTE IT - the flush
+   * flipped raw.flushed and the one row that answers "when did this workspace's
+   * metric last reach the platform" stayed empty forever. That question is the
+   * first one asked when the platform says usage is missing (2026-08-30
+   * connectivity audit).
+   */
+  markFlushed(rows: readonly Pick<UsageRow, "idempotencyKey" | "workspaceId" | "metric">[]): Promise<void>;
 }
 
 export class InMemoryUsageStore implements UsageStore {
@@ -35,12 +45,20 @@ export class InMemoryUsageStore implements UsageStore {
     }
     return out;
   }
-  async markFlushed(keys: string[]): Promise<void> {
-    for (const k of keys) {
-      const r = this.rows.get(k);
+  async markFlushed(
+    rows: readonly Pick<UsageRow, "idempotencyKey" | "workspaceId" | "metric">[],
+  ): Promise<void> {
+    for (const { idempotencyKey } of rows) {
+      const r = this.rows.get(idempotencyKey);
       if (r) r.flushed = true;
     }
+    for (const { workspaceId, metric } of rows) {
+      this.checkpoints.set(`${workspaceId}|${metric}`, new Date());
+    }
   }
+
+  /** The in-memory mirror of local_usage.checkpoint, for tests. */
+  readonly checkpoints = new Map<string, Date>();
 }
 
 let override: UsageStore | null = null;
