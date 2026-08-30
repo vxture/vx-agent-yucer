@@ -286,19 +286,60 @@ export function resolveCrosscutting(
 }
 
 /**
- * Where the domain NAME goes when clicked.
+ * Where the domain NAME goes when clicked, and the rule is measured rather
+ * than uniform.
  *
- * There is no separate domain landing page, and adding five would be adding
- * five pages whose entire content is the list of modules the reader is already
- * looking at. Being inside a domain is instead expressed by its module nav
- * appearing beside the page - so the domain's "home" is its first reachable
- * module, and arriving there IS arriving in the domain.
+ * THE OLD ANSWER WAS "its first reachable module", and that was a quiet lie
+ * for three of the five. Clicking 阵地 landed on /account - the same
+ * destination as clicking the 客户 row directly underneath it. The name
+ * promised a place and delivered one of its parts, chosen by list order, and
+ * nothing on the screen said which part it had picked.
  *
- * Null when nothing in it is reachable, which is possible for a domain kept
- * visible by its planned rows alone. The name then is not a link, because
- * there is nowhere it could honestly go.
+ * THE RULE, and it splits the five on evidence rather than on taste:
+ *
+ *   one route  -> the domain IS that page. deployment is /planning and
+ *                 settlement is /delivery; every other row in those columns is
+ *                 a section of that same page or unbuilt. Sending the name
+ *                 there is not a lie, it is the fact about that domain, and a
+ *                 home page would be a door standing in front of a door.
+ *
+ *   two+ routes -> no single page is the domain, so the name gets a HOME that
+ *                 says what crosses its modules. armory (/strategy + /catalog),
+ *                 recon (/campaign + /signal) and position (/account +
+ *                 /pipeline) each hold two real places and a fact that lives
+ *                 between them.
+ *
+ * A home page earns its existence only by saying something no module page
+ * says. The earlier version of this file argued against five landing pages
+ * whose whole content would be the module list the reader is already looking
+ * at, and that argument still stands - it is why the homes carry cross-module
+ * state and why two domains have none.
+ */
+export const DOMAIN_HOME_PREFIX = "/domain";
+
+/** Routes - not sections, not planned rows - are what makes a domain plural. */
+export function routeCount(key: string): number {
+  const d = FUNCTIONAL_DOMAINS.find((x) => x.key === key);
+  if (!d) return 0;
+  return d.modules.filter((m) => m.kind === "built").length;
+}
+
+/** The five keys that have a home page, derived from the rule, never listed. */
+export const DOMAINS_WITH_HOME: readonly string[] = FUNCTIONAL_DOMAINS.filter(
+  (d) => d.modules.filter((m) => m.kind === "built").length >= 2,
+).map((d) => d.key);
+
+export function hasHome(key: string): boolean {
+  return routeCount(key) >= 2;
+}
+
+/**
+ * Where the name goes. Null when the domain is kept alive by planned rows
+ * alone: a heading that navigates nowhere is worse than one that does not
+ * offer to.
  */
 export function primaryHref(domain: ResolvedDomain): string | null {
+  if (hasHome(domain.key)) return `${DOMAIN_HOME_PREFIX}/${domain.key}`;
   for (const m of domain.modules) {
     if (m.kind === "built" && m.state === "visible") return m.href;
   }

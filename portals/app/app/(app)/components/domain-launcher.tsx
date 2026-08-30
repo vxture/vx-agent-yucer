@@ -134,12 +134,15 @@ export function DomainLauncher({
   /**
    * The domain heading, and it is a LINK when the domain has anywhere to go.
    *
-   * Clicking a domain lands on its first reachable module. There is no
-   * separate landing page for a domain and there should not be: its whole
-   * content would be the list of modules the reader is already looking at in
-   * this panel. Being inside a domain is expressed instead by its module nav
-   * appearing beside the page - so arriving at a module IS arriving in the
-   * domain, whether you got there by the domain name or by the module.
+   * WHERE IT GOES IS MEASURED, not uniform - see primaryHref. A domain holding
+   * two or more routes gets a home page, because no single page is that
+   * domain; a domain holding one route IS that page, and sending the name
+   * there is the fact about it rather than a lie.
+   *
+   * This used to send every name to its first reachable module, which meant
+   * clicking 阵地 landed on /account - the same destination as the 客户 row
+   * directly underneath. The name promised a place and delivered one of its
+   * parts, chosen by list order, with nothing on screen saying which.
    *
    * Not a link when every built module was refused on permission and only
    * planned rows keep the column alive. A heading that navigates nowhere is
