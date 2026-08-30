@@ -474,6 +474,7 @@ model Project {
   health         String    @default("green") @db.VarChar(32)
   startsAt       DateTime? @map("starts_at") @db.Timestamptz()
   endsAt         DateTime? @map("ends_at") @db.Timestamptz()
+  engagementType String @default("one_off") @map("engagement_type") @db.VarChar(32)
   status         String    @default("planning") @db.VarChar(32)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz()

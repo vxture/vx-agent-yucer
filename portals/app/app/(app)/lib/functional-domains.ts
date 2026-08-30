@@ -136,7 +136,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     modules: [
       built("campaign"),
       built("signal"),
-      planned("routing", "user-switch"),
+      built("routing"),
     ],
   },
   {

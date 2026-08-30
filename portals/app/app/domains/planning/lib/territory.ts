@@ -21,6 +21,16 @@ export interface TerritoryDraft {
   name: string;
   parentId: string | null;
   ownerSub: string | null;
+  /**
+   * The regions this territory covers (0017), and the reason lead routing can
+   * exist at all. A territory has always known WHO covers it and never WHICH
+   * GROUND - the demo made the hole plain, with territories named
+   * EAST/NORTH/SOUTH and accounts carrying 华东/华北/华南, nothing joining them.
+   *
+   * Empty covers NOTHING, matching market_segment.criteria: a half-configured
+   * territory must not become the router's answer for every lead.
+   */
+  regions: readonly string[];
   status: TerritoryStatus;
 }
 

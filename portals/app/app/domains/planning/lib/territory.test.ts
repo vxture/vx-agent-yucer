@@ -8,6 +8,7 @@ const draft = (over: Partial<TerritoryDraft> = {}): TerritoryDraft => ({
   name: "East China",
   parentId: null,
   ownerSub: null,
+  regions: [],
   status: "active",
   ...over,
 });

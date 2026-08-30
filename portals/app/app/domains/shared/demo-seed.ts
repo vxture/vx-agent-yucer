@@ -45,6 +45,7 @@ import {
   DEMO_UNMATCHED_COMPANY,
   DEMO_WAIVE_REASON,
   DEMO_SEGMENTS,
+  DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
@@ -209,9 +210,9 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
 function seedPlanning(workspaceId: string, stores: DemoStores): void {
   stores.planning.seed({
     territories: [
-      territory("terr_east", workspaceId, "EAST", "East China", REP1),
-      territory("terr_north", workspaceId, "NORTH", "North China", REP2),
-      territory("terr_south", workspaceId, "SOUTH", "South China", REP2),
+      territory("terr_east", workspaceId, "EAST", "East China", REP1, DEMO_TERRITORY_REGIONS.EAST),
+      territory("terr_north", workspaceId, "NORTH", "North China", REP2, DEMO_TERRITORY_REGIONS.NORTH),
+      territory("terr_south", workspaceId, "SOUTH", "South China", REP2, DEMO_TERRITORY_REGIONS.SOUTH),
     ],
     targets: [
       target("tgt_ws", workspaceId, "workspace", null, null, 12_000_000, "committed"),
@@ -840,8 +841,15 @@ function execution(
   };
 }
 
-function territory(id: string, workspaceId: string, code: string, name: string, ownerSub: string) {
-  return { id, workspaceId, territoryCode: code, name, parentId: null, ownerSub, status: "active" };
+function territory(
+  id: string,
+  workspaceId: string,
+  code: string,
+  name: string,
+  ownerSub: string,
+  regions: readonly string[],
+) {
+  return { id, workspaceId, territoryCode: code, name, parentId: null, ownerSub, regions, status: "active" };
 }
 
 function target(

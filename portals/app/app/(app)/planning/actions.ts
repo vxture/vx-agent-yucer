@@ -140,6 +140,7 @@ export async function updateSalesTarget(
  * (ADR-017) and it is what makes re-importing a regional structure safe.
  */
 export async function saveTerritory(input: {
+  regions?: readonly string[];
   territoryCode: string;
   name: string;
   parentId: string | null;
@@ -161,7 +162,7 @@ export async function saveTerritory(input: {
       entitlement: session.entitlement,
       store: getPlanningStore(),
     },
-    { ...input, status: input.status },
+    { ...input, regions: input.regions ?? [], status: input.status },
   );
 
   if (!result.ok) {

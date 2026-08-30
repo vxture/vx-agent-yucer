@@ -73,6 +73,7 @@ export const en: Dictionary = {
     territory: "Territories",
     namedAccount: "Named accounts",
     quote: "Quotes",
+    routing: "Lead routing",
     winLossReview: "Win/loss reviews",
     collection: "Collections",
     pipeline: "Pipeline",
@@ -102,6 +103,28 @@ export const en: Dictionary = {
     none: "No named accounts yet",
     noneWhy:
       "Mark an account strategic or key on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
+  },
+  ROUTING_TEXT: {
+    title: "Lead routing",
+    why:
+      "Territory first, then load (owner ruling, 2026-08-30). Territory decides who is allowed to work it; load decides which of them should. Reverse the order and an idle rep gets ground they have never worked.",
+    none: "No leads awaiting assignment",
+    noneWhy: "Converted and disqualified leads are absent - their ownership is settled.",
+    colLead: "Lead",
+    colCurrent: "Current owner",
+    colSuggested: "Rule suggests",
+    colBasis: "Because",
+    colApply: "Apply",
+    unowned: "unowned",
+    alreadyThere: "already there",
+    apply: "Assign",
+    applied: "Assigned",
+    denied: "You do not have permission to assign leads.",
+    unroutable: {
+      no_region: "no account matched, so no region",
+      no_territory: "no territory covers that region",
+      no_owner: "the covering territory has no owner",
+    } as Record<string, string>,
   },
   QUOTE_TEXT: {
     title: "Quotes",
@@ -495,6 +518,7 @@ export const en: Dictionary = {
     conversion_incomplete: "The conversion is incomplete.",
     lead_converted: "This lead has already been converted.",
     lead_not_qualified: "This lead has not been qualified.",
+    owner_required: "An assignment needs somebody to assign to.",
   },
   PROPOSAL_ERROR: {
     not_found: "Not found, or not in this workspace.",

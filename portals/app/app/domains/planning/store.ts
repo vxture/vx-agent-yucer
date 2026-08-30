@@ -23,6 +23,8 @@ export interface TerritoryRecord {
   name: string;
   parentId: string | null;
   ownerSub: string | null;
+  /** The regions this territory covers - see 0017. Empty covers NOTHING. */
+  regions: readonly string[];
   status: string;
 }
 
@@ -146,6 +148,7 @@ export class InMemoryPlanningStore implements PlanningStore {
       held.name = input.name;
       held.parentId = input.parentId;
       held.ownerSub = input.ownerSub;
+      held.regions = input.regions;
       held.status = input.status;
       return held;
     }

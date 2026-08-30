@@ -23,6 +23,11 @@ import {
   type ScoreBreakdown,
   type SignalStatus,
 } from "./lib/scoring";
+import {
+  routeLead,
+  type RoutingOutcome,
+  type RoutingTerritory,
+} from "./lib/routing";
 import type {
   LeadFilter,
   LeadRecord,
@@ -290,4 +295,90 @@ export async function previewAttribution(
       signal: signal ? { id: signal.id, source: signal.source, sourceRef: signal.sourceRef } : null,
     }),
   );
+}
+
+// --- lead routing ----------------------------------------------------------
+
+export interface RoutingPlan {
+  leadId: string;
+  leadNo: string;
+  companyName: string;
+  currentOwner: string | null;
+  outcome: RoutingOutcome;
+}
+
+/**
+ * What routing WOULD do, without doing it.
+ *
+ * A preview rather than a router that just runs: assignment moves work between
+ * people, and the rule reaching a wrong answer because a territory has no
+ * regions set is exactly the case somebody must see before it lands. ADR-003's
+ * shape - propose, then a human decides - applied to a rule.
+ *
+ * Load counts the leads this member can SEE, which is a real limit worth
+ * naming: a rep previewing counts their own queue, a leader counts everyone's,
+ * and the leader's answer is the one that balances.
+ */
+export async function previewRouting(
+  ctx: SignalContext,
+  territories: readonly RoutingTerritory[],
+  regionOf: ReadonlyMap<string, string | null>,
+): Promise<RuleResult<RoutingPlan[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const leads = await ctx.store.listLeads(ctx.workspaceId, { limit: 500 });
+
+  // Open leads only, and load counted BEFORE any of this plan is applied - a
+  // load shifting mid-preview would make the answer depend on row order.
+  const open = leads.filter((l) => l.status !== "converted" && l.status !== "disqualified");
+  const load = new Map<string, number>();
+  for (const l of open) {
+    if (l.ownerSub) load.set(l.ownerSub, (load.get(l.ownerSub) ?? 0) + 1);
+  }
+
+  return ok(
+    open.map((l) => ({
+      leadId: l.id,
+      leadNo: l.leadNo,
+      companyName: l.companyName,
+      currentOwner: l.ownerSub,
+      outcome: routeLead(
+        { id: l.id, region: l.accountId ? (regionOf.get(l.accountId) ?? null) : null },
+        territories,
+        load,
+      ),
+    })),
+  );
+}
+
+/**
+ * Apply ONE routing decision.
+ *
+ * Not the whole plan. A bulk "route everything" moves dozens of leads on one
+ * click with no record of which the person actually looked at - and the owner
+ * of a lead is who gets asked about it, so this is dozens of individual
+ * decisions rather than one batch.
+ */
+export async function assignLead(
+  ctx: SignalContext,
+  leadId: string,
+  ownerSub: string,
+): Promise<RuleResult<{ ownerSub: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const lead = await ctx.store.getLead(ctx.workspaceId, leadId);
+  if (!lead) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
+  if (lead.status === "converted") {
+    // Its opportunity already carries an owner; reassigning now would leave
+    // the two disagreeing about whose deal this is.
+    return fail(violation("lead_converted", "a converted lead is final", "status"));
+  }
+  if (!ownerSub.trim()) {
+    return fail(violation("owner_required", "an assignment needs somebody to assign to", "ownerSub"));
+  }
+
+  await ctx.store.updateLead(ctx.workspaceId, leadId, { ownerSub });
+  return ok({ ownerSub });
 }

@@ -160,6 +160,9 @@ function toTerritory(r: Record<string, unknown>): TerritoryRecord {
     territoryCode: String(r.territoryCode),
     name: String(r.name),
     parentId: (r.parentId as string | null) ?? null,
+    // Tolerant of pre-0017 rows: absent reads as covering nothing, the same
+    // answer an empty list gives and the safe one for a router.
+    regions: Array.isArray(r.regions) ? (r.regions as unknown[]).map(String) : [],
     ownerSub: (r.ownerSub as string | null) ?? null,
     status: String(r.status),
   };

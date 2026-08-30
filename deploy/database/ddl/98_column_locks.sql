@@ -129,7 +129,7 @@ GRANT UPDATE (outcome, primary_reason, competitor, lessons, reviewer_sub, review
 -- --- yucer_delivery ---
 REVOKE UPDATE ON yucer_delivery.project FROM yucer_svc;
 GRANT UPDATE (name, manager_sub, contract_amount, currency, health, starts_at, ends_at,
-              status, updated_at)
+              engagement_type, status, updated_at)
   ON yucer_delivery.project TO yucer_svc;
 
 -- project_milestone.sequence is part of uidx_project_milestone_seq -> immutable.

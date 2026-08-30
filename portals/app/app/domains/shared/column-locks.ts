@@ -61,7 +61,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "updated_at",
   ],
   "yucer_gtm.market_segment": ["name", "plan_id", "criteria", "priority", "status", "updated_at"],
-  "yucer_gtm.territory": ["name", "parent_id", "owner_sub", "status", "updated_at"],
+  "yucer_gtm.territory": ["name", "parent_id", "owner_sub", "regions", "status", "updated_at"],
   // The scope tuple is the row identity; only the number and the state move.
   "yucer_gtm.sales_target": ["plan_id", "target_amount", "currency", "status", "updated_at"],
   "yucer_gtm.campaign": [
@@ -150,7 +150,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "currency",
     "health",
     "starts_at",
-    "ends_at",
+    "ends_at", "engagement_type",
     "status",
     "updated_at",
   ],
