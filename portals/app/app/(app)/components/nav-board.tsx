@@ -309,8 +309,8 @@ function ModuleList({
   domain,
   activeKey,
 }: {
-  domain: NonNullable<ReturnType<typeof domainOf>>;
-  activeKey: string | null;
+  readonly domain: NonNullable<ReturnType<typeof domainOf>>;
+  readonly activeKey: string | null;
 }) {
   const { DOMAIN_LABEL, DOMAIN_GROUP_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT } =
     useMessages();

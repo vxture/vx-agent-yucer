@@ -77,10 +77,7 @@ export function ProductSection({
   onSaveProduct,
 }: Pick<CatalogPanelsProps, "products" | "canWrite" | "onSaveProduct">) {
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
-  const productName = new Map(products.map((p) => [p.id, p.name]));
-
   return (
-    <>
       <Section id="products" icon="stack" title={CATALOG_TEXT.products} description={CATALOG_TEXT.productsWhy}>
         {products.length === 0 ? (
           <EmptyState title={CATALOG_TEXT.products} description={CATALOG_TEXT.productsWhy} />
@@ -114,7 +111,6 @@ export function ProductSection({
         )}
         {canWrite ? <ProductForm onSave={onSaveProduct} /> : null}
       </Section>
-    </>
   );
 }
 
@@ -135,7 +131,6 @@ export function SolutionSection({
   const { CATALOG_TEXT } = useMessages();
   const productName = new Map(products.map((p) => [p.id, p.name]));
   return (
-    <>
       <Section id="solutions" icon="puzzle" title={CATALOG_TEXT.solutions} description={CATALOG_TEXT.solutionsWhy}>
         {solutions.length === 0 ? (
           <EmptyState title={CATALOG_TEXT.noSolutions} description={CATALOG_TEXT.emptyBundle} />
@@ -155,7 +150,6 @@ export function SolutionSection({
         )}
         {canSolution ? <SolutionForm products={products} onSave={onSaveSolution} /> : null}
       </Section>
-    </>
   );
 }
 
@@ -168,7 +162,6 @@ export function PriceSection({
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
   const productName = new Map(products.map((p) => [p.id, p.name]));
   return (
-    <>
       <Section id="pricebook" icon="currency-cny" title={CATALOG_TEXT.pricebook} description={CATALOG_TEXT.pricebookWhy}>
         {prices.length === 0 ? (
           <EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.pricebookWhy} />
@@ -212,7 +205,6 @@ export function PriceSection({
           <p className="text-muted-foreground mt-sm text-xs">{CATALOG_TEXT.priceDenied}</p>
         )}
       </Section>
-    </>
   );
 }
 

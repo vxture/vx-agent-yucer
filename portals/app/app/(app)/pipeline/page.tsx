@@ -25,13 +25,10 @@ import { listTerritories } from "../../domains/planning/service";
 import { NewOpportunity } from "../components/new-opportunity";
 import {
   forecastHistory,
-  listPendingReviews,
   listPipeline,
 } from "../../domains/pipeline/service";
 import { inPeriod } from "../../domains/pipeline/lib/forecast";
 import { can } from "../../authz/decide";
-import { PendingReviews } from "../components/pending-reviews";
-import { recordReview } from "./winloss-action";
 
 import { getMessages } from "../lib/i18n/server";
 import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
@@ -78,14 +75,13 @@ export default async function PipelinePage({
   // domains reading the same request need two contexts, not one with a union.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
 
-  const [result, pendingReviews, history, lines, products, accounts, territories] =
+  const [result, history, lines, products, accounts, territories] =
     await Promise.all([
     // includeClosed, or the "closed" tile reports zero on a workspace that has
     // closed 2.7M - the same false zero that hit the quota card, in a third
     // place. The board rolls all four categories from this one list, and a
     // closed deal is precisely what the closed category counts.
     listPipeline(ctx, { includeClosed: true }),
-    listPendingReviews(ctx),
     // The series, not the latest point. See forecastHistory: this read is the
     // only thing that makes forecast_snapshot's immutability pay for itself.
     forecastHistory(ctx, period),
@@ -152,13 +148,6 @@ export default async function PipelinePage({
           ),
         )
       : 0;
-
-  // Every closed deal, for the review section's "all" scope. Taken from the
-  // list already fetched rather than queried again - two reads of the same
-  // rows can disagree, and both would be on screen at once.
-  const closed = result.value.filter(
-    (o) => o.status === "won" || o.status === "lost",
-  );
 
   const openIds = new Set(
     result.value.filter((o) => o.status === "open").map((o) => o.id),
