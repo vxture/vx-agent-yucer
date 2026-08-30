@@ -208,19 +208,7 @@ export default async function DeliveryPage() {
         onSave={saveMilestone}
       />
 
-      <CollectionsPanel
-        rows={collections}
-        overdue={overdueInstalments}
-        canWrite={
-          can(
-            session.authz,
-            session.entitlement,
-            "delivery.revenue.upsert",
-            "ui",
-          ).allowed
-        }
-        onMove={moveInstalment}
-      />
+
     </ViewLayout>
   );
 }

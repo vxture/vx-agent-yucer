@@ -331,7 +331,15 @@ test("a domain home exists exactly where the domain holds two or more routes", (
       `${d.key} has ${routes} route(s); hasHome must follow that, not a hand-kept list`,
     );
   }
-  assert.deepEqual([...DOMAINS_WITH_HOME].sort(), ["armory", "position", "recon"]);
+  // FIVE since 2026-08-30, and the change came from the modules rather than
+  // from an edit here: promoting the six sections to pages gave deployment and
+  // settlement a second route each, so the measured rule reached them on its
+  // own. The list is asserted, not maintained - if it ever needs hand-editing
+  // to pass, the rule stopped being measured.
+  assert.deepEqual(
+    [...DOMAINS_WITH_HOME].sort(),
+    ["armory", "deployment", "position", "recon", "settlement"],
+  );
 });
 
 test("the domain name never resolves to one of its own module rows", () => {
@@ -378,8 +386,8 @@ test("the domain is found from a HOME path, not only from a module route", () =>
   assert.equal(activeDomainFromPath("/account"), "position");
   assert.equal(activeDomainFromPath("/domain/position"), "position");
   assert.equal(activeDomainFromPath("/domain/armory"), "armory");
-  // A domain with no home has no such path, so claiming one is not a domain.
-  assert.equal(activeDomainFromPath("/domain/settlement"), null);
+  // Every domain has a home now; a key that is not a domain still has none.
+  assert.equal(activeDomainFromPath("/domain/settlement"), "settlement");
   assert.equal(activeDomainFromPath("/domain/nonsense"), null);
   assert.equal(activeDomainFromPath("/"), null);
 });

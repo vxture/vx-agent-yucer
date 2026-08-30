@@ -166,14 +166,7 @@ export default async function StrategyPage() {
         onCreate={createStrategyPlan}
       />
 
-      <SegmentPanel
-        rows={segmentRows}
-        plans={openPlans}
-        canEdit={
-          can(session.authz, session.entitlement, "strategy.segment.upsert", "ui").allowed
-        }
-        onSave={saveSegment}
-      />
+
 
       <Section
         icon="graph"

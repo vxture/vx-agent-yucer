@@ -291,21 +291,7 @@ export default async function PipelinePage({
         }
       />
 
-      {pendingReviews.ok ? (
-        <PendingReviews
-          opportunities={pendingReviews.value}
-          allClosed={closed}
-          canRecord={
-            can(
-              session.authz,
-              session.entitlement,
-              "pipeline.winloss.record",
-              "ui",
-            ).allowed
-          }
-          onRecord={recordReview}
-        />
-      ) : null}
+
     </ViewLayout>
   );
 }

@@ -158,18 +158,7 @@ export default async function PlanningPage() {
           PRECONDITION for a regional target, so a reader who finds the scope
           selector empty needs the next thing they see to be where regions come
           from - not a list of targets they cannot yet scope. */}
-      <TerritoryPanel
-        rows={territories.ok ? territories.value : []}
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "planning.territory.upsert",
-            "ui",
-          ).allowed
-        }
-        onSave={saveTerritory}
-      />
+
 
       <Section
         icon="target"
