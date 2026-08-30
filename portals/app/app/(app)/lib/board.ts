@@ -1,4 +1,6 @@
 import { cache } from "react";
+import { resolveNavigation } from "./navigation";
+import { primaryHref, resolveFunctionalDomains } from "./functional-domains";
 import type { Entitlement } from "../../entitlement/types";
 import type { AuthzContext } from "../../authz/context";
 import {
@@ -168,10 +170,46 @@ function count(
   return [{ label, value: String(result.value.length) }];
 }
 
+/**
+ * Group the per-route archive cards under the five functional domains.
+ *
+ * The grouping is READ from FUNCTIONAL_DOMAINS rather than restated: a sixth
+ * domain, or a module moving between two, must not need an edit here. Only
+ * `built` modules appear - a section row is part of a page already listed, and
+ * a planned one has no number to carry.
+ *
+ * A domain with no reachable module contributes nothing, so a permission gap
+ * stays as silent here as it is in the launcher.
+ */
+function archiveByDomain(
+  cards: Record<string, { title: string; href: string; metrics: BoardMetric[] }>,
+  ctx: BoardContext,
+  groupLabel: Record<string, string>,
+): BoardSection[] {
+  const nav = resolveNavigation(ctx.holder, ctx.entitlement);
+  const out: BoardSection[] = [];
+  for (const domain of resolveFunctionalDomains(nav)) {
+    const rows = domain.modules
+      .filter((m): m is Extract<typeof m, { kind: "built" }> => m.kind === "built")
+      .map((m) => cards[m.key])
+      .filter(Boolean);
+    if (rows.length === 0) continue;
+    out.push({
+      key: `domain-${domain.key}`,
+      title: groupLabel[domain.key] ?? domain.key,
+      // The same destination the domain name has everywhere else: its home
+      // where it has one, its single page where it is that page.
+      href: primaryHref(domain) ?? rows[0].href,
+      metrics: rows.flatMap((r) => r.metrics),
+    });
+  }
+  return out;
+}
+
 export async function boardSections(
   ctx: BoardContext,
 ): Promise<BoardSection[]> {
-  const { BOARD_TEXT, FORECAST_LABEL } = await getMessages();
+  const { BOARD_TEXT, FORECAST_LABEL, DOMAIN_GROUP_LABEL } = await getMessages();
   const base = {
     workspaceId: ctx.workspaceId,
     sub: ctx.sub,
@@ -519,50 +557,47 @@ export async function boardSections(
           },
         ]
       : []),
-    // The archive, each with the one number that says whether it is worth
-    // opening.
-    {
-      key: "strategy",
-      title: BOARD_TEXT.strategy,
-      href: "/strategy",
-      metrics: count(plans, BOARD_TEXT.plans),
-    },
-    {
-      key: "campaign",
-      title: BOARD_TEXT.campaign,
-      href: "/campaign",
-      metrics: count(campaigns, BOARD_TEXT.campaigns),
-    },
-    {
-      key: "planning",
-      title: BOARD_TEXT.planning,
-      href: "/planning",
-      metrics: [
-        ...count(targets, BOARD_TEXT.targets),
-        ...count(territories, BOARD_TEXT.territories),
-      ],
-    },
-    {
-      key: "account",
-      title: BOARD_TEXT.account,
-      href: "/account",
-      metrics: count(accounts, BOARD_TEXT.accounts),
-    },
-    {
-      key: "signal",
-      title: BOARD_TEXT.signal,
-      href: "/signal",
-      metrics: [
-        ...count(signals, BOARD_TEXT.signals),
-        ...count(leads, BOARD_TEXT.leads),
-      ],
-    },
-    {
-      key: "delivery",
-      title: BOARD_TEXT.delivery,
-      href: "/delivery",
-      metrics: count(projects, BOARD_TEXT.projects),
-    },
+    // THE ARCHIVE, GROUPED BY THE FIVE FUNCTIONAL DOMAINS.
+    //
+    // It used to be six flat cards - one per route, in route order, with no
+    // statement about how they relate. That was the navigation of a product
+    // that had no domains. The launcher, the module strip and the domain homes
+    // all speak in five groupings now, and a board that kept listing routes
+    // was the one surface still describing the OLD shape: a reader who learned
+    // "阵地经营域 holds accounts and deals" from the launcher found them in
+    // this list separated by 商机侦探, which belongs to a different domain.
+    //
+    // Each block names its domain and carries its modules' one-number
+    // summaries. The domain title links where the domain name links anywhere
+    // else - its home when it has one, its single page when it is that page -
+    // so the same word goes to the same place in all four surfaces.
+    //
+    // Domains a member cannot reach at all disappear, which resolveArchive
+    // gets for free: it reads the same resolved navigation everything else
+    // does, so a permission gap is silent here exactly as it is in the
+    // launcher.
+    ...archiveByDomain(
+      {
+        strategy: { title: BOARD_TEXT.strategy, href: "/strategy", metrics: count(plans, BOARD_TEXT.plans) },
+        campaign: { title: BOARD_TEXT.campaign, href: "/campaign", metrics: count(campaigns, BOARD_TEXT.campaigns) },
+        planning: {
+          title: BOARD_TEXT.planning,
+          href: "/planning",
+          metrics: [...count(targets, BOARD_TEXT.targets), ...count(territories, BOARD_TEXT.territories)],
+        },
+        account: { title: BOARD_TEXT.account, href: "/account", metrics: count(accounts, BOARD_TEXT.accounts) },
+        signal: {
+          title: BOARD_TEXT.signal,
+          href: "/signal",
+          metrics: [...count(signals, BOARD_TEXT.signals), ...count(leads, BOARD_TEXT.leads)],
+        },
+        delivery: { title: BOARD_TEXT.delivery, href: "/delivery", metrics: count(projects, BOARD_TEXT.projects) },
+        catalog: { title: BOARD_TEXT.catalog, href: "/catalog", metrics: count(catalogueResult, BOARD_TEXT.catalogProducts) },
+        pipeline: { title: BOARD_TEXT.pipelineArchive, href: "/pipeline", metrics: count(deals, BOARD_TEXT.deals) },
+      },
+      ctx,
+      DOMAIN_GROUP_LABEL,
+    ),
   ];
 
   // Shown only with a workspace-scope committed target AND a snapshot behind

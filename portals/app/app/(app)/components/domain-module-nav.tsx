@@ -32,11 +32,14 @@ import { useMessages } from "../lib/i18n/provider";
 // its other link-buttons.
 
 export interface DomainModuleNavProps {
+  /** The full path: a domain HOME (/domain/position) is in its domain too, and
+   *  the first segment alone cannot say which. */
+  readonly pathname: string;
   readonly nav: readonly ResolvedNavEntry[];
   readonly activeKey: string;
 }
 
-export function DomainModuleNav({ nav, activeKey }: DomainModuleNavProps) {
+export function DomainModuleNav({ nav, activeKey, pathname }: DomainModuleNavProps) {
   const {
     DOMAIN_LABEL,
     DOMAIN_GROUP_LABEL,
@@ -44,7 +47,7 @@ export function DomainModuleNav({ nav, activeKey }: DomainModuleNavProps) {
     LAUNCHER_TEXT,
   } = useMessages();
 
-  const domain = domainOf(activeKey, nav);
+  const domain = domainOf(pathname, nav);
   if (!domain) return null;
 
   // COUNTS EVERY MODULE, NOT JUST THE REACHABLE ONES.

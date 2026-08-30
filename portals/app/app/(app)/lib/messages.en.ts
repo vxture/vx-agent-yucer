@@ -1872,6 +1872,10 @@ export const en: Dictionary = {
   // The left board and the right deck - the two flanks, on every page.
   // Replaces the partial override that pulled `wan` forward for /pipeline.
   BOARD_TEXT: {
+    catalog: "Catalogue",
+    pipelineArchive: "Deals",
+    deals: "deals",
+    catalogProducts: "products",
     openThread: "Full conversation",
     queue: "Your calls",
     ledeToday: "For you today",

@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import {
   CROSSCUTTING_MODULES,
   DOMAINS_WITH_HOME,
+  activeDomainFromPath,
   FUNCTIONAL_DOMAINS,
   activeDomainKey,
   hasHome,
@@ -368,4 +369,56 @@ test("every domain with a home has a fact assembler, and no assembler is orphane
   // the module list this page was argued against, and an assembler for a
   // domain with no home is code nothing can reach.
   assert.deepEqual([...FACT_DOMAINS].sort(), [...DOMAINS_WITH_HOME].sort());
+});
+
+test("the domain is found from a HOME path, not only from a module route", () => {
+  // The regression the domain homes introduced: activeKey is the first path
+  // segment, which is "domain" on /domain/position - so the module strip
+  // vanished on exactly the page that IS the domain.
+  assert.equal(activeDomainFromPath("/account"), "position");
+  assert.equal(activeDomainFromPath("/domain/position"), "position");
+  assert.equal(activeDomainFromPath("/domain/armory"), "armory");
+  // A domain with no home has no such path, so claiming one is not a domain.
+  assert.equal(activeDomainFromPath("/domain/settlement"), null);
+  assert.equal(activeDomainFromPath("/domain/nonsense"), null);
+  assert.equal(activeDomainFromPath("/"), null);
+});
+
+test("all four domain-naming surfaces send the name to the same place", () => {
+  // The launcher, the module strip, the board archive and the domain home all
+  // print the same five words. A reader who learns where 阵地经营域 goes in
+  // one of them must not be surprised by another - so they all read
+  // primaryHref rather than each deciding.
+  const nav: ResolvedNavEntry[] = NAV_ENTRIES.map((e) => ({
+    ...e,
+    state: "visible" as const,
+    decision: { allowed: true } as never,
+  }));
+  for (const d of resolveFunctionalDomains(nav)) {
+    const href = primaryHref(d);
+    assert.ok(href, `${d.key} must have somewhere to go with full access`);
+    assert.equal(
+      href,
+      hasHome(d.key) ? `/domain/${d.key}` : href,
+      `${d.key}: the name must go to its home when it has one`,
+    );
+  }
+});
+
+test("the board archive asks primaryHref rather than choosing its own destination", () => {
+  // The other three surfaces import primaryHref and are covered by the test
+  // above. The board builds its rows itself, so nothing in the type system
+  // stops it picking rows[0].href and quietly disagreeing with the launcher
+  // about where 阵地经营域 goes. Read the source and hold it to the shared
+  // answer - the same textual judge gated.test.ts uses on the catalogue.
+  const board = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "board.ts"),
+    "utf8",
+  );
+  const archive = board.slice(board.indexOf("function archiveByDomain"));
+  assert.match(
+    archive.slice(0, archive.indexOf("\n}")),
+    /href: primaryHref\(domain\)/,
+    "the board must take the domain's destination from primaryHref, not invent one",
+  );
 });
