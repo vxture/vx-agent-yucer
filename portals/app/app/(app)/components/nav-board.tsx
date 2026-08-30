@@ -6,6 +6,8 @@ import { Card, Icon, Progress } from "@vxture/design-ui";
 import { BarList, Gauge, Lede } from "./board-chart";
 import type { BoardMetric, BoardSection } from "../lib/board";
 import { menuFor } from "../lib/board-menu";
+import { domainOf } from "../lib/functional-domains";
+import type { ResolvedNavEntry } from "../lib/navigation";
 import { LEVEL_INK } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
@@ -35,6 +37,8 @@ export interface NavBoardProps {
   readonly activeKey: string | null;
   /** The menu is the CURRENT domain's - see menuFor. */
   readonly pathname: string;
+  /** The member's resolved navigation, for the domain's module list. */
+  readonly nav: readonly ResolvedNavEntry[];
 }
 
 /** Spelled out: Tailwind reads source text, so a computed `grid-cols-${n}`
@@ -45,15 +49,25 @@ const COLS: Record<number, string> = {
   3: "grid-cols-3",
 };
 
-export function NavBoard({ sections, pinned, activeKey, pathname }: NavBoardProps) {
+export function NavBoard({ sections, pinned, activeKey, pathname, nav }: NavBoardProps) {
   const { BOARD_TEXT } = useMessages();
   const pinnedSet = new Set(pinned);
   const here = menuFor(sections, pathname);
+  const domain = domainOf(pathname, nav);
   const open = here.filter((s) => pinnedSet.has(s.key));
   const rest = here.filter((s) => !pinnedSet.has(s.key));
 
   return (
     <nav className="flex flex-col gap-xs" aria-label={BOARD_TEXT.boardLabel}>
+      {/* THE DOMAIN'S MODULES, AT THE TOP OF ITS OWN MENU.
+          These sat above the page in the breadcrumb slot until 2026-08-30, on
+          the argument that the left pane was a board answering "how are
+          things" rather than navigation. That argument died when the pane
+          became the domain's menu: the modules ARE what this section contains,
+          so they belong at the head of its menu, above the cards that report
+          on them. */}
+      {domain ? <ModuleList domain={domain} activeKey={activeKey} /> : null}
+
       {open.map((s) => (
         /* A COMMON FLOOR, so the board reads as a rank of instruments rather
            than a ragged stack. 32 on the spacing scale is 128px - the height the
@@ -281,5 +295,55 @@ function Sector({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The current domain's modules, as the head of its menu.
+ *
+ * Planned rows stay and stay dead: the list is this section's whole inventory,
+ * and dropping what is unbuilt would make the domain look finished and quietly
+ * shrink as the product grows the other way.
+ */
+function ModuleList({
+  domain,
+  activeKey,
+}: {
+  domain: NonNullable<ReturnType<typeof domainOf>>;
+  activeKey: string | null;
+}) {
+  const { DOMAIN_LABEL, DOMAIN_GROUP_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT } =
+    useMessages();
+  return (
+    <Card className="p-md">
+      <div className="flex flex-col gap-2xs">
+        <span className="text-muted-foreground flex items-center gap-2xs pb-2xs text-xs">
+          <Icon name={domain.icon} size="sm" />
+          {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
+        </span>
+        {domain.modules.map((m) =>
+          m.kind === "planned" ? (
+            <span
+              key={`planned-${m.key}`}
+              className="text-muted-foreground flex items-center justify-between gap-xs rounded-sm px-xs py-2xs text-sm"
+            >
+              {PLANNED_MODULE_LABEL[m.key] ?? m.key}
+              <span className="text-2xs opacity-70">{LAUNCHER_TEXT.planned}</span>
+            </span>
+          ) : (
+            <Link
+              key={m.key}
+              href={m.href}
+              className={`hover:bg-accent flex items-center gap-xs rounded-sm px-xs py-2xs text-sm ${
+                m.key === activeKey ? "text-primary font-medium" : "text-foreground"
+              }`}
+            >
+              <Icon name={m.icon} size="sm" />
+              {DOMAIN_LABEL[m.key] ?? PLANNED_MODULE_LABEL[m.key] ?? m.key}
+            </Link>
+          ),
+        )}
+      </div>
+    </Card>
   );
 }

@@ -25,7 +25,6 @@ import {
 import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
-import { DomainModuleNav } from "./domain-module-nav";
 import { NavBoard } from "./nav-board";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
@@ -564,6 +563,7 @@ export function AppShell({
               pinned={PINNED_SECTIONS}
               activeKey={activeKey}
               pathname={pathname}
+              nav={nav}
             />
           </aside>
         ) : null}
@@ -572,21 +572,6 @@ export function AppShell({
             and it is here rather than on the row because it is a MEASURE, not
             an inset: it keeps prose off the pane edge at any window width. */}
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-md">
-          {/* THE DOMAIN YOU ARE STANDING IN, and its other modules.
-
-              Above the page rather than in the left pane: the left pane is the
-              board, which answers "how are things" and is not navigation, and
-              a second column of links would put two different questions in the
-              same place. It rides with the page because it is about the page.
-
-              Gated by the same isDetail switch as the board, for the same
-              reason - on a detail page you chose one object, and a menu of
-              sibling modules is a question you are not asking. */}
-          {boardVisible ? (
-            <div className="pb-md">
-              <DomainModuleNav nav={nav} activeKey={activeKey} pathname={pathname} />
-            </div>
-          ) : null}
           {children}
         </div>
 
