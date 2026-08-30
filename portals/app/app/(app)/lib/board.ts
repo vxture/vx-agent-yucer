@@ -1,6 +1,10 @@
 import { cache } from "react";
 import { resolveNavigation } from "./navigation";
-import { primaryHref, resolveFunctionalDomains } from "./functional-domains";
+import {
+  activeDomainFromPath,
+  primaryHref,
+  resolveFunctionalDomains,
+} from "./functional-domains";
 import type { Entitlement } from "../../entitlement/types";
 import type { AuthzContext } from "../../authz/context";
 import {
@@ -78,6 +82,23 @@ export interface BoardSection {
   readonly key: string;
   readonly title: string;
   readonly href: string;
+  /**
+   * Which of the five this card belongs to, derived from its href - null means
+   * it belongs to none and is shown everywhere.
+   *
+   * THE BOARD IS THE MENU, and before this it was one flat stack of every card
+   * at once: the quota, four judgement cards and five domain blocks, on every
+   * route, whatever you were doing. That is a menu for a product with no
+   * domains. With five relatively independent sections the menu has to be the
+   * section's own - you are in 阵地经营域, so the menu is 阵地经营域's.
+   */
+  readonly domain: string | null;
+  /**
+   * A MAP ENTRY rather than a card of this domain's own work: one row per
+   * domain, shown only when you are not inside one. It is how you choose which
+   * section to enter, so it must not appear once you have.
+   */
+  readonly isMap?: boolean;
   /** Empty when the member cannot read the domain, or nothing exists yet. */
   readonly metrics: readonly BoardMetric[];
   /** 0-100, only where a real denominator exists. */
@@ -181,6 +202,22 @@ function count(
  * A domain with no reachable module contributes nothing, so a permission gap
  * stays as silent here as it is in the launcher.
  */
+/**
+ * Which domain a card belongs to, READ FROM ITS href rather than hand-assigned.
+ *
+ * A card links to the page its numbers came from, and that page already sits
+ * in exactly one domain - so the href IS the answer, and a card moving to a
+ * different page moves menus automatically. Hand-assigning would let the two
+ * drift, and a card filed under a domain it does not link into is a menu
+ * entry that leaves the section when clicked.
+ *
+ * "/" belongs to no domain: the home stream is where you land before choosing
+ * one, so its card is shown in every menu.
+ */
+function domainOfHref(href: string): string | null {
+  return activeDomainFromPath(href);
+}
+
 function archiveByDomain(
   cards: Record<string, { title: string; href: string; metrics: BoardMetric[] }>,
   ctx: BoardContext,
@@ -197,6 +234,8 @@ function archiveByDomain(
     out.push({
       key: `domain-${domain.key}`,
       title: groupLabel[domain.key] ?? domain.key,
+      domain: domain.key,
+      isMap: true,
       // The same destination the domain name has everywhere else: its home
       // where it has one, its single page where it is that page.
       href: primaryHref(domain) ?? rows[0].href,
@@ -381,6 +420,7 @@ export async function boardSections(
       key: "queue",
       title: BOARD_TEXT.queue,
       href: "/",
+      domain: domainOfHref("/"),
       chart: "lede",
       metrics: feed.ok
         ? [
@@ -415,6 +455,7 @@ export async function boardSections(
       key: "resource",
       title: BOARD_TEXT.resource,
       href: "/pipeline",
+      domain: domainOfHref("/pipeline"),
       // TWO ROWS, because this card states a relationship rather than a list.
       // What the period asks for, then what is on hand to meet it - and the
       // pool broken into the funnel, because 881万 of commit and 881万 of
@@ -484,6 +525,7 @@ export async function boardSections(
             title: BOARD_TEXT.allies,
             chart: "lede" as const,
             href: "/account",
+      domain: domainOfHref("/account"),
             // Unreached decision-makers lead. This card exists to raise an
             // alarm, and the alarm is that a deal has nobody in it who can say
             // yes - not that some coaches were built. Coaches and blockers are
@@ -526,6 +568,7 @@ export async function boardSections(
             key: "products",
             title: BOARD_TEXT.productLines,
             href: "/pipeline",
+      domain: domainOfHref("/pipeline"),
             chart: "bars" as const,
             metrics: [
               ...[
@@ -612,6 +655,7 @@ export async function boardSections(
       key: "quota",
       title: BOARD_TEXT.quota(wsTarget.period),
       href: "/planning",
+      domain: domainOfHref("/planning"),
       // Attainment rides as a THIRD figure rather than as a caption under the
       // track. It is a reading in its own right - the one a leader quotes - and
       // as a caption it cost the card a whole row to say what the other two

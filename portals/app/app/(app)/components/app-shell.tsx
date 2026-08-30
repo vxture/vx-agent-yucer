@@ -563,6 +563,7 @@ export function AppShell({
               sections={board}
               pinned={PINNED_SECTIONS}
               activeKey={activeKey}
+              pathname={pathname}
             />
           </aside>
         ) : null}
