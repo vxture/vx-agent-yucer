@@ -71,6 +71,8 @@ export const en: Dictionary = {
     solution: "Solutions",
     pricebook: "Price book",
     territory: "Territories",
+    namedAccount: "Named accounts",
+    quote: "Quotes",
     winLossReview: "Win/loss reviews",
     collection: "Collections",
     pipeline: "Pipeline",
@@ -96,6 +98,25 @@ export const en: Dictionary = {
     settlement: "Settlement",
   },
 
+  NAMED_ACCOUNT_TEXT: {
+    none: "No named accounts yet",
+    noneWhy:
+      "Mark an account strategic or key on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
+  },
+  QUOTE_TEXT: {
+    title: "Quotes",
+    why:
+      "What each deal is currently offering. The lines, the floor and the signature all existed; nothing put them together, so \"what did we quote this customer\" meant opening one deal at a time.",
+    none: "No quotes yet",
+    noneWhy: "Add lines to a deal and its current quote appears here.",
+    colDeal: "Deal",
+    colAccount: "Account",
+    colStage: "Stage",
+    colLines: "Lines",
+    colAmount: "Quoted",
+    colSignature: "Awaiting signature",
+    awaiting: (n: number) => `${n} unsigned`,
+  },
   DOMAIN_FACT_LABEL: {
     activePlans: "Active plans",
     segments: "Segments",
