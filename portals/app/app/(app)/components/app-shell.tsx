@@ -583,7 +583,7 @@ export function AppShell({
               sibling modules is a question you are not asking. */}
           {boardVisible ? (
             <div className="pb-md">
-              <DomainModuleNav nav={nav} activeKey={activeKey} />
+              <DomainModuleNav nav={nav} activeKey={activeKey} pathname={pathname} />
             </div>
           ) : null}
           {children}

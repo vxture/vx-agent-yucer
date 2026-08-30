@@ -346,6 +346,23 @@ export function primaryHref(domain: ResolvedDomain): string | null {
   return null;
 }
 
+/**
+ * Which of the five you are standing in, from the PATH rather than the nav key.
+ *
+ * The nav key is the first path segment, which is the domain's own key for a
+ * module route (/account -> "account") but is the literal "domain" for a home
+ * (/domain/position). Reading only the nav key therefore lost the domain on
+ * exactly the page that IS the domain - the module strip vanished on the home
+ * it belongs to. The path knows; the key does not.
+ */
+export function activeDomainFromPath(pathname: string): string | null {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments[0] === "domain" && segments[1]) {
+    return hasHome(segments[1]) ? segments[1] : null;
+  }
+  return activeDomainKey(segments[0] ?? "home");
+}
+
 /** Which of the five contains the route currently on screen, if any. */
 export function activeDomainKey(navKey: string): string | null {
   for (const domain of FUNCTIONAL_DOMAINS) {
@@ -365,10 +382,10 @@ export function activeDomainKey(navKey: string): string | null {
  * are, which is the half that makes it a nav rather than a toolbar.
  */
 export function domainOf(
-  navKey: string,
+  pathname: string,
   nav: readonly ResolvedNavEntry[],
 ): ResolvedDomain | null {
-  const key = activeDomainKey(navKey);
+  const key = activeDomainFromPath(pathname);
   if (!key) return null;
   return resolveFunctionalDomains(nav).find((d) => d.key === key) ?? null;
 }
