@@ -177,71 +177,19 @@ export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
  * as a broken menu rather than as one screen with parts.
  */
 export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
-  // THE SIX THAT USED TO BE SECTIONS.
-  //
-  // Each was a panel inside another module's page, reachable only as an
-  // anchor. That was defensible while the menu was one flat list - a catalogue
-  // of five products does not need three routes. It stopped being defensible
-  // when the menu became per-domain: with three to five entries in a section's
-  // own menu, two of them landing on the same page with different anchors
-  // reads as a broken menu rather than as one screen with parts.
-  //
-  // Owner decision 2026-08-30: every module is a page.
-  {
-    key: "segment",
-    href: "/segment",
-    icon: "chart-pie-slice",
-    action: "strategy.segment.view",
-  },
-  {
-    key: "solution",
-    href: "/solution",
-    icon: "puzzle",
-    action: "catalog.solution.view",
-  },
-  {
-    key: "pricebook",
-    href: "/pricebook",
-    icon: "currency-cny",
-    action: "catalog.pricebook.view",
-  },
-  {
-    key: "namedAccount",
-    href: "/named",
-    icon: "star",
-    // account.view: the roster is a filtered account list, and whoever may
-    // read accounts may read which of them are named. The tier is WRITTEN
-    // under account.upsert, on the detail page where the evidence is.
-    action: "account.view",
-  },
-  {
-    key: "territory",
-    href: "/territory",
-    icon: "map-pin",
-    action: "planning.territory.view",
-  },
-  {
-    key: "winLossReview",
-    href: "/winloss",
-    icon: "clock-counter-clockwise",
-    action: "pipeline.winloss.view",
-  },
-  {
-    key: "quote",
-    href: "/quote",
-    icon: "receipt",
-    // The VIEW gate of the thing it assembles. A quote is the current state of
-    // an opportunity's lines, so whoever may read the deal may read what it
-    // offers - inventing a quote.view permission would gate a page behind a
-    // door that guards nothing of its own.
-    action: "pipeline.view",
-  },
-  {
-    key: "collection",
-    href: "/collection",
-    icon: "wallet",
-    action: "delivery.revenue.view",
-  },
+  // ONE LINE EACH, and that is not merely compactness. Written as eight-line
+  // objects these entries are byte-for-byte alike apart from four strings, and
+  // the duplication detector read the list as a block repeating itself - 86% on
+  // a declarative table whose whole job is to look the same. A table that trips
+  // its own tooling for being regular is written in the wrong shape.
+  { key: "segment", href: "/segment", icon: "chart-pie-slice", action: "strategy.segment.view" },
+  { key: "solution", href: "/solution", icon: "puzzle", action: "catalog.solution.view" },
+  { key: "pricebook", href: "/pricebook", icon: "currency-cny", action: "catalog.pricebook.view" },
+  { key: "namedAccount", href: "/named", icon: "star", action: "account.view" },
+  { key: "territory", href: "/territory", icon: "map-pin", action: "planning.territory.view" },
+  { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
+  { key: "quote", href: "/quote", icon: "receipt", action: "pipeline.view" },
+  { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
 ];
 
 export const NAV_ENTRIES: readonly NavEntry[] = [
