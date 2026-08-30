@@ -33,6 +33,14 @@ import type {
 // and a single form guarded by the weaker of the two would hand the floor to
 // whoever can rename a product.
 
+/**
+ * The shapes the three catalogue sections take between them.
+ *
+ * No component takes all of it: each section Picks the three or four fields it
+ * uses. It stays one declaration because the fields are the same fields - a
+ * price entry's shape does not change depending on which page renders it - and
+ * three copies would be three things to keep in step.
+ */
 export interface CatalogPanelsProps {
   readonly products: readonly ProductRecord[];
   readonly solutions: readonly {
@@ -63,17 +71,11 @@ export interface CatalogPanelsProps {
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export function CatalogPanels({
+export function ProductSection({
   products,
-  solutions,
-  prices,
   canWrite,
-  canPrice,
-  canSolution,
   onSaveProduct,
-  onSaveSolution,
-  onSavePrice,
-}: CatalogPanelsProps) {
+}: Pick<CatalogPanelsProps, "products" | "canWrite" | "onSaveProduct">) {
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
   const productName = new Map(products.map((p) => [p.id, p.name]));
 
