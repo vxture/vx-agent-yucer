@@ -85,7 +85,15 @@ export function planTerritory(
     }
   }
 
-  return ok({ ...input, territoryCode, name });
+  // THE REGION LIST IS VALIDATED HERE, and until 2026-08-31 it was validated
+  // nowhere. `regions` arrived with 0017, `upsertTerritory` has always written
+  // it, and the validator sat in signal/lib/routing.ts - another domain, which
+  // this write path had no reason to import - so whatever a caller sent went
+  // to the database as-is.
+  const regions = planTerritoryRegions(input.regions ?? []);
+  if (!regions.ok) return regions as RuleResult<TerritoryDraft>;
+
+  return ok({ ...input, territoryCode, name, regions: regions.value });
 }
 
 /** Whether following parent links from `fromId` ever arrives at `targetId`. */
@@ -99,4 +107,27 @@ function reaches(all: readonly KnownTerritory[], fromId: string, targetId: strin
     cursor = byId.get(cursor)?.parentId ?? null;
   }
   return false;
+}
+
+/**
+ * Refuse a region list that would silently cover nothing or match sloppily.
+ *
+ * MOVED HERE FROM signal/lib/routing.ts on 2026-08-31. A territory is D2's
+ * object and this is where the rest of the row is planned; over in D5 it sat
+ * beside a router that only READS territories, so the one path that writes
+ * them could not naturally reach it. That is the whole reason it never had a
+ * caller - it was correct code in the wrong domain.
+ *
+ * Trims, drops blanks, and de-duplicates rather than rejecting: a list pasted
+ * from a spreadsheet arrives with stray whitespace and repeats, and refusing
+ * it outright would teach people to clean data by hand before every save. A
+ * name too long to be a region is a different matter - that is a paste of the
+ * wrong column, and accepting it would put a sentence in the map.
+ */
+export function planTerritoryRegions(regions: readonly string[]): RuleResult<string[]> {
+  const cleaned = [...new Set(regions.map((r) => r.trim()).filter(Boolean))];
+  if (cleaned.some((r) => r.length > 64)) {
+    return fail(violation("region_too_long", "a region name is at most 64 characters", "regions"));
+  }
+  return ok(cleaned);
 }

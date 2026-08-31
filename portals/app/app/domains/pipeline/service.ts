@@ -19,6 +19,7 @@ import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/li
 import { planNewOpportunity, type NewOpportunityDraft } from "./lib/opportunity";
 import {
   daysAtStage,
+  planSuggestedCategory,
   suggestCategory,
   type CategorizableDeal,
   type CategoryVerdict,
@@ -745,4 +746,53 @@ export async function previewCategories(
 
 function agreesOrSettled(v: CategoryVerdict): boolean {
   return v.kind === "settled" || v.agrees;
+}
+
+/**
+ * Apply the rule's suggestion to one deal, re-derived at the moment of the click.
+ *
+ * NOT TAKEN FROM THE PAGE. The first version of the apply path trusted the
+ * category the browser sent - validated as a member of the enum, and otherwise
+ * believed. A page can be minutes old, and in that time the rep can have moved
+ * the deal, set a close date, or filed it where the rule wanted it anyway; the
+ * suggestion the button was drawn from may simply no longer exist.
+ *
+ * `/renewal` already re-derived on apply for exactly this reason and this path
+ * did not - the same batch shipping two different answers to one question. It
+ * also left `planSuggestedCategory` with no caller at all while its own
+ * docstring described this function using it, which is how it surfaced.
+ *
+ * The write still goes through `updateCommercialTerms`, so
+ * `pipeline.forecast.categorize` and `planCategoryChange` both still apply.
+ */
+export async function applyCategorySuggestion(
+  ctx: PipelineContext,
+  opportunityId: string,
+  opts: { now?: Date; stallDays?: number } = {},
+): Promise<RuleResult<OpportunityRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  if (!current) {
+    return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
+  }
+
+  const lastMoved = await ctx.store.latestStageChangeAt(ctx.workspaceId);
+  const deal: CategorizableDeal = {
+    id: current.id,
+    stage: current.stage,
+    forecastCategory: current.forecastCategory,
+    probability: current.probability,
+    expectedCloseAt: current.expectedCloseAt,
+    lastStageChangeAt: lastMoved.get(current.id) ?? null,
+  };
+
+  const verdict = suggestCategory(deal, opts.now ?? new Date(), { stallDays: opts.stallDays });
+  const plan = planSuggestedCategory(deal, verdict);
+  if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
+
+  return updateCommercialTerms(ctx, opportunityId, {
+    forecastCategory: plan.value.forecastCategory,
+  });
 }

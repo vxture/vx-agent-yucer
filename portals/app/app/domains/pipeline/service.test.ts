@@ -12,6 +12,7 @@ import {
   listPipeline,
   approveLineDiscount,
   createOpportunity,
+  applyCategorySuggestion,
   listRenewedProjectIds,
   previewCategories,
   updateCommercialTerms,
@@ -696,4 +697,45 @@ test("the preview is refused to a workspace with no entitlement", async () => {
   const store = new InMemoryPipelineStore();
   const result = await previewCategories(ctx("viewer", null, store));
   assert.equal(result.ok, false);
+});
+
+test("applying re-derives, so a stale page cannot write a suggestion that expired", async () => {
+  // THE DEFECT THIS CLOSES: the action used to send the category it had drawn
+  // the button from. A page minutes old could apply a suggestion the row no
+  // longer produces - and inside the enum, a crafted request could file a deal
+  // anywhere.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ stage: "negotiate", probability: 90, forecastCategory: "commit", expectedCloseAt: null }),
+  ]);
+  const c = ctx("sales_leader", "pro", store);
+
+  const applied = unwrap(await applyCategorySuggestion(c, "opp_1"));
+  assert.equal(applied.forecastCategory, "pipeline");
+
+  // Now it agrees, so there is nothing left to apply and a second click is
+  // refused rather than writing the same value again.
+  const again = await applyCategorySuggestion(c, "opp_1");
+  assert.equal(again.ok, false);
+  assert.equal(again.ok ? "" : again.violations[0].code, "category_already_agrees");
+});
+
+test("applying is refused on a deal whose category is not a judgement", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ id: "opp_won", stage: "won", status: "won", forecastCategory: "closed" })]);
+  const r = await applyCategorySuggestion(ctx("sales_leader", "pro", store), "opp_won");
+  assert.equal(r.ok, false);
+  assert.equal(r.ok ? "" : r.violations[0].code, "category_settled");
+});
+
+test("applying still needs the categorize permission underneath", async () => {
+  // The re-derivation happens behind pipeline.forecast.view, but the WRITE is
+  // still updateCommercialTerms - so a rep gets as far as a valid plan and is
+  // then refused by the gate that owns the forecast commitment.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ stage: "negotiate", probability: 90, forecastCategory: "commit", expectedCloseAt: null }),
+  ]);
+  const r = await applyCategorySuggestion(ctx("sales_rep", "pro", store), "opp_1");
+  assert.equal(r.ok, false);
 });

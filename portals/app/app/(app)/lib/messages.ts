@@ -1357,6 +1357,8 @@ export const TERRITORY_ERROR: Record<string, string> = {
   unknown_status: "未知的区域状态",
   parent_not_found: "上级区域不存在",
   parent_cycle: "区域不能直接或间接地成为自己的上级",
+  // 可达是 2026-08-31 才成立的：校验器一直存在，但写路径从没调用过它。
+  region_too_long: "区域名最多 64 个字符——超过这个长度的多半是粘错了列",
 };
 
 /**

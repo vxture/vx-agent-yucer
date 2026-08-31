@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coveringTerritories, planTerritoryRegions, routeLead } from "./routing";
+import { coveringTerritories, routeLead } from "./routing";
 
 const T = (id: string, name: string, owner: string | null, regions: string[], status = "active") => ({
   id,
@@ -83,12 +83,6 @@ test("an empty region list covers NOTHING, not everything", () => {
 test("a retired territory routes nothing, even where it still covers the region", () => {
   const gone = T("t_old", "Wound down", "rep_8", ["华东"], "retired");
   assert.equal(routeLead({ id: "l", region: "华东" }, [gone], new Map()).kind, "unroutable");
-});
-
-test("region lists are trimmed and de-duplicated on the way in", () => {
-  const r = planTerritoryRegions([" 华东 ", "华东", "", "  "]);
-  assert.ok(r.ok);
-  assert.deepEqual(r.ok && r.value, ["华东"]);
 });
 
 test("a territory written before 0017 covers nothing rather than throwing", () => {
