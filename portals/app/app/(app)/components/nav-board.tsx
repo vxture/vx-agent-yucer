@@ -314,36 +314,53 @@ function ModuleList({
 }) {
   const { DOMAIN_LABEL, DOMAIN_GROUP_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT } =
     useMessages();
+
   return (
-    <Card className="p-md">
-      <div className="flex flex-col gap-2xs">
-        <span className="text-muted-foreground flex items-center gap-2xs pb-2xs text-xs">
-          <Icon name={domain.icon} size="sm" />
-          {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
-        </span>
-        {domain.modules.map((m) =>
-          m.kind === "planned" ? (
-            <span
-              key={`planned-${m.key}`}
-              className="text-muted-foreground flex items-center justify-between gap-xs rounded-sm px-xs py-2xs text-sm"
-            >
-              {PLANNED_MODULE_LABEL[m.key] ?? m.key}
+    <>
+      {/* The section names itself once, above its modules. Not a card: it is a
+          label for the cards under it, and giving it one would make the domain
+          look like a sixth module. */}
+      <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-2xs text-xs">
+        <Icon name={domain.icon} size="sm" />
+        {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
+      </span>
+
+      {/* ONE CARD PER MODULE, matching the board cards beneath them. The first
+          version put all of them inside a single card, which made the menu read
+          as one object with a list in it rather than as the section's modules -
+          and a module you cannot point at is a module the menu does not really
+          offer. Lighter than a board card (no min-h-32): these carry a name,
+          not a figure. */}
+      {domain.modules.map((m) =>
+        m.kind === "planned" ? (
+          <Card
+            key={`planned-${m.key}`}
+            className="text-muted-foreground border-dashed p-md"
+          >
+            <div className="flex items-center justify-between gap-xs">
+              <span className="text-sm">{PLANNED_MODULE_LABEL[m.key] ?? m.key}</span>
               <span className="text-2xs opacity-70">{LAUNCHER_TEXT.planned}</span>
-            </span>
-          ) : (
+            </div>
+          </Card>
+        ) : (
+          <Card
+            key={m.key}
+            className={`hover:border-primary p-md ${
+              m.key === activeKey ? "border-primary" : ""
+            }`}
+          >
             <Link
-              key={m.key}
               href={m.href}
-              className={`hover:bg-accent flex items-center gap-xs rounded-sm px-xs py-2xs text-sm ${
+              className={`flex items-center gap-xs text-sm ${
                 m.key === activeKey ? "text-primary font-medium" : "text-foreground"
               }`}
             >
               <Icon name={m.icon} size="sm" />
               {DOMAIN_LABEL[m.key] ?? PLANNED_MODULE_LABEL[m.key] ?? m.key}
             </Link>
-          ),
-        )}
-      </div>
-    </Card>
+          </Card>
+        ),
+      )}
+    </>
   );
 }

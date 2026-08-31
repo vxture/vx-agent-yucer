@@ -33,6 +33,13 @@ export const DEMO_CONTACTS = [
   { name: "周涛", title: "首席运营官", department: "管理层" },
 ] as const;
 
+/** Which regions each demo territory covers - the join lead routing needs. */
+export const DEMO_TERRITORY_REGIONS: Record<string, readonly string[]> = {
+  EAST: ["华东", "华中"],
+  NORTH: ["华北", "西北"],
+  SOUTH: ["华南", "西南"],
+};
+
 export const DEMO_SEGMENTS = [
   {
     code: "ENTERPRISE",

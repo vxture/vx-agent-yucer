@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 const INCR_DIR = "deploy/database/ddl/incr";
+const DDL_DIR = "deploy/database/ddl";
 const STRICT = process.argv.includes("--strict");
 
 /** Strip line comments so a commented-out statement never counts as real. */
@@ -94,10 +95,52 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const offenders = [];
   let createdTotal = 0;
 
+  // THE OTHER HALF OF THE SAME ORDERING, and the one that actually fired.
+  //
+  // 98 runs BEFORE incr/, so it may only name columns that exist by then. On
+  // 2026-08-30 a grant for `engagement_type` - a column increment 0018 adds -
+  // went into 98, and db-init died on
+  //
+  //   ERROR: column "engagement_type" of relation "project" does not exist
+  //
+  // taking the whole apply down. The existing check covers tables created by an
+  // increment; nothing covered COLUMNS added by one, and the failure mode is
+  // identical: a file granting something that is not there yet.
+  const lateColumns = [];
+  {
+    // NOT wrapped in a try that returns "". The first version of this check was,
+    // and DDL_DIR was undefined - so the read threw, the catch swallowed it, the
+    // granted-column set was empty and the check passed on the very input it was
+    // written for. A guard that cannot fail is worse than no guard: it reports
+    // safety. If 98 is unreadable, that is itself the finding.
+    const locks = uncommented(readFileSync(join(DDL_DIR, "98_column_locks.sql"), "utf8"));
+    const granted = new Set();
+    for (const m of locks.matchAll(/GRANT\s+UPDATE\s*\(([^)]*)\)/gi)) {
+      for (const c of m[1].split(",")) granted.add(c.trim());
+    }
+    for (const f of files) {
+      const text = uncommented(readFileSync(join(INCR_DIR, f), "utf8"));
+      for (const m of text.matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi)) {
+        if (granted.has(m[1])) lateColumns.push(`${f} adds ${m[1]}, but 98 grants it`);
+      }
+    }
+  }
+
   for (const f of files) {
     const missing = auditIncrement(readFileSync(join(INCR_DIR, f), "utf8"));
     createdTotal += tablesCreated(uncommented(readFileSync(join(INCR_DIR, f), "utf8"))).size;
     for (const t of missing) offenders.push(`${f}: ${t}`);
+  }
+
+  if (lateColumns.length > 0) {
+    console.error("[incr-grants] 98_column_locks.sql grants a column an increment adds later:");
+    for (const o of lateColumns) console.error(`  ${o}`);
+    console.error(
+      "\n  98 runs BEFORE incr/, so the GRANT names a column that does not exist\n" +
+        "  yet and db-init dies on the spot. Keep 98 at the pre-increment baseline\n" +
+        "  and let the increment re-state the full GRANT for its table.",
+    );
+    process.exit(STRICT ? 1 : 0);
   }
 
   if (offenders.length === 0) {

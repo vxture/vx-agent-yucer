@@ -172,6 +172,7 @@ test("a VIEWER may read territories and may not write one", async () => {
     name: "East China",
     parentId: null,
     ownerSub: null,
+    regions: [],
     status: "active",
   });
   assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
@@ -184,6 +185,7 @@ test("a rep cannot maintain territories, a leader can", async () => {
     name: "East China",
     parentId: null,
     ownerSub: null,
+    regions: [],
     status: "active",
   });
   assert.equal(denied.ok, false);
@@ -194,6 +196,7 @@ test("a rep cannot maintain territories, a leader can", async () => {
     name: "East China",
     parentId: null,
     ownerSub: null,
+    regions: [],
     status: "active",
   });
   assert.equal(allowed.ok, true);
@@ -207,6 +210,7 @@ test("the feature key gates it too - a starter workspace is told about the tier"
     name: "East China",
     parentId: null,
     ownerSub: null,
+    regions: [],
     status: "active",
   });
   assert.equal(r.ok === false && r.violations[0]!.code, "feature_not_in_tier");
@@ -221,6 +225,7 @@ test("the same code UPDATES rather than creating a twin", async () => {
       name: "East China",
       parentId: null,
       ownerSub: null,
+      regions: [],
       status: "active",
     }),
   );
@@ -230,6 +235,7 @@ test("the same code UPDATES rather than creating a twin", async () => {
       name: "East China (renamed)",
       parentId: null,
       ownerSub: "usr_1",
+      regions: [],
       status: "active",
     }),
   );
@@ -246,6 +252,7 @@ test("a retired territory leaves the active list but keeps its code", async () =
     name: "North China",
     parentId: null,
     ownerSub: null,
+    regions: [],
   };
   unwrap(await upsertTerritory(c, { ...base, status: "active" }));
   unwrap(await upsertTerritory(c, { ...base, status: "retired" }));
@@ -267,6 +274,7 @@ test("the cycle check sees retired ancestors", async () => {
       name: "East",
       parentId: null,
       ownerSub: null,
+      regions: [],
       status: "active",
     }),
   );
@@ -276,6 +284,7 @@ test("the cycle check sees retired ancestors", async () => {
       name: "North",
       parentId: east.id,
       ownerSub: null,
+      regions: [],
       status: "retired",
     }),
   );
@@ -284,6 +293,7 @@ test("the cycle check sees retired ancestors", async () => {
     name: "East",
     parentId: north.id,
     ownerSub: null,
+    regions: [],
     status: "active",
   });
   assert.equal(r.ok === false && r.violations[0]!.code, "parent_cycle");

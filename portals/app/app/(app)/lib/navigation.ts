@@ -46,7 +46,8 @@ export type NavIcon =
   | "clock-counter-clockwise"
   | "wallet"
   | "receipt"
-  | "star";
+  | "star"
+  | "user-switch";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -189,6 +190,7 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "territory", href: "/territory", icon: "map-pin", action: "planning.territory.view" },
   { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
   { key: "quote", href: "/quote", icon: "receipt", action: "pipeline.view" },
+  { key: "routing", href: "/routing", icon: "user-switch", action: "signal.lead.view" },
   { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
 ];
 

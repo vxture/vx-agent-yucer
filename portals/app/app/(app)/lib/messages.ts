@@ -70,6 +70,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   territory: "销售区域",
   namedAccount: "重点客户",
   quote: "报价管理",
+  routing: "线索分派",
   winLossReview: "赢丢复盘",
   collection: "回款计划",
   planning: "销售规划",
@@ -109,6 +110,29 @@ export const NAMED_ACCOUNT_TEXT = {
   none: "还没有重点客户",
   noneWhy:
     "在客户详情页把一家标为战略或重点，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
+} as const;
+
+export const ROUTING_TEXT = {
+  title: "线索分派",
+  why:
+    "先按区域，再按负载（owner 裁定 2026-08-30）。区域决定谁有资格接，负载决定这几个人里该谁接——顺序反过来，闲着的人会拿到他从没打过的地盘。",
+  none: "没有待分派的线索",
+  noneWhy: "已转化和已判负的线索不在此列——它们的归属已经定了。",
+  colLead: "线索",
+  colCurrent: "当前归属",
+  colSuggested: "规则建议",
+  colBasis: "依据",
+  colApply: "应用",
+  unowned: "无人",
+  alreadyThere: "已在规则位置",
+  apply: "指给他",
+  applied: "已指派",
+  denied: "你没有分派线索的权限。",
+  unroutable: {
+    no_region: "线索未匹配客户，无区域",
+    no_territory: "该区域无区域覆盖",
+    no_owner: "覆盖区域无负责人",
+  } as Record<string, string>,
 } as const;
 
 export const QUOTE_TEXT = {
@@ -385,6 +409,7 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
   conversion_incomplete: "转化信息不完整",
   lead_converted: "这条线索已经转成商机了",
   lead_not_qualified: "线索还没有通过资格判定",
+  owner_required: "分派必须指到具体的人",
 };
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
