@@ -354,7 +354,7 @@ test("sweeping is gated on READING the queue, not on deciding", async () => {
   assert.equal((await expireStaleProposals(viewer, { now: laterBy(TTL + 1) })).ok, true);
   // And the same member still cannot decide one.
   store.seedProposals(WS, [proposal("b")]);
-  assert.equal((await adjudicate(viewer, [{ id: "b", decision: "accept" }])).ok, false);
+  assert.equal((await adjudicate(viewer, ["b"], "accept")).ok, false);
 });
 
 test("sweeping is refused to a workspace with no entitlement", async () => {

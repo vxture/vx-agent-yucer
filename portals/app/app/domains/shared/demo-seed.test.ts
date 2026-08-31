@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { seedDemoWorkspace, type DemoStores } from "./demo-seed";
+import { readFileSync } from "node:fs";
+import { DEMO_NOW, seedDemoWorkspace, type DemoStores } from "./demo-seed";
 import { demoDataEnabled, ensureDemoData, resetDemoSeed, setPipelineStore } from "./registry";
 import { InMemoryAccountStore } from "../account/store";
 import { InMemoryFieldStore } from "../account/field-store";
@@ -458,7 +459,7 @@ test("demo: the evidence plane and the account health inputs tell one story", as
   // latter, and a demo where those disagree is a demo that lies in one mode.
   const last = await s.field.lastContactAt(WS, "acc_demo_1");
   assert.ok(last, "acc_demo_1 has recorded interactions");
-  const days = Math.round((Date.parse("2026-08-15T00:00:00Z") - last.getTime()) / 86_400_000);
+  const days = Math.round((DEMO_NOW.getTime() - last.getTime()) / 86_400_000);
   assert.equal(days, 48);
 
   // A prospect nobody has met has no contact date at all - not a recent one.
@@ -489,7 +490,7 @@ test("demo: the evidence plane and the account health inputs tell one story", as
 test("demo: overdue promises exist on both sides", async () => {
   const s = stores();
   seedDemoWorkspace(WS, s);
-  const at = new Date("2026-08-15T00:00:00Z");
+  const at = DEMO_NOW;
 
   const overdue = await s.field.listCommitments(WS, { overdueAt: at });
   assert.ok(overdue.length >= 2, "the manager list is not empty in the demo");
@@ -506,7 +507,7 @@ test("demo: overdue promises exist on both sides", async () => {
 test("demo: acc_demo_1's kept-rate is what its health score looks like from underneath", async () => {
   const s = stores();
   seedDemoWorkspace(WS, s);
-  const at = new Date("2026-08-15T00:00:00Z");
+  const at = DEMO_NOW;
 
   const r = reliability(await s.field.listCommitments(WS, { accountId: "acc_demo_1" }), at);
   // One resolved miss plus one still-open overdue.
@@ -522,7 +523,7 @@ test("demo: acc_demo_1's kept-rate is what its health score looks like from unde
 test("demo: acc_demo_4 shows the gap the two chain panels exist to separate", async () => {
   const s = stores();
   seedDemoWorkspace(WS, s);
-  const at = new Date("2026-08-15T00:00:00Z");
+  const at = DEMO_NOW;
 
   const contacts = await s.account.listContacts(WS, "acc_demo_4");
   const relations = await s.account.listRelations(WS, "acc_demo_4");
@@ -558,7 +559,7 @@ test("demo: acc_demo_1 is the mirror - access is fine, the promises are not", as
   // reason is entirely in the commitment table.
   const s = stores();
   seedDemoWorkspace(WS, s);
-  const at = new Date("2026-08-15T00:00:00Z");
+  const at = DEMO_NOW;
 
   const contacts = await s.account.listContacts(WS, "acc_demo_1");
   const relations = await s.account.listRelations(WS, "acc_demo_1");
@@ -581,7 +582,7 @@ test("demo: acc_demo_1 is the mirror - access is fine, the promises are not", as
 test("demo: an account with recorded contact answers the warm-path question", async () => {
   const s = stores();
   seedDemoWorkspace(WS, s);
-  const at = new Date("2026-08-15T00:00:00Z");
+  const at = DEMO_NOW;
 
   for (const acc of ["acc_demo_1", "acc_demo_2"]) {
     const contacts = await s.account.listContacts(WS, acc);
@@ -700,4 +701,38 @@ test("the demo's pending proposals survive the expiry rule, and one does not", a
   assert.ok(stillPending.length >= 3, "the demo must keep a working pending queue");
   assert.equal(aged.length, 1, "and exactly one that the sweep will retire, to show it happening");
   assert.equal(aged[0].id, "act_demo_6");
+});
+
+test("nothing about the demo restates the anchor as a literal", () => {
+  // The coupling this removes. Six places in this file wrote
+  // `new Date("2026-08-15T00:00:00Z")` - the same instant the seed used - so
+  // the seed and its tests agreed only as long as nobody moved either. They
+  // ask DEMO_NOW for it now, and this keeps the literal from growing back.
+  //
+  // SCOPED TO THE DEMO, deliberately. Rule and service unit tests pin their own
+  // fixed clock and should: a unit test wants a deterministic instant and has
+  // no demo fixtures in it. Several happen to use the same date, which is
+  // convention, not coupling.
+  const src = readFileSync(new URL("./demo-seed.test.ts", import.meta.url), "utf8");
+  const seed = readFileSync(new URL("./demo-seed.ts", import.meta.url), "utf8");
+  const literal = /new Date\(\s*"20\d\d-\d\d-\d\dT/;
+
+  // Comments are stripped so the paragraph explaining the old literal does not
+  // count as using it - the same trap wired.test.ts documents.
+  const code = (t: string) =>
+    t
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/^\s*\/\/.*$/gm, " ")
+      .replace(/([^:])\/\/.*$/gm, "$1");
+
+  assert.ok(!literal.test(code(seed)), "demo-seed.ts must derive every date from DEMO_NOW");
+  assert.ok(!literal.test(code(src)), "the demo's tests must ask DEMO_NOW for the demo's now");
+});
+
+test("the demo's anchor is the clock the product reads, not a date in the past", () => {
+  // The whole point. A demo seeded against a stale instant shows a reader
+  // relative dates that are wrong by exactly how stale it is - "lapsed 29 days"
+  // for a term seeded at 12 - and, once a rule reads the clock rather than
+  // printing it, changes what the product DOES with the fixtures.
+  assert.ok(Math.abs(Date.now() - DEMO_NOW.getTime()) < 60 * 60 * 1000);
 });
