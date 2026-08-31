@@ -158,25 +158,6 @@ const EVIDENCE_KEYS = [
   "detected_at",
 ] as const;
 
-/**
- * Only the RESOLUTION of a signal is writable: which account it matched, its
- * score, and its lifecycle status. Everything else is the evidence itself.
- */
-export function assertEvidenceUnchanged(patch: Record<string, unknown>): RuleResult<true> {
-  const found = EVIDENCE_KEYS.filter((k) => Object.prototype.hasOwnProperty.call(patch, k));
-  if (found.length === 0) return ok(true);
-  return {
-    ok: false,
-    violations: found.map((k) =>
-      violation(
-        "evidence_immutable",
-        `signal.${k} is evidence and is frozen after creation; rewriting evidence is fabricating it`,
-        k,
-      ),
-    ),
-  };
-}
-
 // --- Lifecycle --------------------------------------------------------------
 
 export interface SignalSnapshot {

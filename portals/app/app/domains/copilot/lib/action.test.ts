@@ -4,7 +4,6 @@ import { unwrap } from "../../shared/result";
 import {
   ACTION_STATUSES,
   DEFAULT_PROPOSAL_TTL_MS,
-  assertProposalUnchanged,
   batchRisk,
   isTerminalStatus,
   planBatchDecision,
@@ -164,27 +163,6 @@ test("the TTL is configurable per call", () => {
 });
 
 // --- Immutability -----------------------------------------------------------
-
-test("the model's own record cannot be edited", () => {
-  // An audit must answer "what did the agent recommend AT THE TIME".
-  for (const key of ["payload", "rationale", "confidence"]) {
-    const r = assertProposalUnchanged({ [key]: "x" });
-    assert.equal(r.ok, false, key);
-    assert.equal(r.ok === false && r.violations[0].code, "proposal_immutable");
-    assert.match(r.ok === false ? r.violations[0].message : "", /new proposal/);
-  }
-});
-
-test("the decision and execution columns stay writable", () => {
-  assert.ok(
-    assertProposalUnchanged({ status: "accepted", decidedBySub: "usr_1", decidedAt: NOW, executedAt: NOW }).ok,
-  );
-});
-
-test("every frozen key in a patch is reported", () => {
-  const r = assertProposalUnchanged({ payload: {}, rationale: "revised", confidence: 99 });
-  assert.equal(r.ok === false && r.violations.length, 3);
-});
 
 // --- Batch adjudication -----------------------------------------------------
 

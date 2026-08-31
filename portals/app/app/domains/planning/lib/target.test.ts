@@ -4,7 +4,6 @@ import { money } from "../../shared/money";
 import { unwrap } from "../../shared/result";
 import {
   TARGET_METRICS,
-  assertScopeUnchanged,
   planTargetCreation,
   planTargetUpdate,
   currencyOf,
@@ -119,15 +118,6 @@ test("changing the currency is refused - it changes what was committed", () => {
 test("an unknown status is refused", () => {
   const r = planTargetUpdate(target(), { status: "cancelled" as never });
   assert.equal(r.ok === false && r.violations[0].code, "unknown_status");
-});
-
-test("the identity tuple is not writable, in either naming style", () => {
-  for (const key of ["period", "scopeType", "scope_type", "territoryId", "ownerSub", "owner_sub", "metric"]) {
-    const r = assertScopeUnchanged({ [key]: "x" });
-    assert.equal(r.ok, false, key);
-    assert.equal(r.ok === false && r.violations[0].code, "scope_immutable");
-  }
-  assert.ok(assertScopeUnchanged({ targetAmount: 1, status: "committed", planId: "p" }).ok);
 });
 
 // --- Units and measurement (TD-013, ADR-020) --------------------------------

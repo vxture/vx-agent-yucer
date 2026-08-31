@@ -235,15 +235,3 @@ export function milestoneProgress(
     ratio: total === 0 ? null : done / total,
   };
 }
-
-/** `sequence` is part of the row's unique key and is never patched. */
-export function assertSequenceUnchanged(patch: Record<string, unknown>): RuleResult<true> {
-  if (!Object.prototype.hasOwnProperty.call(patch, "sequence")) return ok(true);
-  return fail(
-    violation(
-      "sequence_immutable",
-      "revenue_schedule.sequence is part of the row identity; reordering instalments means writing new rows",
-      "sequence",
-    ),
-  );
-}

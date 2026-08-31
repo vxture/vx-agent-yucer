@@ -7,7 +7,6 @@ import {
   SIGNAL_STATUSES,
   SIGNAL_TYPES,
   TYPE_WEIGHT,
-  assertEvidenceUnchanged,
   decayMultiplier,
   dedupKey,
   planPromotion,
@@ -117,23 +116,6 @@ test("the breakdown explains the number, so a low score can be argued with", () 
 });
 
 // --- Rule 3: evidence is frozen --------------------------------------------
-
-test("evidence columns cannot be patched", () => {
-  for (const key of ["source", "sourceRef", "signalType", "subject", "payload", "detectedAt"]) {
-    const r = assertEvidenceUnchanged({ [key]: "x" });
-    assert.equal(r.ok, false, key);
-    assert.equal(r.ok === false && r.violations[0].code, "evidence_immutable");
-    assert.match(r.ok === false ? r.violations[0].message : "", /fabricating/);
-  }
-});
-
-test("the resolution columns stay writable - that is the whole point", () => {
-  assert.ok(assertEvidenceUnchanged({ accountId: "acc_1", score: 82, status: "scored" }).ok);
-});
-
-test("snake_case column names are caught too", () => {
-  assert.equal(assertEvidenceUnchanged({ source_ref: "x", detected_at: "y" }).ok, false);
-});
 
 // --- Dedup ------------------------------------------------------------------
 

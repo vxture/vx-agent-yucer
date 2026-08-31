@@ -216,22 +216,6 @@ export function planTargetUpdate(
 
 const SCOPE_KEYS = ["period", "scopeType", "scope_type", "territoryId", "territory_id", "ownerSub", "owner_sub", "metric"] as const;
 
-/** Guard: the identity tuple is not writable. */
-export function assertScopeUnchanged(patch: Record<string, unknown>): RuleResult<true> {
-  const found = SCOPE_KEYS.filter((k) => Object.prototype.hasOwnProperty.call(patch, k));
-  if (found.length === 0) return ok(true);
-  return {
-    ok: false,
-    violations: found.map((k) =>
-      violation(
-        "scope_immutable",
-        `sales_target.${k} is part of the target's identity; a different scope is a different target`,
-        k,
-      ),
-    ),
-  };
-}
-
 // --- Measuring a target (TD-013, ADR-020) ------------------------------------
 //
 // WHY THIS LIVES IN D2 AND NOT D6. The old `attainment(closed, target)` sat in

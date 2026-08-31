@@ -4,7 +4,6 @@ import { money } from "../../shared/money";
 import { unwrap } from "../../shared/result";
 import {
   REVENUE_STATUSES,
-  assertSequenceUnchanged,
   deriveProjectHealth,
   isOverdue,
   milestoneProgress,
@@ -223,10 +222,4 @@ test("milestone progress counts done and missed separately", () => {
   assert.equal(p.missed, 1);
   assert.equal(p.ratio, 0.5);
   assert.equal(milestoneProgress([]).ratio, null);
-});
-
-test("the instalment sequence is part of the row identity and cannot be patched", () => {
-  const r = assertSequenceUnchanged({ sequence: 3 });
-  assert.equal(r.ok === false && r.violations[0].code, "sequence_immutable");
-  assert.ok(assertSequenceUnchanged({ plannedAmount: 100, status: "invoiced" }).ok);
 });

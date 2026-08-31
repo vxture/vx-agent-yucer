@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   APPEND_ONLY_TABLES,
+  FROZEN_COLUMN_REASON,
   WRITABLE_COLUMNS,
   assertWritable,
   isAppendOnly,
@@ -229,7 +230,11 @@ test("a patch of writable columns passes, in either naming style", () => {
 });
 
 test("a patch touching a locked column is refused with the reason", () => {
-  const r = assertWritable("yucer_pipeline.opportunity", { campaignId: "c" });
+  // `created_at` rather than `campaignId`: since 2026-08-31 the attribution
+  // columns carry their own sentence from FROZEN_COLUMN_REASON, so asserting
+  // the GENERIC wording has to use a column that has no sentence of its own.
+  // The reasoned path is covered below.
+  const r = assertWritable("yucer_pipeline.opportunity", { createdAt: new Date() });
   assert.equal(r.ok, false);
   assert.equal(r.ok === false && r.violations[0].code, "column_not_writable");
   assert.match(r.ok === false ? r.violations[0].message : "", /permission denied/);
@@ -364,4 +369,87 @@ test("every granted column exists in the table it is granted on", () => {
     [],
     `granted on columns that do not exist - db-init would fail on these: ${missing.join(", ")}`,
   );
+});
+
+// --- The frozen-column reasons ---------------------------------------------
+//
+// FROZEN_COLUMN_REASON absorbed six guards on 2026-08-31 - two in attribution,
+// one each in scoring, action, revenue and target - every one of which refused
+// a patch touching a column this module already refuses. They were a second
+// answer to one question. What they had that the generic refusal did not was
+// the reason, so the reason moved here and the guards went.
+//
+// A reason is a comment unless something proves it can fire. These three tests
+// are that proof, against the same three reference points the mirror itself
+// uses: the reason's column must EXIST in the DDL, must be ABSENT from the
+// writable list, and the sentence must actually reach the violation.
+
+test("every frozen-column reason names a column that exists in the DDL", () => {
+  // Otherwise it is a comment pretending to be a rule: a typo'd column can
+  // never appear in a patch, so its reason would never print and nothing would
+  // ever say so. The same third-reference-point argument the mirror uses.
+  const declared = declaredColumns();
+  const missing: string[] = [];
+
+  for (const key of Object.keys(FROZEN_COLUMN_REASON)) {
+    const i = key.lastIndexOf(".");
+    const table = key.slice(0, i);
+    const column = key.slice(i + 1);
+    if (!declared.get(table)?.has(column)) missing.push(key);
+  }
+
+  assert.deepEqual(missing, [], `these frozen-column reasons name a column no CREATE TABLE or ALTER TABLE declares: ${missing.join(", ")}`);
+});
+
+test("every frozen-column reason names a column that is actually frozen", () => {
+  // A reason on a WRITABLE column is worse than none: assertWritable would pass
+  // the patch, the sentence would never appear, and this file would read as
+  // though the column were protected.
+  const wrong: string[] = [];
+
+  for (const key of Object.keys(FROZEN_COLUMN_REASON)) {
+    const i = key.lastIndexOf(".");
+    const table = key.slice(0, i);
+    const column = key.slice(i + 1);
+    if (WRITABLE_COLUMNS[table]?.includes(column)) wrong.push(key);
+  }
+
+  assert.deepEqual(wrong, [], `these columns carry a "frozen" reason and are in the writable list: ${wrong.join(", ")}`);
+});
+
+test("the reason reaches the refusal, for every column that has one", () => {
+  // The six deleted guards each proved this for their own columns. One test
+  // now proves it for all of them, and for any added later without anyone
+  // remembering to write a test.
+  for (const [key, why] of Object.entries(FROZEN_COLUMN_REASON)) {
+    const i = key.lastIndexOf(".");
+    const table = key.slice(0, i);
+    const column = key.slice(i + 1);
+
+    const r = assertWritable(table, { [column]: "x" });
+    assert.equal(r.ok, false, `${key} should be refused`);
+    if (r.ok) continue;
+    assert.equal(r.violations[0].code, "column_not_writable", key);
+    assert.ok(
+      r.violations[0].message.includes(why),
+      `${key}: the refusal must carry its reason, got "${r.violations[0].message}"`,
+    );
+  }
+});
+
+test("a frozen column is refused in camelCase too, reason and all", () => {
+  // Adapters build patches in Prisma's casing. A reason that only fired for
+  // snake_case would miss every real caller.
+  const r = assertWritable("yucer_pipeline.opportunity", { campaignId: "camp_1" });
+  assert.equal(r.ok, false);
+  assert.ok(r.ok || r.violations[0].message.includes("attribution record"));
+});
+
+test("a column with no reason still gets the generic refusal", () => {
+  // Most frozen columns have no sentence of their own and do not need one -
+  // `created_at` is frozen because it is a timestamp nobody edits, which the
+  // generic message already says well enough.
+  const r = assertWritable("yucer_pipeline.opportunity", { created_at: new Date() });
+  assert.equal(r.ok, false);
+  assert.ok(r.ok || r.violations[0].message.includes("permission denied at the database"));
 });
