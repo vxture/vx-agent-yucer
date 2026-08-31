@@ -251,6 +251,23 @@ export class PrismaPipelineStore implements PipelineStore {
     return updated.count > 0;
   }
 
+  async latestStageChangeAt(workspaceId: string): Promise<Map<string, Date>> {
+    const p = await getPrismaClient();
+    // ONE groupBy for the whole workspace. The forecast rule wants the dwell
+    // time of every open deal at once, and asking per deal would be a query
+    // per row on a page whose whole point is the list.
+    const rows = await p.opportunityStageEvent.groupBy({
+      by: ["opportunityId"],
+      where: { workspaceId },
+      _max: { occurredAt: true },
+    });
+    const out = new Map<string, Date>();
+    for (const r of rows as Array<{ opportunityId: string; _max: { occurredAt: Date | null } }>) {
+      if (r._max.occurredAt) out.set(r.opportunityId, r._max.occurredAt);
+    }
+    return out;
+  }
+
   async listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.opportunityStageEvent.findMany({

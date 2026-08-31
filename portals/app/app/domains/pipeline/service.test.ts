@@ -13,6 +13,8 @@ import {
   approveLineDiscount,
   createOpportunity,
   listRenewedProjectIds,
+  previewCategories,
+  updateCommercialTerms,
   replaceOpportunityLines,
   submitForecast,
   type PipelineContext,
@@ -587,5 +589,111 @@ test("the renewed-project set is refused to a workspace with no entitlement", as
   // unentitled workspace is what refusal looks like here.
   const store = new InMemoryPipelineStore();
   const result = await listRenewedProjectIds(ctx("viewer", null, store));
+  assert.equal(result.ok, false);
+});
+
+// --- The forecast rule's read side -----------------------------------------
+
+test("the preview offers a verdict per open deal and excludes the closed", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "opp_open", stage: "negotiate", forecastCategory: "commit" }),
+    opp({ id: "opp_won", stage: "won", status: "won", forecastCategory: "closed" }),
+  ]);
+  const rows = unwrap(await previewCategories(ctx("sales_rep", "business", store)));
+  // listOpportunities excludes terminal deals unless asked, so the settled
+  // rows never reach the page to bury the ones worth reading.
+  assert.deepEqual(rows.map((r) => r.opportunity.id), ["opp_open"]);
+  assert.equal(rows[0].verdict.kind, "suggested");
+});
+
+test("disagreements sort above agreements", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    // Probability pinned rather than left to the shared fixture, which carries
+    // 25 - that lands in `pipeline` and would make BOTH rows disagree, so the
+    // test would pass or fail on the sort's tie-break instead of on the sort.
+    opp({ id: "opp_agrees", stage: "negotiate", probability: 90, forecastCategory: "commit" }),
+    // No close date caps it at pipeline while the rep has it at commit.
+    opp({
+      id: "opp_disagrees",
+      stage: "negotiate",
+      probability: 90,
+      forecastCategory: "commit",
+      expectedCloseAt: null,
+    }),
+  ]);
+  const rows = unwrap(await previewCategories(ctx("sales_rep", "business", store)));
+  assert.deepEqual(rows.map((r) => r.opportunity.id), ["opp_disagrees", "opp_agrees"]);
+});
+
+test("dwell comes from the journal, and a deal with no journal is not stalled", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed(
+    [opp({ id: "opp_moved", stage: "negotiate", probability: 90, forecastCategory: "commit" }),
+     opp({ id: "opp_silent", stage: "negotiate", probability: 90, forecastCategory: "commit" })],
+    {
+      events: [
+        {
+          id: "evt_1",
+          opportunityId: "opp_moved",
+          fromStage: "propose",
+          toStage: "negotiate",
+          reason: null,
+          actorSub: "usr_rep",
+          occurredAt: new Date("2026-01-01T00:00:00Z"),
+        },
+      ],
+    },
+  );
+  const rows = unwrap(
+    await previewCategories(ctx("sales_rep", "business", store), {
+      now: new Date("2026-08-31T00:00:00Z"),
+    }),
+  );
+  const moved = rows.find((r) => r.opportunity.id === "opp_moved")!;
+  const silent = rows.find((r) => r.opportunity.id === "opp_silent")!;
+
+  assert.equal(moved.daysAtStage, 242);
+  assert.equal(moved.verdict.kind === "suggested" && moved.verdict.category, "best_case");
+
+  // UNKNOWN IS NOT "A LONG TIME". Defaulting an empty journal to the deal's
+  // creation date would downgrade every deal older than the journal itself.
+  assert.equal(silent.daysAtStage, null);
+  assert.equal(silent.verdict.kind === "suggested" && silent.verdict.category, "commit");
+});
+
+test("a rep sees the disagreement and cannot apply it", async () => {
+  // THE PERMISSION AXIS. Both calls are on the pro tier, so the entitlement is
+  // not what separates them: the catalog gives sales_rep `pipeline.read` (which
+  // `pipeline.forecast.view` needs) but not `pipeline.forecast` (which
+  // categorize needs). Seeing it is the point; making it go away quietly is not.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ stage: "negotiate", probability: 90, forecastCategory: "commit", expectedCloseAt: null }),
+  ]);
+  const rep = ctx("sales_rep", "pro", store);
+
+  const seen = unwrap(await previewCategories(rep));
+  assert.equal(seen[0].verdict.kind === "suggested" && seen[0].verdict.agrees, false);
+
+  const applied = await updateCommercialTerms(rep, "opp_1", { forecastCategory: "pipeline" });
+  assert.equal(applied.ok, false);
+});
+
+test("a free-tier workspace cannot read the forecast rule at all", async () => {
+  // THE TIER AXIS, which is a different question from who may act. The page is
+  // built entirely on `pipeline.forecast`, a pro capability - gating it on the
+  // free-tier `pipeline.view` would have handed the whole output of a paid
+  // feature to a workspace that never bought it.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp({ stage: "negotiate", probability: 90, forecastCategory: "commit" })]);
+  assert.equal((await previewCategories(ctx("sales_leader", "free", store))).ok, false);
+  assert.equal((await previewCategories(ctx("sales_leader", "pro", store))).ok, true);
+});
+
+test("the preview is refused to a workspace with no entitlement", async () => {
+  const store = new InMemoryPipelineStore();
+  const result = await previewCategories(ctx("viewer", null, store));
   assert.equal(result.ok, false);
 });

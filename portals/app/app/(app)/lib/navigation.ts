@@ -49,7 +49,9 @@ export type NavIcon =
   | "star"
   | "user-switch"
   // Renewal keeps the glyph it carried as a launcher row.
-  | "file-text";
+  | "file-text"
+  // Same for the forecast rule.
+  | "trend-up";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -199,6 +201,17 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   // the page applies to the button alone, so a delivery manager with no
   // pipeline write still sees what is lapsing.
   { key: "renewal", href: "/renewal", icon: "file-text", action: "delivery.project.view" },
+  // `pipeline.forecast.view`, and the choice is between two DIFFERENT axes that
+  // are easy to blur. Its feature is `pipeline.forecast` (pro tier) and its
+  // permission is only `pipeline.read`:
+  //
+  //   - the TIER half keeps a workspace that has not bought forecasting out of
+  //     a page built entirely on it. `pipeline.view` is free tier and would
+  //     have given the capability's whole output away.
+  //   - the PERMISSION half still lets a rep in, because seeing that the rule
+  //     disagrees with them is the point. Applying it needs
+  //     `pipeline.forecast.categorize`, which the page puts on the button alone.
+  { key: "forecastRule", href: "/forecast", icon: "trend-up", action: "pipeline.forecast.view" },
 ];
 
 export const NAV_ENTRIES: readonly NavEntry[] = [

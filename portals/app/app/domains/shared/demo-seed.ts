@@ -642,6 +642,13 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // is null on purpose: a renewal is attributed to the project it renews,
       // never to the campaign that won the first term.
       opp("opp_demo_13", workspaceId, 13, DEMO_OPPORTUNITIES[12], "acc_demo_7", null, "terr_east", REP2, "discover", "pipeline", 880_000, 25, daysAhead(21), null, "open", "prj_demo_6"),
+      // NO EXPECTED CLOSE DATE, filed as commit. Committing IS naming a period,
+      // so the rule caps it at pipeline and the page has to say why. The
+      opp("opp_demo_14", workspaceId, 14, DEMO_OPPORTUNITIES[13], "acc_demo_3", null, "terr_north", REP1, "negotiate", "commit", 1_100_000, 90, null, null, "open"),
+      // THE DATE CAME AND WENT AND IT IS STILL OPEN, and it has not moved stage
+      // in months. Two caps on one row, which is also the only demo case that
+      // renders more than one reason in the basis column.
+      opp("opp_demo_15", workspaceId, 15, DEMO_OPPORTUNITIES[14], "acc_demo_6", null, "terr_east", REP2, "propose", "commit", 670_000, 85, daysAgo(9), null, "open"),
     ],
     {
       // A stage never jumps: every event names the stage it came from, and the
@@ -653,6 +660,9 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
         ...stageHistory("opp_demo_4", ["qualify", "discover", "validate", "propose", "negotiate", "won"], REP1, 150, 15),
         ...stageHistory("opp_demo_5", ["qualify", "discover", "lost"], REP2, 160, 90),
         ...stageHistory("opp_demo_6", ["qualify", "discover", "validate", "propose"], REP2, 70, 6),
+        // Last move 75 days before the demo anchor, so it is past STALL_DAYS
+        // however long after the anchor the page is opened.
+        ...stageHistory("opp_demo_15", ["qualify", "discover", "validate", "propose"], REP2, 200, 75),
       ],
       // Two of the four closed deals are reviewed; the other two are the debt
       // the pipeline page renders.
@@ -1015,7 +1025,10 @@ function opp(
   forecastCategory: string,
   amount: number,
   probability: number,
-  expectedCloseAt: Date,
+  // Nullable, like the column. A deal with no expected close date is an
+  // ordinary state - and the forecast rule's answer to it is one of the things
+  // the demo has to be able to show.
+  expectedCloseAt: Date | null,
   closedAt: Date | null,
   status: string,
   sourceProjectId: string | null = null,
@@ -1044,7 +1057,10 @@ function opp(
     // recorded against it - the capture metric's denominator asks when a deal
     // started being a deal, and a note predating its own opportunity would make
     // a week's coverage exceed one.
-    createdAt: new Date((closedAt ?? expectedCloseAt).getTime() - 130 * 86_400_000),
+    // NOW is the last fallback, for a deal with neither date. Leaving it
+    // undefined would let the store stamp the real clock, and a fixture whose
+    // creation date moves every time the demo is seeded is not a fixture.
+    createdAt: new Date((closedAt ?? expectedCloseAt ?? NOW).getTime() - 130 * 86_400_000),
     closedAt,
     status: status as never,
     currency: CNY,

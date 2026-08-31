@@ -17,6 +17,12 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
 import { planNewOpportunity, type NewOpportunityDraft } from "./lib/opportunity";
+import {
+  daysAtStage,
+  suggestCategory,
+  type CategorizableDeal,
+  type CategoryVerdict,
+} from "./lib/forecast-rule";
 import type { CatalogStore, DiscountApprovalRecord } from "../catalog/store";
 import type { Decision } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
@@ -640,4 +646,103 @@ export async function approveLineDiscount(
       approvedAt: new Date(),
     }),
   );
+}
+
+// ---------------------------------------------------------------------------
+// The forecast rule - a second opinion on where each deal is filed.
+//
+// The owner's ruling of 2026-08-31: SUGGEST, and let a person apply it one deal
+// at a time. Two consequences shape what is here.
+//
+// ONLY A READ IS NEW. Applying a suggestion is a category change, and that path
+// already exists with the right gate on it: `updateCommercialTerms` refuses
+// `forecastCategory` without `pipeline.forecast.categorize`, because the
+// catalog gives a rep `pipeline.write` WITHOUT `pipeline.forecast` on purpose -
+// they own the deal, not the forecast commitment. Adding a second write verb
+// here would be a second door into a room the product deliberately locked.
+//
+// SO THE TWO GATES DIFFER, and that is a feature rather than an oversight: a
+// rep can SEE that the rule disagrees with them and cannot silently make the
+// disagreement go away. Seeing it is the point - the disagreement is what a
+// forecast review is for.
+// ---------------------------------------------------------------------------
+
+export interface CategoryPreview {
+  opportunity: OpportunityRecord;
+  verdict: CategoryVerdict;
+  /** Days at the current stage, or null when the journal has nothing. */
+  daysAtStage: number | null;
+}
+
+/**
+ * Every open deal, with what the rule would file it as.
+ *
+ * ONE EXTRA QUERY, not one per deal. `latestStageChangeAt` rolls the journal up
+ * for the whole workspace in a single groupBy; asking per deal would be a query
+ * per row on a page that exists to be a list.
+ *
+ * CLOSED DEALS ARE EXCLUDED at the store, not filtered after. Their category is
+ * bound to the stage by planCategoryChange in both directions, so there is no
+ * judgement to second-guess - `suggestCategory` returns `settled` for them and
+ * a page full of settled rows would bury the ones that need reading.
+ *
+ * ROWS THE RULE AGREES WITH STAY IN. A forecast review needs to see the whole
+ * book, and a page that showed only disagreements would be read as "these are
+ * the deals with problems" rather than "this is the forecast" - and would hide
+ * how much of the book the rule and the rep already agree about, which is the
+ * context that makes a disagreement mean anything.
+ */
+export async function previewCategories(
+  ctx: PipelineContext,
+  opts: { now?: Date; stallDays?: number } = {},
+): Promise<RuleResult<CategoryPreview[]>> {
+  // `pipeline.forecast.view`, not `pipeline.view`, and the two gates differ on
+  // an axis worth naming: its FEATURE is `pipeline.forecast` (pro tier), while
+  // its PERMISSION is only `pipeline.read`. So a workspace that never bought
+  // forecasting cannot read this, and a rep inside one that did can - which is
+  // the arrangement a forecast review depends on, since applying the suggestion
+  // needs `pipeline.forecast.categorize` and the catalog withholds that from
+  // the person who owns the deal.
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const now = opts.now ?? new Date();
+  const [rows, lastMoved] = await Promise.all([
+    ctx.store.listOpportunities(ctx.workspaceId),
+    ctx.store.latestStageChangeAt(ctx.workspaceId),
+  ]);
+
+  const out = rows.map((opportunity) => {
+    const deal: CategorizableDeal = {
+      id: opportunity.id,
+      stage: opportunity.stage,
+      forecastCategory: opportunity.forecastCategory,
+      probability: opportunity.probability,
+      expectedCloseAt: opportunity.expectedCloseAt,
+      // Absent from the map means no journal rows, which reads as UNKNOWN.
+      // Defaulting to the deal's createdAt would turn "we have no history for
+      // this" into "it has sat here since it was created" and downgrade every
+      // deal older than the journal.
+      lastStageChangeAt: lastMoved.get(opportunity.id) ?? null,
+    };
+    return {
+      opportunity,
+      verdict: suggestCategory(deal, now, { stallDays: opts.stallDays }),
+      daysAtStage: daysAtStage(deal, now),
+    };
+  });
+
+  // Disagreements first, then the longest-sitting. A reviewer reads down until
+  // they stop caring, so the order is the product's claim about what matters.
+  return ok(
+    out.sort(
+      (a, b) =>
+        Number(agreesOrSettled(a.verdict)) - Number(agreesOrSettled(b.verdict)) ||
+        (b.daysAtStage ?? -1) - (a.daysAtStage ?? -1),
+    ),
+  );
+}
+
+function agreesOrSettled(v: CategoryVerdict): boolean {
+  return v.kind === "settled" || v.agrees;
 }

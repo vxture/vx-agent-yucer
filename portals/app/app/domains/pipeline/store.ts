@@ -193,6 +193,18 @@ export interface PipelineStore {
 
   listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]>;
 
+  /**
+   * When each opportunity last moved stage, for the whole workspace.
+   *
+   * ONE QUERY, NOT ONE PER DEAL, and that is why this is its own method rather
+   * than a loop over listStageEvents. The forecast rule needs the dwell time of
+   * every open deal at once; asking the journal per deal is the N+1 the renewal
+   * derivation avoided by taking its cross-domain fact as a set. A deal absent
+   * from the map has no journal rows - which reads as "unknown", never as "a
+   * long time", or every deal older than the journal would be downgraded.
+   */
+  latestStageChangeAt(workspaceId: string): Promise<Map<string, Date>>;
+
   /** Append-only. Re-forecasting writes a new row and never edits one. */
   appendForecastSnapshot(workspaceId: string, row: SnapshotRow): Promise<void>;
 
@@ -342,6 +354,23 @@ export class InMemoryPipelineStore implements PipelineStore {
     if (patch.forecastCategory !== undefined) row.forecastCategory = patch.forecastCategory;
     if (patch.ownerSub !== undefined) row.ownerSub = patch.ownerSub;
     return true;
+  }
+
+  async latestStageChangeAt(workspaceId: string): Promise<Map<string, Date>> {
+    const out = new Map<string, Date>();
+    for (const e of this.events) {
+      // Scoped through the opportunity, the way listStageEvents does it: the
+      // journal rows carry no workspace of their own here, and inventing one
+      // on the in-memory side would let the two adapters disagree about what
+      // tenant isolation means.
+      const owner = this.opportunities.get(e.opportunityId);
+      if (!owner || owner.workspaceId !== workspaceId) continue;
+      const held = out.get(e.opportunityId);
+      if (!held || e.occurredAt.getTime() > held.getTime()) {
+        out.set(e.opportunityId, e.occurredAt);
+      }
+    }
+    return out;
   }
 
   async listStageEvents(workspaceId: string, opportunityId: string): Promise<StageEventRecord[]> {

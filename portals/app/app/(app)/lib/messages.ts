@@ -72,6 +72,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   quote: "报价管理",
   routing: "线索分派",
   renewal: "合同续约",
+  forecastRule: "预测口径",
   winLossReview: "赢丢复盘",
   collection: "回款计划",
   planning: "销售规划",
@@ -169,6 +170,36 @@ export const RENEWAL_TEXT = {
 } as const;
 
 
+export const FORECAST_RULE_TEXT = {
+  title: "预测口径",
+  why:
+    "规则会把每笔生意归到哪一档，摆在人归的那一档旁边（owner 裁定 2026-08-31：只建议，逐单应用）。分歧本身就是预测评审要谈的东西——以前它只能靠一单一单翻看板才看得见。",
+  none: "没有开放中的生意",
+  noneWhy: "已成交与已判负的生意，档位由阶段定死，不是判断，也就没有第二种意见。",
+  colDeal: "生意",
+  colFiled: "人归的",
+  colSuggested: "规则归的",
+  colBasis: "依据",
+  colStage: "停留",
+  colApply: "应用",
+  agrees: "一致",
+  apply: "改成这档",
+  applied: "已改",
+  denied: "你可以看见分歧，但没有调整预测档位的权限——这是产品有意的分工：生意归你，预测承诺不归你。",
+  // 赢率是谁写的，要说清楚。否则「规则说管道」读起来像规则在凭空反对，
+  // 而实际上它引用的正是这位销售自己填的那个数。
+  basisHuman: (p: number) => `赢率 ${p}%（本人填的）`,
+  basisDefault: (p: number) => `赢率 ${p}%（阶段默认）`,
+  stalledFor: (days: number) => `${days} 天没动`,
+  neverMoved: "无阶段记录",
+  cap: {
+    no_close_date: "没写预计成交日——没写哪个周期，就没有可承诺的东西",
+    close_date_passed: "预计成交日已过，生意还开着",
+    stalled: "停在本阶段过久，降一档",
+  } as Record<string, string>,
+} as const;
+
+
 export const QUOTE_TEXT = {
   title: "报价",
   why:
@@ -234,7 +265,6 @@ export const PLANNED_MODULE_LABEL: Record<string, string> = {
   pricebook: "价目折扣",
   territory: "销售区域",
   namedAccount: "战略客户",
-  forecastRule: "预测口径",
   routing: "线索分配",
   quote: "报价管理",
   winLossReview: "赢丢复盘",
@@ -436,6 +466,23 @@ export const RENEWAL_ERROR: Record<string, string> = {
   account_required: "商机必须挂在客户下",
   amount_negative: "金额不能为负",
   not_found: "项目不存在，或不属于当前工作区",
+};
+
+export const FORECAST_RULE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  category_settled: "已成交或已判负的生意，档位由阶段定死，改不了",
+  category_already_agrees: "这单已经就在规则建议的档位上",
+  closed_requires_terminal_stage: "生意还没结束，不能归到已成交",
+  terminal_requires_closed: "已结束的生意只能归在已成交",
+  unknown_forecast_category: "未知的预测档位",
+  empty_patch: "没有任何改动",
+  not_found: "生意不存在，或不属于当前工作区",
+  // 这三条本页的按钮送不出来——它只送 forecastCategory。但守卫按动词算可达性，
+  // 而 updateCommercialTerms 确实会吐它们：哪天有人往这次调用里加一个字段，
+  // 缺的就是句子而不是防线。这正是那道守卫存在的理由，所以照它说的补。
+  probability_range: "赢率必须是 0 到 100 之间的整数",
+  terminal_probability_fixed: "已关闭的商机赢率固定，不能修改",
+  amount_negative: "金额不能为负",
 };
 
 export const SIGNAL_ACTION_ERROR: Record<string, string> = {
