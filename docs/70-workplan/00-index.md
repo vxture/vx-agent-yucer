@@ -1450,4 +1450,18 @@ demo 队列清空（种 1~2 天的提案按规则读的时钟已是 17 天）。
 
 与 TD-017 同形：一个名字断言得比它做的多，而没有任何东西去问过它。
 
+**接上之后它第一次跑就红了，红得对。** CI 里报
+`Module '"@prisma/client"' has no exported member 'PrismaClient'`——**应用的 type-check
+依赖 `prisma generate`**，而那一步跑在 `pnpm build` 之前，此前只有 build 会生成 client。
+本地看不出来，因为本地早就生成过了：这正是「从没在 CI 里跑过」的副产品，一个没人问过的
+前置依赖。
+
+依赖是真的，所以写进脚本（`prisma generate && tsc --noEmit`），而不是靠谁记得两个步骤的
+顺序——与 `build` 本来就是 `prisma generate && next build` 同一个道理。CI 里那一步也从
+「Type-check (shared)」改名为「Type-check (all workspaces)」：旧名字对它当时跑的脚本
+是诚实的，对现在的不是。
+
+（本地想反证「干净检出会失败」没做成：挪掉生成目录后 bare tsc 仍报 0 个错误，声明从别处
+解析到了。所以这条以 CI 的结果为准，不以本地复现为准。）
+
 1282 tests pass。无新增量、无新列。
