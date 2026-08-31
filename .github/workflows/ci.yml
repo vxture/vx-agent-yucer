@@ -161,7 +161,18 @@ jobs:
           # "all" - every org repo's Actions can read it).
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
 
-      - name: Type-check (shared)
+      # Named for what it does. It said "(shared)" and was true of the script it
+      # ran - `type-check:all` filtered to @yucer/shared, so the APP's
+      # `tsc --noEmit` had never run in CI at all. `next build` below only
+      # type-checks what is in the build graph, which excludes every .test.ts,
+      # so a type error in a test file merged green (it did, in #114).
+      #
+      # The app's type-check generates the Prisma client first: its types come
+      # from `prisma generate`, and this step runs before the build that used to
+      # be the only thing generating them. The dependency is real, so it lives
+      # in the script rather than in the ordering of two steps somebody has to
+      # remember - the same reason `build` is `prisma generate && next build`.
+      - name: Type-check (all workspaces)
         run: pnpm type-check:all
 
       - name: Build app (Next.js standalone)

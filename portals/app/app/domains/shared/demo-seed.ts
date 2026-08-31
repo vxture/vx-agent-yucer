@@ -63,33 +63,41 @@ import type { InMemoryPlanningStore } from "../planning/store";
 import type { InMemorySignalStore } from "../signal/store";
 import type { InMemoryStrategyStore } from "../strategy/store";
 
-/** Anchored so the demo reads the same on every run rather than drifting. */
-const NOW = new Date("2026-08-15T00:00:00Z");
-const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
-
 /**
- * Proposals, and ONLY proposals, are aged against the real clock.
+ * The demo's own "now", and it TRACKS THE REAL CLOCK on purpose.
  *
- * Everything else in this file hangs off the fixed anchor above, deliberately:
- * a fixture whose dates move on every seed is not a fixture, and for an
- * opportunity or a project the anchor drifting only makes a DISPLAYED number
- * stale ("lapsed 29 days" for a term seeded at 12).
+ * It was pinned to 2026-08-15 for sixteen days, for a reason that sounded
+ * right - "a fixture whose dates move on every seed is not a fixture". That
+ * reason confuses two things. What a fixture owes is stable RELATIVE structure:
+ * this note eighteen days before that milestone, this term ending a month after
+ * that one. Pinning the absolute instant does not preserve that structure
+ * against a product that reads the real clock - it destroys it, a day at a
+ * time, and every relative date the product computes drifts by exactly how
+ * stale the anchor has become.
  *
- * For a proposal the age is not a displayed detail - IT IS THE STATE. The
- * expiry sweep reads the same clock a page does, so a proposal seeded 1 day
- * before a fixed anchor is 1 day old on the day that anchor was written and
- * three weeks old a month later. Left on the anchor, the demo's whole pending
- * queue empties itself the moment expiry ships, and the copilot surface - the
- * deck, the board count, the home stream - goes blank for a reason no reader
- * could see.
+ * It misled twice before it was fixed:
  *
- * The demo is not exempt from the rule; it has to be seeded so the rule's
- * answer for it is the one the demo means. `act_demo_6` is seeded PAST the
- * window on purpose, so opening the queue also shows the sweep doing its job.
+ *   1. /renewal read "lapsed 29 days" for a term seeded at 12.
+ *   2. Expiry shipped and the first sweep emptied the demo's whole pending
+ *      queue - four proposals seeded 1-2 days old were 17 days old by the
+ *      clock the rule reads. Patched then with a second anchor for proposals
+ *      alone; this removes the cause, so that special case is gone.
+ *
+ * EXPORTED, because a test that needs the demo's now must ask for it rather
+ * than restate it. Six places in demo-seed.test.ts wrote the same literal, and
+ * that coupling is what made this change look expensive: move the seed and the
+ * tests keep comparing against an instant the fixtures no longer sit around,
+ * so they fail for a reason that has nothing to do with what they assert.
+ *
+ * To be precise about what those tests were and were not: they were CONSISTENT
+ * before this, because the seed and the literal named the same instant. They
+ * were brittle, not wrong. The drift was doing its damage on the screen, where
+ * the product reads the real clock - the seed and the test agreed with each
+ * other while both disagreed with what a reader saw.
  */
-const PROPOSAL_NOW = new Date();
-const proposalDaysAgo = (n: number) =>
-  new Date(PROPOSAL_NOW.getTime() - n * 86_400_000);
+export const DEMO_NOW = new Date();
+const NOW = DEMO_NOW;
+const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
 const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
 const CNY = "CNY";
@@ -1197,9 +1205,9 @@ function proposal(
     rationale,
     confidence,
     decidedBySub,
-    decidedAt: decidedBySub ? proposalDaysAgo(agedDays - 1) : null,
+    decidedAt: decidedBySub ? daysAgo(agedDays - 1) : null,
     executedAt: null,
-    createdAt: proposalDaysAgo(agedDays),
+    createdAt: daysAgo(agedDays),
   };
 }
 
