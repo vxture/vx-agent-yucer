@@ -16,6 +16,7 @@ import { OPEN_STAGE_ORDER } from "../pipeline/lib/stage";
 import { deriveProjectHealth } from "../delivery/lib/revenue";
 import { analyzeChain, analyzeChainRecency } from "../account/lib/health";
 import { reliability } from "../account/lib/commitment";
+import { DEFAULT_PROPOSAL_TTL_MS } from "../copilot/lib/action";
 
 const WS = "ws_demo";
 
@@ -675,4 +676,28 @@ test("no seeded record shares an id with another of its kind", async () => {
     if (savedDb !== undefined) process.env.DATABASE_URL = savedDb;
     resetDemoSeed();
   }
+});
+
+test("the demo's pending proposals survive the expiry rule, and one does not", async () => {
+  // THE REGRESSION THIS PREVENTS. Every proposal hung off the fixed anchor
+  // until 2026-08-31, so once expiry shipped the demo's whole queue expired
+  // itself the first time anybody opened it - four pending recommendations
+  // gone, the board count and the home stream with them, for a reason no
+  // reader could see. For a proposal the age is not a displayed detail, it is
+  // the state, so proposals alone are seeded against the real clock.
+  const s = seeded();
+  const now = new Date();
+  const proposals = await s.copilot.listProposals(WS, {});
+
+  const pending = proposals.filter((p) => p.status === "proposed");
+  const stillPending = pending.filter(
+    (p) => now.getTime() - p.createdAt.getTime() < DEFAULT_PROPOSAL_TTL_MS,
+  );
+  const aged = pending.filter(
+    (p) => now.getTime() - p.createdAt.getTime() >= DEFAULT_PROPOSAL_TTL_MS,
+  );
+
+  assert.ok(stillPending.length >= 3, "the demo must keep a working pending queue");
+  assert.equal(aged.length, 1, "and exactly one that the sweep will retire, to show it happening");
+  assert.equal(aged[0].id, "act_demo_6");
 });

@@ -18,6 +18,9 @@ import { denied } from "../pipeline/service";
 import {
   planBatchDecision,
   planExecution,
+  planExpiry,
+  type ActionPatch,
+  type ActionStatus,
   type AgentAction,
   type Decision,
 } from "./lib/action";
@@ -174,4 +177,58 @@ export async function recordProposals(
   if (!gate.allowed) return denied(gate);
   if (proposals.length === 0) return ok([]);
   return ok(await ctx.store.createProposals(ctx.workspaceId, proposals));
+}
+
+/**
+ * Retire proposals nobody decided inside the decision window.
+ *
+ * The spec has always required this: an undecided proposal must not silently
+ * disappear, it becomes `expired`, which is a VISIBLE outcome. `planExpiry` has
+ * existed since batch 1 with the rule written out - and nothing called it, so
+ * no proposal has ever expired. A recommendation made three months ago has been
+ * sitting in the queue looking as live as one made this morning, which is the
+ * failure the rule was written to prevent, arrived at from the other side.
+ *
+ * NOT INSIDE `listProposals`, though that would fix every reader at once. That
+ * verb is called by the shell's board, which renders on every page - a sweep
+ * there is a write on every navigation. It also takes a filter, so the scope of
+ * the sweep would silently become whatever the caller happened to ask for.
+ *
+ * SO IT RUNS FROM THE QUEUE'S OWN PAGE, and the limit is worth stating rather
+ * than hiding: between a proposal ageing out and somebody opening /copilot, the
+ * board still counts it as pending. That direction is the safe one - it
+ * over-reports work waiting on a person rather than hiding it, and
+ * over-reporting is what makes somebody go and look, which is exactly what an
+ * expiring proposal wants. A scheduled sweep would close the window, and this
+ * repo has no scheduler for application code; building the design that needs
+ * one would be another rule written and not applied.
+ *
+ * GATED ON `copilot.action.view`, the gate for READING the queue, not on
+ * `copilot.action.decide`. Expiring is not a decision - `decidedBySub` stays
+ * null and that null is the whole point of the state. It records a fact about
+ * the clock that is already true. Gating it behind `decide` would make what a
+ * viewer sees depend on whether somebody who can decide had visited recently.
+ */
+export async function expireStaleProposals(
+  ctx: CopilotContext,
+  opts: { now?: Date; ttlMs?: number } = {},
+): Promise<RuleResult<{ expired: string[] }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "copilot.action.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const pending = await ctx.store.listProposals(ctx.workspaceId, { status: "proposed" });
+
+  // planExpiry is pure and refuses anything still inside its window, so the
+  // filter IS the rule rather than a second copy of the TTL arithmetic.
+  const due: { id: string; patch: ActionPatch; from: readonly ActionStatus[] }[] = [];
+  for (const action of pending) {
+    const plan = planExpiry(action, opts);
+    if (plan.ok) due.push({ id: action.id, patch: plan.value, from: ["proposed"] });
+  }
+  if (due.length === 0) return ok({ expired: [] });
+
+  // applyDecision is a compare-and-set on `from`, so a proposal somebody
+  // accepted between the read and this write is left alone rather than expired
+  // out from under them. Two concurrent sweeps also cannot double-expire.
+  return ok({ expired: await ctx.store.applyDecision(ctx.workspaceId, due) });
 }
