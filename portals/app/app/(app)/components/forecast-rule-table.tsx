@@ -40,9 +40,10 @@ export interface ForecastRuleRow {
 export interface ForecastRuleTableProps {
   readonly rows: readonly ForecastRuleRow[];
   readonly canApply: boolean;
+  // ONLY AN ID. The server re-derives the suggestion; sending the category
+  // would let a stale page apply one that no longer exists.
   readonly onApply: (input: {
     opportunityId: string;
-    forecastCategory: string;
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -150,12 +151,7 @@ export function ForecastRuleTable({ rows, canApply, onApply }: ForecastRuleTable
                       errors={FORECAST_RULE_ERROR}
                       label={FORECAST_RULE_TEXT.apply}
                       savedLabel={FORECAST_RULE_TEXT.applied}
-                      onSave={() =>
-                        onApply({
-                          opportunityId: r.opportunityId,
-                          forecastCategory: r.suggested!,
-                        })
-                      }
+                      onSave={() => onApply({ opportunityId: r.opportunityId })}
                     />
                   ),
               },

@@ -110,11 +110,9 @@ export function routeLead(
   };
 }
 
-/** Refuse a region list that would silently cover nothing or match sloppily. */
-export function planTerritoryRegions(regions: readonly string[]): RuleResult<string[]> {
-  const cleaned = [...new Set(regions.map((r) => r.trim()).filter(Boolean))];
-  if (cleaned.some((r) => r.length > 64)) {
-    return fail(violation("region_too_long", "a region name is at most 64 characters", "regions"));
-  }
-  return ok(cleaned);
-}
+// `planTerritoryRegions` USED TO LIVE HERE, and that is why nothing ever
+// called it. A territory is D2's object; this file is D5's router, which only
+// READS territories. The write path is `upsertTerritory` in planning, and from
+// there the validator was in another domain - so the region list went to the
+// database unchecked from 0017 until 2026-08-31. It now lives in
+// planning/lib/territory.ts, next to the rule that plans the rest of the row.

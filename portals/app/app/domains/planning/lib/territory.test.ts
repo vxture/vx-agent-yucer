@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
-import { planTerritory, type KnownTerritory, type TerritoryDraft } from "./territory";
+import { planTerritory, planTerritoryRegions, type KnownTerritory, type TerritoryDraft } from "./territory";
 
 const draft = (over: Partial<TerritoryDraft> = {}): TerritoryDraft => ({
   territoryCode: "EAST",
@@ -80,4 +80,51 @@ test("a NEW territory may name any existing parent", () => {
   assert.ok(planTerritory(draft({ territoryCode: "WEST", parentId: "terr_1" }), [
     known("terr_1", "EAST"),
   ]).ok);
+});
+
+// --- The region list, validated where it is written -------------------------
+//
+// These moved from signal/lib/routing.test.ts with the function. Their being
+// over there was the tell: the tests exercised a validator that the write path
+// in this domain never called.
+
+test("region lists are trimmed and de-duplicated on the way in", () => {
+  // Pasted from a spreadsheet, which is how these actually arrive. Refusing
+  // stray whitespace outright would teach people to clean data by hand before
+  // every save.
+  const r = planTerritoryRegions([" 华东 ", "华东", "", "  "]);
+  assert.ok(r.ok);
+  assert.deepEqual(r.ok && r.value, ["华东"]);
+});
+
+test("a region name too long to be a region is refused", () => {
+  const r = planTerritoryRegions(["x".repeat(65)]);
+  assert.equal(r.ok, false);
+  assert.equal(r.ok ? "" : r.violations[0].code, "region_too_long");
+});
+
+test("planTerritory now runs that validation, which is the point of moving it", () => {
+  // THE DEFECT THIS CLOSES: `regions` arrived with 0017 and upsertTerritory has
+  // always written it, while the validator lived in another domain - so
+  // whatever a caller sent reached the database untouched.
+  const planned = planTerritory({
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: "rep_1",
+    regions: [" 华东 ", "华东", ""],
+    status: "active",
+  });
+  assert.ok(planned.ok);
+  assert.deepEqual(planned.ok && planned.value.regions, ["华东"]);
+
+  const bad = planTerritory({
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: "rep_1",
+    regions: ["y".repeat(65)],
+    status: "active",
+  });
+  assert.equal(bad.ok, false);
 });

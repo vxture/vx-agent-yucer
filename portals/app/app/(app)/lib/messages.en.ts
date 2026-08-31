@@ -560,6 +560,7 @@ export const en: Dictionary = {
     unknown_status: "Unknown territory status",
     parent_not_found: "The parent territory does not exist",
     parent_cycle: "A territory cannot report to itself, directly or through a chain",
+    region_too_long: "A region name is at most 64 characters - anything longer is usually the wrong column pasted in",
   },
 
   EXECUTION_ERROR: {
