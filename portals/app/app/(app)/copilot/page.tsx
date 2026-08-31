@@ -5,7 +5,7 @@ import {
   getCopilotStore,
 } from "../../domains/shared/registry";
 import { getAccountDetail } from "../../domains/account/service";
-import { listPlaybooks, listProposals } from "../../domains/copilot/service";
+import { expireStaleProposals, listPlaybooks, listProposals } from "../../domains/copilot/service";
 import { MAX_PLAYBOOKS } from "../../domains/copilot/turn-service";
 import { can } from "../../authz/decide";
 import { CopilotChat, type ChatMessageView } from "../components/copilot-chat";
@@ -61,6 +61,17 @@ export default async function CopilotPage({
     anchored?.ok === true
       ? { id: anchored.value.account.id, name: anchored.value.account.name }
       : undefined;
+
+  // BEFORE THE LIST, NOT ALONGSIDE IT. The sweep is what makes the queue below
+  // true, so it has to have finished before the read - run in the same
+  // Promise.all and the list would be a coin flip on which resolved first.
+  //
+  // Its result is deliberately not checked. A member came here to work the
+  // queue; failing the whole page because a maintenance write did not land
+  // would trade the thing they asked for against a tidy-up. When it fails the
+  // aged proposals simply stay pending, which is the state the product has
+  // been in since batch 1 anyway, and the next visit tries again.
+  await expireStaleProposals(ctx);
 
   const [proposals, playbooks, sessions] = await Promise.all([
     listProposals(ctx, { limit: 100 }),

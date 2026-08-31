@@ -66,6 +66,30 @@ import type { InMemoryStrategyStore } from "../strategy/store";
 /** Anchored so the demo reads the same on every run rather than drifting. */
 const NOW = new Date("2026-08-15T00:00:00Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
+
+/**
+ * Proposals, and ONLY proposals, are aged against the real clock.
+ *
+ * Everything else in this file hangs off the fixed anchor above, deliberately:
+ * a fixture whose dates move on every seed is not a fixture, and for an
+ * opportunity or a project the anchor drifting only makes a DISPLAYED number
+ * stale ("lapsed 29 days" for a term seeded at 12).
+ *
+ * For a proposal the age is not a displayed detail - IT IS THE STATE. The
+ * expiry sweep reads the same clock a page does, so a proposal seeded 1 day
+ * before a fixed anchor is 1 day old on the day that anchor was written and
+ * three weeks old a month later. Left on the anchor, the demo's whole pending
+ * queue empties itself the moment expiry ships, and the copilot surface - the
+ * deck, the board count, the home stream - goes blank for a reason no reader
+ * could see.
+ *
+ * The demo is not exempt from the rule; it has to be seeded so the rule's
+ * answer for it is the one the demo means. `act_demo_6` is seeded PAST the
+ * window on purpose, so opening the queue also shows the sweep doing its job.
+ */
+const PROPOSAL_NOW = new Date();
+const proposalDaysAgo = (n: number) =>
+  new Date(PROPOSAL_NOW.getTime() - n * 86_400_000);
 const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
 const CNY = "CNY";
@@ -805,6 +829,10 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
     proposal("act_demo_3", "proposed", "promote_signal", "lead", "lead_demo_2", { score: 71 }, DEMO_RATIONALES[2], 64, null, 2),
     proposal("act_demo_4", "rejected", "advance_stage", "opportunity", "opp_demo_3", { to: "discover" }, DEMO_RATIONALES[3], 41, "usr_demo_leader", 4),
     proposal("act_demo_5", "proposed", "advance_stage", "opportunity", "opp_demo_6", { to: "negotiate" }, DEMO_RATIONALES[4], 77, null, 1),
+    // PAST THE DECISION WINDOW ON PURPOSE. Opening the queue sweeps it, so the
+    // demo shows the outcome the spec asks for - a recommendation nobody
+    // decided becomes visibly `expired` rather than quietly staying live.
+    proposal("act_demo_6", "proposed", "draft_outreach", "account", "acc_demo_3", { channel: "call" }, DEMO_RATIONALES[1], 44, null, 9),
   ]);
 
   stores.copilot.seedPlaybooks(
@@ -1169,9 +1197,9 @@ function proposal(
     rationale,
     confidence,
     decidedBySub,
-    decidedAt: decidedBySub ? daysAgo(agedDays - 1) : null,
+    decidedAt: decidedBySub ? proposalDaysAgo(agedDays - 1) : null,
     executedAt: null,
-    createdAt: daysAgo(agedDays),
+    createdAt: proposalDaysAgo(agedDays),
   };
 }
 

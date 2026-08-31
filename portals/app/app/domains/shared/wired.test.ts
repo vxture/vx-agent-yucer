@@ -86,17 +86,20 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
     "duplicates assertWritable for the sales_target identity tuple; same batch",
 
   // ---------------------------------------------------------------------
-  // TWO PLANS FOR STATES NOTHING CAN REACH YET.
+  // ONE PLAN FOR A STATE NOTHING CAN REACH YET.
   //
-  // Both are real rules for real states in the spec, and both need a caller
-  // that does not exist: nothing executes an agent action, and nothing sweeps
-  // for undecided proposals. Naming them here is the honest record that the
-  // rule is written and the path is not - which is better than deleting rules
-  // the spec asks for, and better than pretending they are live.
+  // `planExpiry` left this list on 2026-08-31 - the sweep it was waiting for
+  // now exists, and the guard is what noticed, refusing to let a stale entry
+  // sit here claiming the path was still missing.
+  //
+  // `planFailure` records that an execution ATTEMPT failed, and the previous
+  // wording here was imprecise: `execute` does exist. What does not exist is
+  // anything that CARRIES OUT a proposal's payload - `execute` records the
+  // transition and stops - so there is no attempt that can fail. The rule is
+  // written, the path is not, and saying which is which is the point of this
+  // list.
   "copilot/action.planFailure":
-    "no execution path exists, so nothing can fail yet; wired by the batch that executes an accepted proposal",
-  "copilot/action.planExpiry":
-    "no sweep exists to expire undecided proposals; wired by the batch that adds it",
+    "execute() records the transition but nothing carries out a payload, so no attempt can fail; wired by the batch that performs one",
 
   // ---------------------------------------------------------------------
   // SIX PURE HELPERS whose only real caller would be inside their own file,

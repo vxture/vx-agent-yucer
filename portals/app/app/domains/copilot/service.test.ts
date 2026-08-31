@@ -7,6 +7,7 @@ import { InMemoryCopilotStore } from "./store";
 import {
   adjudicate,
   execute,
+  expireStaleProposals,
   listPlaybooks,
   listProposals,
   recordProposals,
@@ -274,4 +275,91 @@ test("the catalog never leaks another workspace's plays", async () => {
     },
   ]);
   assert.deepEqual(unwrap(await listPlaybooks(ctx("viewer", "free", store))), []);
+});
+
+// --- Expiry: the outcome the spec required and nothing ever produced --------
+
+const TTL = 7 * 24 * 60 * 60 * 1000;
+const laterBy = (ms: number) => new Date(CREATED.getTime() + ms);
+
+test("a proposal nobody decided becomes expired, not invisible", async () => {
+  // THE DEFECT THIS CLOSES: planExpiry has existed since batch 1 and nothing
+  // called it, so no proposal had ever expired. A recommendation from three
+  // months ago sat in the queue looking as live as one from this morning.
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("old")]);
+  const c = ctx("sales_leader", "pro", store);
+
+  const swept = unwrap(await expireStaleProposals(c, { now: laterBy(TTL + 1) }));
+  assert.deepEqual(swept.expired, ["old"]);
+
+  const pending = unwrap(await listProposals(c, { status: "proposed" }));
+  assert.deepEqual(pending, []);
+
+  // Expired, not gone. It is still there to be found.
+  const gone = unwrap(await listProposals(c, { status: "expired" }));
+  assert.deepEqual(gone.map((p) => p.id), ["old"]);
+  // And nobody decided it - that null is the whole point of the state.
+  assert.equal(gone[0].decidedBySub, null);
+});
+
+test("a proposal still inside its window is left alone", async () => {
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("fresh")]);
+  const c = ctx("sales_leader", "pro", store);
+  const swept = unwrap(await expireStaleProposals(c, { now: laterBy(TTL - 1) }));
+  assert.deepEqual(swept.expired, []);
+  assert.equal(unwrap(await listProposals(c, { status: "proposed" })).length, 1);
+});
+
+test("only pending proposals are swept - a decided one is never touched", async () => {
+  // The compare-and-set on `from: ["proposed"]` is the guard, and planExpiry
+  // refuses a non-proposed row before it. Both matter: an accepted proposal
+  // expiring out from under the person who accepted it would erase a decision.
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [
+    proposal("accepted", { status: "accepted", decidedBySub: "usr_boss", decidedAt: CREATED }),
+    proposal("executed", { status: "executed", decidedBySub: "usr_boss", executedAt: CREATED }),
+    proposal("stale"),
+  ]);
+  const c = ctx("sales_leader", "pro", store);
+  const swept = unwrap(await expireStaleProposals(c, { now: laterBy(TTL * 10) }));
+  assert.deepEqual(swept.expired, ["stale"]);
+});
+
+test("sweeping an empty queue writes nothing", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_leader", "pro", store);
+  assert.deepEqual(unwrap(await expireStaleProposals(c, { now: laterBy(TTL * 10) })).expired, []);
+});
+
+test("the TTL is the rule's, not a second copy in the service", async () => {
+  // Passing a shorter window must move the boundary, which it only can if the
+  // service delegates the arithmetic to planExpiry rather than repeating it.
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("a")]);
+  const c = ctx("sales_leader", "pro", store);
+  const swept = unwrap(await expireStaleProposals(c, { now: laterBy(1000), ttlMs: 500 }));
+  assert.deepEqual(swept.expired, ["a"]);
+});
+
+test("sweeping is gated on READING the queue, not on deciding", async () => {
+  // Expiring is not a decision - decidedBySub stays null. Gating it behind
+  // `decide` would make what a viewer sees depend on whether somebody who can
+  // decide had visited recently.
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("a")]);
+  const viewer = ctx("viewer", "pro", store);
+
+  assert.equal((await expireStaleProposals(viewer, { now: laterBy(TTL + 1) })).ok, true);
+  // And the same member still cannot decide one.
+  store.seedProposals(WS, [proposal("b")]);
+  assert.equal((await adjudicate(viewer, [{ id: "b", decision: "accept" }])).ok, false);
+});
+
+test("sweeping is refused to a workspace with no entitlement", async () => {
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("a")]);
+  const r = await expireStaleProposals(ctx("sales_leader", null, store), { now: laterBy(TTL + 1) });
+  assert.equal(r.ok, false);
 });
