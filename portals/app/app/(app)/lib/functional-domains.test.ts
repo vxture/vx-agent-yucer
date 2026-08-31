@@ -250,6 +250,7 @@ const SHIPPED_AS: Record<string, string> = {
   // guard able to tell them apart.
   catalog: "ProductSection",
   renewal: "RenewalTable",
+  forecastRule: "ForecastRuleTable",
   solution: "SolutionSection",
   pricebook: "PriceSection",
 };
@@ -263,7 +264,6 @@ const SHIPPED_AS: Record<string, string> = {
 const NOT_BUILT: Record<string, string> = {
   segment: "SegmentTable",
   namedAccount: "NamedAccountRoster",
-  forecastRule: "ForecastRuleTable",
   routing: "LeadRouting",
   quote: "QuoteEditor",
 };

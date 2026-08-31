@@ -90,7 +90,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 13);
+    assert.equal(rows.length, 15);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -102,7 +102,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 7 accounts, 13 deals, 6 projects", async () => {
+test("the demo has the working set it claims: 7 accounts, 15 deals, 6 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -114,11 +114,14 @@ test("the demo has the working set it claims: 7 accounts, 13 deals, 6 projects",
   ]);
 
   assert.equal(accounts.length, 7);
-  // 13 and 6 since 2026-08-30: two subscription projects and the renewal deal
-  // already open off one of them, so /renewal can show every verdict it has -
-  // including `already_renewed`, which is the one that proves 0019's link is
-  // actually being read.
-  assert.equal(opportunities.length, 13);
+  // 13 on 2026-08-30: two subscription projects and the renewal deal already
+  // open off one of them, so /renewal can show every verdict it has - including
+  // `already_renewed`, which proves 0019's link is actually being read.
+  //
+  // 15 on 2026-08-31, for the same reason one level along: the forecast rule
+  // has three downgrades and the demo triggered none of them, so the basis
+  // column that renders their reasons had never run against a real row.
+  assert.equal(opportunities.length, 15);
   assert.equal(projects.length, 6);
 });
 

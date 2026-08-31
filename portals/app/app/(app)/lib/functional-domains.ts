@@ -126,7 +126,10 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // surface.
       built("namedAccount"),
       built("planning"),
-      planned("forecastRule", "trend-up"),
+      // A page since 2026-08-31. The owner's ruling made it possible to build:
+      // a rule that SUGGESTS the category, rather than one that derives it and
+      // deletes the judgement the review exists to capture.
+      built("forecastRule"),
     ],
   },
   {

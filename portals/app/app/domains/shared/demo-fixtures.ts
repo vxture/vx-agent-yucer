@@ -93,6 +93,12 @@ export const DEMO_OPPORTUNITIES = [
   // Opened off prj_demo_6, so the renewal page has a project it must NOT
   // propose again.
   "调度平台续约",
+  // Two deals that exist for the forecast rule's DOWNGRADES. Without them the
+  // demo exercises the probability band and nothing else - the three caps are
+  // unit-tested but the basis column that renders their reasons never runs
+  // against real rows. Same gap `already_renewed` had before 0019.
+  "冷链仓配平台",
+  "会员中台改造",
 ] as const;
 
 export const DEMO_PROJECTS = [
