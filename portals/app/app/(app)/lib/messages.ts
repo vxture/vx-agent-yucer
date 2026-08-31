@@ -71,6 +71,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   namedAccount: "重点客户",
   quote: "报价管理",
   routing: "线索分派",
+  renewal: "合同续约",
   winLossReview: "赢丢复盘",
   collection: "回款计划",
   planning: "销售规划",
@@ -134,6 +135,39 @@ export const ROUTING_TEXT = {
     no_owner: "覆盖区域无负责人",
   } as Record<string, string>,
 } as const;
+
+export const RENEWAL_TEXT = {
+  title: "合同续约",
+  why:
+    "订阅制项目到期前 90 天出现在这里（owner 裁定 2026-08-30：从项目派生，且只为订阅类）。一次性交付不在此列——它交付完就结束了，替它造一个续约义务是客户从没承诺过的事。",
+  none: "没有临近到期的订阅项目",
+  noneWhy: "一次性项目不产生续约；订阅项目要到期限前 90 天才出现在这里。",
+  colProject: "项目",
+  colEnds: "到期",
+  colAmount: "上期金额",
+  colVerdict: "结论",
+  colOpen: "动作",
+  open: "开商机",
+  opened: "已创建",
+  denied: "你没有创建商机的权限。",
+  // 已过期的排在最前，说法也不一样：那不是「还有 -12 天」。
+  lapsed: (days: number) => `已过期 ${days} 天`,
+  dueIn: (days: number) => `还有 ${days} 天`,
+  noEndDate: "未填到期日",
+  risk: {
+    low: "交付正常",
+    // 用的是事实推出来的健康度，不是交付团队自己报的那个。
+    watch: "交付有风险，谨慎接触",
+  } as Record<string, string>,
+  notDue: {
+    not_subscription: "一次性项目，交付即结束",
+    no_end_date: "订阅项目缺到期日——续约会悄悄漏掉",
+    too_far_out: "还没进入 90 天窗口",
+    not_delivering: "尚未开始或已终止，没有可续的期限",
+    already_renewed: "已有续约商机在跑",
+  } as Record<string, string>,
+} as const;
+
 
 export const QUOTE_TEXT = {
   title: "报价",
@@ -205,7 +239,6 @@ export const PLANNED_MODULE_LABEL: Record<string, string> = {
   quote: "报价管理",
   winLossReview: "赢丢复盘",
   collection: "回款计划",
-  renewal: "合同续约",
 };
 
 export const LAUNCHER_TEXT = {
@@ -396,6 +429,15 @@ export const ACCOUNT_ERROR: Record<string, string> = {
  * `signal-queue` 与 `lead-list` 此前对失败**毫无反应**——`.then` 只处理成功分支，
  * 用户点了「转商机」失败，界面一动不动。比裸码更糟的一类（TD-010 巡检发现）。
  */
+export const RENEWAL_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  renewal_not_due: "这个项目现在不该续约——页面可能已经过时，刷新后再看",
+  name_required: "商机需要名称",
+  account_required: "商机必须挂在客户下",
+  amount_negative: "金额不能为负",
+  not_found: "项目不存在，或不属于当前工作区",
+};
+
 export const SIGNAL_ACTION_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "记录不存在，或不属于当前工作区",

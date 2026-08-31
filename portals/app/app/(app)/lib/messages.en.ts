@@ -84,6 +84,7 @@ export const en: Dictionary = {
     queue: "Awaiting me",
     admin: "Members and roles",
     adoption: "Adoption",
+    renewal: "Renewals",
   },
 
   // The five domain names are the product's loudest claim about itself, so
@@ -125,6 +126,43 @@ export const en: Dictionary = {
       no_territory: "no territory covers that region",
       no_owner: "the covering territory has no owner",
     } as Record<string, string>,
+  },
+  RENEWAL_TEXT: {
+    title: "Renewals",
+    why:
+      "Subscription projects appear here 90 days before their term ends (owner ruling, 2026-08-30: derived from the project, and only for subscriptions). One-off deliveries are absent - they finished when they were handed over, and inventing a renewal for one chases an obligation the customer never took on.",
+    none: "No subscription terms coming up",
+    noneWhy: "One-off projects never renew; a subscription appears 90 days before its term ends.",
+    colProject: "Project",
+    colEnds: "Term ends",
+    colAmount: "Last term",
+    colVerdict: "Verdict",
+    colOpen: "Action",
+    open: "Open deal",
+    opened: "Created",
+    denied: "You do not have permission to create deals.",
+    lapsed: (days: number) => `lapsed ${days} days ago`,
+    dueIn: (days: number) => `${days} days left`,
+    noEndDate: "no end date",
+    risk: {
+      low: "delivery on track",
+      watch: "delivery at risk - approach carefully",
+    } as Record<string, string>,
+    notDue: {
+      not_subscription: "one-off; it finished when it was delivered",
+      no_end_date: "subscription with no end date - this renewal will be missed",
+      too_far_out: "outside the 90-day window",
+      not_delivering: "not started, or terminated - no term to extend",
+      already_renewed: "a renewal deal is already running",
+    } as Record<string, string>,
+  },
+  RENEWAL_ERROR: {
+    ...GATE_ERROR,
+    renewal_not_due: "This project is not due for renewal - the page may be stale, reload and look again",
+    name_required: "a deal needs a name",
+    account_required: "a deal needs a customer",
+    amount_negative: "a deal amount cannot be negative",
+    not_found: "That project does not exist, or is not in this workspace",
   },
   QUOTE_TEXT: {
     title: "Quotes",
@@ -190,7 +228,6 @@ export const en: Dictionary = {
     quote: "Quotes",
     winLossReview: "Win/loss",
     collection: "Collections",
-    renewal: "Renewals",
   },
 
   LAUNCHER_TEXT: {

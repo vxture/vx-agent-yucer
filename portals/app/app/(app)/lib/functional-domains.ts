@@ -157,7 +157,9 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     modules: [
       built("delivery"),
       built("collection"),
-      planned("renewal", "file-text"),
+      // A page since 2026-08-30. The rule layer landed in the previous batch
+      // with nothing calling it; this is the batch that gave it a surface.
+      built("renewal"),
     ],
   },
 ];

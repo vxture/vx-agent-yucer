@@ -638,6 +638,10 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // this demo now has to show.
       opp("opp_demo_11", workspaceId, 11, DEMO_OPPORTUNITIES[10], "acc_demo_6", null, "terr_south", REP1, "qualify", "pipeline", 480_000, 25, daysAhead(40), null, "open"),
       opp("opp_demo_12", workspaceId, 12, DEMO_OPPORTUNITIES[11], "acc_demo_7", null, "terr_east", REP1, "validate", "best_case", 930_000, 45, daysAhead(52), null, "open"),
+      // THE RENEWAL THAT ALREADY EXISTS, opened off prj_demo_6. Its campaign
+      // is null on purpose: a renewal is attributed to the project it renews,
+      // never to the campaign that won the first term.
+      opp("opp_demo_13", workspaceId, 13, DEMO_OPPORTUNITIES[12], "acc_demo_7", null, "terr_east", REP2, "discover", "pipeline", 880_000, 25, daysAhead(21), null, "open", "prj_demo_6"),
     ],
     {
       // A stage never jumps: every event names the stage it came from, and the
@@ -739,10 +743,27 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
     projects: [
       // Reported green while carrying an overdue instalment: the delivery page
       // downgrades it, so the rule is demonstrated rather than claimed.
-      project("prj_demo_1", workspaceId, 1, DEMO_PROJECTS[0], "opp_demo_4", "acc_demo_1", 760_000, "green", "active"),
-      project("prj_demo_2", workspaceId, 2, DEMO_PROJECTS[1], "opp_demo_8", "acc_demo_2", 1_400_000, "green", "active"),
+      // SUBSCRIPTION, due in 38 days, and reported green while carrying an
+      // overdue instalment. The renewal page must show it at `watch` risk, not
+      // `low` - which is the one thing about a renewal knowable in advance,
+      // and it comes from the health the facts derive rather than the one the
+      // delivery team reported.
+      project("prj_demo_1", workspaceId, 1, DEMO_PROJECTS[0], "opp_demo_4", "acc_demo_1", 760_000, "green", "active", "subscription", daysAhead(38)),
+      // LAPSED TWELVE DAYS AGO. The most urgent renewal there is, and the one
+      // a window that filtered out the past would hide.
+      project("prj_demo_2", workspaceId, 2, DEMO_PROJECTS[1], "opp_demo_8", "acc_demo_2", 1_400_000, "green", "active", "subscription", daysAgo(12)),
       project("prj_demo_3", workspaceId, 3, DEMO_PROJECTS[2], "opp_demo_10", "acc_demo_5", 540_000, "amber", "planning"),
+      // Delivered and finished. A one-off has nothing to renew, and its
+      // absence from the renewal list is the 0018 ruling working.
       project("prj_demo_4", workspaceId, 4, DEMO_PROJECTS[3], null, "acc_demo_4", 300_000, "green", "delivered"),
+      // A SUBSCRIPTION WITH NO END DATE. Not due - and the reason is a data
+      // gap that will silently cost a renewal, so the page names it rather
+      // than dropping the row.
+      project("prj_demo_5", workspaceId, 5, DEMO_PROJECTS[4], null, "acc_demo_6", 420_000, "green", "active", "subscription", null),
+      // ALREADY RENEWED - opp_demo_13 below was opened off it. Due by every
+      // other measure, and proposed a second time only if 0019's link is
+      // missing, which is exactly the defect that increment exists to close.
+      project("prj_demo_6", workspaceId, 6, DEMO_PROJECTS[5], null, "acc_demo_7", 880_000, "green", "on_hold", "subscription", daysAhead(21)),
     ],
     milestones: [
       milestone("ms_1", workspaceId, "prj_demo_1", DEMO_MILESTONES[0], 1, "done", daysAgo(30), daysAgo(31)),
@@ -997,10 +1018,12 @@ function opp(
   expectedCloseAt: Date,
   closedAt: Date | null,
   status: string,
+  sourceProjectId: string | null = null,
 ) {
   return {
     id,
     workspaceId,
+    sourceProjectId,
     opportunityNo: `OPP-2026-${String(n).padStart(4, "0")}`,
     name,
     accountId,
@@ -1038,6 +1061,8 @@ function project(
   contract: number,
   health: string,
   status: string,
+  engagementType: "one_off" | "subscription" = "one_off",
+  endsAt: Date | null = null,
 ) {
   return {
     id,
@@ -1051,6 +1076,10 @@ function project(
     health: health as never,
     status,
     currency: CNY,
+    endsAt,
+    // Defaulting here for the same reason 0018 defaults in the DDL: a project
+    // that says nothing about its commercial shape is not a subscription.
+    engagementType,
   };
 }
 

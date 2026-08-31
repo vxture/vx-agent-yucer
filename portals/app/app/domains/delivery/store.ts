@@ -12,6 +12,7 @@
 //     silently receiving a different colour than the delivery team submitted.
 
 import type { Money } from "../shared/money";
+import type { EngagementType } from "./lib/renewal";
 import type { MilestoneDraft } from "./lib/milestone";
 import type {
   MilestoneStatus,
@@ -33,6 +34,18 @@ export interface ProjectRecord {
   health: ProjectHealth;
   status: string;
   currency: string;
+  /**
+   * When the engagement ends - the term for a subscription, the handover for
+   * a one-off. Exposed because the renewal derivation cannot exist without
+   * it: "is this term nearly up" has no other source.
+   */
+  endsAt: Date | null;
+  /**
+   * Whether this comes back round. Added by 0018 rather than derived, because
+   * `endsAt` means the same thing for both shapes and guessing the commercial
+   * form of a deal from a date invents renewals nobody owes.
+   */
+  engagementType: EngagementType;
 }
 
 export interface MilestoneRecord {
@@ -55,6 +68,8 @@ export interface ProjectFilter {
   status?: string;
   accountId?: string;
   managerSub?: string;
+  /** Narrow to the shape that can be renewed at all. */
+  engagementType?: EngagementType;
   limit?: number;
 }
 
@@ -112,6 +127,9 @@ export class InMemoryDeliveryStore implements DeliveryStore {
     if (filter.status) rows = rows.filter((p) => p.status === filter.status);
     if (filter.accountId) rows = rows.filter((p) => p.accountId === filter.accountId);
     if (filter.managerSub) rows = rows.filter((p) => p.managerSub === filter.managerSub);
+    if (filter.engagementType) {
+      rows = rows.filter((p) => p.engagementType === filter.engagementType);
+    }
     return filter.limit ? rows.slice(0, filter.limit) : rows;
   }
 

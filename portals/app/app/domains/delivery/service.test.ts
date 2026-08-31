@@ -7,6 +7,8 @@ import { unwrap } from "../shared/result";
 import { InMemoryDeliveryStore, type InstalmentRecord, type MilestoneRecord, type ProjectRecord } from "./store";
 import {
   listProjects,
+  listRenewals,
+  renewalDraft,
   projectView,
   reconcileProjectHealth,
   transitionInstalment,
@@ -32,6 +34,8 @@ function project(over: Partial<ProjectRecord> = {}): ProjectRecord {
     health: "green",
     status: "active",
     currency: "CNY",
+    endsAt: null,
+    engagementType: "one_off",
     ...over,
   };
 }
@@ -308,4 +312,140 @@ test("a missed milestone overrides the manager's reported green", async () => {
   const after = unwrap(await projectView(c, "prj_1"));
   assert.notEqual(after.derivedHealth, "green", "the plan changed the verdict");
   assert.deepEqual(after.healthOverriddenBecause, { code: "missed_milestone", count: 1 });
+});
+
+// --- Renewal: the D7 -> D6 return leg ---------------------------------------
+
+const subscription = (over: Partial<ProjectRecord> = {}) =>
+  project({ engagementType: "subscription", endsAt: daysAhead(30), ...over });
+
+const renewalCtx = (store: InMemoryDeliveryStore) =>
+  ctx("delivery_manager", "business", store);
+
+test("a one-off project never appears as due, however close its end date", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project({ engagementType: "one_off", endsAt: daysAhead(1) })] });
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  // Filtered by the store before the rule ever sees it - the query asks for
+  // subscriptions, so a one-off is not in the list at all.
+  assert.deepEqual(rows, []);
+});
+
+test("a lapsed term is the most urgent row, not a filtered-out one", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [
+      subscription({ id: "prj_soon", endsAt: daysAhead(10), name: "Soon" }),
+      subscription({ id: "prj_lapsed", endsAt: daysAgo(12), name: "Lapsed" }),
+    ],
+  });
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(rows[0].project.id, "prj_lapsed");
+  assert.equal(rows[0].verdict.kind, "due");
+  // Negative, which is what makes the sort put it first and what lets the page
+  // say "lapsed 12 days ago" instead of "-12 days left".
+  assert.equal(rows[0].verdict.kind === "due" && rows[0].verdict.daysToEnd, -12);
+});
+
+test("a project with a renewal already open is not proposed a second time", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription()] });
+
+  const fresh = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(fresh[0].verdict.kind, "due");
+
+  const renewed = unwrap(
+    await listRenewals(renewalCtx(store), new Set(["prj_1"]), { now: NOW }),
+  );
+  assert.equal(renewed[0].verdict.kind, "not_due");
+  assert.equal(
+    renewed[0].verdict.kind === "not_due" && renewed[0].verdict.reason,
+    "already_renewed",
+  );
+  // And no draft, so nothing downstream can open the second deal anyway.
+  assert.equal(renewed[0].draft, null);
+});
+
+test("risk reads the DERIVED health, not the one the delivery team reported", async () => {
+  // The whole point of deriving health for the survivors. A green report next
+  // to an overdue instalment is exactly the renewal somebody would walk into
+  // assuming it was safe.
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [subscription({ health: "green" })],
+    instalments: [instalment({ status: "overdue", dueAt: daysAgo(10) })],
+  });
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(rows[0].verdict.kind === "due" && rows[0].verdict.risk, "watch");
+});
+
+test("a clean subscription reads low risk", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({
+    projects: [subscription({ health: "green" })],
+    instalments: [instalment({ status: "settled", settledAt: daysAgo(2) })],
+    milestones: [milestone({ status: "done" })],
+  });
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(rows[0].verdict.kind === "due" && rows[0].verdict.risk, "low");
+});
+
+test("a subscription with no end date stays in the list, with the gap named", async () => {
+  // It is not due, but dropping it would hide a data gap that silently costs a
+  // renewal - the same argument that keeps unroutable leads on /routing.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription({ endsAt: null })] });
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].verdict.kind === "not_due" && rows[0].verdict.reason, "no_end_date");
+});
+
+test("a paused project is still running its clock", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription({ status: "on_hold" })] });
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(rows[0].verdict.kind, "due");
+});
+
+test("the draft carries last term's amount, not an invented uplift", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription({ contractAmount: money(1_000_000) })] });
+  const draft = unwrap(await renewalDraft(renewalCtx(store), "prj_1", { now: NOW }));
+  assert.equal(draft.amount, 1_000_000);
+  assert.equal(draft.sourceProjectId, "prj_1");
+  assert.equal(draft.accountId, "acc_1");
+});
+
+test("re-deriving refuses a project the page thought was due", async () => {
+  // The stale-page case: the button was there when it was clicked, and the
+  // renewal was opened by somebody else in between.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription()] });
+  const result = await renewalDraft(renewalCtx(store), "prj_1", {
+    now: NOW,
+    alreadyRenewed: true,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? "" : result.violations[0].code, "renewal_not_due");
+});
+
+test("a project outside this workspace is not found rather than derived", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription({ workspaceId: "ws_other" })] });
+  const result = await renewalDraft(renewalCtx(store), "prj_1", { now: NOW });
+  assert.equal(result.ok, false);
+  assert.equal(result.ok ? "" : result.violations[0].code, "not_found");
+});
+
+test("both renewal verbs are refused when the tier does not include delivery", async () => {
+  // The entitlement half of the gate. Both verbs read projects, so a tier
+  // without the delivery capability must not get a renewal list either - a
+  // derived view is not a way around the gate on what it derives from.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription()] });
+  const blind = ctx("delivery_manager", "free", store);
+  const list = await listRenewals(blind, new Set(), { now: NOW });
+  const one = await renewalDraft(blind, "prj_1", { now: NOW });
+  assert.equal(list.ok, false);
+  assert.equal(one.ok, false);
 });

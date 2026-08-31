@@ -2,8 +2,7 @@
 
 import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { useSaveAction } from "../lib/use-save-action";
-import { SaveRow } from "./save-row";
+import { SaveCell } from "./save-cell";
 
 // Where each open lead WOULD go, and one button per lead to make it so.
 //
@@ -40,7 +39,6 @@ export interface RoutingTableProps {
 
 export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
   const { DATA_TABLE_LABELS, ROUTING_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
-  const save = useSaveAction(SIGNAL_ACTION_ERROR);
 
   return (
     <Section id="routing" icon="user-switch" title={ROUTING_TEXT.title} description={ROUTING_TEXT.why}>
@@ -108,14 +106,15 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                   !canAssign || r.unroutableReason || r.suggestedOwner === r.currentOwner ? (
                     <span className="text-muted-foreground">-</span>
                   ) : (
-                    <SaveRow
-                      action={save}
+                    // Per-row state. Sharing one hook across the table put the
+                    // "assigned" badge - and any refusal - on every other row
+                    // that still had a button.
+                    <SaveCell
+                      errors={SIGNAL_ACTION_ERROR}
                       label={ROUTING_TEXT.apply}
                       savedLabel={ROUTING_TEXT.applied}
                       onSave={() =>
-                        save.run(() =>
-                          onAssign({ leadId: r.leadId, ownerSub: r.suggestedOwner! }),
-                        )
+                        onAssign({ leadId: r.leadId, ownerSub: r.suggestedOwner! })
                       }
                     />
                   ),
