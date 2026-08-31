@@ -3,6 +3,7 @@ import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
 import type { MilestoneDraft } from "./lib/milestone";
+import type { EngagementType } from "./lib/renewal";
 import type {
   DeliveryStore,
   InstalmentRecord,
@@ -37,6 +38,7 @@ export class PrismaDeliveryStore implements DeliveryStore {
         ...(filter.status ? { status: filter.status } : {}),
         ...(filter.accountId ? { accountId: filter.accountId } : {}),
         ...(filter.managerSub ? { managerSub: filter.managerSub } : {}),
+        ...(filter.engagementType ? { engagementType: filter.engagementType } : {}),
       },
       orderBy: [{ createdAt: "desc" }],
       ...(filter.limit ? { take: filter.limit } : {}),
@@ -178,6 +180,11 @@ function toProject(r: Record<string, unknown>): ProjectRecord {
     health: r.health as ProjectHealth,
     status: String(r.status),
     currency,
+    endsAt: (r.endsAt as Date | null) ?? null,
+    // The DDL default is one_off, so a row written before 0018 reads as
+    // one_off here too rather than as undefined - which would make
+    // assessRenewal's first branch depend on how old the row is.
+    engagementType: (r.engagementType as EngagementType | undefined) ?? "one_off",
   };
 }
 

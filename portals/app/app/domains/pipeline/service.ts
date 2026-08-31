@@ -128,8 +128,33 @@ export async function createOpportunity(
       amount: plan.value.amount,
       currency: plan.value.amount?.currency ?? input.currency ?? DEFAULT_LINE_CURRENCY,
       expectedCloseAt: plan.value.expectedCloseAt,
+      // Written once, frozen after. A renewal carries the project it came
+      // from; every other deal carries null, which is the honest answer and
+      // not a placeholder.
+      sourceProjectId: plan.value.sourceProjectId ?? null,
     }),
   );
+}
+
+/**
+ * Which projects already have a deal open off them.
+ *
+ * D7 CANNOT ANSWER THIS and must not try. Opportunities are D6's rows, so the
+ * renewal derivation gets the answer passed in and the page composes the two -
+ * the same shape /routing uses to get an account's region into the router.
+ *
+ * Gated on `pipeline.view` - the same gate as listing deals - rather than on
+ * anything delivery-side: this reveals that a deal exists, so it is D6's
+ * disclosure to make. A member who may not see deals gets a refusal, and the
+ * renewal page then proposes renewals that may already exist - a worse
+ * suggestion, not a leak.
+ */
+export async function listRenewedProjectIds(
+  ctx: PipelineContext,
+): Promise<RuleResult<Set<string>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listRenewalSourceProjectIds(ctx.workspaceId));
 }
 
 export async function advanceStage(

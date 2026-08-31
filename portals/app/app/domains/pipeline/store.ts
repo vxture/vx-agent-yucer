@@ -42,6 +42,13 @@ export interface OpportunityRecord {
   closedAt: Date | null;
   status: OpportunityStatus;
   currency: string;
+  /**
+   * The delivered project this deal renews, or null.
+   *
+   * Frozen after creation - 0019 adds the column and deliberately grants no
+   * UPDATE on it, the same treatment campaignId gets.
+   */
+  sourceProjectId: string | null;
   /** Anchor column, immutable. Exposed because the capture metric's denominator
    * has to know when a deal STARTED being a deal - "opportunities open right
    * now" as a historical denominator would let last month's coverage improve on
@@ -118,6 +125,8 @@ export interface NewOpportunity {
   amount: Money | null;
   currency: string;
   expectedCloseAt: Date | null;
+  /** Set once, at creation, for a deal derived from a delivered project. */
+  sourceProjectId?: string | null;
   /** Tests and fixtures only. Real creation lets the database stamp it. */
   createdAt?: Date;
 }
@@ -141,6 +150,22 @@ export interface PipelineStore {
    * journalled. */
   createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord>;
   getOpportunity(workspaceId: string, id: string): Promise<OpportunityRecord | null>;
+
+  /**
+   * Which projects already have a deal open off them.
+   *
+   * A SET OF IDS, not a list of opportunities, because that is the entire
+   * question the renewal derivation asks and returning the rows would invite a
+   * caller in D7 to read D6's deals for other purposes. It is also why this is
+   * a dedicated method rather than a filter on listOpportunities: the answer
+   * is needed for every project at once, so a per-project filter would be one
+   * query per row.
+   *
+   * CLOSED DEALS COUNT. A renewal that was opened and then lost is still a
+   * renewal somebody ran; re-proposing it the day it is marked lost would put
+   * the product in the position of arguing with the rep who just lost it.
+   */
+  listRenewalSourceProjectIds(workspaceId: string): Promise<Set<string>>;
 
   /**
    * Apply a planned stage change: the whitelisted column patch AND the journal
@@ -241,10 +266,19 @@ export class InMemoryPipelineStore implements PipelineStore {
       closedAt: null,
       status: "open",
       currency: input.currency,
+      sourceProjectId: input.sourceProjectId ?? null,
       createdAt: input.createdAt ?? new Date(),
     };
     this.opportunities.set(record.id, record);
     return record;
+  }
+
+  async listRenewalSourceProjectIds(workspaceId: string): Promise<Set<string>> {
+    const ids = new Set<string>();
+    for (const o of this.opportunities.values()) {
+      if (o.workspaceId === workspaceId && o.sourceProjectId) ids.add(o.sourceProjectId);
+    }
+    return ids;
   }
 
   async listOpportunities(

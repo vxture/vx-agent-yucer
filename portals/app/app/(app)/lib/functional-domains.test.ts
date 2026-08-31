@@ -249,6 +249,7 @@ const SHIPPED_AS: Record<string, string> = {
   // now names the section that actually renders it, which is what makes this
   // guard able to tell them apart.
   catalog: "ProductSection",
+  renewal: "RenewalTable",
   solution: "SolutionSection",
   pricebook: "PriceSection",
 };
@@ -265,7 +266,6 @@ const NOT_BUILT: Record<string, string> = {
   forecastRule: "ForecastRuleTable",
   routing: "LeadRouting",
   quote: "QuoteEditor",
-  renewal: "RenewalTable",
 };
 
 test("the component names this file guards by are real", () => {

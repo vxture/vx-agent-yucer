@@ -53,6 +53,7 @@ interface OpportunityRow {
   expectedCloseAt: Date | null;
   closedAt: Date | null;
   status: string;
+  sourceProjectId: string | null;
   createdAt: Date;
 }
 
@@ -77,6 +78,7 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     expectedCloseAt: row.expectedCloseAt,
     closedAt: row.closedAt,
     status: row.status as OpportunityStatus,
+    sourceProjectId: row.sourceProjectId,
     createdAt: row.createdAt,
   };
 }
@@ -106,6 +108,9 @@ export class PrismaPipelineStore implements PipelineStore {
           currency: input.currency,
           probability: DEFAULT_PROBABILITY.qualify,
           expectedCloseAt: input.expectedCloseAt,
+          // Written once, here, for the same reason campaignId is: 0019 grants
+          // no UPDATE on it.
+          sourceProjectId: input.sourceProjectId ?? null,
           // stage and forecast_category default to qualify/pipeline in the DDL.
         },
       });
@@ -132,6 +137,24 @@ export class PrismaPipelineStore implements PipelineStore {
       ...(filter.limit ? { take: filter.limit } : {}),
     });
     return rows.map((r: OpportunityRow) => toRecord(r));
+  }
+
+  async listRenewalSourceProjectIds(workspaceId: string): Promise<Set<string>> {
+    const p = await getPrismaClient();
+    // NOT filtered by status, and not by deletedAt either. A renewal that was
+    // opened and lost is still a renewal somebody ran; re-proposing it would
+    // argue with the rep who just lost it. distinct + select keeps this to the
+    // partial index 0019 adds.
+    const rows = await p.opportunity.findMany({
+      where: { workspaceId, sourceProjectId: { not: null } },
+      select: { sourceProjectId: true },
+      distinct: ["sourceProjectId"],
+    });
+    return new Set(
+      rows
+        .map((r: { sourceProjectId: string | null }) => r.sourceProjectId)
+        .filter((id: string | null): id is string => id !== null),
+    );
   }
 
   async getOpportunity(workspaceId: string, id: string): Promise<OpportunityRecord | null> {

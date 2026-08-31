@@ -47,7 +47,9 @@ export type NavIcon =
   | "wallet"
   | "receipt"
   | "star"
-  | "user-switch";
+  | "user-switch"
+  // Renewal keeps the glyph it carried as a launcher row.
+  | "file-text";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -192,6 +194,11 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "quote", href: "/quote", icon: "receipt", action: "pipeline.view" },
   { key: "routing", href: "/routing", icon: "user-switch", action: "signal.lead.view" },
   { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
+  // Gated on the DELIVERY read, not on the pipeline write. Seeing which terms
+  // are coming up is a delivery question; opening the deal is a separate gate
+  // the page applies to the button alone, so a delivery manager with no
+  // pipeline write still sees what is lapsing.
+  { key: "renewal", href: "/renewal", icon: "file-text", action: "delivery.project.view" },
 ];
 
 export const NAV_ENTRIES: readonly NavEntry[] = [

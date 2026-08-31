@@ -90,6 +90,9 @@ export const DEMO_OPPORTUNITIES = [
   "处方流转系统",
   "技改能效监测",
   "实验室数据对接",
+  // Opened off prj_demo_6, so the renewal page has a project it must NOT
+  // propose again.
+  "调度平台续约",
 ] as const;
 
 export const DEMO_PROJECTS = [
@@ -97,6 +100,12 @@ export const DEMO_PROJECTS = [
   "智能仓储实施",
   "处方流转交付",
   "运输调度试点",
+  // Two subscriptions added for the renewal derivation. Five verdicts exist
+  // and a demo that shows only "due" would let the other four ship untested
+  // against real rows - `already_renewed` in particular, which is the one that
+  // stops the product proposing the same approach to a customer twice.
+  "门店运营订阅服务",
+  "调度平台年度订阅",
 ] as const;
 
 export const DEMO_MILESTONES = ["启动与调研", "试点门店上线", "全面推广", "验收"] as const;

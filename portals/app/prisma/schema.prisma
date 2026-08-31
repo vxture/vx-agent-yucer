@@ -384,6 +384,9 @@ model Opportunity {
   planId           String?   @map("plan_id") @db.Uuid
   campaignId       String?   @map("campaign_id") @db.Uuid
   territoryId      String?   @map("territory_id") @db.Uuid
+  // The return leg from D7. Frozen after creation like campaign_id - 0019
+  // deliberately grants no UPDATE on it.
+  sourceProjectId  String?   @map("source_project_id") @db.Uuid
   ownerSub         String?   @map("owner_sub") @db.VarChar(128)
   stage            String    @default("qualify") @db.VarChar(32)
   forecastCategory String    @default("pipeline") @map("forecast_category") @db.VarChar(32)

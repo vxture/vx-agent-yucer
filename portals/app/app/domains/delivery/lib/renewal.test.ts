@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { assessRenewal, planRenewal, type RenewableProject } from "./renewal";
+import { assessRenewal, daysUntilEnd, planRenewal, type RenewableProject } from "./renewal";
 
 const NOW = new Date("2026-08-30T00:00:00Z");
 const inDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
@@ -86,4 +86,23 @@ test("a project that is not due cannot be planned into a deal", () => {
   const r = planRenewal(P(), { kind: "not_due", reason: "not_subscription" });
   assert.equal(r.ok, false);
   assert.equal(r.ok ? "" : r.violations[0].code, "renewal_not_due");
+});
+
+test("days-to-end is a fact about the project, not about the verdict", () => {
+  // The defect this closes: the renewal page read the figure off the `due`
+  // verdict, so an already-renewed project - which still has a term running
+  // out - rendered as "no end date". One definition, callable against any row.
+  const p = P({ endsAt: new Date("2026-09-05T00:00:00Z") });
+  const now = new Date("2026-08-30T00:00:00Z");
+  assert.equal(daysUntilEnd(p, now), 6);
+  // And it stays 6 whatever the rule concludes about it.
+  const verdict = assessRenewal(p, now, { alreadyRenewed: true });
+  assert.equal(verdict.kind, "not_due");
+  assert.equal(daysUntilEnd(p, now), 6);
+});
+
+test("a lapsed term reads negative, and no end date reads null", () => {
+  const now = new Date("2026-08-30T00:00:00Z");
+  assert.equal(daysUntilEnd(P({ endsAt: new Date("2026-08-18T00:00:00Z") }), now), -12);
+  assert.equal(daysUntilEnd(P({ endsAt: null }), now), null);
 });

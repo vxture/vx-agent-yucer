@@ -12,6 +12,7 @@ import {
   listPipeline,
   approveLineDiscount,
   createOpportunity,
+  listRenewedProjectIds,
   replaceOpportunityLines,
   submitForecast,
   type PipelineContext,
@@ -29,6 +30,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
     accountId: "acc_1",
     planId: null,
     campaignId: "camp_1",
+    sourceProjectId: null,
     territoryId: "t_1",
     ownerSub: "usr_rep",
     stage: "discover",
@@ -516,4 +518,74 @@ test("a created deal is immediately in the pipeline it was created into", async 
   const listed = unwrap(await listPipeline(c, {}));
   assert.equal(listed.length, 1);
   assert.equal(listed[0]!.name, "Corridor deal");
+});
+
+// --- The renewal leg --------------------------------------------------------
+
+test("a renewal is attributed to the project, not to a rep who found it", async () => {
+  // self_sourced would credit new business for revenue the existing book
+  // produced. Same reassignment of credit the frozen columns exist to prevent,
+  // only done at creation where nobody would see it.
+  const store = new InMemoryPipelineStore();
+  const created = unwrap(
+    await createOpportunity(ctx("sales_rep", "business", store), {
+      name: "Renewal of the platform term",
+      accountId: "acc_1",
+      territoryId: null,
+      ownerSub: null,
+      amount: money(880_000),
+      expectedCloseAt: null,
+      sourceProjectId: "prj_6",
+    }),
+  );
+  assert.equal(created.sourceProjectId, "prj_6");
+  // No campaign. Inheriting the first term's campaign would let it keep
+  // earning credit for every renewal the customer ever signs.
+  assert.equal(created.campaignId, null);
+});
+
+test("an ordinary deal carries no source project", async () => {
+  const store = new InMemoryPipelineStore();
+  const created = unwrap(
+    await createOpportunity(ctx("sales_rep", "business", store), {
+      name: "Corridor deal",
+      accountId: "acc_1",
+      territoryId: null,
+      ownerSub: null,
+      amount: null,
+      expectedCloseAt: null,
+    }),
+  );
+  assert.equal(created.sourceProjectId, null);
+});
+
+test("the renewed-project set names every project with a deal open off it", async () => {
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_rep", "business", store);
+  for (const projectId of ["prj_6", "prj_6", "prj_9"]) {
+    unwrap(
+      await createOpportunity(c, {
+        name: `Renewal ${projectId}`,
+        accountId: "acc_1",
+        territoryId: null,
+        ownerSub: null,
+        amount: null,
+        expectedCloseAt: null,
+        sourceProjectId: projectId,
+      }),
+    );
+  }
+  const ids = unwrap(await listRenewedProjectIds(c));
+  // A SET, so a project renewed twice is named once - the renewal page asks
+  // "has this been renewed", not "how often".
+  assert.deepEqual([...ids].sort(), ["prj_6", "prj_9"]);
+});
+
+test("the renewed-project set is refused to a workspace with no entitlement", async () => {
+  // Same gate as listing deals, because it discloses the same thing: that a
+  // deal exists. `pipeline.manage` reaches down to the free tier, so an
+  // unentitled workspace is what refusal looks like here.
+  const store = new InMemoryPipelineStore();
+  const result = await listRenewedProjectIds(ctx("viewer", null, store));
+  assert.equal(result.ok, false);
 });

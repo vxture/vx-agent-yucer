@@ -16,7 +16,7 @@
 
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
-export type AttributionSource = "campaign" | "signal_campaign" | "self_sourced";
+export type AttributionSource = "campaign" | "signal_campaign" | "renewal" | "self_sourced";
 
 export interface Attribution {
   source: AttributionSource;
@@ -44,7 +44,8 @@ export interface SignalFacts {
  *
  *   1. the lead's own campaign (inherited when the lead was created)
  *   2. the campaign the lead's originating signal came from
- *   3. self-sourced
+ *   3. the project it renews
+ *   4. self-sourced
  *
  * Called exactly once, when the opportunity is created. Never recomputed - a
  * later call could return a different answer once a campaign is archived, and
@@ -53,6 +54,8 @@ export interface SignalFacts {
 export function resolveAttribution(input: {
   lead?: LeadFacts | null;
   signal?: SignalFacts | null;
+  /** The delivered project this deal renews, when it is a renewal. */
+  renewalOfProjectId?: string | null;
 }): Attribution {
   const lead = input.lead ?? null;
   const signal = input.signal ?? null;
@@ -69,6 +72,24 @@ export function resolveAttribution(input: {
       source: "signal_campaign",
       campaignId: signal.sourceRef,
       basis: `signal ${signal.id} source_ref`,
+    };
+  }
+
+  // A RENEWAL IS NOT SELF-SOURCED, and that distinction is the whole reason
+  // this branch exists rather than letting renewals fall through the bottom.
+  // Self-sourced says a rep went and found this; a renewal says a delivery
+  // team earned it. Collapsing the two credits new business for revenue the
+  // existing book produced - the same reassignment of credit the immutability
+  // above exists to prevent, only done at creation where nobody would see it.
+  //
+  // campaignId stays null. Inheriting the ORIGINAL deal's campaign would let
+  // one campaign keep earning credit for every term a customer ever renews,
+  // which is how a campaign report becomes a story about its own past.
+  if (input.renewalOfProjectId) {
+    return {
+      source: "renewal",
+      campaignId: null,
+      basis: `renewal of project ${input.renewalOfProjectId}`,
     };
   }
 
@@ -145,7 +166,16 @@ export function planConversion(input: {
  * keys must not appear in a patch. The column locks would reject it anyway, but
  * as `permission denied` at the driver, far from the code that caused it.
  */
-const FROZEN_OPPORTUNITY_KEYS = ["accountId", "campaignId", "account_id", "campaign_id"] as const;
+const FROZEN_OPPORTUNITY_KEYS = [
+  "accountId",
+  "campaignId",
+  "account_id",
+  "campaign_id",
+  // 0019 grants no UPDATE on it either: which project a deal renews is the
+  // same kind of fact as which campaign produced it.
+  "sourceProjectId",
+  "source_project_id",
+] as const;
 const FROZEN_LEAD_KEYS = ["signalId", "campaignId", "signal_id", "campaign_id"] as const;
 
 export function assertNoFrozenOpportunityKeys(patch: Record<string, unknown>): RuleResult<true> {

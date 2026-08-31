@@ -53,6 +53,22 @@ export const RENEWAL_WINDOW_DAYS = 90;
 
 const DAY = 86_400_000;
 
+/**
+ * Days until the term ends; negative once it has lapsed, null with no end date.
+ *
+ * EXPORTED SO THERE IS ONE DEFINITION. The renewal page has to show how long a
+ * term has left even for a project the rule dismissed - a subscription that is
+ * `already_renewed` still has an end date, and reading "no end date" for one
+ * that has one is a page telling the reader something untrue about the data.
+ * Taking that figure off the `due` verdict made the column a function of the
+ * verdict rather than of the project, so it is now a function anyone can call
+ * against the row, and `assessRenewal` calls the same one.
+ */
+export function daysUntilEnd(project: Pick<RenewableProject, "endsAt">, now: Date): number | null {
+  if (!project.endsAt) return null;
+  return Math.floor((project.endsAt.getTime() - now.getTime()) / DAY);
+}
+
 export function assessRenewal(
   project: RenewableProject,
   now: Date,
@@ -73,9 +89,9 @@ export function assessRenewal(
   if (!["active", "on_hold", "delivered"].includes(project.status)) {
     return { kind: "not_due", reason: "not_delivering" };
   }
-  if (!project.endsAt) return { kind: "not_due", reason: "no_end_date" };
+  const daysToEnd = daysUntilEnd(project, now);
+  if (daysToEnd === null) return { kind: "not_due", reason: "no_end_date" };
 
-  const daysToEnd = Math.floor((project.endsAt.getTime() - now.getTime()) / DAY);
   if (daysToEnd > (opts.windowDays ?? RENEWAL_WINDOW_DAYS)) {
     return { kind: "not_due", reason: "too_far_out" };
   }

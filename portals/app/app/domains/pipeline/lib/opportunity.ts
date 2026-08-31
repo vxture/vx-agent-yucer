@@ -25,6 +25,13 @@ export interface NewOpportunityDraft {
   ownerSub: string | null;
   amount: Money | null;
   expectedCloseAt: Date | null;
+  /**
+   * The delivered project this deal renews, when it is a renewal.
+   *
+   * Optional because most deals are not renewals, and absent is the honest
+   * answer for them rather than a null somebody has to remember to pass.
+   */
+  sourceProjectId?: string | null;
 }
 
 export interface PlannedOpportunity extends NewOpportunityDraft {
@@ -42,8 +49,14 @@ export interface PlannedOpportunity extends NewOpportunityDraft {
  * converted one, rather than from an omission.
  *
  * A direct deal has no lead and no signal, so it is self-sourced by
- * construction. That is not a default - it is the third branch of a rule that
+ * construction. That is not a default - it is the last branch of a rule that
  * has always been there.
+ *
+ * UNLESS IT RENEWS SOMETHING. `sourceProjectId` names the delivered project a
+ * renewal comes from, and a renewal is attributed to that project rather than
+ * to a rep going out and finding it. Same call, same function, one more fact
+ * passed in - which is the point of resolving attribution here rather than at
+ * each caller.
  */
 export function planNewOpportunity(input: NewOpportunityDraft): RuleResult<PlannedOpportunity> {
   const name = input.name.trim();
@@ -63,6 +76,7 @@ export function planNewOpportunity(input: NewOpportunityDraft): RuleResult<Plann
   return ok({
     ...input,
     name,
-    attribution: resolveAttribution({}),
+    sourceProjectId: input.sourceProjectId ?? null,
+    attribution: resolveAttribution({ renewalOfProjectId: input.sourceProjectId }),
   });
 }

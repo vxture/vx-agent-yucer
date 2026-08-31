@@ -7,6 +7,14 @@
 // returns the DERIVED health, and says when it downgraded a report and why.
 
 import { planMilestone, type MilestoneDraft } from "./lib/milestone";
+import {
+  assessRenewal,
+  daysUntilEnd,
+  planRenewal,
+  type RenewableProject,
+  type RenewalDraft,
+  type RenewalVerdict,
+} from "./lib/renewal";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
@@ -225,4 +233,179 @@ export async function reconcileProjectHealth(
     await ctx.store.updateProject(ctx.workspaceId, projectId, { health: derived.value.health });
   }
   return ok({ health: derived.value.health, changed, because: derived.value.overriddenBecause });
+}
+
+// ---------------------------------------------------------------------------
+// Renewal - the D7 -> D6 return leg.
+//
+// The owner's ruling of 2026-08-30: a renewal opportunity is derived FROM THE
+// PROJECT, and only for SUBSCRIPTION projects. `lib/renewal.ts` holds the
+// judgement; these two verbs are what a page can reach.
+//
+// TWO VERBS, NOT ONE, because they answer different questions and carry
+// different risk. `listRenewals` says what is coming up. `renewalDraft` says
+// what one specific renewal would open with, and is the last read before a
+// person commits to approaching a customer.
+//
+// NEITHER OF THEM WRITES ANYTHING. Creating the opportunity belongs to D6 and
+// goes through `createOpportunity` - one object, one owning domain, and the
+// gate that matters for it (`pipeline.opportunity.create`) is D6's to apply.
+// A convenience verb here that created the deal would put D7 in the business
+// of writing D6's table, and would put a customer-facing commercial approach
+// behind a delivery permission.
+// ---------------------------------------------------------------------------
+
+export interface RenewalCandidate {
+  project: ProjectRecord;
+  verdict: RenewalVerdict;
+  /**
+   * How long the term has left, negative once lapsed, null with no end date.
+   *
+   * A FACT ABOUT THE PROJECT, not about the verdict - which is why it is here
+   * and not read off `verdict.daysToEnd`. A project that is `already_renewed`
+   * still has an end date, and a page that took this from the verdict showed
+   * "no end date" for one that has one.
+   */
+  daysToEnd: number | null;
+  /** Present only when the verdict is `due`. */
+  draft: RenewalDraft | null;
+}
+
+/**
+ * Every subscription whose term is inside the window, with the reason for each.
+ *
+ * `renewedProjectIds` IS A PARAMETER, not a read. Which projects already have
+ * a deal open off them is D6's fact, and D7 has no read of D6 - so the page
+ * composes the two, exactly as /routing composes territories and accounts into
+ * the router. Passing it in also makes the "already renewed" branch reachable
+ * from a test without a pipeline store.
+ *
+ * NOT-DUE ROWS ARE RETURNED, not filtered. `too_far_out` is noise, but
+ * `no_end_date` on a subscription is a data gap that will silently cost a
+ * renewal, and it is invisible if the list only shows what is due. The caller
+ * decides what to render; this decides what is true.
+ *
+ * HEALTH IS DERIVED ONLY FOR THE SURVIVORS. Deriving it costs a milestone read
+ * and an instalment read per project, and a workspace has far more projects
+ * than due renewals. Due-ness does not depend on health - only the `risk` on a
+ * due verdict does - so the cheap pass runs over everything and the expensive
+ * one runs over what came through it.
+ */
+export async function listRenewals(
+  ctx: DeliveryContext,
+  renewedProjectIds: ReadonlySet<string>,
+  opts: { now?: Date; windowDays?: number } = {},
+): Promise<RuleResult<RenewalCandidate[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.project.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const now = opts.now ?? new Date();
+  const projects = await ctx.store.listProjects(ctx.workspaceId, {
+    engagementType: "subscription",
+  });
+
+  const out: RenewalCandidate[] = [];
+  for (const project of projects) {
+    const alreadyRenewed = renewedProjectIds.has(project.id);
+    // Pass 1 with the REPORTED health. It cannot change the answer - health
+    // only colours a due verdict's risk - and it keeps the reads off the rows
+    // that are about to be dismissed.
+    const first = assessRenewal(asRenewable(project, project.health), now, {
+      alreadyRenewed,
+      windowDays: opts.windowDays,
+    });
+    if (first.kind !== "due") {
+      out.push({ project, verdict: first, daysToEnd: daysUntilEnd(project, now), draft: null });
+      continue;
+    }
+
+    const derived = await derivedHealthOf(ctx, project, now);
+    if (!derived.ok) return derived as RuleResult<RenewalCandidate[]>;
+
+    const renewable = asRenewable(project, derived.value);
+    const verdict = assessRenewal(renewable, now, { alreadyRenewed, windowDays: opts.windowDays });
+    const draft = planRenewal(renewable, verdict);
+    if (!draft.ok) return draft as RuleResult<RenewalCandidate[]>;
+    out.push({ project, verdict, daysToEnd: daysUntilEnd(project, now), draft: draft.value });
+  }
+
+  // The most urgent first, and a lapsed term is more urgent than any future
+  // one - which falls out of sorting by daysToEnd ascending, because a lapsed
+  // term's is negative. Not-due rows sink to the bottom in project order.
+  return ok(
+    out.sort((a, b) => rank(a.verdict) - rank(b.verdict) || a.project.name.localeCompare(b.project.name)),
+  );
+}
+
+/**
+ * What one renewal would open with, re-derived at the moment of the click.
+ *
+ * NOT TAKEN FROM THE LIST THE PAGE IS SHOWING. A page can be minutes old, and
+ * in that time the term can lapse, the project can be cancelled, or somebody
+ * else can open the renewal. Re-running the rule against the current row is
+ * what makes "the button was there when I clicked it" not the same as "this
+ * was still due".
+ */
+export async function renewalDraft(
+  ctx: DeliveryContext,
+  projectId: string,
+  opts: { alreadyRenewed?: boolean; now?: Date; windowDays?: number } = {},
+): Promise<RuleResult<RenewalDraft>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.project.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const project = await ctx.store.getProject(ctx.workspaceId, projectId);
+  if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
+
+  const now = opts.now ?? new Date();
+  const derived = await derivedHealthOf(ctx, project, now);
+  if (!derived.ok) return derived as RuleResult<RenewalDraft>;
+
+  const renewable = asRenewable(project, derived.value);
+  return planRenewal(
+    renewable,
+    assessRenewal(renewable, now, {
+      alreadyRenewed: opts.alreadyRenewed,
+      windowDays: opts.windowDays,
+    }),
+  );
+}
+
+function asRenewable(project: ProjectRecord, health: ProjectHealth): RenewableProject {
+  return {
+    id: project.id,
+    name: project.name,
+    accountId: project.accountId,
+    engagementType: project.engagementType,
+    status: project.status,
+    endsAt: project.endsAt,
+    contractAmount: project.contractAmount?.amount ?? null,
+    currency: project.currency,
+    derivedHealth: health,
+  };
+}
+
+/** The overdue-forbids-green rule, applied to one project. */
+async function derivedHealthOf(
+  ctx: DeliveryContext,
+  project: ProjectRecord,
+  now: Date,
+): Promise<RuleResult<ProjectHealth>> {
+  const [milestones, instalments] = await Promise.all([
+    ctx.store.listMilestones(ctx.workspaceId, project.id),
+    ctx.store.listInstalments(ctx.workspaceId, project.id),
+  ]);
+  const health = deriveProjectHealth({
+    reported: project.health,
+    instalments,
+    milestones,
+    now,
+  });
+  if (!health.ok) return health as RuleResult<ProjectHealth>;
+  return ok(health.value.health);
+}
+
+/** Due before not-due; within due, soonest (and already-lapsed) first. */
+function rank(v: RenewalVerdict): number {
+  return v.kind === "due" ? v.daysToEnd : Number.MAX_SAFE_INTEGER;
 }
