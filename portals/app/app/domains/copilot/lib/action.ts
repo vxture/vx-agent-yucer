@@ -226,26 +226,6 @@ export function planExpiry(
 
 const FROZEN_KEYS = ["payload", "rationale", "confidence"] as const;
 
-/**
- * Refuse any patch that touches the model's own record. The database revokes
- * UPDATE on these columns, so this is not the only defence - it is the one that
- * fails with a sentence instead of a driver-level `permission denied`.
- */
-export function assertProposalUnchanged(patch: Record<string, unknown>): RuleResult<true> {
-  const found = FROZEN_KEYS.filter((k) => Object.prototype.hasOwnProperty.call(patch, k));
-  if (found.length === 0) return ok(true);
-  return {
-    ok: false,
-    violations: found.map((k) =>
-      violation(
-        "proposal_immutable",
-        `agent_action.${k} records what the model recommended at the time and cannot be edited; a revised recommendation is a new proposal`,
-        k,
-      ),
-    ),
-  };
-}
-
 // --- Batch adjudication -----------------------------------------------------
 
 export interface BatchDecisionResult {

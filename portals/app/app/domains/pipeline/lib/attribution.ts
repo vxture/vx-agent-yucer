@@ -161,46 +161,14 @@ export function planConversion(input: {
   });
 }
 
-/**
- * Guard for any update path that touches an opportunity or a lead: the frozen
- * keys must not appear in a patch. The column locks would reject it anyway, but
- * as `permission denied` at the driver, far from the code that caused it.
- */
-const FROZEN_OPPORTUNITY_KEYS = [
-  "accountId",
-  "campaignId",
-  "account_id",
-  "campaign_id",
-  // 0019 grants no UPDATE on it either: which project a deal renews is the
-  // same kind of fact as which campaign produced it.
-  "sourceProjectId",
-  "source_project_id",
-] as const;
-const FROZEN_LEAD_KEYS = ["signalId", "campaignId", "signal_id", "campaign_id"] as const;
-
-export function assertNoFrozenOpportunityKeys(patch: Record<string, unknown>): RuleResult<true> {
-  return assertNoKeys(patch, FROZEN_OPPORTUNITY_KEYS, "opportunity");
-}
-
-export function assertNoFrozenLeadKeys(patch: Record<string, unknown>): RuleResult<true> {
-  return assertNoKeys(patch, FROZEN_LEAD_KEYS, "lead");
-}
-
-function assertNoKeys(
-  patch: Record<string, unknown>,
-  frozen: readonly string[],
-  entity: string,
-): RuleResult<true> {
-  const found = frozen.filter((k) => Object.prototype.hasOwnProperty.call(patch, k));
-  if (found.length === 0) return ok(true);
-  return {
-    ok: false,
-    violations: found.map((k) =>
-      violation(
-        "attribution_immutable",
-        `${entity}.${k} is an attribution key and is frozen after creation; correct it through a db-init increment, not an application write`,
-        k,
-      ),
-    ),
-  };
-}
+// THE FROZEN-KEY GUARD USED TO END THIS FILE, and it is gone (2026-08-31)
+// along with `assertNoKeys` and the two key lists it read. Its whole argument
+// was in its own docstring: "the column locks would reject it anyway, but as
+// `permission denied` at the driver, far from the code that caused it." That
+// is true, and it is what `column-locks.assertWritable` does - generically,
+// against the mirror of the DDL grants, before every adapter write, for every
+// frozen column rather than these four. This was the second answer.
+//
+// The sentences it carried were the part worth keeping, and they moved to
+// FROZEN_COLUMN_REASON, where assertWritable now says them and three tests
+// prove each one names a real column, a frozen one, and reaches the refusal.

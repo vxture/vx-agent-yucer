@@ -239,6 +239,86 @@ export function writableColumns(table: string): readonly string[] {
 }
 
 /**
+ * WHY a particular column is frozen, in the rule layer's own words.
+ *
+ * These sentences arrived here on 2026-08-31 from six separate guards -
+ * assertNoFrozenOpportunityKeys, assertNoFrozenLeadKeys, assertEvidenceUnchanged,
+ * assertProposalUnchanged, assertSequenceUnchanged, assertScopeUnchanged - each
+ * of which refused a patch touching one of these columns. Every one of those
+ * columns is already absent from WRITABLE_COLUMNS, so assertWritable already
+ * refused all of them; the guards were a second answer to a question this
+ * module answers (ADR-023's shape), and the wired guard found them because
+ * nothing but their own tests ever called them.
+ *
+ * They were kept for one batch rather than deleted, because they had something
+ * the generic refusal does not: the REASON. "Rewriting evidence is fabricating
+ * it" says more than "this column has no UPDATE grant". Deleting them outright
+ * would have removed the duplication by throwing away the knowledge. This map
+ * is the knowledge, moved to the one place that already does the checking.
+ *
+ * THE CODE DOES NOT CHANGE - it stays `column_not_writable`. A violation's
+ * message is written for the rule layer's own reader and is ASCII English by
+ * construction; the sentence a member sees comes from the code, through the
+ * message dictionary (TD-010). Emitting six new codes would mean six new
+ * dictionary entries per locale for refusals no interface is meant to render
+ * differently. The reason belongs in the message, which is exactly where those
+ * six guards had it.
+ *
+ * Keyed `schema.table.column`, snake_case, and asserted against both the mirror
+ * and the DDL: a reason naming a column that is writable would never fire, and
+ * one naming a column that does not exist would be a comment pretending to be
+ * a rule.
+ */
+export const FROZEN_COLUMN_REASON: Record<string, string> = {
+  // Attribution: the record of where demand came from, computed once at
+  // creation from facts. Editable attribution is credit for revenue
+  // reassignable after everyone can see which allocation pays better.
+  "yucer_pipeline.opportunity.account_id":
+    "whose deal this is was settled at creation; a different customer is a different deal",
+  "yucer_pipeline.opportunity.campaign_id":
+    "where this deal came from is the attribution record; correcting it is a db-init data correction, where it leaves a trace",
+  "yucer_pipeline.opportunity.source_project_id":
+    "which project this renews is the same kind of fact as which campaign produced it",
+  "yucer_pipeline.lead.signal_id":
+    "the evidence this lead came from is its lineage, not a field",
+  "yucer_pipeline.lead.campaign_id":
+    "the campaign this lead was inherited from is the attribution record",
+
+  // Evidence: what was observed. Editing it is not correcting a record, it is
+  // changing what the record says happened.
+  "yucer_pipeline.signal.source": "evidence is frozen after creation; rewriting evidence is fabricating it",
+  "yucer_pipeline.signal.source_ref": "evidence is frozen after creation; rewriting evidence is fabricating it",
+  "yucer_pipeline.signal.signal_type": "evidence is frozen after creation; rewriting evidence is fabricating it",
+  "yucer_pipeline.signal.subject": "evidence is frozen after creation; rewriting evidence is fabricating it",
+  "yucer_pipeline.signal.payload": "evidence is frozen after creation; rewriting evidence is fabricating it",
+  "yucer_pipeline.signal.detected_at": "evidence is frozen after creation; rewriting evidence is fabricating it",
+
+  // The model's own record. ADR-003: the copilot proposes, a human decides -
+  // and what it proposed has to still be readable after the decision.
+  "yucer_agent.agent_action.payload":
+    "this records what the model recommended at the time; a revised recommendation is a new proposal",
+  "yucer_agent.agent_action.rationale":
+    "this records why the model recommended it; a revised rationale is a new proposal",
+  "yucer_agent.agent_action.confidence":
+    "this records how sure the model was at the time; editing it rewrites the basis a person decided on",
+
+  // Identity tuples: the row IS its key, so changing the key means a different
+  // row rather than an edited one.
+  "yucer_delivery.revenue_schedule.sequence":
+    "sequence is part of the row identity; reordering instalments means writing new rows",
+  "yucer_gtm.sales_target.period":
+    "a target's scope is its identity; a different scope is a different target",
+  "yucer_gtm.sales_target.scope_type":
+    "a target's scope is its identity; a different scope is a different target",
+  "yucer_gtm.sales_target.territory_id":
+    "a target's scope is its identity; a different scope is a different target",
+  "yucer_gtm.sales_target.owner_sub":
+    "a target's scope is its identity; a different scope is a different target",
+  "yucer_gtm.sales_target.metric":
+    "a target's scope is its identity; a different scope is a different target",
+};
+
+/**
  * Assert a patch only touches columns the service role may write.
  *
  * Field names are accepted in either style: adapters build patches in Prisma's
@@ -274,13 +354,17 @@ export function assertWritable(table: string, patch: Record<string, unknown>): R
 
   return {
     ok: false,
-    violations: offending.map((k) =>
-      violation(
+    violations: offending.map((k) => {
+      const column = toSnakeCase(k);
+      const why = FROZEN_COLUMN_REASON[`${table}.${column}`];
+      return violation(
         "column_not_writable",
-        `${table}.${toSnakeCase(k)} has no UPDATE grant; writing it fails with permission denied at the database`,
+        why
+          ? `${table}.${column} has no UPDATE grant: ${why}`
+          : `${table}.${column} has no UPDATE grant; writing it fails with permission denied at the database`,
         k,
-      ),
-    ),
+      );
+    }),
   };
 }
 

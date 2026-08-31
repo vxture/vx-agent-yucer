@@ -56,34 +56,12 @@ const NOT_VERBS = new Set(["denied", "ok", "fail"]);
  */
 const KNOWN_TEST_ONLY: Record<string, string> = {
   // ---------------------------------------------------------------------
-  // SIX GUARDS THAT ARE A SECOND ANSWER TO ONE QUESTION.
-  //
-  // Each refuses a patch touching a frozen column, in code, with a sentence -
-  // which is exactly what `column-locks.assertWritable(table, patch)` already
-  // does, generically, against the mirror of the DDL grants, and which every
-  // prisma adapter already calls before every write. None of the columns these
-  // name appears in WRITABLE_COLUMNS, so assertWritable already refuses all of
-  // them today.
-  //
-  // They are therefore not a missing defence. They are a duplicate one, and
-  // ADR-023 is about precisely this shape. What they have that assertWritable
-  // does not is the REASON - "rewriting evidence is fabricating it" says more
-  // than "this column has no UPDATE grant" - so they are kept, named, and
-  // scheduled: the batch that folds their sentences into the column-lock
-  // mirror deletes them. Deleting them before that would throw the knowledge
-  // away to remove the duplication.
-  "pipeline/attribution.assertNoFrozenOpportunityKeys":
-    "duplicates assertWritable for opportunity.account_id/campaign_id; kept for its sentence until the reasons move into the column-lock mirror",
-  "pipeline/attribution.assertNoFrozenLeadKeys":
-    "duplicates assertWritable for lead.signal_id/campaign_id; same batch as above",
-  "signal/scoring.assertEvidenceUnchanged":
-    "duplicates assertWritable for the signal evidence columns; same batch",
-  "copilot/action.assertProposalUnchanged":
-    "duplicates assertWritable for agent_action.payload/rationale/confidence; same batch",
-  "delivery/revenue.assertSequenceUnchanged":
-    "duplicates assertWritable for revenue_schedule.sequence; same batch",
-  "planning/target.assertScopeUnchanged":
-    "duplicates assertWritable for the sales_target identity tuple; same batch",
+  // THE SIX DUPLICATE GUARDS ARE GONE (2026-08-31). Each refused a patch
+  // touching a frozen column, which `column-locks.assertWritable` already did
+  // generically, on every write, in every adapter. They were kept one batch for
+  // the one thing they had that it did not - the REASON - and deleted once
+  // those sentences moved into FROZEN_COLUMN_REASON, where three tests now
+  // prove each one names a real column, a frozen one, and reaches the refusal.
 
   // ---------------------------------------------------------------------
   // ONE PLAN FOR A STATE NOTHING CAN REACH YET.
@@ -283,5 +261,54 @@ test("every exported rule function is reached by something that is not a test", 
     [],
     `these rule functions are only ever called by their own tests - call them, ` +
       `delete them, or name them in KNOWN_TEST_ONLY with the reason: ${orphans.join(", ")}`,
+  );
+});
+
+// A LIST THAT CAN ROT IS NOT A DECISION, IT IS A NOTE.
+//
+// Both allowlists above say what they are for: an unwired thing is allowed, but
+// it has to be NAMED with a reason. That only holds while the names are real.
+// Deleting a function leaves its entry behind, and nothing above notices - the
+// two tests only walk functions that EXIST, so a name for one that does not is
+// invisible to them. Six such entries were created and removed within a day on
+// 2026-08-31; the seventh would have sat there claiming a decision about code
+// nobody could find.
+test("every allowlisted name still refers to something that exists", () => {
+  const stale: string[] = [];
+
+  for (const key of Object.keys(KNOWN_UNWIRED)) {
+    const [domain, verb] = key.split(".");
+    let src = "";
+    try {
+      src = readFileSync(join(DOMAINS, domain!, "service.ts"), "utf8");
+    } catch {
+      stale.push(`${key} (no such domain service)`);
+      continue;
+    }
+    if (!new RegExp(`^export async function ${verb}\\b`, "m").test(src)) stale.push(key);
+  }
+
+  for (const key of Object.keys(KNOWN_TEST_ONLY)) {
+    // `domain/file.fn`
+    const slash = key.indexOf("/");
+    const dot = key.lastIndexOf(".");
+    const domain = key.slice(0, slash);
+    const file = key.slice(slash + 1, dot);
+    const fn = key.slice(dot + 1);
+    let src = "";
+    try {
+      src = readFileSync(join(DOMAINS, domain, "lib", `${file}.ts`), "utf8");
+    } catch {
+      stale.push(`${key} (no such rule file)`);
+      continue;
+    }
+    if (!new RegExp(`^export function ${fn}\\b`, "m").test(src)) stale.push(key);
+  }
+
+  assert.deepEqual(
+    stale,
+    [],
+    `these allowlist entries name something that no longer exists - delete them, ` +
+      `or the list is a record of decisions about code nobody can find: ${stale.join(", ")}`,
   );
 });

@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
 import {
-  assertNoFrozenLeadKeys,
-  assertNoFrozenOpportunityKeys,
   planConversion,
   resolveAttribution,
   type LeadFacts,
@@ -124,36 +122,3 @@ test("the plan reports the attribution it computed, so it can be shown and logge
 });
 
 // --- Immutability -----------------------------------------------------------
-
-test("a patch touching a frozen opportunity key is refused before it reaches the driver", () => {
-  // The column locks would reject it too, but as `permission denied` from the
-  // driver, a long way from the code that caused it.
-  for (const key of ["accountId", "campaignId", "account_id", "campaign_id"]) {
-    const r = assertNoFrozenOpportunityKeys({ [key]: "x" });
-    assert.equal(r.ok, false, key);
-    assert.equal(r.ok === false && r.violations[0].code, "attribution_immutable");
-    assert.match(r.ok === false ? r.violations[0].message : "", /db-init/);
-  }
-});
-
-test("a patch touching a frozen lead key is refused", () => {
-  for (const key of ["signalId", "campaignId", "signal_id", "campaign_id"]) {
-    assert.equal(assertNoFrozenLeadKeys({ [key]: "x" }).ok, false, key);
-  }
-});
-
-test("a patch of writable columns passes", () => {
-  assert.ok(assertNoFrozenOpportunityKeys({ name: "n", amount: 1, ownerSub: "u", territoryId: "t" }).ok);
-  assert.ok(assertNoFrozenLeadKeys({ companyName: "n", score: 50, status: "working" }).ok);
-});
-
-test("every frozen key present is reported, not only the first", () => {
-  const r = assertNoFrozenOpportunityKeys({ accountId: "a", campaignId: "c" });
-  assert.equal(r.ok === false && r.violations.length, 2);
-});
-
-test("planning keys stay writable - ownership moves, provenance does not", () => {
-  // opportunity.plan_id / territory_id / owner_sub reflect current ownership and
-  // are deliberately NOT frozen, unlike the attribution keys.
-  assert.ok(assertNoFrozenOpportunityKeys({ planId: "p", territoryId: "t", ownerSub: "u" }).ok);
-});
