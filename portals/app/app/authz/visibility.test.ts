@@ -8,6 +8,8 @@ const terr: DataScope = {
   kind: "territory",
   territoryIds: ["t_east", "t_shanghai"],
   accountIds: ["acc_east"],
+  ownerSubs: ["usr_east_boss"],
+  unplacedAccountIds: ["acc_nowhere"],
 };
 
 // --- The default narrows nothing --------------------------------------------
@@ -83,16 +85,59 @@ test("a deal is visible by its own territory OR by its customer's", () => {
   assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: null, accountId: "acc_east" }), true);
 });
 
-test("a territory-scoped member does not see a row filed under no territory", () => {
-  // Unless nobody owns it - the queue rule above. An owned row with no
-  // territory has an owner who can see it, and narrowing means somebody else
-  // does not.
-  // ...and on no customer they cover. An OWNED row that cannot be placed is
-  // not the public pool: somebody holds it, and showing it to everybody because
-  // its account has no region would be a leak dressed as a convenience.
-  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: null }), false);
-  assert.equal(canSeeRow(terr, { ownerSub: "usr_other" }), false);
-  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", accountId: "acc_west" }), false);
+test("a row filed in somebody else's territory stays theirs", () => {
+  // THE BOUNDARY, and it is what keeps the unplaced rule from swallowing
+  // everything: a row that HAS a territory is filed, just not here. It never
+  // reaches the unplaced test, so the loosening stays the filing gap it was
+  // ruled for rather than every row in every other region.
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: "t_west" }), false);
+  assert.equal(
+    canSeeRow(terr, { ownerSub: "usr_other", territoryId: "t_west", accountId: "acc_west" }),
+    false,
+  );
+});
+
+test("the owner's own ground carries their unfiled work - the fallback", () => {
+  // The owner's ruling of 2026-09-01, and it runs BEFORE anything is called
+  // unplaced: a deal on a customer with no region, held by the person who runs
+  // this ground, is this ground's. Placing it resolves the case rather than
+  // widening it.
+  // ON UNFILED WORK ONLY. acc_nowhere is the customer no territory covers;
+  // acc_west is covered by somebody else's, and the owner rule must not reach
+  // past that - otherwise "the territory owner's entire book" becomes visible
+  // here, which is what the first version did and what took a 3-customer
+  // territory to 6 in the demo.
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_east_boss", accountId: "acc_nowhere" }), true);
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_east_boss", territoryId: null }), true);
+  assert.equal(
+    canSeeRow(terr, { ownerSub: "usr_east_boss", accountId: "acc_west" }),
+    false,
+    "filed on somebody else's ground, and owning this territory does not reach it",
+  );
+});
+
+test("未分区 - what no territory covers is visible to every territory member", () => {
+  // The other half of the ruling. Left invisible this is work NOBODY can see:
+  // not its region's manager, because it has no region.
+  //
+  // A DELIBERATE LOOSENING. An owned row becomes visible outside its owner's
+  // line because its account is missing a region - a filing gap widening
+  // access - and the ruling accepts that over work that silently disappears.
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", accountId: "acc_nowhere" }), true);
+  // No customer at all is the same case: nothing to file it by.
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other" }), true);
+});
+
+test("未分区 is not the public pool, and the difference is the owner", () => {
+  // 公海 is a row with NO OWNER: visible at every scope, claimable by anyone.
+  // 未分区 is a row somebody holds that nobody has filed. Conflating them would
+  // put owned work in a pool people expect to be able to take.
+  assert.equal(canSeeRow(terr, { ownerSub: null, accountId: "acc_west" }), true, "公海");
+  assert.equal(
+    canSeeRow(terr, { ownerSub: "usr_other", accountId: "acc_west" }),
+    false,
+    "owned, filed elsewhere - neither pool nor unplaced",
+  );
 });
 
 test("territory ignores ownership - covering the ground is the point", () => {

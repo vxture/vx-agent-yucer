@@ -1,4 +1,5 @@
 import { WHOLE_WORKSPACE, expandTerritories, type DataScope } from "../../authz/scope";
+import { coveringTerritories } from "../../domains/signal/lib/routing";
 import type { AuthzStore } from "../../authz/store";
 import {
   getAccountStore,
@@ -59,7 +60,22 @@ export async function resolveDataScope(
       .filter((a) => a.region != null && covered.has(a.region))
       .map((a) => a.id);
 
-    return { kind: "territory", territoryIds, accountIds };
+    // THE FALLBACK. Whoever owns a territory on this ground - one person per
+    // territory, per the column - carries their unfiled work onto it.
+    const ownerSubs = territories
+      .filter((t) => mine.has(t.id) && t.ownerSub)
+      .map((t) => t.ownerSub as string);
+
+    // 未分区: customers no territory covers AT ALL, computed against every
+    // ACTIVE territory rather than against this member's. The question is
+    // whether the row is filed anywhere, not whether it is filed here - and
+    // `coveringTerritories` is the same rule routing uses to answer it, so the
+    // two cannot disagree about which customers are unplaced.
+    const unplacedAccountIds = accounts
+      .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
+      .map((a) => a.id);
+
+    return { kind: "territory", territoryIds, accountIds, ownerSubs, unplacedAccountIds };
   }
 
   // `own` - what I hold, plus the customers my work sits on.
