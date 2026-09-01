@@ -304,11 +304,11 @@ test("unreachableAccountIds names the rows, and agrees with the count", async ()
     // have not identified. Asserted as it behaves rather than as I first
     // assumed - the fixture is what corrected me.
     //
-    // Worth naming, because the two are different problems with different next
-    // actions: acc_1 needs an introduction, acc_2 needs somebody to find out
-    // who signs. The badge says the same thing about both. That is pre-existing
-    // behaviour, not something this batch changed, and separating them is a
-    // product decision rather than a test's business.
+    // I raised the conflation as a question - acc_1 needs an introduction,
+    // acc_2 needs somebody to find out who signs - and the owner ruled on
+    // 2026-08-31 that the two are the same thing: the decision-maker has not
+    // been reached, and one badge is right for both. Recorded here so the next
+    // reader does not "fix" it back into two states.
     assert.deepEqual([...feed.unreachableAccountIds].sort(), ["acc_1", "acc_2"]);
     assert.equal(feed.allies.unreachable, 2);
     assert.equal(feed.allies.accounts, 2, "both chains were readable at this tier");

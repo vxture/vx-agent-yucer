@@ -21,7 +21,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-009 | DS 无环形进度元素，信号评分环本地实现 | 2026-08-25 | open |
 | TD-010 | 规则层的英文理由串直接当界面文案外泄 | 2026-08-25 | **closed 2026-08-29**（可达性守卫上线，全部可达 code 有句子） |
 | TD-011 | /account/[id] 的 key 警告：误判为 DS 缺陷，实为本仓 DecisionChain 缺 key | 2026-08-25 | closed 2026-08-25 |
-| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修，洞一等 owner 配密钥） |
+| TD-012 | npm 侧 Dependabot 自建仓起从未成功，且 `audit` 只在推送时跑 | 2026-08-27 | open（洞二已修；**2026-08-31 复核：`dependabot.yml` 的 `registries` 已声明，但 `dependabot/secrets` 为空——`VXTURE_PACKAGES_READ_TOKEN` 从未配置，故 npm PR 数仍为 0，全部 8 个 Dependabot PR 都来自 github-actions**） |
 | TD-013 | `new_logo` 是计数指标，却用 `Money` 承载，表单让人用货币填一个数量 | 2026-08-27 | **closed 2026-08-28** |
 | TD-014 | 快照记录了它服务的周期，却从不按周期过滤——`closed_amount` 是全部历史赢单 | 2026-08-28 | **closed 2026-08-28** |
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
@@ -1181,6 +1181,30 @@ GET /repos/vxture/vx-agent-yucer/secret-scanning/alerts
 
 **因此层 1 的状态是"已启用、未证明"**，需要 owner 亲手做一次，或接受它未经反证。
 留作未完成项。
+
+#### 2026-08-31 复核与一次失败的反证
+
+owner 指示由助手来验证。**复核（只读）**：`secret_scanning` 与
+`secret_scanning_push_protection` 仍为 `enabled`，全历史告警 **0 条**，
+`secret_scanning_non_provider_patterns` 与 `secret_scanning_validity_checks`
+仍为 `disabled`。
+
+**反证尝试失败，而且是探针选错，不是防护失效。** 在一次性分支上提交了一个
+`ghp_` + 36 个 A 的形状串（`--no-verify` 越过本地钩子——被测的是远端控制，不是
+本地钩子），推送**成功**。这不能推出「push protection 没在工作」：推送后
+**告警数仍为 0**，说明扫描器根本没把那串当成 token。**GitHub 的 PAT 格式带
+校验和**，全 A 必然校验失败，所以那是一个扫描器有理由忽略的字符串。
+分支已即刻删除，远端只余 `main`，无残留告警。
+
+**要真正反证，需要一个能通过服务商校验的串**——也就是伪造一个校验和合法的
+凭据形状产物。那与「形状串」是两回事：一个能通过服务商校验的串，在扫描器眼里
+就不再是"假的"。这条线是此前拒绝时划的，理由仍然成立，所以到此为止。
+
+**层 1 的状态因此更新为：已启用、经 API 复核、未反证**，并且多了一条事实——
+未被识别的字符串不会被拦，这是正确行为，但对已识别的字符串什么都说明不了。
+
+**这次尝试本身也值得记**：PAT 带校验和是公开文档写着的事，助手本应在推送之前
+就据此判断探针无效。先动手后推理，在一个安全测试里尤其不该发生。
 
 ### 同时查实的两件相关事
 
