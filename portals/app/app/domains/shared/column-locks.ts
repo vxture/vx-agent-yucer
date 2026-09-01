@@ -23,7 +23,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // --- contract schemas (inherited from the template) ---
   "vx_provision.app_instance": ["status", "env", "provisioned_at", "updated_at"],
   "vx_provision.provision_seq": ["last_seq", "updated_at"],
-  "local_authz.member": ["display_name", "avatar_hash", "status", "updated_at"],
+  // `scope` added by incr/0022: which rows this member may see, set by the
+  // workspace administrator. Writable for the same reason `status` is - it is a
+  // decision somebody makes about a colleague, not a fact about them.
+  "local_authz.member": ["display_name", "avatar_hash", "status", "scope", "updated_at"],
   "local_usage.raw": ["flushed"],
   "local_usage.checkpoint": ["flushed_at"],
 
@@ -211,6 +214,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "local_authz.role",
   "local_authz.permission",
   "local_authz.member_role",
+  // incr/0022. An assignment is a PAIR - moving somebody from one territory to
+  // another is a delete and an insert, not an edit, and there is no third
+  // column that could change. Same reasoning as member_role beside it.
+  "local_authz.member_territory",
   "local_authz.role_permission",
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",

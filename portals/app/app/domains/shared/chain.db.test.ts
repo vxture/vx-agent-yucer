@@ -319,3 +319,98 @@ test("agent_autonomy's identity column carries no UPDATE grant", { skip }, async
     }
   });
 });
+
+
+// --- Data scope, incr/0022 ---------------------------------------------------
+
+test("member scope accepts only the three values, live", { skip }, async () => {
+  // The CHECK is what stops a value that is not a scope from becoming one. A
+  // member row carrying an unrecognised scope would be a person whose
+  // visibility nothing can describe.
+  await withDb(async (c) => {
+    const ws = "55555555-5555-5555-5555-555555555555";
+    await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [ws]);
+    try {
+      await c.query(
+        `INSERT INTO local_authz.member (workspace_id, sub, scope) VALUES ($1, 'usr_scope', 'region')`,
+        [ws],
+      );
+      assert.fail("an unknown scope should not have been accepted");
+    } catch (e) {
+      assert.match(String(e), /chk_member_scope/);
+    }
+
+    for (const scope of ["workspace", "territory", "own"]) {
+      await c.query(
+        `INSERT INTO local_authz.member (workspace_id, sub, scope) VALUES ($1, $2, $3)`,
+        [ws, `usr_${scope}`, scope],
+      );
+    }
+    const { rows } = await c.query<{ n: string }>(
+      `SELECT count(*)::text n FROM local_authz.member WHERE workspace_id = $1`,
+      [ws],
+    );
+    assert.equal(rows[0].n, "3");
+    await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [ws]);
+  });
+});
+
+test("a new member is unscoped, because narrowing is the administrator's act", { skip }, async () => {
+  // The DEFAULT is the part worth pinning against a real database. Shipping
+  // this increment must not narrow anybody: every existing workspace would
+  // silently lose rows on the morning it applies, and nobody asked for that.
+  await withDb(async (c) => {
+    const ws = "55555555-5555-5555-5555-555555555556";
+    await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [ws]);
+    await c.query(`INSERT INTO local_authz.member (workspace_id, sub) VALUES ($1, 'usr_fresh')`, [ws]);
+    const { rows } = await c.query<{ scope: string }>(
+      `SELECT scope FROM local_authz.member WHERE workspace_id = $1`,
+      [ws],
+    );
+    assert.equal(rows[0].scope, "workspace");
+    await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [ws]);
+  });
+});
+
+test("a territory assignment is a pair, and cannot be edited into a different one", { skip }, async () => {
+  // No UPDATE grant at all: moving somebody from one territory to another is a
+  // delete and an insert. Fired live as yucer_svc, which is the only way to
+  // reach the grant - every other test connects as the superuser.
+  await withDb(async (c) => {
+    const ws = "55555555-5555-5555-5555-555555555557";
+    await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [ws]);
+    const { rows } = await c.query<{ id: string }>(
+      `INSERT INTO local_authz.member (workspace_id, sub, scope)
+       VALUES ($1, 'usr_terr', 'territory') RETURNING id`,
+      [ws],
+    );
+    const memberId = rows[0].id;
+    await c.query(
+      `INSERT INTO local_authz.member_territory (member_id, territory_id) VALUES ($1, $2)`,
+      [memberId, CHAIN.territory],
+    );
+
+    await c.query(`SET ROLE yucer_svc`);
+    try {
+      // The scope column IS writable - an administrator changes it.
+      await c.query(`UPDATE local_authz.member SET scope = 'own' WHERE id = $1`, [memberId]);
+      await assert.rejects(
+        c.query(`UPDATE local_authz.member_territory SET territory_id = $1 WHERE member_id = $2`, [
+          CHAIN.project,
+          memberId,
+        ]),
+        /permission denied/,
+      );
+    } finally {
+      await c.query(`RESET ROLE`);
+    }
+
+    // The member cascade takes the assignment with it.
+    await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [ws]);
+    const left = await c.query<{ n: string }>(
+      `SELECT count(*)::text n FROM local_authz.member_territory WHERE member_id = $1`,
+      [memberId],
+    );
+    assert.equal(left.rows[0].n, "0");
+  });
+});
