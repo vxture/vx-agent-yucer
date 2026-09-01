@@ -290,6 +290,8 @@ export const en: Dictionary = {
   },
 
   LAUNCHER_TEXT: {
+    locked: (tier: string) => `${tier} plan`,
+    lockedNoTier: "unavailable",
     buttonLabel: "Switch domain",
     panelLabel: "Domains",
     crosscutting: "Across all five",
@@ -301,7 +303,6 @@ export const en: Dictionary = {
     // you could not read what was missing.
     planned: "Planned",
     section: "On another page",
-    locked: "Upgrade",
   },
 
   // --- detail pages ---------------------------------------------------------

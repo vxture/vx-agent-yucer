@@ -302,8 +302,29 @@ export const LAUNCHER_TEXT = {
   // said a shipped feature did not exist - and not silent either, because the
   // reader needs to know the click leaves for another page.
   section: "在其他页面",
-  /** On a built module the workspace has not bought. */
-  locked: "需升级",
+  /**
+   * On a built module the workspace has not bought.
+   *
+   * NAMES THE TIER. "需升级" alone tells a reader they cannot have it and not
+   * what would change that - an upsell nobody can act on. The tier is already
+   * in the capability matrix (`minTierFor`); it was simply never handed to
+   * anything that renders.
+   */
+  locked: (tier: string) => `需 ${tier}`,
+  /** When no tier grants it at all - nothing to upgrade to. */
+  lockedNoTier: "不可用",
+};
+
+/**
+ * Tier names as a buyer sees them on the price list, not as the enum spells
+ * them. `pro` is a key; PRO is what somebody bought.
+ */
+export const TIER_LABEL: Record<string, string> = {
+  free: "FREE",
+  starter: "STARTER",
+  pro: "PRO",
+  business: "BUSINESS",
+  enterprise: "ENTERPRISE",
 };
 
 /**

@@ -31,6 +31,7 @@
 // say it is a sixth thing you do.
 
 import type { IconName } from "@vxture/design-ui";
+import type { Tier } from "../../entitlement/types";
 import type { ResolvedNavEntry, NavState } from "./navigation";
 
 /**
@@ -197,6 +198,20 @@ export type ResolvedModule =
       readonly icon: IconName;
       readonly href: string;
       readonly state: NavState;
+      /**
+       * The lowest tier that unlocks this module, or null when no tier does.
+       *
+       * CARRIED, NOT LOOKED UP AT THE SURFACE. The launcher has to tell a
+       * locked row apart from a planned one AND say what would unlock it -
+       * "not on your plan" without naming the plan is an upsell that cannot be
+       * acted on. The fact is already in the capability matrix; it was simply
+       * never handed to anything that renders.
+       *
+       * Meaningful only when `state` is "locked" - the decision sets it when
+       * the remedy is an upgrade. A visible module's tier is whatever the
+       * workspace already has, which is not news.
+       */
+      readonly requiredTier: Tier | null;
     }
   | {
       readonly kind: "section";
@@ -257,6 +272,14 @@ function resolveModules(
       icon: entry.icon,
       href: entry.href,
       state: entry.state,
+      // THE GATE'S OWN ANSWER, not a second derivation. `Decision` has carried
+      // `requiredTier` all along - "lowest tier that would unlock the feature",
+      // set when the remedy is an upgrade - and ResolvedNavEntry has carried
+      // the decision. The first version of this line recomputed it from
+      // specFor(action).feature -> minTierFor, which is a parallel answer to a
+      // question the gate had already answered, and would drift the day the
+      // gate's own rule changed.
+      requiredTier: entry.decision.requiredTier,
     });
   }
   return out;

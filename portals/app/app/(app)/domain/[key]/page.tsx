@@ -51,6 +51,7 @@ export default async function DomainHomePage({
     DOMAIN_FACT_LABEL,
     DOMAIN_HOME_TEXT,
     LAUNCHER_TEXT,
+    TIER_LABEL,
   } = await getMessages();
 
   const session = await resolveAppSession();
@@ -161,7 +162,9 @@ export default async function DomainHomePage({
                   {m.kind === "section"
                     ? LAUNCHER_TEXT.section
                     : m.state === "locked"
-                      ? LAUNCHER_TEXT.locked
+                      ? m.requiredTier
+                        ? LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier)
+                        : LAUNCHER_TEXT.lockedNoTier
                       : m.href}
                 </span>
               </Link>

@@ -16,7 +16,10 @@ import {
   type DomainModule,
 } from "./functional-domains";
 import { FACT_DOMAINS } from "../domain/[key]/facts";
+import { permissionsForRoles } from "../../authz/catalog";
+import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import {
+  resolveNavigation,
   ADMIN_NAV_ENTRIES,
   DOMAIN_NAV_ENTRIES,
   NAV_ENTRIES,
@@ -433,4 +436,56 @@ test("the board archive asks primaryHref rather than choosing its own destinatio
     /href: primaryHref\(domain\)/,
     "the board must take the domain's destination from primaryHref, not invent one",
   );
+});
+
+// --- The locked row has to say what would unlock it -------------------------
+
+/**
+ * A REAL resolution, not a hand-forged decision.
+ *
+ * The first version of these tests built `decision: { allowed: false, reason:
+ * "feature_not_in_tier" }` by hand and asserted on it - and every assertion
+ * passed against a fixture that had simply omitted the field under test. Going
+ * through resolveNavigation means the Decision is the one the gate actually
+ * produces, which is the only version whose `requiredTier` means anything.
+ */
+function lockedNav(tier: Entitlement["tier"]) {
+  return resolveNavigation(
+    { permissions: new Set(permissionsForRoles(["sales_leader"])) },
+    { ...EMPTY_ENTITLEMENT, workspace_id: "ws", product: "yucer", tier },
+  );
+}
+
+function builtModules(tier: Entitlement["tier"]) {
+  return resolveFunctionalDomains(lockedNav(tier))
+    .flatMap((d) => d.modules)
+    .filter((m): m is Extract<typeof m, { kind: "built" }> => m.kind === "built");
+}
+
+test("a locked module carries the tier that would unlock it", () => {
+  // THE DEFECT THIS CLOSES. The launcher rendered "需升级" - you cannot have
+  // this, with no way to act on it. `Decision.requiredTier` has always held the
+  // answer and nothing carried it as far as a row.
+  const locked = builtModules("free").filter((m) => m.state === "locked");
+  assert.ok(locked.length > 0, "the free tier must lock something, or this proves nothing");
+
+  for (const m of locked) {
+    assert.ok(
+      typeof m.requiredTier === "string",
+      `${m.key} is locked and names no tier, so the row can only say "unavailable"`,
+    );
+  }
+});
+
+test("the tier named is the LOWEST that unlocks the module, not the current one", () => {
+  // "需 ENTERPRISE" on something STARTER already includes would send a reader
+  // to buy what they have.
+  const byKey = new Map(builtModules("free").map((m) => [m.key, m]));
+
+  const forecast = byKey.get("forecastRule");
+  assert.equal(forecast?.state, "locked", "pipeline.forecast is not a free-tier feature");
+  assert.equal(forecast?.requiredTier, "pro");
+
+  // And a module the free tier already has names nothing to buy.
+  assert.equal(byKey.get("account")?.state, "visible");
 });
