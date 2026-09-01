@@ -239,9 +239,23 @@ export function validateInteraction(input: NewInteractionInput): RuleResult<true
   return ok(true);
 }
 
-/** Days since the most recent interaction, or null when there is none. */
-export function daysSinceLastContact(occurredAts: readonly Date[], now: Date): number | null {
-  if (occurredAts.length === 0) return null;
-  const latest = Math.max(...occurredAts.map((d) => d.getTime()));
-  return Math.floor((now.getTime() - latest) / 86_400_000);
+/**
+ * Days since the most recent interaction, or null when there has never been one.
+ *
+ * TAKES THE DATE, NOT THE LIST, and that is why it had no callers for months.
+ * It used to reduce an array of occurredAts, a shape nobody has: the store
+ * answers `lastContactAt` with a single date (a MAX in the Prisma adapter, so
+ * the reduction never crosses the wire), and every reader therefore holds one
+ * Date or null. A helper shaped for a caller that does not exist stays unused
+ * while the thing it was written for gets restated inline - which is exactly
+ * what happened, in the judgement rules and in the field evidence panel.
+ *
+ * NULL IS NOT ZERO, and keeping them apart is the whole point. "Never contacted"
+ * and "contacted today" are opposite facts, and a helper that returned 0 for
+ * both would let a quiet-account rule fire on an account nobody has ever
+ * called - or, worse, stay silent about one.
+ */
+export function daysSinceLastContact(lastContactAt: Date | null, now: Date): number | null {
+  if (lastContactAt === null) return null;
+  return Math.floor((now.getTime() - lastContactAt.getTime()) / 86_400_000);
 }

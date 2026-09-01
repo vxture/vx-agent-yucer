@@ -295,8 +295,13 @@ test("no contact at all is null, which is not the same as contacted long ago", a
   const c = ctx("sales_rep", "free", store);
   const ev = unwrap(await relationshipEvidence(c, ACC, NOW));
   assert.equal(ev.lastContactAt, null);
-  assert.equal(daysSinceLastContact([], NOW), null);
-  assert.equal(daysSinceLastContact([days(-30)], NOW), 30);
+  // NEVER CONTACTED IS NULL, NOT ZERO. The two are opposite facts, and a
+  // quiet-account rule that saw 0 for both would either fire on an account
+  // nobody has ever called or stay silent about one.
+  assert.equal(daysSinceLastContact(null, NOW), null);
+  assert.equal(daysSinceLastContact(days(-30), NOW), 30);
+  // Today is 0, which is a real answer and must not read as "never".
+  assert.equal(daysSinceLastContact(NOW, NOW), 0);
 });
 
 test("overdue is open-and-past-due, and the definition is shared", async () => {

@@ -46,6 +46,7 @@ import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { listPipeline } from "../../../domains/pipeline/service";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
+import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
@@ -197,9 +198,17 @@ export default async function AccountDetailPage({
     .map((a) => ({
       id: a.id,
       title: AGENT_ACTION_LABEL[a.actionType] ?? a.actionType,
-      group:
-        BOARD_TEXT.capabilityLabels[a.capability ?? ""] ??
+      // THE DOMAIN RESOLVES IT, because the rule this hand-rolled version
+      // skipped is `isCapability`. Indexing the label map directly means a
+      // stored key that is no longer a capability still gets whatever label
+      // the map happens to keep for it - the docstring's whole point is that
+      // unlabelled history stays visibly unlabelled rather than being guessed
+      // into a capability, and that property only holds where it is applied.
+      group: capabilityLabel(
+        a.capability,
+        BOARD_TEXT.capabilityLabels,
         BOARD_TEXT.capUnlabelled,
+      ),
       rationale: a.rationale,
       confidence: a.confidence,
     }));
