@@ -19,20 +19,26 @@ import {
   getStrategyStore,
 } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
-import { listPipeline } from "../../domains/pipeline/service";
-import { listPlans, listCampaigns } from "../../domains/strategy/service";
+import {
+  listPipeline,
+  listPendingReviews,
+  listRenewedProjectIds,
+  previewCategories,
+} from "../../domains/pipeline/service";
+import { listPlans, listCampaigns, listSegments } from "../../domains/strategy/service";
 import {
   listTargets,
   listTerritories,
   attainment,
 } from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
-import { listProjects } from "../../domains/delivery/service";
-import { byProduct } from "../../domains/catalog/lib/pricing";
-import { listProposals, listPlaybooks } from "../../domains/copilot/service";
+import { listProjects, listRenewals } from "../../domains/delivery/service";
+import { listProposals } from "../../domains/copilot/service";
 import {
   listOpportunityLines,
+  listPrices,
   listProducts as listCatalogProducts,
+  listSolutions,
 } from "../../domains/catalog/service";
 import { judgementFeed } from "../../domains/judgement/service";
 import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
@@ -76,6 +82,26 @@ export interface BoardMetric {
    * become wrong.
    */
   readonly weight?: number;
+}
+
+/**
+ * One module's card in the navigation.
+ *
+ * THE NAVIGATION IS THE BOARD NOW (2026-08-31). Until this batch the left pane
+ * carried two stacked structures: a module list, which was names and icons and
+ * nothing else, and a set of board cards keyed by ROUTE. A reader had to hold
+ * both to answer "what is in this domain and where does it stand", and the two
+ * disagreed about what a domain contains - the module list came from the
+ * launcher, the cards from whatever board.ts happened to compute.
+ *
+ * One card per module, in the launcher's own order, each carrying the one
+ * figure that is a reason to open it. `metrics` empty is the honest state for a
+ * module whose gate refused: no number, never a zero.
+ */
+export interface BoardModuleCard {
+  readonly metrics: readonly BoardMetric[];
+  /** Same meaning as on a section - see the note there. */
+  readonly chart?: "lede" | "bars";
 }
 
 export interface BoardSection {
@@ -245,9 +271,13 @@ function archiveByDomain(
   return out;
 }
 
-export async function boardSections(
-  ctx: BoardContext,
-): Promise<BoardSection[]> {
+export interface Board {
+  readonly sections: readonly BoardSection[];
+  /** Keyed by module key, the same keys FUNCTIONAL_DOMAINS uses. */
+  readonly modules: Record<string, BoardModuleCard>;
+}
+
+export async function boardSections(ctx: BoardContext): Promise<Board> {
   const { BOARD_TEXT, FORECAST_LABEL, DOMAIN_GROUP_LABEL } = await getMessages();
   const base = {
     workspaceId: ctx.workspaceId,
@@ -268,9 +298,14 @@ export async function boardSections(
     signals,
     leads,
     projects,
-    playbooks,
     lineResult,
     catalogueResult,
+    segments,
+    solutions,
+    prices,
+    unreviewed,
+    renewedIds,
+    categories,
   ] = await Promise.all([
     cachedFeed(base),
     listPipeline({ ...base, store: getPipelineStore() }),
@@ -286,29 +321,49 @@ export async function boardSections(
     listSignals({ ...base, store: getSignalStore() }),
     listLeads({ ...base, store: getSignalStore() }),
     listProjects({ ...base, store: getDeliveryStore() }),
-    listPlaybooks({ ...base, store: getCopilotStore() }),
     // THROUGH THE SERVICE, like every sibling on this list. These two were the
     // only reads on the board holding a store handle directly, which skips both
     // gates - and a board is the one surface where that is easiest to miss,
     // because every card is a number rather than a page you notice opening.
     listOpportunityLines({ ...base, store: getCatalogStore() }),
     listCatalogProducts({ ...base, store: getCatalogStore() }),
+    // ADDED 2026-08-31 for the per-module navigation cards. Each nav card needs
+    // the ONE figure that is a reason to open its module, and eleven of the
+    // nineteen modules had no number anywhere - the board only ever computed
+    // the eight it grouped into domain rows.
+    //
+    // All in the same Promise.all as their siblings, so the board still costs
+    // one round of parallel reads rather than a waterfall. Every one goes
+    // through the service, so a member who cannot read a domain gets a card
+    // with no number instead of a zero - the distinction the whole board is
+    // built on.
+    listSegments({ ...base, store: getStrategyStore() }),
+    listSolutions({ ...base, store: getCatalogStore() }),
+    listPrices({ ...base, store: getCatalogStore() }),
+    listPendingReviews({ ...base, store: getPipelineStore() }),
+    listRenewedProjectIds({ ...base, store: getPipelineStore() }),
+    previewCategories({ ...base, store: getPipelineStore() }),
   ]);
+
+  // Renewals need D6's answer first, so this one cannot join the round above.
+  // It is the only sequential read on the board and it is one hop, not a
+  // waterfall - the same composition /renewal does, for the same reason: D7 has
+  // no read of D6, so the caller carries the fact across.
+  const renewals = await listRenewals(
+    { ...base, store: getDeliveryStore() },
+    renewedIds.ok ? renewedIds.value : new Set<string>(),
+  );
 
   // Gate-aware now that these go through the service. A refused read degrades
   // to an empty card, which is what every other card on this board already
   // does - the board reports what you may see, and says nothing about the rest.
   const lines = lineResult.ok ? lineResult.value : [];
   const pendingApproval = lines.filter((l) => l.needsApproval && !l.approved);
-  const catalogue = catalogueResult.ok ? catalogueResult.value : [];
-
   // Open deals only, and their value. "How many deals exist" is a database
   // fact; "what is still in play and what is it worth" is the question someone
   // opens this product with.
   const open = deals.ok ? deals.value.filter((d) => d.closedAt === null) : [];
   const worth = open.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
-  const openIds = new Set(open.map((d) => d.id));
-
   // Attainment comes from the DOMAIN, not from arithmetic here.
   //
   // The first version summed every committed target and every won deal. Both
@@ -369,8 +424,6 @@ export async function boardSections(
   // cannot parse gets no gauge rather than a pool measured over the whole book:
   // falling back would restore the defect and hide it behind a rendered number.
   const quarterOpen = window ? window.kept : [];
-  const totals = window ? rollUp(quarterOpen) : null;
-
   // THE POOL IS THIS QUARTER'S TOO, and it has to be, because the gauge divides
   // it by this quarter's gap. A deal expected to land in December does not
   // cover a September shortfall, and counting it made the coverage ratio
@@ -389,16 +442,6 @@ export async function boardSections(
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
         )
       : null;
-
-  // Narrowed once, next to the thing it narrows. `cover?.ratio == null` covers
-  // both "no coverage at all" and "coverage with no ratio" in one expression,
-  // and returning `cover` itself rather than a boolean keeps gap/floor/thin
-  // narrowed at the four places below that read them.
-  //
-  // NOT `cover?.ratio !== null`, which is what the obvious optional-chain
-  // rewrite produces and is the opposite condition: with no coverage that
-  // reads `undefined !== null` and renders a gauge over nothing.
-  const gaugeCover = cover?.ratio == null ? null : cover;
 
   const sections: BoardSection[] = [
     // ONE queue. These were two cards - "today's judgements" and "awaiting my
@@ -451,155 +494,6 @@ export async function boardSections(
           ]
         : [],
     },
-    {
-      key: "resource",
-      title: BOARD_TEXT.resource,
-      href: "/pipeline",
-      domain: domainOfHref("/pipeline"),
-      // TWO ROWS, because this card states a relationship rather than a list.
-      // What the period asks for, then what is on hand to meet it - and the
-      // pool broken into the funnel, because 881万 of commit and 881万 of
-      // early-stage pipeline are not the same 881万.
-      gauge:
-        wsTarget && gaugeCover && totals?.ok
-          ? {
-              label: BOARD_TEXT.poolRow(wsTarget.period),
-              value: BOARD_TEXT.wan(quarterWorth),
-              // Read against the resource target, not against the gap, so the
-              // figure and the bar say the same thing. They are the same
-              // judgement either way: pool < floor x gap is exactly pool <
-              // scaleMax, so "under 100% here" and "thin" are one condition.
-              note: BOARD_TEXT.coverageOf(
-                Math.round((quarterWorth / (gaugeCover.gap * gaugeCover.floor)) * 100),
-              ),
-              thin: gaugeCover.thin,
-              // Descending confidence: what is committed, what is being worked,
-              // what is merely held. The order IS the meaning, so it is fixed
-              // here rather than sorted by size.
-              funnel: [
-                {
-                  label: FORECAST_LABEL.commit,
-                  value: BOARD_TEXT.wan(totals.value.commitAmount.amount),
-                  weight: totals.value.commitAmount.amount,
-                },
-                {
-                  label: FORECAST_LABEL.best_case,
-                  value: BOARD_TEXT.wan(totals.value.bestCaseAmount.amount),
-                  weight: totals.value.bestCaseAmount.amount,
-                },
-                {
-                  label: FORECAST_LABEL.pipeline,
-                  value: BOARD_TEXT.wan(totals.value.pipelineAmount.amount),
-                  weight: totals.value.pipelineAmount.amount,
-                },
-              ],
-              // The target itself is NOT repeated here - the quota card above
-              // already carries it. What is missing from every other card is
-              // the SHORTFALL, and that is the number this pool has to answer.
-              scaleMax: gaugeCover.gap * gaugeCover.floor,
-            }
-          : undefined,
-      metrics: cover
-        ? []
-        : [
-            ...(deals.ok
-              ? [
-                  { label: BOARD_TEXT.dealsOpen, value: String(open.length) },
-                  {
-                    label: BOARD_TEXT.dealsWorth,
-                    value: BOARD_TEXT.wan(worth),
-                  },
-                ]
-              : []),
-            ...count(playbooks, BOARD_TEXT.playbooks),
-          ],
-    },
-    // Who is on our side, from the coverage the feed already computed. Shown
-    // only when at least one chain was readable: on a tier that cannot see
-    // decision chains, "0 coaches" would be a claim about the customers rather
-    // than about the subscription.
-    ...(feed.ok && feed.value.allies.accounts > 0
-      ? [
-          {
-            key: "allies",
-            title: BOARD_TEXT.allies,
-            chart: "lede" as const,
-            href: "/account",
-      domain: domainOfHref("/account"),
-            // Unreached decision-makers lead. This card exists to raise an
-            // alarm, and the alarm is that a deal has nobody in it who can say
-            // yes - not that some coaches were built. Coaches and blockers are
-            // the context that tells you how bad it is.
-            metrics: [
-              {
-                label: BOARD_TEXT.alliesUnreachable,
-                value: String(feed.value.allies.unreachable),
-                tone:
-                  feed.value.allies.unreachable > 0
-                    ? ("bad" as const)
-                    : undefined,
-              },
-              {
-                label: BOARD_TEXT.alliesCoaches,
-                value: String(feed.value.allies.coaches),
-                tone: "good" as const,
-              },
-              ...(feed.value.allies.blockers > 0
-                ? [
-                    {
-                      label: BOARD_TEXT.alliesBlockers,
-                      value: String(feed.value.allies.blockers),
-                      tone: "warn" as const,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ]
-      : []),
-    // What the open money is actually FOR. A single open-pipeline total says
-    // nothing about
-    // which product line carries it - that is the whole reason opportunity_line
-    // exists (ADR-014). Only open deals, and only the top lines, because a
-    // sidebar card is a glance rather than a report.
-    ...(lines.length > 0
-      ? [
-          {
-            key: "products",
-            title: BOARD_TEXT.productLines,
-            href: "/pipeline",
-      domain: domainOfHref("/pipeline"),
-            chart: "bars" as const,
-            metrics: [
-              ...[
-                ...byProduct(lines.filter((l) => openIds.has(l.opportunityId))),
-              ]
-                .sort((a, b) => b[1].amount - a[1].amount)
-                .slice(0, 3)
-                .map(([productId, agg]) => ({
-                  label:
-                    catalogue.find((p) => p.id === productId)?.name ??
-                    productId,
-                  value: BOARD_TEXT.wan(agg.amount),
-                  weight: agg.amount,
-                })),
-              // Below-floor lines are a decision someone owes, so they belong
-              // beside the money rather than buried in a deal. ALREADY-SIGNED
-              // ones are not owed by anybody: counting them would leave the
-              // number permanently raised and teach people to ignore it.
-              ...(pendingApproval.length > 0
-                ? [
-                    {
-                      label: BOARD_TEXT.needsApproval,
-                      value: String(pendingApproval.length),
-                      tone: "warn" as const,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ]
-      : []),
     // THE ARCHIVE, GROUPED BY THE FIVE FUNCTIONAL DOMAINS.
     //
     // It used to be six flat cards - one per route, in route order, with no
@@ -650,39 +544,176 @@ export async function boardSections(
     wsRow?.measurement.kind === "measured" && wsRow.measurement.ratio !== null
       ? wsRow.measurement
       : null;
-  if (wsTarget && wsMeasured) {
-    sections.unshift({
-      key: "quota",
-      title: BOARD_TEXT.quota(wsTarget.period),
-      href: "/planning",
-      domain: domainOfHref("/planning"),
-      // Attainment rides as a THIRD figure rather than as a caption under the
-      // track. It is a reading in its own right - the one a leader quotes - and
-      // as a caption it cost the card a whole row to say what the other two
-      // already imply. Three figures over one track is also exactly the density
-      // of the resource card, which is the shape this board settled on.
-      metrics: [
-        {
-          label: BOARD_TEXT.quotaWon,
-          value: BOARD_TEXT.wan(wsMeasured.achieved.amount),
-          tone: "warn",
-        },
-        {
-          label: BOARD_TEXT.quotaTarget,
-          value: BOARD_TEXT.wan(wsTarget.targetValue.amount),
-        },
-        {
-          label: BOARD_TEXT.quotaOf,
-          value: BOARD_TEXT.quotaLeft(
-            Math.max(0, Math.min(100, Math.round((wsMeasured.ratio ?? 0) * 100))),
-          ),
-        },
-      ],
-      progress: Math.max(0, Math.min(100, Math.round((wsMeasured.ratio ?? 0) * 100))),
-    });
-  }
+  // THE QUOTA CARD IS GONE (2026-08-31), with the resource gauge, the product
+  // composition and the allies count. All four were cards belonging to no
+  // module, which is what made them homeless once the navigation became "the
+  // queue, then this domain's modules". Three of them are now the /attainment
+  // page - the owner's ruling was that they were never three readings but one
+  // question asked three ways - and the fourth, the unreached decision-makers,
+  // rides on the account module's card, since it was the only one of the four
+  // with no other reading surface.
 
-  return sections;
+  // --- One card per module, for the navigation -------------------------------
+  //
+  // Ordered by nothing here: FUNCTIONAL_DOMAINS owns the order and the nav
+  // reads it. This map only answers "what is this module's number".
+  //
+  // A metric is chosen for being a REASON TO OPEN the module, not for being
+  // easy: 线索分派 carries how many leads are waiting on an owner, not how many
+  // leads exist. Where the honest answer is a plain inventory count - how many
+  // segments, how many products - that is what it says, because for those
+  // modules the inventory IS the state.
+  const openLeads = leads.ok ? leads.value.filter((l) => l.status !== "converted" && l.status !== "disqualified") : [];
+  const disputed = categories.ok
+    ? categories.value.filter((c) => c.verdict.kind === "suggested" && !c.verdict.agrees)
+    : [];
+  const dueRenewals = renewals.ok ? renewals.value.filter((r) => r.verdict.kind === "due") : [];
+  const namedAccounts = accounts.ok ? accounts.value.filter((a) => a.tier !== "standard") : [];
+  const inDelivery = projects.ok
+    ? projects.value.filter((p) => p.status === "active" || p.status === "on_hold")
+    : [];
+  const deliveryValue = inDelivery.reduce((sum, p) => sum + (p.contractAmount?.amount ?? 0), 0);
+
+  const modules: Record<string, BoardModuleCard> = {
+    // 战略武备域
+    strategy: { metrics: count(plans, BOARD_TEXT.plans) },
+    segment: { metrics: count(segments, BOARD_TEXT.segments) },
+    catalog: { metrics: count(catalogueResult, BOARD_TEXT.catalogProducts) },
+    solution: { metrics: count(solutions, BOARD_TEXT.solutions) },
+    pricebook: { metrics: count(prices, BOARD_TEXT.pricedProducts) },
+
+    // 兵力部署域
+    territory: { metrics: count(territories, BOARD_TEXT.territories) },
+    namedAccount: {
+      metrics: accounts.ok
+        ? [{ label: BOARD_TEXT.namedAccounts, value: String(namedAccounts.length) }]
+        : [],
+    },
+    planning: { metrics: count(targets, BOARD_TEXT.targets) },
+    forecastRule: {
+      // The DISAGREEMENTS, not the deal count. A forecast-rule page with
+      // nothing to argue about needs no visit, and "12 deals" would send
+      // somebody to look at agreement.
+      metrics: categories.ok
+        ? [
+            {
+              label: BOARD_TEXT.forecastDisagreements,
+              value: String(disputed.length),
+              ...(disputed.length > 0 ? { tone: "warn" as const } : {}),
+            },
+          ]
+        : [],
+    },
+
+    // 火力侦察域
+    campaign: { metrics: count(campaigns, BOARD_TEXT.campaigns) },
+    signal: { metrics: count(signals, BOARD_TEXT.signals) },
+    routing: {
+      metrics: leads.ok
+        ? [{ label: BOARD_TEXT.unrouted, value: String(openLeads.length) }]
+        : [],
+    },
+
+    // 阵地经营域
+    attainment: {
+      // THE ATTAINMENT, not the target. What the period asked for is a
+      // constant a reader already knows; how much of it has landed is the
+      // reading that changes and the reason to open the page. No committed
+      // target means no denominator, so the card carries no figure rather
+      // than a 0% - "nobody set a quota" and "we attained none of it" are
+      // opposite statements.
+      metrics:
+        wsTarget && wsMeasured
+          ? [
+              {
+                label: BOARD_TEXT.quotaOf,
+                value: `${Math.max(0, Math.min(100, Math.round((wsMeasured.ratio ?? 0) * 100)))}%`,
+                ...(cover?.thin ? { tone: "warn" as const } : {}),
+              },
+            ]
+          : [],
+    },
+    account: {
+      // The roster count, and beside it the decision-makers nobody has
+      // reached. The second figure used to be a card of its own ("盟友") and
+      // was the only one of the four homeless cards whose number had no other
+      // reading surface - so it moved here rather than being deleted with
+      // them.
+      metrics: accounts.ok
+        ? [
+            { label: BOARD_TEXT.accounts, value: String(accounts.value.length) },
+            ...(feed.ok
+              ? [
+                  {
+                    label: BOARD_TEXT.alliesUnreachable,
+                    value: String(feed.value.allies.unreachable),
+                    ...(feed.value.allies.unreachable > 0 ? { tone: "warn" as const } : {}),
+                  },
+                ]
+              : []),
+          ]
+        : [],
+    },
+    pipeline: {
+      chart: "lede",
+      metrics: deals.ok
+        ? [
+            { label: BOARD_TEXT.openDeals, value: String(open.length) },
+            { label: BOARD_TEXT.deals, value: BOARD_TEXT.wan(worth) },
+          ]
+        : [],
+    },
+    quote: {
+      // Lines awaiting a signature. The count of quotes is a database fact;
+      // what is waiting on a person is the reason to open it.
+      metrics: lineResult.ok
+        ? [
+            {
+              label: BOARD_TEXT.quoteApprovals,
+              value: String(pendingApproval.length),
+              ...(pendingApproval.length > 0 ? { tone: "warn" as const } : {}),
+            },
+          ]
+        : [],
+    },
+    winLossReview: {
+      metrics: unreviewed.ok
+        ? [
+            {
+              label: BOARD_TEXT.unreviewed,
+              value: String(unreviewed.value.length),
+              ...(unreviewed.value.length > 0 ? { tone: "warn" as const } : {}),
+            },
+          ]
+        : [],
+    },
+
+    // 战果结算域
+    delivery: { metrics: count(projects, BOARD_TEXT.projects) },
+    collection: {
+      // Contract value still in delivery. The instalment-level figure would
+      // need a read per project - the port lists instalments per project only -
+      // and an N+1 on a pane that renders on every page is too much to pay for
+      // one number. This is the honest cheaper answer: what is out there to be
+      // collected against.
+      metrics: projects.ok
+        ? [{ label: BOARD_TEXT.contractValue, value: BOARD_TEXT.wan(deliveryValue) }]
+        : [],
+    },
+    renewal: {
+      metrics: renewals.ok
+        ? [
+            {
+              label: BOARD_TEXT.renewalsDue,
+              value: String(dueRenewals.length),
+              ...(dueRenewals.length > 0 ? { tone: "warn" as const } : {}),
+            },
+          ]
+        : [],
+    },
+  };
+
+  return { sections, modules };
 }
 
 // ---------------------------------------------------------------------------

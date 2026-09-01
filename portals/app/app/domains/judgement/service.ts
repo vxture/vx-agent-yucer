@@ -50,6 +50,20 @@ export interface JudgementFeed {
    */
   allies: { coaches: number; blockers: number; unreachable: number; accounts: number };
   /**
+   * WHICH accounts have no reachable economic buyer, not just how many.
+   *
+   * The count alone was enough while this fact lived on one board card. Now it
+   * has to be readable where it changes a decision - beside a deal at
+   * negotiate, beside an account on the roster - and a count cannot say which
+   * row. The fact was already computed per account; only the ids were being
+   * thrown away.
+   *
+   * Accounts whose chain could not be READ are absent rather than included:
+   * "nobody has reached the buyer" and "this tier cannot see contact chains"
+   * are different statements, and the second must not be rendered as the first.
+   */
+  unreachableAccountIds: readonly string[];
+  /**
    * The scope actually used. Not an echo of the request: when the caller does
    * not pin one this is where the choice was made, and the filter control has
    * to show the state the feed is really in.
@@ -260,6 +274,9 @@ export async function judgementFeed(
     unreachable: withChain.filter((i) => i.coverage?.economicBuyerUnreachable).length,
     accounts: withChain.length,
   };
+  const unreachableAccountIds = withChain
+    .filter((i) => i.coverage?.economicBuyerUnreachable)
+    .map((i) => i.accountId);
 
   // A snooze holds only while the situation is no worse than when it was made.
   // Comparing tiers rather than facts is deliberate: facts drift every night -
@@ -279,5 +296,6 @@ export async function judgementFeed(
     scanned: mine.length,
     scope,
     allies,
+    unreachableAccountIds,
   });
 }

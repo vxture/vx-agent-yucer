@@ -241,7 +241,8 @@ export default async function AppLayout({
       <AppShell
         boardOpen={!readNavCollapsed(cookieString, BOARD_COOKIE_PREFIX)}
         dockOpen={!readNavCollapsed(cookieString, DOCK_COOKIE_PREFIX)}
-        board={board}
+        board={board.sections}
+        boardModules={board.modules}
         deck={deck}
         deckCount={agent.pending.length}
         notificationsTotal={notificationTotal(bellItems)}

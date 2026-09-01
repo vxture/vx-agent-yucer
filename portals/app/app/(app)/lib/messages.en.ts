@@ -86,6 +86,7 @@ export const en: Dictionary = {
     adoption: "Adoption",
     renewal: "Renewals",
     forecastRule: "Forecast rules",
+    attainment: "Commitment",
   },
 
   // The five domain names are the product's loudest claim about itself, so
@@ -203,6 +204,25 @@ export const en: Dictionary = {
     probability_range: "Win rate must be a whole number between 0 and 100",
     terminal_probability_fixed: "A closed deal has a fixed win rate and cannot be changed",
     amount_negative: "The amount cannot be negative",
+  },
+  ATTAINMENT_TEXT: {
+    title: "Commitment",
+    why:
+      "What the period promised, how much has landed, and how much is behind it - three readings that only mean something together. They used to sit on the board as three cards belonging to no module.",
+    attained: "attained",
+    won: "won",
+    target: "target",
+    noTarget: "No committed workspace target for this period",
+    noTargetWhy:
+      "No target is no denominator. Attainment is not zero - it is uncomputable, and rendering it as 0% would report an unset quota as a missed one.",
+    pool: (period: string) => `${period} pool`,
+    poolWhy:
+      "A commitment needs something behind it. This is what is left against the gap, split by confidence - 8.8M of commit and 8.8M of early pipeline are not the same 8.8M.",
+    thin: "thin against the gap",
+    composition: "What the commitment is made of",
+    compositionWhy:
+      "Which product lines this money comes from. The same total made of different lines is a different fight.",
+    noComposition: "Open deals carry no lines yet, so there is nothing to break down",
   },
   QUOTE_TEXT: {
     title: "Quotes",
@@ -1144,6 +1164,7 @@ export const en: Dictionary = {
   // --- /pipeline ----------------------------------------------------------
 
   PIPELINE_TEXT: {
+    buyerUnreachable: "buyer unreached",
     title: "Pipeline",
     descriptionReadOnly:
       "Read-only: you can see the pipeline but hold no permission to move a deal.",
@@ -1235,6 +1256,7 @@ export const en: Dictionary = {
   // --- /account -----------------------------------------------------------
 
   ACCOUNT_TEXT: {
+    buyerUnreachable: "buyer unreached",
     title: "Accounts",
     lead: (n: number) => `${n} accounts`,
     leadOverdue: (n: number) => `${n} promises are overdue - clear those first`,
@@ -2000,6 +2022,17 @@ export const en: Dictionary = {
   // The left board and the right deck - the two flanks, on every page.
   // Replaces the partial override that pulled `wan` forward for /pipeline.
   BOARD_TEXT: {
+    segments: "segments",
+    solutions: "solutions",
+    pricedProducts: "priced",
+    namedAccounts: "key",
+    forecastDisagreements: "disputed",
+    unrouted: "to assign",
+    quoteApprovals: "to sign",
+    unreviewed: "to review",
+    renewalsDue: "due",
+    contractValue: "in delivery",
+    openDeals: "open",
     catalog: "Catalogue",
     pipelineArchive: "Deals",
     deals: "deals",

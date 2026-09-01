@@ -1,366 +1,247 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Card, Icon, Progress } from "@vxture/design-ui";
+import { Card, Icon } from "@vxture/design-ui";
 import { BarList, Gauge, Lede } from "./board-chart";
-import type { BoardMetric, BoardSection } from "../lib/board";
-import { menuFor } from "../lib/board-menu";
+import type { BoardMetric, BoardModuleCard, BoardSection } from "../lib/board";
 import { domainOf } from "../lib/functional-domains";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { LEVEL_INK } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
-// The left flank: where things stand for OUR side.
+
+// The left flank: this domain's modules, each reporting where it stands.
 //
-// Not a menu. Nine links answer "where can I go", which nobody wonders about
-// twice; these panels answer "where do things stand" and happen also to be how
-// you get there - the number IS the reason to click, so reading and navigating
-// stop being separate acts.
+// ONE STRUCTURE, not two stacked ones. Until 2026-08-31 this pane carried a
+// module list - names and icons, nothing else - and beneath it a separate set
+// of board cards keyed by ROUTE, pinned or collapsed into an archive. A reader
+// had to hold both to answer "what is in this domain, and how is it doing",
+// and the two disagreed about what a domain even contains: the module list came
+// from the launcher, the cards from whatever board.ts happened to compute. Six
+// modules had a card, thirteen did not, and nothing said which was which.
 //
-// CARDS, not rows on a transparent rail. Each of these is a separate instrument
-// reporting a separate thing - quota, resources, the decision queue - and a
-// shared background would imply they belong to one reading. They do not.
+// So the module list IS the board now. Every module in the domain is a card;
+// every card carries the one figure that is a reason to open it. Reading and
+// navigating stop being separate acts, which was always the argument for this
+// pane - it just was not true of the half that listed modules.
 //
-// The pinned ones stay open because they are what a person opens this product
-// to do. The rest are a title and one number until asked for: a board where
-// everything is expanded is a wall, and nine equally-loud panels teach a reader
-// nothing about which one matters.
+// 今日裁决 IS FIRST, IN EVERY DOMAIN. It belongs to none of the five and is the
+// standing answer to "what is waiting on me" - the question a person carries
+// into whichever section they open. Putting it inside a domain would make it
+// that domain's business; leaving it out of four menus would hide it from
+// wherever the reader happens to be standing.
 //
-// Every figure comes from that domain's own service through both gates (see
-// board.ts). A section a member may not read shows NO numbers rather than
-// zeros - "0 accounts" and "you cannot see accounts" are different statements.
+// Order below it is the LAUNCHER'S, read from FUNCTIONAL_DOMAINS rather than
+// restated. The panel and the menu naming the same modules in different orders
+// is the kind of drift nobody notices and everybody trips on.
+//
+// Every figure comes from that module's own service through both gates (see
+// board.ts). A module a member may not read shows NO number rather than a zero:
+// "0 accounts" and "you cannot see accounts" are different statements.
 
 export interface NavBoardProps {
   readonly sections: readonly BoardSection[];
-  readonly pinned: readonly string[];
+  /** One card per module key. Empty metrics means the gate refused. */
+  readonly modules: Record<string, BoardModuleCard>;
   readonly activeKey: string | null;
-  /** The menu is the CURRENT domain's - see menuFor. */
   readonly pathname: string;
   /** The member's resolved navigation, for the domain's module list. */
   readonly nav: readonly ResolvedNavEntry[];
 }
 
-/** Spelled out: Tailwind reads source text, so a computed `grid-cols-${n}`
- *  would produce a class with no CSS behind it. */
-const COLS: Record<number, string> = {
-  1: "grid-cols-1",
-  2: "grid-cols-2",
-  3: "grid-cols-3",
-};
-
-export function NavBoard({ sections, pinned, activeKey, pathname, nav }: NavBoardProps) {
-  const { BOARD_TEXT } = useMessages();
-  const pinnedSet = new Set(pinned);
-  const here = menuFor(sections, pathname);
+export function NavBoard({
+  sections,
+  modules,
+  activeKey,
+  pathname,
+  nav,
+}: NavBoardProps) {
+  const { BOARD_TEXT, DOMAIN_GROUP_LABEL } = useMessages();
   const domain = domainOf(pathname, nav);
-  const open = here.filter((s) => pinnedSet.has(s.key));
-  const rest = here.filter((s) => !pinnedSet.has(s.key));
+  const queue = sections.find((s) => s.key === "queue");
 
   return (
     <nav className="flex flex-col gap-xs" aria-label={BOARD_TEXT.boardLabel}>
-      {/* THE DOMAIN'S MODULES, AT THE TOP OF ITS OWN MENU.
-          These sat above the page in the breadcrumb slot until 2026-08-30, on
-          the argument that the left pane was a board answering "how are
-          things" rather than navigation. That argument died when the pane
-          became the domain's menu: the modules ARE what this section contains,
-          so they belong at the head of its menu, above the cards that report
-          on them. */}
-      {domain ? <ModuleList domain={domain} activeKey={activeKey} /> : null}
+      {queue ? <QueueCard section={queue} active={activeKey === null} /> : null}
 
-      {open.map((s) => (
-        /* A COMMON FLOOR, so the board reads as a rank of instruments rather
-           than a ragged stack. 32 on the spacing scale is 128px - the height the
-           two densest cards (today, resource) settle at on their own, which is
-           why it is the reference rather than a number picked to look tidy.
-           min-h, not h: content still governs, and a card that genuinely needs
-           more grows instead of clipping. */
-        <Card key={s.key} className="min-h-32 p-md">
-          {/* ONE child, deliberately. Card is `flex flex-col gap-xl` - built for
-              page-level cards whose sections stand 32px apart - and with two
-              children that gap fired between the title and the chart, on top of
-              the margin the content already carried: 42px of air inside a 256px
-              card. Wrapping in a single child makes the gap inapplicable rather
-              than overriding it, so the DS element is untouched and the rhythm
-              in here is ours to set. */}
-          <div className="flex flex-col gap-md">
-            <SectionHead
-              section={s}
-              active={s.key === activeKey}
-              total={undefined}
-            />
-            <Metrics section={s} />
-          </div>
-        </Card>
-      ))}
+      {domain ? (
+        <>
+          {/* The section names itself once, above its modules. Not a card: it
+              labels the cards under it, and giving it one would make the domain
+              look like a sixth module. */}
+          <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-sm text-xs">
+            <Icon name={domain.icon} size="sm" />
+            {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
+          </span>
 
-      {/* The archive, gathered into ONE card. Seven separate cards for things
-          nobody opens daily would give the archive the same weight as the work,
-          which is the arrangement this redesign exists to undo. */}
-      {rest.length > 0 ? (
-        <Card className="overflow-hidden py-none">
-          {rest.map((s, i) => (
-            <Sector
-              key={s.key}
-              section={s}
-              active={s.key === activeKey}
-              first={i === 0}
+          {domain.modules.map((m) => (
+            <ModuleCard
+              key={m.kind === "planned" ? `planned-${m.key}` : m.key}
+              module={m}
+              card={modules[m.key]}
+              active={m.kind !== "planned" && m.key === activeKey}
             />
           ))}
-        </Card>
+        </>
       ) : null}
     </nav>
   );
 }
 
 /**
- * The title, and - for a charted section - its total on the same line.
+ * What is waiting on this person, above everything else.
  *
- * The total used to sit below as a full readout block: one digit at heading
- * size, alone on a row two hundred pixels wide, which is the "large empty area"
- * this pass exists to remove. On the title line it costs no height at all, and
- * it reads the way the sentence actually goes - "waiting on me: 4" - instead of
- * as a peer of the segments underneath, which it is not: they add up to it.
+ * It keeps the tallest shape on the pane (`min-h-32`, 128px) because it is the
+ * only card that is not about a place - it is about a deadline, and it has to
+ * read as different in kind from the modules beneath it rather than as the
+ * first of them.
  */
-function SectionHead({
-  section: s,
+function QueueCard({
+  section,
   active,
-  total,
 }: {
   section: BoardSection;
   active: boolean;
-  total?: BoardMetric;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-xs">
-      <Link
-        href={s.href}
-        className={[
-          "min-w-0 truncate text-xs font-semibold tracking-wide",
-          active
-            ? "text-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        ].join(" ")}
-      >
-        {s.title}
-      </Link>
-      {total ? (
-        <span className="flex shrink-0 items-baseline gap-2xs">
-          <span
-            className={[
-              "text-label-md font-semibold tabular-nums",
-              total.tone ? LEVEL_INK[total.tone] : "text-foreground",
-            ].join(" ")}
-          >
-            {total.value}
-          </span>
-          <span className="text-muted-foreground text-xs">{total.label}</span>
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function Metrics({ section: s }: { section: BoardSection }) {
-  // The gauge is checked FIRST and carries no metrics of its own - it already
-  // holds both figures, so listing them above it would print the same numbers
-  // twice. It therefore has to be reached before the empty-metrics guard, which
-  // would otherwise return null for exactly the card that has the most to say.
-  if (s.gauge) return <Gauge gauge={s.gauge} />;
-
-  if (s.metrics.length === 0) return null;
-
-  // On a charted section the figures belong to the chart (and its total to the
-  // title line), so nothing is printed twice above it.
-  const headline = s.chart ? [] : s.metrics;
-
-  return (
-    <>
-      {headline.length > 0 ? <Readouts metrics={headline} /> : null}
-      {s.chart === "lede" ? <Lede metrics={s.metrics} /> : null}
-      {s.chart === "bars" ? <BarList metrics={s.metrics} /> : null}
-
-      {/* Bare track. The percentage it represents is one of the figures above
-          it now, so a caption here would print the same number twice - and a
-          number read alone under an almost-empty track was what made a low
-          attainment look like a rendering failure in the first place. */}
-      {typeof s.progress === "number" ? <Progress value={s.progress} /> : null}
-    </>
+    <Card className="min-h-32 p-md">
+      {/* ONE child, deliberately. Card is `flex flex-col gap-xl` - built for
+          page-level cards whose sections stand 32px apart - and with two
+          children that gap fires between the title and the chart on top of the
+          margin the content already carries. Wrapping in a single child makes
+          the gap inapplicable rather than overriding it, so the DS element is
+          untouched and the rhythm in here is ours to set. */}
+      <div className="flex flex-col gap-md">
+        <Link
+          href={section.href}
+          className={[
+            "min-w-0 truncate text-xs font-semibold tracking-wide",
+            active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+          ].join(" ")}
+        >
+          {section.title}
+        </Link>
+        <Metrics section={section} />
+      </div>
+    </Card>
   );
 }
 
 /**
- * The plain figures, spread across the card rather than pushed to its left.
+ * One module: its name, and the figure that is the reason to open it.
  *
- * A grid, not flex-wrap. Wrapped, three single-digit counts occupied about
- * ninety of the two hundred and thirty available pixels and left the rest of
- * the row empty - the card read as mostly nothing. Equal columns give each
- * figure the same share of the width, which is also the honest arrangement:
- * these are peers, and a flex row silently ranks them by how many characters
- * they happen to have.
+ * A PLANNED module keeps its row and stays dead. The list is the domain's whole
+ * inventory, and dropping what is unbuilt would make the section look finished
+ * and quietly shrink as the product grows the other way.
  *
- * Capped at three columns because the fourth lands at roughly fifty pixels,
- * which is narrower than "1200 万".
+ * A module whose gate refused renders its name with no figure. That is not the
+ * same as a zero and must not look like one - see board.ts.
  */
-function Readouts({ metrics }: { metrics: readonly BoardMetric[] }) {
-  const cols = Math.min(metrics.length, 3);
+function ModuleCard({
+  module: m,
+  card,
+  active,
+}: {
+  module: NonNullable<ReturnType<typeof domainOf>>["modules"][number];
+  card: BoardModuleCard | undefined;
+  active: boolean;
+}) {
+  const { DOMAIN_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT } = useMessages();
+
+  if (m.kind === "planned") {
+    return (
+      <Card className="text-muted-foreground border-dashed p-md">
+        <div className="flex items-center justify-between gap-xs">
+          <span className="text-sm">{PLANNED_MODULE_LABEL[m.key] ?? m.key}</span>
+          <span className="text-2xs opacity-70">{LAUNCHER_TEXT.planned}</span>
+        </div>
+      </Card>
+    );
+  }
+
+  const metrics = card?.metrics ?? [];
+  const label = DOMAIN_LABEL[m.key] ?? PLANNED_MODULE_LABEL[m.key] ?? m.key;
+
   return (
-    <div className={`grid gap-x-md gap-y-sm ${COLS[cols]}`}>
+    <Card className={`hover:border-primary p-md ${active ? "border-primary" : ""}`}>
+      <div className="flex flex-col gap-sm">
+        <Link
+          href={m.href}
+          className={`flex items-center gap-xs text-sm ${
+            active ? "text-primary font-medium" : "text-foreground"
+          }`}
+        >
+          <Icon name={m.icon} size="sm" />
+          <span className="min-w-0 truncate">{label}</span>
+        </Link>
+        {metrics.length > 0 ? (
+          <ModuleFigures metrics={metrics} chart={card?.chart} />
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * A module's figures.
+ *
+ * ONE figure is the common case and it is drawn large with its label beside it,
+ * not under it: a single number stacked over a caption in a 230px card leaves
+ * most of the row empty, which is what made the old cards read as mostly
+ * nothing. Two or more fall back to the shared chart shapes, which already
+ * decide how a set of related numbers should be drawn (see BoardSection.chart).
+ */
+function ModuleFigures({
+  metrics,
+  chart,
+}: {
+  metrics: readonly BoardMetric[];
+  chart?: "lede" | "bars";
+}) {
+  if (chart === "lede") return <Lede metrics={metrics} />;
+  if (chart === "bars") return <BarList metrics={metrics} />;
+
+  if (metrics.length === 1) {
+    const m = metrics[0]!;
+    return (
+      <div className="flex items-baseline gap-2xs">
+        <span
+          className={[
+            "text-heading-4 tabular-nums",
+            m.tone ? LEVEL_INK[m.tone] : "text-foreground",
+          ].join(" ")}
+        >
+          {m.value}
+        </span>
+        <span className="text-muted-foreground truncate text-xs">{m.label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-md gap-y-2xs">
       {metrics.map((m) => (
-        <div key={m.label} className="min-w-0">
-          {/* The number is the content and the label is the footnote, so the
-              sizes say so. Tabular figures, because these are compared down a
-              column and across days. */}
-          <div
+        <span key={m.label} className="flex items-baseline gap-2xs">
+          <span
             className={[
-              "text-heading-4 truncate tabular-nums",
+              "text-label-md font-semibold tabular-nums",
               m.tone ? LEVEL_INK[m.tone] : "text-foreground",
             ].join(" ")}
           >
             {m.value}
-          </div>
-          <div className="text-muted-foreground truncate text-xs">
-            {m.label}
-          </div>
-        </div>
+          </span>
+          <span className="text-muted-foreground text-xs">{m.label}</span>
+        </span>
       ))}
     </div>
   );
 }
 
-/**
- * One line of the archive, expandable to its numbers.
- *
- * The count sits on the collapsed line rather than behind the disclosure: it is
- * the whole reason to decide whether to open this, and hiding it would make
- * expanding mandatory to learn anything.
- */
-function Sector({
-  section: s,
-  active,
-  first,
-}: {
-  section: BoardSection;
-  active: boolean;
-  first: boolean;
-}) {
-  const { BOARD_TEXT } = useMessages();
-  const [open, setOpen] = useState(false);
-  const lead = s.metrics[0];
-  const more = s.metrics.length > 1;
-
-  return (
-    <div
-      className={[
-        first ? "" : "border-border border-t",
-        active ? "bg-accent" : "",
-      ].join(" ")}
-    >
-      <div className="flex items-center gap-xs px-sm py-xs">
-        <Link
-          href={s.href}
-          className="text-foreground min-w-0 flex-1 truncate text-sm hover:underline"
-        >
-          {s.title}
-        </Link>
-        {lead ? (
-          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-            {lead.label} {lead.value}
-          </span>
-        ) : null}
-        {more ? (
-          <button
-            type="button"
-            onClick={() => setOpen(!open)}
-            aria-expanded={open}
-            aria-label={
-              open ? BOARD_TEXT.collapse(s.title) : BOARD_TEXT.expand(s.title)
-            }
-            className="text-muted-foreground hover:text-foreground shrink-0"
-          >
-            <Icon name={open ? "chevron-up" : "chevron-down"} size="xs" />
-          </button>
-        ) : null}
-      </div>
-      {open && more ? (
-        <div className="flex flex-wrap gap-md px-sm pb-sm">
-          {s.metrics.slice(1).map((m) => (
-            <div key={m.label}>
-              <div className="text-foreground text-label-md tabular-nums">
-                {m.value}
-              </div>
-              <div className="text-muted-foreground text-xs">{m.label}</div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * The current domain's modules, as the head of its menu.
- *
- * Planned rows stay and stay dead: the list is this section's whole inventory,
- * and dropping what is unbuilt would make the domain look finished and quietly
- * shrink as the product grows the other way.
- */
-function ModuleList({
-  domain,
-  activeKey,
-}: {
-  readonly domain: NonNullable<ReturnType<typeof domainOf>>;
-  readonly activeKey: string | null;
-}) {
-  const { DOMAIN_LABEL, DOMAIN_GROUP_LABEL, PLANNED_MODULE_LABEL, LAUNCHER_TEXT } =
-    useMessages();
-
-  return (
-    <>
-      {/* The section names itself once, above its modules. Not a card: it is a
-          label for the cards under it, and giving it one would make the domain
-          look like a sixth module. */}
-      <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-2xs text-xs">
-        <Icon name={domain.icon} size="sm" />
-        {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
-      </span>
-
-      {/* ONE CARD PER MODULE, matching the board cards beneath them. The first
-          version put all of them inside a single card, which made the menu read
-          as one object with a list in it rather than as the section's modules -
-          and a module you cannot point at is a module the menu does not really
-          offer. Lighter than a board card (no min-h-32): these carry a name,
-          not a figure. */}
-      {domain.modules.map((m) =>
-        m.kind === "planned" ? (
-          <Card
-            key={`planned-${m.key}`}
-            className="text-muted-foreground border-dashed p-md"
-          >
-            <div className="flex items-center justify-between gap-xs">
-              <span className="text-sm">{PLANNED_MODULE_LABEL[m.key] ?? m.key}</span>
-              <span className="text-2xs opacity-70">{LAUNCHER_TEXT.planned}</span>
-            </div>
-          </Card>
-        ) : (
-          <Card
-            key={m.key}
-            className={`hover:border-primary p-md ${
-              m.key === activeKey ? "border-primary" : ""
-            }`}
-          >
-            <Link
-              href={m.href}
-              className={`flex items-center gap-xs text-sm ${
-                m.key === activeKey ? "text-primary font-medium" : "text-foreground"
-              }`}
-            >
-              <Icon name={m.icon} size="sm" />
-              {DOMAIN_LABEL[m.key] ?? PLANNED_MODULE_LABEL[m.key] ?? m.key}
-            </Link>
-          </Card>
-        ),
-      )}
-    </>
-  );
+/** The queue's own figures, which already have a shape decided in board.ts. */
+function Metrics({ section: s }: { section: BoardSection }) {
+  if (s.gauge) return <Gauge gauge={s.gauge} />;
+  if (s.metrics.length === 0) return null;
+  if (s.chart === "lede") return <Lede metrics={s.metrics} />;
+  if (s.chart === "bars") return <BarList metrics={s.metrics} />;
+  return <ModuleFigures metrics={s.metrics} />;
 }

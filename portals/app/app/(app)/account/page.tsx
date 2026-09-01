@@ -13,6 +13,7 @@ import { listSegments } from "../../domains/strategy/service";
 import { OverdueCommitments } from "../components/overdue-commitments";
 
 import { getMessages } from "../lib/i18n/server";
+import { cachedFeed } from "../lib/board";
 import { loadFailureText } from "../lib/load-failure";
 // D4 account list.
 //
@@ -43,7 +44,7 @@ export default async function AccountPage() {
   };
 
   const now = new Date();
-  const [result, overdue, segments] = await Promise.all([
+  const [result, overdue, segments, feed] = await Promise.all([
     listAccounts({ ...ctx, store: getAccountStore() }),
     listCommitments(
       { ...ctx, store: getFieldStore() },
@@ -54,6 +55,11 @@ export default async function AccountPage() {
     // it sees the raw codes, which is the honest degradation: the reference on
     // the account is theirs to see, the definition is not.
     listSegments({ ...ctx, store: getStrategyStore() }),
+    // The SAME memoised feed the shell and the home screen read: which
+    // accounts have no reachable economic buyer. It was a count on a board
+    // card, which said the workspace had a problem without saying which
+    // customer had it.
+    cachedFeed(ctx),
   ]);
 
   if (!result.ok) {
@@ -132,6 +138,9 @@ export default async function AccountPage() {
             reason. */}
         <AccountTable
           rows={result.value}
+          buyerUnreachable={
+            new Set(feed.ok ? feed.value.unreachableAccountIds : [])
+          }
           segmentNames={
             segments.ok
               ? new Map(segments.value.map((g) => [g.segmentCode, g.name]))

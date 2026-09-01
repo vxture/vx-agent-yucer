@@ -52,6 +52,16 @@ export interface PipelineRow extends ForecastableOpportunity {
   probability: number | null;
   expectedCloseAt: Date | null;
   currency: string;
+  /**
+   * Nobody has reached the economic buyer at this deal's account.
+   *
+   * ON THE DEAL because that is where it changes a decision. It was a count on
+   * a board card - "6 决策人未触达" - which says the workspace has a problem
+   * and not which deal has it, and a deal sitting at negotiate with no
+   * reachable buyer is the single most expensive thing on this page to read
+   * as healthy.
+   */
+  buyerUnreachable?: boolean;
 }
 
 export interface PipelineBoardProps {
@@ -155,8 +165,13 @@ export function PipelineBoard({
           <div>
             <Link href={`/pipeline/${row.id}`}>{row.name}</Link>
           </div>
-          <div>
-            {row.opportunityNo} / {row.accountName}
+          <div className="flex items-center gap-2xs">
+            <span>
+              {row.opportunityNo} / {row.accountName}
+            </span>
+            {row.buyerUnreachable ? (
+              <StatusBadge tone="warning">{PIPELINE_TEXT.buyerUnreachable}</StatusBadge>
+            ) : null}
           </div>
         </div>
       ),
@@ -315,7 +330,11 @@ export function PipelineBoard({
                   <ListCard
                     key={row.id}
                     title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
-                    description={`${row.opportunityNo} / ${row.accountName}`}
+                    description={
+                      row.buyerUnreachable
+                        ? `${row.opportunityNo} / ${row.accountName} · ${PIPELINE_TEXT.buyerUnreachable}`
+                        : `${row.opportunityNo} / ${row.accountName}`
+                    }
                     status={
                       <StatusBadge tone={FORECAST_TONE[row.forecastCategory]}>
                         {FORECAST_LABEL[row.forecastCategory]}

@@ -31,6 +31,7 @@ import { inPeriod } from "../../domains/pipeline/lib/forecast";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
+import { cachedFeed } from "../lib/board";
 import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
 import {
   listOpportunityLines,
@@ -75,7 +76,7 @@ export default async function PipelinePage({
   // domains reading the same request need two contexts, not one with a union.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
 
-  const [result, history, lines, products, accounts, territories] =
+  const [result, history, lines, products, accounts, territories, feed] =
     await Promise.all([
     // includeClosed, or the "closed" tile reports zero on a workspace that has
     // closed 2.7M - the same false zero that hit the quota card, in a third
@@ -96,6 +97,14 @@ export default async function PipelinePage({
     // the defect PR #26 fixed on the account page.
     listAccounts({ ...ctx, store: getAccountStore() }),
     listTerritories({ ...ctx, store: getPlanningStore() }),
+    // The SAME memoised call the shell's board and the home screen make, so
+    // the most expensive read in the product still happens once per request.
+    cachedFeed({
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+    }),
   ]);
 
   if (!result.ok) {
@@ -123,11 +132,19 @@ export default async function PipelinePage({
   const inWindow = window ? window.kept : result.value;
   const undated = window?.undated ?? 0;
 
+  // WHICH accounts have no reachable economic buyer. The same memoised feed
+  // the shell and the home screen read, so this costs nothing extra - and it
+  // is a set rather than a count because a count cannot mark a row.
+  const unreachable = new Set(feed.ok ? feed.value.unreachableAccountIds : []);
+
   const rows: PipelineRow[] = inWindow.map((o) => ({
     ...(o as (typeof result.value)[number]),
     accountName:
       (o as (typeof result.value)[number]).accountName ??
       (o as (typeof result.value)[number]).accountId,
+    buyerUnreachable: unreachable.has(
+      (o as (typeof result.value)[number]).accountId,
+    ),
   }));
 
   // What the page opens with. The number alone is a label; what it MEANS this

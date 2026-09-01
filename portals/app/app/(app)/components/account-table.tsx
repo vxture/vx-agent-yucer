@@ -41,6 +41,16 @@ import { useMessages } from "../lib/i18n/provider";
 
 export interface AccountTableProps {
   readonly rows: readonly AccountRecord[];
+  /**
+   * Accounts where nobody has reached the economic buyer.
+   *
+   * A SET rather than a flag per row, because the fact comes from the
+   * judgement feed and not from the account record - and passing it as a set
+   * keeps the roster's own type from growing a field the account service does
+   * not own. Empty when the reader's tier cannot see contact chains, which is
+   * why an absent id means "not established", never "reached".
+   */
+  readonly buyerUnreachable?: ReadonlySet<string>;
   /** False when the member may read accounts but not recompute them. */
   readonly canRecompute?: boolean;
   /**
@@ -53,7 +63,12 @@ export interface AccountTableProps {
   readonly segmentNames?: ReadonlyMap<string, string>;
 }
 
-export function AccountTable({ rows, canRecompute = true, segmentNames }: AccountTableProps) {
+export function AccountTable({
+  rows,
+  canRecompute = true,
+  segmentNames,
+  buyerUnreachable,
+}: AccountTableProps) {
   const { ACCOUNT_STATUS_LABEL, ACCOUNT_TEXT, DATA_TABLE_LABELS, DS_LABELS } =
     useMessages();
   const router = useRouter();
@@ -146,8 +161,11 @@ export function AccountTable({ rows, canRecompute = true, segmentNames }: Accoun
           >
             {row.name}
           </Link>
-          <div className="text-muted-foreground text-xs tabular-nums">
-            {row.accountNo}
+          <div className="text-muted-foreground flex items-center gap-2xs text-xs">
+            <span className="tabular-nums">{row.accountNo}</span>
+            {buyerUnreachable?.has(row.id) ? (
+              <StatusBadge tone="warning">{ACCOUNT_TEXT.buyerUnreachable}</StatusBadge>
+            ) : null}
           </div>
         </div>
       ),

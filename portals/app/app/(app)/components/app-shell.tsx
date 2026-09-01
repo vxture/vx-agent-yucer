@@ -29,28 +29,17 @@ import { NavBoard } from "./nav-board";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { WorkspaceScope } from "./workspace-scope";
-import type { BoardSection } from "../lib/board";
+import type { BoardModuleCard, BoardSection } from "../lib/board";
 // NOT a static import of the Chinese constants any more. This component is
 // the shell - it renders on every page, in whatever language the request
 // resolved to - so it reads the dictionary rather than one locale's copy of it.
 import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 
-/**
- * The three sections that stay open.
- *
- * They are what a person opens this product to do: what needs deciding today,
- * what is waiting on their signature, and what is still in play. Everything
- * else is a title until asked for - nine equally-loud panels teach a reader
- * nothing about which one matters.
- */
-export const PINNED_SECTIONS = [
-  "quota",
-  "queue",
-  "resource",
-  "products",
-  "allies",
-] as const;
+// The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
+// route-keyed board cards - which ones stay open, which collapse - and the pane
+// no longer has that stack: it has the queue and this domain's modules, and
+// every one of those is worth a card. See nav-board.tsx.
 
 // yucer's application shell: a command console, in three zones.
 //
@@ -86,6 +75,8 @@ export const PINNED_SECTIONS = [
 export interface AppShellProps {
   /** The sections and their real numbers, gathered server-side in board.ts. */
   readonly board: readonly BoardSection[];
+  /** One card per module key, for the domain's navigation. See board.ts. */
+  readonly boardModules: Record<string, BoardModuleCard>;
   /**
    * The right deck, as a SLOT rather than data.
    *
@@ -180,6 +171,7 @@ export interface AppShellProps {
 
 export function AppShell({
   board,
+  boardModules,
   deck,
   deckCount,
   notificationsTotal = 0,
@@ -236,7 +228,13 @@ export function AppShell({
 
   /** The board is shown when the member wants it AND the page has room for the
    *  question it answers. */
-  const boardVisible = showBoard && !isDetail;
+  // THE HOME SCREEN HAS NO NAVIGATION (owner ruling, 2026-08-31). It is the
+  // list of what needs deciding today, spread across the full width - and a
+  // menu beside it would be offering somewhere else to go to a person who has
+  // just been handed the reason they opened the product. You choose a domain
+  // from the launcher; the nav exists once you are inside one.
+  const isHome = segments.length === 0;
+  const boardVisible = showBoard && !isDetail && !isHome;
 
   const toggleBoard = () =>
     setShowBoard((prev) => {
@@ -560,7 +558,7 @@ export function AppShell({
           <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
             <NavBoard
               sections={board}
-              pinned={PINNED_SECTIONS}
+              modules={boardModules}
               activeKey={activeKey}
               pathname={pathname}
               nav={nav}
