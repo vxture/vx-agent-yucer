@@ -50,6 +50,7 @@ import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
 import { fillField } from "./completeness-action";
+import { askToComplete } from "./ask-complete-action";
 import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
@@ -333,6 +334,11 @@ export default async function AccountDetailPage({
               gaps={completeness.value.gaps}
               canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
               onFill={fillField}
+              onAsk={askToComplete}
+              /* Asking costs a model call, so it is gated on copilot.use -
+                 not on account.upsert, which is what WRITING the answer
+                 needs. Two different acts, two different permissions. */
+              canAsk={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}
             />
           ) : null}
           {chain.ok ? (

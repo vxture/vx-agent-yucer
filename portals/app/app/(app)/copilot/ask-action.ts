@@ -83,9 +83,18 @@ export async function askCopilot(
       tenantId,
       subject,
       evidence,
-      // Autopilot is a workspace setting that does not exist yet. Passing false
-      // rather than omitting it keeps the prompt honest: the copilot is told it
-      // is NOT authorized to execute, which is the true state.
+      // THE SETTING EXISTS NOW - incr/0020 gave autonomy a home, and this
+      // comment used to say it did not. Still false, and now for a reason
+      // rather than for want of a column: `autopilotActive` shapes what the
+      // PROMPT tells the model about its own authority, and the four-yes check
+      // that actually decides whether a proposal runs unattended lives in
+      // execute(), against the stored posture, at accept time.
+      //
+      // Telling the model "you may execute" would not make it so - it would
+      // only make the model describe its own powers wrongly to the person
+      // reading the answer. The honest thing for a conversational turn is that
+      // the machine proposes; whether a proposal then runs itself is decided
+      // later, elsewhere, by a rule the model does not get a vote in.
       autopilotActive: false,
     },
     { atlasClient: new AtlasClient(), runosClient: new RunosClient() },

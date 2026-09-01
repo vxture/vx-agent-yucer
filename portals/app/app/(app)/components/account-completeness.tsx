@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
 
 // What is missing from this customer, and who can answer it.
 //
@@ -38,6 +39,15 @@ export interface AccountCompletenessProps {
     field: string,
     value: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Spend a model turn on the gaps the data cannot close.
+   *
+   * A SEPARATE, EXPLICIT ACT. It costs money and takes seconds, so it is never
+   * something that happens because a page rendered - and the answer does not
+   * land here, it lands in the proposal queue for somebody to accept.
+   */
+  readonly onAsk?: (accountId: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly canAsk?: boolean;
 }
 
 export function AccountCompleteness({
@@ -45,16 +55,29 @@ export function AccountCompleteness({
   gaps,
   canFill,
   onFill,
+  onAsk,
+  canAsk = false,
 }: AccountCompletenessProps) {
-  const { COMPLETENESS_TEXT, COMPLETENESS_ERROR } = useMessages();
+  const { COMPLETENESS_TEXT, COMPLETENESS_ERROR, COPILOT_TEXT } = useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [asked, setAsked] = useState(false);
 
   // NOTHING TO SAY IS SAID BY SAYING NOTHING. A permanent "this record is
   // complete" panel is furniture on every account that is fine, and furniture
   // is what people stop reading.
   if (gaps.length === 0) return null;
+
+  // ONE MAPPING FOR THE MODEL PLANE, shared with the copilot chat. Atlas
+  // composes its codes at runtime (`atlas_${code}`), so no dictionary can
+  // enumerate them - and this surface printed `atlas_ATLAS_NOT_CONFIGURED` at a
+  // reader until it used the same translation the chat already had.
+  const explain = (code: string | undefined): string => {
+    const c = code ?? "denied";
+    if (isModelPlaneError(c)) return explainModelPlaneError(c, COPILOT_TEXT);
+    return COMPLETENESS_ERROR[c] ?? c;
+  };
 
   const derivable = gaps.filter((g) => g.suggestion !== null);
   const askable = gaps.filter((g) => g.forModel);
@@ -93,7 +116,7 @@ export function AccountCompleteness({
                 startTransition(() => {
                   void onFill(accountId, g.field, g.suggestion as string)
                     .then((r) => {
-                      if (!r.ok) setError(COMPLETENESS_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+                      if (!r.ok) setError(explain(r.error));
                     })
                     .finally(() => setBusy(null));
                 });
@@ -106,13 +129,43 @@ export function AccountCompleteness({
       ))}
 
       {askable.length > 0 ? (
-        <p className="text-muted-foreground text-xs">
-          {COMPLETENESS_TEXT.askable(
-            COMPLETENESS_TEXT.joinFields(
-              askable.map((g) => COMPLETENESS_TEXT.fields[g.field] ?? g.field),
-            ),
-          )}
-        </p>
+        <div className="flex items-start justify-between gap-md">
+          <p className="text-muted-foreground text-xs">
+            {COMPLETENESS_TEXT.askable(
+              COMPLETENESS_TEXT.joinFields(
+                askable.map((g) => COMPLETENESS_TEXT.fields[g.field] ?? g.field),
+              ),
+            )}
+          </p>
+          {canAsk && onAsk ? (
+            // ASKED ONCE, then it says where the answer went. Offering the
+            // button again would invite paying twice for the same question, and
+            // the answer is not here anyway - it is in the queue.
+            asked ? (
+              <StatusBadge tone="info">{COMPLETENESS_TEXT.askedNote}</StatusBadge>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={pending && busy === "ask"}
+                onClick={() => {
+                  setBusy("ask");
+                  setError(null);
+                  startTransition(() => {
+                    void onAsk(accountId)
+                      .then((r) => {
+                        if (r.ok) setAsked(true);
+                        else setError(explain(r.error));
+                      })
+                      .finally(() => setBusy(null));
+                  });
+                }}
+              >
+                {COMPLETENESS_TEXT.ask}
+              </Button>
+            )
+          ) : null}
+        </div>
       ) : null}
 
       {structural.map((g) => (
