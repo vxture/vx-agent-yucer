@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { InMemoryPipelineStore, type OpportunityRecord } from "../pipeline/store";
-import { setPipelineStore } from "../shared/registry";
+import { setAccountStore, setPipelineStore } from "../shared/registry";
+import { InMemoryAccountStore } from "../account/store";
 import { EXECUTABLE_ACTIONS } from "./lib/autonomy";
 import { carryOut, handledActions, type ExecutionContext } from "./executor";
 import type { AgentAction } from "./lib/action";
@@ -116,6 +117,120 @@ test("the accepter's own gate decides", async () => {
   const r = await carryOut(ctx("delivery_manager"), action());
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
   assert.equal((await store.getOpportunity(WS, "opp_1"))?.stage, "discover");
+});
+
+// --- Filling a customer record, which the model proposes ---------------------
+
+test("accepting a model's fill writes the field", { skip: false }, async () => {
+  // THE ONE-CLICK FILL, end to end. The model proposes through the same tool it
+  // proposes everything with; the proposal lands in the same queue; accepting
+  // runs the same executor. No second mechanism, so a filled field carries the
+  // same signature as every other thing the machine suggested.
+  const accounts = new InMemoryAccountStore();
+  accounts.seed({
+    accounts: [
+      {
+        id: "acc_1",
+        workspaceId: WS,
+        accountNo: "ACC-1",
+        name: "东北重工集团",
+        industry: null,
+        region: null,
+        segmentCode: null,
+        ownerSub: "usr_rep",
+        healthScore: null,
+        status: "active",
+        tier: "standard",
+      } as never,
+    ],
+  });
+  setAccountStore(accounts);
+  try {
+    const r = await carryOut(
+      ctx(),
+      action({
+        actionType: "fill_account_field",
+        subjectType: "account",
+        subjectId: "acc_1",
+        payload: { field: "industry", value: "制造" },
+      }),
+    );
+    assert.equal(r.ok, true);
+    assert.equal((await accounts.getAccount(WS, "acc_1"))?.industry, "制造");
+  } finally {
+    setAccountStore(null);
+  }
+});
+
+test("a field outside the four is refused, not written", async () => {
+  // `payload` is model-written JSON, so the field name arrives as arbitrary
+  // text. `tier` is a commercial designation with its own rules and its own
+  // page; a model naming it must not reach it through here.
+  const accounts = new InMemoryAccountStore();
+  accounts.seed({
+    accounts: [
+      {
+        id: "acc_1",
+        workspaceId: WS,
+        accountNo: "ACC-1",
+        name: "Acme",
+        industry: null,
+        region: null,
+        segmentCode: null,
+        ownerSub: "usr_rep",
+        healthScore: null,
+        status: "active",
+        tier: "standard",
+      } as never,
+    ],
+  });
+  setAccountStore(accounts);
+  try {
+    for (const field of ["tier", "status", "healthScore"]) {
+      const r = await carryOut(
+        ctx(),
+        action({
+          actionType: "fill_account_field",
+          subjectType: "account",
+          subjectId: "acc_1",
+          payload: { field, value: "strategic" },
+        }),
+      );
+      assert.equal(r.ok === false && r.violations[0].code, "field_not_fillable", field);
+    }
+    assert.equal((await accounts.getAccount(WS, "acc_1"))?.tier, "standard");
+  } finally {
+    setAccountStore(null);
+  }
+});
+
+test("a fill aimed at something that is not a customer is refused", async () => {
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "fill_account_field",
+      subjectType: "opportunity",
+      subjectId: "opp_1",
+      payload: { field: "industry", value: "制造" },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "subject_mismatch");
+});
+
+test("an empty value is refused rather than clearing the field", async () => {
+  // "Fill this in" that blanks the field is the opposite of the request - and a
+  // model returning an empty string for an industry it could not determine is a
+  // real thing to expect.
+  const r = await carryOut(
+    ctx(),
+    action({
+      actionType: "fill_account_field",
+      subjectType: "account",
+      subjectId: "acc_1",
+      payload: { field: "industry", value: "   " },
+    }),
+  );
+  assert.equal(r.ok === false && r.violations[0].code, "value_required");
 });
 
 // --- Refusing what it should not guess at ------------------------------------

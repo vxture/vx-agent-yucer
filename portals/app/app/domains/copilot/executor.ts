@@ -1,8 +1,9 @@
 import type { Entitlement } from "../../entitlement/types";
 import type { PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
-import { getPipelineStore } from "../shared/registry";
+import { getAccountStore, getPipelineStore } from "../shared/registry";
 import { advanceStage } from "../pipeline/service";
+import { fillAccountField } from "../account/service";
 import { isStage } from "../pipeline/lib/stage";
 import type { AgentAction } from "./lib/action";
 import { EXECUTABLE_ACTIONS } from "./lib/autonomy";
@@ -56,6 +57,7 @@ type Handler = (
 
 const HANDLERS: Readonly<Record<string, Handler>> = {
   advance_stage: advanceStageAction,
+  fill_account_field: fillAccountFieldAction,
 };
 
 /** The dispatch table's keys, for the guard test. */
@@ -94,6 +96,45 @@ export async function carryOut(
     );
   }
   return handler(ctx, action);
+}
+
+/**
+ * The model filled in something about a customer, and a person accepted it.
+ *
+ * THE PAYLOAD IS MODEL-WRITTEN JSON, so every part of it is checked rather than
+ * trusted: the subject must actually be an account, and the field must be one
+ * of the four this fills. `fillAccountField` checks the field again - a model
+ * naming `tier` would otherwise reach a commercial designation that has its own
+ * rules and its own page.
+ */
+async function fillAccountFieldAction(
+  ctx: ExecutionContext,
+  action: AgentAction,
+): Promise<RuleResult<{ actionType: string }>> {
+  if (action.subjectType !== "account") {
+    return fail(
+      violation(
+        "subject_mismatch",
+        `fill_account_field on a ${action.subjectType} - only a customer record has these fields`,
+        "subjectType",
+      ),
+    );
+  }
+  const payload = action.payload as { field?: unknown; value?: unknown };
+  if (typeof payload.field !== "string" || typeof payload.value !== "string") {
+    return fail(
+      violation("payload_invalid", "fill_account_field needs a field and a value", "payload"),
+    );
+  }
+
+  const filled = await fillAccountField(
+    { ...ctx, store: getAccountStore() },
+    action.subjectId,
+    payload.field,
+    payload.value,
+  );
+  if (!filled.ok) return filled as RuleResult<{ actionType: string }>;
+  return ok({ actionType: action.actionType });
 }
 
 async function advanceStageAction(

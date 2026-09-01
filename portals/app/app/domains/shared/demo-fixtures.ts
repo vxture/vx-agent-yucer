@@ -24,7 +24,12 @@ export const DEMO_ACCOUNTS = [
   // has a case a reviewer can actually see - every other demo account sits on
   // ground somebody covers, which made the rule real in code and invisible on
   // screen. Same gap the demo had before it gained a settled quarter.
-  { name: "东北重工集团", industry: "制造", region: "东北" },
+  // INDUSTRY DELIBERATELY BLANK, on top of the unplaced region. It is the
+  // first-entry case the completeness rule exists for: a customer somebody has
+  // typed the name of and nothing else, where the industry is a fact about the
+  // world that no join can supply and the model can. Without one such account
+  // the "ask the assistant" half of that screen rendered on nothing.
+  { name: "东北重工集团", industry: "", region: "东北" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */

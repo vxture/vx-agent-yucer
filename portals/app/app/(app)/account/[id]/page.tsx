@@ -14,13 +14,14 @@ import { resolveAppSession } from "../../lib/session";
 import Link from "next/link";
 import { can } from "../../../authz/decide";
 import {
-  getAccountStore,
   getCopilotStore,
   getDeliveryStore,
   getFieldStore,
-  getPipelineStore,
+  getPlanningStore,
+  getStrategyStore,
 } from "../../../domains/shared/registry";
 import {
+  accountCompleteness,
   accountRelations,
   decisionChain,
   getAccountDetail,
@@ -47,6 +48,8 @@ import { listPipeline } from "../../../domains/pipeline/service";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
+import { AccountCompleteness } from "../../components/account-completeness";
+import { fillField } from "./completeness-action";
 import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
@@ -215,6 +218,20 @@ export default async function AccountDetailPage({
 
   // A second analysis over the same graph: who has actually been in a recorded
   // room. Deliberately not folded into `chain` - see chain-recency.tsx.
+  // The completeness read spans three domains - deals, territories and segments
+  // - so it takes their stores. Read-only from here: the question is about this
+  // customer, and answering it is not the same as owning them.
+  const completeness = await accountCompleteness(
+    {
+      ...fieldCtx,
+      store: session.stores.account(),
+      pipeline: session.stores.pipeline(),
+      planning: getPlanningStore(),
+      strategy: getStrategyStore(),
+    },
+    id,
+  );
+
   const recency = relations.ok
     ? await chainRecency(fieldCtx, id, contacts, relations.value, { now })
     : null;
@@ -305,6 +322,19 @@ export default async function AccountDetailPage({
               beside the roster rather than buried below the evidence: knowing
               the economic buyer is untouched changes how every number in the
               middle column reads. */}
+          {/* WHAT THIS RECORD IS MISSING, above the chain rather than below the
+              evidence: a customer whose region or industry is blank is one the
+              rules downstream cannot reason about properly, so it is the first
+              thing worth fixing on this page. Renders nothing when the record
+              is complete. */}
+          {completeness.ok ? (
+            <AccountCompleteness
+              accountId={id}
+              gaps={completeness.value.gaps}
+              canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
+              onFill={fillField}
+            />
+          ) : null}
           {chain.ok ? (
             <DecisionChain
               coverage={chain.value}

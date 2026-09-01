@@ -45,6 +45,32 @@ const GATE_ERROR = {
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
 
+  COMPLETENESS_ERROR: {
+    not_found: "That customer record does not exist, or is not in this workspace.",
+    field_not_fillable: "That is not a field the copilot may fill.",
+    value_required: "Filling a field needs a value; a blank is not one.",
+  },
+
+  COMPLETENESS_TEXT: {
+    title: "What this customer record is missing",
+    description:
+      "Two kinds of gap: what this workspace's own data can already work out, and what the assistant has to find. The first kind shows what it was read from - a fill that cannot say where the value came from is a machine signing your name on a customer record.",
+    fill: "Fill in",
+    fields: {
+      region: "Region",
+      industry: "Industry",
+      segmentCode: "Segment",
+      ownerSub: "Owner",
+    } as Record<string, string>,
+    askable: (fields: string) =>
+      `${fields} cannot be worked out from the data - those are facts about the company itself. The assistant looks them up, and its answer arrives as a proposal to accept.`,
+    joinFields: (fields: readonly string[]) => fields.join(", "),
+    structural: {
+      regionUnplaced:
+        "No territory covers this region. The record itself is complete, but because nobody claims that ground this customer is visible to every territory member - the fix is the territory map, not this record.",
+    } as Record<string, string>,
+  },
+
   SHELL_TEXT: {
     brandName: "Yucer Sales Agent",
     workspaceFallback: "Current workspace",
@@ -675,6 +701,8 @@ export const en: Dictionary = {
     terminal_stage: "This deal is closed; reopening rewrites a reported outcome and needs explicit intent.",
     unknown_stage: "The proposal named a stage that does not exist.",
     unknown_forecast_category: "The proposal named a forecast category that does not exist.",
+    field_not_fillable: "That is not a field the copilot may fill.",
+    value_required: "Filling a field needs a value; a blank is not one.",
   },
   REVIEW_ERROR: {
     not_found: "Not found, or not in this workspace.",

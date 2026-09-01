@@ -37,6 +37,19 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
  * writes to our own records and journals every move in opportunity_stage_event,
  * so somebody can walk it back.
  *
+ * `fill_account_field` joined on 2026-09-01 - the model filling in a customer's
+ * industry or region on first entry, which the owner asked for. It qualifies on
+ * the same test rather than on being useful: it writes one whitelisted column
+ * on our own record, the previous value is visible in the record it overwrote,
+ * and a wrong industry is corrected by typing over it. Nothing leaves the
+ * building.
+ *
+ * Note what that means under `ask_high_risk`: a HIGH-CONFIDENCE fill happens
+ * without being asked, and a low-confidence one waits. That is the intended
+ * reading - a model unsure what a company does should not be quietly writing
+ * it down - and it is why the confidence floor matters more here than anywhere
+ * else, because an industry decides the segment, which decides the playbook.
+ *
  * `draft_outreach` is deliberately absent and is the reason the line is drawn
  * here rather than at confidence: a message sent to a customer cannot be
  * unsent, and no confidence score makes it retractable. It is also why this
@@ -59,7 +72,7 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
  * draft_email" and nothing validates what comes back - so the set of things
  * that can arrive here is open, and only an allowlist can bound it.
  */
-export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage"];
+export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage", "fill_account_field"];
 
 /**
  * Can the product carry this action out itself?
