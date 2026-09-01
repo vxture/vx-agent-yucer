@@ -20,11 +20,13 @@ import {
   planBatchDecision,
   planExecution,
   planExpiry,
+  planFailure,
   type ActionPatch,
   type ActionStatus,
   type AgentAction,
   type Decision,
 } from "./lib/action";
+import { carryOut } from "./executor";
 import type { CopilotStore, NewProposal, PlaybookFilter, PlaybookRecord, ProposalFilter } from "./store";
 
 export interface CopilotContext {
@@ -193,8 +195,54 @@ export async function execute(
     if (!auth.allowed) return denied(auth);
   }
 
+  // The row's own eligibility is settled BEFORE anything happens to a deal.
+  // planExecution refuses an expired row and an accepted one with no decider,
+  // and neither of those may move an opportunity first and be refused after.
   const plan = planExecution(action, { autopilot: autonomous });
   if (!plan.ok) return plan as RuleResult<{ id: string; autonomous: boolean }>;
+
+  // THE BUSINESS ACTION ACTUALLY HAPPENS, and it happens here.
+  //
+  // The owner's ruling, 2026-09-01: "采纳当然要真实发生业务动作，不能是假的".
+  // Until now this function moved the row to `executed` and nothing else
+  // occurred - a person signed for a stage change that never took place, and
+  // the record said it had. Worth noting that the old tests could not have
+  // caught it: they asserted the claim, not the effect.
+  //
+  // ON THE ACCEPTER'S OWN PERMISSIONS - the same ruling's first half, "人签了
+  // 字，就用他的权限". `ctx` is passed straight through, so advanceStage runs
+  // its own `pipeline.opportunity.advance` gate against the member who signed.
+  // A member holding copilot.decide and only pipeline.read (delivery_manager
+  // is the live case) is refused, with their name on the refusal; the copilot
+  // never lends anyone authority they do not have. Under autonomy there is no
+  // signer, and the context is the member whose turn produced the proposal -
+  // the agent is never more permitted than the person it acts for.
+  //
+  // ORDER: DO, THEN RECORD. The reverse is unrepresentable - once the row says
+  // `executed`, planFailure refuses it, so a write that claimed success first
+  // could never walk the claim back. The cost is a window between the two: two
+  // concurrent callers can both reach advanceStage. The stage machine closes
+  // it, refusing the second with `stage_unchanged` (from = to is a database
+  // CHECK), so a race ends as one move plus one honest `failed` row rather
+  // than as two moves.
+  const done = await carryOut(ctx, action);
+  if (!done.ok) {
+    // A FAILED ATTEMPT IS RECORDED, not swallowed. `failed` is terminal on
+    // purpose - a retry is a new proposal - so the fact that the copilot was
+    // told to do something and could not survives, instead of the row sitting
+    // at `accepted` looking like it is still waiting for someone.
+    const failure = planFailure(action);
+    if (failure.ok) {
+      await ctx.store.applyDecision(ctx.workspaceId, [
+        {
+          id,
+          patch: failure.value,
+          from: [autonomous ? ("proposed" as const) : ("accepted" as const)],
+        },
+      ]);
+    }
+    return done as RuleResult<{ id: string; autonomous: boolean }>;
+  }
 
   // Autopilot moves straight from `proposed`; the normal path moves an
   // already-accepted row.

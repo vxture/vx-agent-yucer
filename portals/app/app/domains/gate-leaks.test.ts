@@ -9,6 +9,8 @@ import { getAccountDetail } from "./account/service";
 import { InMemoryCopilotStore } from "./copilot/store";
 import { execute } from "./copilot/service";
 import type { AgentAction } from "./copilot/lib/action";
+import { InMemoryPipelineStore } from "./pipeline/store";
+import { setPipelineStore } from "./shared/registry";
 
 // Reads and refusals that leaked around the gate.
 //
@@ -106,7 +108,11 @@ function proposal(over: Partial<AgentAction> = {}): AgentAction {
     actionType: "advance_stage",
     subjectType: "opportunity",
     subjectId: "opp_1",
-    payload: {},
+    // A payload the executor can actually act on. It used to be `{}`, which was
+    // harmless while executing did nothing; since 2026-09-01 accepting carries
+    // the payload out, so an empty one is refused before any gate is reached -
+    // and these tests are about the GATES, not about payload validation.
+    payload: { to: "validate" },
     rationale: null,
     confidence: null,
     decidedBySub: "usr_leader",
@@ -116,6 +122,38 @@ function proposal(over: Partial<AgentAction> = {}): AgentAction {
     ...over,
   };
 }
+
+/** A deal for the executor to move, since executing is now a real write. */
+function deals(): InMemoryPipelineStore {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    {
+      id: "opp_1",
+      workspaceId: WS,
+      opportunityNo: "OPP-1",
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      name: "Deal",
+      accountId: "acc_1",
+      planId: null,
+      campaignId: null,
+      sourceProjectId: null,
+      territoryId: null,
+      ownerSub: "usr_rep",
+      stage: "discover",
+      forecastCategory: "commit",
+      amount: null,
+      probability: 25,
+      expectedCloseAt: null,
+      closedAt: null,
+      status: "open",
+      currency: "CNY",
+    },
+  ]);
+  setPipelineStore(store);
+  return store;
+}
+
+test.afterEach(() => setPipelineStore(null));
 
 function copilotCtx(role: RoleCode, tier: Entitlement["tier"], store: InMemoryCopilotStore) {
   return { workspaceId: WS, sub: "usr_me", holder: holder(role), entitlement: ent(tier), store };
@@ -148,15 +186,18 @@ test("an authorized caller still gets not_found for an id that does not exist", 
 
 test("an authorized caller can still execute an accepted proposal", async () => {
   const store = new InMemoryCopilotStore();
+  const moved = deals();
   store.seedProposals(WS, [proposal()]);
   const out = unwrap(await execute(copilotCtx("sales_leader", "enterprise", store), "act_1"));
   assert.equal(out.autonomous, false);
+  assert.equal((await moved.getOpportunity(WS, "opp_1"))?.stage, "validate");
 });
 
 test("hoisting the decide gate does not close the autopilot path", async () => {
   // Autopilot used to skip the decide gate entirely. It now passes through it
   // first, which is only safe because of the implication asserted below.
   const store = new InMemoryCopilotStore();
+  deals();
   store.seedProposals(WS, [proposal({ status: "proposed", decidedBySub: null, decidedAt: null })]);
   // The posture is a stored row now, not a pair of caller-supplied booleans -
   // a caller that can declare it has authority has a parameter, not authority.
