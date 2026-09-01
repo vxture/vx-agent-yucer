@@ -58,7 +58,10 @@ export async function ForecastTrajectory({
    * badly.
    */
   readonly accuracy?: {
-    readonly ratio: number | null;
+    /** How close the commit was. Over-delivery is a miss - see the rule. */
+    readonly accuracy: number | null;
+    /** How much of the commit landed. Over-delivery exceeds 100%. */
+    readonly attainment: number | null;
     /** False until the period is over. The word is only honest after that. */
     readonly settled: boolean;
     readonly hasOpening: boolean;
@@ -123,19 +126,35 @@ export async function ForecastTrajectory({
               before the window badge because it is the conclusion and that is
               a caveat about the plot. */}
           {accuracy ? (
-            <StatusBadge tone={accuracy.ratio === null ? "neutral" : "info"}>
-              {accuracy.ratio === null
-                ? accuracy.hasOpening
+            accuracy.attainment === null ? (
+              <StatusBadge tone="neutral">
+                {accuracy.hasOpening
                   ? PIPELINE_TEXT.accuracyNoCommit
-                  : PIPELINE_TEXT.accuracyNoOpening
-                : accuracy.settled
-                  ? PIPELINE_TEXT.accuracySettled(accuracy.ratio)
-                  : // MID-PERIOD IT IS NOT ACCURACY. The same ratio, before the
-                    // quarter ends, is progress against the commit - and calling
-                    // it accuracy would tell a team in week two that it forecasts
-                    // at 8%.
-                    PIPELINE_TEXT.accuracySoFar(accuracy.ratio)}
-            </StatusBadge>
+                  : PIPELINE_TEXT.accuracyNoOpening}
+              </StatusBadge>
+            ) : (
+              <>
+                {/* ATTAINMENT ALWAYS, and it is the same sentence in both
+                    directions - "how much of what we promised landed" needs no
+                    period-end to be true, and it is what a pipeline review
+                    opens with. */}
+                <StatusBadge tone="info">
+                  {PIPELINE_TEXT.accuracySoFar(accuracy.attainment)}
+                </StatusBadge>
+                {/* ACCURACY ONLY ONCE THE PERIOD IS OVER, and never as the same
+                    number. Mid-quarter every forecast is "inaccurate" simply
+                    because the quarter has not happened yet, so the word would
+                    tell a team in week two that it forecasts at 8%.
+                    They are shown SIDE BY SIDE deliberately: 300% and 0% is the
+                    honest report on a team that had a great quarter and a
+                    useless forecast, and either number alone tells half of it. */}
+                {accuracy.settled && accuracy.accuracy !== null ? (
+                  <StatusBadge tone={accuracy.accuracy >= 0.8 ? "success" : "warning"}>
+                    {PIPELINE_TEXT.accuracySettled(accuracy.accuracy)}
+                  </StatusBadge>
+                ) : null}
+              </>
+            )
           ) : null}
           {points.length > shown.length ? (
             <StatusBadge tone="neutral">
