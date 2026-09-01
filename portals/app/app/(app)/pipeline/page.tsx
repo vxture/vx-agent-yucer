@@ -160,7 +160,12 @@ export default async function PipelinePage({
         .map((o) => (o as (typeof result.value)[number]).ownerSub)
         .filter((o): o is string => typeof o === "string" && o.length > 0),
     ),
-  ].sort();
+    // AN EXPLICIT COMPARATOR, and localeCompare rather than `<`. The default
+    // sort coerces to string and orders by UTF-16 code unit, which is right for
+    // ASCII subs by accident and wrong the moment a workspace has non-ASCII
+    // ones - and this list is READ BY A PERSON in a picker, so the order they
+    // expect is their locale's, not the code page's.
+  ].sort((a, b) => a.localeCompare(b));
 
   // WHICH accounts have no reachable economic buyer. The same memoised feed
   // the shell and the home screen read, so this costs nothing extra - and it
