@@ -1324,5 +1324,7 @@ outcome`，消费面另加 `taskId · costAmount · costUnit`。
 工作台 RP，`act.sub`），不是新列，本方自产写填进程常量，非控制台后台通道填 `NULL`，
 不得硬编；`costUnit` 是开放词表，产品自己声明单位，不要求全平台一套 schema。
 
-已回帖 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)
-说明本仓侧判定变更，不再等待平台裁定谁覆盖谁。C3 的用量信封本次不动。
+本仓侧判定已变更，不再等待平台裁定谁覆盖谁；C3 的用量信封本次不动。**回帖
+[vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269) 是
+owner 侧待办**——`vxture-platform` 不在本仓协作者可达的组织仓库列表里，本次无法
+代发。

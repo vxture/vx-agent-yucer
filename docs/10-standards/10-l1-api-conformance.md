@@ -79,8 +79,10 @@ yucer 的首个生产 tag（批次 4 的 `v0.1.0`）**还没打**，所以「首
 - **`costUnit` 是开放词表**：产品自己声明并登记计量单位（本仓是 `metric` 已经
   承担的角色），不要求全平台一套 schema。
 
-已按此复核回帖 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)，
-说明本仓侧判定已改为「真差距，非冲突」，不再等平台裁定谁覆盖谁。
+本仓侧判定已改为「真差距，非冲突」，不再等平台裁定谁覆盖谁——**回帖仍待办**：
+`vxture-platform` 不在本仓协作者可达的组织仓库列表里（`gh repo list vxture` 查无
+此仓），复核结果暂时只落在这份文件里，回帖 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)
+是 owner 侧待办。
 
 **C3 的信封本次不动**——它一直是对的，X-3 要补的是旁边一张本仓从未建过的表，不是
 把这张信封改名。
