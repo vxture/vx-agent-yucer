@@ -231,6 +231,45 @@ export async function linkContacts(
  * include it, so until now nothing could set it - the tier existed, the rule
  * read it, and no path led there.
  */
+/**
+ * Move an account to a different owner.
+ *
+ * The store has been able to write `owner_sub` since the baseline and no
+ * service verb ever exposed it, so an account's owner could be set when the
+ * account was created and never afterwards - which made "somebody left" a
+ * problem with no answer in this domain.
+ *
+ * GATED ON account.upsert, the same permission that edits the record. Whose
+ * account this is IS the record, not a lighter fact about it, and inventing a
+ * weaker gate for reassignment would let somebody hand out a book they could
+ * not otherwise touch.
+ *
+ * NO RULE ABOUT WHO MAY RECEIVE IT lives here, deliberately. This domain knows
+ * nothing about members - `local_authz` sits under it - so "is the recipient
+ * still with us" is a question the caller answers before asking. The handover
+ * surface does exactly that.
+ */
+export async function reassignAccount(
+  ctx: AccountContext,
+  accountId: string,
+  ownerSub: string,
+): Promise<RuleResult<{ accountId: string; ownerSub: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (!ownerSub.trim()) {
+    return fail(violation("owner_required", "a reassignment needs somebody to reassign to", "ownerSub"));
+  }
+
+  const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!current) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  await ctx.store.updateAccount(ctx.workspaceId, accountId, { ownerSub });
+  return ok({ accountId, ownerSub });
+}
+
 export async function designateAccount(
   ctx: AccountContext,
   input: {

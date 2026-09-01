@@ -676,6 +676,15 @@ export const MEMBER_TEXT = {
   reactivateHint: "只恢复在岗状态，不恢复任何角色——角色需要重新授予一次。",
   /** 邀请是平台的事：席位和谁能登录都由平台决定，这里只能跳出去。 */
   invite: "邀请成员",
+  // 转交。只对已停用的成员出现——在岗成员的记录换负责人，是在各自页面上一条条做的
+  // 决定，不该被批量扫过去。
+  handoverTo: "转交给",
+  handover: "转交",
+  handoverHint:
+    "把在办的客户、商机、线索转给这个人。已成交/已丢单的商机不动（那是谁打赢的，属于历史），销售目标和预测快照也不动（目标是给具体人定的，快照是当天说过的话）。",
+  handoverDone: (accounts: number, deals: number, leads: number) =>
+    `已转交：客户 ${accounts}、商机 ${deals}、线索 ${leads}。`,
+  handoverPartial: (skipped: number) => `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
 } as const;
 
 export const MEMBER_ERROR: Record<string, string> = {
@@ -686,6 +695,21 @@ export const MEMBER_ERROR: Record<string, string> = {
   not_found: "该成员不属于当前工作区",
   permission_denied: "你没有管理成员角色的权限",
   no_data_access: "当前工作区无权访问",
+
+  // 转交带来的拒绝理由。域规则会逐条拒，这些句子是它们在成员页上的读法——
+  // 而不是把裸 code 丢给读的人（TD-010）。
+  same_owner: "转出和转入是同一个人",
+  owner_required: "转交需要指定一个接收人",
+  recipient_not_a_member: "接收人不是这个工作区的成员",
+  recipient_inactive: "接收人自己也已停用——转过去只会让这些工作对第二个人也不可见",
+  lead_converted: "这条线索已经转成商机，商机上已经有负责人了",
+  empty_patch: "没有需要改动的内容",
+  amount_negative: "金额不能小于零",
+  probability_range: "赢率是 0 到 100 之间的整数",
+  terminal_probability_fixed: "已关闭的商机不再调整赢率",
+  terminal_requires_closed: "赢单/丢单必须同时落下结案时间",
+  closed_requires_terminal_stage: "预测归入「已结案」必须配已关闭的阶段",
+  unknown_forecast_category: "这条商机的预测分类不在目录中",
 };
 
 export const SHELL_TEXT = {

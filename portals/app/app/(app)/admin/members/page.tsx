@@ -11,6 +11,7 @@ import {
   setMemberInactive,
 } from "./actions";
 import { consoleMembersUrl } from "../../lib/console-url";
+import { handOverBook } from "./handover";
 
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
@@ -60,6 +61,7 @@ export default async function MembersPage() {
         members={result.value}
         onDeactivate={setMemberInactive}
         onReactivate={setMemberActive}
+        onHandover={handOverBook}
         inviteUrl={consoleMembersUrl()}
         // Viewing and changing are separate actions on purpose: the list is
         // useful to anyone who can see it, and only an administrator gets the
