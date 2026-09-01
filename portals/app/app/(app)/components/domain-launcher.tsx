@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Icon, Popover, PopoverTrigger } from "@vxture/design-ui";
+import {
+  Popover,
+  PopoverTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@vxture/design-ui";
 import {
   ShellIconButton,
   ShellPanelContent,
@@ -62,6 +68,46 @@ export interface DomainLauncherProps {
   readonly upgradeHref: string;
 }
 
+/**
+ * ONE TEMPLATE, USED TWICE. The crosscutting row and the domain columns are
+ * two grids, so the only thing making 今日判断 exactly as wide as the block
+ * under it is that both grids declare the same tracks. Naming it once is what
+ * keeps that true - two copies of a column list is two chances to change one.
+ *
+ * FIVE ACROSS ONCE THERE IS ROOM FOR FIVE. The panel's width is capped by the
+ * window, so on a narrow one the box shrinks while a fixed column count would
+ * not: measured at an 800px window, five columns left 120px each and every
+ * module name became an ellipsis. Viewport breakpoints are honest HERE, unlike
+ * inside the fixed-width panes of the body - this element is portaled to the
+ * document and its width really does follow the window.
+ */
+const COLUMNS = "grid grid-cols-2 gap-x-lg md:grid-cols-3 xl:grid-cols-5";
+
+/**
+ * The dashed rule between domain columns.
+ *
+ * WRITTEN OUT, NOT COMPUTED. Tailwind reads SOURCE TEXT, so building this from
+ * SHELL_PANEL_HAIRLINE at runtime - `xl:${hairline.replace("border-t",
+ * "border-l")}` - produces class names that exist in the DOM and have no CSS
+ * behind them. The first version of this line did exactly that and appeared to
+ * work, because `border-dashed` and `border-primary/10` happen to be emitted
+ * for other files. That is luck, not correctness, and the luck runs out the
+ * day nothing else uses them.
+ *
+ * The colour and the dash still belong to the DS: domain-launcher.test.ts
+ * asserts this string against SHELL_PANEL_HAIRLINE, so the two cannot drift
+ * without CI saying so.
+ *
+ * ONLY AT xl, WHERE THE FIVE REALLY ARE ONE ROW. The rule is applied by INDEX,
+ * and an index only maps to a column while nothing wraps. Measured at a 900px
+ * window: the columns fall to three, index 3 lands at x=0 of the second row,
+ * and it drew a dashed line down the panel's own left padding - a rule against
+ * the edge rather than between two things. Below xl the columns are separated
+ * by whitespace, which is what a wrapped layout can honestly say.
+ */
+export const COLUMN_RULE =
+  "xl:border-l xl:border-dashed xl:border-primary/10 xl:dark:border-primary/20 xl:pl-md xl:pr-md";
+
 export function DomainLauncher({
   nav,
   activeKey,
@@ -73,6 +119,7 @@ export function DomainLauncher({
     DOMAIN_GROUP_QUESTION,
     PLANNED_MODULE_LABEL,
     LAUNCHER_TEXT,
+    TIER_LABEL,
   } = useMessages();
 
   const domains = resolveFunctionalDomains(nav);
@@ -94,7 +141,6 @@ export function DomainLauncher({
       />
     ) : m.kind === "section" ? (
       // A LIVE LINK, not a greyed row. It is built; it simply shares a page.
-      // The label says which page it lands on so the jump is not a surprise.
       <ShellPanelRow
         key={`section-${m.key}`}
         icon={m.icon}
@@ -102,25 +148,40 @@ export function DomainLauncher({
         value={LAUNCHER_TEXT.section}
         href={m.href}
         linkComponent={Link}
+        chevron={false}
       />
     ) : m.state === "locked" ? (
       // NOT disabled, unlike a planned row, and the difference is the whole
       // point of the two states. Planned means nobody can have it yet, so
       // there is nothing to click. Locked means this workspace has not bought
       // it - which is a thing they can act on, and the row is where they act.
-      // A plain anchor in a new tab: the target is the platform console, not
-      // a route in this app, so next/link would be wrong and the
-      // external-link glyph says where it goes before it is clicked.
+      //
+      // AND IT NAMES THE TIER. "需升级" says you cannot have it without saying
+      // what would change that, which is an upsell nobody can act on. The
+      // required tier has always been derivable (`minTierFor`); until now
+      // nothing carried it to a surface. The external-link glyph stays -
+      // trailingIcon, not chevron, because the destination is the platform
+      // console and not a route in this app.
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
         label={DOMAIN_LABEL[m.key] ?? m.key}
-        value={LAUNCHER_TEXT.locked}
+        value={
+          m.requiredTier
+            ? LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier)
+            : LAUNCHER_TEXT.lockedNoTier
+        }
         href={upgradeHref}
         newTab
         trailingIcon="external-link"
       />
     ) : (
+      // NO CHEVRON. `chevron` defaults to true whenever a row has an href, and
+      // that default is right for a panel of a few rows where the glyph says
+      // "this one goes somewhere". Here EVERY row goes somewhere - twenty-two
+      // of them, in five columns - so the glyph distinguishes nothing and only
+      // takes the width the module names need. Turned off through the DS prop
+      // rather than hidden with CSS.
       <ShellPanelRow
         key={m.key}
         icon={m.icon}
@@ -128,72 +189,86 @@ export function DomainLauncher({
         href={m.href}
         linkComponent={Link}
         active={m.key === activeKey}
+        chevron={false}
       />
     );
 
   /**
-   * The domain heading, and it is a LINK when the domain has anywhere to go.
+   * The domain heading: a ShellPanelRow, flat, with the question under it.
+   *
+   * NO IDENTITY BLOCK. A previous pass used ShellPanelHeader, whose mark is a
+   * `size-media-sm` Avatar - which gives the icon a PERMANENT BACKGROUND, and
+   * a background in this panel is meant to say hover or current, not "this is
+   * an icon". The row's Button variant already owns that: ghost until you
+   * point at it, secondary when it is where you are.
+   *
+   * It also fixes an alignment this file could not honestly fix. The Avatar
+   * centred a 32px glyph in a 48px block, so the domain icon sat 8px inside
+   * its own inset while a module icon started flush - two icon columns 7px
+   * apart, measured, with no spacing token in between (the scale steps by 4).
+   * Closing it needed a magic offset fighting a DS component's internals.
+   * Removing the block removes the problem: both levels are the same row on
+   * the same ROW_INSET, so the icons are one column by construction.
+   *
+   * THE COLOUR DIFFERENCE IS THE DS's. ROW_ICON_TONE is
+   * `text-muted-foreground` and the label is foreground - icon and title
+   * already differ, and nothing here restates a colour. What separates this
+   * row from the five under it is the description line, the gap below it, and
+   * the dashed rule between columns.
    *
    * WHERE IT GOES IS MEASURED, not uniform - see primaryHref. A domain holding
    * two or more routes gets a home page, because no single page is that
-   * domain; a domain holding one route IS that page, and sending the name
-   * there is the fact about it rather than a lie.
-   *
-   * This used to send every name to its first reachable module, which meant
-   * clicking 阵地 landed on /account - the same destination as the 客户 row
-   * directly underneath. The name promised a place and delivered one of its
-   * parts, chosen by list order, with nothing on screen saying which.
-   *
-   * Not a link when every built module was refused on permission and only
-   * planned rows keep the column alive. A heading that navigates nowhere is
-   * worse than a heading that does not offer to.
+   * domain; a domain holding one route IS that page. Not a link at all when
+   * every built module was refused on permission and only planned rows keep
+   * the column alive: a heading that navigates nowhere is worse than one that
+   * does not offer to.
    */
-  const domainTitle = (d: ResolvedDomain) => {
+  const domainHeading = (d: ResolvedDomain) => {
     const href = primaryHref(d);
-    /* THE DOMAIN NAME OUTWEIGHS ITS OWN ROWS, which the DS default does not do
-       here and is right not to. ShellPanelSectionTitle is 12px/500/muted - a
-       quiet label for a single-column panel where the rows are what you came
-       for. In THIS panel the sections are the content: five of them side by
-       side, no rules between columns, and five words the reader has never seen
-       before. At the default they measured smaller and lighter than the module
-       rows underneath, so the new word looked like a caption for the familiar
-       one.
-
-       The title is a ReactNode slot precisely so a product can put its own
-       structure in it; the panel's padding, gaps and row metrics are
-       untouched. */
-    const name = (
-      <span
-        className={`flex items-center gap-2xs text-sm font-semibold ${
-          /* Which battlefield you are standing on. This is where the current
-             domain went when the nine-dot button lost its text label - it was
-             in the button's accessible name, which could only ever announce
-             one of the five and only to a screen reader. */
-          d.key === here ? "text-primary" : "text-foreground"
-        }`}
-      >
-        <Icon name={d.icon} size="sm" />
-        {DOMAIN_GROUP_LABEL[d.key] ?? d.key}
-      </span>
-    );
-
+    const question = DOMAIN_GROUP_QUESTION[d.key] ?? "";
     return (
-      <span className="flex flex-col gap-2xs">
-        {href ? (
-          <Link href={href} className="hover:text-primary w-fit">
-            {name}
-          </Link>
-        ) : (
-          name
-        )}
-        {/* The question the domain answers, not a summary of what is in it -
-            the modules are listed directly underneath, and naming them again
-            in prose says nothing twice. Outside the link: it explains the
-            destination, it is not part of it. */}
-        <span className="text-muted-foreground text-xs font-normal">
-          {DOMAIN_GROUP_QUESTION[d.key] ?? ""}
-        </span>
-      </span>
+      <ShellPanelRow
+        icon={d.icon}
+        label={DOMAIN_GROUP_LABEL[d.key] ?? d.key}
+        description={
+          /* A TOOLTIP, BECAUSE THE LINE IS CLIPPED. The row's description is
+             `truncate`, which is right - a wrapped question would make five
+             columns different heights - but a clipped sentence with no way to
+             read the rest is text the product has taken away. Measured at
+             1700px none of the five actually clip; at the widths a real window
+             has, they do.
+
+             The DS's own Tooltip; the provider is mounted at the app layout,
+             and a DS Tooltip throws outside one. */
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block w-full truncate">{question}</span>
+            </TooltipTrigger>
+            <TooltipContent>{question}</TooltipContent>
+          </Tooltip>
+        }
+        {...(href ? { href, linkComponent: Link } : {})}
+        active={d.key === here}
+        chevron={false}
+        /* THE WHOLE HEADING IS THE BRAND COLOUR - mark AND name, not just the
+           mark. The DS row's own pairing is a muted icon beside a foreground
+           label, which is the right contrast for a row among rows and exactly
+           the problem here: the heading wore the same two colours as the five
+           rows beneath it, so the only thing separating the levels was the
+           description line. A first pass tinted the icon alone and left the
+           name at foreground - the same near-black as every module under it -
+           so at a glance the levels still read the same.
+
+           `text-primary` carries the label by inheritance; the child selector
+           is needed only because ROW_ICON_TONE sets the icon's colour
+           explicitly and would otherwise win.
+
+           COLOUR TOKENS, NOT COLOURS. `text-primary` is the DS's; the DS has
+           no "heading row" variant to ask for, and the row exposes className
+           for exactly the cases it did not anticipate. Still no background -
+           that belongs to hover and active. */
+        className="text-primary [&_svg]:text-primary"
+      />
     );
   };
 
@@ -230,48 +305,45 @@ export function DomainLauncher({
         aria-label={LAUNCHER_TEXT.panelLabel}
         className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width)"
       >
-        {crosscutting.length > 0 ? (
-          // ONE ROW, NO SECTION TITLE. It held two entries and a heading that
-          // called them crosscutting; with the copilot gone that heading would
-          // be a category name over a single item - and "home" is not a
-          // category, it is where you land.
-          <ShellPanelSection divided={false}>
-            {crosscutting.map(row)}
-          </ShellPanelSection>
-        ) : null}
+        {/* TWO GRIDS, ONE COLUMN TEMPLATE. 今日判断 is the first row and is one
+            column wide - the same width as the blocks beneath it, because the
+            two grids are declared with the same template and therefore resolve
+            to the same track sizes. It is not a sixth column: it belongs to no
+            domain and sits above them, which is what a first row says and what
+            a column beside them did not.
 
-        {/* FIVE ACROSS, ONE ROW. Two rows of three made the reader scan in a
-            direction the content does not run: the five are a sequence - what
-            we sell, who we aim at, how we find them, how we win, how the money
-            arrives - and a wrap put "how we win" underneath "what we sell" as
-            though it started something new. One row is the sales motion, left
-            to right, in the order it happens.
+            It was a full-width section before that: one row stretched across
+            the whole panel with its label at the far left and nothing else on
+            the line. The width carried no content - the section simply had no
+            neighbours. */}
+        <div className="flex flex-col gap-lg">
+          {crosscutting.length > 0 ? (
+            <div className={COLUMNS}>
+              <ShellPanelSection divided={false}>
+                {crosscutting.map(row)}
+              </ShellPanelSection>
+            </div>
+          ) : null}
 
-            gap-x-xl (32px) rather than the md the panel uses elsewhere: with
-            no rules between them, whitespace is the only thing telling the eye
-            these are five separate things rather than one list of twenty-two.
-            The columns are narrow on purpose - a module name is four
-            characters and does not need room it will not use. */}
-        {/* FIVE ACROSS ONCE THERE IS ROOM FOR FIVE.
-            The panel's width is capped by the window, so on a narrow one the
-            box shrinks while the column count would not - measured at an
-            800px window, five columns left 120px each and every module name
-            became an ellipsis. A row of five unreadable columns is worse than
-            two rows of readable ones.
-
-            Viewport breakpoints are honest HERE, unlike inside the fixed-width
-            panes of the body: this element is portaled to the document and its
-            width really does follow the window. */}
-        <div className="grid grid-cols-2 gap-x-xl md:grid-cols-3 xl:grid-cols-5">
-          {domains.map((d) => (
-            <ShellPanelSection
-              key={d.key}
-              divided={false}
-              title={domainTitle(d)}
-            >
-              {d.modules.map(row)}
-            </ShellPanelSection>
-          ))}
+          <div className={COLUMNS}>
+            {domains.map((d, i) => (
+              <div
+                key={d.key}
+                className={i === 0 ? "xl:pr-md" : COLUMN_RULE}
+              >
+                {domainHeading(d)}
+{/* AIR BETWEEN THE TWO LEVELS. The heading and the rows are the
+                    same component now, so the gap is the only thing saying
+                    "these five belong under that one" - at the section's own
+                    spacing the domain name read as the first of six rows. */}
+                <div className="mt-sm">
+                  <ShellPanelSection divided={false}>
+                    {d.modules.map(row)}
+                  </ShellPanelSection>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </ShellPanelContent>
     </Popover>
