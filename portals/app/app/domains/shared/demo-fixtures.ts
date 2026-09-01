@@ -19,6 +19,12 @@ export const DEMO_ACCOUNTS = [
   // demo case at all - a screen nobody could review is not a demo.
   { name: "西部能源装备", industry: "能源", region: "西北" },
   { name: "东海精密仪器", industry: "制造", region: "华东" },
+  // 未分区: 东北 is covered by NO territory (EAST/NORTH/SOUTH between them
+  // cover 华东/华中/华北/西北/华南/西南). Added 2026-09-01 so the unplaced rule
+  // has a case a reviewer can actually see - every other demo account sits on
+  // ground somebody covers, which made the rule real in code and invisible on
+  // screen. Same gap the demo had before it gained a settled quarter.
+  { name: "东北重工集团", industry: "制造", region: "东北" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */
@@ -107,6 +113,8 @@ export const DEMO_OPPORTUNITIES = [
   "区域仓配一体化",
   "门店能耗管理",
   "客户服务中台",
+  // On the unplaced customer - see acc_demo_8.
+  "重工产线数字化",
 ] as const;
 
 export const DEMO_PROJECTS = [

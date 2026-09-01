@@ -357,6 +357,12 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // 6 goes quiet with nobody having broken a promise, 7 is one WE owe.
       account("acc_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5], "MIDMARKET", REP1, 52, "active"),
       account("acc_demo_7", workspaceId, 7, DEMO_ACCOUNTS[6], "ENTERPRISE", REP1, 66, "active"),
+      // 未分区 - on ground NO territory covers (东北). Owned, active, ordinary
+      // in every other way: the point is that a filing gap, not an absent
+      // owner, is what makes it unplaced. Under a territory scope every
+      // territory member sees it, which is the ruling of 2026-09-01 and the
+      // case that was invisible in the demo until now.
+      account("acc_demo_8", workspaceId, 8, DEMO_ACCOUNTS[7], "ENTERPRISE", REP2, 58, "active"),
     ],
     contacts: [
       contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90),
@@ -716,6 +722,11 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       opp("opp_demo_16", workspaceId, 16, DEMO_OPPORTUNITIES[15], "acc_demo_3", null, "terr_north", REP1, "won", "closed", 1_200_000, 100, PRIOR_MID, PRIOR_MID, "won"),
       opp("opp_demo_17", workspaceId, 17, DEMO_OPPORTUNITIES[16], "acc_demo_4", null, "terr_south", REP2, "won", "closed", 1_400_000, 100, PRIOR_LATE, PRIOR_LATE, "won"),
       opp("opp_demo_18", workspaceId, 18, DEMO_OPPORTUNITIES[17], "acc_demo_6", null, "terr_east", REP2, "won", "closed", 600_000, 100, PRIOR_LATE, PRIOR_LATE, "won"),
+      // A deal on the unplaced customer, and filed under NO territory itself -
+      // both paths blank, which is the only way to reach the unplaced rule.
+      // Given a territory it would simply belong to that one, and the case
+      // would vanish from the demo again.
+      opp("opp_demo_19", workspaceId, 19, DEMO_OPPORTUNITIES[18], "acc_demo_8", null, null, REP2, "discover", "pipeline", 520_000, 25, daysAhead(70), null, "open"),
       // Rule-coverage deals. Both open, both with a real amount, so the two
       // new accounts appear in the pipeline the judgement rules read.
       //
@@ -1129,7 +1140,10 @@ function opp(
   name: string,
   accountId: string,
   campaignId: string | null,
-  territoryId: string,
+  // Nullable, like the column. A deal filed under no territory is an ordinary
+  // state - and it is the only way to reach the unplaced rule, since a deal
+  // WITH a territory simply belongs to that one.
+  territoryId: string | null,
   ownerSub: string,
   stage: string,
   forecastCategory: string,
