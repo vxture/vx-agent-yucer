@@ -32,7 +32,7 @@ export async function actOnSignal(
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getSignalStore(),
+    store: session.stores.signal(),
   };
 
   const result =

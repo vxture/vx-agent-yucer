@@ -33,6 +33,7 @@ export async function deckBundle(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
+    stores: session.stores,
     },
     new Date(),
     scope,

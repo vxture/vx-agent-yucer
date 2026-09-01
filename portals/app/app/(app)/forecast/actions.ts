@@ -32,7 +32,7 @@ export async function applySuggestedCategory(input: {
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getPipelineStore(),
+      store: session.stores.pipeline(),
     },
     input.opportunityId,
   );

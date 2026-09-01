@@ -8,7 +8,9 @@ import {
   deactivateMember,
   reactivateMember,
   revokeRole,
+  setMemberScope,
 } from "../../../authz/admin";
+import { isDataScope } from "../../../authz/scope";
 
 // Granting and removing roles.
 //
@@ -82,6 +84,40 @@ export async function setMemberActive(sub: string): Promise<RoleChangeResult> {
   const result = await reactivateMember(ctx(session), sub);
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
 
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+
+/**
+ * Decide which rows a member may see.
+ *
+ * THE CLIENT SENDS A STRING AND A LIST OF IDS, never a scope object: a shape
+ * the client assembles is a shape it can assemble wrongly, and this one decides
+ * visibility. Parsed and validated on the server, twice - here into the right
+ * type, and again in the service against the rule.
+ */
+export async function changeMemberScope(
+  sub: string,
+  kind: string,
+  territoryIds: string[],
+): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  if (!isDataScope(kind)) return { ok: false, error: "unknown_scope" };
+
+  const result = await setMemberScope(ctx(session), sub, {
+    kind,
+    // Only kept for the scope that reads them. A stale list left behind by
+    // switching away from `territory` is not an error to report at somebody -
+    // it is a list nothing reads - but storing it would leave a configuration
+    // that looks assigned and is not.
+    territoryIds: kind === "territory" ? territoryIds : [],
+  });
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+
+  // Scope decides what every list returns, so the whole shell is stale - and
+  // the member whose scope changed is holding a page built from the old one.
   revalidatePath("/", "layout");
   return { ok: true };
 }

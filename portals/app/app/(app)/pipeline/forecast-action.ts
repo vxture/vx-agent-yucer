@@ -46,7 +46,7 @@ export async function submitForecastSnapshot(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getPipelineStore(),
+      store: session.stores.pipeline(),
     },
     {
       period,

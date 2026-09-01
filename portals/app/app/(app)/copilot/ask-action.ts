@@ -55,7 +55,7 @@ export async function askCopilot(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getAccountStore(),
+      store: session.stores.account(),
     };
     const detail = await getAccountDetail(accountCtx, accountId);
     if (detail.ok) {

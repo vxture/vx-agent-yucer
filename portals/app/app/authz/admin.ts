@@ -26,6 +26,7 @@
 
 import { can, type PermissionHolder } from "./decide";
 import { invalidateAuthz } from "./context";
+import { validateScopeSetting, type ScopeSetting } from "./scope";
 import { isRoleCode, ROLE_PERMISSIONS, type RoleCode } from "./catalog";
 import type { AuthzStore, MemberRecord } from "./store";
 import type { Entitlement } from "../entitlement/types";
@@ -220,6 +221,46 @@ export async function reactivateMember(
   }
 
   await ctx.store.setMemberStatus(ctx.workspaceId, sub, "active");
+  invalidateAuthz(ctx.workspaceId, sub);
+
+  return memberOf(ctx, sub);
+}
+
+/**
+ * Decide which rows a member may see.
+ *
+ * THE ADMINISTRATOR'S CALL, not the role's - the owner's ruling of 2026-09-01,
+ * "不一定是总经理". Gated on `admin.manage`, which sales_leader AND sales_ops
+ * both hold, so the person who runs the workspace can set it without being the
+ * person who runs the sales organisation.
+ *
+ * NO NEW PERMISSION. Whoever may grant a role already decides what somebody can
+ * DO; deciding what they can SEE is the same kind of act by the same person,
+ * and inventing a stronger permission for it would be a gate guarding nothing.
+ *
+ * THE TERRITORY IDS ARE NOT VALIDATED AGAINST THE DOMAIN, and that is the
+ * layering rather than an omission: authz sits UNDER the domains and cannot
+ * read `yucer_gtm.territory`. The surface offers only real territories; an id
+ * that later stops existing narrows to nothing rather than widening to
+ * everything, which is the safe direction for a value that decides visibility.
+ */
+export async function setMemberScope(
+  ctx: AdminContext,
+  sub: string,
+  setting: ScopeSetting,
+): Promise<RuleResult<MemberRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.scope", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const checked = validateScopeSetting(setting);
+  if (!checked.ok) return checked as RuleResult<MemberRecord>;
+
+  const members = await ctx.store.listMembers(ctx.workspaceId);
+  if (!members.some((m) => m.sub === sub)) {
+    return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
+  }
+
+  await ctx.store.setScope(ctx.workspaceId, sub, checked.value);
   invalidateAuthz(ctx.workspaceId, sub);
 
   return memberOf(ctx, sub);

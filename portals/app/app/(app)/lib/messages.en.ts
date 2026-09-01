@@ -1960,6 +1960,13 @@ export const en: Dictionary = {
     handoverDone: (accounts: number, deals: number, leads: number) =>
       `Handed over: ${accounts} accounts, ${deals} deals, ${leads} leads.`,
     handoverPartial: (skipped: number) => `${skipped} were refused by a rule.`,
+    columnScope: "Sees",
+    scopeTerritory: "Pick a territory",
+    scopeLabels: {
+      workspace: "Whole workspace",
+      territory: "Their territory",
+      own: "Only their own",
+    } as Record<string, string>,
   },
 
   MEMBER_ERROR: {

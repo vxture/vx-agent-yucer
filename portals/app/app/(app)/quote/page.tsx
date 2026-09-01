@@ -49,14 +49,14 @@ export default async function QuotePage() {
   };
 
   const [deals, lines, accounts] = await Promise.all([
-    listPipeline({ ...base, store: getPipelineStore() }, { includeClosed: true }),
+    listPipeline({ ...base, store: session.stores.pipeline() }, { includeClosed: true }),
     listOpportunityLines({ ...base, store: getCatalogStore() }),
     // The customer's NAME, through its own gate. listPipeline returns an
     // accountId and an optional accountName it never fills, and /pipeline
     // falls back to printing the id - a UUID in a column headed "customer".
     // A member who cannot read accounts gets a blank here instead, which is
     // the honest answer to "who is this" when you are not allowed to know.
-    listAccounts({ ...base, store: getAccountStore() }),
+    listAccounts({ ...base, store: session.stores.account() }),
   ]);
 
   if (!deals.ok) {

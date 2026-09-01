@@ -87,7 +87,7 @@ export async function handOverBook(from: string, to: string): Promise<HandoverRe
   const skipped: Array<{ kind: string; id: string; reason: string }> = [];
   const moved = { accounts: 0, opportunities: 0, leads: 0 };
 
-  const accountCtx = { ...base, store: getAccountStore() };
+  const accountCtx = { ...base, store: session.stores.account() };
   const accounts = await listAccounts(accountCtx, { ownerSub: from });
   if (!accounts.ok) return { ok: false, error: accounts.violations[0]?.code ?? "denied" };
   for (const a of accounts.value) {
@@ -96,7 +96,7 @@ export async function handOverBook(from: string, to: string): Promise<HandoverRe
     else skipped.push({ kind: "account", id: a.id, reason: r.violations[0]?.code ?? "denied" });
   }
 
-  const pipelineCtx = { ...base, store: getPipelineStore() };
+  const pipelineCtx = { ...base, store: session.stores.pipeline() };
   // OPEN ONLY - see the header. includeClosed is deliberately not passed.
   const deals = await listPipeline(pipelineCtx, { ownerSub: from });
   if (!deals.ok) return { ok: false, error: deals.violations[0]?.code ?? "denied" };
@@ -106,7 +106,7 @@ export async function handOverBook(from: string, to: string): Promise<HandoverRe
     else skipped.push({ kind: "opportunity", id: d.id, reason: r.violations[0]?.code ?? "denied" });
   }
 
-  const signalCtx = { ...base, store: getSignalStore() };
+  const signalCtx = { ...base, store: session.stores.signal() };
   const leads = await listLeads(signalCtx, { ownerSub: from });
   if (!leads.ok) return { ok: false, error: leads.violations[0]?.code ?? "denied" };
   for (const l of leads.value) {

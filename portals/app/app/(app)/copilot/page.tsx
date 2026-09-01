@@ -61,7 +61,7 @@ export default async function CopilotPage({
   // the member may not read simply does not anchor the conversation. The client
   // never supplies the name.
   const anchored = accountId
-    ? await getAccountDetail({ ...ctx, store: getAccountStore() }, accountId)
+    ? await getAccountDetail({ ...ctx, store: session.stores.account() }, accountId)
     : null;
   const account =
     anchored?.ok === true

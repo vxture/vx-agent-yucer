@@ -692,6 +692,14 @@ export const MEMBER_TEXT = {
   handoverDone: (accounts: number, deals: number, leads: number) =>
     `已转交：客户 ${accounts}、商机 ${deals}、线索 ${leads}。`,
   handoverPartial: (skipped: number) => `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
+  // 数据范围（incr/0022，owner 2026-09-01 裁定）。决定权在主管理员，不在角色。
+  columnScope: "可见范围",
+  scopeTerritory: "选择销售区域",
+  scopeLabels: {
+    workspace: "全工作区",
+    territory: "本区域",
+    own: "仅本人",
+  } as Record<string, string>,
 } as const;
 
 export const MEMBER_ERROR: Record<string, string> = {

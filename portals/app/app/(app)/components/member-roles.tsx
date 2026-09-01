@@ -39,6 +39,10 @@ export interface MemberView {
   readonly roles: readonly string[];
   /** "active" | "inactive". A departed member keeps their row forever. */
   readonly status: string;
+  /** Which rows they may see, as configured. "workspace" narrows nothing. */
+  readonly scope: string;
+  /** Assigned territories, unexpanded - children come from the hierarchy. */
+  readonly territoryIds: readonly string[];
 }
 
 export interface MemberRolesProps {
@@ -82,6 +86,13 @@ export interface MemberRolesProps {
    * worse than no button.
    */
   readonly inviteUrl?: string | null;
+  /** The territories an administrator may assign. Empty hides the choice. */
+  readonly territories?: readonly { readonly id: string; readonly name: string }[];
+  readonly onScope?: (
+    sub: string,
+    kind: string,
+    territoryIds: string[],
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const isAdminRole = (role: string): boolean =>
@@ -97,6 +108,8 @@ export function MemberRoles({
   onReactivate,
   onHandover,
   inviteUrl,
+  territories = [],
+  onScope,
 }: MemberRolesProps) {
   const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } =
     useMessages();
@@ -106,6 +119,7 @@ export function MemberRoles({
   const [notice, setNotice] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [heir, setHeir] = useState<Record<string, string>>({});
+  const [terr, setTerr] = useState<Record<string, string>>({});
 
   // Counted over the whole table so the guard reads the same fact the service
   // does: "is anyone else able to administer this workspace".
@@ -261,6 +275,68 @@ export function MemberRoles({
               {MEMBER_TEXT.assign}
             </Button>
           </>
+        );
+      },
+    },
+    {
+      id: "scope",
+      header: MEMBER_TEXT.columnScope,
+      cell: (row) => {
+        // READ-ONLY WITHOUT THE PERMISSION, and still shown. "Everyone sees
+        // everything" is a fact worth being on screen rather than assumed -
+        // the same reason the autonomy panel shows 尚未设置 instead of quietly
+        // reading as configured.
+        const label = MEMBER_TEXT.scopeLabels[row.scope] ?? row.scope;
+        if (!canManage || !onScope) {
+          return <span className="text-muted-foreground text-xs">{label}</span>;
+        }
+        const key = `${row.sub}:scope`;
+        const chosenTerr = terr[row.sub] ?? row.territoryIds[0] ?? "";
+        return (
+          <span className="flex flex-col gap-3xs">
+            <NativeSelect
+              aria-label={MEMBER_TEXT.columnScope}
+              value={row.scope}
+              disabled={pending && busy === key}
+              onChange={(e) => {
+                const next = e.target.value;
+                // A territory scope needs a territory. Choosing it with none
+                // picked would be refused by the service; sending the first
+                // available makes the control do what it looks like it does,
+                // and the administrator can change it on the row below.
+                const ids =
+                  next === "territory"
+                    ? [chosenTerr || territories[0]?.id].filter((x): x is string => Boolean(x))
+                    : [];
+                void run(key, () => onScope(row.sub, next, ids));
+              }}
+            >
+              {["workspace", "territory", "own"].map((k) => (
+                <option key={k} value={k}>
+                  {MEMBER_TEXT.scopeLabels[k] ?? k}
+                </option>
+              ))}
+            </NativeSelect>
+            {row.scope === "territory" && territories.length > 0 ? (
+              <NativeSelect
+                aria-label={MEMBER_TEXT.scopeTerritory}
+                value={chosenTerr}
+                disabled={pending && busy === key}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setTerr({ ...terr, [row.sub]: id });
+                  void run(key, () => onScope(row.sub, "territory", id ? [id] : []));
+                }}
+              >
+                <option value="">{MEMBER_TEXT.scopeTerritory}</option>
+                {territories.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            ) : null}
+          </span>
         );
       },
     },

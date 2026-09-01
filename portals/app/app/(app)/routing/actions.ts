@@ -27,7 +27,7 @@ export async function applyAssignment(input: {
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getSignalStore(),
+      store: session.stores.signal(),
     },
     input.leadId,
     input.ownerSub,

@@ -61,7 +61,7 @@ export default async function DeliveryPage() {
   // column falls back to the id rather than the page refusing. Borrowing a
   // store directly to dodge that gate would be reading another domain's rows
   // around its own rules.
-  const accounts = await listAccounts({ ...ctx, store: getAccountStore() });
+  const accounts = await listAccounts({ ...ctx, store: session.stores.account() });
   const accountNames = new Map(
     accounts.ok ? accounts.value.map((a) => [a.id, a.name]) : [],
   );

@@ -119,7 +119,7 @@ export default async function OpportunityDetailPage({
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getPipelineStore(),
+    store: session.stores.pipeline(),
   };
 
   // Through the service, not the store. A page holding a store handle is how a
@@ -140,7 +140,7 @@ export default async function OpportunityDetailPage({
 
   // Everything the position brief needs. Each read goes through its domain's
   // own service, so this page cannot show what another page would refuse.
-  const accountCtx = { ...ctx, store: getAccountStore() };
+  const accountCtx = { ...ctx, store: session.stores.account() };
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
@@ -167,7 +167,7 @@ export default async function OpportunityDetailPage({
     ]);
   const plan =
     account.ok && account.value.account.tier === "strategic"
-      ? await getAccountStore().getAccountPlan(
+      ? await session.stores.account().getAccountPlan(
           session.workspaceId,
           opportunity.accountId,
         )

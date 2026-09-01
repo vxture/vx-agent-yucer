@@ -42,7 +42,7 @@ export async function openRenewal(input: {
     entitlement: session.entitlement,
   };
 
-  const renewed = await listRenewedProjectIds({ ...base, store: getPipelineStore() });
+  const renewed = await listRenewedProjectIds({ ...base, store: session.stores.pipeline() });
   if (!renewed.ok) return { ok: false, error: renewed.violations[0]?.code ?? "denied" };
 
   const draft = await renewalDraft(
@@ -53,7 +53,7 @@ export async function openRenewal(input: {
   if (!draft.ok) return { ok: false, error: draft.violations[0]?.code ?? "denied" };
 
   const created = await createOpportunity(
-    { ...base, store: getPipelineStore() },
+    { ...base, store: session.stores.pipeline() },
     {
       name: draft.value.name,
       accountId: draft.value.accountId,

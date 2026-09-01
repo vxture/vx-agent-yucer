@@ -54,7 +54,7 @@ export default async function RoutingPage() {
 
   const [territories, accounts] = await Promise.all([
     listTerritories({ ...base, store: getPlanningStore() }),
-    listAccounts({ ...base, store: getAccountStore() }),
+    listAccounts({ ...base, store: session.stores.account() }),
   ]);
 
   // The lead -> region hop. A lead knows its account; the account knows its
@@ -65,7 +65,7 @@ export default async function RoutingPage() {
   );
 
   const plan = await previewRouting(
-    { ...base, store: getSignalStore() },
+    { ...base, store: session.stores.signal() },
     territories.ok ? territories.value : [],
     regionOf,
   );

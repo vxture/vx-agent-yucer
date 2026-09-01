@@ -76,6 +76,7 @@ export default async function DomainHomePage({
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
+    stores: session.stores,
   });
 
   const moduleLabel = (m: ResolvedModule) =>

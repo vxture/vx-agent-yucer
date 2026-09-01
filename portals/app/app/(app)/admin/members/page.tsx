@@ -5,11 +5,14 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { MemberRoles } from "../../components/member-roles";
 import {
+  changeMemberScope,
   grantMemberRole,
   removeMemberRole,
   setMemberActive,
   setMemberInactive,
 } from "./actions";
+import { listTerritories } from "../../../domains/planning/service";
+import { getPlanningStore } from "../../../domains/shared/registry";
 import { consoleMembersUrl } from "../../lib/console-url";
 import { handOverBook } from "./handover";
 
@@ -46,6 +49,17 @@ export default async function MembersPage() {
     store: getAuthzStore(),
   });
 
+  // The territories an administrator may assign. Read through the service so
+  // both gates run - a page holding a store handle directly is the defect PR
+  // #26 fixed on the account page.
+  const territories = await listTerritories({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getPlanningStore(),
+  });
+
   if (!result.ok) {
     return (
       <EmptyState
@@ -62,6 +76,8 @@ export default async function MembersPage() {
         onDeactivate={setMemberInactive}
         onReactivate={setMemberActive}
         onHandover={handOverBook}
+        onScope={changeMemberScope}
+        territories={territories.ok ? territories.value.map((t) => ({ id: t.id, name: t.name })) : []}
         inviteUrl={consoleMembersUrl()}
         // Viewing and changing are separate actions on purpose: the list is
         // useful to anyone who can see it, and only an administrator gets the

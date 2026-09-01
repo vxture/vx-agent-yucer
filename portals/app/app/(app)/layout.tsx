@@ -159,6 +159,7 @@ export default async function AppLayout({
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
+    stores: session.stores,
     },
     new Date(),
   );
@@ -168,6 +169,7 @@ export default async function AppLayout({
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
+    stores: session.stores,
   });
 
   // What search can reach, assembled through the SAME services the pages use -
@@ -179,15 +181,16 @@ export default async function AppLayout({
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
+    stores: session.stores,
   };
   const [accounts, deals, overdue, reviews, projects] = await Promise.all([
-    listAccounts({ ...base, store: getAccountStore() }),
-    listPipeline({ ...base, store: getPipelineStore() }),
+    listAccounts({ ...base, store: session.stores.account() }),
+    listPipeline({ ...base, store: session.stores.pipeline() }),
     // The bell's three queues, through the SAME gated services their pages
     // use. A refusal counts as zero - the bell must not leak the size of work
     // a member is not allowed to see (lib/notifications.ts).
     listCommitments({ ...base, store: getFieldStore() }, { overdueAt: new Date(), limit: 100 }),
-    listPendingReviews({ ...base, store: getPipelineStore() }),
+    listPendingReviews({ ...base, store: session.stores.pipeline() }),
     listProjects({ ...base, store: getDeliveryStore() }),
   ]);
   // Derived health lives on projectView, not on the row - same shape the
