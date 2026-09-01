@@ -13,8 +13,8 @@
 | 模板批次 2（2a-2g） | 平台集成三通道（C1 OIDC RP / C2 权益 / C3 供给与用量）、业务面 DB 契约 schema、离线 Mock 验证页 | 继承 |
 | 模板批次 E | 部署流水线（`deploy`/`build`/`rollback`/`db-init` + `tailnet-ssh-connect`），已在模板演示实例上端到端验证 | 继承 |
 
-五个必需检查是稳定契约，**不得重命名**：`quality-gate` / `build` /
-`test-coverage` / `audit` / `gitleaks`。
+必需检查是稳定契约，**不得重命名**：`quality-gate` / `build` / `test-coverage` /
+`audit` / `gitleaks`，以及 2026-09-01 加入的第六项 `db-contract`。
 
 ## 批次 1 - 产品域框架（本批次）
 
