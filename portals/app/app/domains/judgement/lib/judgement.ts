@@ -28,6 +28,7 @@
 // four times over.
 
 import {
+  daysSinceLastContact,
   isOverdue,
   reliability,
   type CommitmentDirection,
@@ -254,7 +255,12 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
         c.direction === "we_owe" &&
         isOverdue({ status: c.status, dueAt: c.dueAt }, now),
     );
-    const quiet = a.lastContactAt === null ? null : days(a.lastContactAt, now);
+    // THE SHARED DEFINITION, not a local restatement. This read
+    // `a.lastContactAt === null ? null : days(a.lastContactAt, now)`, which is
+    // daysSinceLastContact spelled out - and the field evidence panel spelled
+    // it out a third time. Two of the three could have drifted on the
+    // null-versus-zero question without anything failing.
+    const quiet = daysSinceLastContact(a.lastContactAt, now);
     const biggest = [...a.openDeals].sort(
       (x, y) => (y.amount ?? 0) - (x.amount ?? 0),
     )[0];

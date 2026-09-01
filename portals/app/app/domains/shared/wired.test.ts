@@ -99,8 +99,12 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
     "pins the dedup identity that uidx_signal_ws_source enforces in the database; no code path composes it",
   "strategy/lifecycle.planAcceptsNewWork":
     "pins which plan statuses attract downstream work; no caller gates on it yet",
-  "account/commitment.daysSinceLastContact":
-    "pins the quiet-days definition the judgement rules restate inline; unify or delete at the next review",
+  // `daysSinceLastContact` left on 2026-09-01, by the "unify" branch of what
+  // its entry offered. It took an ARRAY of dates, which is why it never found a
+  // caller: the store answers `lastContactAt` with a single date (a MAX in the
+  // Prisma adapter), so every reader holds one Date or null. Reshaped to what
+  // callers actually hold, it took over the two places that had restated it -
+  // the judgement rules and the field evidence panel.
   // SURFACED 2026-08-31 with copilot.execute, by the same tightening. It was
   // held up by a sentence of UI copy - "Forecast accuracy is the period's
   // actual against its opening snapshot" - and by comments repeating the same
@@ -116,11 +120,19 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
     "pins header-matches-lines; the quote page shows the lines and never asks the question",
 
   // ---------------------------------------------------------------------
-  // TWO THAT SHOULD PROBABLY GO.
-  "copilot/action.isTerminalStatus":
-    "TERMINAL_ACTION_STATUSES is used directly by callers; this wrapper adds nothing - delete unless a caller appears",
-  "copilot/capability.capabilityLabel":
-    "its own docstring says the labels live in the UI message table, which is where they are; delete unless a caller appears",
+  // THE TWO "SHOULD PROBABLY GO" ENTRIES WENT ON 2026-09-01, in opposite
+  // directions - and looking at each was the only way to tell which.
+  //
+  // `isTerminalStatus` was deleted, along with TERMINAL_ACTION_STATUSES. Its
+  // entry claimed the constant "is used directly by callers"; nothing used
+  // either. Every rule gates on the positive side, so the set of states nothing
+  // happens from is a concept the code never asks about.
+  //
+  // `capabilityLabel` was WIRED instead. The account page was hand-rolling a
+  // weaker version - indexing the label map directly, skipping `isCapability` -
+  // so the property its docstring exists to state was not applied at the one
+  // place it mattered. "No caller" was the symptom; the cause was a caller that
+  // had reimplemented it.
 };
 
 /**

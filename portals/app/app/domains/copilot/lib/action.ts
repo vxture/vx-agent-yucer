@@ -50,17 +50,16 @@ export const SUBJECT_TYPES = [
 ] as const;
 export type SubjectType = (typeof SUBJECT_TYPES)[number];
 
-/** Statuses from which nothing further happens. */
-export const TERMINAL_ACTION_STATUSES: readonly ActionStatus[] = [
-  "rejected",
-  "executed",
-  "failed",
-  "expired",
-];
-
-export function isTerminalStatus(s: ActionStatus): boolean {
-  return TERMINAL_ACTION_STATUSES.includes(s);
-}
+// TERMINAL_ACTION_STATUSES and isTerminalStatus were deleted on 2026-09-01.
+//
+// The allowlist entry that held them said "the constant is used directly by
+// callers; the wrapper adds nothing" - and the first half was not true either.
+// NOTHING used either one. Every rule in this file gates on the POSITIVE side
+// (`status === "proposed"`, `!== "proposed"`, `=== "accepted"`), because each
+// one knows the single state it can act from; none of them ever needed the set
+// of states nothing happens from. A concept the code never asks about is not a
+// definition worth pinning, and the review rule here is explicit: a name still
+// listed with no caller gets deleted.
 
 export interface AgentAction {
   id: string;

@@ -50,3 +50,25 @@ test("the literal scanner actually finds strings - guards against a vacuous pass
     "and it can see an offender when there is one",
   );
 });
+
+// --- The capability label map covers exactly the capabilities ----------------
+
+test("every capability has a label and every label names a capability", async () => {
+  // TWO LISTS THAT MUST AGREE, and nothing made them. They agree today, which
+  // is the reason to assert it now rather than after they stop.
+  //
+  // Each direction fails differently. A capability with no label renders as the
+  // unlabelled fallback, so a real proposal loses the grouping it was given -
+  // quiet, and it looks like the data is missing rather than the dictionary. A
+  // label for something that is no longer a capability is worse: it survives
+  // the retirement and keeps naming history that the domain has stopped
+  // recognising, which is precisely what capabilityLabel's isCapability check
+  // exists to prevent.
+  const { CAPABILITIES } = await import("../../domains/copilot/lib/capability");
+  const { BOARD_TEXT } = await import("./messages");
+  const { en } = await import("./messages.en");
+
+  const caps = [...CAPABILITIES].sort();
+  assert.deepEqual(Object.keys(BOARD_TEXT.capabilityLabels).sort(), caps);
+  assert.deepEqual(Object.keys(en.BOARD_TEXT.capabilityLabels).sort(), caps);
+});

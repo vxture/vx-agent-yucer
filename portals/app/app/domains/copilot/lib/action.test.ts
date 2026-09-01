@@ -6,7 +6,6 @@ import {
   ACTION_STATUSES,
   DEFAULT_PROPOSAL_TTL_MS,
   batchRisk,
-  isTerminalStatus,
   planBatchDecision,
   planDecision,
   planExecution,
@@ -38,7 +37,7 @@ function action(over: Partial<AgentAction> = {}): AgentAction {
   };
 }
 
-test("the six statuses match the schema, and four of them are terminal", () => {
+test("the six statuses match the schema", () => {
   assert.deepEqual([...ACTION_STATUSES], [
     "proposed",
     "accepted",
@@ -47,7 +46,6 @@ test("the six statuses match the schema, and four of them are terminal", () => {
     "failed",
     "expired",
   ]);
-  assert.deepEqual(ACTION_STATUSES.filter(isTerminalStatus), ["rejected", "executed", "failed", "expired"]);
 });
 
 // --- Accepting needs a human ------------------------------------------------

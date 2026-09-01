@@ -1,6 +1,7 @@
 import { MetricGrid, Section, type MetricGridItem } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import type { RelationshipEvidence as Evidence } from "../../domains/account/field-service";
+import { daysSinceLastContact } from "../../domains/account/lib/commitment";
 
 // What the evidence plane says about one relationship.
 //
@@ -19,7 +20,6 @@ export interface RelationshipEvidenceProps {
   readonly now?: Date;
 }
 
-const DAY = 86_400_000;
 
 export async function RelationshipEvidencePanel({
   evidence,
@@ -29,10 +29,8 @@ export async function RelationshipEvidencePanel({
   const at = now ?? new Date();
   const { lastContactAt, reliability, interactionCount } = evidence;
 
-  const days =
-    lastContactAt === null
-      ? null
-      : Math.floor((at.getTime() - lastContactAt.getTime()) / DAY);
+  // The domain's definition, not a third copy of it. See the rule.
+  const days = daysSinceLastContact(lastContactAt, at);
 
   const items: MetricGridItem[] = [
     {
