@@ -59,7 +59,12 @@ export interface ProposalQueueProps {
   readonly onDecide: (
     ids: string[],
     decision: Decision,
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<{
+    ok: boolean;
+    error?: string;
+    /** Accepted, and then could not be carried out - see apply(). */
+    failed?: ReadonlyArray<{ id: string; reason: string }>;
+  }>;
 }
 
 export function ProposalQueue({
@@ -116,7 +121,22 @@ export function ProposalQueue({
       selectedActions.map((a) => a.id),
       decision,
     );
-    setError(r.ok ? null : (PROPOSAL_ERROR[r.error ?? "denied"] ?? PROPOSAL_ERROR.not_found));
+    // A PARTIAL SUCCESS IS NOT A SUCCESS AND NOT A FAILURE, and saying nothing
+    // would be the worst of the three. Since 2026-09-01 accepting also carries
+    // the action out, so "ok" can mean "signed for, and one of them did not
+    // happen" - the queue empties either way, and without this line the deal
+    // that did not move is a thing the reader would have to go and notice.
+    //
+    // The COUNT and the FIRST REASON, not a list: the row itself now says
+    // `failed`, so this is the nudge to look rather than the report.
+    if (!r.ok) {
+      setError(PROPOSAL_ERROR[r.error ?? "denied"] ?? PROPOSAL_ERROR.not_found);
+    } else if (r.failed && r.failed.length > 0) {
+      const reason = PROPOSAL_ERROR[r.failed[0].reason] ?? PROPOSAL_ERROR.not_found;
+      setError(PROPOSAL_TEXT.executionFailed(r.failed.length, reason));
+    } else {
+      setError(null);
+    }
     setSelected(new Set());
     setConfirming(null);
   }

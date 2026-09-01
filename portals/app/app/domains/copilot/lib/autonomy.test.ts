@@ -19,10 +19,18 @@ test("an outreach is irreversible however sure the model is", () => {
 });
 
 test("a reversible action with real confidence is not high risk", () => {
-  // advance_stage journals every move; promote_signal produces a lead that can
-  // be disqualified. Both leave a trail somebody can walk back.
+  // advance_stage journals every move in opportunity_stage_event, so somebody
+  // can walk it back.
   assert.deepEqual(riskOf(p("advance_stage", 86)), []);
-  assert.deepEqual(riskOf(p("promote_signal", 60)), []);
+});
+
+test("promote_signal is high risk BECAUSE nothing can carry it out", () => {
+  // It was on the safe list until 2026-09-01, which meant ask_high_risk
+  // auto-approved it and the executor then had no handler - nobody looked, and
+  // nothing happened. agent_action.subject_type has no `signal`, so a proposal
+  // cannot name which signal to promote. Listing it again without widening
+  // that CHECK would put the same hole back.
+  assert.deepEqual(riskOf(p("promote_signal", 99)), ["irreversible"]);
 });
 
 test("the floor is inclusive, so 60 acts and 59 asks", () => {
@@ -46,7 +54,7 @@ test("both reasons are reported, not the first one found", () => {
 
 test("an unknown action type is high risk by default", () => {
   // The safe direction for a list that will grow: a new kind of proposal is
-  // asked about until somebody deliberately adds it to REVERSIBLE_ACTIONS.
+  // asked about until somebody deliberately adds it to EXECUTABLE_ACTIONS.
   assert.deepEqual(riskOf(p("delete_account", 100)), ["irreversible"]);
 });
 

@@ -38,20 +38,12 @@ const APP = join(DOMAINS, "..");
 
 /** Deliberately unwired, with the batch item that removes each one. */
 const KNOWN_UNWIRED: Record<string, string> = {
-  // SURFACED 2026-08-31, when the guard stopped counting words inside strings.
-  //
-  // `execute` moves an accepted proposal to `executed`. Nothing calls it, so a
-  // member who accepts a recommendation gets a row that stays `accepted` -
-  // and, separately, nothing carries out the payload either: accepting
-  // "advance this deal to propose" does not advance the deal.
-  //
-  // NOT wired here, because what should happen is a product decision and not
-  // a wiring job: whether the copilot may change data on a person's say-so,
-  // which changes, and what a failed attempt does. Removed by the batch that
-  // answers that - which is also the batch that gives `planFailure` its first
-  // caller (see KNOWN_TEST_ONLY).
-  "copilot.execute":
-    "accepting a proposal does not execute it; wiring this needs the ruling on what the copilot may carry out",
+  // `copilot.execute` LEFT THIS LIST on 2026-09-01. The ruling it was waiting
+  // for arrived - "采纳当然要真实发生业务动作" - and adjudicateProposals now
+  // calls it for every accepted id, so accepting advances the deal. Its
+  // companion entry under KNOWN_TEST_ONLY (`planFailure`) went at the same
+  // time and for the same reason: once a payload is carried out, an attempt
+  // can fail.
 };
 
 /** Helpers that live in service.ts but are not domain verbs. */
@@ -82,14 +74,10 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
   // now exists, and the guard is what noticed, refusing to let a stale entry
   // sit here claiming the path was still missing.
   //
-  // `planFailure` records that an execution ATTEMPT failed, and the previous
-  // wording here was imprecise: `execute` does exist. What does not exist is
-  // anything that CARRIES OUT a proposal's payload - `execute` records the
-  // transition and stops - so there is no attempt that can fail. The rule is
-  // written, the path is not, and saying which is which is the point of this
-  // list.
-  "copilot/action.planFailure":
-    "execute() records the transition but nothing carries out a payload, so no attempt can fail; wired by the batch that performs one",
+  // `planFailure` left this list on 2026-09-01, with `copilot.execute`. The
+  // path it was waiting for exists: executor.ts carries out a payload, so an
+  // attempt can now fail, and execute() records that instead of leaving the
+  // row at `accepted` looking like it is still waiting for somebody.
 
   // ---------------------------------------------------------------------
   // SIX PURE HELPERS whose only real caller would be inside their own file,

@@ -586,6 +586,28 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   not_found: "提案不存在，或不属于当前工作区",
   not_pending: "这条提案已经被裁决过了",
   decider_required: "接受提案必须落到一个具体的人",
+
+  // 自 2026-09-01 起，采纳会真实执行业务动作，于是商机域的拒绝理由也会走到这里来。
+  // 这些句子不是复制过来的装饰：读到它们的人刚刚点了「采纳」，需要知道自己签了字
+  // 而事情没有发生，以及为什么。
+  human_decision_required: "这条提案需要人来决定，当前授权不允许自动执行",
+  already_decided: "这条提案已被别人处理，你的操作没有生效",
+  not_executable: "这条提案的状态无法执行（已执行、已失败或已过期）",
+  accepted_without_decider: "这条提案没有签字人，拒绝执行一份没人负责的批准",
+  not_executable_type: "系统还不会执行这种类型的动作，已标记为失败",
+  subject_mismatch: "提案的动作与对象对不上，不予执行",
+  payload_invalid: "提案没有说清楚要改成什么，不予执行",
+
+  // 商机阶段机的拒绝，原样转达而不改写——同一条规则在商机页说的是同一句话。
+  stage_unchanged: "商机已经在这个阶段了，重复推进不会记入轨迹",
+  reason_required: "回退或重开商机必须写明原因",
+  terminal_probability_fixed: "已关闭的商机不再调整赢率",
+  probability_range: "赢率是 0 到 100 之间的整数",
+  closed_requires_terminal_stage: "预测归入「已结案」必须配已关闭的阶段",
+  terminal_requires_closed: "赢单/丢单必须同时落下结案时间",
+  terminal_stage: "商机已经关闭，重开会改写已上报的结果，需要明确的重开意图",
+  unknown_stage: "提案给出的阶段不存在",
+  unknown_forecast_category: "提案给出的预测分类不存在",
 };
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
@@ -1588,6 +1610,9 @@ export const PROPOSAL_TEXT = {
   selectionNoun: "条提案",
   bulkReject: "批量拒绝",
   bulkAccept: "批量采纳",
+  /** 采纳成功、但业务动作没能执行。说清楚「签了字，事情没发生」这一种情况。 */
+  executionFailed: (count: number, reason: string) =>
+    `已采纳，但其中 ${count} 条没能执行：${reason}。这些提案已标记为失败，重试需要新的提案。`,
   emptyTitle: "暂无提案",
   emptyDescription:
     "智能助手还没有给出建议动作。向它提问，或等待信号评分产出提案。",

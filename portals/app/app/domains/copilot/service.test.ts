@@ -4,6 +4,8 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryCopilotStore } from "./store";
+import { InMemoryPipelineStore, type OpportunityRecord } from "../pipeline/store";
+import { setPipelineStore } from "../shared/registry";
 import {
   adjudicate,
   execute,
@@ -38,6 +40,48 @@ function proposal(id: string, over: Partial<AgentAction> = {}): AgentAction {
     ...over,
   };
 }
+
+/**
+ * A pipeline the copilot can actually act on.
+ *
+ * EXECUTING IS NOW A REAL WRITE, so these tests need a deal to write to. Before
+ * 2026-09-01 they did not: `execute` moved the proposal row and nothing else
+ * happened, so a test could assert "executed" against an empty world and pass.
+ * That is precisely the defect the owner ruled out ("不能是假的"), and it is
+ * worth noting that the old tests could not have caught it - they asserted the
+ * claim, not the effect.
+ */
+function pipelineWith(over: Partial<OpportunityRecord> = {}): InMemoryPipelineStore {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    {
+      id: "opp_1",
+      workspaceId: WS,
+      opportunityNo: "OPP-1",
+      createdAt: CREATED,
+      name: "Deal",
+      accountId: "acc_1",
+      planId: null,
+      campaignId: null,
+      sourceProjectId: null,
+      territoryId: null,
+      ownerSub: "usr_rep",
+      stage: "discover",
+      forecastCategory: "commit",
+      amount: null,
+      probability: 25,
+      expectedCloseAt: null,
+      closedAt: null,
+      status: "open",
+      currency: "CNY",
+      ...over,
+    },
+  ]);
+  setPipelineStore(store);
+  return store;
+}
+
+test.afterEach(() => setPipelineStore(null));
 
 function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryCopilotStore()): CopilotContext {
   return {
@@ -145,12 +189,66 @@ test("a proposal in another workspace is invisible", async () => {
 
 // --- Execution and autopilot ------------------------------------------------
 
-test("an accepted proposal executes", async () => {
+test("an accepted proposal executes - and the deal actually moves", async () => {
   const store = new InMemoryCopilotStore();
+  const deals = pipelineWith();
   store.seedProposals(WS, [proposal("a", { status: "accepted", decidedBySub: "usr_me", decidedAt: CREATED })]);
   const r = unwrap(await execute(ctx("sales_leader", "enterprise", store), "a"));
   assert.equal(r.autonomous, false);
   assert.equal((await store.getProposal(WS, "a"))?.status, "executed");
+
+  // THE POINT OF THE WHOLE BATCH. "executed" used to be the only assertion
+  // available, and it was true of a product where nothing happened.
+  assert.equal((await deals.getOpportunity(WS, "opp_1"))?.stage, "validate");
+
+  // And the move is journalled with the model's own words, so the reason the
+  // deal advanced survives past the proposal row.
+  const events = await deals.listStageEvents(WS, "opp_1");
+  assert.equal(events.at(-1)?.toStage, "validate");
+  assert.equal(events.at(-1)?.reason, "POC signed off");
+  // Signed by the ACCEPTER, per the owner's ruling: 人签了字，就用他的权限.
+  assert.equal(events.at(-1)?.actorSub, "usr_me");
+});
+
+test("the accepter's own permissions decide, so signing does not lend authority", async () => {
+  // delivery_manager is the real case: it holds `copilot.decide` and only
+  // `pipeline.read`, so it may adjudicate a proposal and may not advance a
+  // deal. The refusal comes from advanceStage's OWN gate, evaluated against
+  // this member. The alternative - the copilot acting under the service role
+  // because a proposal existed - would make "accept" a way to do things you
+  // are not allowed to do.
+  const store = new InMemoryCopilotStore();
+  const deals = pipelineWith();
+  store.seedProposals(WS, [proposal("a", { status: "accepted", decidedBySub: "usr_me", decidedAt: CREATED })]);
+
+  const r = await execute(ctx("delivery_manager", "enterprise", store), "a");
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+  assert.equal((await deals.getOpportunity(WS, "opp_1"))?.stage, "discover");
+
+  // AND THE ATTEMPT IS RECORDED. `failed` is terminal, so the row does not sit
+  // at `accepted` looking like it is still waiting for somebody.
+  assert.equal((await store.getProposal(WS, "a"))?.status, "failed");
+});
+
+test("a proposal nothing can carry out fails instead of reporting success", async () => {
+  // promote_signal is the live example: agent_action.subject_type has no
+  // `signal`, so a proposal cannot name what to promote. It reaches the
+  // executor's refusal rather than a handler.
+  const store = new InMemoryCopilotStore();
+  pipelineWith();
+  store.seedProposals(WS, [
+    proposal("a", {
+      status: "accepted",
+      decidedBySub: "usr_me",
+      decidedAt: CREATED,
+      actionType: "promote_signal",
+      subjectType: "lead",
+      subjectId: "lead_1",
+    }),
+  ]);
+  const r = await execute(ctx("sales_leader", "enterprise", store), "a");
+  assert.equal(r.ok === false && r.violations[0].code, "not_executable_type");
+  assert.equal((await store.getProposal(WS, "a"))?.status, "failed");
 });
 
 test("a pending proposal will not execute while the workspace asks about everything", async () => {
@@ -172,6 +270,7 @@ test("running unasked needs the tier, the permission AND the workspace's own row
     const s = new InMemoryCopilotStore();
     s.seedProposals(WS, [proposal("a")]);
     if (mode) await s.setAutonomy(WS, { mode: mode as never, decidedBySub: "usr_boss" });
+    pipelineWith();
     return s;
   };
 
@@ -205,6 +304,7 @@ test("ask_high_risk runs the reversible ones and still asks about the rest", asy
     const s = new InMemoryCopilotStore();
     s.seedProposals(WS, [proposal("a", { actionType, confidence })]);
     await s.setAutonomy(WS, { mode: "ask_high_risk", decidedBySub: "usr_boss" });
+    pipelineWith();
     return s;
   };
   const c = (s: InMemoryCopilotStore) => ctx("sales_leader", "enterprise", s);
@@ -223,11 +323,13 @@ test("ask_high_risk runs the reversible ones and still asks about the rest", asy
 
 test("an unasked execution leaves the decider null - that null is the marker", async () => {
   const store = new InMemoryCopilotStore();
+  const deals = pipelineWith();
   store.seedProposals(WS, [proposal("a")]);
   await store.setAutonomy(WS, { mode: "autonomous", decidedBySub: "usr_boss" });
   await execute(ctx("sales_leader", "enterprise", store), "a");
   const row = await store.getProposal(WS, "a");
   assert.equal(row?.status, "executed");
+  assert.equal((await deals.getOpportunity(WS, "opp_1"))?.stage, "validate");
   assert.equal(row?.decidedBySub, null, "no human signed for this, and the record says so");
   assert.ok(row?.executedAt instanceof Date);
 });

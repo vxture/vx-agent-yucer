@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCopilotStore } from "../../domains/shared/registry";
-import { adjudicate, setAutonomy } from "../../domains/copilot/service";
+import { adjudicate, execute, setAutonomy } from "../../domains/copilot/service";
 import type { Decision } from "../../domains/copilot/lib/action";
 
 // The only write path from the copilot UI.
@@ -23,6 +23,9 @@ export interface AdjudicateResult {
   ok: boolean;
   decided: string[];
   skipped: Array<{ id: string; reason: string }>;
+  /** Accepted, then could not be carried out. See below - this is not the same
+   *  as skipped, and collapsing them would hide the more serious one. */
+  failed: Array<{ id: string; reason: string }>;
   error?: string;
 }
 
@@ -31,30 +34,61 @@ export async function adjudicateProposals(
   decision: Decision,
 ): Promise<AdjudicateResult> {
   const session = await resolveAppSession();
-  if (!session) return { ok: false, decided: [], skipped: [], error: "not_authenticated" };
-
-  if (decision !== "accept" && decision !== "reject") {
-    return { ok: false, decided: [], skipped: [], error: "invalid_decision" };
+  if (!session) {
+    return { ok: false, decided: [], skipped: [], failed: [], error: "not_authenticated" };
   }
 
-  const result = await adjudicate(
-    {
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: getCopilotStore(),
-    },
-    ids,
-    decision,
-  );
+  if (decision !== "accept" && decision !== "reject") {
+    return { ok: false, decided: [], skipped: [], failed: [], error: "invalid_decision" };
+  }
+
+  const ctx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getCopilotStore(),
+  };
+
+  const result = await adjudicate(ctx, ids, decision);
 
   if (!result.ok) {
-    return { ok: false, decided: [], skipped: [], error: result.violations[0]?.code ?? "denied" };
+    return {
+      ok: false,
+      decided: [],
+      skipped: [],
+      failed: [],
+      error: result.violations[0]?.code ?? "denied",
+    };
+  }
+
+  // ACCEPTING CARRIES IT OUT. The owner's ruling of 2026-09-01: "采纳当然要真实
+  // 发生业务动作，不能是假的". Before this, clicking 采纳 moved the proposal row
+  // to `accepted` and the deal did not move - the queue emptied, the record
+  // said a person had signed, and nothing had happened to the business.
+  //
+  // THE SAME SESSION CONTEXT, deliberately. execute() hands it to the domain
+  // verb, which runs its own gate, so the action happens on the permissions of
+  // the person who just signed for it - "人签了字，就用他的权限". Nothing here
+  // needs to know which permission that is; asking the pipeline domain is the
+  // point.
+  //
+  // ONE AT A TIME, AND ONE FAILURE DOES NOT SINK THE REST. Each proposal is a
+  // separate decision about a separate deal, so a rejected stage move on one
+  // must not discard the accepted move on another. This is also why `failed` is
+  // its own list: `skipped` means the decision did not apply (already decided,
+  // not yours), while `failed` means it DID apply and the world still did not
+  // change - the more serious of the two, and invisible if merged.
+  const failed: Array<{ id: string; reason: string }> = [];
+  if (decision === "accept") {
+    for (const id of result.value.decided) {
+      const run = await execute(ctx, id);
+      if (!run.ok) failed.push({ id, reason: run.violations[0]?.code ?? "denied" });
+    }
   }
 
   revalidatePath("/copilot");
-  return { ok: true, decided: result.value.decided, skipped: result.value.skipped };
+  return { ok: true, decided: result.value.decided, skipped: result.value.skipped, failed };
 }
 
 /**

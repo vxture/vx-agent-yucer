@@ -26,10 +26,16 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
 /**
  * Action types the copilot may carry out on its own, when the mode allows it.
  *
- * REVERSIBILITY IS THE LINE, not the model's opinion of itself. Both of these
- * write to our own records and leave a trail somebody can walk back:
- * `advance_stage` journals every move in opportunity_stage_event, and
- * `promote_signal` produces a lead that can be disqualified.
+ * ONE LIST, TWO MEANINGS, and they have to be the same list. An entry here says
+ * both "this is reversible enough to do unwatched" AND "the executor knows how
+ * to do it" - `executor.ts` consults this very constant before dispatching, so
+ * a type that is auto-approved and then unperformable cannot exist. That
+ * combination is the worst of both readings: nobody looked at it, and nothing
+ * happened.
+ *
+ * REVERSIBILITY IS THE LINE, not the model's opinion of itself. `advance_stage`
+ * writes to our own records and journals every move in opportunity_stage_event,
+ * so somebody can walk it back.
  *
  * `draft_outreach` is deliberately absent and is the reason the line is drawn
  * here rather than at confidence: a message sent to a customer cannot be
@@ -37,11 +43,23 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
  * batch never had to decide what "draft an outreach" should produce - under
  * this rule a person sees it every time, whatever the mode.
  *
- * An action type absent from this set is high risk BY DEFAULT. A new kind of
- * proposal is asked about until somebody deliberately adds it here, which is
- * the safe direction for a list that will grow.
+ * `promote_signal` WAS here and was removed on 2026-09-01, when wiring the
+ * executor showed it cannot be performed as modelled: agent_action's
+ * subject_type CHECK allows account, lead, opportunity, project, campaign and
+ * plan - there is no `signal` - so a proposal has no way to name which signal
+ * to promote (the demo seeds one against a LEAD id, which promoteSignal would
+ * read as a signal id and not find). It was the exact failure this list now
+ * prevents: called safe, auto-approved under ask_high_risk, and impossible to
+ * carry out. Making it executable means widening the CHECK or redefining the
+ * action; both are rulings, not wiring.
+ *
+ * An action type absent from this set is high risk BY DEFAULT. That is not
+ * caution for its own sake: `action_type` is FREE TEXT from the model - the
+ * tool schema offers "e.g. advance_stage, update_forecast_category,
+ * draft_email" and nothing validates what comes back - so the set of things
+ * that can arrive here is open, and only an allowlist can bound it.
  */
-export const REVERSIBLE_ACTIONS: readonly string[] = ["advance_stage", "promote_signal"];
+export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage"];
 
 /**
  * Below this, the model is not sure enough to act unwatched.
@@ -68,7 +86,7 @@ export type RiskReason = "irreversible" | "low_confidence";
  */
 export function riskOf(action: Pick<AgentAction, "actionType" | "confidence">): RiskReason[] {
   const reasons: RiskReason[] = [];
-  if (!REVERSIBLE_ACTIONS.includes(action.actionType)) reasons.push("irreversible");
+  if (!EXECUTABLE_ACTIONS.includes(action.actionType)) reasons.push("irreversible");
   if (action.confidence === null || action.confidence < CONFIDENCE_FLOOR) {
     reasons.push("low_confidence");
   }
