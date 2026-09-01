@@ -224,6 +224,41 @@ export const en: Dictionary = {
       "Which product lines this money comes from. The same total made of different lines is a different fight.",
     noComposition: "Open deals carry no lines yet, so there is nothing to break down",
   },
+  AUTONOMY_TEXT: {
+    title: "Assistant authority",
+    why:
+      "How far this assistant may go before it asks you. What changes is which decisions still pass through your hands one at a time - not whether it may propose. It only ever proposes; accepting is what moves data (ADR-003).",
+    modeLabel: "Authority",
+    modes: {
+      ask_high_risk: "Ask me about the risky ones",
+      ask_always: "Ask me about everything",
+      autonomous: "Run unattended",
+    } as Record<string, string>,
+    modeWhy: {
+      ask_high_risk:
+        "It does what can be walked back on its own - advancing a stage, promoting a signal - because both leave a trail. What cannot be taken back, and what it is unsure of, still comes to you.",
+      ask_always:
+        "Every proposal waits for you. This is where a workspace that has never opened this setting stands: not set is not authorised.",
+      autonomous:
+        "Everything runs, outreach included. The record says nobody signed.",
+    } as Record<string, string>,
+    risk: {
+      irreversible: "cannot be taken back",
+      low_confidence: "not confident enough",
+    } as Record<string, string>,
+    riskWhy: (floor: number) =>
+      `Cannot be taken back = anything that reaches the customer. Not confident enough = under ${floor}%, or no figure given. Either one asks you.`,
+    unset: "not set",
+    setBy: (who: string) => `set by ${who}`,
+    save: "Switch to this",
+    saved: "In effect",
+    denied:
+      "You do not have permission to change the assistant's authority - deciding one proposal and deciding that proposals no longer need deciding are different acts.",
+  },
+  AUTONOMY_ERROR: {
+    ...GATE_ERROR,
+    unknown_autonomy_mode: "Unknown authority level",
+  },
   QUOTE_TEXT: {
     title: "Quotes",
     why:

@@ -170,6 +170,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "yucer_agent.agent_session": ["title", "status", "updated_at"],
   // agent_action: the proposal itself is frozen; only the human decision moves.
   "yucer_agent.agent_action": ["status", "decided_by_sub", "decided_at", "executed_at", "updated_at"],
+  // 0020. `workspace_id` is the row's identity and is absent on purpose: a
+  // different workspace is a different row, never an edit.
+  "yucer_agent.agent_autonomy": ["mode", "decided_by_sub", "updated_at"],
   "yucer_agent.agent_playbook": ["name", "trigger", "content", "version", "status", "updated_at"],
   // judgement_snooze: which conclusion, whose queue and when it was first
   // deferred are the record. Only the deferral itself may move, so re-snoozing

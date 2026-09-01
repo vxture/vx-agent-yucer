@@ -82,7 +82,6 @@ const KNOWN_UNGATED: Record<string, string> = {
   // Blocked outside this repo.
   "signal.feed.configure": "batch 5, external signal feed - blocked on the arda contract",
   "copilot.session.open": "agent plane not connected; 问参谋 is disabled in the launcher",
-  "copilot.autopilot.enable": "agent plane not connected",
   "copilot.playbook.upsert": "playbooks are read-only until the agent plane lands",
 };
 

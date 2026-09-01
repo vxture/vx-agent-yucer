@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCopilotStore } from "../../domains/shared/registry";
-import { adjudicate } from "../../domains/copilot/service";
+import { adjudicate, setAutonomy } from "../../domains/copilot/service";
 import type { Decision } from "../../domains/copilot/lib/action";
 
 // The only write path from the copilot UI.
@@ -55,4 +55,34 @@ export async function adjudicateProposals(
 
   revalidatePath("/copilot");
   return { ok: true, decided: result.value.decided, skipped: result.value.skipped };
+}
+
+/**
+ * Change how much the copilot may do without being asked.
+ *
+ * The mode is the ONLY thing the client sends. Who signed it comes from the
+ * session on the server - a signature a caller could supply is not a signature -
+ * and `copilot.autopilot.enable` is checked there too, so a client that renders
+ * the buttons it should not have still cannot use them.
+ */
+export async function changeAutonomy(input: {
+  mode: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await setAutonomy(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getCopilotStore(),
+    },
+    input.mode,
+  );
+
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/copilot");
+  return { ok: true };
 }

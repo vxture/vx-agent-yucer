@@ -221,6 +221,38 @@ export const ATTAINMENT_TEXT = {
   noComposition: "开放商机还没有行项，所以拆不出构成",
 } as const;
 
+export const AUTONOMY_TEXT = {
+  title: "智能助手授权",
+  why:
+    "这个助手在没有问你之前，可以做到哪一步。改的是「哪些决定还要一条条过你的手」，不是「它能不能提议」——它始终只提议，采纳才动数据（ADR-003）。",
+  modeLabel: "授权档位",
+  modes: {
+    ask_high_risk: "高风险问我",
+    ask_always: "每条都问我",
+    autonomous: "全自动值守",
+  } as Record<string, string>,
+  modeWhy: {
+    ask_high_risk:
+      "能走回头路的它自己做（推进阶段、信号升级为线索——都有记录可追可回）；收不回的和它自己都没把握的，仍然问你。",
+    ask_always: "每一条都等你裁决。没有设置过的工作区就是这一档——没设置不等于已授权。",
+    autonomous: "包括对外触达在内，全部自动执行。记录里会写明「无人签字」。",
+  } as Record<string, string>,
+  // 风险的两条理由，界面上要分开说：把「不可逆」显示成「置信度低」会让人以为
+  // 调高置信度就能放行。
+  risk: {
+    irreversible: "收不回",
+    low_confidence: "置信度不足",
+  } as Record<string, string>,
+  riskWhy: (floor: number) =>
+    `收不回 = 对客户发出去的动作。置信度不足 = 低于 ${floor}%，或助手没给出置信度。两者有其一就问你。`,
+  unset: "尚未设置",
+  setBy: (who: string) => `由 ${who} 设置`,
+  save: "改成这一档",
+  saved: "已生效",
+  denied: "你没有调整助手授权的权限——裁决一条提案，和决定提案不再需要裁决，是两件事。",
+} as const;
+
+
 export const QUOTE_TEXT = {
   title: "报价",
   why:
@@ -525,6 +557,11 @@ export const FORECAST_RULE_ERROR: Record<string, string> = {
   probability_range: "赢率必须是 0 到 100 之间的整数",
   terminal_probability_fixed: "已关闭的商机赢率固定，不能修改",
   amount_negative: "金额不能为负",
+};
+
+export const AUTONOMY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  unknown_autonomy_mode: "未知的授权档位",
 };
 
 export const SIGNAL_ACTION_ERROR: Record<string, string> = {
