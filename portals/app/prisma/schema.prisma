@@ -14,7 +14,7 @@ generator client {
 // the five product domains.
 datasource db {
   provider = "postgresql"
-  schemas  = ["vx_provision", "local_authz", "local_usage", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field"]
+  schemas  = ["vx_provision", "local_authz", "local_usage", "local_audit", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field"]
 }
 
 // ===== vx_provision =====
@@ -165,6 +165,26 @@ model Checkpoint {
   @@unique([workspaceId, metric], map: "uidx_checkpoint_ws_metric")
   @@map("checkpoint")
   @@schema("local_usage")
+}
+
+// ===== local_audit =====
+
+model AuditEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  occurredAt   DateTime @default(now()) @map("occurred_at") @db.Timestamptz()
+  actorId      String   @map("actor_id") @db.VarChar(128)
+  actorConsole String?  @map("actor_console") @db.VarChar(64)
+  objectType   String   @map("object_type") @db.VarChar(64)
+  objectId     String   @map("object_id") @db.VarChar(128)
+  action       String   @db.VarChar(128)
+  outcome      String   @db.VarChar(16)
+  taskId       String?  @map("task_id") @db.VarChar(128)
+  costAmount   Decimal? @map("cost_amount") @db.Decimal(18, 4)
+  costUnit     String?  @map("cost_unit") @db.VarChar(32)
+
+  @@map("event")
+  @@schema("local_audit")
 }
 
 // ###########################################################################

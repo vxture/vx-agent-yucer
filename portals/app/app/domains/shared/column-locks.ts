@@ -211,6 +211,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
  */
 export const APPEND_ONLY_TABLES: readonly string[] = [
   "vx_provision.webhook_delivery",
+  // incr/0023 (TD-018 / L1 X-3). An audit trail that can be edited after the
+  // fact is not an audit trail.
+  "local_audit.event",
   "local_authz.role",
   "local_authz.permission",
   "local_authz.member_role",

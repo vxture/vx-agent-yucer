@@ -8,6 +8,7 @@ import type { CopilotContext } from "./service";
 import type { AtlasClient } from "../../agent/atlas/client";
 import { AtlasError } from "../../agent/atlas/errors";
 import type { StreamFrame } from "../../agent/atlas/types";
+import { InMemoryAuditStore, setAuditStore } from "../../audit/lib/store";
 
 const WS = "ws_1";
 const TENANT = "tn_1";
@@ -199,4 +200,61 @@ test("an unsubscribed workspace does not stream either", async () => {
     streamCopilotTurn(none, { question: "q", tenantId: TENANT }, { atlasClient: atlas([]) }),
   );
   assert.equal(events[0].type, "error");
+});
+
+// --- L1 X-3 audit wiring ----------------------------------------------------
+
+test("a denied stream is recorded as denied", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const none = ctx("sales_rep", null);
+  await collect(streamCopilotTurn(none, { question: "q", tenantId: TENANT }, { atlasClient: atlas([]) }));
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "denied");
+  setAuditStore(null);
+});
+
+test("a completed stream is recorded as success with its token usage", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  await collect(
+    streamCopilotTurn(ctx("sales_rep", "free"), { question: "q", tenantId: TENANT }, {
+      atlasClient: atlas([
+        { type: "text", delta: "hi" },
+        { type: "done", usage: { promptTokens: 3, completionTokens: 4, totalTokens: 7 } },
+      ]),
+    }),
+  );
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "success");
+  assert.equal(audit.rows[0].costAmount, 7);
+  assert.equal(audit.rows[0].costUnit, "tokens");
+  assert.ok(audit.rows[0].taskId);
+  setAuditStore(null);
+});
+
+test("a completed stream with no usage frame reports no cost, not a fabricated zero", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  await collect(
+    streamCopilotTurn(ctx("sales_rep", "free"), { question: "q", tenantId: TENANT }, {
+      atlasClient: atlas([{ type: "text", delta: "hi" }, { type: "done" }]),
+    }),
+  );
+  assert.equal(audit.rows[0].costAmount, null);
+  assert.equal(audit.rows[0].costUnit, null);
+  setAuditStore(null);
+});
+
+test("a failed stream is recorded as error, and the partial answer's cost is not lost either", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  await collect(
+    streamCopilotTurn(ctx("sales_rep", "free"), { question: "q", tenantId: TENANT }, {
+      atlasClient: atlas([{ type: "text", delta: "Partial" }], 1),
+    }),
+  );
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "error");
+  setAuditStore(null);
 });

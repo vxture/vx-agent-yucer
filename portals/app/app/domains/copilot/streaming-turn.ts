@@ -25,6 +25,7 @@ import { ATLAS_TASK_ID_MAX, type ChatMessage } from "../../agent/atlas/types";
 import { buildTurnMessages, type PromptContext } from "../../agent/orchestrator/prompt";
 import { CAPABILITY_MATRIX } from "../../entitlement/capability";
 import { PROPOSE_ACTION_TOOL } from "../../agent/orchestrator/tools";
+import { recordAuditEvent } from "../../audit/lib/record";
 import type { CopilotContext } from "./service";
 import type { SessionRecord } from "./store";
 
@@ -68,6 +69,17 @@ export async function* streamCopilotTurn(
 ): AsyncGenerator<StreamEvent, void, void> {
   const gate = can(ctx.holder, ctx.entitlement, "copilot.ask", "data");
   if (!gate.allowed) {
+    // L1 X-3: same denial record the non-streamed path writes - see
+    // turn-service.ts. No session exists yet, so the turn attempt is the
+    // object.
+    await recordAuditEvent({
+      workspaceId: ctx.workspaceId,
+      actorId: ctx.sub,
+      objectType: "copilot_turn",
+      objectId: input.sessionId ?? "new",
+      action: "copilot.ask",
+      outcome: "denied",
+    });
     yield { type: "error", code: gate.reason ?? "denied", message: "not permitted" };
     return;
   }
@@ -129,12 +141,15 @@ export async function* streamCopilotTurn(
 
   let answer = "";
   let failure: { code: string; message: string } | null = null;
+  let totalTokens = 0;
 
   try {
     for await (const frame of deps.atlasClient.chatStream("chat", { messages }, atlas)) {
       if (frame.type === "text") {
         answer += frame.delta;
         yield { type: "delta", text: frame.delta };
+      } else if (frame.type === "done" && frame.usage) {
+        totalTokens = frame.usage.totalTokens;
       }
       // tool_call frames cannot occur - no tools are offered on this path - but
       // if the model emits one anyway it is ignored rather than half-applied.
@@ -159,6 +174,21 @@ export async function* streamCopilotTurn(
       });
     }
   }
+
+  await recordAuditEvent({
+    workspaceId: ctx.workspaceId,
+    actorId: ctx.sub,
+    objectType: "copilot_turn",
+    objectId: session.id,
+    action: "copilot.ask",
+    outcome: failure ? "error" : "success",
+    taskId: atlas.taskId,
+    // Atlas omits usage on some stream shapes (see AtlasClient.chatStream's
+    // own contract note); a run that never sent a done-with-usage frame
+    // reports no cost rather than a fabricated zero.
+    costAmount: totalTokens > 0 ? totalTokens : undefined,
+    costUnit: totalTokens > 0 ? "tokens" : undefined,
+  });
 
   if (failure) {
     yield { type: "error", code: failure.code, message: failure.message };

@@ -4,6 +4,7 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../entitlement/types";
 import { unwrap } from "../domains/shared/result";
 import { permissionsForRoles, type RoleCode } from "./catalog";
 import { InMemoryAuthzStore } from "./store";
+import { InMemoryAuditStore, setAuditStore } from "../audit/lib/store";
 import {
   assignRole,
   deactivateMember,
@@ -385,4 +386,93 @@ test("a sub with no row reads as unscoped, not as invisible", async () => {
   // has not been written yet.
   const store = new InMemoryAuthzStore();
   assert.equal((await store.getScope(WS, "usr_never_seen")).kind, "workspace");
+});
+
+// --- L1 X-3 audit wiring ----------------------------------------------------
+//
+// The gate/success/domain-violation split matters here as much as it does for
+// the RuleResult itself: an audit trail that only recorded successes could
+// not answer "who tried and was refused", which is the half of X-3 the
+// conformance self-declaration named explicitly.
+
+test("a denied grant is recorded as denied, not silently dropped", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_target", []);
+  await assignRole(ctx("sales_rep", "enterprise", store), "usr_target", "sales_rep");
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "denied");
+  assert.equal(audit.rows[0].action, "admin.member.role.assign");
+  assert.equal(audit.rows[0].objectId, "usr_target");
+  setAuditStore(null);
+});
+
+test("a successful grant is recorded as success", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_target", []);
+  const r = await assignRole(ctx("sales_leader", "pro", store), "usr_target", "sales_rep");
+  assert.equal(r.ok, true);
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "success");
+  assert.equal(audit.rows[0].actorId, "usr_admin");
+  setAuditStore(null);
+});
+
+test("revoking the last administrator is recorded as error, not success", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_admin", ["sales_leader"]);
+  const r = await revokeRole(ctx("sales_leader", "pro", store), "usr_admin", "sales_leader");
+  assert.equal(r.ok === false && r.violations[0].code, "last_admin");
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "error");
+  assert.equal(audit.rows[0].action, "admin.member.role.revoke");
+  setAuditStore(null);
+});
+
+test("deactivating a member is recorded as success, reactivating too", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_admin", ["sales_leader"]);
+  store.seed(WS, "usr_target", ["sales_rep"]);
+  await deactivateMember(ctx("sales_leader", "pro", store), "usr_target");
+  await reactivateMember(ctx("sales_leader", "pro", store), "usr_target");
+  assert.deepEqual(
+    audit.rows.map((r) => [r.action, r.outcome]),
+    [
+      ["admin.member.deactivate", "success"],
+      ["admin.member.reactivate", "success"],
+    ],
+  );
+  setAuditStore(null);
+});
+
+test("scoping a member nobody has seen is recorded as error", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  await setMemberScope(ctx("sales_leader", "pro", store), "usr_ghost", {
+    kind: "own",
+    territoryIds: [],
+  });
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "error");
+  assert.equal(audit.rows[0].action, "admin.member.scope");
+  setAuditStore(null);
+});
+
+test("every recorded row carries this product's actor console constant", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const store = new InMemoryAuthzStore();
+  store.seed(WS, "usr_target", []);
+  await assignRole(ctx("sales_leader", "pro", store), "usr_target", "sales_rep");
+  assert.equal(audit.rows[0].actorConsole, "yucer");
+  setAuditStore(null);
 });

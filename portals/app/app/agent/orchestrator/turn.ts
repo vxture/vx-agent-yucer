@@ -65,6 +65,13 @@ export interface TurnResult {
   toolRounds: number;
   /** True when the loop stopped on the round limit rather than on an answer. */
   truncated: boolean;
+  /**
+   * Summed across every Atlas chat call this turn made (the initial call, each
+   * tool round, and the truncation-branch final call). This is the turn's
+   * whole cost, not one call's - L1 X-3 wants one audit record per turn, and
+   * `costAmount` on that record needs the total, not the last call's figure.
+   */
+  totalTokens: number;
 }
 
 export interface TurnDeps {
@@ -96,6 +103,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
   let answer = "";
   let rounds = 0;
   let truncated = false;
+  let totalTokens = 0;
 
   for (;;) {
     const res = await deps.atlasClient.chat(
@@ -105,6 +113,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
       { messages, tools: surface.definitions, toolChoice: "auto" },
       input.atlas,
     );
+    totalTokens += res.usage.totalTokens;
 
     const reply = res.message;
     if (reply.content) answer = reply.content;
@@ -124,6 +133,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
           "Tool budget for this turn is spent. Answer with what you already have, and say what you could not check.",
       });
       const final = await deps.atlasClient.chat("propose", { messages }, input.atlas);
+      totalTokens += final.usage.totalTokens;
       if (final.message.content) answer = final.message.content;
       break;
     }
@@ -148,6 +158,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnRes
     proposalOnlyCapabilities: [...new Set(surface.proposalOnly.map((b) => b.capabilityId))],
     toolRounds: rounds,
     truncated,
+    totalTokens,
   };
 }
 

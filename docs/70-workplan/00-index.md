@@ -2787,3 +2787,49 @@ Atlas 改名时,第二个界面的读者又会看到裸 code。所以**抽成一
 告诉模型「你可以执行」不会让它真的可以,**只会让它对着读答案的人错误描述自己的权力**。
 
 1468 tests pass。
+## 补上 X-3 的审计记录表（TD-018，`fix/audit-event-x3`）
+
+自陈文档里改判过一次：「X-3 与 C3 用量信封冲突」是范围划错，真正的差距是本仓
+**从未建过**通则要求的那张审计记录表。这一批补的就是那张表，接进两个 X-3 点名
+的面：管理面写操作（`authz/admin.ts` 的五个动词）与消费面调用（一次 copilot
+turn，含流式与非流式两条路径）。
+
+### 一张表服务两个面，不隶属任一个
+
+审计事件不属于 `local_authz`，也不属于 `local_agent` ——放进任一个都会让另一个
+面的写看起来是它的依赖。新开一个 schema，`local_audit`，和 `local_authz` /
+`local_usage` 平级。追加写，不可编辑：一张能改的审计表不是审计表。
+
+### outcome 必须区分被拒和成功，不是只记落地的写
+
+`authz/admin.ts` 原来的每个动词都是「gate 检查 → 早退或继续 → 写」。X-3 要求
+的是「谁试过、被拒了」也要留痕，所以五个动词的每一条早退路径都补了一次
+`audit(...)`，outcome 分三档：`denied`（gate 没过）、`error`（gate 过了但域
+校验失败，如 `last_admin` / `not_found`）、`success`。三条区分不是装饰——
+一张只记成功的表答不出「谁试过被拒」，而那是审计存在的一半理由。
+
+### costAmount 需要 Atlas 的 token 用量，而这个数字此前被原地丢弃
+
+`turn.ts` 的每次 `atlasClient.chat()` 都带 `usage.totalTokens`，但 `TurnResult`
+从没往上传过——`turn-service.ts` 拿到答案就把它扔了。补一个 `totalTokens`
+累加器，覆盖主循环的每一轮**和**截断分支那次额外调用（写了两个测试专门证明
+截断分支的那次调用被算了进去，不是漏计）。流式路径同理，从 `done` 帧的
+`usage` 里取，取不到就报「没有花费」而不是编一个零。
+
+### `actorConsole` 不是新身份模型，是既有字段的改名
+
+通则讲得很直接：这个字段是铸造 OBO 换票的工作台 RP。本仓没有 OBO 中继路径，
+每一笔写都是自产的，所以统一填一个进程常量 `"yucer"`；`NULL` 留给不属于任何
+控制台的后台通道，本仓目前没有这类写落在这张表里。
+
+### 流式路径原本会被漏掉
+
+非流式 turn（`turn-service.ts`）走完之后才发现还有 `streaming-turn.ts` 这条
+独立的消费面路径——它直接调 `atlasClient.chatStream()`，不经过 `runTurn`，
+如果只接前者，流式对话的每一次 Atlas 调用都不会留痕。两条路径都接了。
+
+DDL：`incr/0023_audit_event.sql`，新 schema + 表 + 索引，同文件内完成
+`GRANT SELECT, INSERT`（`check-incr-grants.mjs` 卡的就是这一条）。Prisma 镜像、
+`column-locks.ts` 的 `APPEND_ONLY_TABLES` 同步更新。
+
+1489 tests pass（新增 21 条），六项守卫全绿，生产构建通过。
