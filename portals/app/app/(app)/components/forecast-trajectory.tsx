@@ -36,6 +36,7 @@ export async function ForecastTrajectory({
   points,
   wan,
   submit,
+  scopePicker,
   accuracy,
 }: {
   readonly points: readonly TrajectoryPoint[];
@@ -47,6 +48,15 @@ export async function ForecastTrajectory({
    * server component - it can render the node, it cannot construct it.
    */
   readonly submit?: React.ReactNode;
+  /**
+   * The scope picker. A SLOT, like `submit`, and for the same reason: it is a
+   * client component that pushes to the router, and this is a server one.
+   *
+   * It governs the chart, the scorecard AND the snapshot button together.
+   * Letting them differ would allow taking a snapshot of one slice while the
+   * scorecard beside it grades another.
+   */
+  readonly scopePicker?: React.ReactNode;
   /**
    * The payoff, when it can be computed.
    *
@@ -156,6 +166,7 @@ export async function ForecastTrajectory({
               </>
             )
           ) : null}
+          {scopePicker}
           {points.length > shown.length ? (
             <StatusBadge tone="neutral">
               {PIPELINE_TEXT.trajectoryWindow(shown.length, points.length)}

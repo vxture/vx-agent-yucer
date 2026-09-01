@@ -15,9 +15,11 @@ import { useMessages } from "../lib/i18n/provider";
 
 export interface SubmitForecastProps {
   readonly period: string;
+  /** Which slice this snapshot is of, in the URL's own form. */
+  readonly scopeKey: string;
   /** False when the member may read the forecast but not commit to one. */
   readonly canSubmit: boolean;
-  readonly onSubmit: (period: string) => Promise<{
+  readonly onSubmit: (period: string, scopeKey: string) => Promise<{
     ok: boolean;
     period?: string;
     error?: string;
@@ -26,6 +28,7 @@ export interface SubmitForecastProps {
 
 export function SubmitForecast({
   period,
+  scopeKey,
   canSubmit,
   onSubmit,
 }: SubmitForecastProps) {
@@ -61,7 +64,7 @@ export function SubmitForecast({
         disabled={pending}
         onClick={() =>
           start(() => {
-            void onSubmit(period).then((r) => {
+            void onSubmit(period, scopeKey).then((r) => {
               setError(
                 r.ok ? null : (FORECAST_ERROR[r.error ?? "denied"] ?? PIPELINE_TEXT.snapshotFailed),
               );

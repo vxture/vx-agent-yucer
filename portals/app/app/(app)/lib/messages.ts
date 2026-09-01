@@ -1163,6 +1163,12 @@ export const PIPELINE_TEXT = {
   //           季度中每份预测都「不准」，只因为季度还没过完。
   // 曾经这两件事是同一个数，标着「准确率」：承诺 1000、成交 3000 显示
   // 「准确率 300%」。少承诺就能让数字变好看，这正是按人算的预测指标绝不能有的。
+  // 快照口径。三个口径领域层从批次 1 就支持，缺的一直是这个控件。
+  scopeLabel: "快照口径",
+  scopeWorkspace: "全工作区",
+  scopeTerritory: (name: string) => `销售区域 · ${name}`,
+  /** 没有通讯录，所以这里就是 sub 本身——标成机器文本，不假装是人名。 */
+  scopeOwner: (sub: string) => `负责人 · ${sub}`,
   accuracySettled: (r: number) => `准确率 ${Math.round(r * 100)}%`,
   accuracySoFar: (r: number) => `已兑现期初承诺的 ${Math.round(r * 100)}%`,
   /** 没有期初快照——算不出来，不是算出来是 0。 */

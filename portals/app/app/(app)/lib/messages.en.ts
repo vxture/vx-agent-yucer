@@ -1245,6 +1245,10 @@ export const en: Dictionary = {
     splitEmpty: "Nothing to split by product line this period",
     trajectoryWindow: (shown: number, total: number) =>
       `last ${shown} of ${total}`,
+    scopeLabel: "Snapshot scope",
+    scopeWorkspace: "Whole workspace",
+    scopeTerritory: (name: string) => `Territory - ${name}`,
+    scopeOwner: (sub: string) => `Owner - ${sub}`,
     accuracySettled: (r: number) => `${Math.round(r * 100)}% accurate`,
     accuracySoFar: (r: number) => `${Math.round(r * 100)}% of the opening commit closed`,
     accuracyNoOpening: "No opening snapshot - accuracy cannot be computed",

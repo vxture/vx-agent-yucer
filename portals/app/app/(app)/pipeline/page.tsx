@@ -34,6 +34,8 @@ import { can } from "../../authz/decide";
 import { getMessages } from "../lib/i18n/server";
 import { cachedFeed } from "../lib/board";
 import { PERIODS, PERIOD_YEAR, resolvePeriod } from "../lib/periods";
+import { forecastScopeKey, parseForecastScope } from "../lib/forecast-scope";
+import { ForecastScopePicker } from "../components/forecast-scope-picker";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
@@ -51,10 +53,15 @@ export const dynamic = "force-dynamic";
 export default async function PipelinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
   const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
-  const period = resolvePeriod((await searchParams).period);
+  const params = await searchParams;
+  const period = resolvePeriod(params.period);
+  // ONE PARAM, parsed on the server into the shape the domain demands. See
+  // lib/forecast-scope.ts for why it is not three.
+  const scope = parseForecastScope(params.scope);
+  const scopeKey = forecastScopeKey(scope);
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -86,11 +93,11 @@ export default async function PipelinePage({
     listPipeline(ctx, { includeClosed: true }),
     // The series, not the latest point. See forecastHistory: this read is the
     // only thing that makes forecast_snapshot's immutability pay for itself.
-    forecastHistory(ctx, period),
+    forecastHistory(ctx, period, scope),
     // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
     // promised this number in its own description since batch 1 ("预测准确率是
     // 期末实际对期初快照"), while nothing computed it.
-    forecastScorecard(ctx, period),
+    forecastScorecard(ctx, period, { scope }),
     // THROUGH THE SERVICE, not the store handle. Both of these used to call
     // getCatalogStore() straight from the page, which skips BOTH gates - the
     // same defect PR #26 fixed on the account detail page. The catalogue read
@@ -136,6 +143,24 @@ export default async function PipelinePage({
   const window = inPeriod(result.value, period);
   const inWindow = window ? window.kept : result.value;
   const undated = window?.undated ?? 0;
+
+  // The scope picker's options.
+  //
+  // OWNERS COME FROM THE PIPELINE ITSELF, because this product has no member
+  // directory. Derived from the WHOLE result rather than the period window: an
+  // owner with nothing in Q3 is still an owner you may want to look at Q3 for,
+  // and computing the list from the window would make the option vanish exactly
+  // when someone went looking for the empty quarter.
+  const territoryOptions = territories.ok
+    ? territories.value.map((t) => ({ id: t.id, name: t.name }))
+    : [];
+  const ownerOptions = [
+    ...new Set(
+      result.value
+        .map((o) => (o as (typeof result.value)[number]).ownerSub)
+        .filter((o): o is string => typeof o === "string" && o.length > 0),
+    ),
+  ].sort();
 
   // WHICH accounts have no reachable economic buyer. The same memoised feed
   // the shell and the home screen read, so this costs nothing extra - and it
@@ -240,11 +265,7 @@ export default async function PipelinePage({
         accounts={
           accounts.ok ? accounts.value.map((a) => ({ id: a.id, name: a.name })) : []
         }
-        territories={
-          territories.ok
-            ? territories.value.map((t) => ({ id: t.id, name: t.name }))
-            : []
-        }
+        territories={territoryOptions}
         canCreate={
           can(
             session.authz,
@@ -281,6 +302,13 @@ export default async function PipelinePage({
           closed: p.closedAmount.amount,
         }))}
         wan={BOARD_TEXT.wan}
+        scopePicker={
+          <ForecastScopePicker
+            value={scopeKey}
+            territories={territoryOptions}
+            owners={ownerOptions}
+          />
+        }
         /* Absent when the read failed, rather than shown as zero: a badge that
            says 0% because a query errored is worse than no badge. */
         accuracy={
@@ -301,6 +329,7 @@ export default async function PipelinePage({
         submit={
           <SubmitForecast
             period={period}
+            scopeKey={scopeKey}
             canSubmit={
               can(
                 session.authz,
