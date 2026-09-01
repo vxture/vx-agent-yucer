@@ -25,6 +25,7 @@ import { reliability } from "../account/lib/commitment";
 import { DEFAULT_PROPOSAL_TTL_MS } from "../copilot/lib/action";
 import { isExecutable } from "../copilot/lib/autonomy";
 import { OPEN_STAGE_ORDER, isStage, planStageChange } from "../pipeline/lib/stage";
+import { coveringTerritories } from "../signal/lib/routing";
 
 const WS = "ws_demo";
 
@@ -99,7 +100,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 18);
+    assert.equal(rows.length, 19);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -111,7 +112,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 7 accounts, 18 deals, 6 projects", async () => {
+test("the demo has the working set it claims: 8 accounts, 19 deals, 6 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -122,7 +123,7 @@ test("the demo has the working set it claims: 7 accounts, 18 deals, 6 projects",
     s.delivery.listProjects(WS),
   ]);
 
-  assert.equal(accounts.length, 7);
+  assert.equal(accounts.length, 8);
   // 13 on 2026-08-30: two subscription projects and the renewal deal already
   // open off one of them, so /renewal can show every verdict it has - including
   // `already_renewed`, which proves 0019's link is actually being read.
@@ -136,7 +137,13 @@ test("the demo has the working set it claims: 7 accounts, 18 deals, 6 projects",
   // closed deal here landed in the current quarter. Three wins in the prior
   // quarter give the demo a settled one, so the figure the append-only table
   // exists for finally has a surface it can appear on.
-  assert.equal(opportunities.length, 18);
+  //
+  // 8 and 19 on 2026-09-01: an account on ground NO territory covers, and a
+  // deal on it filed under no territory either. The unplaced rule was real in
+  // code and invisible on screen - every other demo account sits somewhere
+  // somebody covers, so a reviewer could not see what 未分区 means or how it
+  // differs from the public pool.
+  assert.equal(opportunities.length, 19);
   assert.equal(projects.length, 6);
 });
 
@@ -867,4 +874,63 @@ test("the settled quarter's last snapshot agrees with what the board computes fo
   const last = [...rows].sort((a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime()).at(-1)!;
   assert.equal(last.commitAmount.amount, 0);
   assert.equal(last.closedAmount.amount, 3_200_000);
+});
+
+
+// --- 未分区, and how it differs from the public pool -------------------------
+
+test("the demo has a customer no territory covers, or the unplaced rule is invisible", async () => {
+  // THE GAP THIS CLOSES. Every other demo account sits on ground somebody
+  // covers, so `unplacedAccountIds` resolved to empty and a territory-scoped
+  // reviewer could not see what 未分区 means - the rule was real in code and
+  // absent from every screen.
+  //
+  // Derived through `coveringTerritories`, the rule routing and the scope
+  // resolver both use, rather than by comparing region strings here. A local
+  // comparison would keep agreeing with itself while the real matcher moved.
+  const s = seeded();
+  const territories = await s.planning.listTerritories(WS);
+  const accounts = await s.account.listAccounts(WS);
+
+  const unplaced = accounts.filter(
+    (a) => a.region == null || coveringTerritories(a.region, territories).length === 0,
+  );
+  assert.ok(
+    unplaced.length > 0,
+    "no demo customer is unplaced - the 未分区 rule has nothing to demonstrate",
+  );
+  assert.ok(
+    unplaced.length < accounts.length,
+    "every demo customer is unplaced - then territory scope narrows nothing and proves nothing",
+  );
+
+  // AND IT MUST HAVE AN OWNER, which is the whole distinction. 公海 is a row
+  // with no owner, visible everywhere and claimable. 未分区 is a row somebody
+  // holds that nobody has filed. An unowned unplaced account would demonstrate
+  // the wrong one.
+  for (const a of unplaced) {
+    assert.ok(a.ownerSub, `${a.name} is unplaced AND unowned - that is the public pool, not 未分区`);
+  }
+});
+
+test("a deal on the unplaced customer is filed under no territory either", async () => {
+  // Both paths blank is the only way to reach the unplaced rule: given a
+  // territory of its own the deal simply belongs to that one, and the case
+  // disappears from the demo again without anything failing.
+  const s = seeded();
+  const territories = await s.planning.listTerritories(WS);
+  const accounts = await s.account.listAccounts(WS);
+  const unplacedIds = new Set(
+    accounts
+      .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
+      .map((a) => a.id),
+  );
+
+  const deals = await s.pipeline.listOpportunities(WS, { includeClosed: true });
+  const onUnplaced = deals.filter((d) => d.accountId && unplacedIds.has(d.accountId));
+  assert.ok(onUnplaced.length > 0, "no demo deal sits on an unplaced customer");
+  for (const d of onUnplaced) {
+    assert.equal(d.territoryId, null, `${d.name} carries a territory, so it is filed after all`);
+    assert.ok(d.ownerSub, `${d.name} is unowned - that is the public pool, not 未分区`);
+  }
 });
