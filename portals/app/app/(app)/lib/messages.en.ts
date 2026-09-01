@@ -49,6 +49,11 @@ export const en: Dictionary = {
     not_found: "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field the copilot may fill.",
     value_required: "Filling a field needs a value; a blank is not one.",
+    nothing_to_ask: "Nothing on this record is a question for the assistant.",
+    no_active_tenant: "This session carries no tenant, so the model plane cannot be reached.",
+    tenant_required: "This session carries no tenant, so the model plane cannot be reached.",
+    empty_question: "There was nothing to ask.",
+    turn_failed: "The assistant could not answer this time. Nothing on this record changed.",
   },
 
   COMPLETENESS_TEXT: {
@@ -64,6 +69,9 @@ export const en: Dictionary = {
     } as Record<string, string>,
     askable: (fields: string) =>
       `${fields} cannot be worked out from the data - those are facts about the company itself. The assistant looks them up, and its answer arrives as a proposal to accept.`,
+    ask: "Ask the assistant",
+    askedNote:
+      "Asked. Its answer arrives as a proposal to accept - nothing is written to this record until somebody does.",
     joinFields: (fields: readonly string[]) => fields.join(", "),
     structural: {
       regionUnplaced:
@@ -703,6 +711,11 @@ export const en: Dictionary = {
     unknown_forecast_category: "The proposal named a forecast category that does not exist.",
     field_not_fillable: "That is not a field the copilot may fill.",
     value_required: "Filling a field needs a value; a blank is not one.",
+    nothing_to_ask: "Nothing on this record is a question for the assistant.",
+    no_active_tenant: "This session carries no tenant, so the model plane cannot be reached.",
+    tenant_required: "This session carries no tenant, so the model plane cannot be reached.",
+    empty_question: "There was nothing to ask.",
+    turn_failed: "The assistant could not answer this time. Nothing on this record changed.",
   },
   REVIEW_ERROR: {
     not_found: "Not found, or not in this workspace.",

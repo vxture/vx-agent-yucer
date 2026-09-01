@@ -11,6 +11,7 @@ import {
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
+import { explainModelPlaneError } from "../lib/model-plane-error";
 // The copilot conversation.
 //
 // The design decision that matters here is what the surface REFUSES to imply.
@@ -60,25 +61,6 @@ export interface CopilotChatProps {
   >;
 }
 
-/** The model plane's error codes, translated into what the reader should do. */
-function explainError(
-  code: string,
-  COPILOT_TEXT: Dictionary["COPILOT_TEXT"],
-): string {
-  if (code === "atlas_ATLAS_NOT_CONFIGURED" || code === "no_active_tenant") {
-    return COPILOT_TEXT.errorNotConfigured;
-  }
-  // Atlas renamed GRANT_DENIED to NOT_ENTITLED on 2026-08-16. Both are matched:
-  // this is the one message here that names a remedy, and losing it to a rename
-  // would leave exactly the people who can fix the problem reading "something
-  // went wrong".
-  if (code === "atlas_NOT_ENTITLED" || code === "atlas_GRANT_DENIED") {
-    return COPILOT_TEXT.errorNoGrant;
-  }
-  if (code === "atlas_QUOTA_EXCEEDED") return COPILOT_TEXT.errorQuota;
-  return COPILOT_TEXT.errorGeneric;
-}
-
 export function CopilotChat({
   initialMessages,
   sessionId,
@@ -111,7 +93,7 @@ export function CopilotChat({
     startTransition(() => {
       void onAsk(question, session, account?.id).then((result) => {
         if (!result.ok) {
-          setError(explainError(result.error, COPILOT_TEXT));
+          setError(explainModelPlaneError(result.error, COPILOT_TEXT));
           return;
         }
         setSession(result.sessionId);

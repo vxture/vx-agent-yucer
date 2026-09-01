@@ -618,6 +618,12 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   // 所以字段名和值都要在这一层被挡住，而不是让列锁在数据库上抛 500。
   field_not_fillable: "这个字段不在助手可填写的范围内",
   value_required: "填写需要一个值——空白不是填写",
+  nothing_to_ask: "这条记录没有需要问助手的缺口",
+  // 模型面的三种拒绝。它们第一次能走到客户页上，是因为这一页现在会花一次 turn。
+  no_active_tenant: "当前会话没有租户，模型面无法调用",
+  tenant_required: "当前会话没有租户，模型面无法调用",
+  empty_question: "没有可问的内容",
+  turn_failed: "助手这次没能答上来——可以稍后再试；这条记录没有任何改动",
 };
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
@@ -738,6 +744,12 @@ export const COMPLETENESS_ERROR: Record<string, string> = {
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在助手可填写的范围内",
   value_required: "填写需要一个值——空白不是填写",
+  nothing_to_ask: "这条记录没有需要问助手的缺口",
+  // 模型面的三种拒绝。它们第一次能走到客户页上，是因为这一页现在会花一次 turn。
+  no_active_tenant: "当前会话没有租户，模型面无法调用",
+  tenant_required: "当前会话没有租户，模型面无法调用",
+  empty_question: "没有可问的内容",
+  turn_failed: "助手这次没能答上来——可以稍后再试；这条记录没有任何改动",
 };
 
 export const COMPLETENESS_TEXT = {
@@ -753,6 +765,8 @@ export const COMPLETENESS_TEXT = {
   } as Record<string, string>,
   askable: (fields: string) =>
     `${fields} 数据里推不出来——这类是关于这家公司本身的事实，交给助手去查，它会作为提案进入待裁决队列，采纳后才写入。`,
+  ask: "让助手去查",
+  askedNote: "已经问了助手。它的答案会作为提案进入待裁决队列——采纳之后才写进这条记录。",
   /** 字段名的连接符。标点也是文案，中英文不同，所以不留在组件里（TD-002）。 */
   joinFields: (fields: readonly string[]) => fields.join("、"),
   structural: {
