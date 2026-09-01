@@ -40,7 +40,7 @@ export default async function SignalPage() {
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getSignalStore(),
+    store: session.stores.signal(),
   };
 
   const [result, leads] = await Promise.all([

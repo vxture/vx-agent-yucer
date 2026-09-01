@@ -21,6 +21,7 @@ import { listCommitments } from "../../../domains/account/field-service";
 import { listAccounts } from "../../../domains/account/service";
 import { accountMatchesCriteria } from "../../../domains/strategy/lib/lifecycle";
 import { fact, visibleFacts, type DomainFact } from "../../lib/domain-facts";
+import type { AppSession } from "../../lib/session";
 
 // The cross-module reads behind each domain home. One function per domain
 // because the facts are not uniform - what crosses /strategy and /catalog has
@@ -36,6 +37,14 @@ export interface FactsContext {
   sub: string;
   holder: PermissionHolder;
   entitlement: Entitlement;
+  /**
+   * The scoped stores, from the session.
+   *
+   * Passed in rather than fetched here, and that is the point: this module has
+   * no session, so reaching for `getAccountStore()` would silently give it an
+   * UNSCOPED one - a domain summary that counted rows its reader may not see.
+   */
+  stores: AppSession["stores"];
 }
 
 const len = <T,>(r: { ok: boolean; value?: T[] }): number | null =>
@@ -49,7 +58,7 @@ async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
     listSolutions({ ...ctx, store: getCatalogStore() }),
     listSegments({ ...ctx, store: getStrategyStore() }),
     listPlans({ ...ctx, store: getStrategyStore() }),
-    listAccounts({ ...ctx, store: getAccountStore() }),
+    listAccounts({ ...ctx, store: ctx.stores.account() }),
   ]);
 
   // THE FACT NEITHER PAGE HOLDS. /catalog lists products and it lists prices,
@@ -87,8 +96,8 @@ async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
 /** What arrived, and what we aimed. */
 async function reconFacts(ctx: FactsContext): Promise<DomainFact[]> {
   const [signals, leads, campaigns] = await Promise.all([
-    listSignals({ ...ctx, store: getSignalStore() }, { limit: 500 }),
-    listLeads({ ...ctx, store: getSignalStore() }, { limit: 500 }),
+    listSignals({ ...ctx, store: ctx.stores.signal() }, { limit: 500 }),
+    listLeads({ ...ctx, store: ctx.stores.signal() }, { limit: 500 }),
     listCampaigns({ ...ctx, store: getStrategyStore() }),
   ]);
 
@@ -113,10 +122,10 @@ async function reconFacts(ctx: FactsContext): Promise<DomainFact[]> {
 /** Who we are working, and what is owed on both sides. */
 async function positionFacts(ctx: FactsContext): Promise<DomainFact[]> {
   const [accounts, deals, overdue, reviews] = await Promise.all([
-    listAccounts({ ...ctx, store: getAccountStore() }),
-    listPipeline({ ...ctx, store: getPipelineStore() }),
+    listAccounts({ ...ctx, store: ctx.stores.account() }),
+    listPipeline({ ...ctx, store: ctx.stores.pipeline() }),
     listCommitments({ ...ctx, store: getFieldStore() }, { overdueAt: new Date(), limit: 200 }),
-    listPendingReviews({ ...ctx, store: getPipelineStore() }),
+    listPendingReviews({ ...ctx, store: ctx.stores.pipeline() }),
   ]);
 
   const openDeals = deals.ok ? deals.value.filter((d) => d.status === "open").length : null;

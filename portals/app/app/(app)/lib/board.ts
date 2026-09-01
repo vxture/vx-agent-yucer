@@ -52,6 +52,7 @@ import {
 // resolved once per render by next/headers, so two calls cost one resolution.
 import { getMessages } from "./i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
+import type { AppSession } from "./session";
 
 // The numbers behind the navigation board.
 //
@@ -195,6 +196,15 @@ export interface BoardContext {
   sub: string;
   holder: AuthzContext;
   entitlement: Entitlement;
+  /**
+   * The scoped stores, from the session.
+   *
+   * Passed in rather than fetched here. This module has no session, so reaching
+   * for `getPipelineStore()` would silently give it an UNSCOPED one - and the
+   * board is the worst place for that: it is the first screen, and it rolls the
+   * numbers up.
+   */
+  stores: AppSession["stores"];
 }
 
 /**
@@ -308,7 +318,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     categories,
   ] = await Promise.all([
     cachedFeed(base),
-    listPipeline({ ...base, store: getPipelineStore() }),
+    listPipeline({ ...base, store: ctx.stores.pipeline() }),
     listProposals(
       { ...base, store: getCopilotStore() },
       { status: "proposed" },
@@ -317,9 +327,9 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     listCampaigns({ ...base, store: getStrategyStore() }),
     listTargets({ ...base, store: getPlanningStore() }),
     listTerritories({ ...base, store: getPlanningStore() }),
-    listAccounts({ ...base, store: getAccountStore() }),
-    listSignals({ ...base, store: getSignalStore() }),
-    listLeads({ ...base, store: getSignalStore() }),
+    listAccounts({ ...base, store: ctx.stores.account() }),
+    listSignals({ ...base, store: ctx.stores.signal() }),
+    listLeads({ ...base, store: ctx.stores.signal() }),
     listProjects({ ...base, store: getDeliveryStore() }),
     // THROUGH THE SERVICE, like every sibling on this list. These two were the
     // only reads on the board holding a store handle directly, which skips both
@@ -340,9 +350,9 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     listSegments({ ...base, store: getStrategyStore() }),
     listSolutions({ ...base, store: getCatalogStore() }),
     listPrices({ ...base, store: getCatalogStore() }),
-    listPendingReviews({ ...base, store: getPipelineStore() }),
-    listRenewedProjectIds({ ...base, store: getPipelineStore() }),
-    previewCategories({ ...base, store: getPipelineStore() }),
+    listPendingReviews({ ...base, store: ctx.stores.pipeline() }),
+    listRenewedProjectIds({ ...base, store: ctx.stores.pipeline() }),
+    previewCategories({ ...base, store: ctx.stores.pipeline() }),
   ]);
 
   // Renewals need D6's answer first, so this one cannot join the round above.

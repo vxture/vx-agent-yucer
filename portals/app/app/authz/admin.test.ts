@@ -10,6 +10,7 @@ import {
   listWorkspaceMembers,
   reactivateMember,
   revokeRole,
+  setMemberScope,
   type AdminContext,
 } from "./admin";
 
@@ -315,4 +316,73 @@ test("deactivation needs admin.manage, like every other member write", async () 
   await store.seeMember({ workspaceId: WS, sub: "usr_x" });
   const r = await deactivateMember(ctx("sales_rep", "pro", store), "usr_x");
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+});
+
+
+// --- Who sees what (incr/0022) ----------------------------------------------
+
+test("an administrator decides the scope, and a rep cannot", async () => {
+  // The owner's ruling: the decision belongs to the workspace administrator,
+  // not to the role. admin.manage is held by sales_leader AND sales_ops, which
+  // is what "not necessarily the GM" means in this catalogue.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_rep" });
+
+  const denied = await setMemberScope(ctx("sales_rep", "pro", store), "usr_rep", {
+    kind: "own",
+    territoryIds: [],
+  });
+  assert.equal(denied.ok === false && denied.violations[0].code, "permission_denied");
+
+  const ok = unwrap(
+    await setMemberScope(ctx("sales_ops", "pro", store), "usr_rep", {
+      kind: "own",
+      territoryIds: [],
+    }),
+  );
+  assert.equal(ok.scope, "own");
+});
+
+test("a territory scope with no territory is refused, not saved half-done", async () => {
+  // It would resolve to seeing nothing, which is the safe direction - but the
+  // administrator who saved it would believe they had granted a region.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_dir" });
+  const r = await setMemberScope(ctx("sales_leader", "pro", store), "usr_dir", {
+    kind: "territory",
+    territoryIds: [],
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "territory_required");
+  assert.equal((await store.getScope(WS, "usr_dir")).kind, "workspace", "and nothing was saved");
+});
+
+test("switching away from territory drops the assignment rather than keeping it", async () => {
+  // A stale list is not an error to report, but storing it would leave a
+  // configuration that looks assigned and is not.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_dir" });
+  const c = ctx("sales_leader", "pro", store);
+  await setMemberScope(c, "usr_dir", { kind: "territory", territoryIds: ["t_east"] });
+  assert.deepEqual((await store.getScope(WS, "usr_dir")).territoryIds, ["t_east"]);
+
+  await setMemberScope(c, "usr_dir", { kind: "own", territoryIds: [] });
+  assert.deepEqual((await store.getScope(WS, "usr_dir")).territoryIds, []);
+});
+
+test("a member nobody has seen cannot be scoped", async () => {
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  const r = await setMemberScope(ctx("sales_leader", "pro", store), "usr_ghost", {
+    kind: "own",
+    territoryIds: [],
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+test("a sub with no row reads as unscoped, not as invisible", async () => {
+  // Somebody the workspace has never seen has had nothing decided about them.
+  // Defaulting to a narrow scope would hide rows from a member whose row simply
+  // has not been written yet.
+  const store = new InMemoryAuthzStore();
+  assert.equal((await store.getScope(WS, "usr_never_seen")).kind, "workspace");
 });

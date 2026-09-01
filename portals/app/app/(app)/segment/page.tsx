@@ -46,7 +46,7 @@ export default async function SegmentPage() {
   const [segments, plans, accounts] = await Promise.all([
     listSegments(ctx),
     listPlans(ctx),
-    listAccounts({ ...ctx, store: getAccountStore() }),
+    listAccounts({ ...ctx, store: session.stores.account() }),
   ]);
 
   if (!segments.ok) {

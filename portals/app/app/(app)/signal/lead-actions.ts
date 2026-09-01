@@ -36,7 +36,7 @@ export async function actOnLead(leadId: string, action: LeadAction): Promise<Lea
 
   if (action === "convert") {
     const result = await convertLeadToOpportunity(
-      { ...base, signalStore: getSignalStore(), pipelineStore: getPipelineStore() },
+      { ...base, signalStore: session.stores.signal(), pipelineStore: session.stores.pipeline() },
       { leadId },
     );
     if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
@@ -51,7 +51,7 @@ export async function actOnLead(leadId: string, action: LeadAction): Promise<Lea
   }
 
   const result = await advanceLead(
-    { ...base, store: getSignalStore() },
+    { ...base, store: session.stores.signal() },
     leadId,
     action === "qualify" ? "qualified" : "disqualified",
   );

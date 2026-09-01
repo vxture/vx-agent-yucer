@@ -71,7 +71,7 @@ export default async function AttainmentPage() {
   };
 
   const [deals, targets, lineResult, productResult] = await Promise.all([
-    listPipeline({ ...base, store: getPipelineStore() }),
+    listPipeline({ ...base, store: session.stores.pipeline() }),
     listTargets({ ...base, store: getPlanningStore() }),
     listOpportunityLines({ ...base, store: getCatalogStore() }),
     listProducts({ ...base, store: getCatalogStore() }),

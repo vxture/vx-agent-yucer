@@ -1,4 +1,5 @@
 import type { AuthzStore, MemberRecord, MemberSighting } from "./store";
+import { isDataScope, type DataScopeKind, type ScopeSetting } from "./scope";
 import { getPrismaClient } from "../lib/db";
 import { isPermCode, isRoleCode, type PermCode, type RoleCode } from "./catalog";
 
@@ -132,17 +133,70 @@ export class PrismaAuthzStore implements AuthzStore {
     const p = await getPrismaClient();
     const members = await p.member.findMany({ where: { workspaceId } });
     if (members.length === 0) return [];
-    const byMember = await this.roleCodesForMembers(members.map((m: { id: string }) => m.id));
+    const ids = members.map((m: { id: string }) => m.id);
+    const byMember = await this.roleCodesForMembers(ids);
+    // One query for every member's territories, not one per member - the same
+    // shape roleCodesForMembers uses, and for the same reason.
+    const assignments = await p.memberTerritory.findMany({ where: { memberId: { in: ids } } });
+    const territoriesOf = new Map<string, string[]>();
+    for (const a of assignments as Array<{ memberId: string; territoryId: string }>) {
+      const list = territoriesOf.get(a.memberId);
+      if (list) list.push(a.territoryId);
+      else territoriesOf.set(a.memberId, [a.territoryId]);
+    }
     return members.map(
-      (m: { id: string; sub: string; displayName: string | null; status: string }) => ({
+      (m: {
+        id: string;
+        sub: string;
+        displayName: string | null;
+        status: string;
+        scope: string;
+      }) => ({
         memberId: m.id,
         workspaceId,
         sub: m.sub,
         displayName: m.displayName,
         status: m.status,
         roles: byMember.get(m.id) ?? [],
+        // An unrecognised scope reads as `workspace`. The DDL has a CHECK, so
+        // this is belt and braces - but the safe direction for a value that
+        // decides visibility is the one that hides nothing unexpectedly.
+        scope: isDataScope(m.scope) ? m.scope : ("workspace" as DataScopeKind),
+        territoryIds: territoriesOf.get(m.id) ?? [],
       }),
     );
+  }
+
+  async getScope(workspaceId: string, sub: string): Promise<ScopeSetting> {
+    const p = await getPrismaClient();
+    const member = await p.member.findUnique({ where: { workspaceId_sub: { workspaceId, sub } } });
+    // A sub with no row is unscoped, not invisible - see the in-memory store.
+    if (!member) return { kind: "workspace", territoryIds: [] };
+    const assignments = await p.memberTerritory.findMany({ where: { memberId: member.id } });
+    return {
+      kind: isDataScope(member.scope) ? member.scope : "workspace",
+      territoryIds: (assignments as Array<{ territoryId: string }>).map((a) => a.territoryId),
+    };
+  }
+
+  async setScope(workspaceId: string, sub: string, setting: ScopeSetting): Promise<void> {
+    const p = await getPrismaClient();
+    const member = await p.member.findUnique({ where: { workspaceId_sub: { workspaceId, sub } } });
+    if (!member) return;
+    await p.member.updateMany({
+      where: { workspaceId, sub },
+      data: { scope: setting.kind, updatedAt: new Date() },
+    });
+    // REPLACED WHOLESALE, matching the DDL: member_territory carries no UPDATE
+    // grant at all, because an assignment is a pair with no third column to
+    // change. Moving somebody between territories is a delete and an insert.
+    await p.memberTerritory.deleteMany({ where: { memberId: member.id } });
+    if (setting.territoryIds.length > 0) {
+      await p.memberTerritory.createMany({
+        data: setting.territoryIds.map((territoryId) => ({ memberId: member.id, territoryId })),
+        skipDuplicates: true,
+      });
+    }
   }
 
   /** memberId -> role codes, in two queries regardless of how many members. */

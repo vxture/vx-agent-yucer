@@ -35,7 +35,7 @@ export default async function AccountDeck({
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getAccountStore(),
+      store: session.stores.account(),
     },
     id,
   );

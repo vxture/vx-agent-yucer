@@ -34,7 +34,7 @@ export async function recomputeAccountHealth(accountId: string): Promise<Recompu
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getAccountStore(),
+      store: session.stores.account(),
     },
     accountId,
   );
@@ -81,7 +81,7 @@ export async function linkAccountContacts(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getAccountStore(),
+      store: session.stores.account(),
     },
     {
       fromContactId: input.fromContactId,
@@ -131,7 +131,7 @@ export async function designateAccountTier(input: {
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getAccountStore(),
+      store: session.stores.account(),
     },
     {
       accountId: input.accountId,
@@ -191,7 +191,7 @@ export async function saveContact(
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      store: getAccountStore(),
+      store: session.stores.account(),
     },
     accountId,
     {

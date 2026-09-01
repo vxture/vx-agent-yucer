@@ -1,0 +1,64 @@
+import { WHOLE_WORKSPACE, expandTerritories, type DataScope } from "../../authz/scope";
+import type { AuthzStore } from "../../authz/store";
+import {
+  getPipelineStore,
+  getPlanningStore,
+  getSignalStore,
+} from "../../domains/shared/registry";
+
+// Turning the administrator's setting into the scope one request carries.
+//
+// HERE RATHER THAN IN authz, and the layering decided it: resolving `own` means
+// asking which customers this member's work sits on, which spans accounts,
+// opportunities and leads. `authz` sits UNDER the domains and must not read one,
+// so the walk happens on this side, where reading several domains is already
+// ordinary - resolveAppSession does it for the entitlement and the demo seed.
+//
+// ONCE PER REQUEST, not per query. The alternative - joining the reachability
+// into every read - would put a cross-domain join inside a store, which is the
+// one thing the partition rule forbids: a store may not reach into another's
+// tables.
+//
+// THE UNSCOPED PATH COSTS NOTHING. `workspace` returns before any read, which
+// is every member until an administrator says otherwise, so the default
+// configuration adds no queries at all.
+
+export async function resolveDataScope(
+  workspaceId: string,
+  sub: string,
+  authz: AuthzStore,
+): Promise<DataScope> {
+  const setting = await authz.getScope(workspaceId, sub);
+  if (setting.kind === "workspace") return WHOLE_WORKSPACE;
+
+  if (setting.kind === "territory") {
+    // EXPANDED DOWN THE HIERARCHY. Assigned a parent, you cover its children -
+    // otherwise territory.parent_id is decorative and the configuration is
+    // wrong the day somebody adds a sub-region.
+    const territories = await getPlanningStore().listTerritories(workspaceId);
+    const parentOf = new Map<string, string | null>(
+      territories.map((t) => [t.id, t.parentId ?? null]),
+    );
+    return { kind: "territory", territoryIds: expandTerritories(setting.territoryIds, parentOf) };
+  }
+
+  // `own` - what I hold, plus the customers my work sits on.
+  //
+  // READ THROUGH THE UNSCOPED STORES DELIBERATELY. This computation is what
+  // DEFINES the scope; running it against an already-scoped store would ask the
+  // answer to depend on itself, and the fixed point is "sees nothing".
+  const [deals, leads] = await Promise.all([
+    getPipelineStore().listOpportunities(workspaceId, { ownerSub: sub, includeClosed: true }),
+    getSignalStore().listLeads(workspaceId, { ownerSub: sub }),
+  ]);
+
+  const accountIds = new Set<string>();
+  for (const d of deals) if (d.accountId) accountIds.add(d.accountId);
+  for (const l of leads) if (l.accountId) accountIds.add(l.accountId);
+
+  // Accounts held outright are matched by the ownership path rather than listed
+  // here - canSeeRow checks owner_sub first, so adding them would be a second
+  // way to say the same thing and a second thing to keep in step.
+
+  return { kind: "own", sub, accountIds: [...accountIds] };
+}

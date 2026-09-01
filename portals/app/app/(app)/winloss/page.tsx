@@ -35,7 +35,7 @@ export default async function WinLossPage() {
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getPipelineStore(),
+    store: session.stores.pipeline(),
   };
 
   const [pending, all] = await Promise.all([listPendingReviews(ctx), listPipeline(ctx)]);

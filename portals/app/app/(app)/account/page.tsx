@@ -45,7 +45,7 @@ export default async function AccountPage() {
 
   const now = new Date();
   const [result, overdue, segments, feed] = await Promise.all([
-    listAccounts({ ...ctx, store: getAccountStore() }),
+    listAccounts({ ...ctx, store: session.stores.account() }),
     listCommitments(
       { ...ctx, store: getFieldStore() },
       { overdueAt: now, limit: 20 },

@@ -48,7 +48,7 @@ export default async function RenewalPage() {
     entitlement: session.entitlement,
   };
 
-  const renewed = await listRenewedProjectIds({ ...base, store: getPipelineStore() });
+  const renewed = await listRenewedProjectIds({ ...base, store: session.stores.pipeline() });
   if (!renewed.ok) {
     return (
       <EmptyState

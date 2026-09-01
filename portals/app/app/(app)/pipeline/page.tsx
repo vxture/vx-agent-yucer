@@ -77,7 +77,7 @@ export default async function PipelinePage({
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getPipelineStore(),
+    store: session.stores.pipeline(),
   };
   // Same session, different port. The context carries the store because the
   // gate is decided from the session and the DATA comes from the port - two
@@ -107,7 +107,7 @@ export default async function PipelinePage({
     // Two cross-domain reads, for the new-deal form's two pickers. Through the
     // services, so both gates run - a page reaching a store handle directly is
     // the defect PR #26 fixed on the account page.
-    listAccounts({ ...ctx, store: getAccountStore() }),
+    listAccounts({ ...ctx, store: session.stores.account() }),
     listTerritories({ ...ctx, store: getPlanningStore() }),
     // The SAME memoised call the shell's board and the home screen make, so
     // the most expensive read in the product still happens once per request.

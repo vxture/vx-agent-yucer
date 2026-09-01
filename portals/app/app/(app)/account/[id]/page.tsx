@@ -106,7 +106,7 @@ export default async function AccountDetailPage({
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getAccountStore(),
+    store: session.stores.account(),
   };
 
   // Through the service, not the store. The page holding a store handle is how
@@ -163,7 +163,7 @@ export default async function AccountDetailPage({
     entitlement: session.entitlement,
   };
   const [deals, projects, feed, proposals] = await Promise.all([
-    listPipeline({ ...base, store: getPipelineStore() }, { accountId: id }),
+    listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
     cachedFeed(base),
     listProposals(

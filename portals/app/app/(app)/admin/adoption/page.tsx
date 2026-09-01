@@ -63,7 +63,7 @@ export default async function AdoptionPage() {
   // asserting the denominator is historical; it passed because it called the
   // pure function with closed deals the page never supplied.
   const opportunities = await listPipeline(
-    { ...base, store: getPipelineStore() },
+    { ...base, store: session.stores.pipeline() },
     { includeClosed: true },
   );
   if (!opportunities.ok) {

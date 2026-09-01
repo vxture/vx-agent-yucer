@@ -45,7 +45,7 @@ export default async function ForecastPage() {
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
-    store: getPipelineStore(),
+    store: session.stores.pipeline(),
   });
 
   if (!preview.ok) {

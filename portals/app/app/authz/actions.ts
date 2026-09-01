@@ -555,6 +555,15 @@ export const ACTIONS = {
     permission: "admin.manage",
     writes: true,
   },
+  // Deciding what somebody may SEE, beside deciding what they may DO. Same
+  // permission for the same reason deactivation reuses it: whoever grants a
+  // role already makes this class of decision about a colleague.
+  "admin.member.scope": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
 } as const satisfies Record<string, ActionSpec>;
 
 export type ActionId = keyof typeof ACTIONS;
