@@ -33,6 +33,7 @@ import {
   commitAttainment,
   forecastAccuracy,
   planCategoryChange,
+  validateScope,
   planSnapshot,
   type ForecastScope,
   type SnapshotRow,
@@ -448,11 +449,25 @@ export async function recordWinLossReview(
 export async function forecastHistory(
   ctx: PipelineContext,
   period: string,
-  scopeType: "workspace" | "territory" | "owner" = "workspace",
+  scope: ForecastScope = { scopeType: "workspace", territoryId: null, ownerSub: null },
 ): Promise<RuleResult<SnapshotRow[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
   if (!gate.allowed) return denied(gate);
-  return ok(await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType }));
+  const check = validateScope(scope);
+  if (!check.ok) return check as RuleResult<SnapshotRow[]>;
+
+  // TOOK A scopeType, NOW TAKES THE SCOPE. Passing only the type would have
+  // drawn every territory's series on one chart the moment territory snapshots
+  // existed - four lines labelled as one team's trajectory, with nothing on
+  // screen saying otherwise. The id half of a scope is not optional once more
+  // than one row can share its type.
+  const rows = await ctx.store.listForecastSnapshots(ctx.workspaceId, {
+    period,
+    scopeType: scope.scopeType,
+  });
+  return ok(
+    rows.filter((r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub),
+  );
 }
 
 export interface ForecastScorecard {
@@ -489,12 +504,14 @@ export interface ForecastScorecard {
  * whether anyone remembered to take one at period end - and "nobody clicked the
  * button" would silently become "the forecast was accurate".
  *
- * WORKSPACE SCOPE ONLY, and that is not a limitation being deferred: nothing in
- * this product writes a snapshot at any other scope (`submitForecastSnapshot`
- * hardcodes workspace, for want of the pickers). Owner-scope accuracy would be
- * an individual performance metric computed from a number that person files
- * themselves, which is a question worth ruling on BEFORE the data exists rather
- * than after.
+ * ANY OF THE THREE SCOPES, since the owner's ruling of 2026-09-01. The scored
+ * side of that decision is handled in the rule rather than here: `accuracy`
+ * counts over-delivery as a miss, so an owner-scope number cannot be improved
+ * by promising less. Worth recording that the incentive is weaker than it first
+ * looks anyway - `pipeline.forecast` is held by sales_leader and sales_ops
+ * only, so a rep can neither file a deal's forecast category nor take a
+ * snapshot, and the person an owner-scope score would describe controls neither
+ * input to it.
  *
  * THE GATE IS THE TIER, not the permission - see forecastHistory below for the
  * same action id and the mistake that comment used to make about it.
@@ -516,7 +533,7 @@ export interface ForecastScorecard {
 export async function forecastScorecard(
   ctx: PipelineContext,
   period: string,
-  opts: { now?: Date } = {},
+  opts: { now?: Date; scope?: ForecastScope } = {},
 ): Promise<RuleResult<ForecastScorecard>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
   if (!gate.allowed) return denied(gate);
@@ -533,10 +550,21 @@ export async function forecastScorecard(
   }
   const now = opts.now ?? new Date();
 
-  const snapshots = await ctx.store.listForecastSnapshots(ctx.workspaceId, {
+  const scope = opts.scope ?? { scopeType: "workspace" as const, territoryId: null, ownerSub: null };
+  const scopeCheck = validateScope(scope);
+  if (!scopeCheck.ok) return scopeCheck as RuleResult<ForecastScorecard>;
+
+  // SCOPE TYPE FILTERS THE STORE, the id filters here. The store port takes
+  // only a scopeType - widening it is a store change across two adapters, and
+  // the row already carries territoryId and ownerSub, so the narrowing is a
+  // predicate rather than a query.
+  const all = await ctx.store.listForecastSnapshots(ctx.workspaceId, {
     period,
-    scopeType: "workspace",
+    scopeType: scope.scopeType,
   });
+  const snapshots = all.filter(
+    (r) => r.territoryId === scope.territoryId && r.ownerSub === scope.ownerSub,
+  );
 
   // The ACTUAL, through planSnapshot rather than a second roll-up written here.
   // It applies the same scope-then-period filter and the same "lost contributes
@@ -545,12 +573,7 @@ export async function forecastScorecard(
   // definition of the actual, and the two would drift the first time either
   // filter changed.
   const opportunities = await ctx.store.listOpportunities(ctx.workspaceId, { includeClosed: true });
-  const live = planSnapshot({
-    period,
-    scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
-    opportunities,
-    snapshotAt: now,
-  });
+  const live = planSnapshot({ period, scope, opportunities, snapshotAt: now });
   if (!live.ok) return live as RuleResult<ForecastScorecard>;
 
   const settled = range.end.getTime() <= now.getTime();

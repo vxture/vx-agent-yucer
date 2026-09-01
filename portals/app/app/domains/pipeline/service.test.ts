@@ -17,6 +17,7 @@ import {
   previewCategories,
   updateCommercialTerms,
   replaceOpportunityLines,
+  forecastHistory,
   forecastScorecard,
   submitForecast,
   type PipelineContext,
@@ -377,6 +378,92 @@ test("a period this product cannot bound is refused, not silently unfiltered", a
   store.seed([opp()]);
   const r = await forecastScorecard(ctx("sales_ops", "pro", store), "next quarter");
   assert.equal(r.ok === false && r.violations[0].code, "period_unparsed");
+});
+
+// --- Scoped snapshots (the owner's ruling of 2026-09-01) --------------------
+
+const TERR_A = { scopeType: "territory" as const, territoryId: "t_a", ownerSub: null };
+const TERR_B = { scopeType: "territory" as const, territoryId: "t_b", ownerSub: null };
+const OWNER_1 = { scopeType: "owner" as const, territoryId: null, ownerSub: "usr_1" };
+
+test("a territory snapshot covers that territory only", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", territoryId: "t_a", forecastCategory: "commit", amount: money(300), expectedCloseAt: IN_Q3 }),
+    opp({ id: "b", territoryId: "t_b", forecastCategory: "commit", amount: money(700), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  const a = unwrap(await submitForecast(c, { period: Q3, scope: TERR_A }));
+  assert.equal(a.commitAmount.amount, 300);
+  const all = unwrap(await submitForecast(c, { period: Q3, scope: SCOPE }));
+  assert.equal(all.commitAmount.amount, 1000, "the workspace still sees both");
+});
+
+test("one territory's series never appears in another's - the id filters, not just the type", async () => {
+  // THE FAILURE THIS EXISTS FOR. forecastHistory used to take only a scopeType,
+  // which was harmless while workspace was the only scope written. The moment
+  // two territories both have snapshots, filtering by type alone draws BOTH on
+  // one chart, labelled as one team's trajectory, with nothing on screen saying
+  // otherwise.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", territoryId: "t_a", forecastCategory: "commit", amount: money(300), expectedCloseAt: IN_Q3 }),
+    opp({ id: "b", territoryId: "t_b", forecastCategory: "commit", amount: money(700), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  await submitForecast(c, { period: Q3, scope: TERR_A, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+  await submitForecast(c, { period: Q3, scope: TERR_B, snapshotAt: new Date("2026-07-02T00:00:00Z") });
+
+  const a = unwrap(await forecastHistory(c, Q3, TERR_A));
+  assert.equal(a.length, 1);
+  assert.equal(a[0].commitAmount.amount, 300);
+
+  const b = unwrap(await forecastHistory(c, Q3, TERR_B));
+  assert.equal(b.length, 1);
+  assert.equal(b[0].commitAmount.amount, 700);
+});
+
+test("a scorecard grades the scope it was asked about, not the workspace", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", ownerSub: "usr_1", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 }),
+    opp({ id: "b", ownerSub: "usr_2", forecastCategory: "commit", amount: money(9000), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  await submitForecast(c, { period: Q3, scope: OWNER_1, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+
+  // usr_1 lands their whole number; usr_2 lands nothing. A workspace-scoped
+  // read would drown the first fact in the second.
+  store.seed([
+    opp({
+      id: "a",
+      ownerSub: "usr_1",
+      stage: "won",
+      status: "won",
+      forecastCategory: "closed",
+      amount: money(1000),
+      expectedCloseAt: IN_Q3,
+      closedAt: IN_Q3,
+    }),
+  ]);
+  const r = unwrap(await forecastScorecard(c, Q3, { now: AFTER_Q3, scope: OWNER_1 }));
+  assert.equal(r.opening?.commitAmount.amount, 1000);
+  assert.equal(r.actualClosed.amount, 1000);
+  assert.equal(r.accuracy, 1);
+});
+
+test("an incoherent scope is refused rather than quietly filtered", async () => {
+  // validateScope rejects a territory scope carrying an owner. Reaching the
+  // store with both set would filter on one and silently ignore the other.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const c = ctx("sales_ops", "pro", store);
+  const bad = { scopeType: "territory" as const, territoryId: "t_a", ownerSub: "usr_1" };
+  assert.equal(
+    (await forecastScorecard(c, Q3, { scope: bad })).ok === false,
+    true,
+  );
+  assert.equal((await forecastHistory(c, Q3, bad)).ok, false);
 });
 
 // --- opportunity lines (batch 6b-3, ADR-014 section 2) ----------------------

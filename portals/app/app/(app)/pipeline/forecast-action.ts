@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getPipelineStore } from "../../domains/shared/registry";
 import { submitForecast } from "../../domains/pipeline/service";
+import { parseForecastScope } from "../lib/forecast-scope";
 
 // Submitting a forecast snapshot.
 //
@@ -15,10 +16,15 @@ import { submitForecast } from "../../domains/pipeline/service";
 // empty chart looks like a new workspace rather than like a broken product.
 // The demo seed hid it further by filling the table directly.
 //
-// WORKSPACE SCOPE, and only that, for now. It is the scope every other number
-// is measured against, and the two territory/owner scopes need pickers that do
-// not exist yet. Offering a scope selector that could only produce one value
-// would be a control that lies about what it does.
+// ALL THREE SCOPES, since the owner's ruling of 2026-09-01. This comment used
+// to say workspace only, "for want of pickers that do not exist yet" - they
+// exist now, and the domain had supported the other two since batch 1.
+//
+// THE SCOPE ARRIVES AS THE URL'S STRING and is parsed here, on the server. A
+// client that could hand over a ForecastScope object could hand over one the
+// three-way validateScope rejects, or worse one it accepts and nobody meant -
+// a territory scope carrying an owner. Parsing a single opaque token into the
+// shape the domain demands keeps that impossible.
 
 export interface SubmitForecastResult {
   ok: boolean;
@@ -29,6 +35,7 @@ export interface SubmitForecastResult {
 
 export async function submitForecastSnapshot(
   period: string,
+  scopeKey?: string,
 ): Promise<SubmitForecastResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -43,10 +50,11 @@ export async function submitForecastSnapshot(
     },
     {
       period,
-      // A workspace scope carries no territory and no owner - validateScope
-      // rejects it if it does, which is why these are explicit nulls rather
-      // than omitted.
-      scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
+      // parseForecastScope always yields exactly one of the three shapes, with
+      // the other id null - validateScope rejects a scope that carries both,
+      // which is why this goes through the parser rather than being assembled
+      // from separate params that could disagree.
+      scope: parseForecastScope(scopeKey),
     },
   );
 
