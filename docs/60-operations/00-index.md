@@ -1310,7 +1310,7 @@ outcome`，消费面另加 `taskId · costAmount · costUnit`。
 
 2026-08-17 的自陈（`10-standards/10-l1-api-conformance.md`）把这条记成「与
 `product_200 §4.1` 的用量上报信封各说各的」，判为需要平台裁定的权威冲突，发去了
-[vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)。
+[vxture-platform/vxture-platform#22](https://github.com/vxture-platform/vxture-platform/issues/22)。
 
 **2026-09-01 按《产品接入通则》复核，这是范围划错，不是真冲突**——通则的三产品
 通道矩阵明写那张表「逐格取自 `product_200_integration` 的登记表，未改写」，即
@@ -1324,10 +1324,10 @@ outcome`，消费面另加 `taskId · costAmount · costUnit`。
 工作台 RP，`act.sub`），不是新列，本方自产写填进程常量，非控制台后台通道填 `NULL`，
 不得硬编；`costUnit` 是开放词表，产品自己声明单位，不要求全平台一套 schema。
 
-本仓侧判定已变更，不再等待平台裁定谁覆盖谁；C3 的用量信封本次不动。**回帖
-[vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269) 是
-owner 侧待办**——`vxture-platform` 不在本仓协作者可达的组织仓库列表里，本次无法
-代发。
+本仓侧判定已变更，不再等待平台裁定谁覆盖谁；C3 的用量信封本次不动。**已回帖
+[vxture-platform/vxture-platform#22](https://github.com/vxture-platform/vxture-platform/issues/22)
+（2026-09-01）**——最初记的 `vxture/vxture-platform#269` 是旧仓号，该仓已迁至
+`vxture-platform/vxture-platform` 且旧编号重排，此问题在新仓是 #22。
 
 **2026-09-01 已还**：`incr/0023_audit_event.sql` 新开 `local_audit` schema，
 `event` 表按上面的字段集实现，append-only（无 UPDATE 无 DELETE 授权）。接进

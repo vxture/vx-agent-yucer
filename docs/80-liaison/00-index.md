@@ -28,7 +28,7 @@ Atlas 仓还为此加了 CI 守卫（`check-liaison-archive`：新增 `NN-*.md` 
 | 2026-08-17 | karda | 有没有产品侧的发布方向（4 问，全部阻塞我方任何代码） | [vxture-karda#103](https://github.com/vxture/vxture-karda/issues/103) | 待回复 |
 | 2026-08-17 | runos | `content_digest` 的原像与算法未公布，消费方校验恒为「未验证」且静默 | [vxture-runos#145](https://github.com/vxture/vxture-runos/issues/145) | 待回复 |
 | 2026-08-17 | atlas | `taskId` 已适配；D-1 的「通知消费方」对尚未注册的消费方没有渠道 | [vxture-atlas#248](https://github.com/vxture/vxture-atlas/issues/248) | 待回复 |
-| 2026-08-17 | platform | `product_251` X-3 与 `product_200 §4.1` 两套字段名互不引用 | [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269) | 待回复 |
+| 2026-08-17 | platform | `product_251` X-3 与 `product_200 §4.1` 两套字段名互不引用 | [vxture-platform/vxture-platform#22](https://github.com/vxture-platform/vxture-platform/issues/22) | **本方已回帖 2026-09-01**：范围划错，非冲突，撤回原请求 |
 
 ## 目录里那份文件
 

@@ -51,7 +51,7 @@ yucer 的首个生产 tag（批次 4 的 `v0.1.0`）**还没打**，所以「首
 ## X-3 复核：不是冲突，是范围划错了一次
 
 2026-08-17 的自陈把这条记成「X-3 与 `product_200 §4.1` 各说各的」，判为需要平台
-裁定的权威冲突，发去了 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)。
+裁定的权威冲突，发去了 [vxture-platform/vxture-platform#22](https://github.com/vxture-platform/vxture-platform/issues/22)。
 **2026-09-01 按《产品接入通则》复核，这个判定是范围划错，不是真冲突。**
 
 通则里的三产品通道矩阵明写：这张表「逐格取自 `product_200_integration` 的登记表，
@@ -79,10 +79,11 @@ yucer 的首个生产 tag（批次 4 的 `v0.1.0`）**还没打**，所以「首
 - **`costUnit` 是开放词表**：产品自己声明并登记计量单位（本仓是 `metric` 已经
   承担的角色），不要求全平台一套 schema。
 
-本仓侧判定已改为「真差距，非冲突」，不再等平台裁定谁覆盖谁——**回帖仍待办**：
-`vxture-platform` 不在本仓协作者可达的组织仓库列表里（`gh repo list vxture` 查无
-此仓），复核结果暂时只落在这份文件里，回帖 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)
-是 owner 侧待办。
+本仓侧判定已改为「真差距，非冲突」，不再等平台裁定谁覆盖谁。**已回帖
+[vxture-platform/vxture-platform#22](https://github.com/vxture-platform/vxture-platform/issues/22)
+（2026-09-01）**——最初记的 `vxture/vxture-platform#269` 是旧仓号，`vxture-platform`
+已迁至 `vxture-platform/vxture-platform` 且旧编号重排，此问题在新仓是 #22
+（`gh repo list vxture` 查无旧仓，是先前误判「不可达」的原因）。
 
 **C3 的信封本次不动**——它一直是对的，X-3 要补的是旁边一张本仓从未建过的表，不是
 把这张信封改名。
