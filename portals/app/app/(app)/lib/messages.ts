@@ -664,6 +664,18 @@ export const MEMBER_TEXT = {
   readOnly: "你没有管理成员角色的权限。",
   adminBadge: "可管理成员",
   lastAdminHint: "这是工作区最后一位管理员，移除后将无人能再分配角色",
+  // 人员更替（2026-09-01 裁定）。平台决定谁能用、有多少席位；产品决定启用/停用，
+  // 以及历史怎么留。
+  columnLifecycle: "在岗状态",
+  inactive: "已停用",
+  inactiveHint:
+    "已离岗。这一行永久保留——审计记录里的签字人靠它才认得出是谁，删掉不会破外键，只会让签名变成一串没人认识的 id。",
+  deactivate: "停用",
+  deactivateHint: "收回全部角色并标记为已停用。这一行不会被删除。",
+  reactivate: "恢复在岗",
+  reactivateHint: "只恢复在岗状态，不恢复任何角色——角色需要重新授予一次。",
+  /** 邀请是平台的事：席位和谁能登录都由平台决定，这里只能跳出去。 */
+  invite: "邀请成员",
 } as const;
 
 export const MEMBER_ERROR: Record<string, string> = {

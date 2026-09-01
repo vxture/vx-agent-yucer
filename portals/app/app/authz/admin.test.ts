@@ -4,7 +4,14 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../entitlement/types";
 import { unwrap } from "../domains/shared/result";
 import { permissionsForRoles, type RoleCode } from "./catalog";
 import { InMemoryAuthzStore } from "./store";
-import { assignRole, listWorkspaceMembers, revokeRole, type AdminContext } from "./admin";
+import {
+  assignRole,
+  deactivateMember,
+  listWorkspaceMembers,
+  reactivateMember,
+  revokeRole,
+  type AdminContext,
+} from "./admin";
 
 const WS = "ws_1";
 
@@ -203,4 +210,109 @@ test("a roleless member appears in the list rather than being invisible", async 
   const target = members.find((m) => m.sub === "usr_new");
   assert.ok(target);
   assert.deepEqual(target.roles, []);
+});
+
+
+// --- People leave (2026-09-01) ----------------------------------------------
+//
+// The owner's ruling: the platform decides who may use the app and how many
+// seats there are; the product decides activation, deactivation, and what
+// happens to the history. These tests hold the product's half.
+
+test("deactivating keeps the row and takes the roles", async () => {
+  // THE ROW IS THE POINT. Every attribution column in the product stores a sub
+  // as plain text, so deleting the member breaks no foreign key - it just makes
+  // every signature in the audit trail an unreadable `usr_<uuid>`.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_leaver", displayName: "Leaver" });
+  await store.grantRole(WS, "usr_leaver", "sales_rep");
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  await store.grantRole(WS, "usr_admin", "sales_leader");
+
+  const out = unwrap(await deactivateMember(ctx("sales_leader", "pro", store), "usr_leaver"));
+  assert.equal(out.status, "inactive");
+  assert.equal(out.displayName, "Leaver", "the name that makes the audit trail readable survives");
+  assert.deepEqual(await rolesOf(store, "usr_leaver"), []);
+
+  const members = await store.listMembers(WS);
+  assert.ok(
+    members.some((m) => m.sub === "usr_leaver"),
+    "the member row must never be deleted",
+  );
+});
+
+test("coming back restores nothing - the roles were dropped, not remembered", async () => {
+  // THE HOLE THIS VERB CLOSES. The platform can grant the same sub access again
+  // - a transfer back, a rehire - and `seeMember` does not re-run the owner
+  // bootstrap or re-examine roles. Without dropping them on the way out, that
+  // person walks back in still holding sales_leader because nobody ever took it
+  // away. Coming back has to be a decision somebody makes again.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_boomerang" });
+  await store.grantRole(WS, "usr_boomerang", "sales_rep");
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  await store.grantRole(WS, "usr_admin", "sales_leader");
+  const c = ctx("sales_leader", "pro", store);
+
+  await deactivateMember(c, "usr_boomerang");
+  const back = unwrap(await reactivateMember(c, "usr_boomerang"));
+  assert.equal(back.status, "active");
+  assert.deepEqual(await rolesOf(store, "usr_boomerang"), [], "no role comes back on its own");
+});
+
+test("signing in again does not undo a deactivation", async () => {
+  // seeMember is a lazy upsert that runs on every login. If it touched status,
+  // a deactivated person would reactivate themselves simply by being seen -
+  // and the platform is what stops them signing in, so the product would be
+  // relying on a control it does not own.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_gone" });
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  await store.grantRole(WS, "usr_admin", "sales_leader");
+  await deactivateMember(ctx("sales_leader", "pro", store), "usr_gone");
+
+  await store.seeMember({ workspaceId: WS, sub: "usr_gone", displayName: "Seen again" });
+  const members = await store.listMembers(WS);
+  assert.equal(members.find((m) => m.sub === "usr_gone")?.status, "inactive");
+});
+
+test("the last administrator cannot be deactivated either", async () => {
+  // The same fact revokeRole guards, reached by a different door: a workspace
+  // with nobody holding admin.manage has no path back, not through a later
+  // login and not through the platform.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  await store.grantRole(WS, "usr_admin", "sales_leader");
+
+  const r = await deactivateMember(ctx("sales_leader", "pro", store), "usr_admin");
+  assert.equal(r.ok === false && r.violations[0].code, "last_admin");
+  assert.deepEqual(await rolesOf(store, "usr_admin"), ["sales_leader"], "and nothing was taken");
+});
+
+test("deactivating an admin is fine while another one remains", async () => {
+  const store = new InMemoryAuthzStore();
+  for (const sub of ["usr_admin", "usr_admin2"]) {
+    await store.seeMember({ workspaceId: WS, sub });
+    await store.grantRole(WS, sub, "sales_leader");
+  }
+  const out = unwrap(await deactivateMember(ctx("sales_leader", "pro", store), "usr_admin2"));
+  assert.equal(out.status, "inactive");
+});
+
+test("a sub nobody has ever seen is not_found, not a silent no-op", async () => {
+  // Deactivating somebody who is not a member should say so: a UI that reported
+  // success would let an admin believe they had removed access from a person
+  // this workspace has no record of.
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_admin" });
+  await store.grantRole(WS, "usr_admin", "sales_leader");
+  const r = await deactivateMember(ctx("sales_leader", "pro", store), "usr_ghost");
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+test("deactivation needs admin.manage, like every other member write", async () => {
+  const store = new InMemoryAuthzStore();
+  await store.seeMember({ workspaceId: WS, sub: "usr_x" });
+  const r = await deactivateMember(ctx("sales_rep", "pro", store), "usr_x");
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });

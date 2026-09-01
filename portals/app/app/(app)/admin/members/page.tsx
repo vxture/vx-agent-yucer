@@ -4,7 +4,13 @@ import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { MemberRoles } from "../../components/member-roles";
-import { grantMemberRole, removeMemberRole } from "./actions";
+import {
+  grantMemberRole,
+  removeMemberRole,
+  setMemberActive,
+  setMemberInactive,
+} from "./actions";
+import { consoleMembersUrl } from "../../lib/console-url";
 
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
@@ -52,6 +58,9 @@ export default async function MembersPage() {
     <ViewLayout>
       <MemberRoles
         members={result.value}
+        onDeactivate={setMemberInactive}
+        onReactivate={setMemberActive}
+        inviteUrl={consoleMembersUrl()}
         // Viewing and changing are separate actions on purpose: the list is
         // useful to anyone who can see it, and only an administrator gets the
         // controls.

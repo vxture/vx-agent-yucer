@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../../lib/session";
 import { getAuthzStore } from "../../../authz/store";
-import { assignRole, revokeRole } from "../../../authz/admin";
+import {
+  assignRole,
+  deactivateMember,
+  reactivateMember,
+  revokeRole,
+} from "../../../authz/admin";
 
 // Granting and removing roles.
 //
@@ -44,6 +49,37 @@ export async function removeMemberRole(sub: string, role: string): Promise<RoleC
   if (!session) return { ok: false, error: "not_authenticated" };
 
   const result = await revokeRole(ctx(session), sub, role);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+
+/**
+ * Somebody left. Mark them inactive and take their roles.
+ *
+ * The row is never deleted - see deactivateMember. What this surface adds is
+ * the revalidate: roles drive the nav, so a deactivation has to invalidate the
+ * whole shell rather than this page.
+ */
+export async function setMemberInactive(sub: string): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await deactivateMember(ctx(session), sub);
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** An accidental deactivation, undone. Restores no roles - see the service. */
+export async function setMemberActive(sub: string): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await reactivateMember(ctx(session), sub);
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
 
   revalidatePath("/", "layout");

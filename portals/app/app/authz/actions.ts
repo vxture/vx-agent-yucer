@@ -538,6 +538,23 @@ export const ACTIONS = {
     permission: "admin.manage",
     writes: true,
   },
+  // Deactivation needs NO new permission. Whoever may revoke a role can already
+  // reach the same access outcome one role at a time, so inventing a stronger
+  // permission for the shortcut would be a gate that guards nothing - and the
+  // catalogue grows only when "who inside a workspace may do this" has a new
+  // answer, not when a new button appears.
+  "admin.member.deactivate": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
+  "admin.member.reactivate": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
 } as const satisfies Record<string, ActionSpec>;
 
 export type ActionId = keyof typeof ACTIONS;

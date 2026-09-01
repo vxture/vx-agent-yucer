@@ -113,6 +113,21 @@ export class PrismaAuthzStore implements AuthzStore {
     await p.memberRole.deleteMany({ where: { memberId: member.id, roleId: roleRow.id } });
   }
 
+  async setMemberStatus(
+    workspaceId: string,
+    sub: string,
+    status: "active" | "inactive",
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    // updateMany, not update: a sub with no row is a no-op rather than a throw,
+    // matching revokeRole above. Deactivating somebody who never signed in is
+    // not an error, it is a request that has already been satisfied.
+    await p.member.updateMany({
+      where: { workspaceId, sub },
+      data: { status, updatedAt: new Date() },
+    });
+  }
+
   async listMembers(workspaceId: string): Promise<MemberRecord[]> {
     const p = await getPrismaClient();
     const members = await p.member.findMany({ where: { workspaceId } });

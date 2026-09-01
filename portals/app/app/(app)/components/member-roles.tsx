@@ -37,6 +37,8 @@ export interface MemberView {
   readonly sub: string;
   readonly displayName: string | null;
   readonly roles: readonly string[];
+  /** "active" | "inactive". A departed member keeps their row forever. */
+  readonly status: string;
 }
 
 export interface MemberRolesProps {
@@ -50,6 +52,18 @@ export interface MemberRolesProps {
     sub: string,
     role: string,
   ) => Promise<{ ok: boolean; error?: string }>;
+  readonly onDeactivate: (sub: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly onReactivate: (sub: string) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Where to send someone who wants to add a member.
+   *
+   * A LINK, NOT A FORM. The platform decides who may use the product and how
+   * many seats there are; inviting somebody is a platform act, and a form here
+   * would be the product pretending to an authority it does not have. Absent
+   * when the console URL is not configured - a button that goes nowhere is
+   * worse than no button.
+   */
+  readonly inviteUrl?: string | null;
 }
 
 const isAdminRole = (role: string): boolean =>
@@ -61,6 +75,9 @@ export function MemberRoles({
   canManage,
   onGrant,
   onRevoke,
+  onDeactivate,
+  onReactivate,
+  inviteUrl,
 }: MemberRolesProps) {
   const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } =
     useMessages();
@@ -95,7 +112,23 @@ export function MemberRoles({
       header: MEMBER_TEXT.columnMember,
       cell: (row) => (
         <div>
-          <div>{row.displayName ?? row.sub}</div>
+          <div className="flex items-center gap-xs">
+            <span>{row.displayName ?? row.sub}</span>
+            {/* MARKED, NOT HIDDEN. A departed member keeps their row forever -
+                it is the only thing that maps this sub to a name, and every
+                signature in the audit trail reads through it. Hiding them would
+                make the roster tidy and the history unreadable. */}
+            {row.status === "inactive" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <StatusBadge tone="neutral">{MEMBER_TEXT.inactive}</StatusBadge>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{MEMBER_TEXT.inactiveHint}</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </div>
           <div>{row.sub}</div>
         </div>
       ),
@@ -209,10 +242,71 @@ export function MemberRoles({
         );
       },
     },
+    {
+      id: "lifecycle",
+      header: MEMBER_TEXT.columnLifecycle,
+      align: "right",
+      cell: (row) => {
+        if (!canManage) return null;
+        const key = `${row.sub}:lifecycle`;
+        if (row.status === "inactive") {
+          return (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending && busy === key}
+              onClick={() => run(key, () => onReactivate(row.sub))}
+            >
+              {MEMBER_TEXT.reactivate}
+            </Button>
+          );
+        }
+        // THE LAST ADMINISTRATOR, disabled here and refused again in the
+        // service. Deactivating them leaves a workspace nobody can administer,
+        // and there is no path back - not through a later login, not through
+        // the platform.
+        const isLastAdmin = row.roles.some(isAdminRole) && adminCount <= 1;
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={isLastAdmin || (pending && busy === key)}
+                  onClick={() => run(key, () => onDeactivate(row.sub))}
+                >
+                  {MEMBER_TEXT.deactivate}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isLastAdmin ? MEMBER_TEXT.lastAdminHint : MEMBER_TEXT.deactivateHint}
+            </TooltipContent>
+          </Tooltip>
+        );
+      },
+    },
   ];
 
   return (
-    <Section title={MEMBER_TEXT.title} description={MEMBER_TEXT.description}>
+    <Section
+      title={MEMBER_TEXT.title}
+      description={MEMBER_TEXT.description}
+      /* INVITING IS A PLATFORM ACT. Seats and who may sign in are the
+         platform's to decide, so this is a link out rather than a form here -
+         the product would otherwise be offering an authority it does not
+         have. */
+      action={
+        canManage && inviteUrl ? (
+          <Button asChild size="sm" variant="secondary">
+            <a href={inviteUrl} target="_blank" rel="noreferrer">
+              {MEMBER_TEXT.invite}
+            </a>
+          </Button>
+        ) : null
+      }
+    >
       {!canManage ? (
         <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge>
       ) : null}
