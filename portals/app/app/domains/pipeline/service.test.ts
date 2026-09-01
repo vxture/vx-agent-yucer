@@ -17,6 +17,7 @@ import {
   previewCategories,
   updateCommercialTerms,
   replaceOpportunityLines,
+  forecastAccuracy,
   submitForecast,
   type PipelineContext,
 } from "./service";
@@ -197,6 +198,153 @@ test("snapshots accumulate rather than replace - that is the whole point", async
 
   const history = await store.listForecastSnapshots(WS, { period: "2026Q3" });
   assert.equal(history.length, 2, "forecast accuracy needs every historical snapshot");
+});
+
+// --- Forecast accuracy, the reading the immutable table exists for -----------
+
+const SCOPE = { scopeType: "workspace" as const, territoryId: null, ownerSub: null };
+const Q3 = "2026Q3";
+const IN_Q3 = new Date("2026-08-15T00:00:00Z");
+const AFTER_Q3 = new Date("2026-10-05T00:00:00Z");
+
+test("accuracy is period-end actual against the OPENING snapshot", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  // Committed 1000 at period start.
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+
+  // Then the quarter happened and 600 of it closed.
+  store.seed([
+    opp({
+      id: "a",
+      stage: "won",
+      status: "won",
+      forecastCategory: "closed",
+      amount: money(600),
+      expectedCloseAt: IN_Q3,
+      closedAt: IN_Q3,
+    }),
+  ]);
+
+  const r = unwrap(await forecastAccuracy(c, Q3, { now: AFTER_Q3 }));
+  assert.equal(r.settled, true);
+  assert.equal(r.opening?.commitAmount.amount, 1000);
+  assert.equal(r.actualClosed.amount, 600);
+  // A RATIO, not a percentage - `ratio()` returns achieved/target and every
+  // caller in the product formats it. Returning 60 here would be this file
+  // inventing a second unit for a number the attainment page already renders.
+  assert.equal(r.accuracy, 0.6);
+});
+
+test("a later snapshot cannot flatter the score - the earliest one is the opening", async () => {
+  // THE FAILURE THIS SORT PREVENTS. "Oldest first" is a documented property of
+  // one adapter, and if it ever slipped, a snapshot taken when the quarter was
+  // nearly closed would score near-perfect accuracy forever - a number that
+  // looks excellent and means nothing. Seeded newest-first on purpose.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-09-28T00:00:00Z") });
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+
+  store.seed([
+    opp({
+      id: "a",
+      stage: "won",
+      status: "won",
+      forecastCategory: "closed",
+      amount: money(500),
+      expectedCloseAt: IN_Q3,
+      closedAt: IN_Q3,
+    }),
+  ]);
+  const r = unwrap(await forecastAccuracy(c, Q3, { now: AFTER_Q3 }));
+  assert.equal(
+    r.opening?.snapshotAt.toISOString(),
+    "2026-07-01T00:00:00.000Z",
+    "the opening snapshot is the earliest one, whatever order the store returned",
+  );
+  assert.equal(r.accuracy, 0.5);
+});
+
+test("no snapshot means unmeasurable, which is not zero", async () => {
+  // A page that printed 0% here would report a team that forecast nothing as a
+  // team that forecast badly.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({
+      id: "a",
+      stage: "won",
+      status: "won",
+      forecastCategory: "closed",
+      amount: money(400),
+      expectedCloseAt: IN_Q3,
+      closedAt: IN_Q3,
+    }),
+  ]);
+  const r = unwrap(await forecastAccuracy(ctx("sales_ops", "pro", store), Q3, { now: AFTER_Q3 }));
+  assert.equal(r.opening, null);
+  assert.equal(r.accuracy, null);
+  // The actual is still reported: what closed is knowable even when what was
+  // predicted is not.
+  assert.equal(r.actualClosed.amount, 400);
+});
+
+test("committing nothing has no denominator, and that is null too", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", forecastCategory: "pipeline", amount: money(1000), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+  const r = unwrap(await forecastAccuracy(c, Q3, { now: AFTER_Q3 }));
+  assert.equal(r.opening?.commitAmount.amount, 0);
+  assert.equal(r.accuracy, null, "a team that committed to nothing cannot be scored against it");
+});
+
+test("an unfinished period is reported as unsettled, not as accuracy", async () => {
+  // The word only becomes honest at period end. Mid-quarter this ratio is
+  // progress against the commit, and calling it accuracy would tell a team in
+  // week two that it is forecasting at 8%.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+  const r = unwrap(await forecastAccuracy(c, Q3, { now: IN_Q3 }));
+  assert.equal(r.settled, false);
+});
+
+test("reading accuracy is gated by the TIER, not by the permission", async () => {
+  // TWO AXES, and this action leans on one of them. `pipeline.forecast.view`
+  // asks for feature `pipeline.forecast` but only permission `pipeline.read` -
+  // which every selling role holds. That is deliberate: FORECASTING is what is
+  // sold, and inside a workspace that bought it, a rep reading what the team
+  // committed to is not a privilege. Asserting a permission_denied here would
+  // have been asserting a gate this action does not have, and the first draft
+  // of this test did exactly that.
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+
+  // Right permission, tier below pro: the feature is not sold there.
+  const cheap = await forecastAccuracy(ctx("sales_rep", "starter", store), Q3);
+  assert.equal(cheap.ok === false && cheap.violations[0].code, "feature_not_in_tier");
+
+  // Same rep, tier that includes it.
+  assert.equal((await forecastAccuracy(ctx("sales_rep", "pro", store), Q3)).ok, true);
+});
+
+test("a period this product cannot bound is refused, not silently unfiltered", async () => {
+  const store = new InMemoryPipelineStore();
+  store.seed([opp()]);
+  const r = await forecastAccuracy(ctx("sales_ops", "pro", store), "next quarter");
+  assert.equal(r.ok === false && r.violations[0].code, "period_unparsed");
 });
 
 // --- opportunity lines (batch 6b-3, ADR-014 section 2) ----------------------

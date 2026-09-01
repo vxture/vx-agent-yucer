@@ -24,6 +24,7 @@ import { listAccounts } from "../../domains/account/service";
 import { listTerritories } from "../../domains/planning/service";
 import { NewOpportunity } from "../components/new-opportunity";
 import {
+  forecastAccuracy,
   forecastHistory,
   listPipeline,
 } from "../../domains/pipeline/service";
@@ -76,7 +77,7 @@ export default async function PipelinePage({
   // domains reading the same request need two contexts, not one with a union.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
 
-  const [result, history, lines, products, accounts, territories, feed] =
+  const [result, history, score, lines, products, accounts, territories, feed] =
     await Promise.all([
     // includeClosed, or the "closed" tile reports zero on a workspace that has
     // closed 2.7M - the same false zero that hit the quota card, in a third
@@ -86,6 +87,10 @@ export default async function PipelinePage({
     // The series, not the latest point. See forecastHistory: this read is the
     // only thing that makes forecast_snapshot's immutability pay for itself.
     forecastHistory(ctx, period),
+    // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
+    // promised this number in its own description since batch 1 ("预测准确率是
+    // 期末实际对期初快照"), while nothing computed it.
+    forecastAccuracy(ctx, period),
     // THROUGH THE SERVICE, not the store handle. Both of these used to call
     // getCatalogStore() straight from the page, which skips BOTH gates - the
     // same defect PR #26 fixed on the account detail page. The catalogue read
@@ -276,6 +281,17 @@ export default async function PipelinePage({
           closed: p.closedAmount.amount,
         }))}
         wan={BOARD_TEXT.wan}
+        /* Absent when the read failed, rather than shown as zero: a badge that
+           says 0% because a query errored is worse than no badge. */
+        accuracy={
+          score.ok
+            ? {
+                ratio: score.value.accuracy,
+                settled: score.value.settled,
+                hasOpening: score.value.opening !== null,
+              }
+            : undefined
+        }
         /* The gate is decided HERE and re-decided inside the action: this only
            chooses which control renders. `pipeline.forecast.snapshot`, not
            `pipeline.view` - reading a forecast and committing to one are

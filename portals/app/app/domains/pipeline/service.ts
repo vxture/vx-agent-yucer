@@ -27,8 +27,10 @@ import {
 import type { CatalogStore, DiscountApprovalRecord } from "../catalog/store";
 import type { Decision } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult, type Violation } from "../shared/result";
-import { isNonNegative, money } from "../shared/money";
+import { isNonNegative, money, type Money } from "../shared/money";
+import { periodRange } from "../shared/period";
 import {
+  accuracy,
   planCategoryChange,
   planSnapshot,
   type ForecastScope,
@@ -433,9 +435,14 @@ export async function recordWinLossReview(
  * whole series survives. Until now nothing read it back, so the immutability
  * was a cost the product paid and never collected on.
  *
- * Gated on pipeline.forecast.view, the read half of the forecast permission:
- * seeing what the team committed to and having committed it are the same
- * privilege, and a rep who may not forecast may not audit the forecast either.
+ * Gated on `pipeline.forecast.view` - which is a TIER gate, not a permission
+ * one, and this comment used to say the opposite. It claimed "a rep who may not
+ * forecast may not audit the forecast either"; the action asks for feature
+ * `pipeline.forecast` and permission `pipeline.read`, and every selling role
+ * holds pipeline.read. A sales_rep in a pro workspace reads this, and always
+ * could. The arrangement is deliberate - FORECASTING is what is sold, and
+ * inside a workspace that bought it, seeing what the team committed to is not a
+ * privilege - but the sentence describing it was simply wrong.
  */
 export async function forecastHistory(
   ctx: PipelineContext,
@@ -445,6 +452,135 @@ export async function forecastHistory(
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType }));
+}
+
+/**
+ * How close the opening forecast for a period turned out to be.
+ *
+ * THE READING THE IMMUTABLE TABLE EXISTS FOR. forecast_snapshot has UPDATE
+ * revoked so this exact question stays answerable - period-end actual against
+ * what was committed at period start - and the product has been paying that
+ * cost since batch 1 while nothing asked it. The pipeline page even PROMISES
+ * the number on screen ("预测准确率是期末实际对期初快照"), which is a sentence
+ * about a figure that did not exist.
+ *
+ * THE OPENING SNAPSHOT IS THE EARLIEST ONE, not the first row returned. Sorting
+ * here rather than trusting the store's order is deliberate: "oldest first" is
+ * a documented property of one adapter, and the number this produces is wrong
+ * in a way nobody would see if that ever slipped - a late snapshot taken when
+ * the quarter was nearly closed would score near-perfect accuracy forever.
+ *
+ * THE ACTUAL IS COMPUTED LIVE, not read from the last snapshot. A snapshot is
+ * what somebody said on the day they took it; the actual is what the deals now
+ * say. Reading it from the final snapshot would make the answer depend on
+ * whether anyone remembered to take one at period end - and "nobody clicked the
+ * button" would silently become "the forecast was accurate".
+ *
+ * WORKSPACE SCOPE ONLY, and that is not a limitation being deferred: nothing in
+ * this product writes a snapshot at any other scope (`submitForecastSnapshot`
+ * hardcodes workspace, for want of the pickers). Owner-scope accuracy would be
+ * an individual performance metric computed from a number that person files
+ * themselves, which is a question worth ruling on BEFORE the data exists rather
+ * than after.
+ *
+ * THE GATE IS THE TIER, not the permission - see forecastHistory below for the
+ * same action id and the mistake that comment used to make about it.
+ *
+ * NULL RESULTS ARE ANSWERS, and there are two of them. `snapshot: null` means
+ * nobody ever took one, so accuracy is not low - it is unmeasurable, and the
+ * page must not print 0%. `accuracy: null` means the opening commit was zero,
+ * so there is no denominator; a team that committed to nothing cannot be scored
+ * against it either way.
+ */
+export async function forecastAccuracy(
+  ctx: PipelineContext,
+  period: string,
+  opts: { now?: Date } = {},
+): Promise<
+  RuleResult<{
+    period: string;
+    /** True once the period is over, and only then is this word honest. */
+    settled: boolean;
+    opening: SnapshotRow | null;
+    actualClosed: Money;
+    accuracy: number | null;
+  }>
+> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const range = periodRange(period);
+  if (!range) {
+    return fail(
+      violation(
+        "period_unparsed",
+        `${period} is not a period this product can bound - use 2026Q3, 2026-07, 2026 or Y2026`,
+        "period",
+      ),
+    );
+  }
+  const now = opts.now ?? new Date();
+
+  const snapshots = await ctx.store.listForecastSnapshots(ctx.workspaceId, {
+    period,
+    scopeType: "workspace",
+  });
+
+  // The ACTUAL, through planSnapshot rather than a second roll-up written here.
+  // It applies the same scope-then-period filter and the same "lost contributes
+  // nothing" rule the opening snapshot was built with, so the two sides of this
+  // ratio are computed by one definition. A local rollUp would be a second
+  // definition of the actual, and the two would drift the first time either
+  // filter changed.
+  const opportunities = await ctx.store.listOpportunities(ctx.workspaceId, { includeClosed: true });
+  const live = planSnapshot({
+    period,
+    scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
+    opportunities,
+    snapshotAt: now,
+  });
+  if (!live.ok) {
+    return live as RuleResult<{
+      period: string;
+      settled: boolean;
+      opening: SnapshotRow | null;
+      actualClosed: Money;
+      accuracy: number | null;
+    }>;
+  }
+
+  const settled = range.end.getTime() <= now.getTime();
+  const opening = [...snapshots].sort(
+    (a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime(),
+  )[0];
+  if (!opening) {
+    return ok({
+      period,
+      settled,
+      opening: null,
+      actualClosed: live.value.closedAmount,
+      accuracy: null,
+    });
+  }
+
+  const score = accuracy(opening, live.value.closedAmount);
+  if (!score.ok) {
+    return score as RuleResult<{
+      period: string;
+      settled: boolean;
+      opening: SnapshotRow | null;
+      actualClosed: Money;
+      accuracy: number | null;
+    }>;
+  }
+
+  return ok({
+    period,
+    settled,
+    opening,
+    actualClosed: live.value.closedAmount,
+    accuracy: score.value,
+  });
 }
 
 export async function submitForecast(

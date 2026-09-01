@@ -1157,6 +1157,14 @@ export const PIPELINE_TEXT = {
    *  not worth explaining. */
   trajectoryWindow: (shown: number, total: number) =>
     `最近 ${shown} 次，共 ${total} 次`,
+  // 预测准确率的四种说法。这个数只有在周期结束后才配叫「准确率」；周期中是
+  // 「已兑现」，同一个比值，两句不同的话。
+  accuracySettled: (r: number) => `准确率 ${Math.round(r * 100)}%`,
+  accuracySoFar: (r: number) => `已兑现期初承诺的 ${Math.round(r * 100)}%`,
+  /** 没有期初快照——算不出来，不是算出来是 0。 */
+  accuracyNoOpening: "无期初快照，准确率算不出",
+  /** 期初承诺为零，没有分母。 */
+  accuracyNoCommit: "期初未承诺，无从对照",
   trajectoryEmptyTitle: "本周期还没有预测快照",
   trajectoryEmptyDescription:
     "提交一次预测后，这里会按时间显示它的变化。轨迹只画已经存下来的快照，不回溯推算。",

@@ -1245,6 +1245,10 @@ export const en: Dictionary = {
     splitEmpty: "Nothing to split by product line this period",
     trajectoryWindow: (shown: number, total: number) =>
       `last ${shown} of ${total}`,
+    accuracySettled: (r: number) => `${Math.round(r * 100)}% accurate`,
+    accuracySoFar: (r: number) => `${Math.round(r * 100)}% of the opening commit closed`,
+    accuracyNoOpening: "No opening snapshot - accuracy cannot be computed",
+    accuracyNoCommit: "Nothing was committed - nothing to measure against",
     trajectoryEmptyTitle: "No forecast snapshot this period yet",
     trajectoryEmptyDescription:
       "Submit a forecast and its changes appear here over time. The trajectory draws only snapshots that were saved; it never reconstructs them.",
