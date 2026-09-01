@@ -556,6 +556,16 @@ model AgentMessage {
   @@schema("yucer_agent")
 }
 
+model AgentAutonomy {
+  workspaceId  String   @id @map("workspace_id") @db.Uuid
+  mode         String   @default("ask_always") @db.VarChar(32)
+  decidedBySub String?  @map("decided_by_sub") @db.VarChar(128)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("agent_autonomy")
+  @@schema("yucer_agent")
+}
+
 model AgentAction {
   id           String    @id @default(uuid()) @db.Uuid
   workspaceId  String    @map("workspace_id") @db.Uuid

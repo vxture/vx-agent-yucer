@@ -15,6 +15,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 import { autopilotAuthorized } from "../../authz/gate";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
+import { decideAutonomy, isAutonomyMode, type AutonomyMode } from "./lib/autonomy";
 import {
   planBatchDecision,
   planExecution,
@@ -125,7 +126,10 @@ export async function adjudicate(
 export async function execute(
   ctx: CopilotContext,
   id: string,
-  opts: { autopilot?: boolean; workspaceOptIn?: boolean } = {},
+  // NO OPTIONS. Both used to be here - `autopilot` and `workspaceOptIn` - and
+  // both were booleans the caller handed in, which is a caller declaring it has
+  // authority rather than having it. The posture is the workspace's stored row
+  // and whether THIS proposal may skip a person is the rule's answer.
 ): Promise<RuleResult<{ id: string; autonomous: boolean }>> {
   // The decide gate runs BEFORE the row is loaded. Loading first would answer
   // `not_found` to an unauthorized caller for an id that does not exist and
@@ -143,12 +147,48 @@ export async function execute(
   const action = await ctx.store.getProposal(ctx.workspaceId, id);
   if (!action) return fail(violation("not_found", `proposal ${id} was not found`, "id"));
 
-  const autonomous = Boolean(opts.autopilot) && action.status === "proposed";
+  // WHETHER THIS MAY RUN UNASKED IS READ, NOT PASSED. `opts.autopilot` and
+  // `opts.workspaceOptIn` were both caller-supplied booleans - a caller that
+  // can declare it has authority does not have authority, it has a parameter.
+  // The posture now comes from the workspace's own row, and the fourth
+  // question - is THIS proposal one a person should see - comes from the rule.
+  const autonomous = action.status === "proposed";
   if (autonomous) {
+    const stored = await ctx.store.getAutonomy(ctx.workspaceId);
+    // No row means nobody authorised anything, which is ask_always: the same
+    // default getAutonomy reports, decided in one place.
+    const mode = stored?.mode ?? "ask_always";
+
+    // FOUR YESES, and they are asked in this order on purpose. The first three
+    // are about the workspace and the member - did you buy it, may you, did you
+    // switch it on - and `autopilotAuthorized` has always required all three.
+    // The fourth is about THIS proposal, and it is asked last because a
+    // workspace with every authority still does not get to skip a decision the
+    // rule says belongs to a person.
+    // THE RULE IS ASKED FIRST, and the order is about the ANSWER rather than
+    // about strictness - both still have to pass. Asked the other way round, a
+    // workspace that has simply never switched autonomy on is refused by the
+    // three-yes gate and told `permission_denied`, which says the MEMBER lacks
+    // something. The member lacks nothing; the workspace has not authorised
+    // anything. Measured: that is exactly what the first version returned.
+    const verdict = decideAutonomy(action, mode);
+    if (verdict.kind === "ask") {
+      return fail(
+        violation(
+          "human_decision_required",
+          `this proposal needs a person (${verdict.reasons.join(", ") || mode}); autonomy is ${mode}`,
+          "status",
+        ),
+      );
+    }
+
+    // Then the three that were always required. A posture that permits
+    // autonomy does not grant it: the workspace still has to have bought it
+    // and the member still has to hold `copilot.autopilot`.
     const auth = autopilotAuthorized({
       entitlement: ctx.entitlement,
       held: ctx.holder.permissions,
-      workspaceOptIn: Boolean(opts.workspaceOptIn),
+      workspaceOptIn: true,
     });
     if (!auth.allowed) return denied(auth);
   }
@@ -231,4 +271,71 @@ export async function expireStaleProposals(
   // accepted between the read and this write is left alone rather than expired
   // out from under them. Two concurrent sweeps also cannot double-expire.
   return ok({ expired: await ctx.store.applyDecision(ctx.workspaceId, due) });
+}
+
+// --- The workspace's posture toward its copilot ------------------------------
+
+/**
+ * What the copilot may do unasked, and who said so.
+ *
+ * READING IT NEEDS ONLY `copilot.action.view`, the gate for seeing the queue.
+ * "How much is this agent allowed to do without me" is a question anybody
+ * watching it is entitled to an answer to - a member who can see proposals but
+ * not the posture behind them cannot tell a queue that is short because the
+ * agent is quiet from one that is short because it stopped asking.
+ *
+ * NO ROW MEANS ask_always. The port returns null - nobody has set it - and the
+ * safe reading of "nobody authorised anything" is that everything still waits
+ * for a person. Supplying that here rather than defaulting the column means
+ * `decidedBySub` stays null and the surface can say "nobody has set this"
+ * instead of attributing today's posture to someone who never chose it.
+ */
+export async function getAutonomy(
+  ctx: CopilotContext,
+): Promise<RuleResult<{ mode: AutonomyMode; decidedBySub: string | null; set: boolean }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "copilot.action.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const row = await ctx.store.getAutonomy(ctx.workspaceId);
+  return ok(
+    row
+      ? { mode: row.mode, decidedBySub: row.decidedBySub, set: true }
+      : { mode: "ask_always", decidedBySub: null, set: false },
+  );
+}
+
+/**
+ * Change it, and sign the change.
+ *
+ * `copilot.autopilot.enable` rather than `copilot.action.decide`, and the two
+ * are different acts: deciding one proposal is a judgement about that
+ * proposal, while deciding that proposals no longer need deciding is a
+ * standing authorisation. The catalogue already separates them - only
+ * sales_leader holds `copilot.autopilot` - and this is the first thing to use
+ * that separation.
+ *
+ * The mode is validated rather than trusted. The DDL has a CHECK, but a value
+ * that reached the store would fail at the driver as a constraint name, far
+ * from the caller who sent it.
+ */
+export async function setAutonomy(
+  ctx: CopilotContext,
+  mode: string,
+  opts: { at?: Date } = {},
+): Promise<RuleResult<{ mode: AutonomyMode }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "copilot.autopilot.enable", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (!isAutonomyMode(mode)) {
+    return fail(violation("unknown_autonomy_mode", `${mode} is not an autonomy mode`, "mode"));
+  }
+
+  const row = await ctx.store.setAutonomy(ctx.workspaceId, {
+    mode,
+    // WHOSE NAME GOES ON IT is the caller's, never a parameter. A signature a
+    // caller could supply is not a signature.
+    decidedBySub: ctx.sub,
+    at: opts.at,
+  });
+  return ok({ mode: row.mode });
 }

@@ -8,6 +8,8 @@ import {
   adjudicate,
   execute,
   expireStaleProposals,
+  getAutonomy,
+  setAutonomy,
   listPlaybooks,
   listProposals,
   recordProposals,
@@ -151,53 +153,79 @@ test("an accepted proposal executes", async () => {
   assert.equal((await store.getProposal(WS, "a"))?.status, "executed");
 });
 
-test("a pending proposal will not execute without autopilot", async () => {
+test("a pending proposal will not execute while the workspace asks about everything", async () => {
+  // No autonomy row at all: nobody authorised anything, which reads as
+  // ask_always. The refusal is the product's default posture, not a missing
+  // parameter.
   const store = new InMemoryCopilotStore();
   store.seedProposals(WS, [proposal("a")]);
   const r = await execute(ctx("sales_leader", "enterprise", store), "a");
   assert.equal(r.ok === false && r.violations[0].code, "human_decision_required");
 });
 
-test("autopilot needs the tier, the permission AND the workspace opt-in", async () => {
-  const mk = () => {
+test("running unasked needs the tier, the permission AND the workspace's own row", async () => {
+  // THE POSTURE IS READ, NOT PASSED. It used to be `{ autopilot: true,
+  // workspaceOptIn: true }` - two booleans the caller supplied, which is a
+  // caller declaring it has authority rather than having it. Now the third yes
+  // comes from agent_autonomy and the first two are unchanged.
+  const mk = async (mode?: string) => {
     const s = new InMemoryCopilotStore();
     s.seedProposals(WS, [proposal("a")]);
+    if (mode) await s.setAutonomy(WS, { mode: mode as never, decidedBySub: "usr_boss" });
     return s;
   };
 
-  // Switched off.
-  const off = mk();
+  // Never switched on.
+  assert.equal((await execute(ctx("sales_leader", "enterprise", await mk()), "a")).ok, false);
+
+  // Switched on, tier below enterprise.
   assert.equal(
-    (await execute(ctx("sales_leader", "enterprise", off), "a", { autopilot: true, workspaceOptIn: false })).ok,
+    (await execute(ctx("sales_leader", "business", await mk("autonomous")), "a")).ok,
     false,
   );
 
-  // Tier below enterprise.
-  const lowTier = mk();
+  // Switched on, role without copilot.autopilot.
   assert.equal(
-    (await execute(ctx("sales_leader", "business", lowTier), "a", { autopilot: true, workspaceOptIn: true })).ok,
-    false,
-  );
-
-  // Role without copilot.autopilot.
-  const wrongRole = mk();
-  assert.equal(
-    (await execute(ctx("sales_ops", "enterprise", wrongRole), "a", { autopilot: true, workspaceOptIn: true })).ok,
+    (await execute(ctx("sales_ops", "enterprise", await mk("autonomous")), "a")).ok,
     false,
   );
 
   // All three.
-  const good = mk();
   const r = unwrap(
-    await execute(ctx("sales_leader", "enterprise", good), "a", { autopilot: true, workspaceOptIn: true }),
+    await execute(ctx("sales_leader", "enterprise", await mk("autonomous")), "a"),
   );
   assert.equal(r.autonomous, true);
 });
 
-test("an autopilot execution leaves the decider null - that null is the marker", async () => {
+test("ask_high_risk runs the reversible ones and still asks about the rest", async () => {
+  // THE FOURTH YES, and the reason it is asked last: this workspace has the
+  // tier, the permission and the switch, and a proposal the rule calls high
+  // risk still does not run.
+  const mk = async (actionType: string, confidence: number) => {
+    const s = new InMemoryCopilotStore();
+    s.seedProposals(WS, [proposal("a", { actionType, confidence })]);
+    await s.setAutonomy(WS, { mode: "ask_high_risk", decidedBySub: "usr_boss" });
+    return s;
+  };
+  const c = (s: InMemoryCopilotStore) => ctx("sales_leader", "enterprise", s);
+
+  assert.equal(unwrap(await execute(c(await mk("advance_stage", 86)), "a")).autonomous, true);
+
+  // Reaches the customer - never, at this posture.
+  const outreach = await execute(c(await mk("draft_outreach", 99)), "a");
+  assert.equal(outreach.ok, false);
+  assert.equal(outreach.ok ? "" : outreach.violations[0].code, "human_decision_required");
+
+  // Reversible, but the model is not sure enough.
+  const unsure = await execute(c(await mk("advance_stage", 41)), "a");
+  assert.equal(unsure.ok, false);
+});
+
+test("an unasked execution leaves the decider null - that null is the marker", async () => {
   const store = new InMemoryCopilotStore();
   store.seedProposals(WS, [proposal("a")]);
-  await execute(ctx("sales_leader", "enterprise", store), "a", { autopilot: true, workspaceOptIn: true });
+  await store.setAutonomy(WS, { mode: "autonomous", decidedBySub: "usr_boss" });
+  await execute(ctx("sales_leader", "enterprise", store), "a");
   const row = await store.getProposal(WS, "a");
   assert.equal(row?.status, "executed");
   assert.equal(row?.decidedBySub, null, "no human signed for this, and the record says so");
@@ -362,4 +390,54 @@ test("sweeping is refused to a workspace with no entitlement", async () => {
   store.seedProposals(WS, [proposal("a")]);
   const r = await expireStaleProposals(ctx("sales_leader", null, store), { now: laterBy(TTL + 1) });
   assert.equal(r.ok, false);
+});
+
+// --- The workspace's posture toward its copilot ------------------------------
+
+test("nobody has set it, and that is not the same as somebody choosing ask_always", () => {
+  // The safe reading of "no authorisation" is that everything still waits for a
+  // person - but the surface has to be able to say WHICH of the two it is, or a
+  // workspace that never opened the setting looks like one that considered it.
+  const store = new InMemoryCopilotStore();
+  return getAutonomy(ctx("sales_leader", "enterprise", store)).then((r) => {
+    const v = unwrap(r);
+    assert.equal(v.mode, "ask_always");
+    assert.equal(v.set, false);
+    assert.equal(v.decidedBySub, null);
+  });
+});
+
+test("setting it records the mode and signs it with the caller", async () => {
+  const store = new InMemoryCopilotStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  unwrap(await setAutonomy(c, "ask_high_risk"));
+
+  const v = unwrap(await getAutonomy(c));
+  assert.equal(v.mode, "ask_high_risk");
+  assert.equal(v.set, true);
+  // WHOSE NAME comes from the session, never from the caller's input - a
+  // signature a caller could supply is not a signature.
+  assert.equal(v.decidedBySub, "usr_me");
+});
+
+test("an invented mode is refused before it reaches the store", async () => {
+  // The DDL has a CHECK, but a bad value that got that far would fail at the
+  // driver as a constraint name, far from whoever sent it.
+  const store = new InMemoryCopilotStore();
+  const r = await setAutonomy(ctx("sales_leader", "enterprise", store), "autopilot");
+  assert.equal(r.ok, false);
+  assert.equal(r.ok ? "" : r.violations[0].code, "unknown_autonomy_mode");
+});
+
+test("deciding one proposal and deciding they need no deciding are different acts", async () => {
+  // sales_rep holds copilot.decide and not copilot.autopilot. The catalogue
+  // already drew this line; this is the first thing to use it.
+  const store = new InMemoryCopilotStore();
+  store.seedProposals(WS, [proposal("a")]);
+  const rep = ctx("sales_rep", "enterprise", store);
+
+  assert.equal((await setAutonomy(rep, "autonomous")).ok, false, "a rep must not widen the agent's authority");
+  // ...and can still read what the posture is, because a member watching the
+  // queue is entitled to know how much of it the agent skipped.
+  assert.equal((await getAutonomy(rep)).ok, true);
 });

@@ -11,6 +11,7 @@
 // transcript.
 
 import type { ActionPatch, ActionStatus, AgentAction, SubjectType } from "./lib/action";
+import type { AutonomyMode } from "./lib/autonomy";
 import { asc, by, desc } from "../shared/order";
 
 export interface SessionRecord {
@@ -68,6 +69,14 @@ export interface PlaybookFilter {
   limit?: number;
 }
 
+export interface AutonomyRecord {
+  workspaceId: string;
+  mode: AutonomyMode;
+  /** Who authorised it. "the agent did this unasked" must answer with a name. */
+  decidedBySub: string | null;
+  updatedAt: Date;
+}
+
 export interface ProposalFilter {
   status?: ActionStatus;
   subjectType?: SubjectType;
@@ -117,6 +126,23 @@ export interface CopilotStore {
   listPlaybooks(workspaceId: string, filter?: PlaybookFilter): Promise<PlaybookRecord[]>;
 
   /**
+   * The workspace's posture toward its copilot, and who set it.
+   *
+   * NULL WHEN NOBODY HAS SET IT, rather than a defaulted row. A workspace that
+   * has never opened the setting has not authorised anything, and returning
+   * `ask_always` as if somebody had chosen it would put a decision in
+   * somebody's mouth. The service supplies the safe default; the port reports
+   * the fact.
+   */
+  getAutonomy(workspaceId: string): Promise<AutonomyRecord | null>;
+
+  /** Upsert by workspace: one posture per workspace, replaced not appended. */
+  setAutonomy(
+    workspaceId: string,
+    input: { mode: AutonomyMode; decidedBySub: string; at?: Date },
+  ): Promise<AutonomyRecord>;
+
+  /**
    * Defer one derived judgement out of one member's queue.
    *
    * Upsert, not append: re-snoozing the same conclusion moves the existing row
@@ -155,6 +181,26 @@ export class InMemoryCopilotStore implements CopilotStore {
 
   seedPlaybooks(workspaceId: string, playbooks: PlaybookRecord[]): void {
     this.playbooks.push(...playbooks.map((p) => ({ ...p, workspaceId })));
+  }
+
+  private autonomy = new Map<string, AutonomyRecord>();
+
+  async getAutonomy(workspaceId: string): Promise<AutonomyRecord | null> {
+    return this.autonomy.get(workspaceId) ?? null;
+  }
+
+  async setAutonomy(
+    workspaceId: string,
+    input: { mode: AutonomyMode; decidedBySub: string; at?: Date },
+  ): Promise<AutonomyRecord> {
+    const row: AutonomyRecord = {
+      workspaceId,
+      mode: input.mode,
+      decidedBySub: input.decidedBySub,
+      updatedAt: input.at ?? new Date(),
+    };
+    this.autonomy.set(workspaceId, row);
+    return row;
   }
 
   async listPlaybooks(workspaceId: string, filter: PlaybookFilter = {}): Promise<PlaybookRecord[]> {

@@ -1,5 +1,6 @@
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
+import type { AutonomyMode } from "./lib/autonomy";
 import type { ActionPatch, ActionStatus, AgentAction, SubjectType } from "./lib/action";
 import type {
   CopilotStore,
@@ -177,6 +178,43 @@ export class PrismaCopilotStore implements CopilotStore {
     const p = await getPrismaClient();
     const row = await p.agentAction.findFirst({ where: { id, workspaceId } });
     return row ? toAction(row as Record<string, unknown>) : null;
+  }
+
+  async getAutonomy(workspaceId: string) {
+    const p = await getPrismaClient();
+    const row = await p.agentAutonomy.findUnique({ where: { workspaceId } });
+    return row
+      ? {
+          workspaceId: row.workspaceId,
+          mode: row.mode as AutonomyMode,
+          decidedBySub: row.decidedBySub,
+          updatedAt: row.updatedAt,
+        }
+      : null;
+  }
+
+  async setAutonomy(
+    workspaceId: string,
+    input: { mode: AutonomyMode; decidedBySub: string; at?: Date },
+  ) {
+    const p = await getPrismaClient();
+    const data = { mode: input.mode, decidedBySub: input.decidedBySub, updatedAt: input.at ?? new Date() };
+    // Column-locked before the write, like every other adapter here: the
+    // mirror refuses `workspace_id`, which is the row's identity.
+    const guard = assertWritable("yucer_agent.agent_autonomy", data);
+    if (!guard.ok) throw new Error(guard.violations[0]!.message);
+
+    const row = await p.agentAutonomy.upsert({
+      where: { workspaceId },
+      create: { workspaceId, ...data },
+      update: data,
+    });
+    return {
+      workspaceId: row.workspaceId,
+      mode: row.mode as AutonomyMode,
+      decidedBySub: row.decidedBySub,
+      updatedAt: row.updatedAt,
+    };
   }
 
   async listPlaybooks(workspaceId: string, filter: PlaybookFilter = {}): Promise<PlaybookRecord[]> {

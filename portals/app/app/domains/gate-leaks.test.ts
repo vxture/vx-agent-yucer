@@ -158,12 +158,10 @@ test("hoisting the decide gate does not close the autopilot path", async () => {
   // first, which is only safe because of the implication asserted below.
   const store = new InMemoryCopilotStore();
   store.seedProposals(WS, [proposal({ status: "proposed", decidedBySub: null, decidedAt: null })]);
-  const out = unwrap(
-    await execute(copilotCtx("sales_leader", "enterprise", store), "act_1", {
-      autopilot: true,
-      workspaceOptIn: true,
-    }),
-  );
+  // The posture is a stored row now, not a pair of caller-supplied booleans -
+  // a caller that can declare it has authority has a parameter, not authority.
+  await store.setAutonomy(WS, { mode: "autonomous", decidedBySub: "usr_boss" });
+  const out = unwrap(await execute(copilotCtx("sales_leader", "enterprise", store), "act_1"));
   assert.equal(out.autonomous, true);
 });
 
