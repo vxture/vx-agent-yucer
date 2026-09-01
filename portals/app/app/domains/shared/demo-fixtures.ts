@@ -328,3 +328,25 @@ export const DEMO_LONG_HISTORY = {
   d8: "刘敏私下说赵强倾向另一家，理由是价格。她建议别硬碰，先把陈总监的接口顾虑解决掉，他说话 CFO 会听。",
   d9: "微信问王总进展，回复说 CFO 出差，要往后拖。没给新日期。",
 } as const;
+
+
+/**
+ * The demo's people, by name.
+ *
+ * HERE RATHER THAN BESIDE THE SEEDER, because this is user-facing text and
+ * TD-002's containment says it lives in the fixtures - the guard caught the
+ * first attempt, correctly. It also decided where the seeder itself belongs:
+ * the roster seeder cannot sit in `authz/` and read this file, because authz is
+ * UNDER the domains and must never import one.
+ */
+export const DEMO_MEMBER_NAMES = {
+  cro: "陈总",
+  leader: "李经理",
+  rep: "王锐",
+  rep2: "孙悦",
+  pm: "赵工",
+  former: "周航",
+} as const;
+
+/** The local-review user, so a reviewer can find themselves in the roster. */
+export const DEV_REVIEWER_NAME = "本地评审用户";

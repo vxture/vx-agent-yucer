@@ -8,6 +8,8 @@ import {
 } from "../../authz/catalog";
 import type { AuthUser } from "../../auth/lib/claims";
 import type { AuthzContext } from "../../authz/context";
+import { getAuthzStore } from "../../authz/store";
+import { DEV_REVIEWER_NAME } from "../../domains/shared/demo-fixtures";
 
 // A synthetic session, for looking at the product locally.
 //
@@ -36,6 +38,7 @@ import type { AuthzContext } from "../../authz/context";
 // what you may do.
 
 const DEV_SUB = "usr_00000000-0000-0000-0000-00000000dev0";
+
 const DEV_WORKSPACE = "00000000-0000-0000-0000-0000000000de";
 
 export type EnvLike = Record<string, string | undefined>;
@@ -99,6 +102,27 @@ export async function resolveDevSession(
     permissions: new Set<PermCode>(permissionsForRoles([role])),
     isWorkspaceOwner: true,
   };
+
+  // RECORD THE SIGHTING, like a real login does.
+  //
+  // resolveAppSession short-circuits here and returns before
+  // resolveAuthzContext ever runs, so nothing was writing a member row for the
+  // dev user - which is why /admin/members showed an empty roster to the very
+  // person looking at it. The synthetic session is pretending to be a login;
+  // a login records a sighting.
+  //
+  // THE ROLE IS GRANTED TOO, so the roster agrees with the context built above
+  // rather than listing this member as holding nothing while the shell renders
+  // every domain for them. Both are derived from devRole(), so they cannot
+  // disagree.
+  //
+  // Awaited, unlike the demo roster: this one is on the request path that is
+  // about to render the roster, and a page that raced its own member row would
+  // show the empty state on first load and the member on refresh - a flicker
+  // that reads as a bug in the feature rather than in the seeding.
+  const store = getAuthzStore();
+  await store.seeMember({ workspaceId, sub: DEV_SUB, displayName: DEV_REVIEWER_NAME });
+  await store.grantRole(workspaceId, DEV_SUB, role);
 
   return { user, workspaceId, entitlement, authz };
 }
