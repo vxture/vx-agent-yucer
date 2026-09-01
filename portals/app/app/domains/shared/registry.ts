@@ -10,6 +10,9 @@
 
 import { prismaEnabled } from "../../lib/db";
 import { seedDemoWorkspace } from "./demo-seed";
+// domains -> authz is the allowed direction; authz must never import a domain.
+import { seedDemoMembers } from "./demo-members";
+import { getAuthzStore } from "../../authz/store";
 import { InMemoryPipelineStore, type PipelineStore } from "../pipeline/store";
 import { PrismaPipelineStore } from "../pipeline/prisma-store";
 import { type CatalogStore, InMemoryCatalogStore } from "../catalog/store";
@@ -273,6 +276,19 @@ export function ensureDemoData(workspaceId: string): boolean {
   if (!allInMemory) return false;
 
   seedDemoWorkspace(workspaceId, stores as Parameters<typeof seedDemoWorkspace>[1]);
+
+  // The roster too, or /admin/members renders an empty state on a workspace
+  // whose data is full of named people. `local_authz` sits UNDER the domains
+  // rather than in one, so it is not part of DemoStores - but a demo workspace
+  // should be complete or absent, never half, which is why it is seeded from
+  // the same call and behind the same two guards.
+  //
+  // Fire-and-forget: seedDemoMembers is async because the store port is, and
+  // ensureDemoData is called from render paths that are not. Every operation in
+  // it is an in-memory upsert, so there is nothing to await for correctness -
+  // and awaiting would mean making every caller async to seed a demo.
+  void seedDemoMembers(workspaceId, getAuthzStore());
+
   seededSet().add(workspaceId);
   return true;
 }
