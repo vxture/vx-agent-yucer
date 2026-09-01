@@ -4,7 +4,8 @@ import { money } from "../../shared/money";
 import { unwrap } from "../../shared/result";
 import {
   FORECAST_CATEGORIES,
-  accuracy,
+  commitAttainment,
+  forecastAccuracy,
   attainment,
   countNewLogos,
   inPeriod,
@@ -237,10 +238,36 @@ test("attainment refuses to compare across currencies", () => {
   assert.equal(r.ok === false && r.violations[0].code, "currency_mismatch");
 });
 
-test("accuracy compares what actually closed against what was committed", () => {
+test("attainment is how much of the commit landed, and over-delivery exceeds 1", () => {
   // Computable at all only because snapshots are never overwritten.
-  assert.equal(unwrap(accuracy({ commitAmount: money(1000) }, money(900))), 0.9);
-  assert.equal(unwrap(accuracy({ commitAmount: money(0) }, money(900))), null);
+  assert.equal(unwrap(commitAttainment({ commitAmount: money(1000) }, money(900))), 0.9);
+  assert.equal(unwrap(commitAttainment({ commitAmount: money(1000) }, money(3000))), 3);
+  assert.equal(unwrap(commitAttainment({ commitAmount: money(0) }, money(900))), null);
+});
+
+test("accuracy counts BOTH directions as misses, which is what kills lowballing", () => {
+  // The defect this split fixes: `accuracy` used to be the ratio above, so
+  // committing 1000 and closing 3000 scored 300% - and a personal metric you
+  // improve by promising less is a metric that buys sandbagging. Symmetric
+  // here: half under and half over both score 50%.
+  const s = { commitAmount: money(1000) };
+  assert.equal(unwrap(forecastAccuracy(s, money(1000))), 1);
+  assert.equal(unwrap(forecastAccuracy(s, money(500))), 0.5);
+  assert.equal(unwrap(forecastAccuracy(s, money(1500))), 0.5);
+});
+
+test("accuracy floors at zero rather than going negative", () => {
+  // Past twice the commit the formula turns negative, and "-140% accurate" is
+  // not a sentence that helps anyone. Every degree of wrongness past total is
+  // the same message.
+  const s = { commitAmount: money(1000) };
+  assert.equal(unwrap(forecastAccuracy(s, money(2000))), 0);
+  assert.equal(unwrap(forecastAccuracy(s, money(9000))), 0);
+  assert.equal(unwrap(forecastAccuracy(s, money(0))), 0);
+});
+
+test("nothing committed means no claim to have been wrong about", () => {
+  assert.equal(unwrap(forecastAccuracy({ commitAmount: money(0) }, money(900))), null);
 });
 
 // Business rules section 2: `closed` means 已成交. The enum has no "lost"

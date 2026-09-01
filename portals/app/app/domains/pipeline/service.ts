@@ -30,7 +30,8 @@ import { fail, ok, violation, type RuleResult, type Violation } from "../shared/
 import { isNonNegative, money, type Money } from "../shared/money";
 import { periodRange } from "../shared/period";
 import {
-  accuracy,
+  commitAttainment,
+  forecastAccuracy,
   planCategoryChange,
   planSnapshot,
   type ForecastScope,
@@ -454,8 +455,20 @@ export async function forecastHistory(
   return ok(await ctx.store.listForecastSnapshots(ctx.workspaceId, { period, scopeType }));
 }
 
+export interface ForecastScorecard {
+  period: string;
+  /** True once the period is over, and only then is "accuracy" an honest word. */
+  settled: boolean;
+  opening: SnapshotRow | null;
+  actualClosed: Money;
+  /** Closed over opening commit. Over-delivery exceeds 1, and should. */
+  attainment: number | null;
+  /** How close the commit was, both directions counted as misses. 0..1. */
+  accuracy: number | null;
+}
+
 /**
- * How close the opening forecast for a period turned out to be.
+ * How the opening forecast for a period turned out.
  *
  * THE READING THE IMMUTABLE TABLE EXISTS FOR. forecast_snapshot has UPDATE
  * revoked so this exact question stays answerable - period-end actual against
@@ -486,26 +499,25 @@ export async function forecastHistory(
  * THE GATE IS THE TIER, not the permission - see forecastHistory below for the
  * same action id and the mistake that comment used to make about it.
  *
- * NULL RESULTS ARE ANSWERS, and there are two of them. `snapshot: null` means
- * nobody ever took one, so accuracy is not low - it is unmeasurable, and the
- * page must not print 0%. `accuracy: null` means the opening commit was zero,
+ * TWO NUMBERS, TWO QUESTIONS, and this used to report only one of them under
+ * the wrong name. `attainment` is how much of the commit landed; `accuracy` is
+ * how close the commit was, counting over-delivery as a miss. A team that
+ * closed three times its commit reads 300% and 0%, which is the truth in both
+ * directions: they had a great quarter and their forecast said nothing.
+ * Reporting only the ratio - as this did for one batch, labelled 准确率 - makes
+ * promising less the way to score better.
+ *
+ * NULL RESULTS ARE ANSWERS, and there are two of them. `opening: null` means
+ * nobody ever took a snapshot, so nothing is unmeasurable rather than low, and
+ * the page must not print 0%. A null score means the opening commit was zero,
  * so there is no denominator; a team that committed to nothing cannot be scored
  * against it either way.
  */
-export async function forecastAccuracy(
+export async function forecastScorecard(
   ctx: PipelineContext,
   period: string,
   opts: { now?: Date } = {},
-): Promise<
-  RuleResult<{
-    period: string;
-    /** True once the period is over, and only then is this word honest. */
-    settled: boolean;
-    opening: SnapshotRow | null;
-    actualClosed: Money;
-    accuracy: number | null;
-  }>
-> {
+): Promise<RuleResult<ForecastScorecard>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -539,15 +551,7 @@ export async function forecastAccuracy(
     opportunities,
     snapshotAt: now,
   });
-  if (!live.ok) {
-    return live as RuleResult<{
-      period: string;
-      settled: boolean;
-      opening: SnapshotRow | null;
-      actualClosed: Money;
-      accuracy: number | null;
-    }>;
-  }
+  if (!live.ok) return live as RuleResult<ForecastScorecard>;
 
   const settled = range.end.getTime() <= now.getTime();
   const opening = [...snapshots].sort(
@@ -559,26 +563,22 @@ export async function forecastAccuracy(
       settled,
       opening: null,
       actualClosed: live.value.closedAmount,
+      attainment: null,
       accuracy: null,
     });
   }
 
-  const score = accuracy(opening, live.value.closedAmount);
-  if (!score.ok) {
-    return score as RuleResult<{
-      period: string;
-      settled: boolean;
-      opening: SnapshotRow | null;
-      actualClosed: Money;
-      accuracy: number | null;
-    }>;
-  }
+  const attained = commitAttainment(opening, live.value.closedAmount);
+  if (!attained.ok) return attained as RuleResult<ForecastScorecard>;
+  const score = forecastAccuracy(opening, live.value.closedAmount);
+  if (!score.ok) return score as RuleResult<ForecastScorecard>;
 
   return ok({
     period,
     settled,
     opening,
     actualClosed: live.value.closedAmount,
+    attainment: attained.value,
     accuracy: score.value,
   });
 }

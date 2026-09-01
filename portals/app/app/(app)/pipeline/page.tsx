@@ -24,8 +24,8 @@ import { listAccounts } from "../../domains/account/service";
 import { listTerritories } from "../../domains/planning/service";
 import { NewOpportunity } from "../components/new-opportunity";
 import {
-  forecastAccuracy,
   forecastHistory,
+  forecastScorecard,
   listPipeline,
 } from "../../domains/pipeline/service";
 import { inPeriod } from "../../domains/pipeline/lib/forecast";
@@ -90,7 +90,7 @@ export default async function PipelinePage({
     // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
     // promised this number in its own description since batch 1 ("预测准确率是
     // 期末实际对期初快照"), while nothing computed it.
-    forecastAccuracy(ctx, period),
+    forecastScorecard(ctx, period),
     // THROUGH THE SERVICE, not the store handle. Both of these used to call
     // getCatalogStore() straight from the page, which skips BOTH gates - the
     // same defect PR #26 fixed on the account detail page. The catalogue read
@@ -286,7 +286,8 @@ export default async function PipelinePage({
         accuracy={
           score.ok
             ? {
-                ratio: score.value.accuracy,
+                accuracy: score.value.accuracy,
+                attainment: score.value.attainment,
                 settled: score.value.settled,
                 hasOpening: score.value.opening !== null,
               }

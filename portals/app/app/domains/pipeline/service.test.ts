@@ -17,7 +17,7 @@ import {
   previewCategories,
   updateCommercialTerms,
   replaceOpportunityLines,
-  forecastAccuracy,
+  forecastScorecard,
   submitForecast,
   type PipelineContext,
 } from "./service";
@@ -229,14 +229,44 @@ test("accuracy is period-end actual against the OPENING snapshot", async () => {
     }),
   ]);
 
-  const r = unwrap(await forecastAccuracy(c, Q3, { now: AFTER_Q3 }));
+  const r = unwrap(await forecastScorecard(c, Q3, { now: AFTER_Q3 }));
   assert.equal(r.settled, true);
   assert.equal(r.opening?.commitAmount.amount, 1000);
   assert.equal(r.actualClosed.amount, 600);
-  // A RATIO, not a percentage - `ratio()` returns achieved/target and every
-  // caller in the product formats it. Returning 60 here would be this file
-  // inventing a second unit for a number the attainment page already renders.
+  // TWO NUMBERS. 60% of the commit landed, and the forecast was 60% accurate -
+  // they coincide only because the miss was on the LOW side. See the
+  // over-delivery case below, where they diverge and only one of them is
+  // honest about the forecast.
+  assert.equal(r.attainment, 0.6);
   assert.equal(r.accuracy, 0.6);
+});
+
+test("over-delivering is a forecasting miss, and the two numbers say so", async () => {
+  // THE REASON THE SPLIT EXISTS. Under the old single ratio this scored 300%
+  // and was rendered as 准确率 300%. A team improves that number by promising
+  // less, which is exactly what an owner-scoped forecast metric must not pay
+  // for - see the workplan entry.
+  const store = new InMemoryPipelineStore();
+  store.seed([
+    opp({ id: "a", forecastCategory: "commit", amount: money(1000), expectedCloseAt: IN_Q3 }),
+  ]);
+  const c = ctx("sales_ops", "pro", store);
+  await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
+
+  store.seed([
+    opp({
+      id: "a",
+      stage: "won",
+      status: "won",
+      forecastCategory: "closed",
+      amount: money(3000),
+      expectedCloseAt: IN_Q3,
+      closedAt: IN_Q3,
+    }),
+  ]);
+  const r = unwrap(await forecastScorecard(c, Q3, { now: AFTER_Q3 }));
+  assert.equal(r.attainment, 3, "they landed three times the commit, and that is true");
+  assert.equal(r.accuracy, 0, "and their forecast told nobody anything, which is also true");
 });
 
 test("a later snapshot cannot flatter the score - the earliest one is the opening", async () => {
@@ -263,12 +293,13 @@ test("a later snapshot cannot flatter the score - the earliest one is the openin
       closedAt: IN_Q3,
     }),
   ]);
-  const r = unwrap(await forecastAccuracy(c, Q3, { now: AFTER_Q3 }));
+  const r = unwrap(await forecastScorecard(c, Q3, { now: AFTER_Q3 }));
   assert.equal(
     r.opening?.snapshotAt.toISOString(),
     "2026-07-01T00:00:00.000Z",
     "the opening snapshot is the earliest one, whatever order the store returned",
   );
+  assert.equal(r.attainment, 0.5);
   assert.equal(r.accuracy, 0.5);
 });
 
@@ -287,7 +318,7 @@ test("no snapshot means unmeasurable, which is not zero", async () => {
       closedAt: IN_Q3,
     }),
   ]);
-  const r = unwrap(await forecastAccuracy(ctx("sales_ops", "pro", store), Q3, { now: AFTER_Q3 }));
+  const r = unwrap(await forecastScorecard(ctx("sales_ops", "pro", store), Q3, { now: AFTER_Q3 }));
   assert.equal(r.opening, null);
   assert.equal(r.accuracy, null);
   // The actual is still reported: what closed is knowable even when what was
@@ -302,8 +333,9 @@ test("committing nothing has no denominator, and that is null too", async () => 
   ]);
   const c = ctx("sales_ops", "pro", store);
   await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
-  const r = unwrap(await forecastAccuracy(c, Q3, { now: AFTER_Q3 }));
+  const r = unwrap(await forecastScorecard(c, Q3, { now: AFTER_Q3 }));
   assert.equal(r.opening?.commitAmount.amount, 0);
+  assert.equal(r.attainment, null);
   assert.equal(r.accuracy, null, "a team that committed to nothing cannot be scored against it");
 });
 
@@ -317,7 +349,7 @@ test("an unfinished period is reported as unsettled, not as accuracy", async () 
   ]);
   const c = ctx("sales_ops", "pro", store);
   await submitForecast(c, { period: Q3, scope: SCOPE, snapshotAt: new Date("2026-07-01T00:00:00Z") });
-  const r = unwrap(await forecastAccuracy(c, Q3, { now: IN_Q3 }));
+  const r = unwrap(await forecastScorecard(c, Q3, { now: IN_Q3 }));
   assert.equal(r.settled, false);
 });
 
@@ -333,17 +365,17 @@ test("reading accuracy is gated by the TIER, not by the permission", async () =>
   store.seed([opp()]);
 
   // Right permission, tier below pro: the feature is not sold there.
-  const cheap = await forecastAccuracy(ctx("sales_rep", "starter", store), Q3);
+  const cheap = await forecastScorecard(ctx("sales_rep", "starter", store), Q3);
   assert.equal(cheap.ok === false && cheap.violations[0].code, "feature_not_in_tier");
 
   // Same rep, tier that includes it.
-  assert.equal((await forecastAccuracy(ctx("sales_rep", "pro", store), Q3)).ok, true);
+  assert.equal((await forecastScorecard(ctx("sales_rep", "pro", store), Q3)).ok, true);
 });
 
 test("a period this product cannot bound is refused, not silently unfiltered", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
-  const r = await forecastAccuracy(ctx("sales_ops", "pro", store), "next quarter");
+  const r = await forecastScorecard(ctx("sales_ops", "pro", store), "next quarter");
   assert.equal(r.ok === false && r.violations[0].code, "period_unparsed");
 });
 

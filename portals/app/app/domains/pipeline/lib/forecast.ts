@@ -354,14 +354,59 @@ export function attainment(closed: Money, target: Money): RuleResult<number | nu
 }
 
 /**
- * Forecast accuracy: what a past snapshot predicted against what actually closed.
- * Computable only because snapshots are never overwritten.
+ * What was closed against what was committed. 1 means exactly on the number.
+ *
+ * RENAMED FROM `accuracy` ON 2026-09-01, because that is not what it measures.
+ * It is a raw ratio: commit 1000 and close 3000 and it returns 3. As a figure
+ * labelled "accuracy" that is incoherent - a forecast that was wrong by 200%
+ * cannot be 300% accurate - and it was rendered on the pipeline page under
+ * exactly that label for one batch.
+ *
+ * IT REWARDS LOWBALLING, which is the part that matters. Commit 100, close
+ * 1000, score 1000%. At workspace scope that is a curiosity; the moment a
+ * snapshot can be taken per OWNER it becomes a personal number that a person
+ * improves by promising less - and the person scored is the same person who
+ * files each deal's forecast category and takes the snapshot.
+ *
+ * Under its own name it is a perfectly good number, and the one a pipeline
+ * review actually opens with: how much of what we said we would land, landed.
+ * It just is not accuracy, so it no longer claims to be.
  */
-export function accuracy(
+export function commitAttainment(
   snapshot: Pick<SnapshotRow, "commitAmount">,
   actualClosed: Money,
 ): RuleResult<number | null> {
   return ratio(actualClosed, snapshot.commitAmount);
+}
+
+/**
+ * How close the opening forecast was, counting both directions as misses.
+ *
+ * 1 - |actual - commit| / commit, floored at 0. Missing by half under and
+ * missing by half over both score 50%, and that symmetry IS the design: a
+ * forecast is a claim about a number, and being wrong in the generous direction
+ * is still being wrong. A team that closes three times its commit scores 0 here
+ * - which reads harsh until you notice it is the correct reading of "your
+ * forecast told us nothing", and that `commitAttainment` is sitting beside it
+ * reporting 300%. TWO NUMBERS, TWO QUESTIONS: did we land it, and did we know
+ * we would.
+ *
+ * FLOORED AT 0 rather than allowed to go negative. The formula goes below zero
+ * once the actual exceeds twice the commit, and "-140% accurate" is not a
+ * sentence that helps anyone; every degree of wrongness past total is the same
+ * message.
+ *
+ * NULL WHEN NOTHING WAS COMMITTED, like every other ratio here: with no
+ * denominator there is no claim to have been wrong about.
+ */
+export function forecastAccuracy(
+  snapshot: Pick<SnapshotRow, "commitAmount">,
+  actualClosed: Money,
+): RuleResult<number | null> {
+  const attained = ratio(actualClosed, snapshot.commitAmount);
+  if (!attained.ok) return attained;
+  if (attained.value === null) return ok(null);
+  return ok(Math.max(0, 1 - Math.abs(attained.value - 1)));
 }
 
 /**
