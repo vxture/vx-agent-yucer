@@ -1044,7 +1044,10 @@ function account(
     workspaceId,
     accountNo: `ACC-${String(n).padStart(4, "0")}`,
     name: info.name,
-    industry: info.industry,
+    // Empty reads as ABSENT, not as an industry named "". The fixture writes ""
+    // for the first-entry account because the type is a plain string; the
+    // column and every rule downstream treat a blank as unknown.
+    industry: info.industry || null,
     region: info.region,
     segmentCode,
     ownerSub,

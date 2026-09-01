@@ -12,6 +12,15 @@
 
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
+import {
+  accountGaps,
+  fillable,
+  forModel,
+  type AccountGap,
+} from "./lib/completeness";
+import type { PipelineStore } from "../pipeline/store";
+import type { PlanningStore } from "../planning/store";
+import type { StrategyStore } from "../strategy/store";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import {
@@ -268,6 +277,115 @@ export async function reassignAccount(
 
   await ctx.store.updateAccount(ctx.workspaceId, accountId, { ownerSub });
   return ok({ accountId, ownerSub });
+}
+
+/**
+ * Fill one field on a customer record.
+ *
+ * THE WRITE BEHIND ONE-CLICK FILL. The owner's ask of 2026-09-01: the agent
+ * analyses, recommends, and accepting is one click. This is what the accept
+ * carries out - through the copilot's existing queue, not a second mechanism,
+ * so a filled field has the same signature and the same audit trail as every
+ * other thing the machine suggested.
+ *
+ * ONE FIELD AT A TIME, deliberately. A model that got the industry right and
+ * the region wrong should have one of its two suggestions taken, and a
+ * whole-record write makes that impossible - the person would have to accept
+ * both or neither. The same reasoning the forecast rule uses for per-deal
+ * apply.
+ *
+ * A CLOSED SET OF FIELDS, checked here rather than trusted. `payload` on an
+ * agent_action is free-form JSON written by a model, so the field name arrives
+ * as arbitrary text; without this it could name `tier` (a commercial
+ * designation with its own rules and its own page) or `status`. The column
+ * locks would still refuse anything outside the grant, but a refusal at the
+ * database is a 500 rather than an answer.
+ *
+ * EMPTY IS REFUSED, not written as a blank. "Fill this in" that clears the
+ * field is the opposite of the request, and a model returning an empty string
+ * for an industry it could not determine is a real thing to expect.
+ */
+/**
+ * What is missing from a customer record, and who can answer it.
+ *
+ * READS THREE DOMAINS AND WRITES NOTHING. Territories and deals are D2's and
+ * D6's, read-only from here - the completeness question spans them by nature,
+ * and answering it is not the same as owning them.
+ *
+ * THE POINT OF SPLITTING free from paid, which the rule does and this passes
+ * through untouched: a page can show everything the data knows without a model
+ * call, and asking the model stays an explicit act with a count attached rather
+ * than something that happens because somebody opened a record.
+ */
+export async function accountCompleteness(
+  ctx: AccountContext & { pipeline: PipelineStore; planning: PlanningStore; strategy: StrategyStore },
+  accountId: string,
+): Promise<RuleResult<{ gaps: AccountGap[]; derivable: AccountGap[]; askable: AccountGap[] }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!account) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  const [deals, territories, segments] = await Promise.all([
+    ctx.pipeline.listOpportunities(ctx.workspaceId, { accountId, includeClosed: true }),
+    ctx.planning.listTerritories(ctx.workspaceId),
+    ctx.strategy.listSegments(ctx.workspaceId),
+  ]);
+
+  const gaps = accountGaps(
+    account,
+    deals.map((d) => ({ territoryId: d.territoryId, ownerSub: d.ownerSub })),
+    territories.map((t) => ({
+      id: t.id,
+      name: t.name,
+      ownerSub: t.ownerSub,
+      regions: t.regions ?? [],
+      status: t.status,
+    })),
+    segments.map((sg) => ({
+      code: sg.segmentCode,
+      // The criteria are already typed by D1 - read them, do not re-shape them.
+      industries: sg.criteria?.industries ?? [],
+      regions: sg.criteria?.regions ?? [],
+    })),
+  );
+
+  return ok({ gaps, derivable: fillable(gaps), askable: forModel(gaps) });
+}
+
+export const FILLABLE_ACCOUNT_FIELDS = ["region", "industry", "segmentCode", "ownerSub"] as const;
+export type FillableAccountField = (typeof FILLABLE_ACCOUNT_FIELDS)[number];
+
+export function isFillableAccountField(v: string): v is FillableAccountField {
+  return (FILLABLE_ACCOUNT_FIELDS as readonly string[]).includes(v);
+}
+
+export async function fillAccountField(
+  ctx: AccountContext,
+  accountId: string,
+  field: string,
+  value: string,
+): Promise<RuleResult<{ accountId: string; field: string; value: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (!isFillableAccountField(field)) {
+    return fail(violation("field_not_fillable", `${field} is not a field this fills`, "field"));
+  }
+  if (!value.trim()) {
+    return fail(violation("value_required", "filling a field needs a value, not a blank", "value"));
+  }
+
+  const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!current) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  await ctx.store.updateAccount(ctx.workspaceId, accountId, { [field]: value.trim() });
+  return ok({ accountId, field, value: value.trim() });
 }
 
 export async function designateAccount(

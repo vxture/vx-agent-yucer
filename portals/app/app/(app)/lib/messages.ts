@@ -614,6 +614,10 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   terminal_stage: "商机已经关闭，重开会改写已上报的结果，需要明确的重开意图",
   unknown_stage: "提案给出的阶段不存在",
   unknown_forecast_category: "提案给出的预测分类不存在",
+  // 助手补齐客户信息时的拒绝理由（2026-09-01）。payload 是模型写的 JSON，
+  // 所以字段名和值都要在这一层被挡住，而不是让列锁在数据库上抛 500。
+  field_not_fillable: "这个字段不在助手可填写的范围内",
+  value_required: "填写需要一个值——空白不是填写",
 };
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
@@ -726,6 +730,36 @@ export const MEMBER_ERROR: Record<string, string> = {
   closed_requires_terminal_stage: "预测归入「已结案」必须配已关闭的阶段",
   unknown_forecast_category: "这条商机的预测分类不在目录中",
 };
+
+// 客户信息补齐（2026-09-01 owner 提出）。分两组，因为它们的代价不同：
+// 数据已经知道的（免费、确定、一键），和只有模型能答的（一次 turn，走提案队列）。
+export const COMPLETENESS_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "这条客户记录不存在，或不属于当前工作区",
+  field_not_fillable: "这个字段不在助手可填写的范围内",
+  value_required: "填写需要一个值——空白不是填写",
+};
+
+export const COMPLETENESS_TEXT = {
+  title: "这份客户资料还缺什么",
+  description:
+    "缺的信息分两种：本工作区的数据已经能推出来的，和需要问助手的。推出来的会写明依据——一次说不出来路的填写，等于机器替你在客户档案上签字。",
+  fill: "填入",
+  fields: {
+    region: "所在区域",
+    industry: "行业",
+    segmentCode: "细分市场",
+    ownerSub: "负责人",
+  } as Record<string, string>,
+  askable: (fields: string) =>
+    `${fields} 数据里推不出来——这类是关于这家公司本身的事实，交给助手去查，它会作为提案进入待裁决队列，采纳后才写入。`,
+  /** 字段名的连接符。标点也是文案，中英文不同，所以不留在组件里（TD-002）。 */
+  joinFields: (fields: readonly string[]) => fields.join("、"),
+  structural: {
+    regionUnplaced:
+      "这个区域没有被任何销售区域覆盖（未分区）。资料本身是填好的，但因为没人认领这块地，这家客户对所有区域成员都可见——修的是区域划分，不是这条记录。",
+  } as Record<string, string>,
+} as const;
 
 export const SHELL_TEXT = {
   brandName: "Yucer 销售智能体",
