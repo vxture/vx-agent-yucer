@@ -29,6 +29,12 @@ import type { Client } from "pg";
 // more than a uuid nobody can grep for. They live in one place so a cascade
 // delete can clear the whole chain by workspace.
 //
+// THE BASELINE IS NOT THE SCHEMA. Every column shape here was read from
+// 00_baseline.sql AND from the increments that alter the table - `deploy/
+// database/ddl/incr/*.sql` carries ten ALTER TABLE files, and one of them
+// (0013) drops a DEFAULT the baseline still shows. Reading only the baseline is
+// reading a document about the schema rather than the schema.
+//
 // SUPERUSER INSERTS. CI connects as `postgres`, which bypasses grants - so
 // seeding here proves nothing about privileges. That is deliberate: the grant
 // tests do their own `SET ROLE yucer_svc` against these rows, which is the only
@@ -132,9 +138,16 @@ export async function seedChain(c: Client): Promise<void> {
     [CHAIN.territory, CHAIN_WS],
   );
   await c.query(
+    // CURRENCY IS EXPLICIT, and it has to be. The baseline declares
+    // `currency VARCHAR(8) NOT NULL DEFAULT 'CNY'`, but incr/0013 DROPPED that
+    // default and added chk_sales_target_currency_matches_metric: a money
+    // metric needs a currency, a `new_logo` count must have none. Omitting it
+    // here inserted NULL against metric 'revenue' and the constraint refused
+    // the row - which is exactly the class of defect this lane exists to catch,
+    // and it caught it on the first run.
     `INSERT INTO yucer_gtm.sales_target
-       (id, workspace_id, plan_id, period, scope_type, territory_id, metric, target_amount)
-     VALUES ($1, $2, $3, '2026Q3', 'territory', $4, 'revenue', 5000000)`,
+       (id, workspace_id, plan_id, period, scope_type, territory_id, metric, target_amount, currency)
+     VALUES ($1, $2, $3, '2026Q3', 'territory', $4, 'revenue', 5000000, 'CNY')`,
     [CHAIN.target, CHAIN_WS, CHAIN.plan, CHAIN.territory],
   );
   await c.query(
