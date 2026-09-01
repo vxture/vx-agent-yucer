@@ -148,8 +148,15 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
   // catalog: they were sections of it, they carry its actions, and those
   // actions carry no feature key. Promoting a section to a page must not
   // change who can see it - if it did, the promotion would have moved a gate.
+  // attainment joined on 2026-08-31 riding pipeline.view, which is free tier.
+  // It shows what a member's OWN visible deals add up to against the period,
+  // and each of its three readings is independently gated - the attainment
+  // half comes from planning and degrades to "no target" when that gate
+  // refuses. So there is no paid capability being handed out here; the page is
+  // the arithmetic of what the reader can already see.
   assert.deepEqual(visible.sort(), [
     "account",
+    "attainment",
     "catalog",
     "copilot",
     "home",

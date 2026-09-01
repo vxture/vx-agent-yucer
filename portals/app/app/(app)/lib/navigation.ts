@@ -50,6 +50,8 @@ export type NavIcon =
   | "user-switch"
   // Renewal keeps the glyph it carried as a launcher row.
   | "file-text"
+  // The assault objective itself.
+  | "target"
   // Same for the forecast rule.
   | "trend-up";
 
@@ -212,6 +214,14 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   //     disagrees with them is the point. Applying it needs
   //     `pipeline.forecast.categorize`, which the page puts on the button alone.
   { key: "forecastRule", href: "/forecast", icon: "trend-up", action: "pipeline.forecast.view" },
+  // 承诺达成 (owner ruling, 2026-08-31). The three readings that used to float
+  // on the board as cards belonging to no module - the quarter's commitment
+  // against its target, the coverage behind it, and what the commitment is
+  // made of - gathered into one place and given a module of its own.
+  //
+  // Gated on the pipeline read: the figures are the pipeline's own, rolled up.
+  // A member who may see deals may see what they add up to.
+  { key: "attainment", href: "/attainment", icon: "target", action: "pipeline.view" },
 ];
 
 export const NAV_ENTRIES: readonly NavEntry[] = [

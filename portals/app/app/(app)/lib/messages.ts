@@ -73,6 +73,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   routing: "线索分派",
   renewal: "合同续约",
   forecastRule: "预测口径",
+  attainment: "承诺达成",
   winLossReview: "赢丢复盘",
   collection: "回款计划",
   planning: "销售规划",
@@ -199,6 +200,26 @@ export const FORECAST_RULE_TEXT = {
   } as Record<string, string>,
 } as const;
 
+
+export const ATTAINMENT_TEXT = {
+  title: "承诺达成",
+  why:
+    "本期承诺了多少、已经落了多少、后面还有多少接得住——三件事放在一起才是一句话。它们此前分散在导航板上，各自是一张不属于任何模块的卡。",
+  attained: "达成",
+  won: "已成交",
+  target: "目标",
+  noTarget: "本期没有已承诺的工作区目标",
+  noTargetWhy:
+    "没有目标就没有分母。达成率不是零，是算不出来——把它显示成 0% 会把「还没定目标」说成「一件没做成」。",
+  pool: (period: string) => `${period} 资源池`,
+  poolWhy:
+    "承诺要有东西接得住。这里是缺口后面还压着多少，按信心从高到低拆开——承诺的 881 万和早期管道的 881 万不是同一个 881 万。",
+  thin: "接不住当前缺口",
+  composition: "承诺的构成",
+  compositionWhy:
+    "这笔钱是由哪些产品线组成的。总额一样而构成不同，要打的仗就不同。",
+  noComposition: "开放商机还没有行项，所以拆不出构成",
+} as const;
 
 export const QUOTE_TEXT = {
   title: "报价",
@@ -672,6 +693,20 @@ export const BOARD_TEXT = {
   signals: "信号",
   leads: "线索",
   projects: "项目",
+  // Per-module figures for the navigation cards. Each is the number that gives
+  // a reason to open that module, not a row count for its own sake - "3 待分派"
+  // is why you click 线索分派; "12 条线索" is trivia.
+  segments: "细分",
+  solutions: "方案",
+  pricedProducts: "已定价",
+  namedAccounts: "重点",
+  forecastDisagreements: "有分歧",
+  unrouted: "待分派",
+  quoteApprovals: "待签",
+  unreviewed: "待复盘",
+  renewalsDue: "临近到期",
+  contractValue: "在交付合同额",
+  openDeals: "开放",
 
   /** Ten-thousands, the unit Chinese enterprise sales actually quotes in. */
   wan: (amount: number) => `${Math.round(amount / 10_000)} 万`,
@@ -1043,6 +1078,8 @@ export const PIPELINE_TEXT = {
   leadNoHistory: "本期尚无预测记录",
   periodOf: (p: string) => `${p} 口径`,
 
+  // The fact that used to be a board card, now beside the deal it applies to.
+  buyerUnreachable: "决策人未触达",
   trajectory: "预测轨迹",
   trajectoryWhy:
     "快照只追加、不可修改——预测准确率是期末实际对期初快照，少一个点就算不出来。",
@@ -1694,6 +1731,8 @@ export const PLAYBOOK_SCOPE_LABEL: Record<string, string> = {
 };
 
 export const ACCOUNT_TEXT = {
+  // The fact that used to be a board card, now beside the customer it is about.
+  buyerUnreachable: "决策人未触达",
   title: "客户管理",
   // The headline. The ordering is a product decision - sickest first, never
   // alphabetical - and a claim the page has to make out loud, because a reader
