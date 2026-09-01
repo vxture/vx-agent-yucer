@@ -105,17 +105,13 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
   // Prisma adapter), so every reader holds one Date or null. Reshaped to what
   // callers actually hold, it took over the two places that had restated it -
   // the judgement rules and the field evidence panel.
-  // SURFACED 2026-08-31 with copilot.execute, by the same tightening. It was
-  // held up by a sentence of UI copy - "Forecast accuracy is the period's
-  // actual against its opening snapshot" - and by comments repeating the same
-  // claim. None of them computes it.
-  //
-  // Worth naming loudly: `forecast_snapshot` has UPDATE revoked FOR THIS
-  // FUNCTION. The whole append-only design exists so accuracy can be measured
-  // period-end against the opening snapshot, and the product has been paying
-  // that cost while nothing asks the question.
-  "pipeline/forecast.accuracy":
-    "the reading the immutable snapshot exists for, and no surface asks for it; wired by the batch that reports forecast accuracy",
+  // `pipeline/forecast.accuracy` LEFT THIS LIST on 2026-09-01, and it was the
+  // entry that cost the most to leave sitting: `forecast_snapshot` has UPDATE
+  // revoked FOR THIS FUNCTION, so the product had been paying for an
+  // append-only table since batch 1 while nothing asked the question it exists
+  // to answer - and the trajectory section's own description promised the
+  // number on screen the whole time. `forecastAccuracy` in pipeline/service.ts
+  // computes it and the pipeline page renders it.
   "catalog/pricing.reconciles":
     "pins header-matches-lines; the quote page shows the lines and never asks the question",
 

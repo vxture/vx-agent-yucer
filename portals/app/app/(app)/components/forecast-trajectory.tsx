@@ -36,6 +36,7 @@ export async function ForecastTrajectory({
   points,
   wan,
   submit,
+  accuracy,
 }: {
   readonly points: readonly TrajectoryPoint[];
   /** Formatter, passed in so the component holds no locale text of its own. */
@@ -46,6 +47,22 @@ export async function ForecastTrajectory({
    * server component - it can render the node, it cannot construct it.
    */
   readonly submit?: React.ReactNode;
+  /**
+   * The payoff, when it can be computed.
+   *
+   * THREE STATES, and they are not interchangeable. `undefined` means the read
+   * failed or was not asked for; `ratio: null` means it is UNMEASURABLE - no
+   * opening snapshot, or nothing was committed - and the caption says which;
+   * a number means it can be stated. A component that turned any of the three
+   * into 0% would report a team that forecast nothing as a team that forecast
+   * badly.
+   */
+  readonly accuracy?: {
+    readonly ratio: number | null;
+    /** False until the period is over. The word is only honest after that. */
+    readonly settled: boolean;
+    readonly hasOpening: boolean;
+  };
 }) {
   // A SERVER component, so it awaits rather than hooks - and it had to become
   // async to do it, which is the honest shape: reading the request's locale is
@@ -101,6 +118,25 @@ export async function ForecastTrajectory({
          title, description and action to its header but not titleSuffix. */
       action={
         <div className="flex items-center gap-xs">
+          {/* THE NUMBER THE APPEND-ONLY TABLE WAS PAID FOR, beside the chart
+              whose own description has promised it since batch 1. Rendered
+              before the window badge because it is the conclusion and that is
+              a caveat about the plot. */}
+          {accuracy ? (
+            <StatusBadge tone={accuracy.ratio === null ? "neutral" : "info"}>
+              {accuracy.ratio === null
+                ? accuracy.hasOpening
+                  ? PIPELINE_TEXT.accuracyNoCommit
+                  : PIPELINE_TEXT.accuracyNoOpening
+                : accuracy.settled
+                  ? PIPELINE_TEXT.accuracySettled(accuracy.ratio)
+                  : // MID-PERIOD IT IS NOT ACCURACY. The same ratio, before the
+                    // quarter ends, is progress against the commit - and calling
+                    // it accuracy would tell a team in week two that it forecasts
+                    // at 8%.
+                    PIPELINE_TEXT.accuracySoFar(accuracy.ratio)}
+            </StatusBadge>
+          ) : null}
           {points.length > shown.length ? (
             <StatusBadge tone="neutral">
               {PIPELINE_TEXT.trajectoryWindow(shown.length, points.length)}
