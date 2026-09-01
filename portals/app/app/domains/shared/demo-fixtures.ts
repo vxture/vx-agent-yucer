@@ -99,6 +99,14 @@ export const DEMO_OPPORTUNITIES = [
   // against real rows. Same gap `already_renewed` had before 0019.
   "冷链仓配平台",
   "会员中台改造",
+  // Three deals WON INSIDE 2026Q2, so the demo has a settled quarter. Without
+  // them the product's flagship number - forecast accuracy - had no surface it
+  // could ever appear on: accuracy needs a period that is OVER, and every
+  // closed deal in this fixture lands in the current one. See the Q2 block in
+  // demo-seed.ts.
+  "区域仓配一体化",
+  "门店能耗管理",
+  "客户服务中台",
 ] as const;
 
 export const DEMO_PROJECTS = [
