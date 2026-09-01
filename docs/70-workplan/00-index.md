@@ -2000,3 +2000,94 @@ label map，**跳过了 `isCapability`**——于是这个函数 docstring 里�
 6 条商机（三笔 Q2 成交不会串进来）。
 
 1370 tests pass。
+
+---
+
+## 数据架构深度盘点，与那半张没人碰过的库（2026-09-01）
+
+owner：「先定 db-contract，深度分析数据架构，要完整支撑业务，并构建覆盖全、很丰富的
+测试数据」。
+
+### 一、`db-contract` 成为第六个必需检查
+
+已落地并**在 live 上验过**（`gh api .../rules/branches/main`，不是只看 PUT 的回显）：
+
+```
+quality-gate  build  test-coverage  audit  gitleaks  db-contract
+```
+
+**能设成必需的前提，先验后改**：一个不总是运行的必需检查会让每个 PR 永久 pending。
+该 job 没有 `if:`、workflow 没有 `paths:` 过滤，在每个 PR 和每次 push:main 上都跑。
+
+**顺带修掉两处**：`check-sca-consistency` 里硬抄了一份必需检查清单，注释指向
+`check-ruleset.mjs`——**一个从来不存在的兄弟文件**。于是这份清单活在三个地方，谁也
+不管着谁；加第六项时这份拷贝会少一个，后果很具体：sca-watch 里一个叫 `db-contract`
+的 job 就能跟必需上下文撞名，而那正是这个检查存在的目的。现在它读
+`main-ruleset.json`，并且清单为空时直接报错而不是空过。变异验证过。
+
+另一处是文档里的假等价：运维索引写着 `sonar` 和 `db-contract`「不进必需检查的理由
+相同」。**不同**——`db-contract` 不是第三方服务，是同一个 runner 里的 Postgres 容器。
+真正的区别不是「会不会挂」，是**挂了算谁的**。
+
+### 二、数据架构盘点（量出来的）
+
+34 张产品表 / 7 个 schema。业务链条本身是**完整**的，从战略计划一路到回款与续约，
+每一跳都有表、有外键：
+
+```
+strategy_plan → market_segment → territory → sales_target
+campaign → signal → lead → account → opportunity
+product → price_book_entry → solution → solution_item → opportunity_line
+                                          → line_discount_approval → win_loss_review
+project → project_milestone → revenue_schedule → opportunity.source_project_id（续约回环）
+```
+
+**缺的不是表，是证据。** 34 张表里，**只有 20 张被任何一个跑真数据库的测试碰过**。
+没碰过的 14 张不是随机分布：
+
+| 没碰过的那半 | 是什么 |
+|---|---|
+| `opportunity_line` `price_book_entry` `line_discount_approval` `solution` `solution_item` | **整条报价/定价/折扣审批链**——ADR-014 的「行项权威、表头等于行项之和」，以及底价与签字规则。全产品最跨行、最带钱的逻辑 |
+| `project` `project_milestone` `revenue_schedule` | **整个交付到回款的尾段**，外加 0019 的续约回指（无 UPDATE 授权） |
+| `strategy_plan` `account_plan` | 链条的头 |
+| `agent_session` `agent_playbook` `agent_autonomy` `judgement_snooze` | 助手自己的表——**包括我两天前建的 `agent_autonomy`，它的 GRANT 是手写的，从来没有任何东西执行过** |
+
+同一件事的另一个量法：**12 个 Prisma 适配器，只有 3 个跑过真库**；适配器覆盖率
+46–64%，而全仓 92.25%——低不是因为没写测试，是**跑它们的测试不在计入覆盖率的那次运行里**。
+
+**为什么恰好是这 14 张**：每一张都只能通过外键从别的东西够到。要立起一张，得先立起
+六张。所以没人测——不是疏忽，是成本。
+
+### 三、`db-chain.ts`：一条完整的业务链，落在真库里
+
+于是**种一次，全链条**，测试在上面读和探。固定 UUID 而不是生成的：失败时应该点名是
+哪一行，`44444444-…-18` 这种能 grep 到的字面量比一个没人认识的 uuid 有用。
+
+**金额是互相对得上的**：一行 4 × 250,000 = 1,000,000，同时是商机的金额、项目的合同额、
+两期回款之和。ADR-014 的规则就是行项权威、表头等于其和；**一个自己都加不平的 fixture
+没法用来测它**，还会把错的形状教给下一个读到它的人。
+
+**用超级用户种数据是刻意的**：CI 以 `postgres` 连接，绕过授权。授权测试自己
+`SET ROLE yucer_svc` 去打——那是唯一能对 `98_column_locks.sql` 开真火的方式。用服务
+角色去种，fixture 会先死在它要测的那些冻结列上。
+
+15 个新测试，全部断言**只有 Postgres 能回答的事**：CHECK、外键级联、带 NULL 的唯一、
+REVOKE。凡是 TypeScript 测得了的，都留在 TypeScript 里——那边每次推送都跑，这边只在
+这个 job 里跑。
+
+**其中三条打的是我自己两天前写的东西**：`agent_autonomy` 的三档 CHECK、增量里自带的
+GRANT（`97_service_role.sql` 的 `ON ALL TABLES` 在建表之后才建的表上是无效的，这是
+0020 自己的头注释警告过的坑），以及 workspace_id 没有 UPDATE 授权。**写下时它们只是
+声明，现在才是事实。**
+
+**本地跑不了**——这台机器没有 Postgres 也没有 Docker。反馈来自 PR 上的 `db-contract`。
+而它今天刚成为必需检查，所以写错一个列名就会挡住合并：这一批顺便是那个改动的自测。
+
+1385 tests（49 skipped——就是这些库测试在没有 DATABASE_URL 时的正确行为）。
+
+### 四、还没做的一件，已定范围
+
+`db-constraints.db.test.ts` 里「append-only 表没有 UPDATE 授权」用的是**手写的四张表
+清单**。`column-locks.test.ts` 里已经有一个 `ddlGrantsWithoutUpdate()` 从 DDL 推导同一
+个集合——把它抽成共享模块、两边都用，是下一个 PR。**没并进这一批**：那是对一个正在
+工作的守卫做重构，不该和一批我本地跑不了的库测试混在同一个 diff 里。
