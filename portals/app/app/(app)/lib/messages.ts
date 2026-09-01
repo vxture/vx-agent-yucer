@@ -645,6 +645,13 @@ export const ROLE_LABEL: Record<string, string> = {
   delivery_manager: "交付经理",
   sales_ops: "销售运营",
   viewer: "只读成员",
+  // 0021 的两级（owner 2026-09-01 裁定）。
+  //
+  // 「总经理」没有单独的角色码——`sales_leader` 已经持有它会持有的一切
+  // （admin.manage / copilot.autopilot / strategy.approve）。两个码一套权限，
+  // 是一份假装自己做了区分的目录。要org 头衔上屏，那是改这里的标签，不是加角色。
+  sales_manager: "销售经理",
+  regional_director: "大区总监",
 };
 
 export const MEMBER_TEXT = {

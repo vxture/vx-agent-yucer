@@ -2295,3 +2295,50 @@ sub（商机 owner、项目经理、提案裁决人），再和名册求差集 �
 replace 命中了第一处 `PROPOSAL_ERROR`——TypeScript 的重复键报错当场抓住。）
 
 1401 tests pass。
+
+---
+
+## 销售组织的两级（`feat/sales-org-roles`）
+
+第 3 步，走既定的三件套：seed 增量（`incr/0021`）、TS 镜像（`authz/catalog.ts`）、
+目录文档（`docs/20-specs/50-role-permission-catalog.md`）。镜像测试解析 seed，双向失败。
+
+**角色 7 → 9，授权 86 → 117，权限一个没加。** 这是这次改动的诚实形状：产品没有多出
+任何一件**谁可以做的新事**，只是多了**两个可以站的位置**。
+
+### 两个角色，不是三个——而这一条值得说，不该悄悄发明
+
+owner 点名了三个：大区总监 / 总经理 / 销售经理。**「总经理」就是已经存在的
+`sales_leader`**——它持有 `admin.manage` / `copilot.autopilot` / `strategy.approve`，
+即一个销售组织顶端所持有的全部。再造一个角色码，只会得到**一套完全相同的权限集换个
+名字**，而**两个码一个答案的目录，是一份假装自己做了区分的目录**。
+
+所以加了一条守卫直接断言这件事：**没有任何两个角色持有相同的权限集**。变异验证：把
+`regional_director` 改成 `sales_manager` 的副本，测试点名
+「a director who may do exactly what a manager may do is a label」。
+
+### 分界线是目录自己早就画过的那条
+
+`sales_manager` 与 `sales_rep` 的差别是**向上承诺数字**——而目录早在一级之下就画过同一
+条线：`sales_rep` 持有 `pipeline.write` 却**没有** `pipeline.forecast`，注释写着「拥有
+这个单，但不拥有预测承诺」。一线经理正是做出那个承诺的人。`planning.read` 随之而来：
+**你没法对着一个看不见的目标做承诺**。
+
+`regional_director` 拿到 `pipeline.discount`，**刻意不给 `catalog.price`**——ADR-019 的
+分离套在新一级上：**为低于底价的单签字，和决定底价画在哪里，是两件事**。一个能移动底价
+的总监，等于在对着自己画的线签字。
+
+两个都不给 `admin.manage` / `copilot.autopilot` / `strategy.approve`：管理销售组织和管理
+工作区不是同一份工作；裁决一条提案，也不等于有权关掉「需要裁决」这件事本身。
+
+### 必须一起读的一条：这两个角色没有数据范围
+
+`listPipeline` 过了门之后**返回整个工作区的商机**。今天**大区总监看到的行和销售经理
+完全一样**，而「大区」的区别性特征恰恰是这个产品还没有的范围。owner 裁定先加角色、
+范围下一批——**这一段写进了目录文档本身**，为的是让目录不假装范围已经分开了。
+
+一条既有测试因此改了名下的清单而不是它的不变量：「pipeline.forecast 给领导层和运营，
+从不给销售代表」——**不变量是后半句**，持有者名单会随目录增长，而两个新角色的存在理由
+恰恰就是它们要承诺数字。
+
+1405 tests pass。

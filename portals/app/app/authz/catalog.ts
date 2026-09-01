@@ -84,6 +84,11 @@ export const ROLE_CODES = [
   "delivery_manager",
   "sales_ops",
   "viewer",
+  // 0021, the owner's ruling of 2026-09-01. ORDER MIRRORS THE SEED, which
+  // appends - catalog.test.ts compares these lists element for element, so a
+  // "tidier" alphabetical order here would read as drift.
+  "sales_manager",
+  "regional_director",
 ] as const;
 
 export type RoleCode = (typeof ROLE_CODES)[number];
@@ -204,6 +209,60 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "delivery.read",
     "copilot.use",
     "catalog.read",
+  ],
+
+  // --- 0021: the two rungs between a rep and the whole organisation ---------
+  //
+  // A REP WHO COMMITS A NUMBER UPWARD. The catalogue already draws this line one
+  // level down - sales_rep holds pipeline.write WITHOUT pipeline.forecast,
+  // "owns the deal, not the forecast commitment" - and a first-line manager is
+  // the person who makes that commitment. planning.read comes with it: you
+  // cannot commit against a target you cannot see.
+  sales_manager: [
+    "account.read",
+    "account.write",
+    "account.record",
+    "signal.read",
+    "signal.triage",
+    "pipeline.read",
+    "pipeline.write",
+    "pipeline.forecast",
+    "delivery.read",
+    "campaign.read",
+    "copilot.use",
+    "copilot.decide",
+    "catalog.read",
+    "planning.read",
+  ],
+
+  // A MANAGER WHO MAY APPROVE BELOW THE FLOOR and set the targets their region
+  // is measured against.
+  //
+  // NOT catalog.price, deliberately: approving a discount against the floor and
+  // deciding where the floor sits are different acts, and the second stays with
+  // sales_ops and sales_leader (ADR-019). A director who could move the floor
+  // would be approving against a line they had drawn themselves.
+  //
+  // No admin.manage, no copilot.autopilot, no strategy.approve - running the
+  // sales organisation and administering the workspace are not one job.
+  regional_director: [
+    "account.read",
+    "account.write",
+    "account.record",
+    "signal.read",
+    "signal.triage",
+    "pipeline.read",
+    "pipeline.write",
+    "pipeline.forecast",
+    "pipeline.discount",
+    "delivery.read",
+    "campaign.read",
+    "copilot.use",
+    "copilot.decide",
+    "catalog.read",
+    "planning.read",
+    "planning.write",
+    "strategy.read",
   ],
 };
 
