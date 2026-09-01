@@ -37,7 +37,25 @@ export function isDataScope(v: string): v is DataScopeKind {
  */
 export type DataScope =
   | { readonly kind: "workspace" }
-  | { readonly kind: "territory"; readonly territoryIds: readonly string[] }
+  | {
+      readonly kind: "territory";
+      readonly territoryIds: readonly string[];
+      /**
+       * Customers whose ground these territories cover.
+       *
+       * THE PARENT PATH, and without it the territory scope was broken rather
+       * than narrow: `account` and `lead` carry NO territory column at all - a
+       * lead reaches one only through `account_id -> account.region ->
+       * territory.regions`, which is the mapping incr/0017 built for routing.
+       * So the first version showed a territory member their deals, the public
+       * pool, and NOTHING ELSE: zero customers and zero leads.
+       *
+       * Resolved once per request, like the own-scope set, and for the same
+       * reason: the walk spans domains and no store may reach into another's
+       * tables.
+       */
+      readonly accountIds: readonly string[];
+    }
   | {
       readonly kind: "own";
       readonly sub: string;

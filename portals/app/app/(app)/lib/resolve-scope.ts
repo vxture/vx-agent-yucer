@@ -1,6 +1,7 @@
 import { WHOLE_WORKSPACE, expandTerritories, type DataScope } from "../../authz/scope";
 import type { AuthzStore } from "../../authz/store";
 import {
+  getAccountStore,
   getPipelineStore,
   getPlanningStore,
   getSignalStore,
@@ -39,7 +40,26 @@ export async function resolveDataScope(
     const parentOf = new Map<string, string | null>(
       territories.map((t) => [t.id, t.parentId ?? null]),
     );
-    return { kind: "territory", territoryIds: expandTerritories(setting.territoryIds, parentOf) };
+    const territoryIds = expandTerritories(setting.territoryIds, parentOf);
+
+    // AND THE CUSTOMERS ON THAT GROUND. `account` and `lead` carry no territory
+    // column, so without this the scope showed deals and hid every customer and
+    // every lead - the shape this shipped in and the reason the fix exists.
+    //
+    // The region-to-territory match is `coveringTerritories`, the same rule
+    // lead routing uses. Re-deriving it here would give the product two answers
+    // to "which territory covers this customer", and routing would send a lead
+    // to somebody who cannot see it.
+    const mine = new Set(territoryIds);
+    const covered = new Set(
+      territories.filter((t) => mine.has(t.id)).flatMap((t) => t.regions ?? []),
+    );
+    const accounts = await getAccountStore().listAccounts(workspaceId);
+    const accountIds = accounts
+      .filter((a) => a.region != null && covered.has(a.region))
+      .map((a) => a.id);
+
+    return { kind: "territory", territoryIds, accountIds };
   }
 
   // `own` - what I hold, plus the customers my work sits on.
