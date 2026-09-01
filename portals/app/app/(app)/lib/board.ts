@@ -33,8 +33,7 @@ import {
 } from "../../domains/planning/service";
 import { listSignals, listLeads } from "../../domains/signal/service";
 import { listProjects, listRenewals } from "../../domains/delivery/service";
-import { byProduct } from "../../domains/catalog/lib/pricing";
-import { listProposals, listPlaybooks } from "../../domains/copilot/service";
+import { listProposals } from "../../domains/copilot/service";
 import {
   listOpportunityLines,
   listPrices,
@@ -299,7 +298,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     signals,
     leads,
     projects,
-    playbooks,
     lineResult,
     catalogueResult,
     segments,
@@ -323,7 +321,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     listSignals({ ...base, store: getSignalStore() }),
     listLeads({ ...base, store: getSignalStore() }),
     listProjects({ ...base, store: getDeliveryStore() }),
-    listPlaybooks({ ...base, store: getCopilotStore() }),
     // THROUGH THE SERVICE, like every sibling on this list. These two were the
     // only reads on the board holding a store handle directly, which skips both
     // gates - and a board is the one surface where that is easiest to miss,
@@ -362,15 +359,11 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
   // does - the board reports what you may see, and says nothing about the rest.
   const lines = lineResult.ok ? lineResult.value : [];
   const pendingApproval = lines.filter((l) => l.needsApproval && !l.approved);
-  const catalogue = catalogueResult.ok ? catalogueResult.value : [];
-
   // Open deals only, and their value. "How many deals exist" is a database
   // fact; "what is still in play and what is it worth" is the question someone
   // opens this product with.
   const open = deals.ok ? deals.value.filter((d) => d.closedAt === null) : [];
   const worth = open.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
-  const openIds = new Set(open.map((d) => d.id));
-
   // Attainment comes from the DOMAIN, not from arithmetic here.
   //
   // The first version summed every committed target and every won deal. Both
@@ -431,8 +424,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
   // cannot parse gets no gauge rather than a pool measured over the whole book:
   // falling back would restore the defect and hide it behind a rendered number.
   const quarterOpen = window ? window.kept : [];
-  const totals = window ? rollUp(quarterOpen) : null;
-
   // THE POOL IS THIS QUARTER'S TOO, and it has to be, because the gauge divides
   // it by this quarter's gap. A deal expected to land in December does not
   // cover a September shortfall, and counting it made the coverage ratio
@@ -451,16 +442,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
         )
       : null;
-
-  // Narrowed once, next to the thing it narrows. `cover?.ratio == null` covers
-  // both "no coverage at all" and "coverage with no ratio" in one expression,
-  // and returning `cover` itself rather than a boolean keeps gap/floor/thin
-  // narrowed at the four places below that read them.
-  //
-  // NOT `cover?.ratio !== null`, which is what the obvious optional-chain
-  // rewrite produces and is the opposite condition: with no coverage that
-  // reads `undefined !== null` and renders a gauge over nothing.
-  const gaugeCover = cover?.ratio == null ? null : cover;
 
   const sections: BoardSection[] = [
     // ONE queue. These were two cards - "today's judgements" and "awaiting my
@@ -513,23 +494,6 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
           ]
         : [],
     },
-    // Who is on our side, from the coverage the feed already computed. Shown
-    // only when at least one chain was readable: on a tier that cannot see
-    // decision chains, "0 coaches" would be a claim about the customers rather
-    // than about the subscription.
-    ...(feed.ok && feed.value.allies.accounts > 0
-      ? [
-        ]
-      : []),
-    // What the open money is actually FOR. A single open-pipeline total says
-    // nothing about
-    // which product line carries it - that is the whole reason opportunity_line
-    // exists (ADR-014). Only open deals, and only the top lines, because a
-    // sidebar card is a glance rather than a report.
-    ...(lines.length > 0
-      ? [
-        ]
-      : []),
     // THE ARCHIVE, GROUPED BY THE FIVE FUNCTIONAL DOMAINS.
     //
     // It used to be six flat cards - one per route, in route order, with no
