@@ -38,8 +38,20 @@ const APP = join(DOMAINS, "..");
 
 /** Deliberately unwired, with the batch item that removes each one. */
 const KNOWN_UNWIRED: Record<string, string> = {
-  // (empty since 2026-08-29 - every exported domain verb has a caller. A name
-  // added here must say why it exists and which batch removes it.)
+  // SURFACED 2026-08-31, when the guard stopped counting words inside strings.
+  //
+  // `execute` moves an accepted proposal to `executed`. Nothing calls it, so a
+  // member who accepts a recommendation gets a row that stays `accepted` -
+  // and, separately, nothing carries out the payload either: accepting
+  // "advance this deal to propose" does not advance the deal.
+  //
+  // NOT wired here, because what should happen is a product decision and not
+  // a wiring job: whether the copilot may change data on a person's say-so,
+  // which changes, and what a failed attempt does. Removed by the batch that
+  // answers that - which is also the batch that gives `planFailure` its first
+  // caller (see KNOWN_TEST_ONLY).
+  "copilot.execute":
+    "accepting a proposal does not execute it; wiring this needs the ruling on what the copilot may carry out",
 };
 
 /** Helpers that live in service.ts but are not domain verbs. */
@@ -101,6 +113,17 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
     "pins which plan statuses attract downstream work; no caller gates on it yet",
   "account/commitment.daysSinceLastContact":
     "pins the quiet-days definition the judgement rules restate inline; unify or delete at the next review",
+  // SURFACED 2026-08-31 with copilot.execute, by the same tightening. It was
+  // held up by a sentence of UI copy - "Forecast accuracy is the period's
+  // actual against its opening snapshot" - and by comments repeating the same
+  // claim. None of them computes it.
+  //
+  // Worth naming loudly: `forecast_snapshot` has UPDATE revoked FOR THIS
+  // FUNCTION. The whole append-only design exists so accuracy can be measured
+  // period-end against the opening snapshot, and the product has been paying
+  // that cost while nothing asks the question.
+  "pipeline/forecast.accuracy":
+    "the reading the immutable snapshot exists for, and no surface asks for it; wired by the batch that reports forecast accuracy",
   "catalog/pricing.reconciles":
     "pins header-matches-lines; the quote page shows the lines and never asks the question",
 
@@ -122,10 +145,31 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
  * gone green on exactly the four defects it exists to catch.
  */
 function code(file: string): string {
-  return readFileSync(file, "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/^\s*\/\/.*$/gm, " ")
-    .replace(/([^:])\/\/.*$/gm, "$1");
+  return (
+    readFileSync(file, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/^\s*\/\/.*$/gm, " ")
+      .replace(/([^:])\/\/.*$/gm, "$1")
+      // AND STRING LITERALS, for the same reason as the comments and found the
+      // same way. `copilot.execute` was reported as wired by three matches,
+      // none of which is a call:
+      //
+      //   "campaign.execute"                          <- a feature key
+      //   "...proposals may execute without..."       <- a line of prompt prose
+      //
+      // A word inside a string is not a caller any more than a word inside a
+      // comment is, and a verb with a short common name collects them. The
+      // first version of this guard already learned that lesson about comments
+      // and stopped there.
+      //
+      // NOT tightened to `name\s*\(` instead, which was the obvious fix and is
+      // wrong: `cachedFeed = cache(judgementFeed)` wires a verb by REFERENCE,
+      // and requiring a call reported judgementFeed - the most-read function in
+      // the product - as unwired. Measured both ways before choosing.
+      .replace(/"(?:[^"\\\n]|\\.)*"/g, " ")
+      .replace(/'(?:[^'\\\n]|\\.)*'/g, " ")
+      .replace(/`(?:[^`\\]|\\.)*`/g, " ")
+  );
 }
 
 function walk(dir: string, out: string[] = []): string[] {
