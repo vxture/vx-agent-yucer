@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { DEMO_NOW, seedDemoWorkspace, type DemoStores } from "./demo-seed";
+import { unwrap } from "./result";
+import {
+  DEMO_NOW,
+  DEMO_PRIOR_PERIOD,
+  seedDemoWorkspace,
+  type DemoStores,
+} from "./demo-seed";
 import { demoDataEnabled, ensureDemoData, resetDemoSeed, setPipelineStore } from "./registry";
 import { InMemoryAccountStore } from "../account/store";
 import { InMemoryFieldStore } from "../account/field-store";
@@ -93,7 +99,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 15);
+    assert.equal(rows.length, 18);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -105,7 +111,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 7 accounts, 15 deals, 6 projects", async () => {
+test("the demo has the working set it claims: 7 accounts, 18 deals, 6 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -124,7 +130,13 @@ test("the demo has the working set it claims: 7 accounts, 15 deals, 6 projects",
   // 15 on 2026-08-31, for the same reason one level along: the forecast rule
   // has three downgrades and the demo triggered none of them, so the basis
   // column that renders their reasons had never run against a real row.
-  assert.equal(opportunities.length, 15);
+  //
+  // 18 on 2026-09-01, and this one is about a number rather than a column:
+  // forecast accuracy can only be stated for a period that is OVER, and every
+  // closed deal here landed in the current quarter. Three wins in the prior
+  // quarter give the demo a settled one, so the figure the append-only table
+  // exists for finally has a surface it can appear on.
+  assert.equal(opportunities.length, 18);
   assert.equal(projects.length, 6);
 });
 
@@ -792,4 +804,67 @@ test("the demo shows both kinds of proposal, performed and needing a person", ()
     assert.ok(performed.length > 0, "no demo proposal would actually do anything");
     assert.ok(manual.length > 0, "no demo proposal shows the needs-a-person case");
   });
+});
+
+
+// --- The settled quarter, and the number it exists to make visible -----------
+
+test("the demo has a quarter that is over, with a scorecard the two figures disagree on", async () => {
+  // WHY THIS FIXTURE EXISTS. Forecast accuracy is period-end actual against the
+  // opening snapshot, so it needs a period that has ENDED - and until
+  // 2026-09-01 every closed deal in this demo landed in the current quarter, so
+  // the badge could never render. A reviewer could see the append-only
+  // trajectory and never the thing it is kept for.
+  //
+  // AND THE TWO FIGURES MUST DIFFER. A quarter that undershot scores the same
+  // number twice (attainment 60%, accuracy 60%) and teaches nobody why there
+  // are two of them. This one was beaten AND forecast badly, which is the pair
+  // the scorecard exists to separate.
+  const s = seeded();
+  const { forecastScorecard } = await import("../pipeline/service");
+  const { EMPTY_ENTITLEMENT } = await import("../../entitlement/types");
+  const { permissionsForRoles } = await import("../../authz/catalog");
+
+  const r = await forecastScorecard(
+    {
+      workspaceId: WS,
+      sub: "usr_demo",
+      holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) },
+      entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier: "enterprise" },
+      store: s.pipeline,
+    },
+    DEMO_PRIOR_PERIOD,
+    { now: DEMO_NOW },
+  );
+
+  const card = unwrap(r);
+  assert.equal(card.settled, true, "the prior quarter must be over relative to the demo's clock");
+  assert.ok(card.opening, "and it must have an opening snapshot, or there is nothing to score");
+  assert.equal(card.opening?.commitAmount.amount, 2_600_000);
+  assert.equal(card.actualClosed.amount, 3_200_000);
+
+  assert.equal(Math.round((card.attainment ?? 0) * 100), 123);
+  assert.equal(Math.round((card.accuracy ?? 0) * 100), 77);
+  assert.notEqual(
+    Math.round((card.attainment ?? 0) * 100),
+    Math.round((card.accuracy ?? 0) * 100),
+    "if these coincide the demo stops teaching the difference between them",
+  );
+});
+
+test("the settled quarter's last snapshot agrees with what the board computes for it", async () => {
+  // The same rule the current quarter's series follows: a snapshot that
+  // disagrees with the live board is a demo teaching the "total and detail
+  // disagree" mess this repo keeps arguing against. A finished quarter drains
+  // to zero commit and full closed, and the fixture has to actually do that.
+  const s = seeded();
+  const rows = await s.pipeline.listForecastSnapshots(WS, {
+    period: DEMO_PRIOR_PERIOD,
+    scopeType: "workspace",
+  });
+  assert.ok(rows.length >= 2, "a single point is not a trajectory");
+
+  const last = [...rows].sort((a, b) => a.snapshotAt.getTime() - b.snapshotAt.getTime()).at(-1)!;
+  assert.equal(last.commitAmount.amount, 0);
+  assert.equal(last.closedAmount.amount, 3_200_000);
 });

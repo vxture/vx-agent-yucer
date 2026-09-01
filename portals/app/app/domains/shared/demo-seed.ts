@@ -21,6 +21,7 @@
 // All display copy lives in demo-fixtures.ts so this file stays ASCII.
 
 import { money } from "./money";
+import { periodRange } from "./period";
 import {
   DEMO_ACCOUNTS,
   DEMO_CAMPAIGNS,
@@ -104,7 +105,48 @@ const CNY = "CNY";
 const REP1 = "usr_demo_rep";
 const REP2 = "usr_demo_rep2";
 const PM = "usr_demo_pm";
-const PERIOD = "2026Q3";
+export const DEMO_PERIOD = "2026Q3";
+const PERIOD = DEMO_PERIOD;
+
+/**
+ * The quarter before, and the reason it exists: SOMETHING HAS TO BE OVER.
+ *
+ * Forecast accuracy is period-end actual against the opening snapshot, so it
+ * can only be stated once the period has ENDED - and every closed deal in this
+ * fixture landed in the current quarter, which meant the product's flagship
+ * number had no surface it could ever appear on. The demo could show the
+ * append-only trajectory and never the thing the trajectory is kept for.
+ *
+ * DERIVED FROM `PERIOD`, not written down and not taken from the clock. Three
+ * ways to get this wrong, and only one way that is right:
+ *
+ *   * a literal "2026Q2" with literal dates inside it - the demo's anchor guard
+ *     refuses date literals for a good reason, and a pinned quarter beside a
+ *     live clock shows relative dates that are wrong by however stale it is;
+ *   * derived from DEMO_NOW instead - then in October the "prior" quarter
+ *     becomes 2026Q3, which is what PERIOD still says, and the same quarter
+ *     carries two sets of snapshots under one label;
+ *   * derived from PERIOD, which is what this does. Whatever the current period
+ *     claims to be, the settled one is the quarter before it, and the deals
+ *     that fill it are placed inside that range at runtime. No literal, and the
+ *     two labels cannot disagree.
+ */
+export const DEMO_PRIOR_PERIOD = quarterBefore(PERIOD);
+const PRIOR_PERIOD = DEMO_PRIOR_PERIOD;
+const PRIOR_RANGE = periodRange(PRIOR_PERIOD)!;
+const DAY_MS = 86_400_000;
+/** Two wins inside the settled quarter, placed by offset from its own start. */
+const PRIOR_MID = new Date(PRIOR_RANGE.start.getTime() + 49 * DAY_MS);
+const PRIOR_LATE = new Date(PRIOR_RANGE.start.getTime() + 71 * DAY_MS);
+
+/** `2026Q3` -> `2026Q2`, wrapping the year. */
+function quarterBefore(period: string): string {
+  const m = /^(\d{4})Q([1-4])$/.exec(period.trim());
+  if (!m) throw new Error(`demo period ${period} is not a quarter`);
+  const year = Number(m[1]);
+  const q = Number(m[2]);
+  return q === 1 ? `${year - 1}Q4` : `${year}Q${q - 1}`;
+}
 
 export interface DemoStores {
   strategy: InMemoryStrategyStore;
@@ -658,6 +700,22 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       opp("opp_demo_8", workspaceId, 8, DEMO_OPPORTUNITIES[7], "acc_demo_2", null, "terr_east", REP2, "won", "closed", 1_400_000, 100, daysAgo(40), daysAgo(40), "won"),
       opp("opp_demo_9", workspaceId, 9, DEMO_OPPORTUNITIES[8], "acc_demo_4", null, "terr_south", REP2, "negotiate", "best_case", 950_000, 90, daysAhead(20), null, "open"),
       opp("opp_demo_10", workspaceId, 10, DEMO_OPPORTUNITIES[9], "acc_demo_5", "camp_demo_3", "terr_south", REP1, "won", "closed", 540_000, 100, daysAgo(8), daysAgo(8), "won"),
+      // --- The settled quarter (2026Q2) -----------------------------------
+      //
+      // Three wins totalling 3,200,000 against an opening commit of 2,600,000,
+      // so the two figures the trajectory reports DIFFER: 已兑现 123% and
+      // 准确率 77%. That gap is the whole lesson - a quarter can be beaten and
+      // forecast badly at the same time, and a demo where the two numbers
+      // coincide teaches nobody why there are two of them.
+      //
+      // ACCOUNTS WITH NO Q3 WIN, deliberately. countNewLogos credits an
+      // account's FIRST-EVER win, so giving a Q2 win to acc_demo_1/2/5 would
+      // move their first win out of Q3 and silently change the current
+      // quarter's new-logo count - a fixture edit that breaks a number nobody
+      // was looking at.
+      opp("opp_demo_16", workspaceId, 16, DEMO_OPPORTUNITIES[15], "acc_demo_3", null, "terr_north", REP1, "won", "closed", 1_200_000, 100, PRIOR_MID, PRIOR_MID, "won"),
+      opp("opp_demo_17", workspaceId, 17, DEMO_OPPORTUNITIES[16], "acc_demo_4", null, "terr_south", REP2, "won", "closed", 1_400_000, 100, PRIOR_LATE, PRIOR_LATE, "won"),
+      opp("opp_demo_18", workspaceId, 18, DEMO_OPPORTUNITIES[17], "acc_demo_6", null, "terr_east", REP2, "won", "closed", 600_000, 100, PRIOR_LATE, PRIOR_LATE, "won"),
       // Rule-coverage deals. Both open, both with a real amount, so the two
       // new accounts appear in the pipeline the judgement rules read.
       //
@@ -752,6 +810,22 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
         // now they are the quarter, and the deals dated into Q4 are not in
         // them.
         snapshot(workspaceId, daysAgo(14), 4_200_000, 950_000, 480_000, 2_700_000, 3),
+
+        // --- 2026Q2, the quarter that is OVER --------------------------------
+        //
+        // Opening commit 2,600,000; the quarter closed 3,200,000. That is the
+        // pair the scorecard exists to separate: they landed 123% of what they
+        // promised, and their forecast was 77% accurate. Beating the number is
+        // not the same as knowing it.
+        //
+        // THE LAST POINT DRAINS TO ZERO, which is what a finished quarter
+        // actually looks like: nothing is still committed, everything is
+        // closed. It also has to equal what the live board computes for Q2 -
+        // all three deals are terminal, so commit/best/pipeline are 0 and
+        // closed is 3,200,000 - by the same rule the Q3 series follows.
+        priorSnapshot(workspaceId, priorDay(7), 2_600_000, 1_100_000, 700_000, 0, 0),
+        priorSnapshot(workspaceId, priorDay(47), 2_900_000, 800_000, 500_000, 1_200_000, 1),
+        priorSnapshot(workspaceId, priorDay(88), 0, 0, 0, 3_200_000, 3),
       ],
     },
   );
@@ -1324,6 +1398,24 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */
+/** A day inside the settled quarter, by offset from its start. */
+function priorDay(n: number): Date {
+  return new Date(PRIOR_RANGE.start.getTime() + n * DAY_MS);
+}
+
+/** The same row, for the quarter that is over. */
+function priorSnapshot(
+  workspaceId: string,
+  at: Date,
+  commit: number,
+  bestCase: number,
+  pipelineAmt: number,
+  closed: number,
+  newLogos: number,
+) {
+  return { ...snapshot(workspaceId, at, commit, bestCase, pipelineAmt, closed, newLogos), period: PRIOR_PERIOD };
+}
+
 function snapshot(
   workspaceId: string,
   at: Date,
