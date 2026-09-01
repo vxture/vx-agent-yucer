@@ -69,12 +69,30 @@ model Member {
   displayName String?  @map("display_name") @db.VarChar(255)
   avatarHash  String?  @map("avatar_hash") @db.VarChar(128)
   status      String   @default("active") @db.VarChar(32)
+  /// Which rows this member may see. incr/0022 - a second isolation key, set by
+  /// the workspace administrator rather than derived from the role.
+  scope       String   @default("workspace") @db.VarChar(32)
   firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz()
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, sub], map: "uidx_member_ws_sub")
   @@map("member")
+  @@schema("local_authz")
+}
+
+/// Which territories a `territory`-scoped member may see.
+///
+/// territory_id carries NO foreign key on purpose: local_authz sits under the
+/// domains and must not depend on one at the data level. See incr/0022.
+model MemberTerritory {
+  id          String   @id @default(uuid()) @db.Uuid
+  memberId    String   @map("member_id") @db.Uuid
+  territoryId String   @map("territory_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@unique([memberId, territoryId], map: "uidx_member_territory")
+  @@map("member_territory")
   @@schema("local_authz")
 }
 
