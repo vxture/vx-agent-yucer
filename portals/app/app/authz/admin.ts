@@ -134,6 +134,97 @@ export async function revokeRole(
   return memberOf(ctx, sub);
 }
 
+/**
+ * A member has left. Mark them inactive and take their roles away.
+ *
+ * THE ROW SURVIVES, ALWAYS. Every attribution column in the product stores a
+ * sub as plain text - `agent_action.decided_by_sub`,
+ * `line_discount_approval.approved_by_sub`, `opportunity_stage_event.actor_sub`
+ * - so deleting the member breaks no foreign key. It breaks something quieter:
+ * this row is the only thing that maps `usr_<uuid>` to a name, and without it
+ * every signature in the audit trail is an unreadable string. A person who
+ * leaves stops being a colleague; they do not stop having signed things.
+ *
+ * THE ROLES ARE DROPPED, NOT REMEMBERED, and this is the point of the verb
+ * rather than a side effect. The platform decides who may sign in; when it
+ * revokes somebody, they cannot reach the product and their stale roles look
+ * harmless. But if the platform later grants that same sub access again - a
+ * transfer back, a rehire - `seeMember` does not re-run the owner bootstrap and
+ * nothing re-examines roles, so they would walk back in holding
+ * `sales_leader` because nobody ever took it away. Dropping the roles here
+ * means coming back is a decision somebody makes again.
+ *
+ * WHICH IS ALSO WHY REACTIVATION RESTORES NOTHING. See reactivateMember.
+ *
+ * THE LAST-ADMINISTRATOR GUARD APPLIES, for the same reason it applies to
+ * revokeRole and by the same computation: deactivating the last admin leaves a
+ * workspace nobody can administer, and there is no path back through a later
+ * login or through the platform.
+ */
+export async function deactivateMember(
+  ctx: AdminContext,
+  sub: string,
+): Promise<RuleResult<MemberRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.deactivate", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const members = await ctx.store.listMembers(ctx.workspaceId);
+  const target = members.find((m) => m.sub === sub);
+  if (!target) {
+    return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
+  }
+
+  const stillAdmin = members.filter((m) => m.sub !== sub && m.roles.some(isAdminRole));
+  if (target.roles.some(isAdminRole) && stillAdmin.length === 0) {
+    return fail(
+      violation(
+        "last_admin",
+        "this is the workspace's last administrator; deactivating them would leave nobody able to grant the role back",
+        "sub",
+      ),
+    );
+  }
+
+  for (const role of target.roles) {
+    await ctx.store.revokeRole(ctx.workspaceId, sub, role);
+  }
+  await ctx.store.setMemberStatus(ctx.workspaceId, sub, "inactive");
+  invalidateAuthz(ctx.workspaceId, sub);
+
+  return memberOf(ctx, sub);
+}
+
+/**
+ * Somebody who left is back. Mark them active - and give them nothing else.
+ *
+ * NO ROLES ARE RESTORED. deactivateMember took them away rather than
+ * remembering them, so there is nothing here to put back and that is deliberate
+ * - a returning member is granted their roles again by a person who decides to,
+ * which is the same act as granting them the first time. Restoring a remembered
+ * set would make "who may approve a discount here" a question answered by
+ * something that happened before the person left.
+ *
+ * This verb exists so an accidental deactivation is repairable without a
+ * database edit; it is not a rehire flow.
+ */
+export async function reactivateMember(
+  ctx: AdminContext,
+  sub: string,
+): Promise<RuleResult<MemberRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.reactivate", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const members = await ctx.store.listMembers(ctx.workspaceId);
+  if (!members.some((m) => m.sub === sub)) {
+    return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
+  }
+
+  await ctx.store.setMemberStatus(ctx.workspaceId, sub, "active");
+  invalidateAuthz(ctx.workspaceId, sub);
+
+  return memberOf(ctx, sub);
+}
+
 async function memberOf(ctx: AdminContext, sub: string): Promise<RuleResult<MemberRecord>> {
   const members = await ctx.store.listMembers(ctx.workspaceId);
   const record = members.find((m) => m.sub === sub);

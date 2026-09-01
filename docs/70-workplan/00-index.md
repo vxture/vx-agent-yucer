@@ -2091,3 +2091,92 @@ GRANT（`97_service_role.sql` 的 `ON ALL TABLES` 在建表之后才建的表上
 清单**。`column-locks.test.ts` 里已经有一个 `ddlGrantsWithoutUpdate()` 从 DDL 推导同一
 个集合——把它抽成共享模块、两边都用，是下一个 PR。**没并进这一批**：那是对一个正在
 工作的守卫做重构，不该和一批我本地跑不了的库测试混在同一个 diff 里。
+
+---
+
+## 租户 / 工作区 / 席位 / 人员更替（2026-09-01 裁定）
+
+owner 的裁定，分三条：**平台管「谁能用、有多少席位」；产品管「激活/停用、历史保留或
+转交、以及产品自己的角色」；邀请给按钮，跳到平台执行。**
+
+### 先确认：这个模型已经是现状，而且不是本仓定的
+
+- **租户在工作区之上**，来自 OIDC token 的 `active_org`；两个智能体平面按
+  tenant × workspace 计量。
+- **工作区是订阅主体**，是**平台契约钉死的**：C2 授权信封的字面结构是
+  `{ workspace_id, product, status, tier, limits, quota_pools }`，**里面没有 org_id**。
+  `vx_provision.app_instance` 用平台自己的话标注：`workspace_id` 是
+  *authoritative isolation key*，`tenant_id` 是 *rollup only*。
+- **成员归属工作区**，而且是**首次登录惰性建行**（`seeMember`）——产品从不邀请任何人。
+
+### 分析：产品侧不该验席位
+
+三条理由，一条比一条硬：
+
+1. **那个数不是独立事实。** `listWorkspaceMembers().length` 是「平台已经放行过的人数」。
+   拿它比 `member.max` 再拒绝，是对平台已经回答过的问题给出第二个答案——而且答得更晚：
+   产品只能在人**已经进门之后**才拒绝。
+2. **`withinCap()` 是 fail-closed 的。** 今天所有工作区的 entitlement 都不带
+   `member.max`，接上去等于把所有人锁死。
+3. **`app/entitlement/` 是继承的 C2 契约面，在刚性区。** `withinCap` / `limitOf`
+   没有调用方**不是产品死代码**，是模板给别的 metric 留的通用工具。不该为了「接线」动它，
+   也不该把它列进未接线名单。
+
+产品侧知道而平台不知道的只有一件事：**谁实际用过、持有哪些角色**。所以正确产出是
+**对账视图**，不是门。
+
+### 做的是人员生命周期，因为那里有个真的洞
+
+三个测出来的事实：`member.status` 建行时永远写 `'active'`、**没有任何代码改过它**
+（DDL 允许 `'inactive'`、列锁也授权了 UPDATE——schema 预留了停用，代码从没实现）；
+**没有移除成员的动词**，只有一次一个的 `revokeRole`；名册**从不按 status 过滤**；
+平台入站事件只有 `tenant.provisioned/deprovisioned`，**没有任何人员事件**。
+
+**最尖锐的后果不是名单不好看**：平台之后若因为别的原因再次给同一个 sub 授权（换岗回来、
+同名复用），他一登录，**旧角色原封不动地回来了**——首次登录的 owner bootstrap 刻意只跑
+一次，不会介入。等于一次没人重新批准过的权限恢复。
+
+所以 `deactivateMember` **收回全部角色**而不是记住它们，`reactivateMember` **什么都不
+恢复**。回来是一次要重新做的决定。
+
+**而这一行绝对不能删。** 所有归属列（`decided_by_sub`、`approved_by_sub`、
+`actor_sub`）都把 sub 存成裸文本，删掉**不破任何外键**——它只是拿走了唯一一份
+`usr_<uuid>` → 姓名的映射，让审计轨迹里的每一个签名变成没人认识的字符串。
+
+**邀请是链接不是表单**，而且目的地**刻意不进 deeplink 契约**：`entitlement/deeplink.ts`
+是继承的 C2 转化面，只有 `/subscribe` 一个出口、三个 intent，没有 invite。往里加等于在
+产品仓自造平台标准。所以它是一个独立的环境变量，未配置时**不渲染按钮**——一个点了没反应
+的按钮比没有按钮更糟。
+
+### 两件本批没做完的，都已定范围
+
+**转交（`owner_sub` 换人）没做**，但 schema 已经把答案写好了：可转交的是
+`account` / `opportunity` / `lead` / `campaign` / `strategy_plan` / `territory`
+（`owner_sub` 有 UPDATE 授权）；**不可转交**的是 `sales_target.owner_sub`（口径元组的
+一部分，冻结）和 `forecast_snapshot.owner_sub`（只追加，压根没有 UPDATE）。这个划分本身
+就是正确语义：**转交移动在办的盘，绝不动历史和指标**。转交跨三个域，每个域要有自己的
+`reassignOwner` 动词，是下一批。
+
+**产品角色（大区总监 / 总经理 / 销售经理）没加**，因为量出来一件必须先说的事：
+`listPipeline` 过了门之后**返回整个工作区的商机**，`filter` 是界面传的、不是强制的。
+**这个产品只有「你能做什么」一个轴，没有「你能看到哪些行」**，而大区总监的区别性特征
+恰恰是数据范围。owner 裁定：**先加角色，数据范围下一批**——我会在角色目录文档里明写
+这一点，不让它假装范围已经分开了。
+
+### 一次自我更正，记下来
+
+我在浏览器里验停用按钮时发现名册是空的，**当场断言那是 `getAuthzStore` 的模块级 memo
+导致的双实例问题，并按这个假设改了代码**。改完仍然是空的。真正原因是
+`resolveAppSession` 在 `resolveDevSession()` 上**短路返回**，根本没走到
+`resolveAuthzContext`，所以 dev 路径下从不记录任何 sighting。
+
+memo 改成 globalThis **保留了**——registry.ts 的论证逐字适用，authz 只是被漏了——但注释里
+写明它是**加固，不是已证实的修复**，我没有观察到它咬过人。这是
+「control group cuts both ways」的同一条纪律，反过来用在自己身上。
+
+**因此这一批的界面没能在浏览器里跑过**：demo 的 dev 会话不建成员行，`/admin/members`
+只有空状态。UI 由单测覆盖，视觉未验。**让 demo 有一份成员名册**是紧接着的一批——
+和今天早些时候「让 demo 有一个已结束的季度」是同一类缺口：产品最需要被看见的那块屏幕，
+demo 里看不到。
+
+1392 tests pass。

@@ -1944,6 +1944,15 @@ export const en: Dictionary = {
     adminBadge: "Can manage members",
     lastAdminHint:
       "This is the workspace's last administrator; removing it leaves nobody able to assign roles",
+    columnLifecycle: "Standing",
+    inactive: "Inactive",
+    inactiveHint:
+      "Has left. The row is kept forever - it is what makes a signature in the audit trail readable; deleting it breaks no foreign key, it just turns every signature into an id nobody recognises.",
+    deactivate: "Deactivate",
+    deactivateHint: "Takes every role away and marks them inactive. The row is not deleted.",
+    reactivate: "Reactivate",
+    reactivateHint: "Restores standing only. No role comes back - each must be granted again.",
+    invite: "Invite a member",
   },
 
   MEMBER_ERROR: {
