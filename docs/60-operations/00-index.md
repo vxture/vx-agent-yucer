@@ -27,7 +27,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
 | TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | **closed 2026-08-29**（已还 7，删除 3） |
 | TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 3 已关闭；sca-watch 已证自主运行；**仅余层 1 已启用未证明**） |
-| TD-018 | L1 规范 X-3 要求的审计记录表本仓从未建过——之前误判为与 C3 用量信封的权威冲突 | 2026-09-01 | open |
+| TD-018 | L1 规范 X-3 要求的审计记录表本仓从未建过——之前误判为与 C3 用量信封的权威冲突 | 2026-09-01 | **closed 2026-09-01**（`local_audit.event` + 两个面接线：管理面五个动词、消费面流式与非流式两条路径） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1328,3 +1328,24 @@ outcome`，消费面另加 `taskId · costAmount · costUnit`。
 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269) 是
 owner 侧待办**——`vxture-platform` 不在本仓协作者可达的组织仓库列表里，本次无法
 代发。
+
+**2026-09-01 已还**：`incr/0023_audit_event.sql` 新开 `local_audit` schema，
+`event` 表按上面的字段集实现，append-only（无 UPDATE 无 DELETE 授权）。接进
+两个面：
+
+- **管理面**：`authz/admin.ts` 五个动词（授予/收回角色、停用/恢复成员、设数据
+  范围）——每条的 gate 早退路径**也**记一条 `denied`，域校验失败（如
+  `last_admin`）记 `error`，写成功记 `success`。只记成功答不出「谁试过被拒」，
+  X-3 点名的正是这一半。
+- **消费面**：一次 copilot turn 的非流式路径（`turn-service.ts`）与流式路径
+  （`streaming-turn.ts`）都接了——后者原本会被漏掉，因为它不经过 `runTurn`，
+  单独直连 Atlas 的 `chatStream`。`costAmount` / `costUnit` 取 Atlas 的
+  `usage.totalTokens`；此前 `turn.ts` 每次 `chat()` 都拿到这个数字却原地丢弃，
+  新增的 `TurnResult.totalTokens` 累加器覆盖主循环每一轮**和**截断分支那次额外
+  调用（写了专门的测试证明截断分支没被漏计）。流式路径缺 `usage` 帧时报
+  「没有花费」而不是编一个零。
+
+`actorConsole` 统一填 `"yucer"`（本仓自产写的进程常量，无 OBO 中继路径）。
+
+1489 tests pass（新增 21 条），六项守卫全绿，生产构建通过。详见
+`70-workplan/00-index.md`「补上 X-3 的审计记录表」。

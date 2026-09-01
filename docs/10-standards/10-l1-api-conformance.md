@@ -29,14 +29,14 @@ yucer 的首个生产 tag（批次 4 的 `v0.1.0`）**还没打**，所以「首
 | **X-1** 错误信封 | `code`（SCREAMING_SNAKE + 模块前缀）· `message` · `retryable`（**必有**）· 可选 `field`；承载位置随传输，字段名不随 | **符合** | `platform/envelope.ts` 单一实现；`check-error-envelope.mjs` 在 CI 里校验 |
 | **X-1** 拒绝词表 | 一律用 `NOT_ENTITLED` / `POLICY_DENIED` / `APPROVAL_REQUIRED` / `QUOTA_EXCEEDED`，不得各造各的 | **符合** | `violationEnvelope()`：权益门 → `NOT_ENTITLED`，权限门 → `POLICY_DENIED` |
 | **X-2** 归因 | agent 发起的调用**必带** `task_id`，被调方原样落库 | **符合** | Atlas 与 Runos 同一个值，`turn-service.ts` 算一次发两处（此前 Atlas 一侧完全没发，见 ADR-004「版本漂移」） |
-| **X-3** 审计与计量字段名 | `eventId · occurredAt · actorId · actorConsole · objectType · objectId · action · outcome`，消费面加 `taskId · costAmount · costUnit` | **不符合，真差距**（登记为 TD-018） | 见下「X-3 复核」 |
+| **X-3** 审计与计量字段名 | `eventId · occurredAt · actorId · actorConsole · objectType · objectId · action · outcome`，消费面加 `taskId · costAmount · costUnit` | **符合**（2026-09-01 还清，TD-018） | `local_audit.event`（`incr/0023_audit_event.sql`），管理面五动词 + 消费面流式/非流式两条路径；见下「X-3 复核」 |
 | **X-4** 版本与弃用 | 依赖的每个对象**可钉版本**并能被告知弃用 | **不符合** | `resolve()` 全部用浮动别名 `stable`；`deprecated` 生命周期字段本仓不声明、不读取 |
 | **G-1** 请求元数据 | 每次调用带身份链；其余元数据永远可选 | **符合** | `_meta.vxture` 带 `task_id` / `session_id` / `agent_version` |
 | **G-2** 错误承载位置 | 执行失败走模型可读通道，协议/鉴权失败走传输层原生通道 | **符合** | 流式失败以 `data:` 帧送出（HTTP 已 200）；传输层 401 走传输层，且**不再**被贴成 `not_entitled` |
 | **A-1** 管理面信封 | 4xx/5xx **必须**结构化，不得裸字符串 | **符合** | 同 X-1；守卫覆盖 |
 | **A-3** 分页与批量上限 | 无界流水**必须**给 cursor + 服务端钳制的 limit；批量上限**必须**在错误里回明，不得静默截断 | **部分** | arda 适配器**拒绝**而非截断（回 `unmapped`），符合后半条；本仓自己的列表接口尚无 cursor |
 | **D-1** 破坏性变更 | 先标弃用、通知、并存一个版本周期 | **不适用**（本仓是消费方） | 但**已被这条保护失败过两次**：Atlas 与 Runos 的改名都是本仓读文档才发现的 |
-| **D-2** 新产品准入 | 首版即全 MUST；提交自陈 | **本文件即自陈**；X-3 / X-4 两项差距如上 | — |
+| **D-2** 新产品准入 | 首版即全 MUST；提交自陈 | **本文件即自陈**；X-4 差距如上（X-3 已还） | — |
 | **D-3** 守卫脚本 | **SHOULD** 用脚本校验可自动判定的部分 | **符合** | `check-error-envelope.mjs`（错误码大小写与前缀、裸字符串），随 `check-port-consistency.mjs` 一起进 `static-checks` |
 
 ## 豁免登记
@@ -87,22 +87,29 @@ yucer 的首个生产 tag（批次 4 的 `v0.1.0`）**还没打**，所以「首
 **C3 的信封本次不动**——它一直是对的，X-3 要补的是旁边一张本仓从未建过的表，不是
 把这张信封改名。
 
+**2026-09-01 已还清**：`local_audit.event` 落地（append-only），接进管理面
+`authz/admin.ts` 的五个动词（outcome 分 `denied` / `error` / `success` 三档，
+不只记落地的写）和消费面的两条 copilot 路径（非流式 `turn-service.ts`、流式
+`streaming-turn.ts` —— 后者原本会被漏掉，因为它单独直连 `chatStream`，不经过
+`runTurn`）。`costAmount` / `costUnit` 取 Atlas 的 `usage.totalTokens`，此前
+`turn.ts` 拿到这个数字就原地丢弃。详见 TD-018（`docs/60-operations/00-index.md`）
+与 `docs/70-workplan/00-index.md`「补上 X-3 的审计记录表」。
+
 ## 已知差距的处置
 
 - **X-4（可钉版本 / 弃用信号）**：真差距，登记为 TD-004。修法是 `resolve()` 钉解析后的
   semver、读回 `version_resolved`、声明并读取 `deprecated` 生命周期。当前用浮动
   `stable` 意味着**运营者改指别名时本仓行为改变，而没有代码变更、没有信号、没有测试
   变红**。
-- **X-3（审计记录表缺失）**：真差距，登记为 TD-018。C3 用量信封不动；要补的是一张
-  本仓从未建过的审计事件表，按通则的最小字段集实现（含 `actorConsole` 的既有字段
-  改名口径与 `costUnit` 的开放词表口径）。
+- **X-3（审计记录表缺失）**：**2026-09-01 已还**，登记为 TD-018。`local_audit.event`
+  落地，C3 用量信封不动。
 - **A-3 的 cursor**：本仓列表接口目前都是工作区内小集合，但这是「现在小」不是「有界」。
   与自审查出的四处无界读取一并处理。
 
 ## 这份自陈怎么维护
 
 **不靠人记。** 能机器判定的条款由 `check-error-envelope.mjs` 守着，改坏了 CI 红。
-不能机器判定的（X-3 审计记录表、X-4 版本钉法）在上表里逐条写明状态，改变状态时改这张表。
+不能机器判定的（X-4 版本钉法）在上表里逐条写明状态，改变状态时改这张表。
 
 标准本身更新时，本仓没有任何自动手段知道——**这正是 D-1 那条「通知消费方」没有规定
 通知渠道所留下的洞**，也是本仓两次契约漂移的共同成因。已发为 [vxture-atlas#248](https://github.com/vxture/vxture-atlas/issues/248)。

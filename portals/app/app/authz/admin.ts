@@ -32,6 +32,8 @@ import type { AuthzStore, MemberRecord } from "./store";
 import type { Entitlement } from "../entitlement/types";
 import { fail, ok, violation, type RuleResult } from "../domains/shared/result";
 import type { Decision } from "./gate";
+import { recordAuditEvent } from "../audit/lib/record";
+import type { AuditOutcome } from "../audit/lib/store";
 
 /**
  * A gate refusal. Defined here rather than imported from a domain service:
@@ -48,6 +50,24 @@ function denied<T>(decision: Decision): RuleResult<T> {
       "authorization",
     ),
   );
+}
+
+/**
+ * L1 X-3: management-plane writes must produce an audit record, and the
+ * record must distinguish denial from success - not just log the writes that
+ * landed. `action` is the same action id the gate checked, `objectId` is
+ * always the member being administered (the one shape every verb here
+ * shares).
+ */
+function audit(ctx: AdminContext, action: string, objectId: string, outcome: AuditOutcome): Promise<void> {
+  return recordAuditEvent({
+    workspaceId: ctx.workspaceId,
+    actorId: ctx.sub,
+    objectType: "member",
+    objectId,
+    action,
+    outcome,
+  });
 }
 
 export interface AdminContext {
@@ -78,13 +98,19 @@ export async function assignRole(
   sub: string,
   role: string,
 ): Promise<RuleResult<MemberRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "admin.member.role.assign", "data");
-  if (!gate.allowed) return denied(gate);
+  const action = "admin.member.role.assign";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) {
+    await audit(ctx, action, sub, "denied");
+    return denied(gate);
+  }
 
   if (!isRoleCode(role)) {
+    await audit(ctx, action, sub, "error");
     return fail(violation("unknown_role", `${role} is not a role in the catalog`, "role"));
   }
   if (!sub.trim()) {
+    await audit(ctx, action, sub, "error");
     return fail(violation("sub_required", "a role is granted to someone", "sub"));
   }
 
@@ -92,6 +118,7 @@ export async function assignRole(
   // The gate reads a 45s cache. Without this, an administrator who grants a
   // role watches nothing happen for most of a minute and grants it again.
   invalidateAuthz(ctx.workspaceId, sub);
+  await audit(ctx, action, sub, "success");
 
   return memberOf(ctx, sub);
 }
@@ -101,10 +128,15 @@ export async function revokeRole(
   sub: string,
   role: string,
 ): Promise<RuleResult<MemberRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "admin.member.role.revoke", "data");
-  if (!gate.allowed) return denied(gate);
+  const action = "admin.member.role.revoke";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) {
+    await audit(ctx, action, sub, "denied");
+    return denied(gate);
+  }
 
   if (!isRoleCode(role)) {
+    await audit(ctx, action, sub, "error");
     return fail(violation("unknown_role", `${role} is not a role in the catalog`, "role"));
   }
 
@@ -119,6 +151,7 @@ export async function revokeRole(
       return after.some(isAdminRole);
     });
     if (stillAdmin.length === 0) {
+      await audit(ctx, action, sub, "error");
       return fail(
         violation(
           "last_admin",
@@ -131,6 +164,7 @@ export async function revokeRole(
 
   await ctx.store.revokeRole(ctx.workspaceId, sub, role);
   invalidateAuthz(ctx.workspaceId, sub);
+  await audit(ctx, action, sub, "success");
 
   return memberOf(ctx, sub);
 }
@@ -166,17 +200,23 @@ export async function deactivateMember(
   ctx: AdminContext,
   sub: string,
 ): Promise<RuleResult<MemberRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "admin.member.deactivate", "data");
-  if (!gate.allowed) return denied(gate);
+  const action = "admin.member.deactivate";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) {
+    await audit(ctx, action, sub, "denied");
+    return denied(gate);
+  }
 
   const members = await ctx.store.listMembers(ctx.workspaceId);
   const target = members.find((m) => m.sub === sub);
   if (!target) {
+    await audit(ctx, action, sub, "error");
     return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
   }
 
   const stillAdmin = members.filter((m) => m.sub !== sub && m.roles.some(isAdminRole));
   if (target.roles.some(isAdminRole) && stillAdmin.length === 0) {
+    await audit(ctx, action, sub, "error");
     return fail(
       violation(
         "last_admin",
@@ -191,6 +231,7 @@ export async function deactivateMember(
   }
   await ctx.store.setMemberStatus(ctx.workspaceId, sub, "inactive");
   invalidateAuthz(ctx.workspaceId, sub);
+  await audit(ctx, action, sub, "success");
 
   return memberOf(ctx, sub);
 }
@@ -212,16 +253,22 @@ export async function reactivateMember(
   ctx: AdminContext,
   sub: string,
 ): Promise<RuleResult<MemberRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "admin.member.reactivate", "data");
-  if (!gate.allowed) return denied(gate);
+  const action = "admin.member.reactivate";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) {
+    await audit(ctx, action, sub, "denied");
+    return denied(gate);
+  }
 
   const members = await ctx.store.listMembers(ctx.workspaceId);
   if (!members.some((m) => m.sub === sub)) {
+    await audit(ctx, action, sub, "error");
     return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
   }
 
   await ctx.store.setMemberStatus(ctx.workspaceId, sub, "active");
   invalidateAuthz(ctx.workspaceId, sub);
+  await audit(ctx, action, sub, "success");
 
   return memberOf(ctx, sub);
 }
@@ -249,19 +296,28 @@ export async function setMemberScope(
   sub: string,
   setting: ScopeSetting,
 ): Promise<RuleResult<MemberRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "admin.member.scope", "data");
-  if (!gate.allowed) return denied(gate);
+  const action = "admin.member.scope";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) {
+    await audit(ctx, action, sub, "denied");
+    return denied(gate);
+  }
 
   const checked = validateScopeSetting(setting);
-  if (!checked.ok) return checked as RuleResult<MemberRecord>;
+  if (!checked.ok) {
+    await audit(ctx, action, sub, "error");
+    return checked as RuleResult<MemberRecord>;
+  }
 
   const members = await ctx.store.listMembers(ctx.workspaceId);
   if (!members.some((m) => m.sub === sub)) {
+    await audit(ctx, action, sub, "error");
     return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
   }
 
   await ctx.store.setScope(ctx.workspaceId, sub, checked.value);
   invalidateAuthz(ctx.workspaceId, sub);
+  await audit(ctx, action, sub, "success");
 
   return memberOf(ctx, sub);
 }

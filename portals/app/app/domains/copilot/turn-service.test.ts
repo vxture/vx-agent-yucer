@@ -11,6 +11,7 @@ import { AtlasError } from "../../agent/atlas/errors";
 import type { RunosClient } from "../../agent/runos/client";
 import type { ChatResponse } from "../../agent/atlas/types";
 import { PROPOSE_ACTION_TOOL_NAME } from "../../agent/orchestrator/tools";
+import { InMemoryAuditStore, setAuditStore } from "../../audit/lib/store";
 
 const WS = "ws_1";
 const TENANT = "tn_1";
@@ -203,4 +204,51 @@ test("the turn reports truncation rather than pretending it finished", async () 
   const h = deps({ replies: [proposeReply] });
   const out = unwrap(await runCopilotTurn(ctx("sales_leader", "enterprise", store), { question: "q", tenantId: TENANT }, h.d));
   assert.equal(typeof out.truncated, "boolean");
+});
+
+// --- L1 X-3 audit wiring ----------------------------------------------------
+
+test("a gated-out turn is recorded as denied before any model call", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const c = ctx("sales_rep", "pro");
+  c.holder = { permissions: new Set() };
+  const h = deps({ replies: [{ content: "hi" }] });
+
+  await runCopilotTurn(c, { question: "what next?", tenantId: TENANT }, h.d);
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "denied");
+  assert.equal(audit.rows[0].action, "copilot.ask");
+  assert.equal(audit.rows[0].taskId, null, "no task id exists yet - nothing was sent to a model");
+  setAuditStore(null);
+});
+
+test("a model-plane failure is recorded as error, with the task id it was attempted under", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const h = deps({ replies: [], atlasThrows: new AtlasError({ code: "GRANT_DENIED", status: 403, message: "no grant" }) });
+
+  await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, h.d);
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "error");
+  assert.ok(audit.rows[0].taskId, "a session existed, so a task id was already computed");
+  setAuditStore(null);
+});
+
+test("a successful turn is recorded with its task id and its Atlas token spend", async () => {
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  const h = deps({ replies: [{ content: "Advance it." }] });
+
+  const out = unwrap(await runCopilotTurn(ctx("sales_rep", "pro"), { question: "next step?", tenantId: TENANT }, h.d));
+  assert.equal(audit.rows.length, 1);
+  const row = audit.rows[0];
+  assert.equal(row.outcome, "success");
+  assert.equal(row.objectId, out.session.id);
+  // taskId is derived from history.length AFTER the user's message is
+  // appended, so a brand-new session's first turn is index 1, not 0.
+  assert.equal(row.taskId, `${out.session.id}:1`);
+  assert.equal(row.costUnit, "tokens");
+  assert.equal(row.costAmount, 2, "one Atlas call in this fixture, usage.totalTokens = 2");
+  setAuditStore(null);
 });

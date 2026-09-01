@@ -306,6 +306,28 @@ test("the tool loop is bounded and still produces an answer", async () => {
   assert.match(String(last[last.length - 1].content), /Tool budget for this turn is spent/);
 });
 
+test("totalTokens sums every Atlas call, including the truncation branch's extra one", async () => {
+  // The harness reports usage.totalTokens: 2 on every call. maxToolRounds: 2
+  // makes 3 in-loop calls (the initial one plus one per round) before the
+  // truncation branch fires a 4th, final call - 8 tokens total. If the
+  // accumulator missed the truncation branch's call, this would read 6.
+  const h = harness({
+    replies: [{ toolCalls: [{ id: "t", name: toolNameFor("acme.crm", "lookup"), arguments: {} }] }],
+    capabilities: [cap()],
+  });
+  const r = await runTurn({ ...BASE, question: "q", maxToolRounds: 2 }, h);
+  assert.equal(r.truncated, true);
+  assert.equal(h.calls.length, 4);
+  assert.equal(r.totalTokens, 8);
+});
+
+test("totalTokens is just the one call's usage when the model answers immediately", async () => {
+  const h = harness({ replies: [{ content: "hi" }] });
+  const r = await runTurn({ ...BASE, question: "q" }, h);
+  assert.equal(h.calls.length, 1);
+  assert.equal(r.totalTokens, 2);
+});
+
 test("several proposals in one turn are all collected", async () => {
   const h = harness({
     replies: [

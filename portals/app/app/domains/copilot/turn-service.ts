@@ -27,6 +27,7 @@ import type {
   PromptContext,
 } from "../../agent/orchestrator/prompt";
 import { AtlasError } from "../../agent/atlas/errors";
+import { recordAuditEvent } from "../../audit/lib/record";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
 import { recordProposals, type CopilotContext } from "./service";
@@ -80,7 +81,20 @@ export async function runCopilotTurn(
 ): Promise<RuleResult<TurnOutput>> {
   // 1. Gate before spending anything. Atlas meters every request.
   const gate = can(ctx.holder, ctx.entitlement, "copilot.ask", "data");
-  if (!gate.allowed) return denied(gate);
+  if (!gate.allowed) {
+    // L1 X-3: a consumer-plane call this product denied still needs a record
+    // ("outcome must distinguish success from denial") - no session exists yet
+    // to name as the object, so the object is the turn attempt itself.
+    await recordAuditEvent({
+      workspaceId: ctx.workspaceId,
+      actorId: ctx.sub,
+      objectType: "copilot_turn",
+      objectId: input.sessionId ?? "new",
+      action: "copilot.ask",
+      outcome: "denied",
+    });
+    return denied(gate);
+  }
 
   const question = input.question.trim();
   if (!question) return fail(violation("empty_question", "ask something", "question"));
@@ -162,6 +176,15 @@ export async function runCopilotTurn(
       deps,
     );
   } catch (e) {
+    await recordAuditEvent({
+      workspaceId: ctx.workspaceId,
+      actorId: ctx.sub,
+      objectType: "copilot_turn",
+      objectId: session.id,
+      action: "copilot.ask",
+      outcome: "error",
+      taskId,
+    });
     // The model plane's own error code reaches the caller. "GRANT_DENIED" and
     // "the copilot is broken" need different responses from whoever reads this.
     if (e instanceof AtlasError) {
@@ -198,6 +221,18 @@ export async function runCopilotTurn(
       dropped = turn.proposals.length - written.length;
     }
   }
+
+  await recordAuditEvent({
+    workspaceId: ctx.workspaceId,
+    actorId: ctx.sub,
+    objectType: "copilot_turn",
+    objectId: session.id,
+    action: "copilot.ask",
+    outcome: "success",
+    taskId,
+    costAmount: turn.totalTokens,
+    costUnit: "tokens",
+  });
 
   return ok({
     session,
