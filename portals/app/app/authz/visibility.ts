@@ -73,7 +73,31 @@ export function canSeeRow(scope: DataScope, row: ScopedRow): boolean {
   //                              in #137 and what a screen with zero customers
   //                              on it would have said if anyone had looked.
   if (row.territoryId != null && scope.territoryIds.includes(row.territoryId)) return true;
-  return row.accountId != null && scope.accountIds.includes(row.accountId);
+  if (row.accountId != null && scope.accountIds.includes(row.accountId)) return true;
+
+  // EXPLICIT FILING WINS, and this check has to come before the two rules
+  // below or they stop being fallbacks. A row carrying a territory of its own,
+  // or sitting on a customer some territory covers, is FILED - just not here -
+  // and neither the owner rule nor the unplaced rule may reach past that.
+  //
+  // The first version put the owner rule above this line, which quietly meant
+  // "a territory owner's ENTIRE book is visible on their ground, wherever it is
+  // filed". In the demo that took a 3-customer territory to 6 - measured, not
+  // reasoned about - and it is not what the comment claimed the rule did.
+  const filedElsewhere =
+    row.territoryId != null ||
+    (row.accountId != null && !scope.unplacedAccountIds.includes(row.accountId));
+  if (filedElsewhere) return false;
+
+  // THE FALLBACK, on unfiled work only. A deal on a customer with no region,
+  // held by the person who runs this ground, is this ground's - placing it by
+  // its owner resolves the case rather than widening it.
+  if (scope.ownerSubs.includes(row.ownerSub)) return true;
+
+  // 未分区: filed nowhere at all. Not the public pool - somebody holds this -
+  // but left invisible it is work NOBODY can see, because it has no region
+  // whose manager might. The owner's ruling: show it rather than lose it.
+  return true;
 }
 
 /** The same decision over a list. Kept separate so call sites read as filters. */

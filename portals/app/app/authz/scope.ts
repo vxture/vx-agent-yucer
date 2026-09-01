@@ -46,15 +46,41 @@ export type DataScope =
        * THE PARENT PATH, and without it the territory scope was broken rather
        * than narrow: `account` and `lead` carry NO territory column at all - a
        * lead reaches one only through `account_id -> account.region ->
-       * territory.regions`, which is the mapping incr/0017 built for routing.
-       * So the first version showed a territory member their deals, the public
-       * pool, and NOTHING ELSE: zero customers and zero leads.
-       *
-       * Resolved once per request, like the own-scope set, and for the same
-       * reason: the walk spans domains and no store may reach into another's
-       * tables.
+       * territory.regions`, the mapping incr/0017 built for routing. Checking
+       * only the row's own territory showed a member their deals, the public
+       * pool, and nothing else.
        */
       readonly accountIds: readonly string[];
+      /**
+       * People who own a territory on this ground.
+       *
+       * THE FALLBACK, tried before anything is called unplaced: a deal on a
+       * customer with no region, held by the person who runs East China, is
+       * East China's. Placing it by its owner RESOLVES the case rather than
+       * widening it, which is why this comes first.
+       *
+       * `territory.owner_sub` is one person per territory, so this reaches
+       * records held by territory owners and not by every rep - the schema
+       * carries no other statement of which territory a person works.
+       */
+      readonly ownerSubs: readonly string[];
+      /**
+       * Customers that land in NO territory at all - 未分区.
+       *
+       * The owner's ruling of 2026-09-01. What survives the two paths and the
+       * fallback is work that, left invisible, NOBODY can see: not its region's
+       * manager, because it has no region. So every territory member sees it.
+       *
+       * A DELIBERATE LOOSENING, worth naming as one: an owned row becomes
+       * visible outside its owner's line because its account is missing a
+       * region - a filing gap widening access. The ruling accepts that, because
+       * the alternative is work that silently disappears.
+       *
+       * NOT the public pool. 公海 is a row with no OWNER, visible at every
+       * scope and claimable by anyone. This is a row somebody holds that nobody
+       * has filed.
+       */
+      readonly unplacedAccountIds: readonly string[];
     }
   | {
       readonly kind: "own";
@@ -69,12 +95,11 @@ export type DataScope =
        * so the scope would be enforcing confidentiality against the person it
        * was supposed to be describing.
        *
-       * So `own` means: what I own, PLUS the customers my work sits on. That is
-       * also the honest reading of "my book".
+       * So `own` means: what I own, PLUS the customers my work sits on - the
+       * honest reading of "my book".
        *
        * Resolved once per request rather than joined per query, because the
-       * answer spans domains - accounts, opportunities and leads - and no store
-       * may reach into another's tables to compute it.
+       * answer spans domains and no store may reach into another's tables.
        */
       readonly accountIds: readonly string[];
     };
