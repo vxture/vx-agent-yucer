@@ -3,9 +3,10 @@ name: ci
 # Trunk-based CI: runs on PRs to main and on push:main (the squash commit that
 # lands on main is a new SHA, so it gets its own gate run). Does NOT deploy.
 #
-# Produces four of the five required status checks named in
+# Produces five of the six required status checks named in
 # docs/50-deployment/rebuild/main-ruleset.json: `quality-gate` / `build` /
-# `test-coverage` / `audit` (the fifth, `gitleaks`, is in secret-scan.yml). Job
+# `test-coverage` / `audit` / `db-contract` (the sixth, `gitleaks`, is in
+# secret-scan.yml). Job
 # names are a stable contract - renaming one breaks branch protection. In the
 # governance-shell batch `build` and `test-coverage` are green placeholders (no
 # app, no tests yet); later batches replace them with real work while keeping
@@ -256,7 +257,7 @@ jobs:
   # figure the project reported as 0.0% until 2026-08-28 (TD-015).
   #
   # ITS OWN JOB, not a step inside test-coverage, and deliberately so:
-  # test-coverage IS one of the required five, and folding a third-party service
+  # test-coverage IS one of the required six, and folding a third-party service
   # into it would let a SonarCloud outage block every merge. `db-contract` is
   # kept out of the required set for the same reason.
   #
@@ -293,9 +294,14 @@ jobs:
   # defects that live there were invisible to a fully green suite - including one
   # where a constraint the design leans on did not hold at all.
   #
-  # Deliberately NOT in the required five (quality-gate / build / test-coverage /
-  # audit / gitleaks). Adding a required check edits the branch-protection
-  # ruleset, which is an owner decision; this runs and reports without gating.
+  # REQUIRED since 2026-09-01 (owner decision - adding one edits the ruleset).
+  # It is the sixth context in main-ruleset.json, and the only one that proves
+  # anything about the database rather than about TypeScript.
+  #
+  # Safe to require because it carries no `if:` and the workflow has no path
+  # filter: it runs on every PR to main and every push to main. A required check
+  # that does not always run leaves every PR pending forever, which is the one
+  # way this change could have gone wrong.
   db-contract:
     name: db-contract
     runs-on: ubuntu-latest

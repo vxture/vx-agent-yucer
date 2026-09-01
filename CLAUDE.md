@@ -104,7 +104,7 @@ Enforced via repo Rulesets (`gh api repos/vxture/<repo>/rulesets`). Legacy
 ruleset is `docs/50-deployment/rebuild/main-ruleset.json`:
 
 - `main` (single ruleset): require PR (0 approvals - checks gate merges, not human
-  review), require the five status checks below (strict / up-to-date with base),
+  review), require the six status checks below (strict / up-to-date with base),
   block deletion, block non-fast-forward, require linear history, squash-only.
 - `production` GitHub Environment: required reviewer - every `v*.*.*` tag deploy
   pauses here until approved.
@@ -134,11 +134,22 @@ silently points the whole ruleset at it and leaves `main` unprotected. Confirm
 `gh api repos/<org>/<repo> --jq .default_branch` returns `main` before and after
 applying the ruleset.
 
-**Required checks (authoritative set of five):** `quality-gate` / `build` /
-`test-coverage` / `audit` / `gitleaks`. CI job names must produce exactly these
-five contexts - renaming a job breaks branch protection. A skeleton repo with no
-unit tests still provides a permanently-green `test-coverage` job (it occupies the
-context; zero tests passes). Never remove a check from the required set.
+**Required checks (authoritative set of six):** `quality-gate` / `build` /
+`test-coverage` / `audit` / `gitleaks` / `db-contract`. CI job names must produce
+exactly these six contexts - renaming a job breaks branch protection. A skeleton
+repo with no unit tests still provides a permanently-green `test-coverage` job (it
+occupies the context; zero tests passes). Never remove a check from the required
+set.
+
+`db-contract` joined on 2026-09-01 (owner decision - adding a required check
+edits the ruleset). It is the only check that proves anything about the DATABASE:
+a UNIQUE index, a CHECK, a REVOKE and a NULL comparison are properties of
+Postgres and of nothing else, so every defect living there was invisible to a
+fully green TypeScript suite - including one where a constraint the design leans
+on did not hold at all. It runs the real DDL in `db-init.yml`'s own order against
+`postgres:18` and then the `*.db.test.ts` files. It carries no `if:` and no path
+filter, which is what makes it safe to require: a required check that does not
+always run leaves every PR pending forever.
 
 ## CI/CD pipeline
 

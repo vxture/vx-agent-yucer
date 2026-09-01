@@ -23,7 +23,7 @@
 //      --config, same flags. A watch that forgets --config silently stops
 //      applying the ignore baseline, so it disagrees with the gate in the one
 //      direction nobody checks.
-//   4. sca-watch.yml declares NO job whose name collides with the five required
+//   4. sca-watch.yml declares NO job whose name collides with the required
 //      status checks. Those names are a branch-protection contract; a second job
 //      called `audit` produces a second context with that name, and what branch
 //      protection then requires is not something anyone should have to reason
@@ -39,8 +39,31 @@ const STRICT = process.argv.includes("--strict");
 const CI = ".github/workflows/ci.yml";
 const WATCH = ".github/workflows/sca-watch.yml";
 
-/** The authoritative set, same list as check-ruleset.mjs. */
-const REQUIRED_CONTEXTS = new Set(["quality-gate", "build", "test-coverage", "audit", "gitleaks"]);
+/**
+ * The authoritative set, READ from the ruleset rather than restated.
+ *
+ * This was a hand-copied list whose comment pointed at `check-ruleset.mjs` - a
+ * sibling that does not exist and never did. So the required contexts lived in
+ * three places (the ruleset JSON, CLAUDE.md, and here) with nothing keeping
+ * them together, and adding `db-contract` on 2026-09-01 would have left this
+ * copy one short: a sca-watch job named `db-contract` would then have been
+ * allowed to collide with a required context, which is the exact failure this
+ * check exists to prevent.
+ *
+ * Reading the JSON makes the drift impossible instead of merely unlikely.
+ */
+const RULESET = "docs/50-deployment/rebuild/main-ruleset.json";
+const REQUIRED_CONTEXTS = new Set(
+  JSON.parse(readFileSync(RULESET, "utf8"))
+    .rules.filter((r) => r.type === "required_status_checks")
+    .flatMap((r) => r.parameters.required_status_checks.map((c) => c.context)),
+);
+if (REQUIRED_CONTEXTS.size === 0) {
+  // A ruleset that parses but names no checks would make every collision test
+  // below vacuously pass - the shape of green that means nothing was checked.
+  console.error(`[sca] ${RULESET} declares no required status checks`);
+  process.exit(1);
+}
 
 const problems = [];
 
@@ -115,8 +138,8 @@ if (watch) {
     if (REQUIRED_CONTEXTS.has(context)) {
       problems.push(
         `${WATCH} declares a job producing the check context "${context}", which is one of the ` +
-          `five required checks. Two contexts with one name is not a state branch protection ` +
-          `should be asked to resolve - rename the watch job.`,
+          `${REQUIRED_CONTEXTS.size} required checks. Two contexts with one name is not a state ` +
+          `branch protection should be asked to resolve - rename the watch job.`,
       );
     }
   }

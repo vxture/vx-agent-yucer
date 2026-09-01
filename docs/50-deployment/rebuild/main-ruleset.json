@@ -33,7 +33,8 @@
           { "context": "build" },
           { "context": "test-coverage" },
           { "context": "audit" },
-          { "context": "gitleaks" }
+          { "context": "gitleaks" },
+          { "context": "db-contract" }
         ]
       }
     }
