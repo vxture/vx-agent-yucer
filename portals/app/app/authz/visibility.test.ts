@@ -4,7 +4,11 @@ import { canSeeRow, visibleRows } from "./visibility";
 import { WHOLE_WORKSPACE, type DataScope } from "./scope";
 
 const own: DataScope = { kind: "own", sub: "usr_me", accountIds: ["acc_mine"] };
-const terr: DataScope = { kind: "territory", territoryIds: ["t_east", "t_shanghai"] };
+const terr: DataScope = {
+  kind: "territory",
+  territoryIds: ["t_east", "t_shanghai"],
+  accountIds: ["acc_east"],
+};
 
 // --- The default narrows nothing --------------------------------------------
 
@@ -59,12 +63,36 @@ test("territory sees its own ground and not somebody else's", () => {
   assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: "t_west" }), false);
 });
 
+test("a territory member sees the customers on their ground, and their leads", () => {
+  // THE DEFECT THIS FIXES, shipped in #137. `account` and `lead` carry NO
+  // territory column - a lead reaches one only through its account's region -
+  // so checking the row's own territory alone showed a territory member their
+  // deals, the public pool, and NOTHING ELSE: zero customers, zero leads.
+  //
+  // An account is passed with its own id as the accountId, because an account
+  // is its own parent.
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", accountId: "acc_east" }), true);
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", accountId: "acc_west" }), false);
+});
+
+test("a deal is visible by its own territory OR by its customer's", () => {
+  // Two independent paths, either of which is enough. A deal filed under no
+  // territory at all is still visible when it sits on a customer this member
+  // covers - which is the case a strictly territory-keyed rule would drop.
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: "t_east", accountId: "acc_west" }), true);
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: null, accountId: "acc_east" }), true);
+});
+
 test("a territory-scoped member does not see a row filed under no territory", () => {
   // Unless nobody owns it - the queue rule above. An owned row with no
   // territory has an owner who can see it, and narrowing means somebody else
   // does not.
+  // ...and on no customer they cover. An OWNED row that cannot be placed is
+  // not the public pool: somebody holds it, and showing it to everybody because
+  // its account has no region would be a leak dressed as a convenience.
   assert.equal(canSeeRow(terr, { ownerSub: "usr_other", territoryId: null }), false);
   assert.equal(canSeeRow(terr, { ownerSub: "usr_other" }), false);
+  assert.equal(canSeeRow(terr, { ownerSub: "usr_other", accountId: "acc_west" }), false);
 });
 
 test("territory ignores ownership - covering the ground is the point", () => {

@@ -61,9 +61,19 @@ export function canSeeRow(scope: DataScope, row: ScopedRow): boolean {
     return row.accountId != null && scope.accountIds.includes(row.accountId);
   }
 
-  // Territory scope. `territoryIds` is already expanded down the hierarchy by
-  // the resolver, so this is a membership test rather than a walk.
-  return row.territoryId != null && scope.territoryIds.includes(row.territoryId);
+  // Territory scope, and BOTH paths matter. `territoryIds` is already expanded
+  // down the hierarchy by the resolver, so each is a membership test.
+  //
+  //   the row's own territory  - opportunities carry one.
+  //   its customer's           - accounts and leads carry NO territory column
+  //                              at all, and reach one only through the
+  //                              account's region. Checking only the first
+  //                              hid every customer and every lead from a
+  //                              territory member, which is how this shipped
+  //                              in #137 and what a screen with zero customers
+  //                              on it would have said if anyone had looked.
+  if (row.territoryId != null && scope.territoryIds.includes(row.territoryId)) return true;
+  return row.accountId != null && scope.accountIds.includes(row.accountId);
 }
 
 /** The same decision over a list. Kept separate so call sites read as filters. */
