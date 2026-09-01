@@ -55,6 +55,24 @@ export interface MemberRolesProps {
   readonly onDeactivate: (sub: string) => Promise<{ ok: boolean; error?: string }>;
   readonly onReactivate: (sub: string) => Promise<{ ok: boolean; error?: string }>;
   /**
+   * Move a departing member's live book to somebody else.
+   *
+   * Offered only on an INACTIVE row: handing over the book of somebody who is
+   * still here is a reassignment, and that is done per record on its own page
+   * with its own reasons. This control exists for the case with no other
+   * answer - the owner has gone and their work is invisible to everyone.
+   */
+  readonly onHandover: (
+    from: string,
+    to: string,
+  ) => Promise<{
+    ok: boolean;
+    error?: string;
+    moved?: { accounts: number; opportunities: number; leads: number };
+    /** Rows a domain rule refused. Reported, never silently dropped. */
+    skipped?: ReadonlyArray<{ kind: string; id: string; reason: string }>;
+  }>;
+  /**
    * Where to send someone who wants to add a member.
    *
    * A LINK, NOT A FORM. The platform decides who may use the product and how
@@ -77,6 +95,7 @@ export function MemberRoles({
   onRevoke,
   onDeactivate,
   onReactivate,
+  onHandover,
   inviteUrl,
 }: MemberRolesProps) {
   const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } =
@@ -84,7 +103,9 @@ export function MemberRoles({
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  const [heir, setHeir] = useState<Record<string, string>>({});
 
   // Counted over the whole table so the guard reads the same fact the service
   // does: "is anyone else able to administer this workspace".
@@ -94,6 +115,7 @@ export function MemberRoles({
     key: string,
     op: () => Promise<{ ok: boolean; error?: string }>,
   ) {
+    setNotice(null);
     setBusy(key);
     setError(null);
     startTransition(() => {
@@ -250,15 +272,78 @@ export function MemberRoles({
         if (!canManage) return null;
         const key = `${row.sub}:lifecycle`;
         if (row.status === "inactive") {
+          // WHO CAN RECEIVE A BOOK: active members other than this one. A
+          // departed member cannot inherit - that would make the work invisible
+          // to a second person instead of the first - and the service refuses
+          // it again, because a client cannot be trusted with that check.
+          const heirs = members.filter((m) => m.status === "active" && m.sub !== row.sub);
+          const chosenHeir = heir[row.sub] ?? "";
+          const handKey = `${row.sub}:handover`;
           return (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={pending && busy === key}
-              onClick={() => run(key, () => onReactivate(row.sub))}
-            >
-              {MEMBER_TEXT.reactivate}
-            </Button>
+            <span className="flex items-center justify-end gap-xs">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={pending && busy === key}
+                onClick={() => run(key, () => onReactivate(row.sub))}
+              >
+                {MEMBER_TEXT.reactivate}
+              </Button>
+              {heirs.length > 0 ? (
+                <>
+                  <NativeSelect
+                    aria-label={MEMBER_TEXT.handoverTo}
+                    value={chosenHeir}
+                    onChange={(e) => setHeir({ ...heir, [row.sub]: e.target.value })}
+                    disabled={pending && busy === handKey}
+                  >
+                    <option value="">{MEMBER_TEXT.handoverTo}</option>
+                    {heirs.map((m) => (
+                      <option key={m.sub} value={m.sub}>
+                        {m.displayName ?? m.sub}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={chosenHeir === "" || (pending && busy === handKey)}
+                          onClick={() =>
+                            run(handKey, () =>
+                              onHandover(row.sub, chosenHeir).then((r) => {
+                                if (!r.ok) return r;
+                                setHeir({ ...heir, [row.sub]: "" });
+                                // WHAT ACTUALLY MOVED, said out loud. A
+                                // handover that reported nothing would leave
+                                // the administrator to go and count - and the
+                                // refused rows would be invisible, which is the
+                                // half that matters: a lead the rule would not
+                                // move is still owned by somebody who has left.
+                                const m = r.moved;
+                                const parts = m
+                                  ? [MEMBER_TEXT.handoverDone(m.accounts, m.opportunities, m.leads)]
+                                  : [];
+                                if (r.skipped && r.skipped.length > 0) {
+                                  parts.push(MEMBER_TEXT.handoverPartial(r.skipped.length));
+                                }
+                                setNotice(parts.join(" "));
+                                return r;
+                              }),
+                            )
+                          }
+                        >
+                          {MEMBER_TEXT.handover}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{MEMBER_TEXT.handoverHint}</TooltipContent>
+                  </Tooltip>
+                </>
+              ) : null}
+            </span>
           );
         }
         // THE LAST ADMINISTRATOR, disabled here and refused again in the
@@ -311,6 +396,7 @@ export function MemberRoles({
         <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge>
       ) : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+      {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}
       {members.length === 0 ? (
         <EmptyState
           title={MEMBER_TEXT.emptyTitle}

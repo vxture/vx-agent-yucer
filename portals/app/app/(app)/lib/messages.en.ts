@@ -1953,9 +1953,28 @@ export const en: Dictionary = {
     reactivate: "Reactivate",
     reactivateHint: "Restores standing only. No role comes back - each must be granted again.",
     invite: "Invite a member",
+    handoverTo: "Hand over to",
+    handover: "Hand over",
+    handoverHint:
+      "Moves the live accounts, deals and leads to this person. Closed deals stay put - that is who won them, and it is history - and so do targets and forecast snapshots.",
+    handoverDone: (accounts: number, deals: number, leads: number) =>
+      `Handed over: ${accounts} accounts, ${deals} deals, ${leads} leads.`,
+    handoverPartial: (skipped: number) => `${skipped} were refused by a rule.`,
   },
 
   MEMBER_ERROR: {
+    same_owner: "The person handing over and the person receiving are the same.",
+    owner_required: "A handover needs somebody to hand over to.",
+    recipient_not_a_member: "The recipient is not a member of this workspace.",
+    recipient_inactive: "The recipient has also left - handing over would make this work invisible to a second person.",
+    lead_converted: "This lead already became an opportunity, and that carries its own owner.",
+    empty_patch: "Nothing to change.",
+    amount_negative: "A deal cannot be worth less than nothing.",
+    probability_range: "A win rate is a whole number from 0 to 100.",
+    terminal_probability_fixed: "A closed deal keeps the win rate it closed with.",
+    terminal_requires_closed: "Winning or losing a deal must set its close date too.",
+    closed_requires_terminal_stage: "Forecasting as closed requires a closed stage.",
+    unknown_forecast_category: "That is not a forecast category.",
     last_admin:
       "This is the workspace's last administrator; removing it leaves nobody able to assign roles",
     unknown_role: "That role is not in the catalog",

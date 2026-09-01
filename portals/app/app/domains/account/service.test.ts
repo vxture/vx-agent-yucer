@@ -8,6 +8,7 @@ import {
   decisionChain,
   linkContacts,
   listAccounts,
+  reassignAccount,
   recomputeHealth,
   upsertContact,
   type AccountContext,
@@ -303,4 +304,38 @@ test("an id from ANOTHER account is not found, and does not move the person", as
   assert.equal(r.ok === false && r.violations[0]!.code, "not_found");
   assert.equal((await store.listContacts(WS, "acc_1")).length, 1, "still on the first customer");
   assert.equal((await store.listContacts(WS, "acc_2")).length, 0);
+});
+
+
+// --- Reassignment (2026-09-01) ----------------------------------------------
+
+test("an account can change hands, and it needs the permission that edits it", async () => {
+  // Whose account this is IS the record, not a lighter fact about it - so the
+  // gate is account.upsert rather than something weaker invented for handover.
+  // A weaker gate would let somebody hand out a book they could not touch.
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account({ ownerSub: "usr_leaver" })] });
+
+  const denied = await reassignAccount(ctx("viewer", "pro", store), "acc_1", "usr_new");
+  assert.equal(denied.ok === false && denied.violations[0].code, "permission_denied");
+
+  unwrap(await reassignAccount(ctx("sales_leader", "pro", store), "acc_1", "usr_new"));
+  assert.equal((await store.getAccount(WS, "acc_1"))?.ownerSub, "usr_new");
+});
+
+test("reassigning to nobody is refused rather than clearing the owner", async () => {
+  // An empty string would blank owner_sub, which is not a handover - it is
+  // making the account invisible to every owner-scoped list at once.
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account({ ownerSub: "usr_leaver" })] });
+  const r = await reassignAccount(ctx("sales_leader", "pro", store), "acc_1", "   ");
+  assert.equal(r.ok === false && r.violations[0].code, "owner_required");
+  assert.equal((await store.getAccount(WS, "acc_1"))?.ownerSub, "usr_leaver");
+});
+
+test("an account in another workspace cannot be handed over", async () => {
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account({ workspaceId: "ws_other" })] });
+  const r = await reassignAccount(ctx("sales_leader", "pro", store), "acc_1", "usr_new");
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
 });
