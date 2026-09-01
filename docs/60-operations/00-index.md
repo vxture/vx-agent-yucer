@@ -27,6 +27,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-015 | SonarCloud 报「新代码覆盖率 0.0%」，实际是 91.41%——自动分析模式不接收覆盖率 | 2026-08-28 | **closed 2026-08-28** |
 | TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | **closed 2026-08-29**（已还 7，删除 3） |
 | TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 3 已关闭；sca-watch 已证自主运行；**仅余层 1 已启用未证明**） |
+| TD-018 | L1 规范 X-3 要求的审计记录表本仓从未建过——之前误判为与 C3 用量信封的权威冲突 | 2026-09-01 | open |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1299,3 +1300,29 @@ owner 授权的全面检查：每个平台合同面，查「代码、配置、�
 真实平台可达性（tailnet + 凭据）：status 页部署后一屏给答案。`production` 环境的
 7 个部署 secrets、`YUCER_WEBHOOK_BASE_URL` 平台侧注册、共享 edge 域名——见
 `50-deployment/20-github-bootstrap-checklist.md`，owner 侧待办。
+
+
+### TD-018 - L1 规范 X-3 的审计记录表本仓从未建过
+
+`product_251` X-3：管理面写操作与消费面调用都必须产生审计记录，字段名固定为
+`eventId · occurredAt · actorId · actorConsole · objectType · objectId · action ·
+outcome`，消费面另加 `taskId · costAmount · costUnit`。
+
+2026-08-17 的自陈（`10-standards/10-l1-api-conformance.md`）把这条记成「与
+`product_200 §4.1` 的用量上报信封各说各的」，判为需要平台裁定的权威冲突，发去了
+[vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)。
+
+**2026-09-01 按《产品接入通则》复核，这是范围划错，不是真冲突**——通则的三产品
+通道矩阵明写那张表「逐格取自 `product_200_integration` 的登记表，未改写」，即
+`product_200 §4.1`（C3 上行的传输信封）与 X-3（本仓自己要留的审计事件记录）本来
+就不是同一层的两份文档。`grep -r audit` 本仓零命中：不是字段名对不上，是这张审计
+记录表从未存在过。`usage/lib/flush.ts` 的 `gated` 只是一次调用返回值里的内存汇总，
+从不落盘。
+
+**修法**：新建一张审计事件表（或等价的结构化日志落点），按上面的字段集实现。
+两处容易踩的点，通则已讲清楚：`actorConsole` 是既有身份字段的改名（铸造 OBO 换票的
+工作台 RP，`act.sub`），不是新列，本方自产写填进程常量，非控制台后台通道填 `NULL`，
+不得硬编；`costUnit` 是开放词表，产品自己声明单位，不要求全平台一套 schema。
+
+已回帖 [vxture-platform#269](https://github.com/vxture/vxture-platform/issues/269)
+说明本仓侧判定变更，不再等待平台裁定谁覆盖谁。C3 的用量信封本次不动。
