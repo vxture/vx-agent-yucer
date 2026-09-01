@@ -1987,6 +1987,8 @@ export const en: Dictionary = {
 
   ROLE_LABEL: {
     sales_leader: "Sales leader",
+    sales_manager: "Sales manager",
+    regional_director: "Regional director",
     marketing_manager: "Marketing manager",
     sales_rep: "Sales rep",
     presales: "Presales",

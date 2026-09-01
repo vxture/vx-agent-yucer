@@ -105,7 +105,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 25 permissions, 7 roles, 86 grants", () => {
+test("the catalog is the documented size: 25 permissions, 9 roles, 117 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -122,10 +122,16 @@ test("the catalog is the documented size: 25 permissions, 7 roles, 86 grants", (
   // not be the person who signs it off. Two grants - the same two roles that
   // hold catalog.price, since setting the floor and excepting it are halves of
   // one authority.
+  //
+  // 7 -> 9 roles and 86 -> 117 grants by incr/0021: sales_manager and
+  // regional_director, the two rungs between a rep and the whole organisation
+  // (owner, 2026-09-01). PERMISSIONS DID NOT MOVE - every code they grant
+  // already existed, so the product gained no new thing anyone may do, it
+  // gained two places to stand.
   assert.equal(PERM_CODES.length, 25);
-  assert.equal(ROLE_CODES.length, 7);
+  assert.equal(ROLE_CODES.length, 9);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 86);
+  assert.equal(total, 117);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
@@ -173,10 +179,64 @@ test("copilot.autopilot is held by sales_leader alone", () => {
 });
 
 test("pipeline.forecast goes to leadership and ops, never to the rep", () => {
+  // THE INVARIANT IS THE SECOND HALF, not the list. A rep owns the deal and not
+  // the forecast commitment; who else may commit is a catalogue decision that
+  // grows. incr/0021 added the two rungs between a rep and the whole
+  // organisation, and both of them exist precisely BECAUSE they commit a number
+  // upward - that is the line a first-line manager crosses.
   const holders = ROLE_CODES.filter((r) => ROLE_PERMISSIONS[r].includes("pipeline.forecast"));
-  assert.deepEqual(holders.sort(), ["sales_leader", "sales_ops"]);
+  assert.deepEqual(holders.sort(), [
+    "regional_director",
+    "sales_leader",
+    "sales_manager",
+    "sales_ops",
+  ]);
   assert.ok(ROLE_PERMISSIONS.sales_rep.includes("pipeline.write"));
   assert.ok(!ROLE_PERMISSIONS.sales_rep.includes("pipeline.forecast"));
+});
+
+test("the two new rungs are a ladder, not two labels for the same thing", () => {
+  // A catalogue with two codes and one permission set is a catalogue that lies
+  // about having made a distinction. Each rung must add something the one below
+  // it does not have - and this is also why 总经理 got no role of its own:
+  // sales_leader already holds everything it would.
+  const rep = new Set(ROLE_PERMISSIONS.sales_rep);
+  const mgr = new Set(ROLE_PERMISSIONS.sales_manager);
+  const dir = new Set(ROLE_PERMISSIONS.regional_director);
+
+  for (const p of rep) assert.ok(mgr.has(p), `sales_manager should hold everything a rep does: ${p}`);
+  for (const p of mgr) assert.ok(dir.has(p), `regional_director should hold everything a manager does: ${p}`);
+  assert.ok(mgr.size > rep.size, "a manager who may do exactly what a rep may do is a label");
+  assert.ok(dir.size > mgr.size, "a director who may do exactly what a manager may do is a label");
+});
+
+test("no two roles hold the same permission set", () => {
+  // The general form of the rule above, over the whole catalogue. It is what
+  // decided that 总经理 is sales_leader rather than a ninth role.
+  const seen = new Map<string, string>();
+  for (const role of ROLE_CODES) {
+    const key = [...ROLE_PERMISSIONS[role]].sort().join(",");
+    const twin = seen.get(key);
+    assert.equal(twin, undefined, `${role} and ${twin} grant exactly the same thing`);
+    seen.set(key, role);
+  }
+});
+
+test("neither new rung administers the workspace or runs the copilot unattended", () => {
+  // Running the sales organisation and administering the workspace are not one
+  // job. Nor is deciding a proposal the same as switching off the deciding.
+  for (const role of ["sales_manager", "regional_director"] as const) {
+    assert.ok(!ROLE_PERMISSIONS[role].includes("admin.manage"), role);
+    assert.ok(!ROLE_PERMISSIONS[role].includes("copilot.autopilot"), role);
+    assert.ok(!ROLE_PERMISSIONS[role].includes("strategy.approve"), role);
+  }
+});
+
+test("a director approves against the floor but does not get to move it", () => {
+  // ADR-019's separation, applied to the new rung: the person who signs a
+  // below-floor deal must not be the person who decides where the floor sits.
+  assert.ok(ROLE_PERMISSIONS.regional_director.includes("pipeline.discount"));
+  assert.ok(!ROLE_PERMISSIONS.regional_director.includes("catalog.price"));
 });
 
 test("sales_ops administers without editing deals", () => {
