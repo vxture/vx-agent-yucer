@@ -236,7 +236,7 @@ export const en: Dictionary = {
     } as Record<string, string>,
     modeWhy: {
       ask_high_risk:
-        "It does what can be walked back on its own - advancing a stage, promoting a signal - because both leave a trail. What cannot be taken back, and what it is unsure of, still comes to you.",
+        "It does what can be walked back on its own, because those leave a trail. What cannot be taken back, and what it is unsure of, still comes to you.",
       ask_always:
         "Every proposal waits for you. This is where a workspace that has never opened this setting stands: not set is not authorised.",
       autonomous:
@@ -246,6 +246,8 @@ export const en: Dictionary = {
       irreversible: "cannot be taken back",
       low_confidence: "not confident enough",
     } as Record<string, string>,
+    modeCanDo: (actions: string) => `Right now it performs: ${actions}.`,
+    modeCanDoNone: "Right now it performs nothing on its own.",
     riskWhy: (floor: number) =>
       `Cannot be taken back = anything that reaches the customer. Not confident enough = under ${floor}%, or no figure given. Either one asks you.`,
     unset: "not set",
@@ -1805,6 +1807,12 @@ export const en: Dictionary = {
     bulkAccept: "Accept selected",
     executionFailed: (count: number, reason: string) =>
       `Accepted, but ${count} could not be carried out: ${reason}. Those are marked failed; a retry is a new proposal.`,
+    acceptedForManual: (count: number) =>
+      `Accepted. ${count} of these cannot be performed automatically and need a person; they stay accepted rather than being marked failed.`,
+    manualBadge: "Needs a person",
+    joinLabels: (labels: readonly string[]) => labels.join(", "),
+    acceptManualNote: (manual: number, total: number) =>
+      `${manual} of these ${total} will not be performed automatically (outreach, for one - a sent message cannot be unsent). Accepting records your judgement; the work still needs a person.`,
     emptyTitle: "No proposals",
     emptyDescription:
       "The copilot has proposed nothing yet. Ask it something, or wait for signal scoring to produce one.",

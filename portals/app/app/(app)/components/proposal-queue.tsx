@@ -17,6 +17,7 @@ import {
   type AgentAction,
   type Decision,
 } from "../../domains/copilot/lib/action";
+import { isExecutable } from "../../domains/copilot/lib/autonomy";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
@@ -62,8 +63,10 @@ export interface ProposalQueueProps {
   ) => Promise<{
     ok: boolean;
     error?: string;
-    /** Accepted, and then could not be carried out - see apply(). */
+    /** Accepted, tried, and refused - see apply(). */
     failed?: ReadonlyArray<{ id: string; reason: string }>;
+    /** Accepted, and never attempted because nothing can perform the type. */
+    manual?: readonly string[];
   }>;
 }
 
@@ -84,6 +87,7 @@ export function ProposalQueue({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [confirming, setConfirming] = useState<Decision | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Only pending proposals are selectable. A decided one is history.
   const pending = useMemo(
@@ -117,6 +121,7 @@ export function ProposalQueue({
     // The result used to be discarded, so a refused adjudication cleared the
     // selection and closed the dialog exactly like a successful one. The two
     // outcomes must not be indistinguishable (TD-010 sweep).
+    setNotice(null);
     const r = await onDecide(
       selectedActions.map((a) => a.id),
       decision,
@@ -132,8 +137,17 @@ export function ProposalQueue({
     if (!r.ok) {
       setError(PROPOSAL_ERROR[r.error ?? "denied"] ?? PROPOSAL_ERROR.not_found);
     } else if (r.failed && r.failed.length > 0) {
+      // A REAL ATTEMPT THAT WAS REFUSED - reported first, because it is the
+      // one that needs looking at.
       const reason = PROPOSAL_ERROR[r.failed[0].reason] ?? PROPOSAL_ERROR.not_found;
       setError(PROPOSAL_TEXT.executionFailed(r.failed.length, reason));
+    } else if (r.manual && r.manual.length > 0) {
+      // NOT AN ERROR, and it does not pretend to be: these were accepted and
+      // nothing was attempted, so the row stays `accepted` rather than being
+      // ended as `failed`. The reader still has to know a person now owes the
+      // work.
+      setNotice(PROPOSAL_TEXT.acceptedForManual(r.manual.length));
+      setError(null);
     } else {
       setError(null);
     }
@@ -149,9 +163,20 @@ export function ProposalQueue({
       // `advance_stage` - and action_type is an open vocabulary (bare
       // VARCHAR(64), no CHECK), so the map cannot be exhaustive and the raw
       // value is the fallback rather than a blank.
+      // AND WHETHER ACCEPTING WILL DO IT. Since 2026-09-01 accepting performs
+      // the action, and for some types it cannot - `draft_outreach` has no
+      // handler on purpose, because a sent message cannot be unsent. Those
+      // proposals are still worth accepting; the agreement is recorded and a
+      // person does the work. Saying so on the row is what keeps one button
+      // from meaning two different things.
       cell: (row) => (
-        <span className="text-foreground">
-          {AGENT_ACTION_LABEL[row.actionType] ?? row.actionType}
+        <span className="flex flex-col gap-3xs">
+          <span className="text-foreground">
+            {AGENT_ACTION_LABEL[row.actionType] ?? row.actionType}
+          </span>
+          {row.status === "proposed" && !isExecutable(row.actionType) ? (
+            <Badge variant="secondary">{PROPOSAL_TEXT.manualBadge}</Badge>
+          ) : null}
         </span>
       ),
     },
@@ -229,6 +254,7 @@ export function ProposalQueue({
       description={PROPOSAL_TEXT.description}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+      {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}
       {/* The bar takes data now, not three JSX slots, and returns null itself
           when nothing is selected - so the outer guard is gone. Both bulk
           actions still open the confirmation rather than acting: ADR-003 is
@@ -322,7 +348,7 @@ function BatchConfirm({
   onCancel,
   onConfirm,
 }: BatchConfirmProps) {
-  const { PROPOSAL_TEXT } = useMessages();
+  const { AGENT_ACTION_LABEL, AGENT_SUBJECT_LABEL, PROPOSAL_TEXT } = useMessages();
   const verb =
     decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
   return (
@@ -330,8 +356,19 @@ function BatchConfirm({
       tone="default"
       title={PROPOSAL_TEXT.confirmTitle(verb, risk.count)}
       description={PROPOSAL_TEXT.confirmDetail({
-        actionTypes: risk.actionTypes.join(", "),
-        subjectTypes: risk.subjectTypes.join(", "),
+        // LABELLED, like the table one row below. This printed the raw enums -
+        // a Chinese dialog reading "动作类型：draft_outreach；作用对象：account"
+        // directly under a table that says 起草触达 / 客户. The table was fixed
+        // for exactly this and the dialog was missed, which is the shape TD-010
+        // keeps taking: the value is a key, and the sentence lives in the
+        // message table. The raw value stays as the fallback, because
+        // action_type is an open vocabulary and no map can be exhaustive.
+        actionTypes: PROPOSAL_TEXT.joinLabels(
+          risk.actionTypes.map((t) => AGENT_ACTION_LABEL[t] ?? t),
+        ),
+        subjectTypes: PROPOSAL_TEXT.joinLabels(
+          risk.subjectTypes.map((t) => AGENT_SUBJECT_LABEL[t] ?? t),
+        ),
         meanConfidence: risk.meanConfidence,
         lowConfidenceCount: risk.lowConfidenceCount,
       })}
@@ -357,7 +394,15 @@ function BatchConfirm({
       }
     >
       {decision === "accept" ? (
-        <p>{PROPOSAL_TEXT.acceptNote}</p>
+        <>
+          <p>{PROPOSAL_TEXT.acceptNote}</p>
+          {/* SAID BEFORE THE CLICK, not after. Accepting performs the action,
+              except for the ones it cannot - and which of the two a batch is is
+              part of what the person is deciding. */}
+          {risk.manualCount > 0 ? (
+            <p>{PROPOSAL_TEXT.acceptManualNote(risk.manualCount, risk.count)}</p>
+          ) : null}
+        </>
       ) : (
         <p>{PROPOSAL_TEXT.rejectNote}</p>
       )}

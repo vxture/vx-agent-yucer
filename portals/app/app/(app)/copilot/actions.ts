@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCopilotStore } from "../../domains/shared/registry";
-import { adjudicate, execute, setAutonomy } from "../../domains/copilot/service";
+import { adjudicate, execute, listProposals, setAutonomy } from "../../domains/copilot/service";
+import { isExecutable } from "../../domains/copilot/lib/autonomy";
 import type { Decision } from "../../domains/copilot/lib/action";
 
 // The only write path from the copilot UI.
@@ -23,9 +24,12 @@ export interface AdjudicateResult {
   ok: boolean;
   decided: string[];
   skipped: Array<{ id: string; reason: string }>;
-  /** Accepted, then could not be carried out. See below - this is not the same
-   *  as skipped, and collapsing them would hide the more serious one. */
+  /** Accepted, then TRIED and refused. See below - this is not the same as
+   *  skipped, and collapsing them would hide the more serious one. */
   failed: Array<{ id: string; reason: string }>;
+  /** Accepted, and the product has no way to perform this kind of action, so a
+   *  person has to. Never attempted, therefore never failed. */
+  manual: string[];
   error?: string;
 }
 
@@ -35,11 +39,18 @@ export async function adjudicateProposals(
 ): Promise<AdjudicateResult> {
   const session = await resolveAppSession();
   if (!session) {
-    return { ok: false, decided: [], skipped: [], failed: [], error: "not_authenticated" };
+    return {
+      ok: false,
+      decided: [],
+      skipped: [],
+      failed: [],
+      manual: [],
+      error: "not_authenticated",
+    };
   }
 
   if (decision !== "accept" && decision !== "reject") {
-    return { ok: false, decided: [], skipped: [], failed: [], error: "invalid_decision" };
+    return { ok: false, decided: [], skipped: [], failed: [], manual: [], error: "invalid_decision" };
   }
 
   const ctx = {
@@ -50,6 +61,16 @@ export async function adjudicateProposals(
     store: getCopilotStore(),
   };
 
+  // READ THE TYPES BEFORE DECIDING, because after adjudicate they are no longer
+  // `proposed` and this filter would not find them. Only the action_type is
+  // wanted, and only to answer "will accepting this actually perform
+  // anything" - the decision itself still sends nothing but ids and a verdict.
+  const pendingTypes = new Map<string, string>();
+  const pending = await listProposals(ctx, { status: "proposed" });
+  if (pending.ok) {
+    for (const row of pending.value) pendingTypes.set(row.id, row.actionType);
+  }
+
   const result = await adjudicate(ctx, ids, decision);
 
   if (!result.ok) {
@@ -58,6 +79,7 @@ export async function adjudicateProposals(
       decided: [],
       skipped: [],
       failed: [],
+      manual: [],
       error: result.violations[0]?.code ?? "denied",
     };
   }
@@ -79,16 +101,40 @@ export async function adjudicateProposals(
   // its own list: `skipped` means the decision did not apply (already decided,
   // not yours), while `failed` means it DID apply and the world still did not
   // change - the more serious of the two, and invisible if merged.
+  //
+  // WHAT THE PRODUCT CANNOT PERFORM IS NOT ATTEMPTED. `draft_outreach` has no
+  // handler - deliberately, since a sent message cannot be unsent - so running
+  // it through execute() would mark the row `failed`, and `failed` is terminal.
+  // That would take a judgement a person had just made and end it, using a word
+  // that means "we tried and were refused" for something nothing ever tried.
+  // Those rows stay `accepted`: the agreement stands, and a human does the
+  // work. The UI says so before the click and again after.
   const failed: Array<{ id: string; reason: string }> = [];
+  const manual: string[] = [];
   if (decision === "accept") {
     for (const id of result.value.decided) {
+      const actionType = pendingTypes.get(id);
+      // UNKNOWN TYPE IS ATTEMPTED, not assumed manual. If the read above failed
+      // or raced, the executor's own allowlist is still the authority and will
+      // refuse - guessing "manual" here would let an executable action quietly
+      // stop being performed because a separate query came back empty.
+      if (actionType !== undefined && !isExecutable(actionType)) {
+        manual.push(id);
+        continue;
+      }
       const run = await execute(ctx, id);
       if (!run.ok) failed.push({ id, reason: run.violations[0]?.code ?? "denied" });
     }
   }
 
   revalidatePath("/copilot");
-  return { ok: true, decided: result.value.decided, skipped: result.value.skipped, failed };
+  return {
+    ok: true,
+    decided: result.value.decided,
+    skipped: result.value.skipped,
+    failed,
+    manual,
+  };
 }
 
 /**
