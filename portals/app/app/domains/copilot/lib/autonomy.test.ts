@@ -4,6 +4,7 @@ import {
   CONFIDENCE_FLOOR,
   decideAutonomy,
   isAutonomyMode,
+  isExecutable,
   riskOf,
 } from "./autonomy";
 
@@ -88,4 +89,15 @@ test("the mode string is validated, so a bad row cannot widen autonomy", () => {
   assert.equal(isAutonomyMode("ask_high_risk"), true);
   assert.equal(isAutonomyMode("autopilot"), false);
   assert.equal(isAutonomyMode(""), false);
+});
+
+// --- What the product can perform itself -------------------------------------
+
+test("isExecutable is asked before accepting, not only after", () => {
+  // The queue marks a row with this, and the confirm dialog counts with it, so
+  // the person deciding knows which of the two things accepting means.
+  assert.equal(isExecutable("advance_stage"), true);
+  assert.equal(isExecutable("draft_outreach"), false);
+  assert.equal(isExecutable("promote_signal"), false);
+  assert.equal(isExecutable("anything the model made up"), false);
 });

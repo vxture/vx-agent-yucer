@@ -13,11 +13,12 @@ import { InMemoryPlanningStore } from "../planning/store";
 import { InMemorySignalStore } from "../signal/store";
 import { InMemoryStrategyStore } from "../strategy/store";
 import { rollUp } from "../pipeline/lib/forecast";
-import { OPEN_STAGE_ORDER } from "../pipeline/lib/stage";
 import { deriveProjectHealth } from "../delivery/lib/revenue";
 import { analyzeChain, analyzeChainRecency } from "../account/lib/health";
 import { reliability } from "../account/lib/commitment";
 import { DEFAULT_PROPOSAL_TTL_MS } from "../copilot/lib/action";
+import { isExecutable } from "../copilot/lib/autonomy";
+import { OPEN_STAGE_ORDER, isStage, planStageChange } from "../pipeline/lib/stage";
 
 const WS = "ws_demo";
 
@@ -735,4 +736,60 @@ test("the demo's anchor is the clock the product reads, not a date in the past",
   // for a term seeded at 12 - and, once a rule reads the clock rather than
   // printing it, changes what the product DOES with the fixtures.
   assert.ok(Math.abs(Date.now() - DEMO_NOW.getTime()) < 60 * 60 * 1000);
+});
+
+
+// --- What the demo does when somebody clicks 采纳 ----------------------------
+//
+// Accepting performs the action as of 2026-09-01, so the demo's proposals stop
+// being decoration: each one either moves a real deal or does not, and a
+// reviewer clicking through will see which. These assertions are about the
+// DEMO'S OWN COHERENCE, which nothing else checks.
+
+test("every demo advance_stage proposal is a move the stage machine allows", async () => {
+  // A demo proposal that fails on accept teaches the reader that the product is
+  // broken. Both of these were checked by hand when execution was wired; this
+  // is the version that keeps being checked - editing a demo deal's stage
+  // without editing the proposal aimed at it is an easy and silent mistake.
+  const s = seeded();
+  const proposals = await s.copilot.listProposals(WS, { status: "proposed" });
+  const moves = proposals.filter((p) => p.actionType === "advance_stage");
+  assert.ok(moves.length > 0, "the demo should show at least one performable proposal");
+
+  for (const p of moves) {
+    assert.equal(p.subjectType, "opportunity", `${p.id} advances something that has no stage`);
+    const to = (p.payload as { to?: unknown }).to;
+    assert.ok(typeof to === "string" && isStage(to), `${p.id} names ${String(to)}, not a stage`);
+
+    const deal = await s.pipeline.getOpportunity(WS, p.subjectId);
+    assert.ok(deal, `${p.id} points at ${p.subjectId}, which the demo does not seed`);
+    const plan = planStageChange(
+      {
+        stage: deal.stage,
+        status: deal.status,
+        probability: deal.probability,
+        closedAt: deal.closedAt,
+        hasWinLossReview: false,
+      },
+      { to: to as never, actorSub: "usr_demo", reason: p.rationale ?? undefined },
+    );
+    assert.equal(
+      plan.ok,
+      true,
+      `${p.id} would fail on accept: ${plan.ok ? "" : plan.violations.map((v) => v.code).join(", ")}`,
+    );
+  }
+});
+
+test("the demo shows both kinds of proposal, performed and needing a person", () => {
+  // The distinction only teaches anything if the queue actually contains both.
+  // A demo of only performable proposals would hide the marker; a demo of only
+  // manual ones would make accepting look like it never does anything.
+  const s = seeded();
+  return s.copilot.listProposals(WS, { status: "proposed" }).then((proposals) => {
+    const performed = proposals.filter((p) => isExecutable(p.actionType));
+    const manual = proposals.filter((p) => !isExecutable(p.actionType));
+    assert.ok(performed.length > 0, "no demo proposal would actually do anything");
+    assert.ok(manual.length > 0, "no demo proposal shows the needs-a-person case");
+  });
 });

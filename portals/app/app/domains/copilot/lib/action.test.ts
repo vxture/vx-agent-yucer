@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
+import { CONFIDENCE_FLOOR } from "./autonomy";
 import {
   ACTION_STATUSES,
   DEFAULT_PROPOSAL_TTL_MS,
@@ -213,6 +214,22 @@ test("batch risk gives the dialog the numbers it needs to not lie", () => {
   assert.deepEqual(r.actionTypes, ["advance_stage", "draft_email"]);
   assert.deepEqual(r.subjectTypes.sort(), ["account", "opportunity"]);
   assert.equal(r.meanConfidence, 60);
+  // draft_email is not something the product performs, so accepting this batch
+  // means two different things and the dialog has to be able to say so.
+  assert.equal(r.manualCount, 1);
+});
+
+test("the low-confidence count uses the same floor the autonomy rule does", () => {
+  // It read a literal `< 60` while the rule read CONFIDENCE_FLOOR. Same number,
+  // two definitions - so moving the floor would have changed what runs
+  // unwatched without changing what the dialog warns about. Asserted against
+  // the constant rather than against 60, or this test would just be a third
+  // copy of the same literal.
+  const r = batchRisk([
+    action({ id: "a", confidence: CONFIDENCE_FLOOR }),
+    action({ id: "b", confidence: CONFIDENCE_FLOOR - 1 }),
+  ]);
+  assert.equal(r.lowConfidenceCount, 1);
 });
 
 test("batch risk handles proposals that reported no confidence", () => {

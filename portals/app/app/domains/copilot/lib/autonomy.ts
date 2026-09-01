@@ -62,6 +62,23 @@ export function isAutonomyMode(v: string): v is AutonomyMode {
 export const EXECUTABLE_ACTIONS: readonly string[] = ["advance_stage"];
 
 /**
+ * Can the product carry this action out itself?
+ *
+ * ASKED BEFORE ACCEPTING, not only after. A person deciding a queue is entitled
+ * to know which of these the machine will actually perform and which it is only
+ * recording their agreement to - those are different acts, and offering one
+ * button for both makes the reader discover the difference afterwards.
+ *
+ * The answer is also what keeps `failed` meaning something. A type with no
+ * handler was never attempted, so calling the outcome a failure would put "we
+ * tried and were refused" and "we never knew how" in the same bucket - and
+ * `failed` is terminal, so it would end a judgement the person had just made.
+ */
+export function isExecutable(actionType: string): boolean {
+  return EXECUTABLE_ACTIONS.includes(actionType);
+}
+
+/**
  * Below this, the model is not sure enough to act unwatched.
  *
  * 60 because it is the line the product already draws: the copilot page says

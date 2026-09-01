@@ -25,6 +25,9 @@
 //      is the signal, not an omission.
 
 import { fail, ok, violation, type RuleResult, type Violation } from "../../shared/result";
+// autonomy.ts imports only a TYPE from this file, which is erased, so the
+// runtime graph is one-directional.
+import { CONFIDENCE_FLOOR, isExecutable } from "./autonomy";
 
 export const ACTION_STATUSES = [
   "proposed",
@@ -276,14 +279,29 @@ export function batchRisk(actions: readonly AgentAction[]): {
   actionTypes: string[];
   /** Mean confidence over proposals that reported one, or null if none did. */
   meanConfidence: number | null;
+  /**
+   * How many of these the product cannot perform itself.
+   *
+   * IN THE DIALOG THAT ASKS, because since 2026-09-01 accepting carries the
+   * action out, and for these it does not - the agreement is recorded and a
+   * person does the work. Told afterwards it is a surprise; told here it is
+   * part of what is being decided.
+   */
+  manualCount: number;
 } {
   const withConfidence = actions.filter((a) => typeof a.confidence === "number");
   const total = withConfidence.reduce((n, a) => n + (a.confidence ?? 0), 0);
   return {
     count: actions.length,
-    lowConfidenceCount: actions.filter((a) => (a.confidence ?? 0) < 60).length,
+    // CONFIDENCE_FLOOR, not a literal 60. This read `< 60` while the autonomy
+    // rule read CONFIDENCE_FLOOR, which is the same doubt with two answers and
+    // exactly the drift that constant exists to prevent: moving the floor would
+    // have changed what runs unwatched without changing what the dialog warns
+    // about.
+    lowConfidenceCount: actions.filter((a) => (a.confidence ?? 0) < CONFIDENCE_FLOOR).length,
     subjectTypes: [...new Set(actions.map((a) => a.subjectType))],
     actionTypes: [...new Set(actions.map((a) => a.actionType))].sort(),
     meanConfidence: withConfidence.length ? total / withConfidence.length : null,
+    manualCount: actions.filter((a) => !isExecutable(a.actionType)).length,
   };
 }

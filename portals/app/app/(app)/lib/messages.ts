@@ -232,8 +232,11 @@ export const AUTONOMY_TEXT = {
     autonomous: "全自动值守",
   } as Record<string, string>,
   modeWhy: {
+    // 这一句原来自己数了一遍能自动执行的动作（还写着「信号升级为线索」，而它
+    // 2026-09-01 就已经从清单里拿掉了），于是设置页和上面的提案队列互相矛盾。
+    // 现在名单由面板从 EXECUTABLE_ACTIONS 现算现填，句子不可能再说错。
     ask_high_risk:
-      "能走回头路的它自己做（推进阶段、信号升级为线索——都有记录可追可回）；收不回的和它自己都没把握的，仍然问你。",
+      "能走回头路的它自己做；收不回的和它自己都没把握的，仍然问你。",
     ask_always: "每一条都等你裁决。没有设置过的工作区就是这一档——没设置不等于已授权。",
     autonomous: "包括对外触达在内，全部自动执行。记录里会写明「无人签字」。",
   } as Record<string, string>,
@@ -243,6 +246,9 @@ export const AUTONOMY_TEXT = {
     irreversible: "收不回",
     low_confidence: "置信度不足",
   } as Record<string, string>,
+  /** 当前真正会自动执行的动作，由 EXECUTABLE_ACTIONS 现算，不手写。 */
+  modeCanDo: (actions: string) => `现在会自己做的：${actions}。`,
+  modeCanDoNone: "现在没有任何一种动作会自己做。",
   riskWhy: (floor: number) =>
     `收不回 = 对客户发出去的动作。置信度不足 = 低于 ${floor}%，或助手没给出置信度。两者有其一就问你。`,
   unset: "尚未设置",
@@ -1610,9 +1616,18 @@ export const PROPOSAL_TEXT = {
   selectionNoun: "条提案",
   bulkReject: "批量拒绝",
   bulkAccept: "批量采纳",
-  /** 采纳成功、但业务动作没能执行。说清楚「签了字，事情没发生」这一种情况。 */
+  /** 采纳成功、但业务动作真的试过并被拒。说清楚「签了字，事情没发生」这一种情况。 */
   executionFailed: (count: number, reason: string) =>
     `已采纳，但其中 ${count} 条没能执行：${reason}。这些提案已标记为失败，重试需要新的提案。`,
+  /** 采纳成功，但产品还不会自动做这种事——没试过，所以不算失败。 */
+  acceptedForManual: (count: number) =>
+    `已采纳。其中 ${count} 条产品还不能自动执行，需要人去做；这些提案保持「已采纳」，没有被判为失败。`,
+  /** 行内标记：这条采纳了也不会自动发生。 */
+  manualBadge: "需人工执行",
+  /** 枚举标签的连接符。标点也是文案，中英文不同，所以不留在组件里（TD-002）。 */
+  joinLabels: (labels: readonly string[]) => labels.join("、"),
+  acceptManualNote: (manual: number, total: number) =>
+    `这 ${total} 条里有 ${manual} 条产品不会自动执行（例如对外触达——发出去的消息收不回来）。采纳表示你认可这个判断，事情仍需要人去做。`,
   emptyTitle: "暂无提案",
   emptyDescription:
     "智能助手还没有给出建议动作。向它提问，或等待信号评分产出提案。",
