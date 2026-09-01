@@ -655,9 +655,15 @@ export const BOARD_TEXT = {
   // ONE queue, because it is one question: what is waiting on me right now.
   // "今日判断" and "待我裁决" were two cards restating two panels already on
   // screen - the centre's own tier filter and the agent deck's pending list.
-  // The verb matches the centre's headline ("今天有 N 件要你定") on purpose:
-  // same word for the same act, so the board and the queue read as one product.
-  queue: "等你定",
+  //
+  // "待你裁决" since 2026-08-31, by the owner. It drops the verb echo the
+  // previous wording had with the centre's headline ("今天有 N 件要你定"),
+  // which was deliberate and is worth stating rather than quietly losing:
+  // 裁决 is the heavier word, and this card is the one place that says what
+  // the whole left flank is for. If the echo is wanted back it is the
+  // HEADLINE that moves - the card is the standing label and the headline is
+  // the sentence.
+  queue: "待你裁决",
   ledeToday: "今天要定的",
   proposals: "待签提案",
   // The two cards this replaced, kept so the archive rows and the copilot page
