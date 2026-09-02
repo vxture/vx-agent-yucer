@@ -3,6 +3,7 @@ import {
   EmptyState,
   SectionHeader,
   StatusBadge,
+  ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
@@ -55,7 +56,8 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
-  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
+    await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
   // ONE PARAM, parsed on the server into the shape the domain demands. See
@@ -86,38 +88,38 @@ export default async function PipelinePage({
 
   const [result, history, score, lines, products, accounts, territories, feed] =
     await Promise.all([
-    // includeClosed, or the "closed" tile reports zero on a workspace that has
-    // closed 2.7M - the same false zero that hit the quota card, in a third
-    // place. The board rolls all four categories from this one list, and a
-    // closed deal is precisely what the closed category counts.
-    listPipeline(ctx, { includeClosed: true }),
-    // The series, not the latest point. See forecastHistory: this read is the
-    // only thing that makes forecast_snapshot's immutability pay for itself.
-    forecastHistory(ctx, period, scope),
-    // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
-    // promised this number in its own description since batch 1 ("预测准确率是
-    // 期末实际对期初快照"), while nothing computed it.
-    forecastScorecard(ctx, period, { scope }),
-    // THROUGH THE SERVICE, not the store handle. Both of these used to call
-    // getCatalogStore() straight from the page, which skips BOTH gates - the
-    // same defect PR #26 fixed on the account detail page. The catalogue read
-    // service exists now, so there is no reason left to reach past it.
-    listOpportunityLines(catalogCtx),
-    listCatalogProducts(catalogCtx),
-    // Two cross-domain reads, for the new-deal form's two pickers. Through the
-    // services, so both gates run - a page reaching a store handle directly is
-    // the defect PR #26 fixed on the account page.
-    listAccounts({ ...ctx, store: session.stores.account() }),
-    listTerritories({ ...ctx, store: getPlanningStore() }),
-    // The SAME memoised call the shell's board and the home screen make, so
-    // the most expensive read in the product still happens once per request.
-    cachedFeed({
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-    }),
-  ]);
+      // includeClosed, or the "closed" tile reports zero on a workspace that has
+      // closed 2.7M - the same false zero that hit the quota card, in a third
+      // place. The board rolls all four categories from this one list, and a
+      // closed deal is precisely what the closed category counts.
+      listPipeline(ctx, { includeClosed: true }),
+      // The series, not the latest point. See forecastHistory: this read is the
+      // only thing that makes forecast_snapshot's immutability pay for itself.
+      forecastHistory(ctx, period, scope),
+      // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
+      // promised this number in its own description since batch 1 ("预测准确率是
+      // 期末实际对期初快照"), while nothing computed it.
+      forecastScorecard(ctx, period, { scope }),
+      // THROUGH THE SERVICE, not the store handle. Both of these used to call
+      // getCatalogStore() straight from the page, which skips BOTH gates - the
+      // same defect PR #26 fixed on the account detail page. The catalogue read
+      // service exists now, so there is no reason left to reach past it.
+      listOpportunityLines(catalogCtx),
+      listCatalogProducts(catalogCtx),
+      // Two cross-domain reads, for the new-deal form's two pickers. Through the
+      // services, so both gates run - a page reaching a store handle directly is
+      // the defect PR #26 fixed on the account page.
+      listAccounts({ ...ctx, store: session.stores.account() }),
+      listTerritories({ ...ctx, store: getPlanningStore() }),
+      // The SAME memoised call the shell's board and the home screen make, so
+      // the most expensive read in the product still happens once per request.
+      cachedFeed({
+        workspaceId: session.workspaceId,
+        sub: session.user.sub,
+        holder: session.authz,
+        entitlement: session.entitlement,
+      }),
+    ]);
 
   if (!result.ok) {
     // The gate's own message, not a generic error: "you need the pro tier" and
@@ -219,21 +221,35 @@ export default async function PipelinePage({
     }));
   // Signed-off lines are not awaiting anything. A badge that never clears is a
   // badge people stop reading.
-  const awaiting = openLines.filter((l) => l.needsApproval && !l.approved).length;
+  const awaiting = openLines.filter(
+    (l) => l.needsApproval && !l.approved,
+  ).length;
 
   return (
     <ViewLayout>
-      {/* Opens with a statement, the same way the home screen does. A page that
-          opens with a noun and a caption makes the reader work out what matters;
-          the data already knows. */}
+      {/* The page's name, at the height every other page's sits at. This was the
+          last page still opening on a hand-rolled heading inside a card, which
+          is what made it look a size and a height apart from the rest. */}
+      <ViewHeader
+        title={PIPELINE_TEXT.title}
+        description={PIPELINE_TEXT.description}
+      />
+
+      {/* Then the statement. This card still opens with a FIGURE rather than a
+          noun - the whole card is the disclosure that decomposes it, so the
+          number is the thing being explained and has to lead.
+
+          NOT an <h1> any more: ViewHeader above owns that, and two of them on
+          one page is a document with two subjects. It keeps the size, because
+          its weight on the page was never coming from the tag. */}
       <HeadlineCard
         split={split}
         awaiting={awaiting}
         headline={
           <div className="min-w-0">
-            <h1 className="text-heading-2 text-foreground tabular-nums">
+            <p className="text-heading-2 text-foreground tabular-nums">
               {PIPELINE_TEXT.lead(BOARD_TEXT.wan(commit))}
-            </h1>
+            </p>
             <p className="text-muted-foreground mt-2xs text-body-sm">
               {points.length < 2
                 ? PIPELINE_TEXT.leadNoHistory
@@ -268,7 +284,9 @@ export default async function PipelinePage({
           door. */}
       <NewOpportunity
         accounts={
-          accounts.ok ? accounts.value.map((a) => ({ id: a.id, name: a.name })) : []
+          accounts.ok
+            ? accounts.value.map((a) => ({ id: a.id, name: a.name }))
+            : []
         }
         territories={territoryOptions}
         canCreate={
@@ -347,8 +365,6 @@ export default async function PipelinePage({
           />
         }
       />
-
-
     </ViewLayout>
   );
 }
