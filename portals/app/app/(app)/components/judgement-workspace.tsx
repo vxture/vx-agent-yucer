@@ -124,7 +124,18 @@ export function JudgementWorkspace({
         title={
           counts.today > 0 ? HOME_TEXT.lead(counts.today) : HOME_TEXT.leadNone
         }
-        description={HOME_TEXT.leadSub(scanned, judgements.length)}
+        // The analysis hint used to sit on EVERY panel that offered an
+        // analysis - the same sentence, five times down one screen, eating the
+        // right end of five rows. It is a fact about how this page works, not
+        // about any one case, so it is said once here.
+        description={
+          <>
+            <span className="block">
+              {HOME_TEXT.leadSub(scanned, judgements.length)}
+            </span>
+            <span className="block">{HOME_TEXT.analysisHint}</span>
+          </>
+        }
         action={
           <Stack gap="xs" className="flex-row flex-wrap items-center">
             <SegmentedControl
@@ -265,8 +276,27 @@ function Engagement({
           </CollapsibleTrigger>
         }
       >
-        {/* The numbers behind the claim. */}
-        <div className="flex flex-wrap items-baseline gap-md">
+        {/* ONE ROW: the numbers on the left, the orders on the right.
+            
+            MEASURED, not preferred. The facts used 375-539px of an 862px row
+            and the orders sat on a row of their own beneath them, so every
+            panel spent a whole line plus its margin on ~300px of buttons while
+            487px of the line above stayed empty. Five of the six panels fit
+            both on one line; the sixth wraps, which is what flex-wrap is for -
+            two lines when the content needs two, rather than always.
+            
+            THE GAP IS SPLIT - `md` across, `xs` down. A single `gap-md` also
+            applies BETWEEN wrapped lines, which made the narrow-viewport case
+            (1024px, where the buttons do drop to a second line) 214px against
+            the 208px the two-row layout cost there. Widening the reading gap
+            between two rows nobody asked to separate is not a trade.
+            
+            It also puts the orders at a FIXED RIGHT EDGE down the page, so the
+            button is in the same place on every panel instead of starting
+            wherever the previous panel's facts happened to end. That is the
+            division signal-queue.tsx already states in its own header: left is
+            what the thing IS, right is how it is JUDGED. */}
+        <div className="flex flex-wrap items-center gap-x-md gap-y-xs">
           {/* Only facts that ARE quantities get the big tabular treatment. Some
               are verdicts rather than amounts - "no missed promises", "yes" /
               "no" - and setting a word at figure size in a row of numbers makes
@@ -292,46 +322,42 @@ function Engagement({
               <span className="text-muted-foreground text-xs">{f.label}</span>
             </span>
           ))}
-        </div>
 
-        {/* The orders. Available WITHOUT expanding, because opening the subject
-            or asking for an analysis are the ordinary moves - only checking the
-            reasoning needs the drawer. */}
-        <Stack gap="xs" className="mt-sm flex-row flex-wrap items-center">
-          <Button size="sm" asChild>
-            {/* The team judgement is not an account, so it does not open a
+          {/* The orders. Available WITHOUT expanding, because opening the
+              subject or asking for an analysis are the ordinary moves - only
+              checking the reasoning needs the drawer. `ml-auto` is what holds
+              the right edge when the facts are short. */}
+          <Stack gap="xs" className="ml-auto flex-row flex-wrap items-center">
+            <Button size="sm" asChild>
+              {/* The team judgement is not an account, so it does not open a
               position - it opens the adoption board. Sending it to the same
               label would name the destination wrongly. */}
-            <Link href={href}>
-              {j.subjectType === "team"
-                ? HOME_TEXT.openTeam
-                : HOME_TEXT.openSubject}
-            </Link>
-          </Button>
-          {j.analyses.map((a) => (
-            <Button key={a} size="sm" variant="outline">
-              {analysisLabels(HOME_TEXT)[a]}
+              <Link href={href}>
+                {j.subjectType === "team"
+                  ? HOME_TEXT.openTeam
+                  : HOME_TEXT.openSubject}
+              </Link>
             </Button>
-          ))}
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={pendingDismiss}
-            title={HOME_TEXT.actDismissHint}
-            onClick={() =>
-              startDismiss(() => {
-                void dismissJudgement(j.id, j.urgency);
-              })
-            }
-          >
-            {HOME_TEXT.actDismiss}
-          </Button>
-          {j.analyses.length > 0 ? (
-            <span className="text-muted-foreground ml-auto text-xs">
-              {HOME_TEXT.analysisHint}
-            </span>
-          ) : null}
-        </Stack>
+            {j.analyses.map((a) => (
+              <Button key={a} size="sm" variant="outline">
+                {analysisLabels(HOME_TEXT)[a]}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pendingDismiss}
+              title={HOME_TEXT.actDismissHint}
+              onClick={() =>
+                startDismiss(() => {
+                  void dismissJudgement(j.id, j.urgency);
+                })
+              }
+            >
+              {HOME_TEXT.actDismiss}
+            </Button>
+          </Stack>
+        </div>
 
         {/* The drawer. CollapsibleContent rather than `open ? ... : null`: the
             trigger, the content and the aria wiring between them are then one
