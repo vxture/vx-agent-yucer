@@ -3110,3 +3110,59 @@ pass-through 箭头函数从未被**调用**过。
 1666 个 test() 声明、1459 pass / 0 fail（207 skipped 即全部 db 测试自跳过）；带
 真实 `DATABASE_URL` 时 207 条 db 测试全部通过。`tsc --noEmit` 通过，六项守卫全绿，
 生产构建通过。
+
+## `auth/lib/oidc.ts`：给它一个假 IdP（`test/oidc-token-exchange`）
+
+覆盖率审计里最后一个既不在 Sonar 排除范围内、也没被前几批碰过的文件。
+**37.5% (3/8) → 100% (12/12)**，新增 14 条测试。
+
+之前所有 oidc 测试都给 `verifyToken` 注入 `keyResolver: publicKey`，所以
+**令牌端点和远程 JWKS 这两条生产真正走的路径从未执行过**：`exchangeCode`、
+`refreshTokens`、它们共用的 `postToken`、`basicAuth`、以及 `getJwks` 构造的
+远程解析器，全部是零。
+
+### 用真实 HTTP 服务器，不是 stub 掉全局 fetch
+
+与「用真实 Postgres 而不是内存镜像」是同一个理由，而且在这里更尖锐：**stub 只能
+确认这个文件「自以为」发了什么**。集成点上要紧的是服务器**实际收到**什么——方法、
+content-type、表单里有哪些字段，尤其是没有哪些字段。
+
+「client_secret 只在 Authorization 头里、不在表单体里」是一条关于线上字节的性质：
+密钥若同时出现在表单里，会被沿途每一个代理和访问日志记下来，而针对 fetch stub 写
+的断言永远发现不了——它是在跟把密钥放进去的那段代码互相点头。
+
+假 IdP 是 `node:http` 起在 127.0.0.1 的临时端口，不需要 `DATABASE_URL`、不出网，
+所以这 14 条跑在普通套件里。
+
+### 覆盖的性质
+
+令牌端点：两种 grant 的字段各自正确（`refresh_token` 不带 `code_verifier` /
+`redirect_uri` 这类另一条流程的残留）、Basic 头是 `base64(id:secret)` 原文（用带
+`+` `/` `=` `:` 的密钥验证过）、content-type 与 accept、可选字段缺失时仍是合法
+TokenSet、4xx/5xx 带状态码和 IdP 自己的理由抛出、超长错误体按 `.slice(0, 200)`
+截断、以及**错误体读不出来时仍报状态码而不是网络错误**（`res.text()` 的
+`.catch(() => "")`）。
+
+远程 JWKS：不注入密钥时真的去拉 JWKS 并验签、拉到的密钥集被缓存（两次验签只有
+一次 JWKS 请求）、缓存按 URL 分键（换一个 IdP 不会拿到上一个的密钥）、以及
+**RS256 白名单在远程路径上同样成立**——原有的降级测试是注入密钥版的，这条是生产
+真正走的那条路。
+
+### 按规矩让守卫失败过
+
+- 把 `client_secret` 塞进表单体 → 「the secret must not be in the form body」精确失败。
+- 让 JWKS 缓存忽略 URL（`if (!jwksCache)`）→ 三条失败，包括缓存分键那条；连带
+  失败的两条正说明单槽缓存会把上一个 IdP 的密钥发给下一个。
+
+两次都改回后 14 条全绿。
+
+### 一处诚实记下的时间依赖
+
+`res.text()` 的 `.catch` 只有在 fetch 已经拿到 Response、随后读 body 失败时才走
+得到；先断连接会让整个 fetch 失败，那是另一条路径。所以那条测试在写完响应头后
+延迟断开 socket，**这是本文件唯一的时间依赖**，注释里写明了：余量 250ms 对一个
+远小于 1ms 的 loopback 往返来说宽了约三个数量级，而且万一在高负载 runner 上失手，
+它会以 `fetch failed` 失败而不是静默通过——修法是加大余量，不是加重试。
+
+1680 个 test() 声明、1473 pass / 0 fail（207 skipped 即 db 测试自跳过）。
+`tsc --noEmit` 通过，六项守卫全绿，生产构建通过。
