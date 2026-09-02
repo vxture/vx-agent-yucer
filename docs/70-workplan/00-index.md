@@ -3050,3 +3050,63 @@ DDL，再对着真实 `DATABASE_URL` 跑。
 （157 恰好等于全部 `*.db.test.ts` 的自跳过计数，非本批引入的失败）。带真实
 `DATABASE_URL` 单独跑全部 `*.db.test.ts`：157 条全部 pass，其中本批新增 94 条。
 `tsc --noEmit` 通过，六项守卫全绿，生产构建通过。
+
+## 收尾三个缺口：copilot、strategy、scoped-stores（`test/copilot-strategy-scoped-stores`）
+
+TD-019 补完八个 prisma-store 后，覆盖率审计里还剩三处，本批一次做完。前两个是同
+一形状的最后两个适配器，第三个形状不同、但风险最高。
+
+| 文件 | 之前 | 之后 |
+|------|------|------|
+| `domains/copilot/prisma-store.ts` | 23.8% | **96.4%**（27 条新测试） |
+| `domains/strategy/prisma-store.ts` | 36.4% | **92.9%**（23 条新测试） |
+| `authz/scoped-stores.ts` | 34.1% | **100%**（5 条新测试） |
+
+函数级总覆盖率（两轮合并、剔除 i18n 模板 lambda）：86.49% → **89.95%**。
+`*.db.test.ts` 合计 157 → 207 条。至此没有任何 prisma-store 或 authz 文件低于 50%。
+
+### 第三个同类生产缺陷：`agent_action.capability` 从未被写入
+
+与 TD-019 的两个是同一个病，第三次出现，而且这次**修不回来**：
+
+- `NewProposal.capability` 字段存在，注释写着「ADR-015. Set at creation; the
+  column has no UPDATE grant」；
+- 内存镜像 `store.ts:301` **写了** `capability: p.capability ?? null`；
+- `toAction()` **读**这个字段；
+- 两个 UI（`theatre-plan.tsx`、`pipeline/[id]/page.tsx`）按它给提案分组；
+- 而 `PrismaCopilotStore.createProposals()` 的 `data` 字面量里**根本没有这个键**。
+
+incr/0008 明确不授予 `UPDATE`（「capability joins payload / rationale /
+confidence in the frozen set」），所以插入时丢掉的值**此后永远补不上**——这一行
+在数据库里就是永久无标签。目前唯一的真实调用方（逾期承诺扫描 `proposalFor()`）
+不传 capability，所以是潜伏的、还没炸；但任何一个开始传的生产者，都会在测试里
+（内存镜像）正常、在生产中（Prisma）静默失效。已修。
+
+**两个镜像互相矛盾时，先问哪个符合契约**，而不是让它们互相印证——这正是内存镜像
+与 Prisma 适配器两边都做同一个（错的）假设时抓不到的那类缺陷的反面：这次两边
+假设不同，差异本身就是线索。
+
+### scoped-stores：形状不同，风险最高
+
+`scoped-stores.ts` 是数据可见范围的边界，文件自己的注释写着「a forgotten one is
+a SILENT confidentiality hole... because the setting is believed」。它原本已有
+一条**结构性**测试，断言 wrapper 的源码**提到**了每个端口方法——但 26 个
+pass-through 箭头函数从未被**调用**过。
+
+两者的差距是一整类真实缺陷：**一个转发到错误内层方法的 pass-through**（例如
+`listContacts` 实际调用 `listRelations`）签名兼容、编译通过、名字也确实出现在
+源码里，原有的结构性测试完全看不见。
+
+新增的测试用一个 Proxy 记录内层被调用的方法名，对每个端口的**每一个**方法断言
+「wrapper.X 只调用了 inner.X、参数逐字转发、pass-through 原样返回内层结果」——
+方法列表从端口源码解析而来，不在测试里硬编码，所以以后新增的方法自动被问到。
+
+**按本仓「让守卫真的失败一次」的规矩验证过**：把 `listContacts` 故意改成转发
+`listRelations`，新测试以
+`AccountStore.listContacts called listRelations on the inner store` 精确失败，
+而原有的结构性测试全程绿着（`listContacts` 这个名字确实还在源码里）。改回后
+11 条全绿。
+
+1666 个 test() 声明、1459 pass / 0 fail（207 skipped 即全部 db 测试自跳过）；带
+真实 `DATABASE_URL` 时 207 条 db 测试全部通过。`tsc --noEmit` 通过，六项守卫全绿，
+生产构建通过。

@@ -144,3 +144,148 @@ test("every port method is named in the wrapper - the compiler asks, this counts
     }
   }
 });
+
+// --- The pass-throughs actually reach the method they name -------------------
+
+/**
+ * An inner store that records what was called on it.
+ *
+ * A Proxy rather than a hand-written double because the point is to answer
+ * "which inner method did the wrapper call", for EVERY method on the port,
+ * without listing them here - a list here would rot the same way the wrapper
+ * would, and then the test would stop asking about whatever was added last.
+ */
+function recordingStore(scopedReads: Readonly<Record<string, unknown>>) {
+  const calls: Array<{ name: string; args: readonly unknown[] }> = [];
+  const sentinels = new Map<string, object>();
+  const proxy = new Proxy(
+    {},
+    {
+      get(_t, prop: string) {
+        return (...args: readonly unknown[]) => {
+          calls.push({ name: prop, args });
+          // The scoped reads must return something the wrapper can narrow; every
+          // other method returns a unique object so the test can assert the
+          // wrapper handed back exactly what the inner one produced.
+          if (prop in scopedReads) return Promise.resolve(scopedReads[prop]);
+          if (!sentinels.has(prop)) sentinels.set(prop, { passedThrough: prop });
+          return Promise.resolve(sentinels.get(prop));
+        };
+      },
+    },
+  );
+  return { proxy, calls, sentinelFor: (n: string) => sentinels.get(n) };
+}
+
+/** Method names declared on a port interface, read from its source. */
+function portMethods(file: string, name: string): string[] {
+  const port = readFileSync(new URL(file, import.meta.url), "utf8");
+  const body = port.slice(port.indexOf(`export interface ${name} {`));
+  return [...body.slice(0, body.indexOf("\n}")).matchAll(/^ {2}([a-zA-Z]+)[(<]/gm)].map((m) => m[1]);
+}
+
+const PORTS: Array<{
+  name: string;
+  file: string;
+  wrap: (inner: never, scope: DataScope) => unknown;
+  scopedReads: Record<string, unknown>;
+}> = [
+  {
+    name: "PipelineStore",
+    file: "../domains/pipeline/store.ts",
+    wrap: scopePipelineStore as never,
+    scopedReads: { listOpportunities: [], getOpportunity: null },
+  },
+  {
+    name: "AccountStore",
+    file: "../domains/account/store.ts",
+    wrap: scopeAccountStore as never,
+    scopedReads: { listAccounts: [], getAccount: null },
+  },
+  {
+    name: "SignalStore",
+    file: "../domains/signal/store.ts",
+    wrap: scopeSignalStore as never,
+    scopedReads: { listLeads: [], getLead: null },
+  },
+];
+
+for (const port of PORTS) {
+  test(`every ${port.name} method reaches the inner method of the SAME name`, async () => {
+    // The half the structural test above cannot see. It proves each method is
+    // MENTIONED; this proves each one is WIRED - a pass-through that forwarded
+    // to the wrong inner method (listContacts calling listRelations, say) has
+    // a compatible signature, satisfies the compiler, and is named correctly in
+    // the source, so nothing else here would notice.
+    const methods = portMethods(port.file, port.name);
+    assert.ok(methods.length > 5, `parsed only ${methods.length} methods from ${port.name}`);
+
+    for (const m of methods) {
+      const { proxy, calls, sentinelFor } = recordingStore(port.scopedReads);
+      const wrapped = port.wrap(proxy as never, MINE) as Record<
+        string,
+        (...a: readonly unknown[]) => Promise<unknown>
+      >;
+      assert.equal(typeof wrapped[m], "function", `${port.name}.${m} is missing from the wrapper`);
+
+      const args = [WS, { marker: m }] as const;
+      const returned = await wrapped[m](...args);
+
+      assert.deepEqual(
+        calls.map((c) => c.name),
+        [m],
+        `${port.name}.${m} called ${calls.map((c) => c.name).join("/") || "nothing"} on the inner store`,
+      );
+      assert.deepEqual(calls[0].args, args, `${port.name}.${m} did not forward its arguments verbatim`);
+
+      if (!(m in port.scopedReads)) {
+        assert.equal(
+          returned,
+          sentinelFor(m),
+          `${port.name}.${m} did not return the inner store's own result`,
+        );
+      }
+    }
+  });
+}
+
+// --- getLead is a scoped read, not a pass-through ----------------------------
+
+test("getLead answers null for a lead outside the member's book", async () => {
+  // The sibling of getOpportunity, and the same reasoning: null rather than a
+  // refusal, so the scope never becomes an existence oracle.
+  const inner = new InMemorySignalStore();
+  const theirs = await inner.createLead(WS, {
+    companyName: "Theirs",
+    accountId: "acc_theirs",
+    signalId: null,
+    campaignId: null,
+    score: 10,
+    ownerSub: "usr_other",
+  });
+  const mine = await inner.createLead(WS, {
+    companyName: "Mine",
+    accountId: "acc_mine",
+    signalId: null,
+    campaignId: null,
+    score: 20,
+    ownerSub: "usr_me",
+  });
+
+  const scoped = scopeSignalStore(inner, MINE);
+  assert.equal(await scoped.getLead(WS, theirs.id), null);
+  assert.equal((await scoped.getLead(WS, mine.id))?.id, mine.id);
+});
+
+test("getLead lets an unowned lead through - the queue, by id as well as by list", async () => {
+  const inner = new InMemorySignalStore();
+  const unowned = await inner.createLead(WS, {
+    companyName: "Nobody's",
+    accountId: null,
+    signalId: null,
+    campaignId: null,
+    score: null,
+  });
+  const scoped = scopeSignalStore(inner, MINE);
+  assert.equal((await scoped.getLead(WS, unowned.id))?.id, unowned.id);
+});
