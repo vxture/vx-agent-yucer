@@ -287,6 +287,11 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
       territory("terr_east", workspaceId, "EAST", "East China", REP1, DEMO_TERRITORY_REGIONS.EAST),
       territory("terr_north", workspaceId, "NORTH", "North China", REP2, DEMO_TERRITORY_REGIONS.NORTH),
       territory("terr_south", workspaceId, "SOUTH", "South China", REP2, DEMO_TERRITORY_REGIONS.SOUTH),
+      // Single-region, deliberately - see 港澳零售集团. The other three each
+      // cover two regions, so region derivation there always finds more than
+      // one candidate and always declines to guess; this is the only ground in
+      // the demo where a deal's territory names exactly one region.
+      territory("terr_hk", workspaceId, "HK", "Hong Kong & Macau", REP1, DEMO_TERRITORY_REGIONS.HK),
     ],
     targets: [
       target("tgt_ws", workspaceId, "workspace", null, null, 12_000_000, "committed"),
@@ -363,6 +368,12 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // territory member sees it, which is the ruling of 2026-09-01 and the
       // case that was invisible in the demo until now.
       account("acc_demo_8", workspaceId, 8, DEMO_ACCOUNTS[7], "ENTERPRISE", REP2, 58, "active"),
+      // Region-derivable, not 未分区 (see the DEMO_ACCOUNTS comment). Industry
+      // and segment are both already filled in, deliberately - the ONLY gap
+      // this account has is region, so the completeness screen's derivable
+      // half has a clean case to show rather than one tangled up with the
+      // industry gap acc_demo_8 also carries.
+      account("acc_demo_9", workspaceId, 9, DEMO_ACCOUNTS[8], "MIDMARKET", REP1, 70, "active"),
     ],
     contacts: [
       contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90),
@@ -727,6 +738,10 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // Given a territory it would simply belong to that one, and the case
       // would vanish from the demo again.
       opp("opp_demo_19", workspaceId, 19, DEMO_OPPORTUNITIES[18], "acc_demo_8", null, null, REP2, "discover", "pipeline", 520_000, 25, daysAhead(70), null, "open"),
+      // Filed under terr_hk - the ONE territory in this demo that names a
+      // single region, and the whole reason accountGaps() can suggest
+      // anything for acc_demo_9 rather than declining between two candidates.
+      opp("opp_demo_20", workspaceId, 20, DEMO_OPPORTUNITIES[19], "acc_demo_9", null, "terr_hk", REP1, "discover", "pipeline", 380_000, 20, daysAhead(60), null, "open"),
       // Rule-coverage deals. Both open, both with a real amount, so the two
       // new accounts appear in the pipeline the judgement rules read.
       //
@@ -1048,7 +1063,10 @@ function account(
     // for the first-entry account because the type is a plain string; the
     // column and every rule downstream treat a blank as unknown.
     industry: info.industry || null,
-    region: info.region,
+    // Same reasoning as industry, and needed for the same reason: 港澳零售集团
+    // writes "" for the region-derivable case, and the column and every rule
+    // downstream treat a blank as unknown, not as an account with no region.
+    region: info.region || null,
     segmentCode,
     ownerSub,
     healthScore,
