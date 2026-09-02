@@ -1459,6 +1459,7 @@ export const FIELD_TEXT = {
 } as const;
 
 export const FIELD_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
   note_required: "写一句发生了什么——只记下它发生过,没有价值",
   occurred_in_future: "跟进不能发生在未来",
   unknown_channel: "未知的跟进方式",

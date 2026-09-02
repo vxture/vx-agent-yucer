@@ -12,16 +12,24 @@ import * as zh from "./messages";
 // Each override is TYPE-CHECKED against its Chinese counterpart, so a renamed
 // key breaks the build and a function cannot quietly change its arity.
 //
-// COVERAGE, 2026-08-26: 65 of the 67 constants in messages.ts. The two that
-// are not here are PREVIEW_FIXTURES and PREVIEW_TEXT, which belong to
-// /product-preview - a fixture page pinned to zh-CN by construction, because a
-// reviewer checking the two gates should see the same screen whatever their
-// own cookie says. They are demo data, not product copy.
+// COVERAGE, 2026-09-02: 96 of the 102 constants in messages.ts. Six are not
+// here, in two groups that are not the same thing:
 //
-// The count is machine-checkable rather than a claim in a comment:
+//   PINNED TO zh-CN BY CONSTRUCTION - PREVIEW_FIXTURES, PREVIEW_TEXT. They
+//   belong to /product-preview, where a reviewer checking the two gates should
+//   see the same screen whatever their own cookie says. Demo data, not product
+//   copy, and translating them would be wrong rather than merely absent.
 //
-//   grep -c "^export \(const\|function\) " messages.ts     <- denominator
-//   grep -c "^  [A-Za-z_]*: [{([]"          messages.en.ts   <- numerator
+//   SIMPLY NOT TRANSLATED YET - FORECAST_ERROR, PROJECT_ERROR, TARGET_ERROR,
+//   TIER_LABEL. An English reader meets Chinese here, which is the visible
+//   incompleteness this file is built to show rather than hide. TIER_LABEL is
+//   the one to think about before translating: tier names are commercial
+//   naming, not copy.
+//
+// THIS COUNT USED TO BE A CLAIM AND IS NOW A TEST. It said "65 of the 67" and
+// named two exceptions; the file had grown to 102 constants and six exceptions
+// without the sentence moving. i18n/dictionary.test.ts asserts the exact set,
+// so the next one to drift fails rather than being read and believed.
 //
 // WIRING IS THE OTHER HALF, and it was the half missing until 2026-08-26.
 // Sixteen components imported messages.ts directly, so no dictionary lookup
@@ -40,12 +48,19 @@ const GATE_ERROR = {
   not_authenticated: "Your session has expired - please sign in again",
   permission_denied: "You cannot perform this action",
   feature_not_in_tier: "Your tier does not include this capability",
+  // The generic fallback, and the reason it is not optional: components read
+  // these as `DICT[code] ?? DICT.denied`, so without it an unregistered code
+  // renders `undefined` to an English reader. zh has carried this key since the
+  // dictionaries were consolidated; en had not, which made "complete by
+  // construction" true of the top level only.
+  denied: "The action was refused",
 } as const;
 
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
 
   COMPLETENESS_ERROR: {
+    ...GATE_ERROR,
     not_found: "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field the copilot may fill.",
     value_required: "Filling a field needs a value; a blank is not one.",
@@ -80,6 +95,7 @@ export const en: Dictionary = {
   },
 
   BATCH_COMPLETE_ERROR: {
+    ...GATE_ERROR,
     not_found: "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field batch completeness fills.",
     value_required: "This suggestion was empty and was skipped.",
@@ -702,6 +718,7 @@ export const en: Dictionary = {
     }
   },
   SIGNAL_ACTION_ERROR: {
+    ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     illegal_transition: "That status change is not allowed from here.",
     unknown_status: "Unknown status.",
@@ -716,6 +733,7 @@ export const en: Dictionary = {
     owner_required: "An assignment needs somebody to assign to.",
   },
   PROPOSAL_ERROR: {
+    ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     not_pending: "This proposal has already been decided.",
     decider_required: "Accepting must land on a named person.",
@@ -744,16 +762,19 @@ export const en: Dictionary = {
     turn_failed: "The assistant could not answer this time. Nothing on this record changed.",
   },
   REVIEW_ERROR: {
+    ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     not_closed: "Only a closed opportunity can be reviewed.",
   },
   LOAD_ERROR: {
+    ...GATE_ERROR,
     not_authenticated: "Your session has expired. Please sign in again.",
     permission_denied: "You do not have permission to view this.",
     feature_not_in_tier: "Your plan does not include this capability.",
     unknown: "Could not load the data. Please try again.",
   },
   SEGMENT_ERROR: {
+    ...GATE_ERROR,
     segment_code_required: "A segment needs a code.",
     name_required: "A segment needs a name.",
     unknown_status: "That is not a segment status.",
@@ -1631,6 +1652,7 @@ export const en: Dictionary = {
   },
 
   LIFECYCLE_ERROR: {
+    ...GATE_ERROR,
     illegal_transition: "This status cannot move directly to that one",
     unknown_status: "Unknown status",
     executions_outstanding:
@@ -2039,6 +2061,7 @@ export const en: Dictionary = {
   },
 
   MEMBER_ERROR: {
+    ...GATE_ERROR,
     same_owner: "The person handing over and the person receiving are the same.",
     owner_required: "A handover needs somebody to hand over to.",
     recipient_not_a_member: "The recipient is not a member of this workspace.",

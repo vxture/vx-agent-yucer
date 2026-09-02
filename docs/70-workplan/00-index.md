@@ -3166,3 +3166,63 @@ TokenSet、4xx/5xx 带状态码和 IdP 自己的理由抛出、超长错误体�
 
 1680 个 test() 声明、1473 pass / 0 fail（207 skipped 即 db 测试自跳过）。
 `tsc --noEmit` 通过，六项守卫全绿，生产构建通过。
+
+## i18n 与 periods：41 个 `undefined` 藏在「complete by construction」后面（`test/i18n-and-periods`）
+
+覆盖率表上剩的 6 行低覆盖里，两个是纯函数、值得测；测出来的东西比覆盖率本身重要。
+
+`lib/periods.ts` 33.3% → **100%**，`lib/i18n/dictionary.ts` 33.3% → **100%**。
+
+### 真缺陷：两个语言的错误字典各有一批键在运行时是 `undefined`
+
+`messages.en.ts` 的头注释写着「COMPLETED by construction so no screen can render
+`undefined`」。**这句话只在顶层为真**：en 用 `{...zh, XXX_ERROR: {...}}` 覆盖，
+嵌套对象是整个替换而不是合并，所以 en 侧那个字典漏掉的每个 code 都变成
+`undefined`。
+
+组件的读法恰恰是 `XXX_ERROR[code] ?? XXX_ERROR.denied`——**最终兜底本身就是
+`undefined`**。zh 的 `GATE_ERROR.denied` 有一条注释专门解释它为什么存在：
+「一个没登记的 code 显示这句，而不是把裸 code 摆给用户——少一句翻译是缺陷，
+泄露内部代号是同一个缺陷换个样子（TD-010）」。en 没有这个键。
+
+实测 **19 个字典、38 个键**在 en 下是 `undefined`；补完后反向又查出 **zh 侧
+`FIELD_ERROR` 同样没有 `denied`**（`record-follow-up.tsx:86` 正是
+`FIELD_ERROR[...] ?? FIELD_ERROR.denied`），合计 41 个。双向断言才看得见第二个。
+
+**类型系统为什么拦不住**：这些字典声明成 `Record<string, string>` 而不是
+`as const`，`Widen<Record<string,string>>` 仍是 `Record<string,string>`，缺键的
+对象完全满足它。头注释里「每个 override 都被类型检查过」对错误字典不成立。
+
+修法与 zh 一致：en 的 `GATE_ERROR` 补上 `denied`，9 个从未 spread 它的字典
+（en 的 BATCH_COMPLETE / COMPLETENESS / PROPOSAL / REVIEW / SEGMENT /
+SIGNAL_ACTION / MEMBER / LIFECYCLE / LOAD，zh 的 FIELD）补上 `...GATE_ERROR`，
+放在最前所以各自更具体的措辞仍然覆盖它。
+
+### 注释腐烂：说「67 个里翻了 65」，实际「102 个里翻了 96」
+
+未翻译的从 2 个变成 6 个而那句话没动过。已改成真实数字，并区分两类：
+`PREVIEW_FIXTURES` / `PREVIEW_TEXT` 是**按构造钉在 zh-CN** 的（/product-preview
+的评审页，两个门的截图不该随 cookie 变），另外四个
+（`FORECAST_ERROR`、`PROJECT_ERROR`、`TARGET_ERROR`、`TIER_LABEL`）只是还没翻。
+`TIER_LABEL` 翻之前要想一下：档位名是商业命名，不是文案。这个集合现在由测试钉住。
+
+### 刻意不做的事
+
+**不去调用那 145 个格式化函数把 `messages.ts` 从 2.7% 抬上去。** 那需要为每个
+函数手工维护一张类型正确的参数表（`joinFields` 要数组、`scoreExplain` 要数字、
+`healthReasonText` 要 `{code}` 对象）——我写的探针正是猜错了类型，报出 5 个
+「失败」和 4 个「没用参数」，**全部是探针自己的错，不是字典的错**。这种表一旦
+有人新增格式化函数就会腐烂，然后在 CI 里稳定地误报。所以 `messages.ts` 的函数
+覆盖率就停在低位，理由写在测试文件顶部。
+
+`i18n/provider.tsx`（16.7%）同样不做：它是 React context 与 hooks，需要组件测试
+基建，而本仓从来没有（`sonar-project.properties` 已记录这一点）。建不建是产品
+决定，不该顺手塞进一个测试 PR。
+
+### 按规矩让守卫失败过
+
+把 `denied` 从 en 的 `GATE_ERROR` 再删一次 → 两条断言以 19 个字典的完整清单失败。
+改回后 13 条全绿。
+
+1693 个 test() 声明、1486 pass / 0 fail。`tsc --noEmit` 通过，六项守卫全绿，
+生产构建通过。
