@@ -388,6 +388,75 @@ export async function fillAccountField(
   return ok({ accountId, field, value: value.trim() });
 }
 
+export interface BatchCompletenessRow {
+  accountId: string;
+  accountName: string;
+  gap: AccountGap;
+}
+
+/**
+ * Every derivable gap across every customer this member can see, in one pass.
+ *
+ * ONLY THE DATA HALF. `forModel` gaps are excluded by construction (`fillable`
+ * already does this) - a batch that also spent a model turn per account would
+ * meter Atlas once per customer in the workspace on one click, which is the
+ * exact "paying to be told something the database already knows" defect
+ * completeness.ts warns against, multiplied by the roster. The model half
+ * stays a per-account, explicit act - see askToComplete.
+ *
+ * ONE ROUND TRIP PER DOMAIN, not per account. accountCompleteness() re-fetches
+ * territories and segments on every call, which is right for one record; doing
+ * that once per row here across a whole roster would turn 3 queries into N+2.
+ */
+export async function workspaceCompleteness(
+  ctx: AccountContext & { pipeline: PipelineStore; planning: PlanningStore; strategy: StrategyStore },
+): Promise<RuleResult<BatchCompletenessRow[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const [accounts, deals, territories, segments] = await Promise.all([
+    ctx.store.listAccounts(ctx.workspaceId),
+    ctx.pipeline.listOpportunities(ctx.workspaceId, { includeClosed: true }),
+    ctx.planning.listTerritories(ctx.workspaceId),
+    ctx.strategy.listSegments(ctx.workspaceId),
+  ]);
+
+  const dealsByAccount = new Map<string, { territoryId: string | null; ownerSub: string | null }[]>();
+  for (const d of deals) {
+    const row = { territoryId: d.territoryId, ownerSub: d.ownerSub };
+    const list = dealsByAccount.get(d.accountId);
+    if (list) list.push(row);
+    else dealsByAccount.set(d.accountId, [row]);
+  }
+
+  const territoryInputs = territories.map((t) => ({
+    id: t.id,
+    name: t.name,
+    ownerSub: t.ownerSub,
+    regions: t.regions ?? [],
+    status: t.status,
+  }));
+  const segmentInputs = segments.map((sg) => ({
+    code: sg.segmentCode,
+    industries: sg.criteria?.industries ?? [],
+    regions: sg.criteria?.regions ?? [],
+  }));
+
+  const rows: BatchCompletenessRow[] = [];
+  for (const account of accounts) {
+    const gaps = accountGaps(
+      account,
+      dealsByAccount.get(account.id) ?? [],
+      territoryInputs,
+      segmentInputs,
+    );
+    for (const gap of fillable(gaps)) {
+      rows.push({ accountId: account.id, accountName: account.name, gap });
+    }
+  }
+  return ok(rows);
+}
+
 export async function designateAccount(
   ctx: AccountContext,
   input: {

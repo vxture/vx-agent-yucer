@@ -775,6 +775,34 @@ export const COMPLETENESS_TEXT = {
   } as Record<string, string>,
 } as const;
 
+export const BATCH_COMPLETE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  not_found: "这条客户记录不存在，或不属于当前工作区",
+  field_not_fillable: "这个字段不在批量补齐的范围内",
+  value_required: "这一条建议是空的，跳过",
+};
+
+export const BATCH_COMPLETE_TEXT = {
+  title: "批量补齐",
+  description:
+    "把「这份客户资料还缺什么」的规则跑一遍全部客户——只是数据已经能推出来的那半，不问助手，不花模型。逐条勾选、批量应用，写入时仍按各条记录单独判断权限。",
+  columnAccount: "客户",
+  columnField: "字段",
+  columnSuggestion: "建议值",
+  columnBasis: "依据",
+  selectionNoun: "条建议",
+  apply: "批量应用",
+  applying: "应用中",
+  clearSelection: "取消选择",
+  emptyTitle: "没有能推出来的缺口",
+  emptyDescription: "本工作区可见的客户资料，数据已能推出的字段都已经填好。",
+  /** applied, failed */
+  result: (applied: number, failed: number) =>
+    failed > 0
+      ? `已应用 ${applied} 条，${failed} 条失败——多半是别人已经先填了，或范围变了`
+      : `已应用 ${applied} 条`,
+} as const;
+
 export const SHELL_TEXT = {
   brandName: "Yucer 销售智能体",
   workspaceFallback: "当前工作区",
@@ -2016,6 +2044,9 @@ export const ACCOUNT_TEXT = {
   recomputedOn: (name: string, score: number | null) =>
     score === null ? `${name}:数据不足，仍为未评估` : `${name}:${score} 分`,
   recomputeFailed: "重算失败",
+
+  batchCompleteBanner: (n: number) => `${n} 家客户资料数据能推出来，可以批量补齐`,
+  batchCompleteLink: "去处理",
 
   contactsTitle: "联系人",
   contactsWhy:

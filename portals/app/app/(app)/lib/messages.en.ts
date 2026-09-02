@@ -79,6 +79,32 @@ export const en: Dictionary = {
     } as Record<string, string>,
   },
 
+  BATCH_COMPLETE_ERROR: {
+    not_found: "That customer record does not exist, or is not in this workspace.",
+    field_not_fillable: "That is not a field batch completeness fills.",
+    value_required: "This suggestion was empty and was skipped.",
+  },
+
+  BATCH_COMPLETE_TEXT: {
+    title: "Batch completeness",
+    description:
+      "Runs the same rule as \"What this customer record is missing\" across every customer - only the half the data can already work out, no model spend. Select, apply in bulk, and each write is still checked on its own permissions.",
+    columnAccount: "Customer",
+    columnField: "Field",
+    columnSuggestion: "Suggested value",
+    columnBasis: "Basis",
+    selectionNoun: "suggestions",
+    apply: "Apply selected",
+    applying: "Applying",
+    clearSelection: "Clear selection",
+    emptyTitle: "Nothing the data can work out",
+    emptyDescription: "Every field the data can derive is already filled, across every customer this workspace can see.",
+    result: (applied: number, failed: number) =>
+      failed > 0
+        ? `Applied ${applied}, ${failed} failed - most often because someone else filled it first, or scope changed`
+        : `Applied ${applied}`,
+  },
+
   SHELL_TEXT: {
     brandName: "Yucer Sales Agent",
     workspaceFallback: "Current workspace",
@@ -1414,6 +1440,8 @@ export const en: Dictionary = {
         ? `${name}: not enough data, still unassessed`
         : `${name}: ${score}`,
     recomputeFailed: "Could not recompute",
+    batchCompleteBanner: (n: number) => `${n} customer records the data can complete - batch it`,
+    batchCompleteLink: "Go",
     contactsTitle: "Contacts",
     contactsWhy:
       "The people inside this customer and what each is to the deal. The chain above and the board's decision-maker coverage are both computed from these roles.",

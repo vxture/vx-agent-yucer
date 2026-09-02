@@ -4,6 +4,10 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryAccountStore, type AccountRecord, type ContactRecord } from "./store";
+import { InMemoryPipelineStore, type OpportunityRecord } from "../pipeline/store";
+import { InMemoryPlanningStore, type TerritoryRecord } from "../planning/store";
+import { InMemoryStrategyStore, type SegmentRecord } from "../strategy/store";
+import { money } from "../shared/money";
 import {
   decisionChain,
   linkContacts,
@@ -11,6 +15,7 @@ import {
   reassignAccount,
   recomputeHealth,
   upsertContact,
+  workspaceCompleteness,
   type AccountContext,
 } from "./service";
 
@@ -338,4 +343,169 @@ test("an account in another workspace cannot be handed over", async () => {
   store.seed({ accounts: [account({ workspaceId: "ws_other" })] });
   const r = await reassignAccount(ctx("sales_leader", "pro", store), "acc_1", "usr_new");
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
+});
+
+// --- workspaceCompleteness ---------------------------------------------------
+
+function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
+  return {
+    id: "opp_1",
+    workspaceId: WS,
+    opportunityNo: "OPP-1",
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    name: "Deal",
+    accountId: "acc_1",
+    planId: null,
+    campaignId: null,
+    sourceProjectId: null,
+    territoryId: "t_east",
+    ownerSub: "usr_rep",
+    stage: "discover",
+    forecastCategory: "commit",
+    amount: money(100_000),
+    probability: 25,
+    expectedCloseAt: new Date("2026-09-30T00:00:00Z"),
+    closedAt: null,
+    status: "open",
+    currency: "CNY",
+    ...over,
+  };
+}
+
+function territory(over: Partial<TerritoryRecord> = {}): TerritoryRecord {
+  return {
+    id: "t_east",
+    workspaceId: WS,
+    territoryCode: "T-EAST",
+    name: "East",
+    parentId: null,
+    ownerSub: null,
+    regions: ["East China"],
+    status: "active",
+    ...over,
+  };
+}
+
+function segment(over: Partial<SegmentRecord> = {}): SegmentRecord {
+  return {
+    id: "seg_1",
+    workspaceId: WS,
+    segmentCode: "SMB",
+    name: "SMB",
+    planId: null,
+    priority: 1,
+    status: "active",
+    criteria: { industries: ["Manufacturing"], regions: [] },
+    ...over,
+  };
+}
+
+function batchCtx(
+  role: RoleCode,
+  tier: Entitlement["tier"],
+  stores: {
+    account?: InMemoryAccountStore;
+    pipeline?: InMemoryPipelineStore;
+    planning?: InMemoryPlanningStore;
+    strategy?: InMemoryStrategyStore;
+  } = {},
+) {
+  return {
+    workspaceId: WS,
+    sub: "usr_me",
+    holder: { permissions: new Set(permissionsForRoles([role])) },
+    entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
+    store: stores.account ?? new InMemoryAccountStore(),
+    pipeline: stores.pipeline ?? new InMemoryPipelineStore(),
+    planning: stores.planning ?? new InMemoryPlanningStore(),
+    strategy: stores.strategy ?? new InMemoryStrategyStore(),
+  };
+}
+
+test("workspaceCompleteness finds derivable gaps across every account, not just one", async () => {
+  const accountStore = new InMemoryAccountStore();
+  accountStore.seed({
+    accounts: [
+      account({ id: "acc_1", name: "Acme", region: null }),
+      account({ id: "acc_2", name: "Beta", region: null }),
+    ],
+  });
+  const pipeline = new InMemoryPipelineStore();
+  pipeline.seed([
+    opp({ id: "opp_1", accountId: "acc_1", territoryId: "t_east" }),
+    opp({ id: "opp_2", accountId: "acc_2", territoryId: "t_east" }),
+  ]);
+  const planning = new InMemoryPlanningStore();
+  planning.seed({ territories: [territory()] });
+
+  const r = unwrap(
+    await workspaceCompleteness(
+      batchCtx("sales_leader", "pro", { account: accountStore, pipeline, planning }),
+    ),
+  );
+
+  assert.equal(r.length, 2);
+  assert.deepEqual(r.map((row) => row.accountId).sort(), ["acc_1", "acc_2"]);
+  assert.ok(r.every((row) => row.gap.field === "region" && row.gap.suggestion === "East China"));
+});
+
+test("workspaceCompleteness never includes a gap only the model can answer", async () => {
+  // industry has no suggestion in accountGaps() - fillable() already drops it,
+  // but this pins the batch reader's contract: nothing here should ever need
+  // a forModel check downstream.
+  const accountStore = new InMemoryAccountStore();
+  accountStore.seed({ accounts: [account({ id: "acc_1", industry: null, region: "East China" })] });
+  const planning = new InMemoryPlanningStore();
+  planning.seed({ territories: [territory()] });
+
+  const r = unwrap(
+    await workspaceCompleteness(batchCtx("sales_leader", "pro", { account: accountStore, planning })),
+  );
+  assert.ok(r.every((row) => !row.gap.forModel));
+  assert.equal(
+    r.some((row) => row.gap.field === "industry"),
+    false,
+  );
+});
+
+test("segment is derivable once industry and region are already on the record", async () => {
+  const accountStore = new InMemoryAccountStore();
+  accountStore.seed({
+    accounts: [account({ id: "acc_1", industry: "Manufacturing", region: "East China", segmentCode: null })],
+  });
+  const planning = new InMemoryPlanningStore();
+  planning.seed({ territories: [territory()] });
+  const strategy = new InMemoryStrategyStore();
+  strategy.seed({ segments: [segment()] });
+
+  const r = unwrap(
+    await workspaceCompleteness(
+      batchCtx("sales_leader", "pro", { account: accountStore, planning, strategy }),
+    ),
+  );
+  const seg = r.find((row) => row.gap.field === "segmentCode");
+  assert.ok(seg);
+  assert.equal(seg?.gap.suggestion, "SMB");
+});
+
+test("an unsubscribed workspace cannot run the batch", async () => {
+  const r = await workspaceCompleteness(batchCtx("sales_leader", null));
+  assert.equal(r.ok, false);
+});
+
+test("an account with nothing missing contributes no rows", async () => {
+  const accountStore = new InMemoryAccountStore();
+  accountStore.seed({
+    accounts: [
+      account({
+        id: "acc_1",
+        region: "East China",
+        industry: "Manufacturing",
+        segmentCode: "SMB",
+        ownerSub: "usr_rep",
+      }),
+    ],
+  });
+  const r = unwrap(await workspaceCompleteness(batchCtx("sales_leader", "pro", { account: accountStore })));
+  assert.deepEqual(r, []);
 });
