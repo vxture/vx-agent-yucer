@@ -1386,3 +1386,52 @@ outcome`，消费面另加 `taskId · costAmount · costUnit`。
 
 新增 8 个 `*.db.test.ts`，共 94 条测试，全部对本地真实 Postgres 通过；连同已有
 的 db 测试合计 157 条。六项守卫全绿，生产构建通过。
+
+### TD-020 - 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半
+
+TD-019 补完 8 个 prisma-store 的测试后重新做覆盖率审计，暴露出一个比原问题更
+结构性的事实：**本仓的单元测试套件与 db 测试套件在同一个进程里互斥，不存在
+「跑一次读一个数」这个选项。**
+
+- 设了 `DATABASE_URL`：store 工厂从内存镜像切到 Prisma 适配器，单元套件当场
+  **失败 50 条**——单元夹具用的是 `"ws_1"` 这类假 id，而真实列是 UUID 类型。
+  （已核实为既有性质，非 TD-019 引入：`authz/admin.test.ts` 与
+  `audit/lib/prisma-store.ts` 最后一次改动都在 #145。）
+- 不设 `DATABASE_URL`：157 条 db 测试全部自跳过。
+
+`ci.yml` 把 `test-coverage` 与 `db-contract` 拆成两个 job 正是因为这个，拆得对。
+问题在于**喂给 SonarCloud 的只有 `pnpm test:lcov` 这一半**，而那一半恰好是所有
+Prisma 适配层都不执行的那一半。后果实测：
+
+| 文件 | 真实（两轮合并） | CI 发布的那一半 | 低报 |
+|------|------|------|------|
+| `authz/prisma-store.ts` | 100% | 7.7% | -92 |
+| `provisioning/lib/prisma-store.ts` | 100% | 12.5% | -88 |
+| `account/field-prisma-store.ts` | 94.7% | 7.1% | -88 |
+| `catalog/prisma-store.ts` | 91.2% | 4.8% | -86 |
+
+共 **11 个文件被低报 40 个百分点以上**（9 个 prisma-store，加上只有 db 测试才
+会走到的 `shared/allocate.ts` 与 `shared/db-chain.ts`）。
+
+**这不是理论问题，它已经产生了一次误判**：PR #149 新增 94 条测试，SonarCloud 以
+「0.0% Coverage on New Code (required >= 80%)」判 fail。它没测错——在它看的那次
+运行里，这 94 条一条都没执行。六项必需检查全绿（`db-contract` 独立复核通过），
+SonarCloud 不在必需集内，故未阻塞合并。
+
+**为什么这次没有当场修**：合并两份 lcov 需要按 `FN`/`FNDA` 名对取 max，这既要
+改 `ci.yml`（多一个带 `DATABASE_URL` 的覆盖率产出），也要改
+`scripts/ci/lcov-to-repo-root.mjs`（或新增一个合并脚本），还要决定
+SonarCloud 读哪一份。属于 CI 契约变更，不该塞在一个测试 PR 里顺手做。
+
+**修法（待办）**：`db-contract` job 增加 `--experimental-test-coverage` 与 lcov
+产出，新增一个按 `FN`/`FNDA` 取 max 的合并步骤，让 sonar 读合并后的那一份。在
+那之前，**任何人引用本仓的覆盖率数字，都必须说明是哪一半**——单说一个数就是
+TD-019 那次「敷衍」的同一个错误，只是换成了工具替人犯。
+
+当前真实数字（2026-09-02，`7ab639d`，两轮合并、函数级、剔除 i18n 模板 lambda）：
+**86.7%（1366/1575）**，0 个文件为 0%。完整表格见
+[Coverage Audit](https://claude.ai/code/artifact/c91f3a2e-a458-465f-be2c-b1cbf6999dce)。
+
+剩余同形缺口：`copilot/prisma-store.ts` 23.8%、`strategy/prisma-store.ts` 36.4%
+——最后两个没有 db 测试文件的适配器；另有 `authz/scoped-stores.ts` 34.1%，未覆盖
+的是决定「一个成员到底能看见哪些行」的作用域包装层，形状不同，值得单独看。
