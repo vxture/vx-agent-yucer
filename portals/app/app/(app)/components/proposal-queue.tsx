@@ -6,6 +6,8 @@ import {
   BulkActionBar,
   Button,
   DataTable,
+  DetailList,
+  DetailRow,
   EmptyState,
   Section,
   StatusBadge,
@@ -18,6 +20,7 @@ import {
   type Decision,
 } from "../../domains/copilot/lib/action";
 import { isExecutable } from "../../domains/copilot/lib/autonomy";
+import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
@@ -79,12 +82,15 @@ export function ProposalQueue({
     ACTION_STATUS_LABEL,
     AGENT_ACTION_LABEL,
     AGENT_SUBJECT_LABEL,
+    BOARD_TEXT,
     DATA_TABLE_LABELS,
     DS_LABELS,
     PROPOSAL_TEXT,
     PROPOSAL_ERROR,
   } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  // The DS owns the disclosure, the same way it owns the selection above.
+  const [expanded, setExpanded] = useState<readonly string[]>([]);
   const [confirming, setConfirming] = useState<Decision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -139,7 +145,8 @@ export function ProposalQueue({
     } else if (r.failed && r.failed.length > 0) {
       // A REAL ATTEMPT THAT WAS REFUSED - reported first, because it is the
       // one that needs looking at.
-      const reason = PROPOSAL_ERROR[r.failed[0].reason] ?? PROPOSAL_ERROR.not_found;
+      const reason =
+        PROPOSAL_ERROR[r.failed[0].reason] ?? PROPOSAL_ERROR.not_found;
       setError(PROPOSAL_TEXT.executionFailed(r.failed.length, reason));
     } else if (r.manual && r.manual.length > 0) {
       // NOT AN ERROR, and it does not pretend to be: these were accepted and
@@ -333,6 +340,49 @@ export function ProposalQueue({
             selectedKeys={[...selected]}
             onSelectionChange={(keys) => setSelected(new Set(keys))}
             isRowSelectable={(row) => canDecide && row.status === "proposed"}
+            /* THE DRAWER IS THE DS'S TOO. `expandedContent` is why this queue
+               stays a table: a proposal needs a full-width read AND the batch
+               selection above, and DataTable gives both. Rebuilding it as one
+               panel per proposal would have meant hand-rolling the multi-select
+               that ADR-003 makes a first-class path - reimplementing what the
+               DS already hands over.
+
+               WHAT IS IN HERE IS NOT A COPY OF THE ROW. `payload` is what the
+               action would actually DO and `capability` is which capability
+               proposed it (ADR-015); neither appears on the row at any width,
+               so this adds the two facts a decision needs rather than repeating
+               the four it already has. The rationale stays ON the row as well -
+               the header's rule is that reasoning is never behind a click, and
+               the full-measure copy here is a second reading, not the only one. */
+            expandedKeys={expanded}
+            onExpandedChange={setExpanded}
+            expandedContent={(row) => (
+              <DetailList columns={1}>
+                <DetailRow label={PROPOSAL_TEXT.detailRationale}>
+                  {row.rationale ?? "-"}
+                </DetailRow>
+                <DetailRow label={PROPOSAL_TEXT.detailPayload}>
+                  {Object.keys(row.payload).length === 0 ? (
+                    "-"
+                  ) : (
+                    <span className="flex flex-col gap-3xs">
+                      {Object.entries(row.payload).map(([k, v]) => (
+                        <span key={k} className="font-mono text-xs">
+                          {k}: {typeof v === "string" ? v : JSON.stringify(v)}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </DetailRow>
+                <DetailRow label={PROPOSAL_TEXT.detailCapability}>
+                  {capabilityLabel(
+                    row.capability,
+                    BOARD_TEXT.capabilityLabels,
+                    BOARD_TEXT.capUnlabelled,
+                  )}
+                </DetailRow>
+              </DetailList>
+            )}
           />
         </TableCard>
       )}
@@ -358,7 +408,8 @@ function BatchConfirm({
   onCancel,
   onConfirm,
 }: BatchConfirmProps) {
-  const { AGENT_ACTION_LABEL, AGENT_SUBJECT_LABEL, PROPOSAL_TEXT } = useMessages();
+  const { AGENT_ACTION_LABEL, AGENT_SUBJECT_LABEL, PROPOSAL_TEXT } =
+    useMessages();
   const verb =
     decision === "accept" ? PROPOSAL_TEXT.verbAccept : PROPOSAL_TEXT.verbReject;
   return (
@@ -410,7 +461,9 @@ function BatchConfirm({
               except for the ones it cannot - and which of the two a batch is is
               part of what the person is deciding. */}
           {risk.manualCount > 0 ? (
-            <p>{PROPOSAL_TEXT.acceptManualNote(risk.manualCount, risk.count)}</p>
+            <p>
+              {PROPOSAL_TEXT.acceptManualNote(risk.manualCount, risk.count)}
+            </p>
           ) : null}
         </>
       ) : (

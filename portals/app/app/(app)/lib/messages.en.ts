@@ -1925,6 +1925,12 @@ export const en: Dictionary = {
   // --- /copilot -----------------------------------------------------------
 
   PROPOSAL_TEXT: {
+    detailRationale: "Full rationale",
+    detailPayload: "What it would change",
+    detailCapability: "Proposed by",
+    detailProposedAt: "Proposed",
+    detailExpand: "Expand",
+    detailCollapse: "Collapse",
     title: "Copilot proposals",
     description:
       "The agent proposes, a human decides. Nothing runs until it is accepted, and a proposal's content cannot be edited.",
