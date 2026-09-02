@@ -203,7 +203,17 @@ export function ProposalQueue({
       id: "rationale",
       // Always on the row, never behind a click: a decision made without reading
       // the reasoning is not human-in-the-loop.
+      //
+      // AND WIDE ENOUGH TO BE READ, which the principle above needs and did not
+      // have. Every column here was `auto`, and auto layout sizes a column by
+      // the widest thing it CANNOT break: a badge is whitespace-nowrap, so its
+      // column is pinned to its own text, while Chinese prose breaks between any
+      // two characters and therefore has a minimum content width of one glyph.
+      // The reasoning column came out at 59px - narrower than the status badges
+      // and narrower than a "decider" column that reads "-" on every row - and
+      // wrapped one word per line. "Visible on the row" was true and useless.
       header: PROPOSAL_TEXT.columnRationale,
+      width: "lg",
       cell: (row) => row.rationale ?? "-",
     },
     {
