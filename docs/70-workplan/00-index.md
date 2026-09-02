@@ -3226,3 +3226,23 @@ SIGNAL_ACTION / MEMBER / LIFECYCLE / LOAD，zh 的 FIELD）补上 `...GATE_ERROR
 
 1693 个 test() 声明、1486 pass / 0 fail。`tsc --noEmit` 通过，六项守卫全绿，
 生产构建通过。
+
+### 补译三个错误文案（2026-09-02）
+
+上一条留下的四个未翻译常量里，三个是错误文案，已补译：`FORECAST_ERROR`（13 键）、
+`PROJECT_ERROR`（10 键）、`TARGET_ERROR`（21 键）。header 的计数随之从
+「102 里翻了 96、例外 6 个」改成「102 里翻了 99、例外 3 个」，测试里的期望集合同步收窄。
+
+**与兄弟字典共用的 code 逐字沿用已有句子**，不另造一句：`FORECAST_ERROR` 的
+`closed_requires_terminal_stage` / `terminal_requires_closed` /
+`unknown_forecast_category` 取自 `FORECAST_RULE_ERROR`，`PROJECT_ERROR` 的
+`illegal_transition` 取自 `LIFECYCLE_ERROR`。同一个 code 在两个屏幕上读起来不该
+是两句话。
+
+**parity 测试当场就在这三个新字典上做了实事**：「同键同类型同元数」和「en 不得
+无中生有」两条同时通过，等于机器核对了我写的 44 个键与 zh 一一对应——没有拼错、
+没有多写、没有漏写。这正是上一条写这两个断言的用意。
+
+`TIER_LABEL` 按 owner 决定不动，理由记在 header 里：档位名是**商业命名**，
+英文叫什么是「在卖什么」的决定，翻译者自拟等于替产品取名。它等的是那个决定，
+不是一个空闲下午。
