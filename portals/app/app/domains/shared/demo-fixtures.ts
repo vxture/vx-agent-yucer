@@ -30,6 +30,17 @@ export const DEMO_ACCOUNTS = [
   // world that no join can supply and the model can. Without one such account
   // the "ask the assistant" half of that screen rendered on nothing.
   { name: "东北重工集团", industry: "", region: "东北" },
+  // REGION DELIBERATELY BLANK, and not the same gap 东北重工集团 demonstrates.
+  // That one is 未分区 (a region set that no territory covers); this one has
+  // no region on file at all, which is the OTHER half of the "region" gap -
+  // the DERIVABLE half. Its one deal is filed under terr_hk, a territory that
+  // covers exactly one region, so accountGaps() has a single candidate to
+  // suggest rather than refusing to guess between two. Without a single-region
+  // territory the demo could not show this: all three original territories
+  // cover two regions each, so region derivation always found more than one
+  // candidate and always declined - the data-derivable half of the
+  // completeness screen had no case where it could actually derive anything.
+  { name: "港澳零售集团", industry: "零售", region: "" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */
@@ -49,6 +60,10 @@ export const DEMO_TERRITORY_REGIONS: Record<string, readonly string[]> = {
   EAST: ["华东", "华中"],
   NORTH: ["华北", "西北"],
   SOUTH: ["华南", "西南"],
+  // Single-region on purpose - see 港澳零售集团 above. 东北 stays uncovered by
+  // any of these four; adding it here would resolve the 未分区 case this demo
+  // already depends on.
+  HK: ["港澳"],
 };
 
 export const DEMO_SEGMENTS = [
@@ -120,6 +135,8 @@ export const DEMO_OPPORTUNITIES = [
   "客户服务中台",
   // On the unplaced customer - see acc_demo_8.
   "重工产线数字化",
+  // On the region-derivable customer - see 港澳零售集团 above.
+  "港澳仓配网络升级",
 ] as const;
 
 export const DEMO_PROJECTS = [

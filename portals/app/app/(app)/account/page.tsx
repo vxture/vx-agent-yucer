@@ -4,9 +4,10 @@ import { resolveAppSession } from "../lib/session";
 import {
   getAccountStore,
   getFieldStore,
+  getPlanningStore,
   getStrategyStore,
 } from "../../domains/shared/registry";
-import { listAccounts } from "../../domains/account/service";
+import { listAccounts, workspaceCompleteness } from "../../domains/account/service";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
 import { listSegments } from "../../domains/strategy/service";
@@ -44,7 +45,7 @@ export default async function AccountPage() {
   };
 
   const now = new Date();
-  const [result, overdue, segments, feed] = await Promise.all([
+  const [result, overdue, segments, feed, completeness] = await Promise.all([
     listAccounts({ ...ctx, store: session.stores.account() }),
     listCommitments(
       { ...ctx, store: getFieldStore() },
@@ -60,6 +61,17 @@ export default async function AccountPage() {
     // card, which said the workspace had a problem without saying which
     // customer had it.
     cachedFeed(ctx),
+    // Just the count, to decide whether the banner is worth a line. The
+    // /account/complete page runs this same call to render the table - a
+    // second pass over the same three domains, not a shared cache, matching
+    // how every other page-level fact here is computed fresh per render.
+    workspaceCompleteness({
+      ...ctx,
+      store: session.stores.account(),
+      pipeline: session.stores.pipeline(),
+      planning: getPlanningStore(),
+      strategy: getStrategyStore(),
+    }),
   ]);
 
   if (!result.ok) {
@@ -82,6 +94,9 @@ export default async function AccountPage() {
     (a) => a.healthScore !== null && a.healthScore < 60,
   ).length;
   const overdueCount = overdue.ok ? overdue.value.length : 0;
+  const completableCount = completeness.ok
+    ? new Set(completeness.value.map((r) => r.accountId)).size
+    : 0;
 
   return (
     <ViewLayout>
@@ -105,6 +120,15 @@ export default async function AccountPage() {
               ? ACCOUNT_TEXT.leadAtRisk(atRisk)
               : ACCOUNT_TEXT.leadOrder}
           </p>
+          {completableCount > 0 ? (
+            <p className="text-body-sm text-(color:--info-muted-foreground)">
+              {ACCOUNT_TEXT.batchCompleteBanner(completableCount)}
+              {" - "}
+              <a href="/account/complete" className="underline">
+                {ACCOUNT_TEXT.batchCompleteLink}
+              </a>
+            </p>
+          ) : null}
         </div>
       </Card>
 

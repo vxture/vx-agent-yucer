@@ -26,6 +26,7 @@ import { DEFAULT_PROPOSAL_TTL_MS } from "../copilot/lib/action";
 import { isExecutable } from "../copilot/lib/autonomy";
 import { OPEN_STAGE_ORDER, isStage, planStageChange } from "../pipeline/lib/stage";
 import { coveringTerritories } from "../signal/lib/routing";
+import { accountGaps, fillable } from "../account/lib/completeness";
 
 const WS = "ws_demo";
 
@@ -100,7 +101,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 19);
+    assert.equal(rows.length, 20);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -112,7 +113,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 8 accounts, 19 deals, 6 projects", async () => {
+test("the demo has the working set it claims: 9 accounts, 20 deals, 6 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -123,7 +124,7 @@ test("the demo has the working set it claims: 8 accounts, 19 deals, 6 projects",
     s.delivery.listProjects(WS),
   ]);
 
-  assert.equal(accounts.length, 8);
+  assert.equal(accounts.length, 9);
   // 13 on 2026-08-30: two subscription projects and the renewal deal already
   // open off one of them, so /renewal can show every verdict it has - including
   // `already_renewed`, which proves 0019's link is actually being read.
@@ -143,7 +144,12 @@ test("the demo has the working set it claims: 8 accounts, 19 deals, 6 projects",
   // code and invisible on screen - every other demo account sits somewhere
   // somebody covers, so a reviewer could not see what 未分区 means or how it
   // differs from the public pool.
-  assert.equal(opportunities.length, 19);
+  //
+  // 9 and 20, same day: an account with no region on file at all, and a deal
+  // on it filed under the demo's one single-region territory - the derivable
+  // half of the completeness screen otherwise had no case where region
+  // resolved to exactly one candidate.
+  assert.equal(opportunities.length, 20);
   assert.equal(projects.length, 6);
 });
 
@@ -917,12 +923,19 @@ test("a deal on the unplaced customer is filed under no territory either", async
   // Both paths blank is the only way to reach the unplaced rule: given a
   // territory of its own the deal simply belongs to that one, and the case
   // disappears from the demo again without anything failing.
+  //
+  // REGION SET BUT UNCOVERED, not "no region at all" - completeness.ts draws
+  // this exact line between two different gaps (regionUnplaced vs the
+  // derivable/forModel "region" gap), and since 港澳零售集团 the demo has both:
+  // a null-region account IS allowed a deal with its own territory (that
+  // territory is precisely what makes its region derivable), so the broader
+  // `region == null` reading this test used before would wrongly catch it too.
   const s = seeded();
   const territories = await s.planning.listTerritories(WS);
   const accounts = await s.account.listAccounts(WS);
   const unplacedIds = new Set(
     accounts
-      .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
+      .filter((a) => a.region != null && coveringTerritories(a.region, territories).length === 0)
       .map((a) => a.id),
   );
 
@@ -932,5 +945,61 @@ test("a deal on the unplaced customer is filed under no territory either", async
   for (const d of onUnplaced) {
     assert.equal(d.territoryId, null, `${d.name} carries a territory, so it is filed after all`);
     assert.ok(d.ownerSub, `${d.name} is unowned - that is the public pool, not 未分区`);
+  }
+});
+
+// --- The region-derivable case, and why it needs a single-region territory --
+
+test("the demo has a customer whose region the data can derive, or the completeness screen's derivable half has nothing to show", async () => {
+  // THE GAP THIS CLOSES. All three original territories cover two regions
+  // each, so accountGaps() always found more than one candidate for region
+  // and always declined - the "the data already knows this" half of the
+  // completeness screen had no case in the demo where it could ever suggest
+  // anything. terr_hk covers exactly one region, and 港澳零售集团's one deal
+  // is filed under it.
+  const s = seeded();
+  const territories = await s.planning.listTerritories(WS);
+  const accounts = await s.account.listAccounts(WS);
+  const deals = await s.pipeline.listOpportunities(WS, { includeClosed: true });
+
+  const territoryInputs = territories.map((t) => ({
+    id: t.id,
+    name: t.name,
+    ownerSub: t.ownerSub,
+    regions: t.regions ?? [],
+    status: t.status,
+  }));
+
+  const account = accounts.find((a) => a.name === "港澳零售集团");
+  assert.ok(account, "the region-derivable demo account is missing");
+  assert.equal(account.region, null, "this account's region must be blank for the case to exist at all");
+
+  const gaps = accountGaps(
+    account,
+    deals
+      .filter((d) => d.accountId === account.id)
+      .map((d) => ({ territoryId: d.territoryId, ownerSub: d.ownerSub })),
+    territoryInputs,
+    [],
+  );
+  const derivable = fillable(gaps).find((g) => g.field === "region");
+  assert.ok(derivable, "no derivable region gap - a single-region territory alone is not enough without a deal on it");
+  assert.equal(derivable?.suggestion, "港澳");
+  assert.ok(derivable?.basis, "a suggestion with no basis is a machine writing into a record on nobody's authority");
+});
+
+test("every other demo territory still covers two regions - the ambiguous case is not accidentally gone", async () => {
+  // This account exists BECAUSE the other three territories are ambiguous for
+  // region derivation; if that ever stopped being true, this test's account
+  // would be redundant and the workplan note that motivated it would be
+  // wrong. Pinning it here means a future edit that narrows terr_east etc.
+  // down to one region gets caught rather than silently making 港澳零售集团
+  // the only reason this repo still needs a single-region territory.
+  const s = seeded();
+  const territories = await s.planning.listTerritories(WS);
+  const original = territories.filter((t) => t.id !== "terr_hk");
+  assert.ok(original.length > 0);
+  for (const t of original) {
+    assert.equal(t.regions.length, 2, `${t.name} no longer covers exactly two regions`);
   }
 });
