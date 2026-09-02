@@ -12,19 +12,22 @@ import * as zh from "./messages";
 // Each override is TYPE-CHECKED against its Chinese counterpart, so a renamed
 // key breaks the build and a function cannot quietly change its arity.
 //
-// COVERAGE, 2026-09-02: 96 of the 102 constants in messages.ts. Six are not
-// here, in two groups that are not the same thing:
+// COVERAGE, 2026-09-02: 99 of the 102 constants in messages.ts. Three are not
+// here, and none of the three is merely overdue:
 //
 //   PINNED TO zh-CN BY CONSTRUCTION - PREVIEW_FIXTURES, PREVIEW_TEXT. They
 //   belong to /product-preview, where a reviewer checking the two gates should
 //   see the same screen whatever their own cookie says. Demo data, not product
 //   copy, and translating them would be wrong rather than merely absent.
 //
-//   SIMPLY NOT TRANSLATED YET - FORECAST_ERROR, PROJECT_ERROR, TARGET_ERROR,
-//   TIER_LABEL. An English reader meets Chinese here, which is the visible
-//   incompleteness this file is built to show rather than hide. TIER_LABEL is
-//   the one to think about before translating: tier names are commercial
-//   naming, not copy.
+//   HELD BACK ON PURPOSE - TIER_LABEL. Tier names are COMMERCIAL NAMING, not
+//   copy: what a tier is called in English is a decision about what is being
+//   sold, and a translator inventing one would be naming a product. It waits
+//   for that decision rather than for a spare afternoon.
+//
+// FORECAST_ERROR, PROJECT_ERROR and TARGET_ERROR were in the second group and
+// are now translated. Codes they share with a sibling dictionary reuse that
+// dictionary's sentence verbatim - one code should not have two readings.
 //
 // THIS COUNT USED TO BE A CLAIM AND IS NOW A TEST. It said "65 of the 67" and
 // named two exceptions; the file had grown to 102 constants and six exceptions
@@ -280,6 +283,41 @@ export const en: Dictionary = {
     probability_range: "Win rate must be a whole number between 0 and 100",
     terminal_probability_fixed: "A closed deal has a fixed win rate and cannot be changed",
     amount_negative: "The amount cannot be negative",
+  },
+  // D6 forecast snapshots. Four codes here also live in FORECAST_RULE_ERROR
+  // above and read identically on purpose: one code, one sentence, wherever a
+  // reader meets it.
+  FORECAST_ERROR: {
+    ...GATE_ERROR,
+    period_required: "A snapshot must say which period it is for",
+    period_unparsed: "That period is not written in a form we recognise",
+    currency_mismatch: "The currency does not match the deal's",
+    unknown_forecast_category: "Unknown forecast category",
+    unknown_scope_type: "Unknown scope type",
+    scope_incomplete: "This scope is missing something it needs, so there is no saying who it covers",
+    scope_overspecified: "This scope names two things that rule each other out",
+    closed_requires_terminal_stage: "The deal is still open and cannot be forecast as closed",
+    terminal_requires_closed: "A closed deal can only be forecast as closed",
+  },
+  TARGET_ERROR: {
+    ...GATE_ERROR,
+    name_required: "A target needs a name",
+    period_required: "A target must say which period it is for",
+    unknown_metric: "Unknown metric",
+    unknown_status: "Unknown target status",
+    count_not_integer: "A count metric is a whole number - there is no fraction of a customer",
+    unit_mismatch: "That unit does not belong to this metric",
+    amount_negative: "The amount cannot be negative",
+    currency_mismatch: "The currency does not match the parent target's",
+    scope_incomplete: "This scope is missing something it needs, so there is no saying who it covers",
+    scope_overspecified: "This scope names two things that rule each other out",
+    scope_immutable: "A target's scope is fixed once it is set - a different scope is a different target",
+    duplicate_scope: "There is already a target for this period and this scope",
+    target_closed: "This target is closed - it is the record the period was measured against",
+    status_regression: "A target's status cannot move backwards",
+    parent_not_found: "The parent target does not exist",
+    parent_cycle: "A target cannot become its own parent, directly or through a chain",
+    not_found: "That target does not exist, or is not in this workspace",
   },
   ATTAINMENT_TEXT: {
     title: "Commitment",
@@ -791,6 +829,17 @@ export const en: Dictionary = {
     plan_no_taken: "That number is already taken",
   },
 
+  PROJECT_ERROR: {
+    ...GATE_ERROR,
+    not_found: "That project does not exist, or is not in this workspace",
+    name_required: "A project needs a name",
+    unknown_status: "Unknown project status",
+    // The same sentence LIFECYCLE_ERROR gives this code.
+    illegal_transition: "This status cannot move directly to that one",
+    sequence_immutable:
+      "An instalment's sequence is that row's identity - reordering means writing a new row, not editing this one",
+    sequence_invalid: "That is not a valid instalment sequence",
+  },
   MILESTONE_ERROR: {
     ...GATE_ERROR,
     name_required: "A milestone needs a name",

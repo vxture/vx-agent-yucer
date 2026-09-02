@@ -116,8 +116,9 @@ test("the translated-constant count in the header is true, not a stale comment",
   // The claim in that file's header. It used to read "65 of the 67 constants"
   // and name two exceptions; by the time this test was written the file held
   // 102 constants and six exceptions, and nothing had noticed - which is what
-  // a count in a comment does. Two of the six are pinned to zh-CN on purpose
-  // (the /product-preview fixtures); the other four are simply untranslated.
+  // a count in a comment does. What is left is deliberate rather than overdue:
+  // two /product-preview fixtures pinned to zh-CN, and TIER_LABEL, whose tier
+  // names are commercial naming and wait on a product decision.
   const zhSrc = readFileSync(new URL("../messages.ts", import.meta.url), "utf8");
   const enSrc = readFileSync(new URL("../messages.en.ts", import.meta.url), "utf8");
 
@@ -129,7 +130,7 @@ test("the translated-constant count in the header is true, not a stale comment",
   const untranslated = exported.filter((name) => !new RegExp(`^  ${name}:`, "m").test(enSrc));
   assert.deepEqual(
     untranslated.sort(),
-    ["FORECAST_ERROR", "PREVIEW_FIXTURES", "PREVIEW_TEXT", "PROJECT_ERROR", "TARGET_ERROR", "TIER_LABEL"],
+    ["PREVIEW_FIXTURES", "PREVIEW_TEXT", "TIER_LABEL"],
     "the untranslated set changed - translate it, or move the header and this list together",
   );
 });
