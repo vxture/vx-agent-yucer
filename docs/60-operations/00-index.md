@@ -1435,3 +1435,50 @@ TD-019 那次「敷衍」的同一个错误，只是换成了工具替人犯。
 剩余同形缺口：`copilot/prisma-store.ts` 23.8%、`strategy/prisma-store.ts` 36.4%
 ——最后两个没有 db 测试文件的适配器；另有 `authz/scoped-stores.ts` 34.1%，未覆盖
 的是决定「一个成员到底能看见哪些行」的作用域包装层，形状不同，值得单独看。
+
+#### TD-020 已还（2026-09-02）
+
+三处改动，合起来让 CI 读到的是两轮的并集：
+
+1. `portals/app/package.json` 新增 `test:db:lcov`——与 `test:db` 同样的文件、
+   同样的环境、同样的退出码语义，只多一份覆盖率报告。`test:db` 保留给本地。
+2. `db-contract` 改跑 `test:db:lcov` 并上传 `coverage-db` 制品，`if-no-files-found:
+   error`。**路径改写故意不放在这里**——`lcov-to-repo-root.mjs` 对解析不了的路径
+   会非零退出，而这是必需检查：DDL 的判定不能挂在一个覆盖率报告的细节上。所有
+   可能对报告作出判断的步骤都放在允许失败的 `sonar` 里。
+3. `sonar` 改为 `needs: [test-coverage, db-contract]`，下载两份、改写 db 那份的
+   路径、用新的 `scripts/ci/merge-lcov.mjs` 合并，`sonar-project.properties`
+   指向 `coverage/merged.info`。
+
+`merge-lcov.mjs` 的合并语义：计数相加（同 `lcov -a`），**汇总行
+（LF/LH/FNF/FNH/BRF/BRH）重算而不是相加**——它们数的是去重实体，相加会把两轮都
+覆盖到的文件（也就是绝大多数）翻倍；`BRDA` 的 `-`（从未求值）与 `0`（求值未命中）
+区分保留。另有一道守卫：**任何一份输入若没有贡献任何 SF 记录就拒绝写出**。这是
+本次最值得设的一道网——db 那半若哪天悄悄产出空文件，合并仍会「成功」，Sonar 会
+读到与 TD-020 之前一模一样的数，于是这条 TD 会在「已修」状态下继续为真。一个能
+悄悄停止生效的修复比不修更糟。
+
+**没有选 `reportPaths` 逗号分隔两个路径**（那是本文件的一行版本）：扫描器对
+「同一文件出现在两份报告里」的合并语义本仓无法验证，若是「后者覆盖前者」而非
+「命中相加」，两套测试都碰到的每个文件都会悄悄丢掉离线那半的覆盖——正是
+`lcov-to-repo-root.mjs` 当初存在的同一种无声错误。自己合并的规则可以写下来、
+可以测、可以在进扫描器前检查输出。
+
+**本地按 CI 的步骤原样跑过一遍验证**（不是推上去碰运气）：
+
+| | 改动前（仅离线半） | 改动后（合并） |
+|---|---|---|
+| Sonar 读到的行覆盖率（含其 coverage.exclusions） | 91.83% | **95.63%** |
+| `authz/prisma-store.ts` | 52.7% | 98.2% |
+| `delivery/prisma-store.ts` | 49.8% | 98.0% |
+| `catalog/prisma-store.ts` | 57.2% | 97.5% |
+| `account/field-prisma-store.ts` | 46.9% | 98.8% |
+
+144 条 SF 记录，从仓库根全部可解析，`SF:`/`end_of_record` 配平，无文件丢失。
+`merge-lcov.mjs` 自带 10 条测试（`portals/app/app/lcov-merge.test.ts`，按
+`lcov-paths.test.ts` 的写法直接 import 流水线里真正运行的那个脚本）。
+
+顺带修掉 `sonar-project.properties` 里一处已经过期的注释：它写着 Prisma 适配器
+「currently have no tests at all」，这在 #148 / #149 之后不再成立。把适配器留在
+覆盖率比例内正是让这个缺口一直可见、并最终被补上的原因，所以剩下的 copilot 与
+strategy 依然留在比例内。
