@@ -133,6 +133,12 @@ export class PrismaCopilotStore implements CopilotStore {
           workspaceId,
           sessionId: proposal.sessionId,
           actionType: proposal.actionType,
+          // ADR-015. Written ONCE, here, and never again: incr/0008 grants no
+          // UPDATE on this column, so a value dropped on the way in cannot be
+          // repaired later - the row is unlabelled for good. It was dropped:
+          // the field existed on NewProposal, the in-memory mirror wrote it,
+          // toAction() read it back, and this object never set it.
+          capability: proposal.capability ?? null,
           subjectType: proposal.subjectType,
           subjectId: proposal.subjectId,
           // JSONB in the DDL. The cast is to Prisma's input JSON type, not a
