@@ -1,4 +1,4 @@
-import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
@@ -82,55 +82,53 @@ export default async function PlanningPage() {
     ? result.value.find((r) => r.target.id === summary.id)
     : undefined;
   const unforecast = result.value.filter(
-    (r) => r.measurement.kind === "not_measurable" && r.measurement.code === "no_snapshot",
+    (r) =>
+      r.measurement.kind === "not_measurable" &&
+      r.measurement.code === "no_snapshot",
   ).length;
 
   return (
     <ViewLayout>
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its own
-            captions. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {PLANNING_TEXT.lead(period)}
-          </h1>
-          <p className="text-muted-foreground text-body-sm tabular-nums">
-            {workspaceRow
-              ? PLANNING_TEXT.leadAttained(
-                  workspaceRow.measurement.kind === "measured"
-                    ? formatMoney(
-                        workspaceRow.measurement.achieved.amount,
-                        workspaceRow.measurement.achieved.unit === "money"
-                          ? workspaceRow.measurement.achieved.currency
-                          : "",
-                      )
-                    : "-",
-                  workspaceRow.target.targetValue.unit === "money"
-                    ? formatMoney(
-                        workspaceRow.target.targetValue.amount,
-                        workspaceRow.target.targetValue.currency,
-                      )
-                    : String(workspaceRow.target.targetValue.amount),
-                  workspaceRow.measurement.kind === "measured"
-                    ? formatPercent(workspaceRow.measurement.ratio)
-                    : PLANNING_TEXT.gapLabel[workspaceRow.measurement.code]!,
-                )
-              : PLANNING_TEXT.leadNoWorkspaceTarget}
-          </p>
-          {/* Counted and stated, because the whole point of this page's central
+      <ViewHeader
+        title={PLANNING_TEXT.lead(period)}
+        description={
+          <>
+            <span className="block tabular-nums">
+              {workspaceRow
+                ? PLANNING_TEXT.leadAttained(
+                    workspaceRow.measurement.kind === "measured"
+                      ? formatMoney(
+                          workspaceRow.measurement.achieved.amount,
+                          workspaceRow.measurement.achieved.unit === "money"
+                            ? workspaceRow.measurement.achieved.currency
+                            : "",
+                        )
+                      : "-",
+                    workspaceRow.target.targetValue.unit === "money"
+                      ? formatMoney(
+                          workspaceRow.target.targetValue.amount,
+                          workspaceRow.target.targetValue.currency,
+                        )
+                      : String(workspaceRow.target.targetValue.amount),
+                    workspaceRow.measurement.kind === "measured"
+                      ? formatPercent(workspaceRow.measurement.ratio)
+                      : PLANNING_TEXT.gapLabel[workspaceRow.measurement.code]!,
+                  )
+                : PLANNING_TEXT.leadNoWorkspaceTarget}
+            </span>
+            {/* Counted and stated, because the whole point of this page's central
               rule is that an unforecast scope is NOT a failed one. A reader who
               sees three neutral badges and no explanation will read them as
               zeroes. */}
-          {unforecast > 0 ? (
-            <p className="text-body-sm text-(color:--warning-text)">
-              {PLANNING_TEXT.leadUnforecast(unforecast)}
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-body-sm">
-            {PLANNING_TEXT.leadRule}
-          </p>
-        </div>
-      </Card>
+            {unforecast > 0 ? (
+              <span className="block text-(color:--warning-text)">
+                {PLANNING_TEXT.leadUnforecast(unforecast)}
+              </span>
+            ) : null}
+            <span className="block">{PLANNING_TEXT.leadRule}</span>
+          </>
+        }
+      />
 
       {/* ABOVE the table, because it is what you do when the table is empty -
           and on a fresh workspace it always is. A create form tucked under a
@@ -157,7 +155,6 @@ export default async function PlanningPage() {
           PRECONDITION for a regional target, so a reader who finds the scope
           selector empty needs the next thing they see to be where regions come
           from - not a list of targets they cannot yet scope. */}
-
 
       <Section
         icon="target"

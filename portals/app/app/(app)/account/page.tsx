@@ -1,4 +1,4 @@
-import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
 import {
@@ -7,7 +7,10 @@ import {
   getPlanningStore,
   getStrategyStore,
 } from "../../domains/shared/registry";
-import { listAccounts, workspaceCompleteness } from "../../domains/account/service";
+import {
+  listAccounts,
+  workspaceCompleteness,
+} from "../../domains/account/service";
 import { listCommitments } from "../../domains/account/field-service";
 import { AccountTable } from "../components/account-table";
 import { listSegments } from "../../domains/strategy/service";
@@ -103,34 +106,32 @@ export default async function AccountPage() {
       {/* Opens with what is true of the whole page, the same way /signal does.
           It used to start cold on a section heading, so a reader arrived with
           no idea how many customers there were or why they were in this order. */}
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its
-            own captions. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {ACCOUNT_TEXT.lead(result.value.length)}
-          </h1>
-          {overdueCount > 0 ? (
-            <p className="text-body-sm text-(color:--warning-muted-foreground)">
-              {ACCOUNT_TEXT.leadOverdue(overdueCount)}
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-body-sm">
-            {atRisk > 0
-              ? ACCOUNT_TEXT.leadAtRisk(atRisk)
-              : ACCOUNT_TEXT.leadOrder}
-          </p>
-          {completableCount > 0 ? (
-            <p className="text-body-sm text-(color:--info-muted-foreground)">
-              {ACCOUNT_TEXT.batchCompleteBanner(completableCount)}
-              {" - "}
-              <a href="/account/complete" className="underline">
-                {ACCOUNT_TEXT.batchCompleteLink}
-              </a>
-            </p>
-          ) : null}
-        </div>
-      </Card>
+      <ViewHeader
+        title={ACCOUNT_TEXT.lead(result.value.length)}
+        description={
+          <>
+            {overdueCount > 0 ? (
+              <span className="block text-(color:--warning-muted-foreground)">
+                {ACCOUNT_TEXT.leadOverdue(overdueCount)}
+              </span>
+            ) : null}
+            <span className="block">
+              {atRisk > 0
+                ? ACCOUNT_TEXT.leadAtRisk(atRisk)
+                : ACCOUNT_TEXT.leadOrder}
+            </span>
+            {completableCount > 0 ? (
+              <span className="block text-(color:--info-muted-foreground)">
+                {ACCOUNT_TEXT.batchCompleteBanner(completableCount)}
+                {" - "}
+                <a href="/account/complete" className="underline">
+                  {ACCOUNT_TEXT.batchCompleteLink}
+                </a>
+              </span>
+            ) : null}
+          </>
+        }
+      />
 
       {/* Above the list on purpose. The list answers "who are my customers";
           this answers "what is already going wrong", and only one of those is

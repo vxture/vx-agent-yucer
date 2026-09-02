@@ -1,6 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card, EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import {
+  EmptyState,
+  Section,
+  StatusBadge,
+  ViewHeader,
+  ViewLayout,
+} from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { resolveNavigation } from "../../lib/navigation";
@@ -80,22 +86,16 @@ export default async function DomainHomePage({
   });
 
   const moduleLabel = (m: ResolvedModule) =>
-    m.kind === "built" ? (DOMAIN_LABEL[m.key] ?? m.key) : (PLANNED_MODULE_LABEL[m.key] ?? m.key);
+    m.kind === "built"
+      ? (DOMAIN_LABEL[m.key] ?? m.key)
+      : (PLANNED_MODULE_LABEL[m.key] ?? m.key);
 
   return (
     <ViewLayout>
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its own
-            caption - the shape every first-level page in this product uses. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {DOMAIN_GROUP_LABEL[key] ?? key}
-          </h1>
-          <p className="text-muted-foreground text-body-sm">
-            {DOMAIN_GROUP_QUESTION[key] ?? ""}
-          </p>
-        </div>
-      </Card>
+      <ViewHeader
+        title={DOMAIN_GROUP_LABEL[key] ?? key}
+        description={DOMAIN_GROUP_QUESTION[key] ?? ""}
+      />
 
       <Section
         icon="chart-bar"
@@ -128,7 +128,9 @@ export default async function DomainHomePage({
                       size, not a task, and painting both the same colour would
                       make the colour say nothing. */}
                   {f.attention ? (
-                    <StatusBadge tone="warning">{DOMAIN_HOME_TEXT.needsAttention}</StatusBadge>
+                    <StatusBadge tone="warning">
+                      {DOMAIN_HOME_TEXT.needsAttention}
+                    </StatusBadge>
                   ) : null}
                 </span>
               </Link>
@@ -164,7 +166,9 @@ export default async function DomainHomePage({
                     ? LAUNCHER_TEXT.section
                     : m.state === "locked"
                       ? m.requiredTier
-                        ? LAUNCHER_TEXT.locked(TIER_LABEL[m.requiredTier] ?? m.requiredTier)
+                        ? LAUNCHER_TEXT.locked(
+                            TIER_LABEL[m.requiredTier] ?? m.requiredTier,
+                          )
                         : LAUNCHER_TEXT.lockedNoTier
                       : m.href}
                 </span>
