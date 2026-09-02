@@ -1,4 +1,4 @@
-import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { listCampaigns, listPlans } from "../../domains/strategy/service";
@@ -84,35 +84,30 @@ export default async function StrategyPage() {
 
   return (
     <ViewLayout>
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its own
-            captions. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {STRATEGY_TEXT.lead(result.value.length)}
-          </h1>
-          <p className="text-muted-foreground text-body-sm tabular-nums">
-            {campaigns.ok
-              ? STRATEGY_TEXT.leadTraced(tracedCampaigns, orphanCampaigns)
-              : STRATEGY_TEXT.leadNoCampaignRead}
-          </p>
-          <p className="text-muted-foreground text-body-sm">
-            {STRATEGY_TEXT.leadRule}
-          </p>
-        </div>
-      </Card>
+      <ViewHeader
+        title={STRATEGY_TEXT.lead(result.value.length)}
+        description={
+          <>
+            <span className="block tabular-nums">
+              {campaigns.ok
+                ? STRATEGY_TEXT.leadTraced(tracedCampaigns, orphanCampaigns)
+                : STRATEGY_TEXT.leadNoCampaignRead}
+            </span>
+            <span className="block">{STRATEGY_TEXT.leadRule}</span>
+          </>
+        }
+      />
 
       {/* ABOVE the table, for the reason the target form is: on a fresh
           workspace the table is empty, and a create form under a list nobody
           can populate is a doorway behind a locked door. */}
       <NewPlan
         canCreate={
-          can(session.authz, session.entitlement, "strategy.plan.create", "ui").allowed
+          can(session.authz, session.entitlement, "strategy.plan.create", "ui")
+            .allowed
         }
         onCreate={createStrategyPlan}
       />
-
-
 
       <Section
         icon="graph"

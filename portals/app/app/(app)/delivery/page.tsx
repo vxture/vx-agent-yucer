@@ -1,4 +1,4 @@
-import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
 import {
@@ -8,7 +8,10 @@ import {
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
 import { DeliveryTable, type DeliveryRow } from "../components/delivery-table";
-import { MilestonePanel, type MilestoneRow } from "../components/milestone-panel";
+import {
+  MilestonePanel,
+  type MilestoneRow,
+} from "../components/milestone-panel";
 import { reconcileHealth, saveMilestone } from "./actions";
 import { can } from "../../authz/decide";
 
@@ -61,7 +64,10 @@ export default async function DeliveryPage() {
   // column falls back to the id rather than the page refusing. Borrowing a
   // store directly to dodge that gate would be reading another domain's rows
   // around its own rules.
-  const accounts = await listAccounts({ ...ctx, store: session.stores.account() });
+  const accounts = await listAccounts({
+    ...ctx,
+    store: session.stores.account(),
+  });
   const accountNames = new Map(
     accounts.ok ? accounts.value.map((a) => [a.id, a.name]) : [],
   );
@@ -86,7 +92,9 @@ export default async function DeliveryPage() {
           name: m.name,
           status: m.status,
           dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
-          completedAt: m.completedAt ? m.completedAt.toISOString().slice(0, 10) : null,
+          completedAt: m.completedAt
+            ? m.completedAt.toISOString().slice(0, 10)
+            : null,
         });
       }
     }
@@ -121,26 +129,22 @@ export default async function DeliveryPage() {
           here rather than only in the section subtitle: without it a green row
           reads as the delivery team's own word, which is the one thing it is
           not. */}
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its own
-            captions. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {DELIVERY_TEXT.lead(rows.length)}
-          </h1>
-          <p className="text-muted-foreground text-body-sm tabular-nums">
-            {DELIVERY_TEXT.leadContract(formatMoney(contractTotal, currency))}
-          </p>
-          {downgraded > 0 ? (
-            <p className="text-body-sm text-(color:--warning-text)">
-              {DELIVERY_TEXT.leadDowngraded(downgraded)}
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-body-sm">
-            {DELIVERY_TEXT.leadRule}
-          </p>
-        </div>
-      </Card>
+      <ViewHeader
+        title={DELIVERY_TEXT.lead(rows.length)}
+        description={
+          <>
+            <span className="block tabular-nums">
+              {DELIVERY_TEXT.leadContract(formatMoney(contractTotal, currency))}
+            </span>
+            {downgraded > 0 ? (
+              <span className="block text-(color:--warning-text)">
+                {DELIVERY_TEXT.leadDowngraded(downgraded)}
+              </span>
+            ) : null}
+            <span className="block">{DELIVERY_TEXT.leadRule}</span>
+          </>
+        }
+      />
 
       <Section
         icon="package"
@@ -169,7 +173,11 @@ export default async function DeliveryPage() {
           the answer to "and has it been paid". */}
       <MilestonePanel
         rows={milestones}
-        projects={projects.ok ? projects.value.map((p) => ({ id: p.id, name: p.name })) : []}
+        projects={
+          projects.ok
+            ? projects.value.map((p) => ({ id: p.id, name: p.name }))
+            : []
+        }
         canEdit={
           can(
             session.authz,
@@ -180,8 +188,6 @@ export default async function DeliveryPage() {
         }
         onSave={saveMilestone}
       />
-
-
     </ViewLayout>
   );
 }

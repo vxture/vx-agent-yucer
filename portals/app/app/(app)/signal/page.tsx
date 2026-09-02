@@ -1,11 +1,15 @@
-import { Card, EmptyState, ViewLayout } from "@vxture/design-ui";
+import { Card, EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 // A SERVER component, so the dictionary is awaited rather than hooked. The
 // locale comes from the request; next/headers caches it, so several server
 // components asking cost one resolution.
 import { getMessages } from "../lib/i18n/server";
 import { getSignalStore } from "../../domains/shared/registry";
-import { listLeads, listSignals, previewAttribution } from "../../domains/signal/service";
+import {
+  listLeads,
+  listSignals,
+  previewAttribution,
+} from "../../domains/signal/service";
 import { can } from "../../authz/decide";
 import { SignalQueue, type QueueSignal } from "../components/signal-queue";
 import { scoreSignal } from "../../domains/signal/lib/scoring";
@@ -55,7 +59,10 @@ export default async function SignalPage() {
   // was built for and never had. Only qualified leads are asked: the others
   // cannot be converted, and the answer would decorate a door that does not
   // open. Failures degrade to "no preview" rather than failing the page.
-  const attributionPreviews = new Map<string, { source: string; campaignId: string | null }>();
+  const attributionPreviews = new Map<
+    string,
+    { source: string; campaignId: string | null }
+  >();
   if (leads.ok) {
     await Promise.all(
       leads.value
@@ -154,28 +161,25 @@ export default async function SignalPage() {
   return (
     <ViewLayout>
       {/* Opens with what came in, the same way the home screen does. */}
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires. Card is
-            `flex flex-col gap-xl`; with a heading and two captions as siblings
-            it put 32px between a title and its own subtitle. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {enriched.length > 0
-              ? SIGNAL_TEXT.lead(enriched.length)
-              : SIGNAL_TEXT.leadNone}
-          </h1>
-          {staleCount > 0 ? (
-            <p className={`text-body-sm ${TONE_INK.warning}`}>
-              {SIGNAL_TEXT.staleCount(staleCount)}
-            </p>
-          ) : null}
-          {namedCount > 0 ? (
-            <p className="text-muted-foreground text-body-sm">
-              {SIGNAL_TEXT.leadNamed(namedCount)}
-            </p>
-          ) : null}
-        </div>
-      </Card>
+      <ViewHeader
+        title={
+          enriched.length > 0
+            ? SIGNAL_TEXT.lead(enriched.length)
+            : SIGNAL_TEXT.leadNone
+        }
+        description={
+          <>
+            {staleCount > 0 ? (
+              <span className={`block ${TONE_INK.warning}`}>
+                {SIGNAL_TEXT.staleCount(staleCount)}
+              </span>
+            ) : null}
+            {namedCount > 0 ? (
+              <span className="block">{SIGNAL_TEXT.leadNamed(namedCount)}</span>
+            ) : null}
+          </>
+        }
+      />
 
       <SignalQueue
         groups={groups}

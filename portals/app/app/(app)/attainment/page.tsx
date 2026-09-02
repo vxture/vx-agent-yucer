@@ -1,4 +1,11 @@
-import { Card, EmptyState, Progress, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import {
+  Card,
+  EmptyState,
+  Progress,
+  StatusBadge,
+  ViewHeader,
+  ViewLayout,
+} from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import {
@@ -8,10 +15,16 @@ import {
 } from "../../domains/shared/registry";
 import { listPipeline } from "../../domains/pipeline/service";
 import { attainment, listTargets } from "../../domains/planning/service";
-import { listOpportunityLines, listProducts } from "../../domains/catalog/service";
+import {
+  listOpportunityLines,
+  listProducts,
+} from "../../domains/catalog/service";
 import { summaryTarget } from "../../domains/planning/lib/target";
 import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
-import { coverage, resolveCoverageFloor } from "../../domains/planning/lib/coverage";
+import {
+  coverage,
+  resolveCoverageFloor,
+} from "../../domains/planning/lib/coverage";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -51,8 +64,13 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function AttainmentPage() {
-  const { SHELL_TEXT, LOAD_ERROR, BOARD_TEXT, ATTAINMENT_TEXT, FORECAST_LABEL } =
-    await getMessages();
+  const {
+    SHELL_TEXT,
+    LOAD_ERROR,
+    BOARD_TEXT,
+    ATTAINMENT_TEXT,
+    FORECAST_LABEL,
+  } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -91,7 +109,9 @@ export default async function AttainmentPage() {
   // The MONEY target, via the shared rule - the same selection the board and
   // the planning page make. A committed new-logo target picked up here would
   // render "10 customers" as 10 wan and divide a pipeline by it (TD-013).
-  const wsTarget = targets.ok ? (summaryTarget(targets.value) ?? undefined) : undefined;
+  const wsTarget = targets.ok
+    ? (summaryTarget(targets.value) ?? undefined)
+    : undefined;
   const rows = wsTarget
     ? await attainment({ ...base, store: getPlanningStore() }, wsTarget.period)
     : null;
@@ -112,14 +132,19 @@ export default async function AttainmentPage() {
   // than a card of zeros.
   const rolled = window ? rollUp(quarterOpen) : null;
   const totals = rolled?.ok ? rolled.value : null;
-  const quarterWorth = quarterOpen.reduce((sum, d) => sum + (d.amount?.amount ?? 0), 0);
+  const quarterWorth = quarterOpen.reduce(
+    (sum, d) => sum + (d.amount?.amount ?? 0),
+    0,
+  );
 
   const cover =
     wsTarget && wsRow
       ? coverage(
           quarterWorth,
           wsTarget.targetValue.amount,
-          wsRow.measurement.kind === "measured" ? wsRow.measurement.achieved.amount : 0,
+          wsRow.measurement.kind === "measured"
+            ? wsRow.measurement.achieved.amount
+            : 0,
           resolveCoverageFloor(process.env.YUCER_COVERAGE_FLOOR),
         )
       : null;
@@ -127,7 +152,9 @@ export default async function AttainmentPage() {
   // The composition claims no period and must not acquire one: it answers
   // "what is this money made of", over the open book.
   const openIds = new Set(open.map((o) => o.id));
-  const lines = lineResult.ok ? lineResult.value.filter((l) => openIds.has(l.opportunityId)) : [];
+  const lines = lineResult.ok
+    ? lineResult.value.filter((l) => openIds.has(l.opportunityId))
+    : [];
   const products = productResult.ok ? productResult.value : [];
   const split = [...byProduct(lines)]
     .sort((a, b) => b[1].amount - a[1].amount)
@@ -144,15 +171,12 @@ export default async function AttainmentPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={ATTAINMENT_TEXT.title}
+        description={ATTAINMENT_TEXT.why}
+      />
       <Card className="p-lg">
         <div className="flex flex-col gap-md">
-          <div>
-            <h1 className="text-heading-2 text-foreground">{ATTAINMENT_TEXT.title}</h1>
-            <p className="text-muted-foreground mt-2xs text-body-sm">
-              {ATTAINMENT_TEXT.why}
-            </p>
-          </div>
-
           {wsTarget && measured && pct !== null ? (
             <div className="flex flex-col gap-sm">
               <div className="flex flex-wrap items-baseline gap-x-xl gap-y-xs">
@@ -199,15 +223,23 @@ export default async function AttainmentPage() {
             </div>
 
             <div className="flex flex-wrap items-baseline gap-x-xl gap-y-xs">
-              <Figure value={BOARD_TEXT.wan(quarterWorth)} label={wsTarget.period} emphasis />
+              <Figure
+                value={BOARD_TEXT.wan(quarterWorth)}
+                label={wsTarget.period}
+                emphasis
+              />
               <span className="flex items-baseline gap-2xs">
                 <span className="text-label-md text-foreground font-semibold tabular-nums">
                   {BOARD_TEXT.coverageOf(
-                    Math.round((quarterWorth / (cover.gap * cover.floor)) * 100),
+                    Math.round(
+                      (quarterWorth / (cover.gap * cover.floor)) * 100,
+                    ),
                   )}
                 </span>
                 {cover.thin ? (
-                  <StatusBadge tone="warning">{ATTAINMENT_TEXT.thin}</StatusBadge>
+                  <StatusBadge tone="warning">
+                    {ATTAINMENT_TEXT.thin}
+                  </StatusBadge>
                 ) : null}
               </span>
             </div>
@@ -217,9 +249,18 @@ export default async function AttainmentPage() {
                 rather than sorted by size. */}
             <div className="flex flex-col gap-2xs">
               {[
-                { label: FORECAST_LABEL.commit, amount: totals.commitAmount.amount },
-                { label: FORECAST_LABEL.best_case, amount: totals.bestCaseAmount.amount },
-                { label: FORECAST_LABEL.pipeline, amount: totals.pipelineAmount.amount },
+                {
+                  label: FORECAST_LABEL.commit,
+                  amount: totals.commitAmount.amount,
+                },
+                {
+                  label: FORECAST_LABEL.best_case,
+                  amount: totals.bestCaseAmount.amount,
+                },
+                {
+                  label: FORECAST_LABEL.pipeline,
+                  amount: totals.pipelineAmount.amount,
+                },
               ].map((row) => (
                 <Bar
                   key={row.label}
@@ -296,10 +337,20 @@ function Figure({
  * width, so the three confidence rows and the product lines are each read
  * against their own whole - which is the only comparison either set supports.
  */
-function Bar({ label, value, pct }: { label: string; value: string; pct: number }) {
+function Bar({
+  label,
+  value,
+  pct,
+}: {
+  label: string;
+  value: string;
+  pct: number;
+}) {
   return (
     <div className="flex items-center gap-sm">
-      <span className="text-muted-foreground w-24 shrink-0 truncate text-xs">{label}</span>
+      <span className="text-muted-foreground w-24 shrink-0 truncate text-xs">
+        {label}
+      </span>
       <span className="bg-muted h-2xs min-w-0 flex-1 overflow-hidden rounded-full">
         <span
           className="bg-primary block h-full rounded-full"

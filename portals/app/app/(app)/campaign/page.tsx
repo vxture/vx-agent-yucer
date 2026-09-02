@@ -1,4 +1,4 @@
-import { Card, EmptyState, Section, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
 import { getStrategyStore } from "../../domains/shared/registry";
@@ -11,7 +11,10 @@ import type { CampaignRecord } from "../../domains/strategy/store";
 import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
 import { moveCampaign, saveExecution } from "./actions";
-import { ExecutionPanel, type ExecutionRow } from "../components/execution-panel";
+import {
+  ExecutionPanel,
+  type ExecutionRow,
+} from "../components/execution-panel";
 
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
@@ -130,24 +133,23 @@ export default async function CampaignPage() {
           rather than only in the section subtitle: it is the one caveat that
           makes the ROI column mean anything, and a reader who meets the number
           first has already drawn the wrong conclusion. */}
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its own
-            captions. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {CAMPAIGN_TEXT.lead(rows.length)}
-          </h1>
-          <p className="text-muted-foreground text-body-sm tabular-nums">
-            {CAMPAIGN_TEXT.leadSpend(
-              formatMoney(budgetTotal, currency),
-              formatMoney(wonTotal, currency),
-            )}
-          </p>
-          <p className="text-muted-foreground text-body-sm">
-            {CAMPAIGN_TEXT.leadRule}
-          </p>
-        </div>
-      </Card>
+      <ViewHeader
+        title={CAMPAIGN_TEXT.lead(rows.length)}
+        // SPANS, not paragraphs: ViewHeader renders `description` inside a <p>,
+        // and a <p> nested in a <p> is invalid markup that React resolves by
+        // closing the outer one - a hydration mismatch rather than a layout bug.
+        description={
+          <>
+            <span className="block tabular-nums">
+              {CAMPAIGN_TEXT.leadSpend(
+                formatMoney(budgetTotal, currency),
+                formatMoney(wonTotal, currency),
+              )}
+            </span>
+            <span className="block">{CAMPAIGN_TEXT.leadRule}</span>
+          </>
+        }
+      />
 
       <Section
         icon="target"
@@ -167,7 +169,12 @@ export default async function CampaignPage() {
           .filter((r) => r.status !== "completed")
           .map((r) => ({ id: r.id, name: r.name }))}
         canEdit={
-          can(session.authz, session.entitlement, "campaign.execution.upsert", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "campaign.execution.upsert",
+            "ui",
+          ).allowed
         }
         onSave={saveExecution}
       />

@@ -1,4 +1,4 @@
-import { Card, EmptyState, ViewLayout } from "@vxture/design-ui";
+import { Card, EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import {
   getAccountStore,
@@ -61,7 +61,10 @@ export default async function CopilotPage({
   // the member may not read simply does not anchor the conversation. The client
   // never supplies the name.
   const anchored = accountId
-    ? await getAccountDetail({ ...ctx, store: session.stores.account() }, accountId)
+    ? await getAccountDetail(
+        { ...ctx, store: session.stores.account() },
+        accountId,
+      )
     : null;
   const account =
     anchored?.ok === true
@@ -117,28 +120,26 @@ export default async function CopilotPage({
 
   return (
     <ViewLayout>
-      <Card className="p-lg">
-        {/* ONE child, so Card's gap-xl never fires between a title and its own
-            captions. */}
-        <div className="flex flex-col gap-2xs">
-          <h1 className="text-heading-2 text-foreground">
-            {awaiting.length > 0
-              ? PROPOSAL_TEXT.lead(awaiting.length)
-              : PROPOSAL_TEXT.leadNone}
-          </h1>
-          {/* Low confidence is surfaced, not filtered. A confidence figure that
+      <ViewHeader
+        title={
+          awaiting.length > 0
+            ? PROPOSAL_TEXT.lead(awaiting.length)
+            : PROPOSAL_TEXT.leadNone
+        }
+        description={
+          <>
+            {/* Low confidence is surfaced, not filtered. A confidence figure that
               only ever appears next to the proposal it belongs to lets a reader
               skim a column of green and miss the two that needed reading. */}
-          {lowConfidence > 0 ? (
-            <p className="text-body-sm text-(color:--warning-text)">
-              {PROPOSAL_TEXT.leadLowConfidence(lowConfidence)}
-            </p>
-          ) : null}
-          <p className="text-muted-foreground text-body-sm">
-            {PROPOSAL_TEXT.leadRule}
-          </p>
-        </div>
-      </Card>
+            {lowConfidence > 0 ? (
+              <span className="block text-(color:--warning-text)">
+                {PROPOSAL_TEXT.leadLowConfidence(lowConfidence)}
+              </span>
+            ) : null}
+            <span className="block">{PROPOSAL_TEXT.leadRule}</span>
+          </>
+        }
+      />
 
       <CopilotChat
         initialMessages={initialMessages}
@@ -169,8 +170,12 @@ export default async function CopilotPage({
           isSet={autonomy.value.set}
           decidedBySub={autonomy.value.decidedBySub}
           canChange={
-            can(session.authz, session.entitlement, "copilot.autopilot.enable", "ui")
-              .allowed
+            can(
+              session.authz,
+              session.entitlement,
+              "copilot.autopilot.enable",
+              "ui",
+            ).allowed
           }
           onChange={changeAutonomy}
         />
