@@ -2928,3 +2928,60 @@ DEMO_ACCOUNTS 里写空字符串当 region。镜像 `industry` 已有的写法�
 
 1496 tests pass（新增 2 条，另有 2 条既有断言按新计数更新），六项守卫全绿，
 生产构建通过，浏览器验证完整链路（选中→批量应用→写入→账户详情页确认）。
+
+## field-prisma-store.ts 从 46.88% 补到有真实覆盖（`test/field-prisma-store-coverage`）
+
+上一轮"构建测试并检查覆盖率"报告里，`field-prisma-store.ts` 只有 46.88% 行覆盖，
+而汇报只停在念出这个数字——owner 指出这是敷衍：不清楚那 53% 到底是什么、为什么
+没测、以及"覆盖率低"这四个字本身对读者没有任何信息量。这一批补的不是数字，是
+被那个数字掩盖的真实缺口。
+
+### 数字低的真实原因：DDL 测了，TRANSLATION 层从没测过
+
+`field-evidence.db.test.ts` 已经很扎实地测了 `yucer_field` 三张表的 CHECK、
+GRANT、REVOKE——但那份文件从头到尾用的是裸 SQL，从没有 import 过
+`PrismaFieldStore`。这个类自己的逻辑——`recordInteraction` 的事务（写
+interaction 和它的 participants 是不是真的绑在一个单元里）、
+`lastContactByContact` 那个在 JS 里做 MAX 聚合的两次查询、`listInteractions`/
+`listCommitments` 的过滤与排序、`applyClosure` 的局部 patch——只在内存镜像
+（`InMemoryFieldStore`）上跑过。两个镜像互相一致，说明不了哪个是对的，这正是
+`column-locks.test.ts` 和 `adapters-prisma.db.test.ts` 已经吸取过的教训，这次
+是同一课在没被推广到的一个文件上重演。
+
+### 真的起了一个本地 Postgres 跑这些测试，不是只信 type-check
+
+之前几批的"验证"到 `pnpm run type-check` 通过就停了，这次不是——`brew install
+postgresql@18`，起服务，按 `ci.yml` 的 `db-contract` job 同样的顺序（00 →
+97 → 98 → incr/*）把全部 DDL 灌进一个全新库，然后带着真实 `DATABASE_URL` 跑
+这 11 条新测试和全部 63 条 `*.db.test.ts`。
+
+**这一步真的抓到了两个缺陷——都在我自己写的测试夹具里，不在被测代码里**：
+
+1. 断言"只剩 `dueSoon` 是 open"时忘了 `listCommitments` 的 `status` 过滤是
+   **按工作区**，不是按客户——同工作区另一个客户底下那条待还的承诺理所当然
+   也会出现。断言写窄了，不是代码错了。
+2. 补第一条时顺手把"另一个客户"的承诺到期日设在了过去，让它意外也满足
+   `overdueAt` 的条件，把上一条 `overdueOnly` 断言也带错了。
+
+两条都只有让真实的 Postgres 真的跑一遍查询才会暴露——纯靠读代码或信任
+in-memory 镜像不会发现，因为 in-memory 版本的过滤逻辑抄的也是同一份错误
+假设。改法是把"另一个客户"的到期日挪到未来，并把断言按工作区/按客户各写
+一遍，而不是删掉这条覆盖。
+
+### 11 条测试覆盖什么
+
+`recordInteraction`（事务、零 participants 的情况）、`listInteractions`（按
+account/opportunity 过滤、排序、limit）、`lastContactByContact`（多条
+interaction 取每个联系人的最晚一条、忽略没有 contactId 的参会人、空结果）、
+`lastContactAt`（有/无记录两种）、`createCommitment`/`getCommitment`（含跨
+工作区读不到）、`listCommitments`（status/account/overdueAt 三种过滤 + 排序）、
+`applyClosure`（只写允许的生命周期列、id 不存在或跨工作区时返回 false）。
+
+`field-prisma-store.ts` 46.88% → **98.83%**（`--experimental-test-coverage`
+带真实 `DATABASE_URL` 实测）。lcov 点名剩余三行未覆盖（146-147 在
+`lastContactAt` 的 `findFirst` 调用里、157 在 `createCommitment` 的 `data`
+字面量里）——**但这两个方法都有测试跑过它们**（`lastContactAt` 测了有记录和
+无记录两种，`createCommitment` 有专门的往返测试），所以这更像是 Node 覆盖率
+工具对多行 Prisma 调用参数的记账方式的产物，不是真的没跑到的分支。这里如实
+记下未查清原因，而不是编一个听起来合理的解释——上一轮汇报的问题就是给了
+一个数字没有验证过内容，这次不重复。
