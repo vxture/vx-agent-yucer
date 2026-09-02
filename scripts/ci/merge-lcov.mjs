@@ -44,6 +44,37 @@ function emptyRecord(sf) {
   return { sf, fn: new Map(), fnda: new Map(), da: new Map(), brda: new Map() };
 }
 
+/** One counter line, folded into the record currently open. */
+function applyLine(cur, line) {
+  if (line.startsWith("FN:")) {
+    const i = line.indexOf(",");
+    const name = line.slice(i + 1);
+    // Keyed by name: FNDA carries only the name, so the name is what the two
+    // halves can actually be matched on.
+    if (!cur.fn.has(name)) cur.fn.set(name, line.slice(3, i));
+    return;
+  }
+  if (line.startsWith("FNDA:")) {
+    const i = line.indexOf(",");
+    const name = line.slice(i + 1);
+    cur.fnda.set(name, (cur.fnda.get(name) ?? 0) + Number(line.slice(5, i)));
+    return;
+  }
+  if (line.startsWith("DA:")) {
+    const [ln, count] = line.slice(3).split(",");
+    cur.da.set(ln, (cur.da.get(ln) ?? 0) + Number(count));
+    return;
+  }
+  if (line.startsWith("BRDA:")) {
+    const parts = line.slice(5).split(",");
+    const key = parts.slice(0, 3).join(",");
+    const taken = parts[3];
+    cur.brda.set(key, cur.brda.has(key) ? addTaken(cur.brda.get(key), taken) : taken);
+  }
+  // Everything else (TN:, the summary counters) is dropped on purpose: the
+  // summaries are recomputed on the way out.
+}
+
 function parseInto(records, text) {
   let cur = null;
   for (const raw of text.split("\n")) {
@@ -52,53 +83,42 @@ function parseInto(records, text) {
       const sf = line.slice(3);
       if (!records.has(sf)) records.set(sf, emptyRecord(sf));
       cur = records.get(sf);
-    } else if (cur === null) {
-      continue;
-    } else if (line.startsWith("FN:")) {
-      const i = line.indexOf(",");
-      const name = line.slice(i + 1);
-      // Keyed by name: FNDA carries only the name, so the name is what the two
-      // halves can actually be matched on.
-      if (!cur.fn.has(name)) cur.fn.set(name, line.slice(3, i));
-    } else if (line.startsWith("FNDA:")) {
-      const i = line.indexOf(",");
-      const name = line.slice(i + 1);
-      const count = Number(line.slice(5, i));
-      cur.fnda.set(name, (cur.fnda.get(name) ?? 0) + count);
-    } else if (line.startsWith("DA:")) {
-      const [ln, count] = line.slice(3).split(",");
-      cur.da.set(ln, (cur.da.get(ln) ?? 0) + Number(count));
-    } else if (line.startsWith("BRDA:")) {
-      const parts = line.slice(5).split(",");
-      const key = parts.slice(0, 3).join(",");
-      const taken = parts[3];
-      cur.brda.set(key, cur.brda.has(key) ? addTaken(cur.brda.get(key), taken) : taken);
     } else if (line === "end_of_record") {
       cur = null;
+    } else if (cur !== null) {
+      applyLine(cur, line);
     }
   }
 }
 
+function serialiseRecord(r) {
+  const hit = (values, taken) => values.filter(taken).length;
+  // Every summary line here is RECOMPUTED, never carried over - see the header.
+  const branches =
+    r.brda.size > 0
+      ? [
+          `BRF:${r.brda.size}`,
+          `BRH:${hit([...r.brda.values()], (t) => t !== "-" && Number(t) > 0)}`,
+        ]
+      : [];
+  return [
+    "TN:",
+    `SF:${r.sf}`,
+    ...[...r.fn].map(([name, ln]) => `FN:${ln},${name}`),
+    ...[...r.fnda].map(([name, count]) => `FNDA:${count},${name}`),
+    `FNF:${r.fn.size}`,
+    `FNH:${hit([...r.fnda.values()], (c) => c > 0)}`,
+    ...[...r.brda].map(([key, taken]) => `BRDA:${key},${taken}`),
+    ...branches,
+    ...[...r.da].map(([ln, count]) => `DA:${ln},${count}`),
+    `LF:${r.da.size}`,
+    `LH:${hit([...r.da.values()], (c) => c > 0)}`,
+    "end_of_record",
+  ];
+}
+
 function serialise(records) {
-  const out = [];
-  for (const r of records.values()) {
-    out.push("TN:", `SF:${r.sf}`);
-    for (const [name, ln] of r.fn) out.push(`FN:${ln},${name}`);
-    for (const [name, count] of r.fnda) out.push(`FNDA:${count},${name}`);
-    // Recomputed, never summed - see the header note.
-    out.push(`FNF:${r.fn.size}`, `FNH:${[...r.fnda.values()].filter((c) => c > 0).length}`);
-    for (const [key, taken] of r.brda) out.push(`BRDA:${key},${taken}`);
-    if (r.brda.size > 0) {
-      out.push(
-        `BRF:${r.brda.size}`,
-        `BRH:${[...r.brda.values()].filter((t) => t !== "-" && Number(t) > 0).length}`,
-      );
-    }
-    for (const [ln, count] of r.da) out.push(`DA:${ln},${count}`);
-    out.push(`LF:${r.da.size}`, `LH:${[...r.da.values()].filter((c) => c > 0).length}`);
-    out.push("end_of_record");
-  }
-  return out.join("\n") + "\n";
+  return [...records.values()].flatMap(serialiseRecord).join("\n") + "\n";
 }
 
 /**
