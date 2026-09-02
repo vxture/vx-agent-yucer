@@ -2985,3 +2985,68 @@ interaction 取每个联系人的最晚一条、忽略没有 contactId 的参会
 工具对多行 Prisma 调用参数的记账方式的产物，不是真的没跑到的分支。这里如实
 记下未查清原因，而不是编一个听起来合理的解释——上一轮汇报的问题就是给了
 一个数字没有验证过内容，这次不重复。
+
+## 修 prisma-store 的翻译层测试：剩下八个 0% 的文件（`test/prisma-store-translation-layer`）
+
+覆盖率审计（见下一节）用函数级覆盖率查出 `audit`、`authz`、`catalog`、
+`delivery`、`pipeline`、`planning`、`provisioning`、`signal` 八个域的
+`prisma-store.ts` 函数覆盖率全部是字面意义的 0%——不是低，是从建成那天起就
+没有一行代码真正对着数据库跑过，只测过内存 mirror。这批把这八个文件逐一补齐，
+方法与 `field-prisma-store.ts` 那一批完全一致：本地起一个真实 Postgres，按
+`ci.yml` 的 `db-contract` job 同样的顺序（00 → 97 → 98 → incr/*）灌入全部
+DDL，再对着真实 `DATABASE_URL` 跑。
+
+新增 94 条测试，`app/audit/lib/prisma-store.db.test.ts`（7 条）、
+`app/authz/prisma-store.db.test.ts`（11 条）、
+`app/domains/catalog/prisma-store.db.test.ts`（13 条）、
+`app/domains/delivery/prisma-store.db.test.ts`（11 条）、
+`app/domains/pipeline/prisma-store.db.test.ts`（17 条）、
+`app/domains/planning/prisma-store.db.test.ts`（12 条）、
+`app/provisioning/lib/prisma-store.db.test.ts`（9 条）、
+`app/domains/signal/prisma-store.db.test.ts`（14 条）。连同已有的 db 测试，
+`*.db.test.ts` 合计 157 条，全部对同一个本地 Postgres 通过。
+
+### 编写测试过程中暴露的测试自身的 bug（三处，都在夹具里，不在被测代码）
+
+- `audit`：用 19 字符的 `'not_a_real_outcome'` 想触发 `chk_event_outcome`，
+  但该列是 `VARCHAR(16)`，长度校验先于 CHECK 报错。改成 5 字符的 `'bogus'`。
+- `authz`：`setScope` 用了 `"t_1"`/`"t_2"`/`"t_3"` 当辖区 id，但
+  `member_territory.territory_id` 是真实的 UUID 类型列（incr/0022 的设计
+  说明里写明没有外键约束，但类型仍是 UUID）——Postgres 直接拒绝非法语法。
+  改成规范的 UUID 字符串。
+- `catalog`：验证负数量被 `chk_line_qty` 拒绝时，连带把 `amount` 也写成了
+  负数，`chk_line_price` 先一步报错，断言的正则匹配不上。把 `amount` 改回
+  非负，只留 `quantity` 为负。
+
+### 编写测试过程中暴露的两个真实生产缺陷（都在 `planning/prisma-store.ts`）
+
+真实数据库能抓到内存镜像抓不到的缺陷，原因是两个镜像做了同一个（这次恰好
+是错的）假设，互相印证不出对错——这一课 `field-prisma-store.ts` 那批已经吸取
+过，这次在另一个文件上又中了一次：
+
+1. **`createTarget()` 从未把 `status` 写进 `data` 对象**，新建的 target
+   无论请求什么状态都落在数据库默认值 `draft`。目前唯一的真实调用方
+   `planTargetCreation()` 恰好总是传 `draft`，所以是潜伏的，还没炸。已修：
+   补上 `status: target.status`。
+2. **`upsertTerritory()` 完全没有写 `regions`**（更严重）——`update` 对象
+   字面量里根本没有这个键。根因更深一层：`prisma/schema.prisma` 的
+   `Territory` model 自 incr/0017 把 `regions` 加进 DDL 以来就从未跟着改，
+   Prisma 客户端里这个字段压根不存在，写请求根本无法到达这一列。这意味着
+   **在任何真实的 Prisma 后端部署里，通过管理/服务流程配置的辖区区域从未
+   真正写入过**，本仓早前建的按区域路由线索、按区域推导数据可见范围两个
+   功能因此静默失效。已修：`prisma-store.ts` 补写入 `regions: input.regions`
+   + `schema.prisma` 补 `regions Json @default("[]") @db.JsonB` 字段 +
+   重新 `prisma generate`。
+
+`check-data-architecture.mjs` 为什么没拦住第 2 条：它自己的文档字符串写明
+只做表级 DDL/Prisma 锁步检查，不做列级——这是已知且记录在案的能力边界，不是
+它的 bug。列锁 mirror（`column-locks.ts`）恰好早就正确写了
+`"yucer_gtm.territory"` 需要 `regions`，只是应用代码和 Prisma schema 两处都
+没跟上，说明这是三条各自独立、互不覆盖的检查线：DDL 与 Prisma schema 的表级
+核对、列锁 mirror 与 DDL 真值的核对、以及（这次缺失的）DDL 与 Prisma schema
+的列级核对。详见 `60-operations/00-index.md` TD-019。
+
+`pnpm test`（无 `DATABASE_URL`）：1601 个 test() 声明，1444 pass、157 skipped
+（157 恰好等于全部 `*.db.test.ts` 的自跳过计数，非本批引入的失败）。带真实
+`DATABASE_URL` 单独跑全部 `*.db.test.ts`：157 条全部 pass，其中本批新增 94 条。
+`tsc --noEmit` 通过，六项守卫全绿，生产构建通过。

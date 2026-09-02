@@ -298,6 +298,11 @@ model Territory {
   name          String   @db.VarChar(255)
   parentId      String?  @map("parent_id") @db.Uuid
   ownerSub      String?  @map("owner_sub") @db.VarChar(128)
+  // incr/0017. The regions this territory covers - lead routing, data-scope
+  // resolution and completeness derivation all read this. It existed in the
+  // DDL but was never mirrored here, so PrismaPlanningStore.upsertTerritory()
+  // could not write it at all (TD, see docs/60-operations/00-index.md).
+  regions       Json     @default("[]") @db.JsonB
   status        String   @default("active") @db.VarChar(32)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
