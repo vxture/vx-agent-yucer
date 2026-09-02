@@ -1349,3 +1349,40 @@ outcome`，消费面另加 `taskId · costAmount · costUnit`。
 
 1489 tests pass（新增 21 条），六项守卫全绿，生产构建通过。详见
 `70-workplan/00-index.md`「补上 X-3 的审计记录表」。
+
+### TD-019 - 八个 prisma-store.ts 从未跑过真实数据库，两个都是真 bug
+
+覆盖率审计（`70-workplan/00-index.md`「测试覆盖率审计」）用函数级覆盖率查出：
+`audit`、`authz`、`catalog`、`delivery`、`pipeline`、`planning`、`provisioning`、
+`signal` 八个域的 `prisma-store.ts`，函数覆盖率全部是字面意义的 0% ——不是低，
+是从未被调用过。只有内存 mirror 被测过；Prisma 适配层从建成那天起就没有一行代码
+真正跑过。
+
+这不是纸面问题。给八个文件各补一套 `*.db.test.ts`（对真实本地 Postgres 跑，DDL
+按 `db-contract` 的顺序应用），跑出来直接命中两个内存 mirror 从来不会犯、因而
+永远测不出来的生产缺陷：
+
+1. `planning/prisma-store.ts` 的 `createTarget()` 从未把 `status` 写进
+   `data` 对象，新建的 target 无论请求什么状态都落在数据库默认值 `draft`。
+   目前唯一的真实调用方 `planTargetCreation()` 恰好总是传 `draft`，所以是
+   潜伏的，还没炸；已修。
+2. **同一文件的 `upsertTerritory()` 完全没有写 `regions`**——`update` 对象
+   字面量里根本没有这个键。根因更深一层：`prisma/schema.prisma` 的
+   `Territory` model 自 incr/0017 把 `regions` 加进 DDL 以来就从未跟着改，
+   Prisma 客户端里这个字段压根不存在。这意味着**在任何真实的 Prisma 后端
+   部署里，通过管理/服务流程配置的辖区区域从未真正写入过**，本 session 早
+   前建的按区域路由线索、按区域推导数据可见范围两个功能因此静默失效。已修
+   （`prisma-store.ts` 补写入 + `schema.prisma` 补字段 + `prisma generate`）。
+
+`check-data-architecture.mjs` 为什么没拦住第 2 条：它自己的文档字符串写明
+只做**表级** DDL/Prisma 锁步检查，不做列级——这是该守卫已知且记录在案的能力
+边界，不是它的 bug。列锁 mirror（`column-locks.ts`）恰好早就正确写了
+`"yucer_gtm.territory"` 需要 `regions`，只是应用代码和 Prisma schema 两处都没
+跟上，说明列锁 mirror 与 DDL 真值这两个方向的核对，和 DDL 与 Prisma schema 的
+表级核对，是三条各自独立、互不覆盖的检查线。
+
+对齐 `10-standards`「两个守卫」小节的记法：这是第三个——`check-data-architecture.mjs`
+证明 DDL 表集合 == Prisma 表集合，不证明每张表的每一列都在两边一致。
+
+新增 8 个 `*.db.test.ts`，共 94 条测试，全部对本地真实 Postgres 通过；连同已有
+的 db 测试合计 157 条。六项守卫全绿，生产构建通过。

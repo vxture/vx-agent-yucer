@@ -48,6 +48,7 @@ export class PrismaPlanningStore implements PlanningStore {
       parentId: input.parentId,
       ownerSub: input.ownerSub,
       status: input.status,
+      regions: input.regions,
       updatedAt: new Date(),
     };
     // The update half only - the create half writes the anchor once, which is
@@ -81,6 +82,7 @@ export class PrismaPlanningStore implements PlanningStore {
         // NULL for a count metric - incr/0013's CHECK enforces the pairing, and
         // currencyOf is the single place that decides it.
         currency: currencyOf(target.targetValue),
+        status: target.status,
       },
     });
     return toTarget(row as Record<string, unknown>);
