@@ -258,14 +258,21 @@ jobs:
   #
   # ITS OWN JOB, not a step inside test-coverage, and deliberately so:
   # test-coverage IS one of the required six, and folding a third-party service
-  # into it would let a SonarCloud outage block every merge. `db-contract` is
-  # kept out of the required set for the same reason.
+  # into it would let a SonarCloud outage block every merge.
   #
   # This replaces Automatic Analysis, which cannot read coverage at all - the
   # two modes are mutually exclusive and Automatic Analysis must stay off.
+  #
+  # NEEDS BOTH TEST JOBS (TD-020). The two suites cannot share a process -
+  # DATABASE_URL flips prismaEnabled(), so the unit suite fails with it set and
+  # every db test skips without it - which means neither run alone is the
+  # coverage of this repo. Feeding Sonar only the offline half understated 11
+  # files by 40+ points and failed a PR that added 94 passing tests. The merge
+  # below is the whole fix; everything that can judge a coverage report happens
+  # in this job, which is allowed to fail, rather than in the required ones.
   sonar:
     name: sonar
-    needs: test-coverage
+    needs: [test-coverage, db-contract]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -276,11 +283,28 @@ jobs:
           # shallow clone makes every line look like it was written today.
           fetch-depth: 0
 
-      - name: Download coverage
+      - name: Download offline coverage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage
           path: coverage
+
+      - name: Download db coverage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-db
+          path: coverage-db
+
+      # The offline half was already rewritten in test-coverage; this is the
+      # same transform for the half db-contract deliberately left alone.
+      - name: Make db coverage paths repo-root relative
+        run: node scripts/ci/lcov-to-repo-root.mjs coverage-db/lcov-db.info portals/app
+
+      # Counters sum, summary lines are recomputed, and an input that
+      # contributed no records is refused rather than merged around - a fix that
+      # can quietly stop fixing is worse than no fix. See scripts/ci/merge-lcov.mjs.
+      - name: Merge the two coverage halves
+        run: node scripts/ci/merge-lcov.mjs coverage/merged.info coverage/lcov.info coverage-db/lcov-db.info
 
       - name: Scan
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
@@ -380,6 +404,29 @@ jobs:
         #
         # The same files self-skip in the ordinary suite, so they stay visible
         # (as skipped) to anyone running pnpm test on a laptop.
-        run: pnpm --filter @yucer/app test:db
+        #
+        # `test:db:lcov` rather than `test:db` (TD-020): identical files, env and
+        # exit-code semantics, plus a coverage report. This half is the ONLY
+        # place the Prisma adapters execute, so without it Sonar reads a number
+        # in which none of them ran - which is how a PR adding 94 passing db
+        # tests was failed for "0.0% Coverage on New Code". `test:db` stays for
+        # laptops, where the extra instrumentation is just noise.
+        run: pnpm --filter @yucer/app test:db:lcov
         env:
           DATABASE_URL: postgresql://postgres@localhost:5432/vxturebiz_yucer_ci
+
+      # Paths are left relative to portals/app here and rewritten in `sonar`,
+      # deliberately: this is a REQUIRED check and lcov-to-repo-root.mjs exits
+      # non-zero on a path it cannot resolve. The DDL verdict must not hinge on
+      # a coverage-report detail, so every step that can judge the report lives
+      # in the job that is allowed to fail.
+      - name: Upload db coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-db
+          path: portals/app/coverage/lcov-db.info
+          retention-days: 7
+          # Loud, not warn. A missing report here is not a flake - it means the
+          # test command stopped producing one, and the merge downstream would
+          # otherwise quietly fall back to exactly the pre-TD-020 number.
+          if-no-files-found: error

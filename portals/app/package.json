@@ -10,7 +10,8 @@
     "type-check": "prisma generate && tsc --noEmit",
     "test": "node --import tsx --test --experimental-test-coverage \"app/**/*.test.ts\"",
     "test:lcov": "mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info \"app/**/*.test.ts\"",
-    "test:db": "node --import tsx --test \"app/**/*.db.test.ts\""
+    "test:db": "node --import tsx --test \"app/**/*.db.test.ts\"",
+    "test:db:lcov": "mkdir -p coverage && node --import tsx --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov-db.info \"app/**/*.db.test.ts\""
   },
   "dependencies": {
     "@fontsource/funnel-display": "^5.3.0",
