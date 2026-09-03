@@ -65,7 +65,7 @@ export function AgentPanel({
           <span className="text-label-md text-foreground">
             {BOARD_TEXT.agent}
           </span>
-          <span className="text-muted-foreground ml-auto text-xs tabular-nums">
+          <span className="text-muted-foreground ml-auto text-body-sm tabular-nums">
             {BOARD_TEXT.agentScope(data.scanned)}
           </span>
 
@@ -98,7 +98,7 @@ export function AgentPanel({
             {/* Guidance beside the field, never inside it: appended to the
                 placeholder it rendered as a paragraph someone had already
                 typed. */}
-            <p className="text-muted-foreground mt-xs text-xs leading-relaxed">
+            <p className="text-muted-foreground mt-xs text-body-sm leading-relaxed">
               {BOARD_TEXT.captureHelp}
             </p>
 
@@ -163,13 +163,13 @@ export function AgentPanel({
                 main={
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-body-sm">{p.title}</span>
-                    <span className="text-muted-foreground truncate text-xs">
+                    <span className="text-muted-foreground truncate text-body-sm">
                       {p.why}
                     </span>
                   </span>
                 }
                 trail={
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground text-body-sm">
                     {p.source}
                   </span>
                 }
@@ -188,13 +188,13 @@ export function AgentPanel({
           reason to exist. */}
       <Card className="p-sm">
         <p className="text-label-md text-foreground">{BOARD_TEXT.reconTitle}</p>
-        <p className="text-muted-foreground mt-xs text-xs leading-relaxed">
+        <p className="text-muted-foreground mt-xs text-body-sm leading-relaxed">
           {BOARD_TEXT.reconEmpty}
         </p>
         <Button size="sm" variant="outline" className="mt-sm w-full" disabled>
           {BOARD_TEXT.reconCta}
         </Button>
-        <p className="text-muted-foreground mt-xs text-xs">
+        <p className="text-muted-foreground mt-xs text-body-sm">
           {BOARD_TEXT.analysisNote}
         </p>
       </Card>
@@ -214,7 +214,7 @@ export function AgentPanel({
                   </span>
                 }
                 trail={
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground text-body-sm">
                     {r.when}
                   </span>
                 }

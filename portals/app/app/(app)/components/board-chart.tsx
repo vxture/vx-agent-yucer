@@ -111,7 +111,7 @@ export function Lede({ metrics }: { metrics: readonly BoardMetric[] }) {
         >
           {lede.value}
         </span>
-        <span className="text-muted-foreground min-w-0 truncate text-xs">
+        <span className="text-muted-foreground min-w-0 truncate text-body-sm">
           {lede.label}
         </span>
       </div>
@@ -120,7 +120,7 @@ export function Lede({ metrics }: { metrics: readonly BoardMetric[] }) {
         /* One line, dot-separated, and it wraps rather than truncating - these
            are the figures a reader goes looking for, so losing the tail to an
            ellipsis would defeat the point of keeping them. */
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-body-sm">
           {rest.map((m, i) => (
             <span key={m.label}>
               {i > 0 ? <span aria-hidden="true"> · </span> : null}
@@ -159,10 +159,10 @@ export function BarList({ metrics }: { metrics: readonly BoardMetric[] }) {
            that matters is BETWEEN rows, and that is the list gap. */
         <li key={m.label} className="flex flex-col">
           <div className="flex items-baseline justify-between gap-xs">
-            <span className="text-foreground min-w-0 truncate text-xs">
+            <span className="text-foreground min-w-0 truncate text-body-sm">
               {m.label}
             </span>
-            <span className="text-foreground shrink-0 text-xs font-semibold tabular-nums">
+            <span className="text-foreground shrink-0 text-body-sm font-semibold tabular-nums">
               {m.value}
             </span>
           </div>
@@ -223,7 +223,7 @@ export function Gauge({
   return (
     <div className="flex flex-col gap-xs">
       <div className="flex items-baseline justify-between gap-xs">
-        <span className="text-muted-foreground shrink-0 text-xs">
+        <span className="text-muted-foreground shrink-0 text-body-sm">
           {gauge.label}
         </span>
         <span className="flex min-w-0 items-baseline gap-xs">
@@ -232,7 +232,7 @@ export function Gauge({
           </span>
           {gauge.note ? (
             <span
-              className={`shrink-0 text-xs tabular-nums ${gauge.thin ? LEVEL_INK.bad : LEVEL_INK.good}`}
+              className={`shrink-0 text-body-sm tabular-nums ${gauge.thin ? LEVEL_INK.bad : LEVEL_INK.good}`}
             >
               {gauge.note}
             </span>
@@ -268,11 +268,11 @@ export function Gauge({
           <li key={f.label} className="flex items-baseline gap-2xs">
             <span
               aria-hidden="true"
-              className={`text-xs leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}
+              className={`text-body-sm leading-none ${RAMP_TEXT[i % RAMP_TEXT.length]}`}
             >
               &bull;
             </span>
-            <span className="text-muted-foreground text-xs">{f.label}</span>
+            <span className="text-muted-foreground text-body-sm">{f.label}</span>
           </li>
         ))}
       </ul>
