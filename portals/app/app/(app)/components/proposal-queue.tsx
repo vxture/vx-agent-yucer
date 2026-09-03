@@ -200,7 +200,7 @@ export function ProposalQueue({
           <Badge variant="secondary">
             {AGENT_SUBJECT_LABEL[row.subjectType] ?? row.subjectType}
           </Badge>
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground font-mono text-body-sm">
             {row.subjectId}
           </span>
         </span>
@@ -256,7 +256,7 @@ export function ProposalQueue({
             {PROPOSAL_TEXT.autopilotMarker}
           </StatusBadge>
         ) : row.decidedBySub ? (
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground font-mono text-body-sm">
             {row.decidedBySub}
           </span>
         ) : (
@@ -367,7 +367,7 @@ export function ProposalQueue({
                   ) : (
                     <span className="flex flex-col gap-3xs">
                       {Object.entries(row.payload).map(([k, v]) => (
-                        <span key={k} className="font-mono text-xs">
+                        <span key={k} className="font-mono text-body-sm">
                           {k}: {typeof v === "string" ? v : JSON.stringify(v)}
                         </span>
                       ))}

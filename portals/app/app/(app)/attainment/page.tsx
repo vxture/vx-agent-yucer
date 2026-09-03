@@ -325,7 +325,7 @@ function Figure({
       >
         {value}
       </span>
-      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="text-muted-foreground text-body-sm">{label}</span>
     </span>
   );
 }
@@ -348,7 +348,7 @@ function Bar({
 }) {
   return (
     <div className="flex items-center gap-sm">
-      <span className="text-muted-foreground w-24 shrink-0 truncate text-xs">
+      <span className="text-muted-foreground w-24 shrink-0 truncate text-body-sm">
         {label}
       </span>
       <span className="bg-muted h-2xs min-w-0 flex-1 overflow-hidden rounded-full">
@@ -357,7 +357,7 @@ function Bar({
           style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
         />
       </span>
-      <span className="text-foreground w-20 shrink-0 text-right text-xs tabular-nums">
+      <span className="text-foreground w-20 shrink-0 text-right text-body-sm tabular-nums">
         {value}
       </span>
     </div>

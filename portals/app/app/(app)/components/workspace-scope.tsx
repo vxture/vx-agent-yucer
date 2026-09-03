@@ -69,7 +69,7 @@ export function WorkspaceScope({
             {/* Said plainly rather than offered as a control that does
                 nothing. A greyed-out switcher would be worse: it implies the
                 capability exists and is merely unavailable to you. */}
-            <p className="text-muted-foreground px-md py-sm text-xs">
+            <p className="text-muted-foreground px-md py-sm text-body-sm">
               {HEADER_TEXT.workspaceSwitchHint}
             </p>
           </ShellPanelSection>

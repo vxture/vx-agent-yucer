@@ -64,7 +64,7 @@ export function AutonomyPanel({
                 the second is an authorisation. */}
             {isSet ? (
               decidedBySub ? (
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-body-sm">
                   {AUTONOMY_TEXT.setBy(decidedBySub)}
                 </span>
               ) : null
@@ -92,7 +92,7 @@ export function AutonomyPanel({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="text-foreground text-sm">{AUTONOMY_TEXT.modes[m] ?? m}</div>
-                  <p className="text-muted-foreground mt-3xs text-xs">
+                  <p className="text-muted-foreground mt-3xs text-body-sm">
                     {AUTONOMY_TEXT.modeWhy[m] ?? ""}
                     {m === "ask_high_risk"
                       ? ` ${canDo ? AUTONOMY_TEXT.modeCanDo(canDo) : AUTONOMY_TEXT.modeCanDoNone}`
@@ -100,7 +100,7 @@ export function AutonomyPanel({
                   </p>
                 </div>
                 {current ? (
-                  <span className="text-muted-foreground shrink-0 text-xs">
+                  <span className="text-muted-foreground shrink-0 text-body-sm">
                     {AUTONOMY_TEXT.saved}
                   </span>
                 ) : canChange ? (
@@ -121,12 +121,12 @@ export function AutonomyPanel({
         {/* WHAT "RISKY" MEANS, on the screen that uses the word. A setting whose
             middle option turns on a rule the reader cannot see is a setting
             they have to trust rather than understand. */}
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-body-sm">
           {AUTONOMY_TEXT.riskWhy(CONFIDENCE_FLOOR)}
         </p>
 
         {!canChange ? (
-          <p className="text-muted-foreground text-xs">{AUTONOMY_TEXT.denied}</p>
+          <p className="text-muted-foreground text-body-sm">{AUTONOMY_TEXT.denied}</p>
         ) : null}
       </div>
     </Card>

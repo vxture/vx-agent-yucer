@@ -267,7 +267,7 @@ export function PipelineBoard({
         />
       ) : null}
       {undated > 0 ? (
-        <p className="text-muted-foreground mt-sm text-xs">
+        <p className="text-muted-foreground mt-sm text-body-sm">
           {PIPELINE_TEXT.undatedExcluded(undated)}
         </p>
       ) : null}

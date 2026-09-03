@@ -77,7 +77,7 @@ export function SignIn() {
             <a href={href}>{SIGNIN_TEXT.cta}</a>
           </Button>
 
-          <p className="text-muted-foreground text-xs">{SIGNIN_TEXT.hint}</p>
+          <p className="text-muted-foreground text-body-sm">{SIGNIN_TEXT.hint}</p>
         </Stack>
       </section>
     </main>

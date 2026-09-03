@@ -233,13 +233,13 @@ export function LineEditor({
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">
+        <p className="text-muted-foreground mt-sm text-body-sm">
           {OPPORTUNITY_TEXT.lineDenied}
         </p>
       ) : closed ? (
         // Absent, not disabled. The rule refuses every patch on a closed deal,
         // and a greyed editor invites a fight nobody can win.
-        <p className="text-muted-foreground mt-sm text-xs">
+        <p className="text-muted-foreground mt-sm text-body-sm">
           {OPPORTUNITY_TEXT.lineClosedHint}
         </p>
       ) : (
@@ -344,7 +344,7 @@ export function LineEditor({
             {/* The running total, shown while they type. It is what the header
                 will BECOME - so the reader sees the consequence before they
                 commit to it rather than discovering it afterwards. */}
-            <span className="text-muted-foreground text-xs tabular-nums">
+            <span className="text-muted-foreground text-body-sm tabular-nums">
               {OPPORTUNITY_TEXT.lineAmount} {total.toLocaleString()}
             </span>
             {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}

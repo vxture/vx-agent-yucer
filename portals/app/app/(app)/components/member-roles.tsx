@@ -297,7 +297,7 @@ export function MemberRoles({
         // reading as configured.
         const label = MEMBER_TEXT.scopeLabels[row.scope] ?? row.scope;
         if (!canManage || !onScope) {
-          return <span className="text-muted-foreground text-xs">{label}</span>;
+          return <span className="text-muted-foreground text-body-sm">{label}</span>;
         }
         const key = `${row.sub}:scope`;
         const chosenTerr = terr[row.sub] ?? row.territoryIds[0] ?? "";

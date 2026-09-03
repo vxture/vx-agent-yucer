@@ -146,7 +146,7 @@ export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePan
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">{DELIVERY_TEXT.milestonesDenied}</p>
+        <p className="text-muted-foreground mt-sm text-body-sm">{DELIVERY_TEXT.milestonesDenied}</p>
       ) : (
         <div className="mt-md flex flex-wrap items-end gap-sm">
           <Field>
@@ -230,7 +230,7 @@ export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePan
       )}
       {/* Said out loud, because it is the reason this panel is not bookkeeping:
           a missed milestone overrides a reported green on the table above. */}
-      <p className="text-muted-foreground mt-sm text-xs">{DELIVERY_TEXT.milestoneAffectsHealth}</p>
+      <p className="text-muted-foreground mt-sm text-body-sm">{DELIVERY_TEXT.milestoneAffectsHealth}</p>
     </Section>
   );
 }

@@ -161,7 +161,7 @@ export function AccountTable({
           >
             {row.name}
           </Link>
-          <div className="text-muted-foreground flex items-center gap-2xs text-xs">
+          <div className="text-muted-foreground flex items-center gap-2xs text-body-sm">
             <span className="tabular-nums">{row.accountNo}</span>
             {buyerUnreachable?.has(row.id) ? (
               <StatusBadge tone="warning">{ACCOUNT_TEXT.buyerUnreachable}</StatusBadge>
@@ -195,11 +195,11 @@ export function AccountTable({
       // given the second-widest column on the table.
       cell: (row) =>
         row.ownerSub ? (
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground font-mono text-body-sm">
             {row.ownerSub}
           </span>
         ) : (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-body-sm">
             {ACCOUNT_TEXT.ownerNone}
           </span>
         ),

@@ -176,13 +176,13 @@ export function SolutionSection({
               <span className="text-foreground font-medium">
                 {solution.name}
               </span>
-              <span className="mono text-muted-foreground text-xs">
+              <span className="mono text-muted-foreground text-body-sm">
                 {solution.solutionCode}
               </span>
               <StatusBadge tone="neutral">
                 {CATALOG_TEXT.solutionItems(items.length)}
               </StatusBadge>
-              <span className="text-muted-foreground text-xs">
+              <span className="text-muted-foreground text-body-sm">
                 {items
                   .map(
                     (i) =>
@@ -275,7 +275,7 @@ export function PriceSection({
       {canPrice ? (
         <PriceForm products={products} onSave={onSavePrice} />
       ) : (
-        <p className="text-muted-foreground mt-sm text-xs">
+        <p className="text-muted-foreground mt-sm text-body-sm">
           {CATALOG_TEXT.priceDenied}
         </p>
       )}
@@ -347,7 +347,7 @@ function ProductForm({
       >
         {CATALOG_TEXT.saveProduct}
       </Button>
-      <span className="text-muted-foreground text-xs">
+      <span className="text-muted-foreground text-body-sm">
         {CATALOG_TEXT.codeHint}
       </span>
       {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}

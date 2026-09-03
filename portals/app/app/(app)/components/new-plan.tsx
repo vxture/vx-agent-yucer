@@ -101,7 +101,7 @@ export function NewPlan({ canCreate, onCreate }: NewPlanProps) {
       {/* The number is the anchor: workspace-unique and with no UPDATE grant,
           so it cannot be corrected later. Said here rather than discovered on
           the second attempt. */}
-      <p className="text-muted-foreground mt-sm text-xs">{STRATEGY_TEXT.newPlanAnchor}</p>
+      <p className="text-muted-foreground mt-sm text-body-sm">{STRATEGY_TEXT.newPlanAnchor}</p>
     </Section>
   );
 }

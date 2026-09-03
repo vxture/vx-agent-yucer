@@ -117,7 +117,7 @@ export function HeadlineCard({
                   <div className="text-foreground truncate text-heading-4 tabular-nums">
                     {BOARD_TEXT.wan(p.amount)}
                   </div>
-                  <div className="text-muted-foreground truncate text-xs">
+                  <div className="text-muted-foreground truncate text-body-sm">
                     {p.name}
                   </div>
                 </li>

@@ -121,7 +121,7 @@ export function BatchCompleteness({
       id: "basis",
       header: BATCH_COMPLETE_TEXT.columnBasis,
       cell: (row) => (
-        <span className="text-muted-foreground text-xs">{row.basis}</span>
+        <span className="text-muted-foreground text-body-sm">{row.basis}</span>
       ),
     },
   ];

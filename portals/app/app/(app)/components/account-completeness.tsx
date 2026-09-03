@@ -104,7 +104,7 @@ export function AccountCompleteness({
               {g.suggestion}
             </span>
             {/* THE BASIS, always. See the header. */}
-            <span className="text-muted-foreground text-xs">{g.basis}</span>
+            <span className="text-muted-foreground text-body-sm">{g.basis}</span>
           </span>
           {canFill ? (
             <Button
@@ -130,7 +130,7 @@ export function AccountCompleteness({
 
       {askable.length > 0 ? (
         <div className="flex items-start justify-between gap-md">
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-body-sm">
             {COMPLETENESS_TEXT.askable(
               COMPLETENESS_TEXT.joinFields(
                 askable.map((g) => COMPLETENESS_TEXT.fields[g.field] ?? g.field),

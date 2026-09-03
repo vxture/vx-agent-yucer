@@ -170,7 +170,7 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">{ACCOUNT_TEXT.contactsDenied}</p>
+        <p className="text-muted-foreground mt-sm text-body-sm">{ACCOUNT_TEXT.contactsDenied}</p>
       ) : (
         <div className="mt-md flex flex-wrap items-end gap-sm">
           <Field>

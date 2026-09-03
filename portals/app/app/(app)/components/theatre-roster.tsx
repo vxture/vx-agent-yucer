@@ -68,7 +68,7 @@ export function TheatreRoster({
             </span>
           }
           trail={
-            <span className="text-muted-foreground text-xs tabular-nums">
+            <span className="text-muted-foreground text-body-sm tabular-nums">
               {deals.length > 0
                 ? `${deals.length} · ${formatMoney(total, currency, locale)}`
                 : ACCOUNT_TEXT.rosterNoDeals}
@@ -105,7 +105,7 @@ export function TheatreRoster({
             </span>
           }
           trail={
-            <span className="text-muted-foreground text-xs tabular-nums">
+            <span className="text-muted-foreground text-body-sm tabular-nums">
               {projects.length > 0
                 ? projects.length
                 : ACCOUNT_TEXT.rosterNoProjects}

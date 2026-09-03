@@ -129,11 +129,11 @@ export function DeliveryTable({
       // up in front of someone who then does not chase it.
       cell: (row) =>
         row.managerSub ? (
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground font-mono text-body-sm">
             {row.managerSub}
           </span>
         ) : (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-body-sm">
             {DELIVERY_TEXT.managerNone}
           </span>
         ),

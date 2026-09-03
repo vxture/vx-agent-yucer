@@ -147,7 +147,7 @@ export function NewOpportunity({
           campaign_id has no UPDATE grant, so a deal entered here is
           self-sourced forever and no later edit can attribute it to a
           campaign. */}
-      <p className="text-muted-foreground mt-sm text-xs">{PIPELINE_TEXT.newSelfSourced}</p>
+      <p className="text-muted-foreground mt-sm text-body-sm">{PIPELINE_TEXT.newSelfSourced}</p>
     </Section>
   );
 }
