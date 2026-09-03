@@ -69,7 +69,7 @@ export function NavBoard({
           {/* The section names itself once, above its modules. Not a card: it
               labels the cards under it, and giving it one would make the domain
               look like a sixth module. */}
-          <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-sm text-xs">
+          <span className="text-muted-foreground flex items-center gap-2xs px-2xs pt-sm text-body-sm">
             <Icon name={domain.icon} size="sm" />
             {DOMAIN_GROUP_LABEL[domain.key] ?? domain.key}
           </span>
@@ -115,7 +115,7 @@ function QueueCard({
         <Link
           href={section.href}
           className={[
-            "min-w-0 truncate text-xs font-semibold tracking-wide",
+            "min-w-0 truncate text-body-sm font-semibold tracking-wide",
             active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           ].join(" ")}
         >
@@ -213,7 +213,7 @@ function ModuleFigures({
         >
           {m.value}
         </span>
-        <span className="text-muted-foreground truncate text-xs">{m.label}</span>
+        <span className="text-muted-foreground truncate text-body-sm">{m.label}</span>
       </div>
     );
   }
@@ -230,7 +230,7 @@ function ModuleFigures({
           >
             {m.value}
           </span>
-          <span className="text-muted-foreground text-xs">{m.label}</span>
+          <span className="text-muted-foreground text-body-sm">{m.label}</span>
         </span>
       ))}
     </div>
