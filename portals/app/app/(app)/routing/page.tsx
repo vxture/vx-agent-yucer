@@ -1,4 +1,4 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -34,7 +34,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function RoutingPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, ROUTING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -91,10 +91,12 @@ export default async function RoutingPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader title={ROUTING_TEXT.title} description={ROUTING_TEXT.why} />
       <RoutingTable
         rows={rows}
         canAssign={
-          can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed
+          can(session.authz, session.entitlement, "signal.lead.upsert", "ui")
+            .allowed
         }
         onAssign={applyAssignment}
       />

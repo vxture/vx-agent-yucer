@@ -49,14 +49,12 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
   const { DATA_TABLE_LABELS, RENEWAL_TEXT, RENEWAL_ERROR } = useMessages();
 
   return (
-    <Section
-      id="renewal"
-      icon="file-text"
-      title={RENEWAL_TEXT.title}
-      description={RENEWAL_TEXT.why}
-    >
+    <Section id="renewal" icon="file-text">
       {rows.length === 0 ? (
-        <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />
+        <EmptyState
+          title={RENEWAL_TEXT.none}
+          description={RENEWAL_TEXT.noneWhy}
+        />
       ) : (
         <>
           <DataTable
@@ -120,7 +118,9 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
                       {RENEWAL_TEXT.notDue[r.notDueReason] ?? r.notDueReason}
                     </span>
                   ) : (
-                    <StatusBadge tone={r.risk === "watch" ? "warning" : "success"}>
+                    <StatusBadge
+                      tone={r.risk === "watch" ? "warning" : "success"}
+                    >
                       {RENEWAL_TEXT.risk[r.risk ?? "low"] ?? ""}
                     </StatusBadge>
                   ),
@@ -147,7 +147,9 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
             ]}
           />
           {!canOpen ? (
-            <p className="text-muted-foreground mt-sm text-xs">{RENEWAL_TEXT.denied}</p>
+            <p className="text-muted-foreground mt-sm text-xs">
+              {RENEWAL_TEXT.denied}
+            </p>
           ) : null}
         </>
       )}

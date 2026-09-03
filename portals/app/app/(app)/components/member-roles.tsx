@@ -56,8 +56,12 @@ export interface MemberRolesProps {
     sub: string,
     role: string,
   ) => Promise<{ ok: boolean; error?: string }>;
-  readonly onDeactivate: (sub: string) => Promise<{ ok: boolean; error?: string }>;
-  readonly onReactivate: (sub: string) => Promise<{ ok: boolean; error?: string }>;
+  readonly onDeactivate: (
+    sub: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  readonly onReactivate: (
+    sub: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Move a departing member's live book to somebody else.
    *
@@ -87,7 +91,10 @@ export interface MemberRolesProps {
    */
   readonly inviteUrl?: string | null;
   /** The territories an administrator may assign. Empty hides the choice. */
-  readonly territories?: readonly { readonly id: string; readonly name: string }[];
+  readonly territories?: readonly {
+    readonly id: string;
+    readonly name: string;
+  }[];
   readonly onScope?: (
     sub: string,
     kind: string,
@@ -158,7 +165,9 @@ export function MemberRoles({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span>
-                    <StatusBadge tone="neutral">{MEMBER_TEXT.inactive}</StatusBadge>
+                    <StatusBadge tone="neutral">
+                      {MEMBER_TEXT.inactive}
+                    </StatusBadge>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{MEMBER_TEXT.inactiveHint}</TooltipContent>
@@ -306,7 +315,9 @@ export function MemberRoles({
                 // and the administrator can change it on the row below.
                 const ids =
                   next === "territory"
-                    ? [chosenTerr || territories[0]?.id].filter((x): x is string => Boolean(x))
+                    ? [chosenTerr || territories[0]?.id].filter(
+                        (x): x is string => Boolean(x),
+                      )
                     : [];
                 void run(key, () => onScope(row.sub, next, ids));
               }}
@@ -325,7 +336,9 @@ export function MemberRoles({
                 onChange={(e) => {
                   const id = e.target.value;
                   setTerr({ ...terr, [row.sub]: id });
-                  void run(key, () => onScope(row.sub, "territory", id ? [id] : []));
+                  void run(key, () =>
+                    onScope(row.sub, "territory", id ? [id] : []),
+                  );
                 }}
               >
                 <option value="">{MEMBER_TEXT.scopeTerritory}</option>
@@ -352,7 +365,9 @@ export function MemberRoles({
           // departed member cannot inherit - that would make the work invisible
           // to a second person instead of the first - and the service refuses
           // it again, because a client cannot be trusted with that check.
-          const heirs = members.filter((m) => m.status === "active" && m.sub !== row.sub);
+          const heirs = members.filter(
+            (m) => m.status === "active" && m.sub !== row.sub,
+          );
           const chosenHeir = heir[row.sub] ?? "";
           const handKey = `${row.sub}:handover`;
           return (
@@ -370,7 +385,9 @@ export function MemberRoles({
                   <NativeSelect
                     aria-label={MEMBER_TEXT.handoverTo}
                     value={chosenHeir}
-                    onChange={(e) => setHeir({ ...heir, [row.sub]: e.target.value })}
+                    onChange={(e) =>
+                      setHeir({ ...heir, [row.sub]: e.target.value })
+                    }
                     disabled={pending && busy === handKey}
                   >
                     <option value="">{MEMBER_TEXT.handoverTo}</option>
@@ -386,7 +403,9 @@ export function MemberRoles({
                         <Button
                           size="sm"
                           variant="secondary"
-                          disabled={chosenHeir === "" || (pending && busy === handKey)}
+                          disabled={
+                            chosenHeir === "" || (pending && busy === handKey)
+                          }
                           onClick={() =>
                             run(handKey, () =>
                               onHandover(row.sub, chosenHeir).then((r) => {
@@ -400,10 +419,20 @@ export function MemberRoles({
                                 // move is still owned by somebody who has left.
                                 const m = r.moved;
                                 const parts = m
-                                  ? [MEMBER_TEXT.handoverDone(m.accounts, m.opportunities, m.leads)]
+                                  ? [
+                                      MEMBER_TEXT.handoverDone(
+                                        m.accounts,
+                                        m.opportunities,
+                                        m.leads,
+                                      ),
+                                    ]
                                   : [];
                                 if (r.skipped && r.skipped.length > 0) {
-                                  parts.push(MEMBER_TEXT.handoverPartial(r.skipped.length));
+                                  parts.push(
+                                    MEMBER_TEXT.handoverPartial(
+                                      r.skipped.length,
+                                    ),
+                                  );
                                 }
                                 setNotice(parts.join(" "));
                                 return r;
@@ -442,7 +471,9 @@ export function MemberRoles({
               </span>
             </TooltipTrigger>
             <TooltipContent>
-              {isLastAdmin ? MEMBER_TEXT.lastAdminHint : MEMBER_TEXT.deactivateHint}
+              {isLastAdmin
+                ? MEMBER_TEXT.lastAdminHint
+                : MEMBER_TEXT.deactivateHint}
             </TooltipContent>
           </Tooltip>
         );
@@ -452,8 +483,6 @@ export function MemberRoles({
 
   return (
     <Section
-      title={MEMBER_TEXT.title}
-      description={MEMBER_TEXT.description}
       /* INVITING IS A PLATFORM ACT. Seats and who may sign in are the
          platform's to decide, so this is a link out rather than a form here -
          the product would otherwise be offering an authority it does not

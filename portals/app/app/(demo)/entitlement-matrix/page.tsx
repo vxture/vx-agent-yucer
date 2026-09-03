@@ -1,3 +1,4 @@
+import { ViewHeader } from "@vxture/design-ui";
 import {
   SUBSCRIPTION_STATUSES,
   type SubscriptionStatus,
@@ -28,26 +29,56 @@ function rows(): Row[] {
       out.push({ label: `${tier} / ${status}`, tier, status, bundled: false });
     }
   }
-  out.push({ label: "null / null (never subscribed)", tier: null, status: null, bundled: false });
-  out.push({ label: "bundled only (no direct purchase)", tier: null, status: null, bundled: true });
+  out.push({
+    label: "null / null (never subscribed)",
+    tier: null,
+    status: null,
+    bundled: false,
+  });
+  out.push({
+    label: "bundled only (no direct purchase)",
+    tier: null,
+    status: null,
+    bundled: true,
+  });
   return out;
 }
 
-const cellStyle: React.CSSProperties = { border: "1px solid #ccc", padding: "4px 8px", textAlign: "left" };
+const cellStyle: React.CSSProperties = {
+  border: "1px solid #ccc",
+  padding: "4px 8px",
+  textAlign: "left",
+};
 
 export default function EntitlementMatrixPage() {
   const data = rows().map((r) => {
-    const e = makeEntitlement("ws_demo", "yucer", { tier: r.tier, status: r.status, bundled: r.bundled });
-    return { ...r, productAccess: hasProductAccess(e), dataAccess: hasDataAccess(e), cta: ctaFor(e) };
+    const e = makeEntitlement("ws_demo", "yucer", {
+      tier: r.tier,
+      status: r.status,
+      bundled: r.bundled,
+    });
+    return {
+      ...r,
+      productAccess: hasProductAccess(e),
+      dataAccess: hasDataAccess(e),
+      cta: ctaFor(e),
+    };
   });
   return (
     <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-      <h1>Entitlement gating matrix</h1>
-      <p>
-        Offline demonstration of the C2 gating and CTA rules (product_220 section
-        3). UI gate = <code>tier != null</code>; data gate ={" "}
-        <code>tier != null || bundled</code>.
-      </p>
+      {/* Titled like every other route. The inline-styled <main> stays: this
+          page is `force-static` and fully offline by design, and its frame not
+          depending on the shell is part of that. */}
+      <ViewHeader
+        title="Entitlement gating matrix"
+        description={
+          <>
+            Offline demonstration of the C2 gating and CTA rules (product_220
+            section 3). UI gate = <code>tier != null</code>; data gate ={" "}
+            <code>tier != null || bundled</code>.
+          </>
+        }
+      />
       <table style={{ borderCollapse: "collapse" }}>
         <thead>
           <tr>

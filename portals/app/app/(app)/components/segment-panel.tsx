@@ -42,7 +42,10 @@ export interface SegmentRow {
   /** Accounts carrying this code. The number the anchor was missing. */
   readonly accountCount: number;
   /** The definition: which industries/regions this cut names. */
-  readonly criteria: { industries: readonly string[]; regions: readonly string[] };
+  readonly criteria: {
+    industries: readonly string[];
+    regions: readonly string[];
+  };
   /**
    * Accounts the CRITERIA match, resolved on the page. Beside accountCount it
    * says two different things: assigned-but-not-matching (the code was handed
@@ -91,9 +94,21 @@ function segmentColumns(text: {
   segmentStatusLabel: Record<string, string>;
 }) {
   return [
-    { id: "code", header: text.segmentCodeHeader, cell: (r: SegmentRow) => r.segmentCode },
-    { id: "name", header: text.segmentNameHeader, cell: (r: SegmentRow) => r.name },
-    { id: "plan", header: text.segmentPlanHeader, cell: (r: SegmentRow) => r.planName ?? "" },
+    {
+      id: "code",
+      header: text.segmentCodeHeader,
+      cell: (r: SegmentRow) => r.segmentCode,
+    },
+    {
+      id: "name",
+      header: text.segmentNameHeader,
+      cell: (r: SegmentRow) => r.name,
+    },
+    {
+      id: "plan",
+      header: text.segmentPlanHeader,
+      cell: (r: SegmentRow) => r.planName ?? "",
+    },
     {
       id: "priority",
       header: text.segmentPriorityHeader,
@@ -123,7 +138,10 @@ function segmentColumns(text: {
       align: "right" as const,
       // Diverging from the assigned count is the point of showing it - see
       // SegmentRow.matchedCount.
-      cell: (r: SegmentRow) => (r.criteria.industries.length + r.criteria.regions.length === 0 ? "" : String(r.matchedCount)),
+      cell: (r: SegmentRow) =>
+        r.criteria.industries.length + r.criteria.regions.length === 0
+          ? ""
+          : String(r.matchedCount),
     },
     {
       id: "status",
@@ -133,18 +151,27 @@ function segmentColumns(text: {
         r.status === "active" ? (
           <span>{text.segmentStatusLabel[r.status] ?? r.status}</span>
         ) : (
-          <StatusBadge tone="warning">{text.segmentStatusLabel[r.status] ?? r.status}</StatusBadge>
+          <StatusBadge tone="warning">
+            {text.segmentStatusLabel[r.status] ?? r.status}
+          </StatusBadge>
         ),
     },
   ];
 }
 
-export function SegmentPanel({ rows, plans, canEdit, onSave }: SegmentPanelProps) {
+export function SegmentPanel({
+  rows,
+  plans,
+  canEdit,
+  onSave,
+}: SegmentPanelProps) {
   const { DATA_TABLE_LABELS, STRATEGY_TEXT, SEGMENT_ERROR } = useMessages();
   const [form, setForm] = useState(BLANK);
   const save = useSaveAction(SEGMENT_ERROR);
 
-  const editing = form.segmentCode !== "" && rows.some((r) => r.segmentCode === form.segmentCode);
+  const editing =
+    form.segmentCode !== "" &&
+    rows.some((r) => r.segmentCode === form.segmentCode);
 
   function pick(code: string) {
     if (code === "") return setForm(BLANK);
@@ -169,12 +196,7 @@ export function SegmentPanel({ rows, plans, canEdit, onSave }: SegmentPanelProps
     priority >= 0;
 
   return (
-    <Section
-      id="segments"
-      icon="target"
-      title={STRATEGY_TEXT.segmentsTitle}
-      description={STRATEGY_TEXT.segmentsWhy}
-    >
+    <Section id="segments" icon="target">
       {rows.length === 0 ? (
         <EmptyState
           title={STRATEGY_TEXT.segmentsNone}
@@ -190,12 +212,17 @@ export function SegmentPanel({ rows, plans, canEdit, onSave }: SegmentPanelProps
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">{STRATEGY_TEXT.segmentsDenied}</p>
+        <p className="text-muted-foreground mt-sm text-xs">
+          {STRATEGY_TEXT.segmentsDenied}
+        </p>
       ) : (
         <div className="mt-md flex flex-wrap items-end gap-sm">
           <Field>
             <FieldLabel>{STRATEGY_TEXT.segmentEditing}</FieldLabel>
-            <NativeSelect value={editing ? form.segmentCode : ""} onChange={(e) => pick(e.target.value)}>
+            <NativeSelect
+              value={editing ? form.segmentCode : ""}
+              onChange={(e) => pick(e.target.value)}
+            >
               <option value="">{STRATEGY_TEXT.segmentNew}</option>
               {rows.map((r) => (
                 <option key={r.id} value={r.segmentCode}>
@@ -211,12 +238,17 @@ export function SegmentPanel({ rows, plans, canEdit, onSave }: SegmentPanelProps
             <Input
               value={form.segmentCode}
               disabled={editing}
-              onChange={(e) => setForm({ ...form, segmentCode: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, segmentCode: e.target.value })
+              }
             />
           </Field>
           <Field>
             <FieldLabel>{STRATEGY_TEXT.segmentNameHeader}</FieldLabel>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </Field>
           <Field>
             <FieldLabel>{STRATEGY_TEXT.segmentPlanHeader}</FieldLabel>
@@ -263,11 +295,13 @@ export function SegmentPanel({ rows, plans, canEdit, onSave }: SegmentPanelProps
               value={form.status}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
             >
-              {Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
+              {Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(
+                ([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ),
+              )}
             </NativeSelect>
           </Field>
           <SaveRow
@@ -287,8 +321,14 @@ export function SegmentPanel({ rows, plans, canEdit, onSave }: SegmentPanelProps
                     // Split on both comma widths - the field takes Chinese
                     // input, and forcing the ASCII comma would be a trap.
                     criteria: {
-                      industries: form.industries.split(/[,\u3001\uFF0C]/).map((v) => v.trim()).filter(Boolean),
-                      regions: form.regions.split(/[,\u3001\uFF0C]/).map((v) => v.trim()).filter(Boolean),
+                      industries: form.industries
+                        .split(/[,\u3001\uFF0C]/)
+                        .map((v) => v.trim())
+                        .filter(Boolean),
+                      regions: form.regions
+                        .split(/[,\u3001\uFF0C]/)
+                        .map((v) => v.trim())
+                        .filter(Boolean),
                     },
                   }),
                 () => setForm(BLANK),

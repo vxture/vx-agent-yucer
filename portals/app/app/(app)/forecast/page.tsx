@@ -1,10 +1,13 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getPipelineStore } from "../../domains/shared/registry";
 import { previewCategories } from "../../domains/pipeline/service";
-import { ForecastRuleTable, type ForecastRuleRow } from "../components/forecast-rule-table";
+import {
+  ForecastRuleTable,
+  type ForecastRuleRow,
+} from "../components/forecast-rule-table";
 import { applySuggestedCategory } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -29,7 +32,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function ForecastPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { FORECAST_RULE_TEXT, LOAD_ERROR, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -66,19 +69,31 @@ export default async function ForecastPage() {
     // A settled deal has no opinion to disagree with, so it reads as agreeing
     // rather than as a row demanding attention.
     agrees: p.verdict.kind === "suggested" ? p.verdict.agrees : true,
-    probability: p.verdict.kind === "suggested" ? p.verdict.basis.probability : 0,
+    probability:
+      p.verdict.kind === "suggested" ? p.verdict.basis.probability : 0,
     probabilityIsHuman:
-      p.verdict.kind === "suggested" ? p.verdict.basis.probabilityIsHuman : false,
+      p.verdict.kind === "suggested"
+        ? p.verdict.basis.probabilityIsHuman
+        : false,
     caps: p.verdict.kind === "suggested" ? p.verdict.basis.caps : [],
     daysAtStage: p.daysAtStage,
   }));
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={FORECAST_RULE_TEXT.title}
+        description={FORECAST_RULE_TEXT.why}
+      />
       <ForecastRuleTable
         rows={rows}
         canApply={
-          can(session.authz, session.entitlement, "pipeline.forecast.categorize", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.forecast.categorize",
+            "ui",
+          ).allowed
         }
         onApply={applySuggestedCategory}
       />

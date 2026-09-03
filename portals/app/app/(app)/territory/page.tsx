@@ -1,4 +1,4 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -19,7 +19,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function TerritoryPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -52,10 +52,19 @@ export default async function TerritoryPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={PLANNING_TEXT.territoryTitle}
+        description={PLANNING_TEXT.territoryWhy}
+      />
       <TerritoryPanel
         rows={territories.value}
         canEdit={
-          can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "planning.territory.upsert",
+            "ui",
+          ).allowed
         }
         onSave={saveTerritory}
       />

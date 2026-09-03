@@ -173,8 +173,6 @@ export function PendingReviews({
          the destination it now promised unbuilt. */
       id="winloss"
       icon="lightbulb"
-      title={WINLOSS_TEXT.sectionTitle}
-      description={WINLOSS_TEXT.description}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
