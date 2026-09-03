@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import {
-  Button,
-  EmptyState,
-  Section,
-  StatusBadge,
-  Textarea,
-} from "@vxture/design-ui";
+import { Button, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
@@ -120,12 +114,19 @@ export function CopilotChat({
         </>
       ) : null}
 
-      {messages.length === 0 && !pending ? (
-        <EmptyState
-          title={COPILOT_TEXT.emptyTitle}
-          description={COPILOT_TEXT.emptyDescription}
-        />
-      ) : (
+      {/* NO EMPTY STATE, and this is a deliberate subtraction. An EmptyState
+          announces an absence, which is worth 146px when a reader might
+          otherwise wonder whether something failed to load. Here the control
+          that fills the absence is directly underneath, and the same screen
+          already explained itself twice: the section's own description says
+          what the assistant does, and the composer's placeholder shows a
+          question to ask. A third block saying "no conversation yet" above the
+          box for starting one cost 146px of the 403 this section spent while
+          empty - and the proposals, which are the page's actual work, started
+          at y=740 in a 900px viewport because of it.
+
+          The composer IS the empty state. */}
+      {messages.length > 0 || pending ? (
         <div>
           {messages.map((m, i) => (
             <div key={i} data-role={m.role}>
@@ -136,7 +137,7 @@ export function CopilotChat({
             <div data-role="assistant">{COPILOT_TEXT.thinking}</div>
           ) : null}
         </div>
-      )}
+      ) : null}
 
       {error ? (
         <StatusBadge tone="danger">
