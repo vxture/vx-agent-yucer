@@ -47,7 +47,7 @@ import { loadFailureText } from "../lib/load-failure";
 // were never three things: they are one question asked three ways, and it
 // deserves a module rather than three floating cards.
 //
-// FIRST IN 阵地经营域, before accounts and deals. The objective comes before
+// FIRST IN 阵地经营, before accounts and deals. The objective comes before
 // the ground: what the period promised and how much has landed is what a person
 // is measured on; accounts and deals are how it gets done.
 //

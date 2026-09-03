@@ -66,7 +66,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   strategy: "市场战略",
   segment: "细分市场",
   solution: "解决方案",
-  pricebook: "价格本",
+  pricebook: "产品定价",
   territory: "销售区域",
   namedAccount: "重点客户",
   quote: "报价管理",
@@ -75,13 +75,13 @@ export const DOMAIN_LABEL: Record<string, string> = {
   forecastRule: "预测口径",
   attainment: "承诺达成",
   winLossReview: "赢丢复盘",
-  collection: "回款计划",
+  collection: "回款管理",
   planning: "销售规划",
-  campaign: "市场执行",
+  campaign: "营销活动",
   account: "客户管理",
-  signal: "商机侦探",
+  signal: "商机智探",
   pipeline: "商机管理",
-  delivery: "项目落地",
+  delivery: "项目交付",
   copilot: "销售助手",
   catalog: "产品目录",
   home: "今日判断",
@@ -95,11 +95,11 @@ export const DOMAIN_LABEL: Record<string, string> = {
  * and why they speak in this register.
  */
 export const DOMAIN_GROUP_LABEL: Record<string, string> = {
-  armory: "战略武备域",
-  deployment: "兵力部署域",
-  recon: "火力侦察域",
-  position: "阵地经营域",
-  settlement: "战果结算域",
+  armory: "战略武备",
+  deployment: "作战部署",
+  recon: "战场侦察",
+  position: "阵地经营",
+  settlement: "战果沉淀",
 };
 
 /**
@@ -867,15 +867,15 @@ export const BOARD_TEXT = {
   adjudicate: "待我裁决",
   mydeals: "我的商机",
   strategy: "市场战略",
-  campaign: "市场执行",
+  campaign: "营销活动",
   catalog: "产品目录",
   pipelineArchive: "商机管理",
   deals: "商机",
   catalogProducts: "产品",
   planning: "销售规划",
   account: "客户管理",
-  signal: "商机侦探",
-  delivery: "项目落地",
+  signal: "商机智探",
+  delivery: "项目交付",
 
   tierToday: "今天",
   tierWeek: "本周",
@@ -2035,7 +2035,7 @@ export const ACCOUNT_TEXT = {
   rosterNoDeals: "没有在办商机",
   rosterNoProjects: "没有交付项目",
   rosterOpenDeal: "打开阵地",
-  rosterOpenProjects: "去项目落地",
+  rosterOpenProjects: "去项目交付",
   dossier: "战区档案",
   dossierOwner: "负责人",
   dossierIndustry: "行业",
@@ -2099,7 +2099,7 @@ export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
 };
 
 export const DELIVERY_TEXT = {
-  title: "项目落地",
+  title: "项目交付",
   description: "链路终点不是赢单，是钱到账。逾期回款的项目不允许显示为健康。",
   // The headline. This page's central claim is the DOWNGRADE RULE, and it lived
   // only in the section subtitle - so a reader could read a green row without
@@ -2141,7 +2141,7 @@ export const DELIVERY_TEXT = {
   reconcileDenied: "你没有修改交付项目的权限",
 
   // --- collections (batch 6a-3b) --------------------------------------------
-  collections: "回款计划",
+  collections: "回款管理",
   collectionsWhy:
     "链路终点不是赢单，是钱到账。分期只能按迁移表走，已回款与坏账是终态——钱到了就是到了，坏账要靠新排期纠正，不靠改这一行。",
   colProject: "项目",
@@ -2433,7 +2433,7 @@ export const CAMPAIGN_TEXT = {
   executionsDenied: "你没有维护战役执行项的权限",
   executionBlocks:
     "「未开始」和「进行中」都算未完成——只要还有一项，这场战役就不能标记为已完成。做完或跳过它，两者都算结清。已完成的战役其执行项被冻结：它们正是这场战役据以收尾的记录。",
-  title: "市场执行",
+  title: "营销活动",
   description:
     "战役是归因的锚点。回报按赢单收入计，不按管道额——未成交的管道还不是回报。",
   // The headline. The page's central claim is the RETURN RULE, and it lived

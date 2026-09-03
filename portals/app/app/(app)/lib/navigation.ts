@@ -32,7 +32,10 @@ export type NavIcon =
   | "workflow"
   | "buildings"
   | "lightbulb"
-  | "table"
+  // The opportunity board. Was "table", which named the SHAPE rather than the
+  // meaning - every page in this product is a table - while a pipeline is
+  // stages a deal moves through.
+  | "kanban"
   | "cube"
   | "sparkles"
   | "settings"
@@ -41,15 +44,21 @@ export type NavIcon =
   // the menu, the launcher and its own page.
   | "chart-pie-slice"
   | "puzzle"
-  | "currency-cny"
+  // Pricing. Was "currency-cny", which pinned a glyph to one currency while
+  // the product ships an English dictionary; a balance is also what a floor
+  // price IS - the point below which a discount needs a signature.
+  | "scales"
   | "map-pin"
   | "clock-counter-clockwise"
   | "wallet"
-  | "receipt"
   | "star"
   | "user-switch"
-  // Renewal keeps the glyph it carried as a launcher row.
+  // Quoting. Took "file-text" from renewal (below): a receipt is proof that
+  // money MOVED, which is the one thing a quote is not.
   | "file-text"
+  // Renewal. It carried "file-text" as a launcher row; refresh says the thing
+  // the module is actually for, and freed the document glyph for quoting.
+  | "refresh"
   // The assault objective itself.
   | "target"
   // Same for the forecast rule.
@@ -97,7 +106,7 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
   {
     key: "pipeline",
     href: "/pipeline",
-    icon: "table",
+    icon: "kanban",
     action: "pipeline.view",
   },
   {
@@ -191,18 +200,18 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   // its own tooling for being regular is written in the wrong shape.
   { key: "segment", href: "/segment", icon: "chart-pie-slice", action: "strategy.segment.view" },
   { key: "solution", href: "/solution", icon: "puzzle", action: "catalog.solution.view" },
-  { key: "pricebook", href: "/pricebook", icon: "currency-cny", action: "catalog.pricebook.view" },
+  { key: "pricebook", href: "/pricebook", icon: "scales", action: "catalog.pricebook.view" },
   { key: "namedAccount", href: "/named", icon: "star", action: "account.view" },
   { key: "territory", href: "/territory", icon: "map-pin", action: "planning.territory.view" },
   { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
-  { key: "quote", href: "/quote", icon: "receipt", action: "pipeline.view" },
+  { key: "quote", href: "/quote", icon: "file-text", action: "pipeline.view" },
   { key: "routing", href: "/routing", icon: "user-switch", action: "signal.lead.view" },
   { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
   // Gated on the DELIVERY read, not on the pipeline write. Seeing which terms
   // are coming up is a delivery question; opening the deal is a separate gate
   // the page applies to the button alone, so a delivery manager with no
   // pipeline write still sees what is lapsing.
-  { key: "renewal", href: "/renewal", icon: "file-text", action: "delivery.project.view" },
+  { key: "renewal", href: "/renewal", icon: "refresh", action: "delivery.project.view" },
   // `pipeline.forecast.view`, and the choice is between two DIFFERENT axes that
   // are easy to blur. Its feature is `pipeline.forecast` (pro tier) and its
   // permission is only `pipeline.read`:

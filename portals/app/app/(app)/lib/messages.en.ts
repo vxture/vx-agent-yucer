@@ -151,10 +151,10 @@ export const en: Dictionary = {
     planning: "Sales planning",
     campaign: "Campaigns",
     account: "Accounts",
-    signal: "Signal inbox",
+    signal: "Opportunity signals",
     segment: "Segments",
     solution: "Solutions",
-    pricebook: "Price book",
+    pricebook: "Product pricing",
     territory: "Territories",
     namedAccount: "Named accounts",
     quote: "Quotes",
@@ -162,7 +162,7 @@ export const en: Dictionary = {
     winLossReview: "Win/loss reviews",
     collection: "Collections",
     pipeline: "Pipeline",
-    delivery: "Delivery",
+    delivery: "Project delivery",
     copilot: "Copilot",
     catalog: "Catalogue",
     home: "Today's calls",
@@ -171,7 +171,7 @@ export const en: Dictionary = {
     adoption: "Adoption",
     renewal: "Renewals",
     forecastRule: "Forecast rules",
-    attainment: "Commitment",
+    attainment: "Attainment",
   },
 
   // The five domain names are the product's loudest claim about itself, so
@@ -179,12 +179,21 @@ export const en: Dictionary = {
   // "arms and materiel"; "Armory" carries the same idea in one English word,
   // where "Strategic products" would land back in the CRM register the Chinese
   // deliberately left.
+  //
+  // 战果沉淀 -> "Consolidation" (2026-09-03, replacing "Settlement"). 沉淀 is
+  // what settles OUT of a solution and stays; Settlement reads as accounting,
+  // and this column is delivery, collection and renewal - making a win
+  // permanent. Consolidation is the military word for exactly that phase:
+  // holding what was taken. Two of the five now diverge from their key on
+  // purpose - `position`/阵地经营/"Frontline" and `settlement`/战果沉淀/
+  // "Consolidation" - because "Position" reads as a job and "Settlement"
+  // reads as a ledger. The key is internal; these two words are not.
   DOMAIN_GROUP_LABEL: {
     armory: "Armory",
     deployment: "Deployment",
     recon: "Reconnaissance",
     position: "Frontline",
-    settlement: "Settlement",
+    settlement: "Consolidation",
   },
 
   NAMED_ACCOUNT_TEXT: {
@@ -340,7 +349,7 @@ export const en: Dictionary = {
     not_found: "That target does not exist, or is not in this workspace",
   },
   ATTAINMENT_TEXT: {
-    title: "Commitment",
+    title: "Attainment",
     why: "What the period promised, how much has landed, and how much is behind it - three readings that only mean something together. They used to sit on the board as three cards belonging to no module.",
     attained: "attained",
     won: "won",
@@ -1529,7 +1538,7 @@ export const en: Dictionary = {
     rosterNoDeals: "No open deals",
     rosterNoProjects: "No delivery projects",
     rosterOpenDeal: "Open the deal",
-    rosterOpenProjects: "Go to delivery",
+    rosterOpenProjects: "Go to project delivery",
     dossier: "Dossier",
     dossierOwner: "Owner",
     dossierIndustry: "Industry",
@@ -1709,7 +1718,7 @@ export const en: Dictionary = {
     reconcileChanged: (health: string) => `Changed to ${health}`,
     reconcileWhy: (because: string) => `Because: ${because}`,
     reconcileDenied: "You cannot change delivery projects",
-    title: "Delivery",
+    title: "Project delivery",
     description:
       "The chain does not end at a win, it ends when the money arrives. A project with an overdue instalment may not show as healthy.",
     lead: (n: number) => `${n} delivery projects`,
@@ -2366,8 +2375,8 @@ export const en: Dictionary = {
     campaign: "Campaigns",
     planning: "Sales planning",
     account: "Accounts",
-    signal: "Signal inbox",
-    delivery: "Delivery",
+    signal: "Opportunity signals",
+    delivery: "Project delivery",
     tierToday: "Today",
     tierWeek: "This week",
     tierWatch: "Watch",
