@@ -42,9 +42,6 @@ importers:
       '@vxture/design-system':
         specifier: ^10.0.3
         version: 10.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(next-themes@0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss-animate@1.0.7(tailwindcss@4.3.3))(tailwindcss@4.3.3)
-      '@vxture/design-tokens':
-        specifier: ^2.2.3
-        version: 2.2.3(tailwindcss@4.3.3)
       '@vxture/design-ui':
         specifier: 7.0.3
         version: 7.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)
@@ -1417,11 +1414,6 @@ packages:
       react-dom: ^19.0.0
       tailwindcss: ^4.2.1
       tailwindcss-animate: ^1.0.7
-
-  '@vxture/design-tokens@2.2.3':
-    resolution: {integrity: sha512-PUjZ6hVPrm6Af850+S5aFaKXlSLMmmVx3+xUbrV3s+8EvqviqOIGU8Jti+D1BbogLWYaptkj+u8uFDDXI9EHrA==, tarball: https://npm.pkg.github.com/download/@vxture/design-tokens/2.2.3/bb9b9aaaec1ce3e940ac4b2bf9bcf71f370787ad}
-    peerDependencies:
-      tailwindcss: ^4.0.0
 
   '@vxture/design-tokens@3.0.0':
     resolution: {integrity: sha512-rkmb17SUDVOfBWjMicMyI85D4ZSYr4RUwC8SpK8gdY/NKb4yUhXSPKZG2qyVwnPZRzoyY1bSBT0G01YUTTG51w==, tarball: https://npm.pkg.github.com/download/@vxture/design-tokens/3.0.0/7e8a6589c98666dbcb76fc1334108ab202ca0da0}
@@ -3245,11 +3237,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
-
-  '@vxture/design-tokens@2.2.3(tailwindcss@4.3.3)':
-    dependencies:
-      tailwindcss: 4.3.3
-      tailwindcss-animate: 1.0.7(tailwindcss@4.3.3)
 
   '@vxture/design-tokens@3.0.0(tailwindcss@4.3.3)':
     dependencies:
