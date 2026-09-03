@@ -117,8 +117,7 @@ export const NAMED_ACCOUNT_TEXT = {
 
 export const ROUTING_TEXT = {
   title: "线索分派",
-  why:
-    "先按区域，再按负载（owner 裁定 2026-08-30）。区域决定谁有资格接，负载决定这几个人里该谁接——顺序反过来，闲着的人会拿到他从没打过的地盘。",
+  why: "先按区域，再按负载（owner 裁定 2026-08-30）。区域决定谁有资格接，负载决定这几个人里该谁接——顺序反过来，闲着的人会拿到他从没打过的地盘。",
   none: "没有待分派的线索",
   noneWhy: "已转化和已判负的线索不在此列——它们的归属已经定了。",
   colLead: "线索",
@@ -140,8 +139,7 @@ export const ROUTING_TEXT = {
 
 export const RENEWAL_TEXT = {
   title: "合同续约",
-  why:
-    "订阅制项目到期前 90 天出现在这里（owner 裁定 2026-08-30：从项目派生，且只为订阅类）。一次性交付不在此列——它交付完就结束了，替它造一个续约义务是客户从没承诺过的事。",
+  why: "订阅制项目到期前 90 天出现在这里（owner 裁定 2026-08-30：从项目派生，且只为订阅类）。一次性交付不在此列——它交付完就结束了，替它造一个续约义务是客户从没承诺过的事。",
   none: "没有临近到期的订阅项目",
   noneWhy: "一次性项目不产生续约；订阅项目要到期限前 90 天才出现在这里。",
   colProject: "项目",
@@ -170,13 +168,12 @@ export const RENEWAL_TEXT = {
   } as Record<string, string>,
 } as const;
 
-
 export const FORECAST_RULE_TEXT = {
   title: "预测口径",
-  why:
-    "规则会把每笔生意归到哪一档，摆在人归的那一档旁边（owner 裁定 2026-08-31：只建议，逐单应用）。分歧本身就是预测评审要谈的东西——以前它只能靠一单一单翻看板才看得见。",
+  why: "规则会把每笔生意归到哪一档，摆在人归的那一档旁边（owner 裁定 2026-08-31：只建议，逐单应用）。分歧本身就是预测评审要谈的东西——以前它只能靠一单一单翻看板才看得见。",
   none: "没有开放中的生意",
-  noneWhy: "已成交与已判负的生意，档位由阶段定死，不是判断，也就没有第二种意见。",
+  noneWhy:
+    "已成交与已判负的生意，档位由阶段定死，不是判断，也就没有第二种意见。",
   colDeal: "生意",
   colFiled: "人归的",
   colSuggested: "规则归的",
@@ -186,7 +183,8 @@ export const FORECAST_RULE_TEXT = {
   agrees: "一致",
   apply: "改成这档",
   applied: "已改",
-  denied: "你可以看见分歧，但没有调整预测档位的权限——这是产品有意的分工：生意归你，预测承诺不归你。",
+  denied:
+    "你可以看见分歧，但没有调整预测档位的权限——这是产品有意的分工：生意归你，预测承诺不归你。",
   // 赢率是谁写的，要说清楚。否则「规则说管道」读起来像规则在凭空反对，
   // 而实际上它引用的正是这位销售自己填的那个数。
   basisHuman: (p: number) => `赢率 ${p}%（本人填的）`,
@@ -200,11 +198,9 @@ export const FORECAST_RULE_TEXT = {
   } as Record<string, string>,
 } as const;
 
-
 export const ATTAINMENT_TEXT = {
   title: "承诺达成",
-  why:
-    "本期承诺了多少、已经落了多少、后面还有多少接得住——三件事放在一起才是一句话。它们此前分散在导航板上，各自是一张不属于任何模块的卡。",
+  why: "本期承诺了多少、已经落了多少、后面还有多少接得住——三件事放在一起才是一句话。它们此前分散在导航板上，各自是一张不属于任何模块的卡。",
   attained: "达成",
   won: "已成交",
   target: "目标",
@@ -223,8 +219,7 @@ export const ATTAINMENT_TEXT = {
 
 export const AUTONOMY_TEXT = {
   title: "智能助手授权",
-  why:
-    "这个助手在没有问你之前，可以做到哪一步。改的是「哪些决定还要一条条过你的手」，不是「它能不能提议」——它始终只提议，采纳才动数据（ADR-003）。",
+  why: "这个助手在没有问你之前，可以做到哪一步。改的是「哪些决定还要一条条过你的手」，不是「它能不能提议」——它始终只提议，采纳才动数据（ADR-003）。",
   modeLabel: "授权档位",
   modes: {
     ask_high_risk: "高风险问我",
@@ -237,7 +232,8 @@ export const AUTONOMY_TEXT = {
     // 现在名单由面板从 EXECUTABLE_ACTIONS 现算现填，句子不可能再说错。
     ask_high_risk:
       "能走回头路的它自己做；收不回的和它自己都没把握的，仍然问你。",
-    ask_always: "每一条都等你裁决。没有设置过的工作区就是这一档——没设置不等于已授权。",
+    ask_always:
+      "每一条都等你裁决。没有设置过的工作区就是这一档——没设置不等于已授权。",
     autonomous: "包括对外触达在内，全部自动执行。记录里会写明「无人签字」。",
   } as Record<string, string>,
   // 风险的两条理由，界面上要分开说：把「不可逆」显示成「置信度低」会让人以为
@@ -255,14 +251,13 @@ export const AUTONOMY_TEXT = {
   setBy: (who: string) => `由 ${who} 设置`,
   save: "改成这一档",
   saved: "已生效",
-  denied: "你没有调整助手授权的权限——裁决一条提案，和决定提案不再需要裁决，是两件事。",
+  denied:
+    "你没有调整助手授权的权限——裁决一条提案，和决定提案不再需要裁决，是两件事。",
 } as const;
-
 
 export const QUOTE_TEXT = {
   title: "报价",
-  why:
-    "每笔商机当前报出去的是什么。行项、底价和签字本来就都在，只是从没有一处把它们放在一起——「我们给这家报过什么价」以前只能一单一单翻。",
+  why: "每笔商机当前报出去的是什么。行项、底价和签字本来就都在，只是从没有一处把它们放在一起——「我们给这家报过什么价」以前只能一单一单翻。",
   none: "还没有报价",
   noneWhy: "给商机加上行项，这里就会出现它当前的报价。",
   colDeal: "商机",
@@ -298,7 +293,8 @@ export const DOMAIN_HOME_TEXT = {
   factsWhy:
     "只列跨模块的事实——每一条都要把两个模块页对着读才看得见，而那正是没人会做的阅读。",
   factsDeniedTitle: "你无权查看这个域的汇总",
-  factsDeniedWhy: "这里的每一项都走各自模块页同一道门；一项也没通过，所以什么都不显示。",
+  factsDeniedWhy:
+    "这里的每一项都走各自模块页同一道门；一项也没通过，所以什么都不显示。",
   needsAttention: "待处理",
   modulesTitle: "这个域里有什么",
   modulesWhy: "域内的模块。已建的可以进去，未建的照实说未建。",
@@ -430,10 +426,12 @@ export const CATALOG_TEXT = {
   description:
     "目录是被所有域引用的维度：商机、合同、交付、信号匹配都读它，而它谁都不写。",
   lead: (n: number) => `${n} 个在售产品`,
-  leadWhy: "不知道自己卖什么，就没法卖任何东西——所以目录不按档位售卖，全档可读。",
+  leadWhy:
+    "不知道自己卖什么，就没法卖任何东西——所以目录不按档位售卖，全档可读。",
 
   products: "产品",
-  productsWhy: "单品或服务。单位不是装饰：每条行项都是数量乘单价，没有单位的「10 × 1000」是十个坐席、十天还是十个站点，那是三笔不同的生意。",
+  productsWhy:
+    "单品或服务。单位不是装饰：每条行项都是数量乘单价，没有单位的「10 × 1000」是十个坐席、十天还是十个站点，那是三笔不同的生意。",
   colCode: "编码",
   colName: "名称",
   colCategory: "类别",
@@ -448,7 +446,8 @@ export const CATALOG_TEXT = {
   codeHint: "按编码更新：同一个编码再保存一次是修改，不是新增一条",
 
   solutions: "解决方案",
-  solutionsWhy: "组合模板。行项从不引用它做计算（ADR-014 §4）——模板是起点，不是权威。",
+  solutionsWhy:
+    "组合模板。行项从不引用它做计算（ADR-014 §4）——模板是起点，不是权威。",
   solutionItems: (n: number) => `${n} 个产品`,
   noSolutions: "还没有解决方案",
   emptyBundle: "一个不装产品的方案只是个名字",
@@ -526,7 +525,8 @@ export const REVENUE_ERROR: Record<string, string> = {
 
 export const ACCOUNT_ERROR: Record<string, string> = {
   ...GATE_ERROR,
-  plan_required: "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
+  plan_required:
+    "战略客户必须配计划——节奏规则读的是它，没有计划这次定级什么都不改变",
   period_required: "计划必须写明周期",
   cadence_positive: "零天的节奏不是节奏",
   unknown_tier: "未知的客户分级",
@@ -701,7 +701,8 @@ export const MEMBER_TEXT = {
     "把在办的客户、商机、线索转给这个人。已成交/已丢单的商机不动（那是谁打赢的，属于历史），销售目标和预测快照也不动（目标是给具体人定的，快照是当天说过的话）。",
   handoverDone: (accounts: number, deals: number, leads: number) =>
     `已转交：客户 ${accounts}、商机 ${deals}、线索 ${leads}。`,
-  handoverPartial: (skipped: number) => `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
+  handoverPartial: (skipped: number) =>
+    `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
   // 数据范围（incr/0022，owner 2026-09-01 裁定）。决定权在主管理员，不在角色。
   columnScope: "可见范围",
   scopeTerritory: "选择销售区域",
@@ -726,7 +727,8 @@ export const MEMBER_ERROR: Record<string, string> = {
   same_owner: "转出和转入是同一个人",
   owner_required: "转交需要指定一个接收人",
   recipient_not_a_member: "接收人不是这个工作区的成员",
-  recipient_inactive: "接收人自己也已停用——转过去只会让这些工作对第二个人也不可见",
+  recipient_inactive:
+    "接收人自己也已停用——转过去只会让这些工作对第二个人也不可见",
   lead_converted: "这条线索已经转成商机，商机上已经有负责人了",
   empty_patch: "没有需要改动的内容",
   amount_negative: "金额不能小于零",
@@ -766,7 +768,8 @@ export const COMPLETENESS_TEXT = {
   askable: (fields: string) =>
     `${fields} 数据里推不出来——这类是关于这家公司本身的事实，交给助手去查，它会作为提案进入待裁决队列，采纳后才写入。`,
   ask: "让助手去查",
-  askedNote: "已经问了助手。它的答案会作为提案进入待裁决队列——采纳之后才写进这条记录。",
+  askedNote:
+    "已经问了助手。它的答案会作为提案进入待裁决队列——采纳之后才写进这条记录。",
   /** 字段名的连接符。标点也是文案，中英文不同，所以不留在组件里（TD-002）。 */
   joinFields: (fields: readonly string[]) => fields.join("、"),
   structural: {
@@ -969,7 +972,12 @@ export const BOARD_TEXT = {
   reconTitle: "敌情",
   reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
   reconCta: "发起竞争态势分析",
-  reconNote: "分析结果会作为「模型」判断入流。",
+  // SHARED, and named for the fact rather than for one caller. The same
+  // sentence lived twice - here and on the home screen as
+  // HOME_TEXT.analysisHint - stating the same rule for two different sets of
+  // analysis buttons. Two keys holding one sentence is two chances to reword
+  // half of it, which is the drift the GATE_ERROR consolidation exists to stop.
+  analysisNote: "分析结果会作为「模型」判断入流。",
   captureSend: "存",
   capturePlaceholder: "刚跟王总通完电话……",
   captureHelp: "三句话、一段微信、一封转发的邮件都算，原文会原样保留。",
@@ -1155,7 +1163,6 @@ export const HOME_TEXT = {
   analysisCompetition: "竞争态势",
   analysisChain: "决策链分析",
   analysisPolicy: "政策与行业",
-  analysisHint: "分析结果会作为「模型」判断入流",
   // The citation attribution, composed HERE rather than in the rule. The rule
   // decides what is cited; how it reads is this layer's problem, and only this
   // layer can reach CHANNEL_LABEL.
@@ -2053,7 +2060,8 @@ export const ACCOUNT_TEXT = {
     score === null ? `${name}:数据不足，仍为未评估` : `${name}:${score} 分`,
   recomputeFailed: "重算失败",
 
-  batchCompleteBanner: (n: number) => `${n} 家客户资料数据能推出来，可以批量补齐`,
+  batchCompleteBanner: (n: number) =>
+    `${n} 家客户资料数据能推出来，可以批量补齐`,
   batchCompleteLink: "去处理",
 
   contactsTitle: "联系人",
@@ -2067,7 +2075,11 @@ export const ACCOUNT_TEXT = {
   contactRole: "决策角色",
   contactInfluence: "影响力 0-100",
   contactStatus: "状态",
-  contactStatusLabel: { active: "在职", left: "已离职", invalid: "信息作废" } as Record<string, string>,
+  contactStatusLabel: {
+    active: "在职",
+    left: "已离职",
+    invalid: "信息作废",
+  } as Record<string, string>,
   contactEditing: "编辑谁",
   contactNew: "新建联系人",
   contactSave: "保存联系人",
@@ -2269,8 +2281,10 @@ export const PLANNING_TEXT = {
   } as Record<string, string>,
   gapHint: {
     no_snapshot: "这个作用域本期还没有提交预测快照——那不是达成 0%",
-    no_cost_data: "毛利需要成本，而成本目前还没有进入模型。这不是本期没达成，也不是这个指标算不了——补上成本它就能算",
-    not_counted: "这条快照没有新客计数——它早于该字段，或者它的周期标签无法解析成日期",
+    no_cost_data:
+      "毛利需要成本，而成本目前还没有进入模型。这不是本期没达成，也不是这个指标算不了——补上成本它就能算",
+    not_counted:
+      "这条快照没有新客计数——它早于该字段，或者它的周期标签无法解析成日期",
   } as Record<string, string>,
   setSubmit: "建立目标",
   setSaved: "已建立",
@@ -2281,7 +2295,8 @@ export const PLANNING_TEXT = {
   commit: "提交为承诺",
   commitWhy: "提交后不能退回草稿——已经报上去的数字撤不回来",
   closeTarget: "关闭本期",
-  closeWhy: "关闭后冻结。它记录的是一个已结束周期上承诺过什么，改它等于把没达成的季度改成达成",
+  closeWhy:
+    "关闭后冻结。它记录的是一个已结束周期上承诺过什么，改它等于把没达成的季度改成达成",
   rowDenied: "你没有调整目标的权限",
   metricRevenue: "收入",
   metricNewLogo: "新客",
@@ -2618,7 +2633,8 @@ export const MILESTONE_ERROR: Record<string, string> = {
   sequence_invalid: "序号是从零开始的整数",
   unknown_status: "未知的里程碑状态",
   done_needs_completion: "标记为已完成的里程碑必须写明何时完成",
-  completion_needs_done: "实际完成时间只属于已完成的里程碑——错过的那个并没有发生",
+  completion_needs_done:
+    "实际完成时间只属于已完成的里程碑——错过的那个并没有发生",
   not_found: "项目不存在，或不属于当前工作区",
 };
 

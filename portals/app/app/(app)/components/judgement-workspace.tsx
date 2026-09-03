@@ -103,7 +103,7 @@ export function JudgementWorkspace({
   scope,
   hasAnyRecord,
 }: JudgementWorkspaceProps) {
-  const { CHANNEL_LABEL, HOME_TEXT } = useMessages();
+  const { BOARD_TEXT, CHANNEL_LABEL, HOME_TEXT } = useMessages();
   const [tier, setTier] = useState<Tier>("all");
   // One id for the whole stack, so opening a row closes the previous one
   // without any row needing to know the others exist.
@@ -133,7 +133,7 @@ export function JudgementWorkspace({
             <span className="block">
               {HOME_TEXT.leadSub(scanned, judgements.length)}
             </span>
-            <span className="block">{HOME_TEXT.analysisHint}</span>
+            <span className="block">{BOARD_TEXT.analysisNote}</span>
           </>
         }
         action={

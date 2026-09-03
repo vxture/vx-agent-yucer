@@ -195,7 +195,7 @@ export function AgentPanel({
           {BOARD_TEXT.reconCta}
         </Button>
         <p className="text-muted-foreground mt-xs text-xs">
-          {BOARD_TEXT.reconNote}
+          {BOARD_TEXT.analysisNote}
         </p>
       </Card>
 
