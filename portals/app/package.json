@@ -21,7 +21,6 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@vxture/design-system": "^10.0.3",
-    "@vxture/design-tokens": "^2.2.3",
     "@vxture/design-ui": "7.0.3",
     "@vxture/shared": "^2.0.0",
     "@yucer/shared": "workspace:*",
