@@ -1748,6 +1748,16 @@ export const PROPOSAL_TEXT = {
   columnRationale: "理由",
   columnConfidence: "置信度",
   columnStatus: "状态",
+  // The expanded row (DataTable's own `expandedContent`). These three are not
+  // on the row at any width: payload is what the action would actually DO, and
+  // capability is which capability proposed it (ADR-015) - both frozen at
+  // creation and both invisible until now.
+  detailRationale: "完整理由",
+  detailPayload: "变更内容",
+  detailCapability: "提出能力",
+  detailProposedAt: "提出时间",
+  detailExpand: "展开",
+  detailCollapse: "收起",
   columnDecider: "裁决人",
   confidenceMissing: "未给出",
   autopilotMarker: "自动执行",
