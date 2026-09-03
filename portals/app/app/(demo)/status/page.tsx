@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ViewHeader } from "@vxture/design-ui";
 import type { IntegrationStatus } from "../../lib/status";
 
 // Integration-status dashboard (product_240 verification surface): at-a-glance
@@ -19,7 +20,10 @@ const CHANNELS: Omit<Probe, "status">[] = [
   { name: "C2 entitlement", endpoint: "/api/entitlement" },
 ];
 
-function planeSuffix(p: { configured: boolean; reachable: boolean | null }): string {
+function planeSuffix(p: {
+  configured: boolean;
+  reachable: boolean | null;
+}): string {
   if (!p.configured) return "";
   if (p.reachable === null) return " (not probed)";
   return p.reachable ? ", reachable" : ", UNREACHABLE";
@@ -32,12 +36,26 @@ const card: React.CSSProperties = {
   margin: "0 0 12px",
   maxWidth: 760,
 };
-const row: React.CSSProperties = { display: "flex", justifyContent: "space-between", padding: "2px 0", gap: 16 };
+const row: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  padding: "2px 0",
+  gap: 16,
+};
 const key: React.CSSProperties = { color: "#555" };
-const mono: React.CSSProperties = { fontFamily: "ui-monospace, monospace", wordBreak: "break-all", textAlign: "right" };
+const mono: React.CSSProperties = {
+  fontFamily: "ui-monospace, monospace",
+  wordBreak: "break-all",
+  textAlign: "right",
+};
 
 function badge(state: "ok" | "warn" | "bad" | "na"): string {
-  return { ok: "\u{1F7E2}", warn: "\u{1F7E1}", bad: "\u{1F534}", na: "\u{2796}" }[state];
+  return {
+    ok: "\u{1F7E2}",
+    warn: "\u{1F7E1}",
+    bad: "\u{1F534}",
+    na: "\u{2796}",
+  }[state];
 }
 function boolBadge(b: boolean | null | undefined): string {
   if (b === null || b === undefined) return badge("na");
@@ -56,13 +74,19 @@ function Field({ k, v }: { k: string; v: React.ReactNode }) {
 export default function StatusPage() {
   const [status, setStatus] = useState<IntegrationStatus | null>(null);
   const [gate, setGate] = useState<string | null>(null);
-  const [probes, setProbes] = useState<Probe[]>(CHANNELS.map((c) => ({ ...c, status: "..." })));
+  const [probes, setProbes] = useState<Probe[]>(
+    CHANNELS.map((c) => ({ ...c, status: "..." })),
+  );
 
   useEffect(() => {
     fetch("/api/status", { cache: "no-store" })
       .then(async (r) => {
-        if (r.status === 404) return setGate("Status page is disabled (STATUS_PAGE=off).");
-        if (r.status === 401) return setGate("Sign in to view the status page (STATUS_PAGE=authed).");
+        if (r.status === 404)
+          return setGate("Status page is disabled (STATUS_PAGE=off).");
+        if (r.status === 401)
+          return setGate(
+            "Sign in to view the status page (STATUS_PAGE=authed).",
+          );
         setStatus((await r.json()) as IntegrationStatus);
       })
       .catch(() => setGate("status unavailable"));
@@ -84,8 +108,19 @@ export default function StatusPage() {
   }, []);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", lineHeight: 1.5 }}>
-      <h1>Integration status</h1>
+    <main
+      style={{
+        fontFamily: "system-ui, sans-serif",
+        padding: "2rem",
+        lineHeight: 1.5,
+      }}
+    >
+      {/* The product's page header, so this surface is titled the way every
+          other route is. The <main> frame stays inline-styled on purpose:
+          this page exists to report whether the integrations work, and a
+          verification surface that cannot render without the shell it is
+          checking is one you cannot open on the day you need it. */}
+      <ViewHeader title="Integration status" />
       {gate && <p>{gate}</p>}
 
       {status && (
@@ -107,25 +142,44 @@ export default function StatusPage() {
             <Field k="redirect_uri" v={status.c1.redirectUri ?? "-"} />
             <Field k="scopes" v={status.c1.scopes ?? "-"} />
             <Field k="cookie" v={status.c1.cookieName ?? "-"} />
-            <Field k="client secret" v={`${boolBadge(status.c1.clientSecretConfigured)} configured`} />
+            <Field
+              k="client secret"
+              v={`${boolBadge(status.c1.clientSecretConfigured)} configured`}
+            />
           </section>
 
           <section style={card}>
             <h3 style={{ margin: "0 0 8px" }}>
-              {status.c2.resolver === "platform" ? badge("ok") : badge("warn")} C2 - entitlement
+              {status.c2.resolver === "platform" ? badge("ok") : badge("warn")}{" "}
+              C2 - entitlement
             </h3>
             <Field k="resolver" v={status.c2.resolver} />
-            <Field k="platform API" v={`${boolBadge(status.c2.platformApiConfigured)} configured`} />
-            <Field k="internal-auth token" v={`${boolBadge(status.c2.authTokenConfigured)} configured`} />
+            <Field
+              k="platform API"
+              v={`${boolBadge(status.c2.platformApiConfigured)} configured`}
+            />
+            <Field
+              k="internal-auth token"
+              v={`${boolBadge(status.c2.authTokenConfigured)} configured`}
+            />
             <Field k="console URL" v={status.c2.consoleUrl ?? "-"} />
             <Field k="cache TTL (ms)" v={status.c2.cacheTtlMs} />
           </section>
 
           <section style={card}>
             <h3 style={{ margin: "0 0 8px" }}>C3 - provisioning + usage</h3>
-            <Field k="webhook secret" v={`${boolBadge(status.c3.webhookSecretConfigured)} configured`} />
-            <Field k="webhook rotation (_NEXT)" v={`${boolBadge(status.c3.webhookRotationConfigured)} configured`} />
-            <Field k="internal job token" v={`${boolBadge(status.c3.internalJobTokenConfigured)} configured`} />
+            <Field
+              k="webhook secret"
+              v={`${boolBadge(status.c3.webhookSecretConfigured)} configured`}
+            />
+            <Field
+              k="webhook rotation (_NEXT)"
+              v={`${boolBadge(status.c3.webhookRotationConfigured)} configured`}
+            />
+            <Field
+              k="internal job token"
+              v={`${boolBadge(status.c3.internalJobTokenConfigured)} configured`}
+            />
           </section>
 
           <section style={card}>
@@ -151,13 +205,18 @@ export default function StatusPage() {
               v={`${boolBadge(status.data.database.reachable)} ${status.data.database.configured ? "configured" : "not configured"}${status.data.database.reachable === null ? " (not probed)" : status.data.database.reachable ? ", reachable" : ", unreachable"}`}
             />
             {status.showInfra && status.data.database.host && (
-              <Field k="  db" v={`${status.data.database.role}@${status.data.database.host}/${status.data.database.db}`} />
+              <Field
+                k="  db"
+                v={`${status.data.database.role}@${status.data.database.host}/${status.data.database.db}`}
+              />
             )}
             <Field
               k="redis"
               v={`${boolBadge(status.data.redis.reachable)} ${status.data.redis.configured ? "configured" : "not configured"}${status.data.redis.reachable === null ? " (not probed)" : status.data.redis.reachable ? ", reachable" : ", unreachable"}`}
             />
-            {status.showInfra && status.data.redis.host && <Field k="  host" v={status.data.redis.host} />}
+            {status.showInfra && status.data.redis.host && (
+              <Field k="  host" v={status.data.redis.host} />
+            )}
           </section>
         </>
       )}
@@ -165,7 +224,11 @@ export default function StatusPage() {
       <section style={card}>
         <h3 style={{ margin: "0 0 8px" }}>Live channel probes</h3>
         {probes.map((p) => (
-          <Field key={p.endpoint} k={`${p.name} (${p.endpoint})`} v={p.status} />
+          <Field
+            key={p.endpoint}
+            k={`${p.name} (${p.endpoint})`}
+            v={p.status}
+          />
         ))}
       </section>
 
