@@ -104,6 +104,61 @@
   *::-webkit-scrollbar {
     display: none;
   }
+
+  /*
+   * ...EXCEPT horizontally. This is a narrowing of the rule above, not a hole
+   * in it, and it is still ONE rule rather than a class sprinkled per scroller
+   * - which is the property the paragraph above says the global form exists to
+   * protect.
+   *
+   * The line is between the two axes, and it is not arbitrary. A page that
+   * scrolls DOWN says so: the content is visibly cut by the bottom of the
+   * viewport and every reader already expects more below. A region that scrolls
+   * SIDEWAYS says nothing - a table clipped at its right edge looks exactly
+   * like a table that ends there.
+   *
+   * Measured, at 1440 with both flanks open: /pipeline hides 270px of an 868px
+   * table (only 598 visible - 31% of it off-screen), /account 171px, /delivery
+   * 129px, /named 74px, /signal 52px. Five of the twelve routes checked. With
+   * the scrollbar suppressed there was no cue and no drag target for any of it.
+   *
+   * This is OUR deviation to repair, not a gap in the design system. DataTable
+   * wraps its table in a plain `<div className="overflow-x-auto">` and relies
+   * on the NATIVE scrollbar - it does not reach for ScrollArea, and its
+   * `rowActions` doc describes the column staying pinned "when scrolled
+   * horizontally", so the sideways-scrolling state is one the DS designed for.
+   * The rule above was quietly removing the affordance it counts on.
+   *
+   * Why an element selector rather than the axis. `::-webkit-scrollbar:horizontal`
+   * looks like the precise tool and does nothing: measured, the bar stays gone
+   * (`scrollbar-width` still computes to `none`, gutter 0). Releasing
+   * `scrollbar-width` alone brings it back with that pseudo-class removed
+   * entirely, so the standard property is the only thing suppressing it - and
+   * it has no per-axis form. Selecting elements is not the tidier option; it is
+   * the one that works.
+   *
+   * Scope, counted rather than assumed: `overflow-x-auto` appears twice in the
+   * DS bundles and zero times in our own source. The two genuinely dual-axis
+   * containers in the DS use `overflow-x-HIDDEN` and are not matched here.
+   * `scrollbar-width` is axis-agnostic, so a matched container that also
+   * overflowed vertically would show a vertical bar as well; none of them does
+   * (their height is their content). The four shell scroll areas keep their
+   * hidden bars - verified after this change, gutter still 0 on both.
+   *
+   * No dimension is set. `thin` is the platform's own measure (11px here), and
+   * the webkit half returns to `auto` rather than naming a height - this file
+   * may not invent spacing values, and a scrollbar's thickness is the one the
+   * OS already chose.
+   */
+  [class*="overflow-x-auto"],
+  [class*="overflow-x-scroll"] {
+    scrollbar-width: thin;
+  }
+
+  [class*="overflow-x-auto"]::-webkit-scrollbar,
+  [class*="overflow-x-scroll"]::-webkit-scrollbar {
+    display: auto;
+  }
 }
 
 /*
