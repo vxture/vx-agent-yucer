@@ -1,9 +1,12 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getPipelineStore } from "../../domains/shared/registry";
-import { listPendingReviews, listPipeline } from "../../domains/pipeline/service";
+import {
+  listPendingReviews,
+  listPipeline,
+} from "../../domains/pipeline/service";
 import { PendingReviews } from "../components/pending-reviews";
 import { recordReview } from "../pipeline/winloss-action";
 import { loadFailureText } from "../lib/load-failure";
@@ -19,7 +22,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function WinLossPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, SHELL_TEXT, WINLOSS_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -38,7 +41,10 @@ export default async function WinLossPage() {
     store: session.stores.pipeline(),
   };
 
-  const [pending, all] = await Promise.all([listPendingReviews(ctx), listPipeline(ctx)]);
+  const [pending, all] = await Promise.all([
+    listPendingReviews(ctx),
+    listPipeline(ctx),
+  ]);
 
   if (!pending.ok) {
     return (
@@ -55,11 +61,20 @@ export default async function WinLossPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={WINLOSS_TEXT.sectionTitle}
+        description={WINLOSS_TEXT.description}
+      />
       <PendingReviews
         opportunities={pending.value}
         allClosed={closed}
         canRecord={
-          can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.winloss.record",
+            "ui",
+          ).allowed
         }
         onRecord={recordReview}
       />

@@ -47,18 +47,21 @@ export interface ForecastRuleTableProps {
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
-export function ForecastRuleTable({ rows, canApply, onApply }: ForecastRuleTableProps) {
-  const { DATA_TABLE_LABELS, FORECAST_RULE_TEXT, FORECAST_RULE_ERROR } = useMessages();
+export function ForecastRuleTable({
+  rows,
+  canApply,
+  onApply,
+}: ForecastRuleTableProps) {
+  const { DATA_TABLE_LABELS, FORECAST_RULE_TEXT, FORECAST_RULE_ERROR } =
+    useMessages();
 
   return (
-    <Section
-      id="forecast-rule"
-      icon="trend-up"
-      title={FORECAST_RULE_TEXT.title}
-      description={FORECAST_RULE_TEXT.why}
-    >
+    <Section id="forecast-rule" icon="trend-up">
       {rows.length === 0 ? (
-        <EmptyState title={FORECAST_RULE_TEXT.none} description={FORECAST_RULE_TEXT.noneWhy} />
+        <EmptyState
+          title={FORECAST_RULE_TEXT.none}
+          description={FORECAST_RULE_TEXT.noneWhy}
+        />
       ) : (
         <>
           <DataTable
@@ -158,7 +161,9 @@ export function ForecastRuleTable({ rows, canApply, onApply }: ForecastRuleTable
             ]}
           />
           {!canApply ? (
-            <p className="text-muted-foreground mt-sm text-xs">{FORECAST_RULE_TEXT.denied}</p>
+            <p className="text-muted-foreground mt-sm text-xs">
+              {FORECAST_RULE_TEXT.denied}
+            </p>
           ) : null}
         </>
       )}

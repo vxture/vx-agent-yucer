@@ -1,4 +1,4 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -27,7 +27,8 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function NamedAccountPage() {
-  const { SHELL_TEXT, LOAD_ERROR, NAMED_ACCOUNT_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, LOAD_ERROR, NAMED_ACCOUNT_TEXT, SHELL_TEXT } =
+    await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -75,10 +76,12 @@ export default async function NamedAccountPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader title={DOMAIN_LABEL.namedAccount} />
       <AccountTable
         rows={named}
         canRecompute={
-          can(session.authz, session.entitlement, "account.upsert", "ui").allowed
+          can(session.authz, session.entitlement, "account.upsert", "ui")
+            .allowed
         }
       />
     </ViewLayout>

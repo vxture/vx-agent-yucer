@@ -1,8 +1,11 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { getDeliveryStore, getPipelineStore } from "../../domains/shared/registry";
+import {
+  getDeliveryStore,
+  getPipelineStore,
+} from "../../domains/shared/registry";
 import { listRenewals } from "../../domains/delivery/service";
 import { listRenewedProjectIds } from "../../domains/pipeline/service";
 import { RenewalTable, type RenewalRow } from "../components/renewal-table";
@@ -30,7 +33,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function RenewalPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, RENEWAL_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -48,7 +51,10 @@ export default async function RenewalPage() {
     entitlement: session.entitlement,
   };
 
-  const renewed = await listRenewedProjectIds({ ...base, store: session.stores.pipeline() });
+  const renewed = await listRenewedProjectIds({
+    ...base,
+    store: session.stores.pipeline(),
+  });
   if (!renewed.ok) {
     return (
       <EmptyState
@@ -89,10 +95,16 @@ export default async function RenewalPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader title={RENEWAL_TEXT.title} description={RENEWAL_TEXT.why} />
       <RenewalTable
         rows={rows}
         canOpen={
-          can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.opportunity.create",
+            "ui",
+          ).allowed
         }
         onOpen={openRenewal}
       />

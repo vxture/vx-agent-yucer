@@ -44,7 +44,7 @@ export function QuoteTable({ rows }: QuoteTableProps) {
   const { DATA_TABLE_LABELS, QUOTE_TEXT, STAGE_LABEL } = useMessages();
 
   return (
-    <Section id="quotes" icon="receipt" title={QUOTE_TEXT.title} description={QUOTE_TEXT.why}>
+    <Section id="quotes" icon="receipt">
       {rows.length === 0 ? (
         <EmptyState title={QUOTE_TEXT.none} description={QUOTE_TEXT.noneWhy} />
       ) : (
@@ -58,10 +58,15 @@ export function QuoteTable({ rows }: QuoteTableProps) {
               header: QUOTE_TEXT.colDeal,
               cell: (r: QuoteRow) => (
                 <div className="flex flex-col gap-3xs">
-                  <Link href={`/pipeline/${r.opportunityId}`} className="text-foreground hover:underline">
+                  <Link
+                    href={`/pipeline/${r.opportunityId}`}
+                    className="text-foreground hover:underline"
+                  >
                     {r.name}
                   </Link>
-                  <span className="text-muted-foreground text-xs tabular-nums">{r.opportunityNo}</span>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {r.opportunityNo}
+                  </span>
                 </div>
               ),
             },
@@ -73,7 +78,8 @@ export function QuoteTable({ rows }: QuoteTableProps) {
             {
               id: "stage",
               header: QUOTE_TEXT.colStage,
-              cell: (r: QuoteRow) => (STAGE_LABEL as Record<string, string>)[r.stage] ?? r.stage,
+              cell: (r: QuoteRow) =>
+                (STAGE_LABEL as Record<string, string>)[r.stage] ?? r.stage,
             },
             {
               id: "lines",

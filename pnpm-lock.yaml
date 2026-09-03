@@ -9,7 +9,7 @@ overrides:
   '@hono/node-server@<1.19.13': '>=1.19.13'
   sharp@<0.35.0: '>=0.35.0'
   nanoid@<3.3.18: '>=3.3.18 <4'
-  fast-uri@<3.1.5: '>=3.1.5 <4'
+  fast-uri@<3.1.6: '>=3.1.6 <4'
   valibot@<1.4.2: '>=1.4.2'
   hono@<4.12.34: '>=4.12.34'
   deepmerge-ts@<8.0.0: '>=8.0.0'
@@ -40,14 +40,14 @@ importers:
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/node@22.20.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(typescript@5.9.3)
       '@vxture/design-system':
-        specifier: ^9.0.4
-        version: 9.0.4(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(next-themes@0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss-animate@1.0.7(tailwindcss@4.3.3))(tailwindcss@4.3.3)
+        specifier: ^10.0.3
+        version: 10.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(next-themes@0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss-animate@1.0.7(tailwindcss@4.3.3))(tailwindcss@4.3.3)
       '@vxture/design-tokens':
         specifier: ^2.2.3
         version: 2.2.3(tailwindcss@4.3.3)
       '@vxture/design-ui':
-        specifier: 6.0.4
-        version: 6.0.4(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)
+        specifier: 7.0.3
+        version: 7.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)
       '@vxture/shared':
         specifier: ^2.0.0
         version: 2.0.0
@@ -1407,8 +1407,8 @@ packages:
   '@types/react@19.2.17':
     resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
 
-  '@vxture/design-system@9.0.4':
-    resolution: {integrity: sha512-RRlaY0TRO6sAEDbRGXhIHxjEPYcpqeV48eE4ph7CPjJwd1NlpvQoxHL7HAz1rMeH/FC5AvhWMsxVYyg2LDvIfQ==, tarball: https://npm.pkg.github.com/download/@vxture/design-system/9.0.4/32790c6610a99a28488c4e6adb6d87cc42bc13b8}
+  '@vxture/design-system@10.0.3':
+    resolution: {integrity: sha512-IZwB46p3cMn7T7PnFa1LNsWi1mN73b8jhNTZi2SeYdTkJjaHhaohzVoNN+e0wVhUl/fCqLSkxXhuC9zA0alOEA==, tarball: https://npm.pkg.github.com/download/@vxture/design-system/10.0.3/a1ad629c7ed664289f4e1545ab7f17a22a97760d}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@phosphor-icons/react': ^2.1.10
@@ -1423,8 +1423,13 @@ packages:
     peerDependencies:
       tailwindcss: ^4.0.0
 
-  '@vxture/design-ui@6.0.4':
-    resolution: {integrity: sha512-6kjMNOmdE5zc5OxoaQ/9mCIUkYDiztzO4RsHWo/ZLd8eX9gNHqNdyj5E7T6EG2QpWd+PDM4ZX6NG4sFBY1TZFQ==, tarball: https://npm.pkg.github.com/download/@vxture/design-ui/6.0.4/c5a225238fca9cbb83a1d860c8d2368ad54c3e69}
+  '@vxture/design-tokens@3.0.0':
+    resolution: {integrity: sha512-rkmb17SUDVOfBWjMicMyI85D4ZSYr4RUwC8SpK8gdY/NKb4yUhXSPKZG2qyVwnPZRzoyY1bSBT0G01YUTTG51w==, tarball: https://npm.pkg.github.com/download/@vxture/design-tokens/3.0.0/7e8a6589c98666dbcb76fc1334108ab202ca0da0}
+    peerDependencies:
+      tailwindcss: ^4.0.0
+
+  '@vxture/design-ui@7.0.3':
+    resolution: {integrity: sha512-Ds+RxGS25eA+WVBKAVvyPvuh7rvtzHH5ZLV77IdzTDlwbl2N25zRH1QyZQWeUNFDjddHUZeLj7sZvrpAYav4fA==, tarball: https://npm.pkg.github.com/download/@vxture/design-ui/7.0.3/6cf551d402e63220da530e5b8f7fe19f9611731f}
     peerDependencies:
       '@phosphor-icons/react': ^2.1.10
       react: ^19.0.0
@@ -1564,8 +1569,8 @@ packages:
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
-  fast-uri@3.1.5:
-    resolution: {integrity: sha512-gHwA1O9LDIcKunMKhObS/HimwtehO1nPUECKAu5TpKgaO19fcWEl4bliWe1jWxVFvIXztJjjQ4L8XQ1EU9f7Jw==}
+  fast-uri@3.1.7:
+    resolution: {integrity: sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg==}
 
   foreground-child@3.3.1:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
@@ -3224,14 +3229,14 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@vxture/design-system@9.0.4(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(next-themes@0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss-animate@1.0.7(tailwindcss@4.3.3))(tailwindcss@4.3.3)':
+  '@vxture/design-system@10.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(next-themes@0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss-animate@1.0.7(tailwindcss@4.3.3))(tailwindcss@4.3.3)':
     dependencies:
       '@fontsource/funnel-display': 5.3.0
       '@fontsource/geist-mono': 5.3.0
       '@fontsource/inter': 5.3.0
       '@phosphor-icons/react': 2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@vxture/design-tokens': 2.2.3(tailwindcss@4.3.3)
-      '@vxture/design-ui': 6.0.4(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)
+      '@vxture/design-tokens': 3.0.0(tailwindcss@4.3.3)
+      '@vxture/design-ui': 7.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)
       next-themes: 0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
@@ -3246,7 +3251,12 @@ snapshots:
       tailwindcss: 4.3.3
       tailwindcss-animate: 1.0.7(tailwindcss@4.3.3)
 
-  '@vxture/design-ui@6.0.4(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)':
+  '@vxture/design-tokens@3.0.0(tailwindcss@4.3.3)':
+    dependencies:
+      tailwindcss: 4.3.3
+      tailwindcss-animate: 1.0.7(tailwindcss@4.3.3)
+
+  '@vxture/design-ui@7.0.3(@phosphor-icons/react@2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(tailwindcss@4.3.3)':
     dependencies:
       '@phosphor-icons/react': 2.1.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-accordion': 1.2.20(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -3273,7 +3283,7 @@ snapshots:
       '@radix-ui/react-toggle': 1.1.18(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-toggle-group': 1.1.19(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-tooltip': 1.2.16(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@vxture/design-tokens': 2.2.3(tailwindcss@4.3.3)
+      '@vxture/design-tokens': 3.0.0(tailwindcss@4.3.3)
       class-variance-authority: 0.7.1
       clsx: 2.1.1
       cmdk: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -3293,7 +3303,7 @@ snapshots:
   ajv@8.20.0:
     dependencies:
       fast-deep-equal: 3.1.3
-      fast-uri: 3.1.5
+      fast-uri: 3.1.7
       json-schema-traverse: 1.0.0
       require-from-string: 2.0.2
 
@@ -3433,7 +3443,7 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
-  fast-uri@3.1.5: {}
+  fast-uri@3.1.7: {}
 
   foreground-child@3.3.1:
     dependencies:

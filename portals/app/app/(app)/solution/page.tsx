@@ -1,3 +1,5 @@
+import { ViewHeader } from "@vxture/design-ui";
+import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
 import { SolutionSection } from "../components/catalog-panels";
@@ -15,15 +17,24 @@ import { saveSolution } from "../catalog/actions";
 export const dynamic = "force-dynamic";
 
 export default async function SolutionPage() {
+  const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
       render={({ products, solutions, authz, entitlement }) => (
-        <SolutionSection
-          products={products}
-          solutions={solutions}
-          canSolution={can(authz, entitlement, "catalog.solution.upsert", "ui").allowed}
-          onSaveSolution={saveSolution}
-        />
+        <>
+          <ViewHeader
+            title={CATALOG_TEXT.solutions}
+            description={CATALOG_TEXT.solutionsWhy}
+          />
+          <SolutionSection
+            products={products}
+            solutions={solutions}
+            canSolution={
+              can(authz, entitlement, "catalog.solution.upsert", "ui").allowed
+            }
+            onSaveSolution={saveSolution}
+          />
+        </>
       )}
     />
   );

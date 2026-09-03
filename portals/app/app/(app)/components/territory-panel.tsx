@@ -67,12 +67,7 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
   const ready = code.trim() !== "" && name.trim() !== "";
 
   return (
-    <Section
-      id="territories"
-      icon="map-pin"
-      title={PLANNING_TEXT.territoryTitle}
-      description={PLANNING_TEXT.territoryWhy}
-    >
+    <Section id="territories" icon="map-pin">
       {rows.length === 0 ? (
         <EmptyState
           title={PLANNING_TEXT.territoryNone}
@@ -106,7 +101,8 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
             {
               id: "owner",
               header: PLANNING_TEXT.territoryOwner,
-              cell: (r: TerritoryRow) => r.ownerSub ?? PLANNING_TEXT.territoryNoOwner,
+              cell: (r: TerritoryRow) =>
+                r.ownerSub ?? PLANNING_TEXT.territoryNoOwner,
             },
             {
               id: "status",
@@ -114,7 +110,9 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
               align: "center" as const,
               cell: (r: TerritoryRow) =>
                 r.status === "active" ? null : (
-                  <StatusBadge tone="neutral">{PLANNING_TEXT.territoryRetired}</StatusBadge>
+                  <StatusBadge tone="neutral">
+                    {PLANNING_TEXT.territoryRetired}
+                  </StatusBadge>
                 ),
             },
           ]}
@@ -122,7 +120,9 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">{PLANNING_TEXT.territoryDenied}</p>
+        <p className="text-muted-foreground mt-sm text-xs">
+          {PLANNING_TEXT.territoryDenied}
+        </p>
       ) : (
         <div className="mt-md flex flex-wrap items-end gap-sm">
           <Field>
@@ -135,7 +135,10 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
           </Field>
           <Field>
             <FieldLabel>{PLANNING_TEXT.territoryParent}</FieldLabel>
-            <NativeSelect value={parentId} onChange={(e) => setParentId(e.target.value)}>
+            <NativeSelect
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+            >
               <option value="">{PLANNING_TEXT.territoryNoParent}</option>
               {rows.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -146,11 +149,17 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
           </Field>
           <Field>
             <FieldLabel>{PLANNING_TEXT.territoryOwner}</FieldLabel>
-            <Input value={ownerSub} onChange={(e) => setOwnerSub(e.target.value)} />
+            <Input
+              value={ownerSub}
+              onChange={(e) => setOwnerSub(e.target.value)}
+            />
           </Field>
           <Field>
             <FieldLabel>{PLANNING_TEXT.territoryStatus}</FieldLabel>
-            <NativeSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+            <NativeSelect
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
               <option value="active">{PLANNING_TEXT.territoryActive}</option>
               <option value="retired">{PLANNING_TEXT.territoryRetired}</option>
             </NativeSelect>

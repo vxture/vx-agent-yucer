@@ -1,4 +1,4 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import {
@@ -30,7 +30,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function QuotePage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, QUOTE_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -49,7 +49,10 @@ export default async function QuotePage() {
   };
 
   const [deals, lines, accounts] = await Promise.all([
-    listPipeline({ ...base, store: session.stores.pipeline() }, { includeClosed: true }),
+    listPipeline(
+      { ...base, store: session.stores.pipeline() },
+      { includeClosed: true },
+    ),
     listOpportunityLines({ ...base, store: getCatalogStore() }),
     // The customer's NAME, through its own gate. listPipeline returns an
     // accountId and an optional accountName it never fills, and /pipeline
@@ -71,7 +74,10 @@ export default async function QuotePage() {
   // Grouped here rather than by a second query: the lines come back joined to
   // their approvals, and asking the database again per deal would be one
   // round trip per row to re-derive what is already in hand.
-  const byDeal = new Map<string, { count: number; amount: number; currency: string; unsigned: number }>();
+  const byDeal = new Map<
+    string,
+    { count: number; amount: number; currency: string; unsigned: number }
+  >();
   for (const l of lines.ok ? lines.value : []) {
     const acc = byDeal.get(l.opportunityId) ?? {
       count: 0,
@@ -113,6 +119,7 @@ export default async function QuotePage() {
 
   return (
     <ViewLayout>
+      <ViewHeader title={QUOTE_TEXT.title} description={QUOTE_TEXT.why} />
       <QuoteTable rows={rows} />
     </ViewLayout>
   );
