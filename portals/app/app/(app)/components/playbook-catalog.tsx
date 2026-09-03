@@ -78,8 +78,17 @@ export async function PlaybookCatalog({
           }
         >
           {/* The play's own words, verbatim. Summarising it here would mean the
-              catalog and the prompt no longer show the same thing. */}
-          <p>{p.content}</p>
+              catalog and the prompt no longer show the same thing.
+
+              CLASSED, and it has to be. PanelCard carries its `tone` as a
+              `color` on the card root, so any descendant text without a colour
+              of its own INHERITS it - and the default tone is `brand`. This
+              paragraph had no class, so the one thing this panel exists to make
+              readable rendered in link blue (rgb(23,64,212)) against the
+              neutral grey every other paragraph on the page uses. Workspace
+              prose that looks clickable is worse than prose that is merely
+              hard to find. */}
+          <p className="text-body-md text-foreground">{p.content}</p>
         </PanelCard>
       ))}
     </Section>
