@@ -28,6 +28,9 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-016 | 权限目录里 10 个 action 声明了门，背后没有任何动词——其中一个还带着在售的功能键 | 2026-08-28 | **closed 2026-08-29**（已还 7，删除 3） |
 | TD-017 | 四层密钥防护里有两层从未上电，而 CLAUDE.md 把其中一层当既成事实写下 | 2026-08-29 | open（层 3 已关闭；sca-watch 已证自主运行；**仅余层 1 已启用未证明**） |
 | TD-018 | L1 规范 X-3 要求的审计记录表本仓从未建过——之前误判为与 C3 用量信封的权威冲突 | 2026-09-01 | **closed 2026-09-01**（`local_audit.event` + 两个面接线：管理面五个动词、消费面流式与非流式两条路径） |
+| TD-019 | 八个 `prisma-store.ts` 从未跑过真实数据库，两个都是真 bug | 2026-09-02 | **closed 2026-09-02**（94 个 `*.db.test.ts`，PR #149） |
+| TD-020 | 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半 | 2026-09-02 | **closed 2026-09-02**（`merge-lcov.mjs` 合并两半，PR #151） |
+| TD-021 | Dependabot 在修复落地之后仍然新建告警，且从不自行复评——四条高危全是陈旧信号 | 2026-09-03 | open（本轮四条已以 `inaccurate` 关闭；复发机制未消除） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1496,3 +1499,66 @@ TD-020 的纯文档 PR，两次之间唯一影响覆盖率输入的就是本次�
 「currently have no tests at all」，这在 #148 / #149 之后不再成立。把适配器留在
 覆盖率比例内正是让这个缺口一直可见、并最终被补上的原因，所以剩下的 copilot 与
 strategy 依然留在比例内。
+
+### TD-021 - Dependabot 在修复落地之后仍然新建告警，且从不自行复评
+
+2026-09-03，默认分支上挂着四条 Dependabot 告警（三高一中）。四条**没有一条**指向
+本仓实际装着的版本：
+
+| 告警 | 通告区间 | lockfile 实际解析 | 落入区间 |
+|------|----------|-------------------|----------|
+| fast-uri SSRF（GHSA-fph4-wmhf-6fwf） | `>=3.1.2, <3.1.6` | 3.1.7 | 否 |
+| fast-uri host confusion（GHSA-5jgf-p345-68v8） | `>=3.1.3, <3.1.6` | 3.1.7 | 否 |
+| mysql2 凭据泄露（GHSA-3f6p-5ww8-9rcr） | `<3.22.0` | 3.24.2 | 否 |
+| mysql2 解压炸弹（GHSA-rgwj-5xj2-c3m3） | `<=3.23.0` | 3.24.2 | 否 |
+
+**时间线是关键，四条里有三条是在修复之后才建立的。** mysql2 的 override 在
+`91b2f89`（#118，09-01 02:12 UTC）落地，两条 mysql2 告警分别建于 09-02 01:59 与
+09-03 07:37；fast-uri 的 override 在 `4fde913`（#161，09-03 04:33 UTC）提到
+`>=3.1.6 <4`，其中一条 fast-uri 告警建于 07:12。只有 03:53 那条 fast-uri 在建立时
+是有效的，40 分钟后被修掉，此后再没有被重新评估。
+
+**独立复核。** `audit` job（osv-scanner v2.4.0，硬门禁）在 main `46641a7` 上绿灯，
+跑于 09-03 11:10 UTC，**晚于全部四条告警**。`.osv-scanner.toml` 的忽略基线是空的，
+四条 GHSA 一条都不在里面——所以这个绿灯是真干净，不是被压下去的。两个扫描器读同
+一个 `pnpm-lock.yaml`，给出相反答案，后跑的那个说没有问题。
+
+**mysql2 这两条另外还够不着。** 本仓是纯 Postgres：`provider = "postgresql"`、运行
+时走 `PrismaPg` adapter、源码里 `mysql` 零匹配。`mysql2` 是 `prisma` CLI 的传递依赖
+（Prisma CLI 打包了它支持的所有引擎驱动），而 `prisma` 在 **devDependencies**，不进
+生产镜像。两条通告都需要真的向 MySQL 服务器发起连接才可能触发。顺带一提，告警把
+它标成 `scope: runtime`，这是错的。
+
+**这是第二次，不是第一次。** 告警 #1（deepmerge-ts，建于 2026-08-17）在 08-29 被以
+`inaccurate` 关闭，理由逐条同构：override 解析到已修版本、零个旧版条目、osv 绿灯、
+「告警建立后从未在修复落地后重新评估」。本轮四条已按同一先例关闭。
+
+**根因未查实，这是这条 TD 存在的理由。** 一个看起来能精确解释四条的猜想是：
+`package.json` 的 override 键名形如 `"fast-uri@<3.1.6"`，若 GitHub 的依赖图解析器把
+键当成「包@版本」来读，就会认为我们装着 `fast-uri` 版本 `<3.1.6`、`mysql2` 版本
+`<3.23.1`，正好落进那四条区间，一条不多一条不少。**但这个猜想无法从现有数据证实**：
+Dependabot 的告警 API 不返回它认为我们装的是哪一版（`dependency` 块只有
+`manifest_path` / `package` / `scope` / `relationship`）。曾试图用「出过告警的包都在
+overrides 名单里」来佐证，那是被混淆的——**一个包有 override 正是因为它当初出过
+漏洞**，因果方向相反，该推理已作废。写在这里是为了记下它已被排除，避免下次有人重
+走一遍。
+
+**风险。** 危害不是这四条本身，而是信号可信度。CLAUDE.md 的 SCA 一节把 Dependabot
+列为三个机制之一，负责回答「有没有更新的版本」。当它稳定地产出与 lockfile 不符的
+高危告警，两个方向都会坏：真告警会被当成又一次噪声略过，而每一轮陈旧告警都要人手
+工重查一遍 lockfile、时间线和 osv 结果才能定性——这次就花了这么多。TD-012 记的是
+「只剩一个机制在跑」的代价；这条记的是「机制在跑但读数不可信」的代价。
+
+**偿还条件（按优先级）：**
+
+1. 确认 GitHub 侧是否把 pnpm `overrides` 键计入依赖图。可行的判据是构造一个最小复
+   现仓：只放一个 override 键指向某个有已知通告的区间，而解析版本在区间之外，看是
+   否产生告警。这能一次性证实或推翻上面那个猜想。
+2. 若证实，向 GitHub 报告，并在 CLAUDE.md 的 SCA 一节写明「本仓的 Dependabot 告警
+   在使用 overrides 的包上不可直接采信，须先比对 lockfile 解析版本」。
+3. 若推翻，改查依赖图快照的刷新时机——为何在 lockfile 已更新数小时后仍按旧版匹配。
+
+在 1 完成之前，处理办法维持现状：逐条比对 lockfile 实际解析版本 + `audit` 结果，确
+认不落入区间后以 `inaccurate` 关闭并在注释里留下证据。**不要用 `dismissed_reason`
+的其他取值**——`inaccurate` 才准确描述「告警说的事实不成立」，而 `no_bandwidth` 或
+`tolerable_risk` 会把一条假告警记成一笔接受了的真风险。
