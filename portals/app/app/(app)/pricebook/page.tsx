@@ -1,3 +1,5 @@
+import { ViewHeader } from "@vxture/design-ui";
+import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
 import { PriceSection } from "../components/catalog-panels";
@@ -16,15 +18,24 @@ import { savePrice } from "../catalog/actions";
 export const dynamic = "force-dynamic";
 
 export default async function PricebookPage() {
+  const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
       render={({ products, prices, authz, entitlement }) => (
-        <PriceSection
-          products={products}
-          prices={prices}
-          canPrice={can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed}
-          onSavePrice={savePrice}
-        />
+        <>
+          <ViewHeader
+            title={CATALOG_TEXT.pricebook}
+            description={CATALOG_TEXT.pricebookWhy}
+          />
+          <PriceSection
+            products={products}
+            prices={prices}
+            canPrice={
+              can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed
+            }
+            onSavePrice={savePrice}
+          />
+        </>
       )}
     />
   );

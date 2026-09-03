@@ -38,12 +38,16 @@ export interface RoutingTableProps {
 }
 
 export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
-  const { DATA_TABLE_LABELS, ROUTING_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
+  const { DATA_TABLE_LABELS, ROUTING_TEXT, SIGNAL_ACTION_ERROR } =
+    useMessages();
 
   return (
-    <Section id="routing" icon="user-switch" title={ROUTING_TEXT.title} description={ROUTING_TEXT.why}>
+    <Section id="routing" icon="user-switch">
       {rows.length === 0 ? (
-        <EmptyState title={ROUTING_TEXT.none} description={ROUTING_TEXT.noneWhy} />
+        <EmptyState
+          title={ROUTING_TEXT.none}
+          description={ROUTING_TEXT.noneWhy}
+        />
       ) : (
         <>
           <DataTable
@@ -57,7 +61,9 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 cell: (r: RoutingRow) => (
                   <div className="flex flex-col gap-3xs">
                     <span className="text-foreground">{r.companyName}</span>
-                    <span className="text-muted-foreground text-xs tabular-nums">{r.leadNo}</span>
+                    <span className="text-muted-foreground text-xs tabular-nums">
+                      {r.leadNo}
+                    </span>
                   </div>
                 ),
               },
@@ -66,9 +72,13 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 header: ROUTING_TEXT.colCurrent,
                 cell: (r: RoutingRow) =>
                   r.currentOwner ? (
-                    <span className="text-muted-foreground font-mono text-xs">{r.currentOwner}</span>
+                    <span className="text-muted-foreground font-mono text-xs">
+                      {r.currentOwner}
+                    </span>
                   ) : (
-                    <span className="text-muted-foreground text-xs">{ROUTING_TEXT.unowned}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {ROUTING_TEXT.unowned}
+                    </span>
                   ),
               },
               {
@@ -77,14 +87,19 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 cell: (r: RoutingRow) =>
                   r.unroutableReason ? (
                     <StatusBadge tone="warning">
-                      {ROUTING_TEXT.unroutable[r.unroutableReason] ?? r.unroutableReason}
+                      {ROUTING_TEXT.unroutable[r.unroutableReason] ??
+                        r.unroutableReason}
                     </StatusBadge>
                   ) : r.suggestedOwner === r.currentOwner ? (
                     // Already where the rule would put it. Saying so beats an
                     // apply button that changes nothing.
-                    <span className="text-muted-foreground text-xs">{ROUTING_TEXT.alreadyThere}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {ROUTING_TEXT.alreadyThere}
+                    </span>
                   ) : (
-                    <span className="text-foreground font-mono text-xs">{r.suggestedOwner}</span>
+                    <span className="text-foreground font-mono text-xs">
+                      {r.suggestedOwner}
+                    </span>
                   ),
               },
               {
@@ -95,7 +110,9 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 // and a page that cannot answer it gets overridden by hand
                 // until nobody trusts it.
                 cell: (r: RoutingRow) => (
-                  <span className="text-muted-foreground text-xs">{r.basis}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {r.basis}
+                  </span>
                 ),
               },
               {
@@ -103,7 +120,9 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 header: ROUTING_TEXT.colApply,
                 align: "center" as const,
                 cell: (r: RoutingRow) =>
-                  !canAssign || r.unroutableReason || r.suggestedOwner === r.currentOwner ? (
+                  !canAssign ||
+                  r.unroutableReason ||
+                  r.suggestedOwner === r.currentOwner ? (
                     <span className="text-muted-foreground">-</span>
                   ) : (
                     // Per-row state. Sharing one hook across the table put the
@@ -114,7 +133,10 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                       label={ROUTING_TEXT.apply}
                       savedLabel={ROUTING_TEXT.applied}
                       onSave={() =>
-                        onAssign({ leadId: r.leadId, ownerSub: r.suggestedOwner! })
+                        onAssign({
+                          leadId: r.leadId,
+                          ownerSub: r.suggestedOwner!,
+                        })
                       }
                     />
                   ),
@@ -122,7 +144,9 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
             ]}
           />
           {!canAssign ? (
-            <p className="text-muted-foreground mt-sm text-xs">{ROUTING_TEXT.denied}</p>
+            <p className="text-muted-foreground mt-sm text-xs">
+              {ROUTING_TEXT.denied}
+            </p>
           ) : null}
         </>
       )}

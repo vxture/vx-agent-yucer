@@ -78,39 +78,65 @@ export function ProductSection({
 }: Pick<CatalogPanelsProps, "products" | "canWrite" | "onSaveProduct">) {
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
   return (
-      <Section id="products" icon="stack" title={CATALOG_TEXT.products} description={CATALOG_TEXT.productsWhy}>
-        {products.length === 0 ? (
-          <EmptyState title={CATALOG_TEXT.products} description={CATALOG_TEXT.productsWhy} />
-        ) : (
-          <DataTable
-            labels={DATA_TABLE_LABELS}
-            leadingSpacer
-            indexStart={1}
-            rowKey={(r: ProductRecord) => r.id}
-            rows={[...products]}
-            columns={[
-              { id: "productCode", header: CATALOG_TEXT.colCode, cell: (r: ProductRecord) => <span className="mono">{r.productCode}</span> },
-              { id: "name", header: CATALOG_TEXT.colName, cell: (r: ProductRecord) => r.name },
-              {
-                id: "category",
-                header: CATALOG_TEXT.colCategory,
-                cell: (r: ProductRecord) => r.category ?? CATALOG_TEXT.noCategory,
-              },
-              { id: "unit", header: CATALOG_TEXT.colUnit, cell: (r: ProductRecord) => r.unit },
-              {
-                id: "status",
-                header: CATALOG_TEXT.colStatus,
-                cell: (r: ProductRecord) => (
-                  <StatusBadge tone={r.status === "active" ? "success" : "neutral"}>
-                    {r.status === "active" ? CATALOG_TEXT.statusActive : CATALOG_TEXT.statusRetired}
-                  </StatusBadge>
-                ),
-              },
-            ]}
-          />
-        )}
-        {canWrite ? <ProductForm onSave={onSaveProduct} /> : null}
-      </Section>
+    <Section
+      id="products"
+      icon="stack"
+      title={CATALOG_TEXT.products}
+      description={CATALOG_TEXT.productsWhy}
+    >
+      {products.length === 0 ? (
+        <EmptyState
+          title={CATALOG_TEXT.products}
+          description={CATALOG_TEXT.productsWhy}
+        />
+      ) : (
+        <DataTable
+          labels={DATA_TABLE_LABELS}
+          leadingSpacer
+          indexStart={1}
+          rowKey={(r: ProductRecord) => r.id}
+          rows={[...products]}
+          columns={[
+            {
+              id: "productCode",
+              header: CATALOG_TEXT.colCode,
+              cell: (r: ProductRecord) => (
+                <span className="mono">{r.productCode}</span>
+              ),
+            },
+            {
+              id: "name",
+              header: CATALOG_TEXT.colName,
+              cell: (r: ProductRecord) => r.name,
+            },
+            {
+              id: "category",
+              header: CATALOG_TEXT.colCategory,
+              cell: (r: ProductRecord) => r.category ?? CATALOG_TEXT.noCategory,
+            },
+            {
+              id: "unit",
+              header: CATALOG_TEXT.colUnit,
+              cell: (r: ProductRecord) => r.unit,
+            },
+            {
+              id: "status",
+              header: CATALOG_TEXT.colStatus,
+              cell: (r: ProductRecord) => (
+                <StatusBadge
+                  tone={r.status === "active" ? "success" : "neutral"}
+                >
+                  {r.status === "active"
+                    ? CATALOG_TEXT.statusActive
+                    : CATALOG_TEXT.statusRetired}
+                </StatusBadge>
+              ),
+            },
+          ]}
+        />
+      )}
+      {canWrite ? <ProductForm onSave={onSaveProduct} /> : null}
+    </Section>
   );
 }
 
@@ -127,29 +153,51 @@ export function SolutionSection({
   solutions,
   canSolution,
   onSaveSolution,
-}: Pick<CatalogPanelsProps, "products" | "solutions" | "canSolution" | "onSaveSolution">) {
+}: Pick<
+  CatalogPanelsProps,
+  "products" | "solutions" | "canSolution" | "onSaveSolution"
+>) {
   const { CATALOG_TEXT } = useMessages();
   const productName = new Map(products.map((p) => [p.id, p.name]));
   return (
-      <Section id="solutions" icon="puzzle" title={CATALOG_TEXT.solutions} description={CATALOG_TEXT.solutionsWhy}>
-        {solutions.length === 0 ? (
-          <EmptyState title={CATALOG_TEXT.noSolutions} description={CATALOG_TEXT.emptyBundle} />
-        ) : (
-          <div className="flex flex-col gap-sm">
-            {solutions.map(({ solution, items }) => (
-              <div key={solution.id} className="flex flex-wrap items-baseline gap-xs">
-                <span className="text-foreground font-medium">{solution.name}</span>
-                <span className="mono text-muted-foreground text-xs">{solution.solutionCode}</span>
-                <StatusBadge tone="neutral">{CATALOG_TEXT.solutionItems(items.length)}</StatusBadge>
-                <span className="text-muted-foreground text-xs">
-                  {items.map((i) => `${productName.get(i.productId) ?? i.productId} x${i.quantity}`).join(" · ")}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {canSolution ? <SolutionForm products={products} onSave={onSaveSolution} /> : null}
-      </Section>
+    <Section id="solutions" icon="puzzle">
+      {solutions.length === 0 ? (
+        <EmptyState
+          title={CATALOG_TEXT.noSolutions}
+          description={CATALOG_TEXT.emptyBundle}
+        />
+      ) : (
+        <div className="flex flex-col gap-sm">
+          {solutions.map(({ solution, items }) => (
+            <div
+              key={solution.id}
+              className="flex flex-wrap items-baseline gap-xs"
+            >
+              <span className="text-foreground font-medium">
+                {solution.name}
+              </span>
+              <span className="mono text-muted-foreground text-xs">
+                {solution.solutionCode}
+              </span>
+              <StatusBadge tone="neutral">
+                {CATALOG_TEXT.solutionItems(items.length)}
+              </StatusBadge>
+              <span className="text-muted-foreground text-xs">
+                {items
+                  .map(
+                    (i) =>
+                      `${productName.get(i.productId) ?? i.productId} x${i.quantity}`,
+                  )
+                  .join(" · ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {canSolution ? (
+        <SolutionForm products={products} onSave={onSaveSolution} />
+      ) : null}
+    </Section>
   );
 }
 
@@ -158,56 +206,82 @@ export function PriceSection({
   prices,
   canPrice,
   onSavePrice,
-}: Pick<CatalogPanelsProps, "products" | "prices" | "canPrice" | "onSavePrice">) {
+}: Pick<
+  CatalogPanelsProps,
+  "products" | "prices" | "canPrice" | "onSavePrice"
+>) {
   const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
   const productName = new Map(products.map((p) => [p.id, p.name]));
   return (
-      <Section id="pricebook" icon="currency-cny" title={CATALOG_TEXT.pricebook} description={CATALOG_TEXT.pricebookWhy}>
-        {prices.length === 0 ? (
-          <EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.pricebookWhy} />
-        ) : (
-          <DataTable
-            labels={DATA_TABLE_LABELS}
-            leadingSpacer
-            indexStart={1}
-            rowKey={(r: PriceEntryRecord) => r.id}
-            rows={[...prices]}
-            columns={[
-              {
-                id: "product",
-                header: CATALOG_TEXT.colName,
-                cell: (r: PriceEntryRecord) => productName.get(r.productId) ?? r.productId,
-              },
-              { id: "currency", header: CATALOG_TEXT.colCurrency, cell: (r: PriceEntryRecord) => r.currency },
-              { id: "list", header: CATALOG_TEXT.colList, align: "right" as const, cell: (r: PriceEntryRecord) => r.listPrice.toLocaleString() },
-              {
-                id: "floor",
-                header: CATALOG_TEXT.colFloor,
-                align: "right" as const,
-                // The floor reads as the decision it is. Equal to list means
-                // "not discountable", which is worth seeing at a glance rather
-                // than working out by comparing two columns.
-                cell: (r: PriceEntryRecord) => (
-                  <span className={r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : undefined}>
-                    {r.floorPrice.toLocaleString()}
-                  </span>
-                ),
-              },
-              {
-                id: "effective",
-                header: CATALOG_TEXT.colEffective,
-                cell: (r: PriceEntryRecord) => r.effectiveAt.toISOString().slice(0, 10),
-              },
-            ]}
-          />
-        )}
-        {canPrice ? <PriceForm products={products} onSave={onSavePrice} /> : (
-          <p className="text-muted-foreground mt-sm text-xs">{CATALOG_TEXT.priceDenied}</p>
-        )}
-      </Section>
+    <Section id="pricebook" icon="currency-cny">
+      {prices.length === 0 ? (
+        <EmptyState
+          title={CATALOG_TEXT.noPrices}
+          description={CATALOG_TEXT.pricebookWhy}
+        />
+      ) : (
+        <DataTable
+          labels={DATA_TABLE_LABELS}
+          leadingSpacer
+          indexStart={1}
+          rowKey={(r: PriceEntryRecord) => r.id}
+          rows={[...prices]}
+          columns={[
+            {
+              id: "product",
+              header: CATALOG_TEXT.colName,
+              cell: (r: PriceEntryRecord) =>
+                productName.get(r.productId) ?? r.productId,
+            },
+            {
+              id: "currency",
+              header: CATALOG_TEXT.colCurrency,
+              cell: (r: PriceEntryRecord) => r.currency,
+            },
+            {
+              id: "list",
+              header: CATALOG_TEXT.colList,
+              align: "right" as const,
+              cell: (r: PriceEntryRecord) => r.listPrice.toLocaleString(),
+            },
+            {
+              id: "floor",
+              header: CATALOG_TEXT.colFloor,
+              align: "right" as const,
+              // The floor reads as the decision it is. Equal to list means
+              // "not discountable", which is worth seeing at a glance rather
+              // than working out by comparing two columns.
+              cell: (r: PriceEntryRecord) => (
+                <span
+                  className={
+                    r.floorPrice === r.listPrice
+                      ? "text-(color:--warning-text)"
+                      : undefined
+                  }
+                >
+                  {r.floorPrice.toLocaleString()}
+                </span>
+              ),
+            },
+            {
+              id: "effective",
+              header: CATALOG_TEXT.colEffective,
+              cell: (r: PriceEntryRecord) =>
+                r.effectiveAt.toISOString().slice(0, 10),
+            },
+          ]}
+        />
+      )}
+      {canPrice ? (
+        <PriceForm products={products} onSave={onSavePrice} />
+      ) : (
+        <p className="text-muted-foreground mt-sm text-xs">
+          {CATALOG_TEXT.priceDenied}
+        </p>
+      )}
+    </Section>
   );
 }
-
 
 function ProductForm({
   onSave,
@@ -254,7 +328,12 @@ function ProductForm({
               category: category.trim() || null,
               unit,
             }).then((r) => {
-              setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied));
+              setErr(
+                r.ok
+                  ? null
+                  : (CATALOG_ERROR[r.error ?? "denied"] ??
+                      CATALOG_ERROR.denied),
+              );
               setDone(r.ok);
               if (r.ok) {
                 setCode("");
@@ -268,9 +347,13 @@ function ProductForm({
       >
         {CATALOG_TEXT.saveProduct}
       </Button>
-      <span className="text-muted-foreground text-xs">{CATALOG_TEXT.codeHint}</span>
+      <span className="text-muted-foreground text-xs">
+        {CATALOG_TEXT.codeHint}
+      </span>
       {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-      {done && !err ? <StatusBadge tone="success">{CATALOG_TEXT.productSaved}</StatusBadge> : null}
+      {done && !err ? (
+        <StatusBadge tone="success">{CATALOG_TEXT.productSaved}</StatusBadge>
+      ) : null}
     </div>
   );
 }
@@ -290,15 +373,18 @@ function SolutionForm({
   // no products is a name, not a bundle"), so the form starts with one row
   // rather than a bare add-button - the shape of the data teaches the shape of
   // the rule.
-  const [items, setItems] = useState<readonly { productId: string; quantity: string }[]>([
-    { productId: "", quantity: "1" },
-  ]);
+  const [items, setItems] = useState<
+    readonly { productId: string; quantity: string }[]
+  >([{ productId: "", quantity: "1" }]);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, start] = useTransition();
 
   const active = products.filter((pr) => pr.status === "active");
-  function patch(i: number, next: Partial<{ productId: string; quantity: string }>) {
+  function patch(
+    i: number,
+    next: Partial<{ productId: string; quantity: string }>,
+  ) {
     setItems(items.map((it, j) => (j === i ? { ...it, ...next } : it)));
   }
   const parsed = items
@@ -333,7 +419,10 @@ function SolutionForm({
         <div key={i} className="flex flex-wrap items-end gap-md">
           <Field>
             <FieldLabel>{CATALOG_TEXT.solutionProduct}</FieldLabel>
-            <NativeSelect value={it.productId} onChange={(e) => patch(i, { productId: e.target.value })}>
+            <NativeSelect
+              value={it.productId}
+              onChange={(e) => patch(i, { productId: e.target.value })}
+            >
               <option value="">{CATALOG_TEXT.pickProduct}</option>
               {active.map((pr) => (
                 <option key={pr.id} value={pr.id}>
@@ -352,7 +441,10 @@ function SolutionForm({
             />
           </Field>
           {items.length > 1 ? (
-            <Button variant="ghost" onClick={() => setItems(items.filter((_, j) => j !== i))}>
+            <Button
+              variant="ghost"
+              onClick={() => setItems(items.filter((_, j) => j !== i))}
+            >
               {CATALOG_TEXT.removeItem}
             </Button>
           ) : null}
@@ -375,7 +467,12 @@ function SolutionForm({
                 summary: summary.trim() === "" ? null : summary.trim(),
                 items: parsed,
               }).then((r) => {
-                setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied));
+                setErr(
+                  r.ok
+                    ? null
+                    : (CATALOG_ERROR[r.error ?? "denied"] ??
+                        CATALOG_ERROR.denied),
+                );
                 setDone(r.ok);
                 if (r.ok) {
                   setCode("");
@@ -390,7 +487,9 @@ function SolutionForm({
           {CATALOG_TEXT.saveSolution}
         </Button>
         {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-        {done && !err ? <StatusBadge tone="success">{CATALOG_TEXT.solutionSaved}</StatusBadge> : null}
+        {done && !err ? (
+          <StatusBadge tone="success">{CATALOG_TEXT.solutionSaved}</StatusBadge>
+        ) : null}
       </div>
     </div>
   );
@@ -424,7 +523,10 @@ function PriceForm({
     <div className="mt-md flex flex-wrap items-end gap-md">
       <Field>
         <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
-        <NativeSelect value={productId} onChange={(e) => setProductId(e.target.value)}>
+        <NativeSelect
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+        >
           {products.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -434,18 +536,38 @@ function PriceForm({
       </Field>
       <Field>
         <FieldLabel>{CATALOG_TEXT.colList}</FieldLabel>
-        <Input type="number" min="0" value={list} onChange={(e) => setList(e.target.value)} />
+        <Input
+          type="number"
+          min="0"
+          value={list}
+          onChange={(e) => setList(e.target.value)}
+        />
       </Field>
       <Field>
         <FieldLabel>{CATALOG_TEXT.colFloor}</FieldLabel>
-        <Input type="number" min="0" value={floor} onChange={(e) => setFloor(e.target.value)} />
+        <Input
+          type="number"
+          min="0"
+          value={floor}
+          onChange={(e) => setFloor(e.target.value)}
+        />
       </Field>
       <Button
         disabled={!ready || pending}
         onClick={() =>
           start(() => {
-            void onSave({ productId, currency: "CNY", listPrice: l, floorPrice: f }).then((r) => {
-              setErr(r.ok ? null : (CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied));
+            void onSave({
+              productId,
+              currency: "CNY",
+              listPrice: l,
+              floorPrice: f,
+            }).then((r) => {
+              setErr(
+                r.ok
+                  ? null
+                  : (CATALOG_ERROR[r.error ?? "denied"] ??
+                      CATALOG_ERROR.denied),
+              );
               setDone(r.ok);
               if (r.ok) {
                 setList("");
@@ -464,7 +586,9 @@ function PriceForm({
         <StatusBadge tone="warning">{CATALOG_TEXT.floorEqualsList}</StatusBadge>
       ) : null}
       {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-      {done && !err ? <StatusBadge tone="success">{CATALOG_TEXT.priceSaved}</StatusBadge> : null}
+      {done && !err ? (
+        <StatusBadge tone="success">{CATALOG_TEXT.priceSaved}</StatusBadge>
+      ) : null}
     </div>
   );
 }

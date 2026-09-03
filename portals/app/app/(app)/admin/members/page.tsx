@@ -1,4 +1,4 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
@@ -30,7 +30,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -71,13 +71,21 @@ export default async function MembersPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={MEMBER_TEXT.title}
+        description={MEMBER_TEXT.description}
+      />
       <MemberRoles
         members={result.value}
         onDeactivate={setMemberInactive}
         onReactivate={setMemberActive}
         onHandover={handOverBook}
         onScope={changeMemberScope}
-        territories={territories.ok ? territories.value.map((t) => ({ id: t.id, name: t.name })) : []}
+        territories={
+          territories.ok
+            ? territories.value.map((t) => ({ id: t.id, name: t.name }))
+            : []
+        }
         inviteUrl={consoleMembersUrl()}
         // Viewing and changing are separate actions on purpose: the list is
         // useful to anyone who can see it, and only an administrator gets the

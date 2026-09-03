@@ -1,9 +1,19 @@
 "use client";
 
 import { useTransition } from "react";
-import { ActionMenu, DataTable, EmptyState, Section, StatusBadge, useToast } from "@vxture/design-ui";
+import {
+  ActionMenu,
+  DataTable,
+  EmptyState,
+  Section,
+  StatusBadge,
+  useToast,
+} from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { allowedRevenueMoves, type RevenueStatus } from "../../domains/delivery/lib/revenue";
+import {
+  allowedRevenueMoves,
+  type RevenueStatus,
+} from "../../domains/delivery/lib/revenue";
 
 // The collections schedule, and the control that moves it.
 //
@@ -47,14 +57,30 @@ export interface CollectionsPanelProps {
   }) => Promise<{ ok: boolean; status?: string; error?: string }>;
 }
 
-export function CollectionsPanel({ rows, overdue, canWrite, onMove }: CollectionsPanelProps) {
-  const { DELIVERY_TEXT, DATA_TABLE_LABELS, DS_LABELS, REVENUE_ERROR, REVENUE_STATUS_LABEL } =
-    useMessages();
+export function CollectionsPanel({
+  rows,
+  overdue,
+  canWrite,
+  onMove,
+}: CollectionsPanelProps) {
+  const {
+    DELIVERY_TEXT,
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+    REVENUE_ERROR,
+    REVENUE_STATUS_LABEL,
+  } = useMessages();
   const { toast } = useToast();
   const [, start] = useTransition();
 
   const tone = (s: RevenueStatus) =>
-    s === "settled" ? "success" : s === "overdue" ? "danger" : s === "written_off" ? "neutral" : "info";
+    s === "settled"
+      ? "success"
+      : s === "overdue"
+        ? "danger"
+        : s === "written_off"
+          ? "neutral"
+          : "info";
 
   function actions(row: CollectionRow) {
     if (!canWrite) return null;
@@ -100,7 +126,11 @@ export function CollectionsPanel({ rows, overdue, canWrite, onMove }: Collection
                 toast({
                   tone: "success",
                   title: DELIVERY_TEXT.moved(
-                    (REVENUE_STATUS_LABEL as Record<string, string>)[r.status ?? ""] ?? r.status ?? "",
+                    (REVENUE_STATUS_LABEL as Record<string, string>)[
+                      r.status ?? ""
+                    ] ??
+                      r.status ??
+                      "",
                   ),
                 });
               });
@@ -114,16 +144,19 @@ export function CollectionsPanel({ rows, overdue, canWrite, onMove }: Collection
     <Section
       id="collections"
       icon="wallet"
-      title={DELIVERY_TEXT.collections}
-      description={DELIVERY_TEXT.collectionsWhy}
       action={
         overdue > 0 ? (
-          <StatusBadge tone="danger">{DELIVERY_TEXT.overdueCount(overdue)}</StatusBadge>
+          <StatusBadge tone="danger">
+            {DELIVERY_TEXT.overdueCount(overdue)}
+          </StatusBadge>
         ) : undefined
       }
     >
       {rows.length === 0 ? (
-        <EmptyState title={DELIVERY_TEXT.noInstalments} description={DELIVERY_TEXT.collectionsWhy} />
+        <EmptyState
+          title={DELIVERY_TEXT.noInstalments}
+          description={DELIVERY_TEXT.collectionsWhy}
+        />
       ) : (
         <DataTable
           labels={DATA_TABLE_LABELS}
@@ -133,8 +166,17 @@ export function CollectionsPanel({ rows, overdue, canWrite, onMove }: Collection
           rows={[...rows]}
           rowActions={canWrite ? actions : undefined}
           columns={[
-            { id: "project", header: DELIVERY_TEXT.colProject, cell: (r: CollectionRow) => r.projectName },
-            { id: "seq", header: DELIVERY_TEXT.colSeq, align: "right" as const, cell: (r: CollectionRow) => r.sequence },
+            {
+              id: "project",
+              header: DELIVERY_TEXT.colProject,
+              cell: (r: CollectionRow) => r.projectName,
+            },
+            {
+              id: "seq",
+              header: DELIVERY_TEXT.colSeq,
+              align: "right" as const,
+              cell: (r: CollectionRow) => r.sequence,
+            },
             {
               id: "planned",
               header: DELIVERY_TEXT.colPlanned,
@@ -153,7 +195,9 @@ export function CollectionsPanel({ rows, overdue, canWrite, onMove }: Collection
                 ) : (
                   <span
                     className={
-                      r.actualAmount < r.plannedAmount ? "text-(color:--warning-text)" : undefined
+                      r.actualAmount < r.plannedAmount
+                        ? "text-(color:--warning-text)"
+                        : undefined
                     }
                   >
                     {r.actualAmount.toLocaleString()}

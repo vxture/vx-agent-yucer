@@ -1,8 +1,11 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { getAccountStore, getStrategyStore } from "../../domains/shared/registry";
+import {
+  getAccountStore,
+  getStrategyStore,
+} from "../../domains/shared/registry";
 import { listPlans, listSegments } from "../../domains/strategy/service";
 import { listAccounts } from "../../domains/account/service";
 import { accountMatchesCriteria } from "../../domains/strategy/lib/lifecycle";
@@ -24,7 +27,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function SegmentPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { LOAD_ERROR, SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -61,10 +64,13 @@ export default async function SegmentPage() {
   const perCode = new Map<string, number>();
   if (accounts.ok) {
     for (const a of accounts.value) {
-      if (a.segmentCode) perCode.set(a.segmentCode, (perCode.get(a.segmentCode) ?? 0) + 1);
+      if (a.segmentCode)
+        perCode.set(a.segmentCode, (perCode.get(a.segmentCode) ?? 0) + 1);
     }
   }
-  const planNames = new Map((plans.ok ? plans.value : []).map((p) => [p.id, p.name]));
+  const planNames = new Map(
+    (plans.ok ? plans.value : []).map((p) => [p.id, p.name]),
+  );
   const rows: SegmentRow[] = segments.value.map((g) => ({
     id: g.id,
     segmentCode: g.segmentCode,
@@ -76,7 +82,8 @@ export default async function SegmentPage() {
     criteria: g.criteria,
     accountCount: perCode.get(g.segmentCode) ?? 0,
     matchedCount: accounts.ok
-      ? accounts.value.filter((a) => accountMatchesCriteria(a, g.criteria)).length
+      ? accounts.value.filter((a) => accountMatchesCriteria(a, g.criteria))
+          .length
       : 0,
   }));
   // Closed and archived plans are absent: their segmentation is settled, and
@@ -87,10 +94,21 @@ export default async function SegmentPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={STRATEGY_TEXT.segmentsTitle}
+        description={STRATEGY_TEXT.segmentsWhy}
+      />
       <SegmentPanel
         rows={rows}
         plans={openPlans}
-        canEdit={can(session.authz, session.entitlement, "strategy.segment.upsert", "ui").allowed}
+        canEdit={
+          can(
+            session.authz,
+            session.entitlement,
+            "strategy.segment.upsert",
+            "ui",
+          ).allowed
+        }
         onSave={saveSegment}
       />
     </ViewLayout>

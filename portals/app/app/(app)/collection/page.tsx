@@ -1,10 +1,13 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getDeliveryStore } from "../../domains/shared/registry";
 import { listProjects, projectView } from "../../domains/delivery/service";
-import { CollectionsPanel, type CollectionRow } from "../components/collections-panel";
+import {
+  CollectionsPanel,
+  type CollectionRow,
+} from "../components/collections-panel";
 import { moveInstalment } from "../delivery/actions";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -21,7 +24,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function CollectionPage() {
-  const { SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { DELIVERY_TEXT, LOAD_ERROR, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -71,11 +74,20 @@ export default async function CollectionPage() {
 
   return (
     <ViewLayout>
+      <ViewHeader
+        title={DELIVERY_TEXT.collections}
+        description={DELIVERY_TEXT.collectionsWhy}
+      />
       <CollectionsPanel
         rows={rows}
         overdue={rows.filter((c) => c.status === "overdue").length}
         canWrite={
-          can(session.authz, session.entitlement, "delivery.revenue.upsert", "ui").allowed
+          can(
+            session.authz,
+            session.entitlement,
+            "delivery.revenue.upsert",
+            "ui",
+          ).allowed
         }
         onMove={moveInstalment}
       />
