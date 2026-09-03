@@ -68,7 +68,7 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
                 cell: (r: RenewalRow) => (
                   <div className="flex flex-col gap-3xs">
                     <span className="text-foreground">{r.projectName}</span>
-                    <span className="text-muted-foreground text-xs tabular-nums">
+                    <span className="text-muted-foreground text-body-sm tabular-nums">
                       {r.projectNo}
                     </span>
                   </div>
@@ -79,7 +79,7 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
                 header: RENEWAL_TEXT.colEnds,
                 cell: (r: RenewalRow) =>
                   r.daysToEnd === null ? (
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {RENEWAL_TEXT.noEndDate}
                     </span>
                   ) : r.daysToEnd < 0 ? (
@@ -90,7 +90,7 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
                       {RENEWAL_TEXT.lapsed(-r.daysToEnd)}
                     </StatusBadge>
                   ) : (
-                    <span className="text-foreground text-xs tabular-nums">
+                    <span className="text-foreground text-body-sm tabular-nums">
                       {RENEWAL_TEXT.dueIn(r.daysToEnd)}
                     </span>
                   ),
@@ -104,7 +104,7 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
                 // invented uplift puts a number nobody chose in front of a
                 // customer.
                 cell: (r: RenewalRow) => (
-                  <span className="text-foreground text-xs tabular-nums">
+                  <span className="text-foreground text-body-sm tabular-nums">
                     {formatMoney(r.amount, r.currency)}
                   </span>
                 ),
@@ -114,7 +114,7 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
                 header: RENEWAL_TEXT.colVerdict,
                 cell: (r: RenewalRow) =>
                   r.notDueReason ? (
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {RENEWAL_TEXT.notDue[r.notDueReason] ?? r.notDueReason}
                     </span>
                   ) : (
@@ -147,7 +147,7 @@ export function RenewalTable({ rows, canOpen, onOpen }: RenewalTableProps) {
             ]}
           />
           {!canOpen ? (
-            <p className="text-muted-foreground mt-sm text-xs">
+            <p className="text-muted-foreground mt-sm text-body-sm">
               {RENEWAL_TEXT.denied}
             </p>
           ) : null}

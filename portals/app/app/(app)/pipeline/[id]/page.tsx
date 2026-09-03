@@ -376,7 +376,7 @@ export default async function OpportunityDetailPage({
             <StatusBadge tone="neutral">
               {POSITION_TEXT.planOf(plan.period)}
             </StatusBadge>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-muted-foreground text-body-sm">
               {POSITION_TEXT.triangleOf(
                 plan.ownerSub ?? POSITION_TEXT.roleUnset,
                 plan.presalesSub ?? POSITION_TEXT.roleUnset,

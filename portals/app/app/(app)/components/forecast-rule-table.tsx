@@ -75,7 +75,7 @@ export function ForecastRuleTable({
                 cell: (r: ForecastRuleRow) => (
                   <div className="flex flex-col gap-3xs">
                     <span className="text-foreground">{r.dealName}</span>
-                    <span className="text-muted-foreground text-xs tabular-nums">
+                    <span className="text-muted-foreground text-body-sm tabular-nums">
                       {r.opportunityNo}
                     </span>
                   </div>
@@ -97,7 +97,7 @@ export function ForecastRuleTable({
                   r.suggested === null || r.agrees ? (
                     // Saying "agrees" beats repeating the badge already one
                     // column to the left.
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {FORECAST_RULE_TEXT.agrees}
                     </span>
                   ) : (
@@ -111,13 +111,13 @@ export function ForecastRuleTable({
                 header: FORECAST_RULE_TEXT.colBasis,
                 cell: (r: ForecastRuleRow) => (
                   <div className="flex flex-col gap-3xs">
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {r.probabilityIsHuman
                         ? FORECAST_RULE_TEXT.basisHuman(r.probability)
                         : FORECAST_RULE_TEXT.basisDefault(r.probability)}
                     </span>
                     {r.caps.map((c) => (
-                      <span key={c} className="text-muted-foreground text-xs">
+                      <span key={c} className="text-muted-foreground text-body-sm">
                         {FORECAST_RULE_TEXT.cap[c] ?? c}
                       </span>
                     ))}
@@ -133,11 +133,11 @@ export function ForecastRuleTable({
                     // UNKNOWN, not zero. A deal older than the journal has no
                     // history, and printing "0 days" would read as "it just
                     // moved" about something nobody knows.
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {FORECAST_RULE_TEXT.neverMoved}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground text-xs tabular-nums">
+                    <span className="text-muted-foreground text-body-sm tabular-nums">
                       {FORECAST_RULE_TEXT.stalledFor(r.daysAtStage)}
                     </span>
                   ),
@@ -161,7 +161,7 @@ export function ForecastRuleTable({
             ]}
           />
           {!canApply ? (
-            <p className="text-muted-foreground mt-sm text-xs">
+            <p className="text-muted-foreground mt-sm text-body-sm">
               {FORECAST_RULE_TEXT.denied}
             </p>
           ) : null}

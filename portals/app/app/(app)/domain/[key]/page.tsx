@@ -117,7 +117,7 @@ export default async function DomainHomePage({
                 href={f.href}
                 className="hover:border-primary flex flex-col gap-2xs rounded-md border p-md"
               >
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-body-sm">
                   {DOMAIN_FACT_LABEL[f.key] ?? f.key}
                 </span>
                 <span className="flex items-baseline gap-xs">
@@ -152,7 +152,7 @@ export default async function DomainHomePage({
                 className="text-muted-foreground flex flex-col gap-2xs rounded-md border border-dashed p-md"
               >
                 <span>{moduleLabel(m)}</span>
-                <span className="text-xs">{LAUNCHER_TEXT.planned}</span>
+                <span className="text-body-sm">{LAUNCHER_TEXT.planned}</span>
               </div>
             ) : (
               <Link
@@ -161,7 +161,7 @@ export default async function DomainHomePage({
                 className="hover:border-primary flex flex-col gap-2xs rounded-md border p-md"
               >
                 <span className="text-foreground">{moduleLabel(m)}</span>
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-body-sm">
                   {m.kind === "section"
                     ? LAUNCHER_TEXT.section
                     : m.state === "locked"

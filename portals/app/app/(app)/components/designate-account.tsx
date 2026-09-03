@@ -162,7 +162,7 @@ export function DesignateAccount({
             first is the difference between a product that explains itself and
             one that argues. */}
         {strategic ? (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-body-sm">
             {POSITION_TEXT.planRequired}
           </span>
         ) : null}

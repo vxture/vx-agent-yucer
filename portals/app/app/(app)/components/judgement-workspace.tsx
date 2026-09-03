@@ -319,7 +319,7 @@ function Engagement({
               >
                 {f.value}
               </b>
-              <span className="text-muted-foreground text-xs">{f.label}</span>
+              <span className="text-muted-foreground text-body-sm">{f.label}</span>
             </span>
           ))}
 
@@ -390,7 +390,7 @@ function Engagement({
                         dressed as a person is how a UUID ends up in front of
                         someone who then does not chase it. */}
                       {c.daysAgo !== undefined ? (
-                        <cite className="text-muted-foreground flex flex-wrap items-center gap-xs text-xs not-italic tabular-nums">
+                        <cite className="text-muted-foreground flex flex-wrap items-center gap-xs text-body-sm not-italic tabular-nums">
                           <span>
                             {HOME_TEXT.citedBy(
                               c.daysAgo,
@@ -429,7 +429,7 @@ function Engagement({
                       >
                         <span
                           className={[
-                            "text-xs tabular-nums",
+                            "text-body-sm tabular-nums",
                             last
                               ? "text-foreground font-semibold"
                               : "text-muted-foreground",
@@ -444,7 +444,7 @@ function Engagement({
                           ].join(" ")}
                           style={{ height: `${Math.max(4, pt.percent)}px` }}
                         />
-                        <span className="text-muted-foreground text-xs tabular-nums">
+                        <span className="text-muted-foreground text-body-sm tabular-nums">
                           {pt.label}
                         </span>
                       </div>
@@ -460,7 +460,7 @@ function Engagement({
                 {/* Shown so a reader can disagree with the arithmetic rather than
                   with the conclusion. A rule that hides its condition is an
                   opinion wearing a formula's clothes. */}
-                <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-xs">
+                <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-body-sm">
                   {j.rule}
                 </code>
               </section>

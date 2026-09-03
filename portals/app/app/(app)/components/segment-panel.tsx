@@ -212,7 +212,7 @@ export function SegmentPanel({
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">
+        <p className="text-muted-foreground mt-sm text-body-sm">
           {STRATEGY_TEXT.segmentsDenied}
         </p>
       ) : (

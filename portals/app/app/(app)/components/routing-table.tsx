@@ -61,7 +61,7 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 cell: (r: RoutingRow) => (
                   <div className="flex flex-col gap-3xs">
                     <span className="text-foreground">{r.companyName}</span>
-                    <span className="text-muted-foreground text-xs tabular-nums">
+                    <span className="text-muted-foreground text-body-sm tabular-nums">
                       {r.leadNo}
                     </span>
                   </div>
@@ -72,11 +72,11 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 header: ROUTING_TEXT.colCurrent,
                 cell: (r: RoutingRow) =>
                   r.currentOwner ? (
-                    <span className="text-muted-foreground font-mono text-xs">
+                    <span className="text-muted-foreground font-mono text-body-sm">
                       {r.currentOwner}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {ROUTING_TEXT.unowned}
                     </span>
                   ),
@@ -93,11 +93,11 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                   ) : r.suggestedOwner === r.currentOwner ? (
                     // Already where the rule would put it. Saying so beats an
                     // apply button that changes nothing.
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-body-sm">
                       {ROUTING_TEXT.alreadyThere}
                     </span>
                   ) : (
-                    <span className="text-foreground font-mono text-xs">
+                    <span className="text-foreground font-mono text-body-sm">
                       {r.suggestedOwner}
                     </span>
                   ),
@@ -110,7 +110,7 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
                 // and a page that cannot answer it gets overridden by hand
                 // until nobody trusts it.
                 cell: (r: RoutingRow) => (
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground text-body-sm">
                     {r.basis}
                   </span>
                 ),
@@ -144,7 +144,7 @@ export function RoutingTable({ rows, canAssign, onAssign }: RoutingTableProps) {
             ]}
           />
           {!canAssign ? (
-            <p className="text-muted-foreground mt-sm text-xs">
+            <p className="text-muted-foreground mt-sm text-body-sm">
               {ROUTING_TEXT.denied}
             </p>
           ) : null}

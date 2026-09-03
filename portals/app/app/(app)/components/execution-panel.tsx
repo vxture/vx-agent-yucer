@@ -131,7 +131,7 @@ export function ExecutionPanel({ rows, campaigns, canEdit, onSave }: ExecutionPa
       )}
 
       {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-xs">{CAMPAIGN_TEXT.executionsDenied}</p>
+        <p className="text-muted-foreground mt-sm text-body-sm">{CAMPAIGN_TEXT.executionsDenied}</p>
       ) : (
         <div className="mt-md flex flex-wrap items-end gap-sm">
           <Field>
@@ -228,7 +228,7 @@ export function ExecutionPanel({ rows, campaigns, canEdit, onSave }: ExecutionPa
           />
         </div>
       )}
-      <p className="text-muted-foreground mt-sm text-xs">{CAMPAIGN_TEXT.executionBlocks}</p>
+      <p className="text-muted-foreground mt-sm text-body-sm">{CAMPAIGN_TEXT.executionBlocks}</p>
     </Section>
   );
 }

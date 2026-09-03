@@ -85,7 +85,7 @@ export function TheatrePlan({
                 {/* The reasoning is always on the row, never behind a click: a
                     decision made without reading it is not human-in-the-loop. */}
                 {p.rationale ? (
-                  <p className="text-muted-foreground text-xs">{p.rationale}</p>
+                  <p className="text-muted-foreground text-body-sm">{p.rationale}</p>
                 ) : null}
               </div>
             ))}

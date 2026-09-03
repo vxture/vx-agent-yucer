@@ -81,11 +81,11 @@ export function StrategyTable({
       // A raw subject, marked as one - the same call as every other list here.
       cell: (row) =>
         row.ownerSub ? (
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground font-mono text-body-sm">
             {row.ownerSub}
           </span>
         ) : (
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-body-sm">
             {STRATEGY_TEXT.ownerNone}
           </span>
         ),

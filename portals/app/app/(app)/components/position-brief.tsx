@@ -72,7 +72,7 @@ export async function PositionBrief({
         />
 
         <div className="mt-md">
-          <p className="text-muted-foreground text-xs">{POSITION_TEXT.chain}</p>
+          <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.chain}</p>
           <div className="mt-xs flex flex-wrap gap-lg">
             {chain.map((f) => (
               <div key={f.label}>
@@ -84,14 +84,14 @@ export async function PositionBrief({
                 >
                   {f.value}
                 </div>
-                <div className="text-muted-foreground text-xs">{f.label}</div>
+                <div className="text-muted-foreground text-body-sm">{f.label}</div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="border-border mt-md border-t pt-md">
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-body-sm">
             {POSITION_TEXT.projects}
           </p>
           {projects.length === 0 ? (
@@ -120,7 +120,7 @@ export async function PositionBrief({
         </div>
 
         <div className="border-border mt-md border-t pt-md">
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-body-sm">
             {POSITION_TEXT.competition}
           </p>
           <p className="text-muted-foreground mt-xs text-body-sm">
@@ -135,7 +135,7 @@ export async function PositionBrief({
               key={m.id}
               className="border-warning/50 mt-sm max-w-[62ch] border-l-2 pl-sm"
             >
-              <cite className="text-muted-foreground block text-xs not-italic tabular-nums">
+              <cite className="text-muted-foreground block text-body-sm not-italic tabular-nums">
                 {m.when}
               </cite>
               <p className="text-muted-foreground text-body-sm leading-relaxed">
@@ -154,10 +154,10 @@ export async function PositionBrief({
           description={POSITION_TEXT.internalWhy}
         />
         <div className="mt-md">
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-body-sm">
             {POSITION_TEXT.problems}
           </p>
-          <p className="text-muted-foreground mt-2xs text-xs">
+          <p className="text-muted-foreground mt-2xs text-body-sm">
             {POSITION_TEXT.problemsWhy}
           </p>
           {problems.length === 0 ? (
@@ -177,7 +177,7 @@ export async function PositionBrief({
                   {/* The trigger condition, so a reader can disagree with the
                       arithmetic rather than with the conclusion. */}
                   {p.rule ? (
-                    <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-xs">
+                    <code className="bg-card text-muted-foreground mt-xs block max-w-[62ch] rounded-md px-sm py-xs text-body-sm">
                       {p.rule}
                     </code>
                   ) : null}
@@ -210,13 +210,13 @@ export async function PositionBrief({
                 <div className="min-w-0 flex-1">
                   <p className="text-foreground text-body-sm">{p.title}</p>
                   {p.rationale ? (
-                    <p className="text-muted-foreground mt-2xs max-w-[62ch] text-xs">
+                    <p className="text-muted-foreground mt-2xs max-w-[62ch] text-body-sm">
                       {p.rationale}
                     </p>
                   ) : null}
                 </div>
                 {p.confidence !== null ? (
-                  <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                  <span className="text-muted-foreground shrink-0 text-body-sm tabular-nums">
                     {POSITION_TEXT.confidence(p.confidence)}
                   </span>
                 ) : null}

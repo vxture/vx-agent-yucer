@@ -226,7 +226,7 @@ export async function ForecastTrajectory({
                       );
                     })}
                   </div>
-                  <span className="text-muted-foreground truncate text-xs tabular-nums">
+                  <span className="text-muted-foreground truncate text-body-sm tabular-nums">
                     {p.at}
                   </span>
                 </div>
@@ -244,10 +244,10 @@ export async function ForecastTrajectory({
                     className={`size-2 shrink-0 rounded-sm ${s.cls}`}
                     aria-hidden
                   />
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground text-body-sm">
                     {s.label}
                   </span>
-                  <span className="text-foreground text-xs font-semibold tabular-nums">
+                  <span className="text-foreground text-body-sm font-semibold tabular-nums">
                     {wan(shown[shown.length - 1]![s.key])}
                   </span>
                 </li>

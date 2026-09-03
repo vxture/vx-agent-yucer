@@ -64,7 +64,7 @@ export function QuoteTable({ rows }: QuoteTableProps) {
                   >
                     {r.name}
                   </Link>
-                  <span className="text-muted-foreground text-xs tabular-nums">
+                  <span className="text-muted-foreground text-body-sm tabular-nums">
                     {r.opportunityNo}
                   </span>
                 </div>
