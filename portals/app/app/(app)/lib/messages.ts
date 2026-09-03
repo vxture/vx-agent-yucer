@@ -1952,9 +1952,6 @@ export const COPILOT_TEXT = {
   placeholder: "例如：这个季度哪些商机最该盯？华东零售集团下一步该找谁？",
   submit: "发送",
   thinking: "正在思考",
-  emptyTitle: "还没有对话",
-  emptyDescription:
-    "向助手提问。它会结合你的客户、商机和交付数据回答，并在需要改动时提出建议。",
   proposalsFromTurn: (n: number) => `本轮提出了 ${n} 条建议动作，待你裁决`,
   droppedProposals: (n: number) =>
     `另有 ${n} 条建议未记录：当前档位不含「助手主动建议」能力`,

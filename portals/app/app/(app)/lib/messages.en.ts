@@ -2028,9 +2028,6 @@ export const en: Dictionary = {
       "For example: which deals most need attention this quarter? Who should we approach next at East China Retail?",
     submit: "Send",
     thinking: "Thinking",
-    emptyTitle: "No conversation yet",
-    emptyDescription:
-      "Ask the copilot something. It answers from your accounts, deals and delivery data, and proposes an action when one is needed.",
     proposalsFromTurn: (n: number) =>
       `${n} proposed actions from this turn, awaiting your decision`,
     droppedProposals: (n: number) =>
