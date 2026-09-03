@@ -64,14 +64,18 @@ export const en: Dictionary = {
 
   COMPLETENESS_ERROR: {
     ...GATE_ERROR,
-    not_found: "That customer record does not exist, or is not in this workspace.",
+    not_found:
+      "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field the copilot may fill.",
     value_required: "Filling a field needs a value; a blank is not one.",
     nothing_to_ask: "Nothing on this record is a question for the assistant.",
-    no_active_tenant: "This session carries no tenant, so the model plane cannot be reached.",
-    tenant_required: "This session carries no tenant, so the model plane cannot be reached.",
+    no_active_tenant:
+      "This session carries no tenant, so the model plane cannot be reached.",
+    tenant_required:
+      "This session carries no tenant, so the model plane cannot be reached.",
     empty_question: "There was nothing to ask.",
-    turn_failed: "The assistant could not answer this time. Nothing on this record changed.",
+    turn_failed:
+      "The assistant could not answer this time. Nothing on this record changed.",
   },
 
   COMPLETENESS_TEXT: {
@@ -99,7 +103,8 @@ export const en: Dictionary = {
 
   BATCH_COMPLETE_ERROR: {
     ...GATE_ERROR,
-    not_found: "That customer record does not exist, or is not in this workspace.",
+    not_found:
+      "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field batch completeness fills.",
     value_required: "This suggestion was empty and was skipped.",
   },
@@ -107,7 +112,7 @@ export const en: Dictionary = {
   BATCH_COMPLETE_TEXT: {
     title: "Batch completeness",
     description:
-      "Runs the same rule as \"What this customer record is missing\" across every customer - only the half the data can already work out, no model spend. Select, apply in bulk, and each write is still checked on its own permissions.",
+      'Runs the same rule as "What this customer record is missing" across every customer - only the half the data can already work out, no model spend. Select, apply in bulk, and each write is still checked on its own permissions.',
     columnAccount: "Customer",
     columnField: "Field",
     columnSuggestion: "Suggested value",
@@ -117,7 +122,8 @@ export const en: Dictionary = {
     applying: "Applying",
     clearSelection: "Clear selection",
     emptyTitle: "Nothing the data can work out",
-    emptyDescription: "Every field the data can derive is already filled, across every customer this workspace can see.",
+    emptyDescription:
+      "Every field the data can derive is already filled, across every customer this workspace can see.",
     result: (applied: number, failed: number) =>
       failed > 0
         ? `Applied ${applied}, ${failed} failed - most often because someone else filled it first, or scope changed`
@@ -188,10 +194,10 @@ export const en: Dictionary = {
   },
   ROUTING_TEXT: {
     title: "Lead routing",
-    why:
-      "Territory first, then load (owner ruling, 2026-08-30). Territory decides who is allowed to work it; load decides which of them should. Reverse the order and an idle rep gets ground they have never worked.",
+    why: "Territory first, then load (owner ruling, 2026-08-30). Territory decides who is allowed to work it; load decides which of them should. Reverse the order and an idle rep gets ground they have never worked.",
     none: "No leads awaiting assignment",
-    noneWhy: "Converted and disqualified leads are absent - their ownership is settled.",
+    noneWhy:
+      "Converted and disqualified leads are absent - their ownership is settled.",
     colLead: "Lead",
     colCurrent: "Current owner",
     colSuggested: "Rule suggests",
@@ -210,10 +216,10 @@ export const en: Dictionary = {
   },
   RENEWAL_TEXT: {
     title: "Renewals",
-    why:
-      "Subscription projects appear here 90 days before their term ends (owner ruling, 2026-08-30: derived from the project, and only for subscriptions). One-off deliveries are absent - they finished when they were handed over, and inventing a renewal for one chases an obligation the customer never took on.",
+    why: "Subscription projects appear here 90 days before their term ends (owner ruling, 2026-08-30: derived from the project, and only for subscriptions). One-off deliveries are absent - they finished when they were handed over, and inventing a renewal for one chases an obligation the customer never took on.",
     none: "No subscription terms coming up",
-    noneWhy: "One-off projects never renew; a subscription appears 90 days before its term ends.",
+    noneWhy:
+      "One-off projects never renew; a subscription appears 90 days before its term ends.",
     colProject: "Project",
     colEnds: "Term ends",
     colAmount: "Last term",
@@ -231,7 +237,8 @@ export const en: Dictionary = {
     } as Record<string, string>,
     notDue: {
       not_subscription: "one-off; it finished when it was delivered",
-      no_end_date: "subscription with no end date - this renewal will be missed",
+      no_end_date:
+        "subscription with no end date - this renewal will be missed",
       too_far_out: "outside the 90-day window",
       not_delivering: "not started, or terminated - no term to extend",
       already_renewed: "a renewal deal is already running",
@@ -239,7 +246,8 @@ export const en: Dictionary = {
   },
   RENEWAL_ERROR: {
     ...GATE_ERROR,
-    renewal_not_due: "This project is not due for renewal - the page may be stale, reload and look again",
+    renewal_not_due:
+      "This project is not due for renewal - the page may be stale, reload and look again",
     name_required: "a deal needs a name",
     account_required: "a deal needs a customer",
     amount_negative: "a deal amount cannot be negative",
@@ -247,10 +255,10 @@ export const en: Dictionary = {
   },
   FORECAST_RULE_TEXT: {
     title: "Forecast rules",
-    why:
-      "Where the rule would file each deal, beside where a person filed it (owner ruling, 2026-08-31: suggest only, applied one deal at a time). The disagreement is what a forecast review is about - and until now it could only be found by reading the board deal by deal.",
+    why: "Where the rule would file each deal, beside where a person filed it (owner ruling, 2026-08-31: suggest only, applied one deal at a time). The disagreement is what a forecast review is about - and until now it could only be found by reading the board deal by deal.",
     none: "No open deals",
-    noneWhy: "Won and lost deals have their category bound to the stage. That is not a judgement, so there is no second opinion to offer.",
+    noneWhy:
+      "Won and lost deals have their category bound to the stage. That is not a judgement, so there is no second opinion to offer.",
     colDeal: "Deal",
     colFiled: "Filed as",
     colSuggested: "Rule says",
@@ -260,13 +268,15 @@ export const en: Dictionary = {
     agrees: "agrees",
     apply: "File as this",
     applied: "Filed",
-    denied: "You can see the disagreement but cannot change the forecast category - a split the product draws on purpose: you own the deal, not the forecast commitment.",
+    denied:
+      "You can see the disagreement but cannot change the forecast category - a split the product draws on purpose: you own the deal, not the forecast commitment.",
     basisHuman: (p: number) => `${p}% win rate (theirs)`,
     basisDefault: (p: number) => `${p}% win rate (stage default)`,
     stalledFor: (days: number) => `${days} days, no move`,
     neverMoved: "no stage history",
     cap: {
-      no_close_date: "no expected close date - nothing to commit to without a period",
+      no_close_date:
+        "no expected close date - nothing to commit to without a period",
       close_date_passed: "the close date passed and the deal is still open",
       stalled: "sat at this stage too long; one band down",
     } as Record<string, string>,
@@ -274,14 +284,17 @@ export const en: Dictionary = {
   FORECAST_RULE_ERROR: {
     ...GATE_ERROR,
     category_settled: "A won or lost deal has its category bound to the stage",
-    category_already_agrees: "This deal is already filed where the rule would put it",
-    closed_requires_terminal_stage: "The deal is still open and cannot be forecast as closed",
+    category_already_agrees:
+      "This deal is already filed where the rule would put it",
+    closed_requires_terminal_stage:
+      "The deal is still open and cannot be forecast as closed",
     terminal_requires_closed: "A closed deal can only be forecast as closed",
     unknown_forecast_category: "Unknown forecast category",
     empty_patch: "Nothing was changed",
     not_found: "That deal does not exist, or is not in this workspace",
     probability_range: "Win rate must be a whole number between 0 and 100",
-    terminal_probability_fixed: "A closed deal has a fixed win rate and cannot be changed",
+    terminal_probability_fixed:
+      "A closed deal has a fixed win rate and cannot be changed",
     amount_negative: "The amount cannot be negative",
   },
   // D6 forecast snapshots. Four codes here also live in FORECAST_RULE_ERROR
@@ -294,9 +307,11 @@ export const en: Dictionary = {
     currency_mismatch: "The currency does not match the deal's",
     unknown_forecast_category: "Unknown forecast category",
     unknown_scope_type: "Unknown scope type",
-    scope_incomplete: "This scope is missing something it needs, so there is no saying who it covers",
+    scope_incomplete:
+      "This scope is missing something it needs, so there is no saying who it covers",
     scope_overspecified: "This scope names two things that rule each other out",
-    closed_requires_terminal_stage: "The deal is still open and cannot be forecast as closed",
+    closed_requires_terminal_stage:
+      "The deal is still open and cannot be forecast as closed",
     terminal_requires_closed: "A closed deal can only be forecast as closed",
   },
   TARGET_ERROR: {
@@ -305,24 +320,28 @@ export const en: Dictionary = {
     period_required: "A target must say which period it is for",
     unknown_metric: "Unknown metric",
     unknown_status: "Unknown target status",
-    count_not_integer: "A count metric is a whole number - there is no fraction of a customer",
+    count_not_integer:
+      "A count metric is a whole number - there is no fraction of a customer",
     unit_mismatch: "That unit does not belong to this metric",
     amount_negative: "The amount cannot be negative",
     currency_mismatch: "The currency does not match the parent target's",
-    scope_incomplete: "This scope is missing something it needs, so there is no saying who it covers",
+    scope_incomplete:
+      "This scope is missing something it needs, so there is no saying who it covers",
     scope_overspecified: "This scope names two things that rule each other out",
-    scope_immutable: "A target's scope is fixed once it is set - a different scope is a different target",
+    scope_immutable:
+      "A target's scope is fixed once it is set - a different scope is a different target",
     duplicate_scope: "There is already a target for this period and this scope",
-    target_closed: "This target is closed - it is the record the period was measured against",
+    target_closed:
+      "This target is closed - it is the record the period was measured against",
     status_regression: "A target's status cannot move backwards",
     parent_not_found: "The parent target does not exist",
-    parent_cycle: "A target cannot become its own parent, directly or through a chain",
+    parent_cycle:
+      "A target cannot become its own parent, directly or through a chain",
     not_found: "That target does not exist, or is not in this workspace",
   },
   ATTAINMENT_TEXT: {
     title: "Commitment",
-    why:
-      "What the period promised, how much has landed, and how much is behind it - three readings that only mean something together. They used to sit on the board as three cards belonging to no module.",
+    why: "What the period promised, how much has landed, and how much is behind it - three readings that only mean something together. They used to sit on the board as three cards belonging to no module.",
     attained: "attained",
     won: "won",
     target: "target",
@@ -336,12 +355,12 @@ export const en: Dictionary = {
     composition: "What the commitment is made of",
     compositionWhy:
       "Which product lines this money comes from. The same total made of different lines is a different fight.",
-    noComposition: "Open deals carry no lines yet, so there is nothing to break down",
+    noComposition:
+      "Open deals carry no lines yet, so there is nothing to break down",
   },
   AUTONOMY_TEXT: {
     title: "Assistant authority",
-    why:
-      "How far this assistant may go before it asks you. What changes is which decisions still pass through your hands one at a time - not whether it may propose. It only ever proposes; accepting is what moves data (ADR-003).",
+    why: "How far this assistant may go before it asks you. What changes is which decisions still pass through your hands one at a time - not whether it may propose. It only ever proposes; accepting is what moves data (ADR-003).",
     modeLabel: "Authority",
     modes: {
       ask_high_risk: "Ask me about the risky ones",
@@ -377,8 +396,7 @@ export const en: Dictionary = {
   },
   QUOTE_TEXT: {
     title: "Quotes",
-    why:
-      "What each deal is currently offering. The lines, the floor and the signature all existed; nothing put them together, so \"what did we quote this customer\" meant opening one deal at a time.",
+    why: 'What each deal is currently offering. The lines, the floor and the signature all existed; nothing put them together, so "what did we quote this customer" meant opening one deal at a time.',
     none: "No quotes yet",
     noneWhy: "Add lines to a deal and its current quote appears here.",
     colDeal: "Deal",
@@ -508,10 +526,12 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     code_required: "A code is required",
     name_required: "A name is required",
-    unit_required: "A unit is required - a quantity with no unit cannot say what was sold",
+    unit_required:
+      "A unit is required - a quantity with no unit cannot say what was sold",
     items_required: "A solution with no products is just a name",
     quantity_positive: "The quantity must be above zero",
-    duplicate_product: "That product appears twice - use one line with the total",
+    duplicate_product:
+      "That product appears twice - use one line with the total",
     product_required: "Pick a product",
     currency_required: "A currency is required",
     amount_negative: "A price cannot be negative",
@@ -537,7 +557,7 @@ export const en: Dictionary = {
       "You cannot sell anything without knowing what you sell - so the catalogue is not sold by tier and every tier can read it.",
     products: "Products",
     productsWhy:
-      "A single product or service. The unit is not decoration: every line multiplies quantity by unit price, and \"10 x 1000\" with no unit is ten seats, ten days or ten sites - three different deals.",
+      'A single product or service. The unit is not decoration: every line multiplies quantity by unit price, and "10 x 1000" with no unit is ten seats, ten days or ten sites - three different deals.',
     colCode: "Code",
     colName: "Name",
     colCategory: "Category",
@@ -549,7 +569,8 @@ export const en: Dictionary = {
     addProduct: "Add or update a product",
     saveProduct: "Save product",
     productSaved: "Saved",
-    codeHint: "Keyed by code: saving the same code again edits it rather than adding a second",
+    codeHint:
+      "Keyed by code: saving the same code again edits it rather than adding a second",
     solutions: "Solutions",
     solutionsWhy:
       "Quoting templates. Lines never reference one for calculation (ADR-014 s4) - a template is a starting point, not the authority.",
@@ -566,7 +587,8 @@ export const en: Dictionary = {
     noPrices: "No prices yet",
     setPrice: "Record a price",
     priceSaved: "Recorded",
-    floorEqualsList: "Floor equal to list = this product is not discountable. That is a position, not a typo",
+    floorEqualsList:
+      "Floor equal to list = this product is not discountable. That is a position, not a typo",
     priceDenied:
       "You cannot set prices - whoever moves the floor can approve every discount in the product",
     writeDenied: "You cannot maintain the catalogue",
@@ -731,8 +753,10 @@ export const en: Dictionary = {
     name_required: "A territory needs a name",
     unknown_status: "Unknown territory status",
     parent_not_found: "The parent territory does not exist",
-    parent_cycle: "A territory cannot report to itself, directly or through a chain",
-    region_too_long: "A region name is at most 64 characters - anything longer is usually the wrong column pasted in",
+    parent_cycle:
+      "A territory cannot report to itself, directly or through a chain",
+    region_too_long:
+      "A region name is at most 64 characters - anything longer is usually the wrong column pasted in",
   },
 
   EXECUTION_ERROR: {
@@ -740,7 +764,8 @@ export const en: Dictionary = {
     title_required: "An execution needs a title",
     unknown_action_type: "Unknown action type",
     unknown_status: "Unknown execution status",
-    campaign_completed: "This campaign is complete; its executions are the record it was completed on",
+    campaign_completed:
+      "This campaign is complete; its executions are the record it was completed on",
     not_found: "No such campaign, or that item is not on it",
   },
 
@@ -775,29 +800,42 @@ export const en: Dictionary = {
     not_found: "Not found, or not in this workspace.",
     not_pending: "This proposal has already been decided.",
     decider_required: "Accepting must land on a named person.",
-    human_decision_required: "This proposal needs a person; the current authorisation does not run it unasked.",
+    human_decision_required:
+      "This proposal needs a person; the current authorisation does not run it unasked.",
     already_decided: "Someone else handled this proposal first.",
     not_executable: "This proposal cannot run from its current state.",
-    accepted_without_decider: "Nobody signed for this, so it will not be carried out.",
-    not_executable_type: "Nothing here can carry out that kind of action; marked failed.",
-    subject_mismatch: "The action and its subject do not agree, so it was not carried out.",
+    accepted_without_decider:
+      "Nobody signed for this, so it will not be carried out.",
+    not_executable_type:
+      "Nothing here can carry out that kind of action; marked failed.",
+    subject_mismatch:
+      "The action and its subject do not agree, so it was not carried out.",
     payload_invalid: "The proposal did not say what to change it to.",
-    stage_unchanged: "The deal is already at that stage; a no-op is not journalled.",
+    stage_unchanged:
+      "The deal is already at that stage; a no-op is not journalled.",
     reason_required: "Moving a deal back or reopening it requires a reason.",
-    terminal_probability_fixed: "A closed deal keeps the win rate it closed with.",
+    terminal_probability_fixed:
+      "A closed deal keeps the win rate it closed with.",
     probability_range: "A win rate is a whole number from 0 to 100.",
-    closed_requires_terminal_stage: "Forecasting as closed requires a closed stage.",
-    terminal_requires_closed: "Winning or losing a deal must set its close date too.",
-    terminal_stage: "This deal is closed; reopening rewrites a reported outcome and needs explicit intent.",
+    closed_requires_terminal_stage:
+      "Forecasting as closed requires a closed stage.",
+    terminal_requires_closed:
+      "Winning or losing a deal must set its close date too.",
+    terminal_stage:
+      "This deal is closed; reopening rewrites a reported outcome and needs explicit intent.",
     unknown_stage: "The proposal named a stage that does not exist.",
-    unknown_forecast_category: "The proposal named a forecast category that does not exist.",
+    unknown_forecast_category:
+      "The proposal named a forecast category that does not exist.",
     field_not_fillable: "That is not a field the copilot may fill.",
     value_required: "Filling a field needs a value; a blank is not one.",
     nothing_to_ask: "Nothing on this record is a question for the assistant.",
-    no_active_tenant: "This session carries no tenant, so the model plane cannot be reached.",
-    tenant_required: "This session carries no tenant, so the model plane cannot be reached.",
+    no_active_tenant:
+      "This session carries no tenant, so the model plane cannot be reached.",
+    tenant_required:
+      "This session carries no tenant, so the model plane cannot be reached.",
     empty_question: "There was nothing to ask.",
-    turn_failed: "The assistant could not answer this time. Nothing on this record changed.",
+    turn_failed:
+      "The assistant could not answer this time. Nothing on this record changed.",
   },
   REVIEW_ERROR: {
     ...GATE_ERROR,
@@ -846,7 +884,8 @@ export const en: Dictionary = {
     sequence_invalid: "Sequence is a whole number from zero",
     unknown_status: "Unknown milestone status",
     done_needs_completion: "A milestone marked done must say when it was done",
-    completion_needs_done: "A completion time belongs to a milestone that is done - a missed one did not happen",
+    completion_needs_done:
+      "A completion time belongs to a milestone that is done - a missed one did not happen",
     not_found: "No such project, or it belongs to another workspace",
   },
 
@@ -879,9 +918,11 @@ export const en: Dictionary = {
     terminal_requires_closed: "A closed deal can only be in a closed category",
     name_required: "A deal needs a name",
     account_required: "A deal must belong to a customer",
-    not_below_floor: "This line is at or above its floor - there is nothing to approve",
+    not_below_floor:
+      "This line is at or above its floor - there is nothing to approve",
     already_approved: "This price has already been signed off",
-    not_priced: "This product has no price entry, so there is no floor to approve against",
+    not_priced:
+      "This product has no price entry, so there is no floor to approve against",
   },
 
   OPPORTUNITY_TEXT: {
@@ -895,13 +936,16 @@ export const en: Dictionary = {
     lineAdd: "Add a line",
     lineRemove: "Remove",
     lineSave: "Save lines and recompute the amount",
-    lineSaved: (n: number, amount: string) => `${n} lines, amount recomputed to ${amount}`,
+    lineSaved: (n: number, amount: string) =>
+      `${n} lines, amount recomputed to ${amount}`,
     lineNone: "No lines yet - the amount is a hand-entered total",
-    lineNoneWhy: "That is the legal legacy shape: with no lines, the header stands on its own.",
+    lineNoneWhy:
+      "That is the legal legacy shape: with no lines, the header stands on its own.",
     lineBelowFloor: "Below floor - needs a signature",
     lineFloorHint: (floor: string) => `Floor ${floor}`,
     lineDenied: "You cannot change this deal",
-    lineClosedHint: "A closed deal cannot be repriced - its lines are the record of what was sold",
+    lineClosedHint:
+      "A closed deal cannot be repriced - its lines are the record of what was sold",
     lineApprovalHeader: "Discount",
     lineApprove: "Approve",
     lineApproved: "Approved",
@@ -1013,7 +1057,8 @@ export const en: Dictionary = {
     designate: "Set tier",
     designateWhy:
       "A strategic account is judged differently: every other rule is event-triggered and needs an open opportunity, while the thing most worth reporting about a strategic account is that it went quiet WITHOUT one - and no event will ever fire to say so. The cadence rule is what fires instead, and it reads the plan.",
-    planRequired: "A strategic account needs a plan, or the tier is just a label",
+    planRequired:
+      "A strategic account needs a plan, or the tier is just a label",
     planPeriod: "Plan period",
     cadenceContact: "Contact cadence (days)",
     cadenceExec: "Executive cadence (days)",
@@ -1387,7 +1432,8 @@ export const en: Dictionary = {
     scopeTerritory: (name: string) => `Territory - ${name}`,
     scopeOwner: (sub: string) => `Owner - ${sub}`,
     accuracySettled: (r: number) => `${Math.round(r * 100)}% accurate`,
-    accuracySoFar: (r: number) => `${Math.round(r * 100)}% of the opening commit closed`,
+    accuracySoFar: (r: number) =>
+      `${Math.round(r * 100)}% of the opening commit closed`,
     accuracyNoOpening: "No opening snapshot - accuracy cannot be computed",
     accuracyNoCommit: "Nothing was committed - nothing to measure against",
     trajectoryEmptyTitle: "No forecast snapshot this period yet",
@@ -1510,20 +1556,26 @@ export const en: Dictionary = {
         ? `${name}: not enough data, still unassessed`
         : `${name}: ${score}`,
     recomputeFailed: "Could not recompute",
-    batchCompleteBanner: (n: number) => `${n} customer records the data can complete - batch it`,
+    batchCompleteBanner: (n: number) =>
+      `${n} customer records the data can complete - batch it`,
     batchCompleteLink: "Go",
     contactsTitle: "Contacts",
     contactsWhy:
       "The people inside this customer and what each is to the deal. The chain above and the board's decision-maker coverage are both computed from these roles.",
     contactsNone: "No contacts yet",
-    contactsNoneWhy: "Write down who you have met - the decision chain has nothing to compute until then.",
+    contactsNoneWhy:
+      "Write down who you have met - the decision chain has nothing to compute until then.",
     contactName: "Name",
     contactTitle: "Title",
     contactDepartment: "Department",
     contactRole: "Decision role",
     contactInfluence: "Influence 0-100",
     contactStatus: "Status",
-    contactStatusLabel: { active: "Active", left: "Left", invalid: "Invalid" } as Record<string, string>,
+    contactStatusLabel: {
+      active: "Active",
+      left: "Left",
+      invalid: "Invalid",
+    } as Record<string, string>,
     contactEditing: "Editing",
     contactNew: "New contact",
     contactSave: "Save contact",
@@ -1544,9 +1596,10 @@ export const en: Dictionary = {
   CAMPAIGN_TEXT: {
     executionsTitle: "Campaign executions",
     executionsWhy:
-      "What a campaign is actually made of. The \"N/M done\" column above counts these - and a campaign cannot be marked complete while any is outstanding.",
+      'What a campaign is actually made of. The "N/M done" column above counts these - and a campaign cannot be marked complete while any is outstanding.',
     executionsNone: "No executions yet",
-    executionsNoneWhy: "List the actions first - a campaign cannot be run or closed without them.",
+    executionsNoneWhy:
+      "List the actions first - a campaign cannot be run or closed without them.",
     executionCampaign: "Campaign",
     executionPickCampaign: "Pick a campaign",
     executionTitle: "Action",
@@ -1620,14 +1673,16 @@ export const en: Dictionary = {
     colRevStatus: "Status",
     noInstalments: "No collection schedule yet",
     overdueCount: (n: number) => `${n} overdue`,
-    settleAsk: "How much actually arrived? Short payment is normal - the received amount is the point",
+    settleAsk:
+      "How much actually arrived? Short payment is normal - the received amount is the point",
     moveTo: "Move to",
     moved: (s: string) => `Moved to ${s}`,
     milestonesTitle: "Delivery plan",
     milestonesWhy:
       "The milestones a project is delivered against. They were always read and never rendered, and never writable - so a delivery plan could only be whatever db-init put there.",
     milestonesNone: "No milestones yet",
-    milestonesNoneWhy: "Lay out the steps - the health verdict in the table above reads them.",
+    milestonesNoneWhy:
+      "Lay out the steps - the health verdict in the table above reads them.",
     milestoneProject: "Project",
     milestonePickProject: "Pick a project",
     milestoneSequence: "Sequence",
@@ -1759,7 +1814,8 @@ export const en: Dictionary = {
     territoryWhy:
       "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target. The code is the identity: an existing code edits that territory, a new one creates it.",
     territoryNone: "No territories yet",
-    territoryNoneWhy: "Create one before setting a target on it or attributing deals to it.",
+    territoryNoneWhy:
+      "Create one before setting a target on it or attributing deals to it.",
     territoryCode: "Code",
     territoryName: "Name",
     territoryParent: "Parent",
@@ -1781,9 +1837,12 @@ export const en: Dictionary = {
       not_counted: "Not counted",
     } as Record<string, string>,
     gapHint: {
-      no_snapshot: "No forecast snapshot has been submitted for this scope this period - that is not 0% attained",
-      no_cost_data: "Margin needs cost, and cost is not in the model yet. Not a missed period, and not a metric that cannot be computed - supply cost and it can be",
-      not_counted: "This snapshot carries no new-logo count - it predates the field, or its period label could not be parsed into dates",
+      no_snapshot:
+        "No forecast snapshot has been submitted for this scope this period - that is not 0% attained",
+      no_cost_data:
+        "Margin needs cost, and cost is not in the model yet. Not a missed period, and not a metric that cannot be computed - supply cost and it can be",
+      not_counted:
+        "This snapshot carries no new-logo count - it predates the field, or its period label could not be parsed into dates",
     } as Record<string, string>,
     setSubmit: "Create target",
     setSaved: "Created",
@@ -1791,7 +1850,8 @@ export const en: Dictionary = {
     adjust: "Adjust the amount",
     adjustSaved: "Adjusted",
     commit: "Commit it",
-    commitWhy: "Committing cannot be undone - a number already reported upward does not come back",
+    commitWhy:
+      "Committing cannot be undone - a number already reported upward does not come back",
     closeTarget: "Close the period",
     closeWhy:
       "Closing freezes it. It records what was committed for a finished period, and editing that is how a missed quarter becomes a met one",
@@ -2092,9 +2152,11 @@ export const en: Dictionary = {
     inactiveHint:
       "Has left. The row is kept forever - it is what makes a signature in the audit trail readable; deleting it breaks no foreign key, it just turns every signature into an id nobody recognises.",
     deactivate: "Deactivate",
-    deactivateHint: "Takes every role away and marks them inactive. The row is not deleted.",
+    deactivateHint:
+      "Takes every role away and marks them inactive. The row is not deleted.",
     reactivate: "Reactivate",
-    reactivateHint: "Restores standing only. No role comes back - each must be granted again.",
+    reactivateHint:
+      "Restores standing only. No role comes back - each must be granted again.",
     invite: "Invite a member",
     handoverTo: "Hand over to",
     handover: "Hand over",
@@ -2114,17 +2176,23 @@ export const en: Dictionary = {
 
   MEMBER_ERROR: {
     ...GATE_ERROR,
-    same_owner: "The person handing over and the person receiving are the same.",
+    same_owner:
+      "The person handing over and the person receiving are the same.",
     owner_required: "A handover needs somebody to hand over to.",
     recipient_not_a_member: "The recipient is not a member of this workspace.",
-    recipient_inactive: "The recipient has also left - handing over would make this work invisible to a second person.",
-    lead_converted: "This lead already became an opportunity, and that carries its own owner.",
+    recipient_inactive:
+      "The recipient has also left - handing over would make this work invisible to a second person.",
+    lead_converted:
+      "This lead already became an opportunity, and that carries its own owner.",
     empty_patch: "Nothing to change.",
     amount_negative: "A deal cannot be worth less than nothing.",
     probability_range: "A win rate is a whole number from 0 to 100.",
-    terminal_probability_fixed: "A closed deal keeps the win rate it closed with.",
-    terminal_requires_closed: "Winning or losing a deal must set its close date too.",
-    closed_requires_terminal_stage: "Forecasting as closed requires a closed stage.",
+    terminal_probability_fixed:
+      "A closed deal keeps the win rate it closed with.",
+    terminal_requires_closed:
+      "Winning or losing a deal must set its close date too.",
+    closed_requires_terminal_stage:
+      "Forecasting as closed requires a closed stage.",
     unknown_forecast_category: "That is not a forecast category.",
     last_admin:
       "This is the workspace's last administrator; removing it leaves nobody able to assign roles",
@@ -2227,7 +2295,6 @@ export const en: Dictionary = {
     analysisCompetition: "Competition",
     analysisChain: "Decision chain",
     analysisPolicy: "Policy and industry",
-    analysisHint: 'The result enters the feed as a "model" judgement',
     citedBy: (days: number, channel: string) => `${days}d ago - ${channel}`,
     actDismissHint: "Held for 7 days; it returns sooner if urgency rises",
     actDismiss: "Not now",
@@ -2369,7 +2436,7 @@ export const en: Dictionary = {
     reconEmpty:
       "Nothing scouted yet. Rivals appear only inside note text so far; there is no formed intelligence.",
     reconCta: "Run a competitive analysis",
-    reconNote: 'The result enters the feed as a "model" judgement.',
+    analysisNote: 'The result enters the feed as a "model" judgement.',
     captureSend: "Save",
     capturePlaceholder: "Just got off the phone with Wang...",
     captureHelp:
