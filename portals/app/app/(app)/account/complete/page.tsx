@@ -1,7 +1,10 @@
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { can } from "../../../authz/decide";
 import { resolveAppSession } from "../../lib/session";
-import { getPlanningStore, getStrategyStore } from "../../../domains/shared/registry";
+import {
+  getPlanningStore,
+  getStrategyStore,
+} from "../../../domains/shared/registry";
 import { workspaceCompleteness } from "../../../domains/account/service";
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
@@ -54,9 +57,11 @@ export default async function AccountBatchCompletePage() {
 
   return (
     <ViewLayout>
-      <BatchCompleteness
+      <ViewHeader
         title={BATCH_COMPLETE_TEXT.title}
         description={BATCH_COMPLETE_TEXT.description}
+      />
+      <BatchCompleteness
         rows={rows.value.map((r) => ({
           key: `${r.accountId}:${r.gap.field}`,
           accountId: r.accountId,
@@ -65,7 +70,10 @@ export default async function AccountBatchCompletePage() {
           suggestion: r.gap.suggestion as string,
           basis: r.gap.basis,
         }))}
-        canApply={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
+        canApply={
+          can(session.authz, session.entitlement, "account.upsert", "ui")
+            .allowed
+        }
         onApply={applyBatchFill}
       />
     </ViewLayout>

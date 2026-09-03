@@ -31,8 +31,6 @@ export interface BatchGapRow {
 }
 
 export interface BatchCompletenessProps {
-  readonly title: string;
-  readonly description: string;
   readonly rows: readonly BatchGapRow[];
   readonly canApply: boolean;
   readonly onApply: (
@@ -44,13 +42,17 @@ export interface BatchCompletenessProps {
 }
 
 export function BatchCompleteness({
-  title,
-  description,
   rows,
   canApply,
   onApply,
 }: BatchCompletenessProps) {
-  const { BATCH_COMPLETE_TEXT, BATCH_COMPLETE_ERROR, COMPLETENESS_TEXT, DATA_TABLE_LABELS, DS_LABELS } = useMessages();
+  const {
+    BATCH_COMPLETE_TEXT,
+    BATCH_COMPLETE_ERROR,
+    COMPLETENESS_TEXT,
+    DATA_TABLE_LABELS,
+    DS_LABELS,
+  } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [applying, setApplying] = useState(false);
@@ -61,7 +63,10 @@ export function BatchCompleteness({
   // proposal-queue.tsx reports a partial batch failure.
   const [error, setError] = useState<string | null>(null);
 
-  const selectedRows = useMemo(() => rows.filter((r) => selected.has(r.key)), [rows, selected]);
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selected.has(r.key)),
+    [rows, selected],
+  );
 
   function apply() {
     setApplying(true);
@@ -69,12 +74,19 @@ export function BatchCompleteness({
     setError(null);
     startTransition(() => {
       void onApply(
-        selectedRows.map((r) => ({ accountId: r.accountId, field: r.field, value: r.suggestion })),
+        selectedRows.map((r) => ({
+          accountId: r.accountId,
+          field: r.field,
+          value: r.suggestion,
+        })),
       )
         .then((r) => {
           setResult(BATCH_COMPLETE_TEXT.result(r.applied, r.failed.length));
           if (r.failed.length > 0) {
-            setError(BATCH_COMPLETE_ERROR[r.failed[0].error] ?? BATCH_COMPLETE_ERROR.not_found);
+            setError(
+              BATCH_COMPLETE_ERROR[r.failed[0].error] ??
+                BATCH_COMPLETE_ERROR.not_found,
+            );
           }
           setSelected(new Set());
         })
@@ -87,7 +99,10 @@ export function BatchCompleteness({
       id: "account",
       header: BATCH_COMPLETE_TEXT.columnAccount,
       cell: (row) => (
-        <a href={`/account/${row.accountId}`} className="text-foreground hover:underline">
+        <a
+          href={`/account/${row.accountId}`}
+          className="text-foreground hover:underline"
+        >
           {row.accountName}
         </a>
       ),
@@ -105,12 +120,14 @@ export function BatchCompleteness({
     {
       id: "basis",
       header: BATCH_COMPLETE_TEXT.columnBasis,
-      cell: (row) => <span className="text-muted-foreground text-xs">{row.basis}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground text-xs">{row.basis}</span>
+      ),
     },
   ];
 
   return (
-    <Section title={title} description={description}>
+    <Section>
       {result ? <StatusBadge tone="info">{result}</StatusBadge> : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
@@ -124,7 +141,10 @@ export function BatchCompleteness({
         actions={[
           {
             id: "apply",
-            label: pending || applying ? BATCH_COMPLETE_TEXT.applying : BATCH_COMPLETE_TEXT.apply,
+            label:
+              pending || applying
+                ? BATCH_COMPLETE_TEXT.applying
+                : BATCH_COMPLETE_TEXT.apply,
             onSelect: apply,
           },
         ]}
