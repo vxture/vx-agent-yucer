@@ -27,6 +27,19 @@ export interface ContactDraft {
   department: string | null;
   decisionRole: DecisionRole;
   influence: number | null;
+  /**
+   * How to actually reach this person - incr/0024.
+   *
+   * NOT VALIDATED FOR SHAPE, and that is a decision rather than an omission.
+   * The increment carries the long form; the short form is that a CHECK on an
+   * email fires in the middle of somebody recording a conversation, over a
+   * value that is merely unusual. Trimmed to null, because a blank field and
+   * an unrecorded one are the same fact and storing "" makes them look
+   * different to every query that asks whether we can reach this person.
+   */
+  email: string | null;
+  mobile: string | null;
+  wechat: string | null;
   status: ContactStatus;
 }
 
@@ -66,5 +79,8 @@ export function planContact(input: ContactDraft): RuleResult<ContactDraft> {
     name,
     title: input.title?.trim() || null,
     department: input.department?.trim() || null,
+    email: input.email?.trim() || null,
+    mobile: input.mobile?.trim() || null,
+    wechat: input.wechat?.trim() || null,
   });
 }

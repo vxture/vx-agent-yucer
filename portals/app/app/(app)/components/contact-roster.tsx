@@ -53,6 +53,10 @@ export interface ContactRow {
   readonly department: string | null;
   readonly decisionRole: string;
   readonly influence: number | null;
+  /** incr/0024 - how to reach this person. */
+  readonly email: string | null;
+  readonly mobile: string | null;
+  readonly wechat: string | null;
   readonly status: string;
 }
 
@@ -69,6 +73,9 @@ export interface ContactRosterProps {
       department: string | null;
       decisionRole: string;
       influence: number | null;
+      email: string | null;
+      mobile: string | null;
+      wechat: string | null;
       status: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
@@ -81,6 +88,9 @@ const BLANK = {
   department: "",
   decisionRole: "unknown",
   influence: "",
+  email: "",
+  mobile: "",
+  wechat: "",
   status: "active",
 };
 
@@ -103,6 +113,13 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
       department: c.department ?? "",
       decisionRole: c.decisionRole,
       influence: c.influence === null ? "" : String(c.influence),
+      // Loaded from the row for the same reason the other fields are: this
+      // form REPLACES the contact, so a field left out of `pick` would be
+      // written back blank. That is how an edit to a decision role silently
+      // deletes a phone number.
+      email: c.email ?? "",
+      mobile: c.mobile ?? "",
+      wechat: c.wechat ?? "",
       status: c.status,
     });
   }
@@ -231,6 +248,28 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
             />
           </Field>
           <Field>
+            <FieldLabel>{ACCOUNT_TEXT.contactMobile}</FieldLabel>
+            <Input
+              value={form.mobile}
+              onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>{ACCOUNT_TEXT.contactEmail}</FieldLabel>
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </Field>
+          <Field>
+            <FieldLabel>{ACCOUNT_TEXT.contactWechat}</FieldLabel>
+            <Input
+              value={form.wechat}
+              onChange={(e) => setForm({ ...form, wechat: e.target.value })}
+            />
+          </Field>
+          <Field>
             <FieldLabel>{ACCOUNT_TEXT.contactStatus}</FieldLabel>
             <NativeSelect
               value={form.status}
@@ -258,6 +297,9 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
                     department: form.department.trim() === "" ? null : form.department.trim(),
                     decisionRole: form.decisionRole,
                     influence,
+                    email: form.email.trim() === "" ? null : form.email.trim(),
+                    mobile: form.mobile.trim() === "" ? null : form.mobile.trim(),
+                    wechat: form.wechat.trim() === "" ? null : form.wechat.trim(),
                     status: form.status,
                   }),
                 () => setForm(BLANK),

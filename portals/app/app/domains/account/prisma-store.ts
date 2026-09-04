@@ -107,6 +107,9 @@ export class PrismaAccountStore implements AccountStore {
       department: input.department,
       decisionRole: input.decisionRole,
       influence: input.influence,
+      email: input.email,
+      mobile: input.mobile,
+      wechat: input.wechat,
       status: input.status,
       updatedAt: new Date(),
     };
@@ -327,6 +330,10 @@ function toAccount(r: Record<string, unknown>): AccountRecord {
     healthScore: (r.healthScore as number | null) ?? null,
     status: r.status as AccountStatus,
     tier: (r.tier as AccountTier | undefined) ?? "standard",
+    creditCode: (r.creditCode as string | null) ?? null,
+    website: (r.website as string | null) ?? null,
+    employeeCount: (r.employeeCount as number | null) ?? null,
+    parentId: (r.parentId as string | null) ?? null,
   };
 }
 
@@ -340,6 +347,9 @@ function toContact(r: Record<string, unknown>): ContactRecord {
     department: (r.department as string | null) ?? null,
     decisionRole: r.decisionRole as ContactRecord["decisionRole"],
     influence: (r.influence as number | null) ?? null,
+    email: (r.email as string | null) ?? null,
+    mobile: (r.mobile as string | null) ?? null,
+    wechat: (r.wechat as string | null) ?? null,
     status: String(r.status),
   };
 }

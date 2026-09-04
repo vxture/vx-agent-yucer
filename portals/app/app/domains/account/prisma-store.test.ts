@@ -22,6 +22,9 @@ const draft = {
   department: "Quality",
   decisionRole: "technical" as const,
   influence: 60,
+  email: null,
+  mobile: null,
+  wechat: null,
   status: "active" as const,
 };
 

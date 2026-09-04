@@ -1582,6 +1582,9 @@ export const en: Dictionary = {
     contactDepartment: "Department",
     contactRole: "Decision role",
     contactInfluence: "Influence 0-100",
+    contactMobile: "Mobile",
+    contactEmail: "Email",
+    contactWechat: "WeChat",
     contactStatus: "Status",
     contactStatusLabel: {
       active: "Active",

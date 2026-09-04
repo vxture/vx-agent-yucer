@@ -212,6 +212,16 @@ model Account {
   /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
   tier         String    @default("standard") @db.VarChar(16)
   healthScore  Int?      @map("health_score") @db.SmallInt
+  /// incr/0024. 统一社会信用代码 for a mainland entity; unconstrained in shape
+  /// because a foreign counterparty registers somewhere else entirely.
+  creditCode   String?   @map("credit_code") @db.VarChar(64)
+  website      String?   @db.VarChar(255)
+  /// A count, not a band. Bands derive from a count; a count never derives
+  /// from a band, and naming the bands is the owner's call - see incr/0024.
+  employeeCount Int?     @map("employee_count")
+  /// incr/0025. Self-referencing, ON DELETE SET NULL: deleting a parent
+  /// orphans its subsidiaries rather than deleting customers in their own right.
+  parentId     String?   @map("parent_id") @db.Uuid
   status       String    @default("prospect") @db.VarChar(32)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
@@ -231,6 +241,11 @@ model Contact {
   department   String?   @db.VarChar(128)
   decisionRole String    @default("unknown") @map("decision_role") @db.VarChar(32)
   influence    Int?      @db.SmallInt
+  /// incr/0024. No format constraints - see that increment on why a CHECK on
+  /// an email behaves like an outage.
+  email        String?   @db.VarChar(255)
+  mobile       String?   @db.VarChar(64)
+  wechat       String?   @db.VarChar(128)
   status       String    @default("active") @db.VarChar(32)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()

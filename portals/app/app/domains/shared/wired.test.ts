@@ -38,6 +38,15 @@ const APP = join(DOMAINS, "..");
 
 /** Deliberately unwired, with the batch item that removes each one. */
 const KNOWN_UNWIRED: Record<string, string> = {
+  // incr/0025, ADR-024 batch B. The column, the grant, the cycle guard and the
+  // two gates are all here and tested; what does not exist yet is anywhere to
+  // click. Batch 3 builds the customer detail page, and the parent selector
+  // goes on it - that batch removes this line.
+  //
+  // NAMED RATHER THAN SKIPPED deliberately: this is the exact shape that
+  // shipped five times before this test existed, and the difference between
+  // that and this is that somebody wrote down when it ends.
+  "account.setAccountParent": "no surface until batch 3's customer detail page",
   // `copilot.execute` LEFT THIS LIST on 2026-09-01. The ruling it was waiting
   // for arrived - "采纳当然要真实发生业务动作" - and adjudicateProposals now
   // calls it for every accepted id, so accepting advances the deal. Its

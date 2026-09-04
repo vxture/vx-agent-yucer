@@ -215,7 +215,25 @@ test("no writable list contains an anchor column", () => {
     for (const anchor of ["id", "workspace_id", "created_at"]) {
       assert.ok(!cols.includes(anchor), `${table} must not allow writing ${anchor}`);
     }
-    const businessNumber = cols.find((c) => /_(no|code)$/.test(c) && c !== "segment_code");
+    // TWO KINDS OF "code", and only one of them is an anchor.
+    //
+    // account_no and opportunity_no are numbers THIS SYSTEM ASSIGNS. They are
+    // the row's identity to every human who quotes one, so they are immutable
+    // and the pattern catches them.
+    //
+    // segment_code and credit_code are numbers THE WORLD ASSIGNED that we
+    // record. A classification changes when the segmentation does; a credit
+    // code is usually unknown when the prospect is created and filled in later,
+    // and occasionally mistyped. Freezing it would mean a customer whose code
+    // nobody had yet could never have one - and "nobody has it yet" is the
+    // normal state of every new prospect.
+    //
+    // credit_code is UNIQUE per live row (uidx_account_ws_credit_code), which
+    // makes it identity-LIKE and is exactly why it needed arguing rather than
+    // exempting quietly: uniqueness stops two customers claiming one entity, it
+    // does not mean the value was ours to assign.
+    const ANCHOR_EXEMPT = new Set(["segment_code", "credit_code"]);
+    const businessNumber = cols.find((c) => /_(no|code)$/.test(c) && !ANCHOR_EXEMPT.has(c));
     assert.equal(businessNumber, undefined, `${table} must not allow writing ${businessNumber}`);
   }
 });

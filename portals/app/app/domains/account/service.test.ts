@@ -36,6 +36,10 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     healthScore: null,
     status: "active",
     tier: "standard" as const,
+    creditCode: null,
+    website: null,
+    employeeCount: null,
+    parentId: null,
     ...over,
   };
 }
@@ -50,6 +54,9 @@ function contact(id: string, role: ContactRecord["decisionRole"], over: Partial<
     department: null,
     decisionRole: role,
     influence: 50,
+    email: null,
+    mobile: null,
+    wechat: null,
     status: "active",
     ...over,
   };
@@ -251,6 +258,9 @@ const contactDraft = {
   department: "Quality",
   decisionRole: "technical" as const,
   influence: 60,
+  email: null,
+  mobile: null,
+  wechat: null,
   status: "active" as const,
 };
 

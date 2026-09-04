@@ -9,6 +9,9 @@ const draft = (over: Partial<ContactDraft> = {}): ContactDraft => ({
   department: "Quality",
   decisionRole: "technical",
   influence: 60,
+  email: null,
+  mobile: null,
+  wechat: null,
   status: "active",
   ...over,
 });
