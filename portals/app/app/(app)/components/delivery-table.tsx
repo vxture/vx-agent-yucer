@@ -108,19 +108,23 @@ export function DeliveryTable({
       // the rows from each other not at all.
       id: "name",
       header: DELIVERY_TEXT.columnNameAccount,
+      // The same floor pipeline's identity column takes, and for the same
+      // reason: auto-layout was giving the row's own name 103px while the two
+      // badges beside it held 168.
+      width: "md",
       cell: (row) => (
-        <Stack gap="xs">
+        <Stack gap="sm">
           <span>{row.name}</span>
-          <span className="text-muted-foreground">
-            {row.projectNo}
-            {" / "}
-            <Link
-              href={`/account/${row.accountId}`}
-              className="hover:underline"
-            >
-              {row.accountName ?? row.accountId}
-            </Link>
-          </span>
+          {/* The customer, smaller and quieter - main over sub. The project
+              NUMBER used to sit on this line and is gone: an identifier is
+              what the detail page is for, and here it was spending a third of
+              the cell to say something no reader was scanning for. */}
+          <Link
+            href={`/account/${row.accountId}`}
+            className="text-muted-foreground text-body-sm hover:underline"
+          >
+            {row.accountName ?? row.accountId}
+          </Link>
         </Stack>
       ),
     },
@@ -154,7 +158,7 @@ export function DeliveryTable({
       header: DELIVERY_TEXT.columnHealthStatus,
       align: "center",
       cell: (row) => (
-        <Stack gap="xs" className="items-center">
+        <Stack gap="sm" className="items-center">
           <Health row={row} />
           <StatusBadge tone="neutral" dot>
             {PROJECT_STATUS_LABEL[row.status] ?? row.status}

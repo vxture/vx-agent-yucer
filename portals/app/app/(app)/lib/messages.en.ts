@@ -1421,8 +1421,10 @@ export const en: Dictionary = {
     description:
       "Forecast and snapshot are computed by the same rule, so they cannot disagree.",
     columnOpportunity: "Opportunity",
+    columnAccount: "Account",
     columnStageForecast: "Stage / forecast",
-    columnAmountProbability: "Amount / win rate",
+    columnAmount: "Amount",
+    columnProbability: "Win rate",
     columnExpectedClose: "Expected close",
     probabilityOverridden: (value: number) => `${value}% set by hand`,
     probabilityHintOverridden: (fallback: number) =>
