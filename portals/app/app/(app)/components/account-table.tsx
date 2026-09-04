@@ -246,7 +246,6 @@ export function AccountTable({
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
-            leadingSpacer
             indexStart={1}
             columns={columns}
             rows={rows}

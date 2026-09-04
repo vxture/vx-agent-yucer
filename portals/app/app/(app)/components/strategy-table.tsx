@@ -134,7 +134,6 @@ export function StrategyTable({
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
-            leadingSpacer
             indexStart={1}
             /* Pinned right by the DS, fixed width, locked during horizontal
                scroll. Moving it out of `columns` is what makes it behave that
