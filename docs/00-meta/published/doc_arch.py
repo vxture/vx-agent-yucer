@@ -60,7 +60,7 @@ BODY = r"""
   <div class="gs-d">19 个功能键 × 5 档。判据由平台的 entitlement 给出，产品不自算。</div></div>
   <div class="gate-and">AND</div>
   <div class="gate-step g2"><div class="gs-n">GATE 2</div><div class="gs-t">权限：这个成员可以吗</div>
-  <div class="gs-d">20 个权限 × 7 个角色 = 68 条授权，存在 <span class='mono'>local_authz</span>。</div></div>
+  <div class="gs-d">25 个权限 × 9 个角色 = 117 条授权，存在 <span class='mono'>local_authz</span>。</div></div>
   <div class="gate-and">▸</div>
   <div class="gate-step g3"><div class="gs-n">THEN</div><div class="gs-t">规则纯函数</div>
   <div class="gs-d">到这里才轮到业务判断。门不做业务，业务不做门。</div></div>
@@ -149,7 +149,7 @@ BODY = r"""
 <div class="kv"><div class="kv-k hi">产品定义</div><div class="kv-v txt">九个能力分区 D1–D9，按对象归属切</div></div>
 <div class="kv"><div class="kv-k hi">域 schema</div><div class="kv-v txt">五个 + 证据面 + 目录面</div></div>
 <div class="kv"><div class="kv-k hi">能力矩阵</div><div class="kv-v txt">19 键 × 5 档</div></div>
-<div class="kv"><div class="kv-k hi">角色目录</div><div class="kv-v txt">20 权限 / 7 角色 / 68 授权</div></div>
+<div class="kv"><div class="kv-k hi">角色目录</div><div class="kv-v txt">25 权限 / 9 角色 / 117 授权</div></div>
 </div>
 </div>
 

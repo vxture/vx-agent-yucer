@@ -10,7 +10,7 @@ ANCHORS = [
     ("edges", "边界情形"),
 ]
 
-LEDE = ("九个能力分区、19 个功能键、24 个权限、五个功能域——四个数字，三层含义。"
+LEDE = ("九个能力分区、19 个功能键、25 个权限、五个功能域——四个数字，三层含义。"
         "<strong>先说清楚它们的关系，否则后面每一张表都会被读成同一件事。</strong>")
 
 # --- source of truth, transcribed from portals/app/app/entitlement/capability.ts
@@ -46,11 +46,18 @@ ENTERPRISE = BUSINESS + ["copilot.autopilot"]
 BY_TIER = {"free": FREE, "starter": STARTER, "pro": PRO,
            "business": BUSINESS, "enterprise": ENTERPRISE}
 
+# ARRIVAL ORDER, like PERM_CODES below and for the same reason: sales_manager
+# and regional_director came in by increment (#135, the two rungs between a rep
+# and the whole sales organisation) and sit last. catalog.test.ts compares these
+# lists element for element against the source, so sorting them "tidily" reads
+# as drift - and verify.py caught this file being two roles behind for nine days.
 ROLES = ["sales_leader", "marketing_manager", "sales_rep", "presales",
-         "delivery_manager", "sales_ops", "viewer"]
+         "delivery_manager", "sales_ops", "viewer",
+         "sales_manager", "regional_director"]
 ROLE_CN = {"sales_leader": "销售负责人", "marketing_manager": "市场经理",
            "sales_rep": "销售代表", "presales": "售前顾问",
-           "delivery_manager": "交付经理", "sales_ops": "销售运营", "viewer": "只读成员"}
+           "delivery_manager": "交付经理", "sales_ops": "销售运营", "viewer": "只读成员",
+           "sales_manager": "销售经理", "regional_director": "大区总监"}
 # ARRIVAL ORDER, mirroring PERM_CODES exactly - strategy.approve last because
 # it came in by increment (incr/0002). Transcribing it into the D1 group for
 # tidiness is precisely what section 04 of this document warns against, and the
@@ -89,6 +96,22 @@ GRANTS = {
                   "account.read", "campaign.read", "strategy.read", "admin.manage", "copilot.use", "catalog.read", "catalog.write", "catalog.price", "pipeline.discount"],
     "viewer": ["strategy.read", "planning.read", "campaign.read", "account.read",
                "signal.read", "pipeline.read", "delivery.read", "copilot.use", "catalog.read"],
+    # #135. A manager runs a team: they can move deals and commit a forecast,
+    # and they cannot approve a strategy or administer the workspace.
+    "sales_manager": ["account.read", "account.write", "account.record", "signal.read",
+                      "signal.triage", "pipeline.read", "pipeline.write", "pipeline.forecast",
+                      "delivery.read", "campaign.read", "copilot.use", "copilot.decide",
+                      "catalog.read", "planning.read"],
+    # #135. A director runs several teams: the manager's set plus the two things
+    # that need scale to mean anything - writing a plan, and approving a discount
+    # below the floor. Still no admin.manage, no copilot.autopilot, no
+    # strategy.approve: running the sales organisation and administering the
+    # workspace are not one job.
+    "regional_director": ["account.read", "account.write", "account.record", "signal.read",
+                          "signal.triage", "pipeline.read", "pipeline.write",
+                          "pipeline.forecast", "pipeline.discount", "delivery.read",
+                          "campaign.read", "copilot.use", "copilot.decide", "catalog.read",
+                          "planning.read", "planning.write", "strategy.read"],
 }
 
 
@@ -101,9 +124,9 @@ D_CN = {
 # Which functional domain the partition's PAGE was filed under. Navigation only -
 # see YC-401. copilot is deliberately in none of the five.
 IN_FD = {
-    "strategy": "战略武备域", "planning": "兵力部署域", "campaign": "火力侦察域",
-    "signal": "火力侦察域", "account": "阵地经营域", "pipeline": "阵地经营域",
-    "delivery": "战果结算域", "copilot": "—— 横切，不在五域中",
+    "strategy": "战略武备域", "planning": "作战部署域", "campaign": "战场侦察域",
+    "signal": "战场侦察域", "account": "阵地经营域", "pipeline": "阵地经营域",
+    "delivery": "战果沉淀域", "copilot": "—— 横切，不在五域中",
     "catalog": "战略武备域",
 }
 
@@ -174,7 +197,7 @@ def _grid():
     counts = "".join('<td class="cell" style="color:var(--text-dim);font-size:11px">%d</td>'
                      % len(GRANTS[r]) for r in ROLES)
     return ('<div class="mx"><table><thead><tr><th>权限</th>%s</tr></thead><tbody>%s'
-            '<tr style="border-top:2px solid var(--border)"><td style="color:var(--text-dim)">合计 86</td>%s</tr>'
+            '<tr style="border-top:2px solid var(--border)"><td style="color:var(--text-dim)">合计 117</td>%s</tr>'
             '</tbody></table></div>' % (head, "".join(rows), counts))
 
 
@@ -194,7 +217,7 @@ BODY = r"""
   五个档位就是它的五个累进子集。</div></div>
   <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head">▸</div>
   <div class="flow-arrow-label">前缀</div></div>
-  <div class="flow-node n-blue"><div class="fn-name">24 个权限</div>
+  <div class="flow-node n-blue"><div class="fn-name">25 个权限</div>
   <div class="fn-desc"><strong>组织内单位</strong>。同样以分区为前缀，但<strong>与功能键无一一对应</strong>。</div></div>
 </div>
 
@@ -211,7 +234,7 @@ __LEVELS__
 <p>类型签名就是答案：一个档位<strong>就是一组功能键</strong>。19 个键，五个累进子集，
 <span class='mono'>3 → 6 → 12 → 18 → 19</span>。</p>
 <p style='margin:0'><strong>权限完全不参与售卖。</strong>它回答的是「这个工作区里，这个人能做什么」，
-由工作区管理员分配，与付了多少钱无关。一个免费档的工作区照样可以有七种角色；
+由工作区管理员分配，与付了多少钱无关。一个免费档的工作区照样可以有九种角色；
 一个企业档的工作区照样可以有一个什么都不能改的只读成员。</p></div>
 
 <div class="note warn"><strong>两份目录不是一一对应，逐分区看就对不上。</strong>
@@ -250,7 +273,7 @@ D5 商机侦探有 3 个键却只有 2 个权限；D1 市场销售战略有 2 �
 </div>
 <div class="card"><div class="card-head"><span class="card-title">角色权限目录</span><span class="card-sub">组织内权限面</span></div>
 <div class="kv"><div class="kv-k hi">回答</div><div class="kv-v txt">这个<strong>成员</strong>可以做什么</div></div>
-<div class="kv"><div class="kv-k hi">规模</div><div class="kv-v">20 权限 × 7 角色 = 68 授权</div></div>
+<div class="kv"><div class="kv-k hi">规模</div><div class="kv-v">25 权限 × 9 角色 = 117 授权</div></div>
 <div class="kv"><div class="kv-k hi">住在</div><div class="kv-v">local_authz 五张表</div></div>
 <div class="kv"><div class="kv-k hi">谁配置</div><div class="kv-v txt">工作区管理员，通过 <span class='mono'>/admin/members</span></div></div>
 </div>
@@ -298,7 +321,7 @@ ADR-006 曾写明要给它两个功能键，一个都没加；19 键冻结后，
 到 enterprise 才成为一条可以被买下的例外，而例外本身仍需人先采纳。</div>
 </section>
 
-<section id="perms"><h2><span class="num">04</span>权限与角色<span class="h2-meta">25 / 7</span></h2><div class="rule"></div>
+<section id="perms"><h2><span class="num">04</span>权限与角色<span class="h2-meta">25 / 9</span></h2><div class="rule"></div>
 
 <p>权限码按域分 <span class='key'>read</span> / <span class='key'>write</span> 两级，三处例外，每一处都是一次业务裁定：</p>
 
@@ -335,7 +358,7 @@ ADR-006 曾写明要给它两个功能键，一个都没加；19 键冻结后，
 列表镜像种子，种子只追加——<strong>为整齐而重排会破坏顺序对账</strong>，而那正是意外洗牌的唯一守卫。</div>
 </section>
 
-<section id="grid"><h2><span class="num">05</span>授权网格<span class="h2-meta">68 条</span></h2><div class="rule"></div>
+<section id="grid"><h2><span class="num">05</span>授权网格<span class="h2-meta">117 条</span></h2><div class="rule"></div>
 
 __GRID__
 

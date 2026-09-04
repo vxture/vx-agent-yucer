@@ -298,7 +298,7 @@ ADR, not a free edit:
 | product definition | NINE capability partitions D1-D9, split by object ownership | `docs/20-specs/20-capability-domains.md`, ADR-001, ADR-017 |
 | domain schemas | seven product schemas, 44 tables total across ten | `docs/30-design/data_yucer_200_domain-schemas.md`, ADR-002, ADR-006, ADR-014 |
 | capability matrix | 19 feature keys across five tiers, cumulative. **FROZEN at 19** (owner, 2026-08-26) | `portals/app/app/entitlement/capability.ts`, `docs/20-specs/40-capability-matrix.md` |
-| role/permission catalog | 24 permissions, 7 roles, 84 grants | `deploy/database/ddl/incr/*.sql`, `docs/20-specs/50-role-permission-catalog.md` |
+| role/permission catalog | 25 permissions, 9 roles, 117 grants | `deploy/database/ddl/incr/*.sql`, `docs/20-specs/50-role-permission-catalog.md` |
 | domain guardrails | append-only tables, frozen attribution keys, agent proposals immutable | `deploy/database/ddl/98_column_locks.sql`, ADR-003 |
 
 Still blank (batches 2-3): domain pages and components, the permission-gate module
