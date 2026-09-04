@@ -1268,10 +1268,12 @@ export const PIPELINE_TEXT = {
   descriptionReadOnly: "只读视图：你可以查看管道，但没有推进商机的权限。",
   description: "预测口径与快照一致，均由同一套规则计算。",
   columnOpportunity: "商机",
-  columnStage: "阶段",
-  columnForecast: "预测类别",
-  columnAmount: "金额",
-  columnProbability: "赢率",
+  // Two merged headers (2026-09-04). Stage and forecast category stack in
+  // one cell, amount and win rate in another - the pair is what a reader
+  // actually reads, and the opportunity cell beside them was already two
+  // lines tall, so the stacking costs no row height.
+  columnStageForecast: "阶段 / 预测",
+  columnAmountProbability: "金额 / 赢率",
   columnExpectedClose: "预计成交",
   probabilityOverridden: (value: number) => `${value}% 人工`,
   probabilityHintOverridden: (fallback: number) =>
@@ -2011,11 +2013,13 @@ export const ACCOUNT_TEXT = {
   description:
     "健康度是派生值，随源数据重算；它用于排序和预警，不作为任何业务判断的唯一依据。",
   columnName: "客户",
-  columnIndustry: "行业",
-  columnSegment: "细分市场",
+  // Two merged headers (2026-09-04), same reasoning as PIPELINE_TEXT:
+  // industry and segment are both how this customer is FILED, health and
+  // status are both what CONDITION it is in. The name cell beside them
+  // already runs two lines, so stacking costs no row height.
+  columnIndustrySegment: "行业 / 细分",
   columnOwner: "负责人",
-  columnHealth: "健康度",
-  columnStatus: "状态",
+  columnHealthStatus: "健康度 / 状态",
   unscored: "未评估",
   emptyTitle: "还没有客户",
   emptyDescription: "线索转化或手工录入后，客户会出现在这里。",
@@ -2115,12 +2119,12 @@ export const DELIVERY_TEXT = {
     "健康度显示的是派生值，不是交付团队报的值。逾期回款不允许显示为健康。",
   rowCount: (n: number) => `${n} 个项目`,
   managerNone: "未指派",
-  columnName: "项目",
-  columnAccount: "客户",
+  columnNameAccount: "项目 / 客户",
   columnManager: "项目经理",
-  columnHealth: "健康度",
+  // Merged (2026-09-04), the third table to take this shape: a delivery
+  // health signal and the project status are one reading, not two columns.
+  columnHealthStatus: "健康度 / 状态",
   columnContract: "合同额",
-  columnStatus: "状态",
   healthOverridden: "已下调",
   // The tooltip states the RULE in the product's language, and shows the rule
   // layer's own sentence underneath as the machine's evidence. That sentence is

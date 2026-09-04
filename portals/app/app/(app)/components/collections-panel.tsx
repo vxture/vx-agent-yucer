@@ -160,7 +160,6 @@ export function CollectionsPanel({
       ) : (
         <DataTable
           labels={DATA_TABLE_LABELS}
-          leadingSpacer
           indexStart={1}
           rowKey={(r: CollectionRow) => r.id}
           rows={[...rows]}

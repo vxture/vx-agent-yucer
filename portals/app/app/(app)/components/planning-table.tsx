@@ -263,7 +263,6 @@ export function PlanningTable({
           <DataTable
             labels={DATA_TABLE_LABELS}
             rowActions={canUpdate && onUpdate ? actions : undefined}
-            leadingSpacer
             indexStart={1}
             columns={columns}
             rows={rows}

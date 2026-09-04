@@ -10,6 +10,7 @@ import {
   FilterBar,
   ListCard,
   ListCardGrid,
+  Stack,
   StatusBadge,
   useToast,
   type DataTableColumn,
@@ -171,18 +172,24 @@ export function AccountTable({
       ),
     },
     {
+      // INDUSTRY OVER SEGMENT: both answer "what kind of customer is this",
+      // one from the outside world and one from our own cut of it, and they
+      // are read together or not at all.
+      //
+      // The D1 cut is read-only here on purpose: D4 references the segment,
+      // D1 owns it, and the place to change a definition is /strategy.
       id: "industry",
-      header: ACCOUNT_TEXT.columnIndustry,
-      cell: (row) => row.industry ?? "-",
-    },
-    {
-      id: "segment",
-      header: ACCOUNT_TEXT.columnSegment,
-      // The D1 cut this customer is filed under. Read-only here on purpose:
-      // D4 references the segment, D1 owns it, and the place to change a
-      // definition is /strategy.
-      cell: (row) =>
-        row.segmentCode ? (segmentNames?.get(row.segmentCode) ?? row.segmentCode) : "-",
+      header: ACCOUNT_TEXT.columnIndustrySegment,
+      cell: (row) => (
+        <Stack gap="xs">
+          <span>{row.industry ?? "-"}</span>
+          <span className="text-muted-foreground">
+            {row.segmentCode
+              ? (segmentNames?.get(row.segmentCode) ?? row.segmentCode)
+              : "-"}
+          </span>
+        </Stack>
+      ),
     },
     {
       id: "owner",
@@ -205,26 +212,29 @@ export function AccountTable({
         ),
     },
     {
+      // HEALTH OVER STATUS: both are the customer's CONDITION - one derived and
+      // one declared - and a score means something different above "churned"
+      // than above "active". Side by side they were two columns asking the
+      // reader to pair them; stacked, they are already paired.
       id: "health",
-      header: ACCOUNT_TEXT.columnHealth,
-      align: "center",
-      cell: (row) =>
-        row.healthScore == null ? (
-          <StatusBadge tone="neutral">{ACCOUNT_TEXT.unscored}</StatusBadge>
-        ) : (
-          <StatusBadge tone={healthTone(row.healthScore)}>
-            {row.healthScore}
-          </StatusBadge>
-        ),
-    },
-    {
-      id: "status",
-      header: ACCOUNT_TEXT.columnStatus,
+      header: ACCOUNT_TEXT.columnHealthStatus,
       align: "center",
       cell: (row) => (
-        <StatusBadge tone={row.status === "churned" ? "danger" : "neutral"} dot>
-          {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
-        </StatusBadge>
+        <Stack gap="xs" className="items-center">
+          {row.healthScore == null ? (
+            <StatusBadge tone="neutral">{ACCOUNT_TEXT.unscored}</StatusBadge>
+          ) : (
+            <StatusBadge tone={healthTone(row.healthScore)}>
+              {row.healthScore}
+            </StatusBadge>
+          )}
+          <StatusBadge
+            tone={row.status === "churned" ? "danger" : "neutral"}
+            dot
+          >
+            {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
+          </StatusBadge>
+        </Stack>
       ),
     },
   ];
@@ -246,7 +256,6 @@ export function AccountTable({
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
-            leadingSpacer
             indexStart={1}
             columns={columns}
             rows={rows}

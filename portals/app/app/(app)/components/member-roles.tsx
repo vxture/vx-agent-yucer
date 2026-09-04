@@ -514,7 +514,6 @@ export function MemberRoles({
                anyone can rely on them. This table shipped with an "Actions"
                column header in a Chinese interface. */
           labels={DATA_TABLE_LABELS}
-          leadingSpacer
           indexStart={1}
           columns={columns}
           rows={members}

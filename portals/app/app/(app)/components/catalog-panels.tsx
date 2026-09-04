@@ -92,7 +92,6 @@ export function ProductSection({
       ) : (
         <DataTable
           labels={DATA_TABLE_LABELS}
-          leadingSpacer
           indexStart={1}
           rowKey={(r: ProductRecord) => r.id}
           rows={[...products]}
@@ -222,7 +221,6 @@ export function PriceSection({
       ) : (
         <DataTable
           labels={DATA_TABLE_LABELS}
-          leadingSpacer
           indexStart={1}
           rowKey={(r: PriceEntryRecord) => r.id}
           rows={[...prices]}
