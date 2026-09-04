@@ -24,6 +24,20 @@ export interface AccountRecord {
   status: AccountStatus;
   /** strategic | key | standard - set by D1, not by the owner. See ADR-013. */
   tier: AccountTier;
+  /**
+   * What identifies the legal entity, which `name` does not - incr/0024.
+   *
+   * A partial unique index enforces one row per (workspace, credit_code), so
+   * this is the column that makes a duplicate customer master record refusable
+   * rather than merely regrettable. NULL is always allowed and never collides:
+   * not knowing the code yet is the normal state of a new prospect.
+   */
+  creditCode: string | null;
+  website: string | null;
+  /** A headcount. The bands are the owner's vocabulary - see incr/0024. */
+  employeeCount: number | null;
+  /** The parent company, or null for a customer that is nobody's subsidiary. */
+  parentId: string | null;
 }
 
 export const ACCOUNT_TIERS = ["strategic", "key", "standard"] as const;
@@ -55,6 +69,10 @@ export interface ContactRecord extends ContactNode {
   name: string;
   title: string | null;
   department: string | null;
+  /** incr/0024 - how to actually reach this person. */
+  email: string | null;
+  mobile: string | null;
+  wechat: string | null;
 }
 
 export interface AccountFilter {
@@ -87,7 +105,17 @@ export interface AccountStore {
     // allowed it since incr/0006 and this type did not, so nothing could
     // designate a strategic account - the tier existed, the cadence rule read
     // it, and no path could set it.
-    patch: Partial<Pick<AccountRecord, "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore" | "status" | "tier">>,
+    // creditCode/website/employeeCount joined with incr/0024 and parentId with
+    // incr/0025. The column lock allows all four; a patch type that did not
+    // would repeat the tier defect noted above, where the column existed, the
+    // grant existed, and no path could set it.
+    patch: Partial<
+      Pick<
+        AccountRecord,
+        | "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore"
+        | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
+      >
+    >,
   ): Promise<boolean>;
 
   /**
@@ -229,6 +257,9 @@ export class InMemoryAccountStore implements AccountStore {
       held.department = input.department;
       held.decisionRole = input.decisionRole;
       held.influence = input.influence;
+      held.email = input.email;
+      held.mobile = input.mobile;
+      held.wechat = input.wechat;
       held.status = input.status;
       return held;
     }
@@ -241,6 +272,9 @@ export class InMemoryAccountStore implements AccountStore {
       department: input.department,
       decisionRole: input.decisionRole,
       influence: input.influence,
+      email: input.email,
+      mobile: input.mobile,
+      wechat: input.wechat,
       status: input.status,
     };
     this.contacts.push(created);

@@ -2117,6 +2117,10 @@ export const ACCOUNT_TEXT = {
   contactDepartment: "部门",
   contactRole: "决策角色",
   contactInfluence: "影响力 0-100",
+  // incr/0024. 手机排在最前:决策链上真正会被用到的是它。
+  contactMobile: "手机",
+  contactEmail: "邮箱",
+  contactWechat: "微信",
   contactStatus: "状态",
   contactStatusLabel: {
     active: "在职",

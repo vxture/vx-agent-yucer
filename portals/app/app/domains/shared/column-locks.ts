@@ -38,6 +38,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "segment_code",
     "owner_sub",
     "health_score", "tier",
+    // incr/0024 - what identifies a legal entity, which name and industry do
+    // not. incr/0025 - the group/subsidiary link.
+    "credit_code", "website", "employee_count",
+    "parent_id",
     "status",
     "updated_at",
     "deleted_at",
@@ -48,6 +52,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "department",
     "decision_role",
     "influence",
+    // incr/0024. A decision chain nobody can reach is a chain nobody can work.
+    "email", "mobile", "wechat",
     "status",
     "updated_at",
     "deleted_at",

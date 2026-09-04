@@ -350,14 +350,30 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       },
     ],
     accounts: [
-      account("acc_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0], "MIDMARKET", REP1, 34, "active"),
+      // The group parent, and the one account whose identity IS fully on file -
+      // credit code, site, headcount. Everything downstream that asks "do we
+      // know who this company actually is" needs one row that answers yes.
+      account("acc_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0], "MIDMARKET", REP1, 34, "active", "standard", {
+        creditCode: "91310000MA1FL2XY3T",
+        website: "https://hdretail.example.cn",
+        employeeCount: 4200,
+      }),
       account("acc_demo_2", workspaceId, 2, DEMO_ACCOUNTS[1], "ENTERPRISE", REP2, 78, "active"),
       // Strategic, and deliberately a PROSPECT with no open opportunity: this is
       // the case every other rule is structurally blind to. Nothing has
       // happened here, and that is precisely what has to be reported.
       account("acc_demo_3", workspaceId, 3, DEMO_ACCOUNTS[2], "ENTERPRISE", REP1, null, "prospect", "strategic"),
       account("acc_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3], "MIDMARKET", REP2, 61, "active"),
-      account("acc_demo_5", workspaceId, 5, DEMO_ACCOUNTS[4], "MIDMARKET", REP1, 45, "active"),
+      // A SUBSIDIARY of acc_demo_1 - incr/0025. Both are 零售, both are worked
+      // by the same rep, and they are deliberately NOT merged: a subsidiary is
+      // a customer in its own right with its own deals. Its own buying centre
+      // is also its own, which is why a parent link does not join the two
+      // decision chains (ADR-024, batch B).
+      account("acc_demo_5", workspaceId, 5, DEMO_ACCOUNTS[4], "MIDMARKET", REP1, 45, "active", "standard", {
+        creditCode: "91440300MA5DR7QK8P",
+        employeeCount: 380,
+        parentId: "acc_demo_1",
+      }),
       // Two accounts that exist to exercise rules the first five never reach:
       // 6 goes quiet with nobody having broken a promise, 7 is one WE owe.
       account("acc_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5], "MIDMARKET", REP1, 52, "active"),
@@ -376,8 +392,15 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       account("acc_demo_9", workspaceId, 9, DEMO_ACCOUNTS[8], "MIDMARKET", REP1, 70, "active"),
     ],
     contacts: [
-      contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90),
-      contact("ct_2", workspaceId, "acc_demo_1", DEMO_CONTACTS[1], "technical", 70),
+      contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90, {
+        email: "wanglei@hdretail.example.cn",
+        mobile: "+86 138 0000 1001",
+        wechat: "wl_cfo",
+      }),
+      contact("ct_2", workspaceId, "acc_demo_1", DEMO_CONTACTS[1], "technical", 70, {
+        email: "chenhao@hdretail.example.cn",
+        mobile: "+86 138 0000 1002",
+      }),
       contact("ct_3", workspaceId, "acc_demo_1", DEMO_CONTACTS[2], "coach", 55),
       contact("ct_4", workspaceId, "acc_demo_1", DEMO_CONTACTS[3], "blocker", 60),
       contact("ct_5", workspaceId, "acc_demo_2", DEMO_CONTACTS[4], "economic", 85),
@@ -385,6 +408,10 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // acc_demo_4 has a buyer and a coach with NO edge between them, so the
       // chain reports "on file but unreachable" - the distinction the view leads
       // with.
+      // Left with NO contact details on purpose. acc_demo_4's chain already
+      // reports "on file but unreachable" for want of an edge; this makes the
+      // same account unreachable in the plainer sense too - nobody recorded a
+      // phone number for the person who signs.
       contact("ct_7", workspaceId, "acc_demo_4", DEMO_CONTACTS[5], "economic", 80),
       contact("ct_8", workspaceId, "acc_demo_4", DEMO_CONTACTS[2], "coach", 50),
       contact("ct_9", workspaceId, "acc_demo_5", DEMO_CONTACTS[0], "economic", 75),
@@ -1052,6 +1079,16 @@ function account(
   healthScore: number | null,
   status: string,
   tier: "strategic" | "key" | "standard" = "standard",
+  // incr/0024 and 0025. Optional and null by default, because that is the
+  // honest default: most of these are prospects somebody met recently, and a
+  // seed that filled every field would show a customer master nobody has ever
+  // had. The few that ARE filled below exist so the screens have both states.
+  identity: {
+    creditCode?: string | null;
+    website?: string | null;
+    employeeCount?: number | null;
+    parentId?: string | null;
+  } = {},
 ) {
   return {
     tier,
@@ -1067,6 +1104,10 @@ function account(
     // writes "" for the region-derivable case, and the column and every rule
     // downstream treat a blank as unknown, not as an account with no region.
     region: info.region || null,
+    creditCode: identity.creditCode ?? null,
+    website: identity.website ?? null,
+    employeeCount: identity.employeeCount ?? null,
+    parentId: identity.parentId ?? null,
     segmentCode,
     ownerSub,
     healthScore,
@@ -1081,6 +1122,10 @@ function contact(
   info: { name: string; title: string; department: string },
   decisionRole: string,
   influence: number,
+  // incr/0024. Same reasoning as the account identity block: null is the
+  // normal state, and the demo needs contacts in BOTH states so "we have no
+  // way to reach the economic buyer" is a case the screens actually show.
+  reach: { email?: string | null; mobile?: string | null; wechat?: string | null } = {},
 ) {
   return {
     id,
@@ -1091,6 +1136,9 @@ function contact(
     department: info.department,
     decisionRole: decisionRole as never,
     influence,
+    email: reach.email ?? null,
+    mobile: reach.mobile ?? null,
+    wechat: reach.wechat ?? null,
     status: "active",
   };
 }

@@ -22,6 +22,7 @@ import type { PipelineStore } from "../pipeline/store";
 import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
+import { planAccountParent } from "./lib/parent";
 import { denied } from "../pipeline/service";
 import {
   type ChainCoverage,
@@ -522,4 +523,38 @@ export async function designateAccount(
     });
   }
   return ok({ tier: input.tier, planned: input.plan != null });
+}
+
+/**
+ * Make one customer a subsidiary of another, or detach it - incr/0025.
+ *
+ * BOTH GATES, in the fixed order, like every other verb here. The permission is
+ * `account.upsert` and not a new one: deciding that a company belongs to a
+ * group is editing the customer master record, which is exactly what that
+ * permission already means. ADR-024 froze nothing about permissions, but adding
+ * one that nobody can distinguish from an existing one makes the catalogue
+ * bigger without making it say more.
+ *
+ * WHY THE WHOLE LIST IS LOADED. The cycle guard has to walk ancestry, and
+ * ancestry is not local: A->B->C->A is invisible from any single row. The port
+ * has no "walk parents" method and adding one would put the rule in the
+ * adapter, where no test can reach it without a database.
+ */
+export async function setAccountParent(
+  ctx: AccountContext,
+  accountId: string,
+  parentId: string | null,
+): Promise<RuleResult<{ accountId: string; parentId: string | null }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const all = await ctx.store.listAccounts(ctx.workspaceId);
+  const plan = planAccountParent({ accountId, parentId }, all);
+  if (!plan.ok) return plan as RuleResult<{ accountId: string; parentId: string | null }>;
+
+  const written = await ctx.store.updateAccount(ctx.workspaceId, accountId, { parentId });
+  if (!written) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  return ok({ accountId, parentId });
 }

@@ -58,6 +58,10 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     healthScore: 60,
     status: "active",
     tier: "standard",
+    creditCode: null,
+    website: null,
+    employeeCount: null,
+    parentId: null,
     ...over,
   };
 }
@@ -82,6 +86,9 @@ function buyer(accountId: string, id: string) {
     department: null,
     decisionRole: "economic" as const,
     influence: 90,
+    email: null,
+    mobile: null,
+    wechat: null,
     status: "active",
   };
 }

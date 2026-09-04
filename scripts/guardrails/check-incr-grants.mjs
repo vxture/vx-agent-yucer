@@ -74,6 +74,67 @@ export function tablesGranted(sql) {
   return set;
 }
 
+/**
+ * Columns 98_column_locks.sql grants UPDATE on, as `schema.table.column`.
+ *
+ * TABLE-QUALIFIED, and that is the whole point of this function existing. The
+ * first version of this check collected bare column NAMES from 98 and bare
+ * names from the increments, so it compared `parent_id` to `parent_id` across
+ * two unrelated tables. 98 has granted `yucer_gtm.territory.parent_id` since
+ * baseline; the day an increment added `yucer_core.account.parent_id` the check
+ * reported a deploy-killing bug that was not there.
+ *
+ * A guard that cries wolf is spent: the next person to see it red assumes the
+ * same false positive and merges past a real one. Common column names - `name`,
+ * `status`, `parent_id` - are exactly the ones that recur across tables, so the
+ * false positives were not going to be rare.
+ */
+export function grantedColumns(locksSql) {
+  const set = new Set();
+  for (const statement of uncommented(locksSql).split(";")) {
+    if (!/^\s*GRANT\b/i.test(statement)) continue;
+    const cols = statement.match(/GRANT\s+UPDATE\s*\(([^)]*)\)/i);
+    const on = statement.match(/\bON\s+(?:TABLE\s+)?(\w+)\.(\w+)/i);
+    if (!cols || !on) continue;
+    for (const c of cols[1].split(",")) {
+      const name = c.trim();
+      if (name) set.add(`${on[1]}.${on[2]}.${name}`);
+    }
+  }
+  return set;
+}
+
+/**
+ * Columns an increment adds, as `schema.table.column`.
+ *
+ * ONE ALTER TABLE MAY ADD SEVERAL COLUMNS - `ADD COLUMN a, ADD COLUMN b` is one
+ * statement and incr/0024 uses that form - so every ADD COLUMN in a statement
+ * belongs to that statement's table, not just the first.
+ */
+export function addedColumns(incrSql) {
+  const set = new Set();
+  for (const statement of uncommented(incrSql).split(";")) {
+    const on = statement.match(/ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)\.(\w+)/i);
+    if (!on) continue;
+    for (const m of statement.matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi)) {
+      set.add(`${on[1]}.${on[2]}.${m[1]}`);
+    }
+  }
+  return set;
+}
+
+/** Every `file adds X, but 98 grants it` finding, table-qualified. */
+export function lateColumnGrants(locksSql, increments) {
+  const granted = grantedColumns(locksSql);
+  const out = [];
+  for (const { file, sql } of increments) {
+    for (const col of addedColumns(sql)) {
+      if (granted.has(col)) out.push(`${file} adds ${col}, but 98 grants it`);
+    }
+  }
+  return out;
+}
+
 export function auditIncrement(sql) {
   const clean = uncommented(sql);
   const created = tablesCreated(clean);
@@ -106,26 +167,15 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   // taking the whole apply down. The existing check covers tables created by an
   // increment; nothing covered COLUMNS added by one, and the failure mode is
   // identical: a file granting something that is not there yet.
-  const lateColumns = [];
-  {
-    // NOT wrapped in a try that returns "". The first version of this check was,
-    // and DDL_DIR was undefined - so the read threw, the catch swallowed it, the
-    // granted-column set was empty and the check passed on the very input it was
-    // written for. A guard that cannot fail is worse than no guard: it reports
-    // safety. If 98 is unreadable, that is itself the finding.
-    const locks = uncommented(readFileSync(join(DDL_DIR, "98_column_locks.sql"), "utf8"));
-    const granted = new Set();
-    for (const m of locks.matchAll(/GRANT\s+UPDATE\s*\(([^)]*)\)/gi)) {
-      for (const c of m[1].split(",")) granted.add(c.trim());
-    }
-    for (const f of files) {
-      const text = uncommented(readFileSync(join(INCR_DIR, f), "utf8"));
-      for (const m of text.matchAll(/ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/gi)) {
-        if (granted.has(m[1])) lateColumns.push(`${f} adds ${m[1]}, but 98 grants it`);
-      }
-    }
-  }
-
+  // NOT wrapped in a try that returns "". The first version of this check was,
+  // and DDL_DIR was undefined - so the read threw, the catch swallowed it, the
+  // granted-column set was empty and the check passed on the very input it was
+  // written for. A guard that cannot fail is worse than no guard: it reports
+  // safety. If 98 is unreadable, that is itself the finding.
+  const lateColumns = lateColumnGrants(
+    readFileSync(join(DDL_DIR, "98_column_locks.sql"), "utf8"),
+    files.map((f) => ({ file: f, sql: readFileSync(join(INCR_DIR, f), "utf8") })),
+  );
   for (const f of files) {
     const missing = auditIncrement(readFileSync(join(INCR_DIR, f), "utf8"));
     createdTotal += tablesCreated(uncommented(readFileSync(join(INCR_DIR, f), "utf8"))).size;
