@@ -155,26 +155,46 @@ export function PipelineBoard({
 
   const columns: readonly DataTableColumn<PipelineRow>[] = [
     {
-      id: "name",
-      header: PIPELINE_TEXT.columnOpportunity,
+      // THE DEAL, and only the deal (owner, 2026-09-04). This cell used to
+      // carry four things - name, number, customer, and the unreachable badge -
+      // which broke the rule the rest of this table now follows: a column holds
+      // ONE dimension. The customer is a different entity and one a reader
+      // filters by, so it has its own column below; the number belongs on the
+      // detail page, where an identifier is what you came for.
+      //
       // A link, not a row-click handler: navigable, middle-clickable and
       // shareable in a way a click handler is not. Same reasoning as the
       // account list - and design-ui 2.0 dropped onRowClick entirely, which
       // only removed a second, worse way to reach the same page.
+      id: "name",
+      header: PIPELINE_TEXT.columnOpportunity,
+      // A FLOOR, because auto-layout gives a column what its content demands
+      // and this cell no longer demands anything: with the number and the
+      // customer moved out it is one short link, so the table handed it 57px
+      // and broke 智能仓储升级 down four lines. The row identity is the one
+      // column that should never be the narrowest.
+      width: "md",
+      cell: (row) => <Link href={`/pipeline/${row.id}`}>{row.name}</Link>,
+    },
+    {
+      // THE CUSTOMER, main over sub - the same two-line shape delivery uses,
+      // with the same gap, so a stacked cell reads the same wherever it
+      // appears. The second line is where this deal stands with the people who
+      // decide it: today that is the unreachable warning, which is the only
+      // chain fact this page is given. Naming the decision-maker and counting
+      // the rest needs contacts for MANY accounts at once, and the domain has
+      // only a per-account read - see the PR.
+      id: "account",
+      header: PIPELINE_TEXT.columnAccount,
       cell: (row) => (
-        <div>
-          <div>
-            <Link href={`/pipeline/${row.id}`}>{row.name}</Link>
-          </div>
-          <div className="flex items-center gap-2xs">
+        <Stack gap="sm">
+          <span>{row.accountName}</span>
+          {row.buyerUnreachable ? (
             <span>
-              {row.opportunityNo} / {row.accountName}
-            </span>
-            {row.buyerUnreachable ? (
               <StatusBadge tone="warning">{PIPELINE_TEXT.buyerUnreachable}</StatusBadge>
-            ) : null}
-          </div>
-        </div>
+            </span>
+          ) : null}
+        </Stack>
       ),
     },
     {
@@ -189,7 +209,7 @@ export function PipelineBoard({
       id: "stage",
       header: PIPELINE_TEXT.columnStageForecast,
       cell: (row) => (
-        <Stack gap="xs">
+        <Stack gap="sm">
           <StatusBadge tone={STAGE_TONE[row.stage as Stage]} dot>
             {STAGE_LABEL[row.stage as Stage]}
           </StatusBadge>
@@ -202,42 +222,45 @@ export function PipelineBoard({
       ),
     },
     {
-      // AMOUNT OVER WIN RATE, in one column, because they are read as a
-      // product: the two of them are what the weighted number is made of, and
-      // an amount without the confidence beside it is half a sentence.
-      //
-      // An overridden win rate is still marked. A number the machine suggested
-      // and a number a salesperson committed to look identical in the database
-      // and mean entirely different things in a review.
+      // SPLIT AGAIN (owner, 2026-09-04), and the rule that split it is worth
+      // writing down: two fields share a column only when they are the SAME
+      // DIMENSION. 阶段 and 预测类别 are - both say where this deal stands,
+      // both render as tone+tag, and a reader takes them as one sentence.
+      // Money and probability are not. One is a quantity in yuan and the other
+      // a likelihood in percent; putting them in one cell asks the eye to read
+      // two scales stacked, and it makes each one harder to sort and filter on
+      // than it was as its own column.
       id: "amount",
-      header: PIPELINE_TEXT.columnAmountProbability,
+      header: PIPELINE_TEXT.columnAmount,
+      align: "right",
+      cell: (row) =>
+        formatMoney(row.amount?.amount ?? null, row.currency, locale),
+    },
+    {
+      // An overridden win rate is marked. A number the machine suggested and a
+      // number a salesperson committed to look identical in the database and
+      // mean entirely different things in a review.
+      id: "probability",
+      header: PIPELINE_TEXT.columnProbability,
       align: "right",
       cell: (row) => {
         const p = probabilityDisplay(row);
-        return (
-          <Stack gap="xs" className="items-end">
-            <span>
-              {formatMoney(row.amount?.amount ?? null, row.currency, locale)}
-            </span>
-            {p.value == null ? (
-              <span className="text-muted-foreground">-</span>
-            ) : p.overridden ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <StatusBadge tone="info">
-                      {PIPELINE_TEXT.probabilityOverridden(p.value)}
-                    </StatusBadge>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <span className="text-muted-foreground">{p.value}%</span>
-            )}
-          </Stack>
+        if (p.value == null) return "-";
+        return p.overridden ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <StatusBadge tone="info">
+                  {PIPELINE_TEXT.probabilityOverridden(p.value)}
+                </StatusBadge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span>{p.value}%</span>
         );
       },
     },

@@ -181,7 +181,7 @@ export function AccountTable({
       id: "industry",
       header: ACCOUNT_TEXT.columnIndustrySegment,
       cell: (row) => (
-        <Stack gap="xs">
+        <Stack gap="sm">
           <span>{row.industry ?? "-"}</span>
           <span className="text-muted-foreground">
             {row.segmentCode
@@ -220,7 +220,7 @@ export function AccountTable({
       header: ACCOUNT_TEXT.columnHealthStatus,
       align: "center",
       cell: (row) => (
-        <Stack gap="xs" className="items-center">
+        <Stack gap="sm" className="items-center">
           {row.healthScore == null ? (
             <StatusBadge tone="neutral">{ACCOUNT_TEXT.unscored}</StatusBadge>
           ) : (

@@ -1306,8 +1306,10 @@ export const PIPELINE_TEXT = {
   // one cell, amount and win rate in another - the pair is what a reader
   // actually reads, and the opportunity cell beside them was already two
   // lines tall, so the stacking costs no row height.
+  columnAccount: "客户",
   columnStageForecast: "阶段 / 预测",
-  columnAmountProbability: "金额 / 赢率",
+  columnAmount: "金额",
+  columnProbability: "赢率",
   columnExpectedClose: "预计成交",
   probabilityOverridden: (value: number) => `${value}% 人工`,
   probabilityHintOverridden: (fallback: number) =>
