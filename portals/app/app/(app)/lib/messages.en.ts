@@ -450,22 +450,10 @@ export const en: Dictionary = {
     settlement: "How the money actually arrives",
   },
 
-  PLANNED_MODULE_LABEL: {
-    // Trimmed against the Chinese, not translated from it. The column header
-    // already says Armory, so "Market segments" spends five characters
-    // restating it - and those characters were coming out of the label, which
-    // clipped, rather than out of the badge, which did not.
-    segment: "Segments",
-    catalog: "Catalogue",
-    solution: "Solutions",
-    pricebook: "Price book",
-    territory: "Territories",
-    namedAccount: "Key accounts",
-    routing: "Lead routing",
-    quote: "Quotes",
-    winLossReview: "Win/loss",
-    collection: "Collections",
-  },
+  // Empty, like the Chinese: every module is built. See messages.ts for why
+  // the ten entries that used to sit here were a liability rather than a
+  // fallback.
+  PLANNED_MODULE_LABEL: {},
 
   LAUNCHER_TEXT: {
     locked: (tier: string) => `${tier} plan`,
