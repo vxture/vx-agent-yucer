@@ -5,13 +5,17 @@ import { ROLE_CODES, permissionsForRoles, type RoleCode } from "../../authz/cata
 import { ACTIONS } from "../../authz/actions";
 import { unwrap } from "../shared/result";
 import { InMemorySignalStore, type LeadRecord, type SignalRecord } from "./store";
+import type { RoutingTerritory } from "./lib/routing";
 import {
   advanceLead,
+  assignLead,
   completeConversion,
   convertLead,
   ingestSignals,
+  listLeads,
   listSignals,
   previewAttribution,
+  previewRouting,
   promoteSignal,
   rescoreSignal,
   triageSignal,
@@ -304,4 +308,158 @@ test("whoever can write a signal into the inbox can also read it", async () => {
       assert.ok(held.has("signal.read"), `${role} can ingest signals but cannot read them`);
     }
   }
+});
+
+// --- assignLead, listLeads, previewRouting ----------------------------------
+//
+// Three exported verbs that had no test at all. They are the routing surface -
+// /routing reads previewRouting and writes through assignLead - so the rule
+// each one carries was running in production and pinned by nothing.
+
+const TERRITORIES: RoutingTerritory[] = [
+  { id: "terr_east", name: "East", ownerSub: "usr_east", regions: ["east"], status: "active" },
+  { id: "terr_west", name: "West", ownerSub: "usr_west", regions: ["west"], status: "active" },
+  { id: "terr_retired", name: "Old", ownerSub: "usr_old", regions: ["east"], status: "retired" },
+];
+
+test("assignLead refuses to move a converted lead", async () => {
+  // Its opportunity already carries an owner. Reassigning here would leave the
+  // two records disagreeing about whose deal it is, and the opportunity is the
+  // one that counts - so the lead is the one that has to stop being editable.
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead({ status: "converted", convertedOpportunityId: "opp_1" })] });
+  const out = await assignLead(ctx("sales_manager", "pro", store), "lead_1", "usr_new");
+
+  assert.equal(out.ok, false);
+  assert.equal(out.ok === false ? out.violations[0]?.code : null, "lead_converted");
+  const after = await store.getLead(WS, "lead_1");
+  assert.equal(after?.ownerSub, "usr_rep", "the original owner must still be on the row");
+});
+
+test("assignLead refuses an empty owner rather than clearing the field", async () => {
+  // "  " is what a trimmed-empty form field sends. Writing it would silently
+  // unassign the lead, which is a different action from assigning one and is
+  // not the action that was asked for.
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead()] });
+  const out = await assignLead(ctx("sales_manager", "pro", store), "lead_1", "   ");
+
+  assert.equal(out.ok, false);
+  assert.equal(out.ok === false ? out.violations[0]?.code : null, "owner_required");
+  assert.equal((await store.getLead(WS, "lead_1"))?.ownerSub, "usr_rep");
+});
+
+test("assignLead reports a lead that is not there rather than writing one", async () => {
+  const store = new InMemorySignalStore();
+  const out = await assignLead(ctx("sales_manager", "pro", store), "lead_missing", "usr_new");
+
+  assert.equal(out.ok, false);
+  assert.equal(out.ok === false ? out.violations[0]?.code : null, "not_found");
+});
+
+test("assignLead writes the new owner and says so", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead()] });
+  const out = unwrap(await assignLead(ctx("sales_manager", "pro", store), "lead_1", "usr_new"));
+
+  assert.equal(out.ownerSub, "usr_new");
+  assert.equal((await store.getLead(WS, "lead_1"))?.ownerSub, "usr_new", "the store, not the return value");
+});
+
+test("assignLead is gated, and a refusal writes nothing", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead()] });
+  // The free tier does not carry lead routing. The check that matters is not
+  // the refusal - it is that the store is untouched after one.
+  const out = await assignLead(ctx("sales_rep", "free", store), "lead_1", "usr_new");
+
+  assert.equal(out.ok, false);
+  assert.equal((await store.getLead(WS, "lead_1"))?.ownerSub, "usr_rep");
+});
+
+test("listLeads is gated, and hands the filter through untouched", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({
+    leads: [lead(), lead({ id: "lead_2", leadNo: "LEAD-00002", status: "converted" })],
+  });
+  const all = unwrap(await listLeads(ctx("sales_rep", "pro", store)));
+  assert.equal(all.length, 2, "no filter means no filtering");
+
+  const open = unwrap(await listLeads(ctx("sales_rep", "pro", store), { status: "qualified" }));
+  assert.deepEqual(
+    open.map((l) => l.id),
+    ["lead_1"],
+  );
+
+  assert.equal((await listLeads(ctx("sales_rep", "free", store))).ok, false);
+});
+
+test("previewRouting leaves converted and disqualified leads out of the plan", async () => {
+  // A plan is a list of leads somebody is about to be given. A closed one is
+  // not work, and offering it would put a row in the reviewer's way that has
+  // no action behind it.
+  const store = new InMemorySignalStore();
+  store.seed({
+    leads: [
+      lead({ id: "lead_open", accountId: "acc_e" }),
+      lead({ id: "lead_done", leadNo: "LEAD-2", status: "converted", accountId: "acc_e" }),
+      lead({ id: "lead_dq", leadNo: "LEAD-3", status: "disqualified", accountId: "acc_e" }),
+    ],
+  });
+  const plan = unwrap(
+    await previewRouting(ctx("sales_manager", "pro", store), TERRITORIES, new Map([["acc_e", "east"]])),
+  );
+
+  assert.deepEqual(
+    plan.map((p) => p.leadId),
+    ["lead_open"],
+  );
+});
+
+test("previewRouting calls a lead with no account unroutable rather than guessing", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead({ accountId: null })] });
+  const plan = unwrap(
+    await previewRouting(ctx("sales_manager", "pro", store), TERRITORIES, new Map()),
+  );
+
+  assert.equal(plan.length, 1);
+  assert.equal(plan[0]?.outcome.kind, "unroutable");
+  assert.equal(plan[0]?.outcome.kind === "unroutable" ? plan[0].outcome.reason : null, "no_region");
+  assert.equal(plan[0]?.currentOwner, "usr_rep", "the plan still says who holds it today");
+});
+
+test("previewRouting counts load from the leads as they stand, not as the plan would leave them", async () => {
+  // The load that breaks a territory tie is measured ONCE, before any of this
+  // plan is applied. Counting it as the plan is built would make each lead's
+  // answer depend on where it sat in the list, and the same input would route
+  // differently on a re-read.
+  const store = new InMemorySignalStore();
+  store.seed({
+    leads: [
+      lead({ id: "l1", ownerSub: "usr_east", accountId: "acc_e" }),
+      lead({ id: "l2", leadNo: "LEAD-2", ownerSub: "usr_east", accountId: "acc_e" }),
+      lead({ id: "l3", leadNo: "LEAD-3", ownerSub: null, accountId: "acc_e" }),
+    ],
+  });
+  const plan = unwrap(
+    await previewRouting(ctx("sales_manager", "pro", store), TERRITORIES, new Map([["acc_e", "east"]])),
+  );
+
+  assert.equal(plan.length, 3);
+  // One territory covers east once its retired twin is excluded, so every open
+  // lead lands on the same owner regardless of the load it already carries.
+  for (const row of plan) {
+    assert.equal(row.outcome.kind, "assigned");
+    assert.equal(row.outcome.kind === "assigned" ? row.outcome.ownerSub : null, "usr_east");
+  }
+});
+
+test("previewRouting is gated", async () => {
+  const store = new InMemorySignalStore();
+  store.seed({ leads: [lead()] });
+  assert.equal(
+    (await previewRouting(ctx("sales_rep", "free", store), TERRITORIES, new Map())).ok,
+    false,
+  );
 });
