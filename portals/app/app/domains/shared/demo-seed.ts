@@ -1154,6 +1154,17 @@ function lead(
   };
 }
 
+/**
+ * acc_demo_N -> the fixture name that account was seeded with.
+ *
+ * DERIVED from DEMO_ACCOUNTS rather than written out, because a second list of
+ * the same names is a second list to forget. The ids are assigned in fixture
+ * order by seedAccounts, and demo-seed.test.ts holds that correspondence.
+ */
+const DEMO_ACCOUNT_NAME_BY_ID: Record<string, string> = Object.fromEntries(
+  DEMO_ACCOUNTS.map((a, i) => [`acc_demo_${i + 1}`, a.name]),
+);
+
 function opp(
   id: string,
   workspaceId: string,
@@ -1185,7 +1196,12 @@ function opp(
     opportunityNo: `OPP-2026-${String(n).padStart(4, "0")}`,
     name,
     accountId,
-    accountName: undefined,
+    // THE NAME, not a blank. This read `undefined`, and the pipeline page's
+    // `accountName ?? accountId` fallback then printed `acc_demo_2` on every
+    // row of the deal list - an id where the customer should be, on the screen
+    // a seller looks at most. The name was in DEMO_ACCOUNTS the whole time;
+    // the seed's own lead() helper has been passing it since it was written.
+    accountName: DEMO_ACCOUNT_NAME_BY_ID[accountId],
     planId: "plan_demo_1",
     campaignId,
     territoryId,

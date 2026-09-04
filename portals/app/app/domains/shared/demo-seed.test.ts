@@ -164,6 +164,33 @@ test("every open stage is occupied, so the board has no empty column", async () 
 
 // --- Referential integrity: the chain is real, not agreeing fixtures ------
 
+test("every seeded deal carries its customer's NAME, not its id", async () => {
+  // The pipeline page renders `accountName ?? accountId`, so a missing name
+  // does not fail - it prints `acc_demo_2` in the column a seller reads first,
+  // and nothing reports it. That is what this fixture did until 2026-09-04:
+  // `accountName: undefined`, written out, while lead() had been passing the
+  // real name since it was written.
+  //
+  // Asserted against the ACCOUNT LIST rather than a copy of the names, so the
+  // check still means something after somebody renames a fixture.
+  const s = seeded();
+  const [accounts, opportunities] = await Promise.all([
+    s.account.listAccounts(WS),
+    s.pipeline.listOpportunities(WS, { includeClosed: true }),
+  ]);
+  const nameById = new Map(accounts.map((a) => [a.id, a.name]));
+
+  const wrong = opportunities
+    .filter((o) => o.accountName !== nameById.get(o.accountId))
+    .map((o) => `${o.opportunityNo}: ${o.accountName ?? "(none)"} for ${o.accountId}`);
+  assert.deepEqual(wrong, [], `a deal must name its customer:\n  ${wrong.join("\n  ")}`);
+
+  // And the id must never BE the name, which is the shape the fallback
+  // produces and the one that reads as data on screen.
+  const idsAsNames = opportunities.filter((o) => o.accountName === o.accountId);
+  assert.deepEqual(idsAsNames, [], "an id in the name field renders as an id");
+});
+
 test("no record points at an id that does not exist", async () => {
   // The whole traceability claim rests on these keys. A dangling one would
   // render as a blank cell rather than an error, so nothing would report it.
