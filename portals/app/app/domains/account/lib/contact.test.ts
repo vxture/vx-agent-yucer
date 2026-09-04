@@ -1,3 +1,12 @@
+// planContact, after incr/0027.
+//
+// TWO TESTS LEFT THIS FILE with that increment: the decision-role vocabulary
+// check and the influence range check. Neither is gone from the product - they
+// moved to setBuyingRole, where the question they validate can be asked. A
+// person is not an economic buyer with an influence of 60; they are that ON A
+// DEAL, and validating it here would have meant a rule guarding a field its
+// own type no longer has.
+
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
@@ -7,8 +16,6 @@ const draft = (over: Partial<ContactDraft> = {}): ContactDraft => ({
   name: "Zhang Gong",
   title: "QA Director",
   department: "Quality",
-  decisionRole: "technical",
-  influence: 60,
   email: null,
   mobile: null,
   wechat: null,
@@ -21,34 +28,13 @@ test("a contact needs a name", () => {
   assert.equal(r.ok === false && r.violations[0].code, "name_required");
 });
 
-test("the decision role must be one the database will accept", () => {
-  // chk_contact_decision_role would refuse it anyway, with a constraint name.
-  // Refusing here names the field instead.
-  const r = planContact(draft({ decisionRole: "sponsor" as never }));
-  assert.equal(r.ok === false && r.violations[0].code, "unknown_decision_role");
-});
 
 test("the status must be one the database will accept", () => {
   const r = planContact(draft({ status: "gone" as never }));
   assert.equal(r.ok === false && r.violations[0].code, "unknown_status");
 });
 
-test("influence is 0-100 and whole", () => {
-  for (const bad of [-1, 101, 60.5]) {
-    const r = planContact(draft({ influence: bad }));
-    assert.equal(r.ok === false && r.violations[0].code, "influence_range", String(bad));
-  }
-  assert.ok(planContact(draft({ influence: 0 })).ok);
-  assert.ok(planContact(draft({ influence: 100 })).ok);
-});
 
-test("null influence is allowed, and is NOT the same as zero", () => {
-  // "Nobody has judged this yet" against "judged, and this person has none".
-  // Defaulting null to 0 would turn an unanswered question into an answer -
-  // the same distinction attainment keeps for an unset quota.
-  const t = unwrap(planContact(draft({ influence: null })));
-  assert.equal(t.influence, null);
-});
 
 test("blank optional text becomes null rather than an empty string", () => {
   // An empty title in the column reads as "has no title"; "" reads as a title

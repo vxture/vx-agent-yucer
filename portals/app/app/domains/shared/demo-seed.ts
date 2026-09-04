@@ -392,19 +392,19 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       account("acc_demo_9", workspaceId, 9, DEMO_ACCOUNTS[8], "MIDMARKET", REP1, 70, "active"),
     ],
     contacts: [
-      contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], "economic", 90, {
+      contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], {
         email: "wanglei@hdretail.example.cn",
         mobile: "+86 138 0000 1001",
         wechat: "wl_cfo",
       }),
-      contact("ct_2", workspaceId, "acc_demo_1", DEMO_CONTACTS[1], "technical", 70, {
+      contact("ct_2", workspaceId, "acc_demo_1", DEMO_CONTACTS[1], {
         email: "chenhao@hdretail.example.cn",
         mobile: "+86 138 0000 1002",
       }),
-      contact("ct_3", workspaceId, "acc_demo_1", DEMO_CONTACTS[2], "coach", 55),
-      contact("ct_4", workspaceId, "acc_demo_1", DEMO_CONTACTS[3], "blocker", 60),
-      contact("ct_5", workspaceId, "acc_demo_2", DEMO_CONTACTS[4], "economic", 85),
-      contact("ct_6", workspaceId, "acc_demo_2", DEMO_CONTACTS[1], "technical", 65),
+      contact("ct_3", workspaceId, "acc_demo_1", DEMO_CONTACTS[2]),
+      contact("ct_4", workspaceId, "acc_demo_1", DEMO_CONTACTS[3]),
+      contact("ct_5", workspaceId, "acc_demo_2", DEMO_CONTACTS[4]),
+      contact("ct_6", workspaceId, "acc_demo_2", DEMO_CONTACTS[1]),
       // acc_demo_4 has a buyer and a coach with NO edge between them, so the
       // chain reports "on file but unreachable" - the distinction the view leads
       // with.
@@ -412,9 +412,46 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // reports "on file but unreachable" for want of an edge; this makes the
       // same account unreachable in the plainer sense too - nobody recorded a
       // phone number for the person who signs.
-      contact("ct_7", workspaceId, "acc_demo_4", DEMO_CONTACTS[5], "economic", 80),
-      contact("ct_8", workspaceId, "acc_demo_4", DEMO_CONTACTS[2], "coach", 50),
-      contact("ct_9", workspaceId, "acc_demo_5", DEMO_CONTACTS[0], "economic", 75),
+      contact("ct_7", workspaceId, "acc_demo_4", DEMO_CONTACTS[5]),
+      contact("ct_8", workspaceId, "acc_demo_4", DEMO_CONTACTS[2]),
+      contact("ct_9", workspaceId, "acc_demo_5", DEMO_CONTACTS[0]),
+    ],
+    // incr/0027, ADR-024 batch D. THE POINT OF THE WHOLE BATCH, in five rows.
+    //
+    // ct_5 (王磊, CFO) and ct_6 (陈昊, IT director) are both on acc_demo_2's two
+    // open deals, and they are NOT the same thing on each:
+    //
+    //   opp_demo_2  供应链协同平台   ct_5 signs        ct_6 evaluates
+    //   opp_demo_21 生产排程系统     ct_5 merely uses  ct_6 signs
+    //
+    // Before this table there was one answer for the customer, so whichever it
+    // was, it was wrong about one of the two deals - and "决策人未触达" was lit
+    // on both or neither. Now the supply-chain deal can be missing its buyer
+    // while the scheduling deal is not.
+    //
+    // Deliberately NOT stated for every person on every deal: absence is the
+    // ordinary case and falls back to the customer-level default, which is what
+    // the other seven contacts exercise.
+    opportunityContacts: [
+      // acc_demo_2's two open deals, and the pair that makes the point: the
+      // same two people, different roles on each.
+      oc("oc_1", workspaceId, "opp_demo_2", "ct_5", "economic", 85),
+      oc("oc_2", workspaceId, "opp_demo_2", "ct_6", "technical", 65),
+      oc("oc_3", workspaceId, "opp_demo_21", "ct_5", "user", 40),
+      oc("oc_4", workspaceId, "opp_demo_21", "ct_6", "economic", 80),
+      // The other accounts' open deals. These carry what used to sit on the
+      // person, moved to the only place it can be true - and the demo needs
+      // them, because with person.decision_role gone a deal with no rows here
+      // has no chain at all.
+      oc("oc_5", workspaceId, "opp_demo_1", "ct_1", "economic", 90),
+      oc("oc_6", workspaceId, "opp_demo_1", "ct_2", "technical", 70),
+      oc("oc_7", workspaceId, "opp_demo_1", "ct_3", "coach", 55),
+      oc("oc_8", workspaceId, "opp_demo_1", "ct_4", "blocker", 60),
+      // acc_demo_4: a buyer and a coach with NO edge between them, so the chain
+      // reports "on file but unreachable" - the distinction the view leads with.
+      oc("oc_9", workspaceId, "opp_demo_6", "ct_7", "economic", 80),
+      oc("oc_10", workspaceId, "opp_demo_6", "ct_8", "coach", 50),
+      oc("oc_11", workspaceId, "opp_demo_7", "ct_9", "economic", 75),
     ],
     relations: [
       { workspaceId, accountId: "acc_demo_1", fromContactId: "ct_3", toContactId: "ct_1", relationType: "reports_to" },
@@ -733,6 +770,16 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // Overridden win rate: the stage default at validate is 50, so the page
       // shows a human judgement surviving the machine's suggestion.
       opp("opp_demo_2", workspaceId, 2, DEMO_OPPORTUNITIES[1], "acc_demo_2", null, "terr_east", REP2, "validate", "best_case", 1_150_000, 35, daysAhead(61), null, "open"),
+      // A SECOND OPEN DEAL AT acc_demo_2, added with incr/0027 - and it is the
+      // whole point of batch D rather than filler. Until now no customer in
+      // this seed had two deals open at once, so "the same person is the
+      // economic buyer here and merely a user there" could not be shown at all,
+      // and neither could the defect: one chain, one badge, both deals.
+      //
+      // Different department on purpose. 生产排程 is bought by operations and
+      // 供应链协同 by supply chain, which is exactly why one buying committee
+      // for the customer was always a fiction.
+      opp("opp_demo_21", workspaceId, 21, DEMO_OPPORTUNITIES[4], "acc_demo_2", null, "terr_east", REP2, "discover", "pipeline", 880_000, 20, daysAhead(95), null, "open"),
       opp("opp_demo_3", workspaceId, 3, DEMO_OPPORTUNITIES[2], "acc_demo_3", null, "terr_north", REP1, "qualify", "pipeline", 480_000, 10, daysAhead(108), null, "open"),
       opp("opp_demo_4", workspaceId, 4, DEMO_OPPORTUNITIES[3], "acc_demo_1", "camp_demo_1", "terr_east", REP1, "won", "closed", 760_000, 100, daysAgo(15), daysAgo(15), "won"),
       // Terminal stages carry the `closed` category in both directions - a lost
@@ -1120,8 +1167,6 @@ function contact(
   workspaceId: string,
   accountId: string,
   info: { name: string; title: string; department: string },
-  decisionRole: string,
-  influence: number,
   // incr/0024. Same reasoning as the account identity block: null is the
   // normal state, and the demo needs contacts in BOTH states so "we have no
   // way to reach the economic buyer" is a case the screens actually show.
@@ -1134,12 +1179,29 @@ function contact(
     name: info.name,
     title: info.title,
     department: info.department,
-    decisionRole: decisionRole as never,
-    influence,
     email: reach.email ?? null,
     mobile: reach.mobile ?? null,
     wechat: reach.wechat ?? null,
     status: "active",
+  };
+}
+
+function oc(
+  id: string,
+  workspaceId: string,
+  opportunityId: string,
+  personId: string,
+  buyingRole: string,
+  influence: number,
+) {
+  return {
+    id,
+    workspaceId,
+    opportunityId,
+    personId,
+    buyingRole: buyingRole as never,
+    influence,
+    isPrimary: false,
   };
 }
 

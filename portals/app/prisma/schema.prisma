@@ -239,15 +239,13 @@ model Account {
 /// without a single row being rewritten. Those tables have no UPDATE grant on
 /// their attribution columns, which is why a new table was never an option.
 ///
-/// decision_role and influence are still here and should not be: ADR-024 puts
-/// them on the opportunity, and batch D moves them. Dropping them in this batch
-/// would blank the decision chain everywhere with nothing to replace it.
+/// A person has a name and a way to reach them, and nothing about any deal.
+/// decision_role and influence left with incr/0028: a buying role exists only
+/// relative to a purchase, so it lives on OpportunityContact.
 model Person {
   id           String    @id @default(uuid()) @db.Uuid
   workspaceId  String    @map("workspace_id") @db.Uuid
   name         String    @db.VarChar(255)
-  decisionRole String    @default("unknown") @map("decision_role") @db.VarChar(32)
-  influence    Int?      @db.SmallInt
   /// incr/0024. No format constraints - see that increment on why a CHECK on
   /// an email behaves like an outage.
   email        String?   @db.VarChar(255)
@@ -289,6 +287,32 @@ model PersonAffiliation {
 
   @@map("person_affiliation")
   @@schema("yucer_core")
+}
+
+/// A person's role on ONE deal - incr/0027, ADR-024 batch D.
+///
+/// The role a buying-influence method assigns is per-purchase by definition:
+/// the same person can be the economic buyer on one deal and a user on the
+/// next. Before this, the role lived on the person and three concurrent deals
+/// at one customer shared a single decision chain.
+///
+/// yucer_pipeline because the row is about a DEAL (D6), not about the person.
+/// Absence is meaningful: no row means this deal has not distinguished itself
+/// from the customer-level default on person.decision_role.
+model OpportunityContact {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  personId      String   @map("person_id") @db.Uuid
+  buyingRole    String   @default("unknown") @map("buying_role") @db.VarChar(32)
+  influence     Int?     @db.SmallInt
+  isPrimary     Boolean  @default(false) @map("is_primary")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([opportunityId, personId], map: "uidx_opportunity_contact_pair")
+  @@map("opportunity_contact")
+  @@schema("yucer_pipeline")
 }
 
 model AccountRelation {

@@ -7,7 +7,7 @@
 // deleted or left standing - it is never rewritten in place, because "who
 // reported to whom last quarter" is a fact the decision-chain analysis reads.
 
-import type { AccountStatus, ContactNode, ProjectHealth, RelationEdge } from "./lib/health";
+import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
 
@@ -63,7 +63,18 @@ export interface AccountPlanRecord {
   status: "active" | "closed";
 }
 
-export interface ContactRecord extends ContactNode {
+/**
+ * A person at a customer: who they are, what they do there, how to reach them.
+ *
+ * NO BUYING ROLE, since incr/0028. It used to extend ContactNode and so carried
+ * decisionRole and influence, which made every reader able to ask a person what
+ * they are on a deal - a question a person cannot answer. Roles come from
+ * yucer_pipeline.opportunity_contact and reach the rule layer only through
+ * chainForOpportunity().
+ */
+export interface ContactRecord {
+  id: string;
+  status: string;
   workspaceId: string;
   accountId: string;
   name: string;
@@ -73,6 +84,27 @@ export interface ContactRecord extends ContactNode {
   email: string | null;
   mobile: string | null;
   wechat: string | null;
+}
+
+/**
+ * One person's stated role on one deal - incr/0027.
+ *
+ * THE PORT LIVES IN D4 rather than D6 even though the table is in
+ * yucer_pipeline, because the only reader is the decision chain and that is
+ * D4's question. The table's OWNER is still D6 (ADR-001, one object one
+ * partition); owning an object and being the one who asks about it are
+ * different things, and the alternative - D4 importing a D6 port to answer a
+ * D4 question - is the cross-domain coupling the partition rule exists to
+ * prevent.
+ */
+export interface OpportunityContactRecord {
+  id: string;
+  workspaceId: string;
+  opportunityId: string;
+  personId: string;
+  buyingRole: DecisionRole;
+  influence: number | null;
+  isPrimary: boolean;
 }
 
 export interface AccountFilter {
@@ -94,6 +126,25 @@ export interface HealthInputs {
 
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
+  /**
+   * The stated buying roles for one deal - incr/0027.
+   *
+   * An EMPTY result is the ordinary case and means something: this deal has not
+   * distinguished itself from the customer-level default. It is not an error
+   * and not an empty chain.
+   */
+  listOpportunityContacts(workspaceId: string, opportunityId: string): Promise<OpportunityContactRecord[]>;
+  /** Every stated role across several deals, for a batch pass. */
+  listOpportunityContactsFor(
+    workspaceId: string,
+    opportunityIds: readonly string[],
+  ): Promise<OpportunityContactRecord[]>;
+  setOpportunityContact(
+    workspaceId: string,
+    opportunityId: string,
+    personId: string,
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+  ): Promise<OpportunityContactRecord | null>;
   /** The live plan for one account, or null when it has none. */
   getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null>;
   getAccount(workspaceId: string, id: string): Promise<AccountRecord | null>;
@@ -195,12 +246,64 @@ export class InMemoryAccountStore implements AccountStore {
     contacts?: ContactRecord[];
     relations?: Array<RelationEdge & { workspaceId: string; accountId: string }>;
     healthInputs?: Record<string, HealthInputs>;
+    opportunityContacts?: OpportunityContactRecord[];
   }): void {
     for (const pl of input.plans ?? []) this.plans.set(`${pl.workspaceId}|${pl.accountId}`, pl);
     for (const a of input.accounts ?? []) this.accounts.set(a.id, { ...a });
     this.contacts.push(...(input.contacts ?? []));
     this.relations.push(...(input.relations ?? []));
     for (const [k, v] of Object.entries(input.healthInputs ?? {})) this.inputs.set(k, v);
+    this.oppContacts.push(...(input.opportunityContacts ?? []));
+  }
+
+  private oppContacts: OpportunityContactRecord[] = [];
+
+  async listOpportunityContacts(
+    workspaceId: string,
+    opportunityId: string,
+  ): Promise<OpportunityContactRecord[]> {
+    return this.oppContacts.filter(
+      (r) => r.workspaceId === workspaceId && r.opportunityId === opportunityId,
+    );
+  }
+
+  async listOpportunityContactsFor(
+    workspaceId: string,
+    opportunityIds: readonly string[],
+  ): Promise<OpportunityContactRecord[]> {
+    const wanted = new Set(opportunityIds);
+    return this.oppContacts.filter((r) => r.workspaceId === workspaceId && wanted.has(r.opportunityId));
+  }
+
+  async setOpportunityContact(
+    workspaceId: string,
+    opportunityId: string,
+    personId: string,
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+  ): Promise<OpportunityContactRecord | null> {
+    // The pair is the identity - uidx_opportunity_contact_pair says so - so a
+    // second statement about the same person on the same deal REPLACES the
+    // first rather than adding a second answer.
+    const held = this.oppContacts.find(
+      (r) => r.workspaceId === workspaceId && r.opportunityId === opportunityId && r.personId === personId,
+    );
+    if (held) {
+      held.buyingRole = patch.buyingRole;
+      held.influence = patch.influence;
+      if (patch.isPrimary !== undefined) held.isPrimary = patch.isPrimary;
+      return held;
+    }
+    const made: OpportunityContactRecord = {
+      id: `oc_${++this.seq}`,
+      workspaceId,
+      opportunityId,
+      personId,
+      buyingRole: patch.buyingRole,
+      influence: patch.influence,
+      isPrimary: patch.isPrimary ?? false,
+    };
+    this.oppContacts.push(made);
+    return made;
   }
 
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
@@ -233,9 +336,12 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
+    // BY NAME since incr/0027. Sorting a customer's roster by influence was
+    // ranking people by a per-deal number stored on the person; the roster is
+    // not a ranking, and the number no longer exists here.
     return this.contacts
       .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
-      .sort(by(desc((c: ContactRecord) => c.influence, { nulls: "last" })));
+      .sort(by(asc((c: ContactRecord) => c.name)));
   }
 
   async upsertContact(
@@ -255,8 +361,6 @@ export class InMemoryAccountStore implements AccountStore {
       held.name = input.name;
       held.title = input.title;
       held.department = input.department;
-      held.decisionRole = input.decisionRole;
-      held.influence = input.influence;
       held.email = input.email;
       held.mobile = input.mobile;
       held.wechat = input.wechat;
@@ -270,8 +374,6 @@ export class InMemoryAccountStore implements AccountStore {
       name: input.name,
       title: input.title,
       department: input.department,
-      decisionRole: input.decisionRole,
-      influence: input.influence,
       email: input.email,
       mobile: input.mobile,
       wechat: input.wechat,

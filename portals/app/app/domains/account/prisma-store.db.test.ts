@@ -78,9 +78,9 @@ async function seed(c: Client): Promise<void> {
   ];
   for (const [id, name, influence, status] of contacts) {
     await c.query(
-      `INSERT INTO yucer_core.person (id, workspace_id, name, decision_role, influence, status)
-       VALUES ($1, $2, $3, 'economic', $4, $5)`,
-      [id, WS, name, influence, status],
+      `INSERT INTO yucer_core.person (id, workspace_id, name, status)
+       VALUES ($1, $2, $3, $4)`,
+      [id, WS, name, status],
     );
     await c.query(
       `INSERT INTO yucer_core.person_affiliation (workspace_id, person_id, account_id)
@@ -92,8 +92,8 @@ async function seed(c: Client): Promise<void> {
   // person's deleted_at, not by their employment quietly vanishing. Those are
   // different facts and only one of them happened.
   await c.query(
-    `INSERT INTO yucer_core.person (id, workspace_id, name, decision_role, influence, status, deleted_at)
-     VALUES ($1, $2, 'Soft Deleted', 'technical', 99, 'active', now())`,
+    `INSERT INTO yucer_core.person (id, workspace_id, name, status, deleted_at)
+     VALUES ($1, $2, 'Soft Deleted', 'active', now())`,
     [C_GONE, WS],
   );
   await c.query(
@@ -105,26 +105,26 @@ async function seed(c: Client): Promise<void> {
 
 // --- listContacts ------------------------------------------------------------
 
-test("listContacts orders by influence, and an unscored contact sorts last", { skip }, async () => {
+test("listContacts orders by name - a roster is not a ranking", { skip }, async () => {
+  // THIS TEST USED TO ASSERT AN INFLUENCE ORDER, and the column it sorted on
+  // was removed by incr/0027: influence is a judgement about a purchase, so
+  // ranking a customer's people by it was ranking them by whichever deal
+  // happened to be typed in last. A roster answers "who works here".
   await cleanup();
   try {
     await withPg(seed);
     const rows = await (await store()).listContacts(WS, ACC);
 
-    // `nulls: "last"` is a Prisma option that compiles to NULLS LAST. Postgres
-    // sorts NULLs FIRST under DESC by default, so if that option ever came off
-    // the unscored contact would lead the chain - which is the opposite of what
-    // the column means.
     assert.deepEqual(
       rows.map((r) => r.name),
-      ["High Influence", "Low Influence", "Unscored"],
+      ["High Influence", "Low Influence", "Unscored"].sort((a, b) => a.localeCompare(b)),
     );
   } finally {
     await cleanup();
   }
 });
 
-test("listContacts hides a soft-deleted contact even though its influence is highest", { skip }, async () => {
+test("listContacts hides a soft-deleted person", { skip }, async () => {
   await cleanup();
   try {
     await withPg(seed);
@@ -132,7 +132,7 @@ test("listContacts hides a soft-deleted contact even though its influence is hig
     assert.equal(rows.length, 3, "the deleted contact must not be one of them");
     assert.ok(
       !rows.some((r) => r.name === "Soft Deleted"),
-      "influence 99 would put it first if the deletedAt filter were missing",
+      "a soft-deleted person is not on the roster",
     );
   } finally {
     await cleanup();

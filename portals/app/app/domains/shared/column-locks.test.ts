@@ -48,9 +48,25 @@ const uncommented = sql
 function ddlGrants(): Map<string, string[]> {
   const out = new Map<string, string[]>();
   // GRANT UPDATE (a, b, c) ON schema.table TO yucer_svc;  (may span lines)
-  const re = /GRANT\s+UPDATE\s*\(([^)]*)\)\s*ON\s+(\w+\.\w+)\s+TO\s+\w+/gi;
+  //
+  // A REVOKE RESETS THE SET, and until incr/0027 nothing exercised that. The
+  // union below is right about how Postgres accumulates two GRANTs - but a
+  // REVOKE between them wipes the accumulation, which is exactly the shape an
+  // increment uses when it NARROWS a table's writable columns. 0026 granted
+  // person.decision_role; 0027 revokes and re-grants without it, because the
+  // column is gone. Unioning across the revoke reported a column that does not
+  // exist as writable, and demanded the mirror agree.
+  //
+  // So both statements are matched in ONE pass, in document order, and each is
+  // applied the way Postgres applies it.
+  const re =
+    /GRANT\s+UPDATE\s*\(([^)]*)\)\s*ON\s+(\w+\.\w+)\s+TO\s+\w+|REVOKE\s+UPDATE\s+ON\s+(\w+\.\w+)\s+FROM\s+\w+/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(uncommented))) {
+    if (m[3]) {
+      out.delete(m[3]);
+      continue;
+    }
     const cols = m[1]
       .split(",")
       .map((c) => c.trim())
@@ -65,8 +81,8 @@ function ddlGrants(): Map<string, string[]> {
     // No table has two grants today, so this is a trap rather than a live
     // defect - but incr/0004 already proved increments carry their own grants,
     // and the first one that extends an existing table springs it.
-    const prior = out.get(m[2]) ?? [];
-    out.set(m[2], [...prior, ...cols.filter((c) => !prior.includes(c))]);
+    const prior = out.get(m[2]!) ?? [];
+    out.set(m[2]!, [...prior, ...cols.filter((c) => !prior.includes(c))]);
   }
   return out;
 }
@@ -143,6 +159,16 @@ test("the DDL was parsed at all - guards against a silently empty test", () => {
     neverUpdatable.size > 0,
     `expected some table-level grants without UPDATE, parsed ${neverUpdatable.size}`,
   );
+});
+
+test("a REVOKE resets the writable set - the narrowing case", () => {
+  // NON-VACUITY for the branch above. person is granted twice in the DDL:
+  // incr/0026 with decision_role and influence, incr/0027 without, after a
+  // REVOKE. If the revoke were ignored, those two would still be here.
+  const cols = grants.get("yucer_core.person") ?? [];
+  assert.ok(cols.includes("name"), `parsed nothing sensible for person: ${cols.join(", ")}`);
+  assert.ok(!cols.includes("decision_role"), "the revoke in incr/0027 must have cleared it");
+  assert.ok(!cols.includes("influence"), "the revoke in incr/0027 must have cleared it");
 });
 
 test("the rename filter sees the rename that exists, and only real ones", () => {

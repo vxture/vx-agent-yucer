@@ -79,14 +79,22 @@ test("every rule judgement cites the rows it read", () => {
 test("the decision-maker rule needs BOTH the structure and the evidence to agree", () => {
   // Two independent routes to one verdict. If the org chart were filled in
   // optimistically, the participant records would still catch it.
+  // People, and separately what they are TO THE DEAL - incr/0027. Seeding the
+  // roles on the people would leave every deal with an empty chain, so this
+  // fixture also checks that the feed actually threads buyingRoles through.
   const contacts = [
-    { id: "ct_coach", decisionRole: "coach" as const, influence: 50, status: "active" },
-    { id: "ct_econ", decisionRole: "economic" as const, influence: 90, status: "active" },
+    { id: "ct_coach", status: "active" },
+    { id: "ct_econ", status: "active" },
+  ];
+  const buyingRoles = [
+    { opportunityId: "opp_1", personId: "ct_coach", buyingRole: "coach" as const, influence: 50 },
+    { opportunityId: "opp_1", personId: "ct_econ", buyingRole: "economic" as const, influence: 90 },
   ];
   // The buyer HAS been recorded - no judgement, even with no relation edge.
   const met = deriveJudgements({
     accounts: [account({
       contacts,
+      buyingRoles,
       relations: [],
       contactActivity: [
         { contactId: "ct_coach", lastContactAt: daysAgo(10) },
@@ -101,6 +109,7 @@ test("the decision-maker rule needs BOTH the structure and the evidence to agree
   const never = deriveJudgements({
     accounts: [account({
       contacts,
+      buyingRoles,
       relations: [],
       contactActivity: [{ contactId: "ct_coach", lastContactAt: daysAgo(10) }],
     })],

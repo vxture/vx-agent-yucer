@@ -50,10 +50,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // evidence foreign key survived. title and department left for
   // person_affiliation; decision_role and influence are still here and belong
   // on the opportunity, which is batch D.
+  // incr/0028 removed decision_role and influence. A buying role exists only
+  // relative to a purchase, so it lives on yucer_pipeline.opportunity_contact
+  // and nowhere else - a person has a name and a way to reach them.
   "yucer_core.person": [
     "name",
-    "decision_role",
-    "influence",
     // incr/0024. A decision chain nobody can reach is a chain nobody can work.
     "email", "mobile", "wechat",
     "status",
@@ -70,6 +71,16 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "is_primary",
     "started_at",
     "ended_at",
+    "updated_at",
+  ],
+
+  // incr/0027. opportunity_id and person_id are ABSENT: the pair is the edge,
+  // and re-pointing it at another deal or another person is a different fact
+  // rather than an edit of this one.
+  "yucer_pipeline.opportunity_contact": [
+    "buying_role",
+    "influence",
+    "is_primary",
     "updated_at",
   ],
 

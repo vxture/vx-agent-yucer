@@ -23,16 +23,27 @@ import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { planAccountParent } from "./lib/parent";
+import { chainForOpportunity } from "./lib/buying-role";
 import { denied } from "../pipeline/service";
 import {
   type ChainCoverage,
+  type ContactNode,
+  type DecisionRole,
   type HealthResult,
   type RelationEdge,
+  DECISION_ROLES,
   analyzeChain,
   deriveHealth,
 } from "./lib/health";
 import type { Stage } from "../pipeline/lib/stage";
-import type { AccountFilter, AccountRecord, AccountStore, AccountTier, ContactRecord } from "./store";
+import type {
+  AccountFilter,
+  AccountRecord,
+  AccountStore,
+  AccountTier,
+  ContactRecord,
+  OpportunityContactRecord,
+} from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
 
 export interface AccountContext {
@@ -130,16 +141,87 @@ export async function recomputeHealth(
   return ok({ ...derived.value, accountId, persisted });
 }
 
+/** One open deal and what its buying committee looks like. */
+export interface OpportunityChain {
+  opportunityId: string;
+  opportunityName: string;
+  coverage: ChainCoverage;
+  /**
+   * The people with THIS deal's roles resolved onto them.
+   *
+   * Returned rather than left to the caller because resolving is the whole
+   * change: a surface that took the customer's roster and rendered it beside a
+   * per-deal coverage would be showing two different deals' answers side by
+   * side, which is worse than the single wrong answer this replaced.
+   */
+  people: ContactNode[];
+}
+
 /**
- * The decision chain for an account: which roles are covered, who is blocking,
- * and whether the economic buyer can actually be reached.
+ * The decision chains at one customer: ONE PER OPEN DEAL - incr/0027.
+ *
+ * REPLACES a single account-level chain, which asked a question with no answer.
+ * A buying committee is a fact about a purchase, so "who is the economic buyer
+ * at this customer" is only meaningful once you say which purchase - and the
+ * old single answer was applied to every deal at once, which is the defect
+ * ADR-024 opens with.
+ *
+ * AN EMPTY RESULT IS A REAL STATE, not a failure: a prospect with contacts and
+ * no open deal has people and no buying committee. The page says that rather
+ * than rendering a committee nobody has established.
  *
  * Gated on account.graph, which is a pro-tier capability - the relationship map
  * is the thing the tier sells, and a starter workspace sees contacts without it.
  */
-export async function decisionChain(
+export async function decisionChainsByOpportunity(
   ctx: AccountContext,
   accountId: string,
+  openDeals: readonly { id: string; name: string }[],
+): Promise<RuleResult<OpportunityChain[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.graph.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!account) return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  if (openDeals.length === 0) return ok([]);
+
+  const [contacts, relations, links] = await Promise.all([
+    ctx.store.listContacts(ctx.workspaceId, accountId),
+    ctx.store.listRelations(ctx.workspaceId, accountId),
+    // ONE round trip for every deal rather than one per deal: the customer page
+    // renders them together, and N queries inside the loop would make the cost
+    // scale with the pipeline.
+    ctx.store.listOpportunityContactsFor(ctx.workspaceId, openDeals.map((d) => d.id)),
+  ]);
+
+  return ok(
+    openDeals.map((d) => ({
+      opportunityId: d.id,
+      opportunityName: d.name,
+      ...(() => {
+        const people = chainForOpportunity(
+          contacts,
+          links.filter((l) => l.opportunityId === d.id),
+        );
+        return { coverage: analyzeChain(people, relations), people };
+      })(),
+    })),
+  );
+}
+
+/**
+ * The decision chain FOR ONE DEAL - incr/0027, ADR-024 batch D.
+ *
+ * THE ONLY WAY TO GET A CHAIN. There is no account-level equivalent any more,
+ * because there is no account-level role to build one from: a buying committee
+ * is a fact about a purchase. The customer page asks this once per open deal
+ * (`decisionChainsByOpportunity`) rather than asking a question nobody can
+ * answer.
+ */
+export async function decisionChainForOpportunity(
+  ctx: AccountContext,
+  accountId: string,
+  opportunityId: string,
 ): Promise<RuleResult<ChainCoverage>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.graph.view", "data");
   if (!gate.allowed) return denied(gate);
@@ -147,11 +229,60 @@ export async function decisionChain(
   const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
   if (!account) return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
 
-  const [contacts, relations] = await Promise.all([
+  const [contacts, relations, links] = await Promise.all([
     ctx.store.listContacts(ctx.workspaceId, accountId),
     ctx.store.listRelations(ctx.workspaceId, accountId),
+    ctx.store.listOpportunityContacts(ctx.workspaceId, opportunityId),
   ]);
-  return ok(analyzeChain(contacts, relations));
+  return ok(analyzeChain(chainForOpportunity(contacts, links), relations));
+}
+
+/**
+ * What this deal has already said about who is who.
+ *
+ * The chain gives the VERDICT; this gives the statements behind it, which is
+ * what a form editing them needs. Same gate as the chain: reading the roles and
+ * reading their consequence are the same act.
+ */
+export async function buyingRolesFor(
+  ctx: AccountContext,
+  opportunityId: string,
+): Promise<RuleResult<OpportunityContactRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.graph.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listOpportunityContacts(ctx.workspaceId, opportunityId));
+}
+
+/**
+ * State what somebody is on one deal.
+ *
+ * The pair (deal, person) is the identity, so this replaces rather than adds -
+ * two answers to "what is she on this deal" is the thing the unique index
+ * refuses.
+ */
+export async function setBuyingRole(
+  ctx: AccountContext,
+  opportunityId: string,
+  personId: string,
+  buyingRole: DecisionRole,
+  influence: number | null,
+): Promise<RuleResult<{ opportunityId: string; personId: string; buyingRole: DecisionRole }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (!(DECISION_ROLES as readonly string[]).includes(buyingRole)) {
+    return fail(violation("unknown_decision_role", `${String(buyingRole)} is not a decision role`, "buyingRole"));
+  }
+  if (influence !== null && (!Number.isInteger(influence) || influence < 0 || influence > 100)) {
+    return fail(violation("influence_range", "influence is a whole number from 0 to 100", "influence"));
+  }
+
+  const written = await ctx.store.setOpportunityContact(ctx.workspaceId, opportunityId, personId, {
+    buyingRole,
+    influence,
+  });
+  if (!written) return fail(violation("not_found", "that deal or person was not found", "opportunityId"));
+  return ok({ opportunityId, personId, buyingRole });
 }
 
 /**

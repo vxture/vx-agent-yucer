@@ -20,8 +20,6 @@ const draft = {
   name: "Zhang Gong",
   title: "QA Director",
   department: "Quality",
-  decisionRole: "technical" as const,
-  influence: 60,
   email: null,
   mobile: null,
   wechat: null,
@@ -49,8 +47,6 @@ function fake(over: Record<string, unknown> = {}) {
     id: "con_1",
     workspaceId: WS,
     name: "Zhang Gong",
-    decisionRole: "technical",
-    influence: 60,
     status: "active",
   };
   const link = {
@@ -108,7 +104,9 @@ test("creating passes no id and maps the row back into a domain record", async (
   // Still on the record the caller gets back, but sourced from the affiliation.
   assert.equal(made?.accountId, "acc_1");
   assert.equal(made?.title, "QA Director");
-  assert.equal(made?.influence, 60);
+  // influence is NOT on this record any more - it is per deal (incr/0027).
+  // What a create returns is a person and where they work.
+  assert.equal(made?.department, "Quality");
 });
 
 test("editing scopes the predicate to the workspace AND the account", async () => {

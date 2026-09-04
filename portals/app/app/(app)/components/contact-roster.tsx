@@ -51,8 +51,6 @@ export interface ContactRow {
   readonly name: string;
   readonly title: string | null;
   readonly department: string | null;
-  readonly decisionRole: string;
-  readonly influence: number | null;
   /** incr/0024 - how to reach this person. */
   readonly email: string | null;
   readonly mobile: string | null;
@@ -71,8 +69,6 @@ export interface ContactRosterProps {
       name: string;
       title: string | null;
       department: string | null;
-      decisionRole: string;
-      influence: number | null;
       email: string | null;
       mobile: string | null;
       wechat: string | null;
@@ -86,8 +82,6 @@ const BLANK = {
   name: "",
   title: "",
   department: "",
-  decisionRole: "unknown",
-  influence: "",
   email: "",
   mobile: "",
   wechat: "",
@@ -111,8 +105,6 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
       name: c.name,
       title: c.title ?? "",
       department: c.department ?? "",
-      decisionRole: c.decisionRole,
-      influence: c.influence === null ? "" : String(c.influence),
       // Loaded from the row for the same reason the other fields are: this
       // form REPLACES the contact, so a field left out of `pick` would be
       // written back blank. That is how an edit to a decision role silently
@@ -124,11 +116,10 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
     });
   }
 
-  const influence = form.influence.trim() === "" ? null : Number(form.influence);
-  const ready =
-    form.name.trim() !== "" &&
-    (influence === null ||
-      (Number.isInteger(influence) && influence >= 0 && influence <= 100));
+  // A name is the whole requirement now. The influence range check went with
+  // the field - incr/0027 moved that number to the deal, where it is validated
+  // by setBuyingRole and by chk_opportunity_contact_influence.
+  const ready = form.name.trim() !== "";
 
   return (
     <Section
@@ -154,19 +145,15 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
               header: ACCOUNT_TEXT.contactTitle,
               cell: (r: ContactRow) => r.title ?? "",
             },
+            // THE ROLE AND INFLUENCE COLUMNS ARE GONE - incr/0027. This table
+            // is the customer's roster: who works here and how to reach them.
+            // What each of them is to a purchase is on the deal, and showing
+            // one answer here would be showing the same wrong answer for every
+            // deal at once, which is what the column used to do.
             {
-              id: "role",
-              header: ACCOUNT_TEXT.contactRole,
-              cell: (r: ContactRow) =>
-                DECISION_ROLE_LABEL[r.decisionRole] ?? r.decisionRole,
-            },
-            {
-              id: "influence",
-              header: ACCOUNT_TEXT.contactInfluence,
-              align: "right" as const,
-              // Blank for null, not 0. "Nobody has judged this" and "judged, and
-              // none" are different facts and the column must not merge them.
-              cell: (r: ContactRow) => (r.influence === null ? "" : String(r.influence)),
+              id: "mobile",
+              header: ACCOUNT_TEXT.contactMobile,
+              cell: (r: ContactRow) => r.mobile ?? "",
             },
             {
               id: "status",
@@ -222,31 +209,11 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
               onChange={(e) => setForm({ ...form, department: e.target.value })}
             />
           </Field>
-          <Field>
-            <FieldLabel>{ACCOUNT_TEXT.contactRole}</FieldLabel>
-            <NativeSelect
-              value={form.decisionRole}
-              onChange={(e) => setForm({ ...form, decisionRole: e.target.value })}
-            >
-              {Object.entries(DECISION_ROLE_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{ACCOUNT_TEXT.contactInfluence}</FieldLabel>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              inputMode="numeric"
-              value={form.influence}
-              onChange={(e) => setForm({ ...form, influence: e.target.value })}
-            />
-          </Field>
+          {/* THE ROLE AND INFLUENCE FIELDS ARE GONE - incr/0027.
+              A person is not an economic buyer; they are an economic buyer ON A
+              DEAL. Both moved to the opportunity, where the question can be
+              answered. What stays here is what a person actually is: a name, a
+              job, and a way to reach them. */}
           <Field>
             <FieldLabel>{ACCOUNT_TEXT.contactMobile}</FieldLabel>
             <Input
@@ -295,8 +262,6 @@ export function ContactRoster({ accountId, contacts, canEdit, onSave }: ContactR
                     name: form.name.trim(),
                     title: form.title.trim() === "" ? null : form.title.trim(),
                     department: form.department.trim() === "" ? null : form.department.trim(),
-                    decisionRole: form.decisionRole,
-                    influence,
                     email: form.email.trim() === "" ? null : form.email.trim(),
                     mobile: form.mobile.trim() === "" ? null : form.mobile.trim(),
                     wechat: form.wechat.trim() === "" ? null : form.wechat.trim(),

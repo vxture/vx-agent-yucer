@@ -2598,8 +2598,27 @@ export const WINLOSS_REASON_LABEL: Record<string, string> = {
   other: "其他",
 };
 
+/** incr/0027：唯一能写入采购角色的控件，它只存在于商机上。 */
+export const BUYING_ROLE_TEXT = {
+  title: "这一单的采购角色",
+  description:
+    "谁签字、谁评估、谁能引荐——都是相对这一笔采购而言的。同一个人在另一单里可以是另一个角色。",
+  person: "联系人",
+  pickPerson: "选择联系人",
+  role: "在本单的角色",
+  influence: "在本单的影响力 0-100",
+  save: "保存角色",
+  saved: "已保存",
+} as const;
+
 export const CHAIN_TEXT = {
   title: "决策链",
+  // incr/0027：一单一条链。标题必须带上是哪一单，否则同一客户下的两条
+  // 委员会读起来像一条自相矛盾的答案。
+  forDeal: (deal: string) => `决策链 · ${deal}`,
+  noOpenDealTitle: "没有在办商机",
+  noOpenDealDescription:
+    "采购角色是相对某一笔采购而言的。等这家客户有在办商机，再在那一单上确定谁是决策人、谁是内线。联系人和职务在上方的名册里。",
   description:
     "「档案里有经济决策人」和「有人能引荐到他」是两件事。只有后者能推进单子。",
   covered: "已覆盖",

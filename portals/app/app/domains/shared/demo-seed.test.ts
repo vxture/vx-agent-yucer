@@ -20,6 +20,7 @@ import { InMemorySignalStore } from "../signal/store";
 import { InMemoryStrategyStore } from "../strategy/store";
 import { rollUp } from "../pipeline/lib/forecast";
 import { deriveProjectHealth } from "../delivery/lib/revenue";
+import { chainForOpportunity } from "../account/lib/buying-role";
 import { analyzeChain, analyzeChainRecency } from "../account/lib/health";
 import { reliability } from "../account/lib/commitment";
 import { DEFAULT_PROPOSAL_TTL_MS } from "../copilot/lib/action";
@@ -101,7 +102,7 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 20);
+    assert.equal(rows.length, 21);
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -113,7 +114,7 @@ test("seeding twice does not multiply the fixtures", async () => {
 
 // --- The working set is big enough to look like one -----------------------
 
-test("the demo has the working set it claims: 9 accounts, 20 deals, 6 projects", async () => {
+test("the demo has the working set it claims: 9 accounts, 21 deals, 6 projects", async () => {
   // Not decoration. Every list view, every roll-up and every "sickest first"
   // sort is meaningless at n=1, and a reviewer cannot tell a working sort from
   // a broken one on three rows.
@@ -149,7 +150,11 @@ test("the demo has the working set it claims: 9 accounts, 20 deals, 6 projects",
   // on it filed under the demo's one single-region territory - the derivable
   // half of the completeness screen otherwise had no case where region
   // resolved to exactly one candidate.
-  assert.equal(opportunities.length, 20);
+  // 21 with incr/0027: a SECOND open deal at acc_demo_2. Until it existed no
+  // customer in this seed had two deals open at once, so the thing batch D
+  // fixes - one buying committee shared by every deal at a customer - could not
+  // be shown, and neither could the fix.
+  assert.equal(opportunities.length, 21);
   assert.equal(projects.length, 6);
 });
 
@@ -357,12 +362,16 @@ test("a terminal deal always carries the closed forecast category", async () => 
 });
 
 test("the decision chain is complete on one account and unreachable on another", async () => {
+  // THROUGH THE DEAL, since incr/0027. A chain is a fact about a purchase, so
+  // the roles come from opportunity_contact and the people carry none. Reading
+  // it any other way would be reading a question the schema no longer answers.
   const s = seeded();
-  const [contacts, relations] = await Promise.all([
+  const [contacts, relations, links] = await Promise.all([
     s.account.listContacts(WS, "acc_demo_1"),
     s.account.listRelations(WS, "acc_demo_1"),
+    s.account.listOpportunityContacts(WS, "opp_demo_1"),
   ]);
-  const chain = analyzeChain(contacts, relations);
+  const chain = analyzeChain(chainForOpportunity(contacts, links), relations);
 
   assert.deepEqual(chain.missing, [], "economic, technical and coach are all covered");
   assert.equal(chain.blockers.length, 1, "and there is a blocker to show");
@@ -370,14 +379,16 @@ test("the decision chain is complete on one account and unreachable on another",
 
   // The contrast case: a buyer on file whom nobody can introduce us to. Without
   // it the surface never shows the distinction it leads with.
-  const [c4, r4] = await Promise.all([
+  const [c4, r4, l4] = await Promise.all([
     s.account.listContacts(WS, "acc_demo_4"),
     s.account.listRelations(WS, "acc_demo_4"),
+    s.account.listOpportunityContacts(WS, "opp_demo_6"),
   ]);
-  const weak = analyzeChain(c4, r4);
+  const weak = analyzeChain(chainForOpportunity(c4, l4), r4);
+  // ON THE DEAL, not on the person - the assertion moved with the fact.
   assert.ok(
-    c4.some((c) => c.decisionRole === "economic"),
-    "the buyer is on file",
+    l4.some((l) => l.buyingRole === "economic"),
+    "the buyer is named on this deal",
   );
   assert.equal(weak.economicBuyerUnreachable, true, "and still unreachable");
 });
@@ -584,7 +595,11 @@ test("demo: acc_demo_4 shows the gap the two chain panels exist to separate", as
 
   // Both panels say unreachable, for INDEPENDENT reasons. Structurally: ct_7
   // and ct_8 have no edge between them, a fixture batch 3 set up on purpose.
-  assert.equal(analyzeChain(contacts, relations).economicBuyerUnreachable, true);
+  const nodes4 = chainForOpportunity(
+    contacts,
+    await s.account.listOpportunityContacts(WS, "opp_demo_6"),
+  );
+  assert.equal(analyzeChain(nodes4, relations).economicBuyerUnreachable, true);
 
   // But nobody has ever been in a recorded room with ct_7. Seven meetings, all
   // with the coach - which is what a weekly-catch-up-with-my-friend deal looks
@@ -593,7 +608,7 @@ test("demo: acc_demo_4 shows the gap the two chain panels exist to separate", as
   assert.equal(last.has("ct_7"), false, "the economic buyer has none");
 
   const recency = analyzeChainRecency(
-    contacts,
+    nodes4,
     relations,
     contacts.map((c) => ({ contactId: c.id, lastContactAt: last.get(c.id) ?? null })),
     { now: at },
@@ -617,10 +632,16 @@ test("demo: acc_demo_1 is the mirror - access is fine, the promises are not", as
   const contacts = await s.account.listContacts(WS, "acc_demo_1");
   const relations = await s.account.listRelations(WS, "acc_demo_1");
   const last = await s.field.lastContactByContact(WS, "acc_demo_1");
-
-  assert.equal(analyzeChain(contacts, relations).economicBuyerUnreachable, false);
-  const r = analyzeChainRecency(
+  // Resolved against the account's open deal - incr/0027. Recency's walk asks
+  // whether a COACH reaches the ECONOMIC BUYER, and both are per-deal roles.
+  const nodes = chainForOpportunity(
     contacts,
+    await s.account.listOpportunityContacts(WS, "opp_demo_1"),
+  );
+
+  assert.equal(analyzeChain(nodes, relations).economicBuyerUnreachable, false);
+  const r = analyzeChainRecency(
+    nodes,
     relations,
     contacts.map((c) => ({ contactId: c.id, lastContactAt: last.get(c.id) ?? null })),
     { now: at },
@@ -637,12 +658,17 @@ test("demo: an account with recorded contact answers the warm-path question", as
   seedDemoWorkspace(WS, s);
   const at = DEMO_NOW;
 
-  for (const acc of ["acc_demo_1", "acc_demo_2"]) {
+  // Each account paired with an open deal of its own, because the roles the
+  // walk inside analyzeChainRecency needs are per deal - incr/0027.
+  for (const [acc, opp] of [
+    ["acc_demo_1", "opp_demo_1"],
+    ["acc_demo_2", "opp_demo_2"],
+  ] as const) {
     const contacts = await s.account.listContacts(WS, acc);
     const relations = await s.account.listRelations(WS, acc);
     const last = await s.field.lastContactByContact(WS, acc);
     const r = analyzeChainRecency(
-      contacts,
+      chainForOpportunity(contacts, await s.account.listOpportunityContacts(WS, opp)),
       relations,
       contacts.map((c) => ({ contactId: c.id, lastContactAt: last.get(c.id) ?? null })),
       { now: at },
@@ -654,7 +680,12 @@ test("demo: an account with recorded contact answers the warm-path question", as
   // that must stay null rather than becoming a false claim about the customer.
   const c3 = await s.account.listContacts(WS, "acc_demo_3");
   const l3 = await s.field.lastContactByContact(WS, "acc_demo_3");
-  const r3 = analyzeChainRecency(c3, [], c3.map((c) => ({ contactId: c.id, lastContactAt: l3.get(c.id) ?? null })), { now: at });
+  const r3 = analyzeChainRecency(
+    chainForOpportunity(c3, []),
+    [],
+    c3.map((c) => ({ contactId: c.id, lastContactAt: l3.get(c.id) ?? null })),
+    { now: at },
+  );
   assert.equal(r3.warmPathToEconomic, null);
 });
 

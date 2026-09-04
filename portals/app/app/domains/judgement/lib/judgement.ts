@@ -38,8 +38,10 @@ import {
   analyzeChain,
   analyzeChainRecency,
   type ContactNode,
+  type DecisionRole,
   type RelationEdge,
 } from "../../account/lib/health";
+import { chainForOpportunity, type ChainPerson } from "../../account/lib/buying-role";
 import type { CaptureWeek } from "../../account/lib/capture-metric";
 
 /** How soon this needs a person. The three tiers the home screen filters on. */
@@ -162,6 +164,20 @@ export interface AccountInput {
     amount: number | null;
     stageDays: number;
   }[];
+  /**
+   * Stated buying roles, keyed by deal - incr/0027, ADR-024 batch D.
+   *
+   * ABSENT IS THE ORDINARY CASE and means "this deal has not distinguished
+   * itself from the customer default". Optional on the input for the same
+   * reason: an assembler that has not been taught about them yet produces the
+   * old behaviour rather than an empty chain.
+   */
+  buyingRoles?: readonly {
+    readonly opportunityId: string;
+    readonly personId: string;
+    readonly buyingRole: DecisionRole;
+    readonly influence: number | null;
+  }[];
   lastContactAt: Date | null;
   /**
    * The account plan, when this customer is a strategic one - see ADR-013.
@@ -183,7 +199,14 @@ export interface AccountInput {
     statement: string;
     dueAt: Date;
   }[];
-  contacts: readonly ContactNode[];
+  /**
+   * The people at this customer - incr/0027. NO ROLES on them: what somebody is
+   * to a purchase is per deal, and the rules resolve it through
+   * chainForOpportunity with `buyingRoles`. A type carrying a role here would
+   * let a rule ask a person a question only a deal can answer, which is the
+   * defect this batch removes.
+   */
+  contacts: readonly ChainPerson[];
   relations: readonly RelationEdge[];
   /** contactId -> last recorded interaction they took part in. */
   contactActivity: readonly { contactId: string; lastContactAt: Date | null }[];
@@ -341,19 +364,40 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     //    if the org chart was filled in optimistically the evidence half still
     //    catches it.
     if (a.openDeals.length > 0 && a.contacts.length > 0) {
-      const chain = analyzeChain(a.contacts, a.relations);
-      const recency = analyzeChainRecency(
-        a.contacts,
-        a.relations,
-        a.contactActivity,
-        { now },
-      );
-      const economic = a.contacts.filter(
-        (c) => c.decisionRole === "economic" && c.status === "active",
-      );
-      const economicUnrecorded = economic.filter((c) =>
-        recency.unrecorded.some((u) => u.id === c.id),
-      );
+      // PER DEAL, and that is the defect ADR-024 opens with. Until incr/0027
+      // the buying role was a property of the person, so every open deal at one
+      // customer shared one chain - acc_demo_2 has three, in three different
+      // departments, and this badge was lit on all three or none. A person who
+      // signs for the warehouse project and merely uses the scheduling one now
+      // counts as the economic buyer for exactly one of them.
+      //
+      // The card stays account-level. Splitting the feed into one card per deal
+      // is a change to what a judgement IS, and this batch is about who is who.
+      const perDeal = a.openDeals.map((d) => {
+        const nodes = chainForOpportunity(
+          a.contacts,
+          (a.buyingRoles ?? []).filter((r) => r.opportunityId === d.id),
+        );
+        // Recency uses THIS deal's nodes too. warm / cold / unrecorded would be
+        // identical either way - they are evidence about people - but the walk
+        // inside it asks whether a COACH can reach the ECONOMIC BUYER, and both
+        // of those are per-deal roles now.
+        const recency = analyzeChainRecency(nodes, a.relations, a.contactActivity, { now });
+        const economic = nodes.filter((c) => c.decisionRole === "economic" && c.status === "active");
+        return {
+          deal: d,
+          chain: analyzeChain(nodes, a.relations),
+          economic,
+          unrecorded: economic.filter((c) => recency.unrecorded.some((u) => u.id === c.id)),
+        };
+      });
+      // Fire on the deals that actually have the problem. An account where one
+      // of three deals has never reached its buyer is a real finding; reporting
+      // it as if all three did would be the old lie in the other direction.
+      const affected = perDeal.filter((d) => d.economic.length > 0 && d.unrecorded.length > 0);
+      const chain = affected[0]?.chain ?? perDeal[0]!.chain;
+      const economic = affected.flatMap((d) => d.economic);
+      const economicUnrecorded = affected.flatMap((d) => d.unrecorded);
 
       if (economic.length > 0 && economicUnrecorded.length > 0) {
         const touches = a.notes.length;
@@ -389,6 +433,20 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
               kind: "structure",
               text: `${touches} 次记录在案的接触，决策人出现 0 次。`,
             },
+            // WHICH deals, when the customer has more than one. Before
+            // incr/0027 this sentence could not be written: there was one
+            // chain for the whole customer and no way to say which purchase
+            // had never reached its buyer.
+            ...(a.openDeals.length > 1
+              ? [
+                  {
+                    kind: "structure" as const,
+                    text: `涉及 ${affected.length} / ${a.openDeals.length} 个在办商机：${affected
+                      .map((d) => d.deal.name)
+                      .join("、")}。`,
+                  },
+                ]
+              : []),
             ...a.notes.slice(0, 1).map((n) => note(n, now)),
           ],
           facts: [

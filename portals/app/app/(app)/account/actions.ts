@@ -177,8 +177,6 @@ export async function saveContact(
     name: string;
     title: string | null;
     department: string | null;
-    decisionRole: string;
-    influence: number | null;
     // incr/0024. REQUIRED, like title and department above, and for the reason
     // that makes this boundary different from a patch: upsertContact replaces
     // the whole row. An optional field here would read as "unchanged by me"
@@ -207,8 +205,6 @@ export async function saveContact(
       name: input.name,
       title: input.title,
       department: input.department,
-      decisionRole: input.decisionRole as never,
-      influence: input.influence,
       email: input.email,
       mobile: input.mobile,
       wechat: input.wechat,

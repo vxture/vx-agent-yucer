@@ -33,17 +33,26 @@ export interface DecisionChainProps {
   readonly contacts: readonly ContactNode[];
   /** The form that can change the answer above. Absent on surfaces that only read. */
   readonly linkForm?: ReactNode;
+  /**
+   * Which deal this chain belongs to - incr/0027.
+   *
+   * REQUIRED IN PRACTICE ON THE CUSTOMER PAGE, where several of these now sit
+   * one above the other. Without it two committees for two different purchases
+   * render under the same heading and read as one contradictory answer.
+   */
+  readonly title?: string;
 }
 
 export function DecisionChain({
   coverage,
   contacts,
   linkForm,
+  title,
 }: DecisionChainProps) {
   const { CHAIN_TEXT, DECISION_ROLE_LABEL } = useMessages();
   if (contacts.length === 0) {
     return (
-      <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+      <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
         <EmptyState
           title={CHAIN_TEXT.emptyTitle}
           description={CHAIN_TEXT.emptyDescription}
@@ -58,7 +67,7 @@ export function DecisionChain({
   );
 
   return (
-    <Section title={CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+    <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
       {/* Reachability leads. Coverage is secondary and rendered below it. */}
       {coverage.economicBuyerUnreachable ? (
         <Tooltip>
