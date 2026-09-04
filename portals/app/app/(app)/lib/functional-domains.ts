@@ -54,7 +54,7 @@ export type DomainModule =
    * BUILT, BUT LIVING INSIDE ANOTHER MODULE'S PAGE.
    *
    * The third kind exists because the first version of this file had only two
-   * and therefore told a lie: it marked 赢丢复盘 and 回款计划 as "planned" when
+   * and therefore told a lie: it marked 赢丢复盘 and 回款管理 as "planned" when
    * both were shipped - the first renders on /pipeline, the second inside
    * /delivery. The mistake was equating "has no route of its own" with "does
    * not exist", and a panel that says a working feature is unbuilt is worse
@@ -106,8 +106,14 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     modules: [
       built("strategy"),
       built("segment"),
-      built("catalog"),
+      // Solution BEFORE catalogue (owner, 2026-09-03). A solution BUNDLES
+      // products - the catalogue copy already says a bundle with no products
+      // in it is just a name - so the old order put the parts before the
+      // whole. A seller proposes the solution and then looks at what is in
+      // it, which makes the column run abstract to concrete: the strategy,
+      // who it aims at, what we propose, what is in it, what it costs.
       built("solution"),
+      built("catalog"),
       built("pricebook"),
     ],
   },
@@ -136,7 +142,7 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
   {
     // Turning fire into leads.
     key: "recon",
-    icon: "target",
+    icon: "eye",
     modules: [
       built("campaign"),
       built("signal"),
