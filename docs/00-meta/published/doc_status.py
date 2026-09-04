@@ -46,7 +46,7 @@ BODY = r"""
 本来就是一件事。硬合并只会让其中一套变得不诚实。
 <br><br><strong>但两套都叫「域」是一次命名事故，本文档承认它。</strong>
 五域的切法与命名见 <span class='mono'>YC-401</span> 第 03 节；
-<strong>九个分区、19 个功能键、24 个权限、五个功能域四者的完整关系见
+<strong>九个分区、19 个功能键、25 个权限、五个功能域四者的完整关系见
 <span class='mono'>YC-201</span> 第 01 节</strong>——那一节是权威口径，本文档不复述。
 下面各节说的都是<strong>能力分区</strong>。</div>
 
@@ -62,11 +62,11 @@ BODY = r"""
   <div class="flow-node n-blue"><div class="fn-name">D4 客户管理</div><div class="fn-desc">关系与决策链</div></div>
 </div>
 <div class="flow">
-  <div class="flow-node n-green"><div class="fn-name">D5 商机侦探</div><div class="fn-desc">主动侦察</div></div>
+  <div class="flow-node n-green"><div class="fn-name">D5 商机智探</div><div class="fn-desc">主动侦察</div></div>
   <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head">▸</div></div>
   <div class="flow-node n-green"><div class="fn-name">D6 商机管理</div><div class="fn-desc">阶段机与预测</div></div>
   <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head">▸</div></div>
-  <div class="flow-node n-amber"><div class="fn-name">D7 项目落地</div><div class="fn-desc">钱到账</div></div>
+  <div class="flow-node n-amber"><div class="fn-name">D7 项目交付</div><div class="fn-desc">钱到账</div></div>
   <div class="flow-arrow"><div class="flow-arrow-line"></div><div class="flow-arrow-head">▸</div></div>
   <div class="flow-node n-red"><div class="fn-name">D8 销售智能助手</div><div class="fn-desc">横切全部七域</div></div>
 </div>
@@ -106,17 +106,17 @@ BODY = r"""
 <tr><td>2</td><td>域规则与持久化</td><td>八个能力分区 <span class='mono'>service.ts</span> 两道门 → 纯函数 → 端口；内存与 Prisma 双实现</td></tr>
 <tr><td>3</td><td>产品界面</td><td>八个能力分区路由、管道与预测视图、会话与提案裁决、信号收件箱、流式回答、剧本目录</td></tr>
 <tr><td>3.5</td><td>证据面</td><td><span class='mono'>yucer_field</span> 三表；承诺不能靠断言关闭；采集表单只有一个必填字段</td></tr>
-<tr><td>4</td><td>真数据库通道</td><td><span class='mono'>db-contract</span> job：postgres:18 跑真 DDL 再跑 15 个 <span class='mono'>*.db.test.ts</span></td></tr>
+<tr><td>4</td><td>真数据库通道</td><td><span class='mono'>db-contract</span> job：postgres:18 跑真 DDL 再跑 17 个 <span class='mono'>*.db.test.ts</span></td></tr>
 <tr><td>5</td><td>外壳与国际化</td><td>三栏外壳、功能域启动器、zh-CN / en-US 双字典（65/67 常量）</td></tr>
-<tr><td>6</td><td>设计系统对齐</td><td>design-system 9.0.4 / design-ui 6.0.4，后者按伞包精确钉版</td></tr>
+<tr><td>6</td><td>设计系统对齐</td><td>design-system 10.0.3 / design-ui 7.0.3，后者按伞包精确钉版</td></tr>
 <tr><td><strong>6</strong></td><td><strong>把已建成的后端接上界面</strong></td>
-<td>钱的链路四个动词全部接通；D9 目录从裁定走到可用（服务 + 适配器 + 页面）；商机行项可编辑且 header 随之重算；战略客户可定级；接线守卫上线</td></tr>
+<td>钱的链路四个动词全部接通；D9 目录从裁定走到可用（服务 + 适配器 + 页面）；商机行项可编辑且 header 随之重算；重点客户可定级；接线守卫上线</td></tr>
 </tbody></table></div>
 
 <div class="grid g3">
-  <div class="card"><div class="card-head"><span class="card-title">1 030</span><span class="card-sub">单元测试</span></div><p style='margin:0'>0 失败。含 15 项对真 Postgres 的契约测试。</p></div>
-  <div class="card"><div class="card-head"><span class="card-title">44</span><span class="card-sub">数据表</span></div><p style='margin:0'>跨 10 个 schema，列级写锁兜底。见 <span class='mono'>YC-301</span>。</p></div>
-  <div class="card"><div class="card-head"><span class="card-title">5</span><span class="card-sub">必需检查</span></div><p style='margin:0'>quality-gate / build / test-coverage / audit / gitleaks，全绿。</p></div>
+  <div class="card"><div class="card-head"><span class="card-title">1 505</span><span class="card-sub">单元测试</span></div><p style='margin:0'>0 失败。另有 <strong>220 项</strong>对真 Postgres 的契约测试，跑在 <span class='mono'>db-contract</span> 里——两套<strong>无法在同一进程里跑</strong>，所以真实覆盖率只存在于两份报告的合并中。</p></div>
+  <div class="card"><div class="card-head"><span class="card-title">46</span><span class="card-sub">数据表</span></div><p style='margin:0'>跨 10 个 schema，列级写锁兜底。见 <span class='mono'>YC-301</span>。</p></div>
+  <div class="card"><div class="card-head"><span class="card-title">6</span><span class="card-sub">必需检查</span></div><p style='margin:0'>quality-gate / build / test-coverage / audit / gitleaks / db-contract，全绿。</p></div>
 </div>
 
 <div class="note ok"><strong>真数据库通道在它第一次运行里就抓到三个缺陷。</strong>
@@ -141,7 +141,7 @@ BODY = r"""
 <td>建了一条草稿；草稿行三项齐全，已承诺行只剩两项</td></tr>
 <tr><td class="mono">reconcileProjectHealth</td><td>/delivery 项目行内菜单</td>
 <td>PRJ-0001 的「已下调」消失——推导值写进存储；再跑一次提示「填报与推导一致」</td></tr>
-<tr><td class="mono">transitionInstalment</td><td>/delivery <strong>回款计划面板</strong></td>
+<tr><td class="mono">transitionInstalment</td><td>/delivery <strong>回款管理面板</strong></td>
 <td>逾期分期标记为已回款、实收 320,000（计划 380,000）；逾期角标归零</td></tr>
 <tr><td class="mono">replaceOpportunityLines</td><td>/pipeline/[id] <strong>产品行项编辑器</strong></td>
 <td>一行数量 16 → 8，详情页与列表页的 header 双双从 ¥2,400,000 变成 ¥1,900,000；把单价压到 1，服务端标出「低于底价」</td></tr>
@@ -174,10 +174,18 @@ BODY = r"""
 <p>批次 6 之后这份清单短了很多。剩下的每一条都写明了它卡在什么上。</p>
 
 <div class="grid g2">
-<div class="card"><div class="card-head"><span class="card-title">线索分配 / 合同续约 / 细分市场</span><span class="card-sub">白地</span></div>
-<p style='margin:0'>功能域面板里标着「开发中」的三项，无表、无规则、无界面。
-标出来是因为<strong>一张完整的地图比一张只画已建成部分的地图有用</strong>——
-灰着的「合同续约」回答了「这个产品做不做续约」,答案是「会做，还没做」。</p></div>
+<div class="card"><div class="card-head"><span class="card-title">合同与报价不是实体</span><span class="card-sub">数据模型缺口</span></div>
+<p style='margin:0'>全库<strong>零张 contract / quote 表</strong>。「合同」只是
+<span class='mono'>project.contract_amount</span> 一个金额，「报价」是
+<span class='mono'>opportunity_line</span> 的集合——没有合同号、签署日、生效到期，
+也没有报价版本与有效期。<span class='mono'>/renewal</span> 因此建立在一个不存在的实体上：
+它读的是 project，而业务上续的是<strong>合同到期</strong>，不是项目结束。</p></div>
+
+<div class="card"><div class="card-head"><span class="card-title">采购角色按客户存，而它按商机变</span><span class="card-sub">数据模型缺口</span></div>
+<p style='margin:0'><span class='mono'>contact.decision_role</span> 是 Miller-Heiman 的
+采购影响力分类，那套方法论里角色<strong>天然按单</strong>——同一个人在 A 单是决策者，
+在 B 单可能只是使用者。但它存成了人的全局属性，全库没有商机↔联系人关联表。
+演示数据里七个客户各有 2–3 个在谈商机，<strong>它们共用一条决策链</strong>。见 ADR-024 草案。</p></div>
 
 <div class="card"><div class="card-head"><span class="card-title">首次上线</span><span class="card-sub">运维，卡在平台侧</span></div>
 <p style='margin:0'>平台侧 OIDC 客户端注册、域名、部署 Environment 与密钥、
@@ -219,4 +227,4 @@ BODY = r"""
 </section>
 """
 
-FOOT = "Vxture Yucer 文档体系 · 产品现状 YC-001 · 事实截至 2026-08-26 批次 6 合并后（1 030 项单测全绿）"
+FOOT = "Vxture Yucer 文档体系 · 产品现状 YC-001 · 事实截至 2026-09-04（1 505 项单测 + 220 项 db 契约测试，全绿）"

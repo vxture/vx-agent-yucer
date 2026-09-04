@@ -57,8 +57,8 @@ DOCS = [
 # The date is the day the facts were read, not the day the file was edited -
 # a document is only as current as its last verify.py run.
 # --------------------------------------------------------------------------
-VERSION = "v1.1"
-VERSION_DATE = "2026-08-26"
+VERSION = "v1.2"
+VERSION_DATE = "2026-09-04"
 
 # Filled in after the first publish pass; slug -> artifact URL.
 URLS = {}
