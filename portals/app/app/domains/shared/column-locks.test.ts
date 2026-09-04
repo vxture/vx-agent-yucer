@@ -71,6 +71,27 @@ function ddlGrants(): Map<string, string[]> {
   return out;
 }
 
+/**
+ * Tables an increment RENAMEs away, as the name they no longer have.
+ *
+ * THE MIRROR DESCRIBES THE END STATE; the DDL text describes a journey. Until
+ * incr/0026 those were the same thing, because no table had ever been renamed.
+ * Now 98 legitimately grants on `yucer_core.contact` - correct, because at the
+ * point 98 runs the table IS called contact - and by the end of the apply that
+ * name does not exist, so demanding a mirror entry for it would demand the
+ * mirror disagree with the database.
+ *
+ * The union in ddlGrants() is what makes this necessary rather than cosmetic:
+ * grants accumulate across files, so the old name never falls out on its own.
+ */
+function renamedAway(): Set<string> {
+  const out = new Set<string>();
+  const re = /ALTER\s+TABLE\s+(\w+)\.(\w+)\s+RENAME\s+TO\s+(\w+)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(uncommented))) out.add(`${m[1]}.${m[2]}`);
+  return out;
+}
+
 function ddlRevokes(): Set<string> {
   const out = new Set<string>();
   const re = /REVOKE\s+UPDATE\s+ON\s+(\w+\.\w+)\s+FROM\s+\w+/gi;
@@ -105,9 +126,13 @@ function ddlGrantsWithoutUpdate(): Set<string> {
   return out;
 }
 
-const grants = ddlGrants();
-const revokes = ddlRevokes();
-const neverUpdatable = ddlGrantsWithoutUpdate();
+const gone = renamedAway();
+// Drop every name a rename retired, from all three derivations at once: a table
+// that does not exist at the end of the apply cannot be mirrored, cannot be
+// append-only, and cannot be anything else either.
+const grants = new Map([...ddlGrants()].filter(([t]) => !gone.has(t)));
+const revokes = new Set([...ddlRevokes()].filter((t) => !gone.has(t)));
+const neverUpdatable = new Set([...ddlGrantsWithoutUpdate()].filter((t) => !gone.has(t)));
 
 test("the DDL was parsed at all - guards against a silently empty test", () => {
   assert.ok(grants.size > 10, `expected many GRANT UPDATE statements, parsed ${grants.size}`);
@@ -118,6 +143,17 @@ test("the DDL was parsed at all - guards against a silently empty test", () => {
     neverUpdatable.size > 0,
     `expected some table-level grants without UPDATE, parsed ${neverUpdatable.size}`,
   );
+});
+
+test("the rename filter sees the rename that exists, and only real ones", () => {
+  // NON-VACUITY, and it matters more here than for the other parsers: a regex
+  // that matched nothing would filter nothing, every assertion below would go
+  // on passing, and the filter would look like it worked until the next rename.
+  assert.ok(gone.has("yucer_core.contact"), `renamedAway() saw ${[...gone].join(", ") || "nothing"}`);
+  // And it must not be greedy - a table still in use must never be filtered
+  // out, or its mirror stops being checked at all.
+  assert.ok(!gone.has("yucer_core.account"));
+  assert.ok(!gone.has("yucer_core.person"));
 });
 
 test("every table with a grant mirrors that grant exactly, column for column", () => {

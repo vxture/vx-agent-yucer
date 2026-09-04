@@ -54,7 +54,7 @@ async function cleanup() {
   await withPg(async (c) => {
     await c.query(`DELETE FROM yucer_core.account_relation WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.account_plan WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
-    await c.query(`DELETE FROM yucer_core.contact WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
+    await c.query(`DELETE FROM yucer_core.person WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
   });
 }
@@ -78,15 +78,28 @@ async function seed(c: Client): Promise<void> {
   ];
   for (const [id, name, influence, status] of contacts) {
     await c.query(
-      `INSERT INTO yucer_core.contact (id, workspace_id, account_id, name, decision_role, influence, status)
-       VALUES ($1, $2, $3, $4, 'economic', $5, $6)`,
-      [id, WS, ACC, name, influence, status],
+      `INSERT INTO yucer_core.person (id, workspace_id, name, decision_role, influence, status)
+       VALUES ($1, $2, $3, 'economic', $4, $5)`,
+      [id, WS, name, influence, status],
+    );
+    await c.query(
+      `INSERT INTO yucer_core.person_affiliation (workspace_id, person_id, account_id)
+       VALUES ($1, $2, $3)`,
+      [WS, id, ACC],
     );
   }
+  // Soft-deleted, and still AFFILIATED: listContacts must exclude them on the
+  // person's deleted_at, not by their employment quietly vanishing. Those are
+  // different facts and only one of them happened.
   await c.query(
-    `INSERT INTO yucer_core.contact (id, workspace_id, account_id, name, decision_role, influence, status, deleted_at)
-     VALUES ($1, $2, $3, 'Soft Deleted', 'technical', 99, 'active', now())`,
-    [C_GONE, WS, ACC],
+    `INSERT INTO yucer_core.person (id, workspace_id, name, decision_role, influence, status, deleted_at)
+     VALUES ($1, $2, 'Soft Deleted', 'technical', 99, 'active', now())`,
+    [C_GONE, WS],
+  );
+  await c.query(
+    `INSERT INTO yucer_core.person_affiliation (workspace_id, person_id, account_id)
+     VALUES ($1, $2, $3)`,
+    [WS, C_GONE, ACC],
   );
 }
 

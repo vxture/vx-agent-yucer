@@ -50,10 +50,18 @@ async function seedAccounts(c: Client): Promise<void> {
      VALUES ($1, $2, 'ACC-FPS-2', 'Field Prisma Store Two', 'active') ON CONFLICT DO NOTHING`,
     [ACC2, WS],
   );
+  // incr/0026: a contact is a PERSON plus an EMPLOYMENT. The evidence tables
+  // below still hold plain person ids - the rename kept every one of them - so
+  // only the fixture setup changes, never the ids these tests assert on.
   await c.query(
-    `INSERT INTO yucer_core.contact (id, workspace_id, account_id, name, decision_role, status)
-     VALUES ($1, $2, $3, 'Contact One', 'economic', 'active') ON CONFLICT DO NOTHING`,
-    [CONTACT, WS, ACC],
+    `INSERT INTO yucer_core.person (id, workspace_id, name, decision_role, status)
+     VALUES ($1, $2, 'Contact One', 'economic', 'active') ON CONFLICT DO NOTHING`,
+    [CONTACT, WS],
+  );
+  await c.query(
+    `INSERT INTO yucer_core.person_affiliation (workspace_id, person_id, account_id)
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [WS, CONTACT, ACC],
   );
 }
 
@@ -62,7 +70,7 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_field.commitment WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_field.interaction_participant WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_field.interaction WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
-    await c.query(`DELETE FROM yucer_core.contact WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_core.person WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
 }

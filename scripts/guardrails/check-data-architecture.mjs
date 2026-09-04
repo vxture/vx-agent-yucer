@@ -42,14 +42,44 @@ const STRICT = process.argv.includes("--strict");
  * Order matters and is the caller's: baseline first, then increments by name.
  * A table dropped and later recreated is present; the last statement wins.
  */
+/**
+ * The tables the DDL leaves standing, replayed in document order.
+ *
+ * ORDER IS THE WHOLE ALGORITHM: db-init applies these files in sequence, so a
+ * table created in the baseline and dropped by an increment is not a table, and
+ * one renamed by an increment exists only under its new name. Collecting
+ * CREATEs and subtracting DROPs at the end would get the same answer for those
+ * two cases and the wrong answer the day something is created, dropped and
+ * created again.
+ *
+ * RENAME joined on 2026-09-04, with incr/0026 (contact -> person, ADR-024
+ * batch C). Before it, this function reported `yucer_core.contact` as declared
+ * forever - it is never dropped, only renamed - so the DDL-vs-prisma guard
+ * would have demanded a model for a table that does not exist, and the built-
+ * database test failed with "declared in the DDL but not built".
+ *
+ * A rename is deliberately NOT modelled as a drop plus a create: the new table
+ * inherits the old one's rows, ids and foreign keys, and treating it as a
+ * fresh table would let a genuine drop-and-recreate hide behind the same
+ * bookkeeping.
+ */
 export function ddlTables(sql) {
   const set = new Set();
-  const re = /(CREATE TABLE IF NOT EXISTS|DROP TABLE(?: IF EXISTS)?)\s+(\w+)\.(\w+)/gi;
+  const re =
+    /(CREATE TABLE IF NOT EXISTS|DROP TABLE(?: IF EXISTS)?)\s+(\w+)\.(\w+)|ALTER\s+TABLE\s+(\w+)\.(\w+)\s+RENAME\s+TO\s+(\w+)/gi;
   let m;
   while ((m = re.exec(sql))) {
-    const table = `${m[2]}.${m[3]}`;
-    if (/^CREATE/i.test(m[1])) set.add(table);
-    else set.delete(table);
+    if (m[1]) {
+      const table = `${m[2]}.${m[3]}`;
+      if (/^CREATE/i.test(m[1])) set.add(table);
+      else set.delete(table);
+      continue;
+    }
+    // A rename only applies if the old name is actually standing - otherwise a
+    // re-runnable increment's guarded rename would invent a table on a database
+    // where it had already happened.
+    const from = `${m[4]}.${m[5]}`;
+    if (set.delete(from)) set.add(`${m[4]}.${m[6]}`);
   }
   return set;
 }

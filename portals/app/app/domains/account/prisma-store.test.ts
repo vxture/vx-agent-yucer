@@ -42,19 +42,28 @@ function fake(over: Record<string, unknown> = {}) {
     updateMany: [],
     findFirst: [],
   };
+  // incr/0026 split this in two. The person row no longer carries the
+  // employment, so the fake carries both halves and the assertions below say
+  // which half each fact came from.
   const row = {
     id: "con_1",
     workspaceId: WS,
-    accountId: "acc_1",
     name: "Zhang Gong",
-    title: "QA Director",
-    department: "Quality",
     decisionRole: "technical",
     influence: 60,
     status: "active",
   };
+  const link = {
+    id: "aff_1",
+    workspaceId: WS,
+    personId: "con_1",
+    accountId: "acc_1",
+    title: "QA Director",
+    department: "Quality",
+    endedAt: null,
+  };
   const client = {
-    contact: {
+    person: {
       create: async (args: unknown) => {
         calls.create.push(args);
         return row;
@@ -67,6 +76,18 @@ function fake(over: Record<string, unknown> = {}) {
         calls.findFirst.push(args);
         return row;
       },
+      findMany: async () => [row],
+    },
+    personAffiliation: {
+      create: async (args: unknown) => {
+        calls.create.push(args);
+        return link;
+      },
+      updateMany: async () => ({ count: 1 }),
+      // `null` models a person who does not work at this customer - the case
+      // that must return not_found rather than editing somebody else's record.
+      findFirst: async () => ((over.noAffiliation as boolean) ? null : link),
+      findMany: async () => ((over.noAffiliation as boolean) ? [] : [link]),
     },
   };
   return { calls, client: async () => client as unknown as PrismaClient };
@@ -77,10 +98,16 @@ test("creating passes no id and maps the row back into a domain record", async (
   const store = new PrismaAccountStore(client);
   const made = await store.upsertContact(WS, "acc_1", draft);
 
-  assert.equal(calls.create.length, 1);
+  // TWO rows now, and the count is the assertion: incr/0026 made a new contact
+  // a person AND an employment, and a create that wrote only the person would
+  // produce somebody who works nowhere - invisible to listContacts, which finds
+  // people through the affiliation.
+  assert.equal(calls.create.length, 2, "a new contact is a person and an affiliation");
   assert.equal(calls.updateMany.length, 0, "an absent id must not become an update of something");
   assert.equal(made?.id, "con_1");
+  // Still on the record the caller gets back, but sourced from the affiliation.
   assert.equal(made?.accountId, "acc_1");
+  assert.equal(made?.title, "QA Director");
   assert.equal(made?.influence, 60);
 });
 
@@ -93,10 +120,13 @@ test("editing scopes the predicate to the workspace AND the account", async () =
   const store = new PrismaAccountStore(client);
   await store.upsertContact(WS, "acc_1", { ...draft, id: "con_1" });
 
+  // THE PREDICATE MOVED, the guarantee did not. The account is no longer a
+  // column on the person, so "does this person work at this customer" is now
+  // asked of the affiliation FIRST - and a person who does not gets null back
+  // before any write happens. The person update then carries the workspace.
   const where = (calls.updateMany[0] as { where: Record<string, unknown> }).where;
   assert.equal(where.id, "con_1");
   assert.equal(where.workspaceId, WS);
-  assert.equal(where.accountId, "acc_1");
   assert.equal(where.deletedAt, null, "and a soft-deleted contact is not revived by an edit");
 });
 
@@ -219,7 +249,7 @@ test("listRelations keeps an edge with only ONE endpoint on this account", async
   const { calls, at } = spy();
   const client = async () =>
     ({
-      contact: { findMany: async () => [{ id: "c1" }] },
+      personAffiliation: { findMany: async () => [{ personId: "c1" }] },
       accountRelation: { findMany: delegate([], at("relFind")) },
     }) as never;
   await new PrismaAccountStore(client).listRelations(WS, "acc_1");
@@ -234,7 +264,7 @@ test("listRelations short-circuits when the account has no contacts", async () =
   const { calls, at } = spy();
   const client = async () =>
     ({
-      contact: { findMany: async () => [] },
+      personAffiliation: { findMany: async () => [] },
       accountRelation: { findMany: delegate([], at("relFind")) },
     }) as never;
   assert.deepEqual(await new PrismaAccountStore(client).listRelations(WS, "acc_1"), []);
@@ -280,4 +310,31 @@ test("healthInputs reads last contact from a real interaction, not a stage move"
   assert.equal(out.openOpportunities[0]!.amount, 1000);
   assert.deepEqual(out.projectHealth, ["green"]);
   assert.equal(out.overdueRevenueCount, 2);
+});
+
+test("a person who does not work at this customer is not editable through it", async () => {
+  // THE GUARANTEE THE OLD PREDICATE GAVE, restated for the new shape. Before
+  // incr/0026 the account was a column on the person, so `where: { id,
+  // workspaceId, accountId }` made an id from another customer update nothing.
+  // The account now lives on the affiliation, so that clause could not survive
+  // as written - and a rewrite that simply dropped it would have let an id from
+  // any customer in the workspace be edited through any other customer's page.
+  //
+  // `noAffiliation` models exactly that: the person exists, the employment at
+  // THIS customer does not.
+  const { calls, client } = fake({ noAffiliation: true });
+  const store = new PrismaAccountStore(client);
+  const r = await store.upsertContact(WS, "acc_1", { ...draft, id: "con_1" });
+
+  assert.equal(r, null, "must report not-found rather than editing somebody else's person");
+  assert.equal(calls.updateMany.length, 0, "and must not have written anything first");
+});
+
+test("listContacts finds nobody when nobody currently works there", async () => {
+  // The short-circuit, and the reason it is not just an optimisation: without
+  // it, an empty affiliation list becomes `id: { in: [] }` on the person query,
+  // which asks for every person in the workspace and filters to none.
+  const { client } = fake({ noAffiliation: true });
+  const rows = await new PrismaAccountStore(client).listContacts(WS, "acc_1");
+  assert.deepEqual(rows, []);
 });

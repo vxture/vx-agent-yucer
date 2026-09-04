@@ -24,7 +24,10 @@ import type {
 
 const PLAN_TABLE = "yucer_core.account_plan";
 const ACCOUNT_TABLE = "yucer_core.account";
-const CONTACT_TABLE = "yucer_core.contact";
+// incr/0026. The table was RENAMED, not replaced - so the id space, the
+// evidence foreign keys and every row are the ones that were always there.
+const PERSON_TABLE = "yucer_core.person";
+const AFFILIATION_TABLE = "yucer_core.person_affiliation";
 
 export class PrismaAccountStore implements AccountStore {
   /**
@@ -86,13 +89,35 @@ export class PrismaAccountStore implements AccountStore {
     return res.count > 0;
   }
 
+  /**
+   * The people at one customer - a person JOINED to their employment there.
+   *
+   * THE READ MODEL DID NOT CHANGE, and that is deliberate. ContactRecord still
+   * carries accountId, title and department, so the decision chain, the health
+   * rules and every screen that reads them are untouched by batch C. What
+   * changed is where those three come from: the affiliation row rather than the
+   * person. Changing the storage and the read model in one batch would have
+   * made every downstream failure ambiguous.
+   *
+   * CURRENT EMPLOYMENT ONLY (`endedAt: null`). Somebody who has left is not a
+   * contact at this customer any more - they are history, which is exactly what
+   * the old schema could not say. Their evidence rows still point at the same
+   * person id, so the interactions they attended survive them leaving.
+   */
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
     const p = await this.client();
-    const rows = await p.contact.findMany({
-      where: { workspaceId, accountId, deletedAt: null },
+    const links = await p.personAffiliation.findMany({
+      where: { workspaceId, accountId, endedAt: null },
+    });
+    if (links.length === 0) return [];
+    const people = await p.person.findMany({
+      where: { workspaceId, id: { in: links.map((l: { personId: string }) => l.personId) }, deletedAt: null },
       orderBy: { influence: { sort: "desc", nulls: "last" } },
     });
-    return rows.map((r: Record<string, unknown>) => toContact(r));
+    const byPerson = new Map(links.map((l: { personId: string }) => [l.personId, l]));
+    return people.map((r: Record<string, unknown>) =>
+      toContact(r, byPerson.get(String(r.id)) as Record<string, unknown> | undefined),
+    );
   }
 
   async upsertContact(
@@ -101,10 +126,10 @@ export class PrismaAccountStore implements AccountStore {
     input: ContactDraft,
   ): Promise<ContactRecord | null> {
     const p = await this.client();
+    // title and department are NOT here any more - they are the employment, not
+    // the person, and the person table has no such columns to grant.
     const writable = {
       name: input.name,
-      title: input.title,
-      department: input.department,
       decisionRole: input.decisionRole,
       influence: input.influence,
       email: input.email,
@@ -113,29 +138,51 @@ export class PrismaAccountStore implements AccountStore {
       status: input.status,
       updatedAt: new Date(),
     };
-    const guard = assertWritable(CONTACT_TABLE, writable);
-    if (!guard.ok) {
-      throw new Error(
-        `refusing to write a locked contact column: ${guard.violations.map((v) => v.message).join("; ")}`,
-      );
+    // TWO ROWS, TWO LOCK CHECKS. The draft spans a person and an employment
+    // now, and the split is not cosmetic: title and department are writable on
+    // the affiliation and do not exist on the person, so one combined check
+    // against either table would pass columns the other refuses.
+    const link = {
+      title: input.title,
+      department: input.department,
+      updatedAt: new Date(),
+    };
+    for (const [table, patch] of [
+      [PERSON_TABLE, writable],
+      [AFFILIATION_TABLE, link],
+    ] as const) {
+      const guard = assertWritable(table, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked ${table} column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
     }
 
     if (input.id) {
-      // updateMany with the workspace AND the account in the predicate, so an
-      // id from another tenant or another customer updates nothing rather than
-      // moving a person between customers. count === 0 is the "not found" the
-      // service reports.
-      const res = await p.contact.updateMany({
-        where: { id: input.id, workspaceId, accountId, deletedAt: null },
+      // The workspace AND the account stay in the predicate, but the account
+      // now lives on the affiliation - so an id from another tenant, or a
+      // person who does not work at this customer, updates nothing rather than
+      // editing somebody else's record. count === 0 is the service's not_found.
+      const held = await p.personAffiliation.findFirst({
+        where: { workspaceId, accountId, personId: input.id, endedAt: null },
+      });
+      if (!held) return null;
+      const res = await p.person.updateMany({
+        where: { id: input.id, workspaceId, deletedAt: null },
         data: writable,
       });
       if (res.count === 0) return null;
-      const row = await p.contact.findFirst({ where: { id: input.id, workspaceId } });
-      return row ? toContact(row as Record<string, unknown>) : null;
+      await p.personAffiliation.updateMany({ where: { id: held.id }, data: link });
+      const row = await p.person.findFirst({ where: { id: input.id, workspaceId } });
+      return row ? toContact(row as Record<string, unknown>, { ...held, ...link }) : null;
     }
 
-    const row = await p.contact.create({ data: { workspaceId, accountId, ...writable } });
-    return toContact(row as Record<string, unknown>);
+    const row = await p.person.create({ data: { workspaceId, ...writable } });
+    const made = await p.personAffiliation.create({
+      data: { workspaceId, personId: String(row.id), accountId, ...link },
+    });
+    return toContact(row as Record<string, unknown>, made as Record<string, unknown>);
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {
@@ -170,12 +217,17 @@ export class PrismaAccountStore implements AccountStore {
 
   async listRelations(workspaceId: string, accountId: string): Promise<RelationEdge[]> {
     const p = await this.client();
-    const contacts = await p.contact.findMany({
+    // The edges are between PEOPLE, and which people belong to this customer is
+    // now the affiliation's question rather than the person's. Not filtered on
+    // endedAt: a relationship map that dropped everyone who left would silently
+    // rewrite the chain that existed when those interactions happened, and
+    // account_relation is evidence.
+    const contacts = await p.personAffiliation.findMany({
       where: { workspaceId, accountId },
-      select: { id: true },
+      select: { personId: true },
     });
     if (contacts.length === 0) return [];
-    const ids = contacts.map((c: { id: string }) => c.id);
+    const ids = contacts.map((c: { personId: string }) => c.personId);
 
     // An edge belongs to this account if EITHER endpoint does. A relationship
     // that crosses accounts (a referral, a shared board member) is real and must
@@ -337,14 +389,19 @@ function toAccount(r: Record<string, unknown>): AccountRecord {
   };
 }
 
-function toContact(r: Record<string, unknown>): ContactRecord {
+/**
+ * A person plus their employment, as the ContactRecord every reader still
+ * expects. `link` is undefined only where the caller has no affiliation in
+ * hand; the fields it supplies then read as absent rather than as wrong.
+ */
+function toContact(r: Record<string, unknown>, link?: Record<string, unknown>): ContactRecord {
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
-    accountId: String(r.accountId),
+    accountId: link ? String(link.accountId) : "",
     name: String(r.name),
-    title: (r.title as string | null) ?? null,
-    department: (r.department as string | null) ?? null,
+    title: (link?.title as string | null) ?? null,
+    department: (link?.department as string | null) ?? null,
     decisionRole: r.decisionRole as ContactRecord["decisionRole"],
     influence: (r.influence as number | null) ?? null,
     email: (r.email as string | null) ?? null,
