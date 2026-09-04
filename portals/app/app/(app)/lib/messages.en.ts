@@ -1404,10 +1404,8 @@ export const en: Dictionary = {
     description:
       "Forecast and snapshot are computed by the same rule, so they cannot disagree.",
     columnOpportunity: "Opportunity",
-    columnStage: "Stage",
-    columnForecast: "Forecast",
-    columnAmount: "Amount",
-    columnProbability: "Win rate",
+    columnStageForecast: "Stage / forecast",
+    columnAmountProbability: "Amount / win rate",
     columnExpectedClose: "Expected close",
     probabilityOverridden: (value: number) => `${value}% set by hand`,
     probabilityHintOverridden: (fallback: number) =>
@@ -1508,11 +1506,9 @@ export const en: Dictionary = {
     description:
       "Health is derived and recomputed from source data. It orders and warns; it is never the sole basis for a business judgement.",
     columnName: "Account",
-    columnIndustry: "Industry",
-    columnSegment: "Segment",
+    columnIndustrySegment: "Industry / segment",
     columnOwner: "Owner",
-    columnHealth: "Health",
-    columnStatus: "Status",
+    columnHealthStatus: "Health / status",
     unscored: "Not assessed",
     emptyTitle: "No accounts yet",
     emptyDescription:
@@ -1717,12 +1713,10 @@ export const en: Dictionary = {
       "Health shows the DERIVED value, not what the delivery team reported. An overdue instalment may not show as healthy.",
     rowCount: (n: number) => `${n} projects`,
     managerNone: "Unassigned",
-    columnName: "Project",
-    columnAccount: "Account",
+    columnNameAccount: "Project / account",
     columnManager: "Manager",
-    columnHealth: "Health",
+    columnHealthStatus: "Health / status",
     columnContract: "Contract",
-    columnStatus: "Status",
     healthOverridden: "Downgraded",
     healthOverriddenWhy:
       "Delivery reported healthy. The rule does not accept it: a project with unpaid overdue instalments may not show as healthy.",

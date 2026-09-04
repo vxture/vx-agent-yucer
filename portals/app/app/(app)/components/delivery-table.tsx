@@ -10,6 +10,7 @@ import {
   FilterBar,
   ListCard,
   ListCardGrid,
+  Stack,
   StatusBadge,
   Tooltip,
   TooltipContent,
@@ -94,31 +95,33 @@ export function DeliveryTable({
 
   const columns: readonly DataTableColumn<DeliveryRow>[] = [
     {
+      // THE PROJECT AND WHOSE IT IS, in one cell. Side by side they were 62px
+      // and 56px, and a project name broke over four lines to fit - "POS 上线
+      // 一 - 期" - while the customer beside it did the same. One column of the
+      // two widths added together lets each line use all of it, which is why
+      // this merge SHORTENS the row rather than paying for itself in height.
+      //
+      // The account stays A LINK, and the name when we have it. This printed
+      // `row.accountId.slice(0, 8)` - the first eight characters of an id,
+      // which identifies nothing to a reader, cannot be clicked, and on this
+      // dataset is the same string on every row, so the column distinguished
+      // the rows from each other not at all.
       id: "name",
-      header: DELIVERY_TEXT.columnName,
+      header: DELIVERY_TEXT.columnNameAccount,
       cell: (row) => (
-        <div>
-          <div>{row.name}</div>
-          <div>{row.projectNo}</div>
-        </div>
-      ),
-    },
-    {
-      id: "account",
-      header: DELIVERY_TEXT.columnAccount,
-      // A LINK, and the name when we have it. This printed
-      // `row.accountId.slice(0, 8)` - the first eight characters of an id, which
-      // identifies nothing to a reader, cannot be clicked, and on this dataset
-      // is the same string on every row, so the column distinguished the rows
-      // from each other not at all. The full id was right there and
-      // /account/[id] already exists.
-      cell: (row) => (
-        <Link
-          href={`/account/${row.accountId}`}
-          className="text-foreground hover:underline"
-        >
-          {row.accountName ?? row.accountId}
-        </Link>
+        <Stack gap="xs">
+          <span>{row.name}</span>
+          <span className="text-muted-foreground">
+            {row.projectNo}
+            {" / "}
+            <Link
+              href={`/account/${row.accountId}`}
+              className="hover:underline"
+            >
+              {row.accountName ?? row.accountId}
+            </Link>
+          </span>
+        </Stack>
       ),
     },
     {
@@ -139,29 +142,31 @@ export function DeliveryTable({
         ),
     },
     {
+      // HEALTH OVER STATUS, the third table to take this shape. A delivery
+      // health signal and the project's declared status are one reading - "at
+      // risk, and still marked active" is the sentence - and they were split
+      // into two columns with the contract amount wedged between them.
+      //
+      // The status is labelled. It rendered the raw enum - `active`,
+      // `planning`, `delivered` in English - and was the one status column in
+      // the product not mapped through a label record.
       id: "health",
-      header: DELIVERY_TEXT.columnHealth,
+      header: DELIVERY_TEXT.columnHealthStatus,
       align: "center",
-      cell: (row) => <Health row={row} />,
+      cell: (row) => (
+        <Stack gap="xs" className="items-center">
+          <Health row={row} />
+          <StatusBadge tone="neutral" dot>
+            {PROJECT_STATUS_LABEL[row.status] ?? row.status}
+          </StatusBadge>
+        </Stack>
+      ),
     },
     {
       id: "contract",
       header: DELIVERY_TEXT.columnContract,
       align: "right",
       cell: (row) => formatMoney(row.contractAmount, row.currency),
-    },
-    {
-      id: "status",
-      header: DELIVERY_TEXT.columnStatus,
-      align: "center",
-      // Labelled. This rendered the raw enum - `active`, `planning`,
-      // `delivered` in English - and was the one status column in the product
-      // not mapped through a label record.
-      cell: (row) => (
-        <StatusBadge tone="neutral" dot>
-          {PROJECT_STATUS_LABEL[row.status] ?? row.status}
-        </StatusBadge>
-      ),
     },
   ];
 

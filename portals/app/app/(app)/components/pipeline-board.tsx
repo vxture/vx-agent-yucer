@@ -12,6 +12,7 @@ import {
   ListCardGrid,
   MetricGrid,
   Section,
+  Stack,
   StatusBadge,
   Tooltip,
   TooltipContent,
@@ -177,57 +178,66 @@ export function PipelineBoard({
       ),
     },
     {
+      // STAGE AND FORECAST CATEGORY, STACKED, and they belong together: one
+      // says where the deal has got to, the other says what we are calling it,
+      // and a review reads them as a pair - "negotiation, and we are committing
+      // it" is a different sentence from either half.
+      //
+      // Two lines cost no height. The opportunity cell beside it is already two
+      // lines (name, then number and account), so the row was that tall before
+      // this and is that tall after.
       id: "stage",
-      header: PIPELINE_TEXT.columnStage,
+      header: PIPELINE_TEXT.columnStageForecast,
       cell: (row) => (
-        <StatusBadge tone={STAGE_TONE[row.stage as Stage]} dot>
-          {STAGE_LABEL[row.stage as Stage]}
-        </StatusBadge>
+        <Stack gap="xs">
+          <StatusBadge tone={STAGE_TONE[row.stage as Stage]} dot>
+            {STAGE_LABEL[row.stage as Stage]}
+          </StatusBadge>
+          <StatusBadge
+            tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
+          >
+            {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
+          </StatusBadge>
+        </Stack>
       ),
     },
     {
-      id: "forecast",
-      header: PIPELINE_TEXT.columnForecast,
-      cell: (row) => (
-        <StatusBadge
-          tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
-        >
-          {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
-        </StatusBadge>
-      ),
-    },
-    {
+      // AMOUNT OVER WIN RATE, in one column, because they are read as a
+      // product: the two of them are what the weighted number is made of, and
+      // an amount without the confidence beside it is half a sentence.
+      //
+      // An overridden win rate is still marked. A number the machine suggested
+      // and a number a salesperson committed to look identical in the database
+      // and mean entirely different things in a review.
       id: "amount",
-      header: PIPELINE_TEXT.columnAmount,
+      header: PIPELINE_TEXT.columnAmountProbability,
       align: "right",
-      cell: (row) =>
-        formatMoney(row.amount?.amount ?? null, row.currency, locale),
-    },
-    {
-      id: "probability",
-      header: PIPELINE_TEXT.columnProbability,
-      align: "right",
-      // An overridden win rate is marked. A number the machine suggested and a
-      // number a salesperson committed to look identical in the database and
-      // mean entirely different things in a review.
       cell: (row) => {
         const p = probabilityDisplay(row);
-        if (p.value == null) return "-";
-        return p.overridden ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span>
-                <StatusBadge tone="info">
-                  {PIPELINE_TEXT.probabilityOverridden(p.value)}
-                </StatusBadge>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <span>{p.value}%</span>
+        return (
+          <Stack gap="xs" className="items-end">
+            <span>
+              {formatMoney(row.amount?.amount ?? null, row.currency, locale)}
+            </span>
+            {p.value == null ? (
+              <span className="text-muted-foreground">-</span>
+            ) : p.overridden ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <StatusBadge tone="info">
+                      {PIPELINE_TEXT.probabilityOverridden(p.value)}
+                    </StatusBadge>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {PIPELINE_TEXT.probabilityHintOverridden(p.stageDefault)}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <span className="text-muted-foreground">{p.value}%</span>
+            )}
+          </Stack>
         );
       },
     },
