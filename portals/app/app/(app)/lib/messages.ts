@@ -309,22 +309,25 @@ export const DOMAIN_GROUP_QUESTION: Record<string, string> = {
 };
 
 /**
- * Labels for modules that have no page yet. Modules that DO have a page take
- * their label from DOMAIN_LABEL via the nav entry, so a built module never
- * appears in both tables.
+ * Labels for modules that have no page yet.
+ *
+ * EMPTY, AND THAT IS THE CORRECT STATE TODAY: every module in the launcher is
+ * built. The `planned` kind itself stays - a greyed row answers "does this
+ * product do quoting" with "yes, not yet", where an absent row answers it with
+ * "no" - and this is where a future planned module's label goes.
+ *
+ * The invariant is the sentence this comment used to carry: a built module
+ * never appears in both tables. It was TRUE AS A CLAIM and false as data. Ten
+ * entries sat here naming modules that had all since shipped, and because a
+ * label that can never render is a label nobody reads, four had quietly drifted
+ * away from the live ones - 价目折扣 against 产品定价, 战略客户 against
+ * 重点客户, 线索分配 against 线索分派, and 回款计划 against 回款管理, that last
+ * one opened by the rename one commit ago. A third copy of the module names,
+ * rotting in the dark.
+ *
+ * functional-domains.test.ts now checks the invariant instead of stating it.
  */
-export const PLANNED_MODULE_LABEL: Record<string, string> = {
-  segment: "细分市场",
-  catalog: "产品目录",
-  solution: "解决方案",
-  pricebook: "价目折扣",
-  territory: "销售区域",
-  namedAccount: "战略客户",
-  routing: "线索分配",
-  quote: "报价管理",
-  winLossReview: "赢丢复盘",
-  collection: "回款计划",
-};
+export const PLANNED_MODULE_LABEL: Record<string, string> = {};
 
 export const LAUNCHER_TEXT = {
   buttonLabel: "切换功能域",

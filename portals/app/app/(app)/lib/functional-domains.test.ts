@@ -118,6 +118,28 @@ test("administration is not one of the five", () => {
   }
 });
 
+test("a built module never carries a planned label", () => {
+  // The invariant messages.ts states about PLANNED_MODULE_LABEL, checked rather
+  // than asserted in prose. It held as a CLAIM and failed as data: every one of
+  // the ten entries that lived there named a module that had since been built,
+  // so none could render - and four had drifted away from the live label
+  // without anything noticing, the newest of them opened by a rename in the
+  // commit immediately before this one.
+  //
+  // That is the shape this repo keeps meeting: a second copy of something, kept
+  // in a branch no reader reaches. The label map is allowed to be empty and is
+  // allowed to grow again; what it may not do is name a page that exists.
+  const navKeys = new Set(NAV_ENTRIES.map((e) => e.key));
+  const shipped = Object.keys(PLANNED_MODULE_LABEL).filter((k) =>
+    navKeys.has(k),
+  );
+  assert.deepEqual(
+    shipped,
+    [],
+    `${shipped.join(", ")} have pages; their planned labels can never render and will drift`,
+  );
+});
+
 test("every domain and planned module has a label", () => {
   assert.equal(FUNCTIONAL_DOMAINS.length, 5);
   for (const d of FUNCTIONAL_DOMAINS) {
