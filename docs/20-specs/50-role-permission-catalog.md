@@ -87,7 +87,7 @@
 
 | 权限 | 是什么 | 授予 |
 |------|--------|------|
-| `catalog.read` | 读目录、方案、价目 | 全部七个角色 |
+| `catalog.read` | 读目录、方案、价目 | 全部九个角色 |
 | `catalog.write` | 维护产品与方案 | sales_leader / sales_ops |
 | `catalog.price` | 定标价与**底价** | sales_leader / sales_ops |
 
