@@ -423,7 +423,7 @@ test("the domain is found from a HOME path, not only from a module route", () =>
 
 test("all four domain-naming surfaces send the name to the same place", () => {
   // The launcher, the module strip, the board archive and the domain home all
-  // print the same five words. A reader who learns where 阵地经营 goes in
+  // print the same five words. A reader who learns where 阵地经营域 goes in
   // one of them must not be surprised by another - so they all read
   // primaryHref rather than each deciding.
   const nav: ResolvedNavEntry[] = NAV_ENTRIES.map((e) => ({
@@ -446,7 +446,7 @@ test("the board archive asks primaryHref rather than choosing its own destinatio
   // The other three surfaces import primaryHref and are covered by the test
   // above. The board builds its rows itself, so nothing in the type system
   // stops it picking rows[0].href and quietly disagreeing with the launcher
-  // about where 阵地经营 goes. Read the source and hold it to the shared
+  // about where 阵地经营域 goes. Read the source and hold it to the shared
   // answer - the same textual judge gated.test.ts uses on the catalogue.
   const board = readFileSync(
     join(dirname(fileURLToPath(import.meta.url)), "board.ts"),
