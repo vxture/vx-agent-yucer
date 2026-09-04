@@ -93,13 +93,47 @@ export const DOMAIN_LABEL: Record<string, string> = {
 /**
  * The five functional domains - see functional-domains.ts for why these five
  * and why they speak in this register.
+ *
+ * THE 域 SUFFIX IS BACK (2026-09-04), and the reason it left is worth keeping,
+ * because it was a measurement error rather than a judgement.
+ *
+ * It came off on the argument that these names are read once, in the launcher,
+ * where five parallel columns already say "these are a set". That was checked
+ * with a DOM query that filtered for elements with no child nodes - and the
+ * label carries an Icon, so the query stepped over the one place the name is
+ * actually read constantly. The name renders in THREE places:
+ *
+ *   the board rail   every page, 12px, muted, above the module cards
+ *   the domain home  the h1
+ *   the launcher     on open
+ *
+ * In the rail the suffix earns its two pixels. nav-board.tsx already worried
+ * about exactly this - "Not a card: it labels the cards under it, and giving it
+ * one would make the domain look like a sixth module" - and solved it visually
+ * while the NAME stayed the same four-character shape as 承诺达成 and 客户管理
+ * sitting underneath it. 域 is the other half of that fix. On the domain home
+ * the page body already says 「这个域此刻」and 「这个域里有什么」, so the h1 was
+ * the one line on the page not admitting what it was.
+ *
+ * Against, honestly: in the launcher the trigger already reads 切换功能域, so
+ * five more 域 there are mild redundancy. Two contexts to one, and the cost is
+ * nothing - measured in the rail at 68px of text becoming 80px, no wrap, same
+ * 28px row, in a 280px column.
+ *
+ * The uniform four-character grid this breaks was the weakest of the original
+ * arguments, and it pointed the wrong way: identical length made a domain and a
+ * module look like peers when one contains the other. Five against four is the
+ * level difference, spelled.
+ *
+ * ENGLISH DOES NOT FOLLOW, and that asymmetry is the point rather than an
+ * oversight - see messages.en.ts.
  */
 export const DOMAIN_GROUP_LABEL: Record<string, string> = {
-  armory: "战略武备",
-  deployment: "作战部署",
-  recon: "战场侦察",
-  position: "阵地经营",
-  settlement: "战果沉淀",
+  armory: "战略武备域",
+  deployment: "作战部署域",
+  recon: "战场侦察域",
+  position: "阵地经营域",
+  settlement: "战果沉淀域",
 };
 
 /**

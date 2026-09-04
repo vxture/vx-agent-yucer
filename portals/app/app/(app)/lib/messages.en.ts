@@ -180,14 +180,31 @@ export const en: Dictionary = {
   // where "Strategic products" would land back in the CRM register the Chinese
   // deliberately left.
   //
-  // 战果沉淀 -> "Consolidation" (2026-09-03, replacing "Settlement"). 沉淀 is
+  // 战果沉淀域 -> "Consolidation" (2026-09-03, replacing "Settlement"). 沉淀 is
   // what settles OUT of a solution and stays; Settlement reads as accounting,
   // and this column is delivery, collection and renewal - making a win
   // permanent. Consolidation is the military word for exactly that phase:
   // holding what was taken. Two of the five now diverge from their key on
-  // purpose - `position`/阵地经营/"Frontline" and `settlement`/战果沉淀/
+  // purpose - `position`/阵地经营域/"Frontline" and `settlement`/战果沉淀域/
   // "Consolidation" - because "Position" reads as a job and "Settlement"
   // reads as a ledger. The key is internal; these two words are not.
+  //
+  // NO SUFFIX HERE, while the Chinese took 域 back on 2026-09-04. This is the
+  // asymmetry doing its job rather than a translation nobody finished.
+  //
+  // Chinese has no capital letters. Without the suffix, 阵地经营 and the module
+  // 客户管理 beneath it were both four characters in the same register, and
+  // nothing in the glyphs said one of them was the category and the other its
+  // contents - so the category now says so, with 域. English marks a proper
+  // name by capitalising it:
+  // "Frontline" over "Accounts" is already two different KINDS of word on the
+  // page, before any suffix. Adding "domain" would spend a word restating what
+  // the capital already did, and would read like schema leaking into a menu.
+  //
+  // The rule this follows: translate what the reader needs, not what the other
+  // locale contains. A key present in one language and absent in the other
+  // would be drift; the same key rendering differently because the two writing
+  // systems disambiguate differently is the whole reason there are two files.
   DOMAIN_GROUP_LABEL: {
     armory: "Armory",
     deployment: "Deployment",

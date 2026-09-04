@@ -117,7 +117,7 @@ export interface BoardSection {
    * at once: the quota, four judgement cards and five domain blocks, on every
    * route, whatever you were doing. That is a menu for a product with no
    * domains. With five relatively independent sections the menu has to be the
-   * section's own - you are in 阵地经营, so the menu is 阵地经营's.
+   * section's own - you are in 阵地经营域, so the menu is 阵地经营域's.
    */
   readonly domain: string | null;
   /**
@@ -511,7 +511,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
     // that had no domains. The launcher, the module strip and the domain homes
     // all speak in five groupings now, and a board that kept listing routes
     // was the one surface still describing the OLD shape: a reader who learned
-    // "阵地经营 holds accounts and deals" from the launcher found them in
+    // "阵地经营域 holds accounts and deals" from the launcher found them in
     // this list separated by 商机智探, which belongs to a different domain.
     //
     // Each block names its domain and carries its modules' one-number
@@ -585,14 +585,14 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
   const deliveryValue = inDelivery.reduce((sum, p) => sum + (p.contractAmount?.amount ?? 0), 0);
 
   const modules: Record<string, BoardModuleCard> = {
-    // 战略武备
+    // 战略武备域
     strategy: { metrics: count(plans, BOARD_TEXT.plans) },
     segment: { metrics: count(segments, BOARD_TEXT.segments) },
     catalog: { metrics: count(catalogueResult, BOARD_TEXT.catalogProducts) },
     solution: { metrics: count(solutions, BOARD_TEXT.solutions) },
     pricebook: { metrics: count(prices, BOARD_TEXT.pricedProducts) },
 
-    // 作战部署
+    // 作战部署域
     territory: { metrics: count(territories, BOARD_TEXT.territories) },
     namedAccount: {
       metrics: accounts.ok
@@ -615,7 +615,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
         : [],
     },
 
-    // 战场侦察
+    // 战场侦察域
     campaign: { metrics: count(campaigns, BOARD_TEXT.campaigns) },
     signal: { metrics: count(signals, BOARD_TEXT.signals) },
     routing: {
@@ -624,7 +624,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
         : [],
     },
 
-    // 阵地经营
+    // 阵地经营域
     attainment: {
       // THE ATTAINMENT, not the target. What the period asked for is a
       // constant a reader already knows; how much of it has landed is the
@@ -698,7 +698,7 @@ export async function boardSections(ctx: BoardContext): Promise<Board> {
         : [],
     },
 
-    // 战果沉淀
+    // 战果沉淀域
     delivery: { metrics: count(projects, BOARD_TEXT.projects) },
     collection: {
       // Contract value still in delivery. The instalment-level figure would
