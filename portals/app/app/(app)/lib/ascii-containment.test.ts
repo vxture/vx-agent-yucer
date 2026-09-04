@@ -85,3 +85,39 @@ test("CJK string literals stay in the named files", () => {
       `containment - move it to the dictionary or the fixtures:\n  ${strays.join("\n  ")}`,
   );
 });
+
+// --- raw control bytes -------------------------------------------------------
+
+/**
+ * A control byte written as itself rather than as an escape.
+ *
+ * Tab, newline and carriage return are formatting and are allowed. Everything
+ * else below 0x20 makes the file `data` to git, grep and every tool that asks
+ * before reading - and the failure is SILENT in the direction that hurts:
+ * `grep -r` prints "Binary file X matches" and withholds the line, so a search
+ * of the codebase quietly skips the file rather than reporting nothing.
+ *
+ * Found that way. app/authz/store.ts carried one literal NUL as a composite-map
+ * key separator, and a search for `displayName` returned a match it would not
+ * show. The separator is right; writing it as the byte was not. `\0` is the
+ * same value and leaves the file readable.
+ */
+const CONTROL = /[\x00-\x08\x0b\x0c\x0e-\x1f]/;
+
+test("no source file carries a raw control byte", () => {
+  const bad: string[] = [];
+  for (const p of FILES) {
+    const text = readFileSync(p, "utf8");
+    const i = text.search(CONTROL);
+    if (i < 0) continue;
+    const line = text.slice(0, i).split("\n").length;
+    const code = text.charCodeAt(i).toString(16).padStart(2, "0");
+    bad.push(`${relative(APP, p)}:${line} (0x${code})`);
+  }
+  assert.deepEqual(
+    bad,
+    [],
+    `a raw control byte makes the file binary to grep and git, and the loss is ` +
+      `silent - write the escape instead:\n  ${bad.join("\n  ")}`,
+  );
+});
