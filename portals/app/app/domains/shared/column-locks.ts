@@ -46,10 +46,12 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "updated_at",
     "deleted_at",
   ],
-  "yucer_core.contact": [
+  // incr/0026 - WAS yucer_core.contact, renamed rather than replaced so every
+  // evidence foreign key survived. title and department left for
+  // person_affiliation; decision_role and influence are still here and belong
+  // on the opportunity, which is batch D.
+  "yucer_core.person": [
     "name",
-    "title",
-    "department",
     "decision_role",
     "influence",
     // incr/0024. A decision chain nobody can reach is a chain nobody can work.
@@ -57,6 +59,18 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "status",
     "updated_at",
     "deleted_at",
+  ],
+  // person_id and account_id are ABSENT deliberately: the pair is the edge
+  // itself. Moving somebody to another company is a new row plus an ended_at on
+  // the old one, never an edit - the same append-shaped discipline the evidence
+  // tables use, for the same reason.
+  "yucer_core.person_affiliation": [
+    "title",
+    "department",
+    "is_primary",
+    "started_at",
+    "ended_at",
+    "updated_at",
   ],
 
   // --- yucer_gtm ---

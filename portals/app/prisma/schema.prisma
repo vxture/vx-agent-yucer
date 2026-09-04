@@ -232,13 +232,20 @@ model Account {
   @@schema("yucer_core")
 }
 
-model Contact {
+/// incr/0026, ADR-024 batch C. This model WAS Contact and is the same table
+/// under a new name - the migration is an ALTER TABLE ... RENAME, so every
+/// id is unchanged and the four foreign keys from the evidence tables
+/// (account_relation x2, commitment, interaction_participant) still resolve
+/// without a single row being rewritten. Those tables have no UPDATE grant on
+/// their attribution columns, which is why a new table was never an option.
+///
+/// decision_role and influence are still here and should not be: ADR-024 puts
+/// them on the opportunity, and batch D moves them. Dropping them in this batch
+/// would blank the decision chain everywhere with nothing to replace it.
+model Person {
   id           String    @id @default(uuid()) @db.Uuid
   workspaceId  String    @map("workspace_id") @db.Uuid
-  accountId    String    @map("account_id") @db.Uuid
   name         String    @db.VarChar(255)
-  title        String?   @db.VarChar(255)
-  department   String?   @db.VarChar(128)
   decisionRole String    @default("unknown") @map("decision_role") @db.VarChar(32)
   influence    Int?      @db.SmallInt
   /// incr/0024. No format constraints - see that increment on why a CHECK on
@@ -251,7 +258,36 @@ model Contact {
   updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
 
-  @@map("contact")
+  @@map("person")
+  @@schema("yucer_core")
+}
+
+/// Where a person works, with a start and an end - incr/0026.
+///
+/// EMPLOYMENT IS HISTORY, NOT A COLUMN. Changing employer used to mean
+/// overwriting contact.account_id, which destroyed the fact a salesperson most
+/// wants ("three months ago he was still at 长江物流"). It is now a new row and
+/// an ended_at on the old one, so "where is he now" and "where was he when he
+/// promised us that" are the same query at two instants.
+///
+/// person_id and account_id have NO UPDATE grant: the pair IS the edge, and
+/// editing it would rewrite history rather than record a change.
+model PersonAffiliation {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  personId    String    @map("person_id") @db.Uuid
+  accountId   String    @map("account_id") @db.Uuid
+  title       String?   @db.VarChar(255)
+  department  String?   @db.VarChar(128)
+  isPrimary   Boolean   @default(true) @map("is_primary")
+  startedAt   DateTime? @map("started_at") @db.Timestamptz()
+  /// NULL is current. Not a sentinel date - an employment with no end has no
+  /// end, and 9999-12-31 makes every range comparison wrong at the edges.
+  endedAt     DateTime? @map("ended_at") @db.Timestamptz()
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("person_affiliation")
   @@schema("yucer_core")
 }
 

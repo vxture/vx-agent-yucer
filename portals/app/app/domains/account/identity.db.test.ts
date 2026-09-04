@@ -49,7 +49,7 @@ async function cleanup() {
     // parent_id first: a subsidiary row references its parent, and deleting in
     // one statement would depend on the order Postgres happens to pick.
     await c.query(`UPDATE yucer_core.account SET parent_id = NULL WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
-    await c.query(`DELETE FROM yucer_core.contact WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
+    await c.query(`DELETE FROM yucer_core.person WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
   });
 }
@@ -85,7 +85,7 @@ test("the new columns exist with the types the mirror claims", { skip }, async (
 
     const k = await c.query(
       `SELECT column_name, is_nullable FROM information_schema.columns
-        WHERE table_schema = 'yucer_core' AND table_name = 'contact' AND column_name = ANY($1)`,
+        WHERE table_schema = 'yucer_core' AND table_name = 'person' AND column_name = ANY($1)`,
       [["email", "mobile", "wechat"]],
     );
     assert.equal(k.rows.length, 3);
@@ -259,12 +259,29 @@ test("the service role may write every new column, and the anchors stay locked",
       `SELECT column_name FROM information_schema.role_column_grants
         WHERE grantee = 'yucer_svc' AND table_schema = 'yucer_core'
           AND table_name = $1 AND privilege_type = 'UPDATE'`,
-      ["contact"],
+      ["person"],
     );
     const ccols = new Set(k.rows.map((x) => x.column_name));
     for (const col of ["email", "mobile", "wechat"]) {
       assert.ok(ccols.has(col), `yucer_svc cannot UPDATE contact.${col}`);
     }
-    assert.ok(!ccols.has("account_id"), "contact.account_id must stay locked");
+    // account_id is not a column on person at all any more - incr/0026 moved
+    // the employment to person_affiliation, where the pair (person, account) IS
+    // the edge and has no UPDATE grant either. Both statements are asserted:
+    // absent here, and locked there.
+    assert.ok(!ccols.has("account_id"), "person must not carry account_id at all");
+
+    const aff = await c.query(
+      `SELECT column_name FROM information_schema.role_column_grants
+        WHERE grantee = 'yucer_svc' AND table_schema = 'yucer_core'
+          AND table_name = 'person_affiliation' AND privilege_type = 'UPDATE'`,
+    );
+    const acols = new Set(aff.rows.map((x) => x.column_name));
+    for (const col of ["title", "department", "is_primary", "started_at", "ended_at"]) {
+      assert.ok(acols.has(col), `yucer_svc cannot UPDATE person_affiliation.${col}`);
+    }
+    for (const col of ["person_id", "account_id"]) {
+      assert.ok(!acols.has(col), `person_affiliation.${col} is the edge and must stay locked`);
+    }
   });
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   ddlTables,
@@ -69,4 +69,57 @@ test("project_task is gone from the real DDL, and from prisma", () => {
   assert.equal(/CREATE TABLE IF NOT EXISTS yucer_delivery\.project_task/.test(ddl), false);
   const prisma = readFileSync(join(ROOT, "portals/app/prisma/schema.prisma"), "utf8");
   assert.equal(/model ProjectTask\b/.test(prisma), false);
+});
+
+// --- renames, added with incr/0026 (ADR-024 batch C) ------------------------
+//
+// ddlTables replays the DDL in document order. Before a rename existed it only
+// had to know CREATE and DROP; incr/0026 renames yucer_core.contact to
+// yucer_core.person, and a table that is renamed is never dropped - so without
+// this the old name stayed "declared" forever and the guard demanded a Prisma
+// model for a table that does not exist.
+
+test("a renamed table is declared under its new name only", () => {
+  const s = ddlTables(
+    "CREATE TABLE IF NOT EXISTS yucer_core.contact (id UUID);\n" +
+      "ALTER TABLE yucer_core.contact RENAME TO person;",
+  );
+  assert.ok(s.has("yucer_core.person"));
+  assert.ok(!s.has("yucer_core.contact"), "the old name is not a table any more");
+  assert.equal(s.size, 1);
+});
+
+test("a rename of a table that is not standing invents nothing", () => {
+  // Increments are re-runnable, and 0026's rename is guarded so a second apply
+  // is a no-op. Replaying the TEXT twice must therefore also be a no-op - and
+  // an unguarded implementation would add `person` a second time from a
+  // `contact` that is no longer there, or worse, resurrect it.
+  const sql =
+    "CREATE TABLE IF NOT EXISTS yucer_core.contact (id UUID);\n" +
+    "ALTER TABLE yucer_core.contact RENAME TO person;\n" +
+    "ALTER TABLE yucer_core.contact RENAME TO person;";
+  const s = ddlTables(sql);
+  assert.deepEqual([...s], ["yucer_core.person"]);
+});
+
+test("order is respected: create, rename, then drop leaves nothing", () => {
+  const s = ddlTables(
+    "CREATE TABLE IF NOT EXISTS a.b (id UUID);\n" +
+      "ALTER TABLE a.b RENAME TO c;\n" +
+      "DROP TABLE IF EXISTS a.c;",
+  );
+  assert.equal(s.size, 0);
+});
+
+test("the real DDL declares person and no longer declares contact", () => {
+  // The fixtures above prove the parser; this proves the repository.
+  const incr = join(ROOT, "deploy/database/ddl/incr");
+  let sql = readFileSync(join(ROOT, "deploy/database/ddl/00_baseline.sql"), "utf8");
+  for (const f of readdirSync(incr).filter((x) => x.endsWith(".sql")).sort()) {
+    sql += "\n" + readFileSync(join(incr, f), "utf8");
+  }
+  const s = ddlTables(sql);
+  assert.ok(s.has("yucer_core.person"));
+  assert.ok(s.has("yucer_core.person_affiliation"));
+  assert.ok(!s.has("yucer_core.contact"));
 });
