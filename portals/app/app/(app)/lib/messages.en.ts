@@ -1082,6 +1082,8 @@ export const en: Dictionary = {
 
   OPPORTUNITY_TEXT: {
     linesTitle: "Product lines",
+    linesPageTitle: (deal: string) => `Lines · ${deal}`,
+    linesEdit: "Edit lines",
     linesWhy:
       "When lines exist, the lines are authoritative - the deal amount equals their sum, recomputed by the service in the same call that writes them. A single total cannot say what the money buys.",
     lineProduct: "Product",
@@ -1162,6 +1164,7 @@ export const en: Dictionary = {
     advanceOverrideReset:
       "Closing fixes the win rate at 100% / 0% and drops the manual value",
     termsTitle: "Commercial terms",
+    termsOpen: "Adjust terms",
     termsDescription:
       "Amount, win rate, expected close and forecast category. Once the win rate is set by hand, later stage changes leave it alone - except on close.",
     termsAmount: "Amount",

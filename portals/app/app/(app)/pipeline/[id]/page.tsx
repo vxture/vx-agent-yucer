@@ -37,7 +37,7 @@ import {
 } from "../../../domains/pipeline/service";
 import {
   getAccountDetail,
-  decisionChainForOpportunity,
+  decisionChainsByOpportunity,
   buyingRolesFor,
 } from "../../../domains/account/service";
 import { listProjects } from "../../../domains/delivery/service";
@@ -53,10 +53,12 @@ import { ProposalActionCard } from "../../components/proposal-action-card";
 import { LinkActionCard } from "../../components/link-action-card";
 import { applySuggestedCategory } from "../../forecast/actions";
 import { adjudicateProposals } from "../../copilot/actions";
+import { DecisionChain } from "../../components/decision-chain";
 import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
+import { NewEntryLink } from "../../components/form-page";
 import { LineEditor } from "../../components/line-editor";
 import {
   advanceOpportunityStage,
@@ -109,6 +111,7 @@ export default async function OpportunityDetailPage({
     SHELL_TEXT,
     STAGE_LABEL,
     POSITION_TEXT,
+    CHAIN_TEXT,
     WAR_ROOM_TEXT,
     CHANNEL_LABEL,
     LOAD_ERROR,
@@ -163,7 +166,12 @@ export default async function OpportunityDetailPage({
       // the same 决策人未触达 badge. Falls back to the customer default when
       // this deal has stated nothing, so a customer with one deal looks exactly
       // as it did.
-      decisionChainForOpportunity(accountCtx, opportunity.accountId, opportunity.id),
+      // The plural verb even for one deal, because it returns the PEOPLE with
+      // this deal's roles resolved onto them - which the full DecisionChain
+      // rendering needs and the coverage-only verb does not carry.
+      decisionChainsByOpportunity(accountCtx, opportunity.accountId, [
+        { id: opportunity.id, name: opportunity.name },
+      ]),
       buyingRolesFor(accountCtx, opportunity.id),
       listProjects(
         { ...ctx, store: getDeliveryStore() },
@@ -195,32 +203,13 @@ export default async function OpportunityDetailPage({
     : opportunity.accountId;
   const tier = account.ok ? account.value.account.tier : "standard";
 
-  // The chain, as facts. `unreachable` is reported as the GAP rather than the
-  // coverage, because on a pursuit page the gap is what there is to do.
-  const cov = chain.ok ? chain.value : null;
-  const chainFacts = cov
-    ? [
-        {
-          label: POSITION_TEXT.chainCovered,
-          value: String(cov.covered.length),
-        },
-        {
-          label: POSITION_TEXT.chainMissing,
-          value: String(cov.missing.length),
-          tone: cov.missing.length > 0 ? ("bad" as const) : undefined,
-        },
-        {
-          label: POSITION_TEXT.chainCoaches,
-          value: String(cov.coaches.length),
-          tone: "good" as const,
-        },
-        {
-          label: POSITION_TEXT.chainBlockers,
-          value: String(cov.blockers.length),
-          tone: cov.blockers.length > 0 ? ("warn" as const) : undefined,
-        },
-      ]
-    : [];
+  // THE ONE CHAIN (2026-09-05 convergence). This page used to render it twice
+  // in two vocabularies - a verdict cell and four bare counts - which read as
+  // contradiction whenever reachability (a path question) disagreed with the
+  // counts. Now: the war-room cell is the SUMMARY, and the full DecisionChain
+  // below is the one detail rendering, per-deal people included.
+  const dealChain = chain.ok ? (chain.value[0] ?? null) : null;
+  const cov = dealChain?.coverage ?? null;
 
   // The problems are the JUDGEMENTS that landed on this account - rules over
   // recorded evidence, not a hand-kept risk list that goes stale.
@@ -285,7 +274,7 @@ export default async function OpportunityDetailPage({
       lastStageChangeAt,
       status: opportunity.status,
     },
-    chain: chain.ok ? chain.value : null,
+    chain: cov,
     rolesStated: roles.ok && roles.value.length > 0,
     commitments: (commitments.ok ? commitments.value : []).map((c) => ({
       id: c.id,
@@ -563,7 +552,6 @@ export default async function OpportunityDetailPage({
       </WarRoom>
 
       <PositionBrief
-        chain={chainFacts}
         projects={(projects.ok ? projects.value : []).map((pr) => ({
           id: pr.id,
           name: pr.name,
@@ -574,6 +562,18 @@ export default async function OpportunityDetailPage({
         problems={problems}
         proposals={positionProposals}
       />
+
+      {/* THE FULL CHAIN, once (2026-09-05 convergence): who is who ON THIS
+          DEAL, by name, with reachability - replacing the four bare counts the
+          brief used to carry. The relationship EDITOR stays on the account
+          page: the graph is the customer's, not any one deal's. */}
+      {dealChain ? (
+        <DecisionChain
+          title={CHAIN_TEXT.forDeal(opportunity.name)}
+          coverage={dealChain.coverage}
+          contacts={dealChain.people}
+        />
+      ) : null}
 
       {/* THE ONLY CONTROL IN THE PRODUCT THAT WRITES A BUYING ROLE - incr/0027.
           It sits on a deal because that is the only place the question has an
@@ -668,17 +668,12 @@ export default async function OpportunityDetailPage({
           name: p.name,
           unit: p.unit,
         }))}
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "pipeline.opportunity.update",
-            "ui",
-          ).allowed
-        }
-        // A DIFFERENT permission from canEdit, and deliberately so: sales_ops
-        // holds this one and not pipeline.write, sales_rep the other way round.
-        // The person who quotes below the floor is not the one who signs it.
+        // READ VIEW since 2026-09-05: the 418-line editor moved to
+        // /pipeline/[id]/lines (owner ruling - the heaviest content operation
+        // left inline). Display stays with the context; the link below is the
+        // way in. Approving stays HERE despite being editing-adjacent, because
+        // approval is a flow op made looking at the line - see canApprove.
+        canEdit={false}
         canApprove={
           can(
             session.authz,
@@ -691,6 +686,14 @@ export default async function OpportunityDetailPage({
         onSave={saveOpportunityLines}
         onApprove={approveDiscount}
       />
+      {can(
+        session.authz,
+        session.entitlement,
+        "pipeline.opportunity.update",
+        "ui",
+      ).allowed && opportunity.closedAt === null ? (
+        <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
+      ) : null}
 
       <DealTerms
         opportunityId={id}

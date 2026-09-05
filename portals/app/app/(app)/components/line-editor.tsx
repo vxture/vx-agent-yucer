@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   DataTable,
@@ -55,6 +56,9 @@ export interface EditorLine {
 }
 
 export interface LineEditorProps {
+  /** Set when the editor is a PAGE: on a successful save it returns there.
+   *  Absent = inline legacy mode (kept for the read view on the deal page). */
+  readonly doneHref?: string;
   readonly opportunityId: string;
   readonly lines: readonly EditorLine[];
   readonly products: readonly {
@@ -100,7 +104,9 @@ export function LineEditor({
   closed,
   onSave,
   onApprove,
+  doneHref,
 }: LineEditorProps) {
+  const router = useRouter();
   const { DATA_TABLE_LABELS, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
     useMessages();
   const [drafts, setDrafts] = useState<Draft[]>(
@@ -328,6 +334,13 @@ export function LineEditor({
                             r.error ??
                             ""),
                     );
+                    if (r.ok && doneHref) {
+                      // An editor page is an errand: the rows land, the deal
+                      // page shows them.
+                      router.push(doneHref);
+                      router.refresh();
+                      return;
+                    }
                     setSaved(
                       r.ok
                         ? OPPORTUNITY_TEXT.lineSaved(

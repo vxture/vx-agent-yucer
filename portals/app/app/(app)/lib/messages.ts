@@ -1706,6 +1706,7 @@ export const OPPORTUNITY_TEXT = {
   advanceOverrideReset: "进入终态时赢率固定为 100% / 0%，人工值不再保留",
 
   termsTitle: "商务条款",
+  termsOpen: "调整条款",
   termsDescription:
     "金额、赢率、预计成交时间与预测类别。赢率一旦人工设定，后续阶段变更不会再覆盖它——终态除外。",
   termsAmount: "金额",
@@ -1720,6 +1721,8 @@ export const OPPORTUNITY_TEXT = {
 
   // --- product lines (batch 6b-3, ADR-014 section 2) ------------------------
   linesTitle: "产品行项",
+  linesPageTitle: (deal: string) => `行项 · ${deal}`,
+  linesEdit: "编辑行项",
   linesWhy:
     "行项存在时，行项是权威——商机金额等于行项之和，由服务层在写行项的同一次调用里重算。一个总额说不出这笔钱要交付什么。",
   lineProduct: "产品",
