@@ -51,7 +51,7 @@ import {
   DEMO_SEGMENTS,
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
-import { SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
+import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
   CommitmentRecord,
@@ -1470,16 +1470,18 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
   // code for readability, the seed resolves them to ids here.
   const typeIdOf = new Map(types.map((t) => [t.typeCode, t.id]));
 
-  // The three canonical status rows - what 0029's backfill produces: real
+  // The full shipped status set - what 0029's backfill provisions: real
   // names and 状态描述, ordinary data the workspace may edit.
-  const statuses = SYSTEM_STATUS_DEFAULTS.map((d, i) => ({
-    id: `pst_demo_${i + 1}`,
-    workspaceId,
-    statusCode: d.statusCode as string,
-    name: d.name,
-    description: d.description,
-    sortOrder: i + 1,
-  }));
+  const statuses = [...SYSTEM_STATUS_DEFAULTS, ...STARTER_STATUS_DEFAULTS]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((d, i) => ({
+      id: `pst_demo_${i + 1}`,
+      workspaceId,
+      statusCode: d.statusCode as string,
+      name: d.name,
+      description: d.description,
+      sortOrder: i + 1,
+    }));
   const statusIdOf = new Map(statuses.map((r) => [r.statusCode, r.id]));
 
   const products = [

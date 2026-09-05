@@ -285,13 +285,13 @@ test("the type vocabulary upserts by code, reorders, and deletes only when empty
 
 // --- the status vocabulary (owner's final model: rows ARE the content) -------
 
-test("a fresh workspace gets the three canonical rows, with names and descriptions", async () => {
+test("a fresh workspace gets the full shipped lifecycle, in order", async () => {
   const store = new InMemoryCatalogStore(); // seeds NOTHING
   const c = ctx("sales_ops", "free", store);
   const vocab = unwrap(await listProductStatuses(c));
   assert.deepEqual(
     vocab.map((r) => r.statusCode),
-    ["in_development", "active", "retired"],
+    ["in_development", "pilot", "presale", "active", "discontinued", "clearance", "retired"],
   );
   // Self-contained rows: every row can say its own name - no dictionary
   // fallback, no coupling to the interface.
@@ -299,6 +299,17 @@ test("a fresh workspace gets the three canonical rows, with names and descriptio
     assert.ok(r.name.length > 0);
     assert.ok((r.description ?? "").length > 0);
   }
+});
+
+test("starter statuses never resurrect once the tenant has a vocabulary", async () => {
+  const store = lifecycleStore(); // holds the three system rows only
+  const c = ctx("sales_ops", "free", store);
+  const vocab = unwrap(await listProductStatuses(c));
+  assert.deepEqual(
+    vocab.map((r) => r.statusCode).sort(),
+    ["active", "in_development", "retired"],
+    "an existing vocabulary is the tenant's own - no starter re-seeding",
+  );
 });
 
 test("an added status takes create/rename/reorder/delete, and products move into it", async () => {
@@ -383,7 +394,11 @@ test("a fresh tenant gets the starter type vocabulary; a gutted one stays gutted
   const fresh = new InMemoryCatalogStore(); // nothing at all
   const c1 = ctx("sales_ops", "free", fresh);
   const seeded = unwrap(await listProductTypes(c1));
-  assert.deepEqual(seeded.map((t) => t.typeCode), ["software", "hardware", "service"]);
+  assert.deepEqual(
+    seeded.map((t) => t.typeCode),
+    ["software", "subscription", "hardware", "goods", "consumables",
+     "implementation", "maintenance", "training", "consulting"],
+  );
 
   // A workspace WITH products but zero types chose that emptiness - the
   // starter set must not resurrect on the next read.

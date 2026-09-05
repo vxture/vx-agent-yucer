@@ -28,9 +28,27 @@ export const SYSTEM_STATUS_DEFAULTS: readonly {
   readonly description: string;
   readonly sortOrder: number;
 }[] = [
+  // sort orders leave gaps for the starter rows - the shipped table reads as
+  // one lifecycle: 在研(1) 试点(2) 预售(3) 在售(4) 停售(5) 清仓(6) 已退役(7).
   { statusCode: "in_development", name: "在研", description: "计划中、研发中的产品：真实存在、出现在计划里，但不可报价。", sortOrder: 1 },
-  { statusCode: "active", name: "在售", description: "成熟在售的产品：唯一可报价的状态。", sortOrder: 2 },
-  { statusCode: "retired", name: "已退役", description: "搁置而非删除：随时可恢复在售，历史引用全部保留。", sortOrder: 3 },
+  { statusCode: "active", name: "在售", description: "成熟在售的产品：唯一可报价的状态。", sortOrder: 4 },
+  { statusCode: "retired", name: "已退役", description: "搁置而非删除：随时可恢复在售，历史引用全部保留。", sortOrder: 7 },
+];
+
+/** The pre-provisioned NON-system rows (owner ruling: shipped config values,
+ * not an empty product). Ordinary rows - a tenant renames or deletes them -
+ * so they are seeded ONLY when a workspace's vocabulary is completely empty:
+ * first contact, never resurrection. */
+export const STARTER_STATUS_DEFAULTS: readonly {
+  readonly statusCode: string;
+  readonly name: string;
+  readonly description: string;
+  readonly sortOrder: number;
+}[] = [
+  { statusCode: "pilot", name: "试点", description: "小范围试用或公测中：可给指定客户体验，未正式定价。", sortOrder: 2 },
+  { statusCode: "presale", name: "预售", description: "已定型待上市：可接受预定，尚不计入在售口径。", sortOrder: 3 },
+  { statusCode: "discontinued", name: "停售", description: "停止主动销售：存量客户继续履约，不再报新单。", sortOrder: 5 },
+  { statusCode: "clearance", name: "清仓", description: "库存出清中：按清仓价销售，售完即止。", sortOrder: 6 },
 ];
 
 export function isSystemStatus(statusCode: string): boolean {

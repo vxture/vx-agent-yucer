@@ -42,18 +42,28 @@ CREATE TABLE IF NOT EXISTS yucer_catalog.product_status (
 CREATE INDEX IF NOT EXISTS idx_product_status_ws_sort
   ON yucer_catalog.product_status (workspace_id, sort_order);
 
--- Seed the three canonical rows for every workspace that already has products.
--- (A fresh workspace gets them from the service on first read - the domain
--- carries the same defaults, so the two paths cannot drift apart by much, and
--- the rows are ordinary data the workspace may rename afterwards.)
+-- Provision the SHIPPED status set for every workspace that already has
+-- products: the three canonical rows plus the starter lifecycle rows (>=80%
+-- of common catalogues - owner ruling). Guarded on a COMPLETELY EMPTY
+-- vocabulary: at migration time that is every workspace, and on a re-run a
+-- tenant's deletions must not resurrect. (A fresh workspace gets the same
+-- set from the service's first-contact seeding - the domain carries these
+-- defaults too, so the two paths write the same rows.)
 INSERT INTO yucer_catalog.product_status (workspace_id, status_code, name, description, sort_order)
 SELECT w.workspace_id, v.code, v.name, v.description, v.ord
   FROM (SELECT DISTINCT workspace_id FROM yucer_catalog.product) w
  CROSS JOIN (VALUES
    ('in_development', '在研', '计划中、研发中的产品：真实存在、出现在计划里，但不可报价。', 1),
-   ('active',         '在售', '成熟在售的产品：唯一可报价的状态。', 2),
-   ('retired',        '已退役', '搁置而非删除：随时可恢复在售，历史引用全部保留。', 3)
+   ('pilot',          '试点', '小范围试用或公测中：可给指定客户体验，未正式定价。', 2),
+   ('presale',        '预售', '已定型待上市：可接受预定，尚不计入在售口径。', 3),
+   ('active',         '在售', '成熟在售的产品：唯一可报价的状态。', 4),
+   ('discontinued',   '停售', '停止主动销售：存量客户继续履约，不再报新单。', 5),
+   ('clearance',      '清仓', '库存出清中：按清仓价销售，售完即止。', 6),
+   ('retired',        '已退役', '搁置而非删除：随时可恢复在售，历史引用全部保留。', 7)
  ) AS v(code, name, description, ord)
+ WHERE NOT EXISTS (
+   SELECT 1 FROM yucer_catalog.product_status s WHERE s.workspace_id = w.workspace_id
+ )
 ON CONFLICT (workspace_id, status_code) DO NOTHING;
 
 -- --- product joins both vocabularies by uuid --------------------------------

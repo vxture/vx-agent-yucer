@@ -10,13 +10,22 @@ import { fail, ok, violation, type RuleResult } from "../../shared/result";
  * workspace on first contact, then entirely the tenant's - renamed, deleted,
  * extended to fit their own industry. Industry-neutral on purpose; the
  * industry-specific fit is the tenant's edit, not our guess. */
+/** Sized for >=80% of common B2B catalogues (owner ruling): software
+ * vendors, SaaS, device makers, manufacturers, distributors, integrators
+ * and service firms all find their rows here; a tenant deletes the rest. */
 export const DEFAULT_TYPE_VOCABULARY: readonly {
   readonly typeCode: string;
   readonly name: string;
 }[] = [
-  { typeCode: "software", name: "软件" },
-  { typeCode: "hardware", name: "硬件" },
-  { typeCode: "service", name: "服务" },
+  { typeCode: "software", name: "软件产品" },
+  { typeCode: "subscription", name: "订阅服务" },
+  { typeCode: "hardware", name: "硬件设备" },
+  { typeCode: "goods", name: "实物商品" },
+  { typeCode: "consumables", name: "耗材配件" },
+  { typeCode: "implementation", name: "实施服务" },
+  { typeCode: "maintenance", name: "维保服务" },
+  { typeCode: "training", name: "培训服务" },
+  { typeCode: "consulting", name: "咨询服务" },
 ];
 
 export interface ProductTypeDraft {

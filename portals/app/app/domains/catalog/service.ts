@@ -14,6 +14,7 @@ import {
   planProductStatusChange,
   planStatus,
   planStatusRemoval,
+  STARTER_STATUS_DEFAULTS,
   SYSTEM_STATUS_DEFAULTS,
 } from "./lib/status-vocab";
 import { denied } from "../pipeline/service";
@@ -441,10 +442,20 @@ export async function removeProductType(
  */
 async function ensureStatusVocab(ctx: CatalogContext) {
   let rows = await ctx.store.listStatusConfigs(ctx.workspaceId);
-  const have = new Set(rows.map((r) => r.statusCode));
-  const missing = SYSTEM_STATUS_DEFAULTS.filter((d) => !have.has(d.statusCode));
-  if (missing.length > 0) {
-    for (const d of missing) {
+  // A completely empty vocabulary is FIRST CONTACT: seed the full shipped
+  // set, starter rows included. Otherwise only the load-bearing system codes
+  // are re-ensured - starter rows are ordinary rows, and a tenant that
+  // deleted one must not meet it again on the next read.
+  const seed =
+    rows.length === 0
+      ? [...SYSTEM_STATUS_DEFAULTS, ...STARTER_STATUS_DEFAULTS].sort(
+          (a, b) => a.sortOrder - b.sortOrder,
+        )
+      : SYSTEM_STATUS_DEFAULTS.filter(
+          (d) => !rows.some((r) => r.statusCode === d.statusCode),
+        );
+  if (seed.length > 0) {
+    for (const d of seed) {
       await ctx.store.upsertStatusConfig(ctx.workspaceId, {
         statusCode: d.statusCode,
         name: d.name,
