@@ -8,11 +8,12 @@ import {
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
 import { DeliveryTable, type DeliveryRow } from "../components/delivery-table";
+import { NewEntryLink } from "../components/form-page";
 import {
   MilestonePanel,
   type MilestoneRow,
 } from "../components/milestone-panel";
-import { reconcileHealth, saveMilestone } from "./actions";
+import { reconcileHealth } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -171,23 +172,16 @@ export default async function DeliveryPage() {
           page for and its instalments are what that project owes. Putting the
           money first would make the page a ledger; putting it second makes it
           the answer to "and has it been paid". */}
-      <MilestonePanel
-        rows={milestones}
-        projects={
-          projects.ok
-            ? projects.value.map((p) => ({ id: p.id, name: p.name }))
-            : []
-        }
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "delivery.milestone.upsert",
-            "ui",
-          ).allowed
-        }
-        onSave={saveMilestone}
-      />
+      <MilestonePanel rows={milestones} />
+      {/* Creation left for /delivery/new on 2026-09-05. */}
+      {can(
+        session.authz,
+        session.entitlement,
+        "delivery.milestone.upsert",
+        "ui",
+      ).allowed ? (
+        <NewEntryLink href="/delivery/new" />
+      ) : null}
     </ViewLayout>
   );
 }

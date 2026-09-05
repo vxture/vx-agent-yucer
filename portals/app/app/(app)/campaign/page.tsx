@@ -10,7 +10,8 @@ import {
 import type { CampaignRecord } from "../../domains/strategy/store";
 import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
-import { moveCampaign, saveExecution } from "./actions";
+import { moveCampaign } from "./actions";
+import { NewEntryLink } from "../components/form-page";
 import {
   ExecutionPanel,
   type ExecutionRow,
@@ -163,21 +164,16 @@ export default async function CampaignPage() {
           and this is what blocks that: a campaign with one outstanding item
           cannot be marked complete. The reader meets the refusal first and
           then what to do about it. */}
-      <ExecutionPanel
-        rows={executions}
-        campaigns={rows
-          .filter((r) => r.status !== "completed")
-          .map((r) => ({ id: r.id, name: r.name }))}
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "campaign.execution.upsert",
-            "ui",
-          ).allowed
-        }
-        onSave={saveExecution}
-      />
+      <ExecutionPanel rows={executions} />
+      {/* Creation and editing left for /campaign/new on 2026-09-05. */}
+      {can(
+        session.authz,
+        session.entitlement,
+        "campaign.execution.upsert",
+        "ui",
+      ).allowed ? (
+        <NewEntryLink href="/campaign/new" />
+      ) : null}
     </ViewLayout>
   );
 }

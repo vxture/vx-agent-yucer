@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { uncoveredRegions, unsetWorkspaceMetrics, untargetedTerritories } from "./suggest";
+import { coveringTerritories, uncoveredRegions, unsetWorkspaceMetrics, untargetedTerritories } from "./suggest";
 
 // The planning assistant's data half. Same discipline as every suggestion
 // engine here: the refusals get the tests, because confident output with
@@ -75,4 +75,21 @@ test("all set means an empty list", () => {
     { period: "2026H2", scopeType: "workspace", metric: "margin" },
   ]);
   assert.deepEqual(out, []);
+});
+
+// --- coveringTerritories ----------------------------------------------------
+
+test("the covering territory is the one lead routing would pick", () => {
+  const ts = [
+    { id: "east", name: "East", regions: ["华东", "华中"], status: "active" },
+    { id: "old", name: "Old", regions: ["华东"], status: "retired" },
+  ];
+  assert.deepEqual(coveringTerritories("华东", ts).map((t) => t.id), ["east"]);
+});
+
+test("no region or no coverage means silence", () => {
+  const ts = [{ id: "east", name: "East", regions: ["华东"], status: "active" }];
+  assert.deepEqual(coveringTerritories(null, ts), []);
+  assert.deepEqual(coveringTerritories("  ", ts), []);
+  assert.deepEqual(coveringTerritories("东北", ts), []);
 });
