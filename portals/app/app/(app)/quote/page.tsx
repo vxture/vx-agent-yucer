@@ -30,7 +30,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function QuotePage() {
-  const { LOAD_ERROR, QUOTE_TEXT, SHELL_TEXT } = await getMessages();
+  const { LOAD_ERROR, QUOTE_TEXT, SHELL_TEXT, DOMAIN_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -119,7 +119,7 @@ export default async function QuotePage() {
 
   return (
     <ViewLayout>
-      <ViewHeader title={QUOTE_TEXT.title} description={QUOTE_TEXT.why} />
+      <ViewHeader title={DOMAIN_LABEL.quote} description={QUOTE_TEXT.why} />
       <QuoteTable rows={rows} />
     </ViewLayout>
   );

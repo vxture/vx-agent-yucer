@@ -27,6 +27,7 @@ const price = (
   listPrice,
   floorPrice,
   effectiveAt: new Date("2026-01-01"),
+  supersedesId: null,
 });
 
 const kinds = (out: PriceAdvice[]) => out.map((a) => `${a.kind}:${a.productId}`);

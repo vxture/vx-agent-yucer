@@ -51,9 +51,9 @@ function seeded(): InMemoryCatalogStore {
       { id: "i2", workspaceId: WS, solutionId: "s1", productId: "p2", quantity: 5 },
     ],
     prices: [
-      { id: "e1", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1000, floorPrice: 800, effectiveAt: new Date("2026-01-01") },
-      { id: "e2", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1200, floorPrice: 900, effectiveAt: new Date("2026-06-01") },
-      { id: "ex", workspaceId: "ws_other", productId: "px", currency: "CNY", listPrice: 5, floorPrice: 5, effectiveAt: new Date("2026-06-01") },
+      { id: "e1", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1000, floorPrice: 800, effectiveAt: new Date("2026-01-01"), supersedesId: null },
+      { id: "e2", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1200, floorPrice: 900, effectiveAt: new Date("2026-06-01"), supersedesId: "e1" },
+      { id: "ex", workspaceId: "ws_other", productId: "px", currency: "CNY", listPrice: 5, floorPrice: 5, effectiveAt: new Date("2026-06-01"), supersedesId: null },
     ],
   });
   return store;
@@ -458,4 +458,38 @@ test("deleting a price refuses without the pricing permission", async () => {
   const c = ctx("sales_rep", "enterprise", seeded());
   const r = await removePrice(c, { priceId: "e1" });
   assert.equal(!r.ok && r.violations[0]!.code, "permission_denied");
+});
+
+test("a new price records which price it replaced, and the first records none", async () => {
+  const store = new InMemoryCatalogStore();
+  const c = ctx("sales_ops", "free", store);
+
+  const first = await setPrice(c, {
+    productId: "p1",
+    currency: "CNY",
+    listPrice: 1000,
+    floorPrice: 800,
+  });
+  assert.equal(first.ok && first.value.supersedesId, null, "nothing came before it");
+
+  const second = await setPrice(c, {
+    productId: "p1",
+    currency: "CNY",
+    listPrice: 1200,
+    floorPrice: 900,
+  });
+  assert.equal(
+    second.ok && second.value.supersedesId,
+    first.ok ? first.value.id : "?",
+    "the chain is asserted at write time, not inferred from dates later",
+  );
+
+  // Another product's price starts its own chain rather than joining this one.
+  const other = await setPrice(c, {
+    productId: "p2",
+    currency: "CNY",
+    listPrice: 500,
+    floorPrice: 400,
+  });
+  assert.equal(other.ok && other.value.supersedesId, null);
 });

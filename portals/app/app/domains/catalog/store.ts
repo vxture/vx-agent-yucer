@@ -75,6 +75,11 @@ export interface PriceEntryRecord {
   listPrice: number;
   floorPrice: number;
   effectiveAt: Date;
+  /** The entry this one replaced - incr/0030. The chain the product ASSERTED,
+   * as opposed to the one a sort by date infers: a backdated correction or an
+   * import landing three prices at once reads wrong when inferred. Null for
+   * the first price of a product, and for one whose predecessor was deleted. */
+  supersedesId: string | null;
 }
 
 /** One product on one deal. See ADR-014 section 2 for who is authoritative. */
@@ -114,6 +119,13 @@ export interface DiscountApprovalRecord {
   approvedBySub: string;
   approvedAt: Date;
 }
+
+/** What a caller supplies when appending a price. The LINEAGE is optional
+ * here because deciding it is the service's job - it knows which entry is in
+ * force - and a store that inferred it would be holding policy. */
+export type PriceDraft = Omit<PriceEntryRecord, "id" | "workspaceId" | "supersedesId"> & {
+  readonly supersedesId?: string | null;
+};
 
 export interface CatalogStore {
   listProducts(workspaceId: string): Promise<ProductRecord[]>;
@@ -210,7 +222,7 @@ export interface CatalogStore {
    */
   appendPrice(
     workspaceId: string,
-    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
+    input: PriceDraft,
   ): Promise<PriceEntryRecord>;
 
   /** Delete one price entry. The SERVICE refuses the in-force row and any
@@ -514,11 +526,13 @@ export class InMemoryCatalogStore implements CatalogStore {
     return row;
   }
 
-  async appendPrice(
-    workspaceId: string,
-    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
-  ): Promise<PriceEntryRecord> {
-    const row: PriceEntryRecord = { id: `pbe_${++this.seq}`, workspaceId, ...input };
+  async appendPrice(workspaceId: string, input: PriceDraft): Promise<PriceEntryRecord> {
+    const row: PriceEntryRecord = {
+      id: `pbe_${++this.seq}`,
+      workspaceId,
+      supersedesId: input.supersedesId ?? null,
+      ...input,
+    };
     this.prices.push(row);
     return row;
   }

@@ -461,3 +461,48 @@ test("the type vocabulary upserts on its real unique index and its code is locke
     await cleanup();
   }
 });
+
+test("the price chain is a real self-FK: it survives, nulls, and cannot be edited", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const ids = await seedStatuses(s);
+    const p = await s.upsertProduct(WS, { productCode: "P-CH", name: "Chain", typeId: null, unit: "set", statusId: ids.active! });
+
+    const first = await s.appendPrice(WS, {
+      productId: p.id,
+      currency: "CNY",
+      listPrice: 1000,
+      floorPrice: 800,
+      effectiveAt: new Date("2026-01-01"),
+    });
+    assert.equal(first.supersedesId, null);
+
+    const second = await s.appendPrice(WS, {
+      productId: p.id,
+      currency: "CNY",
+      listPrice: 1200,
+      floorPrice: 900,
+      effectiveAt: new Date("2026-06-01"),
+      supersedesId: first.id,
+    });
+    assert.equal(second.supersedesId, first.id, "the pointer round-trips through the column");
+
+    // ON DELETE SET NULL: deleting the parent keeps the child and says the
+    // predecessor is gone, rather than taking the successor with it.
+    assert.equal(await s.removePrice(WS, first.id), true);
+    const left = await s.listPrices(WS);
+    assert.equal(left.length, 1);
+    assert.equal(left[0]!.supersedesId, null);
+
+    // The lineage carries no UPDATE grant - it is a fact about a moment that
+    // has passed, frozen like the attribution keys.
+    const { assertWritable } = await import("../shared/column-locks");
+    assert.equal(
+      assertWritable("yucer_catalog.price_book_entry", { supersedesId: null }).ok,
+      false,
+    );
+  } finally {
+    await cleanup();
+  }
+});

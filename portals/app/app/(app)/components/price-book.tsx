@@ -39,14 +39,19 @@ import { useMessages } from "../lib/i18n/provider";
 // is the DS's slot for exactly that; a label that grew an explanation is the
 // defect this page was told to avoid.
 
+/** A history row: the entry, plus when it stopped applying. Derived by the
+ * page from the next entry's effective time - see the note there. */
+export type SupersededPrice = PriceEntryRecord & { readonly supersededAt: Date | null };
+
 export interface PriceBookProps {
   readonly products: readonly ProductRecord[];
   /** The entry in force per product, computed on the SERVER: "in force" reads
    * a clock, and a clock read during hydration is a different clock from the
    * one that rendered the HTML. */
   readonly current: readonly PriceEntryRecord[];
-  /** Everything the current entries replaced, newest first. */
-  readonly superseded: readonly PriceEntryRecord[];
+  /** Everything the current entries replaced, newest first, each carrying the
+   * moment it stopped applying - the next price's effective time. */
+  readonly superseded: readonly SupersededPrice[];
   readonly canPrice: boolean;
   readonly onSave: (input: {
     productId: string;
@@ -122,6 +127,25 @@ export function PriceBook({
     });
   };
 
+  /** A moment, to the second, on two lines.
+   *
+   * To the second because two prices minutes apart are a real sequence; from
+   * the ISO string rather than a locale because a locale renders differently
+   * on the server than in the browser, which is a hydration mismatch rather
+   * than a nicety; on two lines because the history table carries two of
+   * these and one-line stamps would take the product name's width. */
+  const stamp = (at: Date | null) =>
+    at === null ? (
+      <span className="text-muted-foreground">-</span>
+    ) : (
+      <span className="flex flex-col tabular-nums leading-tight">
+        <span>{at.toISOString().slice(0, 10)}</span>
+        <span className="text-muted-foreground text-body-sm">
+          {at.toISOString().slice(11, 19)}
+        </span>
+      </span>
+    );
+
   const columns = [
     {
       id: "product",
@@ -169,17 +193,19 @@ export function PriceBook({
       header: CATALOG_TEXT.colEffective,
       width: "lg" as const,
       align: "center" as const,
-      // To the second, and formatted from the ISO string rather than a locale:
-      // two prices minutes apart are a real sequence, and a locale format
-      // would render differently on the server than in the browser, which is
-      // a hydration mismatch rather than a nicety.
-      cell: (r: PriceEntryRecord) => (
-        <span className="tabular-nums">
-          {r.effectiveAt.toISOString().slice(0, 19).replace("T", " ")}
-        </span>
-      ),
+      cell: (r: PriceEntryRecord) => stamp(r.effectiveAt),
     },
   ];
+
+  /** The history table's own column: when this price stopped applying. Only
+   * that table has it - a price in force has not stopped. */
+  const supersededColumn = {
+    id: "superseded",
+    header: CATALOG_TEXT.colSuperseded,
+    width: "md" as const,
+    align: "center" as const,
+    cell: (r: PriceEntryRecord) => stamp((r as SupersededPrice).supersededAt ?? null),
+  };
 
   /** One menu per row. `inForce` decides what the row may do: the price a
    * product is quoted at can be re-priced but never deleted, and a superseded
@@ -238,14 +264,27 @@ export function PriceBook({
     rows: readonly PriceEntryRecord[],
     acts: ReturnType<typeof rowActions>,
     selectable = false,
+    extra?: typeof supersededColumn,
   ) => (
-    <div className="[&_table]:table-fixed [&_thead_th:nth-last-child(2)]:w-[10.5rem] [&_thead_th:nth-last-child(3)]:w-[5.5rem] [&_thead_th:nth-last-child(4)]:w-[5.5rem] [&_thead_th:last-child]:w-control-3xl">
+    <div
+      className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${
+        extra
+          ? // spacer | # | product | list | floor | effective | superseded | actions.
+            // A seventh column does not fit the content pane at this width, so
+            // the history table keeps its columns readable and scrolls inside
+            // its own container - the DS pins the action column while it does.
+            // The page body never scrolls sideways; this table does.
+            "[&_table]:min-w-[44rem] [&_thead_th:nth-last-child(2)]:w-[7rem] [&_thead_th:nth-last-child(3)]:w-[7rem] [&_thead_th:nth-last-child(4)]:w-[5.5rem] [&_thead_th:nth-last-child(5)]:w-[5.5rem]"
+          : // spacer | # | product | list | floor | effective | actions
+            "[&_thead_th:nth-last-child(2)]:w-[7rem] [&_thead_th:nth-last-child(3)]:w-[5.5rem] [&_thead_th:nth-last-child(4)]:w-[5.5rem]"
+      }`}
+    >
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
         rowKey={(r: PriceEntryRecord) => r.id}
         rows={[...rows]}
-        columns={columns}
+        columns={extra ? [...columns, extra] : columns}
         rowActions={acts}
         selectedKeys={selectable ? selected : undefined}
         onSelectionChange={selectable ? (keys) => setSelected([...keys]) : undefined}
@@ -307,7 +346,7 @@ export function PriceBook({
           title={CATALOG_TEXT.priceHistory}
           description={CATALOG_TEXT.priceHistoryWhy}
         >
-          {table(superseded, rowActions(false))}
+          {table(superseded, rowActions(false), false, supersededColumn)}
         </Section>
       ) : null}
 

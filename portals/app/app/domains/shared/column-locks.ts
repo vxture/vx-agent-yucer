@@ -231,6 +231,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table
   // was insert-only: a price could be entered and never corrected. Prices are
   // meant to be editable; the anchors (product, currency, workspace) are not.
+  // 0030's supersedes_id is deliberately absent: which price replaced which
+  // is a fact about a moment that has passed, frozen like the attribution
+  // keys ADR-003 names. A correction is a new entry.
   "yucer_catalog.price_book_entry": ["list_price", "floor_price"],
   // opportunity_id and product_id are the line's identity - moving a line to
   // another deal or another product is a different line.

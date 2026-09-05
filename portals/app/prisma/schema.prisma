@@ -945,8 +945,13 @@ model PriceBookEntry {
   listPrice   Decimal  @map("list_price") @db.Decimal(18, 2)
   floorPrice  Decimal  @map("floor_price") @db.Decimal(18, 2)
   effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz()
+  /// The entry this one replaced - incr/0030, the asserted chain. Self-FK
+  /// with ON DELETE SET NULL: deleting a superseded entry must not take its
+  /// successor with it.
+  supersedesId String? @map("supersedes_id") @db.Uuid
 
   @@unique([workspaceId, productId, currency, effectiveAt], map: "uidx_price_entry")
+  @@index([supersedesId], map: "idx_price_supersedes")
   @@map("price_book_entry")
   @@schema("yucer_catalog")
 }

@@ -632,7 +632,6 @@ export const en: Dictionary = {
     removeItem: "Remove",
     saveSolution: "Save solution",
     solutionSaved: "Saved",
-    title: "Catalogue",
     description:
       "The catalogue is the dimension every domain references: deals, contracts, delivery and signal matching all read it, and it writes to none of them.",
     lead: (n: number) => `${n} products on sale`,
@@ -724,7 +723,6 @@ export const en: Dictionary = {
     solutionItems: (n: number) => `${n} products`,
     noSolutions: "No solutions yet",
     emptyBundle: "A solution with no products is just a name",
-    pricebook: "Prices and floors",
     pricebookWhy:
       "The floor is why this table exists: a quote below it needs a signature. Prices are appended, never rewritten - the superseded row is what explains how today's number was arrived at.",
     tagPriced: (n: number) => `${n} priced`,
@@ -770,6 +768,7 @@ export const en: Dictionary = {
     colFloor: "Floor",
     colCurrency: "Currency",
     colEffective: "Effective",
+    colSuperseded: "Superseded",
     noPrices: "No prices yet",
     setPrice: "Save price",
     priceSaved: "Recorded",

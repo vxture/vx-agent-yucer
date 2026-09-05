@@ -606,7 +606,23 @@ export async function setPrice(
   });
   if (!plan.ok) return plan as RuleResult<PriceEntryRecord>;
 
-  return ok(await ctx.store.appendPrice(ctx.workspaceId, plan.value));
+  // THE CHAIN IS ASSERTED, NOT INFERRED (incr/0030). The new entry records
+  // which price it replaced - the one in force for this product and currency
+  // at the moment of writing - so an analysis of how a price moved reads the
+  // decisions somebody made rather than an order a sort produced. Null when
+  // this is the product's first price.
+  const now = plan.value.effectiveAt.getTime();
+  const supersedesId =
+    (await ctx.store.listPrices(ctx.workspaceId))
+      .filter(
+        (e) =>
+          e.productId === plan.value.productId &&
+          e.currency === plan.value.currency &&
+          e.effectiveAt.getTime() <= now,
+      )
+      .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime())[0]?.id ?? null;
+
+  return ok(await ctx.store.appendPrice(ctx.workspaceId, { ...plan.value, supersedesId }));
 }
 
 /**

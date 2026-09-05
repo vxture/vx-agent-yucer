@@ -523,7 +523,6 @@ export const CATALOG_TEXT = {
   newPrice: "设定价格",
   newPriceWhy: "列表价是对外的说法，底价是内部的纪律——低于底价的行项会被标记待批。",
   newEntry: "新建",
-  title: "产品目录",
   description:
     "目录是被所有域引用的维度：商机、合同、交付、信号匹配都读它，而它谁都不写。",
   lead: (n: number) => `${n} 个在售产品`,
@@ -624,7 +623,6 @@ export const CATALOG_TEXT = {
   noSolutions: "还没有解决方案",
   emptyBundle: "一个不装产品的方案只是个名字",
 
-  pricebook: "价目与底价",
   pricebookWhy:
     "底价是这张表存在的理由：低于它的报价需要签字。价格只追加不改写——被取代的那一行解释了今天这个数字是怎么来的。",
   // 定价模块页（owner 裁定 2026-09-05：全面按产品目录的模式与布局）
@@ -671,6 +669,7 @@ export const CATALOG_TEXT = {
   colFloor: "底价",
   colCurrency: "币种",
   colEffective: "生效时间",
+  colSuperseded: "退役时间",
   noPrices: "还没有价目",
   setPrice: "保存价格",
   priceSaved: "已记入",

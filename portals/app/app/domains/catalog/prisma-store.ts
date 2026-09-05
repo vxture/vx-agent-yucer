@@ -4,6 +4,7 @@ import type {
   CatalogStore,
   DiscountApprovalRecord,
   OpportunityLineRecord,
+  PriceDraft,
   PriceEntryRecord,
   ProductRecord,
   ProductStatusRecord,
@@ -444,10 +445,7 @@ export class PrismaCatalogStore implements CatalogStore {
     });
   }
 
-  async appendPrice(
-    workspaceId: string,
-    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
-  ): Promise<PriceEntryRecord> {
+  async appendPrice(workspaceId: string, input: PriceDraft): Promise<PriceEntryRecord> {
     const p = await getPrismaClient();
     // CREATE, never upsert. `effective_at` is part of the unique key, so a new
     // price at a new instant is a new row - which is what keeps the superseded
@@ -462,6 +460,7 @@ export class PrismaCatalogStore implements CatalogStore {
         listPrice: input.listPrice,
         floorPrice: input.floorPrice,
         effectiveAt: input.effectiveAt,
+        supersedesId: input.supersedesId ?? null,
       },
     });
     return this.toPrice(row);
@@ -585,6 +584,7 @@ export class PrismaCatalogStore implements CatalogStore {
     listPrice: unknown;
     floorPrice: unknown;
     effectiveAt: Date;
+    supersedesId: string | null;
   }): PriceEntryRecord {
     return {
       id: r.id,
@@ -594,6 +594,7 @@ export class PrismaCatalogStore implements CatalogStore {
       listPrice: num(r.listPrice),
       floorPrice: num(r.floorPrice),
       effectiveAt: r.effectiveAt,
+      supersedesId: r.supersedesId,
     };
   }
 

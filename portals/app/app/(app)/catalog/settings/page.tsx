@@ -38,7 +38,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function CatalogSettingsPage() {
-  const { CATALOG_TEXT } = await getMessages();
+  const { CATALOG_TEXT, DOMAIN_LABEL } = await getMessages();
   return (
     <CatalogPage
       render={({ products, types, statuses, authz, entitlement }) => {
@@ -62,7 +62,7 @@ export default async function CatalogSettingsPage() {
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link href="/catalog">{CATALOG_TEXT.title}</Link>
+                        <Link href="/catalog">{DOMAIN_LABEL.catalog}</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />

@@ -492,6 +492,7 @@ function catalogWith(floor: number | null): InMemoryCatalogStore {
               listPrice: 1000,
               floorPrice: floor,
               effectiveAt: new Date("2026-01-01"),
+              supersedesId: null,
             },
           ],
   });

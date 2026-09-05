@@ -8,8 +8,8 @@ import {
   CollapsibleTrigger,
   Icon,
   ViewHeader,
-  type IconName,
 } from "@vxture/design-ui";
+import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
 // A module page's header card - owner ruling 2026-09-05, generalised when the
@@ -36,16 +36,19 @@ export interface HeadlineStat {
 }
 
 export function ModuleHeadline({
-  icon,
-  title,
+  moduleKey,
   description,
   tags,
   action,
   stats,
   emptyNote,
 }: {
-  readonly icon: IconName;
-  readonly title: string;
+  /** The nav entry this page IS. Its icon and its NAME both come from the
+   * registries - a page that spelled its own name drifted from the menu the
+   * moment either was edited (owner, 2026-09-05: 价目与底价 in the page,
+   * 产品定价 in the menu). The description stays the page's own: it explains
+   * this screen, not the menu entry. */
+  readonly moduleKey: string;
   readonly description: string;
   /** StatusBadges beside the title - the roster counts. */
   readonly tags?: ReactNode;
@@ -54,15 +57,15 @@ export function ModuleHeadline({
   readonly stats: readonly HeadlineStat[];
   readonly emptyNote: string;
 }) {
-  const { CATALOG_TEXT } = useMessages();
+  const { CATALOG_TEXT, DOMAIN_LABEL } = useMessages();
   const [open, setOpen] = useState(true);
 
   return (
     <Card className="p-lg">
       <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-md">
         <ViewHeader
-          icon={icon}
-          title={title}
+          icon={moduleIcon(moduleKey)}
+          title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
           description={description}
           secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
           action={

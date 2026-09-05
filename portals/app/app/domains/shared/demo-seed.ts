@@ -1551,6 +1551,8 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     listPrice: p.list,
     floorPrice: p.floor,
     effectiveAt: daysAgo(180),
+    // The first price of each product replaces nothing (incr/0030).
+    supersedesId: null,
   }));
 
   // Each entry: deal, solution it was quoted from, and the products with the

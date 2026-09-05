@@ -1,7 +1,6 @@
 import { StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { moduleIcon } from "../lib/navigation";
 import { CatalogPage } from "../catalog/shell";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { PriceBook } from "../components/price-book";
@@ -81,13 +80,35 @@ export default async function PricebookPage() {
         const current = [...byKey.values()].sort((a, b) =>
           (name.get(a.productId) ?? "").localeCompare(name.get(b.productId) ?? ""),
         );
-        const superseded = prices.filter((e) => !inForce.has(e.id));
+        // WHEN A PRICE STOPPED APPLYING is when its successor took effect -
+        // and since incr/0030 the successor is ASSERTED (supersedesId) rather
+        // than guessed from the dates. The date fallback stays for rows
+        // written before that increment: they have no pointer, and the order
+        // they were entered in is the only evidence there is.
+        const successor = new Map<string, (typeof prices)[number]>();
+        for (const e of prices) {
+          if (e.supersedesId) successor.set(e.supersedesId, e);
+        }
+        const superseded = prices
+          .filter((e) => !inForce.has(e.id))
+          .map((e) => {
+            const next =
+              successor.get(e.id) ??
+              prices
+                .filter(
+                  (o) =>
+                    o.productId === e.productId &&
+                    o.currency === e.currency &&
+                    o.effectiveAt.getTime() > e.effectiveAt.getTime(),
+                )
+                .sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime())[0];
+            return { ...e, supersededAt: next?.effectiveAt ?? null };
+          });
 
         return (
           <>
             <ModuleHeadline
-              icon={moduleIcon("pricebook")}
-              title={CATALOG_TEXT.pricebook}
+              moduleKey="pricebook"
               description={CATALOG_TEXT.pricebookWhy}
               tags={
                 <>

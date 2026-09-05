@@ -11,6 +11,7 @@ const entry = (list: number, floor: number): PriceEntryRecord => ({
   listPrice: list,
   floorPrice: floor,
   effectiveAt: new Date("2026-01-01T00:00:00Z"),
+  supersedesId: null,
 });
 
 test("a price below the floor needs a signature", () => {
