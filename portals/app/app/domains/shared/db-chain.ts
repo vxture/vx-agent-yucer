@@ -183,7 +183,7 @@ export async function seedChain(c: Client): Promise<void> {
   // before any product does - same order the service's lazy seeding enforces.
   await c.query(
     `INSERT INTO yucer_catalog.product_status (id, workspace_id, status_code, name, description)
-     VALUES ($1, $2, 'active', '在售', 'chain fixture status')`,
+     VALUES ($1, $2, 'active', 'chain fixture status', 'the quotable state')`,
     [CHAIN.productStatus, CHAIN_WS],
   );
   await c.query(
