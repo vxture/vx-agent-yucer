@@ -8,6 +8,7 @@ import { getOpportunityDetail } from "../../../../domains/pipeline/service";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
+  listProductStatuses as listCatalogStatuses,
 } from "../../../../domains/catalog/service";
 import { LineEditor } from "../../../components/line-editor";
 import { approveDiscount, saveOpportunityLines } from "../../stage-action";
@@ -46,10 +47,16 @@ export default async function DealLinesPage({
   if (!canEdit) redirect(`/pipeline/${id}`);
 
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [lineRows, productRows] = await Promise.all([
+  const [lineRows, productRows, statusRows] = await Promise.all([
     listOpportunityLines(catalogCtx),
     listCatalogProducts(catalogCtx),
+    listCatalogStatuses(catalogCtx),
   ]);
+  // Quotable = the canonical 在售 row. Products on a workspace-added status
+  // are visible in the catalogue but not offered on a quote line.
+  const onSaleId = statusRows.ok
+    ? (statusRows.value.find((r) => r.statusCode === "active")?.id ?? null)
+    : null;
 
   return (
     <ViewLayout>
@@ -70,7 +77,7 @@ export default async function DealLinesPage({
             approved: l.approved,
           }))}
         products={(productRows.ok ? productRows.value : [])
-          .filter((p) => p.status === "active")
+          .filter((p) => p.statusId === onSaleId)
           .map((p) => ({ id: p.id, name: p.name, unit: p.unit }))}
         canEdit
         canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}

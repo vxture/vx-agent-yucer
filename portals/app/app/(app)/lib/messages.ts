@@ -585,7 +585,7 @@ export const CATALOG_TEXT = {
   back: "返回",
   typesTitle: "产品类型",
   typesWhy:
-    "类型是工作区自己的词表。产品按 type_code 引用它，所以类型只停用、不删除——停用后旧产品仍能显示。",
+    "类型是工作区自己的词表，只描述产品是哪类。被产品引用时不可删除；停用后不再供新产品选择，旧产品照常显示。",
   typeCode: "类型编码",
   typeName: "类型名称",
   typeCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
@@ -593,22 +593,29 @@ export const CATALOG_TEXT = {
   renameType: "重命名",
   saveType: "保存类型",
   typeDeleteConsequence: "删除不可恢复。仍有产品挂在这个类型时会被拒绝——那种情况请改用停用。",
+  // 两张配置表同构（owner 定列 2026-09-05）：
+  // 序号｜类型名称｜关联产品｜类型状态｜操作 / 序号｜状态名称｜关联产品｜状态描述｜操作
+  colTypeName: "类型名称",
+  colTypeStatus: "类型状态",
+  colStatusName: "状态名称",
+  colStatusDesc: "状态描述",
+  colLinkedProducts: "关联产品",
+  linkedCount: (n: number) => `${n} 个`,
+  typeEffectiveBadge: "生效中",
   typeRetire: "停用",
   typeReinstate: "启用",
   typeRetiredBadge: "已停用",
   typeInUse: (n: number) => `${n} 个产品`,
   statusesTitle: "产品状态",
   statusesWhy:
-    "状态是本工作区的词表；每个状态锚定一种行为，行为决定规则如何解读——只有「在售」行为可报价。",
+    "状态只描述产品处于什么阶段——在研、在售、已退役。行就是内容本身，这张表没有启停概念。",
   addStatus: "新增状态",
+  renameStatus: "重命名",
   saveStatus: "保存状态",
-  colBehavior: "行为",
-  behaviorHint: "行为在创建时选定，之后不可改——可报价的状态不能悄悄变得不可报价",
+  statusCode: "状态编码",
+  statusCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
   moveToStatus: (label: string) => `转入「${label}」`,
-  statusDeleteConsequence: "删除不可恢复。系统三态不可删；仍有产品处于该状态时会被拒绝。",
-  statusMeaningDev: "创建时的出生状态：真实存在、出现在计划里，但不可报价，也回不去。",
-  statusMeaningActive: "唯一可报价的状态。上线、以及退役后的恢复，都落到这里。",
-  statusMeaningRetired: "搁置而非删除：随时可恢复在售，历史引用全部保留。",
+  statusDeleteConsequence: "删除不可恢复。内置三个状态不可删；仍有产品处于该状态时会被拒绝。",
 
   solutions: "解决方案",
   solutionsWhy:
@@ -821,13 +828,9 @@ export const CATALOG_ERROR: Record<string, string> = {
   type_in_use: "还有产品挂在这个类型上，不能删除——请改用停用",
   type_not_found: "找不到这个产品类型，页面可能已过期，请刷新",
   status_not_found: "找不到这个状态，页面可能已过期，请刷新",
-  status_disabled: "这个状态已被停用，先启用它才能转入",
-  born_shelved: "产品不能一出生就是退役行为的状态",
-  system_status: "系统三态不可删除——可以改名，「在研」还可以停用",
+  born_shelved: "产品不能一出生就是已退役",
+  system_status: "内置三个状态不可删除——可以改名、改描述、排序",
   status_in_use: "还有产品处于这个状态，先把它们转走",
-  status_load_bearing: "「在售」和「已退役」承载着报价与搁置，不能停用",
-  system_behavior_fixed: "系统状态的行为就是它自己，不可指定",
-  behavior_required: "需要选定这个状态的行为——行为决定规则如何解读它",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

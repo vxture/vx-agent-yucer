@@ -17,7 +17,6 @@ import {
   upsertProductType,
   upsertSolution,
 } from "../../domains/catalog/service";
-import type { StatusBehavior } from "../../domains/catalog/lib/lifecycle";
 
 // Catalogue writes.
 //
@@ -49,9 +48,9 @@ export async function saveProduct(input: {
   name: string;
   typeId: string | null;
   unit: string;
-  /** Only the create form sends this; an edit omits it and keeps the row's
-   * status - transitions belong to the row operations, not the form. */
-  status?: string;
+  /** A status row's uuid. Only the create form sends this; an edit omits it
+   * and keeps the row's status - transitions belong to the row operations. */
+  statusId?: string;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -111,11 +110,11 @@ export async function savePrice(input: {
 
 export async function changeProductStatus(
   productId: string,
-  status: string,
+  statusId: string,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await setProductStatus(ctx, { productId, status });
+  const r = await setProductStatus(ctx, { productId, statusId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   return { ok: true };
@@ -186,9 +185,8 @@ export async function deleteProductType(typeId: string): Promise<CatalogResult> 
 
 export async function saveStatusRow(input: {
   statusCode: string;
-  name?: string | null;
-  behavior?: StatusBehavior;
-  status?: "active" | "retired";
+  name: string;
+  description?: string | null;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -200,10 +198,10 @@ export async function saveStatusRow(input: {
   return { ok: true };
 }
 
-export async function deleteStatusRow(statusCode: string): Promise<CatalogResult> {
+export async function deleteStatusRow(statusId: string): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await removeProductStatus(ctx, { statusCode });
+  const r = await removeProductStatus(ctx, { statusId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   revalidatePath("/catalog/settings");
@@ -212,12 +210,12 @@ export async function deleteStatusRow(statusCode: string): Promise<CatalogResult
 }
 
 export async function moveStatusRow(
-  statusCode: string,
+  statusId: string,
   direction: "up" | "down",
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await moveProductStatus(ctx, { statusCode, direction });
+  const r = await moveProductStatus(ctx, { statusId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   revalidatePath("/catalog/settings");

@@ -216,17 +216,16 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // same period edits this row; a different period is a new row.
   // The catalogue. product_code / solution_code are anchors: renaming what a
   // thing IS would rewrite every historical line that referenced it.
-  // 0028 added sort_order (manual catalogue order); 0029 moved the type
-  // association to type_id (internal joins are uuid - owner, 2026-09-05) and
-  // freed `status` to hold vocabulary codes.
-  "yucer_catalog.product": ["name", "unit", "status", "sort_order", "type_id", "updated_at"],
+  // 0028 added sort_order (manual catalogue order); 0029 replaced category
+  // and status with the two uuid joins (internal keys are uuids - owner,
+  // 2026-09-05).
+  "yucer_catalog.product": ["name", "unit", "sort_order", "type_id", "status_id", "updated_at"],
   // 0028. type_code is the workspace's anchor vocabulary - the join key is
   // the uuid, but the code is still what imports and upserts match on.
   "yucer_catalog.product_type": ["name", "sort_order", "status", "updated_at"],
-  // 0029. status_code is the anchor; behavior is what every rule READS -
-  // writable behavior would let a quotable status silently stop meaning
-  // "quotable", so it is fixed at creation.
-  "yucer_catalog.product_status": ["name", "sort_order", "status", "updated_at"],
+  // 0029. status_code is the anchor; the rest of the row - name, 状态描述,
+  // order - is the workspace's to edit.
+  "yucer_catalog.product_status": ["name", "description", "sort_order", "updated_at"],
   "yucer_catalog.solution": ["name", "summary", "status", "updated_at"],
   "yucer_catalog.solution_item": ["quantity"],
   // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table

@@ -9,11 +9,12 @@ import { listPrices, listProducts, listProductStatuses, listProductTypes, listSo
 import type {
   PriceEntryRecord,
   ProductRecord,
+  ProductStatusRecord,
   ProductTypeRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "../../domains/catalog/store";
-import type { StatusVocabRow } from "../../domains/catalog/lib/lifecycle";
+
 import { loadFailureText } from "../lib/load-failure";
 
 // The catalogue's three module pages share one body.
@@ -33,8 +34,8 @@ import { loadFailureText } from "../lib/load-failure";
 export interface CatalogData {
   products: readonly ProductRecord[];
   types: readonly ProductTypeRecord[];
-  /** The status vocabulary, merged with defaults - labels come from here. */
-  statuses: readonly StatusVocabRow[];
+  /** The status vocabulary - names and 状态描述 come from here. */
+  statuses: readonly ProductStatusRecord[];
   solutions: readonly { solution: SolutionRecord; items: readonly SolutionItemRecord[] }[];
   prices: readonly PriceEntryRecord[];
   authz: PermissionHolder;

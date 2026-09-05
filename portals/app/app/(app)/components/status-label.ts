@@ -1,34 +1,19 @@
-import type { StatusVocabRow } from "../../domains/catalog/lib/lifecycle";
+import type { ProductStatusRecord } from "../../domains/catalog/store";
 
-// Rendering the status vocabulary - ONE reading for every surface.
+// Status rendering conventions - tone only; the NAME is the row's own (a
+// vocabulary row says what it is called, the interface never substitutes).
 //
-// A row's label is its workspace-given name, falling back to the interface's
-// default for the three system codes. The tone reads BEHAVIOR, not the code:
-// a workspace-added "预售" with active behavior is green like 在售, because
-// green here means "quotable" and that is the behavior's promise.
+// Tones read the canonical codes: development is informational, on sale is
+// the good state, the shelf is neutral. A workspace-added status renders
+// informational - it lives in the live roster.
 
-export interface StatusDefaults {
-  readonly statusDev: string;
-  readonly statusActive: string;
-  readonly statusRetired: string;
-}
-
-export function statusLabelOf(row: StatusVocabRow, T: StatusDefaults): string {
-  if (row.name) return row.name;
+export function statusTone(row: ProductStatusRecord): "info" | "success" | "neutral" {
   switch (row.statusCode) {
-    case "in_development":
-      return T.statusDev;
     case "active":
-      return T.statusActive;
+      return "success";
     case "retired":
-      return T.statusRetired;
+      return "neutral";
     default:
-      return row.statusCode;
+      return "info";
   }
 }
-
-export const BEHAVIOR_TONE = {
-  in_development: "info",
-  active: "success",
-  retired: "neutral",
-} as const;

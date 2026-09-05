@@ -53,7 +53,7 @@ export class PrismaCatalogStore implements CatalogStore {
     name: string;
     typeId: string | null;
     unit: string;
-    status: string;
+    statusId: string;
     sortOrder: number;
   }): ProductRecord {
     return {
@@ -63,7 +63,7 @@ export class PrismaCatalogStore implements CatalogStore {
       name: row.name,
       typeId: row.typeId,
       unit: row.unit,
-      status: row.status,
+      statusId: row.statusId,
       sortOrder: row.sortOrder,
     };
   }
@@ -127,7 +127,7 @@ export class PrismaCatalogStore implements CatalogStore {
       name: input.name,
       typeId: input.typeId,
       unit: input.unit,
-      status: input.status,
+      statusId: input.statusId,
       updatedAt: new Date(),
     };
     // The update half only - the create half writes the anchors once, which is
@@ -162,10 +162,10 @@ export class PrismaCatalogStore implements CatalogStore {
   async setProductStatus(
     workspaceId: string,
     productId: string,
-    status: string,
+    statusId: string,
   ): Promise<ProductRecord | null> {
     const p = await getPrismaClient();
-    const patch = { status, updatedAt: new Date() };
+    const patch = { statusId, updatedAt: new Date() };
     const guard = assertWritable(PRODUCT_TABLE, patch);
     if (!guard.ok) {
       throw new Error(
@@ -305,19 +305,17 @@ export class PrismaCatalogStore implements CatalogStore {
     id: string;
     workspaceId: string;
     statusCode: string;
-    name: string | null;
-    behavior: string;
+    name: string;
+    description: string | null;
     sortOrder: number;
-    status: string;
   }): ProductStatusRecord {
     return {
       id: row.id,
       workspaceId: row.workspaceId,
       statusCode: row.statusCode,
       name: row.name,
-      behavior: row.behavior as ProductStatusRecord["behavior"],
+      description: row.description,
       sortOrder: row.sortOrder,
-      status: row.status as ProductStatusRecord["status"],
     };
   }
 
@@ -335,9 +333,7 @@ export class PrismaCatalogStore implements CatalogStore {
     input: Omit<ProductStatusRecord, "id" | "workspaceId" | "sortOrder">,
   ): Promise<ProductStatusRecord> {
     const p = await getPrismaClient();
-    // Behavior is create-only: absent from the update half, present in the
-    // create half - the same one-way door the column lock enforces.
-    const update = { name: input.name, status: input.status, updatedAt: new Date() };
+    const update = { name: input.name, description: input.description, updatedAt: new Date() };
     const guard = assertWritable(PRODUCT_STATUS_TABLE, update);
     if (!guard.ok) {
       throw new Error(
@@ -354,7 +350,6 @@ export class PrismaCatalogStore implements CatalogStore {
       create: {
         workspaceId,
         statusCode: input.statusCode,
-        behavior: input.behavior,
         sortOrder: (tail._max?.sortOrder ?? 0) + 1,
         ...update,
       },
@@ -385,9 +380,9 @@ export class PrismaCatalogStore implements CatalogStore {
     return count > 0;
   }
 
-  async countProductsByStatus(workspaceId: string, statusCode: string): Promise<number> {
+  async countProductsByStatusId(workspaceId: string, statusId: string): Promise<number> {
     const p = await getPrismaClient();
-    return p.product.count({ where: { workspaceId, status: statusCode } });
+    return p.product.count({ where: { workspaceId, statusId } });
   }
 
   async upsertSolution(

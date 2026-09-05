@@ -15,9 +15,12 @@ import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormPage, type AssistSuggestion } from "./form-page";
 import { suggestFloor, unpricedProducts } from "../../domains/catalog/lib/suggest";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
-import type { PriceEntryRecord, ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
-import type { StatusVocabRow } from "../../domains/catalog/lib/lifecycle";
-import { statusLabelOf } from "./status-label";
+import type {
+  PriceEntryRecord,
+  ProductRecord,
+  ProductStatusRecord,
+  ProductTypeRecord,
+} from "../../domains/catalog/store";
 
 // The catalogue's three CREATION PAGES - owner ruling 2026-09-05.
 //
@@ -68,7 +71,7 @@ export function NewProductForm({
   /** The workspace's type vocabulary - the type field selects from it. */
   readonly types: readonly ProductTypeRecord[];
   /** The status vocabulary - the birth choice selects from it. */
-  readonly statuses: readonly StatusVocabRow[];
+  readonly statuses: readonly ProductStatusRecord[];
   /** Present = EDIT mode (?code= on the page): code locked, status untouched -
    * transitions belong to the roster's row menu, not the form. */
   readonly initial?: ProductRecord;
@@ -77,7 +80,7 @@ export function NewProductForm({
     name: string;
     typeId: string | null;
     unit: string;
-    status?: string;
+    statusId?: string;
   }) => Promise<Saved>;
 }) {
   const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
@@ -86,11 +89,13 @@ export function NewProductForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [typeId, setTypeId] = useState(initial?.typeId ?? "");
   const [unit, setUnit] = useState(initial?.unit ?? "");
-  // The birth choice: any ENABLED status whose behavior is not the shelf -
-  // born-retired is a record error the service refuses. An edit never sends
-  // status at all; transitions belong to the roster's row menu.
-  const birthable = statuses.filter((r) => r.status === "active" && r.behavior !== "retired");
-  const [status, setStatus] = useState("active");
+  // The birth choice: any status except the shelf - born-retired is a record
+  // error the service refuses. An edit never sends status at all; transitions
+  // belong to the roster's row menu.
+  const birthable = statuses.filter((r) => r.statusCode !== "retired");
+  const [statusId, setStatusId] = useState(
+    () => statuses.find((r) => r.statusCode === "active")?.id ?? "",
+  );
   const submit = useSubmit("/catalog");
 
   // Everything the assistant says here is read off the rows the page already
@@ -166,10 +171,10 @@ export function NewProductForm({
             {!editing ? (
               <Field>
                 <FieldLabel>{CATALOG_TEXT.newStatus}</FieldLabel>
-                <NativeSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+                <NativeSelect value={statusId} onChange={(e) => setStatusId(e.target.value)}>
                   {birthable.map((r) => (
-                    <option key={r.statusCode} value={r.statusCode}>
-                      {statusLabelOf(r, CATALOG_TEXT)}
+                    <option key={r.id} value={r.id}>
+                      {r.name}
                     </option>
                   ))}
                 </NativeSelect>
@@ -189,7 +194,7 @@ export function NewProductForm({
                         unit: unit.trim(),
                         // An edit never sends status: the row menu owns
                         // transitions and the service keeps what the row has.
-                        ...(editing ? {} : { status }),
+                        ...(editing ? {} : { statusId }),
                       }),
                     (c) => CATALOG_ERROR[c] ?? CATALOG_ERROR.denied,
                   )
@@ -211,9 +216,11 @@ export function NewProductForm({
 
 export function NewSolutionForm({
   products,
+  statuses,
   onSave,
 }: {
   readonly products: readonly ProductRecord[];
+  readonly statuses: readonly ProductStatusRecord[];
   readonly onSave: (input: {
     solutionCode: string;
     name: string;
@@ -232,7 +239,8 @@ export function NewSolutionForm({
   ]);
   const submit = useSubmit("/solution");
 
-  const active = products.filter((p) => p.status === "active");
+  const onSaleId = statuses.find((r) => r.statusCode === "active")?.id ?? null;
+  const active = products.filter((p) => p.statusId === onSaleId);
   const chosen = new Set(items.map((i) => i.productId).filter(Boolean));
 
   const suggestions: AssistSuggestion[] = [];
@@ -356,10 +364,12 @@ export function NewSolutionForm({
 export function NewPriceForm({
   products,
   prices,
+  statuses,
   onSave,
 }: {
   readonly products: readonly ProductRecord[];
   readonly prices: readonly PriceEntryRecord[];
+  readonly statuses: readonly ProductStatusRecord[];
   readonly onSave: (input: {
     productId: string;
     currency: string;
@@ -368,7 +378,14 @@ export function NewPriceForm({
   }) => Promise<Saved>;
 }) {
   const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
-  const unpriced = useMemo(() => unpricedProducts(products, prices), [products, prices]);
+  const onSaleId = useMemo(
+    () => statuses.find((r) => r.statusCode === "active")?.id ?? null,
+    [statuses],
+  );
+  const unpriced = useMemo(
+    () => unpricedProducts(products, prices, onSaleId),
+    [products, prices, onSaleId],
+  );
   const [productId, setProductId] = useState("");
   const [list, setList] = useState("");
   const [floor, setFloor] = useState("");

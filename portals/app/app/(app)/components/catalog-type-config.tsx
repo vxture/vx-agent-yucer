@@ -16,14 +16,18 @@ import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/sto
 import { useMessages } from "../lib/i18n/provider";
 
 // 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
-// ruling 2026-09-05: 类型是类型，状态是状态 - each in its own file, coupled to
-// nothing). Mechanically it is the standard vocabulary table: display rows,
-// a dialog for the two-field errands (create, rename - the code locks on a
-// rename because it is the workspace's anchor), and the full operation set in
-// the row menu: rename / disable / enable / move / delete.
+// ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
+// import nothing from each other). A type describes what KIND of product
+// something is and carries its own effective/retired state; it knows nothing
+// of product status.
 //
-// Products associate by uuid (incr/0029), so the count column is a typeId
-// join and DELETE has a real FK RESTRICT underneath the rule's refusal.
+// COLUMNS AS RULED: 序号 | 类型名称 | 关联产品 | 类型状态 | 操作(右侧锁定).
+// The width tiers (md / sm / lg) are the SAME sequence the status config
+// uses, so the two tables line up column for column.
+//
+// Operations, all in the row menu: 重命名 / 停用 / 启用 / 上移 / 下移 / 删除.
+// Creation is a dialog off the section button. Delete is refused while
+// products carry the type (fk_product_type RESTRICTs underneath).
 
 export interface CatalogTypeConfigProps {
   readonly types: readonly ProductTypeRecord[];
@@ -92,7 +96,8 @@ export function CatalogTypeConfig({
         columns={[
           {
             id: "name",
-            header: CATALOG_TEXT.typeName,
+            header: CATALOG_TEXT.colTypeName,
+            width: "md" as const,
             cell: (t: ProductTypeRecord) => (
               <span className="flex min-w-0 flex-col">
                 <span className="text-foreground truncate">{t.name}</span>
@@ -103,20 +108,24 @@ export function CatalogTypeConfig({
             ),
           },
           {
-            id: "inUse",
-            header: CATALOG_TEXT.products,
+            id: "linked",
+            header: CATALOG_TEXT.colLinkedProducts,
+            width: "sm" as const,
+            align: "center" as const,
             cell: (t: ProductTypeRecord) => (
-              <span className="tabular-nums">{CATALOG_TEXT.typeInUse(inUse(t.id))}</span>
+              <span className="tabular-nums">{CATALOG_TEXT.linkedCount(inUse(t.id))}</span>
             ),
           },
           {
             id: "status",
-            header: CATALOG_TEXT.colStatus,
+            header: CATALOG_TEXT.colTypeStatus,
+            width: "lg" as const,
+            align: "center" as const,
             cell: (t: ProductTypeRecord) =>
               t.status === "retired" ? (
                 <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>
               ) : (
-                <StatusBadge tone="success">{CATALOG_TEXT.statusActive}</StatusBadge>
+                <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>
               ),
           },
         ]}
@@ -193,7 +202,7 @@ export function CatalogTypeConfig({
           disabled={pending || dialog?.mode === "rename"}
           onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
         />
-        <Label htmlFor="type-name">{CATALOG_TEXT.typeName}</Label>
+        <Label htmlFor="type-name">{CATALOG_TEXT.colTypeName}</Label>
         <Input
           id="type-name"
           value={dialog?.name ?? ""}

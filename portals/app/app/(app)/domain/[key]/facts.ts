@@ -11,7 +11,7 @@ import {
   getStrategyStore,
 } from "../../../domains/shared/registry";
 import { listCampaigns, listPlans, listSegments } from "../../../domains/strategy/service";
-import { listPrices, listProducts, listSolutions } from "../../../domains/catalog/service";
+import { listPrices, listProducts, listProductStatuses, listSolutions } from "../../../domains/catalog/service";
 import { listSignals, listLeads } from "../../../domains/signal/service";
 import { listPendingReviews, listPipeline } from "../../../domains/pipeline/service";
 import { attainment, listTerritories } from "../../../domains/planning/service";
@@ -52,8 +52,9 @@ const len = <T,>(r: { ok: boolean; value?: T[] }): number | null =>
 
 /** What we sell, and who we cut the market into. */
 async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
-  const [products, prices, solutions, segments, plans, accounts] = await Promise.all([
+  const [products, statuses, prices, solutions, segments, plans, accounts] = await Promise.all([
     listProducts({ ...ctx, store: getCatalogStore() }),
+    listProductStatuses({ ...ctx, store: getCatalogStore() }),
     listPrices({ ...ctx, store: getCatalogStore() }),
     listSolutions({ ...ctx, store: getCatalogStore() }),
     listSegments({ ...ctx, store: getStrategyStore() }),
@@ -65,10 +66,13 @@ async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
   // but a product with no entry in the price book is only visible by reading
   // one list against the other - and an unpriced product cannot be quoted, so
   // it is a hole in what we can actually sell rather than an untidy table.
+  const onSaleId = statuses.ok
+    ? (statuses.value.find((r) => r.statusCode === "active")?.id ?? null)
+    : null;
   const unpriced =
     products.ok && prices.ok
       ? products.value.filter(
-          (p) => p.status === "active" && !prices.value.some((e) => e.productId === p.id),
+          (p) => p.statusId === onSaleId && !prices.value.some((e) => e.productId === p.id),
         ).length
       : null;
 
@@ -87,7 +91,7 @@ async function armoryFacts(ctx: FactsContext): Promise<DomainFact[]> {
     fact("activePlans", plans.ok ? plans.value.filter((p) => p.status === "active").length : null, "/strategy"),
     fact("segments", len(segments), "/strategy"),
     fact("emptySegments", emptySegments, "/strategy#segments", true),
-    fact("products", products.ok ? products.value.filter((p) => p.status === "active").length : null, "/catalog"),
+    fact("products", products.ok ? products.value.filter((p) => p.statusId === onSaleId).length : null, "/catalog"),
     fact("solutions", len(solutions), "/catalog#solutions"),
     fact("unpricedProducts", unpriced, "/catalog#pricebook", true),
   ]);

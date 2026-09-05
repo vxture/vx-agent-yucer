@@ -51,6 +51,7 @@ import {
   DEMO_SEGMENTS,
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
+import { SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
   CommitmentRecord,
@@ -1469,17 +1470,17 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
   // code for readability, the seed resolves them to ids here.
   const typeIdOf = new Map(types.map((t) => [t.typeCode, t.id]));
 
-  // The three system status rows - what 0029's backfill produces. Names stay
-  // null (the interface's default labels apply until a workspace renames one).
-  const statuses = (["in_development", "active", "retired"] as const).map((code, i) => ({
+  // The three canonical status rows - what 0029's backfill produces: real
+  // names and 状态描述, ordinary data the workspace may edit.
+  const statuses = SYSTEM_STATUS_DEFAULTS.map((d, i) => ({
     id: `pst_demo_${i + 1}`,
     workspaceId,
-    statusCode: code as string,
-    name: null,
-    behavior: code,
+    statusCode: d.statusCode as string,
+    name: d.name,
+    description: d.description,
     sortOrder: i + 1,
-    status: "active" as const,
   }));
+  const statusIdOf = new Map(statuses.map((r) => [r.statusCode, r.id]));
 
   const products = [
     ...DEMO_PRODUCTS.map((p, i) => ({
@@ -1489,7 +1490,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "active",
+      statusId: statusIdOf.get("active")!,
       sortOrder: i + 1,
     })),
     // The in-development roster, after the sellable one - so the module page's
@@ -1501,7 +1502,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "in_development",
+      statusId: statusIdOf.get("in_development")!,
       sortOrder: DEMO_PRODUCTS.length + i + 1,
     })),
     // The shelf: one product retired, so the module page's second roster and
@@ -1513,7 +1514,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "retired",
+      statusId: statusIdOf.get("retired")!,
       sortOrder: DEMO_PRODUCTS.length + DEMO_DEV_PRODUCTS.length + i + 1,
     })),
   ];

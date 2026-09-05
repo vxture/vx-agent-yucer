@@ -100,9 +100,9 @@ export interface ProductDraft {
   /** The type association, by uuid (incr/0029). */
   typeId: string | null;
   unit: string;
-  /** A status CODE from the workspace vocabulary; the SERVICE validates it
-   * against the vocabulary (a pure rule cannot see workspace state). */
-  status: string;
+  /** A status row's uuid; the SERVICE validates it against the vocabulary
+   * (a pure rule cannot see workspace state). */
+  statusId: string;
 }
 
 /**

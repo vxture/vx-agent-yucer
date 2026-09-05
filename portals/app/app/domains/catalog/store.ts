@@ -13,10 +13,9 @@ export interface ProductRecord {
    * the business code never joins). Null = untyped. */
   typeId: string | null;
   unit: string;
-  /** A status CODE from the workspace's vocabulary (incr/0029) - a
-   * state-machine value like opportunity.stage. Behavior comes from the
-   * vocabulary row, not from this string. */
-  status: string;
+  /** The status association - a uuid like the type's; the vocabulary row
+   * carries the name and 状态描述 the interface renders. */
+  statusId: string;
   /** Manual catalogue order - the module page's up/down buttons write it. */
   sortOrder: number;
 }
@@ -32,17 +31,16 @@ export interface ProductTypeRecord {
   status: "active" | "retired";
 }
 
-/** One stored row of the status vocabulary - incr/0029. The three system
- * codes may have no row at all (absence = defaults); added codes always do.
- * `behavior` is what the rules read and is immutable after creation. */
+/** One row of the status vocabulary - incr/0029. Rows ARE the content: a
+ * code (anchor), a name, a 状态描述, an order - nothing else. The three
+ * canonical rows are ordinary rows the workspace may rename. */
 export interface ProductStatusRecord {
   id: string;
   workspaceId: string;
   statusCode: string;
-  name: string | null;
-  behavior: "in_development" | "active" | "retired";
+  name: string;
+  description: string | null;
   sortOrder: number;
-  status: "active" | "retired";
 }
 
 export interface SolutionRecord {
@@ -145,11 +143,11 @@ export interface CatalogStore {
     workspaceId: string,
     input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
   ): Promise<ProductRecord>;
-  /** Set the row's lifecycle status. Null when the id is not in the workspace. */
+  /** Point the product at another status row. Null when no such product. */
   setProductStatus(
     workspaceId: string,
     productId: string,
-    status: string,
+    statusId: string,
   ): Promise<ProductRecord | null>;
   /** Apply a renumbering computed by planMove - the whole list, dense. */
   setProductOrder(
@@ -182,11 +180,9 @@ export interface CatalogStore {
   /** How many products carry this type - what planTypeRemoval judges. */
   countProductsByType(workspaceId: string, typeId: string): Promise<number>;
 
-  /** The STORED status vocabulary rows (system codes may be absent - the
-   * service merges defaults in; see mergeStatusVocab). */
+  /** The status vocabulary, in its own order. */
   listStatusConfigs(workspaceId: string): Promise<ProductStatusRecord[]>;
-  /** Upsert by status_code. Behavior is written only at creation - the
-   * column lock has no UPDATE grant on it, by design. */
+  /** Upsert by status_code - the anchor, like type_code one table over. */
   upsertStatusConfig(
     workspaceId: string,
     input: Omit<ProductStatusRecord, "id" | "workspaceId" | "sortOrder">,
@@ -196,8 +192,8 @@ export interface CatalogStore {
     orders: readonly { id: string; sortOrder: number }[],
   ): Promise<void>;
   removeStatusConfig(workspaceId: string, statusId: string): Promise<boolean>;
-  /** How many products carry this status CODE - what planStatusRemoval judges. */
-  countProductsByStatus(workspaceId: string, statusCode: string): Promise<number>;
+  /** How many products reference this status row - what planStatusRemoval judges. */
+  countProductsByStatusId(workspaceId: string, statusId: string): Promise<number>;
   upsertSolution(
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId">,
@@ -321,13 +317,13 @@ export class InMemoryCatalogStore implements CatalogStore {
   async setProductStatus(
     workspaceId: string,
     productId: string,
-    status: string,
+    statusId: string,
   ): Promise<ProductRecord | null> {
     const at = this.products.findIndex(
       (p) => p.workspaceId === workspaceId && p.id === productId,
     );
     if (at < 0) return null;
-    const next = { ...this.products[at]!, status };
+    const next = { ...this.products[at]!, statusId };
     this.products[at] = next;
     return next;
   }
@@ -437,13 +433,11 @@ export class InMemoryCatalogStore implements CatalogStore {
       (r) => r.workspaceId === workspaceId && r.statusCode === input.statusCode,
     );
     if (at >= 0) {
-      // Code AND behavior are the identity halves - behavior is written once
-      // at creation and never moved, same contract as the column lock.
+      // The code is the anchor - matched on, never moved by an upsert.
       const next = {
         ...this.statuses[at]!,
         ...input,
         statusCode: this.statuses[at]!.statusCode,
-        behavior: this.statuses[at]!.behavior,
       };
       this.statuses[at] = next;
       return next;
@@ -482,9 +476,9 @@ export class InMemoryCatalogStore implements CatalogStore {
     return this.statuses.length < before;
   }
 
-  async countProductsByStatus(workspaceId: string, statusCode: string): Promise<number> {
+  async countProductsByStatusId(workspaceId: string, statusId: string): Promise<number> {
     return this.products.filter(
-      (p) => p.workspaceId === workspaceId && p.status === statusCode,
+      (p) => p.workspaceId === workspaceId && p.statusId === statusId,
     ).length;
   }
 

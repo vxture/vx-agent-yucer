@@ -14,14 +14,14 @@ export default async function NewSolutionPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, authz, entitlement }) => {
+      render={({ products, statuses, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.solution.upsert", "ui").allowed) {
           redirect("/solution");
         }
         return (
           <>
             <ViewHeader title={CATALOG_TEXT.newSolution} description={CATALOG_TEXT.newSolutionWhy} />
-            <NewSolutionForm products={products} onSave={saveSolution} />
+            <NewSolutionForm products={products} statuses={statuses} onSave={saveSolution} />
           </>
         );
       }}

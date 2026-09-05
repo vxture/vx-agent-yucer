@@ -78,12 +78,13 @@ test("an entry with floor above list is data corruption, not evidence", () => {
 
 // --- unpricedProducts -------------------------------------------------------
 
-test("active and unpriced only - a retired product is not a gap", () => {
-  const p = (id: string, status: string): ProductRecord =>
-    ({ id, status }) as ProductRecord;
+test("on sale and unpriced only - a retired product is not a gap", () => {
+  const p = (id: string, statusId: string): ProductRecord =>
+    ({ id, statusId }) as ProductRecord;
   const out = unpricedProducts(
-    [p("a", "active"), p("b", "active"), p("c", "retired")],
+    [p("a", "st_active"), p("b", "st_active"), p("c", "st_retired")],
     [{ productId: "a" }],
+    "st_active",
   );
   assert.deepEqual(out.map((x) => x.id), ["b"]);
 });

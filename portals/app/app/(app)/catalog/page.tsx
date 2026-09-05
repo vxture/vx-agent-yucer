@@ -22,23 +22,23 @@ export default async function ProductsPage() {
     <CatalogPage
       render={({ products, types, statuses, authz, entitlement }) => {
         const canWrite = can(authz, entitlement, "catalog.product.upsert", "ui").allowed;
-        const behaviorOf = new Map(statuses.map((r) => [r.statusCode, r.behavior]));
-        const live = products.filter((p) => behaviorOf.get(p.status) !== "retired");
+        // The two tags and the roster split are wired to the CANONICAL rows -
+        // products on a workspace-added status live in the main roster and
+        // are counted by neither tag (the tags are the commercial reading).
+        const idOf = (code: string) => statuses.find((r) => r.statusCode === code)?.id;
+        const activeId = idOf("active");
+        const devId = idOf("in_development");
+        const retiredId = idOf("retired");
+        const live = products.filter((p) => p.statusId !== retiredId);
 
         // Per-type stats in VOCABULARY order, so the config page's ordering is
         // what the header renders. Types with nothing live are skipped rather
         // than shown as zero - the breakdown decomposes the headline count,
         // and a zero contributes nothing to it. Untyped products close the
-        // list under their own cell. Counts read BEHAVIOR: a workspace-added
-        // status with active behavior counts as on sale, because that is the
-        // behavior's promise.
+        // list under their own cell.
         const count = (typeId: string | null) => ({
-          active: live.filter(
-            (p) => p.typeId === typeId && behaviorOf.get(p.status) === "active",
-          ).length,
-          dev: live.filter(
-            (p) => p.typeId === typeId && behaviorOf.get(p.status) === "in_development",
-          ).length,
+          active: live.filter((p) => p.typeId === typeId && p.statusId === activeId).length,
+          dev: live.filter((p) => p.typeId === typeId && p.statusId === devId).length,
         });
         const stats: CatalogTypeStat[] = types
           .map((t) => ({ key: t.id, name: t.name, ...count(t.id) }))
@@ -51,8 +51,8 @@ export default async function ProductsPage() {
         return (
           <>
             <CatalogHeadline
-              activeCount={live.filter((p) => behaviorOf.get(p.status) === "active").length}
-              devCount={live.filter((p) => behaviorOf.get(p.status) === "in_development").length}
+              activeCount={live.filter((p) => p.statusId === activeId).length}
+              devCount={live.filter((p) => p.statusId === devId).length}
               stats={stats}
               canConfigure={canWrite}
             />

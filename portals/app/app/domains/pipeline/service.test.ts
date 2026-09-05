@@ -477,8 +477,8 @@ function catalogWith(floor: number | null): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: null, unit: "seat", status: "active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: null, unit: "day", status: "active", sortOrder: 2 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: null, unit: "seat", statusId: "st_active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: null, unit: "day", statusId: "st_active", sortOrder: 2 },
     ],
     prices:
       floor === null

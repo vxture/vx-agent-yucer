@@ -18,14 +18,14 @@ export default async function NewPricePage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, prices, authz, entitlement }) => {
+      render={({ products, prices, statuses, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed) {
           redirect("/pricebook");
         }
         return (
           <>
             <ViewHeader title={CATALOG_TEXT.newPrice} description={CATALOG_TEXT.newPriceWhy} />
-            <NewPriceForm products={products} prices={prices} onSave={savePrice} />
+            <NewPriceForm products={products} prices={prices} statuses={statuses} onSave={savePrice} />
           </>
         );
       }}
