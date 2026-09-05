@@ -216,7 +216,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // same period edits this row; a different period is a new row.
   // The catalogue. product_code / solution_code are anchors: renaming what a
   // thing IS would rewrite every historical line that referenced it.
-  "yucer_catalog.product": ["name", "category", "unit", "status", "updated_at"],
+  // 0028 added sort_order (manual catalogue order) and the third status.
+  "yucer_catalog.product": ["name", "category", "unit", "status", "sort_order", "updated_at"],
+  // 0028. type_code is the anchor products reference by value (category holds
+  // it) - renaming it would silently orphan every product carrying it.
+  "yucer_catalog.product_type": ["name", "sort_order", "status", "updated_at"],
   "yucer_catalog.solution": ["name", "summary", "status", "updated_at"],
   "yucer_catalog.solution_item": ["quantity"],
   // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table

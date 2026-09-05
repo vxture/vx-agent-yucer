@@ -272,8 +272,9 @@ const SHIPPED_AS: Record<string, string> = {
   // Three sections since 2026-08-30, one per module page. They shared a
   // component while /catalog was one route with three anchors; each module
   // now names the section that actually renders it, which is what makes this
-  // guard able to tell them apart.
-  catalog: "ProductSection",
+  // guard able to tell them apart. /catalog's section became ProductRoster on
+  // 2026-09-05, when the module page grew its row operations.
+  catalog: "ProductRoster",
   renewal: "RenewalTable",
   forecastRule: "ForecastRuleTable",
   solution: "SolutionSection",

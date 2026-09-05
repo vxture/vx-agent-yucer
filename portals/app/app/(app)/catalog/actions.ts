@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore } from "../../domains/shared/registry";
-import { setPrice, upsertProduct, upsertSolution } from "../../domains/catalog/service";
+import {
+  moveProduct,
+  moveProductType,
+  removeProduct,
+  setPrice,
+  setProductStatus,
+  upsertProduct,
+  upsertProductType,
+  upsertSolution,
+} from "../../domains/catalog/service";
+import type { ProductStatus } from "../../domains/catalog/lib/lifecycle";
 
 // Catalogue writes.
 //
@@ -35,6 +45,9 @@ export async function saveProduct(input: {
   name: string;
   category: string | null;
   unit: string;
+  /** Only the create form sends this; an edit omits it and keeps the row's
+   * status - transitions belong to the row operations, not the form. */
+  status?: ProductStatus;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -87,5 +100,70 @@ export async function savePrice(input: {
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
+  return { ok: true };
+}
+
+// --- the module page's row operations (owner ruling 2026-09-05) --------------
+
+export async function changeProductStatus(
+  productId: string,
+  status: ProductStatus,
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await setProductStatus(ctx, { productId, status });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  return { ok: true };
+}
+
+export async function moveProductRow(
+  productId: string,
+  direction: "up" | "down",
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await moveProduct(ctx, { productId, direction });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/new");
+  return { ok: true };
+}
+
+export async function deleteProduct(productId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removeProduct(ctx, { productId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  return { ok: true };
+}
+
+// --- the config page: the type vocabulary ------------------------------------
+
+export async function saveProductType(input: {
+  typeCode: string;
+  name: string;
+  status?: "active" | "retired";
+}): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await upsertProductType(ctx, input);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/settings");
+  return { ok: true };
+}
+
+export async function moveProductTypeRow(
+  typeId: string,
+  direction: "up" | "down",
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await moveProductType(ctx, { typeId, direction });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/settings");
   return { ok: true };
 }

@@ -7,9 +7,15 @@ import { InMemoryCatalogStore } from "./store";
 import {
   listPrices,
   listProducts,
+  listProductTypes,
   listSolutions,
+  moveProduct,
+  moveProductType,
+  removeProduct,
   setPrice,
+  setProductStatus,
   upsertProduct,
+  upsertProductType,
   upsertSolution,
   type CatalogContext,
 } from "./service";
@@ -20,9 +26,9 @@ function seeded(): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", category: "software", unit: "seat", status: "active" },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", category: "service", unit: "day", status: "active" },
-      { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", category: null, unit: "seat", status: "active" },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", category: "software", unit: "seat", status: "active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", category: "service", unit: "day", status: "active", sortOrder: 2 },
+      { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", category: null, unit: "seat", status: "active", sortOrder: 1 },
     ],
     solutions: [{ id: "s1", workspaceId: WS, solutionCode: "S-1", name: "Retail bundle", summary: null, status: "active" }],
     items: [
@@ -184,4 +190,84 @@ test("a solution must contain something, and its items are replaced whole", asyn
   const s1 = views.find((v) => v.solution.solutionCode === "S-1")!;
   assert.deepEqual(s1.items.map((i) => i.productId), ["p1"]);
   assert.equal(s1.items[0]!.quantity, 3);
+});
+
+// --- the module page's row operations (owner ruling 2026-09-05) --------------
+
+function lifecycleStore(): InMemoryCatalogStore {
+  const store = new InMemoryCatalogStore();
+  store.seed({
+    products: [
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "旗舰", category: "平台", unit: "套", status: "active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "退役品", category: "平台", unit: "套", status: "retired", sortOrder: 2 },
+      { id: "p3", workspaceId: WS, productCode: "P-3", name: "在研品", category: "服务", unit: "套", status: "in_development", sortOrder: 3 },
+    ],
+    types: [
+      { id: "t1", workspaceId: WS, typeCode: "平台", name: "平台", sortOrder: 1, status: "active" },
+      { id: "t2", workspaceId: WS, typeCode: "服务", name: "服务", sortOrder: 2, status: "active" },
+    ],
+    items: [{ id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 1 }],
+  });
+  return store;
+}
+
+test("a status change follows the lifecycle and lands in the store", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const launched = await setProductStatus(c, { productId: "p3", status: "active" });
+  assert.equal(launched.ok && launched.value.status, "active");
+
+  // The birth state cannot be re-entered - the rule, exercised end to end.
+  const back = await setProductStatus(c, { productId: "p1", status: "in_development" });
+  assert.equal(!back.ok && back.violations[0]!.code, "development_is_birth_state");
+});
+
+test("a move stays inside the roster the user is looking at", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  // p3 (live roster) moving up must hop the retired p2 and land above p1.
+  const r = await moveProduct(c, { productId: "p3", direction: "up" });
+  assert.equal(r.ok, true);
+  const after = unwrap(await listProducts(c)).map((p) => p.id);
+  assert.deepEqual(after, ["p3", "p2", "p1"]);
+});
+
+test("deletion is refused while anything references the product", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const refused = await removeProduct(c, { productId: "p1" });
+  assert.equal(!refused.ok && refused.violations[0]!.code, "product_in_use");
+
+  const removed = await removeProduct(c, { productId: "p3" });
+  assert.equal(removed.ok, true);
+  assert.equal(unwrap(await listProducts(c)).some((p) => p.id === "p3"), false);
+});
+
+test("the type vocabulary upserts by code and reorders", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const renamed = await upsertProductType(c, { typeCode: "服务", name: "专业服务" });
+  assert.equal(renamed.ok && renamed.value.name, "专业服务");
+  assert.equal(renamed.ok && renamed.value.id, "t2"); // same row, not a duplicate
+
+  const moved = await moveProductType(c, { typeId: "t2", direction: "up" });
+  assert.equal(moved.ok, true);
+  assert.deepEqual(
+    unwrap(await listProductTypes(c)).map((t) => t.typeCode),
+    ["服务", "平台"],
+  );
+});
+
+test("every row operation refuses without catalog.write", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_rep", "enterprise", store); // reps read, never maintain
+  for (const r of [
+    await setProductStatus(c, { productId: "p1", status: "retired" }),
+    await moveProduct(c, { productId: "p1", direction: "down" }),
+    await removeProduct(c, { productId: "p3" }),
+    await upsertProductType(c, { typeCode: "新", name: "新" }),
+    await moveProductType(c, { typeId: "t1", direction: "down" }),
+  ]) {
+    assert.equal(!r.ok && r.violations[0]!.code, "permission_denied");
+  }
 });

@@ -99,7 +99,7 @@ export interface ProductDraft {
   name: string;
   category: string | null;
   unit: string;
-  status: "active" | "retired";
+  status: "in_development" | "active" | "retired";
 }
 
 /**
