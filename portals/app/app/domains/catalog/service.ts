@@ -1,6 +1,6 @@
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
-import { ok, type RuleResult } from "../shared/result";
+import { fail, ok, violation, type RuleResult } from "../shared/result";
 import {
   planPrice,
   planProduct,
@@ -8,6 +8,13 @@ import {
   type SolutionItemDraft,
   approvalFor,
 } from "./lib/pricing";
+import {
+  planMove,
+  planProductType,
+  planRemoval,
+  planStatusChange,
+  type ProductStatus,
+} from "./lib/lifecycle";
 import { denied } from "../pipeline/service";
 import type {
   CatalogStore,
@@ -15,6 +22,7 @@ import type {
   OpportunityLineRecord,
   PriceEntryRecord,
   ProductRecord,
+  ProductTypeRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "./store";
@@ -160,18 +168,39 @@ export async function upsertProduct(
     name: string;
     category?: string | null;
     unit: string;
-    status?: "active" | "retired";
+    status?: ProductStatus;
   },
 ): Promise<RuleResult<ProductRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
+
+  // Status is NOT a free field on the form; it is the lifecycle's. An omitted
+  // status keeps what the row already has (edit mode), and a provided one on
+  // an EXISTING row must be a legal transition - otherwise re-saving the form
+  // would be a side door around planStatusChange, and "active -> in
+  // development" would be one import away.
+  const existing = (await ctx.store.listProducts(ctx.workspaceId)).find(
+    (p) => p.productCode === input.productCode.trim(),
+  );
+  let status: ProductStatus;
+  if (existing) {
+    if (input.status !== undefined && input.status !== existing.status) {
+      const move = planStatusChange(existing.status, input.status);
+      if (!move.ok) return move as RuleResult<ProductRecord>;
+      status = move.value;
+    } else {
+      status = existing.status;
+    }
+  } else {
+    status = input.status ?? "active";
+  }
 
   const plan = planProduct({
     productCode: input.productCode,
     name: input.name,
     category: input.category ?? null,
     unit: input.unit,
-    status: input.status ?? "active",
+    status,
   });
   if (!plan.ok) return plan as RuleResult<ProductRecord>;
 
@@ -209,6 +238,148 @@ export async function upsertSolution(
       plan.value.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
     ),
   );
+}
+
+/**
+ * Move a product through its lifecycle: launch (-> active) or retire.
+ *
+ * `catalog.product.upsert`, same as editing - which row is on sale is catalogue
+ * maintenance, the same job as what the row says. The transitions themselves
+ * are planStatusChange's (in_development is a birth state; retirement is
+ * reversible).
+ */
+export async function setProductStatus(
+  ctx: CatalogContext,
+  input: { productId: string; status: ProductStatus },
+): Promise<RuleResult<ProductRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const products = await ctx.store.listProducts(ctx.workspaceId);
+  const current = products.find((p) => p.id === input.productId);
+  if (!current) {
+    return fail(violation("not_found", "no such product", "productId"));
+  }
+  const plan = planStatusChange(current.status, input.status);
+  if (!plan.ok) return plan as RuleResult<ProductRecord>;
+
+  const row = await ctx.store.setProductStatus(ctx.workspaceId, input.productId, plan.value);
+  if (!row) return fail(violation("not_found", "no such product", "productId"));
+  return ok(row);
+}
+
+/**
+ * Move a product one place up or down in the catalogue.
+ *
+ * The move happens within the roster the user is LOOKING at - active and
+ * in-development rows on one list, retired on the other - so a move never
+ * swaps with a row the click cannot see. planMove returns a dense renumbering
+ * of the whole list, which also heals the all-zero order the DDL default
+ * leaves on pre-0028 rows.
+ */
+export async function moveProduct(
+  ctx: CatalogContext,
+  input: { productId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const products = await ctx.store.listProducts(ctx.workspaceId);
+  const moving = products.find((p) => p.id === input.productId);
+  if (!moving) {
+    return fail(violation("not_found", "no such product", "productId"));
+  }
+  const group = (s: ProductStatus) => (s === "retired" ? "retired" : "live");
+  const plan = planMove(
+    products.map((p) => ({ id: p.id, movable: group(p.status) === group(moving.status) })),
+    input.productId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setProductOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a product outright.
+ *
+ * Refused while any deal line or solution item references it (planRemoval) -
+ * the refusal names the counts, and the row-level answer for a product with
+ * history is `retired`. Price entries go with the product, as the DDL's
+ * cascade already says.
+ */
+export async function removeProduct(
+  ctx: CatalogContext,
+  input: { productId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const refs = await ctx.store.countProductRefs(ctx.workspaceId, input.productId);
+  const plan = planRemoval(refs);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeProduct(ctx.workspaceId, input.productId);
+  if (!removed) return fail(violation("not_found", "no such product", "productId"));
+  return ok(true);
+}
+
+/**
+ * The type vocabulary, for the module header's per-type stats and the config
+ * page. View-gated with the products it classifies.
+ */
+export async function listProductTypes(
+  ctx: CatalogContext,
+): Promise<RuleResult<ProductTypeRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listProductTypes(ctx.workspaceId));
+}
+
+/**
+ * Create or rename a type, or retire/reinstate it.
+ *
+ * `catalog.product.upsert`, deliberately NOT a new permission: the vocabulary
+ * exists to classify products, and the person trusted to say what a product IS
+ * is the person trusted to say what kinds exist. A separate permission would
+ * split one job across two roles with no scenario asking for it.
+ */
+export async function upsertProductType(
+  ctx: CatalogContext,
+  input: { typeCode: string; name: string; status?: "active" | "retired" },
+): Promise<RuleResult<ProductTypeRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planProductType({
+    typeCode: input.typeCode,
+    name: input.name,
+    status: input.status ?? "active",
+  });
+  if (!plan.ok) return plan as RuleResult<ProductTypeRecord>;
+
+  return ok(await ctx.store.upsertProductType(ctx.workspaceId, plan.value));
+}
+
+/** Reorder the type vocabulary - the order the header's stat cells render in. */
+export async function moveProductType(
+  ctx: CatalogContext,
+  input: { typeId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const types = await ctx.store.listProductTypes(ctx.workspaceId);
+  const plan = planMove(
+    types.map((t) => ({ id: t.id, movable: true })),
+    input.typeId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setProductTypeOrder(ctx.workspaceId, plan.value);
+  return ok(true);
 }
 
 /**

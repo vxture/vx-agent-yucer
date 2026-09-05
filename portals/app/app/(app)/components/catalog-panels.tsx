@@ -15,17 +15,19 @@ import type {
   SolutionRecord,
 } from "../../domains/catalog/store";
 
-// The catalogue's three DISPLAY sections.
+// The catalogue's DISPLAY sections for /solution and /pricebook.
 //
 // THE FORMS LEFT ON 2026-09-05 (owner ruling: a list page shows; creating is a
-// page of its own, with room for the assistant). Each section now renders its
-// rows and, for the permitted, a single entry button to /catalog/new,
+// page of its own, with room for the assistant), and ProductSection left later
+// the same day when /catalog became the module page - product-roster.tsx is
+// its successor, with the row operations the ruling added. Each remaining
+// section renders its rows and, for the permitted, a single entry button to
 // /solution/new or /pricebook/new. The permission split survives the move:
 // each button and each page checks the same gate the inline form did, because
 // whoever moves the floor approves every discount in the product.
 
 /**
- * The shapes the three catalogue sections take between them.
+ * The shapes the catalogue sections take between them.
  *
  * No component takes all of it: each section Picks the three or four fields it
  * uses. It stays one declaration because the fields are the same fields - a
@@ -42,73 +44,6 @@ export interface CatalogPanelsProps {
   readonly canWrite: boolean;
   readonly canPrice: boolean;
   readonly canSolution: boolean;
-}
-
-export function ProductSection({
-  products,
-  canWrite,
-}: Pick<CatalogPanelsProps, "products" | "canWrite">) {
-  const { CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
-  return (
-    <Section
-      id="products"
-      icon="stack"
-      title={CATALOG_TEXT.products}
-      description={CATALOG_TEXT.productsWhy}
-    >
-      {products.length === 0 ? (
-        <EmptyState
-          title={CATALOG_TEXT.products}
-          description={CATALOG_TEXT.productsWhy}
-        />
-      ) : (
-        <DataTable
-          labels={DATA_TABLE_LABELS}
-          indexStart={1}
-          rowKey={(r: ProductRecord) => r.id}
-          rows={[...products]}
-          columns={[
-            {
-              id: "productCode",
-              header: CATALOG_TEXT.colCode,
-              cell: (r: ProductRecord) => (
-                <span className="mono">{r.productCode}</span>
-              ),
-            },
-            {
-              id: "name",
-              header: CATALOG_TEXT.colName,
-              cell: (r: ProductRecord) => r.name,
-            },
-            {
-              id: "category",
-              header: CATALOG_TEXT.colCategory,
-              cell: (r: ProductRecord) => r.category ?? CATALOG_TEXT.noCategory,
-            },
-            {
-              id: "unit",
-              header: CATALOG_TEXT.colUnit,
-              cell: (r: ProductRecord) => r.unit,
-            },
-            {
-              id: "status",
-              header: CATALOG_TEXT.colStatus,
-              cell: (r: ProductRecord) => (
-                <StatusBadge
-                  tone={r.status === "active" ? "success" : "neutral"}
-                >
-                  {r.status === "active"
-                    ? CATALOG_TEXT.statusActive
-                    : CATALOG_TEXT.statusRetired}
-                </StatusBadge>
-              ),
-            },
-          ]}
-        />
-      )}
-      {canWrite ? <NewEntryLink href="/catalog/new" /> : null}
-    </Section>
-  );
 }
 
 /**

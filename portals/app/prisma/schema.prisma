@@ -857,11 +857,31 @@ model Product {
   category     String?  @db.VarChar(64)
   unit         String   @default("set") @db.VarChar(32)
   status       String   @default("active") @db.VarChar(16)
+  sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, productCode], map: "uidx_product_code")
+  @@index([workspaceId, sortOrder], map: "idx_product_ws_sort")
   @@map("product")
+  @@schema("yucer_catalog")
+}
+
+/// The workspace's own type vocabulary - incr/0028. `category` on Product
+/// holds a type_code by value (no FK: types retire, never delete).
+model ProductType {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  typeCode    String   @map("type_code") @db.VarChar(64)
+  name        String   @db.VarChar(64)
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      String   @default("active") @db.VarChar(16)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, typeCode], map: "uidx_product_type_code")
+  @@index([workspaceId, sortOrder], map: "idx_product_type_ws_sort")
+  @@map("product_type")
   @@schema("yucer_catalog")
 }
 

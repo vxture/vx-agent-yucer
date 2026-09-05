@@ -15,7 +15,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormPage, type AssistSuggestion } from "./form-page";
 import { suggestFloor, unpricedProducts } from "../../domains/catalog/lib/suggest";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
-import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
+import type { PriceEntryRecord, ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
 
 // The catalogue's three CREATION PAGES - owner ruling 2026-09-05.
 //
@@ -57,21 +57,34 @@ function useSubmit(onDone: string) {
 
 export function NewProductForm({
   products,
+  types,
+  initial,
   onSave,
 }: {
   readonly products: readonly ProductRecord[];
+  /** The workspace's type vocabulary - the category field selects from it. */
+  readonly types: readonly ProductTypeRecord[];
+  /** Present = EDIT mode (?code= on the page): code locked, status untouched -
+   * transitions belong to the roster's row menu, not the form. */
+  readonly initial?: ProductRecord;
   readonly onSave: (input: {
     productCode: string;
     name: string;
     category: string | null;
     unit: string;
+    status?: "in_development" | "active";
   }) => Promise<Saved>;
 }) {
   const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [unit, setUnit] = useState("");
+  const editing = initial !== undefined;
+  const [code, setCode] = useState(initial?.productCode ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [category, setCategory] = useState(initial?.category ?? "");
+  const [unit, setUnit] = useState(initial?.unit ?? "");
+  // The birth choice. Only two states can be BORN - retired is a decision
+  // about a life already lived, and the lifecycle rule refuses re-entering
+  // development, which is why an edit never sends status at all.
+  const [status, setStatus] = useState<"active" | "in_development">("active");
   const submit = useSubmit("/catalog");
 
   // Everything the assistant says here is read off the rows the page already
@@ -85,7 +98,7 @@ export function NewProductForm({
   const units = useMemo(() => knownValues(products.map((p) => p.unit)), [products]);
 
   const suggestions: AssistSuggestion[] = [];
-  if (nextCode && code.trim() === "") {
+  if (!editing && nextCode && code.trim() === "") {
     suggestions.push({
       id: "code",
       label: ASSIST_TEXT.codeNext(nextCode),
@@ -115,19 +128,37 @@ export function NewProductForm({
   return (
     <FormPage
       form={
-        <Section icon="stack" title={CATALOG_TEXT.newProduct} description={CATALOG_TEXT.codeHint}>
+        <Section
+          icon="stack"
+          title={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
+          description={editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}
+        >
           <div className="flex max-w-xl flex-col gap-md">
             <Field>
               <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} />
+              {/* The code is the identity the upsert matches on - editable it
+                  would silently CREATE instead of edit. */}
+              <Input value={code} disabled={editing} onChange={(e) => setCode(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field>
-              <FieldLabel>{CATALOG_TEXT.colCategory}</FieldLabel>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+              <FieldLabel>{CATALOG_TEXT.colType}</FieldLabel>
+              {/* A select over the vocabulary, not free text: free text is how
+                  "平台" and "平台 " become two types in every report. New kinds
+                  are minted on the config page, where minting is a decision. */}
+              <NativeSelect value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option value="">{CATALOG_TEXT.noCategory}</option>
+                {types
+                  .filter((t) => t.status === "active" || t.typeCode === category)
+                  .map((t) => (
+                    <option key={t.typeCode} value={t.typeCode}>
+                      {t.name}
+                    </option>
+                  ))}
+              </NativeSelect>
             </Field>
             <Field>
               {/* Required, and the rule layer refuses without it: a unit-less
@@ -136,6 +167,19 @@ export function NewProductForm({
               <FieldLabel>{CATALOG_TEXT.colUnit}</FieldLabel>
               <Input value={unit} onChange={(e) => setUnit(e.target.value)} />
             </Field>
+            {!editing ? (
+              <Field>
+                <FieldLabel>{CATALOG_TEXT.newStatus}</FieldLabel>
+                <NativeSelect
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as "active" | "in_development")}
+                >
+                  <option value="active">{CATALOG_TEXT.statusActive}</option>
+                  <option value="in_development">{CATALOG_TEXT.statusDev}</option>
+                </NativeSelect>
+                <p className="text-muted-foreground text-body-sm">{CATALOG_TEXT.newStatusWhy}</p>
+              </Field>
+            ) : null}
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}
@@ -147,6 +191,9 @@ export function NewProductForm({
                         name: name.trim(),
                         category: category.trim() || null,
                         unit: unit.trim(),
+                        // An edit never sends status: the row menu owns
+                        // transitions and the service keeps what the row has.
+                        ...(editing ? {} : { status }),
                       }),
                     (c) => CATALOG_ERROR[c] ?? CATALOG_ERROR.denied,
                   )

@@ -52,6 +52,7 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_catalog.solution_item WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_catalog.solution WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_catalog.product WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
@@ -288,6 +289,92 @@ test("a blank approval reason is refused by the real CHECK", { skip }, async () 
       }),
       /chk_approval_reason/,
     );
+  } finally {
+    await cleanup();
+  }
+});
+
+// --- lifecycle, order and the type vocabulary (incr/0028) --------------------
+
+test("a new product joins at the tail and moves through the real sort_order", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const a = await s.upsertProduct(WS, { productCode: "P-S1", name: "First", category: null, unit: "set", status: "active" });
+    const b = await s.upsertProduct(WS, { productCode: "P-S2", name: "Second", category: null, unit: "set", status: "active" });
+    assert.equal(b.sortOrder, a.sortOrder + 1, "a new product joins at the end");
+
+    await s.setProductOrder(WS, [
+      { id: a.id, sortOrder: 2 },
+      { id: b.id, sortOrder: 1 },
+    ]);
+    const list = await s.listProducts(WS);
+    assert.deepEqual(list.map((p) => p.productCode), ["P-S2", "P-S1"]);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("in_development is a real status and setProductStatus round-trips it away", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const p = await s.upsertProduct(WS, { productCode: "P-DEV", name: "Building", category: null, unit: "set", status: "in_development" });
+    assert.equal(p.status, "in_development", "the widened CHECK accepts the birth state");
+    const launched = await s.setProductStatus(WS, p.id, "active");
+    assert.equal(launched?.status, "active");
+    assert.equal(await s.setProductStatus(WS, "eeeeeeee-dead-0000-0000-000000000000", "active"), null);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("removeProduct cascades prices but the line FK restricts underneath", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const p = await s.upsertProduct(WS, { productCode: "P-DEL", name: "Doomed", category: null, unit: "set", status: "active" });
+    await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 10, floorPrice: 8, effectiveAt: new Date() });
+    assert.equal(await s.removeProduct(WS, p.id), true);
+    assert.equal((await s.listPrices(WS)).length, 0, "fk_price_product cascades");
+
+    // A referenced product: the SERVICE refuses via planRemoval first, but the
+    // RESTRICT FK must hold as the last line even if a caller skips the rule.
+    await withPg(seed);
+    const q = await s.upsertProduct(WS, { productCode: "P-REF", name: "Referenced", category: null, unit: "set", status: "active" });
+    await s.replaceLines(WS, OPP, [
+      { productId: q.id, solutionId: null, quantity: 1, unitPrice: 5, amount: 5, currency: "CNY", needsApproval: false },
+    ]);
+    const refs = await s.countProductRefs(WS, q.id);
+    assert.deepEqual(refs, { lines: 1, solutionItems: 0 });
+    await assert.rejects(() => s.removeProduct(WS, q.id), /constraint|Foreign key/i);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the type vocabulary upserts on its real unique index and its code is locked", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const first = await s.upsertProductType(WS, { typeCode: "平台", name: "平台", status: "active" });
+    const renamed = await s.upsertProductType(WS, { typeCode: "平台", name: "平台产品", status: "active" });
+    assert.equal(renamed.id, first.id, "same type_code must upsert, not duplicate");
+    assert.equal(renamed.name, "平台产品");
+
+    const second = await s.upsertProductType(WS, { typeCode: "服务", name: "服务", status: "active" });
+    assert.equal(second.sortOrder, first.sortOrder + 1, "a new type joins at the end");
+
+    await s.setProductTypeOrder(WS, [
+      { id: first.id, sortOrder: 2 },
+      { id: second.id, sortOrder: 1 },
+    ]);
+    assert.deepEqual((await s.listProductTypes(WS)).map((t) => t.typeCode), ["服务", "平台"]);
+
+    // type_code carries no UPDATE grant - the adapter's own guard refuses
+    // before Prisma even builds the query (renames go through the anchor rule).
+    const { assertWritable } = await import("../shared/column-locks");
+    assert.equal(assertWritable("yucer_catalog.product_type", { typeCode: "X" }).ok, false);
   } finally {
     await cleanup();
   }

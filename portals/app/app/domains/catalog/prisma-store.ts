@@ -6,6 +6,7 @@ import type {
   OpportunityLineRecord,
   PriceEntryRecord,
   ProductRecord,
+  ProductTypeRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "./store";
@@ -23,6 +24,7 @@ import type {
 // one bundled today.
 
 const PRODUCT_TABLE = "yucer_catalog.product";
+const PRODUCT_TYPE_TABLE = "yucer_catalog.product_type";
 const SOLUTION_TABLE = "yucer_catalog.solution";
 const ITEM_TABLE = "yucer_catalog.solution_item";
 
@@ -33,16 +35,35 @@ function num(v: unknown): number {
 export class PrismaCatalogStore implements CatalogStore {
   async listProducts(workspaceId: string): Promise<ProductRecord[]> {
     const p = await getPrismaClient();
-    const rows = await p.product.findMany({ where: { workspaceId }, orderBy: { productCode: "asc" } });
-    return rows.map((r) => ({
-      id: r.id,
-      workspaceId: r.workspaceId,
-      productCode: r.productCode,
-      name: r.name,
-      category: r.category,
-      unit: r.unit,
-      status: r.status as ProductRecord["status"],
-    }));
+    // Catalogue order; code as the tiebreak so rows still on the DDL default 0
+    // come out deterministically.
+    const rows = await p.product.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { productCode: "asc" }],
+    });
+    return rows.map((r) => this.toProduct(r));
+  }
+
+  private toProduct(row: {
+    id: string;
+    workspaceId: string;
+    productCode: string;
+    name: string;
+    category: string | null;
+    unit: string;
+    status: string;
+    sortOrder: number;
+  }): ProductRecord {
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      productCode: row.productCode,
+      name: row.name,
+      category: row.category,
+      unit: row.unit,
+      status: row.status as ProductRecord["status"],
+      sortOrder: row.sortOrder,
+    };
   }
 
   async listSolutions(workspaceId: string): Promise<SolutionRecord[]> {
@@ -97,7 +118,7 @@ export class PrismaCatalogStore implements CatalogStore {
 
   async upsertProduct(
     workspaceId: string,
-    input: Omit<ProductRecord, "id" | "workspaceId">,
+    input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
   ): Promise<ProductRecord> {
     const p = await getPrismaClient();
     const update = {
@@ -115,20 +136,154 @@ export class PrismaCatalogStore implements CatalogStore {
         `refusing to write a locked product column: ${guard.violations.map((v) => v.message).join("; ")}`,
       );
     }
+    // A new product joins at the END of the catalogue - last place is the one
+    // position that is nobody else's decision to give away. Read-then-upsert is
+    // not raced in this product's write pattern (one maintainer edits the
+    // catalogue), and the unique code key makes the upsert itself safe.
+    const tail = await p.product.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
     const row = await p.product.upsert({
       where: { workspaceId_productCode: { workspaceId, productCode: input.productCode } },
       update,
-      create: { workspaceId, productCode: input.productCode, ...update },
+      create: {
+        workspaceId,
+        productCode: input.productCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return this.toProduct(row);
+  }
+
+  async setProductStatus(
+    workspaceId: string,
+    productId: string,
+    status: ProductRecord["status"],
+  ): Promise<ProductRecord | null> {
+    const p = await getPrismaClient();
+    const patch = { status, updatedAt: new Date() };
+    const guard = assertWritable(PRODUCT_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked product column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const { count } = await p.product.updateMany({
+      where: { workspaceId, id: productId },
+      data: patch,
+    });
+    if (count === 0) return null;
+    const row = await p.product.findFirst({ where: { workspaceId, id: productId } });
+    return row ? this.toProduct(row) : null;
+  }
+
+  async setProductOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(PRODUCT_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked product column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.product.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeProduct(workspaceId: string, productId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service already refused referenced products via planRemoval; the
+    // RESTRICT FKs underneath are the last line, not the error path. Prices
+    // cascade with their product (fk_price_product).
+    const { count } = await p.product.deleteMany({ where: { workspaceId, id: productId } });
+    return count > 0;
+  }
+
+  async countProductRefs(
+    workspaceId: string,
+    productId: string,
+  ): Promise<{ lines: number; solutionItems: number }> {
+    const p = await getPrismaClient();
+    const [lines, solutionItems] = await Promise.all([
+      p.opportunityLine.count({ where: { workspaceId, productId } }),
+      p.solutionItem.count({ where: { workspaceId, productId } }),
+    ]);
+    return { lines, solutionItems };
+  }
+
+  async listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.productType.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { typeCode: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      typeCode: r.typeCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+      status: r.status as ProductTypeRecord["status"],
+    }));
+  }
+
+  async upsertProductType(
+    workspaceId: string,
+    input: Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductTypeRecord> {
+    const p = await getPrismaClient();
+    const update = { name: input.name, status: input.status, updatedAt: new Date() };
+    const guard = assertWritable(PRODUCT_TYPE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked product_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.productType.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.productType.upsert({
+      where: { workspaceId_typeCode: { workspaceId, typeCode: input.typeCode } },
+      update,
+      create: {
+        workspaceId,
+        typeCode: input.typeCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
     });
     return {
       id: row.id,
       workspaceId: row.workspaceId,
-      productCode: row.productCode,
+      typeCode: row.typeCode,
       name: row.name,
-      category: row.category,
-      unit: row.unit,
-      status: row.status as ProductRecord["status"],
+      sortOrder: row.sortOrder,
+      status: row.status as ProductTypeRecord["status"],
     };
+  }
+
+  async setProductTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(PRODUCT_TYPE_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked product_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.productType.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
   }
 
   async upsertSolution(

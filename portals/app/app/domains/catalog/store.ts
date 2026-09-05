@@ -9,8 +9,23 @@ export interface ProductRecord {
   workspaceId: string;
   productCode: string;
   name: string;
+  /** A type_code from the workspace's product_type vocabulary (held by value -
+   * incr/0028), or null for the untyped remainder. */
   category: string | null;
   unit: string;
+  status: "in_development" | "active" | "retired";
+  /** Manual catalogue order - the module page's up/down buttons write it. */
+  sortOrder: number;
+}
+
+/** The workspace's own type vocabulary - incr/0028. Retired, never deleted:
+ * products carrying a retired type still render. */
+export interface ProductTypeRecord {
+  id: string;
+  workspaceId: string;
+  typeCode: string;
+  name: string;
+  sortOrder: number;
   status: "active" | "retired";
 }
 
@@ -112,8 +127,39 @@ export interface CatalogStore {
   // catalogues arrive.
   upsertProduct(
     workspaceId: string,
-    input: Omit<ProductRecord, "id" | "workspaceId">,
+    input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
   ): Promise<ProductRecord>;
+  /** Set the row's lifecycle status. Null when the id is not in the workspace. */
+  setProductStatus(
+    workspaceId: string,
+    productId: string,
+    status: ProductRecord["status"],
+  ): Promise<ProductRecord | null>;
+  /** Apply a renumbering computed by planMove - the whole list, dense. */
+  setProductOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  /** Delete the row. The SERVICE refuses referenced products first
+   * (planRemoval); the FKs RESTRICT underneath as the last line. */
+  removeProduct(workspaceId: string, productId: string): Promise<boolean>;
+  /** How many records point at this product - what planRemoval judges. */
+  countProductRefs(
+    workspaceId: string,
+    productId: string,
+  ): Promise<{ lines: number; solutionItems: number }>;
+
+  /** The type vocabulary, in its own order. */
+  listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]>;
+  /** Upsert by type_code - the anchor, like product_code one table over. */
+  upsertProductType(
+    workspaceId: string,
+    input: Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductTypeRecord>;
+  setProductTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
   upsertSolution(
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId">,
@@ -154,6 +200,7 @@ export interface CatalogStore {
 
 export class InMemoryCatalogStore implements CatalogStore {
   private products: ProductRecord[] = [];
+  private types: ProductTypeRecord[] = [];
   private solutions: SolutionRecord[] = [];
   private items: SolutionItemRecord[] = [];
   private prices: PriceEntryRecord[] = [];
@@ -163,6 +210,7 @@ export class InMemoryCatalogStore implements CatalogStore {
 
   seed(input: {
     products?: ProductRecord[];
+    types?: ProductTypeRecord[];
     solutions?: SolutionRecord[];
     items?: SolutionItemRecord[];
     prices?: PriceEntryRecord[];
@@ -170,6 +218,7 @@ export class InMemoryCatalogStore implements CatalogStore {
     approvals?: DiscountApprovalRecord[];
   }): void {
     if (input.products) this.products = [...input.products];
+    if (input.types) this.types = [...input.types];
     if (input.solutions) this.solutions = [...input.solutions];
     if (input.items) this.items = [...input.items];
     if (input.prices) this.prices = [...input.prices];
@@ -178,7 +227,11 @@ export class InMemoryCatalogStore implements CatalogStore {
   }
 
   async listProducts(workspaceId: string): Promise<ProductRecord[]> {
-    return this.products.filter((p) => p.workspaceId === workspaceId);
+    // Catalogue order, code as the tiebreak so rows still carrying the DDL's
+    // default 0 come out deterministically.
+    return this.products
+      .filter((p) => p.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.productCode.localeCompare(b.productCode));
   }
 
   async listSolutions(workspaceId: string): Promise<SolutionRecord[]> {
@@ -200,21 +253,119 @@ export class InMemoryCatalogStore implements CatalogStore {
 
   async upsertProduct(
     workspaceId: string,
-    input: Omit<ProductRecord, "id" | "workspaceId">,
+    input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
   ): Promise<ProductRecord> {
     const at = this.products.findIndex(
       (x) => x.workspaceId === workspaceId && x.productCode === input.productCode,
     );
     if (at >= 0) {
       // The code and the workspace are the identity - they are what was matched
-      // on, so they are not among the fields an upsert may move.
+      // on, so they are not among the fields an upsert may move. Nor is the
+      // order: setProductOrder is the only writer of sortOrder.
       const next = { ...this.products[at]!, ...input, productCode: this.products[at]!.productCode };
       this.products[at] = next;
       return next;
     }
-    const row: ProductRecord = { id: `prd_${++this.seq}`, workspaceId, ...input };
+    // A new product joins at the END of the catalogue - last place is the one
+    // position that is nobody else's decision to give away.
+    const tail = Math.max(
+      0,
+      ...this.products.filter((p) => p.workspaceId === workspaceId).map((p) => p.sortOrder),
+    );
+    const row: ProductRecord = { id: `prd_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
     this.products.push(row);
     return row;
+  }
+
+  async setProductStatus(
+    workspaceId: string,
+    productId: string,
+    status: ProductRecord["status"],
+  ): Promise<ProductRecord | null> {
+    const at = this.products.findIndex(
+      (p) => p.workspaceId === workspaceId && p.id === productId,
+    );
+    if (at < 0) return null;
+    const next = { ...this.products[at]!, status };
+    this.products[at] = next;
+    return next;
+  }
+
+  async setProductOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.products = this.products.map((p) =>
+      p.workspaceId === workspaceId && want.has(p.id)
+        ? { ...p, sortOrder: want.get(p.id)! }
+        : p,
+    );
+  }
+
+  async removeProduct(workspaceId: string, productId: string): Promise<boolean> {
+    const before = this.products.length;
+    this.products = this.products.filter(
+      (p) => !(p.workspaceId === workspaceId && p.id === productId),
+    );
+    // Prices cascade with their product, as the DDL does.
+    this.prices = this.prices.filter(
+      (p) => !(p.workspaceId === workspaceId && p.productId === productId),
+    );
+    return this.products.length < before;
+  }
+
+  async countProductRefs(
+    workspaceId: string,
+    productId: string,
+  ): Promise<{ lines: number; solutionItems: number }> {
+    return {
+      lines: this.lines.filter(
+        (l) => l.workspaceId === workspaceId && l.productId === productId,
+      ).length,
+      solutionItems: this.items.filter(
+        (i) => i.workspaceId === workspaceId && i.productId === productId,
+      ).length,
+    };
+  }
+
+  async listProductTypes(workspaceId: string): Promise<ProductTypeRecord[]> {
+    return this.types
+      .filter((t) => t.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.typeCode.localeCompare(b.typeCode));
+  }
+
+  async upsertProductType(
+    workspaceId: string,
+    input: Omit<ProductTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductTypeRecord> {
+    const at = this.types.findIndex(
+      (t) => t.workspaceId === workspaceId && t.typeCode === input.typeCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.types[at]!, ...input, typeCode: this.types[at]!.typeCode };
+      this.types[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.types.filter((t) => t.workspaceId === workspaceId).map((t) => t.sortOrder),
+    );
+    const row: ProductTypeRecord = { id: `ptp_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    this.types.push(row);
+    return row;
+  }
+
+  async setProductTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.types = this.types.map((t) =>
+      t.workspaceId === workspaceId && want.has(t.id)
+        ? { ...t, sortOrder: want.get(t.id)! }
+        : t,
+    );
   }
 
   async upsertSolution(

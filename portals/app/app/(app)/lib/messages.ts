@@ -539,12 +539,67 @@ export const CATALOG_TEXT = {
   colUnit: "单位",
   colStatus: "状态",
   statusActive: "在售",
-  statusRetired: "已下架",
+  statusRetired: "已退役",
+  statusDev: "在研",
   noCategory: "未分类",
   addProduct: "新增/更新产品",
   saveProduct: "保存产品",
   productSaved: "已保存",
   codeHint: "按编码更新：同一个编码再保存一次是修改，不是新增一条",
+
+  // 模块页（owner 裁定 2026-09-05）：展示为主，行操作靠右锁定，配置独立成页。
+  tagActive: (n: number) => `${n} 产品在售`,
+  tagDev: (n: number) => `${n} 在研产品`,
+  settingsLink: "产品设置",
+  byTypeCollapse: "收起分类统计",
+  byTypeExpand: "展开分类统计",
+  byTypeEmpty: "还没有产品，分类统计从第一个产品开始",
+  typeStat: (active: number, dev: number) =>
+    dev > 0 ? `${active} 在售 · ${dev} 研发` : `${active} 在售`,
+  rosterLive: "产品清单",
+  rosterLiveWhy: "在售与在研。顺序即门面——客户看到的目录顺序在这里决定。",
+  rosterRetired: "退役产品",
+  rosterRetiredWhy:
+    "退役是搁置，不是删除：被报价行或方案引用过的产品不能删，退到这里历史仍然可读。",
+  colType: "产品类型",
+  colUnitPrice: "计价单位",
+  colOps: "操作",
+  opEdit: "修改",
+  opLaunch: "上线",
+  opRetire: "退役",
+  opReinstate: "恢复在售",
+  opDelete: "删除",
+  opUp: "上移",
+  opDown: "下移",
+  deleteConsequence: "删除不可恢复，价目历史一并清除。被引用的产品会被拒绝——那种情况请改用退役。",
+  editProduct: "修改产品",
+  editHint: "编码是身份，不可修改；状态变更走清单页的行操作，不在这里改",
+  newStatus: "初始状态",
+  newStatusWhy: "在研的产品真实存在但不可报价；上线之后才进入可售清单",
+  sortTitle: "当前目录顺序",
+  sortWhy: "新产品排在末位。用上移/下移把它放到该在的位置——这里的顺序就是客户看到的顺序。",
+
+  // 配置页：类型是工作区自己的词表；状态带行为，系统固定三态。
+  settingsTitle: "产品设置",
+  settingsWhy: "这里配置的是产品系统本身——类型词表与状态语义——不是某一个产品。",
+  typesTitle: "产品类型",
+  typesWhy:
+    "类型是工作区自己的词表。产品按 type_code 引用它，所以类型只停用、不删除——停用后旧产品仍能显示。",
+  typeCode: "类型编码",
+  typeName: "类型名称",
+  typeCodeHint: "编码是锚点，创建后不可改；同一编码再保存一次是改名，不是新增",
+  addType: "保存类型",
+  typeSaved: "已保存",
+  typeRetire: "停用",
+  typeReinstate: "启用",
+  typeRetiredBadge: "已停用",
+  typeInUse: (n: number) => `${n} 个产品`,
+  statusesTitle: "产品状态",
+  statusesWhy:
+    "状态带行为——只有「在售」可报价——所以是系统固定的三态，不开放自定义。",
+  statusMeaningDev: "创建时的出生状态：真实存在、出现在计划里，但不可报价，也回不去。",
+  statusMeaningActive: "唯一可报价的状态。上线、以及退役后的恢复，都落到这里。",
+  statusMeaningRetired: "搁置而非删除：随时可恢复在售，历史引用全部保留。",
 
   solutions: "解决方案",
   solutionsWhy:
@@ -746,6 +801,13 @@ export const CATALOG_ERROR: Record<string, string> = {
   currency_required: "需要币种",
   amount_negative: "价格不能为负",
   floor_above_list: "底价高于标价会让每一笔都需要签字，等于没有底价",
+  // 生命周期与排序（incr/0028）
+  status_unchanged: "已经是这个状态了",
+  development_is_birth_state: "在研是出生状态：只能创建时在研，上线后回不去",
+  product_in_use: "有报价行或方案还引用着这个产品，不能删除——请改用退役",
+  move_at_edge: "已经在清单的这一端了",
+  not_found: "找不到这条记录，页面可能已过期，请刷新",
+  not_movable: "这一行不在可排序的清单里",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

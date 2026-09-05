@@ -28,6 +28,9 @@ import {
   DEMO_COMMITMENT_TEXT,
   DEMO_CONTACTS,
   DEMO_DEAL_NOTES,
+  DEMO_DEV_PRODUCTS,
+  DEMO_PRODUCT_TYPES,
+  DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
   DEMO_MILESTONES,
@@ -1454,16 +1457,52 @@ function proposal(
 // prices are therefore derived from each deal's total, and one line is priced
 // below its floor on purpose so the approval flag has a case.
 function seedCatalog(workspaceId: string, stores: DemoStores): void {
-  const products = DEMO_PRODUCTS.map((p, i) => ({
-    id: `prd_demo_${i + 1}`,
+  const products = [
+    ...DEMO_PRODUCTS.map((p, i) => ({
+      id: `prd_demo_${i + 1}`,
+      workspaceId,
+      productCode: p.code,
+      name: p.name,
+      category: p.category as string,
+      unit: p.unit,
+      status: "active" as const,
+      sortOrder: i + 1,
+    })),
+    // The in-development roster, after the sellable one - so the module page's
+    // 在研 tag and the per-type "N 研发" small print both have real cases.
+    ...DEMO_DEV_PRODUCTS.map((p, i) => ({
+      id: `prd_demo_dev_${i + 1}`,
+      workspaceId,
+      productCode: p.code,
+      name: p.name,
+      category: p.category as string,
+      unit: p.unit,
+      status: "in_development" as const,
+      sortOrder: DEMO_PRODUCTS.length + i + 1,
+    })),
+    // The shelf: one product retired, so the module page's second roster and
+    // its 恢复在售 action have something real to show.
+    ...DEMO_RETIRED_PRODUCTS.map((p, i) => ({
+      id: `prd_demo_ret_${i + 1}`,
+      workspaceId,
+      productCode: p.code,
+      name: p.name,
+      category: p.category as string,
+      unit: p.unit,
+      status: "retired" as const,
+      sortOrder: DEMO_PRODUCTS.length + DEMO_DEV_PRODUCTS.length + i + 1,
+    })),
+  ];
+  const byCode = new Map(products.map((p) => [p.productCode, p.id]));
+
+  const types = DEMO_PRODUCT_TYPES.map((name, i) => ({
+    id: `ptp_demo_${i + 1}`,
     workspaceId,
-    productCode: p.code,
-    name: p.name,
-    category: p.category,
-    unit: p.unit,
+    typeCode: name,
+    name,
+    sortOrder: i + 1,
     status: "active" as const,
   }));
-  const byCode = new Map(products.map((p, i) => [DEMO_PRODUCTS[i].code, p.id]));
 
   const solutions = DEMO_SOLUTIONS.map((sol, i) => ({
     id: `sol_demo_${i + 1}`,
@@ -1555,7 +1594,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }),
   );
 
-  stores.catalog.seed({ products, solutions, items, prices, lines });
+  stores.catalog.seed({ products, types, solutions, items, prices, lines });
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */

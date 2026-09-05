@@ -5,10 +5,11 @@ import { getMessages } from "../lib/i18n/server";
 import type { PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
 import { getCatalogStore } from "../../domains/shared/registry";
-import { listPrices, listProducts, listSolutions } from "../../domains/catalog/service";
+import { listPrices, listProducts, listProductTypes, listSolutions } from "../../domains/catalog/service";
 import type {
   PriceEntryRecord,
   ProductRecord,
+  ProductTypeRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "../../domains/catalog/store";
@@ -30,6 +31,7 @@ import { loadFailureText } from "../lib/load-failure";
 
 export interface CatalogData {
   products: readonly ProductRecord[];
+  types: readonly ProductTypeRecord[];
   solutions: readonly { solution: SolutionRecord; items: readonly SolutionItemRecord[] }[];
   prices: readonly PriceEntryRecord[];
   authz: PermissionHolder;
@@ -61,8 +63,9 @@ export async function CatalogPage({
     store: getCatalogStore(),
   };
 
-  const [products, solutions, prices] = await Promise.all([
+  const [products, types, solutions, prices] = await Promise.all([
     listProducts(ctx),
+    listProductTypes(ctx),
     listSolutions(ctx),
     listPrices(ctx),
   ]);
@@ -83,6 +86,7 @@ export async function CatalogPage({
     <ViewLayout>
       {render({
         products: products.value,
+        types: types.ok ? types.value : [],
         solutions: solutions.ok ? solutions.value : [],
         prices: prices.ok ? prices.value : [],
         authz: session.authz,

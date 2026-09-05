@@ -301,6 +301,24 @@ export const DEMO_PRODUCTS = [
   { code: "PRD-SUPPORT", name: "年度技术支持", category: "服务", unit: "年", list: 200_000, floor: 160_000 },
 ] as const;
 
+/** Products still being BUILT - real in plans and conversations, not quotable.
+ * Deliberately given no price rows: an unpriced product must not read as a
+ * discount case, and priceLine already treats "no floor" as its own state. */
+export const DEMO_DEV_PRODUCTS = [
+  { code: "PRD-REPLENISH", name: "智能补货预测", category: "平台", unit: "套" },
+  { code: "PRD-INSPECT", name: "门店巡检助手", category: "服务", unit: "套" },
+] as const;
+
+/** A product with a life already lived - so the retired roster, the 恢复在售
+ * row action and the "retire instead of delete" refusal all have a case. */
+export const DEMO_RETIRED_PRODUCTS = [
+  { code: "PRD-POS-LEGACY", name: "单机版收银终端", category: "平台", unit: "台" },
+] as const;
+
+/** The demo workspace's type vocabulary (incr/0028) - exactly the categories
+ * the products above carry, in catalogue order. */
+export const DEMO_PRODUCT_TYPES = ["平台", "供应链", "服务"] as const;
+
 export const DEMO_SOLUTIONS = [
   {
     code: "SOL-RETAIL",
