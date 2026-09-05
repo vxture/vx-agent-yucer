@@ -23,7 +23,7 @@ import {
 } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listTerritories } from "../../domains/planning/service";
-import { NewOpportunity } from "../components/new-opportunity";
+import { NewEntryLink } from "../components/form-page";
 import {
   forecastHistory,
   forecastScorecard,
@@ -282,23 +282,18 @@ export default async function PipelinePage({
           table: on a fresh workspace the board is empty, and a create form
           tucked under a list nobody can populate is a doorway behind a locked
           door. */}
-      <NewOpportunity
-        accounts={
-          accounts.ok
-            ? accounts.value.map((a) => ({ id: a.id, name: a.name }))
-            : []
-        }
-        territories={territoryOptions}
-        canCreate={
-          can(
-            session.authz,
-            session.entitlement,
-            "pipeline.opportunity.create",
-            "ui",
-          ).allowed
-        }
-        onCreate={createDeal}
-      />
+{/* Creation left for /pipeline/new on 2026-09-05 (owner ruling). The
+          doorway stays ABOVE the board for the reason the form sat there: on a
+          fresh workspace the board is empty, and a doorway under a list nobody
+          can populate is a doorway behind a locked door. */}
+      {can(
+        session.authz,
+        session.entitlement,
+        "pipeline.opportunity.create",
+        "ui",
+      ).allowed ? (
+        <NewEntryLink href="/pipeline/new" />
+      ) : null}
 
       <PipelineBoard
         rows={rows}

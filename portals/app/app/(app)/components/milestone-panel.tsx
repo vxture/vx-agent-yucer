@@ -1,19 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import {
-  DataTable,
-  EmptyState,
-  Field,
-  FieldLabel,
-  Input,
-  NativeSelect,
-  Section,
-  StatusBadge,
-} from "@vxture/design-ui";
+import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { useSaveAction } from "../lib/use-save-action";
-import { SaveRow } from "./save-row";
 
 // The delivery plan, across projects.
 //
@@ -93,37 +81,8 @@ export interface MilestoneRow {
   readonly completedAt: string | null;
 }
 
-export interface MilestonePanelProps {
-  readonly rows: readonly MilestoneRow[];
-  readonly projects: readonly { readonly id: string; readonly name: string }[];
-  readonly canEdit: boolean;
-  readonly onSave: (
-    projectId: string,
-    input: {
-      sequence: number;
-      name: string;
-      dueAt: string | null;
-      completedAt: string | null;
-      status: string;
-    },
-  ) => Promise<{ ok: boolean; error?: string }>;
-}
-
-const BLANK = { projectId: "", sequence: "", name: "", dueAt: "", completedAt: "", status: "pending" };
-
-export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePanelProps) {
-  const { DATA_TABLE_LABELS, DELIVERY_TEXT, MILESTONE_ERROR } = useMessages();
-  const [form, setForm] = useState(BLANK);
-  const save = useSaveAction(MILESTONE_ERROR);
-
-  const sequence = Number(form.sequence);
-  const ready =
-    form.projectId !== "" &&
-    form.name.trim() !== "" &&
-    form.sequence.trim() !== "" &&
-    Number.isInteger(sequence) &&
-    sequence >= 0;
-
+export function MilestonePanel({ rows }: { readonly rows: readonly MilestoneRow[] }) {
+  const { DATA_TABLE_LABELS, DELIVERY_TEXT } = useMessages();
   return (
     <Section
       id="milestones"
@@ -144,92 +103,8 @@ export function MilestonePanel({ rows, projects, canEdit, onSave }: MilestonePan
           columns={milestoneColumns(DELIVERY_TEXT)}
         />
       )}
-
-      {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">{DELIVERY_TEXT.milestonesDenied}</p>
-      ) : (
-        <div className="mt-md flex flex-wrap items-end gap-sm">
-          <Field>
-            <FieldLabel>{DELIVERY_TEXT.milestoneProject}</FieldLabel>
-            <NativeSelect
-              value={form.projectId}
-              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-            >
-              <option value="">{DELIVERY_TEXT.milestonePickProject}</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{DELIVERY_TEXT.milestoneSequence}</FieldLabel>
-            <Input
-              type="number"
-              min="0"
-              step="1"
-              inputMode="numeric"
-              value={form.sequence}
-              onChange={(e) => setForm({ ...form, sequence: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{DELIVERY_TEXT.milestoneName}</FieldLabel>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </Field>
-          <Field>
-            <FieldLabel>{DELIVERY_TEXT.milestoneDue}</FieldLabel>
-            <Input
-              type="date"
-              value={form.dueAt}
-              onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{DELIVERY_TEXT.milestoneStatus}</FieldLabel>
-            <NativeSelect
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            >
-              {Object.entries(DELIVERY_TEXT.milestoneStatusLabel).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{DELIVERY_TEXT.milestoneCompleted}</FieldLabel>
-            <Input
-              type="date"
-              value={form.completedAt}
-              onChange={(e) => setForm({ ...form, completedAt: e.target.value })}
-            />
-          </Field>
-          <SaveRow
-            action={save}
-            label={DELIVERY_TEXT.milestoneSave}
-            savedLabel={DELIVERY_TEXT.milestoneSaved}
-            disabled={!ready}
-            onSave={() =>
-              save.run(
-                () =>
-                  onSave(form.projectId, {
-                    sequence,
-                    name: form.name.trim(),
-                    dueAt: form.dueAt === "" ? null : form.dueAt,
-                    completedAt: form.completedAt === "" ? null : form.completedAt,
-                    status: form.status,
-                  }),
-                () => setForm(BLANK),
-              )
-            }
-          />
-        </div>
-      )}
-      {/* Said out loud, because it is the reason this panel is not bookkeeping:
-          a missed milestone overrides a reported green on the table above. */}
+      {/* Said out loud, because it is the reason this table is not bookkeeping:
+          a missed milestone overrides a reported green above. */}
       <p className="text-muted-foreground mt-sm text-body-sm">{DELIVERY_TEXT.milestoneAffectsHealth}</p>
     </Section>
   );

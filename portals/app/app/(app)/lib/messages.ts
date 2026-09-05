@@ -496,6 +496,19 @@ export const ASSIST_TEXT = {
   metricUnsetWhy: "没有目标的口径，承诺达成页无从判断——分母缺席。",
   territoryUnset: (name: string) => `${name} 本期还没有任何目标`,
   territoryUnsetWhy: "没有目标的区域在达成页上是「未设定」，不是零——先把空格点出来，数字由你定。",
+  // 战场侦察域 / 战果沉淀域 / 阵地经营域（#186 批次）
+  campaignEmpty: (name: string) => `${name} 还没有任何执行项`,
+  campaignEmptyWhy: "执行项是战役的血肉：完成要靠它们清零，回报也按它们计。进行中却没有一项，是还没拆成活的动作。",
+  assigneeKnown: (v: string) => `常用负责人：${v}`,
+  assigneeKnownWhy: "沿用已有写法，按人汇总时不会分家。",
+  projectUnchecked: (name: string) => `${name} 还没有里程碑`,
+  projectUncheckedWhy: "没有里程碑的项目，健康度只剩自报——没有任何事实能反驳它。",
+  sequenceNext: (n: number) => `序号建议：${n}`,
+  sequenceNextWhy: "该项目现有里程碑的下一个号。空洞不补——跳过的序号通常是故意的。",
+  accountNoDeal: (name: string) => `${name} 没有在办商机`,
+  accountNoDealWhy: "在经营、没在卖——走廊里听来的单子往往先发生在这样的客户身上。",
+  territoryCovers: (name: string, region: string) => `${name} 覆盖 ${region}`,
+  territoryCoversWhy: "与线索路由同一套区域匹配——按此归档，商机落在它的线索本会去的地方。",
 } as const;
 
 export const CATALOG_TEXT = {

@@ -88,3 +88,28 @@ export function unsetWorkspaceMetrics(
   // second list that drifts the day a metric is added.
   return TARGET_METRICS.filter((m): m is TargetMetric => !set.has(m));
 }
+
+/**
+ * The active territories whose region list covers one region.
+ *
+ * The new-deal form uses it to suggest the territory a deal should be filed
+ * under from its customer's region - the SAME match lead routing runs, so a
+ * deal filed by this suggestion lands where its leads would have. Plural
+ * because overlapping coverage is legal; the caller shows all and the person
+ * picks, since choosing between two owners is a judgement, not a lookup.
+ */
+export function coveringTerritories(
+  region: string | null,
+  territories: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly regions: readonly string[];
+    readonly status: string;
+  }[],
+): { id: string; name: string }[] {
+  const r = region?.trim();
+  if (!r) return [];
+  return territories
+    .filter((t) => t.status === "active" && t.regions.includes(r))
+    .map((t) => ({ id: t.id, name: t.name }));
+}
