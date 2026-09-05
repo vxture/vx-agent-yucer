@@ -3,7 +3,6 @@ import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "./shell";
 import { ProductSection } from "../components/catalog-panels";
-import { saveProduct } from "./actions";
 
 // D9 products - the catalogue's first module page.
 //
@@ -36,7 +35,6 @@ export default async function ProductsPage() {
             canWrite={
               can(authz, entitlement, "catalog.product.upsert", "ui").allowed
             }
-            onSaveProduct={saveProduct}
           />
         </>
       )}
