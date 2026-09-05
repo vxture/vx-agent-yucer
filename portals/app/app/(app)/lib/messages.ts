@@ -470,6 +470,9 @@ export const ASSIST_TEXT = {
   nothing: "暂时没有可建议的内容。",
   apply: "采用",
   newEntry: "新建",
+  titleKnown: (t: string) => `已有职务写法:${t}`,
+  departmentKnown: (d: string) => `已有部门:${d}`,
+  vocabularyWhy: "沿用这家客户名册里已有的写法,按职务/部门汇总时不会分家。",
   codeNext: (code: string) => `编码建议：${code}`,
   codeNextWhy: "延续你们现有编码序列的下一个号。",
   categoryKnown: (c: string) => `已有类目：${c}`,
@@ -1524,6 +1527,14 @@ export const FIELD_TEXT = {
   commitDirection: "谁的承诺",
   commitDue: "何时之前",
   commitCreate: "记下承诺",
+  // 统一录入(2026-09-05 整合):承诺行长在跟进表单里,记的是「这次谈话里谁答应了什么」。
+  commitAdd: "这次有承诺?加一条",
+  captureTitle: (name: string) => `记一次接触 · ${name}`,
+  captureWhy:
+    "发生了什么照原样倒进来;这次谈话里谁答应了什么,顺手加在下面——承诺会记住它出自哪一次接触。",
+  commitRemove: "去掉",
+  directionOurs: "我方承诺",
+  directionTheirs: "对方承诺",
   commitClose: "标记完成",
   commitCloseNeedsEvidence: "选一条证明它完成了的跟进",
   commitWaive: "放弃",
@@ -1569,6 +1580,8 @@ export const FIELD_TEXT = {
 
 export const FIELD_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  // 统一录入的部分成功:笔记是证据、只追加,落了就不回滚;某条承诺被拒时如实说。
+  commitment_partial: "跟进已记下,但有承诺没记上——到承诺列表补一条",
   note_required: "写一句发生了什么——只记下它发生过,没有价值",
   occurred_in_future: "跟进不能发生在未来",
   unknown_channel: "未知的跟进方式",
@@ -2179,6 +2192,9 @@ export const ACCOUNT_TEXT = {
   contactRole: "决策角色",
   contactInfluence: "影响力 0-100",
   // incr/0024. 手机排在最前:决策链上真正会被用到的是它。
+  contactFormTitle: (name: string) => `联系人 · ${name}`,
+  contactFormWhy:
+    "这个人是谁、在哪个部门、怎么联系得上。他在某一单里扮演什么角色,在那一单的页面上定。",
   contactMobile: "手机",
   contactEmail: "邮箱",
   contactWechat: "微信",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   Input,
@@ -44,8 +45,9 @@ export interface RecordFollowUpProps {
       occurredAt: string;
       rawNote: string;
       opportunityId?: string;
+      commitments?: readonly { direction: string; statement: string; dueAt: string }[];
     },
-  ) => Promise<{ ok: boolean; error?: string }>;
+  ) => Promise<{ ok: boolean; error?: string; failedCommitments?: number }>;
 }
 
 /** Local datetime for the input's value - a UTC ISO string would show the
@@ -61,7 +63,9 @@ export function RecordFollowUp({
   opportunityId,
   canRecord,
   onRecord,
-}: RecordFollowUpProps) {
+  doneHref,
+}: RecordFollowUpProps & { readonly doneHref?: string }) {
+  const router = useRouter();
   const { CHANNEL_LABEL, FIELD_ERROR, FIELD_TEXT } = useMessages();
   const [note, setNote] = useState("");
   const [channel, setChannel] = useState<string>("meeting");
@@ -69,6 +73,15 @@ export function RecordFollowUp({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // The promises made in THIS conversation - the consolidation of 2026-09-05.
+  // The commitment form used to live twice, on two pages, severed from the
+  // interaction it came out of; origin_interaction_id (in the schema since
+  // incr/0004 for exactly this) was never once set by the interface. Optional
+  // rows here keep the dump zero-friction - the note alone still submits -
+  // while "who promised what" is one gesture away instead of a second form.
+  const [promises, setPromises] = useState<
+    readonly { direction: string; statement: string; dueAt: string }[]
+  >([]);
 
   if (!canRecord) return null;
 
@@ -81,12 +94,26 @@ export function RecordFollowUp({
         occurredAt,
         rawNote: note,
         opportunityId,
+        commitments: promises.filter((p) => p.statement.trim() !== ""),
       }).then((r) => {
         if (!r.ok)
           setError(FIELD_ERROR[r.error ?? "denied"] ?? FIELD_ERROR.denied);
-        else {
+        else if (r.failedCommitments) {
+          // Partial success is a real outcome: the note landed (it is
+          // evidence, append-only) and some promise row was refused. STAY on
+          // the page and say so - navigating away would swallow it.
+          setError(FIELD_ERROR.commitment_partial ?? null);
           setSaved(true);
           setNote("");
+          setPromises([]);
+        } else if (doneHref) {
+          // A capture page is an errand: back to where the person came from.
+          router.push(doneHref);
+          router.refresh();
+        } else {
+          setSaved(true);
+          setNote("");
+          setPromises([]);
           setOccurredAt(localNow());
         }
       });
@@ -131,9 +158,78 @@ export function RecordFollowUp({
         disabled={pending}
       />
 
-      <Button onClick={submit} disabled={pending || note.trim() === ""}>
-        {FIELD_TEXT.recordSubmit}
-      </Button>
+      {promises.map((p, i) => (
+        /* Index keys are safe: rows are appended/removed on a local draft,
+           never reordered. */
+        <div key={i} className="flex flex-wrap items-end gap-sm">
+          <div className="min-w-[14rem] flex-1">
+            <Label htmlFor={`cm-st-${i}`}>{FIELD_TEXT.commitStatement}</Label>
+            <Input
+              id={`cm-st-${i}`}
+              value={p.statement}
+              onChange={(e) =>
+                setPromises(promises.map((x, j) => (j === i ? { ...x, statement: e.target.value } : x)))
+              }
+              disabled={pending}
+            />
+          </div>
+          <div>
+            <Label htmlFor={`cm-dir-${i}`}>{FIELD_TEXT.commitDirection}</Label>
+            <NativeSelect
+              id={`cm-dir-${i}`}
+              value={p.direction}
+              onChange={(e) =>
+                setPromises(promises.map((x, j) => (j === i ? { ...x, direction: e.target.value } : x)))
+              }
+              disabled={pending}
+            >
+              <option value="we_owe">{FIELD_TEXT.directionOurs}</option>
+              <option value="they_owe">{FIELD_TEXT.directionTheirs}</option>
+            </NativeSelect>
+          </div>
+          <div>
+            <Label htmlFor={`cm-due-${i}`}>{FIELD_TEXT.commitDue}</Label>
+            <Input
+              id={`cm-due-${i}`}
+              type="date"
+              value={p.dueAt}
+              onChange={(e) =>
+                setPromises(promises.map((x, j) => (j === i ? { ...x, dueAt: e.target.value } : x)))
+              }
+              disabled={pending}
+            />
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => setPromises(promises.filter((_, j) => j !== i))}
+            disabled={pending}
+          >
+            {FIELD_TEXT.commitRemove}
+          </Button>
+        </div>
+      ))}
+
+      <div className="flex flex-wrap items-center gap-sm">
+        <Button
+          variant="secondary"
+          disabled={pending}
+          onClick={() =>
+            setPromises([...promises, { direction: "they_owe", statement: "", dueAt: "" }])
+          }
+        >
+          {FIELD_TEXT.commitAdd}
+        </Button>
+        <Button
+          onClick={submit}
+          disabled={
+            pending ||
+            note.trim() === "" ||
+            promises.some((p) => p.statement.trim() !== "" && p.dueAt === "")
+          }
+        >
+          {FIELD_TEXT.recordSubmit}
+        </Button>
+      </div>
 
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {saved ? (

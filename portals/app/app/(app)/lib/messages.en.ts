@@ -560,6 +560,9 @@ export const en: Dictionary = {
     nothing: "Nothing to suggest yet.",
     apply: "Apply",
     newEntry: "New",
+    titleKnown: (t: string) => `Existing title spelling: ${t}`,
+    departmentKnown: (d: string) => `Existing department: ${d}`,
+    vocabularyWhy: "Reusing this customer's existing spellings keeps per-title and per-department rollups in one piece.",
     codeNext: (code: string) => `Suggested code: ${code}`,
     codeNextWhy: "The next number in the series your existing codes follow.",
     categoryKnown: (c: string) => `Existing category: ${c}`,
@@ -877,6 +880,7 @@ export const en: Dictionary = {
   },
 
   FIELD_ERROR: {
+    commitment_partial: "The follow-up is recorded, but a promise was refused - add it from the commitment list",
     ...GATE_ERROR,
     note_required:
       "Write a line about what happened - recording only that it happened is worth nothing",
@@ -1719,6 +1723,9 @@ export const en: Dictionary = {
     contactDepartment: "Department",
     contactRole: "Decision role",
     contactInfluence: "Influence 0-100",
+    contactFormTitle: (name: string) => `Contacts · ${name}`,
+    contactFormWhy:
+      "Who this person is, which department, how to reach them. What they are on a given deal is decided on that deal's page.",
     contactMobile: "Mobile",
     contactEmail: "Email",
     contactWechat: "WeChat",
@@ -1925,6 +1932,9 @@ export const en: Dictionary = {
   // these keys are pulled forward because the overdue block renders on /account.
   FIELD_TEXT: {
     ...zh.FIELD_TEXT,
+    captureTitle: (name: string) => `Record a touch · ${name}`,
+    captureWhy:
+      "Dump what happened verbatim; add who promised what below - each promise remembers the conversation it came from.",
     commitCount: (n: number) => `${n}`,
     commitDaysOverdue: (n: number) => `${n} days overdue`,
     commitDueOn: (d: string) => `was due ${d}`,

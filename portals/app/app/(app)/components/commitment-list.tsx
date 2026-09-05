@@ -52,15 +52,14 @@ export interface CommitmentListProps {
   readonly evidence: readonly EvidenceOption[];
   readonly canWrite: boolean;
   readonly now?: Date;
-  readonly onCreate: (
-    accountId: string,
-    input: {
-      direction: string;
-      statement: string;
-      dueAt: string;
-      opportunityId?: string;
-    },
-  ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Where a NEW promise gets recorded - the capture page, with this list's
+   * context in the URL. The create form left this component on 2026-09-05
+   * (the consolidation ruling): it lived twice, on two pages, severed from
+   * the conversation the promise came out of, and origin_interaction_id was
+   * never once set through it. Recording happens where the interaction does.
+   */
+  readonly captureHref: string;
   readonly onSettle: (
     accountId: string,
     id: string,
@@ -82,7 +81,7 @@ export function CommitmentList({
   evidence,
   canWrite,
   now,
-  onCreate,
+  captureHref,
   onSettle,
 }: CommitmentListProps) {
   const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
@@ -92,11 +91,6 @@ export function CommitmentList({
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [reason, setReason] = useState<Record<string, string>>({});
-  const [draft, setDraft] = useState({
-    direction: "they_owe",
-    statement: "",
-    dueAt: "",
-  });
 
   function run(op: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -247,57 +241,11 @@ export function CommitmentList({
       ))}
 
       {canWrite ? (
-        <>
-          <Label htmlFor="cm-statement">{FIELD_TEXT.commitStatement}</Label>
-          <Textarea
-            id="cm-statement"
-            rows={2}
-            value={draft.statement}
-            onChange={(e) => setDraft({ ...draft, statement: e.target.value })}
-            placeholder={FIELD_TEXT.commitStatementPlaceholder}
-            disabled={pending}
-          />
-          <Label htmlFor="cm-direction">{FIELD_TEXT.commitDirection}</Label>
-          <NativeSelect
-            id="cm-direction"
-            value={draft.direction}
-            onChange={(e) => setDraft({ ...draft, direction: e.target.value })}
-            disabled={pending}
-          >
-            {COMMITMENT_DIRECTIONS.map((d) => (
-              <option key={d} value={d}>
-                {DIRECTION_LABEL[d] ?? d}
-              </option>
-            ))}
-          </NativeSelect>
-          <Label htmlFor="cm-due">{FIELD_TEXT.commitDue}</Label>
-          <Input
-            id="cm-due"
-            type="date"
-            value={draft.dueAt}
-            onChange={(e) => setDraft({ ...draft, dueAt: e.target.value })}
-            disabled={pending}
-          />
-          <Button
-            size="sm"
-            disabled={pending || !draft.statement.trim() || !draft.dueAt}
-            onClick={() =>
-              run(() =>
-                onCreate(accountId, { ...draft, opportunityId }).then((r) => {
-                  if (r.ok)
-                    setDraft({
-                      direction: "they_owe",
-                      statement: "",
-                      dueAt: "",
-                    });
-                  return r;
-                }),
-              )
-            }
-          >
-            {FIELD_TEXT.commitCreate}
+        <div className="mt-sm">
+          <Button asChild size="sm" variant="secondary">
+            <a href={captureHref}>{FIELD_TEXT.commitCreate}</a>
           </Button>
-        </>
+        </div>
       ) : null}
     </Section>
   );

@@ -70,7 +70,6 @@ import {
 } from "../../../domains/catalog/service";
 import { StageControl } from "../../components/stage-control";
 import { StageJourney } from "../../components/stage-journey";
-import { RecordFollowUp } from "../../components/record-follow-up";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import {
@@ -78,7 +77,6 @@ import {
   listInteractions,
 } from "../../../domains/account/field-service";
 import {
-  addCommitment,
   recordFollowUp,
   settleCommitment,
 } from "../../account/field-actions";
@@ -644,7 +642,7 @@ export default async function OpportunityDetailPage({
               label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
             }))}
             canWrite={canRecord}
-            onCreate={addCommitment}
+            captureHref={`/capture?account=${opportunity.accountId}&opportunity=${id}&back=/pipeline/${id}`}
             onSettle={settleCommitment}
           />
         ) : null}
