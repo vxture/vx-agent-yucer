@@ -760,7 +760,7 @@ export const en: Dictionary = {
     adviceOpenHistory: "See superseded prices",
     assessSelected: "Pricing assessment",
     analyzeSelectedHint: "Tick the prices to assess first",
-    priceTrend: "Price analysis",
+    priceTrend: "Price movement",
     priceTrendSoon: "Price movement analysis is in development: the lineage is being recorded, the screen is not connected yet",
     priceInForceHint: "The price in force cannot be deleted - re-price to append a new one",
     priceDeleteConsequence: "Deletion is permanent. An entry cited by a discount signature is refused - that row is what the signature stands on.",
