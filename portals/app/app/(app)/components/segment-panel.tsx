@@ -1,21 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import {
-  DataTable,
-  EmptyState,
-  Field,
-  FieldLabel,
-  Input,
-  NativeSelect,
-  Section,
-  StatusBadge,
-} from "@vxture/design-ui";
+import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { useSaveAction } from "../lib/use-save-action";
-import { SaveRow } from "./save-row";
 
-// How the market is cut.
+// How the market is cut - DISPLAY ONLY since 2026-09-05.
+//
+// The create/edit form left for /segment/new (owner ruling: content-rich
+// operations get a page, with the assistant beside the work). What remains is
+// the table whose two counts diverge when a code was handed out against the
+// definition - the finding this page exists to show.
 //
 // `strategy.segment.view` / `.upsert` shipped in batch 1 with nothing behind
 // them (TD-016), and like the campaign executions this was not merely an
@@ -55,32 +48,6 @@ export interface SegmentRow {
    */
   readonly matchedCount: number;
 }
-
-export interface SegmentPanelProps {
-  readonly rows: readonly SegmentRow[];
-  /** Plans a segment may hang off. Closed and archived ones are absent: their
-   *  segmentation is settled. */
-  readonly plans: readonly { readonly id: string; readonly name: string }[];
-  readonly canEdit: boolean;
-  readonly onSave: (input: {
-    segmentCode: string;
-    name: string;
-    planId: string | null;
-    priority: number;
-    status: string;
-    criteria: { industries: readonly string[]; regions: readonly string[] };
-  }) => Promise<{ ok: boolean; error?: string }>;
-}
-
-const BLANK = {
-  segmentCode: "",
-  name: "",
-  planId: "",
-  priority: "0",
-  status: "active",
-  industries: "",
-  regions: "",
-};
 
 function segmentColumns(text: {
   segmentCodeHeader: string;
@@ -159,42 +126,8 @@ function segmentColumns(text: {
   ];
 }
 
-export function SegmentPanel({
-  rows,
-  plans,
-  canEdit,
-  onSave,
-}: SegmentPanelProps) {
-  const { DATA_TABLE_LABELS, STRATEGY_TEXT, SEGMENT_ERROR } = useMessages();
-  const [form, setForm] = useState(BLANK);
-  const save = useSaveAction(SEGMENT_ERROR);
-
-  const editing =
-    form.segmentCode !== "" &&
-    rows.some((r) => r.segmentCode === form.segmentCode);
-
-  function pick(code: string) {
-    if (code === "") return setForm(BLANK);
-    const g = rows.find((r) => r.segmentCode === code);
-    if (!g) return setForm(BLANK);
-    setForm({
-      segmentCode: g.segmentCode,
-      name: g.name,
-      planId: g.planId ?? "",
-      priority: String(g.priority),
-      status: g.status,
-      industries: g.criteria.industries.join(", "),
-      regions: g.criteria.regions.join(", "),
-    });
-  }
-
-  const priority = Number(form.priority);
-  const ready =
-    form.segmentCode.trim() !== "" &&
-    form.name.trim() !== "" &&
-    Number.isInteger(priority) &&
-    priority >= 0;
-
+export function SegmentPanel({ rows }: { readonly rows: readonly SegmentRow[] }) {
+  const { DATA_TABLE_LABELS, STRATEGY_TEXT } = useMessages();
   return (
     <Section id="segments" icon="target">
       {rows.length === 0 ? (
@@ -209,133 +142,6 @@ export function SegmentPanel({
           rows={[...rows]}
           columns={segmentColumns(STRATEGY_TEXT)}
         />
-      )}
-
-      {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">
-          {STRATEGY_TEXT.segmentsDenied}
-        </p>
-      ) : (
-        <div className="mt-md flex flex-wrap items-end gap-sm">
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentEditing}</FieldLabel>
-            <NativeSelect
-              value={editing ? form.segmentCode : ""}
-              onChange={(e) => pick(e.target.value)}
-            >
-              <option value="">{STRATEGY_TEXT.segmentNew}</option>
-              {rows.map((r) => (
-                <option key={r.id} value={r.segmentCode}>
-                  {r.segmentCode} - {r.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentCodeHeader}</FieldLabel>
-            {/* Locked while editing. The code is what accounts point at, so the
-                field that would rename it is the field that must not exist. */}
-            <Input
-              value={form.segmentCode}
-              disabled={editing}
-              onChange={(e) =>
-                setForm({ ...form, segmentCode: e.target.value })
-              }
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentNameHeader}</FieldLabel>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentPlanHeader}</FieldLabel>
-            <NativeSelect
-              value={form.planId}
-              onChange={(e) => setForm({ ...form, planId: e.target.value })}
-            >
-              <option value="">{STRATEGY_TEXT.segmentNoPlan}</option>
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentIndustries}</FieldLabel>
-            <Input
-              value={form.industries}
-              placeholder={STRATEGY_TEXT.segmentListHint}
-              onChange={(e) => setForm({ ...form, industries: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentRegions}</FieldLabel>
-            <Input
-              value={form.regions}
-              placeholder={STRATEGY_TEXT.segmentListHint}
-              onChange={(e) => setForm({ ...form, regions: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentPriorityHeader}</FieldLabel>
-            <Input
-              type="number"
-              min={0}
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value })}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{STRATEGY_TEXT.segmentStatusHeader}</FieldLabel>
-            <NativeSelect
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            >
-              {Object.entries(STRATEGY_TEXT.segmentStatusLabel).map(
-                ([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ),
-              )}
-            </NativeSelect>
-          </Field>
-          <SaveRow
-            action={save}
-            label={STRATEGY_TEXT.segmentSave}
-            savedLabel={STRATEGY_TEXT.segmentSaved}
-            disabled={!ready}
-            onSave={() =>
-              save.run(
-                () =>
-                  onSave({
-                    segmentCode: form.segmentCode.trim(),
-                    name: form.name.trim(),
-                    planId: form.planId === "" ? null : form.planId,
-                    priority,
-                    status: form.status,
-                    // Split on both comma widths - the field takes Chinese
-                    // input, and forcing the ASCII comma would be a trap.
-                    criteria: {
-                      industries: form.industries
-                        .split(/[,\u3001\uFF0C]/)
-                        .map((v) => v.trim())
-                        .filter(Boolean),
-                      regions: form.regions
-                        .split(/[,\u3001\uFF0C]/)
-                        .map((v) => v.trim())
-                        .filter(Boolean),
-                    },
-                  }),
-                () => setForm(BLANK),
-              )
-            }
-          />
-        </div>
       )}
     </Section>
   );

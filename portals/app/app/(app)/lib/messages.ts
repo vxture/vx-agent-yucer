@@ -469,6 +469,7 @@ export const ASSIST_TEXT = {
   description: "根据工作区里已有的数据给出建议。每条都写明依据，点了才生效。",
   nothing: "暂时没有可建议的内容。",
   apply: "采用",
+  newEntry: "新建",
   codeNext: (code: string) => `编码建议：${code}`,
   codeNextWhy: "延续你们现有编码序列的下一个号。",
   categoryKnown: (c: string) => `已有类目：${c}`,
@@ -482,6 +483,19 @@ export const ASSIST_TEXT = {
   floorRatio: (floor: string) => `底价建议：${floor}`,
   floorRatioWhy: (pct: number) =>
     `按你们已有定价的中位底价率（约列表价的 ${pct}%）推算。底价是商业决定，这里只是填上数字，签字的仍是你。`,
+  // 战略域（#185 批次）
+  periodKnown: (p: string) => `期间沿用：${p}`,
+  periodKnownWhy: "沿用已有期间的写法。同一期间两种写法，按期间汇总的报表就会分家。",
+  industryKnown: (v: string) => `客户里有的行业：${v}`,
+  regionKnown: (v: string) => `客户里有的地区：${v}`,
+  criteriaWhy: "细分是对真实市场的切分——条件用客户实际携带的值，切出来的才不是空集。",
+  // 部署域（#185 批次）
+  uncoveredRegion: (region: string, n: number) => `${region} 有 ${n} 家客户，尚无区域覆盖`,
+  uncoveredRegionWhy: "线索按区域路由（先区域后负载）。没有区域覆盖的地面，每一条线索都无处可派。",
+  metricUnset: (label: string) => `本期还没有「${label}」的全工作区目标`,
+  metricUnsetWhy: "没有目标的口径，承诺达成页无从判断——分母缺席。",
+  territoryUnset: (name: string) => `${name} 本期还没有任何目标`,
+  territoryUnsetWhy: "没有目标的区域在达成页上是「未设定」，不是零——先把空格点出来，数字由你定。",
 } as const;
 
 export const CATALOG_TEXT = {
@@ -2336,6 +2350,11 @@ export const PLANNING_TEXT = {
     "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。",
   territoryNone: "还没有销售区域",
   territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
+  territoryFormTitle: "新建 / 编辑销售区域",
+  territoryEditing: "编辑已有区域",
+  territoryNew: "新建一个区域",
+  territoryRegions: "覆盖地区",
+  territoryRegionsHint: "逗号分隔，如：华东, 华南",
   territoryCode: "区域代码",
   territoryName: "名称",
   territoryParent: "上级区域",
@@ -2414,6 +2433,7 @@ export const STRATEGY_TEXT = {
   segmentsNoneWhy:
     "客户档案里已经在用细分代码了，但它们还没有对应的定义。在下面建一个，代码对上就能连起来。",
   segmentsDenied: "你没有编辑细分市场的权限。",
+  segmentFormTitle: "新建 / 编辑细分",
   segmentEditing: "编辑哪一块",
   segmentNew: "新建细分市场",
   segmentNoPlan: "不挂在计划下",

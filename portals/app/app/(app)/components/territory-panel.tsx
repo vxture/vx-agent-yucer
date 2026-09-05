@@ -1,19 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import {
-  DataTable,
-  EmptyState,
-  Field,
-  FieldLabel,
-  Input,
-  NativeSelect,
-  Section,
-  StatusBadge,
-} from "@vxture/design-ui";
+import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { useSaveAction } from "../lib/use-save-action";
-import { SaveRow } from "./save-row";
 
 // The territory roster: who carries which patch of the market.
 //
@@ -28,10 +16,8 @@ import { SaveRow } from "./save-row";
 // nav entry and the host here is /planning, which IS one - the same test that
 // keeps 战略客户 planned, since its only host would be a detail page.
 //
-// THE CODE IS THE IDENTITY. Typing an existing code edits that territory;
-// typing a new one creates it. That is upsert-by-anchor, the shape the
-// catalogue settled on (ADR-017), and it is why the code field is not
-// disabled while editing - retyping it is how you choose what you are editing.
+// DISPLAY ONLY since 2026-09-05: creating and editing left for /territory/new
+// (owner ruling), which also carries the regions field this panel never had.
 
 export interface TerritoryRow {
   readonly id: string;
@@ -40,32 +26,12 @@ export interface TerritoryRow {
   readonly parentId: string | null;
   readonly ownerSub: string | null;
   readonly status: string;
+  readonly regions: readonly string[];
 }
 
-export interface TerritoryPanelProps {
-  readonly rows: readonly TerritoryRow[];
-  readonly canEdit: boolean;
-  readonly onSave: (input: {
-    territoryCode: string;
-    name: string;
-    parentId: string | null;
-    ownerSub: string | null;
-    status: string;
-  }) => Promise<{ ok: boolean; error?: string }>;
-}
-
-export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
-  const { DATA_TABLE_LABELS, PLANNING_TEXT, TERRITORY_ERROR } = useMessages();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [parentId, setParentId] = useState("");
-  const [ownerSub, setOwnerSub] = useState("");
-  const [status, setStatus] = useState("active");
-  const save = useSaveAction(TERRITORY_ERROR);
-
+export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[] }) {
+  const { DATA_TABLE_LABELS, PLANNING_TEXT } = useMessages();
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
-  const ready = code.trim() !== "" && name.trim() !== "";
-
   return (
     <Section id="territories" icon="map-pin">
       {rows.length === 0 ? (
@@ -88,6 +54,14 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
               id: "name",
               header: PLANNING_TEXT.territoryName,
               cell: (r: TerritoryRow) => r.name,
+            },
+            {
+              // The regions column joined with the /territory/new page: the
+              // list is what routing matches against, so a blank here is the
+              // "dead ground" the form's assistant warns about.
+              id: "regions",
+              header: PLANNING_TEXT.territoryRegions,
+              cell: (r: TerritoryRow) => r.regions.join(" / "),
             },
             {
               id: "parent",
@@ -117,76 +91,6 @@ export function TerritoryPanel({ rows, canEdit, onSave }: TerritoryPanelProps) {
             },
           ]}
         />
-      )}
-
-      {!canEdit ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">
-          {PLANNING_TEXT.territoryDenied}
-        </p>
-      ) : (
-        <div className="mt-md flex flex-wrap items-end gap-sm">
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.territoryCode}</FieldLabel>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} />
-          </Field>
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.territoryName}</FieldLabel>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.territoryParent}</FieldLabel>
-            <NativeSelect
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-            >
-              <option value="">{PLANNING_TEXT.territoryNoParent}</option>
-              {rows.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.territoryOwner}</FieldLabel>
-            <Input
-              value={ownerSub}
-              onChange={(e) => setOwnerSub(e.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.territoryStatus}</FieldLabel>
-            <NativeSelect
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="active">{PLANNING_TEXT.territoryActive}</option>
-              <option value="retired">{PLANNING_TEXT.territoryRetired}</option>
-            </NativeSelect>
-          </Field>
-          <SaveRow
-            action={save}
-            label={PLANNING_TEXT.territorySave}
-            savedLabel={PLANNING_TEXT.territorySaved}
-            disabled={!ready}
-            onSave={() =>
-              save.run(
-                () =>
-                  onSave({
-                    territoryCode: code.trim(),
-                    name: name.trim(),
-                    parentId: parentId === "" ? null : parentId,
-                    ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
-                    status,
-                  }),
-                () => {
-                  setCode("");
-                  setName("");
-                },
-              )
-            }
-          />
-        </div>
       )}
     </Section>
   );

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { knownValues, suggestFloor, suggestNextCode, unpricedProducts } from "./suggest";
+import { suggestFloor, unpricedProducts } from "./suggest";
+import { knownValues, suggestNextCode } from "../../shared/suggest";
 import type { ProductRecord } from "../store";
 
 // The form assistant's data half. Every function here has a REFUSAL built in -

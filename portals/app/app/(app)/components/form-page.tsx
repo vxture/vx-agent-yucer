@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Button, Card, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -27,6 +28,22 @@ export function FormPage({
     <div className="grid items-start gap-lg xl:grid-cols-[1fr_20rem]">
       <div className="min-w-0">{form}</div>
       {assist ? <div className="min-w-0">{assist}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * The one control a display page keeps: the way in to its creation page.
+ * A real <a>, not a router.push - middle-click and open-in-new-tab must work,
+ * because a person adding five rows wants five tabs, not five round trips.
+ */
+export function NewEntryLink({ href, label }: { readonly href: string; readonly label?: string }) {
+  const { ASSIST_TEXT } = useMessages();
+  return (
+    <div className="mt-md">
+      <Button asChild variant="secondary">
+        <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
+      </Button>
     </div>
   );
 }
@@ -100,4 +117,39 @@ export function AssistPanel({
       )}
     </Section>
   );
+}
+
+/**
+ * Submit-and-return for a creation page. On success the page goes back to its
+ * list - a creation page is an errand, not a place - and on refusal the CODE
+ * is translated by the caller's own dictionary, never rendered raw (TD-010).
+ */
+export function useFormSubmit(onDone: string) {
+  const router = useRouter();
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return {
+    err,
+    pending,
+    run(fn: () => Promise<{ ok: boolean; error?: string }>, errorOf: (code: string) => string) {
+      start(() => {
+        void fn().then((r) => {
+          if (r.ok) {
+            router.push(onDone);
+            router.refresh();
+          } else {
+            setErr(errorOf(r.error ?? "denied"));
+          }
+        });
+      });
+    },
+  };
+}
+
+/** Split a list field on every comma its languages write. */
+export function splitListField(v: string): string[] {
+  return v
+    .split(/[,\u3001\uFF0C]/)
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
