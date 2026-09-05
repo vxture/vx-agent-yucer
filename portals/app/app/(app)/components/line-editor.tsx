@@ -144,6 +144,7 @@ export function LineEditor({
 
   return (
     <Section
+      id="lines"
       icon="stack"
       title={OPPORTUNITY_TEXT.linesTitle}
       description={OPPORTUNITY_TEXT.linesWhy}

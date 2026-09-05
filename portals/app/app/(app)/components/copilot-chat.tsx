@@ -45,6 +45,13 @@ export interface CopilotChatProps {
    * account is re-read on the server behind account.view.
    */
   readonly account?: { id: string; name: string };
+  /**
+   * A question another page composed and sent the person here with - the war
+   * room's 「分析这一单」. PREFILLED, NEVER AUTO-SENT: a model turn spends the
+   * workspace's quota and records proposals, and the person pressing send is
+   * what makes that theirs. They can edit it first, which is the point.
+   */
+  readonly initialDraft?: string;
   readonly onAsk: (
     question: string,
     sessionId: string | null,
@@ -60,6 +67,7 @@ export function CopilotChat({
   sessionId,
   canAsk,
   account,
+  initialDraft,
   onAsk,
 }: CopilotChatProps) {
   const { ASK_ABOUT_TEXT, COPILOT_TEXT } = useMessages();
@@ -67,7 +75,7 @@ export function CopilotChat({
     ...initialMessages,
   ]);
   const [session, setSession] = useState<string | null>(sessionId);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(initialDraft ?? "");
   const [outcome, setOutcome] = useState<TurnOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
