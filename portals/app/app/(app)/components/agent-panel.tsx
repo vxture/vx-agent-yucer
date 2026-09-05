@@ -2,13 +2,9 @@
 
 import Link from "next/link";
 
-import {
-  Button,
-  Card,
-  PanelItem,
-  PanelList,
-} from "@vxture/design-ui";
+import { Button } from "@vxture/design-ui";
 import { AgentCapture } from "./agent-capture";
+import { AssistantDeck } from "./assistant";
 import type { AgentPanelData } from "../lib/board";
 
 import { useMessages } from "../lib/i18n/provider";
@@ -45,88 +41,70 @@ export function AgentPanel({
 }: AgentPanelProps) {
   const { BOARD_TEXT } = useMessages();
 
+  // THE SAME SURFACE EVERY PAGE'S DOCK USES (2026-09-05). These three blocks
+  // were three hand-rolled cards; as sections they gain the assistant's
+  // grammar for free and, more to the point, stop drifting from the pages
+  // that answer their own questions in the same place.
+  const sections = [
+    {
+      id: "pending",
+      title: BOARD_TEXT.pendingTitle,
+      empty: BOARD_TEXT.pendingEmpty,
+      items: data.pending.map((p) => ({
+        id: p.id,
+        text: p.title,
+        evidence: p.why,
+        trail: p.source,
+        // A proposal is decided in the copilot's own thread, where the whole
+        // payload is visible - not from a one-line summary.
+        link: { label: BOARD_TEXT.openThread, href: "/copilot" },
+      })),
+    },
+    {
+      id: "recon",
+      title: BOARD_TEXT.reconTitle,
+      // THE ENEMY, and the honest state of it: there is no structured
+      // competitor data in this product - competitors appear only inside raw
+      // follow-up notes. A war room that invents its enemies is worse than
+      // one that admits it cannot see them.
+      empty: BOARD_TEXT.reconEmpty,
+      items: [],
+      footer: (
+        <span className="flex flex-col gap-xs">
+          <Button size="sm" variant="outline" disabled>
+            {BOARD_TEXT.reconCta}
+          </Button>
+          <span className="text-muted-foreground text-body-sm">{BOARD_TEXT.analysisNote}</span>
+        </span>
+      ),
+    },
+    {
+      id: "recent",
+      title: BOARD_TEXT.recentTitle,
+      empty: BOARD_TEXT.recentEmpty,
+      // A record of what happened is not a suggestion: nothing to accept, and
+      // nothing to dismiss.
+      items: data.recent.map((r) => ({
+        id: r.id,
+        text: r.text,
+        trail: r.when,
+        ignorable: false,
+      })),
+    },
+  ];
+
   return (
-    <div className="flex flex-col gap-sm">
-      <AgentCapture
-        data={data}
-        canRecord={canRecord}
-        onRecord={onRecord}
-        onAsk={onAsk}
-        onAttach={onAttach}
-      />
-
-      {data.pending.length > 0 ? (
-        <Card className="p-sm">
-          <p className="text-label-md text-foreground">
-            {BOARD_TEXT.pendingTitle}
-          </p>
-          <PanelList className="mt-xs">
-            {data.pending.map((p) => (
-              <PanelItem
-                key={p.id}
-                main={
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-body-sm">{p.title}</span>
-                    <span className="text-muted-foreground truncate text-body-sm">
-                      {p.why}
-                    </span>
-                  </span>
-                }
-                trail={
-                  <span className="text-muted-foreground text-body-sm">
-                    {p.source}
-                  </span>
-                }
-              />
-            ))}
-          </PanelList>
-        </Card>
-      ) : null}
-
-      {/* THE ENEMY, and the honest state of it.
-          There is no structured competitor data in this product - competitors
-          appear only inside raw follow-up notes. So this card reports "not
-          scouted" and offers the analysis that would change that. A war room
-          that invents its enemies is worse than one that admits it cannot see
-          them, and the empty state is what gives the competition analysis a
-          reason to exist. */}
-      <Card className="p-sm">
-        <p className="text-label-md text-foreground">{BOARD_TEXT.reconTitle}</p>
-        <p className="text-muted-foreground mt-xs text-body-sm leading-relaxed">
-          {BOARD_TEXT.reconEmpty}
-        </p>
-        <Button size="sm" variant="outline" className="mt-sm w-full" disabled>
-          {BOARD_TEXT.reconCta}
-        </Button>
-        <p className="text-muted-foreground mt-xs text-body-sm">
-          {BOARD_TEXT.analysisNote}
-        </p>
-      </Card>
-
-      {data.recent.length > 0 ? (
-        <Card className="p-sm">
-          <p className="text-label-md text-foreground">
-            {BOARD_TEXT.recentTitle}
-          </p>
-          <PanelList className="mt-xs">
-            {data.recent.map((r) => (
-              <PanelItem
-                key={r.id}
-                main={
-                  <span className="text-muted-foreground text-body-sm">
-                    {r.text}
-                  </span>
-                }
-                trail={
-                  <span className="text-muted-foreground text-body-sm">
-                    {r.when}
-                  </span>
-                }
-              />
-            ))}
-          </PanelList>
-        </Card>
-      ) : null}
-    </div>
+    <AssistantDeck
+      capture={
+        <AgentCapture
+          data={data}
+          canRecord={canRecord}
+          onRecord={onRecord}
+          onAsk={onAsk}
+          onAttach={onAttach}
+        />
+      }
+      sections={sections}
+    />
   );
 }

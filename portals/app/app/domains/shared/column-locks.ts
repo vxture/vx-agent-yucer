@@ -226,8 +226,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0029. status_code is the anchor; the rest of the row - name, 状态描述,
   // order - is the workspace's to edit.
   "yucer_catalog.product_status": ["name", "description", "sort_order", "updated_at"],
-  "yucer_catalog.solution": ["name", "summary", "status", "updated_at"],
-  "yucer_catalog.solution_item": ["quantity"],
+  // 0031 added the customisation half: the scenario a solution is shaped for,
+  // and the manual order the roster is presented in.
+  "yucer_catalog.solution": ["name", "summary", "status", "scenario", "sort_order", "updated_at"],
+  // 0031. optional/note are the tailoring inside the combination.
+  "yucer_catalog.solution_item": ["quantity", "optional", "note"],
   // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table
   // was insert-only: a price could be entered and never corrected. Prices are
   // meant to be editable; the anchors (product, currency, workspace) are not.
