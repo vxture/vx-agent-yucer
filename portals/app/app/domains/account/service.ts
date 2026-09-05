@@ -209,33 +209,12 @@ export async function decisionChainsByOpportunity(
   );
 }
 
-/**
- * The decision chain FOR ONE DEAL - incr/0027, ADR-024 batch D.
- *
- * THE ONLY WAY TO GET A CHAIN. There is no account-level equivalent any more,
- * because there is no account-level role to build one from: a buying committee
- * is a fact about a purchase. The customer page asks this once per open deal
- * (`decisionChainsByOpportunity`) rather than asking a question nobody can
- * answer.
- */
-export async function decisionChainForOpportunity(
-  ctx: AccountContext,
-  accountId: string,
-  opportunityId: string,
-): Promise<RuleResult<ChainCoverage>> {
-  const gate = can(ctx.holder, ctx.entitlement, "account.graph.view", "data");
-  if (!gate.allowed) return denied(gate);
+// decisionChainForOpportunity IS GONE (2026-09-05 convergence). It returned
+// coverage without the PEOPLE, which is exactly the information downgrade the
+// chain convergence killed on the render side (four bare counts). Every caller
+// now uses decisionChainsByOpportunity, which returns both - for one deal,
+// pass a one-element list.
 
-  const account = await ctx.store.getAccount(ctx.workspaceId, accountId);
-  if (!account) return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
-
-  const [contacts, relations, links] = await Promise.all([
-    ctx.store.listContacts(ctx.workspaceId, accountId),
-    ctx.store.listRelations(ctx.workspaceId, accountId),
-    ctx.store.listOpportunityContacts(ctx.workspaceId, opportunityId),
-  ]);
-  return ok(analyzeChain(chainForOpportunity(contacts, links), relations));
-}
 
 /**
  * What this deal has already said about who is who.

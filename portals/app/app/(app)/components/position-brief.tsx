@@ -36,7 +36,6 @@ export interface PositionProposal {
 }
 
 export interface PositionBriefProps {
-  readonly chain: readonly PositionFact[];
   readonly projects: readonly {
     id: string;
     name: string;
@@ -54,7 +53,6 @@ export interface PositionBriefProps {
 }
 
 export async function PositionBrief({
-  chain,
   projects,
   rivalMentions,
   problems,
@@ -71,24 +69,12 @@ export async function PositionBrief({
           description={POSITION_TEXT.externalWhy}
         />
 
-        <div className="mt-md">
-          <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.chain}</p>
-          <div className="mt-xs flex flex-wrap gap-lg">
-            {chain.map((f) => (
-              <div key={f.label}>
-                <div
-                  className={[
-                    "text-label-lg tabular-nums",
-                    f.tone ? LEVEL_INK[f.tone] : "text-foreground",
-                  ].join(" ")}
-                >
-                  {f.value}
-                </div>
-                <div className="text-muted-foreground text-body-sm">{f.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* THE CHAIN COUNTS BLOCK IS GONE (2026-09-05 convergence). Four bare
+            numbers were an information downgrade of the full DecisionChain -
+            "missing 1" without saying WHO - and this page rendered the chain
+            TWICE in two vocabularies (the war-room cell said unreachable while
+            the counts showed a coach; both true, unreadable side by side). The
+            chain now has ONE full rendering, mounted right below this brief. */}
 
         <div className="border-border mt-md border-t pt-md">
           <p className="text-muted-foreground text-body-sm">

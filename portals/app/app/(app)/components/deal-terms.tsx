@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   Button,
+  DialogForm,
   Input,
   Label,
   NativeSelect,
@@ -20,16 +21,20 @@ import {
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
 
-// What the deal is worth, and how sure we are.
+// What the deal is worth, and how sure we are - A DIALOG since 2026-09-05.
 //
-// This is the surface that makes the win-rate OVERRIDE reachable. The stage
-// machine's rule is that a human's number wins and the machine stops rewriting
-// it - but until someone can actually type one, that rule only ever expresses
-// itself as the machine declining to overwrite a value nothing could produce.
+// The analysis behind the change: these are five independent single-field
+// facts, each a quick correction made WHILE LOOKING at the metrics the page
+// already shows - not a coherent creation flow. A page would add a round trip
+// to a one-field tweak; a permanent inline form was a form squatting on a
+// display page. The ruling's own category is "flow operation → dialog", and
+// this is one.
 //
-// A closed deal shows the fields disabled rather than hidden: "the win rate is
-// fixed at 100% because this is won" is information, and a vanished field is
-// not.
+// Everything the inline form knew survives verbatim:
+//   - only what the user CHANGED is sent (dirty-patch), so an untouched field
+//     can never carry a refusal for the whole save;
+//   - a closed deal's win rate is fixed by the stage machine and never sent;
+//   - the category select offers only the pairings planCategoryChange accepts.
 
 export interface DealTermsProps {
   readonly opportunityId: string;
@@ -77,12 +82,8 @@ export function DealTerms({
     expectedCloseAt: asDateInput(expectedCloseAt),
     forecastCategory,
   };
-  const [form, setForm] = useState({
-    amount: amount == null ? "" : String(amount),
-    probability: probability == null ? "" : String(probability),
-    expectedCloseAt: asDateInput(expectedCloseAt),
-    forecastCategory,
-  });
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -94,16 +95,13 @@ export function DealTerms({
   if (!canEdit) {
     return (
       <Section title={OPPORTUNITY_TEXT.termsTitle}>
-        <StatusBadge tone="neutral">
-          {OPPORTUNITY_TEXT.termsReadOnly}
-        </StatusBadge>
+        <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsReadOnly}</StatusBadge>
       </Section>
     );
   }
 
   function save() {
     setError(null);
-    setSaved(false);
     startTransition(() => {
       // Only what the user actually CHANGED. Sending every field meant an
       // untouched one could carry a refusal for the whole save: a deal closed
@@ -123,96 +121,105 @@ export function DealTerms({
         expectedCloseAt: dirty("expectedCloseAt"),
         forecastCategory: canCategorize ? dirty("forecastCategory") : undefined,
       }).then((r) => {
-        if (!r.ok)
-          setError(
-            OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
-          );
-        else setSaved(true);
+        if (!r.ok) {
+          setError(OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+        } else {
+          setSaved(true);
+          setOpen(false);
+        }
       });
     });
   }
 
   return (
-    <Section
-      title={OPPORTUNITY_TEXT.termsTitle}
-      description={OPPORTUNITY_TEXT.termsDescription}
-    >
-      <Label htmlFor="terms-amount">
-        {OPPORTUNITY_TEXT.termsAmount} ({currency})
-      </Label>
-      <Input
-        id="terms-amount"
-        inputMode="decimal"
-        value={form.amount}
-        onChange={(e) => setForm({ ...form, amount: e.target.value })}
-        disabled={pending}
-      />
+    <Section title={OPPORTUNITY_TEXT.termsTitle} description={OPPORTUNITY_TEXT.termsDescription}>
+      <div className="flex flex-wrap items-center gap-sm">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            // Reopen from the CURRENT server values, not from a stale draft: a
+            // save (or someone else's) may have moved them since last time.
+            setForm(initial);
+            setError(null);
+            setSaved(false);
+            setOpen(true);
+          }}
+        >
+          {OPPORTUNITY_TEXT.termsOpen}
+        </Button>
+        {saved ? <StatusBadge tone="success">{OPPORTUNITY_TEXT.termsSaved}</StatusBadge> : null}
+      </div>
 
-      <Label htmlFor="terms-probability">
-        {OPPORTUNITY_TEXT.termsProbability}
-      </Label>
-      <Input
-        id="terms-probability"
-        inputMode="numeric"
-        value={closed ? String(DEFAULT_PROBABILITY[stage]) : form.probability}
-        onChange={(e) => setForm({ ...form, probability: e.target.value })}
-        disabled={pending || closed}
-      />
-      {closed ? (
-        <StatusBadge tone="neutral">
-          {OPPORTUNITY_TEXT.termsTerminalLocked}
-        </StatusBadge>
-      ) : null}
+      <DialogForm
+        open={open}
+        onOpenChange={setOpen}
+        title={OPPORTUNITY_TEXT.termsTitle}
+        description={OPPORTUNITY_TEXT.termsDescription}
+        submitLabel={OPPORTUNITY_TEXT.termsSubmit}
+        submitting={pending}
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <Label htmlFor="terms-amount">
+          {OPPORTUNITY_TEXT.termsAmount} ({currency})
+        </Label>
+        <Input
+          id="terms-amount"
+          inputMode="decimal"
+          value={form.amount}
+          onChange={(e) => setForm({ ...form, amount: e.target.value })}
+          disabled={pending}
+        />
 
-      <Label htmlFor="terms-close">{OPPORTUNITY_TEXT.termsExpectedClose}</Label>
-      <Input
-        id="terms-close"
-        type="date"
-        value={form.expectedCloseAt}
-        onChange={(e) => setForm({ ...form, expectedCloseAt: e.target.value })}
-        disabled={pending}
-      />
+        <Label htmlFor="terms-probability">{OPPORTUNITY_TEXT.termsProbability}</Label>
+        <Input
+          id="terms-probability"
+          inputMode="numeric"
+          value={closed ? String(DEFAULT_PROBABILITY[stage]) : form.probability}
+          onChange={(e) => setForm({ ...form, probability: e.target.value })}
+          disabled={pending || closed}
+        />
+        {closed ? (
+          <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsTerminalLocked}</StatusBadge>
+        ) : null}
 
-      {canCategorize ? (
-        <>
-          <Label htmlFor="terms-forecast">
-            {OPPORTUNITY_TEXT.termsForecast}
-          </Label>
-          <NativeSelect
-            id="terms-forecast"
-            value={form.forecastCategory}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                forecastCategory: e.target.value as ForecastCategory,
-              })
-            }
-            disabled={pending}
-          >
-            {FORECAST_CATEGORIES.map((c) => (
-              // `closed` is offered only on a terminal deal, and the open three only
-              // on an open one - planCategoryChange refuses the other pairings in
-              // both directions, so offering them would be offering a refusal.
-              <option
-                key={c}
-                value={c}
-                disabled={c === "closed" ? !closed : closed}
-              >
-                {FORECAST_LABEL[c]}
-              </option>
-            ))}
-          </NativeSelect>
-        </>
-      ) : null}
+        <Label htmlFor="terms-close">{OPPORTUNITY_TEXT.termsExpectedClose}</Label>
+        <Input
+          id="terms-close"
+          type="date"
+          value={form.expectedCloseAt}
+          onChange={(e) => setForm({ ...form, expectedCloseAt: e.target.value })}
+          disabled={pending}
+        />
 
-      <Button onClick={save} disabled={pending}>
-        {OPPORTUNITY_TEXT.termsSubmit}
-      </Button>
+        {canCategorize ? (
+          <>
+            <Label htmlFor="terms-forecast">{OPPORTUNITY_TEXT.termsForecast}</Label>
+            <NativeSelect
+              id="terms-forecast"
+              value={form.forecastCategory}
+              onChange={(e) =>
+                setForm({ ...form, forecastCategory: e.target.value as ForecastCategory })
+              }
+              disabled={pending}
+            >
+              {FORECAST_CATEGORIES.map((c) => (
+                // `closed` is offered only on a terminal deal, and the open
+                // three only on an open one - planCategoryChange refuses the
+                // other pairings in both directions, so offering them would be
+                // offering a refusal.
+                <option key={c} value={c} disabled={c === "closed" ? !closed : closed}>
+                  {FORECAST_LABEL[c]}
+                </option>
+              ))}
+            </NativeSelect>
+          </>
+        ) : null}
 
-      {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-      {saved ? (
-        <StatusBadge tone="success">{OPPORTUNITY_TEXT.termsSaved}</StatusBadge>
-      ) : null}
+        {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+      </DialogForm>
     </Section>
   );
 }
