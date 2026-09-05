@@ -36,7 +36,6 @@ import { ContactRoster } from "../../components/contact-roster";
 import { InteractionTimeline } from "../../components/interaction-timeline";
 import { CommitmentList } from "../../components/commitment-list";
 import { RelationshipEvidencePanel } from "../../components/relationship-evidence";
-import { RecordFollowUp } from "../../components/record-follow-up";
 import {
   listCommitments,
   listInteractions,
@@ -61,10 +60,8 @@ import {
   designateAccountTier,
   linkAccountContacts,
   recomputeAccountHealth,
-  saveContact,
 } from "../actions";
 import {
-  addCommitment,
   recordFollowUp,
   settleCommitment,
 } from "../field-actions";
@@ -339,7 +336,7 @@ export default async function AccountDetailPage({
                 "ui",
               ).allowed
             }
-            onSave={saveContact}
+            editHref={`/contact/new?account=${id}&back=/account/${id}`}
           />
 
           {/* Who is on this theatre. The chart and the reachability verdict,
@@ -459,7 +456,7 @@ export default async function AccountDetailPage({
                 }),
               )}
               canWrite={canWrite}
-              onCreate={addCommitment}
+              captureHref={`/capture?account=${id}&back=/account/${id}`}
               onSettle={settleCommitment}
             />
           ) : null}
