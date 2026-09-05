@@ -68,14 +68,13 @@ const NOT_VERBS = new Set(["denied", "ok", "fail"]);
  * push files to stop exporting the pieces their tests need.
  */
 const KNOWN_TEST_ONLY: Record<string, string> = {
-  // THE PRICE ASSISTANT IS PAUSED, NOT DELETED (owner, 2026-09-05: 暂不使用ai).
-  // The price book's page form - the only caller of both - became a dialog
-  // with no assist panel; these two rules kept their tests and come back with
-  // the AI work. Named rather than deleted because they carry knowledge the
-  // dialog does not: the workspace's own median floor ratio, and which
-  // sellable products are still unpriced.
-  "catalog/suggest.suggestFloor": "price assist paused by the owner; returns with the AI batch",
-  "catalog/suggest.unpricedProducts": "price assist paused by the owner; returns with the AI batch",
+  // `suggestFloor` and `unpricedProducts` were listed here for ONE afternoon
+  // (2026-09-05): the price form became a dialog with no assist panel, and
+  // both lost their caller. Neither is here now, and for two different
+  // reasons worth keeping apart - suggestFloor came back the same day, as the
+  // median the price ANALYSIS reasons from; unpricedProducts was deleted,
+  // because the analysis answers "on sale with no price" over its own inputs
+  // and two answers to one question is how they drift apart.
   // ---------------------------------------------------------------------
   // THE SIX DUPLICATE GUARDS ARE GONE (2026-08-31). Each refused a patch
   // touching a frozen column, which `column-locks.assertWritable` already did

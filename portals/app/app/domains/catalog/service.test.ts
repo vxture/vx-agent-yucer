@@ -13,6 +13,7 @@ import {
   moveProduct,
   moveProductStatus,
   moveProductType,
+  removePrice,
   removeProduct,
   removeProductStatus,
   removeProductType,
@@ -413,4 +414,48 @@ test("a fresh tenant gets the starter type vocabulary; a gutted one stays gutted
   });
   const c2 = ctx("sales_ops", "free", gutted);
   assert.deepEqual(unwrap(await listProductTypes(c2)), []);
+});
+
+// --- deleting a price entry (owner ruling 2026-09-05) ------------------------
+
+test("the price in force refuses deletion; the one it replaced allows it", async () => {
+  const store = seeded(); // p1 has two entries: 2026-01 (800/800) and 2026-06
+  const c = ctx("sales_ops", "free", store);
+
+  const inForce = await removePrice(c, { priceId: "e2" });
+  assert.equal(!inForce.ok && inForce.violations[0]!.code, "price_in_force");
+
+  const superseded = await removePrice(c, { priceId: "e1" });
+  assert.equal(superseded.ok, true);
+  assert.equal(unwrap(await listPrices(c)).some((e) => e.id === "e1"), false);
+});
+
+test("a superseded entry a discount signature cites survives deletion", async () => {
+  const store = seeded();
+  store.seed({
+    approvals: [
+      {
+        id: "appr1",
+        workspaceId: WS,
+        opportunityId: "opp1",
+        productId: "p1",
+        unitPrice: 700,
+        currency: "CNY",
+        // The floor that was in force at signing - e1's.
+        floorPrice: 800,
+        reason: "strategic",
+        approvedBySub: "usr_boss",
+        approvedAt: new Date("2026-02-01"),
+      },
+    ],
+  });
+  const c = ctx("sales_ops", "free", store);
+  const r = await removePrice(c, { priceId: "e1" });
+  assert.equal(!r.ok && r.violations[0]!.code, "price_signed");
+});
+
+test("deleting a price refuses without the pricing permission", async () => {
+  const c = ctx("sales_rep", "enterprise", seeded());
+  const r = await removePrice(c, { priceId: "e1" });
+  assert.equal(!r.ok && r.violations[0]!.code, "permission_denied");
 });

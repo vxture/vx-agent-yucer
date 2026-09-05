@@ -1,10 +1,11 @@
 import { StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
+import { moduleIcon } from "../lib/navigation";
 import { CatalogPage } from "../catalog/shell";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { PriceBook } from "../components/price-book";
-import { savePrice } from "../catalog/actions";
+import { deletePriceEntry, savePrice } from "../catalog/actions";
 
 // D9 price book - the catalogue module page's pattern and layout, applied
 // here on the owner's 2026-09-05 ruling: the collapsible header card with its
@@ -85,7 +86,7 @@ export default async function PricebookPage() {
         return (
           <>
             <ModuleHeadline
-              icon="currency-cny"
+              icon={moduleIcon("pricebook")}
               title={CATALOG_TEXT.pricebook}
               description={CATALOG_TEXT.pricebookWhy}
               tags={
@@ -108,6 +109,7 @@ export default async function PricebookPage() {
               superseded={superseded}
               canPrice={canPrice}
               onSave={savePrice}
+              onDelete={deletePriceEntry}
             />
           </>
         );

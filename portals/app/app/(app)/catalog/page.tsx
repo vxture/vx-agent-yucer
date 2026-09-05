@@ -6,6 +6,7 @@ import { ModuleHeadline, type HeadlineStat } from "../components/module-headline
 import { ProductRoster } from "../components/product-roster";
 import { changeProductStatus, deleteProduct, moveProductRow } from "./actions";
 import { getMessages } from "../lib/i18n/server";
+import { moduleIcon } from "../lib/navigation";
 
 // D9 products - the catalogue module page, rebuilt to the owner's 2026-09-05
 // ruling: the header is the board's collapsible card (name, roster tags, gear
@@ -64,7 +65,7 @@ export default async function ProductsPage() {
         return (
           <>
             <ModuleHeadline
-              icon="package"
+              icon={moduleIcon("catalog")}
               title={CATALOG_TEXT.title}
               description={CATALOG_TEXT.description}
               tags={

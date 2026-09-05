@@ -270,3 +270,43 @@ export function approvalFor<A extends PricedApproval>(
     ) ?? null
   );
 }
+
+/**
+ * May this price entry be DELETED?
+ *
+ * THE ENTRY IN FORCE NEVER. It is what every quote reads; deleting it
+ * un-prices the product silently, and an unpriced product stops being
+ * flagged for discounts rather than stopping being sold.
+ *
+ * A SUPERSEDED ENTRY ONLY IF NO SIGNATURE LEANS ON IT. line_discount_approval
+ * copies in the floor that was in force at signing (ADR-019), so an approval
+ * carrying this entry's floor is a signature whose justification IS this row -
+ * deleting it leaves the signature standing on a number nobody can find.
+ *
+ * What remains deletable is exactly what should be: a typo re-priced minutes
+ * later, or a future-dated change somebody thought better of.
+ */
+export function planPriceRemoval(input: {
+  readonly inForce: boolean;
+  readonly signaturesOnFloor: number;
+}): RuleResult<true> {
+  if (input.inForce) {
+    return fail(
+      violation(
+        "price_in_force",
+        "this is the price the product is quoted at; re-price it instead",
+        "priceId",
+      ),
+    );
+  }
+  if (input.signaturesOnFloor > 0) {
+    return fail(
+      violation(
+        "price_signed",
+        `${input.signaturesOnFloor} discount signature(s) cite this floor - deleting it would leave them unexplained`,
+        "priceId",
+      ),
+    );
+  }
+  return ok(true);
+}

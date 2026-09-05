@@ -3,6 +3,7 @@ import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import {
   planPrice,
+  planPriceRemoval,
   planProduct,
   planSolution,
   type SolutionItemDraft,
@@ -10,6 +11,7 @@ import {
 } from "./lib/pricing";
 import { planMove, planRemoval } from "./lib/lifecycle";
 import { DEFAULT_TYPE_VOCABULARY, planProductType, planTypeRemoval } from "./lib/type-vocab";
+import { analysePrices, type PriceAdvice } from "./lib/price-advice";
 import {
   planProductStatusChange,
   planStatus,
@@ -605,4 +607,116 @@ export async function setPrice(
   if (!plan.ok) return plan as RuleResult<PriceEntryRecord>;
 
   return ok(await ctx.store.appendPrice(ctx.workspaceId, plan.value));
+}
+
+/**
+ * Delete one price entry.
+ *
+ * `catalog.pricebook.upsert`, the same permission that sets one: whoever may
+ * move the floor may remove a floor they just typed wrong. What they may NOT
+ * remove is the row a quote reads or a signature cites - planPriceRemoval
+ * decides, and both refusals name what stands in the way.
+ */
+export async function removePrice(
+  ctx: CatalogContext,
+  input: { priceId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const prices = await ctx.store.listPrices(ctx.workspaceId);
+  const entry = prices.find((e) => e.id === input.priceId);
+  if (!entry) return fail(violation("not_found", "no such price entry", "priceId"));
+
+  // In force = the newest entry for this product+currency that has taken
+  // effect. Recomputed here rather than trusted from the caller: the interface
+  // disables the control, the service decides.
+  const now = Date.now();
+  const inForce =
+    prices
+      .filter(
+        (e) =>
+          e.productId === entry.productId &&
+          e.currency === entry.currency &&
+          e.effectiveAt.getTime() <= now,
+      )
+      .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime())[0]?.id === entry.id;
+
+  const approvals = await ctx.store.allApprovals(ctx.workspaceId);
+  const signaturesOnFloor = approvals.filter(
+    (a) =>
+      a.productId === entry.productId &&
+      a.currency === entry.currency &&
+      a.floorPrice === entry.floorPrice,
+  ).length;
+
+  const plan = planPriceRemoval({ inForce, signaturesOnFloor });
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removePrice(ctx.workspaceId, input.priceId);
+  if (!removed) return fail(violation("not_found", "no such price entry", "priceId"));
+  return ok(true);
+}
+
+/**
+ * What the price book has to say about itself.
+ *
+ * GATED ON THE PRICE BOOK'S OWN READ, not on the write: analysis is reading
+ * the floors and reasoning out loud, and a member who may see floors may see
+ * what they imply. Acting on a recommendation is a separate act behind
+ * `catalog.pricebook.upsert`, as every price write is.
+ *
+ * HISTORY IS NOT ANALYSED (owner, 2026-09-05): a superseded price is the
+ * record of a decision already taken, and advising on it would be advising
+ * about the past. Only the entry in force per product is considered.
+ *
+ * `productIds` narrows to a selection; omitted, every sellable product is
+ * looked at - which is what the dock's own button asks for.
+ */
+export async function analysePriceBook(
+  ctx: CatalogContext,
+  input: { productIds?: readonly string[] } = {},
+): Promise<RuleResult<PriceAdvice[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const [products, statuses, prices, approvals] = await Promise.all([
+    ctx.store.listProducts(ctx.workspaceId),
+    ensureStatusVocab(ctx),
+    ctx.store.listPrices(ctx.workspaceId),
+    ctx.store.allApprovals(ctx.workspaceId),
+  ]);
+
+  // Only what can be sold is expected to carry a price: advising that a
+  // retired product is unpriced would be noise the reader has to learn to
+  // ignore, and a list you learn to ignore stops being read at all.
+  const onSaleId = statuses.find((r) => r.statusCode === "active")?.id;
+  let sellable = products.filter((p) => p.statusId === onSaleId);
+  if (input.productIds && input.productIds.length > 0) {
+    const wanted = new Set(input.productIds);
+    sellable = sellable.filter((p) => wanted.has(p.id));
+  }
+
+  const now = Date.now();
+  const inForce = new Map<string, (typeof prices)[number]>();
+  for (const e of prices) {
+    if (e.effectiveAt.getTime() > now) continue;
+    const key = `${e.productId}::${e.currency}`;
+    const held = inForce.get(key);
+    if (!held || held.effectiveAt.getTime() < e.effectiveAt.getTime()) inForce.set(key, e);
+  }
+
+  const signaturesByProduct = new Map<string, number>();
+  for (const a of approvals) {
+    signaturesByProduct.set(a.productId, (signaturesByProduct.get(a.productId) ?? 0) + 1);
+  }
+
+  return ok(
+    analysePrices({
+      products: sellable,
+      current: [...inForce.values()],
+      allPrices: prices,
+      signaturesByProduct,
+    }),
+  );
 }

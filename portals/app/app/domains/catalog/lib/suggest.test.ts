@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { suggestFloor, unpricedProducts } from "./suggest";
+import { suggestFloor } from "./suggest";
 import { knownValues, suggestNextCode } from "../../shared/suggest";
 import type { ProductRecord } from "../store";
 
@@ -74,17 +74,4 @@ test("an entry with floor above list is data corruption, not evidence", () => {
   ]);
   assert.ok(r);
   assert.equal(r.ratioPct, 85, "the corrupt row must not have entered the median");
-});
-
-// --- unpricedProducts -------------------------------------------------------
-
-test("on sale and unpriced only - a retired product is not a gap", () => {
-  const p = (id: string, statusId: string): ProductRecord =>
-    ({ id, statusId }) as ProductRecord;
-  const out = unpricedProducts(
-    [p("a", "st_active"), p("b", "st_active"), p("c", "st_retired")],
-    [{ productId: "a" }],
-    "st_active",
-  );
-  assert.deepEqual(out.map((x) => x.id), ["b"]);
 });

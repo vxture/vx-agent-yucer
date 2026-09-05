@@ -315,3 +315,19 @@ export function lockoutReason(
   if (!isFullyLockedOut(resolved)) return null;
   return resolved.length === 0 ? "no_roles" : "no_entitlement";
 }
+
+/**
+ * The icon a module is registered with.
+ *
+ * Pages READ this rather than repeating a name: the nav table is where icons
+ * are corrected globally, and a page that hard-codes its own drifts from the
+ * menu the moment somebody fixes one (owner, 2026-09-05 - the price book was
+ * showing a currency mark while the menu had moved to scales).
+ */
+export function moduleIcon(key: string): NavIcon {
+  const entry =
+    DOMAIN_NAV_ENTRIES.find((e) => e.key === key) ??
+    MODULE_NAV_ENTRIES.find((e) => e.key === key);
+  if (!entry) throw new Error(`no nav entry for ${key} - icons come from the nav table`);
+  return entry.icon;
+}

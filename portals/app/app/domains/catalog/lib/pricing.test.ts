@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { priceLine, lineTotal, reconciles, byProduct } from "./pricing";
+import { priceLine, lineTotal, reconciles, byProduct, planPriceRemoval } from "./pricing";
 import type { PriceEntryRecord } from "../store";
 
 const entry = (list: number, floor: number): PriceEntryRecord => ({
@@ -56,4 +56,20 @@ test("rolling up by product is what the whole table is for", () => {
   assert.equal(rolled.get("a")!.amount, 150);
   assert.equal(rolled.get("a")!.lines, 2);
   assert.equal(rolled.get("b")!.quantity, 2);
+});
+
+// --- planPriceRemoval --------------------------------------------------------
+
+test("the price in force is never deletable", () => {
+  const r = planPriceRemoval({ inForce: true, signaturesOnFloor: 0 });
+  assert.equal(!r.ok && r.violations[0]!.code, "price_in_force");
+});
+
+test("a superseded entry a signature cites is not deletable either", () => {
+  const r = planPriceRemoval({ inForce: false, signaturesOnFloor: 2 });
+  assert.equal(!r.ok && r.violations[0]!.code, "price_signed");
+});
+
+test("a superseded entry nothing leans on is deletable - the typo case", () => {
+  assert.equal(planPriceRemoval({ inForce: false, signaturesOnFloor: 0 }).ok, true);
 });

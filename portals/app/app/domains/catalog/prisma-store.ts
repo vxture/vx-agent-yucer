@@ -109,6 +109,15 @@ export class PrismaCatalogStore implements CatalogStore {
     return row ? this.toPrice(row) : null;
   }
 
+  async removePrice(workspaceId: string, priceId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // Nothing FKs a price entry - the approval copies the floor rather than
+    // pointing at it (ADR-019), which is why the "a signature cites this row"
+    // refusal is the SERVICE's to make and cannot be left to the database.
+    const { count } = await p.priceBookEntry.deleteMany({ where: { workspaceId, id: priceId } });
+    return count > 0;
+  }
+
   async listPrices(workspaceId: string): Promise<PriceEntryRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.priceBookEntry.findMany({

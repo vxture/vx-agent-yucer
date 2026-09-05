@@ -213,6 +213,10 @@ export interface CatalogStore {
     input: Omit<PriceEntryRecord, "id" | "workspaceId">,
   ): Promise<PriceEntryRecord>;
 
+  /** Delete one price entry. The SERVICE refuses the in-force row and any
+   * entry a discount signature cites (planPriceRemoval). */
+  removePrice(workspaceId: string, priceId: string): Promise<boolean>;
+
   listLines(workspaceId: string, opportunityId: string): Promise<OpportunityLineRecord[]>;
   /** Every line in the workspace, for product-level rollups. */
   allLines(workspaceId: string): Promise<OpportunityLineRecord[]>;
@@ -523,6 +527,14 @@ export class InMemoryCatalogStore implements CatalogStore {
     return this.prices
       .filter((p) => p.workspaceId === workspaceId)
       .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime());
+  }
+
+  async removePrice(workspaceId: string, priceId: string): Promise<boolean> {
+    const before = this.prices.length;
+    this.prices = this.prices.filter(
+      (p) => !(p.workspaceId === workspaceId && p.id === priceId),
+    );
+    return this.prices.length < before;
   }
 
   async listLines(workspaceId: string, opportunityId: string): Promise<OpportunityLineRecord[]> {

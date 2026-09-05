@@ -70,7 +70,7 @@ test("every built module points at a real nav entry", () => {
  * rather than trusting the prose above it.
  */
 const REACHED_ELSEWHERE: Record<string, string> = {
-  copilot: "../components/agent-panel.tsx",
+  copilot: "../components/agent-capture.tsx",
 };
 
 test("every domain page is reachable from the launcher, exactly once", () => {

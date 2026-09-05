@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   ActionMenu,
@@ -18,6 +19,7 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
+import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
@@ -52,15 +54,30 @@ export interface PriceBookProps {
     listPrice: number;
     floorPrice: number;
   }) => Promise<{ ok: boolean; error?: string }>;
+  readonly onDelete: (priceId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
-/** The workspace's currency. The store keys prices by it and the column shows
- * it, but nothing here offers a choice: one currency, stated rather than
- * implied. */
+/** The workspace's currency. The store keys every price by it and the model
+ * keeps it, but this product quotes in one currency: the dialog offers no
+ * choice, so a column repeating "CNY" on every row was spending the product
+ * name's width on a constant. The column returns the day a second currency
+ * does. */
 const CURRENCY = "CNY";
 
-export function PriceBook({ products, current, superseded, canPrice, onSave }: PriceBookProps) {
+export function PriceBook({
+  products,
+  current,
+  superseded,
+  canPrice,
+  onSave,
+  onDelete,
+}: PriceBookProps) {
   const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const router = useRouter();
+  // The SELECTION drives analysis, and only the in-force table carries it:
+  // history is never analysed (owner, 2026-09-05), so a checkbox there would
+  // promise something the dock refuses to do.
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const [dialog, setDialog] = useState<{ productId: string; list: string; floor: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -120,13 +137,6 @@ export function PriceBook({ products, current, superseded, canPrice, onSave }: P
       ),
     },
     {
-      id: "currency",
-      header: CATALOG_TEXT.colCurrency,
-      width: "xs" as const,
-      align: "center" as const,
-      cell: (r: PriceEntryRecord) => r.currency,
-    },
-    {
       id: "list",
       header: CATALOG_TEXT.colList,
       width: "sm" as const,
@@ -155,41 +165,79 @@ export function PriceBook({ products, current, superseded, canPrice, onSave }: P
     {
       id: "effective",
       header: CATALOG_TEXT.colEffective,
-      width: "md" as const,
+      width: "lg" as const,
       align: "center" as const,
+      // To the second, and formatted from the ISO string rather than a locale:
+      // two prices minutes apart are a real sequence, and a locale format
+      // would render differently on the server than in the browser, which is
+      // a hydration mismatch rather than a nicety.
       cell: (r: PriceEntryRecord) => (
-        <span className="tabular-nums">{r.effectiveAt.toISOString().slice(0, 10)}</span>
+        <span className="tabular-nums">
+          {r.effectiveAt.toISOString().slice(0, 19).replace("T", " ")}
+        </span>
       ),
     },
   ];
 
-  const rowActions = canPrice
-    ? (row: PriceEntryRecord) => (
-        <ActionMenu
-          disabled={pending}
-          items={[
-            {
-              id: "reprice",
-              label: CATALOG_TEXT.reprice,
-              onSelect: () => {
-                setErr(null);
-                setDialog({
-                  productId: row.productId,
-                  list: String(row.listPrice),
-                  floor: String(row.floorPrice),
-                });
+  /** One menu per row. `inForce` decides what the row may do: the price a
+   * product is quoted at can be re-priced but never deleted, and a superseded
+   * row is the other way round. The delete item is RENDERED EITHER WAY,
+   * disabled with its reason - a control that vanishes teaches nothing, and
+   * the DS's `hint` exists for exactly this (禁用项不说理由，用户只能猜). The
+   * service decides again on submit; this is the interface agreeing with it. */
+  const rowActions = (inForce: boolean) =>
+    canPrice
+      ? (row: PriceEntryRecord) => (
+          <ActionMenu
+            disabled={pending}
+            items={[
+              ...(inForce
+                ? [
+                    {
+                      id: "reprice",
+                      label: CATALOG_TEXT.reprice,
+                      onSelect: () => {
+                        setErr(null);
+                        setDialog({
+                          productId: row.productId,
+                          list: String(row.listPrice),
+                          floor: String(row.floorPrice),
+                        });
+                      },
+                    },
+                  ]
+                : []),
+              {
+                id: "delete",
+                label: CATALOG_TEXT.opDelete,
+                danger: true as const,
+                separatorBefore: inForce,
+                disabled: inForce,
+                hint: inForce ? CATALOG_TEXT.priceInForceHint : undefined,
+                confirm: {
+                  verb: CATALOG_TEXT.opDelete,
+                  target: `${productName.get(row.productId) ?? ""} ${row.listPrice.toLocaleString()}/${row.floorPrice.toLocaleString()}`,
+                  consequence: CATALOG_TEXT.priceDeleteConsequence,
+                  onConfirm: () => run(onDelete(row.id)),
+                },
               },
-            },
-          ]}
-        />
-      )
-    : undefined;
+            ]}
+          />
+        )
+      : undefined;
 
   /* The catalogue rosters' geometry, so the module pages read as one product
-     (TD-022): fixed layout, the product column takes the lion's share, and
-     the action slot is the DS edge token. */
-  const table = (rows: readonly PriceEntryRecord[], acts?: typeof rowActions) => (
-    <div className="[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[28%] [&_thead_th:nth-child(3)]:w-[4rem] [&_thead_th:nth-child(6)]:w-[7.5rem] [&_thead_th:last-child]:w-control-3xl">
+     (TD-022): fixed layout, the DS edge token on the action column, and every
+     other column pinned EXCEPT the product name - the one column whose
+     content varies gets the remainder, which is what fixed layout gives an
+     unsized column. Counted from the RIGHT (nth-last-child) because the
+     selection column shifts every position when the table is selectable. */
+  const table = (
+    rows: readonly PriceEntryRecord[],
+    acts: ReturnType<typeof rowActions>,
+    selectable = false,
+  ) => (
+    <div className="[&_table]:table-fixed [&_thead_th:nth-last-child(2)]:w-[10.5rem] [&_thead_th:nth-last-child(3)]:w-[5.5rem] [&_thead_th:nth-last-child(4)]:w-[5.5rem] [&_thead_th:last-child]:w-control-3xl">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
@@ -197,6 +245,8 @@ export function PriceBook({ products, current, superseded, canPrice, onSave }: P
         rows={[...rows]}
         columns={columns}
         rowActions={acts}
+        selectedKeys={selectable ? selected : undefined}
+        onSelectionChange={selectable ? (keys) => setSelected([...keys]) : undefined}
         empty={<EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />}
       />
     </div>
@@ -206,23 +256,42 @@ export function PriceBook({ products, current, superseded, canPrice, onSave }: P
     <>
       <Section
         id="pricebook"
-        icon="currency-cny"
+        icon={moduleIcon("pricebook")}
         title={CATALOG_TEXT.priceCurrent}
         description={CATALOG_TEXT.priceCurrentWhy}
         action={
-          canPrice ? (
+          <span className="flex items-center gap-sm">
+            {/* Analysis of what is TICKED. Disabled until something is,
+                with the reason on the hover rather than a click that
+                silently does nothing. The dock's own button covers the
+                whole book; this one is the narrow question. */}
             <Button
+              variant="secondary"
+              disabled={selected.length === 0}
+              title={selected.length === 0 ? CATALOG_TEXT.analyzeSelectedHint : undefined}
               onClick={() => {
-                setErr(null);
-                setDialog({ productId: "", list: "", floor: "" });
+                const ids = current
+                  .filter((e) => selected.includes(e.id))
+                  .map((e) => e.productId);
+                router.push(`/pricebook?analyze=${ids.join(",")}`);
               }}
             >
-              {CATALOG_TEXT.newPrice}
+              {CATALOG_TEXT.analyzeSelected}
             </Button>
-          ) : undefined
+            {canPrice ? (
+              <Button
+                onClick={() => {
+                  setErr(null);
+                  setDialog({ productId: "", list: "", floor: "" });
+                }}
+              >
+                {CATALOG_TEXT.newPrice}
+              </Button>
+            ) : null}
+          </span>
         }
       >
-        {table(current, rowActions)}
+        {table(current, rowActions(true), true)}
         {canPrice ? null : (
           <p className="text-muted-foreground mt-sm text-body-sm">{CATALOG_TEXT.priceDenied}</p>
         )}
@@ -235,7 +304,7 @@ export function PriceBook({ products, current, superseded, canPrice, onSave }: P
           title={CATALOG_TEXT.priceHistory}
           description={CATALOG_TEXT.priceHistoryWhy}
         >
-          {table(superseded)}
+          {table(superseded, rowActions(false))}
         </Section>
       ) : null}
 

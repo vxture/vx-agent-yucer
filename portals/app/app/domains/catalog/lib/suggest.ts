@@ -44,15 +44,3 @@ export function suggestFloor(
   // Whole yuan. A floor of 8333.33 reads as arithmetic, not as a decision.
   return { floor: Math.round(listPrice * median), ratioPct: Math.round(median * 100) };
 }
-
-/** The products a new price entry is most useful for: on sale, and unpriced.
- * `onSaleStatusId` is the canonical 在售 row's uuid - a pure function cannot
- * see the workspace's vocabulary, so the caller resolves it. */
-export function unpricedProducts(
-  products: readonly ProductRecord[],
-  prices: readonly Pick<PriceEntryRecord, "productId">[],
-  onSaleStatusId: string | null,
-): ProductRecord[] {
-  const priced = new Set(prices.map((p) => p.productId));
-  return products.filter((p) => p.statusId === onSaleStatusId && !priced.has(p.id));
-}

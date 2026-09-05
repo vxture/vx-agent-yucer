@@ -10,6 +10,7 @@ import {
   removeProduct,
   removeProductStatus,
   removeProductType,
+  removePrice,
   saveProductStatus,
   setPrice,
   setProductStatus,
@@ -219,5 +220,14 @@ export async function moveStatusRow(
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   revalidatePath("/catalog/settings");
+  return { ok: true };
+}
+
+export async function deletePriceEntry(priceId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removePrice(ctx, { priceId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/pricebook");
   return { ok: true };
 }
