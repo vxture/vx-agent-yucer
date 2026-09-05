@@ -104,6 +104,13 @@ export function CatalogStatusConfig({
         </Button>
       }
     >
+      {/* table-fixed: the DS width tiers are MIN-widths, and under the
+          browser's auto table layout actual widths drift with content - the
+          two config tables then disagree on where the columns sit. Fixed
+          layout makes equal tiers equal widths, so the twin tables align
+          column for column (owner ruling: 列宽保持一致, 操作列对齐). A layout
+          constraint from outside, not a restyle of the DS. */}
+      <div className="[&_table]:table-fixed">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
@@ -188,6 +195,7 @@ export function CatalogStatusConfig({
           />
         )}
       />
+      </div>
 
       <DialogForm
         open={dialog !== null}
