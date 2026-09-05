@@ -29,7 +29,6 @@ import {
   DEMO_CONTACTS,
   DEMO_DEAL_NOTES,
   DEMO_DEV_PRODUCTS,
-  DEMO_PRODUCT_TYPES,
   DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
@@ -52,6 +51,7 @@ import {
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
+import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
   CommitmentRecord,
@@ -1458,11 +1458,13 @@ function proposal(
 // prices are therefore derived from each deal's total, and one line is priced
 // below its floor on purpose so the approval flag has a case.
 function seedCatalog(workspaceId: string, stores: DemoStores): void {
-  const types = DEMO_PRODUCT_TYPES.map((name, i) => ({
+  // The SHIPPED starter set, verbatim - the demo shows what a delivered
+  // tenant opens: nine types, four carrying products, the rest ready.
+  const types = DEFAULT_TYPE_VOCABULARY.map((d, i) => ({
     id: `ptp_demo_${i + 1}`,
     workspaceId,
-    typeCode: name,
-    name,
+    typeCode: d.typeCode,
+    name: d.name,
     sortOrder: i + 1,
     status: "active" as const,
   }));
