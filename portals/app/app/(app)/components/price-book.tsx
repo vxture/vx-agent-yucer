@@ -303,10 +303,11 @@ export function PriceBook({
         description={CATALOG_TEXT.priceCurrentWhy}
         action={
           <span className="flex items-center gap-sm">
-            {/* Analysis of what is TICKED. Disabled until something is,
-                with the reason on the hover rather than a click that
-                silently does nothing. The dock's own button covers the
-                whole book; this one is the narrow question. */}
+            {/* TWO DIFFERENT THINGS, named apart (owner, 2026-09-05).
+                The assessment judges what is TICKED and recommends - disabled
+                until something is ticked, with the reason on the hover rather
+                than a click that silently does nothing. The dock's own button
+                covers the whole book; this one is the narrow question. */}
             <Button
               variant="secondary"
               disabled={selected.length === 0}
@@ -318,7 +319,16 @@ export function PriceBook({
                 router.push(`/pricebook?analyze=${ids.join(",")}`);
               }}
             >
-              {CATALOG_TEXT.analyzeSelected}
+              {CATALOG_TEXT.assessSelected}
+            </Button>
+            {/* Price MOVEMENT analysis - a different question, and not built.
+                Shown disabled rather than hidden, on the same grounds the
+                agent panel shows its unconnected controls: a capability the
+                product intends is worth seeing, and the hover says why it
+                does nothing. The data it will read is already accruing -
+                incr/0030 records which price replaced which. */}
+            <Button variant="secondary" disabled title={CATALOG_TEXT.priceTrendSoon}>
+              {CATALOG_TEXT.priceTrend}
             </Button>
             {canPrice ? (
               <Button

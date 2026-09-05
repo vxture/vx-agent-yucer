@@ -639,11 +639,11 @@ export const CATALOG_TEXT = {
   repriceWhy: "价格只追加不改写：保存后成为该产品的当前价目，旧价目转入历史。",
   colProduct: "产品",
   // 价格分析（owner 裁定 2026-09-05）：分析在侧栏，每条建议自带采纳/忽略。
-  adviceTitle: "价格分析",
+  adviceTitle: "智能定价评估",
   adviceScopeAll: "全部在售价目",
   adviceScopeSelection: "已选行",
   adviceClear: "这批价目没有需要处理的地方。",
-  adviceRunAll: "分析全部价目",
+  adviceRunAll: "评估全部价目",
   adviceAccept: "采纳",
   adviceIgnore: "忽略",
   adviceIgnored: (n: number) => `已忽略 ${n} 条`,
@@ -659,8 +659,13 @@ export const CATALOG_TEXT = {
   adviceNoNumberWhy: "需要人来定标价与底价，分析只能指出缺口",
   adviceOpenCatalogue: "前往产品目录",
   adviceOpenHistory: "查看历史价目",
-  analyzeSelected: "价格分析",
-  analyzeSelectedHint: "先在左侧勾选要分析的价目",
+  // 两件不同的事，名字分开（owner 裁定 2026-09-05）：
+  // 「智能定价评估」按规则给出建议并可一键采纳；
+  // 「价格分析」是价格随时间变化的分析，开发中——incr/0030 的继承链就是它的数据基础。
+  assessSelected: "智能定价评估",
+  analyzeSelectedHint: "先在左侧勾选要评估的价目",
+  priceTrend: "价格分析",
+  priceTrendSoon: "价格变化分析开发中：继承链数据已在记录，界面还没有接通",
   priceInForceHint: "当前生效的价格不能删除——请用「重新定价」追加一条新的",
   priceDeleteConsequence: "删除不可恢复。被折扣签字引用过的价格会被拒绝——那条记录是签字的依据。",
   listHint: "对外报出的价格",
