@@ -3,7 +3,6 @@ import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
 import { SolutionSection } from "../components/catalog-panels";
-import { saveSolution } from "../catalog/actions";
 
 // D9 solutions - a module page since 2026-08-30.
 //
@@ -32,7 +31,6 @@ export default async function SolutionPage() {
             canSolution={
               can(authz, entitlement, "catalog.solution.upsert", "ui").allowed
             }
-            onSaveSolution={saveSolution}
           />
         </>
       )}

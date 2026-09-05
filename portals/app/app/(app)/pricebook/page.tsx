@@ -3,7 +3,6 @@ import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { CatalogPage } from "../catalog/shell";
 import { PriceSection } from "../components/catalog-panels";
-import { savePrice } from "../catalog/actions";
 
 // D9 price book - a module page since 2026-08-30.
 //
@@ -33,7 +32,6 @@ export default async function PricebookPage() {
             canPrice={
               can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed
             }
-            onSavePrice={savePrice}
           />
         </>
       )}

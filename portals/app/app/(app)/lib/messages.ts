@@ -458,7 +458,41 @@ export const DS_LABELS = {
   toastDismiss: "关闭通知",
 } as const;
 
+/**
+ * 表单页旁的助手 - owner 裁定 2026-09-05：新建/编辑是独立页面，页面旁边站着助手。
+ *
+ * 每条建议都带理由（label 说建议什么，reason 说凭什么），一键应用、从不默认应用——
+ * ADR-003 的边界在表单尺度上的复述：助手提议，人裁决。
+ */
+export const ASSIST_TEXT = {
+  title: "智能填写",
+  description: "根据工作区里已有的数据给出建议。每条都写明依据，点了才生效。",
+  nothing: "暂时没有可建议的内容。",
+  apply: "采用",
+  codeNext: (code: string) => `编码建议：${code}`,
+  codeNextWhy: "延续你们现有编码序列的下一个号。",
+  categoryKnown: (c: string) => `已有类目：${c}`,
+  categoryKnownWhy: "沿用已有类目，报表按类目汇总时不会因写法不同而分家。",
+  unitKnown: (u: string) => `常用单位：${u}`,
+  unitKnownWhy: "目录里最常用的单位。",
+  bundleAdd: (name: string) => `加入 ${name}`,
+  bundleAddWhy: "在售且尚未加入本方案的产品。",
+  unpriced: (name: string) => `${name} 还没有定价`,
+  unpricedWhy: "没有价格的产品无法报价——这正是本页要补的缺口。",
+  floorRatio: (floor: string) => `底价建议：${floor}`,
+  floorRatioWhy: (pct: number) =>
+    `按你们已有定价的中位底价率（约列表价的 ${pct}%）推算。底价是商业决定，这里只是填上数字，签字的仍是你。`,
+} as const;
+
 export const CATALOG_TEXT = {
+  // 三个新建页 - owner 裁定 2026-09-05：新建从列表页拆出，独立成页。
+  newProduct: "新建产品",
+  newProductWhy: "产品是目录的最小单位：报价的行项、方案的组成都指向它。",
+  newSolution: "新建方案",
+  newSolutionWhy: "方案是一组产品的打包卖法。空方案只是个名字，至少放进一个产品。",
+  newPrice: "设定价格",
+  newPriceWhy: "列表价是对外的说法，底价是内部的纪律——低于底价的行项会被标记待批。",
+  newEntry: "新建",
   title: "产品目录",
   description:
     "目录是被所有域引用的维度：商机、合同、交付、信号匹配都读它，而它谁都不写。",
