@@ -1,44 +1,139 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  isSystemStatus,
+  mergeStatusVocab,
   planMove,
   planProductType,
   planRemoval,
-  planStatusChange,
+  planStatusMove,
+  planStatusRemoval,
+  planStatusVocab,
+  planTypeRemoval,
+  type StatusVocabRow,
 } from "./lifecycle";
 
-// --- planStatusChange --------------------------------------------------------
+const row = (over: Partial<StatusVocabRow> & { statusCode: string }): StatusVocabRow => ({
+  id: `id_${over.statusCode}`,
+  name: null,
+  behavior: "active",
+  sortOrder: 0,
+  status: "active",
+  ...over,
+});
+
+// --- planStatusMove ----------------------------------------------------------
+
+const DEV = row({ statusCode: "in_development", behavior: "in_development" });
+const ACTIVE = row({ statusCode: "active", behavior: "active" });
+const RETIRED = row({ statusCode: "retired", behavior: "retired" });
 
 test("launches, retires, reinstates and abandons", () => {
-  const launch = planStatusChange("in_development", "active");
+  const launch = planStatusMove(DEV, ACTIVE);
   assert.equal(launch.ok && launch.value, "active");
-  assert.equal(planStatusChange("active", "retired").ok, true);
-  assert.equal(planStatusChange("retired", "active").ok, true);
-  assert.equal(planStatusChange("in_development", "retired").ok, true);
+  assert.equal(planStatusMove(ACTIVE, RETIRED).ok, true);
+  assert.equal(planStatusMove(RETIRED, ACTIVE).ok, true);
+  assert.equal(planStatusMove(DEV, RETIRED).ok, true);
 });
 
-test("refuses a no-op with its own code", () => {
-  const r = planStatusChange("active", "active");
-  assert.equal(!r.ok && r.violations[0]!.code, "status_unchanged");
+test("moves between same-behavior rows are legal relabelings", () => {
+  const presale = row({ statusCode: "presale", behavior: "active" });
+  assert.equal(planStatusMove(ACTIVE, presale).ok, true);
+  assert.equal(planStatusMove(presale, ACTIVE).ok, true);
 });
 
-test("never lets a row slide back into development", () => {
-  // The quotable set must only shrink through `retired`, which is visible - a
-  // product silently back in development would vanish from quoting with no
-  // record of the retirement decision.
-  for (const from of ["active", "retired"] as const) {
-    const r = planStatusChange(from, "in_development");
+test("refuses a no-op and a disabled target with their own codes", () => {
+  const same = planStatusMove(ACTIVE, ACTIVE);
+  assert.equal(!same.ok && same.violations[0]!.code, "status_unchanged");
+  const off = planStatusMove(ACTIVE, row({ statusCode: "presale", status: "retired" }));
+  assert.equal(!off.ok && off.violations[0]!.code, "status_disabled");
+});
+
+test("never lets a row slide back into development BEHAVIOR", () => {
+  // The quotable set must only shrink through the shelf, which is visible -
+  // and the rule reads behavior, so a workspace-added dev status is just as
+  // closed a door as the system one.
+  const devish = row({ statusCode: "prototyping", behavior: "in_development" });
+  for (const from of [ACTIVE, RETIRED]) {
+    const r = planStatusMove(from, devish);
     assert.equal(!r.ok && r.violations[0]!.code, "development_is_birth_state");
   }
+  // ...but dev-to-dev is a relabeling, not a slide back.
+  assert.equal(planStatusMove(DEV, devish).ok, true);
 });
 
-// --- planRemoval -------------------------------------------------------------
+// --- the vocabulary merge ----------------------------------------------------
 
-test("allows deleting an unreferenced product", () => {
+test("mergeStatusVocab fills untouched system codes with virtual defaults", () => {
+  const merged = mergeStatusVocab([row({ statusCode: "active", sortOrder: 2, name: "在售中" })]);
+  assert.deepEqual(
+    merged.map((r) => r.statusCode),
+    ["in_development", "active", "retired"],
+  );
+  assert.equal(merged[0]!.id, null, "an untouched code is virtual");
+  assert.equal(merged[1]!.name, "在售中", "the stored row wins");
+});
+
+test("isSystemStatus is exactly the three seeded codes", () => {
+  assert.equal(isSystemStatus("active"), true);
+  assert.equal(isSystemStatus("presale"), false);
+});
+
+// --- planStatusVocab ---------------------------------------------------------
+
+test("an added status needs code, name and behavior", () => {
+  const ok = planStatusVocab({ statusCode: " presale ", name: " 预售 ", behavior: "active", status: "active" });
+  assert.equal(ok.ok && ok.value.statusCode, "presale");
+  const noName = planStatusVocab({ statusCode: "presale", name: " ", behavior: "active", status: "active" });
+  assert.equal(!noName.ok && noName.violations[0]!.code, "name_required");
+  const noBehavior = planStatusVocab({ statusCode: "presale", name: "预售", behavior: "" as never, status: "active" });
+  assert.equal(!noBehavior.ok && noBehavior.violations[0]!.code, "behavior_required");
+});
+
+test("a system row may clear its name back to the default", () => {
+  const r = planStatusVocab({ statusCode: "active", name: "  ", behavior: "active", status: "active" });
+  assert.equal(r.ok && r.value.name, null);
+});
+
+test("a system row's behavior is itself", () => {
+  const r = planStatusVocab({ statusCode: "active", name: null, behavior: "retired", status: "active" });
+  assert.equal(!r.ok && r.violations[0]!.code, "system_behavior_fixed");
+});
+
+test("selling and shelving are load-bearing; development may switch off", () => {
+  for (const code of ["active", "retired"] as const) {
+    const r = planStatusVocab({ statusCode: code, name: null, behavior: code, status: "retired" });
+    assert.equal(!r.ok && r.violations[0]!.code, "status_load_bearing");
+  }
+  const dev = planStatusVocab({
+    statusCode: "in_development",
+    name: null,
+    behavior: "in_development",
+    status: "retired",
+  });
+  assert.equal(dev.ok, true);
+});
+
+// --- planStatusRemoval / planTypeRemoval ------------------------------------
+
+test("system statuses never delete; added ones only when empty", () => {
+  const sys = planStatusRemoval("active", 0);
+  assert.equal(!sys.ok && sys.violations[0]!.code, "system_status");
+  const carried = planStatusRemoval("presale", 2);
+  assert.equal(!carried.ok && carried.violations[0]!.code, "status_in_use");
+  assert.equal(planStatusRemoval("presale", 0).ok, true);
+});
+
+test("a type deletes only when nothing carries it", () => {
+  const carried = planTypeRemoval(3);
+  assert.equal(!carried.ok && carried.violations[0]!.code, "type_in_use");
+  assert.equal(planTypeRemoval(0).ok, true);
+});
+
+// --- planRemoval (products) --------------------------------------------------
+
+test("allows deleting an unreferenced product, refuses a referenced one", () => {
   assert.equal(planRemoval({ lines: 0, solutionItems: 0 }).ok, true);
-});
-
-test("refuses while deal lines or solution items point at it", () => {
   const byLine = planRemoval({ lines: 2, solutionItems: 0 });
   assert.equal(!byLine.ok && byLine.violations[0]!.code, "product_in_use");
   const byItem = planRemoval({ lines: 0, solutionItems: 1 });

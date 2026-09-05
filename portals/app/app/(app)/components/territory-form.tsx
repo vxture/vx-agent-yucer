@@ -94,7 +94,7 @@ export function TerritoryForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="map-pin">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryEditing}</FieldLabel>
               <NativeSelect value="" onChange={(e) => e.target.value && pick(e.target.value)}>

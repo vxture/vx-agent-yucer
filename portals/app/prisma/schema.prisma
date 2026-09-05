@@ -854,8 +854,11 @@ model Product {
   workspaceId  String   @map("workspace_id") @db.Uuid
   productCode  String   @map("product_code") @db.VarChar(64)
   name         String   @db.VarChar(255)
-  category     String?  @db.VarChar(64)
+  /// The type association - a uuid since 0029; the business code never joins.
+  typeId       String?  @map("type_id") @db.Uuid
   unit         String   @default("set") @db.VarChar(32)
+  /// A status CODE from the workspace's vocabulary (0029) - a state-machine
+  /// value like opportunity.stage, deliberately not a uuid.
   status       String   @default("active") @db.VarChar(16)
   sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
@@ -863,6 +866,7 @@ model Product {
 
   @@unique([workspaceId, productCode], map: "uidx_product_code")
   @@index([workspaceId, sortOrder], map: "idx_product_ws_sort")
+  @@index([workspaceId, typeId], map: "idx_product_ws_type")
   @@map("product")
   @@schema("yucer_catalog")
 }
@@ -882,6 +886,26 @@ model ProductType {
   @@unique([workspaceId, typeCode], map: "uidx_product_type_code")
   @@index([workspaceId, sortOrder], map: "idx_product_type_ws_sort")
   @@map("product_type")
+  @@schema("yucer_catalog")
+}
+
+/// The workspace's status vocabulary - incr/0029. The three system rows
+/// (status_code = behavior) are protected by the rule layer; added rows pick
+/// a behavior at creation and take the full operation set.
+model ProductStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  statusCode  String   @map("status_code") @db.VarChar(32)
+  name        String?  @db.VarChar(64)
+  behavior    String   @db.VarChar(16)
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      String   @default("active") @db.VarChar(16)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, statusCode], map: "uidx_product_status_code")
+  @@index([workspaceId, sortOrder], map: "idx_product_status_ws_sort")
+  @@map("product_status")
   @@schema("yucer_catalog")
 }
 

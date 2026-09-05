@@ -126,7 +126,7 @@ export function PersonForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="user">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{ACCOUNT_TEXT.contactEditing}</FieldLabel>
               <NativeSelect value={form.id} onChange={(e) => pick(e.target.value)}>

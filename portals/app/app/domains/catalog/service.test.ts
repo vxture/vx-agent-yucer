@@ -7,11 +7,16 @@ import { InMemoryCatalogStore } from "./store";
 import {
   listPrices,
   listProducts,
+  listProductStatuses,
   listProductTypes,
   listSolutions,
   moveProduct,
+  moveProductStatus,
   moveProductType,
   removeProduct,
+  removeProductStatus,
+  removeProductType,
+  saveProductStatus,
   setPrice,
   setProductStatus,
   upsertProduct,
@@ -26,9 +31,13 @@ function seeded(): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", category: "software", unit: "seat", status: "active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", category: "service", unit: "day", status: "active", sortOrder: 2 },
-      { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", category: null, unit: "seat", status: "active", sortOrder: 1 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: "t_sw", unit: "seat", status: "active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: "t_svc", unit: "day", status: "active", sortOrder: 2 },
+      { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", typeId: null, unit: "seat", status: "active", sortOrder: 1 },
+    ],
+    types: [
+      { id: "t_sw", workspaceId: WS, typeCode: "software", name: "software", sortOrder: 1, status: "active" },
+      { id: "t_svc", workspaceId: WS, typeCode: "service", name: "service", sortOrder: 2, status: "active" },
     ],
     solutions: [{ id: "s1", workspaceId: WS, solutionCode: "S-1", name: "Retail bundle", summary: null, status: "active" }],
     items: [
@@ -198,9 +207,9 @@ function lifecycleStore(): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "旗舰", category: "平台", unit: "套", status: "active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "退役品", category: "平台", unit: "套", status: "retired", sortOrder: 2 },
-      { id: "p3", workspaceId: WS, productCode: "P-3", name: "在研品", category: "服务", unit: "套", status: "in_development", sortOrder: 3 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "旗舰", typeId: "t1", unit: "套", status: "active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "退役品", typeId: "t1", unit: "套", status: "retired", sortOrder: 2 },
+      { id: "p3", workspaceId: WS, productCode: "P-3", name: "在研品", typeId: "t2", unit: "套", status: "in_development", sortOrder: 3 },
     ],
     types: [
       { id: "t1", workspaceId: WS, typeCode: "平台", name: "平台", sortOrder: 1, status: "active" },
@@ -270,4 +279,113 @@ test("every row operation refuses without catalog.write", async () => {
   ]) {
     assert.equal(!r.ok && r.violations[0]!.code, "permission_denied");
   }
+});
+
+// --- the status vocabulary (owner ruling 2026-09-05, third round) ------------
+
+test("the vocabulary merges virtual defaults and materialises them on demand", async () => {
+  const store = lifecycleStore(); // seeds NO status rows
+  const c = ctx("sales_ops", "free", store);
+  const vocab = unwrap(await listProductStatuses(c));
+  assert.deepEqual(
+    vocab.map((r) => r.statusCode),
+    ["in_development", "active", "retired"],
+  );
+  assert.equal(vocab.every((r) => r.id === null), true, "all virtual before any edit");
+
+  // A reorder is a decision about every row - it materialises them all.
+  const moved = await moveProductStatus(c, { statusCode: "retired", direction: "up" });
+  assert.equal(moved.ok, true);
+  const after = unwrap(await listProductStatuses(c));
+  assert.deepEqual(
+    after.map((r) => r.statusCode),
+    ["in_development", "retired", "active"],
+  );
+  assert.equal(after.every((r) => r.id !== null), true);
+});
+
+test("an added status takes the full lifecycle and products can move into it", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const added = await saveProductStatus(c, {
+    statusCode: "presale",
+    name: "预售",
+    behavior: "active",
+  });
+  assert.equal(added.ok && added.value.behavior, "active");
+
+  // Same-behavior move: a legal relabeling.
+  const moved = await setProductStatus(c, { productId: "p1", status: "presale" });
+  assert.equal(moved.ok && moved.value.status, "presale");
+
+  // Carried -> delete refused; move away -> delete succeeds.
+  const refused = await removeProductStatus(c, { statusCode: "presale" });
+  assert.equal(!refused.ok && refused.violations[0]!.code, "status_in_use");
+  await setProductStatus(c, { productId: "p1", status: "active" });
+  assert.equal((await removeProductStatus(c, { statusCode: "presale" })).ok, true);
+});
+
+test("system statuses rename and (development only) disable, never delete", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const renamed = await saveProductStatus(c, { statusCode: "active", name: "在售中" });
+  assert.equal(renamed.ok && renamed.value.name, "在售中");
+
+  const offDev = await saveProductStatus(c, { statusCode: "in_development", status: "retired" });
+  assert.equal(offDev.ok, true);
+  const offActive = await saveProductStatus(c, { statusCode: "active", status: "retired" });
+  assert.equal(!offActive.ok && offActive.violations[0]!.code, "status_load_bearing");
+
+  const del = await removeProductStatus(c, { statusCode: "retired" });
+  assert.equal(!del.ok && del.violations[0]!.code, "system_status");
+});
+
+test("a disabled status cannot receive products and cannot be born into", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  await saveProductStatus(c, { statusCode: "in_development", status: "retired" });
+  const move = await setProductStatus(c, { productId: "p3", status: "active" });
+  assert.equal(move.ok, true, "leaving a disabled status is fine");
+  const born = await upsertProduct(c, {
+    productCode: "P-NEW",
+    name: "新品",
+    unit: "套",
+    status: "in_development",
+  });
+  assert.equal(!born.ok && born.violations[0]!.code, "status_not_found");
+});
+
+test("a product cannot be created already shelved, nor typed with a stranger's type", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const shelved = await upsertProduct(c, {
+    productCode: "P-DEAD",
+    name: "亡品",
+    unit: "套",
+    status: "retired",
+  });
+  assert.equal(!shelved.ok && shelved.violations[0]!.code, "born_shelved");
+  const badType = await upsertProduct(c, {
+    productCode: "P-T",
+    name: "有型",
+    typeId: "t_missing",
+    unit: "套",
+  });
+  assert.equal(!badType.ok && badType.violations[0]!.code, "type_not_found");
+});
+
+test("a type deletes only when no product carries it", async () => {
+  const store = lifecycleStore();
+  const c = ctx("sales_ops", "free", store);
+  const refused = await removeProductType(c, { typeId: "t1" });
+  assert.equal(!refused.ok && refused.violations[0]!.code, "type_in_use");
+
+  const empty = await upsertProductType(c, { typeCode: "空型", name: "空型" });
+  assert.equal(empty.ok, true);
+  const id = empty.ok ? empty.value.id : "";
+  assert.equal((await removeProductType(c, { typeId: id })).ok, true);
+  assert.equal(
+    unwrap(await listProductTypes(c)).some((t) => t.typeCode === "空型"),
+    false,
+  );
 });

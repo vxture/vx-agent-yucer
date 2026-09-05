@@ -89,7 +89,7 @@ export function NewPlanForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="flag">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{STRATEGY_TEXT.newPlanNo}</FieldLabel>
               <Input value={planNo} onChange={(e) => setPlanNo(e.target.value)} />

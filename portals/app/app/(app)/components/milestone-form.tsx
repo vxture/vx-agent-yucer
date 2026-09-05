@@ -90,7 +90,7 @@ export function MilestoneForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="flag">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{DELIVERY_TEXT.milestoneProject}</FieldLabel>
               <NativeSelect

@@ -9,11 +9,17 @@ import {
   approvalFor,
 } from "./lib/pricing";
 import {
+  isSystemStatus,
+  mergeStatusVocab,
   planMove,
   planProductType,
   planRemoval,
-  planStatusChange,
-  type ProductStatus,
+  planStatusMove,
+  planStatusRemoval,
+  planStatusVocab,
+  planTypeRemoval,
+  type StatusBehavior,
+  type StatusVocabRow,
 } from "./lib/lifecycle";
 import { denied } from "../pipeline/service";
 import type {
@@ -166,26 +172,46 @@ export async function upsertProduct(
   input: {
     productCode: string;
     name: string;
-    category?: string | null;
+    typeId?: string | null;
     unit: string;
-    status?: ProductStatus;
+    /** A status CODE from the workspace vocabulary. Omitted on an edit =
+     * keep what the row has. */
+    status?: string;
   },
 ): Promise<RuleResult<ProductRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  // Status is NOT a free field on the form; it is the lifecycle's. An omitted
-  // status keeps what the row already has (edit mode), and a provided one on
-  // an EXISTING row must be a legal transition - otherwise re-saving the form
-  // would be a side door around planStatusChange, and "active -> in
-  // development" would be one import away.
-  const existing = (await ctx.store.listProducts(ctx.workspaceId)).find(
-    (p) => p.productCode === input.productCode.trim(),
-  );
-  let status: ProductStatus;
+  // The type must be the workspace's own. A dangling uuid would only fail at
+  // the FK; this names the refusal.
+  if (input.typeId) {
+    const types = await ctx.store.listProductTypes(ctx.workspaceId);
+    if (!types.some((t) => t.id === input.typeId)) {
+      return fail(violation("type_not_found", "no such product type", "typeId"));
+    }
+  }
+
+  // Status is NOT a free field on the form; it is the vocabulary's. An
+  // omitted status keeps what the row already has (edit mode); a provided one
+  // must name an ENABLED vocabulary row, and on an EXISTING product the
+  // change must be a legal move - otherwise re-saving the form would be a
+  // side door around planStatusMove.
+  const [existing, vocab] = await Promise.all([
+    ctx.store
+      .listProducts(ctx.workspaceId)
+      .then((rows) => rows.find((p) => p.productCode === input.productCode.trim())),
+    ctx.store.listStatusConfigs(ctx.workspaceId).then(mergeStatusVocab),
+  ]);
+  const rowFor = (code: string) => vocab.find((r) => r.statusCode === code);
+  let status: string;
   if (existing) {
     if (input.status !== undefined && input.status !== existing.status) {
-      const move = planStatusChange(existing.status, input.status);
+      const from = rowFor(existing.status);
+      const to = rowFor(input.status);
+      if (!from || !to) {
+        return fail(violation("status_not_found", "no such status", "status"));
+      }
+      const move = planStatusMove(from, to);
       if (!move.ok) return move as RuleResult<ProductRecord>;
       status = move.value;
     } else {
@@ -193,12 +219,23 @@ export async function upsertProduct(
     }
   } else {
     status = input.status ?? "active";
+    const born = rowFor(status);
+    if (!born || born.status === "retired") {
+      return fail(violation("status_not_found", "no such status", "status"));
+    }
+    // Birth behaviors are development and active. Born-on-the-shelf would be
+    // a product that never existed commercially - a record error, refused.
+    if (born.behavior === "retired") {
+      return fail(
+        violation("born_shelved", "a product cannot be created already retired", "status"),
+      );
+    }
   }
 
   const plan = planProduct({
     productCode: input.productCode,
     name: input.name,
-    category: input.category ?? null,
+    typeId: input.typeId ?? null,
     unit: input.unit,
     status,
   });
@@ -250,17 +287,25 @@ export async function upsertSolution(
  */
 export async function setProductStatus(
   ctx: CatalogContext,
-  input: { productId: string; status: ProductStatus },
+  input: { productId: string; status: string },
 ): Promise<RuleResult<ProductRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  const products = await ctx.store.listProducts(ctx.workspaceId);
+  const [products, vocab] = await Promise.all([
+    ctx.store.listProducts(ctx.workspaceId),
+    ctx.store.listStatusConfigs(ctx.workspaceId).then(mergeStatusVocab),
+  ]);
   const current = products.find((p) => p.id === input.productId);
   if (!current) {
     return fail(violation("not_found", "no such product", "productId"));
   }
-  const plan = planStatusChange(current.status, input.status);
+  const from = vocab.find((r) => r.statusCode === current.status);
+  const to = vocab.find((r) => r.statusCode === input.status);
+  if (!from || !to) {
+    return fail(violation("status_not_found", "no such status", "status"));
+  }
+  const plan = planStatusMove(from, to);
   if (!plan.ok) return plan as RuleResult<ProductRecord>;
 
   const row = await ctx.store.setProductStatus(ctx.workspaceId, input.productId, plan.value);
@@ -284,12 +329,19 @@ export async function moveProduct(
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  const products = await ctx.store.listProducts(ctx.workspaceId);
+  const [products, vocab] = await Promise.all([
+    ctx.store.listProducts(ctx.workspaceId),
+    ctx.store.listStatusConfigs(ctx.workspaceId).then(mergeStatusVocab),
+  ]);
   const moving = products.find((p) => p.id === input.productId);
   if (!moving) {
     return fail(violation("not_found", "no such product", "productId"));
   }
-  const group = (s: ProductStatus) => (s === "retired" ? "retired" : "live");
+  // The visible split is by BEHAVIOR: retired-behavior rows are the shelf,
+  // everything else the live roster - matching what the module page renders.
+  const behaviorOf = new Map(vocab.map((r) => [r.statusCode, r.behavior]));
+  const group = (code: string) =>
+    behaviorOf.get(code) === "retired" ? "retired" : "live";
   const plan = planMove(
     products.map((p) => ({ id: p.id, movable: group(p.status) === group(moving.status) })),
     input.productId,
@@ -379,6 +431,142 @@ export async function moveProductType(
   if (!plan.ok) return plan as RuleResult<true>;
 
   await ctx.store.setProductTypeOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a TYPE outright.
+ *
+ * Refused while products carry it (planTypeRemoval names the count and points
+ * at retirement); fk_product_type RESTRICTs underneath as the last line.
+ */
+export async function removeProductType(
+  ctx: CatalogContext,
+  input: { typeId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const carrying = await ctx.store.countProductsByType(ctx.workspaceId, input.typeId);
+  const plan = planTypeRemoval(carrying);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeProductType(ctx.workspaceId, input.typeId);
+  if (!removed) return fail(violation("not_found", "no such type", "typeId"));
+  return ok(true);
+}
+
+/**
+ * The status vocabulary, MERGED: the workspace's stored rows plus virtual
+ * defaults for untouched system codes. Everything that renders a status label
+ * reads this - the config page, the roster badges, the create form.
+ */
+export async function listProductStatuses(
+  ctx: CatalogContext,
+): Promise<RuleResult<StatusVocabRow[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(mergeStatusVocab(await ctx.store.listStatusConfigs(ctx.workspaceId)));
+}
+
+/**
+ * Create, rename, or enable/disable one status row.
+ *
+ * System rows: behavior is the code itself, the name may be cleared back to
+ * the default, and active/retired refuse disabling (planStatusVocab). Added
+ * rows: behavior is chosen HERE, once - the column lock has no UPDATE grant
+ * on it, so a quotable status can never silently stop meaning "quotable".
+ */
+export async function saveProductStatus(
+  ctx: CatalogContext,
+  input: {
+    statusCode: string;
+    name?: string | null;
+    behavior?: StatusBehavior;
+    status?: "active" | "retired";
+  },
+): Promise<RuleResult<StatusVocabRow>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const vocab = mergeStatusVocab(await ctx.store.listStatusConfigs(ctx.workspaceId));
+  const existing = vocab.find((r) => r.statusCode === input.statusCode.trim());
+
+  const plan = planStatusVocab({
+    statusCode: input.statusCode,
+    name: input.name !== undefined ? input.name : (existing?.name ?? null),
+    behavior:
+      existing?.behavior ??
+      input.behavior ??
+      ("" as StatusBehavior), // invalid on purpose - planStatusVocab refuses it
+    status: input.status ?? existing?.status ?? "active",
+  });
+  if (!plan.ok) return plan as RuleResult<StatusVocabRow>;
+
+  return ok(await ctx.store.upsertStatusConfig(ctx.workspaceId, plan.value));
+}
+
+/**
+ * Delete one ADDED status row. System rows never delete (planStatusRemoval);
+ * an added row is refused while products still carry its code.
+ */
+export async function removeProductStatus(
+  ctx: CatalogContext,
+  input: { statusCode: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const carrying = await ctx.store.countProductsByStatus(ctx.workspaceId, input.statusCode);
+  const plan = planStatusRemoval(input.statusCode, carrying);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const stored = (await ctx.store.listStatusConfigs(ctx.workspaceId)).find(
+    (r) => r.statusCode === input.statusCode,
+  );
+  if (!stored) return fail(violation("not_found", "no such status", "statusCode"));
+  await ctx.store.removeStatusConfig(ctx.workspaceId, stored.id);
+  return ok(true);
+}
+
+/**
+ * Reorder the status vocabulary.
+ *
+ * Virtual rows (untouched system codes) are MATERIALISED first: an ordering
+ * is a decision about every row, so every row must exist to carry its number.
+ */
+export async function moveProductStatus(
+  ctx: CatalogContext,
+  input: { statusCode: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const vocab = mergeStatusVocab(await ctx.store.listStatusConfigs(ctx.workspaceId));
+  const plan = planMove(
+    vocab.map((r) => ({ id: r.statusCode, movable: true })),
+    input.statusCode.trim(),
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const byCode = new Map(vocab.map((r) => [r.statusCode, r]));
+  const orders: { id: string; sortOrder: number }[] = [];
+  for (const o of plan.value) {
+    const row = byCode.get(o.id)!;
+    const id =
+      row.id ??
+      (
+        await ctx.store.upsertStatusConfig(ctx.workspaceId, {
+          statusCode: row.statusCode,
+          name: row.name,
+          behavior: row.behavior,
+          status: row.status,
+        })
+      ).id;
+    orders.push({ id, sortOrder: o.sortOrder });
+  }
+  await ctx.store.setStatusConfigOrder(ctx.workspaceId, orders);
   return ok(true);
 }
 

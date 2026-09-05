@@ -20,23 +20,30 @@ export default async function ProductsPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, types, authz, entitlement }) => {
+      render={({ products, types, statuses, authz, entitlement }) => {
         const canWrite = can(authz, entitlement, "catalog.product.upsert", "ui").allowed;
-        const live = products.filter((p) => p.status !== "retired");
+        const behaviorOf = new Map(statuses.map((r) => [r.statusCode, r.behavior]));
+        const live = products.filter((p) => behaviorOf.get(p.status) !== "retired");
 
         // Per-type stats in VOCABULARY order, so the config page's ordering is
         // what the header renders. Types with nothing live are skipped rather
         // than shown as zero - the breakdown decomposes the headline count,
         // and a zero contributes nothing to it. Untyped products close the
-        // list under their own cell.
-        const count = (list: readonly typeof live[number][], code: string | null) => ({
-          active: list.filter((p) => p.category === code && p.status === "active").length,
-          dev: list.filter((p) => p.category === code && p.status === "in_development").length,
+        // list under their own cell. Counts read BEHAVIOR: a workspace-added
+        // status with active behavior counts as on sale, because that is the
+        // behavior's promise.
+        const count = (typeId: string | null) => ({
+          active: live.filter(
+            (p) => p.typeId === typeId && behaviorOf.get(p.status) === "active",
+          ).length,
+          dev: live.filter(
+            (p) => p.typeId === typeId && behaviorOf.get(p.status) === "in_development",
+          ).length,
         });
         const stats: CatalogTypeStat[] = types
-          .map((t) => ({ key: t.typeCode, name: t.name, ...count(live, t.typeCode) }))
+          .map((t) => ({ key: t.id, name: t.name, ...count(t.id) }))
           .filter((s) => s.active + s.dev > 0);
-        const untyped = count(live, null);
+        const untyped = count(null);
         if (untyped.active + untyped.dev > 0) {
           stats.push({ key: "__none", name: CATALOG_TEXT.noCategory, ...untyped });
         }
@@ -44,8 +51,8 @@ export default async function ProductsPage() {
         return (
           <>
             <CatalogHeadline
-              activeCount={live.filter((p) => p.status === "active").length}
-              devCount={live.filter((p) => p.status === "in_development").length}
+              activeCount={live.filter((p) => behaviorOf.get(p.status) === "active").length}
+              devCount={live.filter((p) => behaviorOf.get(p.status) === "in_development").length}
               stats={stats}
               canConfigure={canWrite}
             />
@@ -53,6 +60,7 @@ export default async function ProductsPage() {
             <ProductRoster
               products={products}
               types={types}
+              statuses={statuses}
               canWrite={canWrite}
               onMove={moveProductRow}
               onStatus={changeProductStatus}

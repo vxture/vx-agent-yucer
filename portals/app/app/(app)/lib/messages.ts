@@ -550,7 +550,7 @@ export const CATALOG_TEXT = {
   // 模块页（owner 裁定 2026-09-05）：展示为主，行操作靠右锁定，配置独立成页。
   tagActive: (n: number) => `${n} 产品在售`,
   tagDev: (n: number) => `${n} 在研产品`,
-  settingsLink: "产品设置",
+  settingsLink: "产品配置",
   byTypeCollapse: "收起分类统计",
   byTypeExpand: "展开分类统计",
   byTypeEmpty: "还没有产品，分类统计从第一个产品开始",
@@ -579,24 +579,33 @@ export const CATALOG_TEXT = {
   sortTitle: "当前目录顺序",
   sortWhy: "新产品排在末位。用上移/下移把它放到该在的位置——这里的顺序就是客户看到的顺序。",
 
-  // 配置页：类型是工作区自己的词表；状态带行为，系统固定三态。
-  settingsTitle: "产品设置",
-  settingsWhy: "这里配置的是产品系统本身——类型词表与状态语义——不是某一个产品。",
+  // 配置页（owner 裁定 2026-09-05 第二轮）：次级配置页，不摆模块页头——
+  // 返回 + 面包屑一行，小标题一行，不带描述。
+  settingsTitle: "产品配置",
+  back: "返回",
   typesTitle: "产品类型",
   typesWhy:
     "类型是工作区自己的词表。产品按 type_code 引用它，所以类型只停用、不删除——停用后旧产品仍能显示。",
   typeCode: "类型编码",
   typeName: "类型名称",
-  typeCodeHint: "编码是锚点，创建后不可改；同一编码再保存一次是改名，不是新增",
-  addType: "保存类型",
-  typeSaved: "已保存",
+  typeCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
+  addType: "新增类型",
+  renameType: "重命名",
+  saveType: "保存类型",
+  typeDeleteConsequence: "删除不可恢复。仍有产品挂在这个类型时会被拒绝——那种情况请改用停用。",
   typeRetire: "停用",
   typeReinstate: "启用",
   typeRetiredBadge: "已停用",
   typeInUse: (n: number) => `${n} 个产品`,
   statusesTitle: "产品状态",
   statusesWhy:
-    "状态带行为——只有「在售」可报价——所以是系统固定的三态，不开放自定义。",
+    "状态是本工作区的词表；每个状态锚定一种行为，行为决定规则如何解读——只有「在售」行为可报价。",
+  addStatus: "新增状态",
+  saveStatus: "保存状态",
+  colBehavior: "行为",
+  behaviorHint: "行为在创建时选定，之后不可改——可报价的状态不能悄悄变得不可报价",
+  moveToStatus: (label: string) => `转入「${label}」`,
+  statusDeleteConsequence: "删除不可恢复。系统三态不可删；仍有产品处于该状态时会被拒绝。",
   statusMeaningDev: "创建时的出生状态：真实存在、出现在计划里，但不可报价，也回不去。",
   statusMeaningActive: "唯一可报价的状态。上线、以及退役后的恢复，都落到这里。",
   statusMeaningRetired: "搁置而非删除：随时可恢复在售，历史引用全部保留。",
@@ -803,11 +812,22 @@ export const CATALOG_ERROR: Record<string, string> = {
   floor_above_list: "底价高于标价会让每一笔都需要签字，等于没有底价",
   // 生命周期与排序（incr/0028）
   status_unchanged: "已经是这个状态了",
-  development_is_birth_state: "在研是出生状态：只能创建时在研，上线后回不去",
+  development_is_birth_state: "在研是出生行为：只能创建时进入，之后回不去",
   product_in_use: "有报价行或方案还引用着这个产品，不能删除——请改用退役",
   move_at_edge: "已经在清单的这一端了",
   not_found: "找不到这条记录，页面可能已过期，请刷新",
   not_movable: "这一行不在可排序的清单里",
+  // 词表（incr/0029）
+  type_in_use: "还有产品挂在这个类型上，不能删除——请改用停用",
+  type_not_found: "找不到这个产品类型，页面可能已过期，请刷新",
+  status_not_found: "找不到这个状态，页面可能已过期，请刷新",
+  status_disabled: "这个状态已被停用，先启用它才能转入",
+  born_shelved: "产品不能一出生就是退役行为的状态",
+  system_status: "系统三态不可删除——可以改名，「在研」还可以停用",
+  status_in_use: "还有产品处于这个状态，先把它们转走",
+  status_load_bearing: "「在售」和「已退役」承载着报价与搁置，不能停用",
+  system_behavior_fixed: "系统状态的行为就是它自己，不可指定",
+  behavior_required: "需要选定这个状态的行为——行为决定规则如何解读它",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

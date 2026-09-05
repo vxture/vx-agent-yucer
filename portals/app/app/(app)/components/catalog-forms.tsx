@@ -16,6 +16,8 @@ import { AssistPanel, FormPage, type AssistSuggestion } from "./form-page";
 import { suggestFloor, unpricedProducts } from "../../domains/catalog/lib/suggest";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type { PriceEntryRecord, ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
+import type { StatusVocabRow } from "../../domains/catalog/lib/lifecycle";
+import { statusLabelOf } from "./status-label";
 
 // The catalogue's three CREATION PAGES - owner ruling 2026-09-05.
 //
@@ -58,33 +60,37 @@ function useSubmit(onDone: string) {
 export function NewProductForm({
   products,
   types,
+  statuses,
   initial,
   onSave,
 }: {
   readonly products: readonly ProductRecord[];
-  /** The workspace's type vocabulary - the category field selects from it. */
+  /** The workspace's type vocabulary - the type field selects from it. */
   readonly types: readonly ProductTypeRecord[];
+  /** The status vocabulary - the birth choice selects from it. */
+  readonly statuses: readonly StatusVocabRow[];
   /** Present = EDIT mode (?code= on the page): code locked, status untouched -
    * transitions belong to the roster's row menu, not the form. */
   readonly initial?: ProductRecord;
   readonly onSave: (input: {
     productCode: string;
     name: string;
-    category: string | null;
+    typeId: string | null;
     unit: string;
-    status?: "in_development" | "active";
+    status?: string;
   }) => Promise<Saved>;
 }) {
   const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
   const editing = initial !== undefined;
   const [code, setCode] = useState(initial?.productCode ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const [category, setCategory] = useState(initial?.category ?? "");
+  const [typeId, setTypeId] = useState(initial?.typeId ?? "");
   const [unit, setUnit] = useState(initial?.unit ?? "");
-  // The birth choice. Only two states can be BORN - retired is a decision
-  // about a life already lived, and the lifecycle rule refuses re-entering
-  // development, which is why an edit never sends status at all.
-  const [status, setStatus] = useState<"active" | "in_development">("active");
+  // The birth choice: any ENABLED status whose behavior is not the shelf -
+  // born-retired is a record error the service refuses. An edit never sends
+  // status at all; transitions belong to the roster's row menu.
+  const birthable = statuses.filter((r) => r.status === "active" && r.behavior !== "retired");
+  const [status, setStatus] = useState("active");
   const submit = useSubmit("/catalog");
 
   // Everything the assistant says here is read off the rows the page already
@@ -94,7 +100,6 @@ export function NewProductForm({
     () => suggestNextCode(products.map((p) => p.productCode)),
     [products],
   );
-  const categories = useMemo(() => knownValues(products.map((p) => p.category)), [products]);
   const units = useMemo(() => knownValues(products.map((p) => p.unit)), [products]);
 
   const suggestions: AssistSuggestion[] = [];
@@ -104,15 +109,6 @@ export function NewProductForm({
       label: ASSIST_TEXT.codeNext(nextCode),
       reason: ASSIST_TEXT.codeNextWhy,
       apply: () => setCode(nextCode),
-    });
-  }
-  for (const c of categories.slice(0, 3)) {
-    if (category.trim() === "" || c === category) continue;
-    suggestions.push({
-      id: `cat-${c}`,
-      label: ASSIST_TEXT.categoryKnown(c),
-      reason: ASSIST_TEXT.categoryKnownWhy,
-      apply: () => setCategory(c),
     });
   }
   if (unit.trim() === "" && units.length > 0) {
@@ -133,7 +129,7 @@ export function NewProductForm({
           title={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
           description={editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}
         >
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
               {/* The code is the identity the upsert matches on - editable it
@@ -146,15 +142,15 @@ export function NewProductForm({
             </Field>
             <Field>
               <FieldLabel>{CATALOG_TEXT.colType}</FieldLabel>
-              {/* A select over the vocabulary, not free text: free text is how
-                  "平台" and "平台 " become two types in every report. New kinds
+              {/* A select over the vocabulary, valued by the type's uuid -
+                  internal joins are uuid, and the id never renders. New kinds
                   are minted on the config page, where minting is a decision. */}
-              <NativeSelect value={category} onChange={(e) => setCategory(e.target.value)}>
+              <NativeSelect value={typeId} onChange={(e) => setTypeId(e.target.value)}>
                 <option value="">{CATALOG_TEXT.noCategory}</option>
                 {types
-                  .filter((t) => t.status === "active" || t.typeCode === category)
+                  .filter((t) => t.status === "active" || t.id === typeId)
                   .map((t) => (
-                    <option key={t.typeCode} value={t.typeCode}>
+                    <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
                   ))}
@@ -170,12 +166,12 @@ export function NewProductForm({
             {!editing ? (
               <Field>
                 <FieldLabel>{CATALOG_TEXT.newStatus}</FieldLabel>
-                <NativeSelect
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as "active" | "in_development")}
-                >
-                  <option value="active">{CATALOG_TEXT.statusActive}</option>
-                  <option value="in_development">{CATALOG_TEXT.statusDev}</option>
+                <NativeSelect value={status} onChange={(e) => setStatus(e.target.value)}>
+                  {birthable.map((r) => (
+                    <option key={r.statusCode} value={r.statusCode}>
+                      {statusLabelOf(r, CATALOG_TEXT)}
+                    </option>
+                  ))}
                 </NativeSelect>
                 <p className="text-muted-foreground text-body-sm">{CATALOG_TEXT.newStatusWhy}</p>
               </Field>
@@ -189,7 +185,7 @@ export function NewProductForm({
                       onSave({
                         productCode: code.trim(),
                         name: name.trim(),
-                        category: category.trim() || null,
+                        typeId: typeId || null,
                         unit: unit.trim(),
                         // An edit never sends status: the row menu owns
                         // transitions and the service keeps what the row has.
@@ -274,7 +270,7 @@ export function NewSolutionForm({
     <FormPage
       form={
         <Section icon="puzzle" title={CATALOG_TEXT.newSolution} description={CATALOG_TEXT.emptyBundle}>
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
               <Input value={code} onChange={(e) => setCode(e.target.value)} />
@@ -414,7 +410,7 @@ export function NewPriceForm({
     <FormPage
       form={
         <Section icon="currency-cny" title={CATALOG_TEXT.newPrice} description={CATALOG_TEXT.pricebookWhy}>
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
               <NativeSelect value={productId} onChange={(e) => setProductId(e.target.value)}>

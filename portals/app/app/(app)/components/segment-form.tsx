@@ -140,7 +140,7 @@ export function SegmentForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="target">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentEditing}</FieldLabel>
               <NativeSelect value={editing ? form.segmentCode : ""} onChange={(e) => pick(e.target.value)}>

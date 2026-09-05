@@ -1457,15 +1457,39 @@ function proposal(
 // prices are therefore derived from each deal's total, and one line is priced
 // below its floor on purpose so the approval flag has a case.
 function seedCatalog(workspaceId: string, stores: DemoStores): void {
+  const types = DEMO_PRODUCT_TYPES.map((name, i) => ({
+    id: `ptp_demo_${i + 1}`,
+    workspaceId,
+    typeCode: name,
+    name,
+    sortOrder: i + 1,
+    status: "active" as const,
+  }));
+  // The association is by UUID (incr/0029) - the fixtures name types by their
+  // code for readability, the seed resolves them to ids here.
+  const typeIdOf = new Map(types.map((t) => [t.typeCode, t.id]));
+
+  // The three system status rows - what 0029's backfill produces. Names stay
+  // null (the interface's default labels apply until a workspace renames one).
+  const statuses = (["in_development", "active", "retired"] as const).map((code, i) => ({
+    id: `pst_demo_${i + 1}`,
+    workspaceId,
+    statusCode: code as string,
+    name: null,
+    behavior: code,
+    sortOrder: i + 1,
+    status: "active" as const,
+  }));
+
   const products = [
     ...DEMO_PRODUCTS.map((p, i) => ({
       id: `prd_demo_${i + 1}`,
       workspaceId,
       productCode: p.code,
       name: p.name,
-      category: p.category as string,
+      typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "active" as const,
+      status: "active",
       sortOrder: i + 1,
     })),
     // The in-development roster, after the sellable one - so the module page's
@@ -1475,9 +1499,9 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       workspaceId,
       productCode: p.code,
       name: p.name,
-      category: p.category as string,
+      typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "in_development" as const,
+      status: "in_development",
       sortOrder: DEMO_PRODUCTS.length + i + 1,
     })),
     // The shelf: one product retired, so the module page's second roster and
@@ -1487,22 +1511,13 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       workspaceId,
       productCode: p.code,
       name: p.name,
-      category: p.category as string,
+      typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "retired" as const,
+      status: "retired",
       sortOrder: DEMO_PRODUCTS.length + DEMO_DEV_PRODUCTS.length + i + 1,
     })),
   ];
   const byCode = new Map(products.map((p) => [p.productCode, p.id]));
-
-  const types = DEMO_PRODUCT_TYPES.map((name, i) => ({
-    id: `ptp_demo_${i + 1}`,
-    workspaceId,
-    typeCode: name,
-    name,
-    sortOrder: i + 1,
-    status: "active" as const,
-  }));
 
   const solutions = DEMO_SOLUTIONS.map((sol, i) => ({
     id: `sol_demo_${i + 1}`,
@@ -1594,7 +1609,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }),
   );
 
-  stores.catalog.seed({ products, types, solutions, items, prices, lines });
+  stores.catalog.seed({ products, types, statuses, solutions, items, prices, lines });
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */

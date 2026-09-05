@@ -15,8 +15,17 @@ import { useMessages } from "../lib/i18n/provider";
 //
 // TWO COLUMNS: the work on the left, the help on the right. The aside is not
 // decoration - it is where the product's intelligence surfaces while somebody
-// is mid-form, which is exactly when a suggestion is worth something. On a
-// narrow viewport the aside drops BELOW the form: the form is the errand.
+// is mid-form, which is exactly when a suggestion is worth something. When the
+// space is narrow the aside drops BELOW the form: the form is the errand.
+//
+// A CONTAINER QUERY, NOT A VIEWPORT BREAKPOINT. This split keyed on `xl:`
+// (viewport >= 1280px) and that was the squeeze every form page showed at
+// 1440px: with the board and the AI dock both open the CONTENT area is
+// ~660px, but the viewport still said xl, so the grid went two-column and
+// handed the form ~300px. What varies with the side panels is the container,
+// so the container is what the breakpoint has to read. @3xl = 48rem of
+// container: two columns only when the form would still get ~28rem for
+// itself.
 export function FormPage({
   form,
   assist,
@@ -25,9 +34,11 @@ export function FormPage({
   readonly assist?: ReactNode;
 }) {
   return (
-    <div className="grid items-start gap-lg xl:grid-cols-[1fr_20rem]">
-      <div className="min-w-0">{form}</div>
-      {assist ? <div className="min-w-0">{assist}</div> : null}
+    <div className="@container">
+      <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0">{form}</div>
+        {assist ? <div className="min-w-0">{assist}</div> : null}
+      </div>
     </div>
   );
 }

@@ -12,7 +12,8 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
-import type { ProductStatus } from "../../domains/catalog/lib/lifecycle";
+import type { StatusVocabRow } from "../../domains/catalog/lib/lifecycle";
+import { BEHAVIOR_TONE, statusLabelOf } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -38,25 +39,21 @@ import { useMessages } from "../lib/i18n/provider";
 export interface ProductRosterProps {
   readonly products: readonly ProductRecord[];
   readonly types: readonly ProductTypeRecord[];
+  /** The merged status vocabulary - labels, tones and legal moves all read it. */
+  readonly statuses: readonly StatusVocabRow[];
   readonly canWrite: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
   readonly variant?: "full" | "sort";
   readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
-  readonly onStatus: (id: string, status: ProductStatus) => Promise<{ ok: boolean; error?: string }>;
+  readonly onStatus: (id: string, status: string) => Promise<{ ok: boolean; error?: string }>;
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
-
-/** The legal next states - the lifecycle map's, mirrored for the menu. */
-const NEXT_STATUS: Record<ProductStatus, readonly ProductStatus[]> = {
-  in_development: ["active", "retired"],
-  active: ["retired"],
-  retired: ["active"],
-};
 
 export function ProductRoster({
   products,
   types,
+  statuses,
   canWrite,
   variant = "full",
   onMove,
@@ -67,20 +64,32 @@ export function ProductRoster({
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const typeName = new Map(types.map((t) => [t.typeCode, t.name]));
-  const live = products.filter((p) => p.status !== "retired");
-  const retired = products.filter((p) => p.status === "retired");
+  const typeName = new Map(types.map((t) => [t.id, t.name]));
+  const vocab = new Map(statuses.map((r) => [r.statusCode, r]));
+  const behaviorOf = (code: string) => vocab.get(code)?.behavior ?? "active";
+  const live = products.filter((p) => behaviorOf(p.status) !== "retired");
+  const retired = products.filter((p) => behaviorOf(p.status) === "retired");
 
-  const STATUS_LABEL: Record<ProductStatus, string> = {
-    in_development: CATALOG_TEXT.statusDev,
-    active: CATALOG_TEXT.statusActive,
-    retired: CATALOG_TEXT.statusRetired,
-  };
-  const STATUS_TONE = { in_development: "info", active: "success", retired: "neutral" } as const;
-  const MOVE_LABEL: Record<ProductStatus, string> = {
-    active: CATALOG_TEXT.opLaunch, // only ever offered from in_development...
-    retired: CATALOG_TEXT.opRetire,
-    in_development: CATALOG_TEXT.statusDev, // ...never offered; keys the Record
+  /** The legal targets for one product - the mirror of planStatusMove: an
+   * enabled row, a different code, and never INTO development from outside
+   * it. Offering an illegal move would be offering a refusal. */
+  const targetsFor = (p: ProductRecord) =>
+    statuses.filter(
+      (r) =>
+        r.statusCode !== p.status &&
+        r.status === "active" &&
+        (r.behavior !== "in_development" || behaviorOf(p.status) === "in_development"),
+    );
+
+  /** The crafted verbs for the three system moves; a generic 转入 otherwise. */
+  const moveLabel = (p: ProductRecord, to: StatusVocabRow) => {
+    const label = statusLabelOf(to, CATALOG_TEXT);
+    if (to.statusCode === "active" && behaviorOf(p.status) === "in_development")
+      return CATALOG_TEXT.opLaunch;
+    if (to.statusCode === "active" && behaviorOf(p.status) === "retired")
+      return CATALOG_TEXT.opReinstate;
+    if (to.statusCode === "retired") return CATALOG_TEXT.opRetire;
+    return CATALOG_TEXT.moveToStatus(label);
   };
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
@@ -109,14 +118,19 @@ export function ProductRoster({
       id: "type",
       header: CATALOG_TEXT.colType,
       cell: (r: ProductRecord) =>
-        r.category ? (typeName.get(r.category) ?? r.category) : CATALOG_TEXT.noCategory,
+        r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
     },
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      cell: (r: ProductRecord) => (
-        <StatusBadge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</StatusBadge>
-      ),
+      cell: (r: ProductRecord) => {
+        const row = vocab.get(r.status);
+        return (
+          <StatusBadge tone={row ? BEHAVIOR_TONE[row.behavior] : "neutral"}>
+            {row ? statusLabelOf(row, CATALOG_TEXT) : r.status}
+          </StatusBadge>
+        );
+      },
     },
     { id: "unit", header: CATALOG_TEXT.colUnitPrice, cell: (r: ProductRecord) => r.unit },
   ];
@@ -124,7 +138,7 @@ export function ProductRoster({
   /** One menu per row - the DS's single-trigger row-action column. */
   const rowActions = canWrite
     ? (row: ProductRecord, rowIndex: number) => {
-        const list = row.status === "retired" ? retired : live;
+        const list = behaviorOf(row.status) === "retired" ? retired : live;
         return (
           <ActionMenu
             disabled={pending}
@@ -136,13 +150,10 @@ export function ProductRoster({
                   window.location.href = `/catalog/new?code=${encodeURIComponent(row.productCode)}`;
                 },
               },
-              ...NEXT_STATUS[row.status].map((to) => ({
-                id: to,
-                label:
-                  to === "active" && row.status === "retired"
-                    ? CATALOG_TEXT.opReinstate
-                    : MOVE_LABEL[to],
-                onSelect: () => run(onStatus(row.id, to)),
+              ...targetsFor(row).map((to) => ({
+                id: to.statusCode,
+                label: moveLabel(row, to),
+                onSelect: () => run(onStatus(row.id, to.statusCode)),
               })),
               {
                 id: "up",

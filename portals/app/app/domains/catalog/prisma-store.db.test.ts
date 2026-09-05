@@ -53,6 +53,7 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_catalog.solution WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_catalog.product WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_catalog.product_status WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
@@ -69,8 +70,8 @@ test("upsertProduct creates on the first call and updates in place on the real u
   await cleanup();
   try {
     const s = await store();
-    const first = await s.upsertProduct(WS, { productCode: "P-1", name: "Widget", category: "hardware", unit: "set", status: "active" });
-    const second = await s.upsertProduct(WS, { productCode: "P-1", name: "Widget v2", category: "hardware", unit: "set", status: "active" });
+    const first = await s.upsertProduct(WS, { productCode: "P-1", name: "Widget", typeId: null, unit: "set", status: "active" });
+    const second = await s.upsertProduct(WS, { productCode: "P-1", name: "Widget v2", typeId: null, unit: "set", status: "active" });
     assert.equal(second.id, first.id, "same product_code must upsert, not duplicate");
     assert.equal(second.name, "Widget v2");
 
@@ -81,14 +82,56 @@ test("upsertProduct creates on the first call and updates in place on the real u
   }
 });
 
-test("an unrecognised product status is refused by the real CHECK", { skip }, async () => {
+test("a workspace-minted status code is a legal product value since 0029", { skip }, async () => {
+  // The CHECK is gone on purpose: codes belong to the workspace vocabulary
+  // and validity is the rule layer's. The database's own guard is now the
+  // vocabulary table's unique index and locked columns, tested below.
   await cleanup();
   try {
     const s = await store();
-    await assert.rejects(
-      () => s.upsertProduct(WS, { productCode: "P-BAD", name: "Bad", category: null, unit: "set", status: "bogus" as never }),
-      /chk_product_status/,
-    );
+    const p = await s.upsertProduct(WS, { productCode: "P-VOC", name: "Voc", typeId: null, unit: "set", status: "presale" });
+    assert.equal(p.status, "presale");
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the status vocabulary upserts on its real unique index with behavior locked", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const first = await s.upsertStatusConfig(WS, { statusCode: "presale", name: "预售", behavior: "active", status: "active" });
+    const renamed = await s.upsertStatusConfig(WS, { statusCode: "presale", name: "预售中", behavior: "active", status: "active" });
+    assert.equal(renamed.id, first.id, "same status_code must upsert, not duplicate");
+    assert.equal(renamed.name, "预售中");
+
+    // behavior carries no UPDATE grant - the adapter's guard refuses before
+    // Prisma even builds the query.
+    const { assertWritable } = await import("../shared/column-locks");
+    assert.equal(assertWritable("yucer_catalog.product_status", { behavior: "retired" }).ok, false);
+
+    await s.setStatusConfigOrder(WS, [{ id: first.id, sortOrder: 9 }]);
+    const rows = await s.listStatusConfigs(WS);
+    assert.equal(rows.find((r) => r.id === first.id)?.sortOrder, 9);
+
+    assert.equal(await s.countProductsByStatus(WS, "presale"), 0);
+    assert.equal(await s.removeStatusConfig(WS, first.id), true);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("the type association is a real FK: deleting a carried type RESTRICTs", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const t = await s.upsertProductType(WS, { typeCode: "硬件", name: "硬件", status: "active" });
+    await s.upsertProduct(WS, { productCode: "P-HW", name: "HW", typeId: t.id, unit: "set", status: "active" });
+    assert.equal(await s.countProductsByType(WS, t.id), 1);
+    await assert.rejects(() => s.removeProductType(WS, t.id), /constraint|Foreign key/i);
+
+    await s.upsertProduct(WS, { productCode: "P-HW", name: "HW", typeId: null, unit: "set", status: "active" });
+    assert.equal(await s.removeProductType(WS, t.id), true);
   } finally {
     await cleanup();
   }
@@ -100,8 +143,8 @@ test("upsertSolution replaces its items transactionally, not merges them", { ski
   await cleanup();
   try {
     const s = await store();
-    const p1 = await s.upsertProduct(WS, { productCode: "P-A", name: "A", category: null, unit: "set", status: "active" });
-    const p2 = await s.upsertProduct(WS, { productCode: "P-B", name: "B", category: null, unit: "set", status: "active" });
+    const p1 = await s.upsertProduct(WS, { productCode: "P-A", name: "A", typeId: null, unit: "set", status: "active" });
+    const p2 = await s.upsertProduct(WS, { productCode: "P-B", name: "B", typeId: null, unit: "set", status: "active" });
 
     const sol1 = await s.upsertSolution(WS, { solutionCode: "SOL-1", name: "Bundle", summary: null, status: "active" }, [
       { productId: p1.id, quantity: 2 },
@@ -136,7 +179,7 @@ test("a solution_item quantity of zero is refused by the real CHECK", { skip }, 
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-Q", name: "Q", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-Q", name: "Q", typeId: null, unit: "set", status: "active" });
     await assert.rejects(
       () => s.upsertSolution(WS, { solutionCode: "SOL-Q", name: "Q Bundle", summary: null, status: "active" }, [{ productId: p.id, quantity: 0 }]),
       /chk_solution_item_qty/,
@@ -152,7 +195,7 @@ test("priceFor returns the latest entry that has already taken effect, not a fut
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-PR", name: "Priced", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-PR", name: "Priced", typeId: null, unit: "set", status: "active" });
     await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 60, effectiveAt: new Date(Date.now() - 86_400_000) });
     await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 120, floorPrice: 70, effectiveAt: new Date(Date.now() + 86_400_000) });
 
@@ -167,7 +210,7 @@ test("priceFor returns null when nothing has taken effect yet", { skip }, async 
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-NONE", name: "None", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-NONE", name: "None", typeId: null, unit: "set", status: "active" });
     await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 50, floorPrice: 20, effectiveAt: new Date(Date.now() + 86_400_000) });
     assert.equal(await s.priceFor(WS, p.id, "CNY"), null);
   } finally {
@@ -179,7 +222,7 @@ test("a floor above list price is refused by the real CHECK", { skip }, async ()
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-FL", name: "Floor", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-FL", name: "Floor", typeId: null, unit: "set", status: "active" });
     await assert.rejects(
       () => s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 50, floorPrice: 80, effectiveAt: new Date() }),
       /chk_price_floor/,
@@ -193,7 +236,7 @@ test("appendPrice always creates a new row - price history is a book, not a fiel
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-HIST", name: "History", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-HIST", name: "History", typeId: null, unit: "set", status: "active" });
     await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 100, floorPrice: 50, effectiveAt: new Date(Date.now() - 2_000) });
     await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 110, floorPrice: 55, effectiveAt: new Date() });
     const list = await s.listPrices(WS);
@@ -210,8 +253,8 @@ test("replaceLines deletes and recreates transactionally, and allLines spans opp
   try {
     await withPg(seed);
     const s = await store();
-    const p1 = await s.upsertProduct(WS, { productCode: "P-L1", name: "L1", category: null, unit: "set", status: "active" });
-    const p2 = await s.upsertProduct(WS, { productCode: "P-L2", name: "L2", category: null, unit: "set", status: "active" });
+    const p1 = await s.upsertProduct(WS, { productCode: "P-L1", name: "L1", typeId: null, unit: "set", status: "active" });
+    const p2 = await s.upsertProduct(WS, { productCode: "P-L2", name: "L2", typeId: null, unit: "set", status: "active" });
 
     await s.replaceLines(WS, OPP, [
       { productId: p1.id, solutionId: null, quantity: 1, unitPrice: 100, amount: 100, currency: "CNY", needsApproval: false },
@@ -239,7 +282,7 @@ test("a negative or zero-quantity line is refused by the real CHECK", { skip }, 
   try {
     await withPg(seed);
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-NEG", name: "Neg", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-NEG", name: "Neg", typeId: null, unit: "set", status: "active" });
     await assert.rejects(
       () => s.replaceLines(WS, OPP, [{ productId: p.id, solutionId: null, quantity: -1, unitPrice: 10, amount: 10, currency: "CNY", needsApproval: false }]),
       /chk_line_qty/,
@@ -256,7 +299,7 @@ test("appendApproval always creates a new signature row, never revises one", { s
   try {
     await withPg(seed);
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-APP", name: "Approved", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-APP", name: "Approved", typeId: null, unit: "set", status: "active" });
     await s.appendApproval(WS, {
       opportunityId: OPP, productId: p.id, unitPrice: 40, currency: "CNY", floorPrice: 60,
       reason: "strategic account", approvedBySub: "usr_ops", approvedAt: new Date(Date.now() - 1000),
@@ -281,7 +324,7 @@ test("a blank approval reason is refused by the real CHECK", { skip }, async () 
   try {
     await withPg(seed);
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-BLANK", name: "Blank", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-BLANK", name: "Blank", typeId: null, unit: "set", status: "active" });
     await assert.rejects(
       () => s.appendApproval(WS, {
         opportunityId: OPP, productId: p.id, unitPrice: 40, currency: "CNY", floorPrice: 60,
@@ -300,8 +343,8 @@ test("a new product joins at the tail and moves through the real sort_order", { 
   await cleanup();
   try {
     const s = await store();
-    const a = await s.upsertProduct(WS, { productCode: "P-S1", name: "First", category: null, unit: "set", status: "active" });
-    const b = await s.upsertProduct(WS, { productCode: "P-S2", name: "Second", category: null, unit: "set", status: "active" });
+    const a = await s.upsertProduct(WS, { productCode: "P-S1", name: "First", typeId: null, unit: "set", status: "active" });
+    const b = await s.upsertProduct(WS, { productCode: "P-S2", name: "Second", typeId: null, unit: "set", status: "active" });
     assert.equal(b.sortOrder, a.sortOrder + 1, "a new product joins at the end");
 
     await s.setProductOrder(WS, [
@@ -319,7 +362,7 @@ test("in_development is a real status and setProductStatus round-trips it away",
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-DEV", name: "Building", category: null, unit: "set", status: "in_development" });
+    const p = await s.upsertProduct(WS, { productCode: "P-DEV", name: "Building", typeId: null, unit: "set", status: "in_development" });
     assert.equal(p.status, "in_development", "the widened CHECK accepts the birth state");
     const launched = await s.setProductStatus(WS, p.id, "active");
     assert.equal(launched?.status, "active");
@@ -333,7 +376,7 @@ test("removeProduct cascades prices but the line FK restricts underneath", { ski
   await cleanup();
   try {
     const s = await store();
-    const p = await s.upsertProduct(WS, { productCode: "P-DEL", name: "Doomed", category: null, unit: "set", status: "active" });
+    const p = await s.upsertProduct(WS, { productCode: "P-DEL", name: "Doomed", typeId: null, unit: "set", status: "active" });
     await s.appendPrice(WS, { productId: p.id, currency: "CNY", listPrice: 10, floorPrice: 8, effectiveAt: new Date() });
     assert.equal(await s.removeProduct(WS, p.id), true);
     assert.equal((await s.listPrices(WS)).length, 0, "fk_price_product cascades");
@@ -341,7 +384,7 @@ test("removeProduct cascades prices but the line FK restricts underneath", { ski
     // A referenced product: the SERVICE refuses via planRemoval first, but the
     // RESTRICT FK must hold as the last line even if a caller skips the rule.
     await withPg(seed);
-    const q = await s.upsertProduct(WS, { productCode: "P-REF", name: "Referenced", category: null, unit: "set", status: "active" });
+    const q = await s.upsertProduct(WS, { productCode: "P-REF", name: "Referenced", typeId: null, unit: "set", status: "active" });
     await s.replaceLines(WS, OPP, [
       { productId: q.id, solutionId: null, quantity: 1, unitPrice: 5, amount: 5, currency: "CNY", needsApproval: false },
     ]);

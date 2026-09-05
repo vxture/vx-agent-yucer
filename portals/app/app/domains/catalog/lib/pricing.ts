@@ -97,9 +97,12 @@ export function byProduct(
 export interface ProductDraft {
   productCode: string;
   name: string;
-  category: string | null;
+  /** The type association, by uuid (incr/0029). */
+  typeId: string | null;
   unit: string;
-  status: "in_development" | "active" | "retired";
+  /** A status CODE from the workspace vocabulary; the SERVICE validates it
+   * against the vocabulary (a pure rule cannot see workspace state). */
+  status: string;
 }
 
 /**
@@ -126,7 +129,6 @@ export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
     productCode: input.productCode.trim(),
     name: input.name.trim(),
     unit: input.unit.trim(),
-    category: input.category?.trim() || null,
   });
 }
 
