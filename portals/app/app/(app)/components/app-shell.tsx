@@ -566,10 +566,14 @@ export function AppShell({
           </aside>
         ) : null}
 
-        {/* CENTRE - the engagement. Its 16px is the only padding in the body,
-            and it is here rather than on the row because it is a MEASURE, not
-            an inset: it keeps prose off the pane edge at any window width. */}
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-md">
+        {/* CENTRE - the engagement. Its 16px is the only horizontal padding
+            in the body, and it is here rather than on the row because it is a
+            MEASURE, not an inset: it keeps prose off the pane edge at any
+            window width. pb-2xl is the scroll runway (owner, 2026-09-05):
+            content that ends flush at the container's bottom edge reads as
+            cut off, and the last table's rows sat on the fold with nothing
+            below them. */}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-md pb-2xl">
           {children}
         </div>
 

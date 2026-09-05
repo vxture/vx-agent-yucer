@@ -216,16 +216,24 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // same period edits this row; a different period is a new row.
   // The catalogue. product_code / solution_code are anchors: renaming what a
   // thing IS would rewrite every historical line that referenced it.
-  // 0028 added sort_order (manual catalogue order) and the third status.
-  "yucer_catalog.product": ["name", "category", "unit", "status", "sort_order", "updated_at"],
-  // 0028. type_code is the anchor products reference by value (category holds
-  // it) - renaming it would silently orphan every product carrying it.
+  // 0028 added sort_order (manual catalogue order); 0029 replaced category
+  // and status with the two uuid joins (internal keys are uuids - owner,
+  // 2026-09-05).
+  "yucer_catalog.product": ["name", "unit", "sort_order", "type_id", "status_id", "updated_at"],
+  // 0028. type_code is the workspace's anchor vocabulary - the join key is
+  // the uuid, but the code is still what imports and upserts match on.
   "yucer_catalog.product_type": ["name", "sort_order", "status", "updated_at"],
+  // 0029. status_code is the anchor; the rest of the row - name, 状态描述,
+  // order - is the workspace's to edit.
+  "yucer_catalog.product_status": ["name", "description", "sort_order", "updated_at"],
   "yucer_catalog.solution": ["name", "summary", "status", "updated_at"],
   "yucer_catalog.solution_item": ["quantity"],
   // incr/0010. 0007 revoked UPDATE here and granted nothing back, so the table
   // was insert-only: a price could be entered and never corrected. Prices are
   // meant to be editable; the anchors (product, currency, workspace) are not.
+  // 0030's supersedes_id is deliberately absent: which price replaced which
+  // is a fact about a moment that has passed, frozen like the attribution
+  // keys ADR-003 names. A correction is a new entry.
   "yucer_catalog.price_book_entry": ["list_price", "floor_price"],
   // opportunity_id and product_id are the line's identity - moving a line to
   // another deal or another product is a different line.

@@ -5,15 +5,19 @@ import { resolveAppSession } from "../lib/session";
 import { getCatalogStore } from "../../domains/shared/registry";
 import {
   moveProduct,
+  moveProductStatus,
   moveProductType,
   removeProduct,
+  removeProductStatus,
+  removeProductType,
+  removePrice,
+  saveProductStatus,
   setPrice,
   setProductStatus,
   upsertProduct,
   upsertProductType,
   upsertSolution,
 } from "../../domains/catalog/service";
-import type { ProductStatus } from "../../domains/catalog/lib/lifecycle";
 
 // Catalogue writes.
 //
@@ -43,11 +47,11 @@ async function context() {
 export async function saveProduct(input: {
   productCode: string;
   name: string;
-  category: string | null;
+  typeId: string | null;
   unit: string;
-  /** Only the create form sends this; an edit omits it and keeps the row's
-   * status - transitions belong to the row operations, not the form. */
-  status?: ProductStatus;
+  /** A status row's uuid. Only the create form sends this; an edit omits it
+   * and keeps the row's status - transitions belong to the row operations. */
+  statusId?: string;
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -107,11 +111,11 @@ export async function savePrice(input: {
 
 export async function changeProductStatus(
   productId: string,
-  status: ProductStatus,
+  statusId: string,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
-  const r = await setProductStatus(ctx, { productId, status });
+  const r = await setProductStatus(ctx, { productId, statusId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   return { ok: true };
@@ -165,5 +169,65 @@ export async function moveProductTypeRow(
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
   revalidatePath("/catalog/settings");
+  return { ok: true };
+}
+
+export async function deleteProductType(typeId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removeProductType(ctx, { typeId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/settings");
+  return { ok: true };
+}
+
+// --- the config page: the status vocabulary ----------------------------------
+
+export async function saveStatusRow(input: {
+  statusCode: string;
+  name: string;
+  description?: string | null;
+}): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await saveProductStatus(ctx, input);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/settings");
+  revalidatePath("/catalog/new");
+  return { ok: true };
+}
+
+export async function deleteStatusRow(statusId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removeProductStatus(ctx, { statusId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/settings");
+  revalidatePath("/catalog/new");
+  return { ok: true };
+}
+
+export async function moveStatusRow(
+  statusId: string,
+  direction: "up" | "down",
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await moveProductStatus(ctx, { statusId, direction });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/catalog/settings");
+  return { ok: true };
+}
+
+export async function deletePriceEntry(priceId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removePrice(ctx, { priceId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/pricebook");
   return { ok: true };
 }

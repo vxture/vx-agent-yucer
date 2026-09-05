@@ -4,8 +4,10 @@ import type {
   CatalogStore,
   DiscountApprovalRecord,
   OpportunityLineRecord,
+  PriceDraft,
   PriceEntryRecord,
   ProductRecord,
+  ProductStatusRecord,
   ProductTypeRecord,
   SolutionItemRecord,
   SolutionRecord,
@@ -25,6 +27,7 @@ import type {
 
 const PRODUCT_TABLE = "yucer_catalog.product";
 const PRODUCT_TYPE_TABLE = "yucer_catalog.product_type";
+const PRODUCT_STATUS_TABLE = "yucer_catalog.product_status";
 const SOLUTION_TABLE = "yucer_catalog.solution";
 const ITEM_TABLE = "yucer_catalog.solution_item";
 
@@ -49,9 +52,9 @@ export class PrismaCatalogStore implements CatalogStore {
     workspaceId: string;
     productCode: string;
     name: string;
-    category: string | null;
+    typeId: string | null;
     unit: string;
-    status: string;
+    statusId: string;
     sortOrder: number;
   }): ProductRecord {
     return {
@@ -59,9 +62,9 @@ export class PrismaCatalogStore implements CatalogStore {
       workspaceId: row.workspaceId,
       productCode: row.productCode,
       name: row.name,
-      category: row.category,
+      typeId: row.typeId,
       unit: row.unit,
-      status: row.status as ProductRecord["status"],
+      statusId: row.statusId,
       sortOrder: row.sortOrder,
     };
   }
@@ -107,6 +110,15 @@ export class PrismaCatalogStore implements CatalogStore {
     return row ? this.toPrice(row) : null;
   }
 
+  async removePrice(workspaceId: string, priceId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // Nothing FKs a price entry - the approval copies the floor rather than
+    // pointing at it (ADR-019), which is why the "a signature cites this row"
+    // refusal is the SERVICE's to make and cannot be left to the database.
+    const { count } = await p.priceBookEntry.deleteMany({ where: { workspaceId, id: priceId } });
+    return count > 0;
+  }
+
   async listPrices(workspaceId: string): Promise<PriceEntryRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.priceBookEntry.findMany({
@@ -123,9 +135,9 @@ export class PrismaCatalogStore implements CatalogStore {
     const p = await getPrismaClient();
     const update = {
       name: input.name,
-      category: input.category,
+      typeId: input.typeId,
       unit: input.unit,
-      status: input.status,
+      statusId: input.statusId,
       updatedAt: new Date(),
     };
     // The update half only - the create half writes the anchors once, which is
@@ -160,10 +172,10 @@ export class PrismaCatalogStore implements CatalogStore {
   async setProductStatus(
     workspaceId: string,
     productId: string,
-    status: ProductRecord["status"],
+    statusId: string,
   ): Promise<ProductRecord | null> {
     const p = await getPrismaClient();
-    const patch = { status, updatedAt: new Date() };
+    const patch = { statusId, updatedAt: new Date() };
     const guard = assertWritable(PRODUCT_TABLE, patch);
     if (!guard.ok) {
       throw new Error(
@@ -286,6 +298,103 @@ export class PrismaCatalogStore implements CatalogStore {
     }
   }
 
+  async removeProductType(workspaceId: string, typeId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refused in-use types via planTypeRemoval; fk_product_type
+    // RESTRICTs underneath as the last line.
+    const { count } = await p.productType.deleteMany({ where: { workspaceId, id: typeId } });
+    return count > 0;
+  }
+
+  async countProductsByType(workspaceId: string, typeId: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.product.count({ where: { workspaceId, typeId } });
+  }
+
+  private toStatus(row: {
+    id: string;
+    workspaceId: string;
+    statusCode: string;
+    name: string;
+    description: string | null;
+    sortOrder: number;
+  }): ProductStatusRecord {
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      statusCode: row.statusCode,
+      name: row.name,
+      description: row.description,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async listStatusConfigs(workspaceId: string): Promise<ProductStatusRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.productStatus.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { statusCode: "asc" }],
+    });
+    return rows.map((r) => this.toStatus(r));
+  }
+
+  async upsertStatusConfig(
+    workspaceId: string,
+    input: Omit<ProductStatusRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductStatusRecord> {
+    const p = await getPrismaClient();
+    const update = { name: input.name, description: input.description, updatedAt: new Date() };
+    const guard = assertWritable(PRODUCT_STATUS_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked product_status column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.productStatus.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.productStatus.upsert({
+      where: { workspaceId_statusCode: { workspaceId, statusCode: input.statusCode } },
+      update,
+      create: {
+        workspaceId,
+        statusCode: input.statusCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return this.toStatus(row);
+  }
+
+  async setStatusConfigOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(PRODUCT_STATUS_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked product_status column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.productStatus.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeStatusConfig(workspaceId: string, statusId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    const { count } = await p.productStatus.deleteMany({ where: { workspaceId, id: statusId } });
+    return count > 0;
+  }
+
+  async countProductsByStatusId(workspaceId: string, statusId: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.product.count({ where: { workspaceId, statusId } });
+  }
+
   async upsertSolution(
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId">,
@@ -336,10 +445,7 @@ export class PrismaCatalogStore implements CatalogStore {
     });
   }
 
-  async appendPrice(
-    workspaceId: string,
-    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
-  ): Promise<PriceEntryRecord> {
+  async appendPrice(workspaceId: string, input: PriceDraft): Promise<PriceEntryRecord> {
     const p = await getPrismaClient();
     // CREATE, never upsert. `effective_at` is part of the unique key, so a new
     // price at a new instant is a new row - which is what keeps the superseded
@@ -354,6 +460,7 @@ export class PrismaCatalogStore implements CatalogStore {
         listPrice: input.listPrice,
         floorPrice: input.floorPrice,
         effectiveAt: input.effectiveAt,
+        supersedesId: input.supersedesId ?? null,
       },
     });
     return this.toPrice(row);
@@ -477,6 +584,7 @@ export class PrismaCatalogStore implements CatalogStore {
     listPrice: unknown;
     floorPrice: unknown;
     effectiveAt: Date;
+    supersedesId: string | null;
   }): PriceEntryRecord {
     return {
       id: r.id,
@@ -486,6 +594,7 @@ export class PrismaCatalogStore implements CatalogStore {
       listPrice: num(r.listPrice),
       floorPrice: num(r.floorPrice),
       effectiveAt: r.effectiveAt,
+      supersedesId: r.supersedesId,
     };
   }
 

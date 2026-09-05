@@ -56,7 +56,7 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
-  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
+  const { BOARD_TEXT, DOMAIN_LABEL, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
     await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
@@ -231,7 +231,7 @@ export default async function PipelinePage({
           last page still opening on a hand-rolled heading inside a card, which
           is what made it look a size and a height apart from the rest. */}
       <ViewHeader
-        title={PIPELINE_TEXT.title}
+        title={DOMAIN_LABEL.pipeline}
         description={PIPELINE_TEXT.description}
       />
 

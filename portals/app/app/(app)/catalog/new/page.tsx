@@ -33,7 +33,7 @@ export default async function NewProductPage({
   const { code } = await searchParams;
   return (
     <CatalogPage
-      render={({ products, types, authz, entitlement }) => {
+      render={({ products, types, statuses, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.product.upsert", "ui").allowed) {
           redirect("/catalog");
         }
@@ -51,6 +51,7 @@ export default async function NewProductPage({
               key={initial?.id ?? "new"}
               products={products}
               types={types}
+              statuses={statuses}
               initial={initial}
               onSave={saveProduct}
             />
@@ -58,6 +59,7 @@ export default async function NewProductPage({
               <ProductRoster
                 products={products}
                 types={types}
+                statuses={statuses}
                 canWrite
                 variant="sort"
                 onMove={moveProductRow}

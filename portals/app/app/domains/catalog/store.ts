@@ -9,17 +9,19 @@ export interface ProductRecord {
   workspaceId: string;
   productCode: string;
   name: string;
-  /** A type_code from the workspace's product_type vocabulary (held by value -
-   * incr/0028), or null for the untyped remainder. */
-  category: string | null;
+  /** The type association - a uuid since incr/0029 (internal joins are uuid;
+   * the business code never joins). Null = untyped. */
+  typeId: string | null;
   unit: string;
-  status: "in_development" | "active" | "retired";
+  /** The status association - a uuid like the type's; the vocabulary row
+   * carries the name and 状态描述 the interface renders. */
+  statusId: string;
   /** Manual catalogue order - the module page's up/down buttons write it. */
   sortOrder: number;
 }
 
-/** The workspace's own type vocabulary - incr/0028. Retired, never deleted:
- * products carrying a retired type still render. */
+/** The workspace's own type vocabulary - incr/0028. Products associate by
+ * uuid; the code is the workspace's anchor for upserts and imports. */
 export interface ProductTypeRecord {
   id: string;
   workspaceId: string;
@@ -27,6 +29,18 @@ export interface ProductTypeRecord {
   name: string;
   sortOrder: number;
   status: "active" | "retired";
+}
+
+/** One row of the status vocabulary - incr/0029. Rows ARE the content: a
+ * code (anchor), a name, a 状态描述, an order - nothing else. The three
+ * canonical rows are ordinary rows the workspace may rename. */
+export interface ProductStatusRecord {
+  id: string;
+  workspaceId: string;
+  statusCode: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
 }
 
 export interface SolutionRecord {
@@ -61,6 +75,11 @@ export interface PriceEntryRecord {
   listPrice: number;
   floorPrice: number;
   effectiveAt: Date;
+  /** The entry this one replaced - incr/0030. The chain the product ASSERTED,
+   * as opposed to the one a sort by date infers: a backdated correction or an
+   * import landing three prices at once reads wrong when inferred. Null for
+   * the first price of a product, and for one whose predecessor was deleted. */
+  supersedesId: string | null;
 }
 
 /** One product on one deal. See ADR-014 section 2 for who is authoritative. */
@@ -101,6 +120,13 @@ export interface DiscountApprovalRecord {
   approvedAt: Date;
 }
 
+/** What a caller supplies when appending a price. The LINEAGE is optional
+ * here because deciding it is the service's job - it knows which entry is in
+ * force - and a store that inferred it would be holding policy. */
+export type PriceDraft = Omit<PriceEntryRecord, "id" | "workspaceId" | "supersedesId"> & {
+  readonly supersedesId?: string | null;
+};
+
 export interface CatalogStore {
   listProducts(workspaceId: string): Promise<ProductRecord[]>;
   listSolutions(workspaceId: string): Promise<SolutionRecord[]>;
@@ -129,11 +155,11 @@ export interface CatalogStore {
     workspaceId: string,
     input: Omit<ProductRecord, "id" | "workspaceId" | "sortOrder">,
   ): Promise<ProductRecord>;
-  /** Set the row's lifecycle status. Null when the id is not in the workspace. */
+  /** Point the product at another status row. Null when no such product. */
   setProductStatus(
     workspaceId: string,
     productId: string,
-    status: ProductRecord["status"],
+    statusId: string,
   ): Promise<ProductRecord | null>;
   /** Apply a renumbering computed by planMove - the whole list, dense. */
   setProductOrder(
@@ -160,6 +186,26 @@ export interface CatalogStore {
     workspaceId: string,
     orders: readonly { id: string; sortOrder: number }[],
   ): Promise<void>;
+  /** Delete a type outright. The SERVICE refuses in-use types first
+   * (planTypeRemoval); the FK RESTRICTs underneath as the last line. */
+  removeProductType(workspaceId: string, typeId: string): Promise<boolean>;
+  /** How many products carry this type - what planTypeRemoval judges. */
+  countProductsByType(workspaceId: string, typeId: string): Promise<number>;
+
+  /** The status vocabulary, in its own order. */
+  listStatusConfigs(workspaceId: string): Promise<ProductStatusRecord[]>;
+  /** Upsert by status_code - the anchor, like type_code one table over. */
+  upsertStatusConfig(
+    workspaceId: string,
+    input: Omit<ProductStatusRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductStatusRecord>;
+  setStatusConfigOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeStatusConfig(workspaceId: string, statusId: string): Promise<boolean>;
+  /** How many products reference this status row - what planStatusRemoval judges. */
+  countProductsByStatusId(workspaceId: string, statusId: string): Promise<number>;
   upsertSolution(
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId">,
@@ -176,8 +222,12 @@ export interface CatalogStore {
    */
   appendPrice(
     workspaceId: string,
-    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
+    input: PriceDraft,
   ): Promise<PriceEntryRecord>;
+
+  /** Delete one price entry. The SERVICE refuses the in-force row and any
+   * entry a discount signature cites (planPriceRemoval). */
+  removePrice(workspaceId: string, priceId: string): Promise<boolean>;
 
   listLines(workspaceId: string, opportunityId: string): Promise<OpportunityLineRecord[]>;
   /** Every line in the workspace, for product-level rollups. */
@@ -201,6 +251,7 @@ export interface CatalogStore {
 export class InMemoryCatalogStore implements CatalogStore {
   private products: ProductRecord[] = [];
   private types: ProductTypeRecord[] = [];
+  private statuses: ProductStatusRecord[] = [];
   private solutions: SolutionRecord[] = [];
   private items: SolutionItemRecord[] = [];
   private prices: PriceEntryRecord[] = [];
@@ -211,6 +262,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   seed(input: {
     products?: ProductRecord[];
     types?: ProductTypeRecord[];
+    statuses?: ProductStatusRecord[];
     solutions?: SolutionRecord[];
     items?: SolutionItemRecord[];
     prices?: PriceEntryRecord[];
@@ -219,6 +271,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   }): void {
     if (input.products) this.products = [...input.products];
     if (input.types) this.types = [...input.types];
+    if (input.statuses) this.statuses = [...input.statuses];
     if (input.solutions) this.solutions = [...input.solutions];
     if (input.items) this.items = [...input.items];
     if (input.prices) this.prices = [...input.prices];
@@ -280,13 +333,13 @@ export class InMemoryCatalogStore implements CatalogStore {
   async setProductStatus(
     workspaceId: string,
     productId: string,
-    status: ProductRecord["status"],
+    statusId: string,
   ): Promise<ProductRecord | null> {
     const at = this.products.findIndex(
       (p) => p.workspaceId === workspaceId && p.id === productId,
     );
     if (at < 0) return null;
-    const next = { ...this.products[at]!, status };
+    const next = { ...this.products[at]!, statusId };
     this.products[at] = next;
     return next;
   }
@@ -368,6 +421,83 @@ export class InMemoryCatalogStore implements CatalogStore {
     );
   }
 
+  async removeProductType(workspaceId: string, typeId: string): Promise<boolean> {
+    const before = this.types.length;
+    this.types = this.types.filter(
+      (t) => !(t.workspaceId === workspaceId && t.id === typeId),
+    );
+    return this.types.length < before;
+  }
+
+  async countProductsByType(workspaceId: string, typeId: string): Promise<number> {
+    return this.products.filter(
+      (p) => p.workspaceId === workspaceId && p.typeId === typeId,
+    ).length;
+  }
+
+  async listStatusConfigs(workspaceId: string): Promise<ProductStatusRecord[]> {
+    return this.statuses
+      .filter((r) => r.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.statusCode.localeCompare(b.statusCode));
+  }
+
+  async upsertStatusConfig(
+    workspaceId: string,
+    input: Omit<ProductStatusRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductStatusRecord> {
+    const at = this.statuses.findIndex(
+      (r) => r.workspaceId === workspaceId && r.statusCode === input.statusCode,
+    );
+    if (at >= 0) {
+      // The code is the anchor - matched on, never moved by an upsert.
+      const next = {
+        ...this.statuses[at]!,
+        ...input,
+        statusCode: this.statuses[at]!.statusCode,
+      };
+      this.statuses[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.statuses.filter((r) => r.workspaceId === workspaceId).map((r) => r.sortOrder),
+    );
+    const row: ProductStatusRecord = {
+      id: `pst_${++this.seq}`,
+      workspaceId,
+      sortOrder: tail + 1,
+      ...input,
+    };
+    this.statuses.push(row);
+    return row;
+  }
+
+  async setStatusConfigOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.statuses = this.statuses.map((r) =>
+      r.workspaceId === workspaceId && want.has(r.id)
+        ? { ...r, sortOrder: want.get(r.id)! }
+        : r,
+    );
+  }
+
+  async removeStatusConfig(workspaceId: string, statusId: string): Promise<boolean> {
+    const before = this.statuses.length;
+    this.statuses = this.statuses.filter(
+      (r) => !(r.workspaceId === workspaceId && r.id === statusId),
+    );
+    return this.statuses.length < before;
+  }
+
+  async countProductsByStatusId(workspaceId: string, statusId: string): Promise<number> {
+    return this.products.filter(
+      (p) => p.workspaceId === workspaceId && p.statusId === statusId,
+    ).length;
+  }
+
   async upsertSolution(
     workspaceId: string,
     input: Omit<SolutionRecord, "id" | "workspaceId">,
@@ -396,11 +526,13 @@ export class InMemoryCatalogStore implements CatalogStore {
     return row;
   }
 
-  async appendPrice(
-    workspaceId: string,
-    input: Omit<PriceEntryRecord, "id" | "workspaceId">,
-  ): Promise<PriceEntryRecord> {
-    const row: PriceEntryRecord = { id: `pbe_${++this.seq}`, workspaceId, ...input };
+  async appendPrice(workspaceId: string, input: PriceDraft): Promise<PriceEntryRecord> {
+    const row: PriceEntryRecord = {
+      id: `pbe_${++this.seq}`,
+      workspaceId,
+      supersedesId: input.supersedesId ?? null,
+      ...input,
+    };
     this.prices.push(row);
     return row;
   }
@@ -409,6 +541,14 @@ export class InMemoryCatalogStore implements CatalogStore {
     return this.prices
       .filter((p) => p.workspaceId === workspaceId)
       .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime());
+  }
+
+  async removePrice(workspaceId: string, priceId: string): Promise<boolean> {
+    const before = this.prices.length;
+    this.prices = this.prices.filter(
+      (p) => !(p.workspaceId === workspaceId && p.id === priceId),
+    );
+    return this.prices.length < before;
   }
 
   async listLines(workspaceId: string, opportunityId: string): Promise<OpportunityLineRecord[]> {

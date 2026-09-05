@@ -523,7 +523,6 @@ export const CATALOG_TEXT = {
   newPrice: "设定价格",
   newPriceWhy: "列表价是对外的说法，底价是内部的纪律——低于底价的行项会被标记待批。",
   newEntry: "新建",
-  title: "产品目录",
   description:
     "目录是被所有域引用的维度：商机、合同、交付、信号匹配都读它，而它谁都不写。",
   lead: (n: number) => `${n} 个在售产品`,
@@ -550,7 +549,7 @@ export const CATALOG_TEXT = {
   // 模块页（owner 裁定 2026-09-05）：展示为主，行操作靠右锁定，配置独立成页。
   tagActive: (n: number) => `${n} 产品在售`,
   tagDev: (n: number) => `${n} 在研产品`,
-  settingsLink: "产品设置",
+  settingsLink: "产品配置",
   byTypeCollapse: "收起分类统计",
   byTypeExpand: "展开分类统计",
   byTypeEmpty: "还没有产品，分类统计从第一个产品开始",
@@ -579,27 +578,43 @@ export const CATALOG_TEXT = {
   sortTitle: "当前目录顺序",
   sortWhy: "新产品排在末位。用上移/下移把它放到该在的位置——这里的顺序就是客户看到的顺序。",
 
-  // 配置页：类型是工作区自己的词表；状态带行为，系统固定三态。
-  settingsTitle: "产品设置",
-  settingsWhy: "这里配置的是产品系统本身——类型词表与状态语义——不是某一个产品。",
+  // 配置页（owner 裁定 2026-09-05 第二轮）：次级配置页，不摆模块页头——
+  // 返回 + 面包屑一行，小标题一行，不带描述。
+  settingsTitle: "产品配置",
+  back: "返回",
   typesTitle: "产品类型",
   typesWhy:
-    "类型是工作区自己的词表。产品按 type_code 引用它，所以类型只停用、不删除——停用后旧产品仍能显示。",
+    "类型是工作区自己的词表，只描述产品是哪类。被产品引用时不可删除；停用后不再供新产品选择，旧产品照常显示。",
   typeCode: "类型编码",
   typeName: "类型名称",
-  typeCodeHint: "编码是锚点，创建后不可改；同一编码再保存一次是改名，不是新增",
-  addType: "保存类型",
-  typeSaved: "已保存",
+  typeCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
+  addType: "新增类型",
+  renameType: "重命名",
+  saveType: "保存类型",
+  typeDeleteConsequence: "删除不可恢复。仍有产品挂在这个类型时会被拒绝——那种情况请改用停用。",
+  // 两张配置表同构（owner 定列 2026-09-05）：
+  // 序号｜类型名称｜关联产品｜类型状态｜操作 / 序号｜状态名称｜关联产品｜状态描述｜操作
+  colTypeName: "类型名称",
+  colTypeStatus: "类型状态",
+  colStatusName: "状态名称",
+  colStatusDesc: "状态描述",
+  colLinkedProducts: "关联产品",
+  linkedCount: (n: number) => `${n} 个`,
+  typeEffectiveBadge: "生效中",
   typeRetire: "停用",
   typeReinstate: "启用",
   typeRetiredBadge: "已停用",
   typeInUse: (n: number) => `${n} 个产品`,
   statusesTitle: "产品状态",
   statusesWhy:
-    "状态带行为——只有「在售」可报价——所以是系统固定的三态，不开放自定义。",
-  statusMeaningDev: "创建时的出生状态：真实存在、出现在计划里，但不可报价，也回不去。",
-  statusMeaningActive: "唯一可报价的状态。上线、以及退役后的恢复，都落到这里。",
-  statusMeaningRetired: "搁置而非删除：随时可恢复在售，历史引用全部保留。",
+    "状态只描述产品处于什么阶段——在研、在售、已退役。行就是内容本身，这张表没有启停概念。",
+  addStatus: "新增状态",
+  renameStatus: "重命名",
+  saveStatus: "保存状态",
+  statusCode: "状态编码",
+  statusCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
+  moveToStatus: (label: string) => `转入「${label}」`,
+  statusDeleteConsequence: "删除不可恢复。内置三个状态不可删；仍有产品处于该状态时会被拒绝。",
 
   solutions: "解决方案",
   solutionsWhy:
@@ -608,15 +623,60 @@ export const CATALOG_TEXT = {
   noSolutions: "还没有解决方案",
   emptyBundle: "一个不装产品的方案只是个名字",
 
-  pricebook: "价目与底价",
   pricebookWhy:
     "底价是这张表存在的理由：低于它的报价需要签字。价格只追加不改写——被取代的那一行解释了今天这个数字是怎么来的。",
+  // 定价模块页（owner 裁定 2026-09-05：全面按产品目录的模式与布局）
+  tagPriced: (n: number) => `${n} 已定价`,
+  tagUnpriced: (n: number) => `${n} 未定价`,
+  priceStat: (priced: number, unpriced: number) =>
+    unpriced > 0 ? `${priced} 已定价 · ${unpriced} 未定价` : `${priced} 已定价`,
+  priceStatEmpty: "还没有产品，定价统计从第一个产品开始",
+  priceCurrent: "当前价目",
+  priceCurrentWhy: "每个产品此刻生效的那一行。底价是内部纪律：低于它的报价需要签字。",
+  priceHistory: "历史价目",
+  priceHistoryWhy: "被取代的价格。它们解释了今天这个数字是怎么来的，所以保留而不删除。",
+  reprice: "重新定价",
+  repriceWhy: "价格只追加不改写：保存后成为该产品的当前价目，旧价目转入历史。",
+  colProduct: "产品",
+  // 智能定价评估（owner 裁定 2026-09-05）：评估在侧栏，每条建议自带采纳/忽略。
+  adviceTitle: "智能定价评估",
+  adviceScopeAll: "全部在售价目",
+  adviceScopeSelection: "已选行",
+  adviceClear: "这批价目没有需要处理的地方。",
+  adviceRunAll: "评估全部价目",
+  adviceAccept: "采纳",
+  adviceIgnore: "忽略",
+  adviceIgnored: (n: number) => `已忽略 ${n} 条`,
+  adviceApplied: "已按建议追加新价目",
+  adviceUnpriced: (name: string) => `「${name}」在售但没有价格，无法进入报价。`,
+  adviceOverridden: (name: string, n: number) =>
+    `「${name}」已有 ${n} 次低于底价的签字——底价可能定高了。`,
+  adviceOutlier: (name: string, actualPct: number, medianPct: number) =>
+    `「${name}」底价是标价的 ${actualPct}%，工作区其余产品的中位是 ${medianPct}%。`,
+  adviceEqual: (name: string) => `「${name}」底价等于标价，即不打折——确认这是立场而非漏填。`,
+  adviceApplyFloor: (floor: string) => `按中位比例，底价 ${floor}`,
+  adviceNoNumber: "这条没有可直接采纳的数字",
+  adviceNoNumberWhy: "需要人来定标价与底价，分析只能指出缺口",
+  adviceOpenCatalogue: "前往产品目录",
+  adviceOpenHistory: "查看历史价目",
+  // 两件不同的事，名字分开（owner 裁定 2026-09-05）：
+  // 「智能定价评估」按规则给出建议并可一键采纳；
+  // 「定价变化分析」看价格随时间怎么走，开发中——incr/0030 的继承链就是它的数据基础。
+  assessSelected: "智能定价评估",
+  analyzeSelectedHint: "先在左侧勾选要评估的价目",
+  priceTrend: "定价变化分析",
+  priceTrendSoon: "定价变化分析开发中：继承链数据已在记录，界面还没有接通",
+  priceInForceHint: "当前生效的价格不能删除——请用「重新定价」追加一条新的",
+  priceDeleteConsequence: "删除不可恢复。被折扣签字引用过的价格会被拒绝——那条记录是签字的依据。",
+  listHint: "对外报出的价格",
+  floorHint: "可成交的下限。底价等于标价表示此产品不打折。",
   colList: "标价",
   colFloor: "底价",
   colCurrency: "币种",
   colEffective: "生效时间",
+  colSuperseded: "退役时间",
   noPrices: "还没有价目",
-  setPrice: "记一次价格",
+  setPrice: "保存价格",
   priceSaved: "已记入",
   floorEqualsList: "底价等于标价 = 此产品不打折，这是一个立场，不是笔误",
   priceDenied: "你没有定价权限——能移动底价的人等于能批准每一笔折扣",
@@ -803,11 +863,20 @@ export const CATALOG_ERROR: Record<string, string> = {
   floor_above_list: "底价高于标价会让每一笔都需要签字，等于没有底价",
   // 生命周期与排序（incr/0028）
   status_unchanged: "已经是这个状态了",
-  development_is_birth_state: "在研是出生状态：只能创建时在研，上线后回不去",
+  development_is_birth_state: "在研是出生行为：只能创建时进入，之后回不去",
   product_in_use: "有报价行或方案还引用着这个产品，不能删除——请改用退役",
   move_at_edge: "已经在清单的这一端了",
   not_found: "找不到这条记录，页面可能已过期，请刷新",
   not_movable: "这一行不在可排序的清单里",
+  price_in_force: "这是产品当前报价所依据的价格，不能删除——请改用重新定价",
+  price_signed: "有折扣签字引用了这条价格的底价，删掉会让签字失去依据",
+  // 词表（incr/0029）
+  type_in_use: "还有产品挂在这个类型上，不能删除——请改用停用",
+  type_not_found: "找不到这个产品类型，页面可能已过期，请刷新",
+  status_not_found: "找不到这个状态，页面可能已过期，请刷新",
+  born_shelved: "产品不能一出生就是已退役",
+  system_status: "内置三个状态不可删除——可以改名、改描述、排序",
+  status_in_use: "还有产品处于这个状态，先把它们转走",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

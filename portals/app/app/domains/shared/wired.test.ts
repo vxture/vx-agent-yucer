@@ -68,6 +68,13 @@ const NOT_VERBS = new Set(["denied", "ok", "fail"]);
  * push files to stop exporting the pieces their tests need.
  */
 const KNOWN_TEST_ONLY: Record<string, string> = {
+  // `suggestFloor` and `unpricedProducts` were listed here for ONE afternoon
+  // (2026-09-05): the price form became a dialog with no assist panel, and
+  // both lost their caller. Neither is here now, and for two different
+  // reasons worth keeping apart - suggestFloor came back the same day, as the
+  // median the price ANALYSIS reasons from; unpricedProducts was deleted,
+  // because the analysis answers "on sale with no price" over its own inputs
+  // and two answers to one question is how they drift apart.
   // ---------------------------------------------------------------------
   // THE SIX DUPLICATE GUARDS ARE GONE (2026-08-31). Each refused a patch
   // touching a frozen column, which `column-locks.assertWritable` already did
@@ -174,6 +181,17 @@ function code(file: string): string {
       .replace(/"(?:[^"\\\n]|\\.)*"/g, " ")
       .replace(/'(?:[^'\\\n]|\\.)*'/g, " ")
       .replace(/`(?:[^`\\]|\\.)*`/g, " ")
+      // AND KEYS IN KEY POSITION, learned the same way one batch later
+      // (2026-09-05): `unpricedProducts` reported itself wired because the
+      // message dictionary happens to have an entry of that name -
+      //
+      //   unpricedProducts: "未定价的产品",   <- a dictionary key
+      //
+      // The string on the right was already stripped; the identifier on the
+      // left was not, and a name in key position is no more a caller than a
+      // word in a comment. Only the KEY side is blanked, so a shorthand
+      // property (`{ suggestFloor }`, a genuine reference) still counts.
+      .replace(/^(\s*)\w+\s*:/gm, "$1:")
   );
 }
 

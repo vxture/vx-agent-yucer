@@ -29,7 +29,6 @@ import {
   DEMO_CONTACTS,
   DEMO_DEAL_NOTES,
   DEMO_DEV_PRODUCTS,
-  DEMO_PRODUCT_TYPES,
   DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
@@ -51,6 +50,8 @@ import {
   DEMO_SEGMENTS,
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
+import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
+import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
   CommitmentRecord,
@@ -1457,15 +1458,43 @@ function proposal(
 // prices are therefore derived from each deal's total, and one line is priced
 // below its floor on purpose so the approval flag has a case.
 function seedCatalog(workspaceId: string, stores: DemoStores): void {
+  // The SHIPPED starter set, verbatim - the demo shows what a delivered
+  // tenant opens: nine types, four carrying products, the rest ready.
+  const types = DEFAULT_TYPE_VOCABULARY.map((d, i) => ({
+    id: `ptp_demo_${i + 1}`,
+    workspaceId,
+    typeCode: d.typeCode,
+    name: d.name,
+    sortOrder: i + 1,
+    status: "active" as const,
+  }));
+  // The association is by UUID (incr/0029) - the fixtures name types by their
+  // code for readability, the seed resolves them to ids here.
+  const typeIdOf = new Map(types.map((t) => [t.typeCode, t.id]));
+
+  // The full shipped status set - what 0029's backfill provisions: real
+  // names and 状态描述, ordinary data the workspace may edit.
+  const statuses = [...SYSTEM_STATUS_DEFAULTS, ...STARTER_STATUS_DEFAULTS]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((d, i) => ({
+      id: `pst_demo_${i + 1}`,
+      workspaceId,
+      statusCode: d.statusCode as string,
+      name: d.name,
+      description: d.description,
+      sortOrder: i + 1,
+    }));
+  const statusIdOf = new Map(statuses.map((r) => [r.statusCode, r.id]));
+
   const products = [
     ...DEMO_PRODUCTS.map((p, i) => ({
       id: `prd_demo_${i + 1}`,
       workspaceId,
       productCode: p.code,
       name: p.name,
-      category: p.category as string,
+      typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "active" as const,
+      statusId: statusIdOf.get("active")!,
       sortOrder: i + 1,
     })),
     // The in-development roster, after the sellable one - so the module page's
@@ -1475,9 +1504,9 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       workspaceId,
       productCode: p.code,
       name: p.name,
-      category: p.category as string,
+      typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "in_development" as const,
+      statusId: statusIdOf.get("in_development")!,
       sortOrder: DEMO_PRODUCTS.length + i + 1,
     })),
     // The shelf: one product retired, so the module page's second roster and
@@ -1487,22 +1516,13 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       workspaceId,
       productCode: p.code,
       name: p.name,
-      category: p.category as string,
+      typeId: typeIdOf.get(p.category) ?? null,
       unit: p.unit,
-      status: "retired" as const,
+      statusId: statusIdOf.get("retired")!,
       sortOrder: DEMO_PRODUCTS.length + DEMO_DEV_PRODUCTS.length + i + 1,
     })),
   ];
   const byCode = new Map(products.map((p) => [p.productCode, p.id]));
-
-  const types = DEMO_PRODUCT_TYPES.map((name, i) => ({
-    id: `ptp_demo_${i + 1}`,
-    workspaceId,
-    typeCode: name,
-    name,
-    sortOrder: i + 1,
-    status: "active" as const,
-  }));
 
   const solutions = DEMO_SOLUTIONS.map((sol, i) => ({
     id: `sol_demo_${i + 1}`,
@@ -1531,6 +1551,8 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     listPrice: p.list,
     floorPrice: p.floor,
     effectiveAt: daysAgo(180),
+    // The first price of each product replaces nothing (incr/0030).
+    supersedesId: null,
   }));
 
   // Each entry: deal, solution it was quoted from, and the products with the
@@ -1594,7 +1616,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }),
   );
 
-  stores.catalog.seed({ products, types, solutions, items, prices, lines });
+  stores.catalog.seed({ products, types, statuses, solutions, items, prices, lines });
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */

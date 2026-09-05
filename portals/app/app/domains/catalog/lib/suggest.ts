@@ -44,12 +44,3 @@ export function suggestFloor(
   // Whole yuan. A floor of 8333.33 reads as arithmetic, not as a decision.
   return { floor: Math.round(listPrice * median), ratioPct: Math.round(median * 100) };
 }
-
-/** The products a new price entry is most useful for: active, and unpriced. */
-export function unpricedProducts(
-  products: readonly ProductRecord[],
-  prices: readonly Pick<PriceEntryRecord, "productId">[],
-): ProductRecord[] {
-  const priced = new Set(prices.map((p) => p.productId));
-  return products.filter((p) => p.status === "active" && !priced.has(p.id));
-}

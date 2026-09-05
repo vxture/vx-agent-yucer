@@ -74,7 +74,7 @@ export default async function AdminHomePage() {
     <ViewLayout>
       <ViewHeader
         icon="settings"
-        title={ADMIN_TEXT.title}
+        title={DOMAIN_LABEL.admin}
         description={ADMIN_TEXT.description}
       />
 

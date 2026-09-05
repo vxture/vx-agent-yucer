@@ -30,6 +30,11 @@ const ALLOWED = new Set([
   "(app)/lib/messages.en.ts",
   "domains/shared/demo-fixtures.ts",
   "domains/judgement/lib/judgement.ts",
+  // The two vocabularies' pre-provisioned rows (0029): SEED DATA, not copy -
+  // a delivered tenant is a usable product, and the workspace owns the rows
+  // afterwards. Same nature as demo-fixtures: data that happens to be text.
+  "domains/catalog/lib/status-vocab.ts",
+  "domains/catalog/lib/type-vocab.ts",
 ]);
 
 // CJK and fullwidth ranges - actual text in a human language. The typographic

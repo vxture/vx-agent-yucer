@@ -1,0 +1,241 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import {
+  ActionMenu,
+  Button,
+  DataTable,
+  DialogForm,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  Input,
+  Section,
+  StatusBadge,
+  useToast,
+} from "@vxture/design-ui";
+import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
+import { useMessages } from "../lib/i18n/provider";
+
+// 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
+// ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
+// import nothing from each other). A type describes what KIND of product
+// something is and carries its own effective/retired state; it knows nothing
+// of product status.
+//
+// COLUMNS AS RULED: 序号 | 类型名称 | 关联产品 | 类型状态 | 操作(右侧锁定).
+// The width tiers (md / sm / lg) are the SAME sequence the status config
+// uses, so the two tables line up column for column.
+//
+// Operations, all in the row menu: 重命名 / 停用 / 启用 / 上移 / 下移 / 删除.
+// Creation is a dialog off the section button. Delete is refused while
+// products carry the type (fk_product_type RESTRICTs underneath).
+
+export interface CatalogTypeConfigProps {
+  readonly types: readonly ProductTypeRecord[];
+  readonly products: readonly ProductRecord[];
+  readonly onSave: (input: {
+    typeCode: string;
+    name: string;
+    status?: "active" | "retired";
+  }) => Promise<{ ok: boolean; error?: string }>;
+  readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
+  readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
+}
+
+export function CatalogTypeConfig({
+  types,
+  products,
+  onSave,
+  onMove,
+  onDelete,
+}: CatalogTypeConfigProps) {
+  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const [dialog, setDialog] = useState<{ mode: "create" | "rename"; code: string; name: string } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const { toast } = useToast();
+
+  const inUse = (typeId: string) => products.filter((p) => p.typeId === typeId).length;
+
+  const run = (p: Promise<{ ok: boolean; error?: string }>) =>
+    startTransition(() => {
+      void p.then((r) => {
+        if (r.ok) return;
+        toast({
+          tone: "danger",
+          title: CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied,
+        });
+      });
+    });
+
+  const submitDialog = () => {
+    if (!dialog) return;
+    setErr(null);
+    startTransition(() => {
+      void onSave({ typeCode: dialog.code.trim(), name: dialog.name.trim() }).then((r) => {
+        if (r.ok) setDialog(null);
+        else setErr(CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied);
+      });
+    });
+  };
+
+  return (
+    <Section
+      title={CATALOG_TEXT.typesTitle}
+      description={CATALOG_TEXT.typesWhy}
+      action={
+        <Button onClick={() => { setErr(null); setDialog({ mode: "create", code: "", name: "" }); }}>
+          {CATALOG_TEXT.addType}
+        </Button>
+      }
+    >
+      {/* Two constraints from outside, not a restyle of the DS (TD-022):
+          - table-fixed: the DS width tiers are MIN-widths, and under auto
+            table layout actual widths drift with content - the twin config
+            tables then disagree on where columns sit (owner: 列宽保持一致).
+          - th:last-child w-control-3xl: the DS documents its action column
+            as FIXED and pinned, but ships only min-w-control-3xl, and fixed
+            layout ignores minimums - without an explicit width the action
+            column swallows an equal share. Same token the DS's own 序号
+            column uses, so the two edge columns match. */}
+      <div className="[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl">
+      <DataTable
+        labels={DATA_TABLE_LABELS}
+        indexStart={1}
+        rowKey={(t: ProductTypeRecord) => t.id}
+        rows={[...types]}
+        columns={[
+          {
+            id: "name",
+            header: CATALOG_TEXT.colTypeName,
+            width: "md" as const,
+            cell: (t: ProductTypeRecord) => (
+              <span className="flex min-w-0 flex-col">
+                <span className="text-foreground truncate">{t.name}</span>
+                {t.typeCode !== t.name ? (
+                  <span className="text-muted-foreground mono truncate text-body-sm">{t.typeCode}</span>
+                ) : null}
+              </span>
+            ),
+          },
+          {
+            id: "linked",
+            header: CATALOG_TEXT.colLinkedProducts,
+            width: "sm" as const,
+            align: "center" as const,
+            cell: (t: ProductTypeRecord) => (
+              <span className="tabular-nums">{CATALOG_TEXT.linkedCount(inUse(t.id))}</span>
+            ),
+          },
+          {
+            id: "status",
+            header: CATALOG_TEXT.colTypeStatus,
+            width: "lg" as const,
+            align: "center" as const,
+            cell: (t: ProductTypeRecord) =>
+              t.status === "retired" ? (
+                <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>
+              ) : (
+                <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>
+              ),
+          },
+        ]}
+        rowActions={(t: ProductTypeRecord, rowIndex: number) => (
+          <ActionMenu
+            disabled={pending}
+            items={[
+              {
+                id: "rename",
+                label: CATALOG_TEXT.renameType,
+                onSelect: () => {
+                  setErr(null);
+                  setDialog({ mode: "rename", code: t.typeCode, name: t.name });
+                },
+              },
+              {
+                id: "toggle",
+                label: t.status === "active" ? CATALOG_TEXT.typeRetire : CATALOG_TEXT.typeReinstate,
+                onSelect: () =>
+                  run(
+                    onSave({
+                      typeCode: t.typeCode,
+                      name: t.name,
+                      status: t.status === "active" ? "retired" : "active",
+                    }),
+                  ),
+              },
+              {
+                id: "up",
+                label: CATALOG_TEXT.opUp,
+                disabled: rowIndex === 0,
+                separatorBefore: true,
+                onSelect: () => run(onMove(t.id, "up")),
+              },
+              {
+                id: "down",
+                label: CATALOG_TEXT.opDown,
+                disabled: rowIndex === types.length - 1,
+                onSelect: () => run(onMove(t.id, "down")),
+              },
+              {
+                id: "delete",
+                label: CATALOG_TEXT.opDelete,
+                danger: true as const,
+                separatorBefore: true,
+                confirm: {
+                  verb: CATALOG_TEXT.opDelete,
+                  target: t.name,
+                  consequence: CATALOG_TEXT.typeDeleteConsequence,
+                  onConfirm: () => run(onDelete(t.id)),
+                },
+              },
+            ]}
+          />
+        )}
+      />
+      </div>
+
+      <DialogForm
+        open={dialog !== null}
+        onOpenChange={(open) => { if (!open) setDialog(null); }}
+        title={dialog?.mode === "rename" ? CATALOG_TEXT.renameType : CATALOG_TEXT.addType}
+        submitLabel={CATALOG_TEXT.saveType}
+        submitting={pending}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitDialog();
+        }}
+      >
+        {/* FIELD GROUPS, not loose Label/Input siblings: the dialog's form is
+            flex-col gap-lg, so a bare label floated 24px off its own control
+            and wrapped into the space (owner, 2026-09-05). A Field is ONE
+            child - label hugging its input - and the explanation lives in
+            FieldDescription, never inside the label. */}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="type-code">{CATALOG_TEXT.typeCode}</FieldLabel>
+            <Input
+              id="type-code"
+              value={dialog?.code ?? ""}
+              disabled={pending || dialog?.mode === "rename"}
+              onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
+            />
+            <FieldDescription>{CATALOG_TEXT.typeCodeHint}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="type-name">{CATALOG_TEXT.colTypeName}</FieldLabel>
+            <Input
+              id="type-name"
+              value={dialog?.name ?? ""}
+              disabled={pending}
+              onChange={(e) => setDialog((d) => (d ? { ...d, name: e.target.value } : d))}
+            />
+          </Field>
+        </FieldGroup>
+        {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
+      </DialogForm>
+    </Section>
+  );
+}

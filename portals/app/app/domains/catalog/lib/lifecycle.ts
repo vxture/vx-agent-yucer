@@ -1,46 +1,8 @@
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 
-// Product lifecycle and catalogue order - the rules behind the module page's
-// row operations (owner ruling 2026-09-05). Pure, like pricing.ts next door.
-
-/** The three system statuses, in lifecycle order. NOT workspace-configurable:
- * a status carries behaviour (only `active` is quotable), so an invented one
- * would be a state the rules cannot interpret. The config page DISPLAYS these
- * with their meaning; it edits only the type vocabulary. */
-export const PRODUCT_STATUSES = ["in_development", "active", "retired"] as const;
-export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
-
-/**
- * May this product move from `current` to `next`?
- *
- * in_development is a BIRTH state: a product enters it by being created there
- * and leaves it by launching (or being abandoned straight to retired). Nothing
- * returns to it - "we sold this, now we are developing it" is a new product
- * version, not a status edit, and letting rows slide back would quietly pull
- * quoted products out of the quotable set.
- *
- * retired -> active is allowed: retirement is a shelving decision, and
- * un-shelving is the same decision reversed. That reversibility is exactly why
- * the delete operation can refuse referenced products and point here instead.
- */
-export function planStatusChange(
-  current: ProductStatus,
-  next: ProductStatus,
-): RuleResult<ProductStatus> {
-  if (current === next) {
-    return fail(violation("status_unchanged", `already ${current}`, "status"));
-  }
-  if (next === "in_development") {
-    return fail(
-      violation(
-        "development_is_birth_state",
-        "a product enters development by being created there, never by sliding back",
-        "status",
-      ),
-    );
-  }
-  return ok(next);
-}
+// The PRODUCT ROSTER's own rules: deletion and manual order. The two config
+// vocabularies keep their rules in type-vocab.ts and status-vocab.ts, which
+// deliberately know nothing of each other or of this file.
 
 /**
  * May this product be DELETED?
@@ -51,9 +13,6 @@ export function planStatusChange(
  * exists so the refusal is a sentence, not a constraint error). Price entries
  * do NOT block: a price without its product means nothing, and the DDL
  * cascades them away.
- *
- * The alternative for a product with history is `retired` - which is why the
- * lifecycle keeps retirement reversible.
  */
 export function planRemoval(refs: {
   readonly lines: number;
@@ -74,15 +33,15 @@ export function planRemoval(refs: {
 /**
  * Move one row up or down within its VISIBLE group, by renumbering.
  *
- * `ordered` is the workspace's full list in current order; `movable` marks the
- * rows the moving row is displayed among (the module page splits active+dev
- * from retired, so a move must land beside a row the user can SEE - swapping
- * with an invisible retired neighbour would be a click that changes nothing).
+ * `ordered` is the full list in current order; `movable` marks the rows the
+ * moving row is displayed among (the module page splits live from retired, so
+ * a move must land beside a row the user can SEE). Returns a DENSE
+ * renumbering of the whole list rather than a two-row swap: rows fresh from
+ * the DDL default all carry sort_order 0, and swapping two equal numbers is a
+ * click that changes nothing. The first move self-heals the whole ordering.
  *
- * Returns a DENSE renumbering of the whole list rather than a two-row swap:
- * rows fresh from the DDL default all carry sort_order 0, and swapping two
- * equal numbers is also a click that changes nothing. Renumbering makes the
- * first move self-heal the whole ordering.
+ * Generic over anything with an id - the config vocabularies order their
+ * rows through this too, which is shared machinery, not shared vocabulary.
  */
 export function planMove(
   ordered: readonly { readonly id: string; readonly movable: boolean }[],
@@ -105,33 +64,4 @@ export function planMove(
   const next = [...ordered];
   [next[at], next[swap]] = [next[swap]!, next[at]!];
   return ok(next.map((r, i) => ({ id: r.id, sortOrder: i + 1 })));
-}
-
-// --- the type vocabulary -----------------------------------------------------
-
-export interface ProductTypeDraft {
-  typeCode: string;
-  name: string;
-  status: "active" | "retired";
-}
-
-/**
- * A type needs a code and a name.
- *
- * The code is what `product.category` holds by value, so it follows the anchor
- * rules (immutable after creation - the store upserts by it). The name is what
- * people read; renaming it is free precisely because nothing references it.
- */
-export function planProductType(input: ProductTypeDraft): RuleResult<ProductTypeDraft> {
-  if (!input.typeCode.trim()) {
-    return fail(violation("code_required", "a type needs a code", "typeCode"));
-  }
-  if (!input.name.trim()) {
-    return fail(violation("name_required", "a type needs a name", "name"));
-  }
-  return ok({
-    ...input,
-    typeCode: input.typeCode.trim(),
-    name: input.name.trim(),
-  });
 }

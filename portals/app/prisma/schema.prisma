@@ -854,15 +854,19 @@ model Product {
   workspaceId  String   @map("workspace_id") @db.Uuid
   productCode  String   @map("product_code") @db.VarChar(64)
   name         String   @db.VarChar(255)
-  category     String?  @db.VarChar(64)
+  /// The type association - a uuid since 0029; the business code never joins.
+  typeId       String?  @map("type_id") @db.Uuid
   unit         String   @default("set") @db.VarChar(32)
-  status       String   @default("active") @db.VarChar(16)
+  /// The status association - a uuid like the type's (0029).
+  statusId     String   @map("status_id") @db.Uuid
   sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, productCode], map: "uidx_product_code")
   @@index([workspaceId, sortOrder], map: "idx_product_ws_sort")
+  @@index([workspaceId, typeId], map: "idx_product_ws_type")
+  @@index([workspaceId, statusId], map: "idx_product_ws_status")
   @@map("product")
   @@schema("yucer_catalog")
 }
@@ -882,6 +886,25 @@ model ProductType {
   @@unique([workspaceId, typeCode], map: "uidx_product_type_code")
   @@index([workspaceId, sortOrder], map: "idx_product_type_ws_sort")
   @@map("product_type")
+  @@schema("yucer_catalog")
+}
+
+/// The workspace's status vocabulary - incr/0029. Rows ARE the content:
+/// code (anchor), name, 状态描述, order. The three canonical rows are
+/// rule-protected from deletion; everything else is the workspace's.
+model ProductStatus {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  statusCode  String   @map("status_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  description String?  @db.VarChar(255)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, statusCode], map: "uidx_product_status_code")
+  @@index([workspaceId, sortOrder], map: "idx_product_status_ws_sort")
+  @@map("product_status")
   @@schema("yucer_catalog")
 }
 
@@ -922,8 +945,13 @@ model PriceBookEntry {
   listPrice   Decimal  @map("list_price") @db.Decimal(18, 2)
   floorPrice  Decimal  @map("floor_price") @db.Decimal(18, 2)
   effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz()
+  /// The entry this one replaced - incr/0030, the asserted chain. Self-FK
+  /// with ON DELETE SET NULL: deleting a superseded entry must not take its
+  /// successor with it.
+  supersedesId String? @map("supersedes_id") @db.Uuid
 
   @@unique([workspaceId, productId, currency, effectiveAt], map: "uidx_price_entry")
+  @@index([supersedesId], map: "idx_price_supersedes")
   @@map("price_book_entry")
   @@schema("yucer_catalog")
 }

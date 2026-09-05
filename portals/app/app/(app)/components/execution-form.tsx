@@ -122,7 +122,7 @@ export function ExecutionForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="list-checks">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{CAMPAIGN_TEXT.executionEditing}</FieldLabel>
               <NativeSelect value={form.id} onChange={(e) => pick(e.target.value)}>

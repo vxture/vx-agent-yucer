@@ -59,6 +59,7 @@ export const CHAIN = {
   accountPlan: id("07"),
   opportunity: id("08"),
   product: id("09"),
+  productStatus: id("22"),
   priceEntry: id("10"),
   solution: id("11"),
   solutionItem: id("12"),
@@ -96,6 +97,8 @@ export async function clearChain(c: Client): Promise<void> {
     `DELETE FROM yucer_catalog.solution WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.price_book_entry WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product WHERE workspace_id = $1`,
+    `DELETE FROM yucer_catalog.product_status WHERE workspace_id = $1`,
+    `DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`,
     `DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account_plan WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account WHERE workspace_id = $1`,
@@ -176,10 +179,17 @@ export async function seedChain(c: Client): Promise<void> {
     [CHAIN.opportunity, CHAIN_WS, CHAIN.account, CHAIN.campaign, CHAIN.territory],
   );
 
+  // 0029: products join the status vocabulary by uuid, so the row must exist
+  // before any product does - same order the service's lazy seeding enforces.
   await c.query(
-    `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit, status)
-     VALUES ($1, $2, 'PROD-DB-1', 'chain fixture product', 'seat', 'active')`,
-    [CHAIN.product, CHAIN_WS],
+    `INSERT INTO yucer_catalog.product_status (id, workspace_id, status_code, name, description)
+     VALUES ($1, $2, 'active', 'chain fixture status', 'the quotable state')`,
+    [CHAIN.productStatus, CHAIN_WS],
+  );
+  await c.query(
+    `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit, status_id)
+     VALUES ($1, $2, 'PROD-DB-1', 'chain fixture product', 'seat', $3)`,
+    [CHAIN.product, CHAIN_WS, CHAIN.productStatus],
   );
   await c.query(
     `INSERT INTO yucer_catalog.price_book_entry

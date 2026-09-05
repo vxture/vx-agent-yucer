@@ -109,7 +109,7 @@ export function TargetForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="target">
-          <div className="flex max-w-xl flex-col gap-md">
+          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
             <Field>
               <FieldLabel>{PLANNING_TEXT.setScope}</FieldLabel>
               <NativeSelect

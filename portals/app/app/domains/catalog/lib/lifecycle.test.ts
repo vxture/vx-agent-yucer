@@ -1,51 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  planMove,
-  planProductType,
-  planRemoval,
-  planStatusChange,
-} from "./lifecycle";
+import { planMove, planRemoval } from "./lifecycle";
 
-// --- planStatusChange --------------------------------------------------------
+// The product roster's own rules: deletion and manual order.
 
-test("launches, retires, reinstates and abandons", () => {
-  const launch = planStatusChange("in_development", "active");
-  assert.equal(launch.ok && launch.value, "active");
-  assert.equal(planStatusChange("active", "retired").ok, true);
-  assert.equal(planStatusChange("retired", "active").ok, true);
-  assert.equal(planStatusChange("in_development", "retired").ok, true);
-});
-
-test("refuses a no-op with its own code", () => {
-  const r = planStatusChange("active", "active");
-  assert.equal(!r.ok && r.violations[0]!.code, "status_unchanged");
-});
-
-test("never lets a row slide back into development", () => {
-  // The quotable set must only shrink through `retired`, which is visible - a
-  // product silently back in development would vanish from quoting with no
-  // record of the retirement decision.
-  for (const from of ["active", "retired"] as const) {
-    const r = planStatusChange(from, "in_development");
-    assert.equal(!r.ok && r.violations[0]!.code, "development_is_birth_state");
-  }
-});
-
-// --- planRemoval -------------------------------------------------------------
-
-test("allows deleting an unreferenced product", () => {
+test("allows deleting an unreferenced product, refuses a referenced one", () => {
   assert.equal(planRemoval({ lines: 0, solutionItems: 0 }).ok, true);
-});
-
-test("refuses while deal lines or solution items point at it", () => {
   const byLine = planRemoval({ lines: 2, solutionItems: 0 });
   assert.equal(!byLine.ok && byLine.violations[0]!.code, "product_in_use");
   const byItem = planRemoval({ lines: 0, solutionItems: 1 });
   assert.equal(!byItem.ok && byItem.violations[0]!.code, "product_in_use");
 });
-
-// --- planMove ----------------------------------------------------------------
 
 /** "A+ B- C+" -> rows in order; '+' marks the movable roster. */
 const rows = (spec: string) =>
@@ -78,16 +43,4 @@ test("refuses at the edges", () => {
 test("refuses an unknown or unmovable row", () => {
   assert.equal(order(planMove(rows("A+"), "Z", "up")), "not_found");
   assert.equal(order(planMove(rows("A+ B-"), "B", "up")), "not_movable");
-});
-
-// --- planProductType ---------------------------------------------------------
-
-test("trims and accepts a code and a name", () => {
-  const r = planProductType({ typeCode: " 平台 ", name: " 平台 ", status: "active" });
-  assert.equal(r.ok && r.value.typeCode, "平台");
-});
-
-test("refuses a blank code or name", () => {
-  assert.equal(planProductType({ typeCode: " ", name: "x", status: "active" }).ok, false);
-  assert.equal(planProductType({ typeCode: "x", name: " ", status: "active" }).ok, false);
 });

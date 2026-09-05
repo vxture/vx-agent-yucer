@@ -294,30 +294,32 @@ export const DEMO_DEAL_NOTES = {
  * different sales conversation from one that bought neither.
  */
 export const DEMO_PRODUCTS = [
-  { code: "PRD-CORE", name: "零售中台基础平台", category: "平台", unit: "套", list: 800_000, floor: 600_000 },
-  { code: "PRD-ANALYTICS", name: "经营分析模块", category: "平台", unit: "套", list: 400_000, floor: 300_000 },
-  { code: "PRD-WMS", name: "智能仓储调度", category: "供应链", unit: "套", list: 600_000, floor: 450_000 },
-  { code: "PRD-INTEGRATION", name: "系统对接实施", category: "服务", unit: "人月", list: 60_000, floor: 45_000 },
-  { code: "PRD-SUPPORT", name: "年度技术支持", category: "服务", unit: "年", list: 200_000, floor: 160_000 },
+  { code: "PRD-CORE", name: "零售中台基础平台", category: "software", unit: "套", list: 800_000, floor: 600_000 },
+  { code: "PRD-ANALYTICS", name: "经营分析模块", category: "software", unit: "套", list: 400_000, floor: 300_000 },
+  { code: "PRD-WMS", name: "智能仓储调度", category: "software", unit: "套", list: 600_000, floor: 450_000 },
+  { code: "PRD-INTEGRATION", name: "系统对接实施", category: "implementation", unit: "人月", list: 60_000, floor: 45_000 },
+  { code: "PRD-SUPPORT", name: "年度技术支持", category: "maintenance", unit: "年", list: 200_000, floor: 160_000 },
 ] as const;
 
 /** Products still being BUILT - real in plans and conversations, not quotable.
  * Deliberately given no price rows: an unpriced product must not read as a
  * discount case, and priceLine already treats "no floor" as its own state. */
 export const DEMO_DEV_PRODUCTS = [
-  { code: "PRD-REPLENISH", name: "智能补货预测", category: "平台", unit: "套" },
-  { code: "PRD-INSPECT", name: "门店巡检助手", category: "服务", unit: "套" },
+  { code: "PRD-REPLENISH", name: "智能补货预测", category: "software", unit: "套" },
+  { code: "PRD-INSPECT", name: "门店巡检助手", category: "software", unit: "套" },
 ] as const;
 
 /** A product with a life already lived - so the retired roster, the 恢复在售
  * row action and the "retire instead of delete" refusal all have a case. */
 export const DEMO_RETIRED_PRODUCTS = [
-  { code: "PRD-POS-LEGACY", name: "单机版收银终端", category: "平台", unit: "台" },
+  { code: "PRD-POS-LEGACY", name: "单机版收银终端", category: "hardware", unit: "台" },
 ] as const;
 
-/** The demo workspace's type vocabulary (incr/0028) - exactly the categories
- * the products above carry, in catalogue order. */
-export const DEMO_PRODUCT_TYPES = ["平台", "供应链", "服务"] as const;
+// The demo workspace's type vocabulary IS the shipped starter set
+// (DEFAULT_TYPE_VOCABULARY) - the demo is the shop window for what a
+// delivered tenant opens, so `category` above names shipped type CODES and
+// the seed resolves them against the same domain constants every real
+// tenant is provisioned with.
 
 export const DEMO_SOLUTIONS = [
   {

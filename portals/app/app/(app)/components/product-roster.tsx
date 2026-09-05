@@ -11,8 +11,8 @@ import {
   StatusBadge,
   useToast,
 } from "@vxture/design-ui";
-import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
-import type { ProductStatus } from "../../domains/catalog/lib/lifecycle";
+import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
+import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -38,25 +38,21 @@ import { useMessages } from "../lib/i18n/provider";
 export interface ProductRosterProps {
   readonly products: readonly ProductRecord[];
   readonly types: readonly ProductTypeRecord[];
+  /** The status vocabulary - labels, tones and legal moves all read it. */
+  readonly statuses: readonly ProductStatusRecord[];
   readonly canWrite: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
   readonly variant?: "full" | "sort";
   readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
-  readonly onStatus: (id: string, status: ProductStatus) => Promise<{ ok: boolean; error?: string }>;
+  readonly onStatus: (id: string, statusId: string) => Promise<{ ok: boolean; error?: string }>;
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
-
-/** The legal next states - the lifecycle map's, mirrored for the menu. */
-const NEXT_STATUS: Record<ProductStatus, readonly ProductStatus[]> = {
-  in_development: ["active", "retired"],
-  active: ["retired"],
-  retired: ["active"],
-};
 
 export function ProductRoster({
   products,
   types,
+  statuses,
   canWrite,
   variant = "full",
   onMove,
@@ -67,20 +63,28 @@ export function ProductRoster({
   const [pending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const typeName = new Map(types.map((t) => [t.typeCode, t.name]));
-  const live = products.filter((p) => p.status !== "retired");
-  const retired = products.filter((p) => p.status === "retired");
+  const typeName = new Map(types.map((t) => [t.id, t.name]));
+  const vocab = new Map(statuses.map((r) => [r.id, r]));
+  const codeOf = (p: ProductRecord) => vocab.get(p.statusId)?.statusCode;
+  const live = products.filter((p) => codeOf(p) !== "retired");
+  const retired = products.filter((p) => codeOf(p) === "retired");
 
-  const STATUS_LABEL: Record<ProductStatus, string> = {
-    in_development: CATALOG_TEXT.statusDev,
-    active: CATALOG_TEXT.statusActive,
-    retired: CATALOG_TEXT.statusRetired,
-  };
-  const STATUS_TONE = { in_development: "info", active: "success", retired: "neutral" } as const;
-  const MOVE_LABEL: Record<ProductStatus, string> = {
-    active: CATALOG_TEXT.opLaunch, // only ever offered from in_development...
-    retired: CATALOG_TEXT.opRetire,
-    in_development: CATALOG_TEXT.statusDev, // ...never offered; keys the Record
+  /** The legal targets for one product - the mirror of
+   * planProductStatusChange: a different row, and never INTO 在研 (the birth
+   * state). Offering an illegal move would be offering a refusal. */
+  const targetsFor = (p: ProductRecord) =>
+    statuses.filter(
+      (r) => r.id !== p.statusId && r.statusCode !== "in_development",
+    );
+
+  /** The crafted verbs for the canonical moves; a generic 转入 otherwise. */
+  const moveLabel = (p: ProductRecord, to: ProductStatusRecord) => {
+    if (to.statusCode === "active" && codeOf(p) === "in_development")
+      return CATALOG_TEXT.opLaunch;
+    if (to.statusCode === "active" && codeOf(p) === "retired")
+      return CATALOG_TEXT.opReinstate;
+    if (to.statusCode === "retired") return CATALOG_TEXT.opRetire;
+    return CATALOG_TEXT.moveToStatus(to.name);
   };
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
@@ -109,14 +113,20 @@ export function ProductRoster({
       id: "type",
       header: CATALOG_TEXT.colType,
       cell: (r: ProductRecord) =>
-        r.category ? (typeName.get(r.category) ?? r.category) : CATALOG_TEXT.noCategory,
+        r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
     },
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      cell: (r: ProductRecord) => (
-        <StatusBadge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</StatusBadge>
-      ),
+      align: "center" as const,
+      cell: (r: ProductRecord) => {
+        const row = vocab.get(r.statusId);
+        return (
+          <StatusBadge tone={row ? statusTone(row) : "neutral"}>
+            {row?.name ?? ""}
+          </StatusBadge>
+        );
+      },
     },
     { id: "unit", header: CATALOG_TEXT.colUnitPrice, cell: (r: ProductRecord) => r.unit },
   ];
@@ -124,7 +134,7 @@ export function ProductRoster({
   /** One menu per row - the DS's single-trigger row-action column. */
   const rowActions = canWrite
     ? (row: ProductRecord, rowIndex: number) => {
-        const list = row.status === "retired" ? retired : live;
+        const list = codeOf(row) === "retired" ? retired : live;
         return (
           <ActionMenu
             disabled={pending}
@@ -136,13 +146,10 @@ export function ProductRoster({
                   window.location.href = `/catalog/new?code=${encodeURIComponent(row.productCode)}`;
                 },
               },
-              ...NEXT_STATUS[row.status].map((to) => ({
-                id: to,
-                label:
-                  to === "active" && row.status === "retired"
-                    ? CATALOG_TEXT.opReinstate
-                    : MOVE_LABEL[to],
-                onSelect: () => run(onStatus(row.id, to)),
+              ...targetsFor(row).map((to) => ({
+                id: to.id,
+                label: moveLabel(row, to),
+                onSelect: () => run(onStatus(row.id, to.id)),
               })),
               {
                 id: "up",
@@ -207,17 +214,28 @@ export function ProductRoster({
   };
 
   const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn) => (
-    <DataTable
-      labels={DATA_TABLE_LABELS}
-      indexStart={1}
-      rowKey={(r: ProductRecord) => r.id}
-      rows={[...rows]}
-      columns={extra ? [...columns, extra] : columns}
-      rowActions={extra ? undefined : rowActions}
-      empty={
-        <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
-      }
-    />
+    /* The config tables' geometry, applied here too (owner ruling; TD-022):
+       table-fixed so the live and retired rosters align column for column
+       regardless of content, the name column takes the lion's share, and the
+       trailing column is token-fixed - the DS edge token for the single-
+       trigger action slot, a wider fixed box for the sort page's two arrows. */
+    <div
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[34%] ${
+        extra ? "[&_thead_th:last-child]:w-[6.5rem]" : "[&_thead_th:last-child]:w-control-3xl"
+      }`}
+    >
+      <DataTable
+        labels={DATA_TABLE_LABELS}
+        indexStart={1}
+        rowKey={(r: ProductRecord) => r.id}
+        rows={[...rows]}
+        columns={extra ? [...columns, extra] : columns}
+        rowActions={extra ? undefined : rowActions}
+        empty={
+          <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+        }
+      />
+    </div>
   );
 
   if (variant === "sort") {
