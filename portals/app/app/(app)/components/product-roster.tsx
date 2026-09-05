@@ -118,6 +118,7 @@ export function ProductRoster({
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
+      align: "center" as const,
       cell: (r: ProductRecord) => {
         const row = vocab.get(r.statusId);
         return (
@@ -213,17 +214,28 @@ export function ProductRoster({
   };
 
   const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn) => (
-    <DataTable
-      labels={DATA_TABLE_LABELS}
-      indexStart={1}
-      rowKey={(r: ProductRecord) => r.id}
-      rows={[...rows]}
-      columns={extra ? [...columns, extra] : columns}
-      rowActions={extra ? undefined : rowActions}
-      empty={
-        <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
-      }
-    />
+    /* The config tables' geometry, applied here too (owner ruling; TD-022):
+       table-fixed so the live and retired rosters align column for column
+       regardless of content, the name column takes the lion's share, and the
+       trailing column is token-fixed - the DS edge token for the single-
+       trigger action slot, a wider fixed box for the sort page's two arrows. */
+    <div
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[34%] ${
+        extra ? "[&_thead_th:last-child]:w-[6.5rem]" : "[&_thead_th:last-child]:w-control-3xl"
+      }`}
+    >
+      <DataTable
+        labels={DATA_TABLE_LABELS}
+        indexStart={1}
+        rowKey={(r: ProductRecord) => r.id}
+        rows={[...rows]}
+        columns={extra ? [...columns, extra] : columns}
+        rowActions={extra ? undefined : rowActions}
+        empty={
+          <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+        }
+      />
+    </div>
   );
 
   if (variant === "sort") {
