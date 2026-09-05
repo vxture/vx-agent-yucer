@@ -4,8 +4,8 @@ import { getStrategyStore } from "../../domains/shared/registry";
 import { listCampaigns, listPlans } from "../../domains/strategy/service";
 import { can } from "../../authz/decide";
 import { StrategyTable } from "../components/strategy-table";
-import { createStrategyPlan, movePlan } from "./actions";
-import { NewPlan } from "../components/new-plan";
+import { movePlan } from "./actions";
+import { NewEntryLink } from "../components/form-page";
 
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
@@ -101,13 +101,11 @@ export default async function StrategyPage() {
       {/* ABOVE the table, for the reason the target form is: on a fresh
           workspace the table is empty, and a create form under a list nobody
           can populate is a doorway behind a locked door. */}
-      <NewPlan
-        canCreate={
-          can(session.authz, session.entitlement, "strategy.plan.create", "ui")
-            .allowed
-        }
-        onCreate={createStrategyPlan}
-      />
+      {/* Creation left for /strategy/new on 2026-09-05 (owner ruling). What
+          stays is the doorway - hidden from anyone the page would refuse. */}
+      {can(session.authz, session.entitlement, "strategy.plan.create", "ui").allowed ? (
+        <NewEntryLink href="/strategy/new" />
+      ) : null}
 
       <Section
         icon="graph"

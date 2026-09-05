@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  Button,
   DataTable,
   EmptyState,
   Section,
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { NewEntryLink } from "./form-page";
 import type {
   PriceEntryRecord,
   ProductRecord,
@@ -240,21 +240,5 @@ export function PriceSection({
         </p>
       )}
     </Section>
-  );
-}
-
-/**
- * The one control a display section keeps: the way in to the creation page.
- * A LINK, not a router push - middle-click and open-in-new-tab must work,
- * because a person adding five products wants five tabs, not five round trips.
- */
-function NewEntryLink({ href }: { readonly href: string }) {
-  const { CATALOG_TEXT } = useMessages();
-  return (
-    <div className="mt-md">
-      <Button asChild variant="secondary">
-        <a href={href}>{CATALOG_TEXT.newEntry}</a>
-      </Button>
-    </div>
   );
 }

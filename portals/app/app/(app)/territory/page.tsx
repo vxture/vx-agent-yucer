@@ -5,8 +5,8 @@ import { can } from "../../authz/decide";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { listTerritories } from "../../domains/planning/service";
 import { TerritoryPanel } from "../components/territory-panel";
-import { saveTerritory } from "../planning/actions";
 import { loadFailureText } from "../lib/load-failure";
+import { NewEntryLink } from "../components/form-page";
 
 // D2 sales territories - a module page since 2026-08-30.
 //
@@ -56,18 +56,13 @@ export default async function TerritoryPage() {
         title={PLANNING_TEXT.territoryTitle}
         description={PLANNING_TEXT.territoryWhy}
       />
-      <TerritoryPanel
-        rows={territories.value}
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "planning.territory.upsert",
-            "ui",
-          ).allowed
-        }
-        onSave={saveTerritory}
-      />
+      <TerritoryPanel rows={territories.value} />
+      {/* Creation and editing left for /territory/new on 2026-09-05 - which
+          also carries the regions field this page's panel never had. */}
+      {can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
+        .allowed ? (
+        <NewEntryLink href="/territory/new" />
+      ) : null}
     </ViewLayout>
   );
 }

@@ -10,8 +10,8 @@ import { listPlans, listSegments } from "../../domains/strategy/service";
 import { listAccounts } from "../../domains/account/service";
 import { accountMatchesCriteria } from "../../domains/strategy/lib/lifecycle";
 import { SegmentPanel, type SegmentRow } from "../components/segment-panel";
-import { saveSegment } from "../strategy/actions";
 import { loadFailureText } from "../lib/load-failure";
+import { NewEntryLink } from "../components/form-page";
 
 // D1 market segments - a module page since 2026-08-30.
 //
@@ -98,19 +98,12 @@ export default async function SegmentPage() {
         title={STRATEGY_TEXT.segmentsTitle}
         description={STRATEGY_TEXT.segmentsWhy}
       />
-      <SegmentPanel
-        rows={rows}
-        plans={openPlans}
-        canEdit={
-          can(
-            session.authz,
-            session.entitlement,
-            "strategy.segment.upsert",
-            "ui",
-          ).allowed
-        }
-        onSave={saveSegment}
-      />
+      <SegmentPanel rows={rows} />
+      {/* Creation and editing left for /segment/new on 2026-09-05. */}
+      {can(session.authz, session.entitlement, "strategy.segment.upsert", "ui")
+        .allowed ? (
+        <NewEntryLink href="/segment/new" />
+      ) : null}
     </ViewLayout>
   );
 }

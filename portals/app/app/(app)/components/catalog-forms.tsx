@@ -13,12 +13,8 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormPage, type AssistSuggestion } from "./form-page";
-import {
-  knownValues,
-  suggestFloor,
-  suggestNextCode,
-  unpricedProducts,
-} from "../../domains/catalog/lib/suggest";
+import { suggestFloor, unpricedProducts } from "../../domains/catalog/lib/suggest";
+import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 
 // The catalogue's three CREATION PAGES - owner ruling 2026-09-05.

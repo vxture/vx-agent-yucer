@@ -4,8 +4,8 @@ import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
-import { SetTarget } from "../components/set-target";
-import { createSalesTarget, updateSalesTarget } from "./actions";
+import { NewEntryLink } from "../components/form-page";
+import { updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
@@ -133,23 +133,17 @@ export default async function PlanningPage() {
       {/* ABOVE the table, because it is what you do when the table is empty -
           and on a fresh workspace it always is. A create form tucked under a
           list nobody can populate is a doorway behind a locked door. */}
-      <SetTarget
-        period={period}
-        canCreate={
-          can(
-            session.authz,
-            session.entitlement,
-            "planning.target.create",
-            "ui",
-          ).allowed
-        }
-        territories={
-          activeTerritories.length > 0
-            ? activeTerritories.map((t) => ({ id: t.id, name: t.name }))
-            : []
-        }
-        onCreate={createSalesTarget}
-      />
+      {/* The doorway to /planning/new, ABOVE the table for the reason the form
+          was: on a fresh workspace the table is empty, and a doorway under a
+          list nobody can populate is a doorway behind a locked door. */}
+      {can(
+        session.authz,
+        session.entitlement,
+        "planning.target.create",
+        "ui",
+      ).allowed ? (
+        <NewEntryLink href="/planning/new" />
+      ) : null}
 
       {/* BELOW the target form and above the table. A territory is a
           PRECONDITION for a regional target, so a reader who finds the scope
