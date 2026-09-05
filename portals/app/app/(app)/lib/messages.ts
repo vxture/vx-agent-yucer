@@ -2678,6 +2678,84 @@ export const BUYING_ROLE_TEXT = {
   saved: "已保存",
 } as const;
 
+/**
+ * 商机作战室 - owner 裁定 2026-09-05:判决 → 建议 → 动作。
+ *
+ * 判决条五格是规则层的裁定;行动卡只提供产品本来就允许人刻意去做的事,
+ * 每张卡带依据 —— 没有依据的推荐是命令。
+ */
+export const WAR_ROOM_TEXT = {
+  title: "态势判决",
+  allClear: "五项检查全部通过。没有需要处理的发现。",
+  findings: (n: number) => `${n} 项需要注意,可执行的动作按轻重排在下面。`,
+  cell: {
+    stage: "阶段",
+    forecast: "预测",
+    chain: "决策链",
+    commitment: "承诺",
+    price: "价格",
+  } as Record<string, string>,
+  // 判决条各格的句子
+  stageMoving: (stage: string, days: number | null) =>
+    days === null ? "在推进" : `本阶段第 ${days} 天`,
+  stageStalled: (stage: string, days: number) => `已停 ${days} 天,超过 45 天停滞线`,
+  stageTerminal: (stage: string): string => (stage === "won" ? "已成交" : "已关闭"),
+  forecastAgrees: (c: string) => "与规则判断一致",
+  forecastDisagrees: (filed: string, suggested: string) => `人填与规则不一致`,
+  forecastSettled: "档位由阶段定死",
+  forecastWhy: (caps: readonly string[], p: number, human: boolean) => {
+    const capText = caps
+      .map((c) =>
+        c === "stalled" ? "停滞" : c === "no_close_date" ? "无成交日" : "成交日已过",
+      )
+      .join("、");
+    return `${human ? "自报" : "阶段默认"}概率 ${p}%${capText ? `,降档因素:${capText}` : ""}`;
+  },
+  chainHealthy: (coaches: number) => `角色齐备,${coaches} 名内线`,
+  chainMissing: (roles: readonly string[]) => `缺 ${roles.length} 个必需角色`,
+  chainUnreachable: "无人能引荐到决策人",
+  chainUnstated: "本单尚未确定任何采购角色",
+  commitmentClear: (open: number) => (open === 0 ? "无未结承诺" : `${open} 条在办,均未逾期`),
+  commitmentOverdue: (ours: number, theirs: number) =>
+    ours > 0 && theirs > 0
+      ? `我方逾期 ${ours} 条、对方 ${theirs} 条`
+      : ours > 0
+        ? `我方逾期 ${ours} 条`
+        : `对方逾期 ${theirs} 条`,
+  priceClean: (lines: number): string => (lines === 0 ? "尚无行项" : "无待批折扣"),
+  pricePending: (n: number) => `${n} 行低于底价待批`,
+  // 行动卡
+  applyCategory: (label: string) => `按规则改为「${label}」`,
+  applyCta: "采用规则档位",
+  applied: "已应用",
+  applyCategoryReason: (basis: string) => `规则依据:${basis}。服务端会复核,事实变了会拒绝。`,
+  settleTitle: (statement: string) => `了结承诺:${statement}`,
+  settleReason: (direction: string, days: number) =>
+    direction === "we_owe"
+      ? `我方承诺已逾期 ${days} 天 —— 它在扣可靠度,也在客户那边挂着。`
+      : `对方承诺已逾期 ${days} 天 —— 该问一句了。`,
+  settleMet: "已兑现",
+  settleMissed: "未兑现",
+  settled: "已了结",
+  stateRolesTitle: "确定这一单的采购角色",
+  stateRolesReason: "谁签字、谁能引荐,是这一单的问题 —— 判断层的每条规则都从这里读。",
+  stateRolesCta: "去确定",
+  approveTitle: (n: number) => `${n} 行低于底价,等待签字`,
+  approveReason: (n: number) => "底价存在的意义是约束正在成交的人;签字要看着具体行项做。",
+  approveCta: "去逐行审批",
+  proposalsTitle: (n: number) => `参谋对本单有 ${n} 条在队提案`,
+  adjudicateReason: (n: number) => "采纳即执行(ADR-003:参谋提议,人裁决)。逐条看,逐条定。",
+  acceptAndExecute: "采纳并执行",
+  accepted: "已采纳",
+  toQueue: "到裁决队列看全部",
+  adjudicateFailed: "裁决失败,到队列页看原因",
+  analyseTitle: "分析这一单",
+  analyseReason: "把本单的阶段、决策链、承诺、行项交给参谋做一次深度复盘。",
+  analyseCta: "带上下文去问参谋",
+  analyseQuestion: (deal: string, findings: number) =>
+    `请复盘商机「${deal}」:当前判决条有 ${findings} 项发现。结合该客户的接触记录与承诺,给出下一步建议和风险点。`,
+} as const;
+
 export const CHAIN_TEXT = {
   title: "决策链",
   // incr/0027：一单一条链。标题必须带上是哪一单，否则同一客户下的两条

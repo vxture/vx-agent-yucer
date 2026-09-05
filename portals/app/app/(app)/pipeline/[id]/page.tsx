@@ -45,6 +45,14 @@ import { listProposals } from "../../../domains/copilot/service";
 import { cachedFeed } from "../../lib/board";
 import { BuyingRoleForm } from "../../components/buying-role-form";
 import { saveBuyingRole } from "../buying-role-action";
+import { dealBrief } from "../../../domains/pipeline/lib/brief";
+import { WarRoom } from "../../components/war-room";
+import { CategoryActionCard } from "../../components/category-action-card";
+import { CommitmentActionCard } from "../../components/commitment-action-card";
+import { ProposalActionCard } from "../../components/proposal-action-card";
+import { LinkActionCard } from "../../components/link-action-card";
+import { applySuggestedCategory } from "../../forecast/actions";
+import { adjudicateProposals } from "../../copilot/actions";
 import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
@@ -103,6 +111,7 @@ export default async function OpportunityDetailPage({
     SHELL_TEXT,
     STAGE_LABEL,
     POSITION_TEXT,
+    WAR_ROOM_TEXT,
     CHANNEL_LABEL,
     LOAD_ERROR,
   } = await getMessages();
@@ -261,6 +270,66 @@ export default async function OpportunityDetailPage({
     listCommitments(fieldCtx, { opportunityId: id }),
   ]);
 
+  // THE BRIEF - the war room's single verdict (owner ruling 2026-09-05).
+  // Every input below is a row this page already loaded; the convergence is
+  // the only new thing, and it is a tested pure function.
+  const lastStageChangeAt = history.ok
+    ? (history.value.map((e) => e.occurredAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null)
+    : null;
+  const briefNow = new Date();
+  const brief = dealBrief({
+    deal: {
+      id,
+      stage: opportunity.stage,
+      forecastCategory: opportunity.forecastCategory,
+      probability: opportunity.probability,
+      expectedCloseAt: opportunity.expectedCloseAt,
+      lastStageChangeAt,
+      status: opportunity.status,
+    },
+    chain: chain.ok ? chain.value : null,
+    rolesStated: roles.ok && roles.value.length > 0,
+    commitments: (commitments.ok ? commitments.value : []).map((c) => ({
+      id: c.id,
+      direction: c.direction,
+      status: c.status,
+      dueAt: c.dueAt,
+      statement: c.statement,
+    })),
+    lines: (lineRows.ok ? lineRows.value : [])
+      .filter((l) => l.opportunityId === id)
+      .map((l) => ({ needsApproval: l.needsApproval, approved: l.approved })),
+    // ONLY proposals whose subject is THIS DEAL. Account-level ones stay in
+    // the PositionBrief below - adjudicating them from a deal page would sign
+    // a customer-wide move under a deal-sized heading.
+    proposals: (proposals.ok ? proposals.value : [])
+      .filter((a) => a.subjectId === id)
+      .map((a) => ({ id: a.id, title: POSITION_TEXT.actionLabels[a.actionType] ?? a.actionType })),
+    text: {
+      stageMoving: WAR_ROOM_TEXT.stageMoving,
+      stageStalled: WAR_ROOM_TEXT.stageStalled,
+      stageTerminal: WAR_ROOM_TEXT.stageTerminal,
+      forecastAgrees: WAR_ROOM_TEXT.forecastAgrees,
+      forecastDisagrees: WAR_ROOM_TEXT.forecastDisagrees,
+      forecastSettled: WAR_ROOM_TEXT.forecastSettled,
+      forecastWhy: WAR_ROOM_TEXT.forecastWhy,
+      chainHealthy: WAR_ROOM_TEXT.chainHealthy,
+      chainMissing: WAR_ROOM_TEXT.chainMissing,
+      chainUnreachable: WAR_ROOM_TEXT.chainUnreachable,
+      chainUnstated: WAR_ROOM_TEXT.chainUnstated,
+      commitmentClear: WAR_ROOM_TEXT.commitmentClear,
+      commitmentOverdue: WAR_ROOM_TEXT.commitmentOverdue,
+      priceClean: WAR_ROOM_TEXT.priceClean,
+      pricePending: WAR_ROOM_TEXT.pricePending,
+      settleReason: WAR_ROOM_TEXT.settleReason,
+      applyCategoryReason: WAR_ROOM_TEXT.applyCategoryReason,
+      approveReason: WAR_ROOM_TEXT.approveReason,
+      stateRolesReason: WAR_ROOM_TEXT.stateRolesReason,
+      adjudicateReason: WAR_ROOM_TEXT.adjudicateReason,
+    },
+    now: briefNow,
+  });
+
   // Rival mentions, found in the notes rather than inferred. The words are the
   // evidence; naming an opponent nobody wrote down would be fabrication.
   const rivalMentions = (interactions.ok ? interactions.value : [])
@@ -402,6 +471,98 @@ export default async function OpportunityDetailPage({
           figures across that pane clip, and a clipped figure is not a smaller
           number - it is a wrong one that looks exact. */}
       <MetricGrid items={metrics} columns={2} />
+
+      {/* THE WAR ROOM - 判决 → 建议 → 动作 (owner ruling 2026-09-05). Above the
+          position brief because the verdict is what the person came to check;
+          the evidence panels below are where they go to argue with it. Each
+          card is its own client island binding one server action and one error
+          dictionary - the granularity reachable-codes.test.ts pairs at. */}
+      <WarRoom cells={brief.cells}>
+        {brief.actions.map((a) => {
+          switch (a.kind) {
+            case "apply_category":
+              return (
+                <CategoryActionCard
+                  key="apply-category"
+                  opportunityId={id}
+                  to={a.to}
+                  severity={a.severity}
+                  reason={a.reason}
+                  onApply={applySuggestedCategory}
+                />
+              );
+            case "settle_commitment":
+              return (
+                <CommitmentActionCard
+                  key={`settle-${a.commitmentId}`}
+                  accountId={opportunity.accountId}
+                  opportunityId={id}
+                  commitmentId={a.commitmentId}
+                  statement={a.statement}
+                  severity={a.severity}
+                  reason={a.reason}
+                  onSettle={settleCommitment}
+                />
+              );
+            case "state_roles":
+              return (
+                <LinkActionCard
+                  key="state-roles"
+                  severity={a.severity}
+                  title={WAR_ROOM_TEXT.stateRolesTitle}
+                  reason={a.reason}
+                  href="#buying-roles"
+                  cta={WAR_ROOM_TEXT.stateRolesCta}
+                />
+              );
+            case "approve_discount":
+              return (
+                <LinkActionCard
+                  key="approve-discount"
+                  severity={a.severity}
+                  title={WAR_ROOM_TEXT.approveTitle(a.pendingLines)}
+                  reason={a.reason}
+                  href="#lines"
+                  cta={WAR_ROOM_TEXT.approveCta}
+                />
+              );
+            case "adjudicate":
+              return (
+                <ProposalActionCard
+                  key="adjudicate"
+                  proposals={brief.actions
+                    .filter((x) => x.kind === "adjudicate")
+                    .flatMap((x) => (x.kind === "adjudicate" ? x.proposalIds : []))
+                    .map((pid) => {
+                      const src = (proposals.ok ? proposals.value : []).find((p) => p.id === pid);
+                      return {
+                        id: pid,
+                        title: src ? (POSITION_TEXT.actionLabels[src.actionType] ?? src.actionType) : pid,
+                      };
+                    })}
+                  severity={a.severity}
+                  reason={a.reason}
+                  onAdjudicate={adjudicateProposals}
+                />
+              );
+          }
+        })}
+        {/* AI 分析辅助: composed question, person presses send. The copilot
+            page grounds the account evidence server-side behind its own gate;
+            the URL carries only the question text and the account id. */}
+        <LinkActionCard
+          severity="good"
+          title={WAR_ROOM_TEXT.analyseTitle}
+          reason={WAR_ROOM_TEXT.analyseReason}
+          href={`/copilot?account=${opportunity.accountId}&ask=${encodeURIComponent(
+            WAR_ROOM_TEXT.analyseQuestion(
+              opportunity.name,
+              brief.cells.filter((c) => c.tone !== "good").length,
+            ),
+          )}`}
+          cta={WAR_ROOM_TEXT.analyseCta}
+        />
+      </WarRoom>
 
       <PositionBrief
         chain={chainFacts}

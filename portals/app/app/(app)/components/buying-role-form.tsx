@@ -70,7 +70,7 @@ export function BuyingRoleForm({
     (parsed === null || (Number.isInteger(parsed) && parsed >= 0 && parsed <= 100));
 
   return (
-    <Section title={BUYING_ROLE_TEXT.title} description={BUYING_ROLE_TEXT.description}>
+    <Section id="buying-roles" title={BUYING_ROLE_TEXT.title} description={BUYING_ROLE_TEXT.description}>
       <Field>
         <FieldLabel>{BUYING_ROLE_TEXT.person}</FieldLabel>
         <NativeSelect value={personId} onChange={(e) => pick(e.target.value)}>

@@ -686,6 +686,78 @@ export const en: Dictionary = {
     save: "Save role",
     saved: "Saved",
   },
+  WAR_ROOM_TEXT: {
+    title: "Situation verdict",
+    allClear: "All five checks pass. Nothing needs attention.",
+    findings: (n: number) => `${n} finding(s); the actionable ones are ranked below.`,
+    cell: {
+      stage: "Stage",
+      forecast: "Forecast",
+      chain: "Decision chain",
+      commitment: "Commitments",
+      price: "Price",
+    } as Record<string, string>,
+    stageMoving: (stage: string, days: number | null) =>
+      days === null ? "Moving" : `Day ${days} at this stage`,
+    stageStalled: (stage: string, days: number) => `Sitting ${days} days - past the 45-day stall line`,
+    stageTerminal: (stage: string) => (stage === "won" ? "Won" : "Closed"),
+    forecastAgrees: (c: string) => "Agrees with the rule",
+    forecastDisagrees: (filed: string, suggested: string) => "Filed category disagrees with the rule",
+    forecastSettled: "Settled by the stage",
+    forecastWhy: (caps: readonly string[], p: number, human: boolean) => {
+      const capText = caps
+        .map((c) => (c === "stalled" ? "stalled" : c === "no_close_date" ? "no close date" : "close date passed"))
+        .join(", ");
+      return `${human ? "self-reported" : "stage-default"} probability ${p}%${capText ? `; capped by: ${capText}` : ""}`;
+    },
+    chainHealthy: (coaches: number) => `Roles covered, ${coaches} coach(es)`,
+    chainMissing: (roles: readonly string[]) => `${roles.length} required role(s) missing`,
+    chainUnreachable: "Nobody can introduce you to the buyer",
+    chainUnstated: "No buying roles stated on this deal yet",
+    commitmentClear: (open: number) => (open === 0 ? "No open commitments" : `${open} open, none overdue`),
+    commitmentOverdue: (ours: number, theirs: number) =>
+      ours > 0 && theirs > 0
+        ? `${ours} of ours overdue, ${theirs} of theirs`
+        : ours > 0
+          ? `${ours} of ours overdue`
+          : `${theirs} of theirs overdue`,
+    priceClean: (lines: number) => (lines === 0 ? "No lines yet" : "No discounts pending"),
+    pricePending: (n: number) => `${n} line(s) below floor awaiting approval`,
+    applyCategory: (label: string) => `Refile as "${label}" per the rule`,
+    applyCta: "Apply the rule's category",
+    applied: "Applied",
+    applyCategoryReason: (basis: string) =>
+      `Rule basis: ${basis}. The server re-derives it and refuses if the facts have moved.`,
+    settleTitle: (statement: string) => `Settle: ${statement}`,
+    settleReason: (direction: string, days: number) =>
+      direction === "we_owe"
+        ? `Our promise is ${days} day(s) overdue - it debits reliability and it is hanging at the customer.`
+        : `Their promise is ${days} day(s) overdue - worth asking.`,
+    settleMet: "Met",
+    settleMissed: "Missed",
+    settled: "Settled",
+    stateRolesTitle: "State this deal's buying roles",
+    stateRolesReason:
+      "Who signs and who can introduce you are questions about THIS purchase - every judgement rule reads from here.",
+    stateRolesCta: "Go state them",
+    approveTitle: (n: number) => `${n} line(s) below the floor await a signature`,
+    approveReason: (n: number) =>
+      "The floor exists to constrain whoever is closing; signing happens looking at the line.",
+    approveCta: "Review line by line",
+    proposalsTitle: (n: number) => `The copilot has ${n} queued proposal(s) on this deal`,
+    adjudicateReason: (n: number) =>
+      "Accepting executes (ADR-003: the copilot proposes, a human decides). Read each, decide each.",
+    acceptAndExecute: "Accept & execute",
+    accepted: "Accepted",
+    toQueue: "See all in the queue",
+    adjudicateFailed: "Adjudication failed - see the queue page for why",
+    analyseTitle: "Analyse this deal",
+    analyseReason:
+      "Hand the copilot this deal's stage, chain, commitments and lines for a deep review.",
+    analyseCta: "Ask the copilot with context",
+    analyseQuestion: (deal: string, findings: number) =>
+      `Please review the deal "${deal}": the verdict strip shows ${findings} finding(s). Using this customer's interactions and commitments, suggest next steps and risks.`,
+  },
   CHAIN_TEXT: {
     forDeal: (deal: string) => `Decision chain · ${deal}`,
     noOpenDealTitle: "No open deal",

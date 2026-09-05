@@ -35,10 +35,10 @@ export const dynamic = "force-dynamic";
 export default async function CopilotPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string }>;
+  searchParams: Promise<{ account?: string; ask?: string }>;
 }) {
   const { PROPOSAL_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
-  const { account: accountId } = await searchParams;
+  const { account: accountId, ask } = await searchParams;
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -148,6 +148,10 @@ export default async function CopilotPage({
           can(session.authz, session.entitlement, "copilot.ask", "ui").allowed
         }
         account={account}
+        // Composed by the page that sent the person here (the war room's
+        // 分析这一单). Length-capped: a URL is an untrusted input, and a
+        // pathological one must not become a 100KB textarea.
+        initialDraft={typeof ask === "string" ? ask.slice(0, 500) : undefined}
         onAsk={askCopilot}
       />
       <ProposalQueue
