@@ -68,6 +68,14 @@ const NOT_VERBS = new Set(["denied", "ok", "fail"]);
  * push files to stop exporting the pieces their tests need.
  */
 const KNOWN_TEST_ONLY: Record<string, string> = {
+  // THE PRICE ASSISTANT IS PAUSED, NOT DELETED (owner, 2026-09-05: 暂不使用ai).
+  // The price book's page form - the only caller of both - became a dialog
+  // with no assist panel; these two rules kept their tests and come back with
+  // the AI work. Named rather than deleted because they carry knowledge the
+  // dialog does not: the workspace's own median floor ratio, and which
+  // sellable products are still unpriced.
+  "catalog/suggest.suggestFloor": "price assist paused by the owner; returns with the AI batch",
+  "catalog/suggest.unpricedProducts": "price assist paused by the owner; returns with the AI batch",
   // ---------------------------------------------------------------------
   // THE SIX DUPLICATE GUARDS ARE GONE (2026-08-31). Each refused a patch
   // touching a frozen column, which `column-locks.assertWritable` already did
@@ -174,6 +182,17 @@ function code(file: string): string {
       .replace(/"(?:[^"\\\n]|\\.)*"/g, " ")
       .replace(/'(?:[^'\\\n]|\\.)*'/g, " ")
       .replace(/`(?:[^`\\]|\\.)*`/g, " ")
+      // AND KEYS IN KEY POSITION, learned the same way one batch later
+      // (2026-09-05): `unpricedProducts` reported itself wired because the
+      // message dictionary happens to have an entry of that name -
+      //
+      //   unpricedProducts: "未定价的产品",   <- a dictionary key
+      //
+      // The string on the right was already stripped; the identifier on the
+      // left was not, and a name in key position is no more a caller than a
+      // word in a comment. Only the KEY side is blanked, so a shorthand
+      // property (`{ suggestFloor }`, a genuine reference) still counts.
+      .replace(/^(\s*)\w+\s*:/gm, "$1:")
   );
 }
 

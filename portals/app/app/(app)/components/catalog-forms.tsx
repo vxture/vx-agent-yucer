@@ -13,10 +13,8 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormPage, type AssistSuggestion } from "./form-page";
-import { suggestFloor, unpricedProducts } from "../../domains/catalog/lib/suggest";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type {
-  PriceEntryRecord,
   ProductRecord,
   ProductStatusRecord,
   ProductTypeRecord,
@@ -360,117 +358,3 @@ export function NewSolutionForm({
 }
 
 // --- 设定价格 ---------------------------------------------------------------
-
-export function NewPriceForm({
-  products,
-  prices,
-  statuses,
-  onSave,
-}: {
-  readonly products: readonly ProductRecord[];
-  readonly prices: readonly PriceEntryRecord[];
-  readonly statuses: readonly ProductStatusRecord[];
-  readonly onSave: (input: {
-    productId: string;
-    currency: string;
-    listPrice: number;
-    floorPrice: number;
-  }) => Promise<Saved>;
-}) {
-  const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
-  const onSaleId = useMemo(
-    () => statuses.find((r) => r.statusCode === "active")?.id ?? null,
-    [statuses],
-  );
-  const unpriced = useMemo(
-    () => unpricedProducts(products, prices, onSaleId),
-    [products, prices, onSaleId],
-  );
-  const [productId, setProductId] = useState("");
-  const [list, setList] = useState("");
-  const [floor, setFloor] = useState("");
-  const submit = useSubmit("/pricebook");
-
-  const l = Number(list);
-  const f = Number(floor);
-
-  const suggestions: AssistSuggestion[] = [];
-  // The unpriced actives lead: a product that cannot be quoted is the gap this
-  // page exists to close, and naming it beats scrolling a select.
-  if (productId === "" && unpriced.length > 0) {
-    for (const p of unpriced.slice(0, 3)) {
-      suggestions.push({
-        id: `unpriced-${p.id}`,
-        label: ASSIST_TEXT.unpriced(p.name),
-        reason: ASSIST_TEXT.unpricedWhy,
-        apply: () => setProductId(p.id),
-      });
-    }
-  }
-  const floorHint = suggestFloor(l, prices);
-  if (floorHint && floor.trim() === "") {
-    suggestions.push({
-      id: "floor",
-      label: ASSIST_TEXT.floorRatio(floorHint.floor.toLocaleString()),
-      // The reason names the evidence: the workspace's own median ratio. The
-      // floor stays a commercial decision (ADR-019) - this fills a field, the
-      // person still signs it.
-      reason: ASSIST_TEXT.floorRatioWhy(floorHint.ratioPct),
-      apply: () => setFloor(String(floorHint.floor)),
-    });
-  }
-
-  const ready =
-    productId !== "" && list.trim() !== "" && floor.trim() !== "" && Number.isFinite(l) && Number.isFinite(f);
-
-  return (
-    <FormPage
-      form={
-        <Section icon="currency-cny" title={CATALOG_TEXT.newPrice} description={CATALOG_TEXT.pricebookWhy}>
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
-            <Field>
-              <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
-              <NativeSelect value={productId} onChange={(e) => setProductId(e.target.value)}>
-                <option value="">{CATALOG_TEXT.pickProduct}</option>
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field>
-              <FieldLabel>{CATALOG_TEXT.colList}</FieldLabel>
-              <Input type="number" min="0" value={list} onChange={(e) => setList(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel>{CATALOG_TEXT.colFloor}</FieldLabel>
-              <Input type="number" min="0" value={floor} onChange={(e) => setFloor(e.target.value)} />
-            </Field>
-            <div className="flex flex-wrap items-center gap-md">
-              <Button
-                disabled={submit.pending || !ready}
-                onClick={() =>
-                  submit.run(
-                    () => onSave({ productId, currency: "CNY", listPrice: l, floorPrice: f }),
-                    (c) => CATALOG_ERROR[c] ?? CATALOG_ERROR.denied,
-                  )
-                }
-              >
-                {CATALOG_TEXT.setPrice}
-              </Button>
-              {/* Said BEFORE submitting: equal-to-list is legal and meaningful
-                  ("not discountable"), and the person typing it should see the
-                  product read the choice correctly. */}
-              {ready && l === f ? (
-                <StatusBadge tone="warning">{CATALOG_TEXT.floorEqualsList}</StatusBadge>
-              ) : null}
-              {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
-            </div>
-          </div>
-        </Section>
-      }
-      assist={<AssistPanel suggestions={suggestions} />}
-    />
-  );
-}

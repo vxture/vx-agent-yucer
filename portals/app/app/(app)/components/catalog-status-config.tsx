@@ -6,8 +6,11 @@ import {
   Button,
   DataTable,
   DialogForm,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
   Input,
-  Label,
   Section,
   StatusBadge,
   useToast,
@@ -204,7 +207,6 @@ export function CatalogStatusConfig({
         open={dialog !== null}
         onOpenChange={(open) => { if (!open) setDialog(null); }}
         title={dialog?.mode === "rename" ? CATALOG_TEXT.renameStatus : CATALOG_TEXT.addStatus}
-        description={CATALOG_TEXT.statusCodeHint}
         submitLabel={CATALOG_TEXT.saveStatus}
         submitting={pending}
         onSubmit={(e) => {
@@ -212,27 +214,38 @@ export function CatalogStatusConfig({
           submitDialog();
         }}
       >
-        <Label htmlFor="status-code">{CATALOG_TEXT.statusCode}</Label>
-        <Input
-          id="status-code"
-          value={dialog?.code ?? ""}
-          disabled={pending || dialog?.mode === "rename"}
-          onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
-        />
-        <Label htmlFor="status-name">{CATALOG_TEXT.colStatusName}</Label>
-        <Input
-          id="status-name"
-          value={dialog?.name ?? ""}
-          disabled={pending}
-          onChange={(e) => setDialog((d) => (d ? { ...d, name: e.target.value } : d))}
-        />
-        <Label htmlFor="status-desc">{CATALOG_TEXT.colStatusDesc}</Label>
-        <Input
-          id="status-desc"
-          value={dialog?.description ?? ""}
-          disabled={pending}
-          onChange={(e) => setDialog((d) => (d ? { ...d, description: e.target.value } : d))}
-        />
+        {/* Field groups - see catalog-type-config.tsx for why loose
+            Label/Input siblings floated apart and wrapped. */}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="status-code">{CATALOG_TEXT.statusCode}</FieldLabel>
+            <Input
+              id="status-code"
+              value={dialog?.code ?? ""}
+              disabled={pending || dialog?.mode === "rename"}
+              onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
+            />
+            <FieldDescription>{CATALOG_TEXT.statusCodeHint}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="status-name">{CATALOG_TEXT.colStatusName}</FieldLabel>
+            <Input
+              id="status-name"
+              value={dialog?.name ?? ""}
+              disabled={pending}
+              onChange={(e) => setDialog((d) => (d ? { ...d, name: e.target.value } : d))}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="status-desc">{CATALOG_TEXT.colStatusDesc}</FieldLabel>
+            <Input
+              id="status-desc"
+              value={dialog?.description ?? ""}
+              disabled={pending}
+              onChange={(e) => setDialog((d) => (d ? { ...d, description: e.target.value } : d))}
+            />
+          </Field>
+        </FieldGroup>
         {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
       </DialogForm>
     </Section>

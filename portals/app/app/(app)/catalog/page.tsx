@@ -1,6 +1,8 @@
 import { can } from "../../authz/decide";
 import { CatalogPage } from "./shell";
-import { CatalogHeadline, type CatalogTypeStat } from "../components/catalog-headline";
+import { Icon, StatusBadge } from "@vxture/design-ui";
+import Link from "next/link";
+import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { ProductRoster } from "../components/product-roster";
 import { changeProductStatus, deleteProduct, moveProductRow } from "./actions";
 import { getMessages } from "../lib/i18n/server";
@@ -40,21 +42,57 @@ export default async function ProductsPage() {
           active: live.filter((p) => p.typeId === typeId && p.statusId === activeId).length,
           dev: live.filter((p) => p.typeId === typeId && p.statusId === devId).length,
         });
-        const stats: CatalogTypeStat[] = types
+        const stats: HeadlineStat[] = types
           .map((t) => ({ key: t.id, name: t.name, ...count(t.id) }))
-          .filter((s) => s.active + s.dev > 0);
+          .filter((c) => c.active + c.dev > 0)
+          .map((c) => ({
+            key: c.key,
+            name: c.name,
+            value: c.active + c.dev,
+            note: CATALOG_TEXT.typeStat(c.active, c.dev),
+          }));
         const untyped = count(null);
         if (untyped.active + untyped.dev > 0) {
-          stats.push({ key: "__none", name: CATALOG_TEXT.noCategory, ...untyped });
+          stats.push({
+            key: "__none",
+            name: CATALOG_TEXT.noCategory,
+            value: untyped.active + untyped.dev,
+            note: CATALOG_TEXT.typeStat(untyped.active, untyped.dev),
+          });
         }
 
         return (
           <>
-            <CatalogHeadline
-              activeCount={live.filter((p) => p.statusId === activeId).length}
-              devCount={live.filter((p) => p.statusId === devId).length}
+            <ModuleHeadline
+              icon="package"
+              title={CATALOG_TEXT.title}
+              description={CATALOG_TEXT.description}
+              tags={
+                <>
+                  <StatusBadge tone="success">
+                    {CATALOG_TEXT.tagActive(live.filter((p) => p.statusId === activeId).length)}
+                  </StatusBadge>
+                  {live.some((p) => p.statusId === devId) ? (
+                    <StatusBadge tone="info">
+                      {CATALOG_TEXT.tagDev(live.filter((p) => p.statusId === devId).length)}
+                    </StatusBadge>
+                  ) : null}
+                </>
+              }
+              action={
+                canWrite ? (
+                  <Link
+                    href="/catalog/settings"
+                    aria-label={CATALOG_TEXT.settingsLink}
+                    title={CATALOG_TEXT.settingsLink}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Icon name="settings" size="sm" />
+                  </Link>
+                ) : null
+              }
               stats={stats}
-              canConfigure={canWrite}
+              emptyNote={CATALOG_TEXT.byTypeEmpty}
             />
 
             <ProductRoster

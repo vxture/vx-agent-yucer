@@ -4,8 +4,11 @@ import { useState, useTransition } from "react";
 import {
   Button,
   DialogForm,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
   Input,
-  Label,
   NativeSelect,
   Section,
   StatusBadge,
@@ -95,7 +98,9 @@ export function DealTerms({
   if (!canEdit) {
     return (
       <Section title={OPPORTUNITY_TEXT.termsTitle}>
-        <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsReadOnly}</StatusBadge>
+        <StatusBadge tone="neutral">
+          {OPPORTUNITY_TEXT.termsReadOnly}
+        </StatusBadge>
       </Section>
     );
   }
@@ -122,7 +127,9 @@ export function DealTerms({
         forecastCategory: canCategorize ? dirty("forecastCategory") : undefined,
       }).then((r) => {
         if (!r.ok) {
-          setError(OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied");
+          setError(
+            OPPORTUNITY_ERROR[r.error ?? "denied"] ?? r.error ?? "denied",
+          );
         } else {
           setSaved(true);
           setOpen(false);
@@ -132,7 +139,10 @@ export function DealTerms({
   }
 
   return (
-    <Section title={OPPORTUNITY_TEXT.termsTitle} description={OPPORTUNITY_TEXT.termsDescription}>
+    <Section
+      title={OPPORTUNITY_TEXT.termsTitle}
+      description={OPPORTUNITY_TEXT.termsDescription}
+    >
       <div className="flex flex-wrap items-center gap-sm">
         <Button
           variant="secondary"
@@ -147,7 +157,11 @@ export function DealTerms({
         >
           {OPPORTUNITY_TEXT.termsOpen}
         </Button>
-        {saved ? <StatusBadge tone="success">{OPPORTUNITY_TEXT.termsSaved}</StatusBadge> : null}
+        {saved ? (
+          <StatusBadge tone="success">
+            {OPPORTUNITY_TEXT.termsSaved}
+          </StatusBadge>
+        ) : null}
       </div>
 
       <DialogForm
@@ -162,61 +176,95 @@ export function DealTerms({
           save();
         }}
       >
-        <Label htmlFor="terms-amount">
-          {OPPORTUNITY_TEXT.termsAmount} ({currency})
-        </Label>
-        <Input
-          id="terms-amount"
-          inputMode="decimal"
-          value={form.amount}
-          onChange={(e) => setForm({ ...form, amount: e.target.value })}
-          disabled={pending}
-        />
+        {/* FIELD GROUPS, and the currency is a DESCRIPTION not part of the
+            label: the dialog's form is flex-col gap-lg, so loose labels
+            floated off their controls and a label carrying "(CNY)" wrapped
+            (owner, 2026-09-05). A label is the field's name, nothing else. */}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="terms-amount">
+              {OPPORTUNITY_TEXT.termsAmount}
+            </FieldLabel>
+            <Input
+              id="terms-amount"
+              inputMode="decimal"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              disabled={pending}
+            />
+            <FieldDescription>{currency}</FieldDescription>
+          </Field>
 
-        <Label htmlFor="terms-probability">{OPPORTUNITY_TEXT.termsProbability}</Label>
-        <Input
-          id="terms-probability"
-          inputMode="numeric"
-          value={closed ? String(DEFAULT_PROBABILITY[stage]) : form.probability}
-          onChange={(e) => setForm({ ...form, probability: e.target.value })}
-          disabled={pending || closed}
-        />
-        {closed ? (
-          <StatusBadge tone="neutral">{OPPORTUNITY_TEXT.termsTerminalLocked}</StatusBadge>
-        ) : null}
-
-        <Label htmlFor="terms-close">{OPPORTUNITY_TEXT.termsExpectedClose}</Label>
-        <Input
-          id="terms-close"
-          type="date"
-          value={form.expectedCloseAt}
-          onChange={(e) => setForm({ ...form, expectedCloseAt: e.target.value })}
-          disabled={pending}
-        />
-
-        {canCategorize ? (
-          <>
-            <Label htmlFor="terms-forecast">{OPPORTUNITY_TEXT.termsForecast}</Label>
-            <NativeSelect
-              id="terms-forecast"
-              value={form.forecastCategory}
+          <Field>
+            <FieldLabel htmlFor="terms-probability">
+              {OPPORTUNITY_TEXT.termsProbability}
+            </FieldLabel>
+            <Input
+              id="terms-probability"
+              inputMode="numeric"
+              value={
+                closed ? String(DEFAULT_PROBABILITY[stage]) : form.probability
+              }
               onChange={(e) =>
-                setForm({ ...form, forecastCategory: e.target.value as ForecastCategory })
+                setForm({ ...form, probability: e.target.value })
+              }
+              disabled={pending || closed}
+            />
+            {closed ? (
+              <FieldDescription>
+                {OPPORTUNITY_TEXT.termsTerminalLocked}
+              </FieldDescription>
+            ) : null}
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="terms-close">
+              {OPPORTUNITY_TEXT.termsExpectedClose}
+            </FieldLabel>
+            <Input
+              id="terms-close"
+              type="date"
+              value={form.expectedCloseAt}
+              onChange={(e) =>
+                setForm({ ...form, expectedCloseAt: e.target.value })
               }
               disabled={pending}
-            >
-              {FORECAST_CATEGORIES.map((c) => (
-                // `closed` is offered only on a terminal deal, and the open
-                // three only on an open one - planCategoryChange refuses the
-                // other pairings in both directions, so offering them would be
-                // offering a refusal.
-                <option key={c} value={c} disabled={c === "closed" ? !closed : closed}>
-                  {FORECAST_LABEL[c]}
-                </option>
-              ))}
-            </NativeSelect>
-          </>
-        ) : null}
+            />
+          </Field>
+
+          {canCategorize ? (
+            <Field>
+              <FieldLabel htmlFor="terms-forecast">
+                {OPPORTUNITY_TEXT.termsForecast}
+              </FieldLabel>
+              <NativeSelect
+                id="terms-forecast"
+                value={form.forecastCategory}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    forecastCategory: e.target.value as ForecastCategory,
+                  })
+                }
+                disabled={pending}
+              >
+                {FORECAST_CATEGORIES.map((c) => (
+                  // `closed` is offered only on a terminal deal, and the open
+                  // three only on an open one - planCategoryChange refuses the
+                  // other pairings in both directions, so offering them would be
+                  // offering a refusal.
+                  <option
+                    key={c}
+                    value={c}
+                    disabled={c === "closed" ? !closed : closed}
+                  >
+                    {FORECAST_LABEL[c]}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          ) : null}
+        </FieldGroup>
 
         {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       </DialogForm>

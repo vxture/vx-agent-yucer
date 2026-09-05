@@ -6,8 +6,11 @@ import {
   Button,
   DataTable,
   DialogForm,
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
   Input,
-  Label,
   Section,
   StatusBadge,
   useToast,
@@ -198,7 +201,6 @@ export function CatalogTypeConfig({
         open={dialog !== null}
         onOpenChange={(open) => { if (!open) setDialog(null); }}
         title={dialog?.mode === "rename" ? CATALOG_TEXT.renameType : CATALOG_TEXT.addType}
-        description={CATALOG_TEXT.typeCodeHint}
         submitLabel={CATALOG_TEXT.saveType}
         submitting={pending}
         onSubmit={(e) => {
@@ -206,20 +208,32 @@ export function CatalogTypeConfig({
           submitDialog();
         }}
       >
-        <Label htmlFor="type-code">{CATALOG_TEXT.typeCode}</Label>
-        <Input
-          id="type-code"
-          value={dialog?.code ?? ""}
-          disabled={pending || dialog?.mode === "rename"}
-          onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
-        />
-        <Label htmlFor="type-name">{CATALOG_TEXT.colTypeName}</Label>
-        <Input
-          id="type-name"
-          value={dialog?.name ?? ""}
-          disabled={pending}
-          onChange={(e) => setDialog((d) => (d ? { ...d, name: e.target.value } : d))}
-        />
+        {/* FIELD GROUPS, not loose Label/Input siblings: the dialog's form is
+            flex-col gap-lg, so a bare label floated 24px off its own control
+            and wrapped into the space (owner, 2026-09-05). A Field is ONE
+            child - label hugging its input - and the explanation lives in
+            FieldDescription, never inside the label. */}
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="type-code">{CATALOG_TEXT.typeCode}</FieldLabel>
+            <Input
+              id="type-code"
+              value={dialog?.code ?? ""}
+              disabled={pending || dialog?.mode === "rename"}
+              onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
+            />
+            <FieldDescription>{CATALOG_TEXT.typeCodeHint}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="type-name">{CATALOG_TEXT.colTypeName}</FieldLabel>
+            <Input
+              id="type-name"
+              value={dialog?.name ?? ""}
+              disabled={pending}
+              onChange={(e) => setDialog((d) => (d ? { ...d, name: e.target.value } : d))}
+            />
+          </Field>
+        </FieldGroup>
         {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
       </DialogForm>
     </Section>

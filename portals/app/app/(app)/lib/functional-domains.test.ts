@@ -278,7 +278,10 @@ const SHIPPED_AS: Record<string, string> = {
   renewal: "RenewalTable",
   forecastRule: "ForecastRuleTable",
   solution: "SolutionSection",
-  pricebook: "PriceSection",
+  // /pricebook's section became PriceBook on 2026-09-05, when the price book
+  // took the catalogue module page's pattern: two rosters (in force, and
+  // superseded) with the pricing dialog on the row.
+  pricebook: "PriceBook",
 };
 
 /**
