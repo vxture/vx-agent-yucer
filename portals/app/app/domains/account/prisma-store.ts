@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
-import type { AccountStatus, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
+import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
   AccountPlanRecord,
@@ -11,6 +11,7 @@ import type {
   AccountTier,
   ContactRecord,
   HealthInputs,
+  OpportunityContactRecord,
 } from "./store";
 
 // Prisma-backed AccountStore over yucer_core.
@@ -28,6 +29,7 @@ const ACCOUNT_TABLE = "yucer_core.account";
 // evidence foreign keys and every row are the ones that were always there.
 const PERSON_TABLE = "yucer_core.person";
 const AFFILIATION_TABLE = "yucer_core.person_affiliation";
+const OPPORTUNITY_CONTACT_TABLE = "yucer_pipeline.opportunity_contact";
 
 export class PrismaAccountStore implements AccountStore {
   /**
@@ -112,7 +114,10 @@ export class PrismaAccountStore implements AccountStore {
     if (links.length === 0) return [];
     const people = await p.person.findMany({
       where: { workspaceId, id: { in: links.map((l: { personId: string }) => l.personId) }, deletedAt: null },
-      orderBy: { influence: { sort: "desc", nulls: "last" } },
+      // Ordered by NAME now. Sorting people by influence was sorting them by a
+      // column that no longer exists - influence is per deal, and a customer's
+      // roster is not a ranking.
+      orderBy: { name: "asc" },
     });
     const byPerson = new Map(links.map((l: { personId: string }) => [l.personId, l]));
     return people.map((r: Record<string, unknown>) =>
@@ -130,8 +135,6 @@ export class PrismaAccountStore implements AccountStore {
     // the person, and the person table has no such columns to grant.
     const writable = {
       name: input.name,
-      decisionRole: input.decisionRole,
-      influence: input.influence,
       email: input.email,
       mobile: input.mobile,
       wechat: input.wechat,
@@ -213,6 +216,64 @@ export class PrismaAccountStore implements AccountStore {
         relationType: edge.relationType,
       },
     });
+  }
+
+  // --- incr/0027, the per-deal buying roles ---------------------------------
+
+  async listOpportunityContacts(
+    workspaceId: string,
+    opportunityId: string,
+  ): Promise<OpportunityContactRecord[]> {
+    const p = await this.client();
+    const rows = await p.opportunityContact.findMany({ where: { workspaceId, opportunityId } });
+    return rows.map((r: Record<string, unknown>) => toOpportunityContact(r));
+  }
+
+  async listOpportunityContactsFor(
+    workspaceId: string,
+    opportunityIds: readonly string[],
+  ): Promise<OpportunityContactRecord[]> {
+    // The short-circuit is not an optimisation: `in: []` asks the database for
+    // every row in the workspace and filters to none.
+    if (opportunityIds.length === 0) return [];
+    const p = await this.client();
+    const rows = await p.opportunityContact.findMany({
+      where: { workspaceId, opportunityId: { in: [...opportunityIds] } },
+    });
+    return rows.map((r: Record<string, unknown>) => toOpportunityContact(r));
+  }
+
+  async setOpportunityContact(
+    workspaceId: string,
+    opportunityId: string,
+    personId: string,
+    patch: { buyingRole: DecisionRole; influence: number | null; isPrimary?: boolean },
+  ): Promise<OpportunityContactRecord | null> {
+    const p = await this.client();
+    const writable: Record<string, unknown> = {
+      buyingRole: patch.buyingRole,
+      influence: patch.influence,
+      updatedAt: new Date(),
+    };
+    if (patch.isPrimary !== undefined) writable.isPrimary = patch.isPrimary;
+
+    const guard = assertWritable(OPPORTUNITY_CONTACT_TABLE, writable);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+
+    // The pair IS the identity (uidx_opportunity_contact_pair), so a second
+    // statement about the same person on the same deal replaces the first.
+    // upsert rather than update-then-create: the two-statement version races
+    // itself under the unique index and fails on the second caller.
+    const row = await p.opportunityContact.upsert({
+      where: { opportunityId_personId: { opportunityId, personId } },
+      update: writable,
+      create: { workspaceId, opportunityId, personId, ...writable },
+    });
+    return toOpportunityContact(row as Record<string, unknown>);
   }
 
   async listRelations(workspaceId: string, accountId: string): Promise<RelationEdge[]> {
@@ -402,11 +463,21 @@ function toContact(r: Record<string, unknown>, link?: Record<string, unknown>): 
     name: String(r.name),
     title: (link?.title as string | null) ?? null,
     department: (link?.department as string | null) ?? null,
-    decisionRole: r.decisionRole as ContactRecord["decisionRole"],
-    influence: (r.influence as number | null) ?? null,
     email: (r.email as string | null) ?? null,
     mobile: (r.mobile as string | null) ?? null,
     wechat: (r.wechat as string | null) ?? null,
     status: String(r.status),
+  };
+}
+
+function toOpportunityContact(r: Record<string, unknown>): OpportunityContactRecord {
+  return {
+    id: String(r.id),
+    workspaceId: String(r.workspaceId),
+    opportunityId: String(r.opportunityId),
+    personId: String(r.personId),
+    buyingRole: r.buyingRole as OpportunityContactRecord["buyingRole"],
+    influence: (r.influence as number | null) ?? null,
+    isPrimary: Boolean(r.isPrimary),
   };
 }

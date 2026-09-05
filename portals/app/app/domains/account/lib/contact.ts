@@ -12,7 +12,6 @@
 // coverage figure on the front page could only ever describe seed data.
 
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
-import { DECISION_ROLES, type DecisionRole } from "./health";
 
 /** Mirrors chk_contact_status. */
 export const CONTACT_STATUSES = ["active", "left", "invalid"] as const;
@@ -25,8 +24,6 @@ export interface ContactDraft {
   name: string;
   title: string | null;
   department: string | null;
-  decisionRole: DecisionRole;
-  influence: number | null;
   /**
    * How to actually reach this person - incr/0024.
    *
@@ -60,20 +57,9 @@ export function planContact(input: ContactDraft): RuleResult<ContactDraft> {
   if (!name) {
     return fail(violation("name_required", "a contact needs a name", "name"));
   }
-  if (!(DECISION_ROLES as readonly string[]).includes(input.decisionRole)) {
-    return fail(
-      violation("unknown_decision_role", `${String(input.decisionRole)} is not a decision role`, "decisionRole"),
-    );
-  }
   if (!(CONTACT_STATUSES as readonly string[]).includes(input.status)) {
     return fail(violation("unknown_status", `${String(input.status)} is not a contact status`, "status"));
   }
-  if (input.influence !== null) {
-    if (!Number.isInteger(input.influence) || input.influence < 0 || input.influence > 100) {
-      return fail(violation("influence_range", "influence is a whole number from 0 to 100", "influence"));
-    }
-  }
-
   return ok({
     ...input,
     name,

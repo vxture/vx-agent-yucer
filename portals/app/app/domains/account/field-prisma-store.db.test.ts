@@ -54,8 +54,8 @@ async function seedAccounts(c: Client): Promise<void> {
   // below still hold plain person ids - the rename kept every one of them - so
   // only the fixture setup changes, never the ids these tests assert on.
   await c.query(
-    `INSERT INTO yucer_core.person (id, workspace_id, name, decision_role, status)
-     VALUES ($1, $2, 'Contact One', 'economic', 'active') ON CONFLICT DO NOTHING`,
+    `INSERT INTO yucer_core.person (id, workspace_id, name, status)
+     VALUES ($1, $2, 'Contact One', 'active') ON CONFLICT DO NOTHING`,
     [CONTACT, WS],
   );
   await c.query(

@@ -9,7 +9,8 @@ import { InMemoryPlanningStore, type TerritoryRecord } from "../planning/store";
 import { InMemoryStrategyStore, type SegmentRecord } from "../strategy/store";
 import { money } from "../shared/money";
 import {
-  decisionChain,
+  decisionChainsByOpportunity,
+  setBuyingRole,
   linkContacts,
   listAccounts,
   reassignAccount,
@@ -44,7 +45,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
   };
 }
 
-function contact(id: string, role: ContactRecord["decisionRole"], over: Partial<ContactRecord> = {}): ContactRecord {
+function contact(id: string, _role: string, over: Partial<ContactRecord> = {}): ContactRecord {
   return {
     id,
     workspaceId: WS,
@@ -52,8 +53,6 @@ function contact(id: string, role: ContactRecord["decisionRole"], over: Partial<
     name: id,
     title: null,
     department: null,
-    decisionRole: role,
-    influence: 50,
     email: null,
     mobile: null,
     wechat: null,
@@ -86,9 +85,9 @@ test("the relationship graph is a pro-tier capability, not a baseline read", asy
   const store = new InMemoryAccountStore();
   store.seed({ accounts: [account()], contacts: [contact("c1", "economic")] });
 
-  const starter = await decisionChain(ctx("sales_rep", "starter", store), "acc_1");
+  const starter = await decisionChainsByOpportunity(ctx("sales_rep", "starter", store), "acc_1", DEAL);
   assert.equal(starter.ok === false && starter.violations[0].code, "feature_not_in_tier");
-  assert.ok((await decisionChain(ctx("sales_rep", "pro", store), "acc_1")).ok);
+  assert.ok((await decisionChainsByOpportunity(ctx("sales_rep", "pro", store), "acc_1", DEAL)).ok);
 });
 
 test("recomputing health needs write permission, because it writes a column", async () => {
@@ -196,13 +195,18 @@ test("the chain reports coverage, blockers and reachability", async () => {
   store.seed({
     accounts: [account()],
     contacts: [contact("coach", "coach"), contact("eb", "economic"), contact("tech", "technical")],
+    // THE ROLES ARE ON THE DEAL now - incr/0027. Seeding them on the people
+    // would leave every deal with an empty chain, which is what makes this
+    // test a check on the wiring and not only on the walk.
+    opportunityContacts: [oc("coach", "coach"), oc("eb", "economic"), oc("tech", "technical")],
     relations: [
       { workspaceId: WS, accountId: "acc_1", fromContactId: "coach", toContactId: "eb", relationType: "reports_to" },
     ],
   });
-  const chain = unwrap(await decisionChain(ctx("sales_rep", "pro", store), "acc_1"));
-  assert.deepEqual(chain.missing, []);
-  assert.equal(chain.economicBuyerUnreachable, false);
+  const chains = unwrap(await decisionChainsByOpportunity(ctx("sales_rep", "pro", store), "acc_1", DEAL));
+  assert.equal(chains.length, 1);
+  assert.deepEqual(chains[0]!.coverage.missing, []);
+  assert.equal(chains[0]!.coverage.economicBuyerUnreachable, false);
 });
 
 test("an economic buyer on file but unreachable is reported as such", async () => {
@@ -210,9 +214,14 @@ test("an economic buyer on file but unreachable is reported as such", async () =
   store.seed({
     accounts: [account()],
     contacts: [contact("coach", "coach"), contact("eb", "economic"), contact("tech", "technical")],
+    opportunityContacts: [oc("coach", "coach"), oc("eb", "economic"), oc("tech", "technical")],
   });
-  const chain = unwrap(await decisionChain(ctx("sales_rep", "pro", store), "acc_1"));
-  assert.equal(chain.economicBuyerUnreachable, true, "having one on file is not the same as reaching them");
+  const chains = unwrap(await decisionChainsByOpportunity(ctx("sales_rep", "pro", store), "acc_1", DEAL));
+  assert.equal(
+    chains[0]!.coverage.economicBuyerUnreachable,
+    true,
+    "having one on file is not the same as reaching them",
+  );
 });
 
 test("linking is append-only and idempotent on the same edge", async () => {
@@ -251,6 +260,18 @@ test("linking needs the graph write permission and the graph tier", async () => 
 
 // --- Contacts, which nothing could create until now (TD-016) ----------------
 
+/** A stated buying role on a deal - incr/0027, the only place a role lives. */
+const oc = (personId: string, buyingRole: string, opportunityId = "opp_1") => ({
+  id: `oc_${personId}`,
+  workspaceId: WS,
+  opportunityId,
+  personId,
+  buyingRole: buyingRole as never,
+  influence: 50,
+  isPrimary: false,
+});
+const DEAL = [{ id: "opp_1", name: "Deal one" }];
+
 const contactDraft = {
   id: null,
   name: "Zhang Gong",
@@ -272,16 +293,23 @@ test("a viewer may read an account and may not add a contact", () => {
   });
 });
 
-test("a contact created here is immediately what the decision chain reads", async () => {
-  // The whole point. The board's "N decision makers not reached" is computed
-  // from decision_role, and before this verb existed that figure could only
-  // describe seed data.
+test("a role stated on a deal is immediately what that deal's chain reads", async () => {
+  // TWO ACTS NOW, and the split is the batch. Creating the person says who
+  // works at this customer; stating the role says what they are to THIS
+  // purchase. Before incr/0027 the first act did both, which is why every deal
+  // at a customer shared one committee.
   const store = new InMemoryAccountStore();
   store.seed({ accounts: [account()] });
   const c = ctx("sales_rep", "pro", store);
-  unwrap(await upsertContact(c, "acc_1", { ...contactDraft, decisionRole: "economic" }));
+  const made = unwrap(await upsertContact(c, "acc_1", contactDraft));
 
-  const chain = unwrap(await decisionChain(c, "acc_1"));
+  // Created, but not yet anything to this deal - and the chain says so.
+  const before = unwrap(await decisionChainsByOpportunity(c, "acc_1", DEAL));
+  assert.ok(!before[0]!.coverage.covered.includes("economic"), "creating a person states no role");
+
+  unwrap(await setBuyingRole(c, "opp_1", made!.id, "economic", 80));
+
+  const chain = unwrap(await decisionChainsByOpportunity(c, "acc_1", DEAL))[0]!.coverage;
   assert.ok(chain.covered.includes("economic"), "the role is covered the moment it is recorded");
 });
 
@@ -518,4 +546,48 @@ test("an account with nothing missing contributes no rows", async () => {
   });
   const r = unwrap(await workspaceCompleteness(batchCtx("sales_leader", "pro", { account: accountStore })));
   assert.deepEqual(r, []);
+});
+
+// --- setBuyingRole: the validation that used to live on planContact ---------
+//
+// These two moved here with incr/0027 rather than being dropped. The values
+// they guard are CHECK constraints in the database
+// (chk_opportunity_contact_role, chk_opportunity_contact_influence), so an
+// invalid one would be refused by Postgres with a constraint name; refusing it
+// here means the caller hears which field and why.
+
+test("setBuyingRole refuses a role the database would refuse", async () => {
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account()], contacts: [contact("c1", "unknown")] });
+  const r = await setBuyingRole(ctx("sales_rep", "pro", store), "opp_1", "c1", "champion" as never, null);
+  assert.equal(r.ok === false && r.violations[0]!.code, "unknown_decision_role");
+});
+
+test("setBuyingRole keeps influence 0-100 and whole, and null meaning null", async () => {
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account()], contacts: [contact("c1", "unknown")] });
+  const c = ctx("sales_rep", "pro", store);
+  for (const bad of [-1, 101, 50.5]) {
+    const r = await setBuyingRole(c, "opp_1", "c1", "economic", bad);
+    assert.equal(r.ok === false && r.violations[0]!.code, "influence_range", `${bad} must be refused`);
+  }
+  // Null is "no judgement on this deal" and is always allowed - the same
+  // distinction the attainment rules keep for an unset quota.
+  assert.ok((await setBuyingRole(c, "opp_1", "c1", "economic", null)).ok);
+});
+
+test("stating a role twice on one deal replaces rather than duplicates", async () => {
+  // uidx_opportunity_contact_pair in the database; the in-memory store must
+  // agree, or a test suite that never touches Postgres would pass on data the
+  // real thing refuses.
+  const store = new InMemoryAccountStore();
+  store.seed({ accounts: [account()], contacts: [contact("c1", "unknown")] });
+  const c = ctx("sales_rep", "pro", store);
+  unwrap(await setBuyingRole(c, "opp_1", "c1", "technical", 40));
+  unwrap(await setBuyingRole(c, "opp_1", "c1", "economic", 90));
+
+  const rows = await store.listOpportunityContacts(WS, "opp_1");
+  assert.equal(rows.length, 1, "one person, one deal, one answer");
+  assert.equal(rows[0]!.buyingRole, "economic");
+  assert.equal(rows[0]!.influence, 90);
 });

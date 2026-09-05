@@ -625,7 +625,22 @@ export const en: Dictionary = {
     linkFromAccount: "Ask about this account",
   },
 
+  BUYING_ROLE_TEXT: {
+    title: "Buying roles on this deal",
+    description:
+      "Who signs, who evaluates, who can introduce you - all of it is relative to this purchase. The same person can be something else on another deal.",
+    person: "Person",
+    pickPerson: "Choose a person",
+    role: "Role on this deal",
+    influence: "Influence on this deal 0-100",
+    save: "Save role",
+    saved: "Saved",
+  },
   CHAIN_TEXT: {
+    forDeal: (deal: string) => `Decision chain · ${deal}`,
+    noOpenDealTitle: "No open deal",
+    noOpenDealDescription:
+      "A buying role only exists relative to a purchase. Once this customer has an open deal, decide there who signs and who can introduce you. The people and their titles are in the roster above.",
     title: "Decision chain",
     description:
       '"There is an economic buyer on file" and "someone can introduce us to them" are two different facts. Only the second one moves a deal.',

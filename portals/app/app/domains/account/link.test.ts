@@ -4,6 +4,7 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { unwrap } from "../shared/result";
 import { InMemoryAccountStore, type ContactRecord } from "./store";
+import { chainForOpportunity } from "./lib/buying-role";
 import { analyzeChain, isRelationType, RELATION_TYPES } from "./lib/health";
 import { linkContacts, type AccountContext } from "./service";
 
@@ -19,7 +20,14 @@ import { linkContacts, type AccountContext } from "./service";
 const WS = "ws_1";
 const ACC = "acc_1";
 
-function contact(id: string, decisionRole: ContactRecord["decisionRole"]): ContactRecord {
+// The roles these tests hold constant, remembered by id. They are stated on a
+// deal now, so the fixture has to carry them somewhere - and a heuristic over
+// the id would be a second source of truth that can disagree with the argument
+// the caller passed.
+const ROLE_OF = new Map<string, string>();
+
+function contact(id: string, decisionRole: string): ContactRecord {
+  ROLE_OF.set(id, decisionRole);
   return {
     id,
     workspaceId: WS,
@@ -27,11 +35,9 @@ function contact(id: string, decisionRole: ContactRecord["decisionRole"]): Conta
     name: id,
     title: null,
     department: null,
-    decisionRole,
     email: null,
     mobile: null,
     wechat: null,
-    influence: 50,
     status: "active",
   };
 }
@@ -79,7 +85,20 @@ async function chainOf(store: InMemoryAccountStore) {
     store.listContacts(WS, ACC),
     store.listRelations(WS, ACC),
   ]);
-  return analyzeChain(contacts, relations);
+  // THROUGH A DEAL - incr/0027. These tests are about the relationship GRAPH,
+  // so the roles are stated on one notional deal and held constant; what varies
+  // between them is the edges, which is what linkContacts changes.
+  return analyzeChain(
+    chainForOpportunity(
+      contacts,
+      contacts.map((c) => ({
+        personId: c.id,
+        buyingRole: (ROLE_OF.get(c.id) ?? "unknown") as never,
+        influence: 50,
+      })),
+    ),
+    relations,
+  );
 }
 
 // --- The verdict actually changes ------------------------------------------

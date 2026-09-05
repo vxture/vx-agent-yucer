@@ -68,8 +68,6 @@ function seededAccounts(): InMemoryAccountStore {
         name: "Buyer",
         title: "CFO",
         department: "finance",
-        decisionRole: "economic",
-        influence: 90,
         email: null,
         mobile: null,
         wechat: null,
@@ -95,7 +93,9 @@ test("an entitled member gets the account and its contacts together", async () =
   const detail = unwrap(await getAccountDetail(accountCtx("sales_rep", "free", store), "acc_1"));
   assert.equal(detail.account.name, "Customer");
   assert.equal(detail.contacts.length, 1);
-  assert.equal(detail.contacts[0].decisionRole, "economic");
+  // The DETAIL is a person now, not a role - incr/0027. What this test guards
+  // is the gate, and the assertion still has to name a field the record has.
+  assert.equal(detail.contacts[0].name, "Buyer");
 });
 
 test("an account in another workspace is not found, not forbidden", async () => {

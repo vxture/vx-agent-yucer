@@ -37,11 +37,14 @@ import {
 } from "../../../domains/pipeline/service";
 import {
   getAccountDetail,
-  decisionChain,
+  decisionChainForOpportunity,
+  buyingRolesFor,
 } from "../../../domains/account/service";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { cachedFeed } from "../../lib/board";
+import { BuyingRoleForm } from "../../components/buying-role-form";
+import { saveBuyingRole } from "../buying-role-action";
 import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
@@ -144,10 +147,17 @@ export default async function OpportunityDetailPage({
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [account, chain, projects, feed, proposals, lineRows, productRows] =
+  const [account, chain, roles, projects, feed, proposals, lineRows, productRows] =
     await Promise.all([
       getAccountDetail(accountCtx, opportunity.accountId),
-      decisionChain(accountCtx, opportunity.accountId),
+      // incr/0027. THIS PAGE IS A DEAL, so it asks the deal's question. It used
+      // to call the account-level chain, which is the defect ADR-024 opens
+      // with: every open deal at one customer rendered the same committee and
+      // the same 决策人未触达 badge. Falls back to the customer default when
+      // this deal has stated nothing, so a customer with one deal looks exactly
+      // as it did.
+      decisionChainForOpportunity(accountCtx, opportunity.accountId, opportunity.id),
+      buyingRolesFor(accountCtx, opportunity.id),
       listProjects(
         { ...ctx, store: getDeliveryStore() },
         { accountId: opportunity.accountId },
@@ -404,6 +414,29 @@ export default async function OpportunityDetailPage({
         rivalMentions={rivalMentions}
         problems={problems}
         proposals={positionProposals}
+      />
+
+      {/* THE ONLY CONTROL IN THE PRODUCT THAT WRITES A BUYING ROLE - incr/0027.
+          It sits on a deal because that is the only place the question has an
+          answer, and it renders directly under the chain it changes. Before
+          this batch the same question was asked on the customer's roster and
+          one answer there was applied to every deal at once. */}
+      <BuyingRoleForm
+        opportunityId={opportunity.id}
+        accountId={opportunity.accountId}
+        people={(account.ok ? account.value.contacts : []).map((c) => {
+          const stated = (roles.ok ? roles.value : []).find((r) => r.personId === c.id);
+          return {
+            id: c.id,
+            name: c.name,
+            buyingRole: stated?.buyingRole ?? "unknown",
+            influence: stated?.influence ?? null,
+          };
+        })}
+        canEdit={
+          can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed
+        }
+        onSave={saveBuyingRole}
       />
 
       {/* A SMALL FACT BESIDE A SHORT LIST. Both are read, neither is a grid

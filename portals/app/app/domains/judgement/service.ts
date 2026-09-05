@@ -17,7 +17,12 @@ import { ok, type RuleResult } from "../shared/result";
 import { denied, listPipeline } from "../pipeline/service";
 import { getAccountStore, getCopilotStore, getFieldStore, getPipelineStore } from "../shared/registry";
 import type { CopilotStore } from "../copilot/store";
-import { listAccounts, decisionChain, accountRelations } from "../account/service";
+import {
+  listAccounts,
+  decisionChainsByOpportunity,
+  accountRelations,
+  type OpportunityChain,
+} from "../account/service";
 import { captureAdoption } from "../account/field-service";
 import {
   deriveJudgements,
@@ -166,15 +171,25 @@ export async function judgementFeed(
         fieldStore.lastContactByContact(ctx.workspaceId, a.id),
         accountRelations(accountCtx, a.id),
       ]);
-      // decisionChain is pro-tier; a starter workspace simply gets no
-      // decision-chain judgements rather than an error on the home screen.
-      const chain = await decisionChain(accountCtx, a.id);
+      const open = deals.filter((d) => d.accountId === a.id && d.closedAt === null);
+      // Pro-tier; a starter workspace simply gets no decision-chain judgements
+      // rather than an error on the home screen.
+      //
+      // ONE CHAIN PER OPEN DEAL since incr/0027. An account no longer has a
+      // single chain to fetch - a buying committee is a fact about a purchase -
+      // so this returns as many as the account has live deals, and none for a
+      // prospect. `.ok` is still the tier gate; the array is what it gates.
+      const chain = await decisionChainsByOpportunity(
+        accountCtx,
+        a.id,
+        open.map((d) => ({ id: d.id, name: d.name })),
+      );
       const contacts = chain.ok ? await getAccountStore().listContacts(ctx.workspaceId, a.id) : [];
       // The coverage itself was being computed and thrown away - only `.ok` was
       // read. It is the most expensive call in this loop, and it is exactly
       // what the shell needs to say who is on our side, so it is carried out
       // rather than recomputed by a second caller.
-      const coverage = chain.ok ? chain.value : null;
+      const coverages = chain.ok ? chain.value : null;
 
       // The plan, only for strategic accounts - it is what lets rule 5 fire on
       // an absence. Read here rather than in a second pass because everything
@@ -183,20 +198,29 @@ export async function judgementFeed(
       const plan =
         a.tier === "strategic" ? await getAccountStore().getAccountPlan(ctx.workspaceId, a.id) : null;
 
-      const open = deals.filter((d) => d.accountId === a.id && d.closedAt === null);
       // Last contact with a DECISION MAKER, not with anyone. Computed from the
       // contacts already fetched: an account can be busy at working level for
       // months while the person who signs has not been seen once, and that gap
       // is the one the cadence exists to catch.
+      // WHO COUNTS AS "the decision maker" for the cadence rule, now that being
+      // one is a fact about a deal. Anyone who signs on ANY open deal - a
+      // meeting with the person who signs the warehouse project is still a
+      // decision-maker meeting even if they merely use the other one.
+      //
+      // Empty for a customer with no open deal, and that is not a regression:
+      // the cadence rule treats "never met" as late by definition, which is the
+      // same verdict it reached before and for a better reason.
       const execIds = new Set(
-        contacts.filter((c) => c.decisionRole === "economic").map((c) => c.id),
+        (coverages ?? []).flatMap((c) =>
+          c.people.filter((x) => x.decisionRole === "economic").map((x) => x.id),
+        ),
       );
       const execTimes = [...contactActivity]
         .filter(([id, at]) => execIds.has(id) && at !== null)
         .map(([, at]) => (at as Date).getTime());
 
       return {
-        coverage,
+        coverages,
         plan: plan
           ? {
               period: plan.period,
@@ -224,6 +248,14 @@ export async function judgementFeed(
           dueAt: c.dueAt,
         })),
         contacts,
+        // incr/0027. Fetched for every open deal at once rather than per deal:
+        // the feed already assembles one bundle per account, and N round trips
+        // inside that loop would make the cost of the fix scale with the
+        // pipeline rather than with the customer list.
+        buyingRoles: await getAccountStore().listOpportunityContactsFor(
+          ctx.workspaceId,
+          open.map((d) => d.id),
+        ),
         relations: relations.ok ? relations.value : [],
         contactActivity: contacts.map((c) => ({
           contactId: c.id,
@@ -267,15 +299,21 @@ export async function judgementFeed(
   // a starter workspace gets no coverage at all, and reporting "0 coaches" for
   // a tier that cannot see chains would be a claim about the customers rather
   // than about the subscription.
-  const withChain = inputs.filter((i) => i.coverage !== null);
+  const withChain = inputs.filter((i) => i.coverages !== null);
+  // AGGREGATED OVER DEALS - incr/0027. An account counts here if ANY of its open
+  // deals does, because that is the only account-level statement the per-deal
+  // facts support. An account with no open deal has no chains and so counts for
+  // nothing, which is right: it has people, not a buying committee.
+  const anyDeal = (i: (typeof inputs)[number], f: (c: OpportunityChain) => boolean) =>
+    (i.coverages ?? []).some(f);
   const allies = {
-    coaches: withChain.filter((i) => (i.coverage?.coaches.length ?? 0) > 0).length,
-    blockers: withChain.filter((i) => (i.coverage?.blockers.length ?? 0) > 0).length,
-    unreachable: withChain.filter((i) => i.coverage?.economicBuyerUnreachable).length,
+    coaches: withChain.filter((i) => anyDeal(i, (c) => c.coverage.coaches.length > 0)).length,
+    blockers: withChain.filter((i) => anyDeal(i, (c) => c.coverage.blockers.length > 0)).length,
+    unreachable: withChain.filter((i) => anyDeal(i, (c) => c.coverage.economicBuyerUnreachable)).length,
     accounts: withChain.length,
   };
   const unreachableAccountIds = withChain
-    .filter((i) => i.coverage?.economicBuyerUnreachable)
+    .filter((i) => anyDeal(i, (c) => c.coverage.economicBuyerUnreachable))
     .map((i) => i.accountId);
 
   // A snooze holds only while the situation is no worse than when it was made.

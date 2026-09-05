@@ -84,8 +84,6 @@ function buyer(accountId: string, id: string) {
     name: "王总",
     title: "CFO",
     department: null,
-    decisionRole: "economic" as const,
-    influence: 90,
     email: null,
     mobile: null,
     wechat: null,
@@ -100,9 +98,53 @@ function buyer(accountId: string, id: string) {
  * singletons, so a test that left one installed would silently decide the next
  * test's answer.
  */
+/** An open deal, which is now what a decision chain hangs off - incr/0027. */
+function deal(id: string, accountId: string) {
+  return {
+    id,
+    workspaceId: WS,
+    opportunityNo: id.toUpperCase(),
+    name: `Deal ${id}`,
+    accountId,
+    planId: null,
+    campaignId: null,
+    territoryId: null,
+    ownerSub: ME,
+    stage: "validate" as const,
+    forecastCategory: "best_case" as const,
+    amount: null,
+    probability: 30,
+    expectedCloseAt: null,
+    closedAt: null,
+    status: "open" as const,
+    currency: "CNY",
+    sourceProjectId: null,
+    createdAt: daysAgo(30),
+  };
+}
+
+/** What that deal says about who somebody is. */
+function role(opportunityId: string, personId: string, buyingRole: string) {
+  return {
+    id: `oc_${opportunityId}_${personId}`,
+    workspaceId: WS,
+    opportunityId,
+    personId,
+    buyingRole: buyingRole as never,
+    influence: 90,
+    isPrimary: false,
+  };
+}
+
 function install(seed: {
   accounts?: AccountRecord[];
   contacts?: Parameters<InMemoryAccountStore["seed"]>[0]["contacts"];
+  // incr/0027. A chain exists only where a DEAL does, so a fixture that wants
+  // one has to say which deal and who is who on it. Both are optional and
+  // default to none, which is itself a real state: a customer with people and
+  // no live purchase has no buying committee.
+  opportunities?: Parameters<InMemoryPipelineStore["seed"]>[0];
+  opportunityContacts?: Parameters<InMemoryAccountStore["seed"]>[0]["opportunityContacts"];
   interactions?: Parameters<InMemoryFieldStore["seed"]>[0]["interactions"];
   commitments?: Parameters<InMemoryFieldStore["seed"]>[0]["commitments"];
 }) {
@@ -111,7 +153,12 @@ function install(seed: {
   const pipelineStore = new InMemoryPipelineStore();
   const copilotStore = new InMemoryCopilotStore();
 
-  accountStore.seed({ accounts: seed.accounts ?? [], contacts: seed.contacts ?? [] });
+  accountStore.seed({
+    accounts: seed.accounts ?? [],
+    contacts: seed.contacts ?? [],
+    opportunityContacts: seed.opportunityContacts ?? [],
+  });
+  if (seed.opportunities) pipelineStore.seed(seed.opportunities);
   fieldStore.seed({
     interactions: seed.interactions ?? [],
     commitments: seed.commitments ?? [],
@@ -301,7 +348,13 @@ test("unreachableAccountIds names the rows, and agrees with the count", async ()
   const h = install({
     accounts: [account(), account({ id: "acc_2", accountNo: "ACC-0002" })],
     // acc_1 has a buyer nobody can introduce. acc_2 has no contacts at all.
+    // BOTH need an open deal now, because a chain hangs off a purchase - and
+    // acc_1 needs the role stated on that deal, since a person no longer
+    // carries one. Without these the set would be empty whatever the code did,
+    // which is the vacuity this test was rewritten once already to avoid.
     contacts: [buyer("acc_1", "ct_1")],
+    opportunities: [deal("opp_1", "acc_1"), deal("opp_2", "acc_2")],
+    opportunityContacts: [role("opp_1", "ct_1", "economic")],
   });
   try {
     const feed = unwrap(await judgementFeed(ctx("sales_leader", "pro"), { now: NOW }));
@@ -332,6 +385,8 @@ test("a tier that cannot read the chain reports no ids, not an empty answer", as
   const h = install({
     accounts: [account()],
     contacts: [buyer("acc_1", "ct_1")],
+    opportunities: [deal("opp_1", "acc_1")],
+    opportunityContacts: [role("opp_1", "ct_1", "economic")],
   });
   try {
     const feed = unwrap(await judgementFeed(ctx("sales_rep", "starter"), { now: NOW }));

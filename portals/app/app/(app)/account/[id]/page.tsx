@@ -23,11 +23,12 @@ import {
 import {
   accountCompleteness,
   accountRelations,
-  decisionChain,
+  decisionChainsByOpportunity,
   getAccountDetail,
   recomputeHealth,
 } from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
+import { Fragment } from "react";
 import { ChainRecencyPanel } from "../../components/chain-recency";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
@@ -88,6 +89,7 @@ export default async function AccountDetailPage({
     ACCOUNT_TEXT,
     AGENT_ACTION_LABEL,
     BOARD_TEXT,
+    CHAIN_TEXT,
     CHANNEL_LABEL,
     PROJECT_HEALTH_LABEL,
     SHELL_TEXT,
@@ -142,13 +144,12 @@ export default async function AccountDetailPage({
     relationshipEvidence(fieldCtx, id, now),
   ]);
 
-  const [health, chain, relations] = await Promise.all([
+  const [health, relations] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
     // read-only member gets no panel rather than a silently failing one.
     canWrite
       ? recomputeHealth(ctx, id, { persist: false })
       : Promise.resolve(null),
-    decisionChain(ctx, id),
     accountRelations(ctx, id),
   ]);
 
@@ -175,6 +176,18 @@ export default async function AccountDetailPage({
       { status: "proposed" },
     ),
   ]);
+
+  // AFTER the deals, because a chain now belongs to one. Sequential rather than
+  // in the Promise.all above: this read genuinely depends on that one, and
+  // faking the parallelism by guessing the deal list would be the same class of
+  // error the whole batch removes.
+  const chain = await decisionChainsByOpportunity(
+    ctx,
+    id,
+    (deals.ok ? deals.value : [])
+      .filter((d) => d.status === "open")
+      .map((d) => ({ id: d.id, name: d.name })),
+  );
 
   const rosterDeals = (deals.ok ? deals.value : []).map((d) => ({
     id: d.id,
@@ -233,9 +246,19 @@ export default async function AccountDetailPage({
     id,
   );
 
-  const recency = relations.ok
-    ? await chainRecency(fieldCtx, id, contacts, relations.value, { now })
-    : null;
+  // PER DEAL, like the chain above it - incr/0027.
+  //
+  // warm / cold / unrecorded are pure evidence and would be the same for every
+  // deal; warmPathToEconomic is not, because it asks whether a COACH can reach
+  // the ECONOMIC BUYER and both of those are per-deal roles now. Computing it
+  // once at account level would need roles that no longer exist there, and
+  // answering it from no roles would report "no warm path" for every customer.
+  const recencies =
+    relations.ok && chain.ok
+      ? await Promise.all(
+          chain.value.map((c) => chainRecency(fieldCtx, id, c.people, relations.value, { now })),
+        )
+      : [];
 
   return (
     <ViewLayout>
@@ -342,26 +365,59 @@ export default async function AccountDetailPage({
             />
           ) : null}
           {chain.ok ? (
-            <DecisionChain
-              coverage={chain.value}
-              contacts={contacts}
-              linkForm={
-                <LinkContacts
-                  accountId={id}
-                  contacts={contacts}
-                  canLink={
-                    can(
-                      session.authz,
-                      session.entitlement,
-                      "account.graph.link",
-                      "ui",
-                    ).allowed
+            // ONE CHAIN PER OPEN DEAL - incr/0027. A buying committee is a fact
+            // about a purchase, so this customer has as many as it has live
+            // deals: none, one, or several that disagree with each other. The
+            // single account-level chain this replaced applied one answer to
+            // every deal at once, which is the defect ADR-024 opens with.
+            //
+            // The relationship editor sits on the FIRST one only. The graph is
+            // the customer's, not any deal's - repeating the form under every
+            // chain would suggest each deal has its own org chart.
+            chain.value.length === 0 ? (
+              <EmptyState
+                title={CHAIN_TEXT.noOpenDealTitle}
+                description={CHAIN_TEXT.noOpenDealDescription}
+              />
+            ) : (
+              chain.value.map((c, i) => (
+                <Fragment key={c.opportunityId}>
+                <DecisionChain
+                  title={CHAIN_TEXT.forDeal(c.opportunityName)}
+                  coverage={c.coverage}
+                  contacts={c.people}
+                  linkForm={
+                    i === 0 ? (
+                      <LinkContacts
+                        accountId={id}
+                        // The graph is the CUSTOMER'S, so it is drawn over the
+                        // customer's people - not over this deal's resolved
+                        // roles. c.people carries roles; contacts carries who
+                        // is actually here, which is what an edge joins.
+                        contacts={c.people}
+                        canLink={
+                          can(
+                            session.authz,
+                            session.entitlement,
+                            "account.graph.link",
+                            "ui",
+                          ).allowed
+                        }
+                        unreachable={c.coverage.economicBuyerUnreachable}
+                        onLink={linkAccountContacts}
+                      />
+                    ) : undefined
                   }
-                  unreachable={chain.value.economicBuyerUnreachable}
-                  onLink={linkAccountContacts}
                 />
-              }
-            />
+                {recencies[i]?.ok ? (
+                  <ChainRecencyPanel
+                    recency={recencies[i].value}
+                    nameOf={(x) => contacts.find((y) => y.id === x.id)?.name ?? x.id}
+                  />
+                ) : null}
+                </Fragment>
+              ))
+            )
           ) : (
             // account.graph is a pro-tier capability. The page still renders -
             // a starter workspace sees the account without the relationship map.
@@ -408,12 +464,6 @@ export default async function AccountDetailPage({
             />
           ) : null}
 
-          {recency?.ok ? (
-            <ChainRecencyPanel
-              recency={recency.value}
-              nameOf={(c) => contacts.find((x) => x.id === c.id)?.name ?? c.id}
-            />
-          ) : null}
 
           {interactions.ok ? (
             <InteractionTimeline items={interactions.value} limit={5} />

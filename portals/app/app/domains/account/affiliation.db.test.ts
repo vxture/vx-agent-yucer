@@ -76,7 +76,12 @@ test("contact is gone and person is the same table under a new name", { skip }, 
     for (const c2 of ["account_id", "title", "department"]) {
       assert.ok(!names.has(c2), `${c2} belongs to the affiliation now`);
     }
-    for (const c2 of ["id", "name", "decision_role", "influence", "email", "mobile", "wechat"]) {
+    // incr/0027 took these two as well: a buying role is a fact about a
+    // purchase, so it lives on yucer_pipeline.opportunity_contact.
+    for (const c2 of ["decision_role", "influence"]) {
+      assert.ok(!names.has(c2), `${c2} belongs to the opportunity now`);
+    }
+    for (const c2 of ["id", "name", "email", "mobile", "wechat"]) {
       assert.ok(names.has(c2), `${c2} must have survived the rename`);
     }
   });

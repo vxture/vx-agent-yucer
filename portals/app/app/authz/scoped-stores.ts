@@ -134,6 +134,17 @@ class ScopedAccountStore implements AccountStore {
   removeRelation: AccountStore["removeRelation"] = (...a) => this.inner.removeRelation(...a);
   healthInputs: AccountStore["healthInputs"] = (...a) => this.inner.healthInputs(...a);
   updateAccount: AccountStore["updateAccount"] = (...a) => this.inner.updateAccount(...a);
+  // incr/0027. Reached through an OPPORTUNITY rather than an account, and that
+  // is still the same argument: a caller holds an opportunity id because a
+  // scoped pipeline read gave it to them. Filtering again here would need this
+  // store to resolve a deal to its owner - a D6 question asked from D4's
+  // wrapper - and would answer it from data D4 has no scoped read for.
+  listOpportunityContacts: AccountStore["listOpportunityContacts"] = (...a) =>
+    this.inner.listOpportunityContacts(...a);
+  listOpportunityContactsFor: AccountStore["listOpportunityContactsFor"] = (...a) =>
+    this.inner.listOpportunityContactsFor(...a);
+  setOpportunityContact: AccountStore["setOpportunityContact"] = (...a) =>
+    this.inner.setOpportunityContact(...a);
 }
 
 class ScopedSignalStore implements SignalStore {
