@@ -76,7 +76,9 @@ export function PriceBook({
   const router = useRouter();
   // The SELECTION drives analysis, and only the in-force table carries it:
   // history is never analysed (owner, 2026-09-05), so a checkbox there would
-  // promise something the dock refuses to do.
+  // promise something the dock refuses to do. The history table takes the
+  // DS's leadingSpacer instead - the same width, no control - so the two
+  // tables line up column for column and read as one layout.
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [dialog, setDialog] = useState<{ productId: string; list: string; floor: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -247,6 +249,7 @@ export function PriceBook({
         rowActions={acts}
         selectedKeys={selectable ? selected : undefined}
         onSelectionChange={selectable ? (keys) => setSelected([...keys]) : undefined}
+        leadingSpacer={!selectable}
         empty={<EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />}
       />
     </div>
