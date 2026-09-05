@@ -71,15 +71,33 @@ export class PrismaCatalogStore implements CatalogStore {
 
   async listSolutions(workspaceId: string): Promise<SolutionRecord[]> {
     const p = await getPrismaClient();
-    const rows = await p.solution.findMany({ where: { workspaceId }, orderBy: { solutionCode: "asc" } });
-    return rows.map((r) => ({
-      id: r.id,
-      workspaceId: r.workspaceId,
-      solutionCode: r.solutionCode,
-      name: r.name,
-      summary: r.summary,
-      status: r.status as SolutionRecord["status"],
-    }));
+    const rows = await p.solution.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { solutionCode: "asc" }],
+    });
+    return rows.map((r) => this.toSolution(r));
+  }
+
+  private toSolution(row: {
+    id: string;
+    workspaceId: string;
+    solutionCode: string;
+    name: string;
+    summary: string | null;
+    scenario: string | null;
+    status: string;
+    sortOrder: number;
+  }): SolutionRecord {
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      solutionCode: row.solutionCode,
+      name: row.name,
+      summary: row.summary,
+      scenario: row.scenario,
+      status: row.status as SolutionRecord["status"],
+      sortOrder: row.sortOrder,
+    };
   }
 
   async listSolutionItems(workspaceId: string, solutionId: string): Promise<SolutionItemRecord[]> {
@@ -91,6 +109,8 @@ export class PrismaCatalogStore implements CatalogStore {
       solutionId: r.solutionId,
       productId: r.productId,
       quantity: num(r.quantity),
+      optional: r.optional,
+      note: r.note,
     }));
   }
 
@@ -108,6 +128,30 @@ export class PrismaCatalogStore implements CatalogStore {
       orderBy: { effectiveAt: "desc" },
     });
     return row ? this.toPrice(row) : null;
+  }
+
+  async setSolutionOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(SOLUTION_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked solution column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.solution.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeSolution(workspaceId: string, solutionId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The items go with it - fk_solution_item_solution cascades.
+    const { count } = await p.solution.deleteMany({ where: { workspaceId, id: solutionId } });
+    return count > 0;
   }
 
   async removePrice(workspaceId: string, priceId: string): Promise<boolean> {
@@ -397,13 +441,14 @@ export class PrismaCatalogStore implements CatalogStore {
 
   async upsertSolution(
     workspaceId: string,
-    input: Omit<SolutionRecord, "id" | "workspaceId">,
+    input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
   ): Promise<SolutionRecord> {
     const p = await getPrismaClient();
     const update = {
       name: input.name,
       summary: input.summary,
+      scenario: input.scenario,
       status: input.status,
       updatedAt: new Date(),
     };
@@ -418,10 +463,16 @@ export class PrismaCatalogStore implements CatalogStore {
     // empty bundle is precisely what planSolution refuses to let anyone create
     // on purpose.
     return p.$transaction(async (tx) => {
+      const tail = await tx.solution.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
       const row = await tx.solution.upsert({
         where: { workspaceId_solutionCode: { workspaceId, solutionCode: input.solutionCode } },
         update,
-        create: { workspaceId, solutionCode: input.solutionCode, ...update },
+        create: {
+          workspaceId,
+          solutionCode: input.solutionCode,
+          sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+          ...update,
+        },
       });
       await tx.solutionItem.deleteMany({ where: { workspaceId, solutionId: row.id } });
       if (items.length > 0) {
@@ -431,17 +482,12 @@ export class PrismaCatalogStore implements CatalogStore {
             solutionId: row.id,
             productId: i.productId,
             quantity: i.quantity,
+            optional: i.optional,
+            note: i.note,
           })),
         });
       }
-      return {
-        id: row.id,
-        workspaceId: row.workspaceId,
-        solutionCode: row.solutionCode,
-        name: row.name,
-        summary: row.summary,
-        status: row.status as SolutionRecord["status"],
-      };
+      return this.toSolution(row);
     });
   }
 

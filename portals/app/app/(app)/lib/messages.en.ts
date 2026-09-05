@@ -543,6 +543,8 @@ export const en: Dictionary = {
     unit_required:
       "A unit is required - a quantity with no unit cannot say what was sold",
     items_required: "A solution with no products is just a name",
+    all_optional: "Keep at least one standard line - all-optional is a menu, not a solution",
+    product_not_found: "Product not found - the page may be stale, refresh it",
     quantity_positive: "The quantity must be above zero",
     duplicate_product:
       "That product appears twice - use one line with the total",
@@ -615,6 +617,11 @@ export const en: Dictionary = {
     accountNoDealWhy: "Worked but not sold to - corridor deals tend to surface at exactly these customers.",
     territoryCovers: (name: string, region: string) => `${name} covers ${region}`,
     territoryCoversWhy: "The same region match lead routing runs - filed this way, the deal lands where its leads would have.",
+  },
+  ASSISTANT_TEXT: {
+    ignore: "Ignore",
+    ignored: (n: number) => `${n} ignored`,
+    accept: "Accept",
   },
   CATALOG_TEXT: {
     newProduct: "New product",
@@ -717,12 +724,52 @@ export const en: Dictionary = {
     statusCodeHint: "The code is this workspace's business anchor and cannot change; internal joins are uuids and never display",
     moveToStatus: (label: string) => `Move to "${label}"`,
     statusDeleteConsequence: "Deletion is permanent. The three built-in statuses never delete; refused while products carry the status.",
+    tagSolutionActive: (n: number) => `${n} in use`,
+    tagSolutionRetired: (n: number) => `${n} retired`,
+    solutionStat: (inSolution: number, outside: number) =>
+      outside > 0 ? `${inSolution} in a solution · ${outside} not` : `${inSolution} in a solution`,
+    solutionStatEmpty: "No products on sale yet - coverage starts with the first one",
+    rosterSolution: "Solutions",
+    rosterSolutionWhy:
+      "A solution is a product combination plus its customisation. The order is the storefront; the combination is edited on the solution's own page.",
+    rosterSolutionRetired: "Retired solutions",
+    rosterSolutionRetiredWhy:
+      "A retired solution is no longer quoted from, but it records how something used to be sold, so it is kept.",
+    colSolutionName: "Solution",
+    colComposition: "Combination",
+    colScenario: "Scenario",
+    compositionCount: (standard: number, optional: number) =>
+      optional > 0 ? `${standard} standard · ${optional} optional` : `${standard} standard`,
+    noScenario: "Not stated",
+    solutionRetire: "Retire",
+    solutionReinstate: "Reinstate",
+    solutionDeleteConsequence:
+      "Deletion is permanent and takes the combination with it. Deals quoted from it are unaffected - quote lines reference products.",
+    newSolutionEntry: "New solution",
+    editSolution: "Edit solution",
+    colOptional: "Standard / optional",
+    optionalYes: "Optional",
+    optionalNo: "Standard",
+    colItemNote: "Customisation",
+    scenarioHint: "The customer and situation this solution is shaped for",
+    summaryHint: "One line on what this solution solves",
+    itemNoteHint: "What is tailored here: how the quantity is worked out, what development is included",
+    standardCoreHint: "Keep at least one standard line - all-optional is a menu, not a solution",
+    solutionAdviceTitle: "Solution check",
+    solutionAdviceClear: "Nothing to act on in the solutions in use.",
+    solutionAdviceRetired: (s: string, p: string) => `${p} in ${s} is no longer on sale - a quote would carry a withdrawn product.`,
+    solutionAdviceUnpriced: (s: string, p: string) => `${p} in ${s} has no price, so a quote from it is a line short.`,
+    solutionAdviceNoScenario: (s: string) => `${s} states no scenario - a combination without one is a package, not a solution.`,
+    solutionAdviceUncovered: (p: string) => `${p} is on sale, but no solution takes it to market.`,
+    solutionAdviceOpen: "Open the solution",
+    solutionAdviceOpenCatalogue: "Open the catalogue",
     solutions: "Solutions",
     solutionsWhy:
       "Quoting templates. Lines never reference one for calculation (ADR-014 s4) - a template is a starting point, not the authority.",
     solutionItems: (n: number) => `${n} products`,
     noSolutions: "No solutions yet",
     emptyBundle: "A solution with no products is just a name",
+    pricebookLink: "Open the price book",
     pricebookWhy:
       "The floor is why this table exists: a quote below it needs a signature. Prices are appended, never rewritten - the superseded row is what explains how today's number was arrived at.",
     tagPriced: (n: number) => `${n} priced`,
@@ -2721,6 +2768,8 @@ export const en: Dictionary = {
     ask: "Ask",
     attach: "Attach a file",
     notWired: "That capability is not connected yet",
+    pendingEmpty: "Nothing is waiting on you right now.",
+    recentEmpty: "Nothing captured recently.",
     reconTitle: "Competition",
     reconEmpty:
       "Nothing scouted yet. Rivals appear only inside note text so far; there is no formed intelligence.",

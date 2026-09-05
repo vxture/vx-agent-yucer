@@ -12,6 +12,7 @@ import {
 import { planMove, planRemoval } from "./lib/lifecycle";
 import { DEFAULT_TYPE_VOCABULARY, planProductType, planTypeRemoval } from "./lib/type-vocab";
 import { analysePrices, type PriceAdvice } from "./lib/price-advice";
+import { analyseSolutions, type SolutionAdvice } from "./lib/solution-advice";
 import {
   planProductStatusChange,
   planStatus,
@@ -548,6 +549,7 @@ export async function upsertSolution(
     solutionCode: string;
     name: string;
     summary?: string | null;
+    scenario?: string | null;
     status?: "active" | "retired";
     items: readonly SolutionItemDraft[];
   },
@@ -555,11 +557,21 @@ export async function upsertSolution(
   const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
+  // Every product in the bundle must be this workspace's own. A dangling id
+  // would only fail at the FK; this names it.
+  const products = await ctx.store.listProducts(ctx.workspaceId);
+  const known = new Set(products.map((p) => p.id));
+  const stranger = input.items.find((i) => !known.has(i.productId));
+  if (stranger) {
+    return fail(violation("product_not_found", "no such product", "productId"));
+  }
+
   const plan = planSolution(
     {
       solutionCode: input.solutionCode,
       name: input.name,
       summary: input.summary ?? null,
+      scenario: input.scenario ?? null,
       status: input.status ?? "active",
     },
     input.items,
@@ -570,9 +582,102 @@ export async function upsertSolution(
     await ctx.store.upsertSolution(
       ctx.workspaceId,
       plan.value.solution,
-      plan.value.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      plan.value.items.map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        optional: i.optional ?? false,
+        note: i.note ?? null,
+      })),
     ),
   );
+}
+
+/**
+ * Retire a solution, or put it back in use.
+ *
+ * A VERB OF ITS OWN rather than a save with a different status: upsert
+ * REPLACES the items, so routing a status change through it would make every
+ * caller resend a composition it has no business touching - and one that
+ * forgot would empty the bundle.
+ */
+export async function setSolutionStatus(
+  ctx: CatalogContext,
+  input: { solutionId: string; status: "active" | "retired" },
+): Promise<RuleResult<SolutionRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const solutions = await ctx.store.listSolutions(ctx.workspaceId);
+  const current = solutions.find((s) => s.id === input.solutionId);
+  if (!current) return fail(violation("not_found", "no such solution", "solutionId"));
+  if (current.status === input.status) {
+    return fail(violation("status_unchanged", `already ${current.status}`, "status"));
+  }
+
+  const items = await ctx.store.listSolutionItems(ctx.workspaceId, current.id);
+  return ok(
+    await ctx.store.upsertSolution(
+      ctx.workspaceId,
+      { ...current, status: input.status },
+      items.map((i) => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        optional: i.optional,
+        note: i.note,
+      })),
+    ),
+  );
+}
+
+/**
+ * Move a solution one place up or down.
+ *
+ * The roster's order is the order somebody presents these in - the same
+ * argument product.sort_order carries (incr/0028), and the same dense
+ * renumbering, so a list still on the DDL's zeroes heals on the first move.
+ */
+export async function moveSolution(
+  ctx: CatalogContext,
+  input: { solutionId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const solutions = await ctx.store.listSolutions(ctx.workspaceId);
+  const moving = solutions.find((s) => s.id === input.solutionId);
+  if (!moving) return fail(violation("not_found", "no such solution", "solutionId"));
+
+  const group = (s: SolutionRecord) => (s.status === "retired" ? "retired" : "live");
+  const plan = planMove(
+    solutions.map((s) => ({ id: s.id, movable: group(s) === group(moving) })),
+    input.solutionId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setSolutionOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a solution outright.
+ *
+ * Nothing refuses it, and that is the difference between a solution and a
+ * product: a quote line references the PRODUCT and only remembers the bundle
+ * it was built from as provenance (ADR-014 s4). Deleting the template cannot
+ * strand a deal - the items go with it, as the DDL's cascade says. Retiring
+ * it is still the softer move, and the roster offers both.
+ */
+export async function removeSolution(
+  ctx: CatalogContext,
+  input: { solutionId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const removed = await ctx.store.removeSolution(ctx.workspaceId, input.solutionId);
+  if (!removed) return fail(violation("not_found", "no such solution", "solutionId"));
+  return ok(true);
 }
 
 /**
@@ -733,6 +838,43 @@ export async function analysePriceBook(
       current: [...inForce.values()],
       allPrices: prices,
       signaturesByProduct,
+    }),
+  );
+}
+
+/**
+ * What the solution set has to say about itself.
+ *
+ * Gated on the solution READ, like the price analysis is gated on the price
+ * book's: reasoning out loud about templates you may see is still seeing
+ * them. Acting on any of it goes through the write verbs, each with its own
+ * gate.
+ */
+export async function analyseSolutionSet(
+  ctx: CatalogContext,
+): Promise<RuleResult<SolutionAdvice[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const [solutions, products, statuses, prices] = await Promise.all([
+    ctx.store.listSolutions(ctx.workspaceId),
+    ctx.store.listProducts(ctx.workspaceId),
+    ensureStatusVocab(ctx),
+    ctx.store.listPrices(ctx.workspaceId),
+  ]);
+  const withItems = await Promise.all(
+    solutions.map(async (solution) => ({
+      solution,
+      items: await ctx.store.listSolutionItems(ctx.workspaceId, solution.id),
+    })),
+  );
+
+  return ok(
+    analyseSolutions({
+      solutions: withItems,
+      products,
+      onSaleStatusId: statuses.find((r) => r.statusCode === "active")?.id ?? null,
+      prices,
     }),
   );
 }

@@ -1,35 +1,26 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useTransition } from "react";
-import { ActionMenu, Button, Card, StatusBadge, useToast } from "@vxture/design-ui";
 import type { PriceAdvice } from "../../domains/catalog/lib/price-advice";
+import { AssistantSection, type AssistantItem } from "./assistant";
 import { useMessages } from "../lib/i18n/provider";
 
-// PRICE ANALYSIS, in the dock beside the price book (owner ruling
-// 2026-09-05). The conversation keeps the top of the dock; this is what
-// replaced the workspace-wide queues below it - on this page they answered
-// questions the page was not asking.
+// The price book's contribution to the assistant - WHAT it says, not how a
+// suggestion looks (assistant.tsx owns that since 2026-09-05). This file is
+// now a mapping from advice to items, which is the whole point: adding
+// intelligence to a page should be writing sentences and naming acts.
 //
-// EACH ITEM CARRIES ITS EVIDENCE AND THREE WAYS OUT: 采纳 applies the number
-// the analysis names, 忽略 puts it away, and the menu holds the ways of
-// looking rather than acting. The rules never move a floor by themselves -
-// the floor is a commercial decision (ADR-019), so 采纳 is a person's click
-// on a number the analysis had to be able to justify.
-//
-// 忽略 IS A VIEW DISMISSAL, said plainly rather than dressed up: it clears
-// the row until the next analysis. Remembering a dismissal across sessions is
-// a stored judgement (the snooze table's shape) and it is not built here.
+// 采纳 applies the number the analysis named. The rules never move a floor by
+// themselves - the floor is a commercial decision (ADR-019) - so acceptance
+// is a person's click on a number the analysis had to be able to justify.
 
 export function PriceAdvicePanel({
   advice,
   scope,
   canPrice,
   onApply,
+  footer,
 }: {
   readonly advice: readonly PriceAdvice[];
-  /** "selection" when the table asked about specific rows, "all" otherwise -
-   * the panel says which, so a short list never reads as a clean book. */
   readonly scope: "all" | "selection";
   readonly canPrice: boolean;
   readonly onApply: (input: {
@@ -38,15 +29,11 @@ export function PriceAdvicePanel({
     listPrice: number;
     floorPrice: number;
   }) => Promise<{ ok: boolean; error?: string }>;
+  readonly footer?: React.ReactNode;
 }) {
-  const { CATALOG_TEXT, CATALOG_ERROR } = useMessages();
-  const [ignored, setIgnored] = useState<readonly string[]>([]);
-  const [pending, start] = useTransition();
-  const { toast } = useToast();
+  const { CATALOG_TEXT, ASSISTANT_TEXT } = useMessages();
 
-  const shown = advice.filter((a) => !ignored.includes(a.id));
-
-  const line = (a: PriceAdvice) => {
+  const text = (a: PriceAdvice) => {
     switch (a.kind) {
       case "unpriced":
         return CATALOG_TEXT.adviceUnpriced(a.productName);
@@ -63,112 +50,48 @@ export function PriceAdvicePanel({
     }
   };
 
-  /** What 采纳 would do, in words - and null when the advice names no number,
-   * in which case there is nothing to accept and the item offers the way to
-   * do it by hand instead. */
-  const applyLabel = (a: PriceAdvice) =>
-    a.kind === "floor_outlier" && a.suggestedFloor !== undefined
-      ? CATALOG_TEXT.adviceApplyFloor(a.suggestedFloor.toLocaleString())
-      : null;
-
-  const apply = (a: PriceAdvice) => {
-    const { suggestedFloor, listPrice } = a;
-    if (suggestedFloor === undefined || listPrice === undefined) return;
-    start(() => {
-      void onApply({
-        productId: a.productId,
-        currency: a.currency ?? "CNY",
-        listPrice,
-        floorPrice: suggestedFloor,
-      }).then((r) => {
-        if (r.ok) {
-          setIgnored((x) => [...x, a.id]);
-          toast({ tone: "success", title: CATALOG_TEXT.adviceApplied });
-        } else {
-          toast({
-            tone: "danger",
-            title: CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied,
-          });
-        }
-      });
-    });
-  };
+  const items: AssistantItem[] = advice.map((a) => {
+    const applicable =
+      canPrice && a.kind === "floor_outlier" && a.suggestedFloor !== undefined && a.listPrice !== undefined;
+    return {
+      id: a.id,
+      text: text(a),
+      evidence: applicable
+        ? CATALOG_TEXT.adviceApplyFloor((a.suggestedFloor ?? 0).toLocaleString())
+        : a.kind === "unpriced"
+          ? CATALOG_TEXT.adviceNoNumberWhy
+          : undefined,
+      tone: a.kind === "unpriced" || a.kind === "floor_overridden" ? "warn" : "info",
+      act: applicable
+        ? {
+            label: ASSISTANT_TEXT.accept,
+            done: CATALOG_TEXT.adviceApplied,
+            run: () =>
+              onApply({
+                productId: a.productId,
+                currency: a.currency ?? "CNY",
+                listPrice: a.listPrice!,
+                floorPrice: a.suggestedFloor!,
+              }),
+          }
+        : undefined,
+      more: [
+        { id: "catalogue", label: CATALOG_TEXT.adviceOpenCatalogue, href: "/catalog" },
+        { id: "history", label: CATALOG_TEXT.adviceOpenHistory, href: "/pricebook#price-history" },
+      ],
+    };
+  });
 
   return (
-    <Card className="p-sm">
-      <div className="flex items-center gap-xs">
-        <span className="text-label-md text-foreground">{CATALOG_TEXT.adviceTitle}</span>
-        <span className="text-muted-foreground ml-auto text-body-sm">
-          {scope === "selection" ? CATALOG_TEXT.adviceScopeSelection : CATALOG_TEXT.adviceScopeAll}
-        </span>
-      </div>
-
-      {shown.length === 0 ? (
-        <p className="text-muted-foreground mt-sm text-body-sm">{CATALOG_TEXT.adviceClear}</p>
-      ) : (
-        <div className="mt-sm flex flex-col gap-sm">
-          {shown.map((a) => (
-            <div key={a.id} className="border-border rounded-md border p-sm">
-              <p className="text-foreground text-body-sm">{line(a)}</p>
-              <div className="mt-sm flex flex-wrap items-center gap-xs">
-                {canPrice && applyLabel(a) ? (
-                  <Button size="sm" disabled={pending} onClick={() => apply(a)}>
-                    {CATALOG_TEXT.adviceAccept}
-                  </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={pending}
-                  onClick={() => setIgnored((x) => [...x, a.id])}
-                >
-                  {CATALOG_TEXT.adviceIgnore}
-                </Button>
-                <span className="ml-auto">
-                  <ActionMenu
-                    items={[
-                      {
-                        id: "detail",
-                        label: applyLabel(a) ?? CATALOG_TEXT.adviceNoNumber,
-                        disabled: true,
-                        hint: applyLabel(a) ?? CATALOG_TEXT.adviceNoNumberWhy,
-                      },
-                      {
-                        id: "product",
-                        label: CATALOG_TEXT.adviceOpenCatalogue,
-                        separatorBefore: true,
-                        onSelect: () => {
-                          window.location.href = "/catalog";
-                        },
-                      },
-                      {
-                        id: "history",
-                        label: CATALOG_TEXT.adviceOpenHistory,
-                        onSelect: () => {
-                          window.location.href = "/pricebook#price-history";
-                        },
-                      },
-                    ]}
-                  />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-sm flex items-center gap-xs">
-        {/* ALWAYS AVAILABLE, and always about the whole book: the table's own
-            button asks about a selection, this one asks about everything in
-            force. History is never analysed - a superseded price is a record,
-            not a decision to make. */}
-        <Button asChild size="sm" variant="secondary">
-          <Link href="/pricebook?analyze=all">{CATALOG_TEXT.adviceRunAll}</Link>
-        </Button>
-        {ignored.length > 0 ? (
-          <StatusBadge tone="neutral">{CATALOG_TEXT.adviceIgnored(ignored.length)}</StatusBadge>
-        ) : null}
-      </div>
-    </Card>
+    <AssistantSection
+      section={{
+        id: "price-advice",
+        title: CATALOG_TEXT.adviceTitle,
+        scope: scope === "selection" ? CATALOG_TEXT.adviceScopeSelection : CATALOG_TEXT.adviceScopeAll,
+        items,
+        empty: CATALOG_TEXT.adviceClear,
+        footer,
+      }}
+    />
   );
 }

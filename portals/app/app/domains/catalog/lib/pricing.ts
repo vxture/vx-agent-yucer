@@ -136,12 +136,18 @@ export interface SolutionDraft {
   solutionCode: string;
   name: string;
   summary: string | null;
+  /** 适用场景 - incr/0031. */
+  scenario: string | null;
   status: "active" | "retired";
 }
 
 export interface SolutionItemDraft {
   productId: string;
   quantity: number;
+  /** Standard or add-on - the customisation inside the combination. */
+  optional?: boolean;
+  /** What is tailored about this line. */
+  note?: string | null;
 }
 
 /**
@@ -182,14 +188,32 @@ export function planSolution(
     }
     seen.add(it.productId);
   }
+  // A SOLUTION NEEDS A STANDARD CORE (incr/0031). Everything optional is a
+  // menu - a list of things that could be bought - and quoting from it starts
+  // from nothing. What makes a bundle a solution is that some of it is the
+  // answer and the rest is the tailoring.
+  if (items.every((i) => i.optional === true)) {
+    return fail(
+      violation(
+        "all_optional",
+        "every line is optional; a solution needs a standard core, otherwise it is a menu",
+        "items",
+      ),
+    );
+  }
   return ok({
     solution: {
       ...input,
       solutionCode: input.solutionCode.trim(),
       name: input.name.trim(),
       summary: input.summary?.trim() || null,
+      scenario: input.scenario?.trim() || null,
     },
-    items: [...items],
+    items: items.map((i) => ({
+      ...i,
+      optional: i.optional ?? false,
+      note: i.note?.trim() || null,
+    })),
   });
 }
 

@@ -171,14 +171,14 @@ test("upsertSolution replaces its items transactionally, not merges them", { ski
     const p1 = await s.upsertProduct(WS, { productCode: "P-A", name: "A", typeId: null, unit: "set", statusId: ids.active! });
     const p2 = await s.upsertProduct(WS, { productCode: "P-B", name: "B", typeId: null, unit: "set", statusId: ids.active! });
 
-    const sol1 = await s.upsertSolution(WS, { solutionCode: "SOL-1", name: "Bundle", summary: null, status: "active" }, [
-      { productId: p1.id, quantity: 2 },
+    const sol1 = await s.upsertSolution(WS, { solutionCode: "SOL-1", name: "Bundle", summary: null, scenario: null, status: "active" }, [
+      { productId: p1.id, quantity: 2, optional: false, note: null },
     ]);
     let items = await s.listSolutionItems(WS, sol1.id);
     assert.deepEqual(items.map((i) => i.productId), [p1.id]);
 
-    const sol2 = await s.upsertSolution(WS, { solutionCode: "SOL-1", name: "Bundle v2", summary: null, status: "active" }, [
-      { productId: p2.id, quantity: 3 },
+    const sol2 = await s.upsertSolution(WS, { solutionCode: "SOL-1", name: "Bundle v2", summary: null, scenario: null, status: "active" }, [
+      { productId: p2.id, quantity: 3, optional: false, note: null },
     ]);
     assert.equal(sol2.id, sol1.id);
     items = await s.listSolutionItems(WS, sol1.id);
@@ -193,7 +193,7 @@ test("upsertSolution can leave a solution with zero items - the service refuses 
   try {
     const s = await store();
     const ids = await seedStatuses(s);
-    const sol = await s.upsertSolution(WS, { solutionCode: "SOL-EMPTY", name: "Empty", summary: null, status: "active" }, []);
+    const sol = await s.upsertSolution(WS, { solutionCode: "SOL-EMPTY", name: "Empty", summary: null, scenario: null, status: "active" }, []);
     const items = await s.listSolutionItems(WS, sol.id);
     assert.deepEqual(items, []);
   } finally {
@@ -208,7 +208,7 @@ test("a solution_item quantity of zero is refused by the real CHECK", { skip }, 
     const ids = await seedStatuses(s);
     const p = await s.upsertProduct(WS, { productCode: "P-Q", name: "Q", typeId: null, unit: "set", statusId: ids.active! });
     await assert.rejects(
-      () => s.upsertSolution(WS, { solutionCode: "SOL-Q", name: "Q Bundle", summary: null, status: "active" }, [{ productId: p.id, quantity: 0 }]),
+      () => s.upsertSolution(WS, { solutionCode: "SOL-Q", name: "Q Bundle", summary: null, scenario: null, status: "active" }, [{ productId: p.id, quantity: 0, optional: false, note: null }]),
       /chk_solution_item_qty/,
     );
   } finally {
@@ -502,6 +502,59 @@ test("the price chain is a real self-FK: it survives, nulls, and cannot be edite
       assertWritable("yucer_catalog.price_book_entry", { supersedesId: null }).ok,
       false,
     );
+  } finally {
+    await cleanup();
+  }
+});
+
+test("a solution's customisation round-trips, and the order and delete are real", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    const ids = await seedStatuses(s);
+    const p1 = await s.upsertProduct(WS, { productCode: "P-S1", name: "平台", typeId: null, unit: "set", statusId: ids.active! });
+    const p2 = await s.upsertProduct(WS, { productCode: "P-S2", name: "实施", typeId: null, unit: "day", statusId: ids.active! });
+
+    const sol = await s.upsertSolution(
+      WS,
+      { solutionCode: "SOL-C", name: "组合方案", summary: null, scenario: "连锁零售", status: "active" },
+      [
+        { productId: p1.id, quantity: 1, optional: false, note: null },
+        { productId: p2.id, quantity: 6, optional: true, note: "按门店数量" },
+      ],
+    );
+    assert.equal(sol.scenario, "连锁零售");
+
+    const items = await s.listSolutionItems(WS, sol.id);
+    const add = items.find((i) => i.optional);
+    assert.equal(add?.note, "按门店数量", "optional and note survive the real columns");
+    assert.equal(items.filter((i) => !i.optional).length, 1);
+
+    // A second solution, then a reorder that the list reflects.
+    const other = await s.upsertSolution(
+      WS,
+      { solutionCode: "SOL-D", name: "另一个", summary: null, scenario: null, status: "active" },
+      [{ productId: p1.id, quantity: 1, optional: false, note: null }],
+    );
+    assert.equal(other.sortOrder, sol.sortOrder + 1, "a new solution joins at the end");
+    await s.setSolutionOrder(WS, [
+      { id: other.id, sortOrder: 1 },
+      { id: sol.id, sortOrder: 2 },
+    ]);
+    assert.deepEqual(
+      (await s.listSolutions(WS)).map((x) => x.solutionCode),
+      ["SOL-D", "SOL-C"],
+    );
+
+    // Deleting takes the items with it - fk_solution_item_solution cascades.
+    assert.equal(await s.removeSolution(WS, sol.id), true);
+    assert.equal((await s.listSolutionItems(WS, sol.id)).length, 0);
+
+    // The anchors stay locked; the customisation is writable.
+    const { assertWritable } = await import("../shared/column-locks");
+    assert.equal(assertWritable("yucer_catalog.solution", { solutionCode: "X" }).ok, false);
+    assert.equal(assertWritable("yucer_catalog.solution", { scenario: "x" }).ok, true);
+    assert.equal(assertWritable("yucer_catalog.solution_item", { optional: true, note: "x" }).ok, true);
   } finally {
     await cleanup();
   }

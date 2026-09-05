@@ -514,6 +514,19 @@ export const ASSIST_TEXT = {
   territoryCoversWhy: "与线索路由同一套区域匹配——按此归档，商机落在它的线索本会去的地方。",
 } as const;
 
+/**
+ * The assistant surface's own words - the frame, not the content.
+ *
+ * Every page supplies its own sentences; these are the three words the frame
+ * itself says, and they live in one place so 忽略 means the same thing in the
+ * price book as in the solution check.
+ */
+export const ASSISTANT_TEXT = {
+  ignore: "忽略",
+  ignored: (n: number) => `已忽略 ${n} 条`,
+  accept: "采纳",
+} as const;
+
 export const CATALOG_TEXT = {
   // 三个新建页 - owner 裁定 2026-09-05：新建从列表页拆出，独立成页。
   newProduct: "新建产品",
@@ -616,6 +629,46 @@ export const CATALOG_TEXT = {
   moveToStatus: (label: string) => `转入「${label}」`,
   statusDeleteConsequence: "删除不可恢复。内置三个状态不可删；仍有产品处于该状态时会被拒绝。",
 
+  // 方案模块页（owner 裁定 2026-09-05）：解决方案 = 产品组合 + 业务定制。
+  tagSolutionActive: (n: number) => `${n} 个在售方案`,
+  tagSolutionRetired: (n: number) => `${n} 个已停用`,
+  solutionStat: (inSolution: number, outside: number) =>
+    outside > 0 ? `${inSolution} 已入方案 · ${outside} 未入` : `${inSolution} 已入方案`,
+  solutionStatEmpty: "还没有在售产品，方案覆盖统计从第一个产品开始",
+  rosterSolution: "方案清单",
+  rosterSolutionWhy:
+    "一个方案 = 产品组合 + 业务定制。顺序即门面；组合与定制在方案自己的页面里改。",
+  rosterSolutionRetired: "已停用方案",
+  rosterSolutionRetiredWhy: "停用的方案不再用于报价，但它记录着过去是怎么卖的，所以保留。",
+  colSolutionName: "方案名称",
+  colComposition: "产品组合",
+  colScenario: "适用场景",
+  compositionCount: (standard: number, optional: number) =>
+    optional > 0 ? `${standard} 标配 · ${optional} 可选` : `${standard} 标配`,
+  noScenario: "未填写",
+  solutionRetire: "停用",
+  solutionReinstate: "启用",
+  solutionDeleteConsequence:
+    "删除不可恢复，组合与定制一并删除。已按此方案报过的商机不受影响——报价行引用的是产品。",
+  newSolutionEntry: "新建方案",
+  editSolution: "修改方案",
+  colOptional: "标配/可选",
+  optionalYes: "可选",
+  optionalNo: "标配",
+  colItemNote: "定制说明",
+  scenarioHint: "这个方案是为什么样的客户与场景准备的",
+  summaryHint: "一句话说明这个方案解决什么问题",
+  itemNoteHint: "这一项按什么定制：数量怎么算、含不含二次开发",
+  standardCoreHint: "至少留一项标配——全是可选的不是方案，是菜单",
+  // 侧栏：方案检查
+  solutionAdviceTitle: "方案检查",
+  solutionAdviceClear: "在售方案没有需要处理的地方。",
+  solutionAdviceRetired: (s: string, p: string) => `「${s}」里的「${p}」已不再在售，报价会报到一个下架品。`,
+  solutionAdviceUnpriced: (s: string, p: string) => `「${s}」里的「${p}」还没有价格，按此方案报价会缺一行。`,
+  solutionAdviceNoScenario: (s: string) => `「${s}」没有写适用场景——没有场景的组合是打包，不是方案。`,
+  solutionAdviceUncovered: (p: string) => `「${p}」在售，但没有任何方案带它出去卖。`,
+  solutionAdviceOpen: "打开方案",
+  solutionAdviceOpenCatalogue: "前往产品目录",
   solutions: "解决方案",
   solutionsWhy:
     "组合模板。行项从不引用它做计算（ADR-014 §4）——模板是起点，不是权威。",
@@ -623,6 +676,7 @@ export const CATALOG_TEXT = {
   noSolutions: "还没有解决方案",
   emptyBundle: "一个不装产品的方案只是个名字",
 
+  pricebookLink: "前往产品定价",
   pricebookWhy:
     "底价是这张表存在的理由：低于它的报价需要签字。价格只追加不改写——被取代的那一行解释了今天这个数字是怎么来的。",
   // 定价模块页（owner 裁定 2026-09-05：全面按产品目录的模式与布局）
@@ -855,6 +909,8 @@ export const CATALOG_ERROR: Record<string, string> = {
   name_required: "需要填写名称",
   unit_required: "需要填写单位——没有单位的数量说不出卖的是什么",
   items_required: "一个不装产品的方案只是个名字",
+  all_optional: "至少留一项标配——全是可选的不是方案，是菜单",
+  product_not_found: "找不到这个产品，页面可能已过期，请刷新",
   quantity_positive: "数量必须大于零",
   duplicate_product: "同一个产品出现了两次，请合并成一行",
   product_required: "需要选择产品",
@@ -1201,6 +1257,8 @@ export const BOARD_TEXT = {
   openThread: "完整对话",
   attach: "添加附件",
   notWired: "该能力尚未接通",
+  pendingEmpty: "此刻没有等你裁决的事。",
+  recentEmpty: "最近还没有记过什么。",
   reconTitle: "敌情",
   reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
   reconCta: "发起竞争态势分析",

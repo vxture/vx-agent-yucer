@@ -13,8 +13,11 @@ import {
   moveProduct,
   moveProductStatus,
   moveProductType,
+  moveSolution,
   removePrice,
   removeProduct,
+  removeSolution,
+  setSolutionStatus,
   removeProductStatus,
   removeProductType,
   saveProductStatus,
@@ -45,10 +48,10 @@ function seeded(): InMemoryCatalogStore {
       { id: "st_active", workspaceId: WS, statusCode: "active", name: "在售", description: null, sortOrder: 2 },
       { id: "st_retired", workspaceId: WS, statusCode: "retired", name: "已退役", description: null, sortOrder: 3 },
     ],
-    solutions: [{ id: "s1", workspaceId: WS, solutionCode: "S-1", name: "Retail bundle", summary: null, status: "active" }],
+    solutions: [{ id: "s1", workspaceId: WS, solutionCode: "S-1", name: "Retail bundle", summary: null, scenario: null, status: "active", sortOrder: 1 }],
     items: [
-      { id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 10 },
-      { id: "i2", workspaceId: WS, solutionId: "s1", productId: "p2", quantity: 5 },
+      { id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 10, optional: false, note: null },
+      { id: "i2", workspaceId: WS, solutionId: "s1", productId: "p2", quantity: 5, optional: false, note: null },
     ],
     prices: [
       { id: "e1", workspaceId: WS, productId: "p1", currency: "CNY", listPrice: 1000, floorPrice: 800, effectiveAt: new Date("2026-01-01"), supersedesId: null },
@@ -226,7 +229,7 @@ function lifecycleStore(): InMemoryCatalogStore {
       { id: "t1", workspaceId: WS, typeCode: "平台", name: "平台", sortOrder: 1, status: "active" },
       { id: "t2", workspaceId: WS, typeCode: "服务", name: "服务", sortOrder: 2, status: "active" },
     ],
-    items: [{ id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 1 }],
+    items: [{ id: "i1", workspaceId: WS, solutionId: "s1", productId: "p1", quantity: 1, optional: false, note: null }],
   });
   return store;
 }
@@ -492,4 +495,111 @@ test("a new price records which price it replaced, and the first records none", 
     floorPrice: 400,
   });
   assert.equal(other.ok && other.value.supersedesId, null);
+});
+
+// --- solutions: a combination AND its customisation (owner, 2026-09-05) -----
+
+function solutionStore(): InMemoryCatalogStore {
+  const store = new InMemoryCatalogStore();
+  store.seed({
+    products: [
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "平台", typeId: null, unit: "套", statusId: "st_active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "实施", typeId: null, unit: "人月", statusId: "st_active", sortOrder: 2 },
+    ],
+    statuses: [
+      { id: "st_active", workspaceId: WS, statusCode: "active", name: "在售", description: null, sortOrder: 1 },
+    ],
+  });
+  return store;
+}
+
+test("a solution keeps its combination and its tailoring", async () => {
+  const c = ctx("sales_ops", "free", solutionStore());
+  const saved = await upsertSolution(c, {
+    solutionCode: "SOL-1",
+    name: "零售方案",
+    scenario: "50 家门店以上的连锁",
+    items: [
+      { productId: "p1", quantity: 1 },
+      { productId: "p2", quantity: 6, optional: true, note: "按门店数量" },
+    ],
+  });
+  assert.equal(saved.ok && saved.value.scenario, "50 家门店以上的连锁");
+
+  const [view] = unwrap(await listSolutions(c));
+  assert.equal(view!.items.length, 2);
+  const optional = view!.items.find((i) => i.optional);
+  assert.equal(optional?.note, "按门店数量", "the tailoring survives the round trip");
+  assert.equal(view!.items.some((i) => !i.optional), true, "and the standard core with it");
+});
+
+test("an all-optional bundle is refused - that is a menu, not a solution", async () => {
+  const c = ctx("sales_ops", "free", solutionStore());
+  const r = await upsertSolution(c, {
+    solutionCode: "SOL-MENU",
+    name: "全可选",
+    items: [
+      { productId: "p1", quantity: 1, optional: true },
+      { productId: "p2", quantity: 1, optional: true },
+    ],
+  });
+  assert.equal(!r.ok && r.violations[0]!.code, "all_optional");
+});
+
+test("a solution cannot be built from a product this workspace does not have", async () => {
+  const c = ctx("sales_ops", "free", solutionStore());
+  const r = await upsertSolution(c, {
+    solutionCode: "SOL-X",
+    name: "野产品",
+    items: [{ productId: "p_missing", quantity: 1 }],
+  });
+  assert.equal(!r.ok && r.violations[0]!.code, "product_not_found");
+});
+
+test("retiring a solution keeps its composition; the status verb does not empty it", async () => {
+  const store = solutionStore();
+  const c = ctx("sales_ops", "free", store);
+  const saved = await upsertSolution(c, {
+    solutionCode: "SOL-1",
+    name: "零售方案",
+    items: [{ productId: "p1", quantity: 1 }, { productId: "p2", quantity: 2 }],
+  });
+  const id = saved.ok ? saved.value.id : "";
+
+  const retired = await setSolutionStatus(c, { solutionId: id, status: "retired" });
+  assert.equal(retired.ok && retired.value.status, "retired");
+  const [view] = unwrap(await listSolutions(c));
+  assert.equal(view!.items.length, 2, "the bundle survives the status change");
+
+  const again = await setSolutionStatus(c, { solutionId: id, status: "retired" });
+  assert.equal(!again.ok && again.violations[0]!.code, "status_unchanged");
+});
+
+test("a solution moves within its roster and deletes outright", async () => {
+  const store = solutionStore();
+  const c = ctx("sales_ops", "free", store);
+  const a = await upsertSolution(c, { solutionCode: "SOL-A", name: "甲", items: [{ productId: "p1", quantity: 1 }] });
+  const b = await upsertSolution(c, { solutionCode: "SOL-B", name: "乙", items: [{ productId: "p2", quantity: 1 }] });
+
+  assert.equal((await moveSolution(c, { solutionId: b.ok ? b.value.id : "", direction: "up" })).ok, true);
+  assert.deepEqual(
+    unwrap(await listSolutions(c)).map((v) => v.solution.solutionCode),
+    ["SOL-B", "SOL-A"],
+  );
+
+  // Deleting a template cannot strand a deal - lines reference products.
+  assert.equal((await removeSolution(c, { solutionId: a.ok ? a.value.id : "" })).ok, true);
+  assert.equal(unwrap(await listSolutions(c)).length, 1);
+});
+
+test("every solution operation refuses without catalog.write", async () => {
+  const c = ctx("sales_rep", "enterprise", solutionStore());
+  for (const r of [
+    await upsertSolution(c, { solutionCode: "X", name: "X", items: [{ productId: "p1", quantity: 1 }] }),
+    await setSolutionStatus(c, { solutionId: "s1", status: "retired" }),
+    await moveSolution(c, { solutionId: "s1", direction: "up" }),
+    await removeSolution(c, { solutionId: "s1" }),
+  ]) {
+    assert.equal(!r.ok && r.violations[0]!.code, "permission_denied");
+  }
 });

@@ -159,6 +159,24 @@ function dictsReached(comp: string, depth: number): Set<string> {
       for (const d of dictsReached(inner, depth + 1)) out.add(d);
     }
   }
+
+  // DATA-DRIVEN HANDOFF, learned 2026-09-05 when the assistant surface was
+  // unified. A panel used to bind its own action to a button and render its
+  // own refusal; now it hands the assistant a `section={{ items: [{ act: {
+  // run } }] }}` and the SURFACE renders the refusal. That is one dictionary
+  // instead of six, which is the improvement - but the chain above only
+  // followed `onX={...}` props, so it read the new shape as "renders no
+  // dictionary" and reported a real component as broken.
+  //
+  // Following `section=` / `items=` props names the indirection precisely
+  // rather than exempting the file: a component that passes its work to
+  // another component's data prop is reached by whatever THAT one renders.
+  for (const dm of text.matchAll(/<([A-Z]\w+)[^>]*?\b(?:section|items)=\{/gs)) {
+    const inner = fileOf(kebab(dm[1]!), dm[1]!);
+    if (inner && inner !== comp) {
+      for (const d of dictsReached(inner, depth + 1)) out.add(d);
+    }
+  }
   return out;
 }
 
