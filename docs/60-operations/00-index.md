@@ -1562,3 +1562,20 @@ overrides 名单里」来佐证，那是被混淆的——**一个包有 overrid
 认不落入区间后以 `inaccurate` 关闭并在注释里留下证据。**不要用 `dismissed_reason`
 的其他取值**——`inaccurate` 才准确描述「告警说的事实不成立」，而 `no_bandwidth` 或
 `tolerable_risk` 会把一条假告警记成一笔接受了的真风险。
+
+### TD-022 - DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现
+
+2026-09-05，产品配置页两张同构表按 owner 要求逐列对齐时量出：DS `DataTable` 的
+行操作列，d.ts 写「固定 64px、钉在最右、横向滚动时锁定不动」，实际发出的类是
+`min-w-control-3xl`——**只是最小值**。sticky 钉列在；固定宽不在。序号列倒是真固定
+（`w-control-3xl`，token 实测 56px，与文档的 64 也不一致）。列宽档（xs/sm/md/lg）
+同样全部是 `min-w-*`：在浏览器 auto 表格布局下实际列宽随单元格内容漂移，两张列
+结构相同的表渲染出不同的列位；切到 `table-fixed` 后 min-w 又整体失效，操作列反而
+吞掉一份均分宽度。
+
+**缺失元素**：一个宽度可确定的表格列约（fixed 布局下仍生效的列宽，以及与文档一致
+的定宽操作列）。**垫片位置**：`catalog-type-config.tsx` / `catalog-status-config.tsx`
+外层包装 `[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl`——只用 DS 自己
+的 token，不改 DS 样式。**回收条件**：DS 让 ACTION_COL 按文档发定宽、或列宽档在
+fixed 布局下可用；届时删掉两处包装即可。已作为 DS 请求上报（元素缺失，非本仓自建）。
+

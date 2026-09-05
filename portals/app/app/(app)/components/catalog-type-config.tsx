@@ -88,13 +88,16 @@ export function CatalogTypeConfig({
         </Button>
       }
     >
-      {/* table-fixed: the DS width tiers are MIN-widths, and under the
-          browser's auto table layout actual widths drift with content - the
-          two config tables then disagree on where the columns sit. Fixed
-          layout makes equal tiers equal widths, so the twin tables align
-          column for column (owner ruling: 列宽保持一致, 操作列对齐). A layout
-          constraint from outside, not a restyle of the DS. */}
-      <div className="[&_table]:table-fixed">
+      {/* Two constraints from outside, not a restyle of the DS (TD-022):
+          - table-fixed: the DS width tiers are MIN-widths, and under auto
+            table layout actual widths drift with content - the twin config
+            tables then disagree on where columns sit (owner: 列宽保持一致).
+          - th:last-child w-control-3xl: the DS documents its action column
+            as FIXED and pinned, but ships only min-w-control-3xl, and fixed
+            layout ignores minimums - without an explicit width the action
+            column swallows an equal share. Same token the DS's own 序号
+            column uses, so the two edge columns match. */}
+      <div className="[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
