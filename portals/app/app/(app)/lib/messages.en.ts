@@ -2120,7 +2120,7 @@ export const en: Dictionary = {
     tagCollectShort: (n: number) => `${n} short-paid`,
     collectStatCount: (n: number) => `${n} instalments`,
 
-    overviewTitle: "Collections overview",
+    overviewTitle: "Collections analysis",
     overviewWhy:
       "The shape first: which ageing band the money sits in, and who most of it is with. The schedule below is the line-by-line detail.",
     overviewEmpty: "Nothing is outstanding, so there is nothing to plot.",

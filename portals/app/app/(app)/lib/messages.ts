@@ -2551,7 +2551,7 @@ export const DELIVERY_TEXT = {
   collectStatCount: (n: number) => `${n} 期`,
 
   // --- 回款概览 (the statistics block, 2026-09-06) ---------------------------
-  overviewTitle: "回款概览",
+  overviewTitle: "回款分析",
   overviewWhy: "先看整体：钱压在哪一段账龄、集中在谁身上。下面的清单是逐笔明细。",
   overviewEmpty: "没有未收的钱，这一块暂时不用看。",
   collectedRate: "回款达成",

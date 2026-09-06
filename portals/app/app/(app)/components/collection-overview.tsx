@@ -4,7 +4,7 @@ import { BarChart, Card, Progress, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import type { CollectionStats } from "../../domains/delivery/lib/collection-stats";
 
-// 回款概览 - the statistics block above the schedule (owner, 2026-09-06:
+// 回款分析 - the statistics block above the schedule (owner, 2026-09-06:
 // 统计为主，列表为具体清单).
 //
 // TWO CUTS, BECAUSE THE LIST ALREADY ANSWERS THE THIRD. Read row by row the
