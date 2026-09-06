@@ -155,7 +155,7 @@ export default async function DeliveryPage() {
 
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - and both are computed
           from the SAME rows, so the block and the list cannot disagree. */}
-      <DeliveryAnalysis stats={stats} liveCount={running.length} currency={currency} />
+      <DeliveryAnalysis stats={stats} currency={currency} />
 
       <DeliveryRoster
         rows={rows}

@@ -2221,6 +2221,7 @@ export const en: Dictionary = {
     analysisWhy:
       "The shape first: which stage the work sits at, where the risk is, and whose contracts carry the value. The list below is the detail.",
     analysisEmpty: "Nothing is in flight, so there is nothing to plot.",
+    downgradeScope: (n: number, total: number) => `${n}/${total} reported rosier`,
     downgradeRate: "Reported rosier than the facts",
     downgradeOf: (n: number, total: number) => `${n} of ${total} in flight`,
     downgradeWhy:

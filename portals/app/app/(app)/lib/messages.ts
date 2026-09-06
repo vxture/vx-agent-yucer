@@ -2653,6 +2653,7 @@ export const DELIVERY_TEXT = {
   analysisTitle: "交付分析",
   analysisWhy: "先看整体：工作压在哪一段、风险集中在哪里、合同额落在谁身上。下面的清单是逐个明细。",
   analysisEmpty: "没有在建项目，这一块暂时不用看。",
+  downgradeScope: (n: number, total: number) => `自报偏好 ${n}/${total}`,
   downgradeRate: "自报偏好比例",
   downgradeOf: (n: number, total: number) => `${n} / ${total} 个在建项目`,
   downgradeWhy: "「我们没事」挨着「他们还没付款」，是一个失败的交付一直保持绿色直到成为危机的最常见方式。",
