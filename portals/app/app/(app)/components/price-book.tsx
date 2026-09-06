@@ -258,21 +258,24 @@ export function PriceBook({
     />
   );
 
-  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT. Every
-     leading column is unconditional - selection on the live table, the DS
-     spacer on the history one, then the index - and since the 2026-09-06
-     fittings ruling so is the ACTION column. It used to vanish for a reader
-     who cannot price, which is what made right-counting move every width one
-     column over for exactly that reader (review, 2026-09-05); left-counting
-     fixed the symptom and an always-present column removes the cause.
-     Order: 选择/占位 | # | product | list | floor | effective | superseded? | 操作.
+  /* THE CATALOGUE'S PATTERN, verbatim (owner: 按产品目录的模式). Three lines
+     and no per-table invention: table-fixed, the three edge columns pinned at
+     64px, the title column at a percentage, and every other content column
+     left AUTO to share what remains equally.
 
-     NO MIN-WIDTH ON THE CURRENT TABLE, a FLOOR under the product column
-     instead: a min-width sized for eight columns put a scrollbar under the
-     seven-column table that had room (measured 2026-09-06, 704px asked of a
-     616px container). The history table keeps its min-width because it really
-     does carry the extra column and cannot fit - scrolling is the honest
-     failure there, not a squeezed name. */
+     Auto is what makes the other two work. Under table-fixed a specified
+     width only holds while something can absorb the slack - pin every column
+     and the surplus is shared out proportionally instead, which is how the
+     "fixed" edge columns came to measure 100px at 1920. One set of columns
+     has to stay elastic, and it is the ones whose content is elastic.
+
+     生效时间 IS PINNED, and it belongs with the edges rather than with the
+     elastic columns: its content has a hard floor. The stamp is deliberately
+     two lines - date above, time below - and the DATE alone measures 76px, so
+     an auto share of 56px broke it into THREE lines mid-date (2026- / 03-10 /
+     06:36:16). 7rem gives the 80px it needs. Pinning a column whose content
+     cannot shrink is what the pattern already does for 选择 / 序号 / 操作; the
+     columns left auto are the ones whose content really is elastic. */
   const table = (
     rows: readonly PriceEntryRecord[],
     acts: ReturnType<typeof rowActions>,
@@ -288,9 +291,7 @@ export function PriceBook({
     return (
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(4)]:w-[6.5rem] [&_thead_th:nth-child(5)]:w-[6.5rem] [&_thead_th:nth-child(6)]:w-[6.5rem] ${ACTION_COLUMN} ${select.className} ${
-        extra ? "[&_thead_th:nth-child(7)]:w-[7rem]" : ""
-      }`}
+      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[22%] [&_thead_th:nth-child(6)]:w-[7rem] ${ACTION_COLUMN} ${select.className}`}
     >
       <DataTable
         labels={DATA_TABLE_LABELS}
