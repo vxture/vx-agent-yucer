@@ -200,9 +200,13 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       }
     : undefined;
 
-  /* The catalogue rosters' geometry (TD-022). */
+  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT. The
+     index column is always there; the ACTION column is not - it disappears
+     for a reader who cannot edit segments - so counting from the right moved
+     every width one column over for them (review, 2026-09-05).
+     Order: # | name | criteria | plan | counts | status | actions? */
   const table = (list: readonly SegmentRow[]) => (
-    <div className="[&_table]:table-fixed [&_thead_th:nth-last-child(2)]:w-[6rem] [&_thead_th:nth-last-child(3)]:w-[7rem] [&_thead_th:nth-last-child(4)]:w-[8rem] [&_thead_th:last-child]:w-control-3xl">
+    <div className="[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[8rem] [&_thead_th:nth-child(5)]:w-[7rem] [&_thead_th:nth-child(6)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
