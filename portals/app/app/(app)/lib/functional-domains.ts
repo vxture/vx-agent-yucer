@@ -32,7 +32,12 @@
 
 import type { IconName } from "@vxture/design-ui";
 import type { Tier } from "../../entitlement/types";
-import type { ResolvedNavEntry, NavState } from "./navigation";
+import {
+  DOMAIN_NAV_ENTRIES,
+  MODULE_NAV_ENTRIES,
+  type ResolvedNavEntry,
+  type NavState,
+} from "./navigation";
 
 /**
  * A module is either BUILT or PLANNED, and the two carry different data.
@@ -390,7 +395,29 @@ export function activeDomainFromPath(pathname: string): string | null {
   if (segments[0] === "domain" && segments[1]) {
     return hasHome(segments[1]) ? segments[1] : null;
   }
-  return activeDomainKey(segments[0] ?? "home");
+  return activeDomainKey(navKeyForSegment(segments[0] ?? ""));
+}
+
+/**
+ * The nav key a first path segment belongs to.
+ *
+ * NOT THE SEGMENT ITSELF, which is what this used to assume. The two are the
+ * same for most modules (/account -> "account") and differ for every module
+ * whose route is shorter than its key: forecastRule lives at /forecast,
+ * namedAccount at /named, winLossReview at /winloss. On those three pages the
+ * domain resolved to null and the module strip vanished entirely - the nav
+ * disappeared on exactly the pages it was navigating to (measured 2026-09-06
+ * on /forecast).
+ *
+ * The registry knows the answer; it is asked instead of guessed.
+ */
+export function navKeyForSegment(segment: string): string {
+  if (segment === "") return "home";
+  const href = `/${segment}`;
+  const entry =
+    DOMAIN_NAV_ENTRIES.find((e) => e.href === href) ??
+    MODULE_NAV_ENTRIES.find((e) => e.href === href);
+  return entry?.key ?? segment;
 }
 
 /** Which of the five contains the route currently on screen, if any. */

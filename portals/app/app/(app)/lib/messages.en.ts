@@ -88,7 +88,7 @@ export const en: Dictionary = {
       industry: "Industry",
       segmentCode: "Segment",
       ownerSub: "Owner",
-    } as Record<string, string>,
+    },
     askable: (fields: string) =>
       `${fields} cannot be worked out from the data - those are facts about the company itself. The assistant looks them up, and its answer arrives as a proposal to accept.`,
     ask: "Ask the assistant",
@@ -338,6 +338,47 @@ export const en: Dictionary = {
       close_date_passed: "the close date passed and the deal is still open",
       stalled: "sat at this stage too long; one band down",
     } as Record<string, string>,
+
+    rosterDisputed: "Where the rule disagrees",
+    rosterDisputedWhy:
+      "Deals the rule and the person filed differently. The disagreement is what a forecast review is for - and which way it leans is the first thing to read.",
+    rosterAgreed: "No disagreement",
+    rosterAgreedWhy:
+      "The rule and the filing agree, or the deal is settled and has no judgement to argue with. They stay because a page of nothing but disagreements reads as \"these are the problem deals\" rather than as \"this is the forecast\".",
+    noneDisputed: "The rule agrees on every deal",
+    noneDisputedWhy: "Nothing here needs a second opinion.",
+    filedOptimistic: "filed surer",
+    filedConservative: "filed less sure",
+    tagForecastDisputed: (n: number) => `${n} disputed`,
+    tagForecastOptimistic: (n: number) => `${n} filed surer`,
+    forecastStatCount: (n: number) => `${n} deals`,
+    forecastStatEmpty: "No forecastable deals yet, so there is nothing to break down.",
+
+    analysisTitle: "Forecast analysis",
+    analysisWhy:
+      "The shape first: which category the book sits in, which way the disagreements lean, and how much money is in each. The list below is the detail.",
+    analysisEmpty: "Nothing to plot yet.",
+    agreementRate: "Rule and filing agree",
+    agreementOf: (n: number, total: number) => `${n} of ${total}`,
+    agreementWhy: (n: number) =>
+      `${n} disagree. The count only means something against the total: twelve out of two hundred is a healthy forecast with a few edges, twelve out of twenty is one nobody trusts.`,
+    agreementClear: "The rule agrees with every filing.",
+    byCategoryTitle: "By category",
+    byCategoryWhy: "Value at each filed category, least sure to most sure.",
+    directionTitle: "Which way they lean",
+    directionWhy:
+      "Filed surer than the rule inflates a number somebody will be held to; filed less sure hides work that is going well. Two different conversations.",
+    directionNone: "No disagreements, so there is nothing to plot.",
+    dirOptimistic: "Filed surer",
+    dirConservative: "Filed less sure",
+
+    adviceTitle: "Forecast check",
+    adviceClear: "The rule agrees with every filing here.",
+    adviceOpenDeal: "Open the deal",
+    adviceOptimistic: (name: string, filed: string, suggested: string) =>
+      `"${name}" is filed ${filed}; the rule only reaches ${suggested} - this one is inflating the commitment.`,
+    adviceConservative: (name: string, filed: string, suggested: string) =>
+      `"${name}" is filed ${filed}; the rule would reach ${suggested} - this one's progress is understated.`,
   },
   FORECAST_RULE_ERROR: {
     ...GATE_ERROR,
