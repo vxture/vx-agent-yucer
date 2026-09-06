@@ -2159,6 +2159,57 @@ export const en: Dictionary = {
     collectAdviceNoDueDate: (name: string) =>
       `"${name}" has an instalment with no due date, so it will never show up as overdue.`,
     collectAdviceNothing: (name: string) => `"${name}" has collected nothing at all yet.`,
+    rosterRunning: "In flight",
+    rosterRunningWhy:
+      "Planning, active and paused projects. The health shown is the one the facts derive; when the delivery team reported something rosier, the row says so.",
+    rosterFinished: "Finished",
+    rosterFinishedWhy:
+      "Delivered, closed and cancelled projects stay here. They have no plan left to be late against and no health left to correct.",
+    noProjects: "No delivery projects yet",
+    reportedAs: (h: string) => `reported ${h}`,
+    reconciledChanged: "Health recomputed from the facts",
+    reconciledSame: "Report and facts already agree",
+    tagDeliveryRunning: (n: number) => `${n} in flight`,
+    tagDeliveryDowngraded: (n: number) => `${n} reported rosier`,
+    tagDeliveryRed: (n: number) => `${n} at high risk`,
+    deliveryStatCount: (n: number) => `${n} projects`,
+    deliveryStatEmpty: "Nothing is in flight, so there is nothing to break down.",
+
+    analysisTitle: "Delivery analysis",
+    analysisWhy:
+      "The shape first: which stage the work sits at, where the risk is, and whose contracts carry the value. The list below is the detail.",
+    analysisEmpty: "Nothing is in flight, so there is nothing to plot.",
+    downgradeRate: "Reported rosier than the facts",
+    downgradeOf: (n: number, total: number) => `${n} of ${total} in flight`,
+    downgradeWhy:
+      '"We are fine" standing next to "they have not paid" is the most common way a failing engagement stays green until it is a crisis.',
+    byStageTitle: "By stage",
+    byStageWhy: "Contract value at each project status, in the order work moves through them.",
+    byHealthTitle: "By health",
+    byHealthWhy:
+      "The derived health, live work only. A delivered project's health is history, not a reading of what is running.",
+    byProjectTitleDelivery: "Concentration",
+    byProjectWhyDelivery: "The eight in-flight projects carrying the most contract value.",
+    contractTotal: (amount: string, currency: string) => `${amount} ${currency} contracted`,
+
+    adviceTitle: "Delivery check",
+    adviceClear: "Nothing on these projects needs attention.",
+    adviceOpenCollection: "See collections",
+    adviceDowngraded: (name: string) =>
+      `"${name}" reports better health than the facts support - recompute first, then decide whether to have the conversation.`,
+    adviceMilestoneLate: (name: string, n: number) =>
+      `"${name}" has ${n} milestones past their date and not done.`,
+    adviceNoManager: (name: string) => `"${name}" is in flight with nobody assigned to it.`,
+    adviceNoMilestones: (name: string) =>
+      `"${name}" is in flight with no milestones at all - no plan means nothing to be late against.`,
+    adviceNoContract: (name: string) =>
+      `"${name}" is in flight with no contract amount, so delivery has nothing to be measured against.`,
+  },
+
+  HEALTH_LABEL: {
+    green: "Healthy",
+    amber: "At risk",
+    red: "In trouble",
   },
 
   PROJECT_STATUS_LABEL: {

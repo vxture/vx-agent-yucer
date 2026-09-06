@@ -2589,6 +2589,47 @@ export const DELIVERY_TEXT = {
   collectAdviceNoDueDate: (name: string) =>
     `「${name}」有一笔回款没有到期日，它永远不会出现在逾期统计里。`,
   collectAdviceNothing: (name: string) => `「${name}」的回款一期都还没到账。`,
+  // --- the delivery module page (2026-09-06) --------------------------------
+  rosterRunning: "在建项目",
+  rosterRunningWhy:
+    "筹备、进行中、已暂停的项目。健康度显示的是事实推出来的那一个；交付团队自己报的更好看时，这里会说出来。",
+  rosterFinished: "已了结",
+  rosterFinishedWhy: "已交付、已关闭、已取消的项目留在这里，它们没有计划可以晚，也没有健康度需要纠正。",
+  noProjects: "还没有交付项目",
+  reportedAs: (h: string) => `自报「${h}」`,
+  reconciledChanged: "已按事实重算健康度",
+  reconciledSame: "自报与事实一致，无需更正",
+  tagDeliveryRunning: (n: number) => `${n} 个在建`,
+  tagDeliveryDowngraded: (n: number) => `${n} 个自报偏好`,
+  tagDeliveryRed: (n: number) => `${n} 个高风险`,
+  deliveryStatCount: (n: number) => `${n} 个项目`,
+  deliveryStatEmpty: "当前没有在建项目，头部不做拆解。",
+
+  // --- 交付分析 (the statistics block) ---------------------------------------
+  analysisTitle: "交付分析",
+  analysisWhy: "先看整体：工作压在哪一段、风险集中在哪里、合同额落在谁身上。下面的清单是逐个明细。",
+  analysisEmpty: "没有在建项目，这一块暂时不用看。",
+  downgradeRate: "自报偏好比例",
+  downgradeOf: (n: number, total: number) => `${n} / ${total} 个在建项目`,
+  downgradeWhy: "「我们没事」挨着「他们还没付款」，是一个失败的交付一直保持绿色直到成为危机的最常见方式。",
+  byStageTitle: "阶段分布",
+  byStageWhy: "按项目状态分档，顺序就是工作推进的顺序。",
+  byHealthTitle: "健康度分布",
+  byHealthWhy: "按事实推出的健康度，只看在建项目。已交付的健康度是历史，不是现况。",
+  byProjectTitleDelivery: "合同额集中度",
+  byProjectWhyDelivery: "在建项目中合同额最高的前八个。",
+  contractTotal: (amount: string, currency: string) => `合同总额 ${amount} ${currency}`,
+
+  // --- 交付检查 (the dock) ---------------------------------------------------
+  adviceTitle: "交付检查",
+  adviceClear: "这批项目没有需要处理的地方。",
+  adviceOpenCollection: "查看回款",
+  adviceDowngraded: (name: string) =>
+    `「${name}」自报的健康度比事实好——先重算，再决定要不要跟交付团队对一次。`,
+  adviceMilestoneLate: (name: string, n: number) => `「${name}」有 ${n} 个里程碑已经过期未完成。`,
+  adviceNoManager: (name: string) => `「${name}」在建，但没有指派负责人。`,
+  adviceNoMilestones: (name: string) => `「${name}」在建，却一个里程碑都没有——没有计划就无所谓延误。`,
+  adviceNoContract: (name: string) => `「${name}」在建，但没有合同金额，交付没有可衡量的标的。`,
 } as const;
 
 /**
@@ -2599,6 +2640,12 @@ export const DELIVERY_TEXT = {
  * `planning`, `delivered` in English, the one table in the product not
  * labelling its own status column.
  */
+export const HEALTH_LABEL: Record<string, string> = {
+  green: "健康",
+  amber: "有隐忧",
+  red: "高风险",
+};
+
 export const PROJECT_STATUS_LABEL: Record<string, string> = {
   planning: "筹备",
   active: "进行中",

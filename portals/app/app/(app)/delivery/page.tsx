@@ -1,4 +1,4 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
 import {
@@ -7,7 +7,10 @@ import {
 } from "../../domains/shared/registry";
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
-import { DeliveryTable, type DeliveryRow } from "../components/delivery-table";
+import { DeliveryRoster, type DeliveryRow } from "../components/delivery-roster";
+import { DeliveryAnalysis } from "../components/delivery-analysis";
+import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { deliveryStats, PROJECT_STAGES } from "../../domains/delivery/lib/delivery-stats";
 import { NewEntryLink } from "../components/form-page";
 import {
   MilestonePanel,
@@ -29,7 +32,7 @@ export const dynamic = "force-dynamic";
 // failing engagement stays green until it is a crisis.
 
 export default async function DeliveryPage() {
-  const { DELIVERY_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { DELIVERY_TEXT, PROJECT_STATUS_LABEL, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -110,68 +113,69 @@ export default async function DeliveryPage() {
       status: p.status,
       reported: p.health,
       derived: view.ok ? view.value.derivedHealth : p.health,
-      overriddenBecause: view.ok ? view.value.healthOverriddenBecause : null,
       accountName: accountNames.get(p.accountId) ?? null,
     });
   }
 
-  // Counted here because it is a statement about the page. The downgrade is
-  // this domain's whole point: "we are fine" standing next to "they have not
-  // paid" is the single most common way a failing engagement stays green until
-  // it is a crisis.
-  const downgraded = rows.filter((r) => r.overriddenBecause !== null).length;
-  const currency =
-    rows.find((r) => r.contractAmount != null)?.currency ?? "CNY";
-  const contractTotal = rows.reduce((n, r) => n + (r.contractAmount ?? 0), 0);
+  const stats = deliveryStats(rows);
+  const currency = rows.find((r) => r.contractAmount != null)?.currency ?? "CNY";
+  const running = rows.filter(
+    (r) => r.status !== "delivered" && r.status !== "closed" && r.status !== "cancelled",
+  );
+  const red = stats.byHealth.find((b) => b.key === "red")?.count ?? 0;
+  // THE BREAKDOWN IS THE LIFECYCLE, the same cut collections takes along its
+  // own process: where is the work, not who owns it - the list below answers
+  // that row by row.
+  const stats$: HeadlineStat[] = PROJECT_STAGES.flatMap((stage) => {
+    const cell = stats.byStage.find((b) => b.key === stage);
+    return cell
+      ? [
+          {
+            key: stage as string,
+            name: PROJECT_STATUS_LABEL[stage] ?? stage,
+            value: cell.amount,
+            note: DELIVERY_TEXT.deliveryStatCount(cell.count),
+          },
+        ]
+      : [];
+  });
 
   return (
     <ViewLayout>
-      {/* Opens with what is true of the whole page. The DOWNGRADE RULE rides
-          here rather than only in the section subtitle: without it a green row
-          reads as the delivery team's own word, which is the one thing it is
-          not. */}
-      <ViewHeader
-        title={DELIVERY_TEXT.lead(rows.length)}
-        description={
+      <ModuleHeadline
+        moduleKey="delivery"
+        description={DELIVERY_TEXT.description}
+        tags={
           <>
-            <span className="block tabular-nums">
-              {DELIVERY_TEXT.leadContract(formatMoney(contractTotal, currency))}
-            </span>
-            {downgraded > 0 ? (
-              <span className="block text-(color:--warning-text)">
-                {DELIVERY_TEXT.leadDowngraded(downgraded)}
-              </span>
+            <StatusBadge tone="success">
+              {DELIVERY_TEXT.tagDeliveryRunning(running.length)}
+            </StatusBadge>
+            {stats.downgraded > 0 ? (
+              <StatusBadge tone="warning">
+                {DELIVERY_TEXT.tagDeliveryDowngraded(stats.downgraded)}
+              </StatusBadge>
             ) : null}
-            <span className="block">{DELIVERY_TEXT.leadRule}</span>
+            {red > 0 ? (
+              <StatusBadge tone="danger">{DELIVERY_TEXT.tagDeliveryRed(red)}</StatusBadge>
+            ) : null}
           </>
         }
+        stats={stats$}
+        emptyNote={DELIVERY_TEXT.deliveryStatEmpty}
       />
 
-      <Section
-        icon="package"
-        title={DELIVERY_TEXT.title}
-        description={DELIVERY_TEXT.description}
-      >
-        <DeliveryTable
-          rows={rows}
-          /* Decided here, re-decided inside the action - this only chooses
-             whether the menu renders. */
-          canWrite={
-            can(
-              session.authz,
-              session.entitlement,
-              "delivery.project.upsert",
-              "ui",
-            ).allowed
-          }
-          onReconcile={reconcileHealth}
-        />
-      </Section>
+      {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - and both are computed
+          from the SAME rows, so the block and the list cannot disagree. */}
+      <DeliveryAnalysis stats={stats} liveCount={running.length} currency={currency} />
 
-      {/* AFTER the projects, because a project is the thing a person opens this
-          page for and its instalments are what that project owes. Putting the
-          money first would make the page a ledger; putting it second makes it
-          the answer to "and has it been paid". */}
+      <DeliveryRoster
+        rows={rows}
+        canWrite={
+          can(session.authz, session.entitlement, "delivery.project.upsert", "ui").allowed
+        }
+        onReconcile={reconcileHealth}
+      />
+
       <MilestonePanel rows={milestones} />
       {/* Creation left for /delivery/new on 2026-09-05. */}
       {can(
