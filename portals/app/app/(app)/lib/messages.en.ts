@@ -2103,6 +2103,7 @@ export const en: Dictionary = {
     milestoneName: "Milestone",
     milestoneDue: "Due",
     milestoneCompleted: "Completed",
+    milestoneNoDate: "Not scheduled",
     milestoneStatus: "Status",
     milestoneStatusLabel: {
       pending: "Pending",

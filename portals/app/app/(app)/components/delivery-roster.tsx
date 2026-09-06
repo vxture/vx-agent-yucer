@@ -14,6 +14,7 @@ import {
   rowClickSelection,
 } from "./table-fittings";
 import { worseThan, type ProjectHealth } from "../../domains/delivery/lib/delivery-stats";
+import { DeliveryPlanFlow } from "./delivery-plan-flow";
 
 // 交付清单 - the catalogue module's pattern, applied to projects.
 //
@@ -42,6 +43,21 @@ export interface DeliveryRow {
   readonly status: string;
   readonly reported: ProjectHealth;
   readonly derived: ProjectHealth;
+  /** THE PROJECT'S OWN PLAN, carried on the row rather than listed beside it.
+   * `(project, sequence)` is a milestone's identity in the DDL - it is a
+   * MEMBER of a project, not an object in its own right - and the flat
+   * cross-project table this replaced spent its first column repeating the
+   * parent's name on every row (owner, 2026-09-06). */
+  readonly milestones: readonly MilestoneRow[];
+}
+
+export interface MilestoneRow {
+  readonly id: string;
+  readonly sequence: number;
+  readonly name: string;
+  readonly status: string;
+  readonly dueAt: string | null;
+  readonly completedAt: string | null;
 }
 
 export interface DeliveryRosterProps {
@@ -64,6 +80,10 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
   const [selected, setSelected] = useState<readonly string[]>([]);
+  // WHICH PLANS ARE OPEN. Controlled by the caller, as the DS requires when
+  // expandedContent is used, because "expand everything" has to be pressable
+  // from outside the table.
+  const [expanded, setExpanded] = useState<readonly string[]>([]);
 
   const running = rows.filter(
     (r) => r.status !== "delivered" && r.status !== "closed" && r.status !== "cancelled",
@@ -178,6 +198,25 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
     />
   );
 
+  /* THE PLAN SITS UNDER THE PROJECT IT BELONGS TO (owner, 2026-09-06).
+     A milestone is a member of a project - `(project, sequence)` is its
+     identity - and it is also the EVIDENCE for the health reading on the row
+     above it: deriveProjectHealth reads milestone status, and one `missed`
+     overrides a manager's reported green. A verdict and its evidence belong
+     on the same screen, which is the same rule the assistant panel follows.
+     The DS's own expandedContent note says this beats opening a page for a
+     belongs-to relationship, and leadingSpacer is what aligns the nested
+     table's row head with the parent's.
+
+     Returning null for a project with no milestones is deliberate: the DS
+     then draws no chevron at all, rather than a chevron that opens nothing.
+
+     IT OPENS AS A FLOW, NOT A TABLE (owner ruling). A plan is a sequence, and
+     a table makes the reader rebuild that order in their head - see
+     delivery-plan-flow.tsx. */
+  const expandedContent = (row: DeliveryRow) =>
+    row.milestones.length === 0 ? null : <DeliveryPlanFlow nodes={row.milestones} />;
+
   /* THE FIXED COLUMNS ARE FIXED AND EVERYTHING ELSE IS DIVIDED EQUALLY
      (owner, 2026-09-06). 选择 / 序号 / 操作 carry a width and no other column
      does; table-fixed hands out the remainder in equal shares by itself. */
@@ -197,6 +236,9 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
           rows={[...list]}
           columns={columns}
           rowActions={rowActions}
+          expandedContent={expandedContent}
+          expandedKeys={expanded}
+          onExpandedChange={setExpanded}
           empty={empty}
         />
       </div>
