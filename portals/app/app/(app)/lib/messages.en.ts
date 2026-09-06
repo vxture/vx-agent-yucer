@@ -2104,6 +2104,7 @@ export const en: Dictionary = {
     milestoneName: "Milestone",
     milestoneDue: "Due",
     milestoneCompleted: "Completed",
+    newMilestoneEntry: "New milestone",
     milestoneNoDate: "Not scheduled",
     milestoneStatus: "Status",
     milestoneStatusLabel: {
@@ -2205,9 +2206,13 @@ export const en: Dictionary = {
     rosterRunning: "In flight",
     rosterRunningWhy:
       "Planning, active and paused projects. The health shown is the one the facts derive; when the delivery team reported something rosier, the row says so.",
-    rosterFinished: "Finished",
+    rosterFinished: "Closed out",
     rosterFinishedWhy:
       "Delivered, closed and cancelled projects stay here. They have no plan left to be late against and no health left to correct.",
+    columnProgress: "Progress",
+    progressNoPlan: "No plan set",
+    progressPlanDone: "Plan complete",
+    progressPlanOpen: "Milestones left open",
     noProjects: "No delivery projects yet",
     reportedAs: (h: string) => `reported ${h}`,
     reconciledChanged: "Health recomputed from the facts",

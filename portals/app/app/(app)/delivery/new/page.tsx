@@ -14,7 +14,11 @@ import { saveMilestone } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewMilestonePage() {
+export default async function NewMilestonePage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ project?: string }>;
+}) {
   const { SHELL_TEXT, DELIVERY_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
@@ -47,6 +51,7 @@ export default async function NewMilestonePage() {
     <ViewLayout>
       <ViewHeader title={DELIVERY_TEXT.milestonesTitle} description={DELIVERY_TEXT.milestonesWhy} />
       <MilestoneForm
+        initialProjectId={(await searchParams).project}
         milestones={milestones}
         projects={rows.map((p) => ({ id: p.id, name: p.name, status: p.status }))}
         onSave={saveMilestone}

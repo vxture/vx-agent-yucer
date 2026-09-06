@@ -2564,6 +2564,7 @@ export const DELIVERY_TEXT = {
   milestoneName: "节点名称",
   milestoneDue: "计划完成",
   milestoneCompleted: "实际完成",
+  newMilestoneEntry: "新建里程碑",
   milestoneNoDate: "未排期",
   milestoneStatus: "状态",
   milestoneStatusLabel: {
@@ -2638,8 +2639,12 @@ export const DELIVERY_TEXT = {
   rosterRunning: "在建项目",
   rosterRunningWhy:
     "筹备、进行中、已暂停的项目。健康度显示的是事实推出来的那一个；交付团队自己报的更好看时，这里会说出来。",
-  rosterFinished: "已了结",
+  rosterFinished: "结题项目",
   rosterFinishedWhy: "已交付、已关闭、已取消的项目留在这里，它们没有计划可以晚，也没有健康度需要纠正。",
+  columnProgress: "项目进展",
+  progressNoPlan: "未排计划",
+  progressPlanDone: "计划已走完",
+  progressPlanOpen: "里程碑未记完",
   noProjects: "还没有交付项目",
   reportedAs: (h: string) => `自报「${h}」`,
   reconciledChanged: "已按事实重算健康度",

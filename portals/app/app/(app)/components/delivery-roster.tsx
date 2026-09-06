@@ -14,6 +14,7 @@ import {
   rowClickSelection,
 } from "./table-fittings";
 import { worseThan, type ProjectHealth } from "../../domains/delivery/lib/delivery-stats";
+import { projectProgress } from "../../domains/delivery/lib/progress";
 import { DeliveryPlanFlow } from "./delivery-plan-flow";
 
 // 交付清单 - the catalogue module's pattern, applied to projects.
@@ -30,6 +31,53 @@ import { DeliveryPlanFlow } from "./delivery-plan-flow";
 // the reported one, the cell says so - a green badge that is only the delivery
 // team's own word, with no sign that the facts disagree, is the single thing
 // this page exists to prevent.
+
+// 项目进展 - the cell, at module scope rather than inside the roster.
+//
+// TWO FACTS, and the order is the reading: WHERE the project is, then how far
+// that is through the plan (owner, 2026-09-06). The percentage alone says
+// nothing about what happens next; the milestone name alone says nothing about
+// how much is left.
+//
+// DERIVED, NOT ESTIMATED - see progress.ts. It counts the plan; it does not
+// judge it.
+function ProgressCell({ row }: { readonly row: DeliveryRow }) {
+  const { DELIVERY_TEXT } = useMessages();
+  const p = projectProgress(row.milestones, row.status);
+
+  if (p.unplanned && p.percent === 0) {
+    return (
+      <span className="text-(color:--warning-text) text-body-sm">
+        {DELIVERY_TEXT.progressNoPlan}
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex flex-col items-center gap-3xs">
+      {/* NO CURRENT MILESTONE HAS TWO CAUSES AND THEY ARE NOT THE SAME CLAIM.
+          Either the plan was walked through, or the project closed with gates
+          still open - in which case saying the plan is complete would assert
+          something the milestones deny. The second case is a record-keeping
+          gap, and showing it is how it gets closed. */}
+      <span
+        className={`truncate text-body-sm ${p.planComplete ? "text-foreground" : "text-muted-foreground"}`}
+      >
+        {p.currentName ??
+          (p.planComplete ? DELIVERY_TEXT.progressPlanDone : DELIVERY_TEXT.progressPlanOpen)}
+      </span>
+      <span className="text-muted-foreground tabular-nums text-body-sm">{p.percent}%</span>
+    </span>
+  );
+}
+
+// The column's own accessor, hoisted for the same reason.
+//
+// An arrow that returns nothing but one component with props IS a component
+// definition as far as the linter is concerned, and defining one inside the
+// parent also hands DataTable a new function identity on every render. Naming
+// it once here costs a line and settles both.
+const progressCell = (r: DeliveryRow) => <ProgressCell row={r} />;
 
 export interface DeliveryRow {
   readonly id: string;
@@ -63,12 +111,15 @@ export interface MilestoneRow {
 export interface DeliveryRosterProps {
   readonly rows: readonly DeliveryRow[];
   readonly canWrite: boolean;
+  /** Whether to offer the milestone form. Gated on delivery.milestone.upsert,
+   * which is a different permission from the one that reconciles health. */
+  readonly canPlan: boolean;
   readonly onReconcile: (
     id: string,
   ) => Promise<{ ok: boolean; changed?: boolean; error?: string }>;
 }
 
-export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterProps) {
+export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: DeliveryRosterProps) {
   const {
     DELIVERY_TEXT,
     DATA_TABLE_LABELS,
@@ -149,6 +200,19 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
       ),
     },
     {
+      id: "progress",
+      header: DELIVERY_TEXT.columnProgress,
+      align: "center" as const,
+      // TWO FACTS, and the order is the reading: WHERE the project is, then
+      // how far that is through the plan (owner, 2026-09-06). The percentage
+      // alone says nothing about what happens next; the milestone name alone
+      // says nothing about how much is left.
+      //
+      // DERIVED, NOT ESTIMATED - see progress.ts. It counts the plan; it does
+      // not judge it.
+      cell: progressCell,
+    },
+    {
       id: "contract",
       header: DELIVERY_TEXT.columnContract,
       align: "right" as const,
@@ -162,11 +226,29 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
     <RowActions
       disabled={pending}
       items={
-        !canWrite
-          ? []
-          : [
+        [
+          // A MILESTONE BELONGS TO ONE PROJECT, so creating one is a row
+          // operation (owner, 2026-09-06). In the section header it was a
+          // page-level action whose form then had to ask which project - a
+          // question the reader had already answered by clicking somewhere.
+          // The row carries the answer in its href.
+          ...(canPlan
+            ? [
+                {
+                  id: "plan",
+                  label: DELIVERY_TEXT.newMilestoneEntry,
+                  onSelect: () => {
+                    window.location.href = `/delivery/new?project=${encodeURIComponent(row.id)}`;
+                  },
+                },
+              ]
+            : []),
+          ...(!canWrite
+            ? []
+            : [
               {
                 id: "reconcile",
+                separatorBefore: canPlan,
                 label: DELIVERY_TEXT.reconcile,
                 icon: "refresh" as const,
                 hint: DELIVERY_TEXT.reconcileHint,
@@ -193,7 +275,8 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
                     });
                   }),
               },
-            ]
+            ]),
+        ]
       }
     />
   );
