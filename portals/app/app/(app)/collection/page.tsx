@@ -92,6 +92,17 @@ export default async function CollectionPage() {
   // number nobody received, and short payment is normal enough here that the
   // schedule tracks it separately from invoicing.
   const STAGES = ["planned", "invoiced", "overdue", "settled", "written_off"] as const;
+  // THE COLOUR IS THE STAGE'S MEANING, not a palette position: overdue is the
+  // product's danger, settled its success, a write-off is muted because it is
+  // over. The dot beside the number and that stage's share of the bar above
+  // are the same colour, which is what lets the two readings be one reading.
+  const STAGE_TONE = {
+    planned: "neutral",
+    invoiced: "info",
+    overdue: "danger",
+    settled: "success",
+    written_off: "muted",
+  } as const;
   const stats: HeadlineStat[] = STAGES.map((stage) => {
     const at = rows.filter((r) => r.status === stage);
     const amount = at.reduce(
@@ -103,6 +114,7 @@ export default async function CollectionPage() {
       name: REVENUE_STATUS_LABEL[stage] ?? stage,
       value: amount,
       note: DELIVERY_TEXT.collectStatCount(at.length),
+      tone: STAGE_TONE[stage],
     };
   }).filter((cell) => cell.value > 0);
 
@@ -123,6 +135,7 @@ export default async function CollectionPage() {
           </>
         }
         stats={stats}
+        share
         emptyNote={DELIVERY_TEXT.collectStatEmpty}
       />
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - so the shape comes

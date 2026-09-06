@@ -26,6 +26,34 @@ import { useMessages } from "../lib/i18n/provider";
 // many. What the number MEANS is each page's business - this component only
 // promises they will look the same.
 
+/**
+ * The colour a breakdown cell carries, on its dot and on its share of the bar.
+ *
+ * A SMALL NAMED SET, not a free colour. These map to the DS intent tokens, so
+ * a stage that means trouble is the same red as every other trouble in the
+ * product; a page cannot invent a seventh meaning by picking a hex.
+ */
+export type StatTone = "neutral" | "info" | "success" | "warning" | "danger" | "muted";
+
+/*
+ * MEASURED, NOT ASSUMED. Not every intent token is a real colour in this
+ * build: `--success-text` and `--warning-text` resolve, while `--danger-text`,
+ * `--danger-border` and `--warning-border` all compute to transparent - so the
+ * overdue segment and its dot rendered INVISIBLE, on the one stage a
+ * collections page most needs seen (measured 2026-09-06). Danger therefore
+ * takes the DS's own `destructive`, which is a real token and the same red the
+ * product uses for destructive intent. Same family of trap as the container
+ * widths and the padding scale: a token that silently resolves to nothing.
+ */
+const TONE_DOT: Record<StatTone, string> = {
+  neutral: "bg-accent",
+  info: "bg-primary",
+  success: "bg-(color:--success-text)",
+  warning: "bg-(color:--warning-text)",
+  danger: "bg-destructive",
+  muted: "bg-muted-foreground",
+};
+
 /** One cell of the breakdown: a number, what it counts, and its split. */
 export interface HeadlineStat {
   readonly key: string;
@@ -33,6 +61,8 @@ export interface HeadlineStat {
   readonly value: number;
   /** The small print after the name - "3 在售 · 1 研发". */
   readonly note: string;
+  /** Colours this cell's dot and its share of the proportion bar. */
+  readonly tone?: StatTone;
 }
 
 export function ModuleHeadline({
@@ -41,6 +71,7 @@ export function ModuleHeadline({
   tags,
   action,
   stats,
+  share,
   emptyNote,
 }: {
   /** The nav entry this page IS. Its icon and its NAME both come from the
@@ -55,6 +86,20 @@ export function ModuleHeadline({
   /** An extra control in the header's right slot, left of the fold trigger. */
   readonly action?: ReactNode;
   readonly stats: readonly HeadlineStat[];
+  /**
+   * Draw a proportion bar above the cells, segmented in the SAME ORDER and the
+   * SAME COLOURS (owner, 2026-09-06: 一个看数字，一个直观看比例).
+   *
+   * Fed by the same `stats` array the numbers come from, which is the whole
+   * point: order and colour cannot drift between the two readings, because
+   * there is only one list. Carrying a second array for the bar would be two
+   * lists to keep in step, and they would not stay in step.
+   *
+   * NO TITLE AND NO FIGURES ON THE BAR ITSELF. The numbers are directly
+   * beneath it; printing them twice makes the reader check whether the two
+   * agree instead of reading either.
+   */
+  readonly share?: boolean;
   readonly emptyNote: string;
 }) {
   const { CATALOG_TEXT, DOMAIN_LABEL } = useMessages();
@@ -81,7 +126,20 @@ export function ModuleHeadline({
           }
         />
 
-        <CollapsibleContent>
+        <CollapsibleContent className="flex flex-col gap-md">
+          {share && stats.length > 0 ? (
+            <div className="flex h-2xs w-full overflow-hidden rounded-full">
+              {stats.map((s) => (
+                <span
+                  key={s.key}
+                  className={TONE_DOT[s.tone ?? "neutral"]}
+                  style={{ flexGrow: Math.max(s.value, 0), flexBasis: 0 }}
+                  title={`${s.name} ${s.value.toLocaleString()}`}
+                  aria-hidden
+                />
+              ))}
+            </div>
+          ) : null}
           {stats.length === 0 ? (
             <p className="text-muted-foreground text-body-sm">{emptyNote}</p>
           ) : (
@@ -103,8 +161,17 @@ export function ModuleHeadline({
                   <div className="text-foreground truncate text-heading-4 tabular-nums">
                     {s.value.toLocaleString()}
                   </div>
-                  <div className="text-muted-foreground text-body-sm">
-                    <span className="text-foreground">{s.name}</span>{" "}
+                  {/* 色标圆点 + 名称 + 小字 (owner, 2026-09-06). The dot is
+                      what ties this cell to its share of the bar above; the
+                      name alone made the reader match by position. */}
+                  <div className="text-muted-foreground flex items-center gap-2xs text-body-sm">
+                    {s.tone ? (
+                      <span
+                        aria-hidden
+                        className={`size-2xs shrink-0 rounded-full ${TONE_DOT[s.tone]}`}
+                      />
+                    ) : null}
+                    <span className="text-foreground">{s.name}</span>
                     <span className="whitespace-nowrap">{s.note}</span>
                   </div>
                 </li>

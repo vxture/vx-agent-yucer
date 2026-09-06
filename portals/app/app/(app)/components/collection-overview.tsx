@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Card, Progress } from "@vxture/design-ui";
+import { BarChart, Card } from "@vxture/design-ui";
 import { AnalysisTabs } from "./analysis-tabs";
 import { useMessages } from "../lib/i18n/provider";
 import type { CollectionStats } from "../../domains/delivery/lib/collection-stats";
@@ -20,15 +20,15 @@ import type { CollectionStats } from "../../domains/delivery/lib/collection-stat
 // exception or the rule. 未填到期日 is a band of its own for the opposite
 // reason - it is not early, it is unmeasurable.
 //
-// COLLECTED IS WHAT ARRIVED. The progress bar reads short payments as short:
-// summing the planned figure for rows that settled would report money nobody
-// received, which is exactly the number a collections review is checking.
+// THE PROPORTION MOVED UP TO THE HEADER (owner, 2026-09-06). It is one bar
+// segmented by the same stages the header's numbers already name, so it
+// belongs beside them - and with the cells directly under it, the bar needs
+// neither a title nor figures of its own.
 
 export function CollectionOverview({ stats }: { readonly stats: CollectionStats }) {
   const { DELIVERY_TEXT } = useMessages();
 
   const money = (n: number) => n.toLocaleString();
-  const rate = stats.promised === 0 ? 0 : Math.round((stats.collected / stats.promised) * 100);
 
   const ageing = stats.ageing.map((b) => ({
     key: b.key,
@@ -62,17 +62,6 @@ export function CollectionOverview({ stats }: { readonly stats: CollectionStats 
       id="collection-overview"
       title={DELIVERY_TEXT.overviewTitle}
       description={DELIVERY_TEXT.overviewWhy}
-      summary={
-        <Card className="flex flex-col gap-sm p-lg">
-          <div className="flex items-baseline justify-between gap-sm">
-            <span className="text-label-md text-foreground">{DELIVERY_TEXT.collectedRate}</span>
-            <span className="text-muted-foreground tabular-nums text-body-sm">
-              {DELIVERY_TEXT.collectedOf(money(stats.collected), money(stats.promised))}
-            </span>
-          </div>
-          <Progress value={rate} />
-        </Card>
-      }
       tabs={[
         {
           key: "ageing",
