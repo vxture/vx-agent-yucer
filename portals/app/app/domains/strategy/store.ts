@@ -87,10 +87,25 @@ export interface StrategyStore {
    * products have no such state; plans do. A duplicate number is refused.
    */
   createPlan(workspaceId: string, input: NewPlanDraft): Promise<PlanRecord | null>;
+  /**
+   * Patch a plan.
+   *
+   * `plan_no` is absent on purpose and not by omission: it is the anchor every
+   * downstream reader quotes, it has no UPDATE grant, and a write naming it
+   * would be refused by the column locks anyway. The other four are the ones
+   * the DDL actually grants - see 98_column_locks.sql.
+   */
   updatePlan(
     workspaceId: string,
     id: string,
-    patch: { status?: PlanStatus; approvedAt?: Date | null; name?: string; objective?: string | null },
+    patch: {
+      status?: PlanStatus;
+      approvedAt?: Date | null;
+      name?: string;
+      period?: string;
+      objective?: string | null;
+      ownerSub?: string | null;
+    },
   ): Promise<boolean>;
 
   listCampaigns(

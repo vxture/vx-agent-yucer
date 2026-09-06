@@ -8,6 +8,7 @@ import { InMemoryStrategyStore, type CampaignRecord, type ExecutionRecord, type 
 import {
   campaignReturn,
   createPlan,
+  editPlan,
   listSegments,
   upsertSegment,
   upsertExecution,
@@ -434,4 +435,70 @@ test("segments come back in priority order", async () => {
     unwrap(await listSegments(c)).map((r) => r.segmentCode),
     ["ENTERPRISE", "SMB"],
   );
+});
+
+// --- editing a plan ---------------------------------------------------------
+
+const EDIT = {
+  name: "2026 H2 GTM, revised",
+  period: "2026Q4",
+  objective: "win back the mid-market",
+  ownerSub: "usr_cro",
+};
+
+test("editing changes the four columns the DDL grants", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan()] });
+  const c = ctx("sales_leader", "business", store);
+
+  unwrap(await editPlan(c, "plan_1", EDIT));
+  const after = await store.getPlan(WS, "plan_1");
+  assert.equal(after?.name, "2026 H2 GTM, revised");
+  assert.equal(after?.period, "2026Q4");
+  assert.equal(after?.objective, "win back the mid-market");
+});
+
+// The anchor and the lifecycle are the two things an edit must not reach.
+test("an edit cannot move the number or the status", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ status: "approved", approvedAt: AT })] });
+  const c = ctx("sales_leader", "business", store);
+
+  unwrap(await editPlan(c, "plan_1", EDIT));
+  const after = await store.getPlan(WS, "plan_1");
+  assert.equal(after?.planNo, "PLAN-1", "the number is the anchor and has no UPDATE grant");
+  assert.equal(after?.status, "approved", "an edit is not a second door into the lifecycle");
+  assert.equal(after?.approvedAt?.getTime(), AT.getTime());
+});
+
+test("a settled plan is not rewritten - the lifecycle is the way out", async () => {
+  for (const status of ["closed", "archived"] as const) {
+    const store = new InMemoryStrategyStore();
+    store.seed({ plans: [plan({ status, approvedAt: AT })] });
+    const r = await editPlan(ctx("sales_leader", "business", store), "plan_1", EDIT);
+    assert.equal(r.ok === false && r.violations[0].code, "plan_settled", status);
+  }
+});
+
+test("an empty name or period is refused by name, not by the database", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan()] });
+  const c = ctx("sales_leader", "business", store);
+  const noName = await editPlan(c, "plan_1", { ...EDIT, name: "  " });
+  assert.equal(noName.ok === false && noName.violations[0].code, "name_required");
+  const noPeriod = await editPlan(c, "plan_1", { ...EDIT, period: "" });
+  assert.equal(noPeriod.ok === false && noPeriod.violations[0].code, "period_required");
+});
+
+test("editing needs the write permission, and a rep does not have it", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan()] });
+  assert.equal((await editPlan(ctx("sales_rep", "business", store), "plan_1", EDIT)).ok, false);
+});
+
+test("a plan in another workspace reads as not found", async () => {
+  const store = new InMemoryStrategyStore();
+  store.seed({ plans: [plan({ workspaceId: "ws_other" })] });
+  const r = await editPlan(ctx("sales_leader", "business", store), "plan_1", EDIT);
+  assert.equal(r.ok === false && r.violations[0].code, "not_found");
 });

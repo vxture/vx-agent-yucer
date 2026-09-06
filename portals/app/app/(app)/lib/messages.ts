@@ -522,6 +522,9 @@ export const ASSIST_TEXT = {
  * price book as in the solution check.
  */
 export const ASSISTANT_TEXT = {
+  // Used only when an act carries no dictionary of its own - a refusal is
+  // still said, just without a module's vocabulary to say it in.
+  actFailed: "这一步没有执行成功。",
   ignore: "忽略",
   ignored: (n: number) => `已忽略 ${n} 条`,
   accept: "采纳",
@@ -2727,28 +2730,51 @@ export const STRATEGY_TEXT = {
     "编号在工作区内唯一且创建后不可修改——它是这个计划的身份。新计划一律是草稿，审批等状态变更由下面的表负责，审批时间戳只有那条路径会写。",
   title: "市场战略",
   description: "战略是全链路的起点：下游的战役、线索、商机都能回指到它。",
-  // The headline. This page's claim is TRACEABILITY, and a list of two rows
-  // asserts it without showing it. The downstream count makes the claim
-  // checkable on the page that makes it.
-  lead: (n: number) => `${n} 个市场战略`,
-  leadTraced: (campaigns: number, orphan: number) =>
-    orphan > 0
-      ? `${campaigns} 场战役可回指到战略，另有 ${orphan} 场没有归属。`
-      : `${campaigns} 场战役全部可回指到战略。`,
   leadNoCampaignRead: "没有战役读取权限，无法统计下游归属。",
-  leadRule:
-    "战略是全链路的起点。战役、线索、商机都能回指到它——所以「本季有多少来自我们选定要打的细分市场」是一次连接，不是一次人工统计。",
-  rowCount: (n: number) => `${n} 个战略`,
   columnCampaigns: "下游战役",
-  campaignCount: (n: number) => `${n} 场`,
-  noCampaigns: "尚无",
   ownerNone: "未指派",
   columnName: "战略",
   columnPeriod: "周期",
   columnOwner: "负责人",
-  columnStatus: "状态",
   emptyTitle: "还没有战略规划",
   emptyDescription: "定义本周期打哪个市场、达成什么目标。",
+
+  // --- the module page (2026-09-05) -----------------------------------------
+  tagPlanRunning: (n: number) => `${n} 个执行中`,
+  tagPlanSettled: (n: number) => `${n} 个已收口`,
+  tagPlanOrphan: (n: number) => `${n} 场战役无归属`,
+  planStatCampaigns: (period: string) => `${period} · 下游战役`,
+  planStatEmpty: "当前没有执行中的计划，头部不做拆解。",
+  rosterPlan: "战略计划",
+  rosterPlanWhy:
+    "本周期打哪个市场、要达成什么。计划按周期排列，不做人工排序——周期本身就是顺序。",
+  rosterPlanSettled: "已收口的计划",
+  rosterPlanSettledWhy:
+    "已结束和已归档的计划留在这里。它们不再接受修改，下游数据仍然指向它们。",
+  newPlanEntry: "新建计划",
+  planMoveTo: (status: string) => `转为${status}`,
+  planSave: "保存修改",
+  planNoFixed: "编号是这个计划的身份，创建后不可修改。",
+  editPlanTitle: "修改战略计划",
+  editPlanWhy:
+    "可以改的是名称、周期、负责人和目标陈述。编号是下游引用的锚点，状态由生命周期负责。",
+
+  // --- 计划检查 (the dock) ---------------------------------------------------
+  planAdviceTitle: "计划检查",
+  planAdviceClear: "这批计划没有需要处理的地方。",
+  planAdviceOpen: "打开计划",
+  planAdviceOpenCampaigns: "查看战役",
+  planAdviceOpenSegments: "查看细分",
+  planAdviceApprove: "批准",
+  planAdviceApproved: "已批准",
+  planAdviceOverdue: (name: string) => `「${name}」的周期已经结束，但它还在执行中。`,
+  planAdviceDraftStarted: (name: string) => `「${name}」的周期已经开始，它还是草稿。`,
+  planAdviceNotActive: (name: string) => `「${name}」已批准，周期也开始了，但一直没有启用。`,
+  planAdviceEarlyWork: (name: string, n: number) =>
+    `「${name}」还没有启用，底下已经挂了 ${n} 场战役。`,
+  planAdviceNoCampaign: (name: string) => `「${name}」在执行中，底下一场战役都没有。`,
+  planAdviceNoSegment: (name: string) => `「${name}」在执行中，但没有任何细分市场指向它。`,
+  planAdviceNoObjective: (name: string) => `「${name}」没有写目标陈述。`,
 } as const;
 
 export const PLAN_STATUS_LABEL: Record<string, string> = {
@@ -3072,6 +3098,10 @@ export const PLAN_ERROR: Record<string, string> = {
   name_required: "计划需要一个名称",
   period_required: "计划需要一个周期",
   plan_no_taken: "这个编号已经被占用了",
+  not_found: "计划不存在，或不属于当前工作区",
+  unknown_status: "未知的计划状态",
+  illegal_transition: "当前状态不能这样变更",
+  plan_settled: "已结束或已归档的计划不再修改——它的周期已经过去，下游数据是按当时的说法记的",
 };
 
 /**

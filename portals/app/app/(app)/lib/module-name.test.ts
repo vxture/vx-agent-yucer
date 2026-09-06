@@ -34,7 +34,6 @@ const COUNT_LEAD: Record<string, string> = {
   campaign: "leads with how many campaigns are running",
   delivery: "leads with how many projects are in delivery",
   planning: "leads with the plan's own period and scope",
-  strategy: "leads with how many plans are active",
   signal: "the queue's own count is the headline",
   copilot: "a conversation, not a register - it opens on the thread",
 };

@@ -6,6 +6,7 @@ import { getStrategyStore } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import {
   createPlan,
+  editPlan,
   moveSegment,
   removeSegment,
   setSegmentStatus,
@@ -83,6 +84,46 @@ export async function createStrategyPlan(input: {
       entitlement: session.entitlement,
       store: getStrategyStore(),
     },
+    input,
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath("/strategy");
+  return { ok: true };
+}
+
+/**
+ * Editing a plan that already exists.
+ *
+ * BY ID, unlike a segment: `plan_no` is a real anchor with no UPDATE grant and
+ * every downstream row points at the plan's id, so there is no reason to route
+ * an edit through the number. The form is reached with ?no= only because that
+ * is what a person reading the roster has in front of them; the page resolves
+ * it to the id before the write.
+ */
+export async function savePlan(
+  id: string,
+  input: {
+    name: string;
+    period: string;
+    objective: string | null;
+    ownerSub: string | null;
+  },
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await editPlan(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getStrategyStore(),
+    },
+    id,
     input,
   );
 

@@ -252,6 +252,46 @@ export function planNewPlan(input: NewPlanDraft): RuleResult<NewPlanDraft & { st
   });
 }
 
+/**
+ * Validate an EDIT to a plan that already exists.
+ *
+ * Separate from `planNewPlan` for the two things it must not accept. The
+ * NUMBER is not an argument: it is the anchor downstream records quote, it has
+ * no UPDATE grant, and a form that offered it would be offering a write the
+ * database refuses. The STATUS is not an argument either, for the reason
+ * creation has none - `planStrategyTransition` owns every move, including the
+ * one that stamps approved_at, and an edit form that could set it would be a
+ * second door into approval.
+ *
+ * What is left is what the DDL actually grants: the name, the period, the
+ * owner and the objective.
+ */
+export function planPlanEdit(input: PlanEdit): RuleResult<PlanEdit> {
+  const name = input.name.trim();
+  const period = input.period.trim();
+
+  if (!name) {
+    return fail(violation("name_required", "a plan needs a name", "name"));
+  }
+  if (!period) {
+    return fail(violation("period_required", "a plan needs a period", "period"));
+  }
+
+  return ok({
+    name,
+    period,
+    objective: input.objective?.trim() || null,
+    ownerSub: input.ownerSub?.trim() || null,
+  });
+}
+
+export interface PlanEdit {
+  name: string;
+  period: string;
+  objective: string | null;
+  ownerSub: string | null;
+}
+
 // --- Writing an execution (TD-016) -------------------------------------------
 
 export interface ExecutionDraft {

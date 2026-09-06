@@ -31,7 +31,7 @@ export function PriceAdvicePanel({
     floorPrice: number;
   }) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const { CATALOG_TEXT, ASSISTANT_TEXT } = useMessages();
+  const { CATALOG_TEXT, ASSISTANT_TEXT, CATALOG_ERROR } = useMessages();
 
   const text = (a: PriceAdvice) => {
     switch (a.kind) {
@@ -66,6 +66,7 @@ export function PriceAdvicePanel({
         ? {
             label: ASSISTANT_TEXT.accept,
             done: CATALOG_TEXT.adviceApplied,
+            errors: CATALOG_ERROR,
             run: () =>
               onApply({
                 productId: a.productId,

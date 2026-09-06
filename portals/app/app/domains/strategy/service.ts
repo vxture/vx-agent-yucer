@@ -22,6 +22,8 @@ import {
   type PlanStatus,
   planExecution,
   planNewPlan,
+  planPlanEdit,
+  type PlanEdit,
   type ExecutionDraft,
   type NewPlanDraft,
   planSegment,
@@ -90,6 +92,36 @@ export async function createPlan(
     );
   }
   return ok(created);
+}
+
+export async function editPlan(
+  ctx: StrategyContext,
+  id: string,
+  input: PlanEdit,
+): Promise<RuleResult<PlanRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.plan.update", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = await ctx.store.getPlan(ctx.workspaceId, id);
+  if (!plan) return fail(violation("not_found", `plan ${id} was not found`, "id"));
+
+  // A CLOSED OR ARCHIVED PLAN IS SETTLED. Its period is spent and everything
+  // downstream was measured against what it said at the time; rewriting the
+  // name or the period afterwards would silently restate history that other
+  // records already quote. The lifecycle is the way out of a finished plan,
+  // not the edit form.
+  if (plan.status === "closed" || plan.status === "archived") {
+    return fail(
+      violation("plan_settled", `plan ${plan.planNo} is ${plan.status}`, "status"),
+    );
+  }
+
+  const edit = planPlanEdit(input);
+  if (!edit.ok) return edit as RuleResult<PlanRecord>;
+
+  const applied = await ctx.store.updatePlan(ctx.workspaceId, id, edit.value);
+  if (!applied) return fail(violation("not_found", `plan ${id} was not found`, "id"));
+  return ok({ ...plan, ...edit.value });
 }
 
 export async function transitionPlan(

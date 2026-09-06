@@ -1,17 +1,22 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getStrategyStore } from "../../domains/shared/registry";
 import { listCampaigns, listPlans } from "../../domains/strategy/service";
 import { can } from "../../authz/decide";
-import { StrategyTable } from "../components/strategy-table";
+import { PlanRoster, type PlanRow } from "../components/plan-roster";
+import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { movePlan } from "./actions";
-import { NewEntryLink } from "../components/form-page";
-
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
+
 // D1 strategy: the top of the chain. Everything downstream can trace back here,
 // which is what makes "how much of this quarter came from the segment we chose
 // to attack" a join rather than a manual tally.
+//
+// On the module pattern since 2026-09-05 - the last list to move. What changed
+// is the shape, not the reads: the headline card carries the running plans and
+// their campaign counts, the roster splits running from settled, and the check
+// that used to have nowhere to live now sits in @deck/strategy.
 
 export const dynamic = "force-dynamic";
 
@@ -64,61 +69,66 @@ export default async function StrategyPage() {
   const orphanCampaigns = campaigns.ok
     ? campaigns.value.filter((c) => !c.planId).length
     : 0;
-  const tracedCampaigns = campaigns.ok
-    ? campaigns.value.length - orphanCampaigns
-    : 0;
 
-  // The service picks its gate from the DESTINATION - strategy.plan.approve for
-  // approving, strategy.plan.update otherwise - so the control is offered when
-  // either is held and the refusal, if any, comes from the service.
-  //
-  // Both action ids currently resolve to the same permission (strategy.write),
-  // so this is one check in practice. Making approval a genuine separation of
-  // duties would move catalog.ts, the seed SQL and the role doc together, which
-  // is a product decision rather than something to slip in here.
-  const canMove =
-    can(session.authz, session.entitlement, "strategy.plan.update", "ui")
-      .allowed ||
-    can(session.authz, session.entitlement, "strategy.plan.approve", "ui")
-      .allowed;
+  const rows: PlanRow[] = result.value.map((p) => ({
+    id: p.id,
+    planNo: p.planNo,
+    name: p.name,
+    period: p.period,
+    ownerSub: p.ownerSub,
+    status: p.status,
+    campaignCount: campaignCounts?.get(p.id) ?? (campaignCounts ? 0 : undefined),
+  }));
+
+  const running = rows.filter((r) => r.status === "active");
+  const settled = rows.filter((r) => r.status === "closed" || r.status === "archived");
+  // One cell per RUNNING plan, its campaign count as the number: the breakdown
+  // decomposes the headline the way every other module's does, and a running
+  // plan with a zero is the finding the dock then explains.
+  const stats: HeadlineStat[] = running.map((r) => ({
+    key: r.id,
+    name: r.name,
+    value: r.campaignCount ?? 0,
+    note: STRATEGY_TEXT.planStatCampaigns(r.period),
+  }));
+
+  const canEdit = can(session.authz, session.entitlement, "strategy.plan.update", "ui").allowed;
+  const canApprove = can(session.authz, session.entitlement, "strategy.plan.approve", "ui")
+    .allowed;
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={STRATEGY_TEXT.lead(result.value.length)}
-        description={
+      <ModuleHeadline
+        moduleKey="strategy"
+        description={STRATEGY_TEXT.description}
+        tags={
           <>
-            <span className="block tabular-nums">
-              {campaigns.ok
-                ? STRATEGY_TEXT.leadTraced(tracedCampaigns, orphanCampaigns)
-                : STRATEGY_TEXT.leadNoCampaignRead}
-            </span>
-            <span className="block">{STRATEGY_TEXT.leadRule}</span>
+            <StatusBadge tone="success">
+              {STRATEGY_TEXT.tagPlanRunning(running.length)}
+            </StatusBadge>
+            {settled.length > 0 ? (
+              <StatusBadge tone="neutral">
+                {STRATEGY_TEXT.tagPlanSettled(settled.length)}
+              </StatusBadge>
+            ) : null}
+            {campaigns.ok && orphanCampaigns > 0 ? (
+              <StatusBadge tone="warning">
+                {STRATEGY_TEXT.tagPlanOrphan(orphanCampaigns)}
+              </StatusBadge>
+            ) : null}
           </>
         }
+        stats={stats}
+        emptyNote={
+          campaigns.ok ? STRATEGY_TEXT.planStatEmpty : STRATEGY_TEXT.leadNoCampaignRead
+        }
       />
-
-      {/* ABOVE the table, for the reason the target form is: on a fresh
-          workspace the table is empty, and a create form under a list nobody
-          can populate is a doorway behind a locked door. */}
-      {/* Creation left for /strategy/new on 2026-09-05 (owner ruling). What
-          stays is the doorway - hidden from anyone the page would refuse. */}
-      {can(session.authz, session.entitlement, "strategy.plan.create", "ui").allowed ? (
-        <NewEntryLink href="/strategy/new" />
-      ) : null}
-
-      <Section
-        icon="graph"
-        title={STRATEGY_TEXT.title}
-        description={STRATEGY_TEXT.description}
-      >
-        <StrategyTable
-          rows={result.value}
-          campaignCounts={campaignCounts}
-          canMove={canMove}
-          onMove={movePlan}
-        />
-      </Section>
+      <PlanRoster
+        rows={rows}
+        canEdit={canEdit}
+        canApprove={canApprove}
+        onMove={movePlan}
+      />
     </ViewLayout>
   );
 }

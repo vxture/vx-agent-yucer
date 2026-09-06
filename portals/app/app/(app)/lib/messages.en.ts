@@ -619,6 +619,7 @@ export const en: Dictionary = {
     territoryCoversWhy: "The same region match lead routing runs - filed this way, the deal lands where its leads would have.",
   },
   ASSISTANT_TEXT: {
+    actFailed: "That did not go through.",
     ignore: "Ignore",
     ignored: (n: number) => `${n} ignored`,
     accept: "Accept",
@@ -1193,6 +1194,11 @@ export const en: Dictionary = {
     name_required: "A plan needs a name",
     period_required: "A plan needs a period",
     plan_no_taken: "That number is already taken",
+    not_found: "That plan does not exist, or is not in this workspace",
+    unknown_status: "Unknown plan status",
+    illegal_transition: "A plan cannot move that way from where it is",
+    plan_settled:
+      "A closed or archived plan is not rewritten - its period is spent, and downstream records were measured against what it said at the time",
   },
 
   PROJECT_ERROR: {
@@ -2328,27 +2334,52 @@ export const en: Dictionary = {
     title: "Market strategy",
     description:
       "Strategy is where the chain starts: campaigns, leads and opportunities downstream can all point back to it.",
-    lead: (n: number) => `${n} market strategies`,
-    leadTraced: (campaigns: number, orphan: number) =>
-      orphan > 0
-        ? `${campaigns} campaigns trace back to a strategy; ${orphan} have no owner.`
-        : `All ${campaigns} campaigns trace back to a strategy.`,
     leadNoCampaignRead:
       "No permission to read campaigns, so downstream cannot be counted.",
-    leadRule:
-      'Strategy is where the chain starts. Campaigns, leads and opportunities all point back to it - which is what makes "how much of this quarter came from the segment we chose to attack" a join rather than a manual tally.',
-    rowCount: (n: number) => `${n} strategies`,
     columnCampaigns: "Downstream",
-    campaignCount: (n: number) => `${n}`,
-    noCampaigns: "None",
     ownerNone: "Unassigned",
     columnName: "Strategy",
     columnPeriod: "Period",
     columnOwner: "Owner",
-    columnStatus: "Status",
     emptyTitle: "No strategies yet",
     emptyDescription:
       "Define which market to attack this period and what to achieve.",
+
+    tagPlanRunning: (n: number) => `${n} running`,
+    tagPlanSettled: (n: number) => `${n} settled`,
+    tagPlanOrphan: (n: number) => `${n} campaigns with no plan`,
+    planStatCampaigns: (period: string) => `${period} · campaigns`,
+    planStatEmpty: "No plan is running, so there is nothing to break down.",
+    rosterPlan: "Plans",
+    rosterPlanWhy:
+      "Which market this period attacks and what it is meant to achieve. Plans are ordered by their period - there is no manual rank, because the period already is the order.",
+    rosterPlanSettled: "Settled plans",
+    rosterPlanSettledWhy:
+      "Closed and archived plans stay here. They take no further edits, and downstream records still point at them.",
+    newPlanEntry: "New plan",
+    planMoveTo: (status: string) => `Move to ${status}`,
+    planSave: "Save changes",
+    planNoFixed: "The number is this plan's identity and cannot be changed after it is created.",
+    editPlanTitle: "Edit plan",
+    editPlanWhy:
+      "The name, period, owner and objective can change. The number is the anchor downstream records quote, and the status belongs to the lifecycle.",
+
+    planAdviceTitle: "Plan check",
+    planAdviceClear: "Nothing on these plans needs attention.",
+    planAdviceOpen: "Open the plan",
+    planAdviceOpenCampaigns: "See campaigns",
+    planAdviceOpenSegments: "See segments",
+    planAdviceApprove: "Approve",
+    planAdviceApproved: "Approved",
+    planAdviceOverdue: (name: string) => `"${name}" is past the end of its period and still running.`,
+    planAdviceDraftStarted: (name: string) => `"${name}" has started its period and is still a draft.`,
+    planAdviceNotActive: (name: string) =>
+      `"${name}" was approved and its period has begun, but it was never switched on.`,
+    planAdviceEarlyWork: (name: string, n: number) =>
+      `"${name}" is not live yet and ${n} campaigns already hang off it.`,
+    planAdviceNoCampaign: (name: string) => `"${name}" is running with no campaign under it.`,
+    planAdviceNoSegment: (name: string) => `"${name}" is running and no segment points at it.`,
+    planAdviceNoObjective: (name: string) => `"${name}" states no objective.`,
   },
 
   PLAN_STATUS_LABEL: {
