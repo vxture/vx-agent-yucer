@@ -249,6 +249,7 @@ export const en: Dictionary = {
     colProject: "Project",
     colEnds: "Term ends",
     colAmount: "Last term",
+    colAnalysis: "Opportunity read",
     colVerdict: "Verdict",
     colOpen: "Action",
     open: "Open deal",

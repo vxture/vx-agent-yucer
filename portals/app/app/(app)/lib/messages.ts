@@ -179,6 +179,7 @@ export const RENEWAL_TEXT = {
   colProject: "项目",
   colEnds: "到期",
   colAmount: "上期金额",
+  colAnalysis: "商机分析",
   colVerdict: "结论",
   colOpen: "动作",
   open: "开商机",

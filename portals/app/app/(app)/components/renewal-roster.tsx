@@ -133,6 +133,39 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
     },
   ];
 
+  /* 商机分析 - the DUE table's column (owner, 2026-09-06), between the money
+     and the action columns.
+
+     WHAT IT CARRIES IS THE READ THE RULE ALREADY MAKES: `assessRenewal`
+     grades a due renewal 低风险 or 需关注 from the project's DERIVED delivery
+     health, not from what the delivery team reported - a green report next to
+     an overdue instalment is precisely the case where the reported answer is
+     the wrong one to act on. So this column says whether the renewal in front
+     of you is a straightforward one, and 需关注 means look at the delivery
+     before the approach.
+
+     It is not a second dock. The dock says the same thing in a sentence with
+     its evidence and offers the act; this is the one-glance version, in the
+     row it belongs to. */
+  const analysisColumn = {
+    id: "analysis",
+    header: RENEWAL_TEXT.colAnalysis,
+    align: "center" as const,
+    // COLOUR, NOT A BADGE - the same call the lapsed cell makes. 交付有隐忧
+    // inside badge chrome measures about 94px against the 56px content box
+    // this table can spare; the wording and the colour are what carry the
+    // reading, so the chrome is what goes.
+    cell: (r: RenewalRow) => (
+      <span
+        className={`text-body-sm ${
+          r.risk === "watch" ? "text-(color:--warning-text) font-semibold" : "text-muted-foreground"
+        }`}
+      >
+        {RENEWAL_TEXT.risk[r.risk ?? "low"] ?? ""}
+      </span>
+    ),
+  };
+
   /* 结论 IS THE NOT-DUE TABLE'S COLUMN, and only its own. Measured against the
      616px this shell actually gives the main column: seven columns at the
      width their contents need come to about 50px more than there is, which is
@@ -231,12 +264,21 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
      the proportions hold at 616px and at 1096px alike, and the only columns
      that never move are the three that are supposed not to.
 
-     The ratios come from what the content needs at the narrow end - 44/28/28
-     puts 160px under the project name and 104 under each figure at 616px.
+     THE DUE TABLE IS OVER-SUBSCRIBED and its widths say so. Adding 商机分析
+     took it to seven columns, and what the contents need adds up past what
+     this shell gives: 项目 140 + 到期 96 + 金额 88 + 分析 88 + 操作 128 +
+     edges 128 = 668 against 616. So the three right-hand columns are pinned
+     at the smallest width that keeps them legible - a squeezed badge or a
+     wrapped 还有 37 天 is worse than a truncated name - and the title column
+     takes what is left, which is about 88px and truncates. Getting the name
+     back means one of two things, and both are the owner's call: 开商机 goes
+     back into the menu and the action column returns to 64px (that alone
+     covers the 52px gap), or the table carries one column fewer.
      The not-due table's action slot is the 64px default: nothing is openable
      there, so there is no inline button to make room for - the column still
      holds its place with the dots, which is the fittings ruling. */
-  const DUE_WIDTHS = '[&_thead_th:nth-child(3)]:w-[26%] [&_thead_th:last-child]:w-[8rem]';
+  const DUE_WIDTHS =
+    "[&_thead_th:nth-child(4)]:w-[6rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[5.5rem] [&_thead_th:last-child]:w-[8rem]";
   const NOT_DUE_WIDTHS = `[&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`;
 
   const table = (list: readonly RenewalRow[], empty: ReactNode, due: boolean) => {
@@ -255,7 +297,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
           onSelectionChange={setSelected}
           rowKey={(r: RenewalRow) => r.projectId}
           rows={[...list]}
-          columns={due ? columns : [...columns, verdictColumn]}
+          columns={due ? [...columns, analysisColumn] : [...columns, verdictColumn]}
           rowActions={rowActions}
           empty={empty}
         />
