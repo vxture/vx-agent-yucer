@@ -1,6 +1,7 @@
 "use client";
 
-import { BarChart, Card, Progress, Section } from "@vxture/design-ui";
+import { BarChart, Card, Progress } from "@vxture/design-ui";
+import { AnalysisTabs } from "./analysis-tabs";
 import { useMessages } from "../lib/i18n/provider";
 import type { CollectionStats } from "../../domains/delivery/lib/collection-stats";
 
@@ -42,14 +43,26 @@ export function CollectionOverview({ stats }: { readonly stats: CollectionStats 
     value: p.amount,
   }));
 
+  const chart = (
+    data: readonly { key: string; label: string; value: number }[],
+    why: string,
+  ) => (
+    <Card className="flex flex-col gap-sm p-lg">
+      <span className="text-muted-foreground text-body-sm">{why}</span>
+      {data.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.overviewEmpty}</p>
+      ) : (
+        <BarChart data={[...data]} formatValue={money} />
+      )}
+    </Card>
+  );
+
   return (
-    <Section
+    <AnalysisTabs
       id="collection-overview"
-      icon="chart-bar"
       title={DELIVERY_TEXT.overviewTitle}
       description={DELIVERY_TEXT.overviewWhy}
-    >
-      <div className="@container flex flex-col gap-md">
+      summary={
         <Card className="flex flex-col gap-sm p-lg">
           <div className="flex items-baseline justify-between gap-sm">
             <span className="text-label-md text-foreground">{DELIVERY_TEXT.collectedRate}</span>
@@ -59,34 +72,19 @@ export function CollectionOverview({ stats }: { readonly stats: CollectionStats 
           </div>
           <Progress value={rate} />
         </Card>
-
-        {/* Side by side once there is room, stacked when there is not - the
-            same @container split the form pages use, so a narrow shell does
-            not squeeze two charts into unreadable slivers. */}
-        <div className="grid grid-cols-1 gap-md @3xl:grid-cols-2">
-          <Card className="flex flex-col gap-sm p-lg">
-            <span className="text-label-md text-foreground">{DELIVERY_TEXT.ageingTitle}</span>
-            <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.ageingWhy}</span>
-            {ageing.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.overviewEmpty}</p>
-            ) : (
-              <BarChart data={ageing} formatValue={money} />
-            )}
-          </Card>
-
-          <Card className="flex flex-col gap-sm p-lg">
-            <span className="text-label-md text-foreground">{DELIVERY_TEXT.byProjectTitle}</span>
-            <span className="text-muted-foreground text-body-sm">
-              {DELIVERY_TEXT.byProjectWhy}
-            </span>
-            {byProject.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.overviewEmpty}</p>
-            ) : (
-              <BarChart data={byProject} formatValue={money} />
-            )}
-          </Card>
-        </div>
-      </div>
-    </Section>
+      }
+      tabs={[
+        {
+          key: "ageing",
+          label: DELIVERY_TEXT.ageingTitle,
+          content: chart(ageing, DELIVERY_TEXT.ageingWhy),
+        },
+        {
+          key: "project",
+          label: DELIVERY_TEXT.byProjectTitle,
+          content: chart(byProject, DELIVERY_TEXT.byProjectWhy),
+        },
+      ]}
+    />
   );
 }
