@@ -281,6 +281,12 @@ const SHIPPED_AS: Record<string, string> = {
   // took the catalogue's pattern: the combination and its customisation on
   // one roster, with the check in the dock.
   solution: "SolutionRoster",
+  // segment LEFT NOT_BUILT on 2026-09-05 and the move is the point of that
+  // list: it sat there under the guessed name "SegmentTable" while the page
+  // had shipped, so the planned-check went on passing about a surface that
+  // existed. It is SegmentRoster, and naming it here is what makes the guard
+  // able to tell.
+  segment: "SegmentRoster",
   // /pricebook's section became PriceBook on 2026-09-05, when the price book
   // took the catalogue module page's pattern: two rosters (in force, and
   // superseded) with the pricing dialog on the row.
@@ -294,7 +300,6 @@ const SHIPPED_AS: Record<string, string> = {
  * planned check red, which is the moment the label has to move.
  */
 const NOT_BUILT: Record<string, string> = {
-  segment: "SegmentTable",
   namedAccount: "NamedAccountRoster",
   routing: "LeadRouting",
   quote: "QuoteEditor",

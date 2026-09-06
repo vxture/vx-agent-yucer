@@ -1180,7 +1180,12 @@ export const en: Dictionary = {
     priority_out_of_range: "Priority is a whole number from 0 to 9999.",
     plan_closed:
       "This plan is closed. Its segmentation is the record of how the market was cut for that period.",
-    not_found: "That plan does not exist.",
+    not_found: "Record not found - the page may be stale, refresh it.",
+    status_unchanged: "Already in that state.",
+    segment_in_use:
+      "Campaigns aim at it or accounts carry its code - retire it instead of deleting.",
+    move_at_edge: "Already at that end of the list.",
+    not_movable: "This row is not in the list being ordered.",
   },
   PLAN_ERROR: {
     ...GATE_ERROR,
@@ -2244,6 +2249,41 @@ export const en: Dictionary = {
   // --- /strategy ----------------------------------------------------------
 
   STRATEGY_TEXT: {
+    tagSegmentActive: (n: number) => `${n} in use`,
+    tagSegmentShelved: (n: number) => `${n} shelved`,
+    segmentStatCovered: (assigned: number, matched: number) =>
+      assigned === matched ? `${assigned} on the books` : `${assigned} assigned · ${matched} matched`,
+    segmentStatEmpty: "No segments yet - the breakdown starts with the first one",
+    rosterSegment: "Segments",
+    rosterSegmentWhy:
+      "A segment is a definition plus the accounts on its books. When the two numbers differ, a code was handed out against the definition, or the definition found customers nobody cut in.",
+    rosterSegmentShelved: "Shelved segments",
+    rosterSegmentShelvedWhy:
+      "A paused or retired segment no longer drives campaigns, but its history stays readable, so it is kept.",
+    colSegmentName: "Segment",
+    colSegmentPlan: "Plan",
+    colSegmentCriteria: "Definition",
+    colSegmentCounts: "Assigned / matched",
+    segmentNoCriteriaYet: "Not defined",
+    segmentPause: "Pause",
+    segmentResume: "Resume",
+    segmentRetire: "Retire",
+    segmentDeleteConsequence:
+      "Deletion is permanent. Refused while campaigns aim at it or accounts carry its code - retire it in that case.",
+    newSegmentEntry: "New segment",
+    editSegment: "Edit segment",
+    segmentAdviceTitle: "Segment check",
+    segmentAdviceClear: "Nothing to act on in the segments in use.",
+    segmentAdviceAssigned: (name: string, n: number) =>
+      `${n} account(s) carry ${name}'s code without matching its definition.`,
+    segmentAdviceMatching: (name: string, n: number) =>
+      `${name}'s definition matches ${n} account(s) nobody has cut in.`,
+    segmentAdviceStale: (name: string, n: number) =>
+      `${name} is shelved, yet ${n} account(s) still carry its code.`,
+    segmentAdviceNoCriteria: (name: string) => `${name} has no definition, so it matches nobody.`,
+    segmentAdviceNoPlan: (name: string) => `${name} is tied to no plan - nobody is spending against it.`,
+    segmentAdviceOpen: "Open the segment",
+    segmentAdviceOpenAccounts: "Open customers",
     segmentsTitle: "Market segments",
     segmentsWhy:
       "The market you are going after, cut into named pieces and ordered by priority. Accounts carry a segment code that points here, and a campaign can aim at one - until now every one of those references pointed at nothing.",

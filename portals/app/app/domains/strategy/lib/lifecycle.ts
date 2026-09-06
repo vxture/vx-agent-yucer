@@ -410,3 +410,29 @@ export function planSegment(
 
   return ok({ ...input, segmentCode, name, criteria });
 }
+
+/**
+ * May this segment be DELETED?
+ *
+ * Refused while anything points at it, because neither reference protests on
+ * its own: `campaign.segment_id` is ON DELETE SET NULL (the campaign survives,
+ * silently un-aimed) and `account.segment_code` is a plain string (the
+ * accounts keep carrying a code that names nothing). A segmentation that
+ * quietly stops meaning anything is worse than one that refuses to be
+ * deleted, and retiring is the reversible move.
+ */
+export function planSegmentRemoval(refs: {
+  readonly campaigns: number;
+  readonly accounts: number;
+}): RuleResult<true> {
+  if (refs.campaigns > 0 || refs.accounts > 0) {
+    return fail(
+      violation(
+        "segment_in_use",
+        `${refs.campaigns} campaign(s) aim at it and ${refs.accounts} account(s) carry its code - retire it instead`,
+        "segmentId",
+      ),
+    );
+  }
+  return ok(true);
+}

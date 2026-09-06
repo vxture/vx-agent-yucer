@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -9,9 +9,10 @@ import {
 import { listPlans, listSegments } from "../../domains/strategy/service";
 import { listAccounts } from "../../domains/account/service";
 import { accountMatchesCriteria } from "../../domains/strategy/lib/lifecycle";
-import { SegmentPanel, type SegmentRow } from "../components/segment-panel";
+import { SegmentRoster, type SegmentRow } from "../components/segment-roster";
+import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { loadFailureText } from "../lib/load-failure";
-import { NewEntryLink } from "../components/form-page";
+import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/actions";
 
 // D1 market segments - a module page since 2026-08-30.
 //
@@ -75,7 +76,6 @@ export default async function SegmentPage() {
     id: g.id,
     segmentCode: g.segmentCode,
     name: g.name,
-    planId: g.planId,
     planName: g.planId ? (planNames.get(g.planId) ?? null) : null,
     priority: g.priority,
     status: g.status,
@@ -92,18 +92,51 @@ export default async function SegmentPage() {
     .filter((p) => p.status !== "closed" && p.status !== "archived")
     .map((p) => ({ id: p.id, name: p.name }));
 
+  const live = rows.filter((r) => r.status === "active");
+  // The breakdown decomposes the headline the same way the catalogue's does -
+  // one cell per cut, its two counts as the small print, so a divergence is
+  // visible before anybody opens the table.
+  const stats: HeadlineStat[] = live.map((r) => ({
+    key: r.id,
+    name: r.name,
+    value: r.accountCount,
+    note: STRATEGY_TEXT.segmentStatCovered(r.accountCount, r.matchedCount),
+  }));
+
+  const canWrite = can(
+    session.authz,
+    session.entitlement,
+    "strategy.segment.upsert",
+    "ui",
+  ).allowed;
+
   return (
     <ViewLayout>
-      <ViewHeader
-        title={STRATEGY_TEXT.segmentsTitle}
+      <ModuleHeadline
+        moduleKey="segment"
         description={STRATEGY_TEXT.segmentsWhy}
+        tags={
+          <>
+            <StatusBadge tone="success">
+              {STRATEGY_TEXT.tagSegmentActive(live.length)}
+            </StatusBadge>
+            {rows.length > live.length ? (
+              <StatusBadge tone="neutral">
+                {STRATEGY_TEXT.tagSegmentShelved(rows.length - live.length)}
+              </StatusBadge>
+            ) : null}
+          </>
+        }
+        stats={stats}
+        emptyNote={STRATEGY_TEXT.segmentStatEmpty}
       />
-      <SegmentPanel rows={rows} />
-      {/* Creation and editing left for /segment/new on 2026-09-05. */}
-      {can(session.authz, session.entitlement, "strategy.segment.upsert", "ui")
-        .allowed ? (
-        <NewEntryLink href="/segment/new" />
-      ) : null}
+      <SegmentRoster
+        rows={rows}
+        canWrite={canWrite}
+        onMove={moveSegmentRow}
+        onStatus={changeSegmentStatus}
+        onDelete={deleteSegment}
+      />
     </ViewLayout>
   );
 }

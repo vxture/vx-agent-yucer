@@ -130,6 +130,15 @@ export interface StrategyStore {
    * resolve.
    */
   upsertSegment(workspaceId: string, input: SegmentDraft): Promise<SegmentRecord>;
+  /** Apply a renumbering computed by planMove - priority IS the order. */
+  setSegmentOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  /** Delete a segment. The SERVICE refuses one anything still points at:
+   * campaign.segment_id is SET NULL and account.segment_code is a plain
+   * string, so a delete would un-aim campaigns and orphan codes in silence. */
+  removeSegment(workspaceId: string, segmentId: string): Promise<boolean>;
 
   /** Opportunities attributed to a campaign. Read-only across the domain
    * boundary: D3 owns the campaign, D6 owns the opportunity. */
@@ -277,6 +286,23 @@ export class InMemoryStrategyStore implements StrategyStore {
     const row: SegmentRecord = { ...input, id: `seg_${++this.seq}`, workspaceId };
     this.segments.set(row.id, row);
     return row;
+  }
+
+  async setSegmentOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    for (const [id, row] of this.segments) {
+      if (row.workspaceId === workspaceId && want.has(id)) row.priority = want.get(id)!;
+    }
+  }
+
+  async removeSegment(workspaceId: string, segmentId: string): Promise<boolean> {
+    const row = this.segments.get(segmentId);
+    if (!row || row.workspaceId !== workspaceId) return false;
+    this.segments.delete(segmentId);
+    return true;
   }
 
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {

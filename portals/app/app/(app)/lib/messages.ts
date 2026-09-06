@@ -2648,6 +2648,42 @@ export const TARGET_STATUS_LABEL: Record<string, string> = {
 };
 
 export const STRATEGY_TEXT = {
+  // 细分模块页（按产品模式重建 2026-09-05）
+  tagSegmentActive: (n: number) => `${n} 个在用细分`,
+  tagSegmentShelved: (n: number) => `${n} 个已停用`,
+  segmentStatCovered: (assigned: number, matched: number) =>
+    assigned === matched ? `${assigned} 家在册` : `${assigned} 在册 · ${matched} 命中`,
+  segmentStatEmpty: "还没有细分，统计从第一个细分开始",
+  rosterSegment: "细分清单",
+  rosterSegmentWhy:
+    "一个细分 = 定义 + 在册客户。两个数字不一致，就是有人按定义之外发了码，或定义找到了没人认领的客户。",
+  rosterSegmentShelved: "已停用细分",
+  rosterSegmentShelvedWhy: "暂停或退役的细分不再驱动活动，但历史归属仍然可读，所以保留。",
+  colSegmentName: "细分名称",
+  colSegmentPlan: "所属计划",
+  colSegmentCriteria: "定义",
+  colSegmentCounts: "在册 / 命中",
+  segmentNoCriteriaYet: "未定义",
+  segmentPause: "暂停",
+  segmentResume: "启用",
+  segmentRetire: "退役",
+  segmentDeleteConsequence:
+    "删除不可恢复。仍有活动指向它、或仍有客户挂着这个码时会被拒绝——那种情况请改用退役。",
+  newSegmentEntry: "新建细分",
+  editSegment: "修改细分",
+  // 侧栏：细分检查
+  segmentAdviceTitle: "细分检查",
+  segmentAdviceClear: "在用的细分没有需要处理的地方。",
+  segmentAdviceAssigned: (name: string, n: number) =>
+    `「${name}」有 ${n} 家客户挂着这个码，却不符合它的定义。`,
+  segmentAdviceMatching: (name: string, n: number) =>
+    `「${name}」的定义命中了 ${n} 家客户，但没人给他们挂码。`,
+  segmentAdviceStale: (name: string, n: number) =>
+    `「${name}」已停用，却仍有 ${n} 家客户挂着它的码。`,
+  segmentAdviceNoCriteria: (name: string) => `「${name}」没有定义，谁都不会被它命中。`,
+  segmentAdviceNoPlan: (name: string) => `「${name}」没有挂到任何计划——没有人在为它花钱。`,
+  segmentAdviceOpen: "打开细分",
+  segmentAdviceOpenAccounts: "去客户管理",
   segmentsTitle: "细分市场",
   segmentsWhy:
     "把要打的市场切成有名字的块，按优先级排。客户身上的细分代码指向这里，战役也可以瞄准其中一块——在此之前这些指向都是悬空的。",
@@ -3023,7 +3059,11 @@ export const SEGMENT_ERROR: Record<string, string> = {
   unknown_status: "未知的细分状态",
   priority_out_of_range: "优先级是 0 到 9999 之间的整数",
   plan_closed: "这个计划已收尾，它的市场切分是当期据以执行的记录，不能再改",
-  not_found: "计划不存在",
+  not_found: "找不到这条记录，页面可能已过期，请刷新",
+  status_unchanged: "已经是这个状态了",
+  segment_in_use: "仍有活动指向它、或仍有客户挂着这个码，不能删除——请改用退役",
+  move_at_edge: "已经在清单的这一端了",
+  not_movable: "这一行不在可排序的清单里",
 };
 
 export const PLAN_ERROR: Record<string, string> = {

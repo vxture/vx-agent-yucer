@@ -3,7 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getStrategyStore } from "../../domains/shared/registry";
-import { createPlan, transitionPlan, upsertSegment } from "../../domains/strategy/service";
+import { listAccounts } from "../../domains/account/service";
+import {
+  createPlan,
+  moveSegment,
+  removeSegment,
+  setSegmentStatus,
+  transitionPlan,
+  upsertSegment,
+} from "../../domains/strategy/service";
 import {
   PLAN_STATUSES,
   SEGMENT_STATUSES,
@@ -126,5 +134,87 @@ export async function saveSegment(input: {
     return { ok: false, error: result.violations[0]?.code ?? "denied" };
   }
   revalidatePath("/strategy");
+  return { ok: true };
+}
+
+export async function changeSegmentStatus(
+  segmentId: string,
+  status: "active" | "paused" | "retired",
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const r = await setSegmentStatus(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getStrategyStore(),
+    },
+    { segmentId, status },
+  );
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/segment");
+  return { ok: true };
+}
+
+export async function moveSegmentRow(
+  segmentId: string,
+  direction: "up" | "down",
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const r = await moveSegment(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: getStrategyStore(),
+    },
+    { segmentId, direction },
+  );
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/segment");
+  return { ok: true };
+}
+
+export async function deleteSegment(
+  segmentId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+
+  // HOW MANY ACCOUNTS CARRY THE CODE is an ACCOUNT-domain question, so it is
+  // asked through that domain's gated read and handed to the strategy rule -
+  // rather than the strategy store reaching across into a table it does not
+  // own (ADR-001). A read this member may not do refuses the delete, which is
+  // the safe direction.
+  const [segments, accounts] = await Promise.all([
+    (async () => {
+      const { listSegments } = await import("../../domains/strategy/service");
+      return listSegments({ ...base, store: getStrategyStore() });
+    })(),
+    listAccounts({ ...base, store: session.stores.account() }),
+  ]);
+  if (!segments.ok) return { ok: false, error: segments.violations[0]?.code ?? "denied" };
+  if (!accounts.ok) return { ok: false, error: accounts.violations[0]?.code ?? "denied" };
+
+  const target = segments.value.find((g) => g.id === segmentId);
+  if (!target) return { ok: false, error: "not_found" };
+  const carrying = accounts.value.filter((a) => a.segmentCode === target.segmentCode).length;
+
+  const r = await removeSegment(
+    { ...base, store: getStrategyStore() },
+    { segmentId, accountsCarrying: carrying },
+  );
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/segment");
   return { ok: true };
 }
