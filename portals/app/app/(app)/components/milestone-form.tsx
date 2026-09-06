@@ -26,8 +26,13 @@ const BLANK = { projectId: "", sequence: "", name: "", dueAt: "", completedAt: "
 export function MilestoneForm({
   milestones,
   projects,
+  initialProjectId,
   onSave,
 }: {
+  /** Pre-selects the project. The form is reached from a project ROW (owner,
+   * 2026-09-06), so arriving with an empty picker would ask again for
+   * something the reader has already said by clicking where they clicked. */
+  readonly initialProjectId?: string;
   readonly milestones: readonly { readonly projectId: string; readonly sequence: number }[];
   readonly projects: readonly {
     readonly id: string;
@@ -46,7 +51,7 @@ export function MilestoneForm({
   ) => Promise<Saved>;
 }) {
   const { DELIVERY_TEXT, MILESTONE_ERROR, ASSIST_TEXT } = useMessages();
-  const [form, setForm] = useState(BLANK);
+  const [form, setForm] = useState({ ...BLANK, projectId: initialProjectId ?? "" });
   const submit = useFormSubmit("/delivery");
 
   const unchecked = useMemo(

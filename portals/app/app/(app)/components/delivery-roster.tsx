@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
-import { Button, DataTable, EmptyState, Section, StatusBadge, useToast } from "@vxture/design-ui";
+import { DataTable, EmptyState, Section, StatusBadge, useToast } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
@@ -165,11 +165,29 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     <RowActions
       disabled={pending}
       items={
-        !canWrite
-          ? []
-          : [
+        [
+          // A MILESTONE BELONGS TO ONE PROJECT, so creating one is a row
+          // operation (owner, 2026-09-06). In the section header it was a
+          // page-level action whose form then had to ask which project - a
+          // question the reader had already answered by clicking somewhere.
+          // The row carries the answer in its href.
+          ...(canPlan
+            ? [
+                {
+                  id: "plan",
+                  label: DELIVERY_TEXT.newMilestoneEntry,
+                  onSelect: () => {
+                    window.location.href = `/delivery/new?project=${encodeURIComponent(row.id)}`;
+                  },
+                },
+              ]
+            : []),
+          ...(!canWrite
+            ? []
+            : [
               {
                 id: "reconcile",
+                separatorBefore: canPlan,
                 label: DELIVERY_TEXT.reconcile,
                 icon: "refresh" as const,
                 hint: DELIVERY_TEXT.reconcileHint,
@@ -196,7 +214,8 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
                     });
                   }),
               },
-            ]
+            ]),
+        ]
       }
     />
   );
@@ -255,17 +274,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
         icon={moduleIcon("delivery")}
         title={DELIVERY_TEXT.rosterRunning}
         description={DELIVERY_TEXT.rosterRunningWhy}
-        /* WHERE EVERY OTHER MODULE PUTS CREATION - the section's own action
-           slot, labelled with what it makes. It used to be an unlabelled card
-           dangling BELOW the list (owner spotted it, 2026-09-06), which read
-           as "new project" while the form behind it writes a MILESTONE. */
-        action={
-          canPlan ? (
-            <Button asChild>
-              <a href="/delivery/new">{DELIVERY_TEXT.newMilestoneEntry}</a>
-            </Button>
-          ) : undefined
-        }
       >
         {table(
           running,
