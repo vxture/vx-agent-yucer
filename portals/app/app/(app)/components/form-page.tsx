@@ -89,8 +89,12 @@ export function AssistPanel({ suggestions }: { readonly suggestions: readonly As
       section={{
         id: "assist",
         title: ASSIST_TEXT.title,
-        scope: ASSIST_TEXT.description,
-        empty: ASSIST_TEXT.nothing,
+        // `scope` is a short right-aligned label ("已选行", "全部在售价目"),
+        // and ASSIST_TEXT.description is two sentences - it collapsed the
+        // header in the 20rem aside (review, 2026-09-05). The explanation
+        // belongs where there is room for it: the empty state, which is where
+        // a reader looks when the panel has nothing to say.
+        empty: `${ASSIST_TEXT.nothing}${ASSIST_TEXT.description}`,
         items: suggestions.map((s) => ({
           id: s.id,
           text: s.label,

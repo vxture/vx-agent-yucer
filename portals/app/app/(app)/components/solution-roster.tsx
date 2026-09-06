@@ -186,7 +186,12 @@ export function SolutionRoster({
   /* The catalogue rosters' geometry (TD-022): fixed layout, edge columns on
      the DS token, and the name column taking the remainder. */
   const table = (rows: readonly SolutionView[]) => (
-    <div className="[&_table]:table-fixed [&_thead_th:nth-last-child(2)]:w-[6rem] [&_thead_th:nth-last-child(4)]:w-[7rem] [&_thead_th:last-child]:w-control-3xl">
+    /* COUNTED FROM THE LEFT. The index column is always rendered and the
+       ACTION column is not - DataTable omits it for a reader with no write
+       permission - so right-counting shifted every rule one column left and
+       squeezed the name (review, 2026-09-05). Order: # | name | composition |
+       scenario | status | actions?. */
+    <div className="[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[7rem] [&_thead_th:nth-child(5)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

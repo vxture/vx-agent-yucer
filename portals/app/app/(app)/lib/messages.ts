@@ -664,6 +664,7 @@ export const CATALOG_TEXT = {
   solutionAdviceTitle: "方案检查",
   solutionAdviceClear: "在售方案没有需要处理的地方。",
   solutionAdviceRetired: (s: string, p: string) => `「${s}」里的「${p}」已不再在售，报价会报到一个下架品。`,
+  solutionAdviceUnquotable: (s: string, p: string) => `「${s}」里的「${p}」目前不可报价，按此方案报价会缺一行。`,
   solutionAdviceUnpriced: (s: string, p: string) => `「${s}」里的「${p}」还没有价格，按此方案报价会缺一行。`,
   solutionAdviceNoScenario: (s: string) => `「${s}」没有写适用场景——没有场景的组合是打包，不是方案。`,
   solutionAdviceUncovered: (p: string) => `「${p}」在售，但没有任何方案带它出去卖。`,

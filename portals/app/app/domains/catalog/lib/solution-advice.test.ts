@@ -5,6 +5,7 @@ import type { ProductRecord, SolutionItemRecord, SolutionRecord } from "../store
 
 const WS = "ws_1";
 const ON_SALE = "st_active";
+const RETIRED = "st_retired";
 
 const product = (id: string, name: string, statusId = ON_SALE): ProductRecord => ({
   id, workspaceId: WS, productCode: id.toUpperCase(), name,
@@ -25,6 +26,7 @@ test("a bundle quoting a product that is no longer sold is the loudest thing", (
     solutions: [{ solution: solution("s1", "方案一"), items: [item("s1", "p1")] }],
     products: [product("p1", "退役品", "st_retired")],
     onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
     prices: [{ productId: "p1" }],
   });
   assert.deepEqual(kinds(out), ["retired_product"]);
@@ -35,6 +37,7 @@ test("a bundle whose product has no price cannot be quoted from", () => {
     solutions: [{ solution: solution("s1", "方案一"), items: [item("s1", "p1")] }],
     products: [product("p1", "无价品")],
     onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
     prices: [],
   });
   assert.deepEqual(kinds(out), ["unpriced_product"]);
@@ -45,6 +48,7 @@ test("a solution with no scenario is a bundle, and says so", () => {
     solutions: [{ solution: solution("s1", "方案一", { scenario: null }), items: [item("s1", "p1")] }],
     products: [product("p1", "甲")],
     onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
     prices: [{ productId: "p1" }],
   });
   assert.deepEqual(kinds(out), ["no_scenario"]);
@@ -55,6 +59,7 @@ test("an on-sale product no solution sells is named - the other direction", () =
     solutions: [{ solution: solution("s1", "方案一"), items: [item("s1", "p1")] }],
     products: [product("p1", "在方案里"), product("p2", "没人卖")],
     onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
     prices: [{ productId: "p1" }, { productId: "p2" }],
   });
   assert.deepEqual(kinds(out), ["product_uncovered"]);
@@ -71,6 +76,7 @@ test("a retired solution is left alone - it records how something used to be sol
     ],
     products: [product("p1", "退役品", "st_retired")],
     onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
     prices: [],
   });
   assert.deepEqual(kinds(out), [], "nothing to fix in a template nobody quotes from");
@@ -81,7 +87,31 @@ test("a healthy solution set says nothing at all", () => {
     solutions: [{ solution: solution("s1", "方案一"), items: [item("s1", "p1")] }],
     products: [product("p1", "甲")],
     onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
     prices: [{ productId: "p1" }],
   });
   assert.deepEqual(out, []);
+});
+
+test("a product that is merely not quotable yet is not called withdrawn", () => {
+  // Found by review, 2026-09-05: the status vocabulary has seven rows since
+  // incr/0029, and "not the on-sale row" was being rendered as "已不再在售" -
+  // false for 试点 / 预售 / 停售 / 清仓.
+  const out = analyseSolutions({
+    solutions: [{ solution: solution("s1", "方案一"), items: [item("s1", "p1")] }],
+    products: [product("p1", "预售品", "st_presale")],
+    onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
+    prices: [{ productId: "p1" }],
+  });
+  assert.deepEqual(kinds(out), ["unquotable_product"]);
+
+  const withdrawn = analyseSolutions({
+    solutions: [{ solution: solution("s1", "方案一"), items: [item("s1", "p1")] }],
+    products: [product("p1", "退役品", RETIRED)],
+    onSaleStatusId: ON_SALE,
+    retiredStatusId: RETIRED,
+    prices: [{ productId: "p1" }],
+  });
+  assert.deepEqual(kinds(withdrawn), ["retired_product"], "the retired row still says withdrawn");
 });

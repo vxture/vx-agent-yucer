@@ -16,8 +16,13 @@ import type {
 // customer rather than loudly here.
 
 export type SolutionAdviceKind =
-  /** A line whose product is no longer sold: quoting it is quoting a ghost. */
+  /** A line whose product is retired: quoting it is quoting a ghost. */
   | "retired_product"
+  /** A line whose product exists but is not quotable yet (in development,
+   * pilot, pre-sale...). Different from retired, and the sentence has to say
+   * so: the status vocabulary has seven rows since incr/0029, and calling
+   * them all "withdrawn" was false for four of them (review, 2026-09-05). */
+  | "unquotable_product"
   /** A line whose product has no price: the quote cannot be priced from it. */
   | "unpriced_product"
   /** No scenario: a solution without the situation it is for is a bundle. */
@@ -42,6 +47,9 @@ export interface SolutionAdviceInput {
   readonly products: readonly ProductRecord[];
   /** The status row every sellable product points at. */
   readonly onSaleStatusId: string | null;
+  /** The RETIRED status row - the only one that means withdrawn. Everything
+   * else that is not on sale is merely not quotable yet. */
+  readonly retiredStatusId: string | null;
   readonly prices: readonly Pick<PriceEntryRecord, "productId">[];
 }
 
@@ -71,9 +79,10 @@ export function analyseSolutions(input: SolutionAdviceInput): SolutionAdvice[] {
       const p = product.get(item.productId);
       if (!p) continue;
       if (p.statusId !== input.onSaleStatusId) {
+        const withdrawn = p.statusId === input.retiredStatusId;
         out.push({
-          id: `retired:${solution.id}:${p.id}`,
-          kind: "retired_product",
+          id: `${withdrawn ? "retired" : "unquotable"}:${solution.id}:${p.id}`,
+          kind: withdrawn ? "retired_product" : "unquotable_product",
           ...named,
           productId: p.id,
           productName: p.name,
@@ -113,9 +122,10 @@ export function analyseSolutions(input: SolutionAdviceInput): SolutionAdvice[] {
 
   const RANK: Record<SolutionAdviceKind, number> = {
     retired_product: 0,
-    unpriced_product: 1,
-    no_scenario: 2,
-    product_uncovered: 3,
+    unquotable_product: 1,
+    unpriced_product: 2,
+    no_scenario: 3,
+    product_uncovered: 4,
   };
   return out.sort(
     (a, b) =>

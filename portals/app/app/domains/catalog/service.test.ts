@@ -603,3 +603,37 @@ test("every solution operation refuses without catalog.write", async () => {
     assert.equal(!r.ok && r.violations[0]!.code, "permission_denied");
   }
 });
+
+test("editing a retired solution does not put it back in front of customers", async () => {
+  // Found by review, 2026-09-05: the form has no status field, so an edit
+  // sent none and upsertSolution defaulted to "active" - the roster's Edit
+  // action on a RETIRED row silently reinstated it.
+  const store = solutionStore();
+  const c = ctx("sales_ops", "free", store);
+  const saved = await upsertSolution(c, {
+    solutionCode: "SOL-1",
+    name: "零售方案",
+    items: [{ productId: "p1", quantity: 1 }],
+  });
+  const id = saved.ok ? saved.value.id : "";
+  await setSolutionStatus(c, { solutionId: id, status: "retired" });
+
+  // Exactly what NewSolutionForm sends: no status.
+  const edited = await upsertSolution(c, {
+    solutionCode: "SOL-1",
+    name: "零售方案",
+    summary: null,
+    scenario: "改了场景",
+    items: [{ productId: "p1", quantity: 1 }],
+  });
+  assert.equal(edited.ok && edited.value.status, "retired", "an edit is not a reinstatement");
+  assert.equal(edited.ok && edited.value.scenario, "改了场景", "and the edit still lands");
+
+  // A new solution still starts in use.
+  const fresh = await upsertSolution(c, {
+    solutionCode: "SOL-NEW",
+    name: "新方案",
+    items: [{ productId: "p2", quantity: 1 }],
+  });
+  assert.equal(fresh.ok && fresh.value.status, "active");
+});

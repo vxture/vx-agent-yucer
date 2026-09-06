@@ -20,6 +20,8 @@ export function SolutionAdvicePanel({ advice }: { readonly advice: readonly Solu
     switch (a.kind) {
       case "retired_product":
         return CATALOG_TEXT.solutionAdviceRetired(a.solutionName ?? "", a.productName ?? "");
+      case "unquotable_product":
+        return CATALOG_TEXT.solutionAdviceUnquotable(a.solutionName ?? "", a.productName ?? "");
       case "unpriced_product":
         return CATALOG_TEXT.solutionAdviceUnpriced(a.solutionName ?? "", a.productName ?? "");
       case "no_scenario":
@@ -32,7 +34,12 @@ export function SolutionAdvicePanel({ advice }: { readonly advice: readonly Solu
   const items: AssistantItem[] = advice.map((a) => ({
     id: a.id,
     text: text(a),
-    tone: a.kind === "retired_product" ? "danger" : a.kind === "unpriced_product" ? "warn" : "info",
+    tone:
+      a.kind === "retired_product"
+        ? "danger"
+        : a.kind === "unpriced_product" || a.kind === "unquotable_product"
+          ? "warn"
+          : "info",
     link: a.solutionCode
       ? {
           label: CATALOG_TEXT.solutionAdviceOpen,

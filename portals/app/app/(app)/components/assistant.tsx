@@ -81,18 +81,26 @@ const TONE_TEXT = {
 
 export function AssistantSection({ section }: { readonly section: AssistantSection }) {
   const { ASSISTANT_TEXT, CATALOG_ERROR } = useMessages();
+  // ACCEPTED AND IGNORED ARE DIFFERENT THINGS, and conflating them was a
+  // real defect (review, 2026-09-05): a successful act pushed the item onto
+  // `ignored`, so the product told you it had IGNORED the suggestion you had
+  // just accepted. Both lists resolve an item off the screen; only one of
+  // them is a dismissal, and only that one is counted.
   const [ignored, setIgnored] = useState<readonly string[]>([]);
+  const [accepted, setAccepted] = useState<readonly string[]>([]);
   const [pending, start] = useTransition();
   const { toast } = useToast();
 
-  const shown = section.items.filter((i) => !ignored.includes(i.id));
+  const shown = section.items.filter(
+    (i) => !ignored.includes(i.id) && !accepted.includes(i.id),
+  );
 
   const act = (item: AssistantItem) => {
     if (!item.act) return;
     start(() => {
       void item.act!.run().then((r) => {
         if (r.ok) {
-          setIgnored((x) => [...x, item.id]);
+          setAccepted((x) => [...x, item.id]);
           if (item.act?.done) toast({ tone: "success", title: item.act.done });
         } else {
           toast({

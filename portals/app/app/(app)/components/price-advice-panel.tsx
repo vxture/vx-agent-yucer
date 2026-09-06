@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { Button } from "@vxture/design-ui";
 import type { PriceAdvice } from "../../domains/catalog/lib/price-advice";
 import { AssistantSection, type AssistantItem } from "./assistant";
 import { useMessages } from "../lib/i18n/provider";
@@ -18,7 +20,6 @@ export function PriceAdvicePanel({
   scope,
   canPrice,
   onApply,
-  footer,
 }: {
   readonly advice: readonly PriceAdvice[];
   readonly scope: "all" | "selection";
@@ -29,7 +30,6 @@ export function PriceAdvicePanel({
     listPrice: number;
     floorPrice: number;
   }) => Promise<{ ok: boolean; error?: string }>;
-  readonly footer?: React.ReactNode;
 }) {
   const { CATALOG_TEXT, ASSISTANT_TEXT } = useMessages();
 
@@ -90,7 +90,15 @@ export function PriceAdvicePanel({
         scope: scope === "selection" ? CATALOG_TEXT.adviceScopeSelection : CATALOG_TEXT.adviceScopeAll,
         items,
         empty: CATALOG_TEXT.adviceClear,
-        footer,
+        // ALWAYS AVAILABLE, and always about the whole book. It was briefly a
+        // `footer?` prop the only caller never passed, which deleted the one
+        // way back from a narrowed selection to everything in force (review,
+        // 2026-09-05). It belongs to the panel, not to whoever mounts it.
+        footer: (
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/pricebook?analyze=all">{CATALOG_TEXT.adviceRunAll}</Link>
+          </Button>
+        ),
       }}
     />
   );

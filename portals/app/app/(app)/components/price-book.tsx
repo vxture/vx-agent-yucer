@@ -254,12 +254,12 @@ export function PriceBook({
         )
       : undefined;
 
-  /* The catalogue rosters' geometry, so the module pages read as one product
-     (TD-022): fixed layout, the DS edge token on the action column, and every
-     other column pinned EXCEPT the product name - the one column whose
-     content varies gets the remainder, which is what fixed layout gives an
-     unsized column. Counted from the RIGHT (nth-last-child) because the
-     selection column shifts every position when the table is selectable. */
+  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT. The
+     leading columns are always rendered (selection on the live table, the DS
+     spacer on the history one, then the index); the ACTION column is not -
+     it disappears for a reader who cannot price - so counting from the right
+     moved every width one column over for them (review, 2026-09-05).
+     Order: lead | # | product | list | floor | effective | superseded? | actions? */
   const table = (
     rows: readonly PriceEntryRecord[],
     acts: ReturnType<typeof rowActions>,
@@ -267,16 +267,8 @@ export function PriceBook({
     extra?: typeof supersededColumn,
   ) => (
     <div
-      className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${
-        extra
-          ? // spacer | # | product | list | floor | effective | superseded | actions.
-            // A seventh column does not fit the content pane at this width, so
-            // the history table keeps its columns readable and scrolls inside
-            // its own container - the DS pins the action column while it does.
-            // The page body never scrolls sideways; this table does.
-            "[&_table]:min-w-[44rem] [&_thead_th:nth-last-child(2)]:w-[7rem] [&_thead_th:nth-last-child(3)]:w-[7rem] [&_thead_th:nth-last-child(4)]:w-[5.5rem] [&_thead_th:nth-last-child(5)]:w-[5.5rem]"
-          : // spacer | # | product | list | floor | effective | actions
-            "[&_thead_th:nth-last-child(2)]:w-[7rem] [&_thead_th:nth-last-child(3)]:w-[5.5rem] [&_thead_th:nth-last-child(4)]:w-[5.5rem]"
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[5.5rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:last-child]:w-control-3xl ${
+        extra ? "[&_table]:min-w-[44rem] [&_thead_th:nth-child(7)]:w-[7rem]" : ""
       }`}
     >
       <DataTable

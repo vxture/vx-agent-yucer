@@ -758,6 +758,7 @@ export const en: Dictionary = {
     solutionAdviceTitle: "Solution check",
     solutionAdviceClear: "Nothing to act on in the solutions in use.",
     solutionAdviceRetired: (s: string, p: string) => `${p} in ${s} is no longer on sale - a quote would carry a withdrawn product.`,
+    solutionAdviceUnquotable: (s: string, p: string) => `${p} in ${s} is not quotable yet, so a quote from it is a line short.`,
     solutionAdviceUnpriced: (s: string, p: string) => `${p} in ${s} has no price, so a quote from it is a line short.`,
     solutionAdviceNoScenario: (s: string) => `${s} states no scenario - a combination without one is a package, not a solution.`,
     solutionAdviceUncovered: (p: string) => `${p} is on sale, but no solution takes it to market.`,

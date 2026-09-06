@@ -566,13 +566,24 @@ export async function upsertSolution(
     return fail(violation("product_not_found", "no such product", "productId"));
   }
 
+  // AN OMITTED STATUS KEEPS WHAT THE ROW HAS, and a new solution starts in
+  // use. Defaulting to "active" unconditionally made the edit page a side
+  // door around setSegmentStatus's whole reason for existing: the form never
+  // sends status (it has no field for it), so saving a retired solution -
+  // which the roster's Edit action offers on the retired table - silently put
+  // it back in front of customers. upsertProduct closes exactly this door two
+  // hundred lines up; this path had copied the form's half of the contract
+  // without the service's half.
+  const existing = (await ctx.store.listSolutions(ctx.workspaceId)).find(
+    (s) => s.solutionCode === input.solutionCode.trim(),
+  );
   const plan = planSolution(
     {
       solutionCode: input.solutionCode,
       name: input.name,
       summary: input.summary ?? null,
       scenario: input.scenario ?? null,
-      status: input.status ?? "active",
+      status: input.status ?? existing?.status ?? "active",
     },
     input.items,
   );
@@ -874,6 +885,7 @@ export async function analyseSolutionSet(
       solutions: withItems,
       products,
       onSaleStatusId: statuses.find((r) => r.statusCode === "active")?.id ?? null,
+      retiredStatusId: statuses.find((r) => r.statusCode === "retired")?.id ?? null,
       prices,
     }),
   );
