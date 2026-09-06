@@ -122,6 +122,10 @@ export function ModuleHeadline({
    * there is only one list. Carrying a second array for the bar would be two
    * lists to keep in step, and they would not stay in step.
    *
+   * It also turns on the percentage beside each number: the bar is the
+   * proportion seen, the percentage is the same proportion said, and a flag
+   * that produced one without the other would be two half-ideas.
+   *
    * NO TITLE AND NO FIGURES ON THE BAR ITSELF. The numbers are directly
    * beneath it; printing them twice makes the reader check whether the two
    * agree instead of reading either.
@@ -131,6 +135,9 @@ export function ModuleHeadline({
 }) {
   const { CATALOG_TEXT, DOMAIN_LABEL } = useMessages();
   const [open, setOpen] = useState(true);
+  // The denominator for the per-cell percentage. Zero total means no shares to
+  // state - not 0% five times over, which would read as a claim.
+  const total = stats.reduce((n, s) => n + Math.max(s.value, 0), 0);
 
   return (
     <Card className="p-lg">
@@ -185,8 +192,23 @@ export function ModuleHeadline({
                       seven-digit figure with no separators is a number nobody
                       can read at a glance: 1370000 (owner, 2026-09-06). A
                       count is unaffected; 5 formats to 5. */}
-                  <div className="text-foreground truncate text-heading-4 tabular-nums">
-                    {s.value.toLocaleString()}
+                  {/* THE SHARE SITS WITH THE NUMBER, QUIETLY (owner asked for a
+                      percentage and left the form to me). Not a badge: five
+                      badges in a row is five pieces of chrome competing with
+                      the five figures they annotate, and the dot is already
+                      this cell's one piece of colour. A percentage is not a
+                      status - it is the same quantity said a second way - so
+                      it reads as small print beside its number, which is the
+                      voice the note beneath already uses. */}
+                  <div className="flex items-baseline gap-2xs">
+                    <span className="text-foreground truncate text-heading-4 tabular-nums">
+                      {s.value.toLocaleString()}
+                    </span>
+                    {share && total > 0 ? (
+                      <span className="text-muted-foreground shrink-0 tabular-nums text-body-sm">
+                        {Math.round((Math.max(s.value, 0) / total) * 100)}%
+                      </span>
+                    ) : null}
                   </div>
                   {/* 色标圆点 + 名称 + 小字 (owner, 2026-09-06). The dot is
                       what ties this cell to its share of the bar above; the

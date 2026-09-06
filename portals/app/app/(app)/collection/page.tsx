@@ -113,8 +113,11 @@ export default async function CollectionPage() {
   const STAGE_DEPTH = {
     settled: 3,
     overdue: 2,
-    invoiced: 1,
-    planned: 0,
+    invoiced: 2,
+    // 计划中 CAME BACK UP A STEP: at the palest wash it stopped reading as a
+    // stage at all (owner, 2026-09-06). The wash is left to 坏账, which is the
+    // one row that genuinely is not part of the receivable.
+    planned: 1,
     written_off: 0,
   } as const;
   const stats: HeadlineStat[] = STAGES.map((stage) => {
