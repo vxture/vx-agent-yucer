@@ -124,6 +124,10 @@ export default async function CollectionPage() {
       value: amount,
       note: DELIVERY_TEXT.collectStatCount(at.length),
       depth: STAGE_DEPTH[stage],
+      // 逾期 IS THE EXCEPTION, so it leaves the ramp: money that is late is
+      // not a further step along the same road, it is the thing that went
+      // wrong, and it should be found without comparing shades of blue.
+      ...(stage === "overdue" ? { tone: "warning" as const } : {}),
     };
   }).filter((cell) => cell.value > 0);
 

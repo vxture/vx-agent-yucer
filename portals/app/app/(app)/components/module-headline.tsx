@@ -41,6 +41,27 @@ import { useMessages } from "../lib/i18n/provider";
  */
 export type StatDepth = 1 | 2 | 3 | 4 | 5;
 
+/**
+ * A colour that OVERRIDES the depth ramp, for a cell that is not part of the
+ * ordinary sequence (owner, 2026-09-06: 逾期属于异常，用警示色，有优先权).
+ *
+ * The ramp says how far along; a tone says something has gone wrong. They are
+ * different claims, so a tone wins where both are given - the exception should
+ * not have to be found by comparing shades.
+ *
+ * ONLY TOKENS THAT RESOLVE. Measured in this build: `--warning-text` and
+ * `--success-text` are real colours, while `--danger-text`, `--danger-border`
+ * and `--warning-border` all compute to transparent. Danger therefore takes
+ * the DS's own `destructive`.
+ */
+export type StatTone = "warning" | "danger" | "success";
+
+const TONE_BG: Record<StatTone, string> = {
+  warning: "bg-(color:--warning-text)",
+  danger: "bg-destructive",
+  success: "bg-(color:--success-text)",
+};
+
 const DEPTH_BG: Record<StatDepth, string> = {
   1: "bg-(color:--level-1)",
   2: "bg-(color:--level-2)",
@@ -58,7 +79,13 @@ export interface HeadlineStat {
   readonly note: string;
   /** Its step on the depth ramp - colours the dot and its share of the bar. */
   readonly depth?: StatDepth;
+  /** An exception's colour. Takes priority over `depth` when both are given. */
+  readonly tone?: StatTone;
 }
+
+/** The tone wins; the ramp is the default. One function, so the bar segment
+ * and the dot beside the number can never resolve it differently. */
+const fill = (s: HeadlineStat) => (s.tone ? TONE_BG[s.tone] : DEPTH_BG[s.depth ?? 3]);
 
 export function ModuleHeadline({
   moduleKey,
@@ -127,7 +154,7 @@ export function ModuleHeadline({
               {stats.map((s) => (
                 <span
                   key={s.key}
-                  className={DEPTH_BG[s.depth ?? 3]}
+                  className={fill(s)}
                   style={{ flexGrow: Math.max(s.value, 0), flexBasis: 0 }}
                   title={`${s.name} ${s.value.toLocaleString()}`}
                   aria-hidden
@@ -160,10 +187,10 @@ export function ModuleHeadline({
                       what ties this cell to its share of the bar above; the
                       name alone made the reader match by position. */}
                   <div className="text-muted-foreground flex items-center gap-2xs text-body-sm">
-                    {s.depth ? (
+                    {s.depth || s.tone ? (
                       <span
                         aria-hidden
-                        className={`size-xs shrink-0 rounded-full ${DEPTH_BG[s.depth]}`}
+                        className={`size-xs shrink-0 rounded-full ${fill(s)}`}
                       />
                     ) : null}
                     <span className="text-foreground">{s.name}</span>
