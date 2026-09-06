@@ -2542,6 +2542,11 @@ export const DELIVERY_TEXT = {
   rosterClosed: "已了结",
   rosterClosedWhy:
     "已回款和坏账都留在这里。到账的就是到账了；坏账的翻案靠新的回款计划，不靠改这一行。",
+  settleShort: "登记",
+  colDueStatus: "到期与状态",
+  noDueDate: "未填到期日",
+  overdueBy: (n: number) => `已逾期 ${n} 天`,
+  dueIn: (n: number) => `还有 ${n} 天`,
   settleTitle: "登记回款",
   settleAmount: "实际收到",
   settleConfirm: "确认已回款",

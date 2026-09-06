@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import {
+  Button,
   DataTable,
   DialogForm,
   EmptyState,
@@ -161,26 +162,73 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     },
     {
       id: "due",
-      header: DELIVERY_TEXT.colDue,
+      header: DELIVERY_TEXT.colDueStatus,
       align: "center" as const,
-      cell: (r: CollectionRow) => (
-        <span className="text-muted-foreground tabular-nums text-body-sm">{r.dueAt ?? "-"}</span>
-      ),
-    },
-    {
-      id: "status",
-      header: DELIVERY_TEXT.colRevStatus,
-      align: "center" as const,
-      cell: (r: CollectionRow) => (
-        <StatusBadge tone={tone(r.status)}>
-          {REVENUE_STATUS_LABEL[r.status] ?? r.status}
-        </StatusBadge>
-      ),
+      // DUE OVER STATUS IN ONE CELL, the shape the delivery table settled on:
+      // "eight days late, and marked overdue" is ONE reading, and splitting it
+      // across two columns made the reader assemble it - while costing a
+      // column the project name needed (it was down to 72px).
+      //
+      // HOW LATE, NOT WHEN. A collections table's whole subject is money that
+      // has not arrived, and a bare 2026-08-29 makes every reader subtract
+      // today's date in their head - while the dock beside it was already
+      // saying "8 days overdue" (owner, 2026-09-06). Terminal rows keep the
+      // plain date: a settled instalment's due date is history, not a clock.
+      cell: (r: CollectionRow) => {
+        const settledRow = r.status === "settled" || r.status === "written_off";
+        const late =
+          r.dueAt === null
+            ? null
+            : Math.floor((Date.now() - Date.parse(`${r.dueAt}T00:00:00Z`)) / 86_400_000);
+        const clock =
+          r.dueAt === null ? (
+            <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.noDueDate}</span>
+          ) : settledRow ? (
+            <span className="text-muted-foreground tabular-nums text-body-sm">{r.dueAt}</span>
+          ) : (late ?? 0) > 0 ? (
+            <span className="text-(color:--danger-text) font-semibold tabular-nums text-body-sm">
+              {DELIVERY_TEXT.overdueBy(late ?? 0)}
+            </span>
+          ) : (
+            <span className="text-foreground tabular-nums text-body-sm">
+              {DELIVERY_TEXT.dueIn(-(late ?? 0))}
+            </span>
+          );
+        return (
+          <span className="flex flex-col items-center gap-3xs">
+            {clock}
+            <StatusBadge tone={tone(r.status)}>
+              {REVENUE_STATUS_LABEL[r.status] ?? r.status}
+            </StatusBadge>
+          </span>
+        );
+      },
     },
   ];
 
-  const rowActions = (row: CollectionRow) => (
-    <RowActions
+  /* THE KEY ACTION IS OUT IN THE OPEN, the rest behind the dots - the shape
+     the renewal table settled on. 登记回款 is what people come to this page to
+     do; leaving it two clicks deep inside a menu costs the page's purpose. The
+     dots keep the FULL set beside it, so nothing is reachable only through the
+     shortcut. */
+  const rowActions = (row: CollectionRow) => {
+    const canSettle = canWrite && allowedRevenueMoves(row.status).includes("settled");
+    return (
+      <span className="flex items-center justify-end gap-2xs">
+        {canSettle ? (
+          <Button
+            size="xs"
+            variant="secondary"
+            disabled={pending}
+            onClick={() => {
+              setAmount(String(row.plannedAmount));
+              setSettling(row);
+            }}
+          >
+            {DELIVERY_TEXT.settleShort}
+          </Button>
+        ) : null}
+        <RowActions
       disabled={pending}
       items={
         !canWrite
@@ -198,8 +246,10 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
               },
             }))
       }
-    />
-  );
+        />
+      </span>
+    );
+  };
 
   /* THE FIXED COLUMNS ARE FIXED AND EVERYTHING ELSE IS DIVIDED EQUALLY
      (owner, 2026-09-06). 选择 / 序号 / 操作 carry a width and no other column
@@ -209,7 +259,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     return (
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
+        className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:last-child]:w-[8rem] ${select.className}`}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}

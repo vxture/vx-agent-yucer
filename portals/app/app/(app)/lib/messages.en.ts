@@ -2112,6 +2112,11 @@ export const en: Dictionary = {
     rosterClosed: "Closed",
     rosterClosedWhy:
       "Settled and written off both stay here. Money that arrived did arrive; a write-off is reversed by a new schedule, not by editing this row.",
+    settleShort: "Record",
+    colDueStatus: "Due / status",
+    noDueDate: "No due date",
+    overdueBy: (n: number) => `${n} days overdue`,
+    dueIn: (n: number) => `${n} days to go`,
     settleTitle: "Record a payment",
     settleAmount: "Amount received",
     settleConfirm: "Mark settled",

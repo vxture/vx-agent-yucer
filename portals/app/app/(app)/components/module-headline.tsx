@@ -94,8 +94,14 @@ export function ModuleHeadline({
                      divider argument, verbatim). */
                   className="border-border min-w-0 flex-1 basis-0 px-md py-sm not-first:border-l"
                 >
+                  {/* THOUSANDS SEPARATORS, ALWAYS. This cell was written for
+                      counts - 5 products, 2 segments - and reads fine raw. The
+                      settlement and forecast modules put MONEY in it, and a
+                      seven-digit figure with no separators is a number nobody
+                      can read at a glance: 1370000 (owner, 2026-09-06). A
+                      count is unaffected; 5 formats to 5. */}
                   <div className="text-foreground truncate text-heading-4 tabular-nums">
-                    {s.value}
+                    {s.value.toLocaleString()}
                   </div>
                   <div className="text-muted-foreground text-body-sm">
                     <span className="text-foreground">{s.name}</span>{" "}
