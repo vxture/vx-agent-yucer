@@ -264,22 +264,24 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
      the proportions hold at 616px and at 1096px alike, and the only columns
      that never move are the three that are supposed not to.
 
-     THE DUE TABLE IS OVER-SUBSCRIBED and its widths say so. Adding 商机分析
-     took it to seven columns, and what the contents need adds up past what
-     this shell gives: 项目 140 + 到期 96 + 金额 88 + 分析 88 + 操作 128 +
-     edges 128 = 668 against 616. So the three right-hand columns are pinned
-     at the smallest width that keeps them legible - a squeezed badge or a
-     wrapped 还有 37 天 is worse than a truncated name - and the title column
-     takes what is left, which is about 88px and truncates. Getting the name
-     back means one of two things, and both are the owner's call: 开商机 goes
-     back into the menu and the action column returns to 64px (that alone
-     covers the 52px gap), or the table carries one column fewer.
+     THE LAYOUT RULE, and it is the whole rule: THE FIXED COLUMNS ARE FIXED
+     AND EVERYTHING ELSE IS DIVIDED EQUALLY (owner, 2026-09-06). 选择 / 序号
+     are 64px, the action column is 64px or the width its inline control needs,
+     and no other column carries a width at all - `table-fixed` then gives the
+     remainder out in equal shares. Nothing to tune per table, and it holds at
+     any container width because the shares are computed from what is left.
+
+     Three earlier attempts each broke it by pinning something extra: rem
+     widths on every column (which made the "fixed" edges stretch, because
+     nothing was left to absorb the slack), a percentage on the title (which
+     gave that column a bigger share than the rest by construction), and rem
+     pins on the right-hand columns (which starved the title down to 88px).
+
      The not-due table's action slot is the 64px default: nothing is openable
      there, so there is no inline button to make room for - the column still
      holds its place with the dots, which is the fittings ruling. */
-  const DUE_WIDTHS =
-    "[&_thead_th:nth-child(4)]:w-[6rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[5.5rem] [&_thead_th:last-child]:w-[8rem]";
-  const NOT_DUE_WIDTHS = `[&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`;
+  const DUE_WIDTHS = "[&_thead_th:last-child]:w-[8rem]";
+  const NOT_DUE_WIDTHS = ACTION_COLUMN;
 
   const table = (list: readonly RenewalRow[], empty: ReactNode, due: boolean) => {
     const select = rowClickSelection(list, (r) => r.projectId, selected, setSelected);
