@@ -20,7 +20,7 @@ import {
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions } from "./table-fittings";
+import { RowActions, rowClickSelection } from "./table-fittings";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -153,7 +153,8 @@ export function PriceBook({
       width: "md" as const,
       cell: (r: PriceEntryRecord) => (
         <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate">
+          {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
+          <span className="text-foreground truncate text-body-lg font-semibold">
             {productName.get(r.productId) ?? CATALOG_TEXT.noCategory}
           </span>
           <span className="text-muted-foreground mono truncate text-body-sm">
@@ -166,7 +167,7 @@ export function PriceBook({
       id: "list",
       header: CATALOG_TEXT.colList,
       width: "sm" as const,
-      align: "right" as const,
+      align: "center" as const,
       cell: (r: PriceEntryRecord) => (
         <span className="tabular-nums">{r.listPrice.toLocaleString()}</span>
       ),
@@ -175,7 +176,7 @@ export function PriceBook({
       id: "floor",
       header: CATALOG_TEXT.colFloor,
       width: "sm" as const,
-      align: "right" as const,
+      align: "center" as const,
       // Equal to list means "not discountable" - a stance, worth seeing at a
       // glance rather than worked out by comparing two columns.
       cell: (r: PriceEntryRecord) => (
@@ -268,9 +269,17 @@ export function PriceBook({
     acts: ReturnType<typeof rowActions>,
     selectable = false,
     extra?: typeof supersededColumn,
-  ) => (
+  ) => {
+    /* Row-click selection only where selection exists: the history table
+       carries the DS spacer rather than checkboxes (owner: 占位，不实现多选),
+       so a click there would tick a box that is not offered. */
+    const select = selectable
+      ? rowClickSelection(rows, (r) => r.id, selected, setSelected)
+      : { ref: undefined, className: "" };
+    return (
     <div
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[5.5rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:last-child]:w-control-3xl ${
+      ref={select.ref}
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[5.5rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:last-child]:w-control-3xl ${select.className} ${
         extra ? "[&_table]:min-w-[44rem] [&_thead_th:nth-child(7)]:w-[7rem]" : ""
       }`}
     >
@@ -287,7 +296,8 @@ export function PriceBook({
         empty={<EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />}
       />
     </div>
-  );
+    );
+  };
 
   return (
     <>

@@ -18,7 +18,7 @@ import type { ProductRecord, ProductStatusRecord } from "../../domains/catalog/s
 import { isSystemStatus } from "../../domains/catalog/lib/status-vocab";
 import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions } from "./table-fittings";
+import { RowActions, rowClickSelection } from "./table-fittings";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -64,6 +64,9 @@ export function CatalogStatusConfig({
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
   const [selected, setSelected] = useState<readonly string[]>([]);
+  // Clicking the row toggles it - the checkbox is too small a target
+  // (owner, 2026-09-06).
+  const select = rowClickSelection(statuses, (r) => r.id, selected, setSelected);
   const { toast } = useToast();
 
   const inUse = (statusId: string) => products.filter((p) => p.statusId === statusId).length;
@@ -118,7 +121,10 @@ export function CatalogStatusConfig({
             layout ignores minimums - without an explicit width the action
             column swallows an equal share. Same token the DS's own 序号
             column uses, so the two edge columns match. */}
-      <div className="[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl">
+      <div
+        ref={select.ref}
+        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${select.className}`}
+      >
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
@@ -148,6 +154,7 @@ export function CatalogStatusConfig({
             id: "description",
             header: CATALOG_TEXT.colStatusDesc,
             width: "lg" as const,
+            align: "center" as const,
             cell: (r: ProductStatusRecord) => (
               <span className="text-muted-foreground text-body-sm">{r.description ?? ""}</span>
             ),

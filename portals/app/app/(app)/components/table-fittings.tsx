@@ -52,3 +52,86 @@ export function RowActions({
     <ActionMenu items={items} disabled={disabled || items.length === 0} label={label} />
   );
 }
+
+/**
+ * Click anywhere on a row to select it - owner ruling, 2026-09-06 (点击整行进行
+ * 选中切换，无需必须点击选择框：太小，不好点).
+ *
+ * Returned as a REF, and the listener is attached natively rather than as a
+ * JSX `onClick`. Two reasons, and the second is the one that decided it:
+ *
+ *   - `DataTable` has no `onRowClick`, and the alternative to a container
+ *     listener - injecting a handler into every column's rendered cell -
+ *     would put this concern inside every column definition in the product.
+ *   - A `<div onClick>` is a non-interactive element with a click handler and
+ *     no keyboard listener, which Sonar flags (PR #197) and is right to. The
+ *     answer is not `role="button"` + tabIndex on a container that is not a
+ *     button - that would add a focus stop that does nothing. THE ROW IS NOT
+ *     THE CONTROL: each row's checkbox is, it carries tabIndex 0 and Tab
+ *     reaches it (measured), and this listener only adds a pointer affordance
+ *     on top of it. Delegation over an existing control is what this is, so
+ *     it is written as delegation rather than dressed up as a widget.
+ *
+ *     NOT VERIFIED HERE: whether Space actually activates the DS checkbox once
+ *     focused. The browser harness does not deliver a real Space keypress - a
+ *     native <input type=checkbox> control group failed the same way - so the
+ *     question is open and belongs to the DS, not to this file. If it turns
+ *     out the checkbox is focusable but not operable, that is a DS request
+ *     (and a TD entry), and it would be true with or without this listener.
+ *
+ * React 19 lets a ref callback return its cleanup, so the listener is replaced
+ * rather than stacked when the row list changes - which also keeps the closure
+ * over `rows` and `selected` fresh without a ref-to-latest dance.
+ *
+ * THREE THINGS DO NOT TOGGLE, and each is a real click somebody makes:
+ *   - anything interactive inside the row (the action trigger, a link, the
+ *     checkbox itself) - the row would otherwise steal every one of them, and
+ *     the checkbox would toggle twice and land back where it started;
+ *   - a click that ends a text SELECTION - copying a product code out of a
+ *     cell is a drag, and a drag that silently ticks a box is a surprise;
+ *   - a click on the header or on an empty-state row.
+ *
+ * The row list is passed in because a module page renders this helper once per
+ * table (live and settled are two tables), and each has its own row order.
+ */
+export function rowClickSelection<T>(
+  rows: readonly T[],
+  rowKey: (row: T) => string,
+  selected: readonly string[],
+  setSelected: (keys: readonly string[]) => void,
+): {
+  readonly ref: (el: HTMLDivElement | null) => (() => void) | undefined;
+  readonly className: string;
+} {
+  return {
+    className: "[&_tbody_tr]:cursor-pointer",
+    ref: (el) => {
+      if (!el) return undefined;
+      const handler = (e: Event) => {
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+        if (
+          target.closest(
+            "button, a, input, label, [role=checkbox], [role=menuitem], [aria-haspopup]",
+          )
+        )
+          return;
+        if ((window.getSelection()?.toString() ?? "") !== "") return;
+
+        const tr = target.closest("tbody tr");
+        const body = tr?.parentElement;
+        if (!tr || !body) return;
+        const at = [...body.children].indexOf(tr);
+        const row = at >= 0 ? rows[at] : undefined;
+        if (row === undefined) return;
+
+        const key = rowKey(row);
+        setSelected(
+          selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key],
+        );
+      };
+      el.addEventListener("click", handler);
+      return () => el.removeEventListener("click", handler);
+    },
+  };
+}
