@@ -27,31 +27,26 @@ import { useMessages } from "../lib/i18n/provider";
 // promises they will look the same.
 
 /**
- * The colour a breakdown cell carries, on its dot and on its share of the bar.
+ * How deep a breakdown cell sits on the shared ramp, 1 (lightest) to 5.
  *
- * A SMALL NAMED SET, not a free colour. These map to the DS intent tokens, so
- * a stage that means trouble is the same red as every other trouble in the
- * product; a page cannot invent a seventh meaning by picking a hex.
+ * ONE HUE, DEPTH ONLY (owner, 2026-09-06). The first version used the intent
+ * palette - blue, blue, red, green - which made the bar read as four verdicts
+ * standing side by side rather than as one quantity cut five ways. A single
+ * hue in five steps says what a proportion bar is for: these are parts of the
+ * same thing, and the depth is how far along it is.
+ *
+ * The ramp is the DS's own `--level-N`, a single-hue lightness scale defined
+ * in its colour policy. Only the COLOURS are borrowed; LevelMarker's gradient
+ * and glow material stays where its docs reserve it, on ranking.
  */
-export type StatTone = "neutral" | "info" | "success" | "warning" | "danger" | "muted";
+export type StatDepth = 1 | 2 | 3 | 4 | 5;
 
-/*
- * MEASURED, NOT ASSUMED. Not every intent token is a real colour in this
- * build: `--success-text` and `--warning-text` resolve, while `--danger-text`,
- * `--danger-border` and `--warning-border` all compute to transparent - so the
- * overdue segment and its dot rendered INVISIBLE, on the one stage a
- * collections page most needs seen (measured 2026-09-06). Danger therefore
- * takes the DS's own `destructive`, which is a real token and the same red the
- * product uses for destructive intent. Same family of trap as the container
- * widths and the padding scale: a token that silently resolves to nothing.
- */
-const TONE_DOT: Record<StatTone, string> = {
-  neutral: "bg-accent",
-  info: "bg-primary",
-  success: "bg-(color:--success-text)",
-  warning: "bg-(color:--warning-text)",
-  danger: "bg-destructive",
-  muted: "bg-muted-foreground",
+const DEPTH_BG: Record<StatDepth, string> = {
+  1: "bg-(color:--level-1)",
+  2: "bg-(color:--level-2)",
+  3: "bg-(color:--level-3)",
+  4: "bg-(color:--level-4)",
+  5: "bg-(color:--level-5)",
 };
 
 /** One cell of the breakdown: a number, what it counts, and its split. */
@@ -61,8 +56,8 @@ export interface HeadlineStat {
   readonly value: number;
   /** The small print after the name - "3 在售 · 1 研发". */
   readonly note: string;
-  /** Colours this cell's dot and its share of the proportion bar. */
-  readonly tone?: StatTone;
+  /** Its step on the depth ramp - colours the dot and its share of the bar. */
+  readonly depth?: StatDepth;
 }
 
 export function ModuleHeadline({
@@ -128,11 +123,11 @@ export function ModuleHeadline({
 
         <CollapsibleContent className="flex flex-col gap-md">
           {share && stats.length > 0 ? (
-            <div className="flex h-2xs w-full overflow-hidden rounded-full">
+            <div className="flex h-[0.875rem] w-full overflow-hidden rounded-full">
               {stats.map((s) => (
                 <span
                   key={s.key}
-                  className={TONE_DOT[s.tone ?? "neutral"]}
+                  className={DEPTH_BG[s.depth ?? 3]}
                   style={{ flexGrow: Math.max(s.value, 0), flexBasis: 0 }}
                   title={`${s.name} ${s.value.toLocaleString()}`}
                   aria-hidden
@@ -165,10 +160,10 @@ export function ModuleHeadline({
                       what ties this cell to its share of the bar above; the
                       name alone made the reader match by position. */}
                   <div className="text-muted-foreground flex items-center gap-2xs text-body-sm">
-                    {s.tone ? (
+                    {s.depth ? (
                       <span
                         aria-hidden
-                        className={`size-2xs shrink-0 rounded-full ${TONE_DOT[s.tone]}`}
+                        className={`size-xs shrink-0 rounded-full ${DEPTH_BG[s.depth]}`}
                       />
                     ) : null}
                     <span className="text-foreground">{s.name}</span>

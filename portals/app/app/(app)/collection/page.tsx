@@ -91,17 +91,26 @@ export default async function CollectionPage() {
   // Summing the planned figure for money that is already in would report a
   // number nobody received, and short payment is normal enough here that the
   // schedule tracks it separately from invoicing.
-  const STAGES = ["planned", "invoiced", "overdue", "settled", "written_off"] as const;
+  // THE MANAGEMENT ORDER, not the lifecycle order (owner, 2026-09-06). A
+  // manager reads this bar as attainment: what is IN, what is in TROUBLE, what
+  // is promised soon, what is further out, what is gone. The lifecycle order -
+  // planned first, collected fourth - is how an instalment travels, which is
+  // the schedule's business and not the question this strip answers.
+  const STAGES = ["settled", "overdue", "invoiced", "planned", "written_off"] as const;
   // THE COLOUR IS THE STAGE'S MEANING, not a palette position: overdue is the
   // product's danger, settled its success, a write-off is muted because it is
   // over. The dot beside the number and that stage's share of the bar above
   // are the same colour, which is what lets the two readings be one reading.
-  const STAGE_TONE = {
-    planned: "neutral",
-    invoiced: "info",
-    overdue: "danger",
-    settled: "success",
-    written_off: "muted",
+  // DEPTH IS CERTAINTY, deepest first: money in the bank, then money late,
+  // then money invoiced, then money merely planned. 坏账 takes the lightest
+  // step - it is certain, but it is no longer part of the receivable, and on a
+  // one-hue ramp the palest end is the only place left for "not counting".
+  const STAGE_DEPTH = {
+    settled: 5,
+    overdue: 4,
+    invoiced: 3,
+    planned: 2,
+    written_off: 1,
   } as const;
   const stats: HeadlineStat[] = STAGES.map((stage) => {
     const at = rows.filter((r) => r.status === stage);
@@ -114,7 +123,7 @@ export default async function CollectionPage() {
       name: REVENUE_STATUS_LABEL[stage] ?? stage,
       value: amount,
       note: DELIVERY_TEXT.collectStatCount(at.length),
-      tone: STAGE_TONE[stage],
+      depth: STAGE_DEPTH[stage],
     };
   }).filter((cell) => cell.value > 0);
 
