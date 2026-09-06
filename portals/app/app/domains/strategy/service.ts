@@ -10,6 +10,7 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { denied } from "../pipeline/service";
+import { planMove } from "../catalog/lib/lifecycle";
 import { sumMoney, type Money } from "../shared/money";
 import {
   canCompleteCampaign,
@@ -25,6 +26,8 @@ import {
   type NewPlanDraft,
   planSegment,
   type SegmentDraft,
+  planSegmentRemoval,
+  type SegmentStatus,
 } from "./lib/lifecycle";
 import type {
   CampaignRecord,
@@ -254,6 +257,109 @@ export async function upsertSegment(
   if (!checked.ok) return checked as RuleResult<SegmentRecord>;
 
   return ok(await ctx.store.upsertSegment(ctx.workspaceId, checked.value));
+}
+
+/**
+ * Pause, resume or retire a segment.
+ *
+ * A VERB OF ITS OWN rather than a save with a different status: upsertSegment
+ * takes the whole draft, so routing a status change through it would make
+ * every caller resend criteria it has no business touching - and a caller
+ * that got them wrong would silently re-cut the market.
+ *
+ * The plan rule still applies underneath: a segment whose plan is closed is
+ * settled, and planSegment refuses the write.
+ */
+export async function setSegmentStatus(
+  ctx: StrategyContext,
+  input: { segmentId: string; status: SegmentStatus },
+): Promise<RuleResult<SegmentRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const segments = await ctx.store.listSegments(ctx.workspaceId);
+  const current = segments.find((g) => g.id === input.segmentId);
+  if (!current) return fail(violation("not_found", "no such segment", "segmentId"));
+  if (current.status === input.status) {
+    return fail(violation("status_unchanged", `already ${current.status}`, "status"));
+  }
+
+  return upsertSegment(ctx, {
+    segmentCode: current.segmentCode,
+    name: current.name,
+    planId: current.planId,
+    priority: current.priority,
+    status: input.status,
+    criteria: current.criteria,
+  });
+}
+
+/**
+ * Move a segment one place up or down.
+ *
+ * PRIORITY IS THE ORDER - the column has existed since batch 1 and nothing
+ * ever moved it, so the list was ordered by a number nobody could change.
+ * planMove's dense renumbering is what makes the first move work on rows that
+ * all share a priority.
+ */
+export async function moveSegment(
+  ctx: StrategyContext,
+  input: { segmentId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const segments = await ctx.store.listSegments(ctx.workspaceId);
+  const moving = segments.find((g) => g.id === input.segmentId);
+  if (!moving) return fail(violation("not_found", "no such segment", "segmentId"));
+
+  // Active cuts and shelved ones are two lists on screen; a move lands beside
+  // a row the reader can see.
+  const group = (g: SegmentRecord) => (g.status === "active" ? "live" : "shelved");
+  const plan = planMove(
+    segments.map((g) => ({ id: g.id, movable: group(g) === group(moving) })),
+    input.segmentId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setSegmentOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a segment outright.
+ *
+ * REFUSED WHILE ANYTHING POINTS AT IT, and the two references break in
+ * different ways, which is why neither can be left to the database:
+ *
+ *   campaign.segment_id is a real FK with ON DELETE SET NULL - the campaign
+ *     survives, silently un-aimed, and no screen shows a gap.
+ *   account.segment_code is a plain string with nothing behind it - the
+ *     accounts keep carrying a code that names nothing.
+ *
+ * Both are the shape this product refuses elsewhere (a product in use, a type
+ * in use). Retiring is the reversible move and the roster offers it.
+ */
+export async function removeSegment(
+  ctx: StrategyContext,
+  input: { segmentId: string; accountsCarrying: number },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const segments = await ctx.store.listSegments(ctx.workspaceId);
+  const current = segments.find((g) => g.id === input.segmentId);
+  if (!current) return fail(violation("not_found", "no such segment", "segmentId"));
+
+  const campaigns = await ctx.store.listCampaigns(ctx.workspaceId);
+  const aimed = campaigns.filter((c) => c.segmentId === current.id).length;
+  const plan = planSegmentRemoval({ campaigns: aimed, accounts: input.accountsCarrying });
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeSegment(ctx.workspaceId, input.segmentId);
+  if (!removed) return fail(violation("not_found", "no such segment", "segmentId"));
+  return ok(true);
 }
 
 export async function campaignReturn(

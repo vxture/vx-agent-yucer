@@ -1574,8 +1574,12 @@ overrides 名单里」来佐证，那是被混淆的——**一个包有 overrid
 吞掉一份均分宽度。
 
 **缺失元素**：一个宽度可确定的表格列约（fixed 布局下仍生效的列宽，以及与文档一致
-的定宽操作列）。**垫片位置**：`catalog-type-config.tsx` / `catalog-status-config.tsx`
-外层包装 `[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl`——只用 DS 自己
-的 token，不改 DS 样式。**回收条件**：DS 让 ACTION_COL 按文档发定宽、或列宽档在
-fixed 布局下可用；届时删掉两处包装即可。已作为 DS 请求上报（元素缺失，非本仓自建）。
+的定宽操作列）。**垫片位置**：六个表格组件外层包装
+`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl` 及逐列宽度——
+`catalog-type-config.tsx` / `catalog-status-config.tsx` / `product-roster.tsx` /
+`price-book.tsx` / `solution-roster.tsx` / `segment-roster.tsx`，只用 DS 自己的
+token，不改 DS 样式。逐列宽度**一律从左数**（nth-child）：左侧的占位列与序号
+列总在，而操作列对一个无写权的读者不渲染，从右数会让每个宽度错位一列
+（2026-09-05 评审）。**回收条件**：DS 让 ACTION_COL 按文档发定宽、或列宽档在
+fixed 布局下可用；届时删掉这六处包装即可。已作为 DS 请求上报（元素缺失，非本仓自建）。
 
