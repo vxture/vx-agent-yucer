@@ -209,51 +209,42 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
     );
   };
 
-  /* GEOMETRY - and the rule that makes it hold at every width.
+  /* GEOMETRY - the table FILLS the content area, and three columns do not
+     move (owner, 2026-09-06: 在表格铺满的前提下，选择列、序号列、操作列定宽).
 
-     PIN EVERY COLUMN EXCEPT THE TITLE. Under `table-fixed`, when the specified
-     widths add up to LESS than the table, the surplus is shared out over the
-     columns - all of them, proportionally, if none is left auto. Measured at
-     1920px on 2026-09-06 (owner: 标题列远不止208px，肯定哪里出错了): every
-     column had a width, so a 1096px container stretched 选择 and 序号 from
-     56px to 100px and 操作 from 128 to 228. The DS's fixed edge columns are
-     only fixed while something else can absorb the slack.
+     THE EDGES ARE PINNED AND THE TEXT COLUMN IS AUTO, and both halves are
+     needed. Under `table-fixed`, a specified width only holds while some
+     column is left auto to absorb the slack: with every column pinned the
+     surplus is shared out proportionally, and at 1920px a 1096px container
+     stretched 选择 and 序号 from 56px to 100px and 操作 to 228px. The DS's
+     "fixed" edge columns are only fixed when something else can give.
 
-     So the title column carries NO width and takes the surplus - but only up
-     to a point. A MAX-WIDTH ON THE TABLE caps how much surplus there is: at
-     1096px the auto title column had swollen to 624px, which put the name far
-     from the figures and left the right-hand columns huddled at the edge -
-     the "middle empty, right crowded" the owner described. Past 46rem the
-     table simply stops growing and the container's slack becomes margin,
-     which is where empty space belongs.
+     NO min-width AND NO max-width. Both were tried and both broke the fill: a
+     min-width put a scrollbar under a table with room, and a max-width left
+     the right of the content area empty.
 
-     AND A FLOOR UNDER THE TITLE. Auto cuts both ways: where the pinned
-     columns already fill the container the auto column gets whatever is left,
-     which at one narrow width was ZERO - the name vanished entirely and the
-     table scrolled. `min-w` on that column is the other half of the cap.
+     AND THE CONTENT COLUMNS ARE PERCENTAGES, NOT rem. One auto column and the
+     rest pinned does fill the width, but it fills it by giving the WHOLE
+     surplus to that one column: the name swelled while the figures beside it
+     stayed at their rem and read as narrow, crowded and wrapping (owner,
+     2026-09-06). Percentages share the surplus in a fixed ratio instead, so
+     the proportions hold at 616px and at 1096px alike, and the only columns
+     that never move are the three that are supposed not to.
 
-     Every other column is pinned at what its content measures, and the sums
-     are what let the floor hold at the 616px this shell gives:
-       操作 8rem   - 16 padding + 54 button + 4 gap + 32 trigger + 16 = 122px
-       到期 6.5rem - 已过期 13 天 in text (the badge measured 105px and spilled)
-       金额 6rem   - a 54px amount plus room for its right-hand inset
-       结论 5.5rem - 低风险 / 需关注, and the not-due reason wraps below it
-       待续约   64+64+104+96+128 = 456, leaving 160 for the name
-       暂不到期 64+64+104+96+88+64 = 480, leaving 136
-     The not-due table's action slot is the DS edge token: nothing is openable
+     The ratios come from what the content needs at the narrow end - 44/28/28
+     puts 160px under the project name and 104 under each figure at 616px.
+     The not-due table's action slot is the 64px default: nothing is openable
      there, so there is no inline button to make room for - the column still
      holds its place with the dots, which is the fittings ruling. */
-  const TITLE_FLOOR = "[&_thead_th:nth-child(3)]:min-w-[7.5rem]";
-  const DUE_WIDTHS =
-    "[&_thead_th:nth-child(4)]:w-[6.5rem] [&_thead_th:nth-child(5)]:w-[6rem] [&_thead_th:last-child]:w-[8rem]";
-  const NOT_DUE_WIDTHS = `[&_thead_th:nth-child(4)]:w-[6.5rem] [&_thead_th:nth-child(5)]:w-[6rem] [&_thead_th:nth-child(6)]:w-[5.5rem] ${ACTION_COLUMN}`;
+  const DUE_WIDTHS = '[&_thead_th:nth-child(3)]:w-[26%] [&_thead_th:last-child]:w-[8rem]';
+  const NOT_DUE_WIDTHS = `[&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`;
 
   const table = (list: readonly RenewalRow[], empty: ReactNode, due: boolean) => {
     const select = rowClickSelection(list, (r) => r.projectId, selected, setSelected);
     return (
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed [&_table]:max-w-[46rem] ${EDGE_COLUMNS} ${TITLE_FLOOR} ${
+        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${
           due ? DUE_WIDTHS : NOT_DUE_WIDTHS
         } ${select.className}`}
       >

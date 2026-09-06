@@ -288,8 +288,8 @@ export function PriceBook({
     return (
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:min-w-[7rem] [&_thead_th:nth-child(4)]:w-[6.5rem] [&_thead_th:nth-child(5)]:w-[6.5rem] [&_thead_th:nth-child(6)]:w-[6.5rem] ${ACTION_COLUMN} ${select.className} ${
-        extra ? "[&_table]:min-w-[48rem] [&_thead_th:nth-child(7)]:w-[7rem]" : ""
+      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(4)]:w-[6.5rem] [&_thead_th:nth-child(5)]:w-[6.5rem] [&_thead_th:nth-child(6)]:w-[6.5rem] ${ACTION_COLUMN} ${select.className} ${
+        extra ? "[&_thead_th:nth-child(7)]:w-[7rem]" : ""
       }`}
     >
       <DataTable

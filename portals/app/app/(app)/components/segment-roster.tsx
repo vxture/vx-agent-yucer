@@ -220,7 +220,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
        a table too wide for its container.
      Order: 选择 | # | name | criteria | plan | counts | status | 操作 */
   const table = (list: readonly SegmentRow[]) => (
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_table]:min-w-[52rem] [&_thead_th:nth-child(5)]:w-[8rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:nth-child(7)]:w-[6rem] ${ACTION_COLUMN}`}>
+    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

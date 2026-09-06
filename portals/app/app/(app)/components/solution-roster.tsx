@@ -205,7 +205,7 @@ export function SolutionRoster({
        so past this width the table scrolls - which is the honest failure for
        a table too wide for its container.
      Order: 选择 | # | name | composition | scenario | status | 操作. */
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_table]:min-w-[44rem] [&_thead_th:nth-child(4)]:w-[7rem] [&_thead_th:nth-child(6)]:w-[6rem] ${ACTION_COLUMN}`}>
+    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[30%] ${ACTION_COLUMN}`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

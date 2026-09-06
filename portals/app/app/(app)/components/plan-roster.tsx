@@ -191,7 +191,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
        a table too wide for its container.
      Order: 选择 | # | name | period | owner | campaigns | status | 操作 */
   const table = (list: readonly PlanRow[]) => (
-    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_table]:min-w-[48rem] [&_thead_th:nth-child(4)]:w-[7rem] [&_thead_th:nth-child(6)]:w-[6rem] [&_thead_th:nth-child(7)]:w-[6rem] ${ACTION_COLUMN}`}>
+    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[24%] ${ACTION_COLUMN}`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
