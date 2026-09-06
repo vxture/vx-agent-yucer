@@ -52,7 +52,7 @@ export function CollectionOverview({ stats }: { readonly stats: CollectionStats 
       {data.length === 0 ? (
         <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.overviewEmpty}</p>
       ) : (
-        <BarChart data={[...data]} formatValue={money} />
+        <BarChart data={[...data]} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
       )}
     </Card>
   );

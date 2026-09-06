@@ -61,7 +61,7 @@ export function DeliveryAnalysis({
       {data.length === 0 ? (
         <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.analysisEmpty}</p>
       ) : (
-        <BarChart data={[...data]} formatValue={money} />
+        <BarChart data={[...data]} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
       )}
     </Card>
   );
@@ -100,7 +100,7 @@ export function DeliveryAnalysis({
                   {DELIVERY_TEXT.analysisEmpty}
                 </p>
               ) : (
-                <BarChart data={byProject} formatValue={money} />
+                <BarChart data={byProject} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
               )}
             </Card>
           ),

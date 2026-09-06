@@ -284,6 +284,7 @@ export const FORECAST_RULE_TEXT = {
   // --- 口径分析 (the statistics block) ---------------------------------------
   analysisTitle: "口径分析",
   analysisWhy: "先看整体：预测压在哪一档、分歧偏向哪一边、涉及多少钱。下面的清单是逐笔明细。",
+  chartPeak: "峰值",
   analysisEmpty: "还没有可统计的商机。",
   agreementRate: "口径一致率",
   agreementOf: (n: number, total: number) => `${n} / ${total} 笔一致`,
@@ -2652,6 +2653,7 @@ export const DELIVERY_TEXT = {
   // --- 交付分析 (the statistics block) ---------------------------------------
   analysisTitle: "交付分析",
   analysisWhy: "先看整体：工作压在哪一段、风险集中在哪里、合同额落在谁身上。下面的清单是逐个明细。",
+  chartPeak: "峰值",
   analysisEmpty: "没有在建项目，这一块暂时不用看。",
   downgradeScope: (n: number, total: number) => `自报偏好 ${n}/${total}`,
   downgradeRate: "自报偏好比例",

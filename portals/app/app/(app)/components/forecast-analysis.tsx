@@ -51,13 +51,17 @@ export function ForecastAnalysis({ stats }: { readonly stats: ForecastStats }) {
     data: readonly { key: string; label: string; value: number }[],
     why: string,
     empty: string,
+    // TWO BARS NEED NO AXIS. The DS offers hideAxis for exactly this - the
+    // magnitude is readable off the readout, and a scale drawn beside two bars
+    // is furniture (7.2.0).
+    hideAxis = false,
   ) => (
     <Card className="flex flex-col gap-sm p-lg">
       <span className="text-muted-foreground text-body-sm">{why}</span>
       {data.length === 0 ? (
         <p className="text-muted-foreground text-body-sm">{empty}</p>
       ) : (
-        <BarChart data={[...data]} formatValue={money} />
+        <BarChart data={[...data]} formatValue={money} peakLabel={FORECAST_RULE_TEXT.chartPeak} hideAxis={hideAxis} />
       )}
     </Card>
   );
@@ -102,6 +106,7 @@ export function ForecastAnalysis({ stats }: { readonly stats: ForecastStats }) {
             direction,
             FORECAST_RULE_TEXT.directionWhy,
             FORECAST_RULE_TEXT.directionNone,
+            true,
           ),
         },
       ]}
