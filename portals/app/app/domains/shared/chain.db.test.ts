@@ -175,10 +175,14 @@ test("two revenue instalments cannot share a sequence on one project", { skip },
   await onChain(async (c) => {
     await assert.rejects(
       c.query(
+        // milestone_id is NOT NULL since incr/0032, so it is named here -
+        // otherwise this row is refused for a reason that has nothing to do
+        // with the uniqueness being tested, and the test passes on the wrong
+        // constraint.
         `INSERT INTO yucer_delivery.revenue_schedule
-           (workspace_id, project_id, sequence, planned_amount)
-         VALUES ($1, $2, 1, 400000)`,
-        [CHAIN_WS, CHAIN.project],
+           (workspace_id, project_id, milestone_id, sequence, planned_amount)
+         VALUES ($1, $2, $3, 1, 400000)`,
+        [CHAIN_WS, CHAIN.project, CHAIN.milestone],
       ),
       /uidx_revenue_schedule_seq/,
     );
@@ -186,10 +190,12 @@ test("two revenue instalments cannot share a sequence on one project", { skip },
 });
 
 test("deleting a project takes its milestones and instalments with it", { skip }, async () => {
-  // ON DELETE CASCADE on both, and ON DELETE SET NULL from revenue to
-  // milestone. Asserted because the three were written in one increment and
-  // nothing has ever run them: an instalment orphaned from its project is a
-  // payment nobody can attribute.
+  // ON DELETE CASCADE on both. The revenue -> milestone link is RESTRICT since
+  // incr/0032 (a gate with money on it cannot be deleted), which does NOT block
+  // this: the cascade from the project removes the instalments in the same
+  // statement, and RESTRICT only refuses a milestone deleted out from under
+  // money that survives it. Asserted because an instalment orphaned from its
+  // project is a payment nobody can attribute.
   await onChain(async (c) => {
     await c.query(`DELETE FROM yucer_delivery.project WHERE id = $1`, [CHAIN.project]);
     const { rows } = await c.query<{ m: string; r: string }>(

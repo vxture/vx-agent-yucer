@@ -38,6 +38,14 @@ increment so the whitelist stays discoverable from one place.
 | `0002_strategy_approve_permission.sql` | Split approving a plan from editing one: adds `strategy.approve`, granted to `sales_leader` alone (catalog becomes 20 / 7 / 68). |
 | `0003_scope_unique_nulls_not_distinct.sql` | Rebuild `uidx_sales_target_scope` and `uidx_forecast_snapshot_scope_at` as `NULLS NOT DISTINCT`. Postgres treats NULLs as distinct by default, so both were inert for the WORKSPACE-scope row (NULL territory and owner) - the case every other number is measured against. |
 
+THIS TABLE STOPPED BEING MAINTAINED AT `0003`. Increments 0004-0031 shipped
+without a row here, so the DIRECTORY LISTING is the authority on what exists,
+not this table - read it that way rather than concluding the repo has four
+increments. Only entries worth a paragraph are added below; the rest document
+themselves in their own header comment.
+
+| `0032_milestone_as_commercial_gate.sql` | A milestone becomes a payment gate (ADR-025): an immutable `baseline_due_at`, the recorded-acceptance trio, `revenue_schedule.milestone_id` NOT NULL behind a COMPOSITE foreign key, and the append-only `milestone_change`. It CREATES a table, so it carries its own grants per the section above - `check-incr-grants.mjs` counts 19 increment-created tables and verifies every one of them. |
+
 Note that `0001` carries DATA, not structure. It ships here rather than in
 `00_baseline.sql` because `local_authz.role` / `local_authz.permission` are
 runtime-read-only (UPDATE revoked in `../98_column_locks.sql`), so db-init is the

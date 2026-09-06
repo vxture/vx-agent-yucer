@@ -38,12 +38,41 @@ export default async function NewMilestonePage({
   const projects = await listProjects(ctx, {});
   const rows = projects.ok ? projects.value : [];
 
-  const milestones: { projectId: string; sequence: number }[] = [];
+  // NAME AND DATE COME TOO, not just the key. The form needs to know whether
+  // the gate at this (project, sequence) already exists AND whether the values
+  // being typed move it - moving a committed gate needs a reason, and asking
+  // for one only when the plan actually differs is the difference between a
+  // rule and a nuisance.
+  const milestones: {
+    projectId: string;
+    sequence: number;
+    name: string;
+    dueAt: string | null;
+    status: string;
+    completedAt: string | null;
+    acceptedBy: string | null;
+    acceptedAt: string | null;
+  }[] = [];
   for (const p of rows) {
     const view = await projectView(ctx, p.id);
     if (!view.ok) continue;
     for (const m of view.value.milestones) {
-      milestones.push({ projectId: p.id, sequence: m.sequence });
+      milestones.push({
+        projectId: p.id,
+        sequence: m.sequence,
+        name: m.name,
+        // Same yyyy-mm-dd the date input speaks, so the comparison is between
+        // two strings of one shape rather than a Date against a form value.
+        dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
+        // THE WHOLE GATE, not the half the reason field compares. An edit form
+        // that loads only the fields it asks about writes DEFAULTS over the
+        // rest - the first edit through this page reset a gate from 进行中 back
+        // to 未开始 because the status select still held its initial value.
+        status: m.status,
+        completedAt: m.completedAt ? m.completedAt.toISOString().slice(0, 10) : null,
+        acceptedBy: m.acceptance?.by ?? null,
+        acceptedAt: m.acceptance ? m.acceptance.at.toISOString().slice(0, 10) : null,
+      });
     }
   }
 

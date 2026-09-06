@@ -6,7 +6,7 @@
 // engagement stays green until it is a crisis. projectView() therefore always
 // returns the DERIVED health, and says when it downgraded a report and why.
 
-import { planMilestone, type MilestoneDraft } from "./lib/milestone";
+import { changeMilestone, planMilestone, type MilestoneDraft } from "./lib/milestone";
 import {
   assessRenewal,
   daysUntilEnd,
@@ -33,6 +33,7 @@ import type { Money } from "../shared/money";
 import type {
   DeliveryStore,
   InstalmentRecord,
+  MilestoneChangeRecord,
   MilestoneRecord,
   ProjectFilter,
   ProjectRecord,
@@ -58,6 +59,8 @@ export async function listProjects(
 export interface ProjectView {
   project: ProjectRecord;
   milestones: MilestoneRecord[];
+  /** Every recorded move on this project's plan, newest first. */
+  planChanges: MilestoneChangeRecord[];
   instalments: InstalmentRecord[];
   progress: ReturnType<typeof milestoneProgress>;
   /** Null when the caller lacks the revenue capability - see below. */
@@ -90,9 +93,13 @@ export async function projectView(
   const project = await ctx.store.getProject(ctx.workspaceId, projectId);
   if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
 
-  const [milestones, instalments] = await Promise.all([
+  const [milestones, instalments, planChanges] = await Promise.all([
     ctx.store.listMilestones(ctx.workspaceId, projectId),
     ctx.store.listInstalments(ctx.workspaceId, projectId),
+    // WHY THE PLAN MOVED, read on the same gate as the plan itself. Whoever
+    // may see a project may see why its dates changed: a change log only its
+    // own authors can read audits nobody.
+    ctx.store.listMilestoneChanges(ctx.workspaceId, projectId),
   ]);
 
   const health = deriveProjectHealth({
@@ -114,6 +121,7 @@ export async function projectView(
   return ok({
     project,
     milestones,
+    planChanges,
     instalments: revenueGate.allowed ? instalments : [],
     progress: milestoneProgress(milestones),
     collections,
@@ -147,11 +155,18 @@ export async function projectView(
  * By (project, sequence), because `sequence` is unique per project and carries
  * no UPDATE grant: it is the anchor, and re-importing a plan updates it rather
  * than producing a second copy of every step.
+ *
+ * MOVING A GATE IS NOT SAVING A FORM (owner, 2026-09-06). Money is bound to
+ * milestones now, so a date that changes moves an instalment with it. When the
+ * plan moves this verb requires a reason, writes the change log alongside the
+ * row, and refuses the whole edit if the reason is missing - the milestone and
+ * its history land together or not at all.
  */
 export async function upsertMilestone(
   ctx: DeliveryContext,
   projectId: string,
   input: MilestoneDraft,
+  change: { reason: string } = { reason: "" },
 ): Promise<RuleResult<MilestoneRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "delivery.milestone.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -163,11 +178,30 @@ export async function upsertMilestone(
   const project = await ctx.store.getProject(ctx.workspaceId, projectId);
   if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
 
-  const plan = planMilestone(input);
+  // READ BEFORE WRITE, because an upsert cannot tell the caller what it
+  // replaced. The stored row is both the baseline's source and the left-hand
+  // side of the diff; without it a create and an edit are indistinguishable
+  // here, and every create would be asked to justify itself.
+  const held = (await ctx.store.listMilestones(ctx.workspaceId, projectId)).find(
+    (m) => m.sequence === input.sequence,
+  );
+
+  const plan = planMilestone(input, held ?? null);
   if (!plan.ok) return plan as RuleResult<MilestoneRecord>;
 
-  return ok(await ctx.store.upsertMilestone(ctx.workspaceId, projectId, plan.value));
+  const changes = held
+    ? changeMilestone(held, plan.value, { reason: change.reason, changedBySub: ctx.sub })
+    : ok([]);
+  if (!changes.ok) return changes as RuleResult<MilestoneRecord>;
+
+  const saved = await ctx.store.upsertMilestone(ctx.workspaceId, projectId, plan.value);
+  if (changes.value.length > 0) {
+    await ctx.store.appendMilestoneChanges(ctx.workspaceId, saved.id, changes.value);
+  }
+  return ok(saved);
 }
+
+
 
 export async function transitionInstalment(
   ctx: DeliveryContext,

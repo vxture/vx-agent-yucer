@@ -1294,6 +1294,11 @@ export const en: Dictionary = {
     done_needs_completion: "A milestone marked done must say when it was done",
     completion_needs_done:
       "A completion time belongs to a milestone that is done - a missed one did not happen",
+    acceptance_needs_done: "A gate the customer signed off is a gate that is done",
+    acceptor_required: "Name who signed it off on the customer's side",
+    recorder_required: "An acceptance record names who recorded it",
+    change_reason_required: "Moving a committed gate needs a reason",
+    changer_required: "A change record names who made it",
     not_found: "No such project, or it belongs to another workspace",
   },
 
@@ -2116,6 +2121,18 @@ export const en: Dictionary = {
     milestoneSave: "Save milestone",
     milestoneSaved: "Saved",
     milestonesDenied: "You cannot maintain the delivery plan",
+    milestoneSlippedLate: (n: number) => `${n}d later than committed`,
+    milestoneSlippedEarly: (n: number) => `${n}d earlier than committed`,
+    milestoneAcceptedByName: (who: string) => `Accepted by ${who}`,
+    milestoneChanged: (n: number) => (n === 1 ? "moved once" : `moved ${n} times`),
+    milestoneAwaitingAcceptance: "Awaiting customer sign-off",
+    milestoneAcceptedBy: "Signed off by (customer)",
+    milestoneAcceptedByHint: "who signed on the customer's side",
+    milestoneAcceptedAt: "Acceptance date",
+    milestoneChangeReason: "Reason for the change",
+    milestoneChangeReasonHint: "why this gate is moving",
+    milestoneChangeWhy:
+      "This gate was committed to and has money bound to it. Moving it writes an append-only change record; the committed date itself is not rewritten.",
     milestoneAffectsHealth:
       "Sequence is unique within a project and cannot be changed - it IS the milestone's identity, so saving the same sequence again edits that one. A missed milestone overrides the manager's reported green in the table above.",
     moveDenied: "You cannot change collections",

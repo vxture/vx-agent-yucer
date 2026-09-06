@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon } from "@vxture/design-ui";
+import { Icon, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
 // 交付计划 - the plan a project row opens onto. Owner rulings: a FLOW rather
@@ -70,6 +70,16 @@ export interface PlanNode {
   readonly status: string;
   readonly dueAt: string | null;
   readonly completedAt: string | null;
+  /** Days later than what was committed, or null when nothing was committed.
+   * NOT zero for the second case - see milestoneSlippage. */
+  readonly slippedDays: number | null;
+  /** The customer-side signatory, as our own people recorded it. */
+  readonly acceptedBy: string | null;
+  /** How many times this gate's plan has been moved, and why it moved LAST.
+   * The count is the pattern; the reason is the answer to the question the
+   * count makes a reader ask. */
+  readonly changeCount: number;
+  readonly lastChangeReason: string | null;
 }
 
 const NODE = {
@@ -150,12 +160,54 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                 </span>
               </div>
 
-              {/* THE MIDDLE BAND IS WHAT MATTERS ABOUT THIS MILESTONE. Today
-                  that is its state; when a milestone carries the instalment it
-                  releases, the amount belongs here, above the timestamp. */}
-              <span className={`truncate text-body-sm ${look.text}`}>
-                {DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
+              {/* THE MIDDLE BAND IS WHAT MATTERS ABOUT THIS MILESTONE.
+                  Commercially that is three things, in the order they are
+                  read: what state it is in, whether it has moved from what was
+                  committed, and whether the customer has actually signed. */}
+              <span className="flex min-w-0 flex-wrap items-center gap-2xs">
+                <span className={`truncate text-body-sm ${look.text}`}>
+                  {DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
+                </span>
+                {/* SLIPPAGE, AND ONLY LATE SLIPPAGE IS A WARNING. A gate that
+                    moved EARLIER is news too, but it is not a problem, so it
+                    reads as plain text - colouring both the same would make
+                    the eye stop at good news. Null and zero are both absent
+                    here on purpose: nothing was committed, or nothing moved. */}
+                {n.slippedDays !== null && n.slippedDays !== 0 ? (
+                  <StatusBadge tone={n.slippedDays > 0 ? "warning" : "neutral"}>
+                    {n.slippedDays > 0
+                      ? DELIVERY_TEXT.milestoneSlippedLate(n.slippedDays)
+                      : DELIVERY_TEXT.milestoneSlippedEarly(-n.slippedDays)}
+                  </StatusBadge>
+                ) : null}
               </span>
+              {/* DONE IS NOT ACCEPTED, which is the whole reason these are two
+                  columns. A finished gate the customer has not signed is money
+                  that cannot be invoiced yet, and saying nothing here would let
+                  it read as settled business. */}
+              {n.status === "done" ? (
+                <span
+                  className={`truncate text-body-sm ${n.acceptedBy ? "text-(color:--success-text)" : "text-muted-foreground"}`}
+                >
+                  {n.acceptedBy
+                    ? DELIVERY_TEXT.milestoneAcceptedByName(n.acceptedBy)
+                    : DELIVERY_TEXT.milestoneAwaitingAcceptance}
+                </span>
+              ) : null}
+              {/* WHY IT MOVED. A slippage badge says a gate is late; this says
+                  it was moved deliberately and by whose reasoning - which is
+                  the difference between a plan that slipped and a plan that
+                  was renegotiated. Shown only where there is something to
+                  show, so an untouched gate stays quiet. */}
+              {n.changeCount > 0 ? (
+                <span
+                  className="text-muted-foreground truncate text-body-sm"
+                  title={n.lastChangeReason ?? undefined}
+                >
+                  {DELIVERY_TEXT.milestoneChanged(n.changeCount)}
+                  {n.lastChangeReason ? ` · ${n.lastChangeReason}` : ""}
+                </span>
+              ) : null}
               {/* THE DATE THAT HAPPENED, not both dates: a done milestone shows
                   when it landed, an open one when it is due. */}
               {/* THE TIMESTAMP SITS AT THE FOOT, quietest of the three bands:

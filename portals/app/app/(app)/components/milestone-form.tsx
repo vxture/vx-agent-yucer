@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Field,
@@ -21,7 +21,17 @@ import { nextSequence, projectsWithoutMilestones } from "../../domains/delivery/
 
 type Saved = { ok: boolean; error?: string };
 
-const BLANK = { projectId: "", sequence: "", name: "", dueAt: "", completedAt: "", status: "pending" };
+const BLANK = {
+  projectId: "",
+  sequence: "",
+  name: "",
+  dueAt: "",
+  completedAt: "",
+  status: "pending",
+  acceptedBy: "",
+  acceptedAt: "",
+  reason: "",
+};
 
 export function MilestoneForm({
   milestones,
@@ -33,7 +43,19 @@ export function MilestoneForm({
    * 2026-09-06), so arriving with an empty picker would ask again for
    * something the reader has already said by clicking where they clicked. */
   readonly initialProjectId?: string;
-  readonly milestones: readonly { readonly projectId: string; readonly sequence: number }[];
+  /** The gates that already exist, with what they currently commit to - which
+   * is how this form tells an edit from a create, and a plan that moved from
+   * one that did not. */
+  readonly milestones: readonly {
+    readonly projectId: string;
+    readonly sequence: number;
+    readonly name: string;
+    readonly dueAt: string | null;
+    readonly status: string;
+    readonly completedAt: string | null;
+    readonly acceptedBy: string | null;
+    readonly acceptedAt: string | null;
+  }[];
   readonly projects: readonly {
     readonly id: string;
     readonly name: string;
@@ -47,6 +69,9 @@ export function MilestoneForm({
       dueAt: string | null;
       completedAt: string | null;
       status: string;
+      acceptedAt: string | null;
+      acceptedBy: string | null;
+      reason: string;
     },
   ) => Promise<Saved>;
 }) {
@@ -82,13 +107,65 @@ export function MilestoneForm({
     });
   }
 
+  // THE GATE BEING REPLACED, if there is one. An upsert keyed on (project,
+  // sequence) means typing an existing pair is an EDIT, and the form has to
+  // say so - a page that looks like a create and silently rewrites a
+  // committed date is the exact thing the change log exists to prevent.
+  const held = milestones.find(
+    (m) => m.projectId === form.projectId && m.sequence === Number(form.sequence),
+  );
+  // Only a moved PLAN needs justifying. Working the gate - the status, the
+  // completion date, the customer's signature - is not a change to what was
+  // committed, and demanding a reason for it would teach people to type
+  // anything.
+  const planMoved =
+    held !== undefined &&
+    (held.name !== form.name.trim() || (held.dueAt ?? "") !== form.dueAt);
+
+  // LOAD THE GATE BEFORE ASKING ABOUT IT. Selecting an existing (project,
+  // sequence) is an EDIT, and an edit that starts from a blank form reads every
+  // untouched field as a change - the reason field appeared before the reader
+  // had typed anything, accusing them of moving a plan they had not opened yet.
+  //
+  // Keyed on the pair and loaded once per pair, so this fills the form when the
+  // selection changes and never again - it must not overwrite what is being
+  // typed on the next keystroke.
+  const loadedKey = useRef<string | null>(null);
+  const pairKey = `${form.projectId}#${form.sequence}`;
+  useEffect(() => {
+    if (loadedKey.current === pairKey) return;
+    loadedKey.current = pairKey;
+    if (!held) return;
+    setForm((f) => ({
+      ...f,
+      name: held.name,
+      dueAt: held.dueAt ?? "",
+      // Loaded even though nothing here compares them: whatever this form does
+      // not load, it overwrites with a default on save.
+      status: held.status,
+      completedAt: held.completedAt ?? "",
+      // The recorded signature comes back too. Loading a signed-off gate with
+      // these blank and saving would erase a customer's acceptance - the one
+      // fact on this form that nobody here is entitled to invent or remove.
+      acceptedBy: held.acceptedBy ?? "",
+      acceptedAt: held.acceptedAt ?? "",
+      reason: "",
+    }));
+  }, [pairKey, held]);
+
+  const accepting = form.status === "done";
+
   const sequence = Number(form.sequence);
   const ready =
     form.projectId !== "" &&
     form.name.trim() !== "" &&
     form.sequence.trim() !== "" &&
     Number.isInteger(sequence) &&
-    sequence >= 0;
+    sequence >= 0 &&
+    // The server refuses this too; refusing it here is what stops the reader
+    // meeting the rule as an error message after the fact.
+    (!planMoved || form.reason.trim() !== "") &&
+    (form.acceptedAt === "" || form.acceptedBy.trim() !== "");
 
   return (
     <FormPage
@@ -154,6 +231,47 @@ export function MilestoneForm({
                 onChange={(e) => setForm({ ...form, completedAt: e.target.value })}
               />
             </Field>
+            {/* THE CUSTOMER'S SIGN-OFF, RECORDED BY US. Shown only on a gate
+                that is done, because that is the only state it can describe -
+                and the customer never touches this form, or any other: one of
+                our own people writes down who signed and when (incr/0032). */}
+            {accepting ? (
+              <>
+                <Field>
+                  <FieldLabel>{DELIVERY_TEXT.milestoneAcceptedBy}</FieldLabel>
+                  <Input
+                    value={form.acceptedBy}
+                    placeholder={DELIVERY_TEXT.milestoneAcceptedByHint}
+                    onChange={(e) => setForm({ ...form, acceptedBy: e.target.value })}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel>{DELIVERY_TEXT.milestoneAcceptedAt}</FieldLabel>
+                  <Input
+                    type="date"
+                    value={form.acceptedAt}
+                    onChange={(e) => setForm({ ...form, acceptedAt: e.target.value })}
+                  />
+                </Field>
+              </>
+            ) : null}
+            {/* MOVING A COMMITTED GATE. Appears only when the plan actually
+                differs from what is stored, so the field is never noise - and
+                when it does appear it says what is being moved from and to,
+                because "why" is unanswerable without that. */}
+            {planMoved ? (
+              <Field>
+                <FieldLabel>{DELIVERY_TEXT.milestoneChangeReason}</FieldLabel>
+                <Input
+                  value={form.reason}
+                  placeholder={DELIVERY_TEXT.milestoneChangeReasonHint}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                />
+                <p className="text-muted-foreground text-body-sm">
+                  {DELIVERY_TEXT.milestoneChangeWhy}
+                </p>
+              </Field>
+            ) : null}
             {/* Said out loud, because it is the reason this form is not
                 bookkeeping: a missed milestone overrides a reported green. */}
             <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.milestoneAffectsHealth}</p>
@@ -169,6 +287,9 @@ export function MilestoneForm({
                         dueAt: form.dueAt === "" ? null : form.dueAt,
                         completedAt: form.completedAt === "" ? null : form.completedAt,
                         status: form.status,
+                        acceptedAt: form.acceptedAt === "" ? null : form.acceptedAt,
+                        acceptedBy: form.acceptedBy.trim() === "" ? null : form.acceptedBy.trim(),
+                        reason: form.reason,
                       }),
                     (c) => MILESTONE_ERROR[c] ?? MILESTONE_ERROR.denied,
                   )

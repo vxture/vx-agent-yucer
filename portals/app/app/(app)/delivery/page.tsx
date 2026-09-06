@@ -11,6 +11,7 @@ import { DeliveryRoster, type DeliveryRow } from "../components/delivery-roster"
 import { DeliveryAnalysis } from "../components/delivery-analysis";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { deliveryStats } from "../../domains/delivery/lib/delivery-stats";
+import { milestoneSlippage } from "../../domains/delivery/lib/milestone";
 import { reconcileHealth } from "./actions";
 import { can } from "../../authz/decide";
 
@@ -100,6 +101,17 @@ export default async function DeliveryPage() {
             status: m.status,
             dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
             completedAt: m.completedAt ? m.completedAt.toISOString().slice(0, 10) : null,
+            // COMPUTED HERE, not in the card. The card renders; the rule
+            // decides - and milestoneSlippage is the one thing that knows null
+            // is not zero (incr/0032).
+            slippedDays: milestoneSlippage(m),
+            acceptedBy: m.acceptance?.by ?? null,
+            // The log arrives newest-first for the whole project, so the FIRST
+            // hit is this gate's latest move - no second sort, and no second
+            // query per card.
+            changeCount: view.value.planChanges.filter((c) => c.milestoneId === m.id).length,
+            lastChangeReason:
+              view.value.planChanges.find((c) => c.milestoneId === m.id)?.reason ?? null,
           }))
         : [],
     });
