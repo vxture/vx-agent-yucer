@@ -244,7 +244,7 @@ export function ProductRoster({
        Counted FROM THE LEFT, and the leading pair is now 选择 | 序号, so the
        first business column is nth-child(3) rather than (2). */
     <div
-      onClick={select.onClick}
+      ref={select.ref}
       className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${
         extra ? "[&_thead_th:last-child]:w-[6.5rem]" : "[&_thead_th:last-child]:w-control-3xl"
       }`}

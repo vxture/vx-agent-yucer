@@ -275,10 +275,10 @@ export function PriceBook({
        so a click there would tick a box that is not offered. */
     const select = selectable
       ? rowClickSelection(rows, (r) => r.id, selected, setSelected)
-      : { onClick: undefined, className: "" };
+      : { ref: undefined, className: "" };
     return (
     <div
-      onClick={select.onClick}
+      ref={select.ref}
       className={`[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[5.5rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:last-child]:w-control-3xl ${select.className} ${
         extra ? "[&_table]:min-w-[44rem] [&_thead_th:nth-child(7)]:w-[7rem]" : ""
       }`}

@@ -122,7 +122,7 @@ export function CatalogStatusConfig({
             column swallows an equal share. Same token the DS's own 序号
             column uses, so the two edge columns match. */}
       <div
-        onClick={select.onClick}
+        ref={select.ref}
         className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${select.className}`}
       >
       <DataTable
