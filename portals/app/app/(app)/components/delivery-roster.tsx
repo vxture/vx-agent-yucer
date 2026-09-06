@@ -71,6 +71,14 @@ function ProgressCell({ row }: { readonly row: DeliveryRow }) {
   );
 }
 
+// The column's own accessor, hoisted for the same reason.
+//
+// An arrow that returns nothing but one component with props IS a component
+// definition as far as the linter is concerned, and defining one inside the
+// parent also hands DataTable a new function identity on every render. Naming
+// it once here costs a line and settles both.
+const progressCell = (r: DeliveryRow) => <ProgressCell row={r} />;
+
 export interface DeliveryRow {
   readonly id: string;
   readonly name: string;
@@ -202,7 +210,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
       //
       // DERIVED, NOT ESTIMATED - see progress.ts. It counts the plan; it does
       // not judge it.
-      cell: (r: DeliveryRow) => <ProgressCell row={r} />,
+      cell: progressCell,
     },
     {
       id: "contract",
