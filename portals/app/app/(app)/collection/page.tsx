@@ -105,11 +105,16 @@ export default async function CollectionPage() {
   // then money invoiced, then money merely planned. 坏账 takes the lightest
   // step - it is certain, but it is no longer part of the receivable, and on a
   // one-hue ramp the palest end is the only place left for "not counting".
+  //
+  // THE LIGHTER END OF THE RAMP. The deepest step read as heavy for a strip
+  // that sits above the fold on every visit (owner, 2026-09-06); the five
+  // stages use levels 4 down to 1, which keeps four distinguishable shades and
+  // drops the whole strip a step in weight.
   const STAGE_DEPTH = {
-    settled: 5,
-    overdue: 4,
-    invoiced: 3,
-    planned: 2,
+    settled: 4,
+    overdue: 3,
+    invoiced: 2,
+    planned: 1,
     written_off: 1,
   } as const;
   const stats: HeadlineStat[] = STAGES.map((stage) => {
