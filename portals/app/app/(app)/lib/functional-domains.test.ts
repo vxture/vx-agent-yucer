@@ -277,7 +277,10 @@ const SHIPPED_AS: Record<string, string> = {
   catalog: "ProductRoster",
   renewal: "RenewalTable",
   forecastRule: "ForecastRuleTable",
-  solution: "SolutionSection",
+  // /solution's section became SolutionRoster on 2026-09-05, when the module
+  // took the catalogue's pattern: the combination and its customisation on
+  // one roster, with the check in the dock.
+  solution: "SolutionRoster",
   // /pricebook's section became PriceBook on 2026-09-05, when the price book
   // took the catalogue module page's pattern: two rosters (in force, and
   // superseded) with the pricing dialog on the row.

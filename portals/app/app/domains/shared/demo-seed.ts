@@ -1530,7 +1530,9 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     solutionCode: sol.code,
     name: sol.name,
     summary: sol.summary,
+    scenario: sol.scenario,
     status: "active" as const,
+    sortOrder: i + 1,
   }));
 
   const items = DEMO_SOLUTIONS.flatMap((sol, si) =>
@@ -1540,6 +1542,8 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       solutionId: `sol_demo_${si + 1}`,
       productId: byCode.get(it.code)!,
       quantity: it.qty,
+      optional: "optional" in it ? it.optional === true : false,
+      note: "note" in it ? (it.note ?? null) : null,
     })),
   );
 

@@ -10,9 +10,12 @@ import {
   removeProduct,
   removeProductStatus,
   removeProductType,
+  moveSolution,
   removePrice,
+  removeSolution,
   saveProductStatus,
   setPrice,
+  setSolutionStatus,
   setProductStatus,
   upsertProduct,
   upsertProductType,
@@ -71,7 +74,14 @@ export async function saveSolution(input: {
   solutionCode: string;
   name: string;
   summary: string | null;
-  items: readonly { productId: string; quantity: number }[];
+  scenario?: string | null;
+  status?: "active" | "retired";
+  items: readonly {
+    productId: string;
+    quantity: number;
+    optional?: boolean;
+    note?: string | null;
+  }[];
 }): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -83,7 +93,40 @@ export async function saveSolution(input: {
   // rendered verbatim inside a Chinese page. The code is a key; the sentence
   // belongs to the dictionary.
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/catalog");
+  revalidatePath("/solution");
+  return { ok: true };
+}
+
+export async function changeSolutionStatus(
+  solutionId: string,
+  status: "active" | "retired",
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await setSolutionStatus(ctx, { solutionId, status });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/solution");
+  return { ok: true };
+}
+
+export async function moveSolutionRow(
+  solutionId: string,
+  direction: "up" | "down",
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await moveSolution(ctx, { solutionId, direction });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/solution");
+  return { ok: true };
+}
+
+export async function deleteSolution(solutionId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removeSolution(ctx, { solutionId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/solution");
   return { ok: true };
 }
 

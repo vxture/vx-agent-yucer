@@ -321,25 +321,30 @@ export const DEMO_RETIRED_PRODUCTS = [
 // the seed resolves them against the same domain constants every real
 // tenant is provisioned with.
 
+// A solution is a COMBINATION plus its CUSTOMISATION (incr/0031): the
+// scenario it is shaped for, which lines are standard and which are add-ons,
+// and what gets tailored per deal.
 export const DEMO_SOLUTIONS = [
   {
     code: "SOL-RETAIL",
     name: "零售数字化整体方案",
     summary: "基础平台 + 经营分析 + 实施与首年支持，面向连锁零售。",
+    scenario: "50 家门店以上的连锁零售，总部要看经营数据、门店要能用",
     items: [
       { code: "PRD-CORE", qty: 1 },
-      { code: "PRD-ANALYTICS", qty: 1 },
-      { code: "PRD-INTEGRATION", qty: 6 },
-      { code: "PRD-SUPPORT", qty: 1 },
+      { code: "PRD-ANALYTICS", qty: 1, note: "总部报表按业态定制" },
+      { code: "PRD-INTEGRATION", qty: 6, note: "按门店数量与既有系统数量增减" },
+      { code: "PRD-SUPPORT", qty: 1, optional: true, note: "首年可选，第二年起通常单独续" },
     ],
   },
   {
     code: "SOL-SUPPLY",
     name: "供应链协同方案",
     summary: "仓储调度 + 对接实施，面向物流与制造。",
+    scenario: "自建仓配的制造与物流企业，先解决调度，再谈上下游协同",
     items: [
       { code: "PRD-WMS", qty: 1 },
-      { code: "PRD-INTEGRATION", qty: 4 },
+      { code: "PRD-INTEGRATION", qty: 4, optional: true, note: "已有 WMS 的客户可只做对接" },
     ],
   },
 ] as const;

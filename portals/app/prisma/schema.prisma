@@ -915,11 +915,15 @@ model Solution {
   solutionCode String   @map("solution_code") @db.VarChar(64)
   name         String   @db.VarChar(255)
   summary      String?  @db.Text
+  /// 适用场景 - the situation this solution is shaped for (incr/0031).
+  scenario     String?  @db.VarChar(255)
   status       String   @default("active") @db.VarChar(16)
+  sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, solutionCode], map: "uidx_solution_code")
+  @@index([workspaceId, sortOrder], map: "idx_solution_ws_sort")
   @@map("solution")
   @@schema("yucer_catalog")
 }
@@ -930,6 +934,9 @@ model SolutionItem {
   solutionId  String  @map("solution_id") @db.Uuid
   productId   String  @map("product_id") @db.Uuid
   quantity    Decimal @default(1) @db.Decimal(12, 2)
+  /// Standard or add-on, and what is tailored about this line (incr/0031).
+  optional    Boolean @default(false)
+  note        String? @db.VarChar(255)
 
   @@unique([solutionId, productId], map: "uidx_solution_item")
   @@map("solution_item")

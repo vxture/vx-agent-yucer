@@ -49,7 +49,11 @@ export interface SolutionRecord {
   solutionCode: string;
   name: string;
   summary: string | null;
+  /** 适用场景 - the situation this solution is shaped for (incr/0031). Free
+   * text: it is a sentence somebody says to a customer, not a key. */
+  scenario: string | null;
   status: "active" | "retired";
+  sortOrder: number;
 }
 
 export interface SolutionItemRecord {
@@ -58,6 +62,12 @@ export interface SolutionItemRecord {
   solutionId: string;
   productId: string;
   quantity: number;
+  /** Standard or add-on (incr/0031). The customisation INSIDE the
+   * combination: everything mandatory is a package, nothing mandatory is a
+   * menu, and the rule layer refuses the second. */
+  optional: boolean;
+  /** What is tailored about this line - "按门店数量", "含二次开发 10 人日". */
+  note: string | null;
 }
 
 /**
@@ -208,9 +218,16 @@ export interface CatalogStore {
   countProductsByStatusId(workspaceId: string, statusId: string): Promise<number>;
   upsertSolution(
     workspaceId: string,
-    input: Omit<SolutionRecord, "id" | "workspaceId">,
+    input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
   ): Promise<SolutionRecord>;
+  /** Apply a renumbering computed by planMove - the whole list, dense. */
+  setSolutionOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  /** Delete a solution and its items (the FK cascades). */
+  removeSolution(workspaceId: string, solutionId: string): Promise<boolean>;
   /**
    * A price is APPENDED, never edited in place.
    *
@@ -288,7 +305,9 @@ export class InMemoryCatalogStore implements CatalogStore {
   }
 
   async listSolutions(workspaceId: string): Promise<SolutionRecord[]> {
-    return this.solutions.filter((s) => s.workspaceId === workspaceId);
+    return this.solutions
+      .filter((s) => s.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.solutionCode.localeCompare(b.solutionCode));
   }
 
   async listSolutionItems(workspaceId: string, solutionId: string): Promise<SolutionItemRecord[]> {
@@ -500,7 +519,7 @@ export class InMemoryCatalogStore implements CatalogStore {
 
   async upsertSolution(
     workspaceId: string,
-    input: Omit<SolutionRecord, "id" | "workspaceId">,
+    input: Omit<SolutionRecord, "id" | "workspaceId" | "sortOrder">,
     items: readonly Omit<SolutionItemRecord, "id" | "workspaceId" | "solutionId">[],
   ): Promise<SolutionRecord> {
     const at = this.solutions.findIndex(
@@ -511,7 +530,11 @@ export class InMemoryCatalogStore implements CatalogStore {
       row = { ...this.solutions[at]!, ...input, solutionCode: this.solutions[at]!.solutionCode };
       this.solutions[at] = row;
     } else {
-      row = { id: `sol_${++this.seq}`, workspaceId, ...input };
+      const tail = Math.max(
+        0,
+        ...this.solutions.filter((x) => x.workspaceId === workspaceId).map((x) => x.sortOrder),
+      );
+      row = { id: `sol_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
       this.solutions.push(row);
     }
     // REPLACED WHOLE, like opportunity lines. A solution's contents are a set,
@@ -524,6 +547,30 @@ export class InMemoryCatalogStore implements CatalogStore {
       this.items.push({ id: `sit_${++this.seq}`, workspaceId, solutionId: row.id, ...it });
     }
     return row;
+  }
+
+  async setSolutionOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.solutions = this.solutions.map((s) =>
+      s.workspaceId === workspaceId && want.has(s.id)
+        ? { ...s, sortOrder: want.get(s.id)! }
+        : s,
+    );
+  }
+
+  async removeSolution(workspaceId: string, solutionId: string): Promise<boolean> {
+    const before = this.solutions.length;
+    this.solutions = this.solutions.filter(
+      (s) => !(s.workspaceId === workspaceId && s.id === solutionId),
+    );
+    // The items go with it, as the DDL's cascade does.
+    this.items = this.items.filter(
+      (i) => !(i.workspaceId === workspaceId && i.solutionId === solutionId),
+    );
+    return this.solutions.length < before;
   }
 
   async appendPrice(workspaceId: string, input: PriceDraft): Promise<PriceEntryRecord> {

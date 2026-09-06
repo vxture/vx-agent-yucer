@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   Button,
   Field,
+  FieldDescription,
+  FieldGroup,
   FieldLabel,
   Input,
   NativeSelect,
@@ -18,6 +20,8 @@ import type {
   ProductRecord,
   ProductStatusRecord,
   ProductTypeRecord,
+  SolutionItemRecord,
+  SolutionRecord,
 } from "../../domains/catalog/store";
 
 // The catalogue's three CREATION PAGES - owner ruling 2026-09-05.
@@ -215,35 +219,64 @@ export function NewProductForm({
 export function NewSolutionForm({
   products,
   statuses,
+  initial,
   onSave,
 }: {
   readonly products: readonly ProductRecord[];
   readonly statuses: readonly ProductStatusRecord[];
+  /** Present = EDIT mode (?code= on the page): the anchor locks and the
+   * composition arrives filled in. */
+  readonly initial?: {
+    readonly solution: SolutionRecord;
+    readonly items: readonly SolutionItemRecord[];
+  };
   readonly onSave: (input: {
     solutionCode: string;
     name: string;
     summary: string | null;
-    items: readonly { productId: string; quantity: number }[];
+    scenario: string | null;
+    items: readonly {
+      productId: string;
+      quantity: number;
+      optional: boolean;
+      note: string | null;
+    }[];
   }) => Promise<Saved>;
 }) {
   const { CATALOG_TEXT, CATALOG_ERROR, ASSIST_TEXT } = useMessages();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [summary, setSummary] = useState("");
-  // Starts with one row: the rule refuses an empty list ("a solution with no
-  // products is a name, not a bundle"), and the blank row teaches that.
-  const [items, setItems] = useState<readonly { productId: string; quantity: string }[]>([
-    { productId: "", quantity: "1" },
-  ]);
+  const editing = initial !== undefined;
+  const [code, setCode] = useState(initial?.solution.solutionCode ?? "");
+  const [name, setName] = useState(initial?.solution.name ?? "");
+  const [summary, setSummary] = useState(initial?.solution.summary ?? "");
+  const [scenario, setScenario] = useState(initial?.solution.scenario ?? "");
+  // A row carries the product and the quantity (the COMBINATION) and whether
+  // it is standard, plus what is tailored about it (the CUSTOMISATION). Both
+  // halves are edited in the same place because a line is only understandable
+  // as both at once.
+  type Row = { productId: string; quantity: string; optional: boolean; note: string };
+  const [items, setItems] = useState<readonly Row[]>(
+    initial
+      ? initial.items.map((i) => ({
+          productId: i.productId,
+          quantity: String(i.quantity),
+          optional: i.optional,
+          note: i.note ?? "",
+        }))
+      : // Starts with one row: the rule refuses an empty list ("a solution
+        // with no products is a name, not a bundle"), and the blank row
+        // teaches that.
+        [{ productId: "", quantity: "1", optional: false, note: "" }],
+  );
   const submit = useSubmit("/solution");
 
   const onSaleId = statuses.find((r) => r.statusCode === "active")?.id ?? null;
   const active = products.filter((p) => p.statusId === onSaleId);
+  const productName = new Map(products.map((p) => [p.id, p.name]));
   const chosen = new Set(items.map((i) => i.productId).filter(Boolean));
 
   const suggestions: AssistSuggestion[] = [];
-  // The actives NOT yet in the bundle, most recently added first - the likely
-  // next line, one click instead of a scroll through the select.
+  // The actives NOT yet in the bundle - the likely next line, one click
+  // instead of a scroll through the select.
   for (const p of active.filter((p) => !chosen.has(p.id)).slice(0, 3)) {
     suggestions.push({
       id: `add-${p.id}`,
@@ -255,78 +288,146 @@ export function NewSolutionForm({
           if (blank >= 0) {
             return prev.map((it, j) => (j === blank ? { ...it, productId: p.id } : it));
           }
-          return [...prev, { productId: p.id, quantity: "1" }];
+          return [...prev, { productId: p.id, quantity: "1", optional: false, note: "" }];
         }),
     });
   }
 
-  function patch(i: number, next: Partial<{ productId: string; quantity: string }>) {
+  function patch(i: number, next: Partial<Row>) {
     setItems(items.map((it, j) => (j === i ? { ...it, ...next } : it)));
   }
   const parsed = items
     .filter((it) => it.productId !== "")
-    .map((it) => ({ productId: it.productId, quantity: Number(it.quantity) }));
+    .map((it) => ({
+      productId: it.productId,
+      quantity: Number(it.quantity),
+      optional: it.optional,
+      note: it.note.trim() === "" ? null : it.note.trim(),
+    }));
   const ready =
     code.trim() !== "" &&
     name.trim() !== "" &&
     parsed.length > 0 &&
-    parsed.every((it) => Number.isFinite(it.quantity) && it.quantity > 0);
+    parsed.every((it) => Number.isFinite(it.quantity) && it.quantity > 0) &&
+    // Mirrors planSolution's rule so the button does not offer a refusal.
+    parsed.some((it) => !it.optional);
 
   return (
     <FormPage
       form={
-        <Section icon="puzzle" title={CATALOG_TEXT.newSolution} description={CATALOG_TEXT.emptyBundle}>
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+        <Section
+          icon="puzzle"
+          title={editing ? CATALOG_TEXT.editSolution : CATALOG_TEXT.newSolution}
+          description={CATALOG_TEXT.rosterSolutionWhy}
+        >
+          <FieldGroup className="max-w-(--vx-container-xl)">
             <Field>
-              <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} />
+              <FieldLabel htmlFor="sol-code">{CATALOG_TEXT.colCode}</FieldLabel>
+              <Input
+                id="sol-code"
+                value={code}
+                disabled={editing}
+                onChange={(e) => setCode(e.target.value)}
+              />
+              {editing ? <FieldDescription>{CATALOG_TEXT.editHint}</FieldDescription> : null}
             </Field>
             <Field>
-              <FieldLabel>{CATALOG_TEXT.colName}</FieldLabel>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
+              <FieldLabel htmlFor="sol-name">{CATALOG_TEXT.colSolutionName}</FieldLabel>
+              <Input id="sol-name" value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field>
-              <FieldLabel>{CATALOG_TEXT.solutionSummary}</FieldLabel>
-              <Input value={summary} onChange={(e) => setSummary(e.target.value)} />
+              <FieldLabel htmlFor="sol-summary">{CATALOG_TEXT.solutionSummary}</FieldLabel>
+              <Input
+                id="sol-summary"
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+              />
+              <FieldDescription>{CATALOG_TEXT.summaryHint}</FieldDescription>
             </Field>
+            <Field>
+              <FieldLabel htmlFor="sol-scenario">{CATALOG_TEXT.colScenario}</FieldLabel>
+              <Input
+                id="sol-scenario"
+                value={scenario}
+                onChange={(e) => setScenario(e.target.value)}
+              />
+              <FieldDescription>{CATALOG_TEXT.scenarioHint}</FieldDescription>
+            </Field>
+          </FieldGroup>
+
+          {/* THE COMBINATION, and the customisation of each line beside it. */}
+          <div className="mt-lg flex flex-col gap-md">
             {items.map((it, i) => (
-              /* Index as key is safe: rows are appended or removed from a local
-                 draft, never reordered, and each row's state lives in `items`. */
-              <div key={i} className="flex flex-wrap items-end gap-md">
+              /* Index as key is safe: rows are appended or removed from a
+                 local draft, never reordered, and each row's state lives in
+                 `items`. */
+              <div key={i} className="border-border flex flex-col gap-sm rounded-md border p-md">
+                <div className="flex flex-wrap items-end gap-md">
+                  <Field className="min-w-48 flex-1">
+                    <FieldLabel>{CATALOG_TEXT.solutionProduct}</FieldLabel>
+                    <NativeSelect
+                      value={it.productId}
+                      onChange={(e) => patch(i, { productId: e.target.value })}
+                    >
+                      <option value="">{CATALOG_TEXT.pickProduct}</option>
+                      {active
+                        .concat(
+                          // A retired product already in the bundle stays
+                          // selectable so an edit does not silently drop it -
+                          // the dock's check is what asks you to deal with it.
+                          products.filter(
+                            (p) => p.id === it.productId && p.statusId !== onSaleId,
+                          ),
+                        )
+                        .map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {productName.get(p.id) ?? p.name}
+                          </option>
+                        ))}
+                    </NativeSelect>
+                  </Field>
+                  <Field className="w-28">
+                    <FieldLabel>{CATALOG_TEXT.solutionQuantity}</FieldLabel>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={it.quantity}
+                      onChange={(e) => patch(i, { quantity: e.target.value })}
+                    />
+                  </Field>
+                  <Field className="w-32">
+                    <FieldLabel>{CATALOG_TEXT.colOptional}</FieldLabel>
+                    <NativeSelect
+                      value={it.optional ? "optional" : "standard"}
+                      onChange={(e) => patch(i, { optional: e.target.value === "optional" })}
+                    >
+                      <option value="standard">{CATALOG_TEXT.optionalNo}</option>
+                      <option value="optional">{CATALOG_TEXT.optionalYes}</option>
+                    </NativeSelect>
+                  </Field>
+                  {items.length > 1 ? (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setItems(items.filter((_, j) => j !== i))}
+                    >
+                      {CATALOG_TEXT.removeItem}
+                    </Button>
+                  ) : null}
+                </div>
                 <Field>
-                  <FieldLabel>{CATALOG_TEXT.solutionProduct}</FieldLabel>
-                  <NativeSelect
-                    value={it.productId}
-                    onChange={(e) => patch(i, { productId: e.target.value })}
-                  >
-                    <option value="">{CATALOG_TEXT.pickProduct}</option>
-                    {active.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                  <FieldLabel>{CATALOG_TEXT.colItemNote}</FieldLabel>
+                  <Input value={it.note} onChange={(e) => patch(i, { note: e.target.value })} />
+                  <FieldDescription>{CATALOG_TEXT.itemNoteHint}</FieldDescription>
                 </Field>
-                <Field>
-                  <FieldLabel>{CATALOG_TEXT.solutionQuantity}</FieldLabel>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={it.quantity}
-                    onChange={(e) => patch(i, { quantity: e.target.value })}
-                  />
-                </Field>
-                {items.length > 1 ? (
-                  <Button variant="ghost" onClick={() => setItems(items.filter((_, j) => j !== i))}>
-                    {CATALOG_TEXT.removeItem}
-                  </Button>
-                ) : null}
               </div>
             ))}
+
             <div className="flex flex-wrap items-center gap-md">
               <Button
                 variant="secondary"
-                onClick={() => setItems([...items, { productId: "", quantity: "1" }])}
+                onClick={() =>
+                  setItems([...items, { productId: "", quantity: "1", optional: false, note: "" }])
+                }
               >
                 {CATALOG_TEXT.addItem}
               </Button>
@@ -339,6 +440,7 @@ export function NewSolutionForm({
                         solutionCode: code.trim(),
                         name: name.trim(),
                         summary: summary.trim() === "" ? null : summary.trim(),
+                        scenario: scenario.trim() === "" ? null : scenario.trim(),
                         items: parsed,
                       }),
                     (c) => CATALOG_ERROR[c] ?? CATALOG_ERROR.denied,
@@ -347,6 +449,9 @@ export function NewSolutionForm({
               >
                 {CATALOG_TEXT.saveSolution}
               </Button>
+              {parsed.length > 0 && !parsed.some((it) => !it.optional) ? (
+                <StatusBadge tone="warning">{CATALOG_TEXT.standardCoreHint}</StatusBadge>
+              ) : null}
               {submit.err ? <StatusBadge tone="danger">{submit.err}</StatusBadge> : null}
             </div>
           </div>
