@@ -1,13 +1,14 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getDeliveryStore } from "../../domains/shared/registry";
 import { listProjects, projectView } from "../../domains/delivery/service";
 import {
-  CollectionsPanel,
+  CollectionRoster,
   type CollectionRow,
-} from "../components/collections-panel";
+} from "../components/collection-roster";
+import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { moveInstalment } from "../delivery/actions";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -72,15 +73,49 @@ export default async function CollectionPage() {
     }
   }
 
+  const open = rows.filter((r) => r.status !== "settled" && r.status !== "written_off");
+  const overdue = open.filter((r) => r.status === "overdue").length;
+  const short = rows.filter(
+    (r) => r.status === "settled" && r.actualAmount !== null && r.actualAmount < r.plannedAmount,
+  ).length;
+  // One cell per project still owed money, the outstanding amount as the
+  // number: the breakdown decomposes the headline the way every other
+  // module's does, and the dock explains whichever cell looks wrong.
+  const byProject = new Map<string, { name: string; amount: number; count: number }>();
+  for (const r of open) {
+    const cell = byProject.get(r.projectId) ?? { name: r.projectName, amount: 0, count: 0 };
+    cell.amount += r.plannedAmount;
+    cell.count += 1;
+    byProject.set(r.projectId, cell);
+  }
+  const stats: HeadlineStat[] = [...byProject.entries()].map(([id, c]) => ({
+    key: id,
+    name: c.name,
+    value: c.amount,
+    note: DELIVERY_TEXT.collectStatOutstanding(c.count),
+  }));
+
   return (
     <ViewLayout>
-      <ViewHeader
-        title={DELIVERY_TEXT.collections}
+      <ModuleHeadline
+        moduleKey="collection"
         description={DELIVERY_TEXT.collectionsWhy}
+        tags={
+          <>
+            <StatusBadge tone="success">{DELIVERY_TEXT.tagCollectDue(open.length)}</StatusBadge>
+            {overdue > 0 ? (
+              <StatusBadge tone="danger">{DELIVERY_TEXT.tagCollectOverdue(overdue)}</StatusBadge>
+            ) : null}
+            {short > 0 ? (
+              <StatusBadge tone="warning">{DELIVERY_TEXT.tagCollectShort(short)}</StatusBadge>
+            ) : null}
+          </>
+        }
+        stats={stats}
+        emptyNote={DELIVERY_TEXT.collectStatEmpty}
       />
-      <CollectionsPanel
+      <CollectionRoster
         rows={rows}
-        overdue={rows.filter((c) => c.status === "overdue").length}
         canWrite={
           can(
             session.authz,
