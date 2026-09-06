@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   DialogForm,
@@ -17,6 +16,7 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
+import { RowActions } from "./table-fittings";
 
 // 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
 // ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
@@ -55,6 +55,8 @@ export function CatalogTypeConfig({
   const [dialog, setDialog] = useState<{ mode: "create" | "rename"; code: string; name: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // 选择列 - one of the three standard fittings (table-fittings.tsx).
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
   const inUse = (typeId: string) => products.filter((p) => p.typeId === typeId).length;
@@ -104,6 +106,8 @@ export function CatalogTypeConfig({
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
         rowKey={(t: ProductTypeRecord) => t.id}
         rows={[...types]}
         columns={[
@@ -143,7 +147,7 @@ export function CatalogTypeConfig({
           },
         ]}
         rowActions={(t: ProductTypeRecord, rowIndex: number) => (
-          <ActionMenu
+          <RowActions
             disabled={pending}
             items={[
               {

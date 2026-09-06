@@ -1,8 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   EmptyState,
@@ -13,6 +12,7 @@ import {
 import type { SolutionItemRecord, SolutionRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
+import { RowActions } from "./table-fittings";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -53,6 +53,10 @@ export function SolutionRoster({
 }: SolutionRosterProps) {
   const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
   const [pending, startTransition] = useTransition();
+  // 选择列 - one of the three standard fittings (table-fittings.tsx). One
+  // state across both rosters: the keys are ids, so a selection is of the
+  // things themselves, not of the half of the page they appeared in.
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
   const live = solutions.filter((s) => s.solution.status !== "retired");
@@ -124,13 +128,18 @@ export function SolutionRoster({
     },
   ];
 
-  const rowActions = canWrite
-    ? (row: SolutionView, rowIndex: number) => {
-        const list = row.solution.status === "retired" ? retired : live;
-        return (
-          <ActionMenu
-            disabled={pending}
-            items={[
+  /* ALWAYS rendered (fittings ruling, 2026-09-06): a reader with no write
+     permission gets the column with an empty, disabled trigger rather than a
+     table one column narrower than a colleague's. */
+  const rowActions = (row: SolutionView, rowIndex: number) => {
+    const list = row.solution.status === "retired" ? retired : live;
+    return (
+      <RowActions
+        disabled={pending}
+        items={
+          !canWrite
+            ? []
+            : [
               {
                 id: "edit",
                 label: CATALOG_TEXT.opEdit,
@@ -177,24 +186,31 @@ export function SolutionRoster({
                   onConfirm: () => run(onDelete(row.solution.id)),
                 },
               },
-            ]}
-          />
-        );
-      }
-    : undefined;
+              ]
+        }
+      />
+    );
+  };
 
   /* The catalogue rosters' geometry (TD-022): fixed layout, edge columns on
      the DS token, and the name column taking the remainder. */
   const table = (rows: readonly SolutionView[]) => (
-    /* COUNTED FROM THE LEFT. The index column is always rendered and the
-       ACTION column is not - DataTable omits it for a reader with no write
-       permission - so right-counting shifted every rule one column left and
-       squeezed the name (review, 2026-09-05). Order: # | name | composition |
-       scenario | status | actions?. */
-    <div className="[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[7rem] [&_thead_th:nth-child(5)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
+    /* COUNTED FROM THE LEFT, and every leading column is now unconditional:
+       选择 | 序号 come first for every reader, so the business columns start
+       at nth-child(3) and nothing to their left can disappear.
+         A MIN-WIDTH so the shell can be narrow without crushing the text
+       columns: with the fittings ruling's selection column added, the two
+       flexible columns here were splitting what the fixed ones left and
+       collapsing to an unreadable 56-72px. The DS wrapper is overflow-x-auto,
+       so past this width the table scrolls - which is the honest failure for
+       a table too wide for its container.
+     Order: 选择 | # | name | composition | scenario | status | 操作. */
+    <div className="[&_table]:table-fixed [&_table]:min-w-[44rem] [&_thead_th:nth-child(4)]:w-[7rem] [&_thead_th:nth-child(6)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
         rowKey={(r: SolutionView) => r.solution.id}
         rows={[...rows]}
         columns={columns}

@@ -1,8 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   EmptyState,
@@ -13,6 +12,7 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { statusTone } from "./status-label";
+import { RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -61,6 +61,10 @@ export function ProductRoster({
 }: ProductRosterProps) {
   const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
   const [pending, startTransition] = useTransition();
+  // 选择列 - one of the three standard fittings (table-fittings.tsx). Held
+  // across BOTH rosters because the keys are product ids: a selection is of
+  // products, not of whichever half of the page they were shown in.
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
   const typeName = new Map(types.map((t) => [t.id, t.name]));
@@ -131,14 +135,18 @@ export function ProductRoster({
     { id: "unit", header: CATALOG_TEXT.colUnitPrice, cell: (r: ProductRecord) => r.unit },
   ];
 
-  /** One menu per row - the DS's single-trigger row-action column. */
-  const rowActions = canWrite
-    ? (row: ProductRecord, rowIndex: number) => {
-        const list = codeOf(row) === "retired" ? retired : live;
-        return (
-          <ActionMenu
-            disabled={pending}
-            items={[
+  /** One menu per row - the DS's single-trigger row-action column. ALWAYS
+   * rendered: with no write permission the menu is empty and the trigger is
+   * disabled, so the column holds its place (the 2026-09-06 fittings ruling). */
+  const rowActions = (row: ProductRecord, rowIndex: number) => {
+    const list = codeOf(row) === "retired" ? retired : live;
+    return (
+      <RowActions
+        disabled={pending}
+        items={
+          !canWrite
+            ? []
+            : [
               {
                 id: "edit",
                 label: CATALOG_TEXT.opEdit,
@@ -176,11 +184,11 @@ export function ProductRoster({
                   onConfirm: () => run(onDelete(row.id)),
                 },
               },
-            ]}
-          />
-        );
-      }
-    : undefined;
+              ]
+        }
+      />
+    );
+  };
 
   /** The sort page's arrows: a REGULAR column, not the 64px action slot -
    * sorting is a burst activity and each step must stay one click. */
@@ -218,18 +226,24 @@ export function ProductRoster({
        table-fixed so the live and retired rosters align column for column
        regardless of content, the name column takes the lion's share, and the
        trailing column is token-fixed - the DS edge token for the single-
-       trigger action slot, a wider fixed box for the sort page's two arrows. */
+       trigger action slot, a wider fixed box for the sort page's two arrows.
+       Counted FROM THE LEFT, and the leading pair is now 选择 | 序号, so the
+       first business column is nth-child(3) rather than (2). */
     <div
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(2)]:w-[34%] ${
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${
         extra ? "[&_thead_th:last-child]:w-[6.5rem]" : "[&_thead_th:last-child]:w-control-3xl"
       }`}
     >
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
         rowKey={(r: ProductRecord) => r.id}
         rows={[...rows]}
         columns={extra ? [...columns, extra] : columns}
+        /* The sort variant puts its arrows in a regular column, so IT is the
+           trailing column there - the action slot would be a second one. */
         rowActions={extra ? undefined : rowActions}
         empty={
           <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />

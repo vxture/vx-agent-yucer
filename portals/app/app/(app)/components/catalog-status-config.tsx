@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   DialogForm,
@@ -19,6 +18,7 @@ import type { ProductRecord, ProductStatusRecord } from "../../domains/catalog/s
 import { isSystemStatus } from "../../domains/catalog/lib/status-vocab";
 import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
+import { RowActions } from "./table-fittings";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -62,6 +62,8 @@ export function CatalogStatusConfig({
   } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // 选择列 - one of the three standard fittings (table-fittings.tsx).
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
   const inUse = (statusId: string) => products.filter((p) => p.statusId === statusId).length;
@@ -120,6 +122,8 @@ export function CatalogStatusConfig({
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
         rowKey={(r: ProductStatusRecord) => r.id}
         rows={[...statuses]}
         columns={[
@@ -150,7 +154,7 @@ export function CatalogStatusConfig({
           },
         ]}
         rowActions={(r: ProductStatusRecord, rowIndex: number) => (
-          <ActionMenu
+          <RowActions
             disabled={pending}
             items={[
               {

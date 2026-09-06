@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   DialogForm,
@@ -21,6 +20,7 @@ import {
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
+import { RowActions } from "./table-fittings";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -213,12 +213,13 @@ export function PriceBook({
    * disabled with its reason - a control that vanishes teaches nothing, and
    * the DS's `hint` exists for exactly this (禁用项不说理由，用户只能猜). The
    * service decides again on submit; this is the interface agreeing with it. */
-  const rowActions = (inForce: boolean) =>
-    canPrice
-      ? (row: PriceEntryRecord) => (
-          <ActionMenu
-            disabled={pending}
-            items={[
+  const rowActions = (inForce: boolean) => (row: PriceEntryRecord) => (
+    <RowActions
+      disabled={pending}
+      items={
+        !canPrice
+          ? []
+          : [
               ...(inForce
                 ? [
                     {
@@ -249,17 +250,19 @@ export function PriceBook({
                   onConfirm: () => run(onDelete(row.id)),
                 },
               },
-            ]}
-          />
-        )
-      : undefined;
+            ]
+      }
+    />
+  );
 
-  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT. The
-     leading columns are always rendered (selection on the live table, the DS
-     spacer on the history one, then the index); the ACTION column is not -
-     it disappears for a reader who cannot price - so counting from the right
-     moved every width one column over for them (review, 2026-09-05).
-     Order: lead | # | product | list | floor | effective | superseded? | actions? */
+  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT. Every
+     leading column is unconditional - selection on the live table, the DS
+     spacer on the history one, then the index - and since the 2026-09-06
+     fittings ruling so is the ACTION column. It used to vanish for a reader
+     who cannot price, which is what made right-counting move every width one
+     column over for exactly that reader (review, 2026-09-05); left-counting
+     fixed the symptom and an always-present column removes the cause.
+     Order: 选择/占位 | # | product | list | floor | effective | superseded? | 操作 */
   const table = (
     rows: readonly PriceEntryRecord[],
     acts: ReturnType<typeof rowActions>,

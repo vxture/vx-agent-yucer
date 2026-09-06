@@ -1,8 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
-  ActionMenu,
   Button,
   DataTable,
   EmptyState,
@@ -12,6 +11,7 @@ import {
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
+import { RowActions } from "./table-fittings";
 
 // How the market is cut - the catalogue module pattern, applied on the
 // owner's 2026-09-05 ruling.
@@ -51,6 +51,9 @@ export interface SegmentRosterProps {
 export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: SegmentRosterProps) {
   const { STRATEGY_TEXT, SEGMENT_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
   const [pending, startTransition] = useTransition();
+  // 选择列 - one of the three standard fittings (table-fittings.tsx). One
+  // state across both rosters: the keys are ids.
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
   const live = rows.filter((r) => r.status === "active");
@@ -135,13 +138,18 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
     },
   ];
 
-  const rowActions = canWrite
-    ? (row: SegmentRow, rowIndex: number) => {
-        const list = row.status === "active" ? live : shelved;
-        return (
-          <ActionMenu
-            disabled={pending}
-            items={[
+  /* ALWAYS rendered (fittings ruling, 2026-09-06): a reader with no write
+     permission gets the column with an empty, disabled trigger rather than a
+     table one column narrower than a colleague's. */
+  const rowActions = (row: SegmentRow, rowIndex: number) => {
+    const list = row.status === "active" ? live : shelved;
+    return (
+      <RowActions
+        disabled={pending}
+        items={
+          !canWrite
+            ? []
+            : [
               {
                 id: "edit",
                 label: CATALOG_TEXT.opEdit,
@@ -194,22 +202,30 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
                   onConfirm: () => run(onDelete(row.id)),
                 },
               },
-            ]}
-          />
-        );
-      }
-    : undefined;
+              ]
+        }
+      />
+    );
+  };
 
-  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT. The
-     index column is always there; the ACTION column is not - it disappears
-     for a reader who cannot edit segments - so counting from the right moved
-     every width one column over for them (review, 2026-09-05).
-     Order: # | name | criteria | plan | counts | status | actions? */
+  /* The catalogue rosters' geometry (TD-022), COUNTED FROM THE LEFT, and
+     every leading column is now unconditional: 选择 | 序号 come first for
+     every reader, so the business columns start at nth-child(3) and nothing
+     to their left can disappear.
+       A MIN-WIDTH so the shell can be narrow without crushing the text
+       columns: with the fittings ruling's selection column added, the two
+       flexible columns here were splitting what the fixed ones left and
+       collapsing to an unreadable 56-72px. The DS wrapper is overflow-x-auto,
+       so past this width the table scrolls - which is the honest failure for
+       a table too wide for its container.
+     Order: 选择 | # | name | criteria | plan | counts | status | 操作 */
   const table = (list: readonly SegmentRow[]) => (
-    <div className="[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[8rem] [&_thead_th:nth-child(5)]:w-[7rem] [&_thead_th:nth-child(6)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
+    <div className="[&_table]:table-fixed [&_table]:min-w-[52rem] [&_thead_th:nth-child(5)]:w-[8rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:nth-child(7)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
         rowKey={(r: SegmentRow) => r.id}
         rows={[...list]}
         columns={columns}
