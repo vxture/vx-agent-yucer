@@ -9,6 +9,8 @@ import {
   type CollectionRow,
 } from "../components/collection-roster";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
+import { CollectionOverview } from "../components/collection-overview";
+import { collectionStats } from "../../domains/delivery/lib/collection-stats";
 import { moveInstalment } from "../delivery/actions";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -25,7 +27,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function CollectionPage() {
-  const { DELIVERY_TEXT, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { DELIVERY_TEXT, LOAD_ERROR, REVENUE_STATUS_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -78,22 +80,31 @@ export default async function CollectionPage() {
   const short = rows.filter(
     (r) => r.status === "settled" && r.actualAmount !== null && r.actualAmount < r.plannedAmount,
   ).length;
-  // One cell per project still owed money, the outstanding amount as the
-  // number: the breakdown decomposes the headline the way every other
-  // module's does, and the dock explains whichever cell looks wrong.
-  const byProject = new Map<string, { name: string; amount: number; count: number }>();
-  for (const r of open) {
-    const cell = byProject.get(r.projectId) ?? { name: r.projectName, amount: 0, count: 0 };
-    cell.amount += r.plannedAmount;
-    cell.count += 1;
-    byProject.set(r.projectId, cell);
-  }
-  const stats: HeadlineStat[] = [...byProject.entries()].map(([id, c]) => ({
-    key: id,
-    name: c.name,
-    value: c.amount,
-    note: DELIVERY_TEXT.collectStatOutstanding(c.count),
-  }));
+  // THE BREAKDOWN IS THE COLLECTION PROCESS, not the project list (owner,
+  // 2026-09-06). This page is about where the money has got to on its way in:
+  // planned, invoiced, late, arrived, given up on. A per-project breakdown
+  // answered "who owes us", which the table below already lists row by row,
+  // and said nothing about the stage a receivable is stuck at - which is the
+  // question a collections review opens with.
+  //
+  // SETTLED IS COUNTED AT WHAT ARRIVED, everything else at what was promised.
+  // Summing the planned figure for money that is already in would report a
+  // number nobody received, and short payment is normal enough here that the
+  // schedule tracks it separately from invoicing.
+  const STAGES = ["planned", "invoiced", "overdue", "settled", "written_off"] as const;
+  const stats: HeadlineStat[] = STAGES.map((stage) => {
+    const at = rows.filter((r) => r.status === stage);
+    const amount = at.reduce(
+      (sum, r) => sum + (stage === "settled" ? (r.actualAmount ?? 0) : r.plannedAmount),
+      0,
+    );
+    return {
+      key: stage,
+      name: REVENUE_STATUS_LABEL[stage] ?? stage,
+      value: amount,
+      note: DELIVERY_TEXT.collectStatCount(at.length),
+    };
+  }).filter((cell) => cell.value > 0);
 
   return (
     <ViewLayout>
@@ -114,6 +125,10 @@ export default async function CollectionPage() {
         stats={stats}
         emptyNote={DELIVERY_TEXT.collectStatEmpty}
       />
+      {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - so the shape comes
+          first and the schedule reads as its detail. Both are computed from
+          the SAME rows, so the block and the list cannot disagree. */}
+      <CollectionOverview stats={collectionStats(rows, new Date())} />
       <CollectionRoster
         rows={rows}
         canWrite={

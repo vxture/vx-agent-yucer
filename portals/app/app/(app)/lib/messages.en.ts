@@ -2118,7 +2118,26 @@ export const en: Dictionary = {
     tagCollectDue: (n: number) => `${n} outstanding`,
     tagCollectOverdue: (n: number) => `${n} overdue`,
     tagCollectShort: (n: number) => `${n} short-paid`,
-    collectStatOutstanding: (n: number) => `${n} instalments outstanding`,
+    collectStatCount: (n: number) => `${n} instalments`,
+
+    overviewTitle: "Collections overview",
+    overviewWhy:
+      "The shape first: which ageing band the money sits in, and who most of it is with. The schedule below is the line-by-line detail.",
+    overviewEmpty: "Nothing is outstanding, so there is nothing to plot.",
+    collectedRate: "Collected",
+    collectedOf: (got: string, promised: string) => `${got} in of ${promised} promised`,
+    ageingTitle: "Ageing",
+    ageingWhy:
+      "By days past due. Not-yet-due is the healthy band and it stays, so the tail can be read as the exception or the rule.",
+    byProjectTitle: "Concentration",
+    byProjectWhy: "The eight projects holding the most outstanding money.",
+    ageingBand: {
+      not_due: "Not yet due",
+      d1_30: "1-30 days late",
+      d31_60: "31-60 days late",
+      d60_plus: "60+ days late",
+      no_due_date: "No due date",
+    } as Record<string, string>,
     collectStatEmpty: "Nothing is outstanding, so there is nothing to break down.",
 
     collectAdviceTitle: "Collections check",

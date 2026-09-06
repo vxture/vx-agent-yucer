@@ -2548,7 +2548,25 @@ export const DELIVERY_TEXT = {
   tagCollectDue: (n: number) => `${n} 笔待回款`,
   tagCollectOverdue: (n: number) => `${n} 笔逾期`,
   tagCollectShort: (n: number) => `${n} 笔短收`,
-  collectStatOutstanding: (n: number) => `${n} 期未收`,
+  collectStatCount: (n: number) => `${n} 期`,
+
+  // --- 回款概览 (the statistics block, 2026-09-06) ---------------------------
+  overviewTitle: "回款概览",
+  overviewWhy: "先看整体：钱压在哪一段账龄、集中在谁身上。下面的清单是逐笔明细。",
+  overviewEmpty: "没有未收的钱，这一块暂时不用看。",
+  collectedRate: "回款达成",
+  collectedOf: (got: string, promised: string) => `已收 ${got} / 承诺 ${promised}`,
+  ageingTitle: "账龄分布",
+  ageingWhy: "按逾期天数分档。未到期是健康的那一档，留着才看得出尾巴是例外还是常态。",
+  byProjectTitle: "未收集中度",
+  byProjectWhy: "未收金额最高的前八个项目。",
+  ageingBand: {
+    not_due: "未到期",
+    d1_30: "逾期 1-30 天",
+    d31_60: "逾期 31-60 天",
+    d60_plus: "逾期 60 天以上",
+    no_due_date: "未填到期日",
+  } as Record<string, string>,
   collectStatEmpty: "当前没有待回款的项目，头部不做拆解。",
 
   // --- 回款检查 (the dock) ---------------------------------------------------
