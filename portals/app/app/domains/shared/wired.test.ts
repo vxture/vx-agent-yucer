@@ -113,8 +113,6 @@ const KNOWN_TEST_ONLY: Record<string, string> = {
     "pins zero-comparison without float ambiguity; no caller needs it yet",
   "signal/scoring.dedupKey":
     "pins the dedup identity that uidx_signal_ws_source enforces in the database; no code path composes it",
-  "strategy/lifecycle.planAcceptsNewWork":
-    "pins which plan statuses attract downstream work; no caller gates on it yet",
   // `daysSinceLastContact` left on 2026-09-01, by the "unify" branch of what
   // its entry offered. It took an ARRAY of dates, which is why it never found a
   // caller: the store answers `lastContactAt` with a single date (a MAX in the

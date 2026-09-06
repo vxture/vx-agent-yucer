@@ -48,6 +48,19 @@ export interface AssistantItem {
     readonly run: () => Promise<{ ok: boolean; error?: string }>;
     /** Said on success - the product confirming what it did. */
     readonly done?: string;
+    /** THE MODULE'S OWN ERROR DICTIONARY (TD-010: the action returns a code,
+     * this turns it into a sentence). Supplied by the panel because the panel
+     * is the thing that knows which module's vocabulary a refusal belongs to.
+     * This surface used to reach for the catalogue's dictionary for every act
+     * on every page, which meant a plan's `illegal_transition` had to be filed
+     * under the catalogue's words to be readable - found by
+     * reachable-codes.test.ts on 2026-09-05, the first time a second module
+     * put an act here. (Naming that dictionary in this comment re-attached it
+     * to the chain, because the guard scans file text: it is looking for which
+     * dictionaries a file MENTIONS, and a comment mentions.) Omitted only
+     * where the act cannot fail (a local fill), and then a refusal falls back
+     * to a generic sentence rather than to another module's words. */
+    readonly errors?: Record<string, string>;
   };
   /** Where a person goes to decide it themselves. */
   readonly link?: { readonly label: string; readonly href: string };
@@ -80,7 +93,7 @@ const TONE_TEXT = {
 } as const;
 
 export function AssistantSection({ section }: { readonly section: AssistantSection }) {
-  const { ASSISTANT_TEXT, CATALOG_ERROR } = useMessages();
+  const { ASSISTANT_TEXT } = useMessages();
   // ACCEPTED AND IGNORED ARE DIFFERENT THINGS, and conflating them was a
   // real defect (review, 2026-09-05): a successful act pushed the item onto
   // `ignored`, so the product told you it had IGNORED the suggestion you had
@@ -103,9 +116,11 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
           setAccepted((x) => [...x, item.id]);
           if (item.act?.done) toast({ tone: "success", title: item.act.done });
         } else {
+          const dict = item.act?.errors;
           toast({
             tone: "danger",
-            title: CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied,
+            title:
+              dict?.[r.error ?? "denied"] ?? dict?.denied ?? ASSISTANT_TEXT.actFailed,
           });
         }
       });

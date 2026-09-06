@@ -91,7 +91,14 @@ export class PrismaStrategyStore implements StrategyStore {
   async updatePlan(
     workspaceId: string,
     id: string,
-    patch: { status?: PlanStatus; approvedAt?: Date | null; name?: string; objective?: string | null },
+    patch: {
+      status?: PlanStatus;
+      approvedAt?: Date | null;
+      name?: string;
+      period?: string;
+      objective?: string | null;
+      ownerSub?: string | null;
+    },
   ): Promise<boolean> {
     const p = await getPrismaClient();
     const data: Record<string, unknown> = { ...patch, updatedAt: new Date() };
