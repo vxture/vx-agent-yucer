@@ -39,7 +39,7 @@ import { useMessages } from "../lib/i18n/provider";
  * in its colour policy. Only the COLOURS are borrowed; LevelMarker's gradient
  * and glow material stays where its docs reserve it, on ranking.
  */
-export type StatDepth = 1 | 2 | 3 | 4 | 5;
+export type StatDepth = 0 | 1 | 2 | 3 | 4 | 5;
 
 /**
  * A colour that OVERRIDES the depth ramp, for a cell that is not part of the
@@ -63,6 +63,11 @@ const TONE_BG: Record<StatTone, string> = {
 };
 
 const DEPTH_BG: Record<StatDepth, string> = {
+  // A step BELOW the ramp. The DS scale starts at level-1 and a strip that
+  // sits above the fold on every visit wanted one lighter still (owner,
+  // 2026-09-06), so 0 is the DS's `accent` wash - the palest fill the product
+  // already uses, not a new colour invented for this.
+  0: "bg-accent",
   1: "bg-(color:--level-1)",
   2: "bg-(color:--level-2)",
   3: "bg-(color:--level-3)",

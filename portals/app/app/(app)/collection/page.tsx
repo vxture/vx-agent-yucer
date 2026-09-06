@@ -106,16 +106,16 @@ export default async function CollectionPage() {
   // step - it is certain, but it is no longer part of the receivable, and on a
   // one-hue ramp the palest end is the only place left for "not counting".
   //
-  // THE LIGHTER END OF THE RAMP. The deepest step read as heavy for a strip
-  // that sits above the fold on every visit (owner, 2026-09-06); the five
-  // stages use levels 4 down to 1, which keeps four distinguishable shades and
-  // drops the whole strip a step in weight.
+  // THE LIGHT END OF THE RAMP. This strip is above the fold on every visit, so
+  // it should not be the heaviest thing on the page (owner, 2026-09-06, twice).
+  // Levels 3 down to 0 - the deepest fill is now a mid blue rather than the
+  // ramp's darkest, and the shades still separate.
   const STAGE_DEPTH = {
-    settled: 4,
-    overdue: 3,
-    invoiced: 2,
-    planned: 1,
-    written_off: 1,
+    settled: 3,
+    overdue: 2,
+    invoiced: 1,
+    planned: 0,
+    written_off: 0,
   } as const;
   const stats: HeadlineStat[] = STAGES.map((stage) => {
     const at = rows.filter((r) => r.status === stage);
