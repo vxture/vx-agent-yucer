@@ -2104,6 +2104,61 @@ export const en: Dictionary = {
     emptyTitle: "No delivery projects yet",
     emptyDescription:
       "A won opportunity becomes a delivery project and appears here.",
+
+    instalmentSeq: (n: number) => `Instalment ${n}`,
+    rosterOpen: "Still owed",
+    rosterOpenWhy:
+      "Money promised and not yet arrived. A due date that has passed while the status has not caught up is the one this table exists to show.",
+    rosterClosed: "Closed",
+    rosterClosedWhy:
+      "Settled and written off both stay here. Money that arrived did arrive; a write-off is reversed by a new schedule, not by editing this row.",
+    settleShort: "Record",
+    colDueStatus: "Due / status",
+    noDueDate: "No due date",
+    overdueBy: (n: number) => `${n} days overdue`,
+    dueIn: (n: number) => `${n} days to go`,
+    settleTitle: "Record a payment",
+    settleAmount: "Amount received",
+    settleConfirm: "Mark settled",
+    tagCollectDue: (n: number) => `${n} outstanding`,
+    tagCollectOverdue: (n: number) => `${n} overdue`,
+    tagCollectShort: (n: number) => `${n} short-paid`,
+    collectStatCount: (n: number) => `${n} instalments`,
+
+    overviewTitle: "Collections analysis",
+    overviewWhy:
+      "The shape first: which ageing band the money sits in, and who most of it is with. The schedule below is the line-by-line detail.",
+    overviewEmpty: "Nothing is outstanding, so there is nothing to plot.",
+    collectedRate: "Collected",
+    collectedOf: (got: string, promised: string) => `${got} in of ${promised} promised`,
+    ageingTitle: "Ageing",
+    ageingWhy:
+      "By days past due. Not-yet-due is the healthy band and it stays, so the tail can be read as the exception or the rule.",
+    byProjectTitle: "Concentration",
+    byProjectWhy: "The eight projects holding the most outstanding money.",
+    ageingBand: {
+      not_due: "Not yet due",
+      d1_30: "1-30 days late",
+      d31_60: "31-60 days late",
+      d60_plus: "60+ days late",
+      no_due_date: "No due date",
+    } as Record<string, string>,
+    collectStatEmpty: "Nothing is outstanding, so there is nothing to break down.",
+
+    collectAdviceTitle: "Collections check",
+    collectAdviceClear: "Nothing on these collections needs attention.",
+    collectAdviceOpenDelivery: "See delivery",
+    collectAdviceFlag: "Mark overdue",
+    collectAdviceFlagged: "Marked overdue",
+    collectAdviceOverdue: (name: string, days: number) =>
+      `"${name}" has an instalment ${days} days overdue.`,
+    collectAdviceDueNotFlagged: (name: string, days: number) =>
+      `"${name}" has an instalment ${days} days past its due date and the status has not caught up.`,
+    collectAdviceShort: (name: string, gap: string) =>
+      `"${name}" was paid ${gap} short and nobody is chasing the difference.`,
+    collectAdviceNoDueDate: (name: string) =>
+      `"${name}" has an instalment with no due date, so it will never show up as overdue.`,
+    collectAdviceNothing: (name: string) => `"${name}" has collected nothing at all yet.`,
   },
 
   PROJECT_STATUS_LABEL: {

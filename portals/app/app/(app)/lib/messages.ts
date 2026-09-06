@@ -2533,6 +2533,62 @@ export const DELIVERY_TEXT = {
   milestoneAffectsHealth:
     "序号在一个项目内唯一且不可改，它就是这个节点的身份——同一序号再存一次是修改那一条。一个「已错过」的里程碑会推翻上面表里项目经理上报的绿色。",
   moveDenied: "你没有修改回款的权限",
+
+  // --- the collections module page (2026-09-06) -----------------------------
+  instalmentSeq: (n: number) => `第 ${n} 期`,
+  rosterOpen: "待回款",
+  rosterOpenWhy:
+    "已经承诺、还没到账的钱。到期日过了而状态还没跟上，是这张表最该被看见的一种。",
+  rosterClosed: "已了结",
+  rosterClosedWhy:
+    "已回款和坏账都留在这里。到账的就是到账了；坏账的翻案靠新的回款计划，不靠改这一行。",
+  settleShort: "登记",
+  colDueStatus: "到期与状态",
+  noDueDate: "未填到期日",
+  overdueBy: (n: number) => `已逾期 ${n} 天`,
+  dueIn: (n: number) => `还有 ${n} 天`,
+  settleTitle: "登记回款",
+  settleAmount: "实际收到",
+  settleConfirm: "确认已回款",
+  tagCollectDue: (n: number) => `${n} 笔待回款`,
+  tagCollectOverdue: (n: number) => `${n} 笔逾期`,
+  tagCollectShort: (n: number) => `${n} 笔短收`,
+  collectStatCount: (n: number) => `${n} 期`,
+
+  // --- 回款概览 (the statistics block, 2026-09-06) ---------------------------
+  overviewTitle: "回款分析",
+  overviewWhy: "先看整体：钱压在哪一段账龄、集中在谁身上。下面的清单是逐笔明细。",
+  overviewEmpty: "没有未收的钱，这一块暂时不用看。",
+  collectedRate: "回款达成",
+  collectedOf: (got: string, promised: string) => `已收 ${got} / 承诺 ${promised}`,
+  ageingTitle: "账龄分布",
+  ageingWhy: "按逾期天数分档。未到期是健康的那一档，留着才看得出尾巴是例外还是常态。",
+  byProjectTitle: "未收集中度",
+  byProjectWhy: "未收金额最高的前八个项目。",
+  ageingBand: {
+    not_due: "未到期",
+    d1_30: "逾期 1-30 天",
+    d31_60: "逾期 31-60 天",
+    d60_plus: "逾期 60 天以上",
+    no_due_date: "未填到期日",
+  } as Record<string, string>,
+  collectStatEmpty: "当前没有待回款的项目，头部不做拆解。",
+
+  // --- 回款检查 (the dock) ---------------------------------------------------
+  collectAdviceTitle: "回款检查",
+  collectAdviceClear: "这批回款没有需要处理的地方。",
+  collectAdviceOpenDelivery: "查看交付",
+  collectAdviceFlag: "标记为逾期",
+  collectAdviceFlagged: "已标记逾期",
+  collectAdviceOverdue: (name: string, days: number) =>
+    `「${name}」有一笔回款逾期 ${days} 天了。`,
+  collectAdviceDueNotFlagged: (name: string, days: number) =>
+    `「${name}」有一笔回款到期日已经过去 ${days} 天，状态还停在开票前后。`,
+  collectAdviceShort: (name: string, gap: string) =>
+    `「${name}」有一笔回款短收 ${gap}，差额没有人跟。`,
+  collectAdviceNoDueDate: (name: string) =>
+    `「${name}」有一笔回款没有到期日，它永远不会出现在逾期统计里。`,
+  collectAdviceNothing: (name: string) => `「${name}」的回款一期都还没到账。`,
 } as const;
 
 /**

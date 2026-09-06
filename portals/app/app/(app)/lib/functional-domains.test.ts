@@ -268,7 +268,7 @@ const SHIPPED_AS: Record<string, string> = {
   // blind spot the note below admits to, hit for real.
   territory: "TerritoryPanel",
   winLossReview: "PendingReviews",
-  collection: "CollectionsPanel",
+  collection: "CollectionRoster",
   // Three sections since 2026-08-30, one per module page. They shared a
   // component while /catalog was one route with three anchors; each module
   // now names the section that actually renders it, which is what makes this
