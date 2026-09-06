@@ -225,6 +225,32 @@ export class PrismaStrategyStore implements StrategyStore {
     return toSegment(row as Record<string, unknown>);
   }
 
+  async setSegmentOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { priority: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(SEGMENT_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked segment column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.marketSegment.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeSegment(workspaceId: string, segmentId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // fk_campaign_segment is ON DELETE SET NULL and account.segment_code is a
+    // plain string - neither would stop this, which is exactly why the SERVICE
+    // refuses a segment anything still points at.
+    const { count } = await p.marketSegment.deleteMany({ where: { workspaceId, id: segmentId } });
+    return count > 0;
+  }
+
   async listExecutions(workspaceId: string, campaignId: string): Promise<ExecutionRecord[]> {
     const p = await getPrismaClient();
     const rows = await p.campaignExecution.findMany({
