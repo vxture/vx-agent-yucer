@@ -18,11 +18,31 @@ import { useMessages } from "../lib/i18n/provider";
 // leaves whitespace on the right - three milestones must not stretch into five
 // columns' width. Beyond five the grid wraps and the layout still holds.
 //
-// WHY FIVE. The demo data cannot settle it - two projects carry plans, of
-// three milestones and one - so the number comes from the shape of the work:
-// a delivery engagement is planned in the order of kickoff, pilot, rollout,
-// acceptance, handover. Five covers that; a plan longer than five is a real
-// plan and wraps rather than being squeezed.
+// WHY FIVE, from what this product actually sells. The catalogue's types are
+// 软件产品 / 订阅服务 / 实施服务 / 维保服务 / 培训服务, and a delivery project
+// delivers those, so the milestone count follows the CONTRACT's shape in three
+// families:
+//
+//   实施类 (software + implementation, the bulk): 启动 -> 需求调研/蓝图 ->
+//     配置开发 -> 集成测试与数据迁移 -> 上线切换 -> 终验 -> 质保移交. Six or
+//     seven if written out, but a contract usually gates about FIVE - testing
+//     and migration fold into go-live, warranty handover folds into "N days
+//     after acceptance".
+//   订阅接入 (SaaS): 启动 -> 配置接入 -> 试运行 -> 正式启用. Four.
+//   维保 / 培训: one or two - delivery IS the completion.
+//
+// And the milestones pair with the collections schedule: payment gates sit on
+// acceptance gates (预付 / 上线 / 终验 / 质保到期), three or four of them, with
+// the milestone set running one or two longer.
+//
+// So five covers the longest common family and leaves the short ones their
+// whitespace, which is exactly the layout rule. A plan longer than five is a
+// genuinely long contract and earns its wrapped row.
+//
+// (An earlier version of this comment said "kickoff, pilot, rollout" - that is
+// a PRODUCT ROLLOUT's playbook, reverse-engineered from the demo fixture's own
+// milestone names two lines after admitting the fixture could not settle the
+// number. Corrected on the owner's challenge, 2026-09-06.)
 //
 // THE SEQUENCE IS THE IDENTITY - `(project, sequence)` is a milestone's key in
 // the DDL - so it is drawn, not implied: the ordinal sits in the marker of a
