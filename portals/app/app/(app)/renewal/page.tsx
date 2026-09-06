@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -8,7 +8,8 @@ import {
 } from "../../domains/shared/registry";
 import { listRenewals } from "../../domains/delivery/service";
 import { listRenewedProjectIds } from "../../domains/pipeline/service";
-import { RenewalTable, type RenewalRow } from "../components/renewal-table";
+import { RenewalRoster, type RenewalRow } from "../components/renewal-roster";
+import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { openRenewal } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -93,10 +94,48 @@ export default async function RenewalPage() {
     notDueReason: c.verdict.kind === "not_due" ? c.verdict.reason : null,
   }));
 
+  const due = rows.filter((r) => r.notDueReason === null);
+  const lapsed = due.filter((r) => r.daysToEnd !== null && r.daysToEnd < 0);
+  const watch = due.filter((r) => r.risk === "watch");
+  // One cell per project coming up, its term as the number: the breakdown
+  // decomposes the headline the way every other module's does, and a negative
+  // number is the finding the dock then explains.
+  const stats: HeadlineStat[] = due.map((r) => ({
+    key: r.projectId,
+    name: r.projectName,
+    value: r.amount ?? 0,
+    note:
+      r.daysToEnd === null
+        ? RENEWAL_TEXT.renewalStatNoDate
+        : r.daysToEnd < 0
+          ? RENEWAL_TEXT.renewalStatLapsed(-r.daysToEnd)
+          : RENEWAL_TEXT.renewalStatDays(r.daysToEnd),
+  }));
+
   return (
     <ViewLayout>
-      <ViewHeader title={RENEWAL_TEXT.title} description={RENEWAL_TEXT.why} />
-      <RenewalTable
+      <ModuleHeadline
+        moduleKey="renewal"
+        description={RENEWAL_TEXT.why}
+        tags={
+          <>
+            <StatusBadge tone="success">{RENEWAL_TEXT.tagRenewalDue(due.length)}</StatusBadge>
+            {lapsed.length > 0 ? (
+              <StatusBadge tone="danger">
+                {RENEWAL_TEXT.tagRenewalLapsed(lapsed.length)}
+              </StatusBadge>
+            ) : null}
+            {watch.length > 0 ? (
+              <StatusBadge tone="warning">
+                {RENEWAL_TEXT.tagRenewalWatch(watch.length)}
+              </StatusBadge>
+            ) : null}
+          </>
+        }
+        stats={stats}
+        emptyNote={RENEWAL_TEXT.renewalStatEmpty}
+      />
+      <RenewalRoster
         rows={rows}
         canOpen={
           can(
