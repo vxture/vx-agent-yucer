@@ -12,7 +12,7 @@ import {
 import type { SolutionItemRecord, SolutionRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -205,7 +205,7 @@ export function SolutionRoster({
        so past this width the table scrolls - which is the honest failure for
        a table too wide for its container.
      Order: 选择 | # | name | composition | scenario | status | 操作. */
-    <div className="[&_table]:table-fixed [&_table]:min-w-[44rem] [&_thead_th:nth-child(4)]:w-[7rem] [&_thead_th:nth-child(6)]:w-[6rem] [&_thead_th:last-child]:w-control-3xl">
+    <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[30%] ${ACTION_COLUMN}`}>
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}

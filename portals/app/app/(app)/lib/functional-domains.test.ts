@@ -275,7 +275,7 @@ const SHIPPED_AS: Record<string, string> = {
   // guard able to tell them apart. /catalog's section became ProductRoster on
   // 2026-09-05, when the module page grew its row operations.
   catalog: "ProductRoster",
-  renewal: "RenewalTable",
+  renewal: "RenewalRoster",
   forecastRule: "ForecastRuleTable",
   // /solution's section became SolutionRoster on 2026-09-05, when the module
   // took the catalogue's pattern: the combination and its customisation on

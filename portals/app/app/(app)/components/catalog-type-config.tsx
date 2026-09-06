@@ -16,7 +16,7 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions, rowClickSelection } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
 
 // 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
 // ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
@@ -107,7 +107,7 @@ export function CatalogTypeConfig({
             column uses, so the two edge columns match. */}
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${select.className}`}
+        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
       >
       <DataTable
         labels={DATA_TABLE_LABELS}

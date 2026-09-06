@@ -35,8 +35,9 @@ const COMPONENTS = join(LIB, "..", "components");
  *
  * The five 战略武备域 modules were converted with the ruling (2026-09-06):
  * product-roster, catalog-type-config, catalog-status-config, solution-roster,
- * segment-roster, plan-roster, price-book. Everything below is in another
- * functional domain and keeps its old grid until that domain's turn.
+ * segment-roster, plan-roster, price-book. 战果沉淀域 is being converted a
+ * module at a time and renewal-roster was the first. Everything below is in a
+ * domain whose turn has not come.
  */
 const NOT_YET_CONVERTED: Record<string, string> = {
   "account-table.tsx": "D4 account - not rebuilt yet",
@@ -56,7 +57,6 @@ const NOT_YET_CONVERTED: Record<string, string> = {
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "proposal-queue.tsx": "D9 copilot - not rebuilt yet",
   "quote-table.tsx": "D5 quote - not rebuilt yet",
-  "renewal-table.tsx": "D8 renewal - not rebuilt yet",
   "routing-table.tsx": "D5 routing - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",
 };

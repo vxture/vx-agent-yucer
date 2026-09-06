@@ -12,7 +12,7 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { statusTone } from "./status-label";
-import { RowActions, rowClickSelection } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -245,8 +245,8 @@ export function ProductRoster({
        first business column is nth-child(3) rather than (2). */
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${
-        extra ? "[&_thead_th:last-child]:w-[6.5rem]" : "[&_thead_th:last-child]:w-control-3xl"
+      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${
+        extra ? "[&_thead_th:last-child]:w-[6.5rem]" : ACTION_COLUMN
       }`}
     >
       <DataTable

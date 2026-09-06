@@ -249,6 +249,7 @@ export const en: Dictionary = {
     colProject: "Project",
     colEnds: "Term ends",
     colAmount: "Last term",
+    colAnalysis: "Opportunity read",
     colVerdict: "Verdict",
     colOpen: "Action",
     open: "Open deal",
@@ -269,6 +270,37 @@ export const en: Dictionary = {
       not_delivering: "not started, or terminated - no term to extend",
       already_renewed: "a renewal deal is already running",
     } as Record<string, string>,
+
+    rosterDue: "Coming up for renewal",
+    rosterDueWhy:
+      "Subscription projects whose term is running out. Opening one is a commercial approach to a customer, so it is done a row at a time.",
+    rosterNotDue: "Not due",
+    rosterNotDueWhy:
+      "Outside the window, already renewed, or never a subscription. They stay because one of those reasons is a defect: a subscription with no end date will never surface at all.",
+    tagRenewalDue: (n: number) => `${n} due`,
+    tagRenewalLapsed: (n: number) => `${n} lapsed`,
+    tagRenewalWatch: (n: number) => `${n} with delivery risk`,
+    renewalStatDays: (days: number) => `${days} days to term end`,
+    renewalStatLapsed: (days: number) => `${days} days past term end`,
+    renewalStatNoDate: "no end date",
+    renewalStatEmpty: "Nothing is coming up for renewal, so there is nothing to break down.",
+
+    renewalAdviceTitle: "Renewal check",
+    renewalAdviceClear: "Nothing on these projects needs attention.",
+    viewDelivery: "See delivery",
+    renewalAdviceOpenAccounts: "See accounts",
+    renewalAdviceAct: "Open the renewal",
+    renewalAdviceActed: "Renewal opportunity opened",
+    renewalAdviceLapsed: (name: string, days: number) =>
+      `"${name}" ended its term ${days} days ago and no renewal is open.`,
+    renewalAdviceWatch: (name: string) =>
+      `"${name}" is coming up, but delivery itself is shaky - look at the delivery before the renewal.`,
+    renewalAdviceNoEndDate: (name: string) =>
+      `"${name}" is a subscription with no end date, so its renewal will never surface on its own.`,
+    renewalAdviceNoAmount: (name: string) =>
+      `"${name}" is coming up and there is no contract amount to carry forward.`,
+    renewalAdviceDueSoon: (name: string, days: number) =>
+      `"${name}" has ${days} days left on its term and can be renewed now.`,
   },
   RENEWAL_ERROR: {
     ...GATE_ERROR,

@@ -179,6 +179,7 @@ export const RENEWAL_TEXT = {
   colProject: "项目",
   colEnds: "到期",
   colAmount: "上期金额",
+  colAnalysis: "商机分析",
   colVerdict: "结论",
   colOpen: "动作",
   open: "开商机",
@@ -200,6 +201,39 @@ export const RENEWAL_TEXT = {
     not_delivering: "尚未开始或已终止，没有可续的期限",
     already_renewed: "已有续约商机在跑",
   } as Record<string, string>,
+
+  // --- the module page (2026-09-06) -----------------------------------------
+  rosterDue: "待续约",
+  rosterDueWhy:
+    "订阅项目的合同期快到了。这里只列到期在即的，开启续约是一次对客户的商业接触，一行一行地做。",
+  rosterNotDue: "暂不到期",
+  rosterNotDueWhy:
+    "还没到窗口、已经开过续约、或者不是订阅制的项目。留在这里是因为其中一种原因是缺陷：订阅项目没有结束日期，它的续约永远不会浮出来。",
+  tagRenewalDue: (n: number) => `${n} 个待续约`,
+  tagRenewalLapsed: (n: number) => `${n} 个已过期`,
+  tagRenewalWatch: (n: number) => `${n} 个交付有隐忧`,
+  renewalStatDays: (days: number) => `${days} 天后到期`,
+  renewalStatLapsed: (days: number) => `已过期 ${days} 天`,
+  renewalStatNoDate: "没有结束日期",
+  renewalStatEmpty: "当前没有待续约的项目，头部不做拆解。",
+
+  // --- 续约检查 (the dock) ---------------------------------------------------
+  renewalAdviceTitle: "续约检查",
+  renewalAdviceClear: "这批项目没有需要处理的地方。",
+  viewDelivery: "查看交付",
+  renewalAdviceOpenAccounts: "查看客户",
+  renewalAdviceAct: "开启续约",
+  renewalAdviceActed: "已开启续约商机",
+  renewalAdviceLapsed: (name: string, days: number) =>
+    `「${name}」的合同期已经过去 ${days} 天，还没有开续约。`,
+  renewalAdviceWatch: (name: string) =>
+    `「${name}」快到期了，但交付本身有隐忧——先看交付，再谈续约。`,
+  renewalAdviceNoEndDate: (name: string) =>
+    `「${name}」是订阅项目却没有结束日期，它的续约永远不会自己浮出来。`,
+  renewalAdviceNoAmount: (name: string) =>
+    `「${name}」到期在即，但没有可以带过去的合同金额。`,
+  renewalAdviceDueSoon: (name: string, days: number) =>
+    `「${name}」还有 ${days} 天到期，可以开续约了。`,
 } as const;
 
 export const FORECAST_RULE_TEXT = {
