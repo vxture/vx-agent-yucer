@@ -3,31 +3,31 @@
 import { Icon } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
-// 交付计划的流程视图 - owner ruling, 2026-09-06 (按流程图展开，不要表格展开).
+// 交付计划 - the plan a project row opens onto. Owner rulings: a FLOW rather
+// than a table (2026-09-06), then CARDS in a fixed grid, on a panel that is
+// clearly not another table row.
 //
-// WHY A FLOW AND NOT A TABLE. A delivery plan is a SEQUENCE: milestone 3 comes
-// after 2, and what a reader wants from it is where the project has got to and
-// where it stopped. A table states the same rows and makes the reader rebuild
-// the order in their head; laid out along a line, "done, done, missed, then
-// nothing" is one glance. The sequence is also the identity - `(project,
-// sequence)` is a milestone's key in the DDL - so the order is data.
+// WHY CARDS AND NOT A LINE OF NODES. The connector version put four words
+// under a dot and asked the reader to take the whole plan in as one thin
+// stripe; inside a table row that read as damage rather than as content. A
+// card gives each milestone a box with room for its name, its date and its
+// state, and the grid keeps the sequence legible without a drawn line.
 //
-// THE CONNECTOR CARRIES THE READING. A segment is green only when the
-// milestone BEFORE it is done: the line is how far the project actually got,
-// and it stops at the first thing that did not happen. That is the same fact
-// `deriveProjectHealth` acts on - one `missed` overrides a reported green.
+// FIVE PER ROW, LEFT-ALIGNED. Fixed columns rather than auto-fit, because the
+// owner's rule is that a short plan keeps the same geometry as a long one and
+// leaves whitespace on the right - three milestones must not stretch into five
+// columns' width. Beyond five the grid wraps and the layout still holds.
 //
-// THE LINE IS A SIBLING OF THE CIRCLE, NOT A FLOATING OFFSET. The first
-// version positioned the connector with a hand-tuned margin and it hung above
-// the circles it was supposed to join (owner, 2026-09-06). Now each node is a
-// flex row - half-line, circle, half-line - so `items-center` aligns them and
-// there is no number to keep in step with the circle's size. Nodes are
-// `flex-1`, so they are equal width whatever their names are.
+// WHY FIVE. The demo data cannot settle it - two projects carry plans, of
+// three milestones and one - so the number comes from the shape of the work:
+// a delivery engagement is planned in the order of kickoff, pilot, rollout,
+// acceptance, handover. Five covers that; a plan longer than five is a real
+// plan and wraps rather than being squeezed.
 //
-// AND IT SITS ON ITS OWN SURFACE. Rendered into a table row's expanded cell,
-// which carries no padding, it ran flush to the table's left edge and merged
-// into the rows above and below. The inset wash and the padding are what make
-// it read as something belonging to the project rather than a broken row.
+// THE SEQUENCE IS THE IDENTITY - `(project, sequence)` is a milestone's key in
+// the DDL - so it is drawn, not implied: the ordinal sits in the marker of a
+// milestone that has not happened yet, and gives way to the outcome's icon on
+// one that has.
 //
 // NO DS COMPONENT FOR THIS: the design system has no stepper or timeline, and
 // LevelMarker's material is reserved for ranking. Composed from DS primitives
@@ -44,21 +44,24 @@ export interface PlanNode {
 
 const NODE = {
   done: {
-    ring: "border-transparent bg-(color:--success-text) text-white",
+    marker: "border-transparent bg-(color:--success-text) text-white",
     text: "text-(color:--success-text)",
+    edge: "border-l-(color:--success-text)",
     icon: "check" as const,
   },
   missed: {
-    ring: "border-transparent bg-destructive text-white",
+    marker: "border-transparent bg-destructive text-white",
     text: "text-(color:--danger-text)",
+    edge: "border-l-destructive",
     icon: "x" as const,
   },
   pending: {
-    ring: "border-border bg-surface",
+    marker: "border-border bg-card text-muted-foreground",
     text: "text-muted-foreground",
-    // NO GLYPH: an empty outlined circle is what "not yet" looks like on every
-    // stepper anybody has read, and the DS icon set carries nothing that says
-    // pending without saying something more specific.
+    edge: "border-l-border",
+    // NO GLYPH - the ordinal goes here instead. An outlined circle carrying
+    // its own step number says "not yet, and it is the third one", which is
+    // two facts for the price of one mark.
     icon: null,
   },
 } as const;
@@ -66,71 +69,53 @@ const NODE = {
 const shape = (status: string) =>
   status === "done" ? NODE.done : status === "missed" ? NODE.missed : NODE.pending;
 
-/** The track between two nodes is only "travelled" once the earlier one is done. */
-const track = (done: boolean) => (done ? "bg-(color:--success-text)" : "bg-border");
-
 export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[] }) {
   const { DELIVERY_TEXT } = useMessages();
 
   // Sorted here rather than trusted from the caller: the sequence IS the
-  // reading, and a flow drawn in arrival order would be a different claim.
+  // reading, and a plan drawn in arrival order would be a different claim.
   const ordered = [...nodes].sort((a, b) => a.sequence - b.sequence);
 
   return (
-    <div className="bg-accent/40 px-lg py-md">
-      {/* Its own horizontal scroll: a long plan is wider than the row it hangs
-          under, and the page body must never scroll sideways. */}
-      <div className="overflow-x-auto">
-        <ol className="flex min-w-max items-start">
-          {ordered.map((n, i) => {
-            const look = shape(n.status);
-            const first = i === 0;
-            const last = i === ordered.length - 1;
-            return (
-              <li key={n.id} className="flex w-[9rem] min-w-0 flex-1 flex-col items-center gap-2xs">
-                {/* Half-track, circle, half-track - one row, so the line meets
-                    the circle's centre by layout rather than by arithmetic. */}
-                <div className="flex w-full items-center">
-                  <span
-                    aria-hidden
-                    className={`h-px flex-1 ${
-                      first ? "bg-transparent" : track(ordered[i - 1]!.status === "done")
-                    }`}
-                  />
-                  <span
-                    className={`flex size-control-sm shrink-0 items-center justify-center rounded-full border ${look.ring}`}
-                    title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
-                  >
-                    {look.icon ? <Icon name={look.icon} size="sm" /> : null}
-                  </span>
-                  <span
-                    aria-hidden
-                    className={`h-px flex-1 ${
-                      last ? "bg-transparent" : track(n.status === "done")
-                    }`}
-                  />
-                </div>
-
-                <span
-                  className="text-foreground w-full truncate px-2xs text-center text-body-sm"
-                  title={n.name}
-                >
-                  {n.name}
-                </span>
-                {/* ONE LINE, NOT TWO. The date a reader wants is the one that
-                    happened - a done milestone shows when it landed, an open
-                    one when it is due - and the status word beside it is the
-                    only other thing this node has to say. */}
-                <span className={`text-body-sm tabular-nums ${look.text}`}>
-                  {(n.status === "done" ? n.completedAt : n.dueAt) ?? DELIVERY_TEXT.milestoneNoDate}
-                  {" · "}
-                  {DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
+    // A RECESSED PANEL, not another row. The expanded cell of a table carries
+    // no padding and the rows around it are white, so without a ground of its
+    // own the plan ran flush to the table's edge and read as a broken row.
+    <div className="bg-accent px-lg py-lg">
+            {/* FIXED FIVE, not auto-fit. The rule is that a short plan keeps the
+          same geometry as a long one and leaves the remainder as whitespace -
+          three milestones must not stretch to fill five columns' width, and a
+          responsive column count would break exactly that. */}
+      <ol className="grid grid-cols-5 gap-sm">
+        {ordered.map((n) => {
+          const look = shape(n.status);
+          return (
+            <li
+              key={n.id}
+              className={`bg-card flex min-w-0 flex-col gap-2xs rounded-md border border-l-2 p-sm ${look.edge}`}
+            >
+              <span
+                className={`flex size-control-sm items-center justify-center rounded-full border text-label-sm tabular-nums ${look.marker}`}
+                title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
+              >
+                {look.icon ? <Icon name={look.icon} size="sm" /> : n.sequence}
+              </span>
+              <span className="text-foreground truncate text-body-sm" title={n.name}>
+                {n.name}
+              </span>
+              {/* THE DATE THAT HAPPENED, not both dates: a done milestone shows
+                  when it landed, an open one when it is due. */}
+              {/* THE STATUS WORD IS GONE FROM THIS LINE. The card already says
+                  it three times over - the left edge, the marker's fill, the
+                  icon - and as a fourth telling it was pushing the date out of
+                  a 106px card (measured 2026-09-06). It stays in the marker's
+                  tooltip. */}
+              <span className={`truncate text-body-sm tabular-nums ${look.text}`}>
+                {(n.status === "done" ? n.completedAt : n.dueAt) ?? DELIVERY_TEXT.milestoneNoDate}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
