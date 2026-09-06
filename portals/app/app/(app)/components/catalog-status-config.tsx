@@ -18,7 +18,7 @@ import type { ProductRecord, ProductStatusRecord } from "../../domains/catalog/s
 import { isSystemStatus } from "../../domains/catalog/lib/status-vocab";
 import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions, rowClickSelection } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -123,7 +123,7 @@ export function CatalogStatusConfig({
             column uses, so the two edge columns match. */}
       <div
         ref={select.ref}
-        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${select.className}`}
+        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
       >
       <DataTable
         labels={DATA_TABLE_LABELS}

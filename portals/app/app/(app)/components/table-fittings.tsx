@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ActionMenu, type ActionMenuItem } from "@vxture/design-ui";
 
 // 表格三件标配 - owner ruling, 2026-09-06.
@@ -29,6 +30,30 @@ import { ActionMenu, type ActionMenuItem } from "@vxture/design-ui";
 // `nth-child(3)`. That is the whole reason left-counting works: everything
 // to the left of the business columns is unconditional, everything
 // conditional is to the right of them.
+
+/**
+ * 选择列 / 序号列 / 操作列 一律固定 64px - owner ruling, 2026-09-06.
+ *
+ * TWO THINGS THIS FIXES, and they turned out to be one thing.
+ *
+ * The DS documents its edge columns as fixed 64px and ships `w-control-3xl`,
+ * which measures 56px (TD-022 recorded the discrepancy; this is the owner
+ * settling it at 64). So the width is stated here rather than taken from the
+ * token.
+ *
+ * And under `table-fixed`, a specified width is only honoured while some
+ * column is left auto to absorb the slack: with every column pinned, the
+ * surplus is shared out proportionally and the "fixed" edge columns grow with
+ * everything else. Measured at 1920px - a 1096px container stretched 选择 and
+ * 序号 from 56px to 100px. So the rule has two halves and neither works
+ * alone: PIN THE EDGES, LEAVE THE TITLE COLUMN AUTO.
+ */
+export const EDGE_COLUMNS =
+  "[&_thead_th:nth-child(1)]:w-[4rem] [&_thead_th:nth-child(2)]:w-[4rem]";
+
+/** The action column at its default 64px. A table that surfaces a key action
+ * inline beside the dots states its own wider figure instead. */
+export const ACTION_COLUMN = "[&_thead_th:last-child]:w-[4rem]";
 
 /**
  * The action column's contents - a single DS trigger, always rendered.
@@ -134,4 +159,43 @@ export function rowClickSelection<T>(
       return () => el.removeEventListener("click", handler);
     },
   };
+}
+
+/**
+ * 资金列 - owner ruling, 2026-09-06.
+ *
+ * Money is the one exception to "everything but the title column centres". A
+ * column of centred amounts aligns nothing: 760,000 and 1,400,000 put their
+ * digits in different places, so the eye cannot compare two rows without
+ * reading both numbers. Right alignment is what puts the units under the
+ * units - the decimal points line up - and that is the whole point of a money
+ * column.
+ *
+ * BUT NOT FLUSH TO THE COLUMN EDGE. Right-aligned against the edge reads as
+ * pushed away from the column it belongs to, so the block is inset by `pad`:
+ * the numbers keep their shared right edge, and the block as a whole sits
+ * where a centred one would. Size `pad` at roughly (column - widest number)/2
+ * for that column - it is a per-column figure because column widths differ,
+ * and only one number width can be exactly centred, so it is the WIDEST that
+ * is centred and the shorter ones sit slightly right of it.
+ *
+ * THE PADDING IS A LITERAL, NOT A DS TOKEN, and that is measured rather than
+ * preferred: in this DS build `pr-md`, `pr-lg`, `pr-xs` and `pr-3xs` all
+ * compute to 0px - the same shadowing trap as the container widths (TD-022's
+ * neighbourhood). A token that silently resolves to nothing would put the
+ * amounts back on the edge with nothing in the class list to explain why.
+ */
+export function MoneyCell({
+  children,
+  pad,
+}: {
+  readonly children: ReactNode;
+  /** The inset, e.g. "1.375rem". See the note above on sizing it. */
+  readonly pad: string;
+}) {
+  return (
+    <span className="block text-right tabular-nums" style={{ paddingInlineEnd: pad }}>
+      {children}
+    </span>
+  );
 }

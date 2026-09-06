@@ -68,7 +68,7 @@ export function RenewalAdvicePanel({
           },
         }
       : {}),
-    link: { label: RENEWAL_TEXT.renewalAdviceOpenProject, href: "/delivery" },
+    link: { label: RENEWAL_TEXT.viewDelivery, href: "/delivery" },
     more: [{ id: "accounts", label: RENEWAL_TEXT.renewalAdviceOpenAccounts, href: "/account" }],
   }));
 

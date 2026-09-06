@@ -219,7 +219,7 @@ export const RENEWAL_TEXT = {
   // --- 续约检查 (the dock) ---------------------------------------------------
   renewalAdviceTitle: "续约检查",
   renewalAdviceClear: "这批项目没有需要处理的地方。",
-  renewalAdviceOpenProject: "查看交付",
+  viewDelivery: "查看交付",
   renewalAdviceOpenAccounts: "查看客户",
   renewalAdviceAct: "开启续约",
   renewalAdviceActed: "已开启续约商机",

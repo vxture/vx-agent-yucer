@@ -286,7 +286,7 @@ export const en: Dictionary = {
 
     renewalAdviceTitle: "Renewal check",
     renewalAdviceClear: "Nothing on these projects needs attention.",
-    renewalAdviceOpenProject: "See delivery",
+    viewDelivery: "See delivery",
     renewalAdviceOpenAccounts: "See accounts",
     renewalAdviceAct: "Open the renewal",
     renewalAdviceActed: "Renewal opportunity opened",

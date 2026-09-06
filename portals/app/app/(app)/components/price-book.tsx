@@ -20,7 +20,7 @@ import {
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions, rowClickSelection } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, MoneyCell, RowActions, rowClickSelection } from "./table-fittings";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -167,26 +167,28 @@ export function PriceBook({
       id: "list",
       header: CATALOG_TEXT.colList,
       width: "sm" as const,
-      align: "center" as const,
+      // 资金列：右对齐让个位对齐，右侧留白让数字块看上去仍在列中间
+      // (owner, 2026-09-06). Widened from 5.5rem to 6.5rem to make room for
+      // the inset: at 5.5rem the content box was 56px against a 48px number,
+      // so there were 8px of slack and the rule had nowhere to happen.
+      align: "right" as const,
       cell: (r: PriceEntryRecord) => (
-        <span className="tabular-nums">{r.listPrice.toLocaleString()}</span>
+        <MoneyCell pad="0.75rem">{r.listPrice.toLocaleString()}</MoneyCell>
       ),
     },
     {
       id: "floor",
       header: CATALOG_TEXT.colFloor,
       width: "sm" as const,
-      align: "center" as const,
+      align: "right" as const,
       // Equal to list means "not discountable" - a stance, worth seeing at a
       // glance rather than worked out by comparing two columns.
       cell: (r: PriceEntryRecord) => (
-        <span
-          className={`tabular-nums ${
-            r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : ""
-          }`}
-        >
-          {r.floorPrice.toLocaleString()}
-        </span>
+        <MoneyCell pad="0.75rem">
+          <span className={r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : ""}>
+            {r.floorPrice.toLocaleString()}
+          </span>
+        </MoneyCell>
       ),
     },
     {
@@ -263,7 +265,14 @@ export function PriceBook({
      who cannot price, which is what made right-counting move every width one
      column over for exactly that reader (review, 2026-09-05); left-counting
      fixed the symptom and an always-present column removes the cause.
-     Order: 选择/占位 | # | product | list | floor | effective | superseded? | 操作 */
+     Order: 选择/占位 | # | product | list | floor | effective | superseded? | 操作.
+
+     NO MIN-WIDTH ON THE CURRENT TABLE, a FLOOR under the product column
+     instead: a min-width sized for eight columns put a scrollbar under the
+     seven-column table that had room (measured 2026-09-06, 704px asked of a
+     616px container). The history table keeps its min-width because it really
+     does carry the extra column and cannot fit - scrolling is the honest
+     failure there, not a squeezed name. */
   const table = (
     rows: readonly PriceEntryRecord[],
     acts: ReturnType<typeof rowActions>,
@@ -279,8 +288,8 @@ export function PriceBook({
     return (
     <div
       ref={select.ref}
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(4)]:w-[5.5rem] [&_thead_th:nth-child(5)]:w-[5.5rem] [&_thead_th:nth-child(6)]:w-[7rem] [&_thead_th:last-child]:w-control-3xl ${select.className} ${
-        extra ? "[&_table]:min-w-[44rem] [&_thead_th:nth-child(7)]:w-[7rem]" : ""
+      className={`[&_table]:table-fixed ${EDGE_COLUMNS} [&_thead_th:nth-child(3)]:min-w-[7rem] [&_thead_th:nth-child(4)]:w-[6.5rem] [&_thead_th:nth-child(5)]:w-[6.5rem] [&_thead_th:nth-child(6)]:w-[6.5rem] ${ACTION_COLUMN} ${select.className} ${
+        extra ? "[&_table]:min-w-[48rem] [&_thead_th:nth-child(7)]:w-[7rem]" : ""
       }`}
     >
       <DataTable
