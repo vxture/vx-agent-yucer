@@ -1,5 +1,6 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import { ActionMenu, type ActionMenuItem } from "@vxture/design-ui";
 
 // 表格三件标配 - owner ruling, 2026-09-06.
@@ -51,4 +52,55 @@ export function RowActions({
   return (
     <ActionMenu items={items} disabled={disabled || items.length === 0} label={label} />
   );
+}
+
+/**
+ * Click anywhere on a row to select it - owner ruling, 2026-09-06 (点击整行进行
+ * 选中切换，无需必须点击选择框：太小，不好点).
+ *
+ * Returned as a handler for the WRAPPER, not for each row: `DataTable` has no
+ * `onRowClick`, and the alternative - a click handler injected into every
+ * cell's rendered output - would put this concern inside every column
+ * definition in the product. One listener on the container, mapped back to a
+ * row by its position in `tbody`, keeps the DS component untouched.
+ *
+ * THREE THINGS DO NOT TOGGLE, and each is a real click somebody makes:
+ *   - anything interactive inside the row (the action trigger, a link, the
+ *     checkbox itself) - the row would otherwise steal every one of them, and
+ *     the checkbox would toggle twice and land back where it started;
+ *   - a click that ends a text SELECTION - copying a product code out of a
+ *     cell is a drag, and a drag that silently ticks a box is a surprise;
+ *   - a click on the header or on an empty-state row.
+ *
+ * The row list is passed in because a module page renders this helper once per
+ * table (live and settled are two tables), and each has its own row order.
+ */
+export function rowClickSelection<T>(
+  rows: readonly T[],
+  rowKey: (row: T) => string,
+  selected: readonly string[],
+  setSelected: (keys: readonly string[]) => void,
+): { readonly onClick: (e: MouseEvent<HTMLDivElement>) => void; readonly className: string } {
+  return {
+    className: "[&_tbody_tr]:cursor-pointer",
+    onClick: (e) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest("button, a, input, label, [role=checkbox], [role=menuitem], [aria-haspopup]"))
+        return;
+      if ((window.getSelection()?.toString() ?? "") !== "") return;
+
+      const tr = target.closest("tbody tr");
+      const body = tr?.parentElement;
+      if (!tr || !body) return;
+      const at = [...body.children].indexOf(tr);
+      const row = at >= 0 ? rows[at] : undefined;
+      if (row === undefined) return;
+
+      const key = rowKey(row);
+      setSelected(
+        selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key],
+      );
+    },
+  };
 }

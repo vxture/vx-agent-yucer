@@ -12,7 +12,7 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { statusTone } from "./status-label";
-import { RowActions } from "./table-fittings";
+import { RowActions, rowClickSelection } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -65,6 +65,10 @@ export function ProductRoster({
   // across BOTH rosters because the keys are product ids: a selection is of
   // products, not of whichever half of the page they were shown in.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  // Clicking the row toggles it - the checkbox is too small a target
+  // (owner, 2026-09-06). Bound per table because each has its own row order.
+  const click = (list: readonly ProductRecord[]) =>
+    rowClickSelection(list, (r) => r.id, selected, setSelected);
   const { toast } = useToast();
 
   const typeName = new Map(types.map((t) => [t.id, t.name]));
@@ -108,7 +112,8 @@ export function ProductRoster({
       header: CATALOG_TEXT.colName,
       cell: (r: ProductRecord) => (
         <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate">{r.name}</span>
+          {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
+          <span className="text-foreground truncate text-body-lg font-semibold">{r.name}</span>
           <span className="text-muted-foreground mono truncate text-body-sm">{r.productCode}</span>
         </span>
       ),
@@ -116,6 +121,7 @@ export function ProductRoster({
     {
       id: "type",
       header: CATALOG_TEXT.colType,
+      align: "center" as const,
       cell: (r: ProductRecord) =>
         r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
     },
@@ -132,7 +138,12 @@ export function ProductRoster({
         );
       },
     },
-    { id: "unit", header: CATALOG_TEXT.colUnitPrice, cell: (r: ProductRecord) => r.unit },
+    {
+      id: "unit",
+      header: CATALOG_TEXT.colUnitPrice,
+      align: "center" as const,
+      cell: (r: ProductRecord) => r.unit,
+    },
   ];
 
   /** One menu per row - the DS's single-trigger row-action column. ALWAYS
@@ -195,6 +206,7 @@ export function ProductRoster({
   const arrowColumn = {
     id: "order",
     header: CATALOG_TEXT.colOps,
+    align: "center" as const,
     cell: (r: ProductRecord, rowIndex: number) => (
       <span className="flex items-center gap-xs">
         <Button
@@ -221,7 +233,9 @@ export function ProductRoster({
     ),
   };
 
-  const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn) => (
+  const table = (rows: readonly ProductRecord[], extra?: typeof arrowColumn) => {
+    const select = click(rows);
+    return (
     /* The config tables' geometry, applied here too (owner ruling; TD-022):
        table-fixed so the live and retired rosters align column for column
        regardless of content, the name column takes the lion's share, and the
@@ -230,7 +244,8 @@ export function ProductRoster({
        Counted FROM THE LEFT, and the leading pair is now 选择 | 序号, so the
        first business column is nth-child(3) rather than (2). */
     <div
-      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${
+      onClick={select.onClick}
+      className={`[&_table]:table-fixed [&_thead_th:nth-child(3)]:w-[34%] ${select.className} ${
         extra ? "[&_thead_th:last-child]:w-[6.5rem]" : "[&_thead_th:last-child]:w-control-3xl"
       }`}
     >
@@ -249,8 +264,9 @@ export function ProductRoster({
           <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
         }
       />
-    </div>
-  );
+      </div>
+    );
+  };
 
   if (variant === "sort") {
     return (

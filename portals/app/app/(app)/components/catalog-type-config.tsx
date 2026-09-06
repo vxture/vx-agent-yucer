@@ -16,7 +16,7 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
-import { RowActions } from "./table-fittings";
+import { RowActions, rowClickSelection } from "./table-fittings";
 
 // 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
 // ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
@@ -57,6 +57,9 @@ export function CatalogTypeConfig({
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
   const [selected, setSelected] = useState<readonly string[]>([]);
+  // Clicking the row toggles it - the checkbox is too small a target
+  // (owner, 2026-09-06).
+  const select = rowClickSelection(types, (r) => r.id, selected, setSelected);
   const { toast } = useToast();
 
   const inUse = (typeId: string) => products.filter((p) => p.typeId === typeId).length;
@@ -102,7 +105,10 @@ export function CatalogTypeConfig({
             layout ignores minimums - without an explicit width the action
             column swallows an equal share. Same token the DS's own 序号
             column uses, so the two edge columns match. */}
-      <div className="[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl">
+      <div
+        onClick={select.onClick}
+        className={`[&_table]:table-fixed [&_thead_th:last-child]:w-control-3xl ${select.className}`}
+      >
       <DataTable
         labels={DATA_TABLE_LABELS}
         indexStart={1}
@@ -117,7 +123,8 @@ export function CatalogTypeConfig({
             width: "md" as const,
             cell: (t: ProductTypeRecord) => (
               <span className="flex min-w-0 flex-col">
-                <span className="text-foreground truncate">{t.name}</span>
+                {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
+                <span className="text-foreground truncate text-body-lg font-semibold">{t.name}</span>
                 {t.typeCode !== t.name ? (
                   <span className="text-muted-foreground mono truncate text-body-sm">{t.typeCode}</span>
                 ) : null}
