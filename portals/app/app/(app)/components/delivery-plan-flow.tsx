@@ -35,9 +35,19 @@ import { useMessages } from "../lib/i18n/provider";
 // acceptance gates (预付 / 上线 / 终验 / 质保到期), three or four of them, with
 // the milestone set running one or two longer.
 //
-// So five covers the longest common family and leaves the short ones their
-// whitespace, which is exactly the layout rule. A plan longer than five is a
-// genuinely long contract and earns its wrapped row.
+// Five covers the longest common family. THREE IS WHAT FITS, and the two
+// rulings collide at this width rather than one being wrong:
+//
+//   Insetting the panel to the business columns takes 192px of a 616px table -
+//   two leading edge columns plus the action column, 31% of the width - and a
+//   card needs about 114px to hold a five-character name beside its marker
+//   plus a date beneath (20 + 4 + 65 content, 24 padding). Of the 424px left:
+//   3 columns give 136px, 4 give 100, 5 give 68. Measured, not estimated.
+//
+// So one row holds three, and a five-gate contract wraps to a second row -
+// which the layout rule already allows. Widening the shell or narrowing the
+// inset is what buys the fourth and fifth; the arithmetic is here so that
+// choice can be redone rather than re-guessed.
 //
 // (An earlier version of this comment said "kickoff, pilot, rollout" - that is
 // a PRODUCT ROLLOUT's playbook, reverse-engineered from the demo fixture's own
@@ -100,36 +110,57 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
     // A RECESSED PANEL, not another row. The expanded cell of a table carries
     // no padding and the rows around it are white, so without a ground of its
     // own the plan ran flush to the table's edge and read as a broken row.
-    <div className="bg-accent px-lg py-lg">
+    // INSET TO THE BUSINESS COLUMNS, not flush to the table (owner,
+    // 2026-09-06). The left edge lands under the title column and the right
+    // edge stops at the action column, so the plan reads as hanging off the
+    // project's own name rather than off the table frame.
+    //
+    // The two figures are the edge columns' width, twice on the left (选择 +
+    // 序号) and once on the right (操作) - the 64px that table-fittings pins.
+    // If that constant ever moves, these move with it.
+    <div className="bg-accent py-xl pl-[8rem] pr-[4rem]">
             {/* FIXED FIVE, not auto-fit. The rule is that a short plan keeps the
           same geometry as a long one and leaves the remainder as whitespace -
           three milestones must not stretch to fill five columns' width, and a
           responsive column count would break exactly that. */}
-      <ol className="grid grid-cols-5 gap-sm">
+      <ol className="grid grid-cols-3 gap-sm">
         {ordered.map((n) => {
           const look = shape(n.status);
           return (
+            // A CARD THAT LETS THE PANEL THROUGH. Solid white read as a
+            // second table pasted onto the tinted ground; a translucent
+            // gradient keeps the card a surface without cutting it out of the
+            // panel, and a light border is enough to say where it ends.
             <li
               key={n.id}
-              className={`bg-card flex min-w-0 flex-col gap-2xs rounded-md border border-l-2 p-sm ${look.edge}`}
+              className={`flex min-w-0 flex-col gap-xs rounded-md border border-l-2 bg-gradient-to-b from-card/80 to-card/30 px-sm py-md ${look.edge} border-y-border/50 border-r-border/50`}
             >
-              <span
-                className={`flex size-control-sm items-center justify-center rounded-full border text-label-sm tabular-nums ${look.marker}`}
-                title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
-              >
-                {look.icon ? <Icon name={look.icon} size="sm" /> : n.sequence}
-              </span>
-              <span className="text-foreground truncate text-body-sm" title={n.name}>
-                {n.name}
+              {/* MARKER AND NAME ON ONE LINE: the ordinal is part of the
+                  milestone's name in the reader's head - "the third one,
+                  上线" - not a separate fact stacked above it. */}
+              <div className="flex min-w-0 items-center gap-2xs">
+                <span
+                  className={`flex size-control-2xs shrink-0 items-center justify-center rounded-full border text-label-sm tabular-nums ${look.marker}`}
+                  title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
+                >
+                  {look.icon ? <Icon name={look.icon} size="sm" /> : n.sequence}
+                </span>
+                <span className="text-foreground truncate text-body-sm" title={n.name}>
+                  {n.name}
+                </span>
+              </div>
+
+              {/* THE MIDDLE BAND IS WHAT MATTERS ABOUT THIS MILESTONE. Today
+                  that is its state; when a milestone carries the instalment it
+                  releases, the amount belongs here, above the timestamp. */}
+              <span className={`truncate text-body-sm ${look.text}`}>
+                {DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
               </span>
               {/* THE DATE THAT HAPPENED, not both dates: a done milestone shows
                   when it landed, an open one when it is due. */}
-              {/* THE STATUS WORD IS GONE FROM THIS LINE. The card already says
-                  it three times over - the left edge, the marker's fill, the
-                  icon - and as a fourth telling it was pushing the date out of
-                  a 106px card (measured 2026-09-06). It stays in the marker's
-                  tooltip. */}
-              <span className={`truncate text-body-sm tabular-nums ${look.text}`}>
+              {/* THE TIMESTAMP SITS AT THE FOOT, quietest of the three bands:
+                  a date is what you check after you have read what happened. */}
+              <span className="text-muted-foreground truncate text-body-sm tabular-nums">
                 {(n.status === "done" ? n.completedAt : n.dueAt) ?? DELIVERY_TEXT.milestoneNoDate}
               </span>
             </li>
