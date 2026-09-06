@@ -1,6 +1,7 @@
 "use client";
 
-import { BarChart, Card, Progress, Section } from "@vxture/design-ui";
+import { BarChart, Card } from "@vxture/design-ui";
+import { AnalysisTabs } from "./analysis-tabs";
 import { useMessages } from "../lib/i18n/provider";
 import type { DeliveryStats } from "../../domains/delivery/lib/delivery-stats";
 
@@ -19,23 +20,22 @@ import type { DeliveryStats } from "../../domains/delivery/lib/delivery-stats";
 // ordered worst first, because a page about delivery risk should not open on
 // the healthy one.
 //
-// THE DOWNGRADE BAR IS THE HEADLINE NUMBER. It is the proportion of live work
-// whose report was rosier than the facts - the thing this domain exists to
-// surface, and a number that means nothing as a row in a table.
+// THE DOWNGRADE PROPORTION IS NOT HERE. It moved to the dock (owner,
+// 2026-09-06): it is not a count of what exists, it is what the check CONCLUDED
+// after comparing every report against its facts - an analysis result, and the
+// dock is where this product puts those. What stays here are cuts of the book
+// itself.
 
 export function DeliveryAnalysis({
   stats,
-  liveCount,
   currency,
 }: {
   readonly stats: DeliveryStats;
-  readonly liveCount: number;
   readonly currency: string;
 }) {
   const { DELIVERY_TEXT, PROJECT_STATUS_LABEL, HEALTH_LABEL } = useMessages();
 
   const money = (n: number) => n.toLocaleString();
-  const rate = liveCount === 0 ? 0 : Math.round((stats.downgraded / liveCount) * 100);
 
   const byStage = stats.byStage.map((b) => ({
     key: b.key,
@@ -55,74 +55,57 @@ export function DeliveryAnalysis({
     value: p.amount,
   }));
 
+  const chart = (data: readonly { key: string; label: string; value: number }[], why: string) => (
+    <Card className="flex flex-col gap-sm p-lg">
+      <span className="text-muted-foreground text-body-sm">{why}</span>
+      {data.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.analysisEmpty}</p>
+      ) : (
+        <BarChart data={[...data]} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
+      )}
+    </Card>
+  );
+
   return (
-    <Section
+    <AnalysisTabs
       id="delivery-analysis"
-      icon="chart-bar"
       title={DELIVERY_TEXT.analysisTitle}
       description={DELIVERY_TEXT.analysisWhy}
-    >
-      <div className="@container flex flex-col gap-md">
-        <Card className="flex flex-col gap-sm p-lg">
-          <div className="flex items-baseline justify-between gap-sm">
-            <span className="text-label-md text-foreground">
-              {DELIVERY_TEXT.downgradeRate}
-            </span>
-            <span className="text-muted-foreground tabular-nums text-body-sm">
-              {DELIVERY_TEXT.downgradeOf(stats.downgraded, liveCount)}
-            </span>
-          </div>
-          <Progress value={rate} />
-          <span className="text-muted-foreground text-body-sm">
-            {DELIVERY_TEXT.downgradeWhy}
-          </span>
-        </Card>
-
-        <div className="grid grid-cols-1 gap-md @3xl:grid-cols-2">
-          <Card className="flex flex-col gap-sm p-lg">
-            <span className="text-label-md text-foreground">{DELIVERY_TEXT.byStageTitle}</span>
-            <span className="text-muted-foreground text-body-sm">
-              {DELIVERY_TEXT.byStageWhy}
-            </span>
-            {byStage.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.analysisEmpty}</p>
-            ) : (
-              <BarChart data={byStage} formatValue={money} />
-            )}
-          </Card>
-
-          <Card className="flex flex-col gap-sm p-lg">
-            <span className="text-label-md text-foreground">{DELIVERY_TEXT.byHealthTitle}</span>
-            <span className="text-muted-foreground text-body-sm">
-              {DELIVERY_TEXT.byHealthWhy}
-            </span>
-            {byHealth.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.analysisEmpty}</p>
-            ) : (
-              <BarChart data={byHealth} formatValue={money} />
-            )}
-          </Card>
-        </div>
-
-        <Card className="flex flex-col gap-sm p-lg">
-          <div className="flex items-baseline justify-between gap-sm">
-            <span className="text-label-md text-foreground">
-              {DELIVERY_TEXT.byProjectTitleDelivery}
-            </span>
-            <span className="text-muted-foreground tabular-nums text-body-sm">
-              {DELIVERY_TEXT.contractTotal(money(stats.contractTotal), currency)}
-            </span>
-          </div>
-          <span className="text-muted-foreground text-body-sm">
-            {DELIVERY_TEXT.byProjectWhyDelivery}
-          </span>
-          {byProject.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.analysisEmpty}</p>
-          ) : (
-            <BarChart data={byProject} formatValue={money} />
-          )}
-        </Card>
-      </div>
-    </Section>
+      tabs={[
+        {
+          key: "stage",
+          label: DELIVERY_TEXT.byStageTitle,
+          content: chart(byStage, DELIVERY_TEXT.byStageWhy),
+        },
+        {
+          key: "health",
+          label: DELIVERY_TEXT.byHealthTitle,
+          content: chart(byHealth, DELIVERY_TEXT.byHealthWhy),
+        },
+        {
+          key: "project",
+          label: DELIVERY_TEXT.byProjectTitleDelivery,
+          content: (
+            <Card className="flex flex-col gap-sm p-lg">
+              <div className="flex items-baseline justify-between gap-sm">
+                <span className="text-muted-foreground text-body-sm">
+                  {DELIVERY_TEXT.byProjectWhyDelivery}
+                </span>
+                <span className="text-muted-foreground tabular-nums text-body-sm">
+                  {DELIVERY_TEXT.contractTotal(money(stats.contractTotal), currency)}
+                </span>
+              </div>
+              {byProject.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">
+                  {DELIVERY_TEXT.analysisEmpty}
+                </p>
+              ) : (
+                <BarChart data={byProject} formatValue={money} peakLabel={DELIVERY_TEXT.chartPeak} />
+              )}
+            </Card>
+          ),
+        },
+      ]}
+    />
   );
 }

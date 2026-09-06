@@ -357,6 +357,7 @@ export const en: Dictionary = {
     analysisTitle: "Forecast analysis",
     analysisWhy:
       "The shape first: which category the book sits in, which way the disagreements lean, and how much money is in each. The list below is the detail.",
+    chartPeak: "Peak",
     analysisEmpty: "Nothing to plot yet.",
     agreementRate: "Rule and filing agree",
     agreementOf: (n: number, total: number) => `${n} of ${total}`,
@@ -2103,6 +2104,7 @@ export const en: Dictionary = {
     milestoneName: "Milestone",
     milestoneDue: "Due",
     milestoneCompleted: "Completed",
+    milestoneNoDate: "Not scheduled",
     milestoneStatus: "Status",
     milestoneStatusLabel: {
       pending: "Pending",
@@ -2219,7 +2221,9 @@ export const en: Dictionary = {
     analysisTitle: "Delivery analysis",
     analysisWhy:
       "The shape first: which stage the work sits at, where the risk is, and whose contracts carry the value. The list below is the detail.",
+    chartPeak: "Peak",
     analysisEmpty: "Nothing is in flight, so there is nothing to plot.",
+    downgradeScope: (n: number, total: number) => `${n}/${total} reported rosier`,
     downgradeRate: "Reported rosier than the facts",
     downgradeOf: (n: number, total: number) => `${n} of ${total} in flight`,
     downgradeWhy:

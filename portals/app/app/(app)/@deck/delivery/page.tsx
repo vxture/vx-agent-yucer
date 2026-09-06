@@ -2,6 +2,7 @@ import { resolveAppSession } from "../../lib/session";
 import { getDeliveryStore } from "../../../domains/shared/registry";
 import { listProjects, projectView } from "../../../domains/delivery/service";
 import { analyseDelivery } from "../../../domains/delivery/lib/delivery-advice";
+import { worseThan } from "../../../domains/delivery/lib/delivery-stats";
 import { can } from "../../../authz/decide";
 import { AgentCapture } from "../../components/agent-capture";
 import { DeliveryAdvicePanel } from "../../components/delivery-advice-panel";
@@ -58,11 +59,19 @@ export default async function DeliveryDeck() {
     });
   }
 
+  // The same live set the health chart reads - finished work has no report
+  // left to be wrong about.
+  const live = rows.filter(
+    (r) => r.status !== "delivered" && r.status !== "closed" && r.status !== "cancelled",
+  );
+
   return (
     <div className="flex flex-col gap-sm">
       {capture}
       <DeliveryAdvicePanel
         advice={analyseDelivery(rows)}
+        downgraded={live.filter((r) => worseThan(r.derived, r.reported)).length}
+        liveCount={live.length}
         canWrite={
           can(session.authz, session.entitlement, "delivery.project.upsert", "ui").allowed
         }

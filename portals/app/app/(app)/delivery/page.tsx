@@ -12,10 +12,6 @@ import { DeliveryAnalysis } from "../components/delivery-analysis";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { deliveryStats, PROJECT_STAGES } from "../../domains/delivery/lib/delivery-stats";
 import { NewEntryLink } from "../components/form-page";
-import {
-  MilestonePanel,
-  type MilestoneRow,
-} from "../components/milestone-panel";
 import { reconcileHealth } from "./actions";
 import { can } from "../../authz/decide";
 
@@ -80,28 +76,8 @@ export default async function DeliveryPage() {
   // Done per project because the rule needs both, and a list query cannot carry
   // them; the page is capped at 100 rows for the same reason.
   const rows: DeliveryRow[] = [];
-  // Gathered in the SAME loop, from the same projectView call the health row
-  // comes out of. The instalments left for /collection on 2026-08-30; the
-  // milestones stay because a project's plan is what this page is about.
-  const milestones: MilestoneRow[] = [];
   for (const p of projects.value) {
     const view = await projectView(ctx, p.id);
-    if (view.ok) {
-      for (const m of view.value.milestones) {
-        milestones.push({
-          id: m.id,
-          projectId: p.id,
-          projectName: p.name,
-          sequence: m.sequence,
-          name: m.name,
-          status: m.status,
-          dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
-          completedAt: m.completedAt
-            ? m.completedAt.toISOString().slice(0, 10)
-            : null,
-        });
-      }
-    }
     rows.push({
       id: p.id,
       name: p.name,
@@ -114,6 +90,19 @@ export default async function DeliveryPage() {
       reported: p.health,
       derived: view.ok ? view.value.derivedHealth : p.health,
       accountName: accountNames.get(p.accountId) ?? null,
+      // THE PLAN TRAVELS WITH ITS PROJECT. It came off the same projectView
+      // this loop already makes, and the row is where it belongs - the flat
+      // cross-project table it replaced spent a column repeating the parent.
+      milestones: view.ok
+        ? view.value.milestones.map((m) => ({
+            id: m.id,
+            sequence: m.sequence,
+            name: m.name,
+            status: m.status,
+            dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
+            completedAt: m.completedAt ? m.completedAt.toISOString().slice(0, 10) : null,
+          }))
+        : [],
     });
   }
 
@@ -166,7 +155,7 @@ export default async function DeliveryPage() {
 
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - and both are computed
           from the SAME rows, so the block and the list cannot disagree. */}
-      <DeliveryAnalysis stats={stats} liveCount={running.length} currency={currency} />
+      <DeliveryAnalysis stats={stats} currency={currency} />
 
       <DeliveryRoster
         rows={rows}
@@ -176,7 +165,6 @@ export default async function DeliveryPage() {
         onReconcile={reconcileHealth}
       />
 
-      <MilestonePanel rows={milestones} />
       {/* Creation left for /delivery/new on 2026-09-05. */}
       {can(
         session.authz,

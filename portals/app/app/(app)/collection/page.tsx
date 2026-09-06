@@ -91,7 +91,35 @@ export default async function CollectionPage() {
   // Summing the planned figure for money that is already in would report a
   // number nobody received, and short payment is normal enough here that the
   // schedule tracks it separately from invoicing.
-  const STAGES = ["planned", "invoiced", "overdue", "settled", "written_off"] as const;
+  // THE MANAGEMENT ORDER, not the lifecycle order (owner, 2026-09-06). A
+  // manager reads this bar as attainment: what is IN, what is in TROUBLE, what
+  // is promised soon, what is further out, what is gone. The lifecycle order -
+  // planned first, collected fourth - is how an instalment travels, which is
+  // the schedule's business and not the question this strip answers.
+  const STAGES = ["settled", "overdue", "invoiced", "planned", "written_off"] as const;
+  // THE COLOUR IS THE STAGE'S MEANING, not a palette position: overdue is the
+  // product's danger, settled its success, a write-off is muted because it is
+  // over. The dot beside the number and that stage's share of the bar above
+  // are the same colour, which is what lets the two readings be one reading.
+  // DEPTH IS CERTAINTY, deepest first: money in the bank, then money late,
+  // then money invoiced, then money merely planned. 坏账 takes the lightest
+  // step - it is certain, but it is no longer part of the receivable, and on a
+  // one-hue ramp the palest end is the only place left for "not counting".
+  //
+  // THE LIGHT END OF THE RAMP. This strip is above the fold on every visit, so
+  // it should not be the heaviest thing on the page (owner, 2026-09-06, twice).
+  // Levels 3 down to 0 - the deepest fill is now a mid blue rather than the
+  // ramp's darkest, and the shades still separate.
+  const STAGE_DEPTH = {
+    settled: 3,
+    overdue: 2,
+    invoiced: 2,
+    // 计划中 CAME BACK UP A STEP: at the palest wash it stopped reading as a
+    // stage at all (owner, 2026-09-06). The wash is left to 坏账, which is the
+    // one row that genuinely is not part of the receivable.
+    planned: 1,
+    written_off: 0,
+  } as const;
   const stats: HeadlineStat[] = STAGES.map((stage) => {
     const at = rows.filter((r) => r.status === stage);
     const amount = at.reduce(
@@ -103,6 +131,11 @@ export default async function CollectionPage() {
       name: REVENUE_STATUS_LABEL[stage] ?? stage,
       value: amount,
       note: DELIVERY_TEXT.collectStatCount(at.length),
+      depth: STAGE_DEPTH[stage],
+      // 逾期 IS THE EXCEPTION, so it leaves the ramp: money that is late is
+      // not a further step along the same road, it is the thing that went
+      // wrong, and it should be found without comparing shades of blue.
+      ...(stage === "overdue" ? { tone: "warning" as const } : {}),
     };
   }).filter((cell) => cell.value > 0);
 
@@ -123,6 +156,7 @@ export default async function CollectionPage() {
           </>
         }
         stats={stats}
+        share
         emptyNote={DELIVERY_TEXT.collectStatEmpty}
       />
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - so the shape comes

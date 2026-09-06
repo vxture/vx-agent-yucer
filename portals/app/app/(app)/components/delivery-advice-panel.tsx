@@ -7,6 +7,13 @@ import { useMessages } from "../lib/i18n/provider";
 // 交付检查 - the delivery page's half of the dock, on the one assistant
 // surface (assistant.tsx owns the shape).
 //
+// THE DOWNGRADE PROPORTION LIVES HERE, not on the page (owner, 2026-09-06).
+// It is not a count of what exists - the page's own cuts are that - it is what
+// this check CONCLUDED after holding every report against its facts, and a
+// conclusion belongs with the findings that produced it. The section's scope
+// line is where the price panel already states what it looked at, so the same
+// slot says how much of the book the conclusion covers.
+//
 // ONE FINDING GETS AN ACT, and it is the one that asserts nothing new.
 // Reconciling recomputes the DERIVED reading from facts that already exist -
 // unpaid instalments, missed milestones - so the act only makes the page agree
@@ -16,10 +23,15 @@ import { useMessages } from "../lib/i18n/provider";
 export function DeliveryAdvicePanel({
   advice,
   canWrite,
+  downgraded,
+  liveCount,
   onReconcile,
 }: {
   readonly advice: readonly DeliveryAdvice[];
   readonly canWrite: boolean;
+  /** How many live projects report better health than the facts support. */
+  readonly downgraded: number;
+  readonly liveCount: number;
   readonly onReconcile: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { DELIVERY_TEXT, PROJECT_ERROR } = useMessages();
@@ -64,6 +76,7 @@ export function DeliveryAdvicePanel({
       section={{
         id: "delivery-advice",
         title: DELIVERY_TEXT.adviceTitle,
+        scope: DELIVERY_TEXT.downgradeScope(downgraded, liveCount),
         items,
         empty: DELIVERY_TEXT.adviceClear,
       }}

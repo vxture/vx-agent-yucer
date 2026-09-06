@@ -48,7 +48,6 @@ const NOT_YET_CONVERTED: Record<string, string> = {
   "lead-list.tsx": "D5 pipeline - not rebuilt yet",
   "line-editor.tsx": "D5 pipeline - not rebuilt yet",
   "member-roles.tsx": "admin - not rebuilt yet",
-  "milestone-panel.tsx": "D7 delivery - not rebuilt yet",
   "pending-reviews.tsx": "D5 pipeline - not rebuilt yet",
   "pipeline-board.tsx": "D5 pipeline - not rebuilt yet",
   "planning-table.tsx": "D6 planning - not rebuilt yet",
