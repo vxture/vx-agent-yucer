@@ -50,6 +50,20 @@ export interface Progress {
 const IN_FLIGHT_CREDIT = 0.5;
 
 /**
+ * What one milestone contributes, and the whole convention is these three
+ * lines. Written as a named function rather than folded into the reduce so
+ * that adding a fourth milestone state means editing a rule, not unpicking an
+ * expression.
+ */
+function credit(status: string): number {
+  if (status === "done") return 1;
+  if (status === "in_progress") return IN_FLIGHT_CREDIT;
+  // Everything else - pending, missed, whatever arrives later - earns nothing
+  // until it is actually under way.
+  return 0;
+}
+
+/**
  * A missed milestone earns nothing.
  *
  * It is not "partly done" - it is a gate the project failed to pass, and the
@@ -88,11 +102,7 @@ export function projectProgress(
   }
 
   const ordered = [...nodes].sort((a, b) => a.sequence - b.sequence);
-  const earned = ordered.reduce(
-    (n, m) =>
-      n + (m.status === "done" ? 1 : m.status === "in_progress" ? IN_FLIGHT_CREDIT : 0),
-    0,
-  );
+  const earned = ordered.reduce((n, m) => n + credit(m.status), 0);
 
   // THE CURRENT MILESTONE IS THE FIRST ONE NOT FINISHED - in_progress if one
   // is, otherwise the earliest that has not been passed. A missed gate is

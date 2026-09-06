@@ -32,6 +32,45 @@ import { DeliveryPlanFlow } from "./delivery-plan-flow";
 // team's own word, with no sign that the facts disagree, is the single thing
 // this page exists to prevent.
 
+// 项目进展 - the cell, at module scope rather than inside the roster.
+//
+// TWO FACTS, and the order is the reading: WHERE the project is, then how far
+// that is through the plan (owner, 2026-09-06). The percentage alone says
+// nothing about what happens next; the milestone name alone says nothing about
+// how much is left.
+//
+// DERIVED, NOT ESTIMATED - see progress.ts. It counts the plan; it does not
+// judge it.
+function ProgressCell({ row }: { readonly row: DeliveryRow }) {
+  const { DELIVERY_TEXT } = useMessages();
+  const p = projectProgress(row.milestones, row.status);
+
+  if (p.unplanned && p.percent === 0) {
+    return (
+      <span className="text-(color:--warning-text) text-body-sm">
+        {DELIVERY_TEXT.progressNoPlan}
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex flex-col items-center gap-3xs">
+      {/* NO CURRENT MILESTONE HAS TWO CAUSES AND THEY ARE NOT THE SAME CLAIM.
+          Either the plan was walked through, or the project closed with gates
+          still open - in which case saying the plan is complete would assert
+          something the milestones deny. The second case is a record-keeping
+          gap, and showing it is how it gets closed. */}
+      <span
+        className={`truncate text-body-sm ${p.planComplete ? "text-foreground" : "text-muted-foreground"}`}
+      >
+        {p.currentName ??
+          (p.planComplete ? DELIVERY_TEXT.progressPlanDone : DELIVERY_TEXT.progressPlanOpen)}
+      </span>
+      <span className="text-muted-foreground tabular-nums text-body-sm">{p.percent}%</span>
+    </span>
+  );
+}
+
 export interface DeliveryRow {
   readonly id: string;
   readonly name: string;
@@ -163,36 +202,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
       //
       // DERIVED, NOT ESTIMATED - see progress.ts. It counts the plan; it does
       // not judge it.
-      cell: (r: DeliveryRow) => {
-        const p = projectProgress(r.milestones, r.status);
-        if (p.unplanned && p.percent === 0)
-          return (
-            <span className="text-(color:--warning-text) text-body-sm">
-              {DELIVERY_TEXT.progressNoPlan}
-            </span>
-          );
-        return (
-          <span className="flex flex-col items-center gap-3xs">
-            {/* NO CURRENT MILESTONE HAS TWO CAUSES AND THEY ARE NOT THE SAME
-                CLAIM. Either the plan was walked through, or the project
-                closed with gates still open - in which case saying
-                "计划已走完" would assert something the milestones deny. The
-                second case is a record-keeping gap, and showing it is how it
-                gets closed. */}
-            <span
-              className={`truncate text-body-sm ${p.planComplete ? "text-foreground" : "text-muted-foreground"}`}
-            >
-              {p.currentName ??
-                (p.planComplete
-                  ? DELIVERY_TEXT.progressPlanDone
-                  : DELIVERY_TEXT.progressPlanOpen)}
-            </span>
-            <span className="text-muted-foreground tabular-nums text-body-sm">
-              {p.percent}%
-            </span>
-          </span>
-        );
-      },
+      cell: (r: DeliveryRow) => <ProgressCell row={r} />,
     },
     {
       id: "contract",
