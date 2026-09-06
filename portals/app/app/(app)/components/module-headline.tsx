@@ -150,7 +150,7 @@ export function ModuleHeadline({
 
         <CollapsibleContent className="flex flex-col gap-md">
           {share && stats.length > 0 ? (
-            <div className="flex h-[0.875rem] w-full overflow-hidden rounded-full">
+            <div className="flex h-xs w-full overflow-hidden rounded-full">
               {stats.map((s) => (
                 <span
                   key={s.key}
