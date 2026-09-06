@@ -18,13 +18,7 @@ import {
 import { FACT_DOMAINS } from "../domain/[key]/facts";
 import { permissionsForRoles } from "../../authz/catalog";
 import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
-import {
-  resolveNavigation,
-  ADMIN_NAV_ENTRIES,
-  DOMAIN_NAV_ENTRIES,
-  NAV_ENTRIES,
-  type ResolvedNavEntry,
-} from "./navigation";
+import { ADMIN_NAV_ENTRIES, DOMAIN_NAV_ENTRIES, MODULE_NAV_ENTRIES, NAV_ENTRIES, resolveNavigation, type ResolvedNavEntry } from "./navigation";
 import {
   DOMAIN_GROUP_LABEL,
   DOMAIN_GROUP_QUESTION,
@@ -276,7 +270,7 @@ const SHIPPED_AS: Record<string, string> = {
   // 2026-09-05, when the module page grew its row operations.
   catalog: "ProductRoster",
   renewal: "RenewalRoster",
-  forecastRule: "ForecastRuleTable",
+  forecastRule: "ForecastRoster",
   // /solution's section became SolutionRoster on 2026-09-05, when the module
   // took the catalogue's pattern: the combination and its customisation on
   // one roster, with the check in the dock.
@@ -522,4 +516,33 @@ test("the tier named is the LOWEST that unlocks the module, not the current one"
 
   // And a module the free tier already has names nothing to buy.
   assert.equal(byKey.get("account")?.state, "visible");
+});
+
+
+// EVERY MODULE PAGE MUST FIND ITS OWN DOMAIN. The strip that names the domain
+// and lists its siblings is resolved from the first path segment, and the
+// segment is NOT always the nav key: forecastRule lives at /forecast,
+// namedAccount at /named, winLossReview at /winloss. Those three resolved to
+// null and rendered no strip at all - the navigation disappeared on exactly
+// the pages it was navigating to (found 2026-09-06 on /forecast).
+test("a module route resolves to the domain that contains it", () => {
+  const missing: string[] = [];
+  for (const domain of FUNCTIONAL_DOMAINS) {
+    for (const m of domain.modules) {
+      if (m.kind !== "built") continue;
+      const entry =
+        DOMAIN_NAV_ENTRIES.find((e) => e.key === m.navKey) ??
+        MODULE_NAV_ENTRIES.find((e) => e.key === m.navKey);
+      if (!entry) continue;
+      const found = activeDomainFromPath(entry.href);
+      if (found !== domain.key) {
+        missing.push(`${entry.href} (${m.navKey}) resolved to ${found ?? "null"}, want ${domain.key}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    missing,
+    [],
+    `these module routes render no domain strip:\n  ${missing.join("\n  ")}`,
+  );
 });

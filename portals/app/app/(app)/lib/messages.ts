@@ -264,6 +264,49 @@ export const FORECAST_RULE_TEXT = {
     close_date_passed: "预计成交日已过，生意还开着",
     stalled: "停在本阶段过久，降一档",
   } as Record<string, string>,
+
+  // --- the module page (2026-09-06) -----------------------------------------
+  rosterDisputed: "有分歧的商机",
+  rosterDisputedWhy:
+    "口径规则和填报人给出了不同答案的商机。分歧本身就是预测评审要看的东西——先看它偏向哪一边。",
+  rosterAgreed: "无分歧",
+  rosterAgreedWhy:
+    "规则与填报一致，或者已经成交、没有可争的判断。留在这里是因为一份全是分歧的清单读起来像「这些都是问题商机」，而不是「这是我们的预测」。",
+  noneDisputed: "口径没有分歧",
+  noneDisputedWhy: "规则与每一笔的填报都一致。",
+  filedOptimistic: "填报更乐观",
+  filedConservative: "填报更保守",
+  tagForecastDisputed: (n: number) => `${n} 笔有分歧`,
+  tagForecastOptimistic: (n: number) => `${n} 笔偏乐观`,
+  forecastStatCount: (n: number) => `${n} 笔`,
+  forecastStatEmpty: "还没有可预测的商机，头部不做拆解。",
+
+  // --- 口径分析 (the statistics block) ---------------------------------------
+  analysisTitle: "口径分析",
+  analysisWhy: "先看整体：预测压在哪一档、分歧偏向哪一边、涉及多少钱。下面的清单是逐笔明细。",
+  analysisEmpty: "还没有可统计的商机。",
+  agreementRate: "口径一致率",
+  agreementOf: (n: number, total: number) => `${n} / ${total} 笔一致`,
+  agreementWhy: (n: number) =>
+    `${n} 笔存在分歧。分歧多少要放在总量里看：两百笔里十二笔是几处边角，二十笔里十二笔是一份没人信的预测。`,
+  agreementClear: "规则与填报完全一致。",
+  byCategoryTitle: "口径分布",
+  byCategoryWhy: "按填报口径分档，顺序从最不确定到最确定。",
+  directionTitle: "分歧方向",
+  directionWhy:
+    "填报比规则更乐观，会抬高一个有人要为之负责的数字；更保守，则会藏住正在变好的生意。这是两种不同的对话。",
+  directionNone: "没有分歧，这一块暂时不用看。",
+  dirOptimistic: "填报更乐观",
+  dirConservative: "填报更保守",
+
+  // --- 口径检查 (the dock) ---------------------------------------------------
+  adviceTitle: "口径检查",
+  adviceClear: "这批商机的口径没有分歧。",
+  adviceOpenDeal: "打开商机",
+  adviceOptimistic: (name: string, filed: string, suggested: string) =>
+    `「${name}」填的是${filed}，按规则只到${suggested}——这一笔在抬高承诺。`,
+  adviceConservative: (name: string, filed: string, suggested: string) =>
+    `「${name}」填的是${filed}，按规则可以到${suggested}——这一笔的进展被低估了。`,
 } as const;
 
 export const ATTAINMENT_TEXT = {
