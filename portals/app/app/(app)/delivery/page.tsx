@@ -11,7 +11,6 @@ import { DeliveryRoster, type DeliveryRow } from "../components/delivery-roster"
 import { DeliveryAnalysis } from "../components/delivery-analysis";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { deliveryStats } from "../../domains/delivery/lib/delivery-stats";
-import { NewEntryLink } from "../components/form-page";
 import { reconcileHealth } from "./actions";
 import { can } from "../../authz/decide";
 
@@ -190,18 +189,12 @@ export default async function DeliveryPage() {
         canWrite={
           can(session.authz, session.entitlement, "delivery.project.upsert", "ui").allowed
         }
+        canPlan={
+          can(session.authz, session.entitlement, "delivery.milestone.upsert", "ui").allowed
+        }
         onReconcile={reconcileHealth}
       />
 
-      {/* Creation left for /delivery/new on 2026-09-05. */}
-      {can(
-        session.authz,
-        session.entitlement,
-        "delivery.milestone.upsert",
-        "ui",
-      ).allowed ? (
-        <NewEntryLink href="/delivery/new" />
-      ) : null}
     </ViewLayout>
   );
 }

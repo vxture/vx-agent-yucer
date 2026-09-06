@@ -10,20 +10,28 @@ import { useMessages } from "../lib/i18n/provider";
 // where it stopped. A table states the same rows and makes the reader rebuild
 // the order in their head; laid out along a line, "done, done, missed, then
 // nothing" is one glance. The sequence is also the identity - `(project,
-// sequence)` is a milestone's key in the DDL - so the order is data, not
-// decoration.
+// sequence)` is a milestone's key in the DDL - so the order is data.
 //
 // THE CONNECTOR CARRIES THE READING. A segment is green only when the
 // milestone BEFORE it is done: the line is how far the project actually got,
 // and it stops at the first thing that did not happen. That is the same fact
-// `deriveProjectHealth` acts on - one `missed` overrides a reported green -
-// so the picture and the health badge above it are reading the same rows.
+// `deriveProjectHealth` acts on - one `missed` overrides a reported green.
 //
-// NO DS COMPONENT FOR THIS. The design system has no stepper or timeline;
-// LevelMarker is the L1-L5 ranking base and its own docs reserve that material
-// for ranking alone. So this is composed from DS primitives - Icon plus the
-// intent colour tokens - and nothing here restyles a DS element. Registered as
-// TD-023 with the element the DS is missing.
+// THE LINE IS A SIBLING OF THE CIRCLE, NOT A FLOATING OFFSET. The first
+// version positioned the connector with a hand-tuned margin and it hung above
+// the circles it was supposed to join (owner, 2026-09-06). Now each node is a
+// flex row - half-line, circle, half-line - so `items-center` aligns them and
+// there is no number to keep in step with the circle's size. Nodes are
+// `flex-1`, so they are equal width whatever their names are.
+//
+// AND IT SITS ON ITS OWN SURFACE. Rendered into a table row's expanded cell,
+// which carries no padding, it ran flush to the table's left edge and merged
+// into the rows above and below. The inset wash and the padding are what make
+// it read as something belonging to the project rather than a broken row.
+//
+// NO DS COMPONENT FOR THIS: the design system has no stepper or timeline, and
+// LevelMarker's material is reserved for ranking. Composed from DS primitives
+// and the intent tokens; registered as TD-023.
 
 export interface PlanNode {
   readonly id: string;
@@ -36,28 +44,30 @@ export interface PlanNode {
 
 const NODE = {
   done: {
-    ring: "border-(color:--success-border) bg-(color:--success-surface)",
+    ring: "border-transparent bg-(color:--success-text) text-white",
     text: "text-(color:--success-text)",
     icon: "check" as const,
   },
   missed: {
-    ring: "border-(color:--danger-border) bg-(color:--danger-surface)",
+    ring: "border-transparent bg-destructive text-white",
     text: "text-(color:--danger-text)",
     icon: "x" as const,
   },
   pending: {
     ring: "border-border bg-surface",
     text: "text-muted-foreground",
-    // NO GLYPH, and that is the drawing rather than a gap: an empty outlined
-    // circle is what "not yet" looks like on every stepper anybody has read,
-    // and the DS icon set carries nothing that says pending without saying
-    // something more specific.
+    // NO GLYPH: an empty outlined circle is what "not yet" looks like on every
+    // stepper anybody has read, and the DS icon set carries nothing that says
+    // pending without saying something more specific.
     icon: null,
   },
 } as const;
 
 const shape = (status: string) =>
   status === "done" ? NODE.done : status === "missed" ? NODE.missed : NODE.pending;
+
+/** The track between two nodes is only "travelled" once the earlier one is done. */
+const track = (done: boolean) => (done ? "bg-(color:--success-text)" : "bg-border");
 
 export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[] }) {
   const { DELIVERY_TEXT } = useMessages();
@@ -67,52 +77,60 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
   const ordered = [...nodes].sort((a, b) => a.sequence - b.sequence);
 
   return (
-    // Its own horizontal scroll: a long plan is wider than the row it hangs
-    // under, and the page body must never scroll sideways.
-    <div className="overflow-x-auto py-sm">
-      <ol className="flex min-w-max items-start gap-0">
-        {ordered.map((n, i) => {
-          const look = shape(n.status);
-          const previousDone = i === 0 || ordered[i - 1]!.status === "done";
-          return (
-            <li key={n.id} className="flex items-start">
-              {i > 0 ? (
-                // THE CONNECTOR STOPS WHERE THE PROJECT DID. Green only while
-                // the work behind it actually happened.
+    <div className="bg-accent/40 px-lg py-md">
+      {/* Its own horizontal scroll: a long plan is wider than the row it hangs
+          under, and the page body must never scroll sideways. */}
+      <div className="overflow-x-auto">
+        <ol className="flex min-w-max items-start">
+          {ordered.map((n, i) => {
+            const look = shape(n.status);
+            const first = i === 0;
+            const last = i === ordered.length - 1;
+            return (
+              <li key={n.id} className="flex w-[9rem] min-w-0 flex-1 flex-col items-center gap-2xs">
+                {/* Half-track, circle, half-track - one row, so the line meets
+                    the circle's centre by layout rather than by arithmetic. */}
+                <div className="flex w-full items-center">
+                  <span
+                    aria-hidden
+                    className={`h-px flex-1 ${
+                      first ? "bg-transparent" : track(ordered[i - 1]!.status === "done")
+                    }`}
+                  />
+                  <span
+                    className={`flex size-control-sm shrink-0 items-center justify-center rounded-full border ${look.ring}`}
+                    title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
+                  >
+                    {look.icon ? <Icon name={look.icon} size="sm" /> : null}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={`h-px flex-1 ${
+                      last ? "bg-transparent" : track(n.status === "done")
+                    }`}
+                  />
+                </div>
+
                 <span
-                  aria-hidden
-                  className={`mt-[0.9rem] h-px w-[3rem] shrink-0 ${
-                    previousDone ? "bg-(color:--success-border)" : "bg-border"
-                  }`}
-                />
-              ) : null}
-              <div className="flex w-[7.5rem] flex-col items-center gap-2xs px-2xs text-center">
-                <span
-                  className={`flex size-control-sm items-center justify-center rounded-full border ${look.ring} ${look.text}`}
-                  title={DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
+                  className="text-foreground w-full truncate px-2xs text-center text-body-sm"
+                  title={n.name}
                 >
-                  {look.icon ? <Icon name={look.icon} size="sm" /> : null}
-                </span>
-                <span className="text-foreground truncate text-body-sm" title={n.name}>
                   {n.name}
                 </span>
-                {/* WHAT HAPPENED beats what was planned: a done milestone shows
-                    the day it landed, an open one the day it is due. Showing
-                    both on every node made four dates per column and none of
-                    them the one being looked for. */}
-                <span className="text-muted-foreground tabular-nums text-body-sm">
-                  {n.status === "done"
-                    ? (n.completedAt ?? DELIVERY_TEXT.milestoneNoDate)
-                    : (n.dueAt ?? DELIVERY_TEXT.milestoneNoDate)}
-                </span>
-                <span className={`text-body-sm ${look.text}`}>
+                {/* ONE LINE, NOT TWO. The date a reader wants is the one that
+                    happened - a done milestone shows when it landed, an open
+                    one when it is due - and the status word beside it is the
+                    only other thing this node has to say. */}
+                <span className={`text-body-sm tabular-nums ${look.text}`}>
+                  {(n.status === "done" ? n.completedAt : n.dueAt) ?? DELIVERY_TEXT.milestoneNoDate}
+                  {" · "}
                   {DELIVERY_TEXT.milestoneStatusLabel[n.status] ?? n.status}
                 </span>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </div>
   );
 }

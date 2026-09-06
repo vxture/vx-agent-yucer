@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
-import { DataTable, EmptyState, Section, StatusBadge, useToast } from "@vxture/design-ui";
+import { Button, DataTable, EmptyState, Section, StatusBadge, useToast } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
@@ -63,12 +63,15 @@ export interface MilestoneRow {
 export interface DeliveryRosterProps {
   readonly rows: readonly DeliveryRow[];
   readonly canWrite: boolean;
+  /** Whether to offer the milestone form. Gated on delivery.milestone.upsert,
+   * which is a different permission from the one that reconciles health. */
+  readonly canPlan: boolean;
   readonly onReconcile: (
     id: string,
   ) => Promise<{ ok: boolean; changed?: boolean; error?: string }>;
 }
 
-export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterProps) {
+export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: DeliveryRosterProps) {
   const {
     DELIVERY_TEXT,
     DATA_TABLE_LABELS,
@@ -252,6 +255,17 @@ export function DeliveryRoster({ rows, canWrite, onReconcile }: DeliveryRosterPr
         icon={moduleIcon("delivery")}
         title={DELIVERY_TEXT.rosterRunning}
         description={DELIVERY_TEXT.rosterRunningWhy}
+        /* WHERE EVERY OTHER MODULE PUTS CREATION - the section's own action
+           slot, labelled with what it makes. It used to be an unlabelled card
+           dangling BELOW the list (owner spotted it, 2026-09-06), which read
+           as "new project" while the form behind it writes a MILESTONE. */
+        action={
+          canPlan ? (
+            <Button asChild>
+              <a href="/delivery/new">{DELIVERY_TEXT.newMilestoneEntry}</a>
+            </Button>
+          ) : undefined
+        }
       >
         {table(
           running,

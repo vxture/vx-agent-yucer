@@ -2564,6 +2564,7 @@ export const DELIVERY_TEXT = {
   milestoneName: "节点名称",
   milestoneDue: "计划完成",
   milestoneCompleted: "实际完成",
+  newMilestoneEntry: "新建里程碑",
   milestoneNoDate: "未排期",
   milestoneStatus: "状态",
   milestoneStatusLabel: {

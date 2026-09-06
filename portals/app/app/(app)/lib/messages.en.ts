@@ -2104,6 +2104,7 @@ export const en: Dictionary = {
     milestoneName: "Milestone",
     milestoneDue: "Due",
     milestoneCompleted: "Completed",
+    newMilestoneEntry: "New milestone",
     milestoneNoDate: "Not scheduled",
     milestoneStatus: "Status",
     milestoneStatusLabel: {
