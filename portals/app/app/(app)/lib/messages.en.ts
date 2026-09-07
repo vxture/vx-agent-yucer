@@ -1734,6 +1734,14 @@ export const en: Dictionary = {
   },
   // --- /signal ------------------------------------------------------------
 
+  TABLE_TOOLBAR_TEXT: {
+    searchLabel: "Search",
+    resetFilters: "Clear filters",
+    filteredCount: (n: number, total: number) => `${n} / ${total}`,
+    noMatch: "No matching records",
+    noMatchWhy: "Try a different keyword, or loosen the filters.",
+  },
+
   SIGNAL_TEXT: {
     title: "Signal inbox",
     description:
@@ -2455,6 +2463,9 @@ export const en: Dictionary = {
       `"${name}" is in flight with no milestones at all - no plan means nothing to be late against.`,
     adviceNoContract: (name: string) =>
       `"${name}" is in flight with no contract amount, so delivery has nothing to be measured against.`,
+    searchHint: "Project, number, customer",
+    filterAllHealth: "All health",
+    narrowedNote: "Narrowed by the search above",
   },
 
   HEALTH_LABEL: {

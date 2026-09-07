@@ -16,7 +16,13 @@ import {
   StatusBadge,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { ACTION_COLUMN, EDGE_COLUMNS, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  FilterSlot,
+  SearchSlot,
+  rowClickSelection,
+} from "./table-fittings";
 import { ROUTING_ANALYSE_EVENT } from "../lib/routing-signal";
 import {
   LEAD_DISQUALIFY_REASONS,
@@ -773,23 +779,10 @@ export function LeadList({
               ? PIPELINE_TEXT.rowCount(leads.length)
               : LEAD_TEXT.filteredCount(visible.length, leads.length)
           }
-          // SIZED IN THE SLOT, and this is the caller's job rather than a DS
-          // gap: FilterBar takes nodes, and the DS's form controls fill their
-          // container because that is right in a FORM. In a tool row they have
-          // to be told how to behave when the row runs out of width.
-          //
-          // 先压缩搜索框，再换行 (owner, 2026-09-07). The order matters and it
-          // is NOT what flex-shrink gives you: a wrapping flex row decides its
-          // line breaks from each item's BASIS (clamped by its min-width) and
-          // only then shrinks what is on a line. A search box with
-          // basis-[10rem] therefore pushes a select onto a second row while
-          // still sitting at its full 160px - measured, 2026-09-07. Basing it
-          // at its minimum instead and growing into the leftover width gets
-          // the owner's order: it gives back every pixel above 7rem before
-          // anything wraps. The selects keep their intrinsic width because a
-          // collapsed select is an unreadable stub.
+          // 量具在 table-fittings 里 (SearchSlot / FilterSlot)，理由写在那边：
+          // FilterBar 的右段会换行，而换行是按 basis 断的，不是按 shrink 断的。
           search={
-            <span className="block min-w-[7rem] max-w-[18rem] flex-1 basis-[7rem]">
+            <SearchSlot>
               <Input
                 type="search"
                 className="w-full"
@@ -798,7 +791,7 @@ export function LeadList({
                 aria-label={LEAD_TEXT.searchLabel}
                 onChange={(e) => setQuery(e.target.value)}
               />
-            </span>
+            </SearchSlot>
           }
           // RESET ONLY WHEN THERE IS SOMETHING TO RESET. A control that is
           // always there and usually does nothing teaches people to ignore it.
@@ -813,11 +806,7 @@ export function LeadList({
           }
           resetLabel={LEAD_TEXT.resetFilters}
         >
-          {/* Each filter is wrapped and sized here rather than through the
-              control's own className: NativeSelect forwards that to the
-              <select> inside its chevron wrapper, so the wrapper stayed at the
-              segment's full width and the row rendered three lines. */}
-          <span className="block w-[7rem] shrink-0">
+          <FilterSlot width="w-[7rem]">
             <NativeSelect
               value={statusFilter}
               aria-label={LEAD_TEXT.columnStatus}
@@ -830,8 +819,8 @@ export function LeadList({
                 </option>
               ))}
             </NativeSelect>
-          </span>
-          <span className="block w-[8rem] shrink-0">
+          </FilterSlot>
+          <FilterSlot>
             <NativeSelect
               value={ownerFilter}
               aria-label={LEAD_TEXT.columnOwner}
@@ -845,7 +834,7 @@ export function LeadList({
                 </option>
               ))}
             </NativeSelect>
-          </span>
+          </FilterSlot>
         </FilterBar>
       ) : null}
 

@@ -2291,6 +2291,25 @@ export const DATA_TABLE_LABELS = {
   rowActions: "操作",
 } as const;
 
+/**
+ * 表格工具行的公共文案 - the three strings every FilterBar needs.
+ *
+ * `searchHint` is deliberately NOT here. It names the fields the box actually
+ * searches ("公司、线索号、联系人、负责人"), which differs per table and is the
+ * only thing telling a reader what a keyword will and will not match - a
+ * generic "搜索" placeholder would be the same word ten times and would say
+ * nothing.
+ */
+export const TABLE_TOOLBAR_TEXT = {
+  searchLabel: "检索",
+  resetFilters: "清空筛选",
+  /** Beside a narrowed list. Both numbers, because "6 条" alone reads as the
+   *  whole list to somebody who has forgotten a filter is on. */
+  filteredCount: (n: number, total: number) => `${n} / ${total} 条`,
+  noMatch: "没有匹配的记录",
+  noMatchWhy: "换个关键词，或把筛选条件放宽。",
+} as const;
+
 export const SIGNAL_TEXT = {
   title: "商机信号收件箱",
   description: "不等销售录入，主动发现的商机线索。评分越高越值得先看。",
@@ -2598,6 +2617,12 @@ export const DELIVERY_TEXT = {
   leadRule:
     "健康度显示的是派生值，不是交付团队报的值。逾期回款不允许显示为健康。",
   rowCount: (n: number) => `${n} 个项目`,
+  /** Names the fields, not the act. A reader who types a manager's name and
+   *  gets nothing should be able to see from the placeholder that manager was
+   *  never one of the fields. */
+  searchHint: "项目名、项目号、客户",
+  filterAllHealth: "全部健康度",
+  narrowedNote: "已按检索条件收窄",
   managerNone: "未指派",
   columnNameAccount: "项目 / 客户",
   columnManager: "项目经理",

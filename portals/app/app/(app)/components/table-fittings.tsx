@@ -67,6 +67,57 @@ export const ACTION_COLUMN = "[&_thead_th:last-child]:w-[4rem]";
 // is unchanged, and the owner's ruling is 64px.
 
 /**
+ * 工具行的两件量具 - the sizing the DS's `FilterBar` leaves to its caller.
+ *
+ * FilterBar takes NODES for its slots and does not size them, which is right:
+ * it cannot know whether the thing you handed it is a search box or a date
+ * range. But its right segment wraps, and a wrapping flex row picks its line
+ * breaks from each item's BASIS before it shrinks anything on a line - so a
+ * caller who just drops a DS control in gets three full-width children on
+ * three rows, because DS form controls fill their container (correct in a
+ * FORM, wrong in a tool row). Measured, 2026-09-07.
+ *
+ * 默认保证一行，弹性布局先压缩搜索框，再可换行 (owner, 2026-09-07). That order
+ * is what these two encode, and it is NOT what flex-shrink gives you:
+ *
+ *   - `SearchSlot` is based at its MINIMUM and grows into the leftover width,
+ *     so the row breaks lines as though the search box were already at 7rem.
+ *     Every pixel above that is given back before anything wraps.
+ *   - `FilterSlot` does not shrink at all. A select compressed to a stub is
+ *     not a smaller control, it is an unreadable one - so the search box
+ *     absorbs the whole squeeze and the filters keep their intrinsic width.
+ *
+ * They are wrappers rather than classNames on the controls because
+ * `NativeSelect` forwards `className` to the <select> INSIDE its chevron
+ * wrapper: sizing the control left the wrapper at the segment's full width,
+ * and the row still rendered three lines.
+ */
+export function SearchSlot({ children }: { readonly children: ReactNode }) {
+  return (
+    <span className="block min-w-[7rem] max-w-[18rem] flex-1 basis-[7rem]">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * One filter control in FilterBar's `children` group, at a fixed width.
+ *
+ * `width` is a Tailwind width class rather than a number: the filter's width
+ * is a judgement about its longest option ("已转商机" needs more than "全部"),
+ * and that judgement belongs at the call site where the options are.
+ */
+export function FilterSlot({
+  width = "w-[8rem]",
+  children,
+}: {
+  readonly width?: string;
+  readonly children: ReactNode;
+}) {
+  return <span className={`block shrink-0 ${width}`}>{children}</span>;
+}
+
+/**
  * The action column's contents - a single DS trigger, always rendered.
  *
  * `items` may be empty. An empty menu is disabled outright rather than
