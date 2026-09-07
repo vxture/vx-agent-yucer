@@ -1,11 +1,11 @@
-// 分配分析 - the numbers the routing page opens with, built to the shape
-// collections and delivery settled on (owner, 2026-09-06: 统计为主，列表为具体
-// 清单). Pure: the page reads, this counts, the section renders.
+// What 智能分配 counts when somebody asks it to run. Pure: the action reads,
+// this counts, the panel renders.
 //
-// THE PRIMARY CUT IS WHAT NEEDS DOING, not what the rule decided. A router's
-// list is read to answer one question - "how much of this is waiting on me" -
-// and three dispositions answer it exhaustively: already where it belongs,
-// waiting to be moved, or impossible to place at all.
+// IT DOES NOT FEED A DASHBOARD ANY MORE. An earlier version also produced a
+// disposition split and a region breakdown, for a header strip and a chart
+// tab on the page; the owner removed both as over-design (2026-09-06), and
+// what those fed went with them. What is left is what the panel actually
+// reads.
 //
 // THE THIRD ONE IS NOT A FAILURE OF THE ROUTER. An unroutable lead means the
 // TERRITORY MAP has a hole in it, and the three reasons are three different
@@ -39,13 +39,10 @@ export interface OwnerLoad {
 }
 
 export interface RoutingStats {
-  /** settled / pending / blocked, always in that order and always all three. */
-  readonly byDisposition: readonly Bucket[];
   /** Why the blocked ones are blocked. Empty when nothing is blocked. */
   readonly byReason: readonly Bucket[];
   /** Heaviest first - the reason anyone opens this. */
   readonly byOwner: readonly OwnerLoad[];
-  readonly byRegion: readonly Bucket[];
   readonly total: number;
   /** How many rows the apply button would actually change. */
   readonly pending: number;
@@ -63,23 +60,7 @@ export function routingStats(rows: readonly RoutingStatRow[]): RoutingStats {
   const atRest = placed.filter(settled);
   const pending = placed.filter((r) => !settled(r));
 
-  // ALWAYS ALL THREE CELLS, including the zeros. The header strip is read as a
-  // shape rather than as a list, and a strip that drops "blocked" when it is
-  // empty changes width between visits - the reader then cannot tell "none
-  // blocked" from "that cell moved". Delivery drops empty stages because its
-  // stages are a lifecycle a project travels; these three are one partition of
-  // the same set, every time.
-  const byDisposition: Bucket[] = [
-    { key: "settled", count: atRest.length },
-    { key: "pending", count: pending.length },
-    { key: "blocked", count: blocked.length },
-  ];
-
   const byReason = tally(blocked.map((r) => r.unroutableReason!));
-
-  // THE REGION IS THE ROUTER'S OWN INPUT, so a lead without one is not "other"
-  // - it is the case the map cannot see, and it keeps its own named bucket.
-  const byRegion = tally(rows.map((r) => r.region ?? UNKNOWN_REGION));
 
   // NOW AND AFTER, side by side. `now` is what the rule itself read as load;
   // `after` is what applying every suggestion on this page would produce. The
@@ -107,18 +88,13 @@ export function routingStats(rows: readonly RoutingStatRow[]): RoutingStats {
     .sort((a, b) => (b.after !== a.after ? b.after - a.after : a.sub.localeCompare(b.sub)));
 
   return {
-    byDisposition,
     byReason,
     byOwner,
-    byRegion,
     total: rows.length,
     pending: pending.length,
     blocked: blocked.length,
   };
 }
-
-/** The bucket a lead with no region falls in - named, not blank. */
-export const UNKNOWN_REGION = "__none__";
 
 function tally(keys: readonly string[]): Bucket[] {
   const counts = new Map<string, number>();

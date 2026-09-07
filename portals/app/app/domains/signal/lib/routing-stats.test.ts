@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { routingStats, UNKNOWN_REGION, type RoutingStatRow } from "./routing-stats";
+import { routingStats, type RoutingStatRow } from "./routing-stats";
 
 const row = (over: Partial<RoutingStatRow> = {}): RoutingStatRow => ({
   currentOwner: "usr_a",
@@ -10,12 +10,9 @@ const row = (over: Partial<RoutingStatRow> = {}): RoutingStatRow => ({
   ...over,
 });
 
-const count = (bs: readonly { key: string; count: number }[], k: string) =>
-  bs.find((b) => b.key === k)?.count ?? 0;
+// --- what is waiting, and what cannot move ----------------------------------
 
-// --- the three dispositions --------------------------------------------------
-
-test("the three dispositions partition the set - every lead lands in exactly one", () => {
+test("pending counts only the leads an accept would actually move", () => {
   const rows = [
     row(),
     row({ suggestedOwner: "usr_b" }),
@@ -23,34 +20,14 @@ test("the three dispositions partition the set - every lead lands in exactly one
     row({ unroutableReason: "no_region", region: null, suggestedOwner: null }),
   ];
   const s = routingStats(rows);
-  assert.equal(count(s.byDisposition, "settled"), 1);
-  assert.equal(count(s.byDisposition, "pending"), 2, "an unowned lead is waiting, not settled");
-  assert.equal(count(s.byDisposition, "blocked"), 1);
-  assert.equal(
-    s.byDisposition.reduce((n, b) => n + b.count, 0),
-    s.total,
-    "the cells must add up to the list, or the strip is describing another page",
-  );
-});
-
-test("all three cells are present even at zero - the strip keeps its shape", () => {
-  const s = routingStats([row()]);
-  assert.deepEqual(
-    s.byDisposition.map((b) => b.key),
-    ["settled", "pending", "blocked"],
-  );
-  assert.equal(count(s.byDisposition, "blocked"), 0);
-});
-
-test("an empty page is three zeros, not an empty strip", () => {
-  const s = routingStats([]);
-  assert.equal(s.byDisposition.length, 3);
-  assert.equal(s.total, 0);
+  assert.equal(s.pending, 2, "an unowned lead is waiting; one already in place is not");
+  assert.equal(s.blocked, 1);
+  assert.equal(s.total, 4);
 });
 
 test("a blocked lead is never counted as pending, whatever it currently has", () => {
-  // It cannot be applied, so counting it as work waiting would put a number on
-  // the apply column that no button can act on.
+  // It cannot be accepted, so counting it as work waiting would put a number
+  // on a proposal list that has no row for it.
   const s = routingStats([row({ unroutableReason: "no_owner", suggestedOwner: null })]);
   assert.equal(s.pending, 0);
   assert.equal(s.blocked, 1);
@@ -113,17 +90,4 @@ test("load is ordered by the outcome, heaviest first", () => {
 test("nobody with no leads at either end appears at all", () => {
   const s = routingStats([row({ currentOwner: null, suggestedOwner: null, unroutableReason: "no_region", region: null })]);
   assert.deepEqual(s.byOwner, []);
-});
-
-// --- regions -----------------------------------------------------------------
-
-test("a lead with no region gets its own named bucket, not silence", () => {
-  // The region is the router's own input; a lead without one is the case the
-  // map cannot see, and dropping it would make the map look complete.
-  const s = routingStats([
-    row({ region: null, unroutableReason: "no_region", suggestedOwner: null }),
-    row({ region: "华东" }),
-  ]);
-  assert.equal(count(s.byRegion, UNKNOWN_REGION), 1);
-  assert.equal(count(s.byRegion, "华东"), 1);
 });

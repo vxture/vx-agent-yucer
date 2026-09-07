@@ -245,53 +245,27 @@ export const en: Dictionary = {
       `${region} has ${n} owners; ${territory} carries the fewest open leads (${load})`,
     colRegion: "Region",
     noRegion: "no region",
-    tagOpen: (n: number) => `${n} open`,
-    tagPending: (n: number) => `${n} to assign`,
-    tagBlocked: (n: number) => `${n} unplaceable`,
-    statEmpty: "No leads awaiting assignment.",
-    disposition: {
-      settled: "Where it belongs",
-      pending: "To assign",
-      blocked: "Unplaceable",
-    } as Record<string, string>,
-    // Small print, not an explanation - see the note on the zh catalogue.
-    dispositionWhy: {
-      settled: "no action",
-      pending: "one click",
-      blocked: "fix the map",
-    } as Record<string, string>,
-    adviceTitle: "Routing check",
-    adviceScope: (n: number) => `Looked at ${n} open leads`,
-    adviceClear: "The queue is clean: everything is where the rule wants it, and the map has no holes.",
-    advicePending: (n: number) =>
-      `${n} leads are decided and waiting on a click - each one a separate decision, not a batch.`,
+    // 智能分配 - see the note on the zh catalogue.
+    assignTitle: "Suggested assignments",
     adviceNoRegion: (n: number) =>
-      `${n} leads have no region: no account matched, or the account record has none. The rule cannot even start.`,
+      `${n} have no region: no account matched, or the record has none. The rule cannot start.`,
     adviceNoTerritory: (n: number) =>
-      `${n} leads sit in a region no active territory covers - a piece missing from the map.`,
+      `${n} sit in a region no active territory covers - a piece missing from the map.`,
     adviceNoOwner: (n: number) =>
-      `${n} leads are covered by a territory nobody runs. The map is complete; the staffing is not.`,
+      `${n} are covered by a territory nobody runs. The map is complete; the staffing is not.`,
     adviceImbalance: (who: string, n: number, share: number) =>
-      `After applying everything, ${who} would hold ${n} - ${share}% of the queue. Right if they own that ground alone; worth a look if they do not.`,
-    adviceOpenAccounts: "Open accounts",
-    adviceOpenTerritory: "Open territories",
-    adviceOpenRouting: "Back to the list",
-    analysisTitle: "Routing analysis",
-    analysisWhy:
-      "What the list cannot show row by row: whose queue the work lands on, which regions the leads sit in, and where the unplaceable ones break.",
-    analysisEmpty: "Nothing to count.",
-    chartPeak: "peak",
-    byLoadTitle: "Load",
-    byLoadWhy:
-      "The second half of the rule. Territory decides who may work a lead; load decides which of them should - and the list cannot show that tiebreaker. Before and after applying every suggestion here.",
-    loadNow: "Holding now",
-    loadAfter: "After applying",
-    byRegionTitle: "By region",
-    byRegionWhy:
-      "Where the leads sit. Leads with no region get their own bar - not an \"other\", but the part the router cannot see at all.",
-    byReasonTitle: "Why unplaceable",
-    byReasonWhy:
-      "Three reasons, three different people's jobs: a missing region is the account record, an uncovered region is the map, an ownerless territory is a staffing call. Rolled into one number they earn one shrug.",
+      `Accepting everything leaves ${who} holding ${n} - ${share}% of the queue. Fine if they own that ground alone.`,
+    blockedTitle: "Could not place",
+    assignIdle:
+      "Run the rule over the open leads and see which should change hands. The result is a proposal; accepting is yours.",
+    assignRun: "Suggest assignments",
+    assignAgain: "Analyse again",
+    assignDiscard: "Discard",
+    assignAccept: "Accept",
+    assignFound: (n: number) => `${n} suggested`,
+    assignNone: "Nothing to move - every lead is already where the rule would put it.",
+    assignAllDone: "All suggestions handled.",
+    assignMove: (from: string, to: string) => `${from} -> ${to}`,
   },
   RENEWAL_TEXT: {
     title: "Renewals",
