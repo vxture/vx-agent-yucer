@@ -1641,10 +1641,15 @@ fixed 布局下可用；届时删掉这六处包装即可。已作为 DS 请求�
 
 - **已修**：`ACTION_COL` 现在发的是 `w-control-3xl px-md text-right`——`w-` 定宽，
   不再是 `min-w-`。当初「sticky 钉列在、固定宽不在」的那一半没有了。
-- **仍未修**：`w-control-3xl` 实测仍是 **56px**（`--space-control-3xl` =
-  `calc(var(--vx-spacing) * 14)`，默认档 4px×14），而 d.ts 依旧写「固定 64px」。
-  owner 裁的是 64。所以本仓的 `EDGE_COLUMNS` / `ACTION_COLUMN` 垫片**继续保留**，
-  它现在垫的只是这 8px 的差，不再是「定宽本身不存在」。
+- **仍未修，且成因比原先记的更具体**：`w-control-3xl` 仍是 **56px**，而 d.ts 依旧
+  写「固定 64px」。追到 design-tokens 3.0.0 的源码，这不是笔误而是**密度档错配**：
+  `--vx-spacing: 0.25rem`，`--space-control-3xl = calc(var(--vx-spacing) * N)`，
+  三个密度档的 N 分别是 12 / 14 / 16 —— 也就是 48px / 56px / 64px。文档写的 64
+  只在 `density-comfortable` 下成立，而本仓跑的是 `:root` 默认档（layout.tsx 没有
+  任何 `density-` 类），所以是 56。owner 裁的是 64。`EDGE_COLUMNS` /
+  `ACTION_COLUMN` 垫片**继续保留**，它垫的是这 8px 的密度差，不再是「定宽本身
+  不存在」。**顺带一条判据**：以后再看到 DS 文档给某个 control token 写死 px，
+  先问它说的是哪个密度档。
 - **仍未修**：列宽档 `xs/sm/md/lg` 依然是 `min-w-*`（见 9.1.0 的 `WIDTH`），
   auto 布局下仍会随内容漂移。本条的第二半原样成立。
 
