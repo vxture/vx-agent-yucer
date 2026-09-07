@@ -150,6 +150,15 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
  */
 export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "home", href: "/", icon: "sparkles", action: "account.view" },
+  /* 全国态势屏. Listed with the work entries rather than among the eight
+     capability domains, because it OWNS NO OBJECT - it is a way of looking at
+     what the domains already hold, and adding it to the domain list would break
+     the eight-domain invariant the comment below depends on.
+     `account.view` is the gate named here, which is the narrowest of the three
+     the page itself requires; the page asks for pipeline and delivery as well
+     and refuses unless all three allow. The nav entry only decides whether the
+     link is worth showing. */
+  { key: "national", href: "/national", icon: "chart-bar", action: "account.view" },
 ];
 
 /**

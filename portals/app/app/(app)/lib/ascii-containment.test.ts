@@ -44,6 +44,11 @@ const ALLOWED = new Set([
   // exists to catch.
   "domains/shared/provinces.ts",
   "domains/shared/demo-national.ts",
+  // The map's shapes, keyed by that same vocabulary (incr/0035). Generated, and
+  // a KEY rather than copy for the same reason provinces.ts is: escaping these
+  // would put a third encoding of the same identifier in play and guarantee the
+  // drift provinces.test.ts exists to catch.
+  "(screen)/lib/china-geometry.ts",
 ]);
 
 // CJK and fullwidth ranges - actual text in a human language. The typographic

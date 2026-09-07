@@ -63,6 +63,7 @@ export const REVENUE_STATUS_LABEL: Record<RevenueStatus, string> = {
 
 /** Domain navigation labels, keyed by the nav entry key. */
 export const DOMAIN_LABEL: Record<string, string> = {
+  national: "全国态势",
   strategy: "市场战略",
   segment: "细分市场",
   solution: "解决方案",
@@ -2329,6 +2330,43 @@ export const DATA_TABLE_LABELS = {
  * generic "搜索" placeholder would be the same word ten times and would say
  * nothing.
  */
+/** 全国销售态势屏 - the situation screen's own copy. */
+export const SCREEN_TEXT = {
+  title: "全国销售态势屏",
+  subtitle: "National Sales Situation Screen",
+  deniedTitle: "无法显示态势屏",
+  /** Says WHICH gate, without naming permissions a reader cannot act on. */
+  deniedDescription:
+    "态势屏汇总客户、商机与交付三类数据，需要同时具备这三项的查看权限。缺少其中任意一项时不做部分展示——少算的全国数字比不展示更糟。",
+  home: "平台首页",
+  provinceCount: "覆盖省份",
+  openDeals: "在跑商机",
+  unplacedNote: (n: number) => `${n} 家客户未填省份，计入全国合计但不落图`,
+  // 面包屑与下钻
+  nation: "全国",
+  regionDefault: "默认",
+  drillHint: "点击省份下钻 · 右键或点击空白返回",
+  backHint: "右键 / 点击空白返回上一级",
+  back: "返回上一级",
+  // 指标
+  metricContract: "合同额",
+  metricPipeline: "商机额",
+  metricInDelivery: "在交付",
+  metricHealth: "健康度",
+  // 漏斗
+  funnelAccounts: "客户",
+  funnelPipeline: "商机",
+  funnelContract: "合同",
+  funnelDelivery: "在交付",
+  noReading: "暂无",
+  /** Money units. COPY, not constants - the English locale says 100M, not 亿元. */
+  unitYi: "亿元",
+  unitWan: "万元",
+  unitYuan: "元",
+  accountsUnit: (n: number) => `${n} 家`,
+  dealsUnit: (n: number) => `${n} 个`,
+} as const;
+
 export const TABLE_TOOLBAR_TEXT = {
   searchLabel: "检索",
   resetFilters: "清空筛选",

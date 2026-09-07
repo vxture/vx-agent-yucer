@@ -21,7 +21,15 @@ import { join } from "node:path";
 // directory: under (app), the surface layer, the stores you may reach are the
 // ones on the session.
 
-const APP = join(process.cwd(), "app", "(app)");
+/* BOTH SURFACE GROUPS (2026-09-07). (screen) is a second surface group - the
+   situation screen, which drops the shell but not the rules - and it was outside
+   this walk when it was created. A national screen is the WORST place for an
+   unscoped store to slip through: a member narrowed to one territory would be
+   shown the whole country and nothing on the page would look wrong. */
+const SURFACES = [
+  join(process.cwd(), "app", "(app)"),
+  join(process.cwd(), "app", "(screen)"),
+];
 
 const SCOPED_GETTERS = ["getPipelineStore", "getAccountStore", "getSignalStore"];
 
@@ -54,10 +62,10 @@ function code(text: string): string {
     .replace(/([^:])\/\/.*$/gm, "$1");
 }
 
-test("no surface under (app) acquires an unscoped store", () => {
+test("no surface under (app) or (screen) acquires an unscoped store", () => {
   const offenders: string[] = [];
-  for (const file of walk(APP)) {
-    const rel = file.slice(APP.length + 1);
+  for (const root of SURFACES) for (const file of walk(root)) {
+    const rel = file.slice(root.length + 1);
     if (ALLOWED.has(rel)) continue;
     const body = code(readFileSync(file, "utf8"));
     for (const getter of SCOPED_GETTERS) {
@@ -72,7 +80,7 @@ test("no surface under (app) acquires an unscoped store", () => {
 test("the scan actually reads files - guards against a vacuous pass", () => {
   // A walk that found nothing would make the check above pass by looking at
   // no code at all, which is the shape of green that means nothing was checked.
-  const files = walk(APP);
+  const files = SURFACES.flatMap((r) => walk(r));
   assert.ok(files.length > 40, `expected the surface to have many files, found ${files.length}`);
   assert.ok(
     files.some((f) => f.endsWith("page.tsx")),
@@ -86,7 +94,7 @@ test("every allowlisted file exists and still reaches for one", () => {
   // on excusing something that is not there. Same rot the unwired allowlist
   // guards against.
   for (const rel of ALLOWED) {
-    const body = code(readFileSync(join(APP, rel), "utf8"));
+    const body = code(readFileSync(join(SURFACES[0]!, rel), "utf8"));
     assert.ok(
       SCOPED_GETTERS.some((g) => new RegExp(`\\b${g}\\s*\\(`).test(body)),
       `${rel} is allowlisted but no longer acquires an unscoped store - remove the entry`,

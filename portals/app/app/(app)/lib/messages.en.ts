@@ -147,6 +147,7 @@ export const en: Dictionary = {
   },
 
   DOMAIN_LABEL: {
+    national: "National view",
     strategy: "Market strategy",
     planning: "Sales planning",
     campaign: "Campaigns",
@@ -1750,6 +1751,37 @@ export const en: Dictionary = {
     open: "Open",
   },
   // --- /signal ------------------------------------------------------------
+
+  SCREEN_TEXT: {
+    title: "National Sales Situation Screen",
+    subtitle: "National Sales Situation Screen",
+    deniedTitle: "The situation screen cannot be shown",
+    deniedDescription:
+      "It aggregates customers, pipeline and delivery on one surface, so it needs the view permission for all three. With any of them missing it shows nothing rather than a partial national figure.",
+    home: "Platform home",
+    provinceCount: "Provinces",
+    openDeals: "Open deals",
+    unplacedNote: (n: number) => `${n} accounts have no province - counted nationally, drawn nowhere`,
+    nation: "China",
+    regionDefault: "All",
+    drillHint: "Click a province to drill in - right-click or click empty space to go back",
+    backHint: "Right-click / click empty space to go up",
+    back: "Back",
+    metricContract: "Contract",
+    metricPipeline: "Pipeline",
+    metricInDelivery: "In delivery",
+    metricHealth: "Health",
+    funnelAccounts: "Accounts",
+    funnelPipeline: "Pipeline",
+    funnelContract: "Contract",
+    funnelDelivery: "In delivery",
+    noReading: "no reading",
+    unitYi: "00M",
+    unitWan: "K",
+    unitYuan: "",
+    accountsUnit: (n: number) => `${n}`,
+    dealsUnit: (n: number) => `${n}`,
+  },
 
   TABLE_TOOLBAR_TEXT: {
     searchLabel: "Search",

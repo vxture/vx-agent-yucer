@@ -34,6 +34,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | open（六处 `table-fixed` 包装垫着；已上报 DS） |
 | TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS） |
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
+| TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1581,6 +1582,30 @@ overrides 名单里」来佐证，那是被混淆的——**一个包有 overrid
 认不落入区间后以 `inaccurate` 关闭并在注释里留下证据。**不要用 `dismissed_reason`
 的其他取值**——`inaccurate` 才准确描述「告警说的事实不成立」，而 `no_bandwidth` 或
 `tolerable_risk` 会把一条假告警记成一笔接受了的真风险。
+
+### TD-025 - DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架
+
+2026-09-07，全国销售态势屏接入平台时确认：DS 里没有「展示大屏」这一族的任何一件。
+逐件核过，不是找得不够仔细：
+
+| 缺的元件 | DS 现状 | 垫片位置 |
+|---|---|---|
+| 分级统计地图（choropleth） | 有 `BarChart`，没有任何地理件，也没有连续色阶 token | `(screen)/components/national-screen.tsx` 的 `<svg>`，几何在 `(screen)/lib/china-geometry.ts` |
+| 蜂窝底纹 | 没有图案/纹理件 | `national-screen.css` 的 `.screen-hex`，内联 SVG data-URI |
+| 折叠托架 | 没有「把侧栏收起」的边缘控件 | `.screen-arc`，一个 `clip-path` 画的按钮 |
+
+**三件都只用 DS 令牌，不改任何 DS 元件的表面。** 颜色全部取自
+`@vxture/design-tokens` 3.0.0：中性档做底与文字、`sky` 做主色、`amber` 做速率档、
+`red` 做危险。色阶走 sky-900→sky-300 —— **DS 没有任何 sequential scale token**，
+这是本条里最实在的一处缺口，因为分级统计图离了连续色阶就只能自己排。
+
+**一处族系替换，属于「DS 没有临近值」那一类**：这块屏是青色系，而 DS 的色族只有
+amber / emerald / neutral / purple / red / sky。**sky 是最近邻**，所以全屏的青都落到
+sky 各档。DS 的品牌色 `--vx-color-brand-600`（`#1e51ff`）是靛蓝，用它是另一块屏。
+
+**恢复条件**：DS 提供地理/分级图元件与连续色阶 token 后，删掉这三处，改为消费该
+元件；`china-geometry.ts` 作为数据仍需保留（它是投影后的几何，不是样式）。已作为
+DS 请求上报（元素缺失，非本仓自建风格）。
 
 ### TD-024 - FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反
 

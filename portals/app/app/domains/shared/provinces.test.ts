@@ -8,6 +8,7 @@ import {
   regionOfProvince,
   shortProvince,
 } from "./provinces";
+import { CHINA } from "../../(screen)/lib/china-geometry";
 
 // The province vocabulary exists in THREE places and they must agree exactly:
 // this module, incr/0035's CHECK constraint, and the screen's map geometry.
@@ -34,6 +35,20 @@ test("the CHECK constraint lists exactly the same names", () => {
   const block = sql.slice(sql.indexOf("province IN ("), sql.indexOf("))", sql.indexOf("province IN (")));
   const inSql = [...block.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
   assert.deepEqual([...inSql].sort(), [...ALL_PROVINCES].sort());
+});
+
+test("the map has a shape for every province, and no shape without one", () => {
+  /* THE THIRD LEG. The header claims three copies must agree - this module, the
+     CHECK constraint, and the map geometry - and the first two were tested while
+     the third was asserted. A province in the vocabulary with no shape draws
+     nothing and reads as "no business there"; a shape outside the vocabulary can
+     never be selected and is dead weight in a 109KB module. */
+  const keys = Object.keys(CHINA.provinces);
+  assert.deepEqual(
+    [...keys].sort(),
+    [...ALL_PROVINCES].sort(),
+    "the geometry keys and the vocabulary must be the same set",
+  );
 });
 
 test("every province rolls up to exactly one 大区", () => {

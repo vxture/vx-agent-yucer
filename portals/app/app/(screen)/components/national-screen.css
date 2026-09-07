@@ -1,0 +1,281 @@
+/* 全国销售态势屏 - the display's own stylesheet.
+ *
+ * EVERY COLOUR IS A DS TOKEN. The screen is dark whatever the reader's theme -
+ * a wall display is not a document and does not follow a light preference - so
+ * the surfaces are pinned to the dark end of the neutral scale rather than to
+ * `--background`, which flips. What they are NOT is hand-mixed: each value below
+ * names the token it takes.
+ *
+ * The DS has no cyan family (amber / emerald / neutral / purple / red / sky), so
+ * the screen's accent is SKY, its nearest neighbour. The brand indigo would have
+ * made a different screen; sky keeps the approved design on DS values.
+ *
+ * WHAT THE DS HAS NO ELEMENT FOR is registered as TD-025, not quietly built:
+ * the choropleth, the honeycomb ground and the fold bracket.
+ */
+
+.screen {
+  --screen-ground: var(--vx-color-neutral-950);
+  --screen-surface: var(--vx-color-neutral-900);
+  --screen-raised: var(--vx-color-neutral-800);
+  --screen-ink: var(--vx-color-neutral-50);
+  --screen-dim: var(--vx-color-neutral-300);
+  --screen-faint: var(--vx-color-neutral-400);
+  --screen-line: var(--vx-color-neutral-700);
+
+  --screen-accent: var(--vx-color-sky-400);
+  --screen-accent-hi: var(--vx-color-sky-300);
+  --screen-warn: var(--vx-color-amber-400);
+
+  /* Sequential ramp, sky-900 -> sky-300. The DS has no scale tokens for a
+     choropleth, so this walks its own sky family rather than inventing hues. */
+  --screen-l0: var(--vx-color-sky-900);
+  --screen-l1: var(--vx-color-sky-800);
+  --screen-l2: var(--vx-color-sky-700);
+  --screen-l3: var(--vx-color-sky-600);
+  --screen-l4: var(--vx-color-sky-500);
+  --screen-l5: var(--vx-color-sky-300);
+  /* NO READING is its own shade, not the bottom of the ramp: a province where
+     nothing has happened is not the worst-performing province. */
+  --screen-blank: var(--vx-color-neutral-800);
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--screen-ground);
+  color: var(--screen-ink);
+}
+
+/* 蜂窝底 - a pointy-top hex lattice, the same construction the marketing site
+   uses for its dark ground. Two strokes per cell give each one its bevel. */
+.screen-hex {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-color: var(--screen-ground);
+  background-image:
+    radial-gradient(120% 90% at 50% 45%, var(--vx-color-sky-950) 0%, transparent 60%),
+    url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='111' height='192' viewBox='0 0 110.85 192'>\
+<g fill='none' stroke='%23262626' stroke-width='2'>\
+<path d='M55.43 0 L110.85 32 L110.85 96 L55.43 128 L0 96 L0 32 Z'/>\
+<path d='M0 96 L55.43 128 L55.43 192 L0 224 L-55.43 192 L-55.43 128 Z'/>\
+<path d='M110.85 96 L166.28 128 L166.28 192 L110.85 224 L55.43 192 L55.43 128 Z'/>\
+</g></svg>");
+}
+.screen > *:not(.screen-hex) { position: relative; z-index: 1; }
+
+/* ---------- header ---------- */
+.screen-head {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-sm);
+}
+.screen-head-l { display: flex; align-items: center; gap: var(--space-sm); }
+.screen-head-r {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: var(--space-sm); font-size: 0.78rem; color: var(--screen-faint);
+}
+.screen-home {
+  display: inline-flex; align-items: center;
+  height: var(--space-control-md); padding: 0 var(--space-sm);
+  border: 1px solid var(--screen-line);
+  border-radius: var(--radius-sm);
+  color: var(--screen-dim); text-decoration: none; font-size: 0.8rem;
+  transition: color 0.18s, border-color 0.18s;
+}
+.screen-home:hover { color: var(--screen-accent); border-color: var(--screen-accent); }
+.screen-chip {
+  display: inline-flex; flex-direction: column; gap: 2px;
+  padding: 4px var(--space-sm);
+  border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--screen-surface) 70%, transparent);
+}
+.screen-chip b { font-size: 0.66rem; font-weight: 600; color: var(--screen-faint); }
+.screen-chip i {
+  font-style: normal; font-size: 1.05rem; font-weight: 700; line-height: 1;
+  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+}
+.screen-note { max-width: 22rem; text-align: right; line-height: 1.45; }
+.screen-viewer {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem; color: var(--screen-faint);
+  max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.screen-title { text-align: center; padding-bottom: var(--space-xs); border-bottom: 1px solid var(--screen-accent); }
+.screen-title h1 {
+  margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3em;
+  padding-left: 0.3em; color: var(--screen-ink);
+}
+.screen-title p {
+  margin: 4px 0 0; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.32em;
+  padding-left: 0.32em; color: var(--screen-accent); text-transform: uppercase;
+}
+
+/* ---------- deck ---------- */
+.screen-deck { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+.screen-rail {
+  width: 20rem; flex: none; min-width: 0; overflow: hidden;
+  display: flex; flex-direction: column; gap: var(--space-lg);
+  padding: var(--space-md) var(--space-lg) var(--space-md);
+  transition: width 0.28s ease, padding 0.28s ease;
+}
+.screen-rail.folded { width: 0; padding-left: 0; padding-right: 0; }
+.screen-mod { display: flex; flex-direction: column; }
+.screen-mod-grow { flex: 1; min-height: 0; }
+.screen-mod h2 {
+  margin: 0 0 var(--space-xs);
+  font-size: 0.86rem; font-weight: 700; letter-spacing: 0.14em;
+  color: var(--screen-ink);
+  padding-bottom: var(--space-2xs);
+  border-bottom: 1px solid var(--screen-line);
+}
+.screen-lead {
+  font-size: 2rem; font-weight: 700; line-height: 1.05;
+  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+}
+.screen-lead small { font-size: 0.8rem; color: var(--screen-faint); margin-left: 4px; font-weight: 600; }
+.screen-sub { margin-top: 2px; font-size: 0.72rem; color: var(--screen-faint); }
+
+.screen-rank { list-style: none; margin: var(--space-sm) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.screen-rank li { display: flex; align-items: center; gap: var(--space-2xs); font-size: 0.78rem; }
+.screen-rank span { color: var(--screen-dim); min-width: 3.5rem; }
+.screen-rank i { flex: 1; height: 8px; border-radius: 2px; }
+.screen-rank b {
+  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+  font-weight: 700; min-width: 4.5rem; text-align: right;
+}
+
+/* ---------- arena ---------- */
+.screen-arena { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.screen-bar {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg) var(--space-xs);
+}
+.screen-crumb { display: flex; align-items: center; gap: var(--space-2xs); font-size: 0.85rem; }
+.screen-crumb button {
+  background: none; border: none; cursor: pointer;
+  color: var(--screen-dim); font: inherit; padding: 2px 4px;
+}
+.screen-crumb button:hover { color: var(--screen-accent); }
+.screen-crumb .cur { color: var(--screen-accent); font-weight: 700; }
+.screen-crumb .sep { color: var(--screen-faint); font-size: 0.7rem; }
+.screen-menu { position: relative; display: inline-flex; }
+.screen-menu > button { border: 1px solid transparent; border-radius: var(--radius-sm); }
+.screen-menu > button.placeholder { color: var(--screen-faint); }
+.screen-menu > button.chosen { color: var(--screen-accent); font-weight: 700; }
+.screen-menu > button:hover { border-color: var(--screen-line); }
+.screen-pop {
+  position: absolute; top: 1.6rem; left: 0; z-index: 20; min-width: 6.5rem;
+  display: flex; flex-direction: column; padding: 4px;
+  border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
+  background: var(--screen-raised);
+}
+.screen-pop button { text-align: left; padding: 5px 8px; border-radius: var(--radius-xs); }
+.screen-pop button:hover { background: color-mix(in oklab, var(--screen-accent) 15%, transparent); color: var(--screen-accent); }
+.screen-pop button.on { color: var(--screen-accent); font-weight: 700; }
+.screen-hint { font-size: 0.7rem; color: var(--screen-faint); }
+.screen-picks { margin-left: auto; display: flex; gap: 6px; }
+.screen-pick {
+  height: var(--space-control-sm); padding: 0 var(--space-sm);
+  font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer;
+  color: var(--screen-dim);
+  border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--screen-surface) 70%, transparent);
+  transition: color 0.18s, border-color 0.18s, background 0.18s;
+}
+.screen-pick:hover { color: var(--screen-accent); border-color: var(--screen-accent); }
+.screen-pick.on {
+  color: var(--vx-color-neutral-950); background: var(--screen-accent);
+  border-color: var(--screen-accent); font-weight: 700;
+}
+/* 健康度 is a RATE, not a fourth amount - the other three share one axis, and
+   reading this one as another currency figure is the mistake the row invites.
+   It takes the amber the delivery figures already use, so no new hue enters. */
+.screen-pick.rate { color: var(--screen-warn); border-color: color-mix(in oklab, var(--screen-warn) 45%, transparent); }
+.screen-pick.rate:hover { border-color: var(--screen-warn); color: var(--vx-color-amber-200); }
+.screen-pick.rate.on { color: var(--vx-color-neutral-950); background: var(--screen-warn); border-color: var(--screen-warn); }
+
+.screen-map { position: relative; flex: 1; min-height: 0; }
+.screen-map svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+.screen-prov {
+  stroke: color-mix(in oklab, var(--screen-accent-hi) 55%, transparent);
+  stroke-width: 1.1; vector-effect: non-scaling-stroke; cursor: pointer;
+  transition: fill 0.35s ease, opacity 0.3s ease;
+}
+.screen-prov:hover { fill: var(--screen-accent-hi) !important; }
+.screen-prov.sel { stroke: var(--vx-color-neutral-50); stroke-width: 2.2; }
+.screen-plabel {
+  fill: var(--vx-color-sky-100); paint-order: stroke;
+  stroke: var(--vx-color-neutral-950); pointer-events: none;
+}
+.screen-pval {
+  fill: var(--screen-accent-hi); font-weight: 700; paint-order: stroke;
+  stroke: var(--vx-color-neutral-950); pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.screen-sea rect {
+  fill: color-mix(in oklab, var(--screen-surface) 50%, transparent);
+  stroke: var(--screen-line); stroke-width: 1; vector-effect: non-scaling-stroke;
+}
+.screen-sea path {
+  fill: none; stroke: var(--screen-accent); stroke-width: 1.4;
+  vector-effect: non-scaling-stroke; opacity: 0.7;
+}
+
+.screen-back {
+  position: absolute; right: var(--space-md); top: var(--space-sm); z-index: 5;
+  height: var(--space-control-sm); padding: 0 var(--space-sm); cursor: pointer;
+  font-size: 0.72rem; color: var(--screen-accent);
+  border: 1px solid var(--screen-accent); border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--screen-surface) 85%, transparent);
+}
+.screen-scale { position: absolute; left: var(--space-md); bottom: var(--space-sm); display: flex; align-items: center; gap: 0; z-index: 3; }
+.screen-scale i { width: 2rem; height: 8px; display: block; }
+.screen-scale span { font-size: 0.68rem; color: var(--screen-faint); margin: 0 var(--space-2xs); font-variant-numeric: tabular-nums; }
+
+/* The fold bracket. Drawn rather than imported - see TD-025. */
+.screen-arc {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  z-index: 6; width: 1.4rem; height: min(45%, 22rem); cursor: pointer;
+  background: none; border: none; padding: 0;
+}
+.screen-arc span {
+  display: block; width: 100%; height: 100%; opacity: 0.35;
+  background: linear-gradient(180deg, transparent, var(--screen-accent) 20%, var(--screen-accent) 80%, transparent);
+  clip-path: polygon(60% 0, 100% 6%, 100% 94%, 60% 100%, 40% 50%);
+  transition: opacity 0.2s;
+}
+.screen-arc.folded span { transform: scaleX(-1); }
+.screen-arc:hover span { opacity: 1; }
+
+/* ---------- 漏斗带 ---------- */
+.screen-ribbon {
+  flex: none; display: flex; align-items: stretch;
+  width: 100%; max-width: 62rem; margin: 0 auto;
+  padding: var(--space-2xs) var(--space-lg) var(--space-md);
+}
+.screen-ribbon .node { flex: 1; text-align: center; padding: 0 var(--space-2xs); }
+.screen-ribbon .node span {
+  display: block; font-size: 0.72rem; letter-spacing: 0.12em;
+  color: var(--screen-faint); margin-bottom: 4px;
+}
+.screen-ribbon .node b {
+  font-size: 1.7rem; font-weight: 700; line-height: 1;
+  color: var(--screen-ink); font-variant-numeric: tabular-nums;
+}
+.screen-ribbon .node b small { font-size: 0.75rem; color: var(--screen-faint); margin-left: 3px; font-weight: 600; }
+.screen-ribbon .node.win b { color: var(--screen-accent-hi); }
+.screen-ribbon .node.cash b { color: var(--screen-warn); }
+
+@media (prefers-reduced-motion: reduce) {
+  .screen *, .screen *::before, .screen *::after { transition-duration: 0.01ms !important; }
+}

@@ -91,9 +91,14 @@ test("the work entries are not domains either, and the copilot stays a domain", 
   // listed ninth in a flat menu - but it is still D8 (ADR-001). Demoting it out
   // of the domain inventory to express a layout decision would make the
   // eight-domain assertion above a statement about a sidebar.
+  /* 2026-09-07: `national` joins the work entries, and the point of this
+     assertion is unchanged - it is here to stop anything sliding into the
+     DOMAIN inventory. The situation screen owns no object; it is a way of
+     looking at what the domains already hold, which is exactly why it belongs
+     on this list and not on that one. */
   assert.deepEqual(
     WORK_NAV_ENTRIES.map((e) => e.key),
-    ["home"],
+    ["home", "national"],
   );
   assert.ok(DOMAIN_NAV_ENTRIES.some((e) => e.key === "copilot"));
 });
@@ -164,6 +169,11 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     // whoever may read accounts may read which of them are named. The TIER is
     // written under account.upsert on the detail page.
     "namedAccount",
+    // 全国态势屏 rides account.view like /home does, and for the same reason as
+    // /attainment: it is the arithmetic of rows the reader can already see. It
+    // hands out no paid capability - the page itself additionally requires
+    // pipeline and delivery, and refuses outright if either is missing.
+    "national",
     "pipeline",
     "pricebook",
     // /quote rides pipeline.view: a quote is the current state of a deal's
