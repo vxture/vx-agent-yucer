@@ -1736,6 +1736,11 @@ export const en: Dictionary = {
     scoreExplain: (base: number, decay: number, bonus: number) =>
       `type weight ${base} x recency ${decay.toFixed(2)} + match bonus ${bonus}`,
 
+    // Counts of what this page holds - see the zh catalogue.
+    tagSignals: (n: number) => `${n} to judge`,
+    tagNamed: (n: number) => `${n} named-account`,
+    tagStale: (n: number) => `${n} decayed`,
+    tagLeads: (n: number) => `${n} leads`,
     lead: (n: number) => `${n} signals awaiting your call`,
     leadNamed: (n: number) => `${n} of them from named accounts`,
     leadNone: "Nothing awaiting a call",

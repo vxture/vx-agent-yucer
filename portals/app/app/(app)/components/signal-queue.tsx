@@ -203,7 +203,10 @@ export function SignalQueue({
     <Section
       icon="lightbulb"
       title={SIGNAL_TEXT.title}
-      description={SIGNAL_TEXT.description}
+      /* NO DESCRIPTION HERE ANY MORE. The module header above carries it, and
+         printing the same sentence twice on one screen makes a reader check
+         whether the two agree instead of reading either. The TITLE stays: this
+         page holds two lists, and it is what says which one this is. */
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {groups

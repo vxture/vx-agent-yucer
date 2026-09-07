@@ -2284,6 +2284,12 @@ export const SIGNAL_TEXT = {
   // --- Added for the redesigned inbox --------------------------------------
   // Opens with what came in, not with the word "inbox".
   lead: (n: number) => `${n} 条情报待判`,
+  // 标题行的标签 (owner, 2026-09-06). Counts of what this page HOLDS, so a
+  // badge and the queue beneath it are the same arithmetic.
+  tagSignals: (n: number) => `${n} 条情报待判`,
+  tagNamed: (n: number) => `${n} 条命名客户`,
+  tagStale: (n: number) => `${n} 条已衰减`,
+  tagLeads: (n: number) => `${n} 条线索`,
   leadNamed: (n: number) => `其中 ${n} 条来自命名客户`,
   leadNone: "暂无待判情报",
 

@@ -1,4 +1,4 @@
-import { Card, EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 // A SERVER component, so the dictionary is awaited rather than hooked. The
 // locale comes from the request; next/headers caches it, so several server
@@ -16,8 +16,8 @@ import { scoreSignal } from "../../domains/signal/lib/scoring";
 import { LeadList } from "../components/lead-list";
 import { actOnSignal } from "./actions";
 import { actOnLead } from "./lead-actions";
-import { TONE_INK } from "../lib/view-model";
 import { loadFailureText } from "../lib/load-failure";
+import { ModuleHeadline } from "../components/module-headline";
 
 // D5 signal inbox.
 //
@@ -158,24 +158,42 @@ export default async function SignalPage() {
       Math.abs(s.recomputed - s.record.score) >= 5,
   ).length;
 
+  // The list below is the same array the badge counts, so neither can drift.
+  const leadCount = leads.ok ? leads.value.length : 0;
+
   return (
     <ViewLayout>
-      {/* Opens with what came in, the same way the home screen does. */}
-      <ViewHeader
-        title={
-          enriched.length > 0
-            ? SIGNAL_TEXT.lead(enriched.length)
-            : SIGNAL_TEXT.leadNone
-        }
-        description={
+      {/* THE MODULE HEADER, no fold (owner, 2026-09-06). Card and icon like
+          every other module; the counts that used to BE the title are badges
+          beside it now.
+
+          THE TITLE IS THE MODULE'S NAME. It used to be "12 条情报待判", which
+          is a reading of today's inbox rather than a name - so the page's
+          heading changed every time a signal arrived, and never matched the
+          menu entry that got you here. The count is still the first thing
+          said; it is just said as a badge, which is what a count is.
+
+          EVERY BADGE IS COUNTED OFF THE SAME `enriched` ARRAY the queue below
+          is built from, so the header cannot describe a different inbox. */}
+      <ModuleHeadline
+        moduleKey="signal"
+        description={SIGNAL_TEXT.description}
+        tags={
           <>
-            {staleCount > 0 ? (
-              <span className={`block ${TONE_INK.warning}`}>
-                {SIGNAL_TEXT.staleCount(staleCount)}
-              </span>
-            ) : null}
+            <StatusBadge tone="success">
+              {enriched.length > 0 ? SIGNAL_TEXT.tagSignals(enriched.length) : SIGNAL_TEXT.leadNone}
+            </StatusBadge>
             {namedCount > 0 ? (
-              <span className="block">{SIGNAL_TEXT.leadNamed(namedCount)}</span>
+              <StatusBadge tone="info">{SIGNAL_TEXT.tagNamed(namedCount)}</StatusBadge>
+            ) : null}
+            {/* DECAY IS SAID ONCE, HERE. It is continuous, so on a dataset of
+                any age most rows are stale; flagging each one turns a true
+                statement into wallpaper. */}
+            {staleCount > 0 ? (
+              <StatusBadge tone="warning">{SIGNAL_TEXT.tagStale(staleCount)}</StatusBadge>
+            ) : null}
+            {leadCount > 0 ? (
+              <StatusBadge tone="info">{SIGNAL_TEXT.tagLeads(leadCount)}</StatusBadge>
             ) : null}
           </>
         }
