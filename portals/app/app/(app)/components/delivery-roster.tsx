@@ -9,7 +9,6 @@ import { formatMoney } from "../lib/view-model";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
-  MoneyCell,
   RowActions,
   rowClickSelection,
 } from "./table-fittings";
@@ -222,10 +221,10 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "contract",
       header: DELIVERY_TEXT.columnContract,
-      align: "right" as const,
-      cell: (r: DeliveryRow) => (
-        <MoneyCell pad="0.5rem">{formatMoney(r.contractAmount, r.currency)}</MoneyCell>
-      ),
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
+      // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
+      align: "numeric" as const,
+      cell: (r: DeliveryRow) => formatMoney(r.contractAmount, r.currency),
     },
   ];
 

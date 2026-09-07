@@ -55,6 +55,17 @@ export const EDGE_COLUMNS =
  * inline beside the dots states its own wider figure instead. */
 export const ACTION_COLUMN = "[&_thead_th:last-child]:w-[4rem]";
 
+// `MoneyCell` WAS HERE and design-ui 8.0.0 replaced it: `align:"numeric"` is
+// right alignment plus one step of right padding plus tabular-nums, which is
+// exactly what it hand-rolled - including the measured pad that made a
+// right-aligned column read as centred. A missing element is a request to the
+// DS rather than a local build (CLAUDE.md); the request landed, so the local
+// build goes.
+//
+// THE WIDTH CLASSES ABOVE STAY. The DS still sizes its three fixed columns
+// with `w-control-3xl`, and that token still measures 56px on 8.0.0 - TD-022
+// is unchanged, and the owner's ruling is 64px.
+
 /**
  * The action column's contents - a single DS trigger, always rendered.
  *
@@ -159,43 +170,4 @@ export function rowClickSelection<T>(
       return () => el.removeEventListener("click", handler);
     },
   };
-}
-
-/**
- * 资金列 - owner ruling, 2026-09-06.
- *
- * Money is the one exception to "everything but the title column centres". A
- * column of centred amounts aligns nothing: 760,000 and 1,400,000 put their
- * digits in different places, so the eye cannot compare two rows without
- * reading both numbers. Right alignment is what puts the units under the
- * units - the decimal points line up - and that is the whole point of a money
- * column.
- *
- * BUT NOT FLUSH TO THE COLUMN EDGE. Right-aligned against the edge reads as
- * pushed away from the column it belongs to, so the block is inset by `pad`:
- * the numbers keep their shared right edge, and the block as a whole sits
- * where a centred one would. Size `pad` at roughly (column - widest number)/2
- * for that column - it is a per-column figure because column widths differ,
- * and only one number width can be exactly centred, so it is the WIDEST that
- * is centred and the shorter ones sit slightly right of it.
- *
- * THE PADDING IS A LITERAL, NOT A DS TOKEN, and that is measured rather than
- * preferred: in this DS build `pr-md`, `pr-lg`, `pr-xs` and `pr-3xs` all
- * compute to 0px - the same shadowing trap as the container widths (TD-022's
- * neighbourhood). A token that silently resolves to nothing would put the
- * amounts back on the edge with nothing in the class list to explain why.
- */
-export function MoneyCell({
-  children,
-  pad,
-}: {
-  readonly children: ReactNode;
-  /** The inset, e.g. "1.375rem". See the note above on sizing it. */
-  readonly pad: string;
-}) {
-  return (
-    <span className="block text-right tabular-nums" style={{ paddingInlineEnd: pad }}>
-      {children}
-    </span>
-  );
 }

@@ -3207,6 +3207,7 @@ export const LEAD_TEXT = {
   formSave: "保存线索",
 
   searchLabel: "检索",
+  resetFilters: "清空筛选",
   searchHint: "公司、线索号、联系人、负责人",
   filterAllStatus: "全部状态",
   filterAllOwners: "全部负责人",

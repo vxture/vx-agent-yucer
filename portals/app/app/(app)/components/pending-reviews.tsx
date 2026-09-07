@@ -19,7 +19,6 @@ import {
   Textarea,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { TableCard } from "./table-card";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
@@ -137,7 +136,7 @@ export function PendingReviews({
     {
       id: "amount",
       header: WINLOSS_TEXT.columnAmount,
-      align: "right",
+      align: "numeric",
       cell: (row) => formatMoney(row.amount?.amount ?? null, row.currency),
     },
     {
@@ -219,11 +218,9 @@ export function PendingReviews({
               : WINLOSS_TEXT.allEmptyDescription
           }
         />
-      ) : (
-        /* Only the table is in the card - the heading and its tools stay
-           outside it, the same as the board. */
-        <TableCard>
-          {view === "list" ? (
+      ) : view === "list" ? (
+        /* NO CARD (design-ui 8.0.0 透明模式): a table floats on the page
+           canvas, its structure carried by the three rules the DS draws. */
             <DataTable
               /* Every DS copy outlet must be passed - the fallbacks are English
                and exist so a missed prop renders something legible, not so
@@ -291,8 +288,6 @@ export function PendingReviews({
                 />
               ))}
             </ListCardGrid>
-          )}
-        </TableCard>
       )}
 
       {target ? (

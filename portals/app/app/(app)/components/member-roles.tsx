@@ -356,7 +356,7 @@ export function MemberRoles({
     {
       id: "lifecycle",
       header: MEMBER_TEXT.columnLifecycle,
-      align: "right",
+      align: "numeric",
       cell: (row) => {
         if (!canManage) return null;
         const key = `${row.sub}:lifecycle`;

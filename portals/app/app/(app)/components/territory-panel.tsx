@@ -53,6 +53,10 @@ export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[
             {
               id: "name",
               header: PLANNING_TEXT.territoryName,
+              // LEFT: this is the row's TITLE - the thing a reader scans the
+              // column for - it just is not the first column, so 8.0.0's
+              // position-based default would centre it.
+              align: "left" as const,
               cell: (r: TerritoryRow) => r.name,
             },
             {

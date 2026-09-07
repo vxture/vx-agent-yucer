@@ -1891,6 +1891,7 @@ export const en: Dictionary = {
     formSave: "Save lead",
 
     searchLabel: "Search",
+    resetFilters: "Clear filters",
     searchHint: "company, lead no., contact, owner",
     filterAllStatus: "All statuses",
     filterAllOwners: "All owners",

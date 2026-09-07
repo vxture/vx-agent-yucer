@@ -19,7 +19,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
-  MoneyCell,
   RowActions,
   rowClickSelection,
 } from "./table-fittings";
@@ -132,32 +131,28 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     {
       id: "planned",
       header: DELIVERY_TEXT.colPlanned,
-      align: "right" as const,
-      cell: (r: CollectionRow) => (
-        <MoneyCell pad="0.5rem">{r.plannedAmount.toLocaleString()}</MoneyCell>
-      ),
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
+      // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
+      align: "numeric" as const,
+      cell: (r: CollectionRow) => r.plannedAmount.toLocaleString(),
     },
     {
       id: "actual",
       header: DELIVERY_TEXT.colActual,
-      align: "right" as const,
+      align: "numeric" as const,
       // A short payment is shown as short rather than rounded away: the gap
       // between planned and received is the number this table is for.
       cell: (r: CollectionRow) =>
         r.actualAmount == null ? (
-          <MoneyCell pad="0.5rem">
-            <span className="text-muted-foreground">-</span>
-          </MoneyCell>
+          <span className="text-muted-foreground">-</span>
         ) : (
-          <MoneyCell pad="0.5rem">
-            <span
-              className={
-                r.actualAmount < r.plannedAmount ? "text-(color:--warning-text)" : undefined
-              }
-            >
-              {r.actualAmount.toLocaleString()}
-            </span>
-          </MoneyCell>
+          <span
+            className={
+              r.actualAmount < r.plannedAmount ? "text-(color:--warning-text)" : undefined
+            }
+          >
+            {r.actualAmount.toLocaleString()}
+          </span>
         ),
     },
     {

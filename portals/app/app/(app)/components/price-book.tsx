@@ -20,7 +20,7 @@ import {
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, MoneyCell, RowActions, rowClickSelection } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -171,24 +171,22 @@ export function PriceBook({
       // (owner, 2026-09-06). Widened from 5.5rem to 6.5rem to make room for
       // the inset: at 5.5rem the content box was 56px against a 48px number,
       // so there were 8px of slack and the rule had nowhere to happen.
-      align: "right" as const,
-      cell: (r: PriceEntryRecord) => (
-        <MoneyCell pad="0.75rem">{r.listPrice.toLocaleString()}</MoneyCell>
-      ),
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
+      // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
+      align: "numeric" as const,
+      cell: (r: PriceEntryRecord) => r.listPrice.toLocaleString(),
     },
     {
       id: "floor",
       header: CATALOG_TEXT.colFloor,
       width: "sm" as const,
-      align: "right" as const,
+      align: "numeric" as const,
       // Equal to list means "not discountable" - a stance, worth seeing at a
       // glance rather than worked out by comparing two columns.
       cell: (r: PriceEntryRecord) => (
-        <MoneyCell pad="0.75rem">
-          <span className={r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : ""}>
-            {r.floorPrice.toLocaleString()}
-          </span>
-        </MoneyCell>
+        <span className={r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : ""}>
+          {r.floorPrice.toLocaleString()}
+        </span>
       ),
     },
     {

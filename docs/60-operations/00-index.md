@@ -31,6 +31,9 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-019 | 八个 `prisma-store.ts` 从未跑过真实数据库，两个都是真 bug | 2026-09-02 | **closed 2026-09-02**（94 个 `*.db.test.ts`，PR #149） |
 | TD-020 | 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半 | 2026-09-02 | **closed 2026-09-02**（`merge-lcov.mjs` 合并两半，PR #151） |
 | TD-021 | Dependabot 在修复落地之后仍然新建告警，且从不自行复评——四条高危全是陈旧信号 | 2026-09-03 | open（本轮四条已以 `inaccurate` 关闭；复发机制未消除） |
+| TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | open（六处 `table-fixed` 包装垫着；已上报 DS） |
+| TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS） |
+| TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1562,6 +1565,27 @@ overrides 名单里」来佐证，那是被混淆的——**一个包有 overrid
 认不落入区间后以 `inaccurate` 关闭并在注释里留下证据。**不要用 `dismissed_reason`
 的其他取值**——`inaccurate` 才准确描述「告警说的事实不成立」，而 `no_bandwidth` 或
 `tolerable_risk` 会把一条假告警记成一笔接受了的真风险。
+
+### TD-024 - FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反
+
+2026-09-07，按 owner 的表格操作行规范给线索管理接上 `FilterBar` 后，量 DOM 时读到
+两个 ToggleGroupItem 的读屏名是 "List view" / "Card view"——一个全中文界面里的两个
+英文可及名。追到 DS 源码，是两件事叠在一起：
+
+1. `ViewModeSwitch` 有 `labels` / `ariaLabel` 两个文案出口，**但 `FilterBar` 一个都
+   不透传**。`FilterBarProps` 里没有对应的属性，所以经由 `FilterBar` 用到视图切换
+   的调用方（本仓全部列表页）拿不到出口。
+2. `ViewModeSwitch` 的 d.ts 写「默认中文，做 i18n 的消费方传入」，实际发出的是
+   `labels?.list ?? "List view"`。默认值不是中文。**文档说的和代码做的是反的**，
+   所以就算发现了 1，也会以为默认值本身没问题。
+
+只影响读屏名，视觉上看不出来——这正是它能一直在的原因。
+
+**缺失元素**：`FilterBar` 向 `ViewModeSwitch` 透传 `labels` / `ariaLabel`；以及
+`ViewModeSwitch` 的默认值与其文档对齐。**垫片位置**：无，也建不出来——文案出口在
+DS 内部，调用方没有任何入口能改到它，本仓不 fork DS。**回收条件**：DS 补上透传后，
+在每个 `FilterBar` 调用点从 `DS_LABELS` 传入这两个名字（`DATA_TABLE_LABELS` 已经
+是这个走法）。已作为 DS 请求上报（元素缺失，非本仓自建）。
 
 ### TD-023 - DS 没有步骤条 / 时间轴件
 

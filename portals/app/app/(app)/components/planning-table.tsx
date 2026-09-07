@@ -19,7 +19,6 @@ import {
 import type { AttainmentRow } from "../../domains/planning/service";
 import type { TargetValue } from "../../domains/planning/lib/target";
 import { formatMoney, formatPercent } from "../lib/view-model";
-import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
@@ -131,13 +130,13 @@ export function PlanningTable({
     {
       id: "target",
       header: PLANNING_TEXT.columnTarget,
-      align: "right",
+      align: "numeric",
       cell: (row) => formatValue(row.target.targetValue, PLANNING_TEXT),
     },
     {
       id: "closed",
       header: PLANNING_TEXT.columnClosed,
-      align: "right",
+      align: "numeric",
       // Blank, not zero, when the metric could not be measured: there is no
       // achieved number, which is a different fact from having achieved none.
       cell: (row) =>
@@ -258,7 +257,6 @@ export function PlanningTable({
           A CLOSED target gets no menu at all rather than a disabled one: it is
           frozen by rule (planTargetUpdate refuses every patch), and a greyed
           menu invites a click that can only ever fail. */}
-      <TableCard>
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
@@ -296,7 +294,6 @@ export function PlanningTable({
             ))}
           </ListCardGrid>
         )}
-      </TableCard>
     </>
   );
 }

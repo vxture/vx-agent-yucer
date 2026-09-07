@@ -12,7 +12,7 @@ import {
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
-import { ACTION_COLUMN, EDGE_COLUMNS, MoneyCell, RowActions, rowClickSelection } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
 
 // 续约清单 - the catalogue module's pattern, applied to renewals.
 //
@@ -119,16 +119,14 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       header: RENEWAL_TEXT.colAmount,
       width: "sm" as const,
       // 资金列：右对齐 + 右侧留白 (owner, 2026-09-06). 7rem column leaves an
-      // 80px content box; the amounts measure 57px, so half the 23px of slack
-      // puts the widest of them where a centred block would sit.
-      align: "right" as const,
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）。手量出来的那个 0.7rem 右
+      // 内边距不再需要——DS 自己给一档，整列宽度一致由表格布局保证。
+      align: "numeric" as const,
       // WHAT LAST TERM WAS WORTH, carried forward unchanged. What the next one
       // is worth is a negotiation, and seeding it with an invented uplift puts
       // a number nobody chose in front of a customer.
       cell: (r: RenewalRow) => (
-        <MoneyCell pad="0.7rem">
-          <span className="text-foreground text-body-sm">{formatMoney(r.amount, r.currency)}</span>
-        </MoneyCell>
+        <span className="text-foreground text-body-sm">{formatMoney(r.amount, r.currency)}</span>
       ),
     },
   ];

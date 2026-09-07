@@ -8,6 +8,7 @@ import {
   DialogForm,
   Field,
   FieldLabel,
+  FilterBar,
   Input,
   NativeSelect,
   EmptyState,
@@ -124,6 +125,8 @@ export function LeadList({
   const [error, setError] = useState<string | null>(null);
   // 选择列的状态 - one of the three standard fittings, and what 删除线索 acts on.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  // list / cards, the tool row's leftmost control.
+  const [view, setView] = useState<"list" | "cards">("list");
 
   function act(id: string, action: LeadAction) {
     setBusyId(id);
@@ -745,30 +748,81 @@ export function LeadList({
       ) : null}
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
-      {/* MEASURED, NOT GUESSED: with the dock open this column is about 610px,
-          and the first widths (16rem + 10rem + 10rem plus gaps) overflowed it,
-          so the three controls wrapped to one per line and ate the height the
-          table wanted. They fit on one row now and still wrap on a narrow
-          window rather than squashing.
+      {/* THE DS'S OWN TOOL ROW (design-ui `FilterBar`), not a hand-rolled one.
+          I built this out of Field + Input + NativeSelect on 2026-09-06 and
+          that was wrong twice over: CLAUDE.md says a missing element is a
+          request to the DS rather than a local build, and the element was not
+          even missing - FilterBar has shipped since before that, with exactly
+          the slots the owner later specified.
 
-          THE CONTROLS SIT ABOVE THE TABLE, not in the Section header: the
-          header carries what this block IS and the page-level actions, and a
-          search box up there would read as searching the page rather than
-          this list. */}
+          ITS LAYOUT IS THE SPEC. Left segment: view switch, then the count.
+          Right segment: search first, then reset, then the filter group, then
+          the actions - with the gap between the two segments doing the
+          spacing. One row that compresses the search box before it wraps,
+          which is behaviour the component owns rather than measurements I
+          have to keep re-taking. */}
       {leads.length > 0 ? (
-        <div className="flex flex-wrap items-end gap-sm">
-          <Field className="min-w-[10rem] flex-1">
-            <FieldLabel>{LEAD_TEXT.searchLabel}</FieldLabel>
-            <Input
-              type="search"
-              value={query}
-              placeholder={LEAD_TEXT.searchHint}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </Field>
-          <Field className="min-w-[8rem] flex-1">
-            <FieldLabel>{LEAD_TEXT.columnStatus}</FieldLabel>
-            <NativeSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <FilterBar
+          view={view}
+          onViewChange={setView}
+          count={
+            // SAYS WHAT IS FILTERED OUT, not just what is left. "6 条" beside a
+            // narrowed list reads as the whole list to somebody who has
+            // forgotten the filter is on.
+            visible.length === leads.length
+              ? PIPELINE_TEXT.rowCount(leads.length)
+              : LEAD_TEXT.filteredCount(visible.length, leads.length)
+          }
+          // SIZED IN THE SLOT, and this is the caller's job rather than a DS
+          // gap: FilterBar takes nodes, and the DS's form controls fill their
+          // container because that is right in a FORM. In a tool row they have
+          // to be told how to behave when the row runs out of width.
+          //
+          // 先压缩搜索框，再换行 (owner, 2026-09-07). The order matters and it
+          // is NOT what flex-shrink gives you: a wrapping flex row decides its
+          // line breaks from each item's BASIS (clamped by its min-width) and
+          // only then shrinks what is on a line. A search box with
+          // basis-[10rem] therefore pushes a select onto a second row while
+          // still sitting at its full 160px - measured, 2026-09-07. Basing it
+          // at its minimum instead and growing into the leftover width gets
+          // the owner's order: it gives back every pixel above 7rem before
+          // anything wraps. The selects keep their intrinsic width because a
+          // collapsed select is an unreadable stub.
+          search={
+            <span className="block min-w-[7rem] max-w-[18rem] flex-1 basis-[7rem]">
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={LEAD_TEXT.searchHint}
+                aria-label={LEAD_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </span>
+          }
+          // RESET ONLY WHEN THERE IS SOMETHING TO RESET. A control that is
+          // always there and usually does nothing teaches people to ignore it.
+          onReset={
+            query !== "" || statusFilter !== "" || ownerFilter !== ""
+              ? () => {
+                  setQuery("");
+                  setStatusFilter("");
+                  setOwnerFilter("");
+                }
+              : undefined
+          }
+          resetLabel={LEAD_TEXT.resetFilters}
+        >
+          {/* Each filter is wrapped and sized here rather than through the
+              control's own className: NativeSelect forwards that to the
+              <select> inside its chevron wrapper, so the wrapper stayed at the
+              segment's full width and the row rendered three lines. */}
+          <span className="block w-[7rem] shrink-0">
+            <NativeSelect
+              value={statusFilter}
+              aria-label={LEAD_TEXT.columnStatus}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
               <option value="">{LEAD_TEXT.filterAllStatus}</option>
               {Object.entries(LEAD_STATUS_LABEL).map(([k, label]) => (
                 <option key={k} value={k}>
@@ -776,10 +830,13 @@ export function LeadList({
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <Field className="min-w-[8rem] flex-1">
-            <FieldLabel>{LEAD_TEXT.columnOwner}</FieldLabel>
-            <NativeSelect value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+          </span>
+          <span className="block w-[8rem] shrink-0">
+            <NativeSelect
+              value={ownerFilter}
+              aria-label={LEAD_TEXT.columnOwner}
+              onChange={(e) => setOwnerFilter(e.target.value)}
+            >
               <option value="">{LEAD_TEXT.filterAllOwners}</option>
               <option value="__none__">{LEAD_TEXT.filterUnowned}</option>
               {owners.map((o) => (
@@ -788,16 +845,8 @@ export function LeadList({
                 </option>
               ))}
             </NativeSelect>
-          </Field>
-          <span className="text-muted-foreground pb-xs text-body-sm tabular-nums">
-            {/* SAYS WHAT IS FILTERED OUT, not just what is left. "6 条" beside
-                a narrowed list reads as the whole list to somebody who has
-                forgotten the filter is on. */}
-            {visible.length === leads.length
-              ? PIPELINE_TEXT.rowCount(leads.length)
-              : LEAD_TEXT.filteredCount(visible.length, leads.length)}
           </span>
-        </div>
+        </FilterBar>
       ) : null}
 
       {leads.length === 0 ? (

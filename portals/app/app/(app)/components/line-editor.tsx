@@ -181,13 +181,13 @@ export function LineEditor({
             {
               id: "qty",
               header: OPPORTUNITY_TEXT.lineQty,
-              align: "right" as const,
+              align: "numeric" as const,
               cell: (r: EditorLine) => r.quantity,
             },
             {
               id: "price",
               header: OPPORTUNITY_TEXT.linePrice,
-              align: "right" as const,
+              align: "numeric" as const,
               // A below-floor price is marked ON THE PRICE, not in a separate
               // column: the reader is looking at the number that caused it.
               cell: (r: EditorLine) => (
@@ -203,7 +203,7 @@ export function LineEditor({
             {
               id: "amount",
               header: OPPORTUNITY_TEXT.lineAmount,
-              align: "right" as const,
+              align: "numeric" as const,
               cell: (r: EditorLine) => r.amount.toLocaleString(),
             },
             {

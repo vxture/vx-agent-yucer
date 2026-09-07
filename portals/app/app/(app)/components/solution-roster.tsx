@@ -105,6 +105,12 @@ export function SolutionRoster({
     {
       id: "scenario",
       header: CATALOG_TEXT.colScenario,
+      // LEFT, against the new default. design-ui 8.0.0 centres every non-first
+      // column, which is right for codes, badges and dates - but 场景 is free
+      // text by design (incr/0031: a sentence a salesperson says to a
+      // customer), and centred prose has a ragged left edge the eye has to
+      // re-find on every row.
+      align: "left" as const,
       cell: (r: SolutionView) =>
         r.solution.scenario ? (
           <span className="text-muted-foreground text-body-sm">{r.solution.scenario}</span>

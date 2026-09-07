@@ -9,7 +9,6 @@ import {
   StatusBadge,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { TableCard } from "./table-card";
 import { useMessages } from "../lib/i18n/provider";
 
 // The batch version of AccountCompleteness's derivable half - one table
@@ -120,6 +119,9 @@ export function BatchCompleteness({
     {
       id: "basis",
       header: BATCH_COMPLETE_TEXT.columnBasis,
+      // LEFT: the basis is a sentence explaining where a suggested value came
+      // from, and centred prose is read by hunting for each line's start.
+      align: "left" as const,
       cell: (row) => (
         <span className="text-muted-foreground text-body-sm">{row.basis}</span>
       ),
@@ -156,7 +158,6 @@ export function BatchCompleteness({
           description={BATCH_COMPLETE_TEXT.emptyDescription}
         />
       ) : (
-        <TableCard>
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={1}
@@ -167,7 +168,6 @@ export function BatchCompleteness({
             onSelectionChange={(keys) => setSelected(new Set(keys))}
             isRowSelectable={() => canApply}
           />
-        </TableCard>
       )}
     </Section>
   );

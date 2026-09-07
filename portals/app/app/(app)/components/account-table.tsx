@@ -19,7 +19,6 @@ import {
 import type { AccountRecord } from "../../domains/account/store";
 import { recomputeAccountHealth } from "../account/actions";
 import { healthTone } from "../lib/view-model";
-import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
 // The account list's table.
@@ -252,7 +251,6 @@ export function AccountTable({
 
       {/* ONLY THE TABLE IS IN A CARD, not the section: the section is a heading
           and its tools, the card is the surface the rows sit on. */}
-      <TableCard>
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
@@ -297,7 +295,6 @@ export function AccountTable({
             ))}
           </ListCardGrid>
         )}
-      </TableCard>
     </>
   );
 }

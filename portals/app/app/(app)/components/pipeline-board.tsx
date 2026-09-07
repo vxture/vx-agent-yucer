@@ -20,7 +20,6 @@ import {
   type DataTableColumn,
   type MetricGridItem,
 } from "@vxture/design-ui";
-import { TableCard } from "./table-card";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import {
   rollUp,
@@ -232,7 +231,7 @@ export function PipelineBoard({
       // than it was as its own column.
       id: "amount",
       header: PIPELINE_TEXT.columnAmount,
-      align: "right",
+      align: "numeric",
       cell: (row) =>
         formatMoney(row.amount?.amount ?? null, row.currency, locale),
     },
@@ -242,7 +241,7 @@ export function PipelineBoard({
       // mean entirely different things in a review.
       id: "probability",
       header: PIPELINE_TEXT.columnProbability,
-      align: "right",
+      align: "numeric",
       cell: (row) => {
         const p = probabilityDisplay(row);
         if (p.value == null) return "-";
@@ -332,7 +331,6 @@ export function PipelineBoard({
               heading and its tools; the card is the surface the rows sit on, so
               wrapping the whole section would put the heading inside the thing
               it names. */}
-          <TableCard>
             {view === "list" ? (
               <DataTable
                 labels={DATA_TABLE_LABELS}
@@ -414,7 +412,6 @@ export function PipelineBoard({
                 ))}
               </ListCardGrid>
             )}
-          </TableCard>
         </>
       )}
     </Section>

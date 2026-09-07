@@ -17,7 +17,6 @@ import {
 } from "../../domains/strategy/lib/lifecycle";
 import { formatMoney } from "../lib/view-model";
 import { LifecycleControl } from "./lifecycle-control";
-import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
 // The campaign table. Client-side because DataTableColumn.cell is a function
@@ -84,7 +83,7 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     {
       id: "budget",
       header: CAMPAIGN_TEXT.columnBudget,
-      align: "right",
+      align: "numeric",
       cell: (row) => formatMoney(row.budget, row.currency),
     },
     {
@@ -95,7 +94,7 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     {
       id: "return",
       header: CAMPAIGN_TEXT.columnReturn,
-      align: "right",
+      align: "numeric",
       cell: (row) =>
         row.returnOnBudget == null ? (
           "-"
@@ -139,11 +138,11 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
         count={CAMPAIGN_TEXT.rowCount(rows.length)}
       />
 
-      {/* Only the table is in the card - the section is a heading and its
-          tools, the card is the surface the rows sit on. Without it the sticky
-          action column masked with the page canvas and read as a bluer stripe
-          against the rows beside it; TableCard points the mask at the card. */}
-      <TableCard>
+      {/* NO CARD (design-ui 8.0.0 透明模式: 表格不套容器卡). The sticky action
+          column masks with `--vx-table-sticky-bg`, which falls back to the page
+          canvas - and the canvas is now what is actually behind it, so the
+          bluer-stripe artefact that TableCard existed to fix cannot occur.
+          Removing the card removed the reason for the card. */}
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
@@ -199,7 +198,6 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
             ))}
           </ListCardGrid>
         )}
-      </TableCard>
     </>
   );
 }

@@ -13,7 +13,6 @@ import {
   StatusBadge,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { TableCard } from "./table-card";
 import {
   batchRisk,
   type AgentAction,
@@ -319,7 +318,6 @@ export function ProposalQueue({
           description={PROPOSAL_TEXT.emptyDescription}
         />
       ) : (
-        <TableCard>
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={1}
@@ -384,7 +382,6 @@ export function ProposalQueue({
               </DetailList>
             )}
           />
-        </TableCard>
       )}
     </Section>
   );

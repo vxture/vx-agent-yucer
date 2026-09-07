@@ -73,6 +73,9 @@ export function QuoteTable({ rows }: QuoteTableProps) {
             {
               id: "account",
               header: QUOTE_TEXT.colAccount,
+              // LEFT: a customer name is the row's subject, and names are
+              // scanned down a column by their first character.
+              align: "left" as const,
               cell: (r: QuoteRow) => r.accountName ?? "-",
             },
             {
@@ -84,13 +87,13 @@ export function QuoteTable({ rows }: QuoteTableProps) {
             {
               id: "lines",
               header: QUOTE_TEXT.colLines,
-              align: "right" as const,
+              align: "numeric" as const,
               cell: (r: QuoteRow) => String(r.lineCount),
             },
             {
               id: "amount",
               header: QUOTE_TEXT.colAmount,
-              align: "right" as const,
+              align: "numeric" as const,
               cell: (r: QuoteRow) => formatMoney(r.amount, r.currency),
             },
             {
