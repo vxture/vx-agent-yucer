@@ -1518,7 +1518,6 @@ export const HEADER_TEXT = {
   boardClose: "收起战况板",
   agentDock: "智能助手",
   agentDockWithCount: (n: number) => `智能助手，${n} 件待你裁决`,
-  countOverflow: "99+",
 
   // The preference panel, inside the user menu. Language lives HERE and not in
   // the header: it is set once and then never again, and a permanent control

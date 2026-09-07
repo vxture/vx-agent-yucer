@@ -1710,7 +1710,6 @@ export const en: Dictionary = {
     boardClose: "Hide the board",
     agentDock: "Copilot",
     agentDockWithCount: (n: number) => `Copilot, ${n} awaiting your call`,
-    countOverflow: "99+",
 
     prefTitle: "Preferences",
     prefLocale: "Language",

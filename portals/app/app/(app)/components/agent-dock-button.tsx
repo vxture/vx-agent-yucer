@@ -1,8 +1,8 @@
 "use client";
 
 import { ShellIconButton } from "@vxture/design-system";
-import { Badge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { CountBadge } from "./count-badge";
 
 // The header's handle on the agent deck.
 //
@@ -67,12 +67,7 @@ export function AgentDockButton({
           className="pointer-events-none absolute -top-2xs -right-2xs"
           aria-hidden="true"
         >
-          <Badge variant="destructive">
-            {/* Past two digits the badge would be wider than the button it sits
-                on. The exact number stops being the point long before then - the
-                message is "more than you will clear in one sitting". */}
-            {count > 99 ? HEADER_TEXT.countOverflow : count}
-          </Badge>
+          <CountBadge count={count} />
         </span>
       ) : null}
     </span>
