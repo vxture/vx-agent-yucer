@@ -207,6 +207,12 @@ model Account {
   name          String    @db.VarChar(255)
   industry      String?   @db.VarChar(64)
   region        String?   @db.VarChar(64)
+  /// incr/0035. The provincial-level division, one granularity below `region`.
+  /// Both are stored: `region` (大区) is what territory routing matches on, so
+  /// it cannot be repurposed, and deriving it from the province on read would
+  /// move that mapping out of the database where the routing rule cannot see it.
+  /// CHECK-constrained to the 34 divisions, spelled as the map's geometry keys them.
+  province      String?   @db.VarChar(32)
   segmentCode   String?   @map("segment_code") @db.VarChar(64)
   ownerSub      String?   @map("owner_sub") @db.VarChar(128)
   /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
@@ -228,6 +234,7 @@ model Account {
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
 
   @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
+  @@index([workspaceId, province], map: "idx_account_ws_province")
   @@map("account")
   @@schema("yucer_core")
 }

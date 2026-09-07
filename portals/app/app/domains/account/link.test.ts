@@ -64,6 +64,7 @@ function unreachableAccount(): InMemoryAccountStore {
         name: "Customer",
         industry: null,
         region: null,
+        province: null,
         segmentCode: null,
         ownerSub: null,
         healthScore: null,

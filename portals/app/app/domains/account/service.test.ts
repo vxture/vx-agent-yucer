@@ -32,6 +32,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     name: "Acme",
     industry: null,
     region: null,
+    province: null,
     segmentCode: null,
     ownerSub: "usr_rep",
     healthScore: null,

@@ -53,6 +53,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     name: "华东零售集团",
     industry: "retail",
     region: "华东",
+    province: "上海市",
     segmentCode: null,
     ownerSub: ME,
     healthScore: 60,

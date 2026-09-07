@@ -59,6 +59,10 @@ GRANT UPDATE (flushed_at) ON local_usage.checkpoint TO yucer_svc;
 
 -- --- yucer_core ---
 REVOKE UPDATE ON yucer_core.account FROM yucer_svc;
+-- `province` is NOT listed here and must not be: incr/0035 adds that column,
+-- and this file runs BEFORE incr/*, so naming it would grant on a column that
+-- does not exist yet and kill db-init on a fresh database. Its grant ships
+-- inside the increment. check-incr-grants.mjs enforces exactly this.
 GRANT UPDATE (name, industry, region, segment_code, owner_sub, health_score, status, updated_at, deleted_at)
   ON yucer_core.account TO yucer_svc;
 

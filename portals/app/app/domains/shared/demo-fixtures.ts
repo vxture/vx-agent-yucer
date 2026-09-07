@@ -9,16 +9,16 @@
 // See TD-002. Both files go together when the standard is settled.
 
 export const DEMO_ACCOUNTS = [
-  { name: "华东零售集团", industry: "零售", region: "华东" },
-  { name: "西南制造股份", industry: "制造", region: "西南" },
-  { name: "北方通信", industry: "通信", region: "华北" },
-  { name: "长江物流", industry: "物流", region: "华中" },
-  { name: "华南连锁药房", industry: "零售", region: "华南" },
+  { name: "华东零售集团", industry: "零售", region: "华东", province: "上海市" },
+  { name: "西南制造股份", industry: "制造", region: "西南", province: "四川省" },
+  { name: "北方通信", industry: "通信", region: "华北", province: "北京市" },
+  { name: "长江物流", industry: "物流", region: "华中", province: "湖北省" },
+  { name: "华南连锁药房", industry: "零售", region: "华南", province: "广东省" },
   // Added to exercise two rules the first five never reached. Without them the
   // "本周" tier was permanently 0 and two of the four judgement rules had no
   // demo case at all - a screen nobody could review is not a demo.
-  { name: "西部能源装备", industry: "能源", region: "西北" },
-  { name: "东海精密仪器", industry: "制造", region: "华东" },
+  { name: "西部能源装备", industry: "能源", region: "西北", province: "陕西省" },
+  { name: "东海精密仪器", industry: "制造", region: "华东", province: "江苏省" },
   // 未分区: 东北 is covered by NO territory (EAST/NORTH/SOUTH between them
   // cover 华东/华中/华北/西北/华南/西南). Added 2026-09-01 so the unplaced rule
   // has a case a reviewer can actually see - every other demo account sits on
@@ -29,7 +29,7 @@ export const DEMO_ACCOUNTS = [
   // typed the name of and nothing else, where the industry is a fact about the
   // world that no join can supply and the model can. Without one such account
   // the "ask the assistant" half of that screen rendered on nothing.
-  { name: "东北重工集团", industry: "", region: "东北" },
+  { name: "东北重工集团", industry: "", region: "东北", province: "辽宁省" },
   // REGION DELIBERATELY BLANK, and not the same gap 东北重工集团 demonstrates.
   // That one is 未分区 (a region set that no territory covers); this one has
   // no region on file at all, which is the OTHER half of the "region" gap -
@@ -40,7 +40,12 @@ export const DEMO_ACCOUNTS = [
   // cover two regions each, so region derivation always found more than one
   // candidate and always declined - the data-derivable half of the
   // completeness screen had no case where it could actually derive anything.
-  { name: "港澳零售集团", industry: "零售", region: "" },
+  // Its province IS on file while its region is blank (incr/0035), which
+  // sharpens the case rather than softening it: 大区 is now derivable from two
+  // directions - from the single-region territory its deal is filed under, and
+  // from the province itself - so the completeness screen has a gap that is
+  // unambiguously fillable rather than merely guessable.
+  { name: "港澳零售集团", industry: "零售", region: "", province: "香港特别行政区" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */

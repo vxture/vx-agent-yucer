@@ -49,6 +49,7 @@ function seededAccounts(): InMemoryAccountStore {
         name: "Customer",
         industry: "retail",
         region: "east",
+        province: null,
         segmentCode: "MID",
         ownerSub: "usr_rep",
         healthScore: 40,

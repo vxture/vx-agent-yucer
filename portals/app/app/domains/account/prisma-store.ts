@@ -438,6 +438,7 @@ function toAccount(r: Record<string, unknown>): AccountRecord {
     name: String(r.name),
     industry: (r.industry as string | null) ?? null,
     region: (r.region as string | null) ?? null,
+    province: (r.province as string | null) ?? null,
     segmentCode: (r.segmentCode as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     healthScore: (r.healthScore as number | null) ?? null,

@@ -18,6 +18,15 @@ export interface AccountRecord {
   name: string;
   industry: string | null;
   region: string | null;
+  /**
+   * incr/0035. The provincial-level division - one granularity below `region`.
+   *
+   * Both are stored rather than one derived from the other: `region` is a 大区
+   * and is what TERRITORY ROUTING matches on, so writing a province into it
+   * would place the account on ground no territory covers and quietly make it
+   * unassignable. CHECK-constrained in the database to the 34 divisions.
+   */
+  province: string | null;
   segmentCode: string | null;
   ownerSub: string | null;
   healthScore: number | null;
@@ -163,7 +172,7 @@ export interface AccountStore {
     patch: Partial<
       Pick<
         AccountRecord,
-        | "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore"
+        | "name" | "industry" | "region" | "province" | "segmentCode" | "ownerSub" | "healthScore"
         | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
       >
     >,

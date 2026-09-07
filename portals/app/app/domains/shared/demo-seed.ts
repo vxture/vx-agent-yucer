@@ -1162,7 +1162,7 @@ function account(
   id: string,
   workspaceId: string,
   n: number,
-  info: { name: string; industry: string; region: string },
+  info: { name: string; industry: string; region: string; province?: string },
   segmentCode: string,
   ownerSub: string,
   healthScore: number | null,
@@ -1193,6 +1193,8 @@ function account(
     // writes "" for the region-derivable case, and the column and every rule
     // downstream treat a blank as unknown, not as an account with no region.
     region: info.region || null,
+    // incr/0035. Same blank-is-absent reading as the two above.
+    province: info.province || null,
     creditCode: identity.creditCode ?? null,
     website: identity.website ?? null,
     employeeCount: identity.employeeCount ?? null,

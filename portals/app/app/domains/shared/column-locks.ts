@@ -35,6 +35,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "name",
     "industry",
     "region",
+    // incr/0035 - the province, one granularity below region. Both writable.
+    "province",
     "segment_code",
     "owner_sub",
     "health_score", "tier",
