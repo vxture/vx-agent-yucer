@@ -83,6 +83,10 @@ export const CHAIN = {
  */
 export async function clearChain(c: Client): Promise<void> {
   for (const sql of [
+    // incr/0033. First in the list because nothing references it and it
+    // references nothing - a polymorphic subject_id has no foreign key, so
+    // leaving these behind would leak rows between tests.
+    `DELETE FROM yucer_pipeline.funnel_exit WHERE workspace_id = $1`,
     `DELETE FROM yucer_agent.judgement_snooze WHERE workspace_id = $1`,
     `DELETE FROM yucer_agent.agent_playbook WHERE workspace_id = $1`,
     `DELETE FROM yucer_agent.agent_autonomy WHERE workspace_id = $1`,

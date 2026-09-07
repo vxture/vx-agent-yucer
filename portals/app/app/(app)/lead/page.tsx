@@ -2,12 +2,12 @@ import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
-import { listLeads, previewAttribution } from "../../domains/signal/service";
+import { leadExitReasons, listLeads, previewAttribution } from "../../domains/signal/service";
 import { listAccounts } from "../../domains/account/service";
 import { LeadList } from "../components/lead-list";
 import { ModuleHeadline } from "../components/module-headline";
 import { RoutingAnalyseButton } from "../components/routing-analyse-button";
-import { actOnLead, claimLead, matchLead, removeLead } from "../signal/lead-actions";
+import { actOnLead, claimLead, endLead, matchLead, removeLead } from "../signal/lead-actions";
 import { loadFailureText } from "../lib/load-failure";
 
 // 线索管理 - its own module since 2026-09-06 (design_yucer_110).
@@ -89,6 +89,27 @@ export default async function LeadPage() {
       }),
   );
 
+  // WHY THE ENDED ONES ENDED (incr/0033). Asked only for leads that actually
+  // stopped: a running lead has no exit row, and asking for one per row would
+  // be a query per lead to learn nothing.
+  //
+  // RECORDING A REASON AND NEVER SHOWING IT would make the dialog feel like
+  // paperwork. The row is where somebody meets it again.
+  const exitReasons = new Map<string, { reasonCode: string; note: string | null }>();
+  await Promise.all(
+    leads.value
+      .filter((l) => l.status === "disqualified")
+      .map(async (l) => {
+        const r = await leadExitReasons(ctx, l.id);
+        // NEWEST FIRST from the port, and this table is append-only - so the
+        // first row is the current account of what happened, and any earlier
+        // one is a superseded correction.
+        if (r.ok && r.value[0]) {
+          exitReasons.set(l.id, { reasonCode: r.value[0].reasonCode, note: r.value[0].note });
+        }
+      }),
+  );
+
   // THE REGION, resolved through the lead's account. It is the fact assignment
   // turns on - a territory covers regions and nothing else - so a lead with
   // none cannot be placed, and this is the only column that says why. A failed
@@ -134,6 +155,7 @@ export default async function LeadPage() {
       <LeadList
         leads={leads.value}
         regionOf={regionOf}
+        exitReasons={exitReasons}
         attributionPreviews={attributionPreviews}
         canTriage={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
         canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}
@@ -141,6 +163,7 @@ export default async function LeadPage() {
         onClaim={claimLead}
         onRemove={removeLead}
         onMatch={matchLead}
+        onEnd={endLead}
         accounts={(accounts.ok ? accounts.value : []).map((a) => ({ id: a.id, name: a.name }))}
       />
     </ViewLayout>

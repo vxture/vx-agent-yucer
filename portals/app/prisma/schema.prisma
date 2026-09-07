@@ -562,6 +562,29 @@ model ForecastSnapshot {
   @@schema("yucer_pipeline")
 }
 
+/// Why anything left the funnel (incr/0033). Append-only.
+///
+/// `subjectId` is POLYMORPHIC - it points at a signal, lead, opportunity,
+/// project or revenue_schedule, and `stage` is what says which. There is no
+/// relation here because the database cannot constrain one; see the increment
+/// for why that trade was taken.
+model FunnelExit {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  stage        String   @db.VarChar(16)
+  subjectId    String   @map("subject_id") @db.Uuid
+  outcome      String   @db.VarChar(24)
+  reasonCode   String   @map("reason_code") @db.VarChar(32)
+  note         String?  @db.VarChar(500)
+  decidedBySub String   @map("decided_by_sub") @db.VarChar(128)
+  decidedAt    DateTime @default(now()) @map("decided_at") @db.Timestamptz()
+
+  @@index([workspaceId, stage, decidedAt(sort: Desc)], map: "idx_funnel_exit_ws_stage")
+  @@index([subjectId, decidedAt(sort: Desc)], map: "idx_funnel_exit_subject")
+  @@map("funnel_exit")
+  @@schema("yucer_pipeline")
+}
+
 model WinLossReview {
   id            String   @id @default(uuid()) @db.Uuid
   workspaceId   String   @map("workspace_id") @db.Uuid

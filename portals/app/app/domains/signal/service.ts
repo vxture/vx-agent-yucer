@@ -24,6 +24,7 @@ import {
   type SignalStatus,
 } from "./lib/scoring";
 import { planLeadAdvance, planLeadDeletion } from "./lib/lead";
+import { planFunnelExit, type ExitReason } from "../shared/funnel-exit";
 import {
   routeLead,
   type RoutingOutcome,
@@ -512,4 +513,66 @@ export async function deleteLead(
   const gone = await ctx.store.deleteLead(ctx.workspaceId, leadId);
   if (!gone) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
   return ok({ id: leadId });
+}
+
+/**
+ * End a lead, and say why.
+ *
+ * 判定不合格 AND 终结 BOTH ARRIVE HERE (owner, 2026-09-06). They are two
+ * business moments - the demand was never ours to win, versus it was real and
+ * it died - and `lead.status` has one terminal state for both. What separates
+ * them is the REASON, so the reason is what this verb insists on.
+ *
+ * THE STATUS AND THE RECORD LAND TOGETHER, in that order and both or neither
+ * as far as the caller can tell: the exit row is validated BEFORE the status
+ * moves, so a lead cannot end up disqualified with nothing saying why. The
+ * reverse order would be worse - a reason attached to a lead still shown as
+ * open reads as a bug in the page rather than in the write.
+ *
+ * IT DOES NOT ASK WHETHER THE REASON SUITS THE OCCASION. Which reasons belong
+ * to 判定不合格 and which to 终结 is a menu the surface draws
+ * (LEAD_DISQUALIFY_REASONS / LEAD_TERMINATE_REASONS); both write the same
+ * outcome, and a rule that policed the pairing would be encoding a UI choice
+ * in the domain.
+ */
+export async function closeLead(
+  ctx: SignalContext,
+  leadId: string,
+  exit: { reasonCode: ExitReason; note?: string | null },
+): Promise<RuleResult<{ status: "disqualified" }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const lead = await ctx.store.getLead(ctx.workspaceId, leadId);
+  if (!lead) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
+
+  const move = planLeadAdvance(lead, "disqualified");
+  if (!move.ok) return move as RuleResult<{ status: "disqualified" }>;
+
+  const record = planFunnelExit({
+    stage: "lead",
+    subjectId: leadId,
+    outcome: "disqualified",
+    reasonCode: exit.reasonCode,
+    note: exit.note ?? null,
+    // ATTRIBUTED FROM THE SESSION, never from the caller's payload - the same
+    // rule as every other attribution in this product.
+    decidedBySub: ctx.sub,
+  });
+  if (!record.ok) return record as RuleResult<{ status: "disqualified" }>;
+
+  await ctx.store.recordFunnelExit(ctx.workspaceId, record.value);
+  await ctx.store.updateLead(ctx.workspaceId, leadId, { status: "disqualified" });
+  return ok({ status: "disqualified" });
+}
+
+/** Why this lead ended, for the row that shows it. Read on the same gate the
+ * list is: whoever may see a lead may see why it stopped. */
+export async function leadExitReasons(
+  ctx: SignalContext,
+  leadId: string,
+): Promise<RuleResult<Awaited<ReturnType<SignalStore["listFunnelExits"]>>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listFunnelExits(ctx.workspaceId, leadId));
 }

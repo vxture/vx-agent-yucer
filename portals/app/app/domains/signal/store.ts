@@ -12,6 +12,7 @@
 
 import type { SignalStatus, SignalType } from "./lib/scoring";
 import { asc, by, desc } from "../shared/order";
+import type { FunnelExitDraft } from "../shared/funnel-exit";
 
 export interface SignalRecord {
   id: string;
@@ -131,6 +132,25 @@ export interface SignalStore {
    * that WAS real and went nowhere gets is `disqualified`, which keeps it.
    */
   deleteLead(workspaceId: string, id: string): Promise<boolean>;
+
+  /**
+   * Record why something left the funnel (incr/0033).
+   *
+   * ON THE SIGNAL PORT because this domain owns the two stages that exit most
+   * often - a dismissed signal and a disqualified lead - and because a port
+   * per stage would be five ways to write one table. The rows themselves are
+   * stage-tagged, so the other domains can reach the same table through their
+   * own ports when their surfaces need it.
+   */
+  recordFunnelExit(workspaceId: string, input: FunnelExitDraft): Promise<void>;
+
+  /** Why this subject ended, newest first. Empty for anything still running. */
+  listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]>;
+}
+
+export interface FunnelExitRecord extends FunnelExitDraft {
+  id: string;
+  decidedAt: Date;
 }
 
 export class InMemorySignalStore implements SignalStore {
@@ -244,11 +264,34 @@ export class InMemorySignalStore implements SignalStore {
     return l && l.workspaceId === workspaceId ? { ...l } : null;
   }
 
+  private exits: Array<FunnelExitRecord & { workspaceId: string }> = [];
+  private exitSeq = 0;
+
+  async recordFunnelExit(workspaceId: string, input: FunnelExitDraft): Promise<void> {
+    this.exits.push({
+      ...input,
+      id: `fx_${++this.exitSeq}`,
+      workspaceId,
+      decidedAt: new Date(),
+    });
+  }
+
+  async listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]> {
+    return this.exits
+      .filter((e) => e.workspaceId === workspaceId && e.subjectId === subjectId)
+      .sort((a, b) => b.decidedAt.getTime() - a.decidedAt.getTime());
+  }
+
   async deleteLead(workspaceId: string, id: string): Promise<boolean> {
     const held = this.leads.get(id);
     // The workspace check is the tenant boundary, not a formality: the id
     // alone is enough to address any row in the map.
     if (!held || held.workspaceId !== workspaceId) return false;
+    // THE EXIT ROWS GO WITH IT. A hard-deleted lead is one that should never
+    // have existed, and a note explaining why it ended cannot outlive the
+    // thing it describes - the polymorphic subject_id has no foreign key to
+    // cascade for it (incr/0033).
+    this.exits = this.exits.filter((e) => e.subjectId !== id);
     return this.leads.delete(id);
   }
 

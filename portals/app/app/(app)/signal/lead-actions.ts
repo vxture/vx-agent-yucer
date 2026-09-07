@@ -6,9 +6,11 @@ import { getPipelineStore, getSignalStore } from "../../domains/shared/registry"
 import {
   advanceLead,
   assignLead,
+  closeLead,
   deleteLead,
   matchLeadAccount,
 } from "../../domains/signal/service";
+import type { ExitReason } from "../../domains/shared/funnel-exit";
 import { convertLeadToOpportunity } from "../../domains/conversion";
 
 // Write paths for the lead list.
@@ -31,7 +33,11 @@ import { convertLeadToOpportunity } from "../../domains/conversion";
 // they differ only in who is choosing and for whom, so they go through one
 // action that takes a subject - see reassignLead. Modelling them as three
 // verbs would be three names for one write.
-export type LeadAction = "work" | "qualify" | "disqualify" | "convert";
+// `disqualify` LEFT THIS UNION on 2026-09-06. Ending a lead now carries a
+// reason (incr/0033), so it takes a second argument and cannot travel as a
+// bare verb - see endLead. What is left here are the moves that need nothing
+// but a lead id.
+export type LeadAction = "work" | "qualify" | "convert";
 
 export interface LeadActionResult {
   ok: boolean;
@@ -167,6 +173,39 @@ export async function removeLead(leadId: string): Promise<{ ok: boolean; error?:
       store: session.stores.signal(),
     },
     leadId,
+  );
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/lead");
+  return { ok: true };
+}
+
+
+/**
+ * 判定不合格 / 终结 - both endings, with the reason that separates them.
+ *
+ * ONE ACTION, TWO MENUS. The rule refuses an unknown reason and insists on a
+ * sentence behind `other`; which reasons are offered under which label is the
+ * surface's business (LEAD_DISQUALIFY_REASONS / LEAD_TERMINATE_REASONS),
+ * because that is a product judgement rather than a data one.
+ */
+export async function endLead(
+  leadId: string,
+  reasonCode: ExitReason,
+  note: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const r = await closeLead(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.signal(),
+    },
+    leadId,
+    { reasonCode, note },
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/lead");

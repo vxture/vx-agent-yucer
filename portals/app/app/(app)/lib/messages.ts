@@ -971,6 +971,11 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
   lead_converted: "这条线索已经转成商机了",
   lead_not_qualified: "线索还没有通过资格判定",
   owner_required: "分派必须指到具体的人",
+  unknown_stage: "未知的漏斗环节",
+  outcome_not_of_stage: "这个结局不属于该环节",
+  unknown_reason: "未知的结束原因",
+  note_required: "选了「其他」就必须写清楚发生了什么",
+  decider_required: "结束记录需要写明是谁决定的",
   lead_unowned: "这条线索还没有归属，先分派给人再判定",
 };
 
@@ -3095,6 +3100,19 @@ export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
   cancelled: "已取消",
 };
 
+/** 漏斗退出原因 (incr/0033). Nine codes, one vocabulary, read at every stage. */
+export const EXIT_REASON_LABEL: Record<string, string> = {
+  duplicate: "重复记录",
+  not_a_fit: "需求不匹配",
+  no_budget: "没有预算",
+  no_decision: "迟迟没有决策",
+  lost_to_competitor: "输给竞争对手",
+  timing: "时机不对",
+  customer_withdrew: "客户取消了项目",
+  unreachable: "联系不上",
+  other: "其他",
+};
+
 export const LEAD_TEXT = {
   title: "线索",
   // 模块头部 (design_yucer_110). `description` above is the SECTION's line and
@@ -3109,7 +3127,26 @@ export const LEAD_TEXT = {
   formOwnerNote: "负责人和评分这里不填：谁接由「智能分配」按区域和负载给建议；评分是信号的算法，手工录入的线索没有信号。",
   formSave: "保存线索",
 
+  searchLabel: "检索",
+  searchHint: "公司、线索号、联系人、负责人",
+  filterAllStatus: "全部状态",
+  filterAllOwners: "全部负责人",
+  filterUnowned: "无人认领",
+  filteredCount: (n: number, total: number) => `${n} / ${total} 条`,
+  noMatch: "没有匹配的线索",
+  noMatchWhy: "换个关键词，或把筛选条件放宽。",
   startWork: "开始跟进",
+  terminate: "终结线索",
+  terminateConsequence: "这条线索是真的，但机会没了。记录会保留，并计入漏斗的分母——原因会被记下来，之后能按原因看漏在哪一段。",
+  hintTerminateWhy: "机会曾经真实存在，但黄了——与「判定不合格」是两回事",
+  exemptAsksReason: "这个动作会先问原因，比确认框更强",
+  endSubmit: "确认结束",
+  endReason: "原因",
+  endReasonPick: "选择原因",
+  endNote: "补充说明",
+  endNoteRequired: "选了「其他」就必须写清楚",
+  endNoteOptional: "可留空",
+
   hintAlreadyWorking: "已经在跟进或已有判定了",
   claim: "认领线索",
   assign: "分派线索",

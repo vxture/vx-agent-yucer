@@ -178,4 +178,6 @@ class ScopedSignalStore implements SignalStore {
   // question and WHETHER this lead may be is the rule's, and neither of them
   // lives in a data-scope wrapper.
   deleteLead: SignalStore["deleteLead"] = (...a) => this.inner.deleteLead(...a);
+  recordFunnelExit: SignalStore["recordFunnelExit"] = (...a) => this.inner.recordFunnelExit(...a);
+  listFunnelExits: SignalStore["listFunnelExits"] = (...a) => this.inner.listFunnelExits(...a);
 }

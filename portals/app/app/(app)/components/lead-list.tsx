@@ -8,6 +8,7 @@ import {
   DialogForm,
   Field,
   FieldLabel,
+  Input,
   NativeSelect,
   EmptyState,
   Section,
@@ -16,6 +17,11 @@ import {
 } from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, rowClickSelection } from "./table-fittings";
 import { ROUTING_ANALYSE_EVENT } from "../lib/routing-signal";
+import {
+  LEAD_DISQUALIFY_REASONS,
+  LEAD_TERMINATE_REASONS,
+  type ExitReason,
+} from "../../domains/shared/funnel-exit";
 import type { LeadRecord } from "../../domains/signal/store";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
@@ -34,6 +40,8 @@ import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
 export interface LeadListProps {
   readonly leads: readonly LeadRecord[];
+  /** lead id -> why it ended, for the ones that did (incr/0033). */
+  readonly exitReasons: ReadonlyMap<string, { reasonCode: string; note: string | null }>;
   /** account id -> region. The fact 智能分配 turns on; a lead whose account has
    * none cannot be placed at all. */
   readonly regionOf: ReadonlyMap<string, string | null>;
@@ -51,6 +59,12 @@ export interface LeadListProps {
   readonly onClaim: (leadId: string) => Promise<{ ok: boolean; error?: string }>;
   /** 删除 - for a record that should never have existed. */
   readonly onRemove: (leadId: string) => Promise<{ ok: boolean; error?: string }>;
+  /** 判定不合格 / 终结 - both endings, with the reason that separates them. */
+  readonly onEnd: (
+    leadId: string,
+    reasonCode: ExitReason,
+    note: string | null,
+  ) => Promise<{ ok: boolean; error?: string }>;
   /** 匹配客户 - the unblocker for assignment AND conversion. */
   readonly onMatch: (
     leadId: string,
@@ -66,6 +80,7 @@ export interface LeadListProps {
 
 export function LeadList({
   regionOf,
+  exitReasons,
   leads,
   attributionPreviews,
   canTriage,
@@ -74,12 +89,14 @@ export function LeadList({
   onClaim,
   onRemove,
   onMatch,
+  onEnd,
   accounts,
 }: LeadListProps) {
   const {
     DATA_TABLE_LABELS,
     DS_LABELS,
     LEAD_STATUS_LABEL,
+    EXIT_REASON_LABEL,
     LEAD_TEXT,
     PIPELINE_TEXT,
     SIGNAL_ACTION_ERROR,
@@ -148,6 +165,46 @@ export function LeadList({
   // company name is not an identity (ADR-024's argument, one level down).
   const [matching, setMatching] = useState<LeadRecord | null>(null);
   const [matchTo, setMatchTo] = useState("");
+  // ENDING A LEAD ASKS FOR A REASON (incr/0033), so it is a dialog rather than
+  // a confirm: a confirmation asks "are you sure", and what this needs is
+  // "why". `kind` decides which of the two reason lists is offered.
+  const [ending, setEnding] = useState<{ row: LeadRecord; kind: "disqualify" | "terminate" } | null>(
+    null,
+  );
+  const [reason, setReason] = useState("");
+  const [reasonNote, setReasonNote] = useState("");
+
+  // 表头检索与筛选 (owner, 2026-09-06).
+  //
+  // CLIENT-SIDE, and that is a decision with a limit worth stating: the page
+  // reads up to 200 leads, so filtering here is filtering the whole set. Past
+  // that the query belongs in listLeads, and this control would be lying about
+  // what it searched.
+  //
+  // SEARCH COVERS WHAT THE READER CAN SEE - company, lead number, contact and
+  // owner. Searching a field the table does not show produces hits nobody can
+  // explain.
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("");
+
+  const needle = query.trim().toLowerCase();
+  const visible = leads.filter((l) => {
+    if (statusFilter && l.status !== statusFilter) return false;
+    // THREE STATES, not two: any owner, nobody, or one person. "无人认领" is
+    // the queue that cannot move at all - a lead nobody owns cannot be
+    // qualified - so it is worth filtering to on its own.
+    if (ownerFilter === "__none__" && l.ownerSub !== null) return false;
+    if (ownerFilter && ownerFilter !== "__none__" && l.ownerSub !== ownerFilter) return false;
+    if (!needle) return true;
+    return [l.companyName, l.leadNo, l.contactName ?? "", l.ownerSub ?? ""].some((f) =>
+      f.toLowerCase().includes(needle),
+    );
+  });
+
+  // The owners actually present, so the filter never offers a name that would
+  // return nothing.
+  const owners = [...new Set(leads.map((l) => l.ownerSub).filter((o): o is string => o !== null))].sort();
   const remove = (id: string) => run(id, onRemove);
 
   const columns: readonly DataTableColumn<LeadRecord>[] = [
@@ -235,15 +292,28 @@ export function LeadList({
       id: "status",
       header: LEAD_TEXT.columnStatus,
       align: "center" as const,
-      cell: (row) => (
-        <StatusBadge
-          tone={row.status === "converted" ? "success" : "neutral"}
-          dot
-        >
-          {LEAD_STATUS_LABEL[row.status] ?? row.status}
-        </StatusBadge>
-      ),
-    },
+      // THE REASON RIDES WITH THE STATUS (incr/0033). "判定不合格" alone is the
+      // word the old schema could say; what a reader actually asks next is
+      // why, and the answer is now recorded - so it is shown here rather than
+      // filed somewhere nobody opens.
+      cell: (row: LeadRecord) => {
+        const exit = exitReasons.get(row.id);
+        return (
+          <span className="flex flex-col items-center gap-3xs">
+            <StatusBadge tone={row.status === "converted" ? "success" : "neutral"} dot>
+              {LEAD_STATUS_LABEL[row.status] ?? row.status}
+            </StatusBadge>
+            {exit ? (
+              <span
+                className="text-muted-foreground truncate text-body-sm"
+                title={exit.note ?? undefined}
+              >
+                {EXIT_REASON_LABEL[exit.reasonCode] ?? exit.reasonCode}
+              </span>
+            ) : null}
+          </span>
+        );
+      },    },
   ];
 
   /* Every verb stays in the menu and the unusable ones say why, rather than the
@@ -401,21 +471,42 @@ export function LeadList({
               : !canTriage
                 ? LEAD_TEXT.hintNoTriage
                 : undefined,
-            // GUARDED, not exempt. design-ui 5.0 makes every danger item choose
-            // between a confirmation and a written reason for not having one,
-            // and this action does not qualify for the exemption: the list
-            // treats disqualified as terminal, so it is one-way from here.
+            // A DIALOG, NOT A CONFIRMATION. A confirm box asks "are you sure";
+            // what this needs is "why", and the reason is now required
+            // (incr/0033). `confirmExempt` is the DS's way of saying a danger
+            // item deliberately has no confirm box - and the reason it does
+            // not is that the dialog it opens is a stronger gate than one.
+            confirmExempt: LEAD_TEXT.exemptAsksReason,
+            onSelect: () => {
+              setEnding({ row, kind: "disqualify" });
+              setReason("");
+              setReasonNote("");
+            },
+          },
+          {
+            id: "terminate",
+            label: LEAD_TEXT.terminate,
+            danger: true,
+            // 终结 - IT WAS REAL AND IT DIED: the budget went, somebody else
+            // won it, the customer cancelled the project, it is not this year.
+            // Different from 判定不合格 above, which says the demand was never
+            // ours to win.
             //
-            // No onSelect - the type forbids it alongside confirm, because
-            // wiring both fires both.
-            confirm: {
-              verb: LEAD_TEXT.disqualify,
-              target: LEAD_TEXT.disqualifyTarget(row.companyName),
-              consequence: LEAD_TEXT.disqualifyConsequence,
-              titleTemplate: DS_LABELS.confirmTitleTemplate,
-              cancelLabel: DS_LABELS.confirmCancel,
-              pendingLabel: DS_LABELS.confirmPending,
-              onConfirm: () => act(row.id, "disqualify"),
+            // Both end at `disqualified`, because that is the only terminal
+            // state lead.status has. The REASON is what separates them, which
+            // is why each opens its own list of reasons rather than the same
+            // nine.
+            disabled: terminal || !canTriage,
+            hint: terminal
+              ? LEAD_TEXT.hintTerminal
+              : !canTriage
+                ? LEAD_TEXT.hintNoTriage
+                : LEAD_TEXT.hintTerminateWhy,
+            confirmExempt: LEAD_TEXT.exemptAsksReason,
+            onSelect: () => {
+              setEnding({ row, kind: "terminate" });
+              setReason("");
+              setReasonNote("");
             },
           },
           {
@@ -454,7 +545,7 @@ export function LeadList({
 
   // 选择列 - one of the three standard fittings. Row click toggles it; the
   // checkbox alone is too small to aim at (owner, 2026-09-06).
-  const select = rowClickSelection(leads, (r) => r.id, selected, setSelected);
+  const select = rowClickSelection(visible, (r) => r.id, selected, setSelected);
 
   return (
     <Section
@@ -533,8 +624,121 @@ export function LeadList({
           </Field>
         </DialogForm>
       ) : null}
+      {ending ? (
+        <DialogForm
+          open
+          onOpenChange={(o: boolean) => {
+            if (!o) setEnding(null);
+          }}
+          danger
+          title={ending.kind === "disqualify" ? LEAD_TEXT.disqualify : LEAD_TEXT.terminate}
+          description={
+            ending.kind === "disqualify"
+              ? LEAD_TEXT.disqualifyConsequence
+              : LEAD_TEXT.terminateConsequence
+          }
+          submitLabel={LEAD_TEXT.endSubmit}
+          cancelLabel={DS_LABELS.confirmCancel}
+          submitting={pending}
+          // 'other' HAS TO SAY WHAT. The rule refuses it and the database
+          // refuses it; the button refusing it too is what stops the reader
+          // meeting that as an error after the fact.
+          submitDisabled={reason === "" || (reason === "other" && reasonNote.trim() === "")}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const { row } = ending;
+            // The select's options come from the same two arrays the rule
+            // validates against, so an invalid code cannot be chosen here -
+            // and the rule refuses one anyway if it ever were.
+            const code = reason as ExitReason;
+            const text = reasonNote.trim() === "" ? null : reasonNote.trim();
+            setEnding(null);
+            run(row.id, (id) => onEnd(id, code, text));
+          }}
+        >
+          <Field>
+            <FieldLabel>{LEAD_TEXT.endReason}</FieldLabel>
+            <NativeSelect value={reason} onChange={(e) => setReason(e.target.value)}>
+              <option value="">{LEAD_TEXT.endReasonPick}</option>
+              {(ending.kind === "disqualify"
+                ? LEAD_DISQUALIFY_REASONS
+                : LEAD_TERMINATE_REASONS
+              ).map((r) => (
+                <option key={r} value={r}>
+                  {EXIT_REASON_LABEL[r] ?? r}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field>
+            <FieldLabel>{LEAD_TEXT.endNote}</FieldLabel>
+            <Input
+              value={reasonNote}
+              placeholder={
+                reason === "other" ? LEAD_TEXT.endNoteRequired : LEAD_TEXT.endNoteOptional
+              }
+              onChange={(e) => setReasonNote(e.target.value)}
+            />
+          </Field>
+        </DialogForm>
+      ) : null}
       {note ? <StatusBadge tone="success">{note}</StatusBadge> : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
+      {/* MEASURED, NOT GUESSED: with the dock open this column is about 610px,
+          and the first widths (16rem + 10rem + 10rem plus gaps) overflowed it,
+          so the three controls wrapped to one per line and ate the height the
+          table wanted. They fit on one row now and still wrap on a narrow
+          window rather than squashing.
+
+          THE CONTROLS SIT ABOVE THE TABLE, not in the Section header: the
+          header carries what this block IS and the page-level actions, and a
+          search box up there would read as searching the page rather than
+          this list. */}
+      {leads.length > 0 ? (
+        <div className="flex flex-wrap items-end gap-sm">
+          <Field className="min-w-[10rem] flex-1">
+            <FieldLabel>{LEAD_TEXT.searchLabel}</FieldLabel>
+            <Input
+              type="search"
+              value={query}
+              placeholder={LEAD_TEXT.searchHint}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </Field>
+          <Field className="min-w-[8rem] flex-1">
+            <FieldLabel>{LEAD_TEXT.columnStatus}</FieldLabel>
+            <NativeSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">{LEAD_TEXT.filterAllStatus}</option>
+              {Object.entries(LEAD_STATUS_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field className="min-w-[8rem] flex-1">
+            <FieldLabel>{LEAD_TEXT.columnOwner}</FieldLabel>
+            <NativeSelect value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+              <option value="">{LEAD_TEXT.filterAllOwners}</option>
+              <option value="__none__">{LEAD_TEXT.filterUnowned}</option>
+              {owners.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <span className="text-muted-foreground pb-xs text-body-sm tabular-nums">
+            {/* SAYS WHAT IS FILTERED OUT, not just what is left. "6 条" beside
+                a narrowed list reads as the whole list to somebody who has
+                forgotten the filter is on. */}
+            {visible.length === leads.length
+              ? PIPELINE_TEXT.rowCount(leads.length)
+              : LEAD_TEXT.filteredCount(visible.length, leads.length)}
+          </span>
+        </div>
+      ) : null}
+
       {leads.length === 0 ? (
         <EmptyState
           title={LEAD_TEXT.emptyTitle}
@@ -548,6 +752,9 @@ export function LeadList({
            除了固定的，其余均分: 选择 / 序号 / 操作 carry a width and no other
            column does, so under table-fixed the browser shares out the rest in
            equal parts by itself. */
+        visible.length === 0 ? (
+        <EmptyState title={LEAD_TEXT.noMatch} description={LEAD_TEXT.noMatchWhy} />
+      ) : (
         <div
           className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
           ref={select.ref}
@@ -556,14 +763,14 @@ export function LeadList({
             labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
-            rows={[...leads]}
+            rows={[...visible]}
             rowKey={(row) => row.id}
             selectedKeys={selected}
             onSelectionChange={setSelected}
             rowActions={(row) => <LeadActions row={row} />}
           />
         </div>
-      )}
+      ))}
     </Section>
   );
 }
