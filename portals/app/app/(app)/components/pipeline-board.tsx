@@ -278,9 +278,12 @@ export function PipelineBoard({
     <Section
       icon="table"
       title={PIPELINE_TEXT.title}
-      description={
-        readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description
-      }
+      // ONLY THE READ-ONLY LINE. The module header above carries the ordinary
+      // description, and the same sentence twice on one screen makes a reader
+      // check whether the two agree instead of reading either. The read-only
+      // variant stays because it says something the header does not: that this
+      // particular reader cannot move a deal.
+      description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : undefined}
     >
       {totals.ok ? (
         <MetricGrid

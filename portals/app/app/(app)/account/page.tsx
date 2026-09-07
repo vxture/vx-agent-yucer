@@ -1,4 +1,5 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { can } from "../../authz/decide";
 import { resolveAppSession } from "../lib/session";
 import {
@@ -106,28 +107,33 @@ export default async function AccountPage() {
       {/* Opens with what is true of the whole page, the same way /signal does.
           It used to start cold on a section heading, so a reader arrived with
           no idea how many customers there were or why they were in this order. */}
-      <ViewHeader
-        title={ACCOUNT_TEXT.lead(result.value.length)}
-        description={
+      {/* THE MODULE HEADER (design_yucer_100). The title was a COUNT - it
+          changed every time a customer was added and never matched the menu
+          entry that got you here. The counts are badges now, which is what a
+          count is.
+
+          NO FOLD: customers partition by segment or by health, and the roster
+          below already carries both as columns you can sort on - the fold
+          criterion's third condition. What it cannot show is what is already
+          going wrong, and that is what the badges and the panel beneath say. */}
+      <ModuleHeadline
+        moduleKey="account"
+        description={ACCOUNT_TEXT.leadOrder}
+        tags={
           <>
-            {overdueCount > 0 ? (
-              <span className="block text-(color:--warning-muted-foreground)">
-                {ACCOUNT_TEXT.leadOverdue(overdueCount)}
-              </span>
+            <StatusBadge tone="success">
+              {ACCOUNT_TEXT.tagTotal(result.value.length)}
+            </StatusBadge>
+            {atRisk > 0 ? (
+              <StatusBadge tone="warning">{ACCOUNT_TEXT.tagAtRisk(atRisk)}</StatusBadge>
             ) : null}
-            <span className="block">
-              {atRisk > 0
-                ? ACCOUNT_TEXT.leadAtRisk(atRisk)
-                : ACCOUNT_TEXT.leadOrder}
-            </span>
+            {overdueCount > 0 ? (
+              <StatusBadge tone="danger">{ACCOUNT_TEXT.tagOverdue(overdueCount)}</StatusBadge>
+            ) : null}
             {completableCount > 0 ? (
-              <span className="block text-(color:--info-muted-foreground)">
-                {ACCOUNT_TEXT.batchCompleteBanner(completableCount)}
-                {" - "}
-                <a href="/account/complete" className="underline">
-                  {ACCOUNT_TEXT.batchCompleteLink}
-                </a>
-              </span>
+              <StatusBadge tone="info">
+                {ACCOUNT_TEXT.tagCompletable(completableCount)}
+              </StatusBadge>
             ) : null}
           </>
         }

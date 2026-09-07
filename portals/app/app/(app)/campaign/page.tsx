@@ -1,4 +1,5 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
 import { getStrategyStore } from "../../domains/shared/registry";
@@ -134,29 +135,33 @@ export default async function CampaignPage() {
           rather than only in the section subtitle: it is the one caveat that
           makes the ROI column mean anything, and a reader who meets the number
           first has already drawn the wrong conclusion. */}
-      <ViewHeader
-        title={CAMPAIGN_TEXT.lead(rows.length)}
-        // SPANS, not paragraphs: ViewHeader renders `description` inside a <p>,
-        // and a <p> nested in a <p> is invalid markup that React resolves by
-        // closing the outer one - a hydration mismatch rather than a layout bug.
-        description={
+      {/* THE MODULE HEADER (design_yucer_100). The title was a COUNT again,
+          and the money moved into badges beside it.
+
+          NO FOLD: a campaign's money splits into budget and return, which is
+          two numbers rather than a partition of 3-6 buckets - and the table
+          below carries both per campaign. The proportion between them is the
+          one reading worth the top of the page, so it is said in words. */}
+      <ModuleHeadline
+        moduleKey="campaign"
+        description={CAMPAIGN_TEXT.leadRule}
+        tags={
           <>
-            <span className="block tabular-nums">
-              {CAMPAIGN_TEXT.leadSpend(
+            <StatusBadge tone="success">{CAMPAIGN_TEXT.tagCount(rows.length)}</StatusBadge>
+            <StatusBadge tone="info">
+              {CAMPAIGN_TEXT.tagSpend(
                 formatMoney(budgetTotal, currency),
                 formatMoney(wonTotal, currency),
               )}
-            </span>
-            <span className="block">{CAMPAIGN_TEXT.leadRule}</span>
+            </StatusBadge>
           </>
         }
       />
 
-      <Section
-        icon="target"
-        title={CAMPAIGN_TEXT.title}
-        description={CAMPAIGN_TEXT.description}
-      >
+      {/* No description here: the header above carries it, and the same
+          sentence twice on one screen makes a reader check whether the two
+          agree instead of reading either. */}
+      <Section icon="target" title={CAMPAIGN_TEXT.title}>
         <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
       </Section>
 

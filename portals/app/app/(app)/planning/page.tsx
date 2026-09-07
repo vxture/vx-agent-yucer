@@ -1,4 +1,5 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
@@ -89,43 +90,29 @@ export default async function PlanningPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={PLANNING_TEXT.lead(period)}
-        description={
+      {/* THE MODULE HEADER (design_yucer_100). The title was the PERIOD, which
+          reads as a filter rather than a name, and the attainment sentence it
+          carried belongs beside the targets it describes.
+
+          NO FOLD: the targets below ARE the breakdown - one row per scope with
+          its own measurement - so a strip above them would be the same
+          partition, coarser.
+
+          UNFORECAST IS A BADGE AND NOT A ZERO, which is this page's central
+          rule: a scope nobody has forecast has not failed, and a reader who
+          sees a neutral number with no explanation will read it as one. */}
+      <ModuleHeadline
+        moduleKey="planning"
+        description={PLANNING_TEXT.leadRule}
+        tags={
           <>
-            <span className="block tabular-nums">
-              {workspaceRow
-                ? PLANNING_TEXT.leadAttained(
-                    workspaceRow.measurement.kind === "measured"
-                      ? formatMoney(
-                          workspaceRow.measurement.achieved.amount,
-                          workspaceRow.measurement.achieved.unit === "money"
-                            ? workspaceRow.measurement.achieved.currency
-                            : "",
-                        )
-                      : "-",
-                    workspaceRow.target.targetValue.unit === "money"
-                      ? formatMoney(
-                          workspaceRow.target.targetValue.amount,
-                          workspaceRow.target.targetValue.currency,
-                        )
-                      : String(workspaceRow.target.targetValue.amount),
-                    workspaceRow.measurement.kind === "measured"
-                      ? formatPercent(workspaceRow.measurement.ratio)
-                      : PLANNING_TEXT.gapLabel[workspaceRow.measurement.code]!,
-                  )
-                : PLANNING_TEXT.leadNoWorkspaceTarget}
-            </span>
-            {/* Counted and stated, because the whole point of this page's central
-              rule is that an unforecast scope is NOT a failed one. A reader who
-              sees three neutral badges and no explanation will read them as
-              zeroes. */}
+            <StatusBadge tone="info">{PLANNING_TEXT.tagPeriod(period)}</StatusBadge>
+            <StatusBadge tone="success">{PLANNING_TEXT.tagScopes(result.value.length)}</StatusBadge>
             {unforecast > 0 ? (
-              <span className="block text-(color:--warning-text)">
-                {PLANNING_TEXT.leadUnforecast(unforecast)}
-              </span>
+              <StatusBadge tone="warning">
+                {PLANNING_TEXT.tagUnforecast(unforecast)}
+              </StatusBadge>
             ) : null}
-            <span className="block">{PLANNING_TEXT.leadRule}</span>
           </>
         }
       />

@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import {
@@ -119,7 +120,13 @@ export default async function QuotePage() {
 
   return (
     <ViewLayout>
-      <ViewHeader title={DOMAIN_LABEL.quote} description={QUOTE_TEXT.why} />
+      {/* NO FOLD: a quote's only partition is its approval state, and the
+          table below carries it per row. */}
+      <ModuleHeadline
+        moduleKey="quote"
+        description={QUOTE_TEXT.why}
+        tags={<StatusBadge tone="success">{QUOTE_TEXT.tagCount(rows.length)}</StatusBadge>}
+      />
       <QuoteTable rows={rows} />
     </ViewLayout>
   );

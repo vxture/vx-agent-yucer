@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -61,9 +62,16 @@ export default async function WinLossPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={WINLOSS_TEXT.sectionTitle}
+      {/* NO FOLD: won versus lost is TWO buckets, not a partition worth a
+          bar - and the reviews below say which each one was. */}
+      <ModuleHeadline
+        moduleKey="winLossReview"
         description={WINLOSS_TEXT.description}
+        tags={
+          <StatusBadge tone={pending.value.length > 0 ? "warning" : "success"}>
+            {WINLOSS_TEXT.tagPending(pending.value.length)}
+          </StatusBadge>
+        }
       />
       <PendingReviews
         opportunities={pending.value}

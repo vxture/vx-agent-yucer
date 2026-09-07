@@ -1,13 +1,7 @@
-import {
-  Card,
-  EmptyState,
-  SectionHeader,
-  StatusBadge,
-  ViewHeader,
-  ViewLayout,
-} from "@vxture/design-ui";
+import { Card, EmptyState, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
+import { ModuleHeadline } from "../components/module-headline";
 import { SubmitForecast } from "../components/submit-forecast";
 import { submitForecastSnapshot } from "./forecast-action";
 import { createDeal } from "./stage-action";
@@ -174,6 +168,17 @@ export default async function PipelinePage({
   // is a set rather than a count because a count cannot mark a row.
   const unreachable = new Set(feed.ok ? feed.value.unreachableAccountIds : []);
 
+  // COUNTED OFF THE SAME ARRAY the board is built from, so a badge and the
+  // columns under it cannot describe different deals.
+  //
+  // NO CLOSE DATE is a real gap rather than a tidiness complaint: a deal with
+  // no expected close cannot enter a period forecast at all (ADR-021), so it
+  // is invisible to the number somebody is measured on.
+  const openDeals = inWindow.filter((o) => o.status === "open");
+  const openCount = openDeals.length;
+  const noCloseDate = openDeals.filter((o) => o.expectedCloseAt == null).length;
+  const unowned = openDeals.filter((o) => !o.ownerSub).length;
+
   const rows: PipelineRow[] = inWindow.map((o) => ({
     ...(o as (typeof result.value)[number]),
     accountName:
@@ -230,16 +235,33 @@ export default async function PipelinePage({
       {/* The page's name, at the height every other page's sits at. This was the
           last page still opening on a hand-rolled heading inside a card, which
           is what made it look a size and a height apart from the rest. */}
-      <ViewHeader
-        title={DOMAIN_LABEL.pipeline}
+      {/* THE MODULE HEADER (design_yucer_100). No fold: the deals below are a
+          BOARD grouped by stage with a count on every column, so a stage
+          breakdown up here would redraw what the page already is - the third
+          condition of the fold criterion. What the board cannot say is how
+          much of the open book has no date and how much has nobody chasing
+          it, so those are badges. */}
+      <ModuleHeadline
+        moduleKey="pipeline"
         description={PIPELINE_TEXT.description}
+        tags={
+          <>
+            <StatusBadge tone="success">{PIPELINE_TEXT.tagOpen(openCount)}</StatusBadge>
+            {noCloseDate > 0 ? (
+              <StatusBadge tone="warning">{PIPELINE_TEXT.tagNoDate(noCloseDate)}</StatusBadge>
+            ) : null}
+            {unowned > 0 ? (
+              <StatusBadge tone="warning">{PIPELINE_TEXT.tagUnowned(unowned)}</StatusBadge>
+            ) : null}
+          </>
+        }
       />
 
       {/* Then the statement. This card still opens with a FIGURE rather than a
           noun - the whole card is the disclosure that decomposes it, so the
           number is the thing being explained and has to lead.
 
-          NOT an <h1> any more: ViewHeader above owns that, and two of them on
+          NOT an <h1> any more: the module header above owns that, and two of them on
           one page is a document with two subjects. It keeps the size, because
           its weight on the page was never coming from the tag. */}
       <HeadlineCard

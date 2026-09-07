@@ -1,11 +1,5 @@
-import {
-  Card,
-  EmptyState,
-  Progress,
-  StatusBadge,
-  ViewHeader,
-  ViewLayout,
-} from "@vxture/design-ui";
+import { Card, EmptyState, Progress, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import {
@@ -171,10 +165,10 @@ export default async function AttainmentPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={ATTAINMENT_TEXT.title}
-        description={ATTAINMENT_TEXT.why}
-      />
+      {/* NO FOLD: the card directly below IS the decomposition - target,
+          achieved, the gap - so a strip above it would explain the same number
+          twice, and the coarser one would be on top. */}
+      <ModuleHeadline moduleKey="attainment" description={ATTAINMENT_TEXT.why} />
       <Card className="p-lg">
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (

@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -50,11 +51,30 @@ export default async function TerritoryPage() {
     );
   }
 
+  const unowned = territories.value.filter((t) => !t.ownerSub).length;
+
   return (
     <ViewLayout>
-      <ViewHeader
-        title={PLANNING_TEXT.territoryTitle}
+      {/* NO FOLD: territories are a MAP, not a distribution - the useful
+          reading is which regions are covered and by whom, and the panel below
+          is exactly that. */}
+      {/* Counted off the same array the panel draws, so the badge and the map
+          under it cannot disagree. A territory with no owner covers ground
+          nobody is answerable for - and 智能分配 refuses to place a lead into
+          it, which is where that shows up. */}
+      <ModuleHeadline
+        moduleKey="territory"
         description={PLANNING_TEXT.territoryWhy}
+        tags={
+          <>
+            <StatusBadge tone="success">
+              {PLANNING_TEXT.tagTerritories(territories.value.length)}
+            </StatusBadge>
+            {unowned > 0 ? (
+              <StatusBadge tone="warning">{PLANNING_TEXT.tagNoOwner(unowned)}</StatusBadge>
+            ) : null}
+          </>
+        }
       />
       <TerritoryPanel rows={territories.value} />
       {/* Creation and editing left for /territory/new on 2026-09-05 - which

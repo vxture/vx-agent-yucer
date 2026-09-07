@@ -216,6 +216,8 @@ export const en: Dictionary = {
   },
 
   NAMED_ACCOUNT_TEXT: {
+    why: "The strategic account list. It decides who signal scouting watches and whose contact cadence is judged hardest.",
+    tagNamed: (n: number) => `${n} named accounts`,
     none: "No named accounts yet",
     noneWhy:
       "Mark an account strategic or key on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
@@ -532,6 +534,7 @@ export const en: Dictionary = {
     unknown_autonomy_mode: "Unknown authority level",
   },
   QUOTE_TEXT: {
+    tagCount: (n: number) => `${n} quotes`,
     title: "Quotes",
     why: 'What each deal is currently offering. The lines, the floor and the signature all existed; nothing put them together, so "what did we quote this customer" meant opening one deal at a time.',
     none: "No quotes yet",
@@ -1485,6 +1488,7 @@ export const en: Dictionary = {
   },
 
   WINLOSS_TEXT: {
+    tagPending: (n: number) => (n === 0 ? "Nothing awaiting review" : `${n} awaiting review`),
     sectionTitle: "Win/loss reviews",
     filterPending: "Awaiting review",
     filterAll: "All reviews",
@@ -1708,6 +1712,7 @@ export const en: Dictionary = {
   },
 
   ADMIN_TEXT: {
+    tagMembers: (n: number) => `${n} members`,
     title: "Administration",
     description:
       "Workspace settings. Not daily work, so it does not take sidebar room - it is reached from the top right.",
@@ -1982,6 +1987,9 @@ export const en: Dictionary = {
   // --- /pipeline ----------------------------------------------------------
 
   PIPELINE_TEXT: {
+    tagOpen: (n: number) => `${n} open`,
+    tagNoDate: (n: number) => `${n} with no close date`,
+    tagUnowned: (n: number) => `${n} unowned`,
     buyerUnreachable: "buyer unreached",
     title: "Pipeline",
     descriptionReadOnly:
@@ -2086,6 +2094,10 @@ export const en: Dictionary = {
   // --- /account -----------------------------------------------------------
 
   ACCOUNT_TEXT: {
+    tagTotal: (n: number) => `${n} customers`,
+    tagAtRisk: (n: number) => `${n} at risk`,
+    tagOverdue: (n: number) => `${n} overdue for contact`,
+    tagCompletable: (n: number) => `${n} with fillable gaps`,
     buyerUnreachable: "buyer unreached",
     title: "Accounts",
     lead: (n: number) => `${n} accounts`,
@@ -2183,6 +2195,8 @@ export const en: Dictionary = {
   // --- /campaign ----------------------------------------------------------
 
   CAMPAIGN_TEXT: {
+    tagCount: (n: number) => `${n} campaigns`,
+    tagSpend: (budget: string, won: string) => `${budget} spent, ${won} won`,
     executionsTitle: "Campaign executions",
     executionsWhy:
       'What a campaign is actually made of. The "N/M done" column above counts these - and a campaign cannot be marked complete while any is outstanding.',
@@ -2519,6 +2533,11 @@ export const en: Dictionary = {
   // --- /planning ----------------------------------------------------------
 
   PLANNING_TEXT: {
+    tagPeriod: (period: string) => `${period}`,
+    tagScopes: (n: number) => `${n} scopes`,
+    tagUnforecast: (n: number) => `${n} unforecast`,
+    tagTerritories: (n: number) => `${n} territories`,
+    tagNoOwner: (n: number) => `${n} with no owner`,
     setTarget: "Set a target",
     setTargetWhy:
       "A target's scope tuple is its identity: one target per period, scope and metric. To change the number, adjust the one that exists rather than adding a second.",
@@ -2767,6 +2786,9 @@ export const en: Dictionary = {
   // --- /copilot -----------------------------------------------------------
 
   PROPOSAL_TEXT: {
+    why: "Actions the copilot proposes and a person decides on. The machine proposes; accepting is yours (ADR-003).",
+    tagAwaiting: (n: number) => (n === 0 ? "Nothing awaiting you" : `${n} awaiting your call`),
+    tagLowConfidence: (n: number) => `${n} low confidence`,
     detailRationale: "Full rationale",
     detailPayload: "What it would change",
     detailCapability: "Proposed by",

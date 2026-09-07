@@ -146,6 +146,8 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  */
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
 export const NAMED_ACCOUNT_TEXT = {
+  why: "战略客户清单。这份名单决定信号定向盯谁，也决定跟进节奏对谁更严。",
+  tagNamed: (n: number) => `${n} 家重点客户`,
   none: "还没有重点客户",
   noneWhy:
     "在客户详情页把一家标为战略或重点，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
@@ -404,6 +406,7 @@ export const AUTONOMY_TEXT = {
 } as const;
 
 export const QUOTE_TEXT = {
+  tagCount: (n: number) => `${n} 份报价`,
   title: "报价",
   why: "每笔商机当前报出去的是什么。行项、底价和签字本来就都在，只是从没有一处把它们放在一起——「我们给这家报过什么价」以前只能一单一单翻。",
   none: "还没有报价",
@@ -1513,6 +1516,7 @@ export const HEADER_TEXT = {
 } as const;
 
 export const ADMIN_TEXT = {
+  tagMembers: (n: number) => `${n} 位成员`,
   title: "管理",
   description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
   emptyTitle: "你没有管理权限",
@@ -1680,6 +1684,9 @@ export const ADOPTION_TEXT = {
 } as const;
 
 export const PIPELINE_TEXT = {
+  tagOpen: (n: number) => `${n} 个在推进`,
+  tagNoDate: (n: number) => `${n} 个没有预计成交日`,
+  tagUnowned: (n: number) => `${n} 个无负责人`,
   title: "商机管道",
   descriptionReadOnly: "只读视图：你可以查看管道，但没有推进商机的权限。",
   description: "预测口径与快照一致，均由同一套规则计算。",
@@ -2179,6 +2186,9 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
 };
 
 export const PROPOSAL_TEXT = {
+  why: "参谋提出的动作，由人裁决。机器只提议，采纳与否你定（ADR-003）。",
+  tagAwaiting: (n: number) => (n === 0 ? "没有待裁决的" : `${n} 条待裁决`),
+  tagLowConfidence: (n: number) => `${n} 条把握不高`,
   title: "智能助手提案",
   description:
     "智能体提出建议，由人裁决。采纳后才会执行，提案内容本身不可修改。",
@@ -2459,6 +2469,10 @@ export const PLAYBOOK_SCOPE_LABEL: Record<string, string> = {
 };
 
 export const ACCOUNT_TEXT = {
+  tagTotal: (n: number) => `${n} 家客户`,
+  tagAtRisk: (n: number) => `${n} 家健康度告警`,
+  tagOverdue: (n: number) => `${n} 家跟进逾期`,
+  tagCompletable: (n: number) => `${n} 家资料可补全`,
   // The fact that used to be a board card, now beside the customer it is about.
   buyerUnreachable: "决策人未触达",
   title: "客户管理",
@@ -2801,6 +2815,11 @@ export const PROJECT_HEALTH_LABEL: Record<string, string> = {
 };
 
 export const PLANNING_TEXT = {
+  tagPeriod: (period: string) => `${period}`,
+  tagScopes: (n: number) => `${n} 个口径`,
+  tagUnforecast: (n: number) => `${n} 个未预测`,
+  tagTerritories: (n: number) => `${n} 个区域`,
+  tagNoOwner: (n: number) => `${n} 个没有负责人`,
   title: "销售规划",
   description:
     "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",
@@ -3062,6 +3081,8 @@ export const PLAN_STATUS_LABEL: Record<string, string> = {
 };
 
 export const CAMPAIGN_TEXT = {
+  tagCount: (n: number) => `${n} 个战役`,
+  tagSpend: (budget: string, won: string) => `投入 ${budget} · 赢回 ${won}`,
   executionsTitle: "战役执行项",
   executionsWhy:
     "一场战役由哪些动作构成。上面那列「N/M 完成」就是从这里数出来的——而且还有未完成项时，战役无法标记完成。",
@@ -3278,6 +3299,7 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const WINLOSS_TEXT = {
+  tagPending: (n: number) => (n === 0 ? "没有待复盘的" : `${n} 单待复盘`),
   // Its own section now, so the title names the SUBJECT rather than one of its
   // two states - the pending list is a filter of this, not the whole of it.
   sectionTitle: "总结复盘",

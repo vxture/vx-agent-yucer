@@ -4,6 +4,7 @@ import {
   Icon,
   PanelCard,
   Section,
+  StatusBadge,
   ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
@@ -72,10 +73,24 @@ export default async function AdminHomePage() {
 
   return (
     <ViewLayout>
+      {/* NOT ModuleHeadline, and the attempt is worth recording. This page is
+          not a domain MODULE - `admin` lives in ADMIN_NAV_ENTRIES rather than
+          the module tables, so moduleIcon() cannot resolve an icon for it and
+          throws. That is the registry being right: 成员与角色 is workspace
+          settings, not a link in the sales chain, and giving it a module
+          header would put it in a set it does not belong to.
+
+          The member count still moved into the title row, because a count is
+          not a title wherever it appears. */}
       <ViewHeader
         icon="settings"
         title={DOMAIN_LABEL.admin}
         description={ADMIN_TEXT.description}
+        secondary={
+          members.ok ? (
+            <StatusBadge tone="success">{ADMIN_TEXT.tagMembers(members.value.length)}</StatusBadge>
+          ) : undefined
+        }
       />
 
       {entries.length === 0 ? (
