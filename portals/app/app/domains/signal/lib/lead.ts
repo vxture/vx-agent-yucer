@@ -66,3 +66,32 @@ export function planLeadAdvance(lead: AdvancingLead, to: LeadStage): RuleResult<
 
   return ok({ status: to });
 }
+
+/**
+ * May this lead be deleted outright?
+ *
+ * DELETION IS FOR RECORDS THAT SHOULD NEVER HAVE EXISTED - a duplicate, a
+ * mis-typed company, a test row. It is NOT how a lead ends: a lead that was
+ * real and went nowhere is `disqualified`, which keeps the record and the
+ * reason. Deleting those would erase the denominator every funnel number is
+ * measured against, and next quarter's "we qualified 60%" would be counted
+ * against whatever survived.
+ *
+ * A CONVERTED LEAD CANNOT BE DELETED, and that one is not a preference. The
+ * opportunity it produced carries attribution copied from it at conversion and
+ * frozen there (ADR-016); the lead is the only record of where that came from.
+ * Deleting it leaves a deal whose provenance cannot be checked by anybody,
+ * ever - which is exactly what the frozen keys exist to prevent.
+ */
+export function planLeadDeletion(lead: AdvancingLead): RuleResult<{ id: string }> {
+  if (lead.status === "converted") {
+    return fail(
+      violation(
+        "lead_converted",
+        "a converted lead is the only record of where its deal came from",
+        "status",
+      ),
+    );
+  }
+  return ok({ id: lead.id });
+}

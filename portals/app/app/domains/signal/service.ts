@@ -23,7 +23,7 @@ import {
   type ScoreBreakdown,
   type SignalStatus,
 } from "./lib/scoring";
-import { planLeadAdvance } from "./lib/lead";
+import { planLeadAdvance, planLeadDeletion } from "./lib/lead";
 import {
   routeLead,
   type RoutingOutcome,
@@ -402,4 +402,114 @@ export async function assignLead(
 
   await ctx.store.updateLead(ctx.workspaceId, leadId, { ownerSub });
   return ok({ ownerSub });
+}
+
+/**
+ * Record a lead nobody's signal produced.
+ *
+ * 智探 IS ONE SOURCE, NOT THE ONLY ONE (owner, 2026-09-06). A lead from an
+ * exhibition, a phone call or a referral has no signal behind it, and before
+ * this verb the only way a lead could exist was `promoteSignal` - so a real
+ * enquiry could not be written down unless the machine had found it first.
+ *
+ * IT ARRIVES UNOWNED UNLESS SOMEBODY IS NAMED. That is not an oversight: a
+ * lead taken at a stand belongs to whoever ends up working it, and 智能分配
+ * exists to answer that question. `null` is the honest starting state, and the
+ * qualify gate is what stops it staying that way.
+ */
+export async function createLead(
+  ctx: SignalContext,
+  input: {
+    companyName: string;
+    contactName?: string | null;
+    accountId?: string | null;
+    ownerSub?: string | null;
+  },
+): Promise<RuleResult<LeadRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const companyName = input.companyName.trim();
+  if (!companyName) {
+    return fail(violation("company_required", "a lead needs a company", "companyName"));
+  }
+
+  return ok(
+    await ctx.store.createLead(ctx.workspaceId, {
+      companyName,
+      contactName: input.contactName?.trim() || null,
+      accountId: input.accountId ?? null,
+      // NO SIGNAL AND NO CAMPAIGN, and both are frozen attribution keys
+      // (ADR-016). A hand-entered lead is self-sourced by definition; writing
+      // a campaign here would credit a campaign that did not produce it, and
+      // the credit could never be corrected afterwards.
+      signalId: null,
+      campaignId: null,
+      // UNSCORED, not zero. Scoring is the signal rule's arithmetic over a
+      // signal's type and age, and this lead has neither - a 0 would read as
+      // "we scored it and it is worthless".
+      score: null,
+      ownerSub: input.ownerSub ?? null,
+    }),
+  );
+}
+
+/**
+ * Match a lead to a customer record.
+ *
+ * THE UNBLOCKER FOR TWO OTHER THINGS. An unmatched lead has no region, so
+ * 智能分配 cannot place it; and it has no account, so it cannot convert - an
+ * opportunity must belong to a customer. Both refusals point here.
+ *
+ * The account is writable rather than frozen: matching is a CORRECTION of an
+ * unknown, not a restatement of a decision. The frozen keys are `signal_id`
+ * and `campaign_id`, which say where the lead CAME FROM - and this does not
+ * touch them.
+ */
+export async function matchLeadAccount(
+  ctx: SignalContext,
+  leadId: string,
+  accountId: string,
+): Promise<RuleResult<{ accountId: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const lead = await ctx.store.getLead(ctx.workspaceId, leadId);
+  if (!lead) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
+  if (lead.status === "converted") {
+    // The conversion already copied this lead's account onto a deal and froze
+    // the attribution beside it. Re-pointing it now would leave the two
+    // disagreeing with no way to tell which is right.
+    return fail(violation("lead_converted", "a converted lead is final", "status"));
+  }
+
+  const applied = await ctx.store.updateLead(ctx.workspaceId, leadId, { accountId });
+  if (!applied) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
+  return ok({ accountId });
+}
+
+/**
+ * Delete a lead outright.
+ *
+ * Gated on `signal.lead.upsert` like every other lead write. The RULE decides
+ * whether this particular lead may go (planLeadDeletion); the gate decides
+ * whether this person may delete leads at all, and the two are different
+ * questions.
+ */
+export async function deleteLead(
+  ctx: SignalContext,
+  leadId: string,
+): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const lead = await ctx.store.getLead(ctx.workspaceId, leadId);
+  if (!lead) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
+
+  const plan = planLeadDeletion(lead);
+  if (!plan.ok) return plan;
+
+  const gone = await ctx.store.deleteLead(ctx.workspaceId, leadId);
+  if (!gone) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
+  return ok({ id: leadId });
 }

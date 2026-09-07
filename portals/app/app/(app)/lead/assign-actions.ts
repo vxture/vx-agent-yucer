@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getPlanningStore } from "../../domains/shared/registry";
-import { assignLead, previewRouting } from "../../domains/signal/service";
+import { assignLead, createLead, previewRouting } from "../../domains/signal/service";
 import { listTerritories } from "../../domains/planning/service";
 import { listAccounts } from "../../domains/account/service";
 import { analyseRouting, type RoutingAdvice } from "../../domains/signal/lib/routing-advice";
@@ -153,4 +153,30 @@ export async function analyseAssignments(): Promise<{
   ).filter((f) => f.kind !== "pending_assignments");
 
   return { ok: true, proposals, findings };
+}
+
+
+/** 添加线索 - the hand-entered lead. See createLead for why it arrives
+ * unowned, unscored and with no campaign. */
+export async function saveLead(input: {
+  companyName: string;
+  contactName: string | null;
+  accountId: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const r = await createLead(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.signal(),
+    },
+    input,
+  );
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/lead");
+  return { ok: true };
 }

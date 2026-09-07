@@ -7,7 +7,7 @@ import { listAccounts } from "../../domains/account/service";
 import { LeadList } from "../components/lead-list";
 import { ModuleHeadline } from "../components/module-headline";
 import { RoutingAnalyseButton } from "../components/routing-analyse-button";
-import { actOnLead } from "../signal/lead-actions";
+import { actOnLead, claimLead, matchLead, removeLead } from "../signal/lead-actions";
 import { loadFailureText } from "../lib/load-failure";
 
 // 线索管理 - its own module since 2026-09-06 (design_yucer_110).
@@ -138,6 +138,10 @@ export default async function LeadPage() {
         canTriage={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
         canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}
         onAct={actOnLead}
+        onClaim={claimLead}
+        onRemove={removeLead}
+        onMatch={matchLead}
+        accounts={(accounts.ok ? accounts.value : []).map((a) => ({ id: a.id, name: a.name }))}
       />
     </ViewLayout>
   );

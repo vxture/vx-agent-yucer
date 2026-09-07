@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { unwrap } from "../../shared/result";
-import { planLeadAdvance, type AdvancingLead } from "./lead";
+import { planLeadAdvance, planLeadDeletion, type AdvancingLead } from "./lead";
 
 const lead = (over: Partial<AdvancingLead> = {}): AdvancingLead => ({
   id: "lead_1",
@@ -47,4 +47,29 @@ test("the owner check runs on the DESTINATION, not on where it came from", () =>
   // An owned lead moving backwards is unaffected; an unowned one is stopped
   // only at the one step that asserts something.
   assert.ok(planLeadAdvance(lead({ status: "qualified", ownerSub: null }), "working").ok);
+});
+
+// --- deletion is for records that should never have existed -------------------
+
+test("a converted lead cannot be deleted - it is the deal's provenance", () => {
+  // The opportunity carries attribution copied from this lead and frozen at
+  // conversion (ADR-016). Delete the lead and no one can ever check where the
+  // deal came from.
+  const r = planLeadDeletion(lead({ status: "converted" }));
+  assert.equal(r.ok === false && r.violations[0].code, "lead_converted");
+});
+
+test("everything short of converted can be deleted", () => {
+  for (const status of ["new", "working", "qualified", "disqualified"]) {
+    assert.ok(planLeadDeletion(lead({ status })).ok, status);
+  }
+});
+
+test("deleting is not how a lead ENDS - disqualifying is", () => {
+  // Both are allowed on the same row; they mean different things. A
+  // disqualified lead stays in the denominator every funnel rate is measured
+  // against, and a deleted one does not exist to be counted.
+  const held = lead({ status: "working" });
+  assert.ok(planLeadAdvance(held, "disqualified").ok);
+  assert.ok(planLeadDeletion(held).ok);
 });

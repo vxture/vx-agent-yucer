@@ -174,6 +174,16 @@ export class PrismaSignalStore implements SignalStore {
     const res = await p.lead.updateMany({ where: { id, workspaceId }, data });
     return res.count > 0;
   }
+
+  async deleteLead(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // deleteMany rather than delete: it takes the workspace predicate in the
+    // same statement and returns a count instead of throwing on a miss, so a
+    // lead in another tenant reads as "not found" rather than as an error
+    // that says the row exists.
+    const { count } = await p.lead.deleteMany({ where: { id, workspaceId } });
+    return count > 0;
+  }
 }
 
 function toSignal(r: Record<string, unknown>): SignalRecord {

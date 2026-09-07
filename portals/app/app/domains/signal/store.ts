@@ -121,6 +121,16 @@ export interface SignalStore {
       convertedOpportunityId?: string | null;
     },
   ): Promise<boolean>;
+
+  /**
+   * Remove a lead outright.
+   *
+   * A HARD DELETE, and deliberately so. This is the "should never have
+   * existed" path - a duplicate, a mis-typed company - and a soft-deleted row
+   * that still counts in a funnel rate would defeat the point. What a lead
+   * that WAS real and went nowhere gets is `disqualified`, which keeps it.
+   */
+  deleteLead(workspaceId: string, id: string): Promise<boolean>;
 }
 
 export class InMemorySignalStore implements SignalStore {
@@ -232,6 +242,14 @@ export class InMemorySignalStore implements SignalStore {
   async getLead(workspaceId: string, id: string): Promise<LeadRecord | null> {
     const l = this.leads.get(id);
     return l && l.workspaceId === workspaceId ? { ...l } : null;
+  }
+
+  async deleteLead(workspaceId: string, id: string): Promise<boolean> {
+    const held = this.leads.get(id);
+    // The workspace check is the tenant boundary, not a formality: the id
+    // alone is enough to address any row in the map.
+    if (!held || held.workspaceId !== workspaceId) return false;
+    return this.leads.delete(id);
   }
 
   async updateLead(

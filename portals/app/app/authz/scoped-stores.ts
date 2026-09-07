@@ -174,4 +174,8 @@ class ScopedSignalStore implements SignalStore {
   getSignal: SignalStore["getSignal"] = (...a) => this.inner.getSignal(...a);
   createLead: SignalStore["createLead"] = (...a) => this.inner.createLead(...a);
   updateLead: SignalStore["updateLead"] = (...a) => this.inner.updateLead(...a);
+  // Pass-through like the rest: WHO may delete is the permission gate's
+  // question and WHETHER this lead may be is the rule's, and neither of them
+  // lives in a data-scope wrapper.
+  deleteLead: SignalStore["deleteLead"] = (...a) => this.inner.deleteLead(...a);
 }
