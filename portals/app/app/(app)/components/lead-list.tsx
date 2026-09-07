@@ -225,7 +225,14 @@ export function LeadList({
 
   // The owners actually present, so the filter never offers a name that would
   // return nothing.
-  const owners = [...new Set(leads.map((l) => l.ownerSub).filter((o): o is string => o !== null))].sort();
+  // Sorted with `localeCompare`, and here it MATTERS rather than being a
+  // formality: this list is read by a person picking a name out of a dropdown.
+  // Today the values are ASCII subject ids, where a bare `.sort()` agrees; the
+  // day a display-name directory lands, a code-unit sort puts Chinese names in
+  // an order no reader can follow.
+  const owners = [
+    ...new Set(leads.map((l) => l.ownerSub).filter((o): o is string => o !== null)),
+  ].sort((a, b) => a.localeCompare(b));
   const remove = (id: string) => run(id, onRemove);
 
   const columns: readonly DataTableColumn<LeadRecord>[] = [

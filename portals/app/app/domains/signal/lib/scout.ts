@@ -215,7 +215,12 @@ export function clusterByCompany(signals: readonly ScoutSignal[]): SignalCluster
       subject: g[0].subject,
       accountId: g[0].accountId,
       signalIds: g.map((s) => s.id),
-      types: [...new Set(g.map((s) => s.signalType))].sort(),
+      /* Sorted with an explicit comparator. A bare `.sort()` orders by UTF-16
+         code unit, which happens to be right for these ASCII type codes and
+         silently stops being right the day one of them is not ASCII. */
+      types: [...new Set(g.map((s) => s.signalType))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
     }))
     // Most signals first, ties broken on the key so two runs agree.
     .sort((a, b) =>

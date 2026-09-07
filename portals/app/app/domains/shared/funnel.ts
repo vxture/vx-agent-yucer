@@ -113,6 +113,14 @@ export function readFunnel(
     biggestLeak:
       ended.length === 0
         ? null
-        : ended.reduce((worst, s) => (s.exited > worst.exited ? s : worst)),
+        : /* SEEDED WITH ended[0] rather than relying on the no-seed form. The
+             empty case is already guarded above, so the no-seed version could
+             not actually throw - but "it cannot be empty because of a ternary
+             three lines up" is a fact about this file today, not a property of
+             the call. Seeding makes the call safe on its own terms. */
+          ended.slice(1).reduce(
+            (worst, s) => (s.exited > worst.exited ? s : worst),
+            ended[0],
+          ),
   };
 }
