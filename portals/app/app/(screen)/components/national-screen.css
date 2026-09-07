@@ -26,6 +26,10 @@
   --screen-accent: var(--vx-color-sky-400);
   --screen-accent-hi: var(--vx-color-sky-300);
   --screen-warn: var(--vx-color-amber-400);
+  /* Overdue money only. Kept apart from --screen-warn: amber is the figure the
+     owner asked to STAND OUT, red is the figure that is WRONG, and a screen
+     that spends its one red on emphasis has nothing left to say "late" with. */
+  --screen-danger: var(--vx-color-red-400);
 
   /* Sequential ramp, sky-900 -> sky-300. The DS has no scale tokens for a
      choropleth, so this walks its own sky family rather than inventing hues. */
@@ -123,7 +127,13 @@
 /* ---------- deck ---------- */
 .screen-deck { flex: 1; min-height: 0; display: flex; align-items: stretch; }
 .screen-rail {
-  width: 20rem; flex: none; min-width: 0; overflow: hidden;
+  /* overflow-x hidden is what makes the fold work - the rail animates to zero
+     width and the content must not spill. overflow-y is AUTO, not hidden,
+     because the screen is built for a 1080-tall wall display and a shorter
+     window would otherwise cut the last panel off with nothing to show that it
+     had: a figure that is silently absent reads as a figure that is zero. */
+  width: 20rem; flex: none; min-width: 0;
+  overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
   display: flex; flex-direction: column; gap: var(--space-lg);
   padding: var(--space-md) var(--space-lg) var(--space-md);
   transition: width 0.28s ease, padding 0.28s ease;
@@ -131,28 +141,85 @@
 .screen-rail.folded { width: 0; padding-left: 0; padding-right: 0; }
 .screen-mod { display: flex; flex-direction: column; }
 .screen-mod-grow { flex: 1; min-height: 0; }
-.screen-mod h2 {
-  margin: 0 0 var(--space-xs);
-  font-size: 0.86rem; font-weight: 700; letter-spacing: 0.14em;
-  color: var(--screen-ink);
+
+/* The panel header: title left, step right, on one rule. The step is the
+   reading ORDER through the six panels - 01 leads, 05 collections - which is a
+   real sequence, so numbering it says something rather than decorating it. */
+.screen-mod-hd {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--space-xs); margin-bottom: var(--space-xs);
   padding-bottom: var(--space-2xs);
   border-bottom: 1px solid var(--screen-line);
 }
+.screen-mod-hd h2 {
+  margin: 0; font-size: 0.86rem; font-weight: 700; letter-spacing: 0.14em;
+  color: var(--screen-ink);
+}
+.screen-step {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
+  color: var(--screen-faint); font-variant-numeric: tabular-nums;
+}
+
 .screen-lead {
   font-size: 2rem; font-weight: 700; line-height: 1.05;
   color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
 }
 .screen-lead small { font-size: 0.8rem; color: var(--screen-faint); margin-left: 4px; font-weight: 600; }
 .screen-sub { margin-top: 2px; font-size: 0.72rem; color: var(--screen-faint); }
-
-.screen-rank { list-style: none; margin: var(--space-sm) 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.screen-rank li { display: flex; align-items: center; gap: var(--space-2xs); font-size: 0.78rem; }
-.screen-rank span { color: var(--screen-dim); min-width: 3.5rem; }
-.screen-rank i { flex: 1; height: 8px; border-radius: 2px; }
-.screen-rank b {
-  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
-  font-weight: 700; min-width: 4.5rem; text-align: right;
+/* One line, not a second stacked figure: the 30-day pair explains the hero
+   rate above it and must not compete with it for the eye. */
+.screen-note {
+  margin-top: var(--space-2xs); font-size: 0.72rem; color: var(--screen-dim);
+  font-variant-numeric: tabular-nums;
 }
+
+/* The secondary cells, side by side on one line. Two at most - a third turns
+   the panel into a table and the hero figure stops being the hero. */
+.screen-cells {
+  display: flex; gap: var(--space-md); margin-top: var(--space-sm);
+  padding-top: var(--space-2xs);
+}
+.screen-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.screen-cell .k {
+  font-size: 0.68rem; letter-spacing: 0.08em; color: var(--screen-faint);
+  white-space: nowrap;
+}
+.screen-cell .v {
+  font-size: 1.02rem; font-weight: 700; color: var(--screen-ink);
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+/* Tone is the reading's MEANING, and each one is a DS token: overdue money is
+   the product's danger, an unclaimed lead is merely waiting, health is the
+   figure the owner asked to stand out from the other three. */
+.screen-cell .v.hi { color: var(--screen-warn); }
+.screen-cell .v.warn { color: var(--screen-accent-hi); }
+.screen-cell .v.danger { color: var(--screen-danger); }
+
+/* The bar strip. The value is small until the row is hovered (owner,
+   2026-09-07), so six figures cannot out-shout the panel's hero number. */
+.screen-bars {
+  list-style: none; margin: var(--space-sm) 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.screen-bars li { display: flex; align-items: center; gap: var(--space-2xs); }
+.screen-bars .p {
+  font-size: 0.72rem; color: var(--screen-dim); min-width: 3.2rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.screen-bars i {
+  flex: 1; height: 7px; border-radius: 2px; min-width: 0;
+  background: var(--screen-blank); overflow: hidden; display: block;
+}
+.screen-bars em {
+  display: block; height: 100%; border-radius: 2px;
+  background: linear-gradient(90deg, var(--screen-l2), var(--screen-l5));
+}
+.screen-bars b {
+  font-size: 0.66rem; font-weight: 700; color: var(--screen-dim);
+  font-variant-numeric: tabular-nums; min-width: 4.2rem; text-align: right;
+  transition: font-size 0.15s ease, color 0.15s ease;
+}
+.screen-bars li:hover b { font-size: 0.86rem; color: var(--screen-accent-hi); }
 
 /* ---------- arena ---------- */
 .screen-arena { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -244,7 +311,7 @@
 
 /* The fold bracket. Drawn rather than imported - see TD-025. */
 .screen-arc {
-  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  position: relative; align-self: center; flex: none;
   z-index: 6; width: 1.4rem; height: min(45%, 22rem); cursor: pointer;
   background: none; border: none; padding: 0;
 }
@@ -254,7 +321,12 @@
   clip-path: polygon(60% 0, 100% 6%, 100% 94%, 60% 100%, 40% 50%);
   transition: opacity 0.2s;
 }
+/* ONE GRAPHIC, MIRRORED. The right bracket is the left one flipped; folded
+   state flips it again, so the caret always points where the rail is about to
+   go rather than where it came from. */
+.screen-arc-r span { transform: scaleX(-1); }
 .screen-arc.folded span { transform: scaleX(-1); }
+.screen-arc-r.folded span { transform: none; }
 .screen-arc:hover span { opacity: 1; }
 
 /* ---------- 漏斗带 ---------- */

@@ -81,6 +81,110 @@ function frameFor(level: Level, scope: readonly ProvinceRollup[]) {
   return [cx - vw / 2, cy - vh / 2, vw, vh] as const;
 }
 
+/* --- The panel primitives ----------------------------------------------------
+   Six panels of the same shape: a title with its step, ONE hero figure, at most
+   two secondary cells on one line, and an optional bar strip. The shape is the
+   point - a panel that invents its own layout makes the rail read as six
+   unrelated widgets rather than one instrument. */
+
+function Panel(
+  { step, title, grow, children }:
+  { step: string; title: string; grow?: boolean; children: React.ReactNode },
+) {
+  return (
+    <section className={`screen-mod${grow ? " screen-mod-grow" : ""}`}>
+      <div className="screen-mod-hd">
+        <h2>{title}</h2>
+        <span className="screen-step">{step}</span>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** The one big number. `unit` is separated so it can be set smaller. */
+function Lead({ value, unit, label }: { value: string; unit?: string; label?: string }) {
+  return (
+    <>
+      <div className="screen-lead">
+        {value}
+        {unit ? <small>{unit}</small> : null}
+      </div>
+      {label ? <div className="screen-sub">{label}</div> : null}
+    </>
+  );
+}
+
+const Cells = ({ children }: { children: React.ReactNode }) => (
+  <div className="screen-cells">{children}</div>
+);
+
+function Cell(
+  { k, v, warn, danger, hi }:
+  { k: string; v: string; warn?: boolean; danger?: boolean; hi?: boolean },
+) {
+  // The tone is the READING's meaning, not a palette position: an overdue
+  // figure is the product's danger, an unclaimed lead is merely waiting.
+  const tone = danger ? " danger" : warn ? " warn" : hi ? " hi" : "";
+  return (
+    <div className="screen-cell">
+      <span className="k">{k}</span>
+      <b className={`v${tone}`}>{v}</b>
+    </div>
+  );
+}
+
+/**
+ * The bar strip: the scope's leading provinces on one measure.
+ *
+ * The value sits small beside its bar and grows on hover (owner, 2026-09-07) -
+ * six figures at full size would out-shout the hero number the panel is built
+ * around, and hiding them entirely makes the bars decorative.
+ */
+function Bars(
+  { rows, fmt }: { rows: readonly { province: string; value: number }[]; fmt: (v: number) => string },
+) {
+  if (rows.length === 0) return null;
+  const top = rows[0]!.value || 1;
+  return (
+    <ul className="screen-bars">
+      {rows.map((r) => (
+        <li key={r.province}>
+          <span className="p">{shortProvince(r.province)}</span>
+          <i><em style={{ width: `${Math.max(2, (r.value / top) * 100)}%` }} /></i>
+          <b>{fmt(r.value)}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The fold bracket, one per rail.
+ *
+ * ONE GRAPHIC, MIRRORED (owner, 2026-09-07): the right-hand bracket is the left
+ * one flipped, never a second shape. Both drive the SAME state, so either click
+ * folds and unfolds both rails together - the rails are one gesture, not two
+ * independent panels. The caret points where the rail is ABOUT to go, which is
+ * the direction a reader checks before clicking, not the one it came from.
+ */
+function FoldArc(
+  { side, folded, onToggle, label }:
+  { side: "l" | "r"; folded: boolean; onToggle: () => void; label: string },
+) {
+  return (
+    <button
+      type="button"
+      className={`screen-arc screen-arc-${side}${folded ? " folded" : ""}`}
+      aria-expanded={!folded}
+      aria-label={label}
+      onClick={onToggle}
+    >
+      <span aria-hidden />
+    </button>
+  );
+}
+
 export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   const { SCREEN_TEXT } = useMessages();
   const units = {
@@ -156,6 +260,24 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
     return `var(--screen-l${Math.min(5, Math.max(0, Math.round(t * 5)))})`;
   };
 
+  const pct = (v: number | null) =>
+    v === null ? SCREEN_TEXT.noReading : `${(v * 100).toFixed(1)}%`;
+  const moneyLead = (v: number) => {
+    const m = cash(v);
+    return { value: m.n, unit: m.u };
+  };
+  /* The leading provinces IN THE CURRENT SCOPE on one measure. Drilling into a
+     region re-ranks against that region, so a panel never shows a province the
+     map is not drawing. Zero-valued rows are dropped rather than drawn as a
+     stub: an empty bar says "we measured nothing here", which is not the same
+     as "there is nothing here". */
+  const rankBy = (read: (p: ProvinceRollup) => number) =>
+    [...scope]
+      .map((p) => ({ province: p.province, value: read(p) }))
+      .filter((r) => r.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
   const fmtMetric = (v: number | null): string => {
     if (v === null) return SCREEN_TEXT.noReading;
     if (metric === "healthRate") return `${(v * 100).toFixed(1)}%`;
@@ -177,9 +299,6 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
     { id: "healthRate", label: SCREEN_TEXT.metricHealth, rate: true },
   ];
 
-  const ranked = [...scope].sort(
-    (a, b) => (readMetric(b) ?? -1) - (readMetric(a) ?? -1),
-  ).slice(0, 6);
 
   return (
     <div className="screen">
@@ -218,46 +337,43 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
 
       <div className="screen-deck">
         <aside className={`screen-rail${railsFolded ? " folded" : ""}`}>
-          <section className="screen-mod">
-            <h2>{SCREEN_TEXT.metricContract}</h2>
-            <div className="screen-lead">
-              {cash(total.contractValue).n}
-              <small>{cash(total.contractValue).u}</small>
-            </div>
-            <div className="screen-sub">
-              {SCREEN_TEXT.funnelContract} · {num(total.wonDeals)}
-            </div>
-          </section>
+          <Panel step="01" title={SCREEN_TEXT.panelLeads}>
+            <Lead value={num(total.leadsNew)} label={SCREEN_TEXT.cellLeadsNew} />
+            <Cells>
+              <Cell k={SCREEN_TEXT.cellLeadsUnclaimed} v={num(total.leadsUnclaimed)} warn={total.leadsUnclaimed > 0} />
+              <Cell k={SCREEN_TEXT.cellLeadConversion} v={pct(total.leadConversion)} />
+            </Cells>
+            <Bars rows={rankBy((p) => p.leads)} fmt={(v) => num(v)} />
+          </Panel>
 
-          <section className="screen-mod">
-            <h2>{SCREEN_TEXT.metricPipeline}</h2>
-            <div className="screen-lead">
-              {cash(total.pipelineValue).n}
-              <small>{cash(total.pipelineValue).u}</small>
-            </div>
-            <div className="screen-sub">
-              {SCREEN_TEXT.openDeals} · {num(total.openDeals)}
-            </div>
-          </section>
+          <Panel step="02" title={SCREEN_TEXT.panelPipeline}>
+            <Lead {...moneyLead(total.pipelineValue)} label={SCREEN_TEXT.cellPipelineValue} />
+            <Cells>
+              <Cell k={SCREEN_TEXT.cellOpenDeals} v={num(total.openDeals)} />
+              <Cell
+                k={SCREEN_TEXT.cellAvgDeal}
+                v={total.openDeals === 0 ? SCREEN_TEXT.noReading
+                  : cash(total.pipelineValue / total.openDeals).n + cash(total.pipelineValue / total.openDeals).u}
+              />
+            </Cells>
+          </Panel>
 
-          <section className="screen-mod screen-mod-grow">
-            <h2>{SCREEN_TEXT.metricHealth}</h2>
-            <div className="screen-lead">
-              {total.healthRate === null
-                ? SCREEN_TEXT.noReading
-                : `${(total.healthRate * 100).toFixed(1)}%`}
-            </div>
-            <ul className="screen-rank">
-              {ranked.map((p) => (
-                <li key={p.province}>
-                  <span>{shortProvince(p.province)}</span>
-                  <i style={{ background: shadeOf(p) }} />
-                  <b>{fmtMetric(readMetric(p))}</b>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <Panel step="03" title={SCREEN_TEXT.panelContract} grow>
+            <Lead {...moneyLead(total.contractValue)} label={SCREEN_TEXT.cellContractValue} />
+            <Cells>
+              <Cell k={SCREEN_TEXT.cellWonDeals} v={num(total.wonDeals)} />
+              <Cell k={SCREEN_TEXT.cellWinRate} v={pct(total.winRate)} />
+            </Cells>
+            <Bars rows={rankBy((p) => p.contractValue)} fmt={(v) => cash(v).n + cash(v).u} />
+          </Panel>
         </aside>
+
+        <FoldArc
+          side="l"
+          folded={railsFolded}
+          onToggle={() => setRailsFolded((v) => !v)}
+          label={railsFolded ? SCREEN_TEXT.unfoldRails : SCREEN_TEXT.foldRails}
+        />
 
         <section className="screen-arena">
           <div className="screen-bar">
@@ -417,15 +533,6 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
               ))}
               <span>{fmtMetric(values.length ? hi : null)}</span>
             </div>
-
-            <button
-              type="button"
-              className={`screen-arc${railsFolded ? " folded" : ""}`}
-              aria-expanded={!railsFolded}
-              onClick={() => setRailsFolded((v) => !v)}
-            >
-              <span aria-hidden />
-            </button>
           </div>
 
           {/* 漏斗带 - the stages in money order, largest type on the screen.
@@ -450,6 +557,53 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
             </div>
           </div>
         </section>
+
+        <FoldArc
+          side="r"
+          folded={railsFolded}
+          onToggle={() => setRailsFolded((v) => !v)}
+          label={railsFolded ? SCREEN_TEXT.unfoldRails : SCREEN_TEXT.foldRails}
+        />
+
+        <aside className={`screen-rail screen-rail-r${railsFolded ? " folded" : ""}`}>
+          {/* 智能副驾 at the top, where the eye lands first (owner, 2026-09-07).
+              主副 layout: one hero figure, the rest kept to a single line each,
+              because four flat numbers in a column read as a table nobody
+              totals. */}
+          <Panel title={SCREEN_TEXT.panelCopilot} step="AI">
+            <Lead value={pct(total.adoption)} label={SCREEN_TEXT.cellAdoption} />
+            <div className="screen-note">
+              {SCREEN_TEXT.cellAdoptionSub(total.accepted30, total.proposals30)}
+            </div>
+            <Cells>
+              <Cell k={SCREEN_TEXT.cellPending} v={num(total.pending)} warn={total.pending > 0} />
+            </Cells>
+          </Panel>
+
+          <Panel step="04" title={SCREEN_TEXT.panelDelivery}>
+            <Lead {...moneyLead(total.inDelivery)} label={SCREEN_TEXT.cellInDelivery} />
+            <Cells>
+              <Cell k={SCREEN_TEXT.cellProjectsLive} v={num(total.projectsLive)} />
+              <Cell k={SCREEN_TEXT.cellHealth} v={pct(total.healthRate)} hi />
+            </Cells>
+          </Panel>
+
+          <Panel step="05" title={SCREEN_TEXT.panelCollection} grow>
+            <Lead {...moneyLead(total.collected)} label={SCREEN_TEXT.cellCollected} />
+            <Cells>
+              <Cell
+                k={SCREEN_TEXT.cellReceivable}
+                v={cash(total.receivable).n + cash(total.receivable).u}
+              />
+              <Cell
+                k={SCREEN_TEXT.cellOverdue}
+                v={cash(total.overdue).n + cash(total.overdue).u}
+                danger={total.overdue > 0}
+              />
+            </Cells>
+            <Bars rows={rankBy((p) => p.collected)} fmt={(v) => cash(v).n + cash(v).u} />
+          </Panel>
+        </aside>
       </div>
     </div>
   );

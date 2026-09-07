@@ -2337,7 +2337,7 @@ export const SCREEN_TEXT = {
   deniedTitle: "无法显示态势屏",
   /** Says WHICH gate, without naming permissions a reader cannot act on. */
   deniedDescription:
-    "态势屏汇总客户、商机与交付三类数据，需要同时具备这三项的查看权限。缺少其中任意一项时不做部分展示——少算的全国数字比不展示更糟。",
+    "态势屏汇总线索、商机、合同、副驾、交付与回款六个面，需要同时具备客户、商机、交付、线索与副驾五项查看权限。缺少其中任意一项时不做部分展示——少算的全国数字比不展示更糟。",
   home: "平台首页",
   provinceCount: "覆盖省份",
   openDeals: "在跑商机",
@@ -2364,6 +2364,40 @@ export const SCREEN_TEXT = {
   unitWan: "万元",
   unitYuan: "元",
   accountsUnit: (n: number) => `${n} 家`,
+  // 六个板块 (D1-D7 的态势切面). 每个板块一个主数字 + 两个副数字。
+  panelLeads: "线索供给",
+  panelPipeline: "商机储备",
+  panelContract: "签约合同",
+  panelCopilot: "智能副驾",
+  panelDelivery: "交付履约",
+  panelCollection: "回款兑现",
+  // 线索供给. 「新线索」而非「本期新增」: 线索表的 created_at 没有出现在
+  // LeadRecord 上, 按状态取 new 是数据真正支持的口径, 不假造一个时间窗。
+  cellLeadsNew: "新线索",
+  cellLeadsUnclaimed: "待认领",
+  cellLeadConversion: "转商机率",
+  // 商机储备. 「均单值」是商机额 / 在跑商机, 由现有数据直接得出。
+  cellPipelineValue: "商机金额",
+  cellOpenDeals: "在跑商机",
+  cellAvgDeal: "均单值",
+  // 签约合同
+  cellContractValue: "合同额",
+  cellWonDeals: "签约数",
+  cellWinRate: "赢率",
+  // 智能副驾
+  cellAdoption: "提案采纳率",
+  cellAdoptionSub: (a: number, n: number) => `${a} / ${n} 已采纳 · 近 30 天提案`,
+  cellPending: "待裁决队列",
+  // 交付履约
+  cellInDelivery: "在交付合同额",
+  cellProjectsLive: "在建项目",
+  cellHealth: "健康度",
+  // 回款兑现
+  cellCollected: "已回款",
+  cellReceivable: "应收余额",
+  cellOverdue: "逾期",
+  foldRails: "收起两侧",
+  unfoldRails: "展开两侧",
   dealsUnit: (n: number) => `${n} 个`,
 } as const;
 

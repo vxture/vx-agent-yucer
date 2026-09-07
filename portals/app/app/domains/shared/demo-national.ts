@@ -118,10 +118,70 @@ export interface NationalProject {
   readonly health: "green" | "amber" | "red";
 }
 
+export interface NationalLead {
+  readonly id: string;
+  readonly n: number;
+  readonly companyName: string;
+  readonly accountId: string;
+  /** Non-null exactly when the lead converted - see the seeding note. */
+  readonly signalId: string | null;
+  readonly score: number;
+  readonly ownerSub: string | null;
+  readonly status: string;
+  readonly convertedOpportunityId: string | null;
+}
+
+export interface NationalSignal {
+  readonly id: string;
+  readonly accountId: string;
+  readonly subject: string;
+  readonly signalType: string;
+  readonly score: number;
+  readonly agedDays: number;
+}
+
+export interface NationalMilestone {
+  readonly id: string;
+  readonly projectId: string;
+  readonly name: string;
+  readonly sequence: number;
+  readonly status: string;
+  readonly dueInDays: number;
+  readonly doneInDays: number | null;
+}
+
+export interface NationalInstalment {
+  readonly id: string;
+  readonly projectId: string;
+  readonly milestoneId: string;
+  readonly sequence: number;
+  readonly status: string;
+  readonly planned: number;
+  readonly actual: number | null;
+  readonly dueInDays: number;
+  readonly settledInDays: number | null;
+}
+
+export interface NationalProposal {
+  readonly id: string;
+  readonly status: string;
+  readonly actionType: string;
+  readonly subjectType: string;
+  readonly subjectId: string;
+  readonly confidence: number;
+  readonly decidedBySub: string | null;
+  readonly agedDays: number;
+}
+
 export interface NationalCohort {
   readonly accounts: readonly NationalAccount[];
   readonly opportunities: readonly NationalOpportunity[];
   readonly projects: readonly NationalProject[];
+  readonly leads: readonly NationalLead[];
+  readonly signals: readonly NationalSignal[];
+  readonly milestones: readonly NationalMilestone[];
+  readonly instalments: readonly NationalInstalment[];
+  readonly proposals: readonly NationalProposal[];
 }
 
 /**
@@ -148,8 +208,13 @@ export function buildNationalCohort(
   const accounts: NationalAccount[] = [];
   const opportunities: NationalOpportunity[] = [];
   const projects: NationalProject[] = [];
+  const leads: NationalLead[] = [];
+  const signals: NationalSignal[] = [];
+  const milestones: NationalMilestone[] = [];
+  const instalments: NationalInstalment[] = [];
+  const proposals: NationalProposal[] = [];
 
-  let a = 0, o = 0, p = 0;
+  let a = 0, o = 0, p = 0, l = 0, m = 0, inst = 0, pr = 0, sg = 0;
 
   for (const [region, provinces] of Object.entries(PROVINCES_BY_REGION)) {
     for (const province of provinces) {
@@ -186,6 +251,7 @@ export function buildNationalCohort(
         });
 
         const deals = 1 + Math.floor(r() * 2);
+        const oppIds: string[] = [];
         for (let d = 0; d < deals; d++) {
           o += 1;
           const roll = r();
@@ -200,6 +266,7 @@ export function buildNationalCohort(
           const probability =
             status === "won" ? 100 : status === "lost" ? 0
             : ({ discover: 20, qualify: 30, validate: 50, negotiate: 80 } as Record<string, number>)[stage]!;
+          oppIds.push(`opp_nat_${o}`);
           opportunities.push({
             id: `opp_nat_${o}`, n: 100 + o,
             name: `${short}${["数字化平台", "供应链系统", "数据中台", "智能运营", "客户中心"][o % 5]}`,
@@ -216,10 +283,25 @@ export function buildNationalCohort(
               : stage === "validate" ? "best_case" : "pipeline",
             amount,
             probability,
+            /* STRICTLY INSIDE the live quarter, and CLAMPED rather than nudged.
+               maxClosedDaysBack is whole days since the quarter began, but the
+               clock carries a time of day, so closing exactly that many days
+               back lands a few hours inside the PREVIOUS quarter. Two deals
+               went there and moved the settled quarter's actual from 3.2M to
+               5.29M - the pair of figures the scorecard exists to contrast.
+
+               Subtracting a constant is not the fix: on the first days of a
+               quarter there is no room for a deal to have closed at all, and
+               any fixed margin still walks off the end. The ceiling is one day
+               short of the quarter's own age, and zero - closing today - is a
+               legitimate result of it. */
             closeInDays:
               status === "open"
                 ? Math.round(12 + r() * 150)
-                : -Math.max(2, Math.round(2 + r() * Math.max(1, maxClosedDaysBack - 2))),
+                : -Math.max(0, Math.min(
+                    Math.round(r() * (maxClosedDaysBack - 1)),
+                    maxClosedDaysBack - 1,
+                  )),
             status,
           });
 
@@ -227,22 +309,149 @@ export function buildNationalCohort(
           if (status === "won") {
             p += 1;
             const hr = r();
+            const projectId = `prj_nat_${p}`;
+            const live = hr < 0.62;
             projects.push({
-              id: `prj_nat_${p}`, n: 100 + p,
+              id: projectId, n: 100 + p,
               name: `${short}交付项目${p}`,
               accountId: id,
               opportunityId: `opp_nat_${o}`,
               contract: amount,
-              status: hr < 0.62 ? "delivering" : hr < 0.86 ? "delivered" : "closed",
-              health: hr < 0.62 ? "green" : hr < 0.86 ? "amber" : "red",
+              status: live ? "delivering" : hr < 0.86 ? "delivered" : "closed",
+              health: live ? "green" : hr < 0.86 ? "amber" : "red",
+            });
+
+            /* THE SCHEDULE, in two instalments against two gates.
+               回款兑现 reads instalments, not contracts, so a cohort with none
+               left the panel reading 0 while 合同额 read tens of millions -
+               two figures about the same money that could not both be right.
+               Money with no gate does not exist here (incr/0032 makes
+               milestone_id NOT NULL), so each instalment gets its own. */
+            // The two instalments must add to the contract EXACTLY. Rounding
+            // both halves left a few yuan unbilled per project, which is a
+            // schedule that does not add up to the thing it is billing.
+            const half = Math.floor(amount / 2);
+            const halves = [half, amount - half];
+            for (let k = 0; k < 2; k++) {
+              m += 1; inst += 1;
+              const msId = `ms_nat_${m}`;
+              // First instalment is behind us, second is ahead - a schedule
+              // where everything is due on the same day is not a schedule.
+              const dueInDays = k === 0 ? -Math.round(8 + r() * 70) : Math.round(10 + r() * 80);
+              const roll = r();
+              /* A FINISHED PROJECT HAS BEEN PAID FOR. Leaving a delivered
+                 project's money outstanding would report a receivable against
+                 work that is over, which is the one reading this panel must
+                 never produce. */
+              const settled = !live || (k === 0 && roll < 0.72);
+              const late = !settled && dueInDays < 0;
+              milestones.push({
+                id: msId, projectId,
+                name: `${short}节点${k + 1}`,
+                sequence: k + 1,
+                status: settled ? "done" : late ? "missed" : "pending",
+                dueInDays,
+                doneInDays: settled ? dueInDays + 1 : null,
+              });
+              instalments.push({
+                id: `inst_nat_${inst}`,
+                projectId, milestoneId: msId, sequence: k + 1,
+                status: settled ? "settled" : late ? "overdue" : roll < 0.85 ? "invoiced" : "planned",
+                planned: halves[k]!,
+                // Short payment happens; a fixture where actual always equals
+                // planned cannot show the gap the domain exists to track.
+                actual: settled ? (roll < 0.12 ? Math.round(halves[k]! * 0.92) : halves[k]!) : null,
+                dueInDays,
+                settledInDays: settled ? dueInDays + 1 : null,
+              });
+            }
+          }
+
+          /* THE COPILOT HAS AN OPINION ABOUT SOME OF THESE. Roughly one deal in
+             four, so 智能副驾 has a queue and a 30-day history to rate rather
+             than the five curated rows, which are all in one province. The
+             statuses spread across the window on purpose: a pending row is a
+             QUEUE (any age), an accepted or rejected one is a DECISION inside
+             the window, and expired rows are neither. */
+          const pRoll = r();
+          if (pRoll < 0.26) {
+            pr += 1;
+            const decided = pRoll < 0.16;
+            const accepted = pRoll < 0.11;
+            proposals.push({
+              id: `act_nat_${pr}`,
+              status: accepted ? "accepted" : decided ? "rejected" : "proposed",
+              actionType: status === "open" ? "advance_stage" : "draft_outreach",
+              subjectType: status === "open" ? "opportunity" : "account",
+              subjectId: status === "open" ? `opp_nat_${o}` : id,
+              confidence: Math.round(40 + r() * 55),
+              decidedBySub: decided ? owners[0]! : null,
+              /* Inside the 30-day window the panel rates AND inside the 7-day
+                 proposal TTL. The demo owns exactly one proposal old enough for
+                 the expiry sweep to retire (act_demo_6) because that is how the
+                 rule is shown working; cohort rows crossing the TTL would bury
+                 it in a crowd and the demonstration would be lost. */
+              agedDays: 1 + Math.round(r() * 4),
             });
           }
+        }
+
+        /* 线索供给 gets its own rows, ATTACHED TO AN ACCOUNT on purpose.
+           A lead reaches a province only through the account it was matched
+           to, so leads with no account - the common real state, and what the
+           curated fixture already shows - are invisible on this map. The
+           cohort therefore seeds matched ones: without them the panel read
+           five leads nationally while the map showed ninety-eight customers.
+
+           The mix is the point, not the count: one unowned (线索分派 exists
+           because leads arrive with nobody on them), some converted so
+           转商机率 is a real ratio rather than 0% or 100%. */
+        const leadCount = 1 + Math.floor(r() * 3);
+        for (let k = 0; k < leadCount; k++) {
+          l += 1;
+          const roll = r();
+          /* CONVERTED MEANS IT CONVERTED INTO SOMETHING. A lead marked
+             converted whose signal and opportunity are both null is not a
+             sparse row, it is an incoherent one - the seed's own invariant
+             test says so - so a cohort lead converts only when the account has
+             an opportunity to have converted into, and carries the signal it
+             came from. Attribution keys are frozen after creation (ADR-003),
+             which is exactly why they have to be right at creation. */
+          const converted = roll < 0.34 && oppIds.length > 0;
+          let signalId: string | null = null;
+          if (converted) {
+            sg += 1;
+            signalId = `sig_nat_${sg}`;
+            signals.push({
+              id: signalId,
+              accountId: id,
+              subject: `${name}${["招标公示", "扩产计划", "系统升级"][sg % 3]}`,
+              signalType: (["tender", "intent", "tech_change"] as const)[sg % 3]!,
+              score: Math.round(45 + r() * 50),
+              agedDays: Math.round(20 + r() * 90),
+            });
+          }
+          leads.push({
+            id: `lead_nat_${l}`, n: 100 + l,
+            companyName: name,
+            accountId: id,
+            signalId,
+            score: Math.round(30 + r() * 65),
+            // Every fourth lead arrives unclaimed, which is the state 待认领
+            // counts and the reason the figure is worth a cell at all.
+            ownerSub: roll < 0.25 ? null : owners[a % owners.length]!,
+            status: converted ? "converted" : roll < 0.5 ? "qualified" : roll < 0.78 ? "working" : "new",
+            convertedOpportunityId: converted ? oppIds[sg % oppIds.length]! : null,
+          });
         }
       }
     }
   }
 
-  return { accounts, opportunities, projects };
+  return {
+    accounts, opportunities, projects,
+    leads, signals, milestones, instalments, proposals,
+  };
 }
 
 /** Every province the cohort touches - used by the screen's roll-up and tests. */

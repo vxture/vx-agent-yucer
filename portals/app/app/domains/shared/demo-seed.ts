@@ -107,6 +107,8 @@ export const DEMO_NOW = new Date();
 const NOW = DEMO_NOW;
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
 const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+/** Signed offset: the cohort carries one number per date, negative for the past. */
+const offsetDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
 const CNY = "CNY";
 const REP1 = "usr_demo_rep";
@@ -792,6 +794,14 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       signal("sig_demo_6", workspaceId, "crm", "crm-3312", "tech_change", DEMO_SIGNALS[5], "acc_demo_2", 58, "scored", 18),
       signal("sig_demo_7", workspaceId, "web", "https://tender.example/7781", "intent", DEMO_SIGNALS[6], "acc_demo_4", 83, "promoted", 22),
       signal("sig_demo_8", workspaceId, "news", "https://news.example/conf/551", "engagement", DEMO_SIGNALS[7], null, 33, "duplicate", 60),
+      // 全国样本. Seeded ONLY for cohort leads that actually converted - a
+      // converted lead whose signal does not exist is the incoherent row the
+      // seed's own invariant test refuses, and the attribution key is frozen
+      // after creation, so it has to be right here rather than repaired later.
+      ...NATIONAL.signals.map((ns) =>
+        signal(ns.id, workspaceId, "cohort", null, ns.signalType, ns.subject,
+               ns.accountId, ns.score, "converted", ns.agedDays, "named_account"),
+      ),
     ],
     leads: [
       lead("lead_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0].name, "acc_demo_1", "sig_demo_1", "camp_demo_1", 88, REP1, "converted", "opp_demo_1"),
@@ -807,6 +817,14 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       // the 无人认领 badge or the reason 线索分派 exists. This one arrives with
       // nobody on it, which is how a lead actually arrives.
       lead("lead_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5].name, "acc_demo_6", null, null, 64, null, "new", null),
+      // 全国样本, and MATCHED TO AN ACCOUNT every time. A lead reaches a
+      // province only through its account, so unmatched ones - the common real
+      // state, which the six curated rows above already cover - are invisible
+      // to the national screen. These give 线索供给 something to rank.
+      ...NATIONAL.leads.map((nl) =>
+        lead(nl.id, workspaceId, nl.n, nl.companyName, nl.accountId, nl.signalId, null,
+             nl.score, nl.ownerSub, nl.status, nl.convertedOpportunityId),
+      ),
     ],
   });
 }
@@ -1080,6 +1098,14 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // payment falls due at final acceptance" is the gate it was always
       // implicitly waiting on.
       milestone("ms_8", workspaceId, "prj_demo_3", DEMO_MILESTONES[3], 2, "pending", daysAhead(85), null),
+      // 全国样本. Every cohort instalment needs a gate to stand on - incr/0032
+      // makes milestone_id NOT NULL, because there is no such thing here as
+      // money with no gate.
+      ...NATIONAL.milestones.map((nm) =>
+        milestone(nm.id, workspaceId, nm.projectId, nm.name, nm.sequence, nm.status,
+                  offsetDays(nm.dueInDays),
+                  nm.doneInDays === null ? null : offsetDays(nm.doneInDays)),
+      ),
     ],
     instalments: [
       instalment("inst_1", workspaceId, "prj_demo_1", "ms_1", 1, "settled", 380_000, 380_000, daysAgo(25), daysAgo(24)),
@@ -1091,6 +1117,14 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // Collected short of plan: the planned-versus-actual gap this domain
       // exists to produce is only visible if one instalment actually has one.
       instalment("inst_7", workspaceId, "prj_demo_4", "ms_7", 1, "settled", 300_000, 290_000, daysAgo(50), daysAgo(49)),
+      // 全国样本. 回款兑现 reads instalments, never contracts, so without these
+      // the panel reported nothing collected against tens of millions signed -
+      // two figures about the same money that could not both be right.
+      ...NATIONAL.instalments.map((ni) =>
+        instalment(ni.id, workspaceId, ni.projectId, ni.milestoneId, ni.sequence, ni.status,
+                   ni.planned, ni.actual, offsetDays(ni.dueInDays),
+                   ni.settledInDays === null ? null : offsetDays(ni.settledInDays)),
+      ),
     ],
   });
 }
@@ -1106,6 +1140,14 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
     // demo shows the outcome the spec asks for - a recommendation nobody
     // decided becomes visibly `expired` rather than quietly staying live.
     proposal("act_demo_6", "proposed", "draft_outreach", "account", "acc_demo_3", { channel: "call" }, DEMO_RATIONALES[1], 44, null, 9),
+    // 全国样本. The curated six all sit in one province, so the screen's
+    // adoption rate was a reading of one city presented as a national figure.
+    ...NATIONAL.proposals.map((np) =>
+      proposal(np.id, np.status, np.actionType, np.subjectType, np.subjectId,
+               np.actionType === "advance_stage" ? { to: "propose" } : { channel: "email" },
+               DEMO_RATIONALES[np.confidence % DEMO_RATIONALES.length]!,
+               np.confidence, np.decidedBySub, np.agedDays),
+    ),
   ]);
 
   stores.copilot.seedPlaybooks(
