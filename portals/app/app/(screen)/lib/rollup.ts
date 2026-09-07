@@ -64,38 +64,44 @@ export interface NationalRollup {
 
 const money = (m: { amount: number } | null | undefined) => m?.amount ?? 0;
 
-export function rollUpByProvince(
-  accounts: readonly AccountRecord[],
-  deals: readonly DealLike[],
-  projects: readonly ProjectLike[],
-): NationalRollup {
-  const provinceOf = new Map<string, string | null>();
-  for (const a of accounts) provinceOf.set(a.id, a.province);
+/** One province's running totals while the three lists are folded in. */
+interface Cell {
+  accounts: number; openDeals: number; pipelineValue: number;
+  wonDeals: number; contractValue: number; lostValue: number;
+  inDelivery: number; healthy: number; delivered: number;
+}
 
-  const blank = (): {
-    accounts: number; openDeals: number; pipelineValue: number;
-    wonDeals: number; contractValue: number; lostValue: number;
-    inDelivery: number; healthy: number; delivered: number;
-  } => ({
-    accounts: 0, openDeals: 0, pipelineValue: 0,
-    wonDeals: 0, contractValue: 0, lostValue: 0,
-    inDelivery: 0, healthy: 0, delivered: 0,
-  });
+const blank = (): Cell => ({
+  accounts: 0, openDeals: 0, pipelineValue: 0,
+  wonDeals: 0, contractValue: 0, lostValue: 0,
+  inDelivery: 0, healthy: 0, delivered: 0,
+});
 
-  const acc = new Map<string, ReturnType<typeof blank>>();
-  for (const p of ALL_PROVINCES) acc.set(p, blank());
-
+/**
+ * Fold the accounts in, and report how many landed nowhere.
+ *
+ * Two different things count as unplaced and both are honest: an account with
+ * no province on file, and an account carrying a province the vocabulary does
+ * not know. The second is a data fault - the database's CHECK should have
+ * refused it - and the rule is that a fault is neither silently dropped nor
+ * silently turned into a 35th province.
+ */
+function foldAccounts(accounts: readonly AccountRecord[], acc: Map<string, Cell>): number {
   let unplaced = 0;
   for (const a of accounts) {
-    if (!a.province) { unplaced += 1; continue; }
-    const cell = acc.get(a.province);
-    // A province the vocabulary does not know is a data fault, not a new
-    // province: the database's CHECK should have refused it. Counted as
-    // unplaced rather than silently dropped or silently created.
+    const cell = a.province ? acc.get(a.province) : undefined;
     if (!cell) { unplaced += 1; continue; }
     cell.accounts += 1;
   }
+  return unplaced;
+}
 
+/** Fold the deals in: won is the contract, lost is only a denominator. */
+function foldDeals(
+  deals: readonly DealLike[],
+  provinceOf: ReadonlyMap<string, string | null>,
+  acc: Map<string, Cell>,
+): void {
   for (const d of deals) {
     const province = provinceOf.get(d.accountId);
     const cell = province ? acc.get(province) : undefined;
@@ -105,42 +111,69 @@ export function rollUpByProvince(
     else if (d.status === "lost") { cell.lostValue += value; }
     else { cell.openDeals += 1; cell.pipelineValue += value; }
   }
+}
 
+/** Fold the projects in. 在交付 is the contract value still being worked. */
+function foldProjects(
+  projects: readonly ProjectLike[],
+  provinceOf: ReadonlyMap<string, string | null>,
+  acc: Map<string, Cell>,
+): void {
+  const settled = new Set(["delivered", "closed", "cancelled"]);
   for (const p of projects) {
     const province = provinceOf.get(p.accountId);
     const cell = province ? acc.get(province) : undefined;
     if (!cell) continue;
     cell.delivered += 1;
     if (p.health === "green") cell.healthy += 1;
-    // 在交付 is the contract value still being worked, so a finished or
-    // cancelled project does not count - the money is delivered, not in flight.
-    if (p.status !== "delivered" && p.status !== "closed" && p.status !== "cancelled") {
-      cell.inDelivery += money(p.contractAmount);
-    }
+    // A finished or cancelled project does not count: that money has been
+    // delivered, it is not in flight.
+    if (!settled.has(p.status)) cell.inDelivery += money(p.contractAmount);
   }
+}
 
-  const provinces: ProvinceRollup[] = ALL_PROVINCES.map((province) => {
-    const c = acc.get(province)!;
-    const decided = c.contractValue + c.lostValue;
-    return {
-      province,
-      region: regionOfProvince(province)!,
-      accounts: c.accounts,
-      openDeals: c.openDeals,
-      pipelineValue: c.pipelineValue,
-      wonDeals: c.wonDeals,
-      contractValue: c.contractValue,
-      inDelivery: c.inDelivery,
-      // NULL, NOT ZERO, when nothing has been delivered here. Zero would read
-      // as "everything is unhealthy" on a province where nothing is running -
-      // the same distinction the delivery page keeps between an unforecast
-      // quarter and a failed one.
-      healthRate: c.delivered === 0 ? null : c.healthy / c.delivered,
-      // Likewise: a province where nothing has closed has no win rate, and
-      // printing 0% would rank it below a province that genuinely loses.
-      winRate: decided === 0 ? null : c.contractValue / decided,
-    };
-  });
+/** Close one province's cell into the reading the screen renders. */
+function readingOf(province: string, c: Cell): ProvinceRollup {
+  const decided = c.contractValue + c.lostValue;
+  return {
+    province,
+    region: regionOfProvince(province)!,
+    accounts: c.accounts,
+    openDeals: c.openDeals,
+    pipelineValue: c.pipelineValue,
+    wonDeals: c.wonDeals,
+    contractValue: c.contractValue,
+    inDelivery: c.inDelivery,
+    // NULL, NOT ZERO, when nothing has been delivered here. Zero would read
+    // as "everything is unhealthy" on a province where nothing is running -
+    // the same distinction the delivery page keeps between an unforecast
+    // quarter and a failed one.
+    healthRate: c.delivered === 0 ? null : c.healthy / c.delivered,
+    // Likewise: a province where nothing has closed has no win rate, and
+    // printing 0% would rank it below a province that genuinely loses.
+    winRate: decided === 0 ? null : c.contractValue / decided,
+  };
+}
+
+export function rollUpByProvince(
+  accounts: readonly AccountRecord[],
+  deals: readonly DealLike[],
+  projects: readonly ProjectLike[],
+): NationalRollup {
+  const provinceOf = new Map<string, string | null>();
+  for (const a of accounts) provinceOf.set(a.id, a.province);
+
+  // EVERY province starts present, including the empty ones. A province missing
+  // from the map is a hole, and a hole reads as "no business here" rather than
+  // "nothing has been recorded here".
+  const acc = new Map<string, Cell>();
+  for (const p of ALL_PROVINCES) acc.set(p, blank());
+
+  const unplaced = foldAccounts(accounts, acc);
+  foldDeals(deals, provinceOf, acc);
+  foldProjects(projects, provinceOf, acc);
+
+  const provinces = ALL_PROVINCES.map((p) => readingOf(p, acc.get(p)!));
 
   const byRegion = new Map<Region, ProvinceRollup[]>();
   for (const p of provinces) {

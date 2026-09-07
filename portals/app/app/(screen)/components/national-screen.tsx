@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMessages } from "../../(app)/lib/i18n/provider";
 import { CHINA } from "../lib/china-geometry";
@@ -54,6 +54,33 @@ function money(v: number, u: { yi: string; wan: string; yuan: string }): { n: st
 }
 const num = (v: number) => Math.round(v).toLocaleString("en-US");
 
+/**
+ * The viewBox that frames a scope.
+ *
+ * Squared to the arena's aspect around the scope's OWN centre, so a tall
+ * province and a wide one both land in the middle rather than one of them
+ * sitting against an edge. Falls back to the national box whenever the scope
+ * has no drawable shape in it - an empty box would collapse the viewBox to
+ * zero width and blank the map.
+ */
+function frameFor(level: Level, scope: readonly ProvinceRollup[]) {
+  if (level === "nation") return CHINA.viewBox;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of scope) {
+    const b = CHINA.provinces[p.province]?.bbox;
+    if (!b) continue;
+    x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]);
+    x1 = Math.max(x1, b[0] + b[2]); y1 = Math.max(y1, b[1] + b[3]);
+  }
+  if (!Number.isFinite(x0)) return CHINA.viewBox;
+  const w = x1 - x0, h = y1 - y0, pad = 0.5;
+  const cx = x0 + w / 2, cy = y0 + h / 2;
+  const aspect = 1.45;
+  let vw = w * (1 + pad), vh = h * (1 + pad);
+  if (vw / vh < aspect) vw = vh * aspect; else vh = vw / aspect;
+  return [cx - vw / 2, cy - vh / 2, vw, vh] as const;
+}
+
 export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   const { SCREEN_TEXT } = useMessages();
   const units = {
@@ -66,6 +93,32 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   const [metric, setMetric] = useState<Metric>("contractValue");
   const [menuOpen, setMenuOpen] = useState(false);
   const [railsFolded, setRailsFolded] = useState(false);
+  const menuRef = useRef<HTMLSpanElement>(null);
+
+  /* DISMISSING THE 大区 MENU, for a keyboard as well as a mouse.
+     This used to be an onClick on the root <div>, which is a handler a keyboard
+     can never fire: with no pointer there was no way to close the menu at all,
+     and the swallow-the-click <span> around it existed only to stop that same
+     handler. Both are gone. Escape closes it and returns focus to the trigger,
+     a pointer landing outside closes it, and neither depends on an element
+     pretending to be interactive. The listeners exist only while it is open. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenuOpen(false);
+      menuRef.current?.querySelector("button")?.focus();
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   const byName = useMemo(
     () => new Map(rollup.provinces.map((p) => [p.province, p])),
@@ -115,25 +168,7 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
     else if (level === "region") { setLevel("nation"); setRegion(null); }
   }
 
-  // The map frames the scope, squared to the arena's aspect around the scope's
-  // own centre so a tall province and a wide one both land in the middle.
-  const frame = useMemo(() => {
-    if (level === "nation") return CHINA.viewBox;
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const p of scope) {
-      const b = CHINA.provinces[p.province]?.bbox;
-      if (!b) continue;
-      x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]);
-      x1 = Math.max(x1, b[0] + b[2]); y1 = Math.max(y1, b[1] + b[3]);
-    }
-    if (!Number.isFinite(x0)) return CHINA.viewBox;
-    const w = x1 - x0, h = y1 - y0, pad = 0.5;
-    const cx = x0 + w / 2, cy = y0 + h / 2;
-    let vw = w * (1 + pad), vh = h * (1 + pad);
-    const aspect = 1.45;
-    if (vw / vh < aspect) vw = vh * aspect; else vh = vw / aspect;
-    return [cx - vw / 2, cy - vh / 2, vw, vh] as const;
-  }, [level, scope]);
+  const frame = useMemo(() => frameFor(level, scope), [level, scope]);
 
   const METRICS: readonly { id: Metric; label: string; rate?: boolean }[] = [
     { id: "contractValue", label: SCREEN_TEXT.metricContract },
@@ -147,7 +182,7 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   ).slice(0, 6);
 
   return (
-    <div className="screen" onClick={() => setMenuOpen(false)}>
+    <div className="screen">
       <div className="screen-hex" aria-hidden />
 
       <header className="screen-head">
@@ -235,24 +270,26 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
                 </button>
               )}
               <span className="sep">▸</span>
-              <span className="screen-menu" onClick={(e) => e.stopPropagation()}>
+              <span className="screen-menu" ref={menuRef}>
                 <button
                   type="button"
                   className={region ? "chosen" : "placeholder"}
                   aria-expanded={menuOpen}
+                  aria-haspopup="menu"
                   onClick={() => setMenuOpen((v) => !v)}
                 >
                   {region ?? SCREEN_TEXT.regionDefault} ▾
                 </button>
                 {menuOpen ? (
-                  <span className="screen-pop" role="listbox">
-                    <button type="button" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); setMenuOpen(false); }}>
+                  <span className="screen-pop" role="menu">
+                    <button type="button" role="menuitem" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); setMenuOpen(false); }}>
                       {SCREEN_TEXT.regionDefault}
                     </button>
                     {(Object.keys(PROVINCES_BY_REGION) as Region[]).map((r) => (
                       <button
                         key={r}
                         type="button"
+                        role="menuitem"
                         className={r === region ? "on" : ""}
                         onClick={() => { setLevel("region"); setRegion(r); setProvince(null); setMenuOpen(false); }}
                       >
@@ -313,8 +350,7 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
                     d={shape.d}
                     className={`screen-prov${province === p.province ? " sel" : ""}`}
                     style={{ fill: shadeOf(p) }}
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={() => {
                       setLevel("province");
                       setProvince(p.province);
                       setRegion(p.region);

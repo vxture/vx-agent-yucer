@@ -48,8 +48,7 @@ export default async function NationalScreenPage() {
     can(ctx.holder, ctx.entitlement, "pipeline.view", "ui"),
     can(ctx.holder, ctx.entitlement, "delivery.project.view", "ui"),
   ];
-  const denied = gates.find((g) => !g.allowed);
-  if (denied) {
+  if (gates.some((g) => !g.allowed)) {
     // ONE REFUSAL, NOT A PARTIAL SCREEN. Rendering the map with delivery blanked
     // out would be a national screen that quietly under-reports, which is worse
     // than a screen that says it cannot be shown.

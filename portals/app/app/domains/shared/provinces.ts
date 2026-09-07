@@ -1,4 +1,3 @@
-/* eslint-disable */
 // 省份与大区 - the province vocabulary, and the roll-up from a province to its 大区.
 //
 // ONE SOURCE FOR THREE CONSUMERS. The same 34 names appear in three places that

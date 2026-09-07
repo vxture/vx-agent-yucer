@@ -1,4 +1,3 @@
-/* eslint-disable */
 // 中国地图几何 - projected, simplified, and keyed by the province vocabulary.
 //
 // WHERE IT COMES FROM. The national boundary set published by Aliyun DataV

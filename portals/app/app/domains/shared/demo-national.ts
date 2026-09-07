@@ -1,4 +1,3 @@
-/* eslint-disable */
 // 全国样本 - the national cohort behind the situation screen.
 //
 // WHY THIS IS A SEPARATE POPULATION (owner, 2026-09-07: go B).
