@@ -50,6 +50,12 @@ export interface ConvertInput {
   leadId: string;
   /** Required when the lead was never matched to an account. */
   accountId?: string;
+  /**
+   * What the customer wants (incr/0034). REQUIRED, and it cannot be defaulted:
+   * a lead carries a company, a contact and a score, none of which say what
+   * they need. Converting is the moment somebody writes it down.
+   */
+  requirement: string;
   name?: string;
   amount?: Money;
   currency?: string;
@@ -97,7 +103,20 @@ export async function convertLeadToOpportunity(
     planId: plan.value.opportunity.planId,
     territoryId: input.territoryId ?? null,
     // The lead's owner follows the deal. Reassigning is a later, deliberate act.
+    //
+    // A QUALIFIED LEAD ALWAYS HAS ONE since 2026-09-06 - an unowned lead
+    // cannot be qualified, and only a qualified lead converts - so the
+    // fallback is now unreachable rather than load-bearing. It stays as the
+    // belt to the rule's braces.
     ownerSub: lead.ownerSub ?? ctx.sub,
+    // WHAT THE CUSTOMER WANTS, and the caller has to supply it (incr/0034).
+    //
+    // IT CANNOT BE DERIVED FROM THE LEAD. A lead carries a company, a contact
+    // and a score - nothing that says what they need - so converting is the
+    // moment somebody writes it down. The alternative was to copy the company
+    // name into the requirement, which would satisfy the column and teach
+    // every reader afterwards that the field means nothing.
+    requirement: input.requirement,
     amount: input.amount ?? null,
     currency,
     expectedCloseAt: input.expectedCloseAt ?? null,

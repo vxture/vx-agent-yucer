@@ -59,6 +59,11 @@ export interface LeadListProps {
   readonly onClaim: (leadId: string) => Promise<{ ok: boolean; error?: string }>;
   /** 删除 - for a record that should never have existed. */
   readonly onRemove: (leadId: string) => Promise<{ ok: boolean; error?: string }>;
+  /** 转化为商机, with the requirement the deal will be judged by (incr/0034). */
+  readonly onConvert: (
+    leadId: string,
+    requirement: string,
+  ) => Promise<{ ok: boolean; error?: string; opportunityNo?: string; attributionSource?: string }>;
   /** 判定不合格 / 终结 - both endings, with the reason that separates them. */
   readonly onEnd: (
     leadId: string,
@@ -90,6 +95,7 @@ export function LeadList({
   onRemove,
   onMatch,
   onEnd,
+  onConvert,
   accounts,
 }: LeadListProps) {
   const {
@@ -171,6 +177,11 @@ export function LeadList({
   const [ending, setEnding] = useState<{ row: LeadRecord; kind: "disqualify" | "terminate" } | null>(
     null,
   );
+  // 转化为商机 asks for the requirement, so it is a dialog too. A lead carries
+  // nothing that answers "what do they want", and converting is the moment
+  // somebody does know.
+  const [converting, setConverting] = useState<LeadRecord | null>(null);
+  const [requirement, setRequirement] = useState("");
   const [reason, setReason] = useState("");
   const [reasonNote, setReasonNote] = useState("");
 
@@ -385,7 +396,10 @@ export function LeadList({
                   : !row.accountId
                     ? LEAD_TEXT.needAccount
                     : undefined,
-            onSelect: () => act(row.id, "convert"),
+            onSelect: () => {
+              setConverting(row);
+              setRequirement("");
+            },
           },
           {
             id: "claim",
@@ -621,6 +635,53 @@ export function LeadList({
                 </option>
               ))}
             </NativeSelect>
+          </Field>
+        </DialogForm>
+      ) : null}
+      {converting ? (
+        <DialogForm
+          open
+          onOpenChange={(o: boolean) => {
+            if (!o) setConverting(null);
+          }}
+          title={LEAD_TEXT.convert}
+          description={LEAD_TEXT.convertWhy(converting.companyName)}
+          submitLabel={LEAD_TEXT.convert}
+          cancelLabel={DS_LABELS.confirmCancel}
+          submitting={pending}
+          submitDisabled={requirement.trim() === ""}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const row = converting;
+            const text = requirement.trim();
+            setConverting(null);
+            setBusyId(row.id);
+            setError(null);
+            startTransition(async () => {
+              const r = await onConvert(row.id, text);
+              if (!r.ok) {
+                setError(SIGNAL_ACTION_ERROR[r.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.denied);
+              } else if (r.opportunityNo) {
+                // Attribution is frozen from here. This is the only moment it
+                // is worth stating, because it can never be changed after.
+                setNote(
+                  `${r.opportunityNo} - ${SOURCE_LABEL[r.attributionSource ?? ""] ?? r.attributionSource ?? ""}`,
+                );
+              }
+              setBusyId(null);
+            });
+          }}
+        >
+          <Field>
+            <FieldLabel>{LEAD_TEXT.convertRequirement}</FieldLabel>
+            <Input
+              value={requirement}
+              placeholder={LEAD_TEXT.convertRequirementHint}
+              onChange={(e) => setRequirement(e.target.value)}
+            />
+            <p className="text-muted-foreground text-body-sm">
+              {LEAD_TEXT.convertRequirementWhy}
+            </p>
           </Field>
         </DialogForm>
       ) : null}

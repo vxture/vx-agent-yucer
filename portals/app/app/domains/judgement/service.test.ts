@@ -103,6 +103,7 @@ function deal(id: string, accountId: string) {
   return {
     id,
     workspaceId: WS,
+    requirement: "POS replacement",
     opportunityNo: id.toUpperCase(),
     name: `Deal ${id}`,
     accountId,

@@ -250,6 +250,10 @@ export async function createDeal(input: {
   name: string;
   accountId: string;
   territoryId: string | null;
+  /** What the customer wants (incr/0034). Refused blank by the rule and by a
+   * CHECK - a deal that cannot say what it is for cannot be judged by anybody
+   * who did not sit in the meeting. */
+  requirement: string;
   amount: number | null;
   expectedCloseAt: string | null;
 }): Promise<{ ok: boolean; opportunityNo?: string; error?: string }> {
@@ -275,7 +279,10 @@ export async function createDeal(input: {
       name: input.name,
       accountId: input.accountId,
       territoryId: input.territoryId,
+      // Null means "the person creating it" - createOpportunity applies that
+      // convention before the rule sees the draft (incr/0034).
       ownerSub: null,
+      requirement: input.requirement,
       amount: input.amount === null ? null : money(input.amount),
       expectedCloseAt,
     },

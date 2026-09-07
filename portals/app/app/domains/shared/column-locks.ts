@@ -160,6 +160,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "amount",
     "currency",
     "probability",
+    // incr/0034 - what the customer wants. Writable rather than frozen: it is
+    // understood better as a deal progresses, and a first sentence written at
+    // qualify time should be improved, not preserved as a monument.
+    "requirement",
     "expected_close_at",
     "closed_at",
     "status",

@@ -532,3 +532,62 @@ test("an abandoned deal can finally have a review written for it", { skip }, asy
     );
   });
 });
+
+// --- incr/0034: a deal has an owner and says what the customer wants ---------
+
+test("a deal cannot be written without an owner", { skip }, async () => {
+  // owner_sub was nullable and one function happened to fill it. Three paths
+  // create opportunities in this product and one reaches the store directly,
+  // so the habit was never a rule until this column said so.
+  await onChain(async (c) => {
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.opportunity
+           (workspace_id, opportunity_no, name, account_id, requirement)
+         VALUES ($1, 'OPP-NOOWNER', 'No owner', $2, 'wants a thing')`,
+        [CHAIN_WS, CHAIN.account],
+      ),
+      /owner_sub/,
+    );
+  });
+});
+
+test("a deal cannot be written without a requirement, blank included", { skip }, async () => {
+  await onChain(async (c) => {
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.opportunity
+           (workspace_id, opportunity_no, name, account_id, owner_sub)
+         VALUES ($1, 'OPP-NOREQ', 'No requirement', $2, 'usr_db')`,
+        [CHAIN_WS, CHAIN.account],
+      ),
+      /requirement/,
+      "NOT NULL",
+    );
+    // AND NOT NULL IS NOT ENOUGH ON TEXT. An empty string passes it and says
+    // nothing - which is exactly the placeholder the migration refuses to
+    // write for anybody.
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.opportunity
+           (workspace_id, opportunity_no, name, account_id, owner_sub, requirement)
+         VALUES ($1, 'OPP-BLANKREQ', 'Blank', $2, 'usr_db', '   ')`,
+        [CHAIN_WS, CHAIN.account],
+      ),
+      /chk_opportunity_requirement/,
+    );
+  });
+});
+
+test("the requirement is writable - it is understood better as a deal runs", { skip }, async () => {
+  // Not an attribution key and not an anchor: a first sentence written at
+  // qualify time should be improved, not preserved as a monument.
+  await onChain(async (c) => {
+    await c.query(`SET ROLE yucer_svc`);
+    await c.query(
+      `UPDATE yucer_pipeline.opportunity SET requirement = 'sharper wording' WHERE id = $1`,
+      [CHAIN.opportunity],
+    );
+    await c.query(`RESET ROLE`);
+  });
+});

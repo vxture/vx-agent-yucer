@@ -7,7 +7,14 @@ import { listAccounts } from "../../domains/account/service";
 import { LeadList } from "../components/lead-list";
 import { ModuleHeadline } from "../components/module-headline";
 import { RoutingAnalyseButton } from "../components/routing-analyse-button";
-import { actOnLead, claimLead, endLead, matchLead, removeLead } from "../signal/lead-actions";
+import {
+  actOnLead,
+  claimLead,
+  convertLeadNow,
+  endLead,
+  matchLead,
+  removeLead,
+} from "../signal/lead-actions";
 import { loadFailureText } from "../lib/load-failure";
 
 // 线索管理 - its own module since 2026-09-06 (design_yucer_110).
@@ -164,6 +171,7 @@ export default async function LeadPage() {
         onRemove={removeLead}
         onMatch={matchLead}
         onEnd={endLead}
+        onConvert={convertLeadNow}
         accounts={(accounts.ok ? accounts.value : []).map((a) => ({ id: a.id, name: a.name }))}
       />
     </ViewLayout>

@@ -120,7 +120,12 @@ export async function createOpportunity(
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.create", "data");
   if (!gate.allowed) return denied(gate);
 
-  const plan = planNewOpportunity(input);
+  // THE CREATOR OWNS IT UNLESS SOMEBODY IS NAMED, and the default is applied
+  // HERE, before the rule, rather than inside it. The rule's job is to refuse
+  // a deal with no owner; deciding that "no owner given" means "the person
+  // creating it" is a product convention, and it belongs where conventions
+  // are - one layer above the rule that enforces the invariant.
+  const plan = planNewOpportunity({ ...input, ownerSub: input.ownerSub ?? ctx.sub });
   if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
 
   return ok(
@@ -135,7 +140,9 @@ export async function createOpportunity(
       territoryId: plan.value.territoryId,
       // Whoever creates it owns it until somebody reassigns it deliberately -
       // the same rule conversion applies to a lead's owner.
-      ownerSub: plan.value.ownerSub ?? ctx.sub,
+      ownerSub: plan.value.ownerSub!,
+      // Refused by the rule when blank and by a CHECK when empty (incr/0034).
+      requirement: plan.value.requirement!,
       amount: plan.value.amount,
       currency: plan.value.amount?.currency ?? input.currency ?? DEFAULT_LINE_CURRENCY,
       expectedCloseAt: plan.value.expectedCloseAt,

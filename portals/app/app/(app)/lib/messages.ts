@@ -927,6 +927,10 @@ export const ACCOUNT_ERROR: Record<string, string> = {
  * 用户点了「转商机」失败，界面一动不动。比裸码更糟的一类（TD-010 巡检发现）。
  */
 export const RENEWAL_ERROR: Record<string, string> = {
+  // incr/0034 - the deal entry gate. Both are refused by planNewOpportunity
+  // and by the database, so both can reach a person.
+  owner_required: "商机必须有负责人",
+  requirement_required: "商机必须写清客户要什么",
   ...GATE_ERROR,
   renewal_not_due: "这个项目现在不该续约——页面可能已经过时，刷新后再看",
   name_required: "商机需要名称",
@@ -1765,6 +1769,9 @@ export const PIPELINE_TEXT = {
   newPickAccount: "选择客户",
   newTerritory: "销售区域",
   newNoTerritory: "不指定",
+  newRequirement: "客户需求",
+  newRequirementHint: "客户要解决什么问题",
+  newRequirementWhy: "没坐在那场会里的人，靠这句话判断该不该投入。之后可以改。",
   newAmount: "金额（可后补）",
   newExpectedClose: "预计成交",
   newSave: "建立商机",
@@ -2117,6 +2124,10 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  // incr/0034 - the deal entry gate. Both are refused by planNewOpportunity
+  // and by the database, so both can reach a person.
+  owner_required: "商机必须有负责人",
+  requirement_required: "商机必须写清客户要什么",
   ...GATE_ERROR,
   stage_unchanged: "已经在这个阶段了，不会记录空变更",
   terminal_stage: "商机已关闭；重开需要显式确认",
@@ -3136,6 +3147,11 @@ export const LEAD_TEXT = {
   noMatch: "没有匹配的线索",
   noMatchWhy: "换个关键词，或把筛选条件放宽。",
   startWork: "开始跟进",
+  convertWhy: (company: string) => `把「${company}」转成商机。转化这一刻来源战役被复制到商机上并冻结，之后改不了。`,
+  convertRequirement: "客户需求",
+  convertRequirementHint: "客户要解决什么问题",
+  convertRequirementWhy: "商机必须说清客户要什么——没坐在那场会里的人，靠这句话判断该不该投入。之后可以改。",
+
   terminate: "终结线索",
   terminateConsequence: "这条线索是真的，但机会没了。记录会保留，并计入漏斗的分母——原因会被记下来，之后能按原因看漏在哪一段。",
   hintTerminateWhy: "机会曾经真实存在，但黄了——与「判定不合格」是两回事",

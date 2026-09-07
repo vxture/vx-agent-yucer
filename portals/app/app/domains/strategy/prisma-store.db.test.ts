@@ -454,8 +454,8 @@ async function seedOpportunity(c: Client, no: string, fields: Record<string, unk
   const f = { campaign: CAMPAIGN, amount: 100000, status: "open", deleted: false, ...fields };
   await c.query(
     `INSERT INTO yucer_pipeline.opportunity
-       (workspace_id, opportunity_no, name, account_id, campaign_id, amount, currency, status, deleted_at)
-     VALUES ($1, $2, $3, $4, $5, $6, 'CNY', $7, ${f.deleted ? "now()" : "NULL"})`,
+       (workspace_id, opportunity_no, name, account_id, campaign_id, amount, currency, status, deleted_at, owner_sub, requirement)
+     VALUES ($1, $2, $3, $4, $5, $6, 'CNY', $7, ${f.deleted ? "now()" : "NULL"}, 'usr_db', 'fixture requirement')`,
     [WS, no, `Deal ${no}`, ACC, f.campaign, f.amount, f.status],
   );
 }

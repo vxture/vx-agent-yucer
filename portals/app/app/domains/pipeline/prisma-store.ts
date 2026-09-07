@@ -44,6 +44,7 @@ interface OpportunityRow {
   planId: string | null;
   campaignId: string | null;
   territoryId: string | null;
+  requirement: string;
   ownerSub: string | null;
   stage: string;
   forecastCategory: string;
@@ -67,7 +68,8 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     planId: row.planId,
     campaignId: row.campaignId,
     territoryId: row.territoryId,
-    ownerSub: row.ownerSub,
+    ownerSub: String(row.ownerSub),
+    requirement: String(row.requirement ?? ""),
     stage: row.stage as Stage,
     forecastCategory: row.forecastCategory as ForecastCategory,
     // NUMERIC arrives as a Decimal. Going through Number would silently lose
@@ -104,6 +106,7 @@ export class PrismaPipelineStore implements PipelineStore {
           planId: input.planId,
           territoryId: input.territoryId,
           ownerSub: input.ownerSub,
+          requirement: input.requirement,
           amount: input.amount?.amount ?? null,
           currency: input.currency,
           probability: DEFAULT_PROBABILITY.qualify,

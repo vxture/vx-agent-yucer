@@ -505,12 +505,17 @@ model Opportunity {
   // The return leg from D7. Frozen after creation like campaign_id - 0019
   // deliberately grants no UPDATE on it.
   sourceProjectId  String?   @map("source_project_id") @db.Uuid
-  ownerSub         String?   @map("owner_sub") @db.VarChar(128)
+  // incr/0034 - NOT NULL. Every deal has an owner; it used to be a nullable
+  // column that one function happened to fill.
+  ownerSub         String    @map("owner_sub") @db.VarChar(128)
   stage            String    @default("qualify") @db.VarChar(32)
   forecastCategory String    @default("pipeline") @map("forecast_category") @db.VarChar(32)
   amount           Decimal?  @db.Decimal(18, 2)
   currency         String    @default("CNY") @db.VarChar(8)
   probability      Int?      @db.SmallInt
+  /// incr/0034 - what the customer actually wants. NOT NULL and CHECKed
+  /// non-blank: an empty string satisfies NOT NULL and says nothing.
+  requirement      String    @db.Text
   expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
   closedAt         DateTime? @map("closed_at") @db.Timestamptz()
   status           String    @default("open") @db.VarChar(32)

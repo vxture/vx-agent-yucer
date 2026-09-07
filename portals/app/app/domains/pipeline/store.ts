@@ -33,7 +33,10 @@ export interface OpportunityRecord {
   planId: string | null;
   campaignId: string | null;
   territoryId: string | null;
-  ownerSub: string | null;
+  /** incr/0034 - NOT NULL in the database. Every deal has an owner. */
+  ownerSub: string;
+  /** incr/0034 - what the customer wants. */
+  requirement: string;
   stage: Stage;
   forecastCategory: ForecastCategory;
   amount: Money | null;
@@ -121,7 +124,10 @@ export interface NewOpportunity {
   campaignId: string | null;
   planId: string | null;
   territoryId: string | null;
-  ownerSub: string | null;
+  /** incr/0034 - NOT NULL in the database. Every deal has an owner. */
+  ownerSub: string;
+  /** incr/0034 - what the customer wants, non-blank. */
+  requirement: string;
   amount: Money | null;
   currency: string;
   expectedCloseAt: Date | null;
@@ -270,6 +276,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       campaignId: input.campaignId,
       territoryId: input.territoryId,
       ownerSub: input.ownerSub,
+      requirement: input.requirement,
       stage: "qualify",
       forecastCategory: "pipeline",
       amount: input.amount,
@@ -352,7 +359,11 @@ export class InMemoryPipelineStore implements PipelineStore {
     if (patch.probability !== undefined) row.probability = patch.probability;
     if (patch.expectedCloseAt !== undefined) row.expectedCloseAt = patch.expectedCloseAt;
     if (patch.forecastCategory !== undefined) row.forecastCategory = patch.forecastCategory;
-    if (patch.ownerSub !== undefined) row.ownerSub = patch.ownerSub;
+    // NOT NULL since incr/0034 - reassigning to nobody is not a move this
+    // product offers, and the patch type still allows null for callers that
+    // predate it. Ignored rather than written, which is what the column
+    // enforces anyway.
+    if (patch.ownerSub) row.ownerSub = patch.ownerSub;
     return true;
   }
 

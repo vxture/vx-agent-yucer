@@ -23,6 +23,15 @@ export interface NewOpportunityDraft {
   accountId: string;
   territoryId: string | null;
   ownerSub: string | null;
+  /**
+   * What the customer wants, in their terms (incr/0034).
+   *
+   * NOT THE DEAL'S NAME. A name is a label somebody types to find the row
+   * again - "华东零售 POS 二期" - and it says nothing about the need. This is
+   * the sentence that makes the deal judgeable by whoever did not sit in the
+   * meeting.
+   */
+  requirement: string | null;
   amount: Money | null;
   expectedCloseAt: Date | null;
   /**
@@ -69,6 +78,31 @@ export function planNewOpportunity(input: NewOpportunityDraft): RuleResult<Plann
     // D4 reads deals through the account.
     return fail(violation("account_required", "a deal needs a customer", "accountId"));
   }
+  // AN OWNER IS A RULE NOW, not a habit (owner, 2026-09-06; incr/0034).
+  // `owner_sub` was nullable and this function never looked at it -
+  // createOpportunity filled it with the caller's own subject, so every path
+  // through that one function got an owner and anything else could write a
+  // deal nobody owned. Three paths create opportunities in this product and
+  // one of them reaches the store directly.
+  //
+  // The caller still decides WHO. Defaulting to the creator is a reasonable
+  // convention and the surfaces apply it; a rule that silently supplied a
+  // name would be the same coincidence one layer up.
+  if (!input.ownerSub?.trim()) {
+    return fail(violation("owner_required", "a deal needs somebody to own it", "ownerSub"));
+  }
+
+  // AND IT SAYS WHAT THE CUSTOMER WANTS. This did not exist in the schema at
+  // all: name, amount, probability and expected close were there, and what
+  // they actually need was nowhere. A deal that cannot say what it is for
+  // cannot be judged by anybody who did not sit in the meeting.
+  const requirement = input.requirement?.trim() ?? "";
+  if (!requirement) {
+    return fail(
+      violation("requirement_required", "a deal has to say what the customer wants", "requirement"),
+    );
+  }
+
   if (input.amount && !isNonNegative(input.amount)) {
     return fail(violation("amount_negative", "a deal amount cannot be negative", "amount"));
   }
@@ -76,6 +110,7 @@ export function planNewOpportunity(input: NewOpportunityDraft): RuleResult<Plann
   return ok({
     ...input,
     name,
+    requirement,
     sourceProjectId: input.sourceProjectId ?? null,
     attribution: resolveAttribution({ renewalOfProjectId: input.sourceProjectId }),
   });

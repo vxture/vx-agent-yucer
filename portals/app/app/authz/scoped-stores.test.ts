@@ -15,6 +15,7 @@ function deal(over: Partial<OpportunityRecord>): OpportunityRecord {
   return {
     id: "opp",
     workspaceId: WS,
+    requirement: "POS replacement",
     opportunityNo: "OPP-1",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     name: "Deal",
@@ -61,11 +62,14 @@ test("a scoped member's list holds only what they may see", async () => {
     deal({ id: "mine", ownerSub: "usr_me" }),
     deal({ id: "theirs", ownerSub: "usr_other" }),
     deal({ id: "on_my_account", ownerSub: "usr_other", accountId: "acc_mine" }),
-    deal({ id: "unowned", ownerSub: null }),
+    // AN UNOWNED DEAL USED TO BE SEEDED HERE and cannot exist any more:
+    // opportunity.owner_sub is NOT NULL since incr/0034. canSeeRow's
+    // "unowned rows are visible to everyone" branch is still live - leads and
+    // accounts can have no owner - it is just unreachable through a deal.
   ]);
   const scoped = scopePipelineStore(inner, MINE);
   const rows = await scoped.listOpportunities(WS, { includeClosed: true });
-  assert.deepEqual(rows.map((r) => r.id).sort(), ["mine", "on_my_account", "unowned"]);
+  assert.deepEqual(rows.map((r) => r.id).sort(), ["mine", "on_my_account"]);
 });
 
 test("reading by id answers null, not a refusal", async () => {

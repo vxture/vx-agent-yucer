@@ -57,6 +57,7 @@ function pipelineWith(over: Partial<OpportunityRecord> = {}): InMemoryPipelineSt
     {
       id: "opp_1",
       workspaceId: WS,
+      requirement: "POS replacement",
       opportunityNo: "OPP-1",
       createdAt: CREATED,
       name: "Deal",

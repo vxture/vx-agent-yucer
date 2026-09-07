@@ -96,8 +96,8 @@ test("with the lock, two concurrent allocations pick DIFFERENT numbers", { skip 
     const insert = async (c: Client, no: string) =>
       c.query(
         `INSERT INTO yucer_pipeline.opportunity
-           (workspace_id, opportunity_no, name, account_id, stage, forecast_category, status, currency)
-         VALUES ($1, $2, 'Race', $3, 'qualify', 'pipeline', 'open', 'CNY')`,
+           (workspace_id, opportunity_no, name, account_id, stage, forecast_category, status, currency, owner_sub, requirement)
+         VALUES ($1, $2, 'Race', $3, 'qualify', 'pipeline', 'open', 'CNY', 'usr_db', 'fixture requirement')`,
         [WS, no, acc],
       );
 
@@ -197,8 +197,8 @@ test("a win/loss review is revised only within its own workspace", { skip }, asy
       );
       await c.query(
         `INSERT INTO yucer_pipeline.opportunity
-           (id, workspace_id, opportunity_no, name, account_id, stage, forecast_category, status, currency)
-         VALUES ($1, $2, 'OPP-WL', 'WL', $3, 'won', 'closed', 'won', 'CNY')`,
+           (id, workspace_id, opportunity_no, name, account_id, stage, forecast_category, status, currency, owner_sub, requirement)
+         VALUES ($1, $2, 'OPP-WL', 'WL', $3, 'won', 'closed', 'won', 'CNY', 'usr_db', 'fixture requirement')`,
         [opp, WS, acc],
       );
       await c.query(

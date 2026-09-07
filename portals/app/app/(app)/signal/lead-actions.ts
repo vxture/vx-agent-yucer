@@ -37,7 +37,11 @@ import { convertLeadToOpportunity } from "../../domains/conversion";
 // reason (incr/0033), so it takes a second argument and cannot travel as a
 // bare verb - see endLead. What is left here are the moves that need nothing
 // but a lead id.
-export type LeadAction = "work" | "qualify" | "convert";
+// `convert` LEFT THIS UNION on 2026-09-07. A deal has to say what the customer
+// wants (incr/0034) and a lead does not carry that - a company, a contact and
+// a score say nothing about the need - so converting takes a second argument
+// and cannot travel as a bare verb. See convertLeadNow.
+export type LeadAction = "work" | "qualify";
 
 export interface LeadActionResult {
   ok: boolean;
@@ -69,21 +73,6 @@ export async function actOnLead(leadId: string, action: LeadAction): Promise<Lea
     return { ok: true };
   }
 
-  if (action === "convert") {
-    const result = await convertLeadToOpportunity(
-      { ...base, signalStore: session.stores.signal(), pipelineStore: session.stores.pipeline() },
-      { leadId },
-    );
-    if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-
-    revalidatePath("/lead");
-    revalidatePath("/pipeline");
-    return {
-      ok: true,
-      opportunityNo: result.value.opportunity.opportunityNo,
-      attributionSource: result.value.attribution.source,
-    };
-  }
 
   const result = await advanceLead(
     { ...base, store: session.stores.signal() },
@@ -210,4 +199,41 @@ export async function endLead(
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/lead");
   return { ok: true };
+}
+
+
+/**
+ * 转化为商机 - with the requirement the deal will be judged by.
+ *
+ * THE REQUIREMENT IS ASKED FOR, not derived (incr/0034). The obvious shortcut
+ * was to copy the lead's company name into it; that satisfies the column and
+ * teaches every reader afterwards that the field means nothing. Converting is
+ * the moment somebody actually knows what the customer wants, so it is the
+ * moment to write it down.
+ */
+export async function convertLeadNow(
+  leadId: string,
+  requirement: string,
+): Promise<LeadActionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await convertLeadToOpportunity(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      signalStore: session.stores.signal(),
+      pipelineStore: session.stores.pipeline(),
+    },
+    { leadId, requirement },
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/lead");
+  return {
+    ok: true,
+    opportunityNo: result.value.opportunity.opportunityNo,
+    attributionSource: result.value.attribution.source,
+  };
 }

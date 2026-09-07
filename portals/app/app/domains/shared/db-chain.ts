@@ -175,10 +175,13 @@ export async function seedChain(c: Client): Promise<void> {
   );
 
   await c.query(
+    // owner_sub and requirement are NOT NULL since incr/0034 - a deal has
+    // somebody responsible for it and says what the customer wants.
     `INSERT INTO yucer_pipeline.opportunity
        (id, workspace_id, opportunity_no, name, account_id, campaign_id, territory_id,
-        stage, forecast_category, amount, currency, status)
+        owner_sub, requirement, stage, forecast_category, amount, currency, status)
      VALUES ($1, $2, 'OPP-DB-1', 'chain fixture deal', $3, $4, $5,
+             'usr_db_rep', 'replace the till system across 40 stores',
              'propose', 'commit', 1000000, 'CNY', 'open')`,
     [CHAIN.opportunity, CHAIN_WS, CHAIN.account, CHAIN.campaign, CHAIN.territory],
   );
@@ -257,10 +260,14 @@ export async function seedChain(c: Client): Promise<void> {
   // The renewal, and the reason incr/0019 exists: a deal that knows which
   // delivered project it renews, on a column with no UPDATE grant.
   await c.query(
+    // A renewal's requirement is the engagement it continues (incr/0034) -
+    // derived from the project rather than asked for, which is what
+    // planRenewal does in the rule layer.
     `INSERT INTO yucer_pipeline.opportunity
        (id, workspace_id, opportunity_no, name, account_id, source_project_id,
-        stage, forecast_category, amount, currency, status)
+        owner_sub, requirement, stage, forecast_category, amount, currency, status)
      VALUES ($1, $2, 'OPP-DB-2', 'chain fixture renewal', $3, $4,
+             'usr_db_rep', 'chain fixture project',
              'qualify', 'pipeline', 400000, 'CNY', 'open')`,
     [CHAIN.renewal, CHAIN_WS, CHAIN.account, CHAIN.project],
   );

@@ -389,6 +389,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
   return {
     id: "opp_1",
     workspaceId: WS,
+    requirement: "POS replacement",
     opportunityNo: "OPP-1",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     name: "Deal",

@@ -38,8 +38,8 @@ async function seed(c: Client): Promise<void> {
     [ACC, WS],
   );
   await c.query(
-    `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id)
-     VALUES ($1, $2, 'OPP-CAT', 'Catalog Deal', $3) ON CONFLICT DO NOTHING`,
+    `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id, owner_sub, requirement)
+     VALUES ($1, $2, 'OPP-CAT', 'Catalog Deal', $3, 'usr_db', 'fixture requirement') ON CONFLICT DO NOTHING`,
     [OPP, WS, ACC],
   );
 }

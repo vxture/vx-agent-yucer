@@ -62,6 +62,13 @@ export async function openRenewal(input: {
       // planning question this derivation has no business answering.
       territoryId: null,
       ownerSub: null,
+      // DERIVED, NOT INVENTED. A renewal's requirement is the engagement it
+      // continues - that is what the customer is buying and the product knows
+      // it without asking. Everything else about a renewal is deliberately
+      // left blank here (no territory, no close date), and this is not an
+      // exception to that: it is the one fact the source project already
+      // states.
+      requirement: draft.value.requirementFromProject,
       amount:
         draft.value.amount === null
           ? null

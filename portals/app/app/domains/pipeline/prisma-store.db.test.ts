@@ -67,7 +67,8 @@ function newOpp(overrides: Record<string, unknown> = {}) {
     campaignId: null,
     planId: null,
     territoryId: null,
-    ownerSub: null,
+    ownerSub: "usr_db",
+      requirement: "fixture requirement",
     amount: { amount: 100_000, currency: "CNY" },
     currency: "CNY",
     expectedCloseAt: null,
@@ -113,8 +114,8 @@ test("an unrecognised stage is refused by the real CHECK", { skip }, async () =>
       () =>
         withPg((c) =>
           c.query(
-            `INSERT INTO yucer_pipeline.opportunity (workspace_id, opportunity_no, name, account_id, stage)
-             VALUES ($1, 'OPP-BAD', 'Bad', $2, 'bogus')`,
+            `INSERT INTO yucer_pipeline.opportunity (workspace_id, opportunity_no, name, account_id, stage, owner_sub, requirement)
+             VALUES ($1, 'OPP-BAD', 'Bad', $2, 'bogus', 'usr_db', 'fixture requirement')`,
             [WS, ACC],
           ),
         ),
@@ -324,7 +325,8 @@ test("appendForecastSnapshot always creates a new row, never updates an existing
   try {
     const s = await store();
     const row = {
-      period: "2026Q4", scopeType: "workspace" as const, territoryId: null, ownerSub: null,
+      period: "2026Q4", scopeType: "workspace" as const, territoryId: null, ownerSub: "usr_db",
+      requirement: "fixture requirement",
       commitAmount: { amount: 100, currency: "CNY" }, bestCaseAmount: { amount: 150, currency: "CNY" },
       pipelineAmount: { amount: 300, currency: "CNY" }, closedAmount: { amount: 50, currency: "CNY" },
       newLogoCount: 2, currency: "CNY", snapshotAt: new Date("2026-09-01T00:00:00Z"),
@@ -345,7 +347,7 @@ test("a negative snapshot amount is refused by the real CHECK", { skip }, async 
     await assert.rejects(
       () =>
         s.appendForecastSnapshot(WS, {
-          period: "2026Q4", scopeType: "workspace", territoryId: null, ownerSub: null,
+          period: "2026Q4", scopeType: "workspace", territoryId: null, ownerSub: "usr_db",
           commitAmount: { amount: -1, currency: "CNY" }, bestCaseAmount: { amount: 0, currency: "CNY" },
           pipelineAmount: { amount: 0, currency: "CNY" }, closedAmount: { amount: 0, currency: "CNY" },
           newLogoCount: null, currency: "CNY", snapshotAt: new Date(),

@@ -20,6 +20,7 @@ function deals(over: Partial<OpportunityRecord> = {}): InMemoryPipelineStore {
     {
       id: "opp_1",
       workspaceId: WS,
+      requirement: "POS replacement",
       opportunityNo: "OPP-1",
       createdAt: CREATED,
       name: "Deal",

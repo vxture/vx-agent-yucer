@@ -336,6 +336,9 @@ export const en: Dictionary = {
       `"${name}" has ${days} days left on its term and can be renewed now.`,
   },
   RENEWAL_ERROR: {
+    // incr/0034 - the deal entry gate.
+    owner_required: "A deal needs somebody to own it.",
+    requirement_required: "A deal has to say what the customer wants.",
     ...GATE_ERROR,
     renewal_not_due:
       "This project is not due for renewal - the page may be stale, reload and look again",
@@ -1351,6 +1354,9 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+    // incr/0034 - the deal entry gate.
+    owner_required: "A deal needs somebody to own it.",
+    requirement_required: "A deal has to say what the customer wants.",
     unknown_forecast_category: "Unknown forecast category",
     quantity_positive: "Quantity must be greater than zero",
     ...GATE_ERROR,
@@ -1844,6 +1850,11 @@ export const en: Dictionary = {
     noMatch: "No leads match",
     noMatchWhy: "Try another term, or widen the filters.",
     startWork: "Start working",
+    convertWhy: (company: string) => `Turn ${company} into a deal. The source campaign is copied onto it at this moment and frozen - it cannot be corrected afterwards.`,
+    convertRequirement: "What the customer wants",
+    convertRequirementHint: "the problem they need solved",
+    convertRequirementWhy: "A deal has to say what it is for - it is how somebody who was not in the meeting judges whether to spend time on it. Editable later.",
+
     terminate: "Close as lost",
     terminateConsequence: "The lead was real and the opportunity is gone. The record is kept and stays in the funnel's denominator - the reason is recorded so the leak can be read by stage later.",
     hintTerminateWhy: "It was real and it died - a different thing from not a fit",
@@ -1993,6 +2004,9 @@ export const en: Dictionary = {
     newPickAccount: "Pick a customer",
     newTerritory: "Territory",
     newNoTerritory: "Unassigned",
+    newRequirement: "What the customer wants",
+    newRequirementHint: "the problem they need solved",
+    newRequirementWhy: "It is how somebody who was not in the meeting judges whether to spend time on this. Editable later.",
     newAmount: "Amount (optional for now)",
     newExpectedClose: "Expected close",
     newSave: "Create deal",

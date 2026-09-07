@@ -1344,6 +1344,12 @@ function opp(
   sourceProjectId: string | null = null,
 ) {
   return {
+    // 客户需求 (incr/0034). DERIVED FROM THE DEAL'S OWN NAME here, and only
+    // here: every demo deal is named after what it is for ("POS 系统替换"),
+    // so the fixture can say something true without inventing a second
+    // sentence per row. Real deals type their own - the form and the
+    // conversion dialog both ask, and neither defaults.
+    requirement: name,
     id,
     workspaceId,
     sourceProjectId,
