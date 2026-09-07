@@ -52,6 +52,7 @@ import {
   DEMO_TERRITORY_NAMES,
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
+import { buildNationalCohort } from "./demo-national";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import type { InMemoryAccountStore } from "../account/store";
@@ -113,6 +114,27 @@ const REP2 = "usr_demo_rep2";
 const PM = "usr_demo_pm";
 export const DEMO_PERIOD = "2026Q3";
 const PERIOD = DEMO_PERIOD;
+
+/* 全国样本 (owner, 2026-09-07: go B). An ADDITIVE population under its own
+   `acc_nat_*` prefix, built once at module load so every seeding of this
+   workspace produces identical rows.
+
+   It exists because a province-level map is unreadable at n=9: nine accounts
+   colour nine provinces and leave twenty-five blank, and blank reads as "no
+   business here" rather than "no data here". It is kept SEPARATE from the nine
+   curated accounts because those were each chosen to demonstrate one rule, and
+   demo-seed.test.ts asserts on them by ordering - burying them under ninety
+   generated rows would make the sickest account and the oldest proposal
+   generated ones, and the fixture would stop teaching what it was built for.
+   The rule assertions scope themselves to `acc_demo_` for exactly that reason. */
+const DAYS_INTO_QUARTER = Math.max(
+  4,
+  Math.round(
+    (NOW.getTime() - new Date(NOW.getFullYear(), Math.floor(NOW.getMonth() / 3) * 3, 1).getTime())
+      / 86_400_000,
+  ),
+);
+const NATIONAL = buildNationalCohort([REP1, REP2, PM], DAYS_INTO_QUARTER);
 
 /**
  * The quarter before, and the reason it exists: SOMETHING HAS TO BE OVER.
@@ -401,6 +423,15 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // half has a clean case to show rather than one tangled up with the
       // industry gap acc_demo_8 also carries.
       account("acc_demo_9", workspaceId, 9, DEMO_ACCOUNTS[8], "MIDMARKET", REP1, 70, "active"),
+      // 全国样本 - see NATIONAL above. Appended, never interleaved: the nine
+      // rows over this line are the ones every rule case points at.
+      ...NATIONAL.accounts.map((na) =>
+        account(
+          na.id, workspaceId, na.n,
+          { name: na.name, industry: na.industry, region: na.region, province: na.province },
+          na.segmentCode, na.ownerSub, na.healthScore, na.status, na.tier,
+        ),
+      ),
     ],
     contacts: [
       contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], {
@@ -856,6 +887,17 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // in months. Two caps on one row, which is also the only demo case that
       // renders more than one reason in the basis column.
       opp("opp_demo_15", workspaceId, 15, DEMO_OPPORTUNITIES[14], "acc_demo_6", null, "terr_east", REP2, "propose", "commit", 670_000, 85, daysAgo(9), null, "open"),
+      // 全国样本 - appended after every curated deal, so the ordering the rule
+      // tests assert on ("oldest first") is decided by the rows above.
+      ...NATIONAL.opportunities.map((no) =>
+        opp(
+          no.id, workspaceId, no.n, no.name, no.accountId, null, null, no.ownerSub,
+          no.stage, no.forecastCategory, no.amount, no.probability,
+          no.status === "open" ? daysAhead(no.closeInDays) : null,
+          no.status === "open" ? null : daysAgo(-no.closeInDays),
+          no.status,
+        ),
+      ),
     ],
     {
       // A stage never jumps: every event names the stage it came from, and the
@@ -997,6 +1039,13 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // other measure, and proposed a second time only if 0019's link is
       // missing, which is exactly the defect that increment exists to close.
       project("prj_demo_6", workspaceId, 6, DEMO_PROJECTS[5], null, "acc_demo_7", 880_000, "green", "on_hold", "subscription", daysAhead(21)),
+      // 全国样本 - a won deal becomes delivery, which is the funnel the screen
+      // draws. Without these the map's 在交付 and 回款 stages would be the
+      // curated six projects nationwide.
+      ...NATIONAL.projects.map((np) =>
+        project(np.id, workspaceId, np.n, np.name, np.opportunityId, np.accountId,
+                np.contract, np.health, np.status),
+      ),
     ],
     milestones: [
       // Done AND signed off: the invoice behind inst_1 had something to stand
@@ -1317,9 +1366,12 @@ function lead(
  * the same names is a second list to forget. The ids are assigned in fixture
  * order by seedAccounts, and demo-seed.test.ts holds that correspondence.
  */
-const DEMO_ACCOUNT_NAME_BY_ID: Record<string, string> = Object.fromEntries(
-  DEMO_ACCOUNTS.map((a, i) => [`acc_demo_${i + 1}`, a.name]),
-);
+const DEMO_ACCOUNT_NAME_BY_ID: Record<string, string> = Object.fromEntries([
+  ...DEMO_ACCOUNTS.map((a, i) => [`acc_demo_${i + 1}`, a.name] as const),
+  // The cohort too, for the reason the comment on `accountName` in opp() gives:
+  // a missing entry prints the raw id in the customer column.
+  ...NATIONAL.accounts.map((a) => [a.id, a.name] as const),
+]);
 
 function opp(
   id: string,

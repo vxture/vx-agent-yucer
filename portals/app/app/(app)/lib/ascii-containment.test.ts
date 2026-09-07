@@ -35,6 +35,15 @@ const ALLOWED = new Set([
   // afterwards. Same nature as demo-fixtures: data that happens to be text.
   "domains/catalog/lib/status-vocab.ts",
   "domains/catalog/lib/type-vocab.ts",
+  // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
+  // Same nature again - data that happens to be text - with one addition that
+  // matters more here than anywhere else on this list: these 34 strings are a
+  // KEY, not copy. They are matched against the database's CHECK constraint and
+  // against the map's geometry, so escaping them would put three copies of an
+  // identifier in three encodings and guarantee the drift provinces.test.ts
+  // exists to catch.
+  "domains/shared/provinces.ts",
+  "domains/shared/demo-national.ts",
 ]);
 
 // CJK and fullwidth ranges - actual text in a human language. The typographic

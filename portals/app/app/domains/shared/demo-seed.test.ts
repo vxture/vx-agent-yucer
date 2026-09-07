@@ -102,7 +102,15 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 21);
+    // SCOPED TO THE CURATED PREFIX (2026-09-07). The workspace also carries the
+    // 全国样本 cohort now, and this test is about DUPLICATION, not population -
+    // pinning a total would make it fail every time the cohort grows while
+    // still not noticing a doubled curated row.
+    assert.equal(rows.filter((r) => r.id.startsWith("opp_demo_")).length, 21);
+    // and the cohort must not double either, which is the same bug one level out
+    const nat = rows.filter((r) => r.id.startsWith("opp_nat_")).length;
+    assert.ok(nat > 0, "the national cohort should be seeded too");
+    assert.equal(new Set(rows.map((r) => r.id)).size, rows.length, "no id appears twice");
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -125,7 +133,16 @@ test("the demo has the working set it claims: 9 accounts, 21 deals, 6 projects",
     s.delivery.listProjects(WS),
   ]);
 
-  assert.equal(accounts.length, 9);
+  // THE CURATED NINE, counted by prefix. The workspace also holds the 全国样本
+  // cohort (demo-national.ts) so the province map has a distribution to grade;
+  // this file is about the nine rows that each demonstrate a rule, and it says
+  // so explicitly rather than by relying on them being everything present.
+  const curated = accounts.filter((a) => a.id.startsWith("acc_demo_"));
+  assert.equal(curated.length, 9);
+  assert.ok(
+    accounts.length > curated.length,
+    "the national cohort should be seeded alongside the curated nine",
+  );
   // 13 on 2026-08-30: two subscription projects and the renewal deal already
   // open off one of them, so /renewal can show every verdict it has - including
   // `already_renewed`, which proves 0019's link is actually being read.
@@ -154,8 +171,12 @@ test("the demo has the working set it claims: 9 accounts, 21 deals, 6 projects",
   // customer in this seed had two deals open at once, so the thing batch D
   // fixes - one buying committee shared by every deal at a customer - could not
   // be shown, and neither could the fix.
-  assert.equal(opportunities.length, 21);
-  assert.equal(projects.length, 6);
+  //
+  // 2026-09-07: counted by prefix from here on. The 全国样本 cohort shares this
+  // workspace, and every figure above is a statement about the CURATED rows -
+  // pinning the totals would turn a growing cohort into a failing rule test.
+  assert.equal(opportunities.filter((o) => o.id.startsWith("opp_demo_")).length, 21);
+  assert.equal(projects.filter((p) => p.id.startsWith("prj_demo_")).length, 6);
 });
 
 test("every open stage is occupied, so the board has no empty column", async () => {
