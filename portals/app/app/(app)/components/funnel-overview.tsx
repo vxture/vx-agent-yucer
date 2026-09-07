@@ -20,10 +20,31 @@ import type { FunnelStage } from "../../domains/shared/funnel-exit";
 // status and nothing else. Showing that as a gap is what makes it fixable -
 // hiding it would make three stages look problem-free.
 
+/**
+ * ONE HUE, TWO DEPTHS, AND A GREY (owner, 2026-09-07).
+ *
+ * The first version used success-green for 已推进 and warning-orange for
+ * 已终止, and it read BACKWARDS: orange means "deal with this now", while a
+ * terminated subject is settled history with nothing left to do. The loudest
+ * colour on the page was on the one segment nobody has to act on.
+ *
+ * So the two live states share the primary blue at two depths - the same
+ * single-hue ramp the header statistics strip uses - and what has ended goes
+ * grey. `--level-*` IS the primary at five steps (level-5 is #1e51ff, the
+ * primary itself), so this is the product's own colour, not a new one.
+ *
+ * 已推进 IS THE DEEPER OF THE TWO. It is the outcome the stage exists to
+ * produce; what is still in hand is on its way there.
+ */
 const SHARE = {
-  advanced: "bg-(color:--success-text)",
-  open: "bg-(color:--level-2)",
-  exited: "bg-(color:--warning-text)",
+  advanced: "bg-(color:--level-3)",
+  open: "bg-(color:--level-1)",
+  // THE PALEST THING IN THE BAR, not the darkest. The DS has two neutral
+  // steps - 92.2% and 55.6% lightness - and the mid one came out DARKER than
+  // the light blue beside it, so the segment nobody has to act on was pulling
+  // the eye hardest. At 92.2% it sits lighter than both blues and reads as
+  // faded out, which is what settled history should look like.
+  exited: "bg-(color:--muted)",
 } as const;
 
 export function FunnelOverview({
@@ -110,7 +131,10 @@ export function FunnelOverview({
               // THE BLIND SPOT, said out loud. These are subjects that ended
               // here with nothing recording why - because this stage has no
               // surface that asks yet.
-              <span className="text-(color:--warning-text) text-body-sm">
+              // QUIET, NOT ALARMING. It is a gap worth closing, not something
+              // to drop everything for - and the same argument that took the
+              // warning colour off 已终止 applies here.
+              <span className="text-muted-foreground text-body-sm">
                 {FUNNEL_TEXT.unexplained(s.unexplained)}
               </span>
             ) : null}

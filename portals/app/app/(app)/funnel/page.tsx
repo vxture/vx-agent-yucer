@@ -137,8 +137,11 @@ export default async function FunnelPage() {
           <>
             <StatusBadge tone="success">{FUNNEL_TEXT.tagEntered(reading.entered)}</StatusBadge>
             <StatusBadge tone="info">{FUNNEL_TEXT.tagLive(reading.live)}</StatusBadge>
+            {/* NOT a warning tone. Which stage loses most is a fact about
+                every funnel - one of them always loses most - and colouring it
+                as an alarm would make the page shout on every visit. */}
             {reading.biggestLeak ? (
-              <StatusBadge tone="warning">
+              <StatusBadge tone="neutral">
                 {FUNNEL_TEXT.tagLeak(
                   FUNNEL_TEXT.stage[reading.biggestLeak.stage] ?? reading.biggestLeak.stage,
                   reading.biggestLeak.exited,
