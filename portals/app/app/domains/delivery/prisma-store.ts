@@ -2,11 +2,12 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
-import type { MilestoneDraft } from "./lib/milestone";
+import type { MilestoneChangeDraft, MilestoneDraft } from "./lib/milestone";
 import type { EngagementType } from "./lib/renewal";
 import type {
   DeliveryStore,
   InstalmentRecord,
+  MilestoneChangeRecord,
   MilestoneRecord,
   ProjectFilter,
   ProjectRecord,
@@ -23,6 +24,9 @@ import type {
 const PROJECT_TABLE = "yucer_delivery.project";
 const MILESTONE_TABLE = "yucer_delivery.project_milestone";
 const REVENUE_TABLE = "yucer_delivery.revenue_schedule";
+// yucer_delivery.milestone_change has no constant here on purpose: assertWritable
+// guards an UPDATE's column list, and this table has no UPDATE to guard. Its
+// entry in APPEND_ONLY_TABLES is what the mirror checks.
 
 /** NUMERIC arrives as a Decimal; parsing from its string form keeps precision. */
 function toMoney(value: unknown, currency: string): Money | null {
@@ -99,6 +103,11 @@ export class PrismaDeliveryStore implements DeliveryStore {
       dueAt: input.dueAt,
       completedAt: input.completedAt,
       status: input.status,
+      // incr/0032. Recorded by one of our users about the customer's sign-off,
+      // and moving as a set - the CHECK constraint refuses a partial one.
+      acceptedAt: input.acceptance?.at ?? null,
+      acceptedBy: input.acceptance?.by ?? null,
+      acceptanceRecordedBySub: input.acceptance?.recordedBySub ?? null,
       updatedAt: new Date(),
     };
     // The update half only. `sequence` is the anchor and carries no UPDATE
@@ -113,9 +122,71 @@ export class PrismaDeliveryStore implements DeliveryStore {
     const row = await p.projectMilestone.upsert({
       where: { projectId_sequence: { projectId, sequence: input.sequence } },
       update: writable,
-      create: { workspaceId, projectId, sequence: input.sequence, ...writable },
+      // baselineDueAt IS IN THE CREATE AND NOT IN THE UPDATE, which is the
+      // whole mechanism: the column has no UPDATE grant, so an edit that tried
+      // to restate it would be refused by Postgres - and the mirror check
+      // below would refuse it before that.
+      create: {
+        workspaceId,
+        projectId,
+        sequence: input.sequence,
+        baselineDueAt: input.baselineDueAt,
+        ...writable,
+      },
     });
     return toMilestone(row as Record<string, unknown>);
+  }
+
+  async appendMilestoneChanges(
+    workspaceId: string,
+    milestoneId: string,
+    changes: readonly MilestoneChangeDraft[],
+  ): Promise<void> {
+    if (changes.length === 0) return;
+    const p = await getPrismaClient();
+    // createMany, and no update path anywhere in this method. The table has
+    // neither an UPDATE nor a DELETE grant (incr/0032), so append is the only
+    // thing the service role can do here - the code says the same.
+    await p.milestoneChange.createMany({
+      data: changes.map((c) => ({
+        workspaceId,
+        milestoneId,
+        changedBySub: c.changedBySub,
+        field: c.field,
+        fromValue: c.fromValue,
+        toValue: c.toValue,
+        reason: c.reason,
+      })),
+    });
+  }
+
+  async listMilestoneChanges(
+    workspaceId: string,
+    projectId: string,
+  ): Promise<MilestoneChangeRecord[]> {
+    const p = await getPrismaClient();
+    // Through the milestones, because milestone_change carries no project of
+    // its own - the gate it hangs off already knows, and copying the project
+    // onto the log would be a second place for it to be wrong.
+    const gates = await p.projectMilestone.findMany({
+      where: { workspaceId, projectId },
+      select: { id: true },
+    });
+    if (gates.length === 0) return [];
+    const rows = await p.milestoneChange.findMany({
+      where: { workspaceId, milestoneId: { in: gates.map((g: { id: string }) => g.id) } },
+      orderBy: { changedAt: "desc" },
+    });
+    return rows.map((r: Record<string, unknown>) => ({
+      id: String(r.id),
+      milestoneId: String(r.milestoneId),
+      changedBySub: String(r.changedBySub),
+      field: r.field as MilestoneChangeDraft["field"],
+      fromValue: (r.fromValue as string | null) ?? null,
+      toValue: (r.toValue as string | null) ?? null,
+      reason: String(r.reason),
+      changedAt: r.changedAt as Date,
+    }));
   }
 
   async listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]> {
@@ -129,7 +200,7 @@ export class PrismaDeliveryStore implements DeliveryStore {
       return {
         id: String(r.id),
         projectId: String(r.projectId),
-        milestoneId: (r.milestoneId as string | null) ?? null,
+        milestoneId: String(r.milestoneId),
         sequence: Number(r.sequence),
         status: r.status as RevenueStatus,
         plannedAmount: toMoney(r.plannedAmount, currency) ?? money(0, currency),
@@ -197,5 +268,16 @@ function toMilestone(r: Record<string, unknown>): MilestoneRecord {
     status: r.status as MilestoneStatus,
     dueAt: (r.dueAt as Date | null) ?? null,
     completedAt: (r.completedAt as Date | null) ?? null,
+    baselineDueAt: (r.baselineDueAt as Date | null) ?? null,
+    // All three columns or none - the CHECK guarantees it, so reading one is
+    // enough to decide whether there is a record here at all.
+    acceptance:
+      r.acceptedAt == null
+        ? null
+        : {
+            at: r.acceptedAt as Date,
+            by: String(r.acceptedBy),
+            recordedBySub: String(r.acceptanceRecordedBySub),
+          },
   };
 }

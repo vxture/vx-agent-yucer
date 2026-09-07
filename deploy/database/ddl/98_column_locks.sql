@@ -143,9 +143,19 @@ GRANT UPDATE (name, manager_sub, contract_amount, currency, health, starts_at, e
 -- column-adding increment re-states the full GRANT for its table.
 
 -- project_milestone.sequence is part of uidx_project_milestone_seq -> immutable.
+-- WIDENED AND NARROWED AGAIN by incr/0032: the acceptance trio became writable,
+-- and baseline_due_at deliberately did NOT - what was committed is not
+-- editable, which is the whole point of having it. That increment restates
+-- this GRANT in full; the version here is the pre-0032 shape and is superseded
+-- on any database that has applied it.
 REVOKE UPDATE ON yucer_delivery.project_milestone FROM yucer_svc;
 GRANT UPDATE (name, due_at, completed_at, status, updated_at)
   ON yucer_delivery.project_milestone TO yucer_svc;
+
+-- yucer_delivery.milestone_change is created by incr/0032 and carries its own
+-- grants there, because 97 cannot grant on a table that did not exist when it
+-- ran and this file's REVOKE would kill db-init against one. It is APPEND-ONLY:
+-- SELECT and INSERT only, no UPDATE and no DELETE.
 
 -- revenue_schedule.sequence is part of uidx_revenue_schedule_seq -> immutable.
 REVOKE UPDATE ON yucer_delivery.revenue_schedule FROM yucer_svc;

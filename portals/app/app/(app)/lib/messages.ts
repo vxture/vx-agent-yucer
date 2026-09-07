@@ -2576,6 +2576,18 @@ export const DELIVERY_TEXT = {
   milestoneSave: "保存里程碑",
   milestoneSaved: "已保存",
   milestonesDenied: "你没有维护交付计划的权限",
+  milestoneSlippedLate: (n: number) => `晚于承诺 ${n} 天`,
+  milestoneSlippedEarly: (n: number) => `早于承诺 ${n} 天`,
+  milestoneAcceptedByName: (who: string) => `客户已验收 · ${who}`,
+  milestoneChanged: (n: number) => (n === 1 ? "改期 1 次" : `改期 ${n} 次`),
+  milestoneAwaitingAcceptance: "待客户验收",
+  milestoneAcceptedBy: "客户验收人",
+  milestoneAcceptedByHint: "客户方签字确认的人",
+  milestoneAcceptedAt: "验收日期",
+  milestoneChangeReason: "变更原因",
+  milestoneChangeReasonHint: "为什么要改这个关口",
+  milestoneChangeWhy:
+    "这个关口已经承诺过，上面挂着回款。改期会记一条只增不改的变更记录，承诺日本身不会被改掉。",
   milestoneAffectsHealth:
     "序号在一个项目内唯一且不可改，它就是这个节点的身份——同一序号再存一次是修改那一条。一个「已错过」的里程碑会推翻上面表里项目经理上报的绿色。",
   moveDenied: "你没有修改回款的权限",
@@ -3314,6 +3326,11 @@ export const MILESTONE_ERROR: Record<string, string> = {
   done_needs_completion: "标记为已完成的里程碑必须写明何时完成",
   completion_needs_done:
     "实际完成时间只属于已完成的里程碑——错过的那个并没有发生",
+  acceptance_needs_done: "客户验收的关口，状态应当是已完成",
+  acceptor_required: "请写下客户方是谁签字确认的",
+  recorder_required: "验收记录需要写明是谁录入的",
+  change_reason_required: "改动已承诺的关口，需要写明原因",
+  changer_required: "变更记录需要写明是谁改的",
   not_found: "项目不存在，或不属于当前工作区",
 };
 

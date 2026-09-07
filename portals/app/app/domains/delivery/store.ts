@@ -13,7 +13,11 @@
 
 import type { Money } from "../shared/money";
 import type { EngagementType } from "./lib/renewal";
-import type { MilestoneDraft } from "./lib/milestone";
+import type {
+  MilestoneAcceptance,
+  MilestoneChangeDraft,
+  MilestoneDraft,
+} from "./lib/milestone";
 import type {
   MilestoneStatus,
   ProjectHealth,
@@ -56,12 +60,26 @@ export interface MilestoneRecord {
   status: MilestoneStatus;
   dueAt: Date | null;
   completedAt: Date | null;
+  /** incr/0032. What was committed - immutable, and null on gates written
+   * before anyone dated them. */
+  baselineDueAt: Date | null;
+  /** incr/0032. The customer's sign-off as OUR user recorded it; never
+   * entered by the customer, who does not use this system. */
+  acceptance: MilestoneAcceptance | null;
 }
 
 export interface InstalmentRecord extends RevenueInstalment {
   id: string;
   projectId: string;
-  milestoneId: string | null;
+  /** incr/0032 - NOT NULL. Every instalment names the gate that releases it. */
+  milestoneId: string;
+}
+
+/** One recorded move of the plan. Append-only: there is no update or delete. */
+export interface MilestoneChangeRecord extends MilestoneChangeDraft {
+  id: string;
+  milestoneId: string;
+  changedAt: Date;
 }
 
 export interface ProjectFilter {
@@ -96,6 +114,29 @@ export interface DeliveryStore {
     projectId: string,
     input: MilestoneDraft,
   ): Promise<MilestoneRecord>;
+
+  /**
+   * Record what moved in the plan and why.
+   *
+   * SEPARATE FROM THE UPSERT, not folded into it, because the two have
+   * different powers: the milestone row is edited, the change log is only ever
+   * appended to (no UPDATE and no DELETE grant, incr/0032). A port verb that
+   * did both would let a caller believe a correction could be an edit.
+   */
+  appendMilestoneChanges(
+    workspaceId: string,
+    milestoneId: string,
+    changes: readonly MilestoneChangeDraft[],
+  ): Promise<void>;
+
+  /**
+   * Every recorded move on ONE PROJECT's plan, newest first.
+   *
+   * BY PROJECT, NOT BY MILESTONE. The plan is read as a whole - a card grid of
+   * gates, not one gate at a time - so a per-milestone verb would have the
+   * page issue a query per card to render a line of text on each.
+   */
+  listMilestoneChanges(workspaceId: string, projectId: string): Promise<MilestoneChangeRecord[]>;
   listInstalments(workspaceId: string, projectId: string): Promise<InstalmentRecord[]>;
 
   /** Whitelisted columns only; `sequence` is deliberately not among them. */
@@ -111,6 +152,7 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   private milestones: Array<MilestoneRecord & { workspaceId: string }> = [];
   private seq = 0;
   private instalments: Array<InstalmentRecord & { workspaceId: string }> = [];
+  private changes: Array<MilestoneChangeRecord & { workspaceId: string }> = [];
 
   seed(input: {
     projects?: ProjectRecord[];
@@ -165,11 +207,44 @@ export class InMemoryDeliveryStore implements DeliveryStore {
       held.dueAt = input.dueAt;
       held.completedAt = input.completedAt;
       held.status = input.status;
+      held.acceptance = input.acceptance;
+      // baselineDueAt is deliberately NOT assigned. The column carries no
+      // UPDATE grant, so writing it here would make this store disagree with
+      // the database it stands in for - and the disagreement would only show
+      // up as a driver error in an environment that has one.
       return held;
     }
     const created = { ...input, id: `ms_${++this.seq}`, projectId, workspaceId };
     this.milestones.push(created);
     return created;
+  }
+
+  async appendMilestoneChanges(
+    workspaceId: string,
+    milestoneId: string,
+    changes: readonly MilestoneChangeDraft[],
+  ): Promise<void> {
+    for (const c of changes) {
+      this.changes.push({
+        ...c,
+        id: `mc_${++this.seq}`,
+        milestoneId,
+        workspaceId,
+        changedAt: new Date(),
+      });
+    }
+  }
+
+  async listMilestoneChanges(
+    workspaceId: string,
+    projectId: string,
+  ): Promise<MilestoneChangeRecord[]> {
+    const mine = new Set(
+      this.milestones.filter((m) => m.projectId === projectId).map((m) => m.id),
+    );
+    return this.changes
+      .filter((c) => c.workspaceId === workspaceId && mine.has(c.milestoneId))
+      .sort((a, b) => b.changedAt.getTime() - a.changedAt.getTime());
   }
 
   async listMilestones(workspaceId: string, projectId: string): Promise<MilestoneRecord[]> {

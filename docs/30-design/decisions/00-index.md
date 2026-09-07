@@ -26,3 +26,6 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-020 | [计数不是金额，指标必须自己决定分子](ADR-020-a-count-is-not-an-amount.md) | accepted | 2026-08-28 |
 | ADR-021 | [预测总是对某个周期的，而周期要真的过滤](ADR-021-a-forecast-is-always-for-a-period.md) | accepted | 2026-08-28 |
 | ADR-022 | [任务表删除：一条产品从没声明要开的战线](ADR-022-a-front-this-product-never-opened.md) | accepted | 2026-08-28 |
+| ADR-023 | [一个问题的两个答案](ADR-023-two-answers-to-one-question.md) | accepted | 2026-08-29 |
+| ADR-024 | [人不是公司上的一列，采购角色不是人身上的一个字段](ADR-024-a-person-is-not-a-column-on-a-company.md) | accepted | 2026-09-04 |
+| ADR-025 | [里程碑是收款关口，不是工作包](ADR-025-a-milestone-is-a-payment-gate.md) | accepted | 2026-09-06 |

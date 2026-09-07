@@ -32,6 +32,7 @@ import {
   DEMO_RETIRED_PRODUCTS,
   DEMO_EXECUTIONS,
   DEMO_LESSONS,
+  DEMO_ACCEPTORS,
   DEMO_MILESTONES,
   DEMO_LONG_HISTORY,
   DEMO_NOTES,
@@ -986,13 +987,38 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       project("prj_demo_6", workspaceId, 6, DEMO_PROJECTS[5], null, "acc_demo_7", 880_000, "green", "on_hold", "subscription", daysAhead(21)),
     ],
     milestones: [
-      milestone("ms_1", workspaceId, "prj_demo_1", DEMO_MILESTONES[0], 1, "done", daysAgo(30), daysAgo(31)),
-      milestone("ms_2", workspaceId, "prj_demo_1", DEMO_MILESTONES[1], 2, "in_progress", daysAhead(10), null),
+      // Done AND signed off: the invoice behind inst_1 had something to stand
+      // on.
+      milestone("ms_1", workspaceId, "prj_demo_1", DEMO_MILESTONES[0], 1, "done", daysAgo(30), daysAgo(31), {
+        acceptedBy: DEMO_ACCEPTORS[0],
+        acceptedAt: daysAgo(30),
+      }),
+      // THE SLIPPED ONE. Committed three weeks earlier than it now says, which
+      // is the only row that proves baseline_due_at does anything - a fixture
+      // where every gate sits on its baseline cannot tell a working slippage
+      // reading from one hard-coded to zero.
+      milestone("ms_2", workspaceId, "prj_demo_1", DEMO_MILESTONES[1], 2, "in_progress", daysAhead(10), null, {
+        baselineDueAt: daysAgo(11),
+      }),
       milestone("ms_3", workspaceId, "prj_demo_1", DEMO_MILESTONES[2], 3, "pending", daysAhead(60), null),
-      milestone("ms_4", workspaceId, "prj_demo_2", DEMO_MILESTONES[0], 1, "done", daysAgo(25), daysAgo(26)),
+      milestone("ms_4", workspaceId, "prj_demo_2", DEMO_MILESTONES[0], 1, "done", daysAgo(25), daysAgo(26), {
+        acceptedBy: DEMO_ACCEPTORS[1],
+        acceptedAt: daysAgo(24),
+      }),
+      // DONE BUT NOT SIGNED OFF - the wait for the signature, and the reason
+      // `done` and `accepted` are two columns rather than one. inst_4 hangs off
+      // this one and is invoiced against a gate the customer has not confirmed.
       milestone("ms_5", workspaceId, "prj_demo_2", DEMO_MILESTONES[1], 2, "done", daysAgo(5), daysAgo(6)),
       milestone("ms_6", workspaceId, "prj_demo_3", DEMO_MILESTONES[0], 1, "pending", daysAhead(14), null),
-      milestone("ms_7", workspaceId, "prj_demo_4", DEMO_MILESTONES[3], 1, "done", daysAgo(60), daysAgo(58)),
+      milestone("ms_7", workspaceId, "prj_demo_4", DEMO_MILESTONES[3], 1, "done", daysAgo(60), daysAgo(58), {
+        acceptedBy: DEMO_ACCEPTORS[2],
+        acceptedAt: daysAgo(57),
+      }),
+      // Added when the binding became mandatory: inst_6 was the last
+      // instalment in this fixture with no gate behind it, and "the second
+      // payment falls due at final acceptance" is the gate it was always
+      // implicitly waiting on.
+      milestone("ms_8", workspaceId, "prj_demo_3", DEMO_MILESTONES[3], 2, "pending", daysAhead(85), null),
     ],
     instalments: [
       instalment("inst_1", workspaceId, "prj_demo_1", "ms_1", 1, "settled", 380_000, 380_000, daysAgo(25), daysAgo(24)),
@@ -1000,7 +1026,7 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       instalment("inst_3", workspaceId, "prj_demo_2", "ms_4", 1, "settled", 700_000, 700_000, daysAgo(20), daysAgo(19)),
       instalment("inst_4", workspaceId, "prj_demo_2", "ms_5", 2, "invoiced", 700_000, null, daysAhead(12), null),
       instalment("inst_5", workspaceId, "prj_demo_3", "ms_6", 1, "planned", 270_000, null, daysAhead(30), null),
-      instalment("inst_6", workspaceId, "prj_demo_3", null, 2, "planned", 270_000, null, daysAhead(90), null),
+      instalment("inst_6", workspaceId, "prj_demo_3", "ms_8", 2, "planned", 270_000, null, daysAhead(90), null),
       // Collected short of plan: the planned-versus-actual gap this domain
       // exists to produce is only visible if one instalment actually has one.
       instalment("inst_7", workspaceId, "prj_demo_4", "ms_7", 1, "settled", 300_000, 290_000, daysAgo(50), daysAgo(49)),
@@ -1383,15 +1409,34 @@ function milestone(
   status: string,
   dueAt: Date,
   completedAt: Date | null,
+  // incr/0032. Defaulted so most rows read as "committed to the date it
+  // carries" - a gate that never moved and a gate that moved are both worth
+  // having in a fixture, and only the second needs saying.
+  extra: { baselineDueAt?: Date; acceptedBy?: string; acceptedAt?: Date } = {},
 ) {
-  return { id, workspaceId, projectId, name, sequence, status: status as never, dueAt, completedAt };
+  return {
+    id,
+    workspaceId,
+    projectId,
+    name,
+    sequence,
+    status: status as never,
+    dueAt,
+    completedAt,
+    baselineDueAt: extra.baselineDueAt ?? dueAt,
+    acceptance:
+      extra.acceptedBy && extra.acceptedAt
+        ? { at: extra.acceptedAt, by: extra.acceptedBy, recordedBySub: PM }
+        : null,
+  };
 }
 
 function instalment(
   id: string,
   workspaceId: string,
   projectId: string,
-  milestoneId: string | null,
+  // incr/0032 - NOT NULL. There is no such thing here as money with no gate.
+  milestoneId: string,
   sequence: number,
   status: string,
   planned: number,

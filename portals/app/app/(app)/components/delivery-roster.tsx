@@ -106,6 +106,13 @@ export interface MilestoneRow {
   readonly status: string;
   readonly dueAt: string | null;
   readonly completedAt: string | null;
+  /** incr/0032 - how far this gate has moved from what was committed, and
+   * whether the customer has signed it off. Both come from the page, which is
+   * where the rule that computes them lives. */
+  readonly slippedDays: number | null;
+  readonly acceptedBy: string | null;
+  readonly changeCount: number;
+  readonly lastChangeReason: string | null;
 }
 
 export interface DeliveryRosterProps {

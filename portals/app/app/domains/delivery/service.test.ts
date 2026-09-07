@@ -44,7 +44,7 @@ function instalment(over: Partial<InstalmentRecord> = {}): InstalmentRecord & { 
   return {
     id: "inst_1",
     projectId: "prj_1",
-    milestoneId: null,
+    milestoneId: "ms_1",
     sequence: 1,
     status: "planned",
     plannedAmount: money(500_000),
@@ -63,6 +63,8 @@ function milestone(over: Partial<MilestoneRecord> = {}): MilestoneRecord & { wor
     name: "Phase 1",
     sequence: 1,
     status: "done",
+    baselineDueAt: null,
+    acceptance: null,
     dueAt: daysAgo(10),
     completedAt: daysAgo(11),
     workspaceId: WS,
@@ -263,6 +265,8 @@ const msDraft = {
   dueAt: new Date("2026-09-01T00:00:00Z"),
   completedAt: null as Date | null,
   status: "pending" as const,
+  baselineDueAt: null,
+  acceptance: null,
 };
 
 test("a viewer may read a project and may not edit its plan", async () => {
@@ -289,7 +293,13 @@ test("the same sequence EDITS that step rather than adding a second one", async 
   store.seed({ projects: [project()] });
   const c = ctx("delivery_manager", "starter", store);
   const first = unwrap(await upsertMilestone(c, "prj_1", msDraft));
-  const again = unwrap(await upsertMilestone(c, "prj_1", { ...msDraft, name: "Kickoff (moved)" }));
+  const again = unwrap(
+    // A rename is a plan change now (incr/0032), so it carries a reason -
+    // without one this same call is refused, which the test below pins.
+    await upsertMilestone(c, "prj_1", { ...msDraft, name: "Kickoff (moved)" }, {
+      reason: "contract clause renamed at signing",
+    }),
+  );
 
   assert.equal(again.id, first.id, "sequence is the identity");
   assert.equal(again.name, "Kickoff (moved)");
@@ -448,4 +458,86 @@ test("both renewal verbs are refused when the tier does not include delivery", a
   const one = await renewalDraft(blind, "prj_1", { now: NOW });
   assert.equal(list.ok, false);
   assert.equal(one.ok, false);
+});
+
+// --- incr/0032: moving a committed gate is a recorded act ---------------------
+
+test("moving a gate's date writes a change record naming who and why", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const c = ctx("delivery_manager", "starter", store);
+  const created = unwrap(await upsertMilestone(c, "prj_1", msDraft));
+
+  const moved = unwrap(
+    await upsertMilestone(
+      c,
+      "prj_1",
+      { ...msDraft, dueAt: daysAhead(60) },
+      { reason: "customer site works ran late" },
+    ),
+  );
+  assert.equal(moved.id, created.id);
+
+  const log = await store.listMilestoneChanges(WS, "prj_1");
+  assert.equal(log.length, 1);
+  assert.equal(log[0].field, "due_at");
+  assert.equal(log[0].reason, "customer site works ran late");
+  // ATTRIBUTED FROM THE SESSION, never from the caller's payload - the same
+  // rule as every other attribution key in this product.
+  assert.equal(log[0].changedBySub, c.sub);
+});
+
+test("no reason, no move - and nothing is written at all", async () => {
+  // THE WHOLE EDIT IS REFUSED, not just the log. A milestone that moved with
+  // its history missing is worse than one that did not move: the row would
+  // then disagree with a log that says it never happened.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const c = ctx("delivery_manager", "starter", store);
+  unwrap(await upsertMilestone(c, "prj_1", msDraft));
+
+  const r = await upsertMilestone(c, "prj_1", { ...msDraft, dueAt: daysAhead(60) });
+  assert.equal(r.ok === false && r.violations[0]!.code, "change_reason_required");
+
+  const held = await store.listMilestones(WS, "prj_1");
+  assert.deepEqual(held[0].dueAt, msDraft.dueAt, "the date must not have moved");
+  assert.equal((await store.listMilestoneChanges(WS, "prj_1")).length, 0);
+});
+
+test("creating a gate is not a change, and is never asked to justify itself", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const c = ctx("delivery_manager", "starter", store);
+  unwrap(await upsertMilestone(c, "prj_1", msDraft));
+  assert.equal((await store.listMilestoneChanges(WS, "prj_1")).length, 0);
+});
+
+test("what was committed survives an edit that moves the date", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const c = ctx("delivery_manager", "starter", store);
+  const created = unwrap(await upsertMilestone(c, "prj_1", msDraft));
+  const committed = created.baselineDueAt;
+
+  unwrap(
+    await upsertMilestone(c, "prj_1", { ...msDraft, dueAt: daysAhead(60) }, { reason: "slipped" }),
+  );
+  const held = (await store.listMilestones(WS, "prj_1"))[0];
+  assert.deepEqual(held.baselineDueAt, committed, "slippage is measured against a fixed point");
+});
+
+test("the plan's history travels with the project view", async () => {
+  // Read on the same gate as the plan itself: whoever may see a project may see
+  // why its dates moved.
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [project()] });
+  const c = ctx("delivery_manager", "starter", store);
+  unwrap(await upsertMilestone(c, "prj_1", msDraft));
+  unwrap(
+    await upsertMilestone(c, "prj_1", { ...msDraft, name: "Kickoff II" }, { reason: "renamed" }),
+  );
+
+  const view = unwrap(await projectView(c, "prj_1"));
+  assert.equal(view.planChanges.length, 1);
+  assert.equal(view.planChanges[0].field, "name");
 });

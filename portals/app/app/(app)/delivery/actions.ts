@@ -124,10 +124,16 @@ export async function moveInstalment(input: {
 /**
  * Creating or editing a milestone.
  *
- * Dates arrive as `yyyy-mm-dd` from two <input type="date"> and are parsed
- * HERE: a Date crossing a server-action boundary is serialised and revived, and
- * a bad string should be refused on the server where the rule lives rather than
+ * Dates arrive as `yyyy-mm-dd` from <input type="date"> and are parsed HERE: a
+ * Date crossing a server-action boundary is serialised and revived, and a bad
+ * string should be refused on the server where the rule lives rather than
  * silently becoming an Invalid Date the health rule then reads.
+ *
+ * THE ACCEPTANCE RECORD IS ATTRIBUTED SERVER-SIDE. `acceptedBy` is the
+ * customer-side signatory as our user typed it, but WHO RECORDED IT comes from
+ * the session and never from the form - a browser must not be able to say who
+ * entered something (incr/0032, and the same reasoning as every other
+ * attribution key in this product).
  */
 export async function saveMilestone(
   projectId: string,
@@ -137,6 +143,10 @@ export async function saveMilestone(
     dueAt: string | null;
     completedAt: string | null;
     status: string;
+    acceptedAt: string | null;
+    acceptedBy: string | null;
+    /** Required only when the plan actually moves; the rule decides. */
+    reason: string;
   },
 ): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
@@ -149,7 +159,10 @@ export async function saveMilestone(
   };
   const dueAt = day(input.dueAt);
   const completedAt = day(input.completedAt);
-  if (dueAt === "bad" || completedAt === "bad") return { ok: false, error: "invalid_date" };
+  const acceptedAt = day(input.acceptedAt);
+  if (dueAt === "bad" || completedAt === "bad" || acceptedAt === "bad") {
+    return { ok: false, error: "invalid_date" };
+  }
 
   const result = await upsertMilestone(
     {
@@ -166,7 +179,15 @@ export async function saveMilestone(
       dueAt,
       completedAt,
       status: input.status as never,
+      // Set by the rule on a create and carried from the stored row on an
+      // edit - the caller does not get a say either way.
+      baselineDueAt: null,
+      acceptance:
+        acceptedAt && input.acceptedBy
+          ? { at: acceptedAt, by: input.acceptedBy, recordedBySub: session.user.sub }
+          : null,
     },
+    { reason: input.reason },
   );
 
   if (!result.ok) {

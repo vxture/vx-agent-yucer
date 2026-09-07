@@ -154,6 +154,11 @@ export const DEMO_PROJECTS = [
 
 export const DEMO_MILESTONES = ["启动与调研", "试点门店上线", "全面推广", "验收"] as const;
 
+// Who signed off, on the CUSTOMER's side. Names, not subjects: these people do
+// not have accounts here and never will - our own user types the name down
+// when they record the acceptance (incr/0032).
+export const DEMO_ACCEPTORS = ["王建国", "刘晓峰", "陈继先"] as const;
+
 export const DEMO_SIGNALS = [
   "华东零售集团正在评估 POS 替换方案",
   "生鲜连锁完成 C 轮融资",

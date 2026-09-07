@@ -201,31 +201,31 @@ model AuditEvent {
 // ===== yucer_core (D4 account management) =====
 
 model Account {
-  id           String    @id @default(uuid()) @db.Uuid
-  workspaceId  String    @map("workspace_id") @db.Uuid
-  accountNo    String    @map("account_no") @db.VarChar(64)
-  name         String    @db.VarChar(255)
-  industry     String?   @db.VarChar(64)
-  region       String?   @db.VarChar(64)
-  segmentCode  String?   @map("segment_code") @db.VarChar(64)
-  ownerSub     String?   @map("owner_sub") @db.VarChar(128)
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  accountNo     String    @map("account_no") @db.VarChar(64)
+  name          String    @db.VarChar(255)
+  industry      String?   @db.VarChar(64)
+  region        String?   @db.VarChar(64)
+  segmentCode   String?   @map("segment_code") @db.VarChar(64)
+  ownerSub      String?   @map("owner_sub") @db.VarChar(128)
   /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
-  tier         String    @default("standard") @db.VarChar(16)
-  healthScore  Int?      @map("health_score") @db.SmallInt
+  tier          String    @default("standard") @db.VarChar(16)
+  healthScore   Int?      @map("health_score") @db.SmallInt
   /// incr/0024. 统一社会信用代码 for a mainland entity; unconstrained in shape
   /// because a foreign counterparty registers somewhere else entirely.
-  creditCode   String?   @map("credit_code") @db.VarChar(64)
-  website      String?   @db.VarChar(255)
+  creditCode    String?   @map("credit_code") @db.VarChar(64)
+  website       String?   @db.VarChar(255)
   /// A count, not a band. Bands derive from a count; a count never derives
   /// from a band, and naming the bands is the owner's call - see incr/0024.
-  employeeCount Int?     @map("employee_count")
+  employeeCount Int?      @map("employee_count")
   /// incr/0025. Self-referencing, ON DELETE SET NULL: deleting a parent
   /// orphans its subsidiaries rather than deleting customers in their own right.
-  parentId     String?   @map("parent_id") @db.Uuid
-  status       String    @default("prospect") @db.VarChar(32)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
-  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
+  parentId      String?   @map("parent_id") @db.Uuid
+  status        String    @default("prospect") @db.VarChar(32)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
 
   @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
   @@map("account")
@@ -243,18 +243,18 @@ model Account {
 /// decision_role and influence left with incr/0028: a buying role exists only
 /// relative to a purchase, so it lives on OpportunityContact.
 model Person {
-  id           String    @id @default(uuid()) @db.Uuid
-  workspaceId  String    @map("workspace_id") @db.Uuid
-  name         String    @db.VarChar(255)
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  name        String    @db.VarChar(255)
   /// incr/0024. No format constraints - see that increment on why a CHECK on
   /// an email behaves like an outage.
-  email        String?   @db.VarChar(255)
-  mobile       String?   @db.VarChar(64)
-  wechat       String?   @db.VarChar(128)
-  status       String    @default("active") @db.VarChar(32)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
-  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz()
+  email       String?   @db.VarChar(255)
+  mobile      String?   @db.VarChar(64)
+  wechat      String?   @db.VarChar(128)
+  status      String    @default("active") @db.VarChar(32)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz()
 
   @@map("person")
   @@schema("yucer_core")
@@ -460,7 +460,7 @@ model Signal {
   score       Int?     @db.SmallInt
   /// Which line of enquiry surfaced this - ADR-016. Orders the inbox; never
   /// enters the score.
-  targeting    String?  @db.VarChar(24)
+  targeting   String?  @db.VarChar(24)
   status      String   @default("new") @db.VarChar(32)
   detectedAt  DateTime @default(now()) @map("detected_at") @db.Timestamptz()
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
@@ -539,23 +539,23 @@ model OpportunityStageEvent {
 }
 
 model ForecastSnapshot {
-  id              String   @id @default(uuid()) @db.Uuid
-  workspaceId     String   @map("workspace_id") @db.Uuid
-  period          String   @db.VarChar(32)
-  scopeType       String   @map("scope_type") @db.VarChar(32)
-  territoryId     String?  @map("territory_id") @db.Uuid
-  ownerSub        String?  @map("owner_sub") @db.VarChar(128)
-  commitAmount    Decimal  @default(0) @map("commit_amount") @db.Decimal(18, 2)
-  bestCaseAmount  Decimal  @default(0) @map("best_case_amount") @db.Decimal(18, 2)
-  pipelineAmount  Decimal  @default(0) @map("pipeline_amount") @db.Decimal(18, 2)
-  closedAmount    Decimal  @default(0) @map("closed_amount") @db.Decimal(18, 2)
-  currency        String   @default("CNY") @db.VarChar(8)
+  id             String   @id @default(uuid()) @db.Uuid
+  workspaceId    String   @map("workspace_id") @db.Uuid
+  period         String   @db.VarChar(32)
+  scopeType      String   @map("scope_type") @db.VarChar(32)
+  territoryId    String?  @map("territory_id") @db.Uuid
+  ownerSub       String?  @map("owner_sub") @db.VarChar(128)
+  commitAmount   Decimal  @default(0) @map("commit_amount") @db.Decimal(18, 2)
+  bestCaseAmount Decimal  @default(0) @map("best_case_amount") @db.Decimal(18, 2)
+  pipelineAmount Decimal  @default(0) @map("pipeline_amount") @db.Decimal(18, 2)
+  closedAmount   Decimal  @default(0) @map("closed_amount") @db.Decimal(18, 2)
+  currency       String   @default("CNY") @db.VarChar(8)
   /// incr/0013. Nullable and no default: a snapshot from before that
   /// increment, or one whose period label could not be parsed, was never
   /// counted - which is a different fact from having counted zero.
-  newLogoCount    Int?     @map("new_logo_count")
-  snapshotAt      DateTime @default(now()) @map("snapshot_at") @db.Timestamptz()
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  newLogoCount   Int?     @map("new_logo_count")
+  snapshotAt     DateTime @default(now()) @map("snapshot_at") @db.Timestamptz()
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@unique([workspaceId, period, scopeType, territoryId, ownerSub, snapshotAt], map: "uidx_forecast_snapshot_scope_at")
   @@map("forecast_snapshot")
@@ -595,7 +595,7 @@ model Project {
   health         String    @default("green") @db.VarChar(32)
   startsAt       DateTime? @map("starts_at") @db.Timestamptz()
   endsAt         DateTime? @map("ends_at") @db.Timestamptz()
-  engagementType String @default("one_off") @map("engagement_type") @db.VarChar(32)
+  engagementType String    @default("one_off") @map("engagement_type") @db.VarChar(32)
   status         String    @default("planning") @db.VarChar(32)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
@@ -606,39 +606,75 @@ model Project {
 }
 
 model ProjectMilestone {
-  id          String    @id @default(uuid()) @db.Uuid
-  workspaceId String    @map("workspace_id") @db.Uuid
-  projectId   String    @map("project_id") @db.Uuid
-  name        String    @db.VarChar(255)
-  sequence    Int       @default(0) @db.SmallInt
-  dueAt       DateTime? @map("due_at") @db.Timestamptz()
-  completedAt DateTime? @map("completed_at") @db.Timestamptz()
-  status      String    @default("pending") @db.VarChar(32)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  id                      String    @id @default(uuid()) @db.Uuid
+  workspaceId             String    @map("workspace_id") @db.Uuid
+  projectId               String    @map("project_id") @db.Uuid
+  name                    String    @db.VarChar(255)
+  sequence                Int       @default(0) @db.SmallInt
+  dueAt                   DateTime? @map("due_at") @db.Timestamptz()
+  completedAt             DateTime? @map("completed_at") @db.Timestamptz()
+  status                  String    @default("pending") @db.VarChar(32)
+  // incr/0032 - the commercial half. baselineDueAt is what was committed and is
+  // immutable in the grant; the acceptance trio is recorded by OUR user about
+  // the customer's sign-off, never entered by the customer.
+  baselineDueAt           DateTime? @map("baseline_due_at") @db.Timestamptz()
+  acceptedAt              DateTime? @map("accepted_at") @db.Timestamptz()
+  acceptedBy              String?   @map("accepted_by") @db.VarChar(255)
+  acceptanceRecordedBySub String?   @map("acceptance_recorded_by_sub") @db.VarChar(128)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt               DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([projectId, sequence], map: "uidx_project_milestone_seq")
+  // incr/0032 - the target of revenue_schedule's COMPOSITE foreign key. It is
+  // not a uniqueness the domain needs (id is already unique); it exists so the
+  // database can refuse an instalment that names a gate in another project.
+  @@unique([id, projectId], map: "uidx_project_milestone_id_project")
   @@map("project_milestone")
   @@schema("yucer_delivery")
 }
 
 model RevenueSchedule {
-  id             String    @id @default(uuid()) @db.Uuid
-  workspaceId    String    @map("workspace_id") @db.Uuid
-  projectId      String    @map("project_id") @db.Uuid
-  milestoneId    String?   @map("milestone_id") @db.Uuid
-  sequence       Int       @default(0) @db.SmallInt
-  plannedAmount  Decimal   @map("planned_amount") @db.Decimal(18, 2)
-  actualAmount   Decimal?  @map("actual_amount") @db.Decimal(18, 2)
-  currency       String    @default("CNY") @db.VarChar(8)
-  dueAt          DateTime? @map("due_at") @db.Timestamptz()
-  settledAt      DateTime? @map("settled_at") @db.Timestamptz()
-  status         String    @default("planned") @db.VarChar(32)
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+  id            String    @id @default(uuid()) @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  projectId     String    @map("project_id") @db.Uuid
+  // incr/0032 - NOT NULL. Every instalment names the gate that releases it;
+  // 回款不是凭空来的 (owner, 2026-09-06).
+  milestoneId   String    @map("milestone_id") @db.Uuid
+  sequence      Int       @default(0) @db.SmallInt
+  plannedAmount Decimal   @map("planned_amount") @db.Decimal(18, 2)
+  actualAmount  Decimal?  @map("actual_amount") @db.Decimal(18, 2)
+  currency      String    @default("CNY") @db.VarChar(8)
+  dueAt         DateTime? @map("due_at") @db.Timestamptz()
+  settledAt     DateTime? @map("settled_at") @db.Timestamptz()
+  status        String    @default("planned") @db.VarChar(32)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([projectId, sequence], map: "uidx_revenue_schedule_seq")
+  @@index([milestoneId], map: "idx_revenue_schedule_milestone")
   @@map("revenue_schedule")
+  @@schema("yucer_delivery")
+}
+
+// Why a milestone moved. Append-only (incr/0032): no UPDATE and no DELETE
+// grant, so a correction is a new row - this product's guardrail for anything
+// that is a history rather than a state.
+//
+// ONE ROW PER FIELD, not one per save: "the date moved AND the name changed"
+// are two facts a reader wants separately.
+model MilestoneChange {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  milestoneId  String   @map("milestone_id") @db.Uuid
+  changedBySub String   @map("changed_by_sub") @db.VarChar(128)
+  field        String   @db.VarChar(32)
+  fromValue    String?  @map("from_value")
+  toValue      String?  @map("to_value")
+  reason       String   @db.VarChar(500)
+  changedAt    DateTime @default(now()) @map("changed_at") @db.Timestamptz()
+
+  @@index([milestoneId, changedAt(sort: Desc)], map: "idx_milestone_change_milestone")
+  @@map("milestone_change")
   @@schema("yucer_delivery")
 }
 
@@ -783,21 +819,21 @@ model AgentPlaybook {
 // schema's grants and locks because db-init applies 97/98 before incr/.
 
 model Interaction {
-  id                    String    @id @default(uuid()) @db.Uuid
-  workspaceId           String    @map("workspace_id") @db.Uuid
-  accountId             String    @map("account_id") @db.Uuid
-  opportunityId         String?   @map("opportunity_id") @db.Uuid
-  projectId             String?   @map("project_id") @db.Uuid
-  channel               String    @db.VarChar(32)
-  direction             String    @default("outbound") @db.VarChar(16)
-  occurredAt            DateTime  @map("occurred_at") @db.Timestamptz(6)
-  actorSub              String    @map("actor_sub") @db.VarChar(128)
-  subject               String?   @db.VarChar(255)
-  rawNote               String    @map("raw_note")
+  id                    String   @id @default(uuid()) @db.Uuid
+  workspaceId           String   @map("workspace_id") @db.Uuid
+  accountId             String   @map("account_id") @db.Uuid
+  opportunityId         String?  @map("opportunity_id") @db.Uuid
+  projectId             String?  @map("project_id") @db.Uuid
+  channel               String   @db.VarChar(32)
+  direction             String   @default("outbound") @db.VarChar(16)
+  occurredAt            DateTime @map("occurred_at") @db.Timestamptz(6)
+  actorSub              String   @map("actor_sub") @db.VarChar(128)
+  subject               String?  @db.VarChar(255)
+  rawNote               String   @map("raw_note")
   summary               String?
-  captureMode           String    @default("manual") @map("capture_mode") @db.VarChar(32)
-  correctsInteractionId String?   @map("corrects_interaction_id") @db.Uuid
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  captureMode           String   @default("manual") @map("capture_mode") @db.VarChar(32)
+  correctsInteractionId String?  @map("corrects_interaction_id") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([workspaceId, accountId, occurredAt(sort: Desc)])
   @@map("interaction")
@@ -850,18 +886,18 @@ model Commitment {
 /// Nothing to do with the platform's vx_provision.product_code: one says who we
 /// sell this SaaS to, the other says what the company using it sells.
 model Product {
-  id           String   @id @default(uuid()) @db.Uuid
-  workspaceId  String   @map("workspace_id") @db.Uuid
-  productCode  String   @map("product_code") @db.VarChar(64)
-  name         String   @db.VarChar(255)
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  productCode String   @map("product_code") @db.VarChar(64)
+  name        String   @db.VarChar(255)
   /// The type association - a uuid since 0029; the business code never joins.
-  typeId       String?  @map("type_id") @db.Uuid
-  unit         String   @default("set") @db.VarChar(32)
+  typeId      String?  @map("type_id") @db.Uuid
+  unit        String   @default("set") @db.VarChar(32)
   /// The status association - a uuid like the type's (0029).
-  statusId     String   @map("status_id") @db.Uuid
-  sortOrder    Int      @default(0) @map("sort_order")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  statusId    String   @map("status_id") @db.Uuid
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, productCode], map: "uidx_product_code")
   @@index([workspaceId, sortOrder], map: "idx_product_ws_sort")
@@ -945,17 +981,17 @@ model SolutionItem {
 
 /// list_price and FLOOR. The floor is what makes this table carry a decision.
 model PriceBookEntry {
-  id          String   @id @default(uuid()) @db.Uuid
-  workspaceId String   @map("workspace_id") @db.Uuid
-  productId   String   @map("product_id") @db.Uuid
-  currency    String   @default("CNY") @db.VarChar(8)
-  listPrice   Decimal  @map("list_price") @db.Decimal(18, 2)
-  floorPrice  Decimal  @map("floor_price") @db.Decimal(18, 2)
-  effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz()
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  currency     String   @default("CNY") @db.VarChar(8)
+  listPrice    Decimal  @map("list_price") @db.Decimal(18, 2)
+  floorPrice   Decimal  @map("floor_price") @db.Decimal(18, 2)
+  effectiveAt  DateTime @default(now()) @map("effective_at") @db.Timestamptz()
   /// The entry this one replaced - incr/0030, the asserted chain. Self-FK
   /// with ON DELETE SET NULL: deleting a superseded entry must not take its
   /// successor with it.
-  supersedesId String? @map("supersedes_id") @db.Uuid
+  supersedesId String?  @map("supersedes_id") @db.Uuid
 
   @@unique([workspaceId, productId, currency, effectiveAt], map: "uidx_price_entry")
   @@index([supersedesId], map: "idx_price_supersedes")
@@ -966,18 +1002,18 @@ model PriceBookEntry {
 /// When lines exist they are AUTHORITATIVE and opportunity.amount is their sum.
 /// Reconciled in the service, not by a trigger - ADR-014 s2.
 model OpportunityLine {
-  id             String   @id @default(uuid()) @db.Uuid
-  workspaceId    String   @map("workspace_id") @db.Uuid
-  opportunityId  String   @map("opportunity_id") @db.Uuid
-  productId      String   @map("product_id") @db.Uuid
-  solutionId     String?  @map("solution_id") @db.Uuid
-  quantity       Decimal  @default(1) @db.Decimal(12, 2)
-  unitPrice      Decimal  @map("unit_price") @db.Decimal(18, 2)
-  amount         Decimal  @db.Decimal(18, 2)
-  currency       String   @default("CNY") @db.VarChar(8)
-  needsApproval  Boolean  @default(false) @map("needs_approval")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  solutionId    String?  @map("solution_id") @db.Uuid
+  quantity      Decimal  @default(1) @db.Decimal(12, 2)
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(18, 2)
+  amount        Decimal  @db.Decimal(18, 2)
+  currency      String   @default("CNY") @db.VarChar(8)
+  needsApproval Boolean  @default(false) @map("needs_approval")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@index([workspaceId, opportunityId], map: "opportunity_line_by_opp")
   @@index([workspaceId, productId], map: "opportunity_line_by_product")
@@ -988,16 +1024,16 @@ model OpportunityLine {
 /// incr/0012. Append-only: no update, no delete. Keyed by the price signed off,
 /// not by the line, so it survives the replace-not-patch rewrite of lines.
 model LineDiscountApproval {
-  id             String   @id @default(uuid()) @db.Uuid
-  workspaceId    String   @map("workspace_id") @db.Uuid
-  opportunityId  String   @map("opportunity_id") @db.Uuid
-  productId      String   @map("product_id") @db.Uuid
-  unitPrice      Decimal  @map("unit_price") @db.Decimal(18, 2)
-  currency       String   @default("CNY") @db.VarChar(8)
-  floorPrice     Decimal  @map("floor_price") @db.Decimal(18, 2)
-  reason         String
-  approvedBySub  String   @map("approved_by_sub") @db.VarChar(255)
-  approvedAt     DateTime @default(now()) @map("approved_at") @db.Timestamptz()
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  productId     String   @map("product_id") @db.Uuid
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(18, 2)
+  currency      String   @default("CNY") @db.VarChar(8)
+  floorPrice    Decimal  @map("floor_price") @db.Decimal(18, 2)
+  reason        String
+  approvedBySub String   @map("approved_by_sub") @db.VarChar(255)
+  approvedAt    DateTime @default(now()) @map("approved_at") @db.Timestamptz()
 
   @@index([workspaceId, opportunityId], map: "line_discount_approval_by_opp")
   @@map("line_discount_approval")

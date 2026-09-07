@@ -188,7 +188,21 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "status",
     "updated_at",
   ],
-  "yucer_delivery.project_milestone": ["name", "due_at", "completed_at", "status", "updated_at"],
+  // incr/0032 - a milestone became a commercial gate. The acceptance trio is
+  // writable because it is RECORDED after the fact (the customer does not use
+  // this system); baseline_due_at is absent on purpose - what was committed is
+  // not editable, and that absence is the whole mechanism behind slippage
+  // being subtraction rather than memory.
+  "yucer_delivery.project_milestone": [
+    "name",
+    "due_at",
+    "completed_at",
+    "status",
+    "accepted_at",
+    "accepted_by",
+    "acceptance_recorded_by_sub",
+    "updated_at",
+  ],
   "yucer_delivery.revenue_schedule": [
     "milestone_id",
     "planned_amount",
@@ -280,6 +294,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // row carrying corrects_interaction_id, never an edit of the original.
   "yucer_field.interaction",
   "yucer_field.interaction_participant",
+  // incr/0032. Why a milestone moved is a history, not a state. A change record
+  // that can be edited is a note; this one has no UPDATE and no DELETE grant,
+  // so a correction is a new row like everything else in this list.
+  "yucer_delivery.milestone_change",
 ];
 
 const APPEND_ONLY = new Set(APPEND_ONLY_TABLES);

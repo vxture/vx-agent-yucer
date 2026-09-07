@@ -43,8 +43,18 @@
 | 表 | 说明 | 业务号 |
 |----|------|-------|
 | `project` | 交付项目 | `project_no` |
-| `project_milestone` | 里程碑（`sequence` 唯一） | - |
-| `revenue_schedule` | 回款期次（`sequence` 唯一） | - |
+| `project_milestone` | 收款/验收关口（`sequence` 唯一；承诺日 `baseline_due_at` 不可改） | - |
+| `revenue_schedule` | 回款期次（`sequence` 唯一；`milestone_id` **非空**） | - |
+| `milestone_change` | 计划变更记录（只追加，带原因） | - |
+
+`project_task` 于 2026-08-28 删除（ADR-022），`milestone_change` 于 2026-09-06 新增
+（ADR-025），所以本域仍是 4 张表。
+
+**里程碑是收款关口，不是工作包**（ADR-025）。`baseline_due_at` 记承诺日且**不在 UPDATE
+授权内**——于是"晚了多久"是减法而不是记忆；验收三列
+（`accepted_at` / `accepted_by` / `acceptance_recorded_by_sub`）记的是**我们录下来的**
+客户签字，客户不使用本系统。回款与关口之间是**复合外键** `(milestone_id, project_id)`，
+它拦住的是"甲项目的钱被乙项目的关口放出去"——单列外键两边都能通过。
 
 ### yucer_agent（4）
 
