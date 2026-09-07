@@ -81,6 +81,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   account: "客户管理",
   signal: "商机智探",
   lead: "线索管理",
+  funnel: "漏斗全景",
   pipeline: "商机管理",
   delivery: "项目交付",
   copilot: "销售助手",
@@ -3139,6 +3140,36 @@ export const EXIT_REASON_LABEL: Record<string, string> = {
   unreachable: "联系不上",
   other: "其他",
 };
+
+export const FUNNEL_TEXT = {
+  title: "漏斗全景",
+  why: "每一段的数字都是各自模块里那些行的计数。「没有记录原因」有两种来路：商机、项目、回款三段还没有录入入口；信号和线索有入口，但更早结束的行本来就没留下原因。",
+  moduleWhy: "信号 → 线索 → 商机 → 项目 → 回款。这是唯一一个讲整条链的页面——其余每个模块只讲自己那一段。",
+  stage: {
+    signal: "信号",
+    lead: "线索",
+    opportunity: "商机",
+    project: "项目",
+    revenue: "回款",
+  } as Record<string, string>,
+  part: {
+    advanced: "已推进",
+    open: "在手上",
+    exited: "已终止",
+  } as Record<string, string>,
+  passed: (pct: number, reached: number) => `${pct}% 推进 · 共到达 ${reached}`,
+  nothingReached: "还没有东西走到这一段",
+  byStage: "分段明细",
+  // SAYS THE FACT, NOT A CAUSE. A row can be unexplained because the stage has
+  // no surface that asks (商机/项目/回款 today) or because it ended before the
+  // reason was ever recorded - and the count cannot tell those apart.
+  unexplained: (n: number) => `${n} 条终止没有记录原因`,
+  blind: (stages: string) => `你没有权限看：${stages}。这些段不显示，而不是显示为 0。`,
+  listSeparator: "、",
+  tagEntered: (n: number) => `${n} 条进入`,
+  tagLive: (n: number) => `${n} 条在手上`,
+  tagLeak: (stage: string, n: number) => `${stage}漏最多：${n} 条`,
+} as const;
 
 export const LEAD_TEXT = {
   title: "线索",

@@ -215,6 +215,11 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   // who works this - so a module of its own split the lead's page in two:
   // judge it here, hand it over there. It is a button in the title row now.
   { key: "lead", href: "/lead", icon: "target", action: "signal.lead.view" },
+  // 漏斗总览 - the one page that is about the chain rather than a link in it
+  // (design_yucer_110 batch E). Gated on the weakest read that reaches the
+  // exit table; the five stage reads inside carry their own gates, and a
+  // stage the reader cannot see reports nothing rather than zero.
+  { key: "funnel", href: "/funnel", icon: "chart-bar", action: "signal.lead.view" },
   { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
   // Gated on the DELIVERY read, not on the pipeline write. Seeing which terms
   // are coming up is a delivery question; opening the deal is a separate gate

@@ -638,3 +638,21 @@ export async function leadExitReasons(
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listFunnelExits(ctx.workspaceId, leadId));
 }
+
+/**
+ * Every exit in the workspace - the cross-stage read the funnel overview is
+ * built from (incr/0033, design_yucer_110 batch E).
+ *
+ * GATED ON `signal.lead.view`, which is the weakest read that touches this
+ * table at all. It is deliberately NOT gated per stage: a reader who cannot
+ * see delivery still sees that projects were cancelled and why, because the
+ * exit record is a REASON rather than the object - it names no customer, no
+ * amount and no owner, only what ended and what somebody said about it.
+ */
+export async function workspaceExits(
+  ctx: SignalContext,
+): Promise<RuleResult<Awaited<ReturnType<SignalStore["listAllFunnelExits"]>>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.lead.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listAllFunnelExits(ctx.workspaceId));
+}

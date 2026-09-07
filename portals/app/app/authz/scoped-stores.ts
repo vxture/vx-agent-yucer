@@ -180,4 +180,6 @@ class ScopedSignalStore implements SignalStore {
   deleteLead: SignalStore["deleteLead"] = (...a) => this.inner.deleteLead(...a);
   recordFunnelExit: SignalStore["recordFunnelExit"] = (...a) => this.inner.recordFunnelExit(...a);
   listFunnelExits: SignalStore["listFunnelExits"] = (...a) => this.inner.listFunnelExits(...a);
+  listAllFunnelExits: SignalStore["listAllFunnelExits"] = (...a) =>
+    this.inner.listAllFunnelExits(...a);
 }

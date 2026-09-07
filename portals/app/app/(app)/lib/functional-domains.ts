@@ -155,6 +155,10 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
       // inside 线索管理 rather than a module beside it (owner, 2026-09-06:
       // 无需过度拆分).
       built("lead"),
+      // LAST in 战场侦察域, and it is the only module here that is about the
+      // whole chain rather than one link in it - so it reads as the summary of
+      // what the three above feed, which is what it is.
+      built("funnel"),
     ],
   },
   {

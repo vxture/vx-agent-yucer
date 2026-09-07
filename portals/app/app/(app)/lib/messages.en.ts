@@ -153,6 +153,7 @@ export const en: Dictionary = {
     account: "Accounts",
     signal: "Opportunity signals",
     lead: "Leads",
+    funnel: "Funnel",
     segment: "Segments",
     solution: "Solutions",
     pricebook: "Product pricing",
@@ -1845,6 +1846,33 @@ export const en: Dictionary = {
     unreachable: "Unreachable",
     other: "Other",
   } as Record<string, string>,
+  FUNNEL_TEXT: {
+    title: "The whole funnel",
+    why: "Every number counts rows the modules already show. \"No reason recorded\" has two causes: deals, projects and cash have no surface that asks yet, and rows that ended before signals and leads got one never recorded it.",
+    moduleWhy: "Signal to lead to deal to project to cash. The one page about the whole chain - every other module is about one link in it.",
+    stage: {
+      signal: "Signals",
+      lead: "Leads",
+      opportunity: "Deals",
+      project: "Projects",
+      revenue: "Cash",
+    } as Record<string, string>,
+    part: {
+      advanced: "moved on",
+      open: "in hand",
+      exited: "ended",
+    } as Record<string, string>,
+    passed: (pct: number, reached: number) => `${pct}% moved on of ${reached} reached`,
+    nothingReached: "Nothing has reached this stage",
+    byStage: "Stage by stage",
+    unexplained: (n: number) => `${n} ended with no reason recorded`,
+    blind: (stages: string) => `Not visible to you: ${stages}. Those stages report nothing rather than zero.`,
+    listSeparator: ", ",
+    tagEntered: (n: number) => `${n} entered`,
+    tagLive: (n: number) => `${n} in hand`,
+    tagLeak: (stage: string, n: number) => `${stage} leaks most: ${n}`,
+  },
+
   LEAD_TEXT: {
     title: "Leads",
     moduleWhy:

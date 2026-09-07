@@ -30,6 +30,20 @@ import { isUniqueViolation, lockKey } from "../shared/allocate";
 const SIGNAL_TABLE = "yucer_pipeline.signal";
 const LEAD_TABLE = "yucer_pipeline.lead";
 
+/** One mapping, so the per-subject and workspace-wide reads cannot disagree. */
+function toExit(r: Record<string, unknown>): FunnelExitRecord {
+  return {
+    id: String(r.id),
+    stage: r.stage as FunnelExitDraft["stage"],
+    subjectId: String(r.subjectId),
+    outcome: String(r.outcome),
+    reasonCode: String(r.reasonCode),
+    note: (r.note as string | null) ?? null,
+    decidedBySub: String(r.decidedBySub),
+    decidedAt: r.decidedAt as Date,
+  };
+}
+
 export class PrismaSignalStore implements SignalStore {
   async recordSignal(workspaceId: string, signal: NewSignal): Promise<SignalRecord | null> {
     const p = await getPrismaClient();
@@ -208,16 +222,16 @@ export class PrismaSignalStore implements SignalStore {
       where: { workspaceId, subjectId },
       orderBy: { decidedAt: "desc" },
     });
-    return rows.map((r: Record<string, unknown>) => ({
-      id: String(r.id),
-      stage: r.stage as FunnelExitDraft["stage"],
-      subjectId: String(r.subjectId),
-      outcome: String(r.outcome),
-      reasonCode: String(r.reasonCode),
-      note: (r.note as string | null) ?? null,
-      decidedBySub: String(r.decidedBySub),
-      decidedAt: r.decidedAt as Date,
-    }));
+    return rows.map(toExit);
+  }
+
+  async listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.funnelExit.findMany({
+      where: { workspaceId },
+      orderBy: { decidedAt: "desc" },
+    });
+    return rows.map(toExit);
   }
 }
 

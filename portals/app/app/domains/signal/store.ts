@@ -146,6 +146,16 @@ export interface SignalStore {
 
   /** Why this subject ended, newest first. Empty for anything still running. */
   listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]>;
+
+  /**
+   * Every exit in the workspace - the cross-stage read the single table exists
+   * for (incr/0033).
+   *
+   * WITHOUT A SUBJECT, which is the whole point: "which stage leaks most and
+   * why" cannot be asked one subject at a time, and asking it per stage would
+   * be the five-way UNION the single-table shape was chosen to avoid.
+   */
+  listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]>;
 }
 
 export interface FunnelExitRecord extends FunnelExitDraft {
@@ -274,6 +284,12 @@ export class InMemorySignalStore implements SignalStore {
       workspaceId,
       decidedAt: new Date(),
     });
+  }
+
+  async listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]> {
+    return this.exits
+      .filter((e) => e.workspaceId === workspaceId)
+      .sort((a, b) => b.decidedAt.getTime() - a.decidedAt.getTime());
   }
 
   async listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]> {
