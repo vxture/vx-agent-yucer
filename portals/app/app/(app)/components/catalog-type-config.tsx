@@ -12,6 +12,7 @@ import {
   Input,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
@@ -121,14 +122,15 @@ export function CatalogTypeConfig({
             id: "name",
             header: CATALOG_TEXT.colTypeName,
             width: "md" as const,
+            /* The code is omitted when it EQUALS the name rather than
+               printed twice - a second line repeating the first is a line
+               that costs height and says nothing. */
             cell: (t: ProductTypeRecord) => (
-              <span className="flex min-w-0 flex-col">
-                {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
-                <span className="text-foreground truncate text-body-lg font-semibold">{t.name}</span>
-                {t.typeCode !== t.name ? (
-                  <span className="text-muted-foreground mono truncate text-body-sm">{t.typeCode}</span>
-                ) : null}
-              </span>
+              <TableTitleCell
+                title={t.name}
+                description={t.typeCode !== t.name ? t.typeCode : undefined}
+                tooltip={t.name}
+              />
             ),
           },
           {

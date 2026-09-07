@@ -10,6 +10,7 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
@@ -115,13 +116,11 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       id: "project",
       header: RENEWAL_TEXT.colProject,
       cell: (r: RenewalRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副编号保持小字 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">
-            {r.projectName}
-          </span>
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.projectNo}</span>
-        </span>
+        <TableTitleCell
+          title={r.projectName}
+          description={r.projectNo}
+          tooltip={r.projectName}
+        />
       ),
     },
     {

@@ -10,6 +10,7 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
@@ -200,18 +201,19 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
       id: "name",
       header: DELIVERY_TEXT.columnNameAccount,
       cell: (r: DeliveryRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副行是客户 (owner, 2026-09-06). An identifier
-              is what the detail page is for; the customer is what a reader
-              scans this column for. */}
-          <span className="text-foreground truncate text-body-lg font-semibold">{r.name}</span>
-          <Link
-            href={`/account/${r.accountId}`}
-            className="text-muted-foreground truncate text-body-sm hover:underline"
-          >
-            {r.accountName ?? r.accountId}
-          </Link>
-        </span>
+        /* The subtitle stays a LINK here - the customer is the one thing on
+           this row that leads somewhere else, and the DS takes a node. An
+           identifier is what the detail page is for; the customer name is
+           what a reader scans this column for. */
+        <TableTitleCell
+          title={r.name}
+          tooltip={r.name}
+          description={
+            <Link href={`/account/${r.accountId}`} className="hover:underline">
+              {r.accountName ?? r.accountId}
+            </Link>
+          }
+        />
       ),
     },
     {

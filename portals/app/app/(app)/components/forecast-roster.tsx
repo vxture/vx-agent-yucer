@@ -9,6 +9,7 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
@@ -110,13 +111,11 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
       id: "deal",
       header: FORECAST_RULE_TEXT.colDeal,
       cell: (r: ForecastRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副行是编号 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">{r.dealName}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">
-            {r.opportunityNo}
-          </span>
-        </span>
+        <TableTitleCell
+          title={r.dealName}
+          description={r.opportunityNo}
+          tooltip={r.dealName}
+        />
       ),
     },
     {

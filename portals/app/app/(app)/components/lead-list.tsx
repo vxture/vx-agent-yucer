@@ -6,14 +6,15 @@ import {
   Button,
   DataTable,
   DialogForm,
+  EmptyState,
   Field,
   FieldLabel,
   FilterBar,
   Input,
   NativeSelect,
-  EmptyState,
   Section,
   StatusBadge,
+  TableTitleCell,
   type DataTableColumn,
 } from "@vxture/design-ui";
 import {
@@ -234,15 +235,11 @@ export function LeadList({
       // 主标题字号加大、加粗，副行是线索号与联系人 (owner, 2026-09-06). The only
       // left-aligned column; everything else is centred.
       cell: (row) => (
-        <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate text-body-lg font-semibold">
-            {row.companyName}
-          </span>
-          <span className="text-muted-foreground truncate text-body-sm tabular-nums">
-            {row.leadNo}
-            {row.contactName ? ` / ${row.contactName}` : ""}
-          </span>
-        </span>
+        <TableTitleCell
+          title={row.companyName}
+          description={`${row.leadNo}${row.contactName ? ` / ${row.contactName}` : ""}`}
+          tooltip={row.companyName}
+        />
       ),
     },
     {

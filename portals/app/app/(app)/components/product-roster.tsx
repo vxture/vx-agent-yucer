@@ -11,6 +11,7 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
@@ -145,12 +146,16 @@ export function ProductRoster({
     {
       id: "name",
       header: CATALOG_TEXT.colName,
+      /* THE DS'S OWN TITLE CELL (design-ui 8.0.0 `TableTitleCell`), not a
+         hand-rolled flex-col. Same story as MoneyCell: the owner's 16/14
+         ruling of 2026-09-06 is the component's `size="lg"` default as of
+         2026-09-07, so eight tables were each re-deriving it. What the local
+         version could not do is PIN THE TWO LINE HEIGHTS - the DS fixes them
+         at 20px / 16px with a 4px gap so a title lines up with the titles in
+         the rows around it and a subtitle with the subtitles, which is what
+         makes a row readable straight across. */
       cell: (r: ProductRecord) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">{r.name}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.productCode}</span>
-        </span>
+        <TableTitleCell title={r.name} description={r.productCode} tooltip={r.name} />
       ),
     },
     {

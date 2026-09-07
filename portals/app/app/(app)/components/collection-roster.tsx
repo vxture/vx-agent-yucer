@@ -6,14 +6,15 @@ import {
   DataTable,
   DialogForm,
   EmptyState,
-  FilterBar,
   Field,
   FieldDescription,
   FieldLabel,
+  FilterBar,
   Input,
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
@@ -146,15 +147,11 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
       id: "project",
       header: DELIVERY_TEXT.colProject,
       cell: (r: CollectionRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副行是期次 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">
-            {r.projectName}
-          </span>
-          <span className="text-muted-foreground truncate text-body-sm">
-            {DELIVERY_TEXT.instalmentSeq(r.sequence)}
-          </span>
-        </span>
+        <TableTitleCell
+          title={r.projectName}
+          description={DELIVERY_TEXT.instalmentSeq(r.sequence)}
+          tooltip={r.projectName}
+        />
       ),
     },
     {

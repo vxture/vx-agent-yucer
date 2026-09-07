@@ -7,15 +7,16 @@ import {
   DataTable,
   DialogForm,
   EmptyState,
-  FilterBar,
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FilterBar,
   Input,
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
@@ -181,15 +182,11 @@ export function PriceBook({
       header: CATALOG_TEXT.colProduct,
       width: "md" as const,
       cell: (r: PriceEntryRecord) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">
-            {productName.get(r.productId) ?? CATALOG_TEXT.noCategory}
-          </span>
-          <span className="text-muted-foreground mono truncate text-body-sm">
-            {productCode.get(r.productId) ?? ""}
-          </span>
-        </span>
+        <TableTitleCell
+          title={productName.get(r.productId) ?? CATALOG_TEXT.noCategory}
+          description={productCode.get(r.productId) ?? ""}
+          tooltip={productName.get(r.productId) ?? CATALOG_TEXT.noCategory}
+        />
       ),
     },
     {
