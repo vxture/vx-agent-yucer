@@ -970,6 +970,7 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
   lead_converted: "这条线索已经转成商机了",
   lead_not_qualified: "线索还没有通过资格判定",
   owner_required: "分派必须指到具体的人",
+  lead_unowned: "这条线索还没有归属，先分派给人再判定",
 };
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
@@ -3122,6 +3123,7 @@ export const LEAD_TEXT = {
   hintNoTriage: "你没有分拣线索的权限",
   hintNotQualified: "线索还没有判定为合格",
   hintAlreadyQualified: "线索已经判定为合格",
+  hintNoOwner: "还没有归属——先去线索分派指给人，再做判定",
   hintNoConvert: "你没有转化线索的权限",
   needAccount: "需先匹配客户",
   emptyTitle: "还没有线索",

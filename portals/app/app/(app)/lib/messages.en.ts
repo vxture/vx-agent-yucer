@@ -1224,6 +1224,7 @@ export const en: Dictionary = {
     lead_converted: "This lead has already been converted.",
     lead_not_qualified: "This lead has not been qualified.",
     owner_required: "An assignment needs somebody to assign to.",
+    lead_unowned: "This lead has no owner yet - assign it before qualifying it.",
   },
   PROPOSAL_ERROR: {
     ...GATE_ERROR,
@@ -1828,6 +1829,7 @@ export const en: Dictionary = {
     hintNoTriage: "No permission to triage leads",
     hintNotQualified: "The lead has not been marked qualified",
     hintAlreadyQualified: "The lead is already marked qualified",
+    hintNoOwner: "No owner yet - assign it in lead routing, then judge it",
     hintNoConvert: "No permission to convert leads",
     needAccount: "An account has to be matched first",
     emptyTitle: "No leads yet",

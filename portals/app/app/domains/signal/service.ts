@@ -23,6 +23,7 @@ import {
   type ScoreBreakdown,
   type SignalStatus,
 } from "./lib/scoring";
+import { planLeadAdvance } from "./lib/lead";
 import {
   routeLead,
   type RoutingOutcome,
@@ -205,11 +206,13 @@ export async function advanceLead(
   const lead = await ctx.store.getLead(ctx.workspaceId, leadId);
   if (!lead) return fail(violation("not_found", `lead ${leadId} was not found`, "leadId"));
 
-  if (lead.status === "converted") {
-    // A converted lead already produced an opportunity. Moving it again would
-    // let one piece of demand be counted twice.
-    return fail(violation("lead_converted", "a converted lead is final", "status"));
-  }
+  // The lifecycle rules moved to lib/lead.ts when the owner joined 线索分派 to
+  // 商机智探 (2026-09-06): an unowned lead cannot be qualified. They live in a
+  // pure rule rather than as two ifs here so the pair can be tested together -
+  // and so the next condition has an obvious place to go.
+  const plan = planLeadAdvance(lead, to);
+  if (!plan.ok) return plan as RuleResult<{ status: LeadRecord["status"] }>;
+
   await ctx.store.updateLead(ctx.workspaceId, leadId, { status: to });
   return ok({ status: to });
 }

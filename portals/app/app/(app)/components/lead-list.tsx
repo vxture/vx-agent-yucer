@@ -194,14 +194,21 @@ export function LeadList({
           {
             id: "qualify",
             label: LEAD_TEXT.qualify,
-            disabled: terminal || !canTriage || qualified,
+            // UNOWNED CANNOT QUALIFY (owner, 2026-09-06). Qualifying is the
+            // judgement that this is real and worth pursuing, and a judgement
+            // nobody owns is one nobody made. The rule refuses it; saying so
+            // here means the reader learns the condition instead of meeting it
+            // as an error - and the hint names the page that fixes it.
+            disabled: terminal || !canTriage || qualified || !row.ownerSub,
             hint: terminal
               ? LEAD_TEXT.hintTerminal
               : !canTriage
                 ? LEAD_TEXT.hintNoTriage
                 : qualified
                   ? LEAD_TEXT.hintAlreadyQualified
-                  : undefined,
+                  : !row.ownerSub
+                    ? LEAD_TEXT.hintNoOwner
+                    : undefined,
             onSelect: () => act(row.id, "qualify"),
           },
           {
