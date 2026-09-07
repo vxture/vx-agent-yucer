@@ -3,8 +3,10 @@ import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { listLeads, previewAttribution } from "../../domains/signal/service";
+import { listAccounts } from "../../domains/account/service";
 import { LeadList } from "../components/lead-list";
 import { ModuleHeadline } from "../components/module-headline";
+import { RoutingAnalyseButton } from "../components/routing-analyse-button";
 import { actOnLead } from "../signal/lead-actions";
 import { loadFailureText } from "../lib/load-failure";
 
@@ -16,10 +18,11 @@ import { loadFailureText } from "../lib/load-failure";
 // converted with a judgement at every step. One page, two lifecycles, and the
 // reader had to work out which list a given action belonged to.
 //
-// SEPARATE FROM 线索分派, and that stays separate (owner, 2026-09-06).
-// Assigning is a team lead's job and working the lead is a rep's; routing
-// writes exactly one column (`owner_sub`) and this page walks the status.
-// Folding them together would put two roles on one screen.
+// 线索分派 IS A BUTTON HERE, not a module beside this one (owner, 2026-09-06:
+// 无需过度拆分). Assigning writes one column on a lead and answers one
+// question - who works this - and it was a whole page for one afternoon, which
+// split the lead's own life in two: judge it here, hand it over there. The
+// 智能分配 button sits in the title row and the proposals land in the dock.
 //
 // THE ATTRIBUTION PREVIEW COMES WITH IT. Attribution freezes at conversion and
 // can never be corrected afterwards (ADR-016), so the one moment the answer is
@@ -48,7 +51,16 @@ export default async function LeadPage() {
     store: session.stores.signal(),
   };
 
-  const leads = await listLeads(ctx, { limit: 200 });
+  const [leads, accounts] = await Promise.all([
+    listLeads(ctx, { limit: 200 }),
+    listAccounts({
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    }),
+  ]);
   if (!leads.ok) {
     return (
       <EmptyState
@@ -76,6 +88,12 @@ export default async function LeadPage() {
         }
       }),
   );
+
+  // THE REGION, resolved through the lead's account. It is the fact assignment
+  // turns on - a territory covers regions and nothing else - so a lead with
+  // none cannot be placed, and this is the only column that says why. A failed
+  // account read leaves it blank rather than failing the page.
+  const regionOf = new Map((accounts.ok ? accounts.value : []).map((a) => [a.id, a.region]));
 
   // Counted off the same array the list is built from, so a badge and the
   // table under it cannot describe different leads.
@@ -110,10 +128,12 @@ export default async function LeadPage() {
             ) : null}
           </>
         }
+        action={<RoutingAnalyseButton />}
       />
 
       <LeadList
         leads={leads.value}
+        regionOf={regionOf}
         attributionPreviews={attributionPreviews}
         canTriage={can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed}
         canConvert={can(session.authz, session.entitlement, "signal.lead.convert", "ui").allowed}

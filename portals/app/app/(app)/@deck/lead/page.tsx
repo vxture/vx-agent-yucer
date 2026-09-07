@@ -2,23 +2,27 @@ import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { AgentCapture } from "../../components/agent-capture";
 import { RoutingAssignPanel } from "../../components/routing-assign-panel";
-import { analyseAssignments, applyAssignment } from "../../routing/actions";
+import { analyseAssignments, applyAssignment } from "../../lead/assign-actions";
 import { deckBundle, recordAction } from "../deck-data";
 
-// The routing module's dock - the assistant, then 智能分配.
+// 线索管理's dock - the assistant, then 智能分配.
 //
-// THE PROPOSALS ARE ALREADY THERE (owner, 2026-09-06, asked directly: 跑，并且
-// 直接把建议列在面板里). Opening the page IS asking, so the panel arrives with
-// the list rather than with a button that would produce it - and 智能分配 /
-// 重新分析 becomes what it says: take the numbers again, now.
+// THIS WAS @deck/routing FOR AN AFTERNOON. 分派 is a button inside 线索管理
+// now (owner, 2026-09-06: 无需过度拆分), so its panel belongs to the lead
+// module's dock rather than to a module of its own.
 //
-// COMPUTED BY THE SAME ACTION THE BUTTON CALLS, not by a second read path that
+// THE PROPOSALS ARE ALREADY THERE (owner, asked directly). Opening the page IS
+// asking, so the panel arrives with the list rather than with a button that
+// would produce it - and 智能分配 / 重新分析 means what it says: take the
+// numbers again, now.
+//
+// COMPUTED BY THE SAME ACTION THE BUTTON CALLS, not a second read path that
 // happens to agree today. One function decides what a proposal is, so the
 // first render and every re-run cannot answer differently.
 
 export const dynamic = "force-dynamic";
 
-export default async function RoutingDeck() {
+export default async function LeadDeck() {
   const [bundle, session] = await Promise.all([deckBundle(), resolveAppSession()]);
   if (!bundle || !session) return null;
 

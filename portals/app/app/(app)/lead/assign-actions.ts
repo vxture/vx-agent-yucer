@@ -8,6 +8,14 @@ import { listTerritories } from "../../domains/planning/service";
 import { listAccounts } from "../../domains/account/service";
 import { analyseRouting, type RoutingAdvice } from "../../domains/signal/lib/routing-advice";
 
+// 线索分派 - a button-level function of 线索管理, not a module (owner,
+// 2026-09-06: 线索管理为基础，应该包括进去线索分派…无需过度拆分).
+//
+// It was its own page for one afternoon. Assigning is one column on a lead
+// (`owner_sub`) and one question - "who works this" - and a whole module for
+// one column split the lead's own page in two: you judged a lead in one place
+// and handed it over in another.
+
 /**
  * Hand one lead to one person.
  *
@@ -37,7 +45,7 @@ export async function applyAssignment(input: {
   );
 
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/routing");
+  revalidatePath("/lead");
   return { ok: true };
 }
 

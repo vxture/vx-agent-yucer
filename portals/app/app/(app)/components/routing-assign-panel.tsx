@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button, Card, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { ROUTING_ANALYSE_EVENT } from "../lib/routing-signal";
-import type { AssignmentProposal } from "../routing/actions";
+import type { AssignmentProposal } from "../lead/assign-actions";
 import type { RoutingAdvice } from "../../domains/signal/lib/routing-advice";
 
 // 智能分配 - the routing module's analysis, on demand, in the assistant
@@ -89,10 +89,10 @@ export function RoutingAssignPanel({
   }, [onAnalyse]);
 
   // THE OTHER BUTTON IS ON THE PAGE (owner: 智能分配按钮 = 标题行右侧 + 智能助手
-  // 板块). The page and this dock are separate parallel routes, so they share
-  // no React tree and no state - a window event is the smallest coupling that
-  // makes one button drive the other. Named in one place (routing-signal.ts)
-  // so both ends cannot drift.
+  // 板块) - the lead module's title row, since 分派 folded into it. The page
+  // and this dock are separate parallel routes, so they share no React tree
+  // and no state; a window event is the smallest coupling that makes one
+  // button drive the other, named once in routing-signal.ts.
   useEffect(() => {
     const run = () => analyse();
     window.addEventListener(ROUTING_ANALYSE_EVENT, run);

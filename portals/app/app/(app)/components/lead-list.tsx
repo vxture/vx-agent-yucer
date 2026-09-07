@@ -31,6 +31,9 @@ import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
 
 export interface LeadListProps {
   readonly leads: readonly LeadRecord[];
+  /** account id -> region. The fact 智能分配 turns on; a lead whose account has
+   * none cannot be placed at all. */
+  readonly regionOf: ReadonlyMap<string, string | null>;
   /**
    * What each qualified lead WOULD attribute to, computed by the rule layer
    * (previewAttribution) before anyone converts. Attribution freezes at
@@ -47,6 +50,7 @@ export interface LeadListProps {
 }
 
 export function LeadList({
+  regionOf,
   leads,
   attributionPreviews,
   canTriage,
@@ -153,6 +157,24 @@ export function LeadList({
           <StatusBadge tone={source === "campaign" ? "info" : "neutral"}>
             {SOURCE_LABEL[source] ?? source}
           </StatusBadge>
+        );
+      },
+    },
+    {
+      id: "region",
+      header: LEAD_TEXT.columnRegion,
+      // WHAT ASSIGNMENT TURNS ON. A territory covers regions and nothing else,
+      // so a lead with no region cannot be placed by 智能分配 - and this is the
+      // only column on the page that says why. It arrived when 分派 folded into
+      // this module (owner, 2026-09-06).
+      cell: (row: LeadRecord) => {
+        const region = row.accountId ? (regionOf.get(row.accountId) ?? null) : null;
+        return region ? (
+          <span className="text-body-sm">{region}</span>
+        ) : (
+          <span className="text-(color:--warning-text) text-body-sm">
+            {LEAD_TEXT.noRegion}
+          </span>
         );
       },
     },

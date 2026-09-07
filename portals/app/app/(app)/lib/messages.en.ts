@@ -1810,7 +1810,9 @@ export const en: Dictionary = {
   LEAD_TEXT: {
     title: "Leads",
     moduleWhy:
-      "Signals become leads; a qualified lead becomes an opportunity. This module owns the lead's own lifecycle - who works it is decided in routing, and a lead nobody owns cannot be qualified.",
+      "Signals become leads; a qualified lead becomes an opportunity. Suggested assignments propose who should work each one by territory then load; a lead nobody owns cannot be qualified.",
+    columnRegion: "Region",
+    noRegion: "no region",
     tagOpen: (n: number) => `${n} in play`,
     tagQualified: (n: number) => `${n} qualified`,
     tagUnowned: (n: number) => `${n} unowned`,

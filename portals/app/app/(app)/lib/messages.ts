@@ -3100,7 +3100,9 @@ export const LEAD_TEXT = {
   // 模块头部 (design_yucer_110). `description` above is the SECTION's line and
   // stays with the table; this one explains the module.
   moduleWhy:
-    "信号升级成线索，线索合格后转化为商机。这里管的是线索本身的生命周期——谁接由「线索分派」定，无人认领的线索无法判定合格。",
+    "信号升级成线索，线索合格后转化为商机。「智能分配」按区域和负载给出该谁接的建议，采纳与否由你定——无人认领的线索无法判定合格。",
+  columnRegion: "区域",
+  noRegion: "无区域",
   tagOpen: (n: number) => `${n} 条在跟`,
   tagQualified: (n: number) => `${n} 条已合格`,
   tagUnowned: (n: number) => `${n} 条无人认领`,
