@@ -1,4 +1,4 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -9,6 +9,7 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { routingStats } from "../../domains/signal/lib/routing-stats";
 import { RoutingTable, type RoutingRow } from "../components/routing-table";
 import { RoutingAnalyseButton } from "../components/routing-analyse-button";
+import { ModuleHeadline } from "../components/module-headline";
 import { loadFailureText } from "../lib/load-failure";
 
 // D5 线索分派 - the list of open leads, with the router's verdict counted in
@@ -103,10 +104,20 @@ export default async function RoutingPage() {
           longer runs it. What is countable here is what a lead itself
           carries: how many there are, how many nobody holds, how many have
           no region for the rule to work from. */}
-      <ViewHeader
-        title={ROUTING_TEXT.title}
+      {/* THE MODULE HEADER, minus its fold (owner, 2026-09-06: 去掉下拉展示
+          内容，只留标题 - then card、icon 模式恢复). The card and the icon are
+          what make this page one of the set; only the collapsible statistics
+          strip was the thing being removed, and passing no `stats` is how a
+          module says it has no breakdown rather than an empty one.
+
+          THE BADGES ARE THE ROUTER'S OWN COUNTS. The page routes on load, so
+          可指派 and 分不出去 are real numbers rather than facts about the
+          leads - and they are counted off the very plan the table is drawn
+          from, so a badge and the list under it cannot disagree. */}
+      <ModuleHeadline
+        moduleKey="routing"
         description={ROUTING_TEXT.why}
-        secondary={
+        tags={
           <>
             <StatusBadge tone="success">{ROUTING_TEXT.tagOpen(stats.total)}</StatusBadge>
             {stats.pending > 0 ? (
