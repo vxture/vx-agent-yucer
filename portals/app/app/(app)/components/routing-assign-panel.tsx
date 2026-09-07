@@ -25,7 +25,8 @@ import type { RoutingAdvice } from "../../domains/signal/lib/routing-advice";
 //
 // 放弃 CLEARS THE PROPOSALS AND WRITES NOTHING. It is not a rejection anything
 // records: this analysis was never stored, so dismissing it is the reader
-// saying "not now", and the button says exactly that much.
+// saying "not now", and the button says exactly that much. It is the only way
+// back to the idle state, because the panel now OPENS with the answer.
 
 type State =
   | { readonly kind: "idle" }
@@ -39,10 +40,18 @@ type State =
 
 export function RoutingAssignPanel({
   canAssign,
+  initial,
   onAnalyse,
   onAccept,
 }: {
   readonly canAssign: boolean;
+  /** What the server already worked out. Opening the page is asking. */
+  readonly initial: {
+    ok: boolean;
+    error?: string;
+    proposals?: AssignmentProposal[];
+    findings?: RoutingAdvice[];
+  };
   readonly onAnalyse: () => Promise<{
     ok: boolean;
     error?: string;
@@ -55,7 +64,11 @@ export function RoutingAssignPanel({
   }) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const { ROUTING_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
-  const [state, setState] = useState<State>({ kind: "idle" });
+  const [state, setState] = useState<State>(
+    initial.ok
+      ? { kind: "done", proposals: initial.proposals ?? [], findings: initial.findings ?? [] }
+      : { kind: "failed", code: initial.error ?? "denied" },
+  );
   // Accepted rows leave the list by id rather than by re-running the analysis:
   // a re-run after every acceptance would renumber the load and reshuffle what
   // is left under the reader's hand.
@@ -182,6 +195,8 @@ export function RoutingAssignPanel({
 
       <div className="flex flex-wrap items-center gap-xs">
         <Button size="sm" variant="secondary" disabled={pending} onClick={analyse}>
+          {/* The panel arrives with an answer, so this button is almost always
+              "take the numbers again" rather than "produce some". */}
           {state.kind === "idle" ? ROUTING_TEXT.assignRun : ROUTING_TEXT.assignAgain}
         </Button>
         {state.kind === "done" || state.kind === "failed" ? (

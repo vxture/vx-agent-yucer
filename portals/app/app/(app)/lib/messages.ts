@@ -177,6 +177,12 @@ export const ROUTING_TEXT = {
   // 智能分配 (owner, 2026-09-06). The strip, the analysis block and their
   // vocabulary were removed with them: the page is a list, the thinking is
   // something you ask for, and its result lives in the assistant.
+  // 标题行的标签 (owner, 2026-09-06). The page DOES route on load - the owner
+  // was asked and chose it - so these are the router's own counts: how many
+  // would move, and how many nothing can place.
+  tagOpen: (n: number) => `${n} 条待分派`,
+  tagPending: (n: number) => `${n} 条可指派`,
+  tagBlocked: (n: number) => `${n} 条分不出去`,
   assignTitle: "智能分配",
   // WHAT THE ANALYSIS COULD NOT PROPOSE, in the same result. A lead nobody can
   // place is not a move to accept - it is a hole somewhere else, and each of

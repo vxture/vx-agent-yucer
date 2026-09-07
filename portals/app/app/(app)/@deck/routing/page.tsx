@@ -7,18 +7,22 @@ import { deckBundle, recordAction } from "../deck-data";
 
 // The routing module's dock - the assistant, then 智能分配.
 //
-// NOTHING IS COMPUTED HERE. The owner's ruling of 2026-09-06 makes the
-// analysis something a person ASKS for, so this route renders a panel in its
-// idle state and the work happens in a server action when a button is pressed.
-// An earlier version read territories, accounts and leads on every render to
-// show findings nobody had asked for - which is the same over-reach the page
-// itself was carrying.
+// THE PROPOSALS ARE ALREADY THERE (owner, 2026-09-06, asked directly: 跑，并且
+// 直接把建议列在面板里). Opening the page IS asking, so the panel arrives with
+// the list rather than with a button that would produce it - and 智能分配 /
+// 重新分析 becomes what it says: take the numbers again, now.
+//
+// COMPUTED BY THE SAME ACTION THE BUTTON CALLS, not by a second read path that
+// happens to agree today. One function decides what a proposal is, so the
+// first render and every re-run cannot answer differently.
 
 export const dynamic = "force-dynamic";
 
 export default async function RoutingDeck() {
   const [bundle, session] = await Promise.all([deckBundle(), resolveAppSession()]);
   if (!bundle || !session) return null;
+
+  const first = await analyseAssignments();
 
   return (
     <div className="flex flex-col gap-sm">
@@ -27,6 +31,7 @@ export default async function RoutingDeck() {
         canAssign={
           can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed
         }
+        initial={first}
         onAnalyse={analyseAssignments}
         onAccept={applyAssignment}
       />

@@ -246,6 +246,10 @@ export const en: Dictionary = {
     colRegion: "Region",
     noRegion: "no region",
     // 智能分配 - see the note on the zh catalogue.
+    // The router's own counts - see the zh catalogue.
+    tagOpen: (n: number) => `${n} open`,
+    tagPending: (n: number) => `${n} to assign`,
+    tagBlocked: (n: number) => `${n} unplaceable`,
     assignTitle: "Suggested assignments",
     adviceNoRegion: (n: number) =>
       `${n} have no region: no account matched, or the record has none. The rule cannot start.`,
