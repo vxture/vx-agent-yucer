@@ -5,14 +5,24 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
   Icon,
+  Input,
+  NativeSelect,
   Section,
   StatusBadge,
   useToast,
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { statusTone } from "./status-label";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  FilterSlot,
+  RowActions,
+  SearchSlot,
+  rowClickSelection,
+} from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -59,7 +69,8 @@ export function ProductRoster({
   onStatus,
   onDelete,
 }: ProductRosterProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). Held
   // across BOTH rosters because the keys are product ids: a selection is of
@@ -74,8 +85,32 @@ export function ProductRoster({
   const typeName = new Map(types.map((t) => [t.id, t.name]));
   const vocab = new Map(statuses.map((r) => [r.id, r]));
   const codeOf = (p: ProductRecord) => vocab.get(p.statusId)?.statusCode;
-  const live = products.filter((p) => codeOf(p) !== "retired");
-  const retired = products.filter((p) => codeOf(p) === "retired");
+
+  /* 工具行 - one query across the live and retired rosters. A catalogue is
+     looked up by name or code, and the person looking it up does not
+     necessarily know it has been retired; that is often the answer they came
+     for. The 分类 filter is the second axis because it is the only column
+     with a small, closed set of values. */
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const match = (p: ProductRecord) => {
+    const q = query.trim().toLowerCase();
+    return (
+      (q === "" ||
+        p.name.toLowerCase().includes(q) ||
+        p.productCode.toLowerCase().includes(q)) &&
+      (typeFilter === "" || p.typeId === typeFilter)
+    );
+  };
+  const narrowed = query.trim() !== "" || typeFilter !== "";
+
+  const isRetired = (p: ProductRecord) => codeOf(p) === "retired";
+  const liveTotal = products.filter((p) => !isRetired(p)).length;
+  const retiredTotal = products.filter(isRetired).length;
+
+  const shown = products.filter(match);
+  const live = shown.filter((p) => !isRetired(p));
+  const retired = shown.filter(isRetired);
 
   /** The legal targets for one product - the mirror of
    * planProductStatusChange: a different row, and never INTO 在研 (the birth
@@ -261,7 +296,14 @@ export function ProductRoster({
            trailing column there - the action slot would be a second one. */
         rowActions={extra ? undefined : rowActions}
         empty={
-          <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+          )
         }
       />
       </div>
@@ -291,15 +333,71 @@ export function ProductRoster({
           ) : undefined
         }
       >
+        {/* ONE TOOL ROW FOR BOTH ROSTERS. A catalogue is looked up by name or
+            code, and the person looking does not necessarily know the product
+            has been retired - that is often the answer they came for. The
+            retired roster below says on its own heading that the same control
+            is narrowing it. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
+              : CATALOG_TEXT.productCount(live.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={CATALOG_TEXT.productSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setTypeFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={typeFilter}
+              aria-label={CATALOG_TEXT.filterAllTypes}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
+              {types.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(live)}
       </Section>
 
-      {retired.length > 0 ? (
+      {/* Holds its place while narrowed - a section that vanishes under a
+          keyword takes its own explanation with it. */}
+      {retired.length > 0 || (narrowed && retiredTotal > 0) ? (
         <Section
           id="retired"
           icon="package"
           title={CATALOG_TEXT.rosterRetired}
           description={CATALOG_TEXT.rosterRetiredWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(retired)}
         </Section>

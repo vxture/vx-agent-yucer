@@ -7,6 +7,7 @@ import {
   DataTable,
   DialogForm,
   EmptyState,
+  FilterBar,
   Field,
   FieldDescription,
   FieldGroup,
@@ -20,7 +21,13 @@ import {
 import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  SearchSlot,
+  rowClickSelection,
+} from "./table-fittings";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -77,7 +84,8 @@ export function PriceBook({
   onSave,
   onDelete,
 }: PriceBookProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const router = useRouter();
   // The SELECTION drives analysis, and only the in-force table carries it:
   // history is never analysed (owner, 2026-09-05), so a checkbox there would
@@ -92,6 +100,27 @@ export function PriceBook({
 
   const productName = new Map(products.map((p) => [p.id, p.name]));
   const productCode = new Map(products.map((p) => [p.id, p.productCode]));
+
+  /* 工具行. A price book is looked up BY PRODUCT, so the box searches the
+     product's name and code - the entry itself has no name. Both tables read
+     it: "what did we use to charge for this" is the same lookup as "what do
+     we charge for this", one row further down.
+
+     No second filter here. The only closed-set column is currency, and this
+     book is single-currency in practice - a filter whose dropdown holds one
+     option is a control that cannot do anything. */
+  const [query, setQuery] = useState("");
+  const narrowed = query.trim() !== "";
+  const match = (e: PriceEntryRecord) => {
+    const q = query.trim().toLowerCase();
+    if (q === "") return true;
+    const name = productName.get(e.productId) ?? "";
+    const code = productCode.get(e.productId) ?? "";
+    return name.toLowerCase().includes(q) || code.toLowerCase().includes(q);
+  };
+
+  const shownCurrent = current.filter(match);
+  const shownSuperseded = superseded.filter(match);
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     startTransition(() => {
@@ -301,7 +330,16 @@ export function PriceBook({
         selectedKeys={selectable ? selected : undefined}
         onSelectionChange={selectable ? (keys) => setSelected([...keys]) : undefined}
         leadingSpacer={!selectable}
-        empty={<EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />}
+        empty={
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState title={CATALOG_TEXT.noPrices} description={CATALOG_TEXT.priceCurrentWhy} />
+          )
+        }
       />
     </div>
     );
@@ -356,20 +394,51 @@ export function PriceBook({
           </span>
         }
       >
-        {table(current, rowActions(true), true)}
+        {/* The tool row sits with the in-force table; the history below reads
+            the same keyword and says so on its own heading. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(shownCurrent.length, current.length)
+              : CATALOG_TEXT.priceCount(current.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={CATALOG_TEXT.productSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={narrowed ? () => setQuery("") : undefined}
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        />
+
+        {table(shownCurrent, rowActions(true), true)}
         {canPrice ? null : (
           <p className="text-muted-foreground mt-sm text-body-sm">{CATALOG_TEXT.priceDenied}</p>
         )}
       </Section>
 
-      {superseded.length > 0 ? (
+      {/* Holds its place while narrowed rather than vanishing under a keyword
+          and taking its own explanation with it. */}
+      {shownSuperseded.length > 0 || (narrowed && superseded.length > 0) ? (
         <Section
           id="price-history"
           icon="file-text"
           title={CATALOG_TEXT.priceHistory}
           description={CATALOG_TEXT.priceHistoryWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
-          {table(superseded, rowActions(false), false, supersededColumn)}
+          {table(shownSuperseded, rowActions(false), false, supersededColumn)}
         </Section>
       ) : null}
 

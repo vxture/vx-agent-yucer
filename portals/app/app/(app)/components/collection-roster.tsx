@@ -6,10 +6,12 @@ import {
   DataTable,
   DialogForm,
   EmptyState,
+  FilterBar,
   Field,
   FieldDescription,
   FieldLabel,
   Input,
+  NativeSelect,
   Section,
   StatusBadge,
   useToast,
@@ -19,7 +21,9 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
+  FilterSlot,
   RowActions,
+  SearchSlot,
   rowClickSelection,
 } from "./table-fittings";
 import { allowedRevenueMoves, type RevenueStatus } from "../../domains/delivery/lib/revenue";
@@ -74,6 +78,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     DATA_TABLE_LABELS,
     REVENUE_ERROR,
     REVENUE_STATUS_LABEL,
+    TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const { toast } = useToast();
   const [pending, start] = useTransition();
@@ -82,9 +87,33 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [settling, setSettling] = useState<CollectionRow | null>(null);
   const [amount, setAmount] = useState("");
+  // 工具行. One query across both tables, as on 项目交付: somebody chasing one
+  // instalment by project name does not know whether it has settled yet.
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-  const open = rows.filter((r) => r.status !== "settled" && r.status !== "written_off");
-  const closed = rows.filter((r) => r.status === "settled" || r.status === "written_off");
+  /* Searches the PROJECT NAME only, which is the one free-text field the row
+     shows. The instalment has no name of its own - it is 第 N 期 of a project,
+     and a number is what the 期次 column is for. */
+  const match = (r: CollectionRow) => {
+    const q = query.trim().toLowerCase();
+    return (
+      (q === "" || r.projectName.toLowerCase().includes(q)) &&
+      (statusFilter === "" || r.status === statusFilter)
+    );
+  };
+  const narrowed = query.trim() !== "" || statusFilter !== "";
+
+  const isClosed = (r: CollectionRow) =>
+    r.status === "settled" || r.status === "written_off";
+  /* Denominators off the UNFILTERED rows - "2 / 9 条" is only true if the 9
+     never saw the filter. */
+  const openTotal = rows.filter((r) => !isClosed(r)).length;
+  const closedTotal = rows.filter(isClosed).length;
+
+  const filtered = rows.filter(match);
+  const open = filtered.filter((r) => !isClosed(r));
+  const closed = filtered.filter(isClosed);
 
   const tone = (s: RevenueStatus) =>
     s === "settled" ? "success" : s === "overdue" ? "danger" : s === "written_off" ? "neutral" : "info";
@@ -286,28 +315,97 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
           ) : undefined
         }
       >
+        {/* ONE TOOL ROW FOR BOTH TABLES, sitting with the open list because
+            that is the one people work. The settled list below says so on its
+            own heading rather than narrowing in silence. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(open.length, openTotal)
+              : DELIVERY_TEXT.instalmentCount(open.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={DELIVERY_TEXT.collectionSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setStatusFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={statusFilter}
+              aria-label={DELIVERY_TEXT.filterAllRevenueStatus}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">{DELIVERY_TEXT.filterAllRevenueStatus}</option>
+              {Object.entries(REVENUE_STATUS_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(
           open,
-          <EmptyState
-            title={DELIVERY_TEXT.noInstalments}
-            description={DELIVERY_TEXT.collectionsWhy}
-          />,
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState
+              title={DELIVERY_TEXT.noInstalments}
+              description={DELIVERY_TEXT.collectionsWhy}
+            />
+          ),
         )}
       </Section>
 
-      {closed.length > 0 ? (
+      {/* Holds its place while narrowed even with nothing left in it - a
+          section that vanishes under a keyword takes its own explanation with
+          it (the 项目交付 finding, 2026-09-07). */}
+      {closed.length > 0 || (narrowed && closedTotal > 0) ? (
         <Section
           id="collections-closed"
           icon="file-text"
           title={DELIVERY_TEXT.rosterClosed}
           description={DELIVERY_TEXT.rosterClosedWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{DELIVERY_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(
             closed,
-            <EmptyState
-              title={DELIVERY_TEXT.noInstalments}
-              description={DELIVERY_TEXT.collectionsWhy}
-            />,
+            narrowed ? (
+              <EmptyState
+                title={TABLE_TOOLBAR_TEXT.noMatch}
+                description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+              />
+            ) : (
+              <EmptyState
+                title={DELIVERY_TEXT.noInstalments}
+                description={DELIVERY_TEXT.collectionsWhy}
+              />
+            ),
           )}
         </Section>
       ) : null}

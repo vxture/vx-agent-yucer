@@ -5,6 +5,9 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
+  Input,
+  NativeSelect,
   Section,
   StatusBadge,
   useToast,
@@ -12,7 +15,14 @@ import {
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  FilterSlot,
+  RowActions,
+  SearchSlot,
+  rowClickSelection,
+} from "./table-fittings";
 
 // 续约清单 - the catalogue module's pattern, applied to renewals.
 //
@@ -53,15 +63,41 @@ export interface RenewalRosterProps {
 }
 
 export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
-  const { DATA_TABLE_LABELS, RENEWAL_TEXT, RENEWAL_ERROR } = useMessages();
+  const { DATA_TABLE_LABELS, RENEWAL_TEXT, RENEWAL_ERROR, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
   // across both tables: the keys are project ids.
   const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
-  const due = rows.filter((r) => r.notDueReason === null);
-  const notDue = rows.filter((r) => r.notDueReason !== null);
+  /* 工具行. Searches the project's name and number - the only free-text
+     fields the row shows. The 风险 filter is the second axis because 续约风险
+     is the reason this page exists: "which of these is likely to churn" is
+     the question, and it is the only closed-set column on the table. */
+  const [query, setQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState("");
+  const match = (r: RenewalRow) => {
+    const q = query.trim().toLowerCase();
+    const hit =
+      q === "" ||
+      r.projectName.toLowerCase().includes(q) ||
+      r.projectNo.toLowerCase().includes(q);
+    /* "无评级" is a real answer, not an absent one: a renewal nobody has
+       assessed is exactly what somebody auditing coverage wants to list. */
+    const risk =
+      riskFilter === "" ||
+      (riskFilter === "__none__" ? r.risk === null : r.risk === riskFilter);
+    return hit && risk;
+  };
+  const narrowed = query.trim() !== "" || riskFilter !== "";
+
+  const dueTotal = rows.filter((r) => r.notDueReason === null).length;
+  const notDueTotal = rows.filter((r) => r.notDueReason !== null).length;
+
+  const shown = rows.filter(match);
+  const due = shown.filter((r) => r.notDueReason === null);
+  const notDue = shown.filter((r) => r.notDueReason !== null);
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     startTransition(() => {
@@ -313,9 +349,60 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
         title={RENEWAL_TEXT.rosterDue}
         description={RENEWAL_TEXT.rosterDueWhy}
       >
+        {/* One tool row for both tables; the 未到期 list below says on its own
+            heading that this control is narrowing it. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(due.length, dueTotal)
+              : RENEWAL_TEXT.rowCount(due.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={RENEWAL_TEXT.searchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setRiskFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={riskFilter}
+              aria-label={RENEWAL_TEXT.filterAllRisk}
+              onChange={(e) => setRiskFilter(e.target.value)}
+            >
+              <option value="">{RENEWAL_TEXT.filterAllRisk}</option>
+              <option value="low">{RENEWAL_TEXT.riskLow}</option>
+              <option value="watch">{RENEWAL_TEXT.riskWatch}</option>
+              <option value="__none__">{RENEWAL_TEXT.riskNone}</option>
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(
           due,
-          <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />,
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />
+          ),
           true,
         )}
         {!canOpen ? (
@@ -323,16 +410,30 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
         ) : null}
       </Section>
 
-      {notDue.length > 0 ? (
+      {/* Holds its place while narrowed rather than vanishing under a keyword
+          and taking its own explanation with it. */}
+      {notDue.length > 0 || (narrowed && notDueTotal > 0) ? (
         <Section
           id="renewal-not-due"
           icon="file-text"
           title={RENEWAL_TEXT.rosterNotDue}
           description={RENEWAL_TEXT.rosterNotDueWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{RENEWAL_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(
             notDue,
-            <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />,
+            narrowed ? (
+              <EmptyState
+                title={TABLE_TOOLBAR_TEXT.noMatch}
+                description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+              />
+            ) : (
+              <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />
+            ),
             false,
           )}
         </Section>

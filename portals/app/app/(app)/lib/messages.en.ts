@@ -337,6 +337,13 @@ export const en: Dictionary = {
       `"${name}" is coming up and there is no contract amount to carry forward.`,
     renewalAdviceDueSoon: (name: string, days: number) =>
       `"${name}" has ${days} days left on its term and can be renewed now.`,
+    rowCount: (n: number) => `${n} due`,
+    searchHint: "Project name or number",
+    filterAllRisk: "All renewal risk",
+    riskLow: "Delivery on track",
+    riskWatch: "Delivery at risk",
+    riskNone: "Not assessed",
+    narrowedNote: "Narrowed by the search above",
   },
   RENEWAL_ERROR: {
     // incr/0034 - the deal entry gate.
@@ -942,6 +949,11 @@ export const en: Dictionary = {
     priceDenied:
       "You cannot set prices - whoever moves the floor can approve every discount in the product",
     writeDenied: "You cannot maintain the catalogue",
+    productCount: (n: number) => `${n} products`,
+    productSearchHint: "Product name or code",
+    filterAllTypes: "All types",
+    narrowedNote: "Narrowed by the search above",
+    priceCount: (n: number) => `${n} prices`,
   },
 
   REVENUE_STATUS_LABEL: {
@@ -2466,6 +2478,9 @@ export const en: Dictionary = {
     searchHint: "Project, number, customer",
     filterAllHealth: "All health",
     narrowedNote: "Narrowed by the search above",
+    instalmentCount: (n: number) => `${n} instalments`,
+    collectionSearchHint: "Project",
+    filterAllRevenueStatus: "All collection states",
   },
 
   HEALTH_LABEL: {

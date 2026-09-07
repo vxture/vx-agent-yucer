@@ -232,6 +232,15 @@ export const RENEWAL_TEXT = {
     // 用的是事实推出来的健康度，不是交付团队自己报的那个。
     watch: "交付有风险，谨慎接触",
   } as Record<string, string>,
+  rowCount: (n: number) => `${n} 个待续`,
+  searchHint: "项目名、项目号",
+  filterAllRisk: "全部续约风险",
+  riskLow: "交付正常",
+  riskWatch: "交付有风险",
+  /** A renewal nobody has assessed - a real answer, and the one somebody
+   *  auditing coverage is looking for. */
+  riskNone: "无评级",
+  narrowedNote: "已按检索条件收窄",
   notDue: {
     not_subscription: "一次性项目，交付即结束",
     no_end_date: "订阅项目缺到期日——续约会悄悄漏掉",
@@ -864,6 +873,11 @@ export const CATALOG_TEXT = {
   removeItem: "移除",
   saveSolution: "保存方案",
   solutionSaved: "已保存",
+  productCount: (n: number) => `${n} 个产品`,
+  productSearchHint: "产品名、产品编码",
+  filterAllTypes: "全部分类",
+  narrowedNote: "已按检索条件收窄",
+  priceCount: (n: number) => `${n} 条价格`,
 } as const;
 
 /**
@@ -2708,6 +2722,11 @@ export const DELIVERY_TEXT = {
 
   // --- the collections module page (2026-09-06) -----------------------------
   instalmentSeq: (n: number) => `第 ${n} 期`,
+  instalmentCount: (n: number) => `${n} 期`,
+  /** The collections table searches the project name only - an instalment has
+   *  no name of its own, it is 第 N 期 of a project. */
+  collectionSearchHint: "项目名",
+  filterAllRevenueStatus: "全部回款状态",
   rosterOpen: "待回款",
   rosterOpenWhy:
     "已经承诺、还没到账的钱。到期日过了而状态还没跟上，是这张表最该被看见的一种。",
