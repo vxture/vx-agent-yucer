@@ -7,6 +7,11 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  DialogForm,
+  Field,
+  FieldLabel,
+  Input,
+  NativeSelect,
   LabeledValue,
   Icon,
   PanelCard,
@@ -15,6 +20,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import type { SignalRecord } from "../../domains/signal/store";
+import { SIGNAL_DISMISS_REASONS, type ExitReason } from "../../domains/shared/funnel-exit";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import { confidenceTone } from "../lib/view-model";
@@ -62,7 +68,11 @@ import { ScoreRing } from "./score-ring";
 // company is the most valuable thing this domain finds, and rendering it as
 // absence would teach people to skip exactly the rows worth reading.
 
-export type SignalAction = "promote" | "dismiss" | "duplicate" | "rescore";
+// `dismiss` LEFT THIS UNION on 2026-09-07. Ignoring a signal records WHY now
+// (incr/0033) - without it the same signal arrives next week and nobody can
+// tell whether it was looked at and rejected or never looked at - so it takes
+// a second argument and cannot travel as a bare verb.
+export type SignalAction = "promote" | "duplicate" | "rescore";
 
 export interface QueueSignal {
   readonly record: SignalRecord;
@@ -86,6 +96,12 @@ export interface SignalQueueProps {
   readonly onAct: (
     signalId: string,
     action: SignalAction,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  /** 忽略, with the reason it is being ignored. */
+  readonly onDismiss: (
+    signalId: string,
+    reasonCode: ExitReason,
+    note: string | null,
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -172,12 +188,17 @@ export function SignalQueue({
   canTriage,
   canRescore,
   onAct,
+  onDismiss,
 }: SignalQueueProps) {
-  const { SIGNAL_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
+  const { DS_LABELS, EXIT_REASON_LABEL, SIGNAL_TEXT, SIGNAL_ACTION_ERROR } = useMessages();
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  // 忽略 asks for a reason, so it is a dialog rather than a straight click.
+  const [dismissing, setDismissing] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
 
   function act(id: string, action: SignalAction) {
     setBusyId(id);
@@ -208,6 +229,60 @@ export function SignalQueue({
          whether the two agree instead of reading either. The TITLE stays: this
          page holds two lists, and it is what says which one this is. */
     >
+      {dismissing ? (
+        <DialogForm
+          open
+          onOpenChange={(o: boolean) => {
+            if (!o) setDismissing(null);
+          }}
+          danger
+          title={SIGNAL_TEXT.dismiss}
+          description={SIGNAL_TEXT.dismissWhy}
+          submitLabel={SIGNAL_TEXT.dismiss}
+          cancelLabel={DS_LABELS.confirmCancel}
+          submitting={pending}
+          // 'other' has to say what - refused by the rule and by a CHECK.
+          submitDisabled={reason === "" || (reason === "other" && note.trim() === "")}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const id = dismissing;
+            const code = reason;
+            const text = note.trim() === "" ? null : note.trim();
+            setDismissing(null);
+            setBusyId(id);
+            setError(null);
+            start(async () => {
+              // The select's options come from SIGNAL_DISMISS_REASONS, which
+              // is the same list the rule validates against.
+              const r = await onDismiss(id, code as ExitReason, text);
+              if (!r.ok) {
+                setError(SIGNAL_ACTION_ERROR[r.error ?? "denied"] ?? SIGNAL_ACTION_ERROR.denied);
+              }
+              setBusyId(null);
+            });
+          }}
+        >
+          <Field>
+            <FieldLabel>{SIGNAL_TEXT.dismissReason}</FieldLabel>
+            <NativeSelect value={reason} onChange={(e) => setReason(e.target.value)}>
+              <option value="">{SIGNAL_TEXT.dismissReasonPick}</option>
+              {SIGNAL_DISMISS_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {EXIT_REASON_LABEL[r] ?? r}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
+          <Field>
+            <FieldLabel>{SIGNAL_TEXT.dismissNote}</FieldLabel>
+            <Input
+              value={note}
+              placeholder={reason === "other" ? SIGNAL_TEXT.dismissNoteRequired : SIGNAL_TEXT.dismissNoteOptional}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </Field>
+        </DialogForm>
+      ) : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {groups
         .filter((g) => g.items.length > 0)
@@ -244,6 +319,11 @@ export function SignalQueue({
                         setOpenId(openId === s.record.id ? "" : s.record.id)
                       }
                       onAct={act}
+                      onAskDismiss={(id) => {
+                        setDismissing(id);
+                        setReason("");
+                        setNote("");
+                      }}
                     />
                   ))}
                 </PanelList>
@@ -263,6 +343,7 @@ function Row({
   canRescore,
   onToggle,
   onAct,
+  onAskDismiss,
 }: {
   signal: QueueSignal;
   open: boolean;
@@ -271,6 +352,8 @@ function Row({
   canRescore: boolean;
   onToggle: () => void;
   onAct: (id: string, a: SignalAction) => void;
+  /** 忽略 opens a dialog owned by the queue - this row only asks for it. */
+  onAskDismiss: (id: string) => void;
 }) {
   const { SIGNAL_TEXT, SIGNAL_STATUS_LABEL, SIGNAL_TYPE_LABEL } = useMessages();
   const locale = useLocale();
@@ -422,7 +505,7 @@ function Row({
               size="sm"
               variant="outline"
               disabled={!canTriage || busy}
-              onClick={() => onAct(r.id, "dismiss")}
+              onClick={() => onAskDismiss(r.id)}
             >
               {SIGNAL_TEXT.dismiss}
             </Button>

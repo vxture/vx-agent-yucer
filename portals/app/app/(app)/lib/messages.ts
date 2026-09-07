@@ -975,6 +975,7 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
   lead_converted: "这条线索已经转成商机了",
   lead_not_qualified: "线索还没有通过资格判定",
   owner_required: "分派必须指到具体的人",
+  signal_resolved: "这条信号已经判过了，不能再改匹配的客户",
   unknown_stage: "未知的漏斗环节",
   outcome_not_of_stage: "这个结局不属于该环节",
   unknown_reason: "未知的结束原因",
@@ -2304,6 +2305,21 @@ export const SIGNAL_TEXT = {
   lead: (n: number) => `${n} 条情报待判`,
   // 标题行的标签 (owner, 2026-09-06). Counts of what this page HOLDS, so a
   // badge and the queue beneath it are the same arithmetic.
+  dismissWhy: "记下为什么忽略。否则同一条信号下周再进来，没人分得清是看过否掉的，还是根本没看。",
+  dismissReason: "原因",
+  dismissReasonPick: "选择原因",
+  dismissNote: "补充说明",
+  dismissNoteRequired: "选了「其他」就必须写清楚",
+  dismissNoteOptional: "可留空",
+  scoutTitle: "智探判断",
+  scoutQuiet: "没有可提的：没有重复，没有能对上的客户，也没有扎堆的公司。",
+  scoutDuplicate: (n: number) =>
+    n === 0 ? "同一天还有一条同类信号，像是同一件事报了两次" : `${n} 天前还有一条同类信号，像是同一件事报了两次`,
+  scoutMatch: (account: string) => `信号里提到了客户档案中的「${account}」`,
+  scoutMatchAccept: "匹配到这家",
+  scoutClusters: "扎堆的公司",
+  scoutCluster: (subject: string, n: number, kinds: number) =>
+    `${subject}：${n} 条待判信号，${kinds} 种类型——一条线，不是 ${n} 件事`,
   tagSignals: (n: number) => `${n} 条情报待判`,
   tagNamed: (n: number) => `${n} 条命名客户`,
   tagStale: (n: number) => `${n} 条已衰减`,

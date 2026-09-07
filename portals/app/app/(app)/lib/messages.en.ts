@@ -1228,6 +1228,7 @@ export const en: Dictionary = {
     lead_converted: "This lead has already been converted.",
     lead_not_qualified: "This lead has not been qualified.",
     owner_required: "An assignment needs somebody to assign to.",
+    signal_resolved: "This signal has already been judged.",
     unknown_stage: "Unknown funnel stage.",
     outcome_not_of_stage: "That is not how this stage ends.",
     unknown_reason: "Unknown reason for ending.",
@@ -1750,6 +1751,21 @@ export const en: Dictionary = {
       `type weight ${base} x recency ${decay.toFixed(2)} + match bonus ${bonus}`,
 
     // Counts of what this page holds - see the zh catalogue.
+    dismissWhy: "Record why. Otherwise the same signal arrives next week and nobody can tell whether it was looked at and rejected or never looked at.",
+    dismissReason: "Reason",
+    dismissReasonPick: "Pick a reason",
+    dismissNote: "Note",
+    dismissNoteRequired: "Required when the reason is Other",
+    dismissNoteOptional: "Optional",
+    scoutTitle: "What the scout noticed",
+    scoutQuiet: "Nothing to raise: no repeats, no exact customer matches, nobody clustering.",
+    scoutDuplicate: (n: number) =>
+      n === 0 ? "Another signal of the same kind the same day - one event reported twice" : `Another signal of the same kind ${n}d earlier - one event reported twice`,
+    scoutMatch: (account: string) => `This names ${account}, a customer already on file`,
+    scoutMatchAccept: "Match to this customer",
+    scoutClusters: "Companies clustering",
+    scoutCluster: (subject: string, n: number, kinds: number) =>
+      `${subject}: ${n} open signals across ${kinds} kinds - one story, not ${n} things`,
     tagSignals: (n: number) => `${n} to judge`,
     tagNamed: (n: number) => `${n} named-account`,
     tagStale: (n: number) => `${n} decayed`,

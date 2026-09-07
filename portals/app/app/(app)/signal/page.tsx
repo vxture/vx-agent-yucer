@@ -9,7 +9,7 @@ import { listSignals } from "../../domains/signal/service";
 import { can } from "../../authz/decide";
 import { SignalQueue, type QueueSignal } from "../components/signal-queue";
 import { scoreSignal } from "../../domains/signal/lib/scoring";
-import { actOnSignal } from "./actions";
+import { actOnSignal, dismissSignal } from "./actions";
 import { loadFailureText } from "../lib/load-failure";
 import { ModuleHeadline } from "../components/module-headline";
 
@@ -175,6 +175,7 @@ export default async function SignalPage() {
             .allowed
         }
         onAct={actOnSignal}
+        onDismiss={dismissSignal}
       />
     </ViewLayout>
   );

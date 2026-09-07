@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getSignalStore } from "../../domains/shared/registry";
-import { promoteSignal, rescoreSignal, triageSignal } from "../../domains/signal/service";
+import {
+  matchSignalAccount,
+  promoteSignal,
+  rescoreSignal,
+  triageSignal,
+} from "../../domains/signal/service";
+import type { ExitReason } from "../../domains/shared/funnel-exit";
 import type { SignalAction } from "../components/signal-queue";
 
 // The only write path from the signal inbox.
@@ -51,4 +57,62 @@ export async function actOnSignal(
     ok: true,
     score: action === "rescore" ? (result.value as { signal: { score: number | null } }).signal.score : undefined,
   };
+}
+
+
+const ctxOf = (session: NonNullable<Awaited<ReturnType<typeof resolveAppSession>>>) => ({
+  workspaceId: session.workspaceId,
+  sub: session.user.sub,
+  holder: session.authz,
+  entitlement: session.entitlement,
+  store: session.stores.signal(),
+});
+
+/**
+ * 忽略, with the reason (design_yucer_110 batch D, on incr/0033's table).
+ *
+ * WITHOUT IT THE SAME SIGNAL COMES BACK NEXT WEEK and nobody can tell whether
+ * it was looked at and rejected or never looked at - which is the difference
+ * between a filter working and a filter being ignored.
+ */
+export async function dismissSignal(
+  signalId: string,
+  reasonCode: ExitReason,
+  note: string | null,
+): Promise<SignalActionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const r = await triageSignal(ctxOf(session), signalId, "dismissed", { reasonCode, note });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/signal");
+  return { ok: true };
+}
+
+/** 判重 - accepting the scout's proposal that this repeats one already here. */
+export async function markSignalDuplicate(signalId: string): Promise<SignalActionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  // NO REASON ASKED FOR. A duplicate explains itself - it names the signal it
+  // repeats - and making somebody type a sentence for it teaches them to type
+  // anything.
+  const r = await triageSignal(ctxOf(session), signalId, "duplicate", { reasonCode: "duplicate" });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/signal");
+  return { ok: true };
+}
+
+/** 匹配客户 - accepting the scout's proposal about which customer this is. */
+export async function matchSignal(
+  signalId: string,
+  accountId: string,
+): Promise<SignalActionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const r = await matchSignalAccount(ctxOf(session), signalId, accountId);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/signal");
+  return { ok: true };
 }

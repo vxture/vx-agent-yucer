@@ -140,11 +140,23 @@ export async function rescoreSignal(
   return ok({ signal: updated!, breakdown: scored.value });
 }
 
-/** Dismiss or mark duplicate. Both are terminal side exits from the funnel. */
+/**
+ * Dismiss or mark duplicate. Both are terminal side exits from the funnel.
+ *
+ * AND BOTH NOW SAY WHY (design_yucer_110 batch D, on incr/0033's table).
+ * Without it the same signal arrives again next week and nobody can tell
+ * whether it was already looked at and rejected, or never looked at - which
+ * is the difference between a filter working and a filter being ignored.
+ *
+ * The reason is OPTIONAL here and required by the surface for `dismissed`:
+ * a duplicate explains itself (it names the signal it duplicates), and being
+ * made to type a sentence for one would teach people to type anything.
+ */
 export async function triageSignal(
   ctx: SignalContext,
   signalId: string,
   to: Extract<SignalStatus, "dismissed" | "duplicate">,
+  exit: { reasonCode?: ExitReason; note?: string | null } = {},
 ): Promise<RuleResult<{ status: SignalStatus }>> {
   const gate = can(ctx.holder, ctx.entitlement, "signal.triage", "data");
   if (!gate.allowed) return denied(gate);
@@ -155,8 +167,58 @@ export async function triageSignal(
   const patch = planStatusChange(signal, to);
   if (!patch.ok) return patch as RuleResult<{ status: SignalStatus }>;
 
+  // VALIDATED BEFORE THE STATUS MOVES, so a signal cannot end up dismissed
+  // with nothing saying why - the same order closeLead uses.
+  const record = planFunnelExit({
+    stage: "signal",
+    subjectId: signalId,
+    outcome: to,
+    // A duplicate IS its own reason; a dismissal defaults to the vocabulary's
+    // catch-all only when the caller gave nothing, and the surface asks.
+    reasonCode: exit.reasonCode ?? (to === "duplicate" ? "duplicate" : "not_a_fit"),
+    note: exit.note ?? null,
+    decidedBySub: ctx.sub,
+  });
+  if (!record.ok) return record as RuleResult<{ status: SignalStatus }>;
+
+  await ctx.store.recordFunnelExit(ctx.workspaceId, record.value);
   await ctx.store.resolveSignal(ctx.workspaceId, signalId, patch.value);
   return ok({ status: to });
+}
+
+/**
+ * Match a signal to a customer - 智探's proposal, a person's decision.
+ *
+ * THE UPSTREAM OF TWO DEAD ENDS. An unmatched signal becomes an unmatched
+ * lead, which has no region (so 智能分配 cannot place it) and no account (so
+ * it cannot convert). Both of those refusals start here.
+ *
+ * `account_id` is RESOLUTION, not evidence: the signal's source, subject and
+ * detection time are frozen, and which customer it turned out to be about is
+ * a conclusion somebody reaches later.
+ */
+export async function matchSignalAccount(
+  ctx: SignalContext,
+  signalId: string,
+  accountId: string,
+): Promise<RuleResult<{ accountId: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "signal.triage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const signal = await ctx.store.getSignal(ctx.workspaceId, signalId);
+  if (!signal) return fail(violation("not_found", `signal ${signalId} was not found`, "signalId"));
+  if (signal.status !== "new" && signal.status !== "scored") {
+    // A promoted signal already handed its account to a lead; re-pointing it
+    // now would leave the two disagreeing with nothing to say which is right.
+    return fail(violation("signal_resolved", "this signal has already been judged", "status"));
+  }
+
+  // resolveSignal, not a new port verb: `account_id` is one of the three
+  // RESOLUTION columns it already takes, and the port's whole shape is that
+  // evidence cannot be written and resolution can.
+  const applied = await ctx.store.resolveSignal(ctx.workspaceId, signalId, { accountId });
+  if (!applied) return fail(violation("not_found", `signal ${signalId} was not found`, "signalId"));
+  return ok({ accountId });
 }
 
 export interface PromotionResult {

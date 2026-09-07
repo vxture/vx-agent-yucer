@@ -65,6 +65,23 @@ export const LEAD_DISQUALIFY_REASONS: readonly ExitReason[] = [
   "other",
 ];
 
+/**
+ * Why a signal gets ignored.
+ *
+ * SHORTER THAN A LEAD'S, because less is known. Nobody has spoken to anybody
+ * yet - a signal is a report - so "no budget" or "lost to a competitor" are
+ * conclusions the reader cannot have reached. What they CAN say is that it is
+ * not our kind of work, that it repeats something already here, that the
+ * company cannot be reached, or that it is real but not now.
+ */
+export const SIGNAL_DISMISS_REASONS: readonly ExitReason[] = [
+  "not_a_fit",
+  "duplicate",
+  "timing",
+  "unreachable",
+  "other",
+];
+
 export const LEAD_TERMINATE_REASONS: readonly ExitReason[] = [
   "no_budget",
   "no_decision",
