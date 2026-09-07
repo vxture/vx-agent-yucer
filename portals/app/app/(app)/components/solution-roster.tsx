@@ -5,6 +5,8 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
+  Input,
   Section,
   StatusBadge,
   useToast,
@@ -12,7 +14,7 @@ import {
 import type { SolutionItemRecord, SolutionRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, SearchSlot } from "./table-fittings";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -51,7 +53,8 @@ export function SolutionRoster({
   onStatus,
   onDelete,
 }: SolutionRosterProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are ids, so a selection is of the
@@ -59,8 +62,31 @@ export function SolutionRoster({
   const [selected, setSelected] = useState<readonly string[]>([]);
   const { toast } = useToast();
 
-  const live = solutions.filter((s) => s.solution.status !== "retired");
-  const retired = solutions.filter((s) => s.solution.status === "retired");
+  /* 工具行. 适用场景 is in the search alongside the name and code, and that
+     is the point of putting a box here at all: the scenario is free text
+     somebody says to a customer, so "找一个讲得通零售连锁的方案" is a lookup
+     nobody can do by scanning a name column.
+
+     No second filter. Status is already the split between the two tables,
+     and a dropdown that re-answers what the headings answer is a control
+     that cannot change anything the reader can see. */
+  const [query, setQuery] = useState("");
+  const narrowed = query.trim() !== "";
+  const match = (r: (typeof solutions)[number]) => {
+    const q = query.trim().toLowerCase();
+    if (q === "") return true;
+    const sol = r.solution;
+    return [sol.name, sol.solutionCode, sol.scenario ?? "", sol.summary ?? ""].some(
+      (v) => v.toLowerCase().includes(q),
+    );
+  };
+
+  const liveTotal = solutions.filter((s) => s.solution.status !== "retired").length;
+  const retiredTotal = solutions.filter((s) => s.solution.status === "retired").length;
+
+  const shown = solutions.filter(match);
+  const live = shown.filter((s) => s.solution.status !== "retired");
+  const retired = shown.filter((s) => s.solution.status === "retired");
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     startTransition(() => {
@@ -222,10 +248,17 @@ export function SolutionRoster({
         columns={columns}
         rowActions={rowActions}
         empty={
-          <EmptyState
-            title={CATALOG_TEXT.noSolutions}
-            description={CATALOG_TEXT.rosterSolutionWhy}
-          />
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState
+              title={CATALOG_TEXT.noSolutions}
+              description={CATALOG_TEXT.rosterSolutionWhy}
+            />
+          )
         }
       />
     </div>
@@ -246,15 +279,46 @@ export function SolutionRoster({
           ) : undefined
         }
       >
+        {/* One tool row for both rosters; the retired list says on its own
+            heading that this control is narrowing it. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
+              : CATALOG_TEXT.solutionCount(live.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={CATALOG_TEXT.solutionSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={narrowed ? () => setQuery("") : undefined}
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        />
+
         {table(live)}
       </Section>
 
-      {retired.length > 0 ? (
+      {/* Holds its place while narrowed rather than vanishing under a keyword
+          and taking its own explanation with it. */}
+      {retired.length > 0 || (narrowed && retiredTotal > 0) ? (
         <Section
           id="solutions-retired"
           icon="file-text"
           title={CATALOG_TEXT.rosterSolutionRetired}
           description={CATALOG_TEXT.rosterSolutionRetiredWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(retired)}
         </Section>

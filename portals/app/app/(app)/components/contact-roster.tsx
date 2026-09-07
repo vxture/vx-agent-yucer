@@ -4,6 +4,7 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
   Field,
   FieldLabel,
   Input,
@@ -80,6 +81,15 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
           description={ACCOUNT_TEXT.contactsNoneWhy}
         />
       ) : (
+        <>
+        {/* 按需 - COUNT ONLY (owner's 按需添加, 2026-09-07). This is the roster
+            of ONE customer's people, not a directory: the whole list is on
+            screen, and a keyword box for finding something already visible is
+            a control that does nothing. The count answers a question the
+            heading cannot - how many people we actually know inside this
+            account, which is the coverage question this section exists for. */}
+        <FilterBar count={ACCOUNT_TEXT.contactCount(contacts.length)} />
+
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: ContactRow) => r.id}
@@ -117,6 +127,7 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
             },
           ]}
         />
+        </>
       )}
 
       {!canEdit ? (

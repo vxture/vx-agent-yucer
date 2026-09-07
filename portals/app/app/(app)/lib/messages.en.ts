@@ -426,6 +426,10 @@ export const en: Dictionary = {
       `"${name}" is filed ${filed}; the rule only reaches ${suggested} - this one is inflating the commitment.`,
     adviceConservative: (name: string, filed: string, suggested: string) =>
       `"${name}" is filed ${filed}; the rule would reach ${suggested} - this one's progress is understated.`,
+    rowCount: (n: number) => `${n} disputed`,
+    searchHint: "Deal name or number",
+    filterAllFiled: "All categories",
+    narrowedNote: "Narrowed by the search above",
   },
   FORECAST_RULE_ERROR: {
     ...GATE_ERROR,
@@ -951,6 +955,8 @@ export const en: Dictionary = {
     writeDenied: "You cannot maintain the catalogue",
     productCount: (n: number) => `${n} products`,
     productSearchHint: "Product name or code",
+    solutionCount: (n: number) => `${n} solutions`,
+    solutionSearchHint: "Name, code, scenario",
     filterAllTypes: "All types",
     narrowedNote: "Narrowed by the search above",
     priceCount: (n: number) => `${n} prices`,
@@ -2204,6 +2210,7 @@ export const en: Dictionary = {
     contactSaved: "Saved",
     contactsDenied: "You cannot maintain contacts",
     ownerNone: "Unassigned",
+    contactCount: (n: number) => `${n} contacts`,
   },
 
   ACCOUNT_STATUS_LABEL: {
@@ -2800,6 +2807,7 @@ export const en: Dictionary = {
     planAdviceNoCampaign: (name: string) => `"${name}" is running with no campaign under it.`,
     planAdviceNoSegment: (name: string) => `"${name}" is running and no segment points at it.`,
     planAdviceNoObjective: (name: string) => `"${name}" states no objective.`,
+    segmentCount: (n: number) => `${n} segments`,
   },
 
   PLAN_STATUS_LABEL: {
@@ -2884,6 +2892,8 @@ export const en: Dictionary = {
       "Each one records you as the decider. Doing them in bulk does not reduce the trail.",
     rejectNote:
       "A rejection is signed too, and a rejected proposal keeps its full record.",
+    searchHint: "Rationale",
+    filterAllStatus: "All states",
   },
 
   AGENT_SUBJECT_LABEL: {

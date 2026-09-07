@@ -9,6 +9,9 @@ import {
   DetailList,
   DetailRow,
   EmptyState,
+  FilterBar,
+  Input,
+  NativeSelect,
   Section,
   StatusBadge,
   type DataTableColumn,
@@ -21,6 +24,7 @@ import {
 import { isExecutable } from "../../domains/copilot/lib/autonomy";
 import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
+import { FilterSlot, SearchSlot } from "./table-fittings";
 
 import { useMessages } from "../lib/i18n/provider";
 // The copilot proposal queue - where a human decides what the agent may do.
@@ -86,6 +90,7 @@ export function ProposalQueue({
     DS_LABELS,
     PROPOSAL_TEXT,
     PROPOSAL_ERROR,
+    TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   // The DS owns the disclosure, the same way it owns the selection above.
@@ -93,6 +98,26 @@ export function ProposalQueue({
   const [confirming, setConfirming] = useState<Decision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  /* 工具行. ONE TABLE HERE, holding proposed and decided rows together, so
+     状态 is the filter that matters most - 「只看还没定的」 is the whole
+     working mode of this page, and scrolling past a hundred decided rows to
+     find it is the thing the filter removes.
+
+     The box searches the RATIONALE, which is the only free text on the row.
+     Searching the action type would duplicate the filter; searching the
+     subject id would search a uuid. */
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const narrowed = query.trim() !== "" || statusFilter !== "";
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return actions.filter(
+      (a) =>
+        (q === "" || (a.rationale ?? "").toLowerCase().includes(q)) &&
+        (statusFilter === "" || a.status === statusFilter),
+    );
+  }, [actions, query, statusFilter]);
 
   // Only pending proposals are selectable. A decided one is history.
   const pending = useMemo(
@@ -312,17 +337,71 @@ export function ProposalQueue({
         />
       ) : null}
 
+      {/* 按需: search + 状态 filter + count. No view switch - a proposal is
+          read as a row against its neighbours (confidence, who decided, when),
+          and a grid of cards loses exactly that comparison. */}
+      {actions.length > 0 ? (
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(shown.length, actions.length)
+              : PROPOSAL_TEXT.rowCount(actions.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={PROPOSAL_TEXT.searchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setStatusFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={statusFilter}
+              aria-label={PROPOSAL_TEXT.filterAllStatus}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">{PROPOSAL_TEXT.filterAllStatus}</option>
+              {Object.entries(ACTION_STATUS_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+      ) : null}
+
       {actions.length === 0 ? (
         <EmptyState
           title={PROPOSAL_TEXT.emptyTitle}
           description={PROPOSAL_TEXT.emptyDescription}
+        />
+      ) : shown.length === 0 ? (
+        <EmptyState
+          title={TABLE_TOOLBAR_TEXT.noMatch}
+          description={TABLE_TOOLBAR_TEXT.noMatchWhy}
         />
       ) : (
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
-            rows={actions}
+            rows={shown}
             rowKey={(row) => row.id}
             /* SELECTION IS THE DS'S NOW. It was a hand-rolled `select` column
                with two Checkboxes, which landed the boxes AFTER the index

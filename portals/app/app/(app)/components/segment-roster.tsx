@@ -5,6 +5,7 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
   Section,
   StatusBadge,
   useToast,
@@ -49,7 +50,8 @@ export interface SegmentRosterProps {
 }
 
 export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: SegmentRosterProps) {
-  const { STRATEGY_TEXT, SEGMENT_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
+  const { STRATEGY_TEXT, SEGMENT_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are ids.
@@ -255,6 +257,14 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
           ) : undefined
         }
       >
+        {/* 按需 - COUNT ONLY, no search box (owner's 按需添加, 2026-09-07).
+            Segments are a curated set kept in priority order, a dozen at the
+            outside, and the whole list is on screen at once: a keyword box
+            here would be a control for finding something already visible.
+            The count still earns its place - "how many cuts of the market do
+            we run" is a question the heading cannot answer. */}
+        <FilterBar count={STRATEGY_TEXT.segmentCount(live.length)} />
+
         {table(live)}
       </Section>
 

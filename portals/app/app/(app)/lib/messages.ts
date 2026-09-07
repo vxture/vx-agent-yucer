@@ -355,6 +355,13 @@ export const FORECAST_RULE_TEXT = {
     `「${name}」填的是${filed}，按规则只到${suggested}——这一笔在抬高承诺。`,
   adviceConservative: (name: string, filed: string, suggested: string) =>
     `「${name}」填的是${filed}，按规则可以到${suggested}——这一笔的进展被低估了。`,
+  rowCount: (n: number) => `${n} 条分歧`,
+  searchHint: "商机名、商机号",
+  /** 归口 as FILED, not as suggested: this page reviews what people have
+   *  committed to, and the machine's opinion is what it is being reviewed
+   *  against. */
+  filterAllFiled: "全部归口",
+  narrowedNote: "已按检索条件收窄",
 } as const;
 
 export const ATTAINMENT_TEXT = {
@@ -875,6 +882,11 @@ export const CATALOG_TEXT = {
   solutionSaved: "已保存",
   productCount: (n: number) => `${n} 个产品`,
   productSearchHint: "产品名、产品编码",
+  solutionCount: (n: number) => `${n} 个方案`,
+  /** 适用场景 is in the search, and that is the point of the box: the scenario
+   *  is a sentence somebody says to a customer, not something a name column
+   *  can be scanned for. */
+  solutionSearchHint: "方案名、编码、适用场景",
   filterAllTypes: "全部分类",
   narrowedNote: "已按检索条件收窄",
   priceCount: (n: number) => `${n} 条价格`,
@@ -2282,6 +2294,10 @@ export const PROPOSAL_TEXT = {
   confirm: (verb: string) => `确认${verb}`,
   acceptNote: "每一条都会记录你的裁决人身份；批量不会减少留痕。",
   rejectNote: "拒绝同样需要裁决人落章，被拒绝的提案会保留完整记录。",
+  /** The rationale is the only free text on a proposal row: the action type
+   *  is what the filter is for, and the subject is a uuid. */
+  searchHint: "判断理由",
+  filterAllStatus: "全部状态",
 } as const;
 
 /**
@@ -2609,6 +2625,7 @@ export const ACCOUNT_TEXT = {
   // name on the record to resolve it against; dressing a machine string as a
   // person is how a UUID ends up in front of someone who then does not chase it.
   ownerNone: "未指派",
+  contactCount: (n: number) => `${n} 位联系人`,
 } as const;
 
 export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
@@ -3114,6 +3131,7 @@ export const STRATEGY_TEXT = {
   planAdviceNoCampaign: (name: string) => `「${name}」在执行中，底下一场战役都没有。`,
   planAdviceNoSegment: (name: string) => `「${name}」在执行中，但没有任何细分市场指向它。`,
   planAdviceNoObjective: (name: string) => `「${name}」没有写目标陈述。`,
+  segmentCount: (n: number) => `${n} 个分层`,
 } as const;
 
 export const PLAN_STATUS_LABEL: Record<string, string> = {
