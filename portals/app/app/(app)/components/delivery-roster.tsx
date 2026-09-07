@@ -13,16 +13,17 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
+import { formatMoney } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { formatMoney } from "../lib/view-model";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   FilterSlot,
   RowActions,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 import { worseThan, type ProjectHealth } from "../../domains/delivery/lib/delivery-stats";
 import { projectProgress } from "../../domains/delivery/lib/progress";
@@ -137,6 +138,13 @@ export interface DeliveryRosterProps {
   ) => Promise<{ ok: boolean; changed?: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: DeliveryRow) => r.name,
+  contract: (r: DeliveryRow) => r.contractAmount,
+};
+
 export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: DeliveryRosterProps) {
   const {
     DELIVERY_TEXT,
@@ -147,6 +155,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const { toast } = useToast();
+  const sorted = useTableSort<DeliveryRow>([], SORT_ON);
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
   const [selected, setSelected] = useState<readonly string[]>([]);
@@ -199,6 +208,7 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: DELIVERY_TEXT.columnNameAccount,
       cell: (r: DeliveryRow) => (
         /* The subtitle stays a LINK here - the customer is the one thing on
@@ -219,7 +229,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "manager",
       header: DELIVERY_TEXT.columnManager,
-      align: "center" as const,
       // A raw subject, marked as one - dressing a machine string as a person
       // is how a UUID ends up in front of someone who then does not chase it.
       cell: (r: DeliveryRow) =>
@@ -232,7 +241,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "health",
       header: DELIVERY_TEXT.columnHealthStatus,
-      align: "center" as const,
       cell: (r: DeliveryRow) => (
         <span className="flex flex-col items-center gap-3xs">
           <StatusBadge tone={tone(r.derived)}>
@@ -253,7 +261,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "progress",
       header: DELIVERY_TEXT.columnProgress,
-      align: "center" as const,
       // TWO FACTS, and the order is the reading: WHERE the project is, then
       // how far that is through the plan (owner, 2026-09-06). The percentage
       // alone says nothing about what happens next; the milestone name alone
@@ -268,7 +275,8 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
       header: DELIVERY_TEXT.columnContract,
       // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
       // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
-      align: "numeric" as const,
+      sortable: true,
+      align: "money" as const,
       cell: (r: DeliveryRow) => formatMoney(r.contractAmount, r.currency),
     },
   ];
@@ -367,7 +375,9 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: DeliveryRow) => r.id}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={columns}
           rowActions={rowActions}
           expandedContent={expandedContent}

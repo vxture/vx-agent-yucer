@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActionMenu,
   DataTable,
@@ -9,13 +9,15 @@ import {
   ListCard,
   ListCardGrid,
   StatusBadge,
+  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  useToast,
   type DataTableColumn,
   type FilterBarView,
-  useToast,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import type { AttainmentRow } from "../../domains/planning/service";
 import type { TargetValue } from "../../domains/planning/lib/target";
 import { formatMoney, formatPercent } from "../lib/view-model";
@@ -105,6 +107,21 @@ export function PlanningTable({
   }
   const names = territoryNames ?? new Map<string, string>();
 
+  /* 排序取值 lives INSIDE the component here, unlike the other tables: the
+     scope column sorts on its rendered label, and that label needs both the
+     territory names and the dictionary - neither of which exists at module
+     scope. Memoised because the hook keys its comparator on this object. */
+  const SORT_ON = useMemo(
+    () => ({
+      scope: (r: AttainmentRow) => scopeLabel(r, names, PLANNING_TEXT),
+      target: (r: AttainmentRow) => r.target.targetValue.amount,
+      closed: (r: AttainmentRow) =>
+        r.measurement.kind === "measured" ? r.measurement.achieved.amount : null,
+    }),
+    [names, PLANNING_TEXT],
+  );
+  const sorted = useTableSort(rows, SORT_ON);
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -117,8 +134,9 @@ export function PlanningTable({
   const columns: readonly DataTableColumn<AttainmentRow>[] = [
     {
       id: "scope",
+  sortable: true,
       header: PLANNING_TEXT.columnScope,
-      cell: (row) => scopeLabel(row, names, PLANNING_TEXT),
+      cell: (row) => <TableTitleCell title={scopeLabel(row, names, PLANNING_TEXT)} />,
     },
     {
       id: "metric",
@@ -130,15 +148,17 @@ export function PlanningTable({
     {
       id: "target",
       header: PLANNING_TEXT.columnTarget,
+      sortable: true,
       align: "numeric",
       cell: (row) => formatValue(row.target.targetValue, PLANNING_TEXT),
     },
     {
       id: "closed",
       header: PLANNING_TEXT.columnClosed,
-      align: "numeric",
       // Blank, not zero, when the metric could not be measured: there is no
       // achieved number, which is a different fact from having achieved none.
+      sortable: true,
+      align: "numeric",
       cell: (row) =>
         row.measurement.kind === "measured"
           ? formatValue(row.measurement.achieved, PLANNING_TEXT)
@@ -147,14 +167,12 @@ export function PlanningTable({
     {
       id: "attainment",
       header: PLANNING_TEXT.columnAttainment,
-      align: "center",
       // "No snapshot yet" is rendered as its own state, never as 0%.
       cell: (row) => <Attainment row={row} />,
     },
     {
       id: "status",
       header: PLANNING_TEXT.columnStatus,
-      align: "center",
       cell: (row) => (
         <StatusBadge
           tone={row.target.status === "committed" ? "warning" : "neutral"}
@@ -263,7 +281,9 @@ export function PlanningTable({
             rowActions={canUpdate && onUpdate ? actions : undefined}
             indexStart={1}
             columns={columns}
-            rows={rows}
+            rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.target.id}
           />
         ) : (

@@ -1,6 +1,13 @@
 "use client";
 
-import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import {
+  DataTable,
+  EmptyState,
+  Section,
+  StatusBadge,
+  TableTitleCell,
+} from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The territory roster: who carries which patch of the market.
@@ -29,8 +36,15 @@ export interface TerritoryRow {
   readonly regions: readonly string[];
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: TerritoryRow) => r.name,
+};
+
 export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[] }) {
   const { DATA_TABLE_LABELS, PLANNING_TEXT } = useMessages();
+  const sorted = useTableSort<TerritoryRow>([], SORT_ON);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   return (
     <Section id="territories" icon="map-pin">
@@ -43,21 +57,23 @@ export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: TerritoryRow) => r.id}
-          rows={[...rows]}
+          rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={[
             {
-              id: "code",
-              header: PLANNING_TEXT.territoryCode,
-              cell: (r: TerritoryRow) => r.territoryCode,
-            },
-            {
+              /* 编码与名称合成首列 (owner: 首列全部走 TableTitleCell). They were
+                 two columns with the CODE first, which put the row's identity
+                 in second place and forced an `align:"left"` override to undo
+                 the position-based default. As a title cell the name leads and
+                 the code becomes its description - the same shape every other
+                 first column in this product now has. */
               id: "name",
               header: PLANNING_TEXT.territoryName,
-              // LEFT: this is the row's TITLE - the thing a reader scans the
-              // column for - it just is not the first column, so 8.0.0's
-              // position-based default would centre it.
-              align: "left" as const,
-              cell: (r: TerritoryRow) => r.name,
+              sortable: true,
+              cell: (r: TerritoryRow) => (
+                <TableTitleCell title={r.name} description={r.territoryCode} tooltip={r.name} />
+              ),
             },
             {
               // The regions column joined with the /territory/new page: the
@@ -85,7 +101,6 @@ export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[
             {
               id: "status",
               header: PLANNING_TEXT.territoryStatus,
-              align: "center" as const,
               cell: (r: TerritoryRow) =>
                 r.status === "active" ? null : (
                   <StatusBadge tone="neutral">

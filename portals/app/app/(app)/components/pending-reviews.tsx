@@ -16,9 +16,11 @@ import {
   Section,
   SegmentedControl,
   StatusBadge,
+  TableTitleCell,
   Textarea,
   type DataTableColumn,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
@@ -67,6 +69,14 @@ const REASONS = [
   "other",
 ] as const;
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: OpportunityRecord) => r.name,
+    amount: (r: OpportunityRecord) => r.amount?.amount ?? null,
+  };
+
 export function PendingReviews({
   opportunities,
   allClosed,
@@ -81,6 +91,7 @@ export function PendingReviews({
     WINLOSS_TEXT,
     REVIEW_ERROR,
   } = useMessages();
+  const sorted = useTableSort<OpportunityRecord>([], SORT_ON);
   const [scope, setScope] = useState<"pending" | "all">("pending");
   const [view, setView] = useState<"list" | "cards">("list");
   // Pending is a SUBSET of all, so the two lists share every row object - the
@@ -114,12 +125,10 @@ export function PendingReviews({
   const columns: readonly DataTableColumn<OpportunityRecord>[] = [
     {
       id: "name",
+  sortable: true,
       header: WINLOSS_TEXT.columnOpportunity,
       cell: (row) => (
-        <div>
-          <div>{row.name}</div>
-          <div>{row.opportunityNo}</div>
-        </div>
+        <TableTitleCell title={row.name} description={row.opportunityNo} tooltip={row.name} />
       ),
     },
     {
@@ -136,7 +145,8 @@ export function PendingReviews({
     {
       id: "amount",
       header: WINLOSS_TEXT.columnAmount,
-      align: "numeric",
+      sortable: true,
+      align: "money",
       cell: (row) => formatMoney(row.amount?.amount ?? null, row.currency),
     },
     {
@@ -148,7 +158,6 @@ export function PendingReviews({
     {
       id: "state",
       header: WINLOSS_TEXT.columnState,
-      align: "center",
       /* State only. In the "all" view the two populations sit in one table, so
          each row has to say which it is - otherwise a reviewed deal looks like
          outstanding work. The VERB that used to share this cell moved to the
@@ -229,7 +238,9 @@ export function PendingReviews({
               labels={DATA_TABLE_LABELS}
               indexStart={1}
               columns={columns}
-              rows={shown}
+              rows={[...sorted.sortRows(shown)]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
               rowKey={(row) => row.id}
               /* Pinned right, one trigger. Items stay VISIBLE and disabled
                  rather than absent when they cannot be used, with the reason on

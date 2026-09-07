@@ -17,7 +17,13 @@ import {
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  rowClickSelection,
+  useTableSort,
+} from "./table-fittings";
 
 // 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
 // ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
@@ -45,6 +51,12 @@ export interface CatalogTypeConfigProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: ProductTypeRecord) => r.name,
+};
+
 export function CatalogTypeConfig({
   types,
   products,
@@ -53,6 +65,7 @@ export function CatalogTypeConfig({
   onDelete,
 }: CatalogTypeConfigProps) {
   const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const sorted = useTableSort<ProductTypeRecord>([], SORT_ON);
   const [dialog, setDialog] = useState<{ mode: "create" | "rename"; code: string; name: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -116,10 +129,13 @@ export function CatalogTypeConfig({
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(t: ProductTypeRecord) => t.id}
-        rows={[...types]}
+        rows={[...sorted.sortRows(types)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={[
           {
             id: "name",
+  sortable: true,
             header: CATALOG_TEXT.colTypeName,
             width: "md" as const,
             /* The code is omitted when it EQUALS the name rather than
@@ -137,7 +153,6 @@ export function CatalogTypeConfig({
             id: "linked",
             header: CATALOG_TEXT.colLinkedProducts,
             width: "sm" as const,
-            align: "center" as const,
             cell: (t: ProductTypeRecord) => (
               <span className="tabular-nums">{CATALOG_TEXT.linkedCount(inUse(t.id))}</span>
             ),
@@ -146,7 +161,6 @@ export function CatalogTypeConfig({
             id: "status",
             header: CATALOG_TEXT.colTypeStatus,
             width: "lg" as const,
-            align: "center" as const,
             cell: (t: ProductTypeRecord) =>
               t.status === "retired" ? (
                 <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>

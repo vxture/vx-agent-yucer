@@ -12,16 +12,17 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
+import { FORECAST_TONE } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { FORECAST_TONE } from "../lib/view-model";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   FilterSlot,
   RowActions,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import { moreOptimistic } from "../../domains/pipeline/lib/forecast-stats";
@@ -66,6 +67,12 @@ export interface ForecastRosterProps {
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  deal: (r: ForecastRow) => r.dealName,
+};
+
 export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps) {
   const {
     DATA_TABLE_LABELS,
@@ -74,6 +81,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     FORECAST_LABEL,
     TABLE_TOOLBAR_TEXT,
   } = useMessages();
+  const sorted = useTableSort<ForecastRow>([], SORT_ON);
   const { toast } = useToast();
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
@@ -109,6 +117,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
   const columns = [
     {
       id: "deal",
+  sortable: true,
       header: FORECAST_RULE_TEXT.colDeal,
       cell: (r: ForecastRow) => (
         <TableTitleCell
@@ -121,7 +130,6 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     {
       id: "filed",
       header: FORECAST_RULE_TEXT.colFiled,
-      align: "center" as const,
       cell: (r: ForecastRow) => (
         <StatusBadge tone={FORECAST_TONE[r.filed]}>{FORECAST_LABEL[r.filed]}</StatusBadge>
       ),
@@ -129,7 +137,6 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     {
       id: "suggested",
       header: FORECAST_RULE_TEXT.colSuggested,
-      align: "center" as const,
       cell: (r: ForecastRow) =>
         r.suggested === null || r.agrees ? (
           // Saying "agrees" beats repeating the badge already one column left.
@@ -155,7 +162,6 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     {
       id: "basis",
       header: FORECAST_RULE_TEXT.colBasis,
-      align: "center" as const,
       cell: (r: ForecastRow) => (
         <span className="flex flex-col items-center gap-3xs">
           <span className="text-muted-foreground text-body-sm">
@@ -174,7 +180,6 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
     {
       id: "stage",
       header: FORECAST_RULE_TEXT.colStage,
-      align: "center" as const,
       cell: (r: ForecastRow) =>
         r.daysAtStage === null ? (
           // UNKNOWN, not zero. A deal older than the journal has no history,
@@ -237,7 +242,9 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: ForecastRow) => r.opportunityId}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={columns}
           rowActions={rowActions}
           empty={empty}

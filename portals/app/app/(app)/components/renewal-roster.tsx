@@ -13,16 +13,17 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
+import { formatMoney } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { formatMoney } from "../lib/view-model";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   FilterSlot,
   RowActions,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 
 // 续约清单 - the catalogue module's pattern, applied to renewals.
@@ -63,6 +64,13 @@ export interface RenewalRosterProps {
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  project: (r: RenewalRow) => r.projectName,
+  amount: (r: RenewalRow) => r.amount,
+};
+
 export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const { DATA_TABLE_LABELS, RENEWAL_TEXT, RENEWAL_ERROR, TABLE_TOOLBAR_TEXT } =
     useMessages();
@@ -70,6 +78,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
   // across both tables: the keys are project ids.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<RenewalRow>([], SORT_ON);
   const { toast } = useToast();
 
   /* 工具行. Searches the project's name and number - the only free-text
@@ -114,6 +123,7 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const columns = [
     {
       id: "project",
+  sortable: true,
       header: RENEWAL_TEXT.colProject,
       cell: (r: RenewalRow) => (
         <TableTitleCell
@@ -127,7 +137,6 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       id: "ends",
       header: RENEWAL_TEXT.colEnds,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: RenewalRow) =>
         r.daysToEnd === null ? (
           <span className="text-muted-foreground text-body-sm">{RENEWAL_TEXT.noEndDate}</span>
@@ -156,10 +165,11 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       // 资金列：右对齐 + 右侧留白 (owner, 2026-09-06). 7rem column leaves an
       // 金额列走 DS 的 numeric 档（design-ui 8.0.0）。手量出来的那个 0.7rem 右
       // 内边距不再需要——DS 自己给一档，整列宽度一致由表格布局保证。
-      align: "numeric" as const,
       // WHAT LAST TERM WAS WORTH, carried forward unchanged. What the next one
       // is worth is a negotiation, and seeding it with an invented uplift puts
       // a number nobody chose in front of a customer.
+      sortable: true,
+      align: "money" as const,
       cell: (r: RenewalRow) => (
         <span className="text-foreground text-body-sm">{formatMoney(r.amount, r.currency)}</span>
       ),
@@ -183,7 +193,6 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const analysisColumn = {
     id: "analysis",
     header: RENEWAL_TEXT.colAnalysis,
-    align: "center" as const,
     // COLOUR, NOT A BADGE - the same call the lapsed cell makes. 交付有隐忧
     // inside badge chrome measures about 94px against the 56px content box
     // this table can spare; the wording and the colour are what carry the
@@ -210,7 +219,6 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const verdictColumn = {
     id: "verdict",
     header: RENEWAL_TEXT.colVerdict,
-    align: "center" as const,
     cell: (r: RenewalRow) =>
       r.notDueReason ? (
         <span className="text-muted-foreground text-body-sm">
@@ -331,7 +339,9 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: RenewalRow) => r.projectId}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={due ? [...columns, analysisColumn] : [...columns, verdictColumn]}
           rowActions={rowActions}
           empty={empty}

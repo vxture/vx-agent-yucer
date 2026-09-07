@@ -4,14 +4,16 @@ import {
   Button,
   DataTable,
   EmptyState,
-  FilterBar,
   Field,
   FieldLabel,
+  FilterBar,
   Input,
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The people inside a customer.
@@ -66,8 +68,15 @@ export interface ContactRosterProps {
   readonly editHref: string;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: ContactRow) => r.name,
+};
+
 export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProps) {
   const { DATA_TABLE_LABELS, ACCOUNT_TEXT } = useMessages();
+  const sorted = useTableSort<ContactRow>([], SORT_ON);
   return (
     <Section
       id="contacts"
@@ -93,9 +102,20 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: ContactRow) => r.id}
-          rows={[...contacts]}
+          rows={[...sorted.sortRows(contacts)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={[
-            { id: "name", header: ACCOUNT_TEXT.contactName, cell: (r: ContactRow) => r.name },
+            {
+              id: "name",
+  sortable: true,
+              header: ACCOUNT_TEXT.contactName,
+              // 只有一行值也走 TableTitleCell (owner, 2026-09-07): the point of
+              // the fitting is that the first column has ONE shape across the
+              // product, and a bare string in one table breaks the row rhythm
+              // the pinned line heights exist to hold.
+              cell: (r: ContactRow) => <TableTitleCell title={r.name} tooltip={r.name} />,
+            },
             {
               id: "title",
               header: ACCOUNT_TEXT.contactTitle,
@@ -114,7 +134,6 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
             {
               id: "status",
               header: ACCOUNT_TEXT.contactStatus,
-              align: "center" as const,
               // A component at module scope rather than an inline arrow that
               // returns JSX. The DS makes `cell` a render callback so either
               // works, but a function defined in a component body and returning

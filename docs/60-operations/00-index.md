@@ -1637,6 +1637,17 @@ token，不改 DS 样式。逐列宽度**一律从左数**（nth-child）：左�
 （2026-09-05 评审）。**回收条件**：DS 让 ACTION_COL 按文档发定宽、或列宽档在
 fixed 布局下可用；届时删掉这六处包装即可。已作为 DS 请求上报（元素缺失，非本仓自建）。
 
+**2026-09-07 升级 design-ui 9.1.0 后复量：修好了一半。**
+
+- **已修**：`ACTION_COL` 现在发的是 `w-control-3xl px-md text-right`——`w-` 定宽，
+  不再是 `min-w-`。当初「sticky 钉列在、固定宽不在」的那一半没有了。
+- **仍未修**：`w-control-3xl` 实测仍是 **56px**（`--space-control-3xl` =
+  `calc(var(--vx-spacing) * 14)`，默认档 4px×14），而 d.ts 依旧写「固定 64px」。
+  owner 裁的是 64。所以本仓的 `EDGE_COLUMNS` / `ACTION_COLUMN` 垫片**继续保留**，
+  它现在垫的只是这 8px 的差，不再是「定宽本身不存在」。
+- **仍未修**：列宽档 `xs/sm/md/lg` 依然是 `min-w-*`（见 9.1.0 的 `WIDTH`），
+  auto 布局下仍会随内容漂移。本条的第二半原样成立。
+
 **2026-09-07 补一条同型**：八张表的标题格换成 DS 的 `TableTitleCell` 后量到，它
 的两行同样是 `min-h-control-2xs` / `min-h-control-3xs`，而文件头写的是「两行的行高
 钉死（主 20px、辅 16px），不随内容撑」。实测 26px / 22px——`min-h` 是地板不是钉子，

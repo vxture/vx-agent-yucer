@@ -1,6 +1,13 @@
 "use client";
 
-import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import {
+  DataTable,
+  EmptyState,
+  Section,
+  StatusBadge,
+  TableTitleCell,
+} from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The work a campaign is made of - DISPLAY ONLY since 2026-09-05.
@@ -49,8 +56,15 @@ export interface ExecutionRow {
   readonly status: string;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  campaign: (r: ExecutionRow) => r.campaignName,
+};
+
 export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[] }) {
   const { DATA_TABLE_LABELS, CAMPAIGN_TEXT } = useMessages();
+  const sorted = useTableSort<ExecutionRow>([], SORT_ON);
   return (
     <Section
       id="executions"
@@ -67,7 +81,9 @@ export function ExecutionPanel({ rows }: { readonly rows: readonly ExecutionRow[
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: ExecutionRow) => r.id}
-          rows={[...rows]}
+          rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={executionColumns(CAMPAIGN_TEXT)}
         />
       )}
@@ -88,8 +104,12 @@ function executionColumns(text: {
   executionStatusLabel: Record<string, string>;
 }) {
   return [
-    { id: "campaign", header: text.executionCampaign, cell: (r: ExecutionRow) => r.campaignName },
-    { id: "title", header: text.executionTitle, cell: (r: ExecutionRow) => r.title },
+    {
+      id: "campaign",
+      header: text.executionCampaign,
+      sortable: true,
+      cell: (r: ExecutionRow) => <TableTitleCell title={r.campaignName} description={r.title} />,
+    },
     {
       id: "type",
       header: text.executionType,
@@ -104,7 +124,6 @@ function executionColumns(text: {
     {
       id: "status",
       header: text.executionStatus,
-      align: "center" as const,
       cell: (r: ExecutionRow) => (
         <ExecutionStatusCell status={r.status} labels={text.executionStatusLabel} />
       ),

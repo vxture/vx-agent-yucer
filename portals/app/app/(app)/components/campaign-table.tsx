@@ -8,9 +8,11 @@ import {
   ListCard,
   ListCardGrid,
   StatusBadge,
+  TableTitleCell,
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import {
   nextCampaignStatuses,
   type CampaignStatus,
@@ -50,10 +52,19 @@ export interface CampaignTableProps {
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: CampaignRow) => r.name,
+    budget: (r: CampaignRow) => r.budget,
+  };
+
 export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
   const { DATA_TABLE_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
     useMessages();
   const [view, setView] = useState<FilterBarView>("list");
+  const sorted = useTableSort(rows, SORT_ON);
 
   if (rows.length === 0) {
     return (
@@ -67,12 +78,10 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
   const columns: readonly DataTableColumn<CampaignRow>[] = [
     {
       id: "name",
+  sortable: true,
       header: CAMPAIGN_TEXT.columnName,
       cell: (row) => (
-        <div>
-          <div>{row.name}</div>
-          <div>{row.campaignNo}</div>
-        </div>
+        <TableTitleCell title={row.name} description={row.campaignNo} tooltip={row.name} />
       ),
     },
     {
@@ -83,7 +92,8 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     {
       id: "budget",
       header: CAMPAIGN_TEXT.columnBudget,
-      align: "numeric",
+      sortable: true,
+      align: "money",
       cell: (row) => formatMoney(row.budget, row.currency),
     },
     {
@@ -94,7 +104,6 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     {
       id: "return",
       header: CAMPAIGN_TEXT.columnReturn,
-      align: "numeric",
       cell: (row) =>
         row.returnOnBudget == null ? (
           "-"
@@ -158,7 +167,9 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
                does not exist rather than saying the record is finished. */
             rowActions={actions}
             columns={columns}
-            rows={rows}
+            rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.id}
           />
         ) : (

@@ -9,12 +9,19 @@ import {
   Input,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import type { SolutionItemRecord, SolutionRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, SearchSlot } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  SearchSlot,
+  useTableSort,
+} from "./table-fittings";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -46,6 +53,12 @@ export interface SolutionRosterProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: SolutionView) => r.solution.name,
+};
+
 export function SolutionRoster({
   solutions,
   canWrite,
@@ -60,6 +73,7 @@ export function SolutionRoster({
   // state across both rosters: the keys are ids, so a selection is of the
   // things themselves, not of the half of the page they appeared in.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<SolutionView>([], SORT_ON);
   const { toast } = useToast();
 
   /* 工具行. 适用场景 is in the search alongside the name and code, and that
@@ -102,21 +116,20 @@ export function SolutionRoster({
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: CATALOG_TEXT.colSolutionName,
       cell: (r: SolutionView) => (
-        <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate">{r.solution.name}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">
-            {r.solution.solutionCode}
-          </span>
-        </span>
+        <TableTitleCell
+          title={r.solution.name}
+          description={r.solution.solutionCode}
+          tooltip={r.solution.name}
+        />
       ),
     },
     {
       id: "composition",
       header: CATALOG_TEXT.colComposition,
       width: "sm" as const,
-      align: "center" as const,
       // The combination AND its customisation in one cell: how much of this
       // is the answer, and how much is tailored per deal.
       cell: (r: SolutionView) => (
@@ -150,7 +163,6 @@ export function SolutionRoster({
       id: "status",
       header: CATALOG_TEXT.colStatus,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: SolutionView) =>
         r.solution.status === "retired" ? (
           <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>
@@ -244,7 +256,9 @@ export function SolutionRoster({
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: SolutionView) => r.solution.id}
-        rows={[...rows]}
+        rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={columns}
         rowActions={rowActions}
         empty={

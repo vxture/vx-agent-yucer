@@ -24,8 +24,9 @@ import {
   EDGE_COLUMNS,
   FilterSlot,
   RowActions,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 import { allowedRevenueMoves, type RevenueStatus } from "../../domains/delivery/lib/revenue";
 
@@ -73,6 +74,14 @@ export interface CollectionRosterProps {
   }) => Promise<{ ok: boolean; status?: string; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  project: (r: CollectionRow) => r.projectName,
+  planned: (r: CollectionRow) => r.plannedAmount,
+  actual: (r: CollectionRow) => r.actualAmount,
+};
+
 export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterProps) {
   const {
     DELIVERY_TEXT,
@@ -81,6 +90,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     REVENUE_STATUS_LABEL,
     TABLE_TOOLBAR_TEXT,
   } = useMessages();
+  const sorted = useTableSort<CollectionRow>([], SORT_ON);
   const { toast } = useToast();
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
@@ -145,6 +155,7 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
   const columns = [
     {
       id: "project",
+  sortable: true,
       header: DELIVERY_TEXT.colProject,
       cell: (r: CollectionRow) => (
         <TableTitleCell
@@ -159,15 +170,17 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
       header: DELIVERY_TEXT.colPlanned,
       // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
       // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
-      align: "numeric" as const,
+      sortable: true,
+      align: "money" as const,
       cell: (r: CollectionRow) => r.plannedAmount.toLocaleString(),
     },
     {
       id: "actual",
       header: DELIVERY_TEXT.colActual,
-      align: "numeric" as const,
       // A short payment is shown as short rather than rounded away: the gap
       // between planned and received is the number this table is for.
+      sortable: true,
+      align: "money" as const,
       cell: (r: CollectionRow) =>
         r.actualAmount == null ? (
           <span className="text-muted-foreground">-</span>
@@ -184,7 +197,6 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
     {
       id: "due",
       header: DELIVERY_TEXT.colDueStatus,
-      align: "center" as const,
       // DUE OVER STATUS IN ONE CELL, the shape the delivery table settled on:
       // "eight days late, and marked overdue" is ONE reading, and splitting it
       // across two columns made the reader assemble it - while costing a
@@ -288,7 +300,9 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: CollectionRow) => r.id}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={columns}
           rowActions={rowActions}
           empty={empty}

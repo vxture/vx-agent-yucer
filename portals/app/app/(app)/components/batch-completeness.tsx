@@ -7,8 +7,10 @@ import {
   EmptyState,
   Section,
   StatusBadge,
+  TableTitleCell,
   type DataTableColumn,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The batch version of AccountCompleteness's derivable half - one table
@@ -40,6 +42,13 @@ export interface BatchCompletenessProps {
   }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    account: (r: BatchGapRow) => r.accountName,
+  };
+
 export function BatchCompleteness({
   rows,
   canApply,
@@ -52,6 +61,7 @@ export function BatchCompleteness({
     DATA_TABLE_LABELS,
     DS_LABELS,
   } = useMessages();
+  const sorted = useTableSort(rows, SORT_ON);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [applying, setApplying] = useState(false);
@@ -96,14 +106,17 @@ export function BatchCompleteness({
   const columns: readonly DataTableColumn<BatchGapRow>[] = [
     {
       id: "account",
+  sortable: true,
       header: BATCH_COMPLETE_TEXT.columnAccount,
       cell: (row) => (
-        <a
-          href={`/account/${row.accountId}`}
-          className="text-foreground hover:underline"
-        >
-          {row.accountName}
-        </a>
+        <TableTitleCell
+          title={
+            <a href={`/account/${row.accountId}`} className="hover:underline">
+              {row.accountName}
+            </a>
+          }
+          tooltip={row.accountName}
+        />
       ),
     },
     {
@@ -162,7 +175,9 @@ export function BatchCompleteness({
             labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
-            rows={rows}
+            rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.key}
             selectedKeys={[...selected]}
             onSelectionChange={(keys) => setSelected(new Set(keys))}

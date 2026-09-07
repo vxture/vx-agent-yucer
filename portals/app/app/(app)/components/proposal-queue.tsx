@@ -14,6 +14,7 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   type DataTableColumn,
 } from "@vxture/design-ui";
 import {
@@ -24,7 +25,11 @@ import {
 import { isExecutable } from "../../domains/copilot/lib/autonomy";
 import { capabilityLabel } from "../../domains/copilot/lib/capability";
 import { ACTION_STATUS_TONE, confidenceTone } from "../lib/view-model";
-import { FilterSlot, SearchSlot } from "./table-fittings";
+import {
+  FilterSlot,
+  SearchSlot,
+  useTableSort,
+} from "./table-fittings";
 
 import { useMessages } from "../lib/i18n/provider";
 // The copilot proposal queue - where a human decides what the agent may do.
@@ -76,6 +81,12 @@ export interface ProposalQueueProps {
   }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  action: (r: AgentAction) => r.actionType,
+};
+
 export function ProposalQueue({
   actions,
   canDecide,
@@ -92,6 +103,7 @@ export function ProposalQueue({
     PROPOSAL_ERROR,
     TABLE_TOOLBAR_TEXT,
   } = useMessages();
+  const sorted = useTableSort<AgentAction>([], SORT_ON);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   // The DS owns the disclosure, the same way it owns the selection above.
   const [expanded, setExpanded] = useState<readonly string[]>([]);
@@ -189,6 +201,7 @@ export function ProposalQueue({
   const columns: readonly DataTableColumn<AgentAction>[] = [
     {
       id: "action",
+  sortable: true,
       header: PROPOSAL_TEXT.columnAction,
       // LABELLED. This printed the raw action_type, so a Chinese table proposed
       // `advance_stage` - and action_type is an open vocabulary (bare
@@ -200,15 +213,18 @@ export function ProposalQueue({
       // proposals are still worth accepting; the agreement is recorded and a
       // person does the work. Saying so on the row is what keeps one button
       // from meaning two different things.
+      /* The 需人工 mark qualifies the ACTION itself - whether accepting will
+         perform it - so it shares the title's line via `titleSuffix` rather
+         than dropping to the description, which is for a second fact. */
       cell: (row) => (
-        <span className="flex flex-col gap-3xs">
-          <span className="text-foreground">
-            {AGENT_ACTION_LABEL[row.actionType] ?? row.actionType}
-          </span>
-          {row.status === "proposed" && !isExecutable(row.actionType) ? (
-            <Badge variant="secondary">{PROPOSAL_TEXT.manualBadge}</Badge>
-          ) : null}
-        </span>
+        <TableTitleCell
+          title={AGENT_ACTION_LABEL[row.actionType] ?? row.actionType}
+          titleSuffix={
+            row.status === "proposed" && !isExecutable(row.actionType) ? (
+              <Badge variant="secondary">{PROPOSAL_TEXT.manualBadge}</Badge>
+            ) : undefined
+          }
+        />
       ),
     },
     {
@@ -250,7 +266,6 @@ export function ProposalQueue({
     {
       id: "confidence",
       header: PROPOSAL_TEXT.columnConfidence,
-      align: "center",
       cell: (row) => (
         <StatusBadge tone={confidenceTone(row.confidence)}>
           {row.confidence == null
@@ -262,7 +277,6 @@ export function ProposalQueue({
     {
       id: "status",
       header: PROPOSAL_TEXT.columnStatus,
-      align: "center",
       cell: (row) => (
         <StatusBadge tone={ACTION_STATUS_TONE[row.status]} dot>
           {ACTION_STATUS_LABEL[row.status]}
@@ -401,7 +415,9 @@ export function ProposalQueue({
             labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
-            rows={shown}
+            rows={[...sorted.sortRows(shown)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
             rowKey={(row) => row.id}
             /* SELECTION IS THE DS'S NOW. It was a hand-rolled `select` column
                with two Checkboxes, which landed the boxes AFTER the index

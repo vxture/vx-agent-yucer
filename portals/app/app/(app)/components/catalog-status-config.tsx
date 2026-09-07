@@ -12,13 +12,20 @@ import {
   Input,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord } from "../../domains/catalog/store";
 import { isSystemStatus } from "../../domains/catalog/lib/status-vocab";
 import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  rowClickSelection,
+  useTableSort,
+} from "./table-fittings";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -46,6 +53,12 @@ export interface CatalogStatusConfigProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: ProductStatusRecord) => r.name,
+};
+
 export function CatalogStatusConfig({
   statuses,
   products,
@@ -54,6 +67,7 @@ export function CatalogStatusConfig({
   onDelete,
 }: CatalogStatusConfigProps) {
   const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const sorted = useTableSort<ProductStatusRecord>([], SORT_ON);
   const [dialog, setDialog] = useState<{
     mode: "create" | "rename";
     code: string;
@@ -131,21 +145,32 @@ export function CatalogStatusConfig({
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: ProductStatusRecord) => r.id}
-        rows={[...statuses]}
+        rows={[...sorted.sortRows(statuses)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={[
           {
             id: "name",
+  sortable: true,
             header: CATALOG_TEXT.colStatusName,
             width: "md" as const,
+            /* The row's identity is the status NAME, so it becomes the title;
+               the tone it carried as a badge moves to `titleSuffix` on the
+               状态码, which keeps the colour without printing the name twice. */
             cell: (r: ProductStatusRecord) => (
-              <StatusBadge tone={statusTone(r)}>{r.name}</StatusBadge>
+              <TableTitleCell
+                title={r.name}
+                tooltip={r.name}
+                titleSuffix={
+                  <StatusBadge tone={statusTone(r)}>{r.statusCode}</StatusBadge>
+                }
+              />
             ),
           },
           {
             id: "linked",
             header: CATALOG_TEXT.colLinkedProducts,
             width: "sm" as const,
-            align: "center" as const,
             cell: (r: ProductStatusRecord) => (
               <span className="tabular-nums">{CATALOG_TEXT.linkedCount(inUse(r.id))}</span>
             ),
@@ -154,7 +179,6 @@ export function CatalogStatusConfig({
             id: "description",
             header: CATALOG_TEXT.colStatusDesc,
             width: "lg" as const,
-            align: "center" as const,
             cell: (r: ProductStatusRecord) => (
               <span className="text-muted-foreground text-body-sm">{r.description ?? ""}</span>
             ),

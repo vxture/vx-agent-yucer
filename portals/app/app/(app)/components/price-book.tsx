@@ -19,16 +19,17 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
-import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   RowActions,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
+import type { PriceEntryRecord, ProductRecord } from "../../domains/catalog/store";
 
 // The price book's rosters - the catalogue module page's pattern and layout,
 // applied here (owner ruling 2026-09-05).
@@ -77,6 +78,14 @@ export interface PriceBookProps {
  * does. */
 const CURRENCY = "CNY";
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  product: (r: PriceEntryRecord) => r.productId,
+  list: (r: PriceEntryRecord) => r.listPrice,
+  floor: (r: PriceEntryRecord) => r.floorPrice,
+};
+
 export function PriceBook({
   products,
   current,
@@ -94,6 +103,7 @@ export function PriceBook({
   // DS's leadingSpacer instead - the same width, no control - so the two
   // tables line up column for column and read as one layout.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<PriceEntryRecord>([], SORT_ON);
   const [dialog, setDialog] = useState<{ productId: string; list: string; floor: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -179,6 +189,7 @@ export function PriceBook({
   const columns = [
     {
       id: "product",
+  sortable: true,
       header: CATALOG_TEXT.colProduct,
       width: "md" as const,
       cell: (r: PriceEntryRecord) => (
@@ -199,16 +210,18 @@ export function PriceBook({
       // so there were 8px of slack and the rule had nowhere to happen.
       // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
       // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
-      align: "numeric" as const,
+      sortable: true,
+      align: "money" as const,
       cell: (r: PriceEntryRecord) => r.listPrice.toLocaleString(),
     },
     {
       id: "floor",
       header: CATALOG_TEXT.colFloor,
       width: "sm" as const,
-      align: "numeric" as const,
       // Equal to list means "not discountable" - a stance, worth seeing at a
       // glance rather than worked out by comparing two columns.
+      sortable: true,
+      align: "money" as const,
       cell: (r: PriceEntryRecord) => (
         <span className={r.floorPrice === r.listPrice ? "text-(color:--warning-text)" : ""}>
           {r.floorPrice.toLocaleString()}
@@ -219,7 +232,6 @@ export function PriceBook({
       id: "effective",
       header: CATALOG_TEXT.colEffective,
       width: "lg" as const,
-      align: "center" as const,
       cell: (r: PriceEntryRecord) => stamp(r.effectiveAt),
     },
   ];
@@ -230,7 +242,6 @@ export function PriceBook({
     id: "superseded",
     header: CATALOG_TEXT.colSuperseded,
     width: "md" as const,
-    align: "center" as const,
     cell: (r: PriceEntryRecord) => stamp((r as SupersededPrice).supersededAt ?? null),
   };
 
@@ -321,7 +332,9 @@ export function PriceBook({
         labels={DATA_TABLE_LABELS}
         indexStart={1}
         rowKey={(r: PriceEntryRecord) => r.id}
-        rows={[...rows]}
+        rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={extra ? [...columns, extra] : columns}
         rowActions={acts}
         selectedKeys={selectable ? selected : undefined}

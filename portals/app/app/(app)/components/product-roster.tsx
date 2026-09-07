@@ -14,16 +14,17 @@ import {
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
-import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { statusTone } from "./status-label";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   FilterSlot,
   RowActions,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
+import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -60,6 +61,12 @@ export interface ProductRosterProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: ProductRecord) => r.name,
+};
+
 export function ProductRoster({
   products,
   types,
@@ -77,6 +84,7 @@ export function ProductRoster({
   // across BOTH rosters because the keys are product ids: a selection is of
   // products, not of whichever half of the page they were shown in.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<ProductRecord>([], SORT_ON);
   // Clicking the row toggles it - the checkbox is too small a target
   // (owner, 2026-09-06). Bound per table because each has its own row order.
   const click = (list: readonly ProductRecord[]) =>
@@ -145,6 +153,7 @@ export function ProductRoster({
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: CATALOG_TEXT.colName,
       /* THE DS'S OWN TITLE CELL (design-ui 8.0.0 `TableTitleCell`), not a
          hand-rolled flex-col. Same story as MoneyCell: the owner's 16/14
@@ -161,14 +170,12 @@ export function ProductRoster({
     {
       id: "type",
       header: CATALOG_TEXT.colType,
-      align: "center" as const,
       cell: (r: ProductRecord) =>
         r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
     },
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      align: "center" as const,
       cell: (r: ProductRecord) => {
         const row = vocab.get(r.statusId);
         return (
@@ -181,7 +188,6 @@ export function ProductRoster({
     {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
-      align: "center" as const,
       cell: (r: ProductRecord) => r.unit,
     },
   ];
@@ -246,7 +252,6 @@ export function ProductRoster({
   const arrowColumn = {
     id: "order",
     header: CATALOG_TEXT.colOps,
-    align: "center" as const,
     cell: (r: ProductRecord, rowIndex: number) => (
       <span className="flex items-center gap-xs">
         <Button
@@ -295,7 +300,9 @@ export function ProductRoster({
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: ProductRecord) => r.id}
-        rows={[...rows]}
+        rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={extra ? [...columns, extra] : columns}
         /* The sort variant puts its arrows in a regular column, so IT is the
            trailing column there - the action slot would be a second one. */

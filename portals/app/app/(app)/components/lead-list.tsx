@@ -21,8 +21,9 @@ import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   FilterSlot,
-  SearchSlot,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 import { ROUTING_ANALYSE_EVENT } from "../lib/routing-signal";
 import {
@@ -91,6 +92,14 @@ export interface LeadListProps {
   ) => Promise<LeadActionResult>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    company: (r: LeadRecord) => r.companyName,
+    score: (r: LeadRecord) => r.score,
+  };
+
 export function LeadList({
   regionOf,
   exitReasons,
@@ -115,6 +124,7 @@ export function LeadList({
     PIPELINE_TEXT,
     SIGNAL_ACTION_ERROR,
   } = useMessages();
+  const sorted = useTableSort<LeadRecord>([], SORT_ON);
 
   // Built here rather than at module scope: it is made OF copy, and copy now
   // depends on the request's locale. A module-level map would have frozen one
@@ -238,6 +248,7 @@ export function LeadList({
   const columns: readonly DataTableColumn<LeadRecord>[] = [
     {
       id: "company",
+  sortable: true,
       header: LEAD_TEXT.columnCompany,
       // 主标题字号加大、加粗，副行是线索号与联系人 (owner, 2026-09-06). The only
       // left-aligned column; everything else is centred.
@@ -252,7 +263,6 @@ export function LeadList({
     {
       id: "score",
       header: LEAD_TEXT.columnScore,
-      align: "center",
       cell: (row) =>
         row.score == null ? (
           "-"
@@ -265,7 +275,6 @@ export function LeadList({
     {
       id: "source",
       header: LEAD_TEXT.columnSource,
-      align: "center" as const,
       // The RULE's answer where it has one. This cell used to re-derive the
       // attribution client-side (campaignId ? campaign : signalId ? ... ), a
       // second implementation of resolveAttribution that could drift from what
@@ -290,7 +299,6 @@ export function LeadList({
     {
       id: "region",
       header: LEAD_TEXT.columnRegion,
-      align: "center" as const,
       // WHAT ASSIGNMENT TURNS ON. A territory covers regions and nothing else,
       // so a lead with no region cannot be placed by 智能分配 - and this is the
       // only column on the page that says why. It arrived when 分派 folded into
@@ -309,13 +317,11 @@ export function LeadList({
     {
       id: "owner",
       header: LEAD_TEXT.columnOwner,
-      align: "center" as const,
       cell: (row) => row.ownerSub ?? "-",
     },
     {
       id: "status",
       header: LEAD_TEXT.columnStatus,
-      align: "center" as const,
       // THE REASON RIDES WITH THE STATUS (incr/0033). "判定不合格" alone is the
       // word the old schema could say; what a reader actually asks next is
       // why, and the answer is now recorded - so it is shown here rather than
@@ -866,7 +872,9 @@ export function LeadList({
             labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
-            rows={[...visible]}
+            rows={[...sorted.sortRows(visible)]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.id}
             selectedKeys={selected}
             onSelectionChange={setSelected}

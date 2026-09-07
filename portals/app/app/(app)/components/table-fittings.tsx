@@ -1,7 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { ActionMenu, type ActionMenuItem } from "@vxture/design-ui";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  ActionMenu,
+  type ActionMenuItem,
+  type DataTableSort,
+} from "@vxture/design-ui";
 
 // 表格三件标配 - owner ruling, 2026-09-06.
 //
@@ -115,6 +119,81 @@ export function FilterSlot({
   readonly children: ReactNode;
 }) {
   return <span className={`block shrink-0 ${width}`}>{children}</span>;
+}
+
+/**
+ * 列排序 - the caller's half of the DS's sort contract.
+ *
+ * `DataTable` draws the header control and the direction marker and does NOT
+ * order anything ("排序本身由调用方做"). That leaves every table to write the
+ * same three things: a piece of state, a change handler, and a comparator. The
+ * comparator is the part worth writing once, because two of its rules are
+ * judgements this product has already made elsewhere:
+ *
+ * 1. EMPTY SORTS LAST IN BOTH DIRECTIONS. A missing value is not a small one.
+ *    This repo keeps saying so in other words - planning-table renders a blank
+ *    rather than a zero because "nobody forecast this" and "this went badly"
+ *    are different facts, and forecast-roster prints 未知 rather than 0 天 for a
+ *    deal older than its journal. Sorting ascending and getting a block of
+ *    blanks at the top would undo that in one click.
+ * 2. TEXT COMPARES WITH `localeCompare`. A bare `<` orders by UTF-16 code unit,
+ *    which is right for ASCII ids by luck and wrong for every Chinese name -
+ *    the same defect Sonar caught in the owner dropdown on 2026-09-07.
+ *
+ * `accessors` maps a column id to the value that column SORTS ON, which is not
+ * always what it renders: a cell showing "第 3 期" sorts on 3, and a cell
+ * showing a badge sorts on the score inside it.
+ */
+/**
+ * The comparator behind `useTableSort`, pulled out as a pure function so the
+ * two judgements above are testable without rendering anything.
+ */
+export function sortRowsBy<R>(
+  list: readonly R[],
+  read: (row: R) => string | number | null | undefined,
+  direction: "asc" | "desc",
+): readonly R[] {
+  const dir = direction === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const x = read(a), y = read(b);
+    const xEmpty = x === null || x === undefined || x === "";
+    const yEmpty = y === null || y === undefined || y === "";
+    // Rule 1, both halves: blanks sink whichever way the arrow points, so the
+    // comparison below never sees one.
+    if (xEmpty && yEmpty) return 0;
+    if (xEmpty) return 1;
+    if (yEmpty) return -1;
+    if (typeof x === "number" && typeof y === "number") return (x - y) * dir;
+    // Rule 2: pinyin order, not UTF-16 code units.
+    return String(x).localeCompare(String(y), "zh-CN") * dir;
+  });
+}
+
+export function useTableSort<T>(
+  rows: readonly T[],
+  accessors: Readonly<Record<string, (row: T) => string | number | null | undefined>>,
+  initial?: DataTableSort,
+) {
+  const [sort, setSort] = useState<DataTableSort | undefined>(initial);
+
+  /* Exposed as a FUNCTION as well as a sorted array, because several modules
+     render the same columns twice - 在建/结题, 待回款/已了结, 在售/退役 - from one
+     helper. Those two tables must obey ONE sort state (asked to sort by 合同额,
+     a reader means both lists), and a hook cannot be called from inside the
+     helper. So the state lives at the top and the ordering travels down. */
+  const sortRows = useCallback(
+    <R extends T>(list: readonly R[]): readonly R[] => {
+      if (!sort) return list;
+      const read = accessors[sort.columnId];
+      if (!read) return list;
+      return sortRowsBy(list, read, sort.direction);
+    },
+    [sort, accessors],
+  );
+
+  const sorted = useMemo(() => sortRows(rows), [sortRows, rows]);
+
+  return { sort, onSortChange: setSort, rows: sorted, sortRows };
 }
 
 /**

@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import {
+  DataTable,
+  EmptyState,
+  Section,
+  StatusBadge,
+  TableTitleCell,
+} from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
 
@@ -40,8 +47,16 @@ export interface QuoteTableProps {
   readonly rows: readonly QuoteRow[];
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  deal: (r: QuoteRow) => r.name,
+  amount: (r: QuoteRow) => r.amount,
+};
+
 export function QuoteTable({ rows }: QuoteTableProps) {
   const { DATA_TABLE_LABELS, QUOTE_TEXT, STAGE_LABEL } = useMessages();
+  const sorted = useTableSort<QuoteRow>([], SORT_ON);
 
   return (
     <Section id="quotes" icon="receipt">
@@ -51,23 +66,24 @@ export function QuoteTable({ rows }: QuoteTableProps) {
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: QuoteRow) => r.opportunityId}
-          rows={[...rows]}
+          rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={[
             {
               id: "deal",
+  sortable: true,
               header: QUOTE_TEXT.colDeal,
               cell: (r: QuoteRow) => (
-                <div className="flex flex-col gap-3xs">
-                  <Link
-                    href={`/pipeline/${r.opportunityId}`}
-                    className="text-foreground hover:underline"
-                  >
-                    {r.name}
-                  </Link>
-                  <span className="text-muted-foreground text-body-sm tabular-nums">
-                    {r.opportunityNo}
-                  </span>
-                </div>
+                <TableTitleCell
+                  tooltip={r.name}
+                  title={
+                    <Link href={`/pipeline/${r.opportunityId}`} className="hover:underline">
+                      {r.name}
+                    </Link>
+                  }
+                  description={r.opportunityNo}
+                />
               ),
             },
             {
@@ -87,19 +103,19 @@ export function QuoteTable({ rows }: QuoteTableProps) {
             {
               id: "lines",
               header: QUOTE_TEXT.colLines,
-              align: "numeric" as const,
+
               cell: (r: QuoteRow) => String(r.lineCount),
             },
             {
               id: "amount",
               header: QUOTE_TEXT.colAmount,
-              align: "numeric" as const,
+              sortable: true,
+              align: "money" as const,
               cell: (r: QuoteRow) => formatMoney(r.amount, r.currency),
             },
             {
               id: "signature",
               header: QUOTE_TEXT.colSignature,
-              align: "center" as const,
               // Zero draws nothing. A badge on every row would spend the
               // colour that the blocked ones need.
               cell: (r: QuoteRow) =>

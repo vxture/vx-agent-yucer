@@ -14,12 +14,14 @@ import {
   Section,
   Stack,
   StatusBadge,
+  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   type DataTableColumn,
   type MetricGridItem,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import {
   rollUp,
@@ -80,6 +82,14 @@ export interface PipelineBoardProps {
   readonly undated?: number;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: PipelineRow) => r.name,
+    amount: (r: PipelineRow) => r.amount?.amount ?? null,
+  };
+
 export function PipelineBoard({
   rows,
   currency = "CNY",
@@ -95,6 +105,7 @@ export function PipelineBoard({
     STAGE_LABEL,
     LOAD_ERROR,
   } = useMessages();
+  const sorted = useTableSort<PipelineRow>(rows, SORT_ON);
   // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
   // anything, so every figure in the product was formatted Chinese-style
   // whatever the reader's locale. Threading it here fixes this page; the
@@ -166,6 +177,7 @@ export function PipelineBoard({
       // account list - and design-ui 2.0 dropped onRowClick entirely, which
       // only removed a second, worse way to reach the same page.
       id: "name",
+  sortable: true,
       header: PIPELINE_TEXT.columnOpportunity,
       // A FLOOR, because auto-layout gives a column what its content demands
       // and this cell no longer demands anything: with the number and the
@@ -173,7 +185,12 @@ export function PipelineBoard({
       // and broke 智能仓储升级 down four lines. The row identity is the one
       // column that should never be the narrowest.
       width: "md",
-      cell: (row) => <Link href={`/pipeline/${row.id}`}>{row.name}</Link>,
+      cell: (row) => (
+        <TableTitleCell
+          title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
+          tooltip={row.name}
+        />
+      ),
     },
     {
       // THE CUSTOMER, main over sub - the same two-line shape delivery uses,
@@ -231,7 +248,8 @@ export function PipelineBoard({
       // than it was as its own column.
       id: "amount",
       header: PIPELINE_TEXT.columnAmount,
-      align: "numeric",
+      sortable: true,
+      align: "money",
       cell: (row) =>
         formatMoney(row.amount?.amount ?? null, row.currency, locale),
     },
@@ -241,7 +259,6 @@ export function PipelineBoard({
       // mean entirely different things in a review.
       id: "probability",
       header: PIPELINE_TEXT.columnProbability,
-      align: "numeric",
       cell: (row) => {
         const p = probabilityDisplay(row);
         if (p.value == null) return "-";
@@ -336,7 +353,9 @@ export function PipelineBoard({
                 labels={DATA_TABLE_LABELS}
                 indexStart={1}
                 columns={columns}
-                rows={rows}
+                rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
                 rowKey={(row) => row.id}
                 loading={loading}
                 /* The fixed column: pinned right, locked during horizontal
