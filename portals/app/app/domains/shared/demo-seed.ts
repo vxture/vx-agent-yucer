@@ -49,6 +49,7 @@ import {
   DEMO_UNMATCHED_COMPANY,
   DEMO_WAIVE_REASON,
   DEMO_SEGMENTS,
+  DEMO_TERRITORY_NAMES,
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
@@ -289,9 +290,14 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
 function seedPlanning(workspaceId: string, stores: DemoStores): void {
   stores.planning.seed({
     territories: [
-      territory("terr_east", workspaceId, "EAST", "East China", REP1, DEMO_TERRITORY_REGIONS.EAST),
-      territory("terr_north", workspaceId, "NORTH", "North China", REP2, DEMO_TERRITORY_REGIONS.NORTH),
-      territory("terr_south", workspaceId, "SOUTH", "South China", REP2, DEMO_TERRITORY_REGIONS.SOUTH),
+      // NAMED IN THE PRODUCT'S OWN LANGUAGE, like every other demo row - the
+      // routing basis quotes a territory's name inside its sentence, so an
+      // English one wedged an English noun into a Chinese sentence. The names
+      // live in demo-fixtures because Chinese string literals may not appear in
+      // this file (TD-002). The CODE stays ASCII: it is an identifier.
+      territory("terr_east", workspaceId, "EAST", DEMO_TERRITORY_NAMES.EAST, REP1, DEMO_TERRITORY_REGIONS.EAST),
+      territory("terr_north", workspaceId, "NORTH", DEMO_TERRITORY_NAMES.NORTH, REP2, DEMO_TERRITORY_REGIONS.NORTH),
+      territory("terr_south", workspaceId, "SOUTH", DEMO_TERRITORY_NAMES.SOUTH, REP2, DEMO_TERRITORY_REGIONS.SOUTH),
       // Single-region, deliberately - see 港澳零售集团. The other three each
       // cover two regions, so region derivation there always finds more than
       // one candidate and always declines to guess; this is the only ground in

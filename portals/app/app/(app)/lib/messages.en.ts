@@ -239,6 +239,59 @@ export const en: Dictionary = {
       no_territory: "no territory covers that region",
       no_owner: "the covering territory has no owner",
     } as Record<string, string>,
+    basisSole: (region: string, territory: string) =>
+      `${region} is covered by ${territory}, and by nobody else`,
+    basisTie: (region: string, n: number, territory: string, load: number) =>
+      `${region} has ${n} owners; ${territory} carries the fewest open leads (${load})`,
+    colRegion: "Region",
+    noRegion: "no region",
+    tagOpen: (n: number) => `${n} open`,
+    tagPending: (n: number) => `${n} to assign`,
+    tagBlocked: (n: number) => `${n} unplaceable`,
+    statEmpty: "No leads awaiting assignment.",
+    disposition: {
+      settled: "Where it belongs",
+      pending: "To assign",
+      blocked: "Unplaceable",
+    } as Record<string, string>,
+    // Small print, not an explanation - see the note on the zh catalogue.
+    dispositionWhy: {
+      settled: "no action",
+      pending: "one click",
+      blocked: "fix the map",
+    } as Record<string, string>,
+    adviceTitle: "Routing check",
+    adviceScope: (n: number) => `Looked at ${n} open leads`,
+    adviceClear: "The queue is clean: everything is where the rule wants it, and the map has no holes.",
+    advicePending: (n: number) =>
+      `${n} leads are decided and waiting on a click - each one a separate decision, not a batch.`,
+    adviceNoRegion: (n: number) =>
+      `${n} leads have no region: no account matched, or the account record has none. The rule cannot even start.`,
+    adviceNoTerritory: (n: number) =>
+      `${n} leads sit in a region no active territory covers - a piece missing from the map.`,
+    adviceNoOwner: (n: number) =>
+      `${n} leads are covered by a territory nobody runs. The map is complete; the staffing is not.`,
+    adviceImbalance: (who: string, n: number, share: number) =>
+      `After applying everything, ${who} would hold ${n} - ${share}% of the queue. Right if they own that ground alone; worth a look if they do not.`,
+    adviceOpenAccounts: "Open accounts",
+    adviceOpenTerritory: "Open territories",
+    adviceOpenRouting: "Back to the list",
+    analysisTitle: "Routing analysis",
+    analysisWhy:
+      "What the list cannot show row by row: whose queue the work lands on, which regions the leads sit in, and where the unplaceable ones break.",
+    analysisEmpty: "Nothing to count.",
+    chartPeak: "peak",
+    byLoadTitle: "Load",
+    byLoadWhy:
+      "The second half of the rule. Territory decides who may work a lead; load decides which of them should - and the list cannot show that tiebreaker. Before and after applying every suggestion here.",
+    loadNow: "Holding now",
+    loadAfter: "After applying",
+    byRegionTitle: "By region",
+    byRegionWhy:
+      "Where the leads sit. Leads with no region get their own bar - not an \"other\", but the part the router cannot see at all.",
+    byReasonTitle: "Why unplaceable",
+    byReasonWhy:
+      "Three reasons, three different people's jobs: a missing region is the account record, an uncovered region is the map, an ownerless territory is a staffing call. Rolled into one number they earn one shrug.",
   },
   RENEWAL_TEXT: {
     title: "Renewals",

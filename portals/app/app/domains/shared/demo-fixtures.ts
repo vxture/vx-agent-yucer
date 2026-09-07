@@ -56,6 +56,21 @@ export const DEMO_CONTACTS = [
 ] as const;
 
 /** Which regions each demo territory covers - the join lead routing needs. */
+/**
+ * What the demo territories are CALLED, as opposed to which regions they hold.
+ *
+ * Here rather than in demo-seed.ts because that file must stay free of Chinese
+ * string literals (TD-002 containment, enforced by ascii-containment.test.ts) -
+ * and these are names a reader sees: the routing basis quotes the territory
+ * name inside its sentence, so an English one produced "华中 由「East China」
+ * 覆盖", a Chinese sentence with an English noun wedged into it.
+ */
+export const DEMO_TERRITORY_NAMES: Record<string, string> = {
+  EAST: "华东大区",
+  NORTH: "华北大区",
+  SOUTH: "华南大区",
+};
+
 export const DEMO_TERRITORY_REGIONS: Record<string, readonly string[]> = {
   EAST: ["华东", "华中"],
   NORTH: ["华北", "西北"],

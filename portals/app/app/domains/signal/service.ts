@@ -304,6 +304,17 @@ export interface RoutingPlan {
   leadNo: string;
   companyName: string;
   currentOwner: string | null;
+  /**
+   * The region the routing turned on, resolved through the lead's account.
+   *
+   * RETURNED RATHER THAN RECOMPUTED. It is the rule's own input - territory
+   * cover is decided by it and nothing else - and the surface could not show
+   * it at all before, so a page answering "why did this go to me" was missing
+   * the first half of the answer. Null covers both "no account yet" and "an
+   * account with no region": the router cannot tell them apart either, which
+   * is why `no_region` is one outcome and not two.
+   */
+  region: string | null;
   outcome: RoutingOutcome;
 }
 
@@ -338,17 +349,20 @@ export async function previewRouting(
   }
 
   return ok(
-    open.map((l) => ({
-      leadId: l.id,
-      leadNo: l.leadNo,
-      companyName: l.companyName,
-      currentOwner: l.ownerSub,
-      outcome: routeLead(
-        { id: l.id, region: l.accountId ? (regionOf.get(l.accountId) ?? null) : null },
-        territories,
-        load,
-      ),
-    })),
+    open.map((l) => {
+      // Resolved ONCE and used twice - the rule routes on it and the surface
+      // shows it. Two lookups could not disagree today, but the row would then
+      // be describing a region the decision was not made with.
+      const region = l.accountId ? (regionOf.get(l.accountId) ?? null) : null;
+      return {
+        leadId: l.id,
+        leadNo: l.leadNo,
+        companyName: l.companyName,
+        currentOwner: l.ownerSub,
+        region,
+        outcome: routeLead({ id: l.id, region }, territories, load),
+      };
+    }),
   );
 }
 

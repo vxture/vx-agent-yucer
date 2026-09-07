@@ -169,6 +169,55 @@ export const ROUTING_TEXT = {
     no_territory: "该区域无区域覆盖",
     no_owner: "覆盖区域无负责人",
   } as Record<string, string>,
+  basisSole: (region: string, territory: string) => `${region} 由「${territory}」覆盖，这片地只有一个负责人`,
+  basisTie: (region: string, n: number, territory: string, load: number) =>
+    `${region} 有 ${n} 个负责人覆盖，「${territory}」手上最少（${load} 条）`,
+  colRegion: "区域",
+  noRegion: "无区域",
+  tagOpen: (n: number) => `${n} 条待分派`,
+  tagPending: (n: number) => `${n} 条可指派`,
+  tagBlocked: (n: number) => `${n} 条分不出去`,
+  statEmpty: "暂无待分派的线索。",
+  disposition: {
+    settled: "已在位",
+    pending: "待指派",
+    blocked: "无法分配",
+  } as Record<string, string>,
+  // SMALL PRINT, NOT AN EXPLANATION. The note sits on one nowrap line beside
+  // the name inside a cell about 187px wide, so a sentence here does not wrap -
+  // it squeezes the NAME until 已在位 breaks across two lines. Four characters
+  // each; the sentence belongs to the module description above.
+  dispositionWhy: {
+    settled: "无需动作",
+    pending: "等人按下",
+    blocked: "先补地图",
+  } as Record<string, string>,
+  adviceTitle: "分派检查",
+  adviceScope: (n: number) => `已看过 ${n} 条待分派线索`,
+  adviceClear: "队列是干净的：该指的都在位，区域地图也没有洞。",
+  advicePending: (n: number) => `有 ${n} 条线索规则已经给出答案，等人按下——每条都是一次单独的决定，不是一次批处理。`,
+  adviceNoRegion: (n: number) => `${n} 条线索没有区域：客户还没匹配上，或者客户档案里区域是空的。路由规则连第一步都走不了。`,
+  adviceNoTerritory: (n: number) => `${n} 条线索所在的区域，没有任何在用的销售区域覆盖——地图缺了一块。`,
+  adviceNoOwner: (n: number) => `${n} 条线索有区域覆盖，但那个区域没有负责人。图是全的，人没定。`,
+  adviceImbalance: (who: string, n: number, share: number) =>
+    `全部指派之后，${who} 会拿到 ${n} 条，占 ${share}%。如果这片地只有他一个人管，那是对的；如果不止，值得再看一眼。`,
+  adviceOpenAccounts: "去客户档案",
+  adviceOpenTerritory: "去销售区域",
+  adviceOpenRouting: "回到清单",
+  analysisTitle: "分派分析",
+  analysisWhy: "这几张图回答清单逐行看不出来的事：负载压在谁身上、线索落在哪些区域、分不出去的卡在哪一步。",
+  analysisEmpty: "没有可统计的数据。",
+  chartPeak: "最高",
+  byLoadTitle: "负载",
+  byLoadWhy:
+    "规则的后半段。区域决定谁有资格接，负载决定这几个人里该谁接——清单逐行看不到这个裁决依据。上下两栏是按下之前和全部按下之后。",
+  loadNow: "当前持有",
+  loadAfter: "全部指派后",
+  byRegionTitle: "区域分布",
+  byRegionWhy: "线索落在哪些区域。无区域的单独成一栏——那不是「其他」，那是路由规则根本看不见的那部分。",
+  byReasonTitle: "分不出去的原因",
+  byReasonWhy:
+    "三个原因是三个人的活：无区域要补客户资料，无覆盖要补区域地图，无负责人要定人。合成一个「若干条无法分配」，就只会换来一次耸肩。",
 } as const;
 
 export const RENEWAL_TEXT = {
