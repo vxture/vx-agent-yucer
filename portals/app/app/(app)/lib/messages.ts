@@ -172,6 +172,7 @@ export const ROUTING_TEXT = {
   basisSole: (region: string, territory: string) => `${region} 由「${territory}」覆盖，这片地只有一个负责人`,
   basisTie: (region: string, n: number, territory: string, load: number) =>
     `${region} 有 ${n} 个负责人覆盖，「${territory}」手上最少（${load} 条）`,
+  openAccount: "打开客户档案",
   colRegion: "区域",
   noRegion: "无区域",
   // 智能分配 (owner, 2026-09-06). The strip, the analysis block and their

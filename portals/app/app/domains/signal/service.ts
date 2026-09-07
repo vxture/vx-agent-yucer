@@ -315,6 +315,9 @@ export interface RoutingPlan {
    * is why `no_region` is one outcome and not two.
    */
   region: string | null;
+  /** The customer the lead was matched to, or null. Carried because it is
+   * where the region is fixed, and the region is what the router runs on. */
+  accountId: string | null;
   outcome: RoutingOutcome;
 }
 
@@ -360,6 +363,7 @@ export async function previewRouting(
         companyName: l.companyName,
         currentOwner: l.ownerSub,
         region,
+        accountId: l.accountId,
         outcome: routeLead({ id: l.id, region }, territories, load),
       };
     }),

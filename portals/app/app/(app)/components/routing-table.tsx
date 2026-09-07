@@ -26,6 +26,9 @@ export interface RoutingRow {
   readonly currentOwner: string | null;
   /** The region the router turns on - null when the lead has none. */
   readonly region: string | null;
+  /** Null when the lead has not been matched to a customer yet - which is also
+   * why it has no region, and why there is nothing to open. */
+  readonly accountId: string | null;
 }
 
 export interface RoutingTableProps {
@@ -63,7 +66,32 @@ export function RoutingTable({ rows }: RoutingTableProps) {
               selectedKeys={selected}
               onSelectionChange={setSelected}
               indexStart={1}
-              rowActions={() => <RowActions items={[]} />}
+              rowActions={(r: RoutingRow) => (
+                <RowActions
+                  items={
+                    // WHERE THE REGION IS FIXED. 无区域 is this page's commonest
+                    // blocker and it is not fixable here - the region lives on
+                    // the customer record, so the row's one action is the trip
+                    // to the place that can change it.
+                    //
+                    // An unmatched lead has no account to open, so it keeps the
+                    // disabled three dots: the placeholder holds the column's
+                    // geometry and says "nothing you can do from here", which
+                    // is true of exactly that lead.
+                    r.accountId
+                      ? [
+                          {
+                            id: "account",
+                            label: ROUTING_TEXT.openAccount,
+                            onSelect: () => {
+                              window.location.href = `/account/${encodeURIComponent(r.accountId!)}`;
+                            },
+                          },
+                        ]
+                      : []
+                  }
+                />
+              )}
               columns={[
                 {
                   id: "lead",

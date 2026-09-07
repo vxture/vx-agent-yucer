@@ -79,6 +79,7 @@ export default async function RoutingPage() {
     companyName: p.companyName,
     currentOwner: p.currentOwner,
     region: p.region,
+    accountId: p.accountId,
   }));
 
   // Counted off the same plan the table is drawn from, so a badge and the list

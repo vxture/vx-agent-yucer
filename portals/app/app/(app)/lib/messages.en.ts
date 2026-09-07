@@ -243,6 +243,7 @@ export const en: Dictionary = {
       `${region} is covered by ${territory}, and by nobody else`,
     basisTie: (region: string, n: number, territory: string, load: number) =>
       `${region} has ${n} owners; ${territory} carries the fewest open leads (${load})`,
+    openAccount: "Open customer record",
     colRegion: "Region",
     noRegion: "no region",
     // 智能分配 - see the note on the zh catalogue.
