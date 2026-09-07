@@ -770,6 +770,12 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       lead("lead_demo_3", workspaceId, 3, DEMO_ACCOUNTS[4].name, "acc_demo_5", "sig_demo_5", "camp_demo_3", 79, REP1, "converted", "opp_demo_10"),
       lead("lead_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3].name, "acc_demo_4", "sig_demo_7", null, 83, REP2, "qualified", null),
       lead("lead_demo_5", workspaceId, 5, DEMO_ACCOUNTS[2].name, "acc_demo_3", "sig_demo_3", null, 26, REP1, "working", null),
+      // UNOWNED, AND THAT IS THE POINT. Every lead in this fixture had an owner,
+      // so the rule added on 2026-09-06 - a lead nobody owns cannot be
+      // qualified - could not be seen anywhere in the demo, and neither could
+      // the 无人认领 badge or the reason 线索分派 exists. This one arrives with
+      // nobody on it, which is how a lead actually arrives.
+      lead("lead_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5].name, "acc_demo_6", null, null, 64, null, "new", null),
     ],
   });
 }
@@ -1280,7 +1286,9 @@ function lead(
   signalId: string | null,
   campaignId: string | null,
   score: number,
-  ownerSub: string,
+  /** Null is a real state, not a gap: 线索分派 exists because leads arrive
+   * with nobody on them, and an unowned lead cannot be qualified. */
+  ownerSub: string | null,
   status: string,
   convertedOpportunityId: string | null,
 ) {

@@ -205,6 +205,11 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "territory", href: "/territory", icon: "map-pin", action: "planning.territory.view" },
   { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
   { key: "quote", href: "/quote", icon: "file-text", action: "pipeline.view" },
+  // 线索 - its own module since 2026-09-06 (design_yucer_110). It used to be a
+  // second list on the signal page, which made 商机智探 manage two objects:
+  // signals, whose actions are 升级/忽略/判重/重新评分, and leads, whose
+  // lifecycle runs all the way to a converted opportunity.
+  { key: "lead", href: "/lead", icon: "target", action: "signal.lead.view" },
   { key: "routing", href: "/routing", icon: "user-switch", action: "signal.lead.view" },
   { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
   // Gated on the DELIVERY read, not on the pipeline write. Seeing which terms

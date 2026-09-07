@@ -152,6 +152,7 @@ export const en: Dictionary = {
     campaign: "Campaigns",
     account: "Accounts",
     signal: "Opportunity signals",
+    lead: "Leads",
     segment: "Segments",
     solution: "Solutions",
     pricebook: "Product pricing",
@@ -1808,6 +1809,12 @@ export const en: Dictionary = {
   },
   LEAD_TEXT: {
     title: "Leads",
+    moduleWhy:
+      "Signals become leads; a qualified lead becomes an opportunity. This module owns the lead's own lifecycle - who works it is decided in routing, and a lead nobody owns cannot be qualified.",
+    tagOpen: (n: number) => `${n} in play`,
+    tagQualified: (n: number) => `${n} qualified`,
+    tagUnowned: (n: number) => `${n} unowned`,
+    tagConverted: (n: number) => `${n} converted`,
     description:
       "A qualified lead becomes an opportunity. At that moment the source campaign is copied onto the opportunity and frozen - attribution is not filled in afterwards.",
     columnCompany: "Company",

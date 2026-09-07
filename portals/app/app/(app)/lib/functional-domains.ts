@@ -151,6 +151,11 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     modules: [
       built("campaign"),
       built("signal"),
+      // BETWEEN THE TWO, and the order is the funnel: a signal becomes a lead,
+      // a lead gets assigned. 分派 stays its own module (owner, 2026-09-06) -
+      // assigning is a team lead's job and working the lead is a rep's, so
+      // they are two people looking at two pages.
+      built("lead"),
       built("routing"),
     ],
   },

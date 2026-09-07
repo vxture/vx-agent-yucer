@@ -80,6 +80,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   campaign: "营销活动",
   account: "客户管理",
   signal: "商机智探",
+  lead: "线索管理",
   pipeline: "商机管理",
   delivery: "项目交付",
   copilot: "销售助手",
@@ -3096,6 +3097,14 @@ export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
 
 export const LEAD_TEXT = {
   title: "线索",
+  // 模块头部 (design_yucer_110). `description` above is the SECTION's line and
+  // stays with the table; this one explains the module.
+  moduleWhy:
+    "信号升级成线索，线索合格后转化为商机。这里管的是线索本身的生命周期——谁接由「线索分派」定，无人认领的线索无法判定合格。",
+  tagOpen: (n: number) => `${n} 条在跟`,
+  tagQualified: (n: number) => `${n} 条已合格`,
+  tagUnowned: (n: number) => `${n} 条无人认领`,
+  tagConverted: (n: number) => `${n} 条已转商机`,
   description:
     "线索合格后转化为商机。转化那一刻，来源战役被复制到商机上并冻结——归因不靠事后填写。",
   columnCompany: "公司",

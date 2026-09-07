@@ -5,21 +5,20 @@ import { resolveAppSession } from "../lib/session";
 // components asking cost one resolution.
 import { getMessages } from "../lib/i18n/server";
 import { getSignalStore } from "../../domains/shared/registry";
-import {
-  listLeads,
-  listSignals,
-  previewAttribution,
-} from "../../domains/signal/service";
+import { listSignals } from "../../domains/signal/service";
 import { can } from "../../authz/decide";
 import { SignalQueue, type QueueSignal } from "../components/signal-queue";
 import { scoreSignal } from "../../domains/signal/lib/scoring";
-import { LeadList } from "../components/lead-list";
 import { actOnSignal } from "./actions";
-import { actOnLead } from "./lead-actions";
 import { loadFailureText } from "../lib/load-failure";
 import { ModuleHeadline } from "../components/module-headline";
 
-// D5 signal inbox.
+// D5 商机智探 - SIGNALS ONLY since 2026-09-06 (design_yucer_110).
+//
+// The lead list used to sit under this inbox, which made one page manage two
+// objects with two lifecycles: a signal is 升级/忽略/判重/重新评分, a lead runs
+// new -> working -> qualified -> converted. Leads have their own module now,
+// and this page is what its name says.
 //
 // `canTriage` and `canRescore` only decide which buttons render. Every action
 // re-runs both gates on the server, because a disabled button is a courtesy and
@@ -47,37 +46,7 @@ export default async function SignalPage() {
     store: session.stores.signal(),
   };
 
-  const [result, leads] = await Promise.all([
-    listSignals(ctx, { limit: 100 }),
-    listLeads(ctx, { limit: 100 }),
-  ]);
-
-  // What each convertible lead WOULD attribute to, before anyone converts.
-  // Attribution freezes at conversion (ADR-016) and can never be corrected in
-  // the application afterwards - so the one moment the answer is useful is the
-  // moment BEFORE the click, which is exactly the surface previewAttribution
-  // was built for and never had. Only qualified leads are asked: the others
-  // cannot be converted, and the answer would decorate a door that does not
-  // open. Failures degrade to "no preview" rather than failing the page.
-  const attributionPreviews = new Map<
-    string,
-    { source: string; campaignId: string | null }
-  >();
-  if (leads.ok) {
-    await Promise.all(
-      leads.value
-        .filter((l) => l.status === "qualified")
-        .map(async (l) => {
-          const prev = await previewAttribution(ctx, l.id);
-          if (prev.ok) {
-            attributionPreviews.set(l.id, {
-              source: prev.value.source,
-              campaignId: prev.value.campaignId,
-            });
-          }
-        }),
-    );
-  }
+  const result = await listSignals(ctx, { limit: 100 });
 
   if (!result.ok) {
     return (
@@ -158,9 +127,6 @@ export default async function SignalPage() {
       Math.abs(s.recomputed - s.record.score) >= 5,
   ).length;
 
-  // The list below is the same array the badge counts, so neither can drift.
-  const leadCount = leads.ok ? leads.value.length : 0;
-
   return (
     <ViewLayout>
       {/* THE MODULE HEADER, no fold (owner, 2026-09-06). Card and icon like
@@ -192,9 +158,6 @@ export default async function SignalPage() {
             {staleCount > 0 ? (
               <StatusBadge tone="warning">{SIGNAL_TEXT.tagStale(staleCount)}</StatusBadge>
             ) : null}
-            {leadCount > 0 ? (
-              <StatusBadge tone="info">{SIGNAL_TEXT.tagLeads(leadCount)}</StatusBadge>
-            ) : null}
           </>
         }
       />
@@ -212,21 +175,6 @@ export default async function SignalPage() {
             .allowed
         }
         onAct={actOnSignal}
-      />
-      {/* Leads sit under the inbox because that is the order the chain runs in:
-          a signal is promoted into a lead, and a qualified lead converts. */}
-      <LeadList
-        leads={leads.ok ? leads.value : []}
-        attributionPreviews={attributionPreviews}
-        canTriage={
-          can(session.authz, session.entitlement, "signal.lead.upsert", "ui")
-            .allowed
-        }
-        canConvert={
-          can(session.authz, session.entitlement, "signal.lead.convert", "ui")
-            .allowed
-        }
-        onAct={actOnLead}
       />
     </ViewLayout>
   );
