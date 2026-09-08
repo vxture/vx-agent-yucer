@@ -118,12 +118,22 @@ export const DIVISION_TEMPLATES: readonly DivisionTemplate[] = [
 export function isSystemDivision(
   code: string, name: string, provinces: readonly string[],
 ): boolean {
-  const mine = [...provinces].sort();
-  return DIVISION_TEMPLATES.some((t) => {
-    const d = t.divisions.find((x) => x.code === code);
-    if (!d || d.name !== name) return false;
-    const theirs = Object.entries(t.provinces)
-      .filter(([, c]) => c === code).map(([p]) => p).sort();
-    return theirs.length === mine.length && theirs.every((p, i) => p === mine[i]);
+  const d = DIVISION_TEMPLATES.map((t) => t.divisions.find((x) => x.code === code) ?? null);
+  return DIVISION_TEMPLATES.some((t, i) => {
+    const shipped = d[i];
+    if (!shipped || shipped.name !== name) return false;
+    /* COMPARED AS SETS, not as sorted arrays. Sorting to compare needed a
+       collation for CJK names that neither side actually depends on - the
+       question is only "the same provinces", and order is not part of it. It
+       also removes a default .sort(), which orders by UTF-16 code unit and is
+       the wrong tool for Chinese even when both sides happen to agree. */
+    const mine = new Set(provinces);
+    let n = 0;
+    for (const [province, c] of Object.entries(t.provinces)) {
+      if (c !== code) continue;
+      n += 1;
+      if (!mine.has(province)) return false;
+    }
+    return n === mine.size;
   });
 }
