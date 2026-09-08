@@ -9,42 +9,47 @@
 // See TD-002. Both files go together when the standard is settled.
 
 export const DEMO_ACCOUNTS = [
-  { name: "华东零售集团", industry: "零售", region: "华东", province: "上海市" },
-  { name: "西南制造股份", industry: "制造", region: "西南", province: "四川省" },
-  { name: "北方通信", industry: "通信", region: "华北", province: "北京市" },
-  { name: "长江物流", industry: "物流", region: "华中", province: "湖北省" },
-  { name: "华南连锁药房", industry: "零售", region: "华南", province: "广东省" },
+  /* REGION IS A 大区 NAME, and it is the workspace's own (incr/0036, five-way
+     preset). It used to be a seven-way 华东 / 华北 grouping that lived in the
+     build, and after the carve became data the two vocabularies sat in the
+     same demo: territory routing matched on one, the screen grouped by the
+     other, and nothing said so. Every region here is the division its PROVINCE
+     belongs to, which is also what completeness.ts derives - so the demo shows
+     one carve, the one the workspace can edit. */
+  { name: "华东零售集团", industry: "零售", region: "东部", province: "上海市" },
+  { name: "西南制造股份", industry: "制造", region: "西部", province: "四川省" },
+  { name: "北方通信", industry: "通信", region: "北部", province: "北京市" },
+  // 江苏 rather than 湖北: still the Yangtze, and it leaves 中部 empty of
+  // covered customers, which is what makes the 未分区 case below visible.
+  { name: "长江物流", industry: "物流", region: "东部", province: "江苏省" },
+  { name: "华南连锁药房", industry: "零售", region: "南部", province: "广东省" },
   // Added to exercise two rules the first five never reached. Without them the
   // "本周" tier was permanently 0 and two of the four judgement rules had no
   // demo case at all - a screen nobody could review is not a demo.
-  { name: "西部能源装备", industry: "能源", region: "西北", province: "陕西省" },
-  { name: "东海精密仪器", industry: "制造", region: "华东", province: "江苏省" },
-  // 未分区: 东北 is covered by NO territory (EAST/NORTH/SOUTH between them
-  // cover 华东/华中/华北/西北/华南/西南). Added 2026-09-01 so the unplaced rule
-  // has a case a reviewer can actually see - every other demo account sits on
-  // ground somebody covers, which made the rule real in code and invisible on
-  // screen. Same gap the demo had before it gained a settled quarter.
+  { name: "西部能源装备", industry: "能源", region: "西部", province: "陕西省" },
+  { name: "东海精密仪器", industry: "制造", region: "东部", province: "江苏省" },
+  // 未分区: 中部 is covered by NO territory (the four between them cover
+  // 东部/北部/西部/南部). Added 2026-09-01 so the unplaced rule has a case a
+  // reviewer can actually see - every other demo account sits on ground
+  // somebody covers, which made the rule real in code and invisible on screen.
+  // RENAMED from 东北重工集团 on 2026-09-08: the five-way carve has no 东北,
+  // and a customer named for a division that does not exist is exactly the
+  // mixed vocabulary this pass removed.
   // INDUSTRY DELIBERATELY BLANK, on top of the unplaced region. It is the
   // first-entry case the completeness rule exists for: a customer somebody has
   // typed the name of and nothing else, where the industry is a fact about the
   // world that no join can supply and the model can. Without one such account
   // the "ask the assistant" half of that screen rendered on nothing.
-  { name: "东北重工集团", industry: "", region: "东北", province: "辽宁省" },
-  // REGION DELIBERATELY BLANK, and not the same gap 东北重工集团 demonstrates.
+  { name: "中原重工集团", industry: "", region: "中部", province: "河南省" },
+  // REGION DELIBERATELY BLANK, and not the same gap 中原重工集团 demonstrates.
   // That one is 未分区 (a region set that no territory covers); this one has
   // no region on file at all, which is the OTHER half of the "region" gap -
-  // the DERIVABLE half. Its one deal is filed under terr_hk, a territory that
-  // covers exactly one region, so accountGaps() has a single candidate to
-  // suggest rather than refusing to guess between two. Without a single-region
-  // territory the demo could not show this: all three original territories
-  // cover two regions each, so region derivation always found more than one
-  // candidate and always declined - the data-derivable half of the
-  // completeness screen had no case where it could actually derive anything.
-  // Its province IS on file while its region is blank (incr/0035), which
-  // sharpens the case rather than softening it: 大区 is now derivable from two
-  // directions - from the single-region territory its deal is filed under, and
-  // from the province itself - so the completeness screen has a gap that is
-  // unambiguously fillable rather than merely guessable.
+  // the DERIVABLE half. Its province IS on file, so completeness.ts answers it
+  // exactly, from the workspace's own division table, rather than guessing.
+  // Its one deal is also filed under terr_hk, a territory that covers exactly
+  // one region: that is the FALLBACK route, the one that has to serve a
+  // customer with no province at all, and keeping the demo on ground where
+  // both routes agree is what makes the fallback checkable.
   { name: "港澳零售集团", industry: "零售", region: "", province: "香港特别行政区" },
 ] as const;
 
@@ -71,19 +76,42 @@ export const DEMO_CONTACTS = [
  * 覆盖", a Chinese sentence with an English noun wedged into it.
  */
 export const DEMO_TERRITORY_NAMES: Record<string, string> = {
-  EAST: "华东大区",
-  NORTH: "华北大区",
-  SOUTH: "华南大区",
+  EAST: "东部辖区",
+  NORTH: "北部辖区",
+  SOUTH: "南部辖区",
+  // WAS "Hong Kong & Macau", written inline in demo-seed.ts because that file
+  // may hold no Chinese - which produced exactly the sentence this block warns
+  // about, an English noun wedged into a Chinese one. A name a reader sees
+  // belongs here whatever language it is in.
+  HK: "港澳辖区",
 };
 
+/* 辖区覆盖的大区 - the join lead routing needs.
+ *
+ * THESE NAME THE WORKSPACE'S OWN 大区 now, not a hard-coded seven. Routing
+ * matches these strings against `account.region`, so a territory naming 华东
+ * covered ground no account sits on any more, and routed nothing.
+ *
+ * A 辖区 IS NOT A 大区, which is why coverage is a LIST. The carve is how the
+ * market is divided; a territory is a team, and teams overlap and reach past
+ * their home division - 北部 here is worked by both the eastern and the
+ * northern team, and 西部 by the northern and the southern one. That overlap
+ * is load-bearing: it is what makes region derivation from a territory
+ * ambiguous, and therefore what terr_hk exists to contrast with.
+ *
+ * 中部 STAYS UNCOVERED on purpose, the way 东北 used to: the demo depends on a
+ * 未分区 case being visible - an account whose region no territory claims is
+ * seen by every territory member, and that is what the completeness roster
+ * reports. Adding it here would delete the lesson.
+ */
 export const DEMO_TERRITORY_REGIONS: Record<string, readonly string[]> = {
-  EAST: ["华东", "华中"],
-  NORTH: ["华北", "西北"],
-  SOUTH: ["华南", "西南"],
-  // Single-region on purpose - see 港澳零售集团 above. 东北 stays uncovered by
-  // any of these four; adding it here would resolve the 未分区 case this demo
-  // already depends on.
-  HK: ["港澳"],
+  EAST: ["东部", "北部"],
+  NORTH: ["北部", "西部"],
+  SOUTH: ["南部", "西部"],
+  // Single-region on purpose - see 港澳零售集团 above. 港澳 has no division of
+  // its own under this carve, so the team that works it is registered against
+  // 南部, which the southern territory also covers.
+  HK: ["南部"],
 };
 
 export const DEMO_SEGMENTS = [

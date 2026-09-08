@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Button, Section } from "@vxture/design-ui";
+import { Button, Drawer, Input, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { removeDivisionAction, saveDivision } from "../territory/actions";
 
@@ -21,6 +21,11 @@ export interface ProvinceOption {
   readonly province: string;
   /** The 大区 it sits in now, or null. */
   readonly heldBy: string | null;
+  /** 两字简称 - what the map draws and what a reader searches by. */
+  readonly short: string;
+  /** Where the five-way carve puts it, and where the seven-way does. */
+  readonly five: string;
+  readonly seven: string;
 }
 
 /** One division out of a shipped carve, offered as a starting point. */
@@ -53,6 +58,31 @@ export function DivisionForm(
   const [codeValue, setCode] = useState(code);
   const [nameValue, setName] = useState(name);
   const [chosen, setChosen] = useState<Set<string>>(new Set(provinces));
+  const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const shortOf = useMemo(
+    () => new Map(options.map((o) => [o.province, o.short])),
+    [options],
+  );
+  /* ORDERED BY THE OPTION LIST, not by the click order: the badges read as a
+     stable roster of what this 大区 holds, and a set that reshuffled every
+     time somebody unticked one would be unreadable. */
+  const chosenList = useMemo(
+    () => options.filter((o) => chosen.has(o.province)).map((o) => o.province),
+    [options, chosen],
+  );
+  const matches = useMemo(() => {
+    const q = query.trim();
+    if (q === "") return options;
+    return options.filter(
+      (o) =>
+        o.province.includes(q)
+        || o.short.includes(q)
+        || o.five.includes(q)
+        || o.seven.includes(q),
+    );
+  }, [options, query]);
 
   const toggle = (p: string) =>
     setChosen((prev) => {
@@ -96,7 +126,9 @@ export function DivisionForm(
   };
 
   return (
-    <Section title={PLANNING_TEXT.divisionFormTitle} description={PLANNING_TEXT.divisionFormWhy}>
+    /* NO DESCRIPTION HERE: both pages that render this form put the same
+       sentence in their ViewHeader, and the two sat one above the other. */
+    <Section title={PLANNING_TEXT.divisionFormTitle}>
       {error ? <p className="text-destructive text-body-sm" role="alert">{error}</p> : null}
 
       <div className="gap-md flex flex-col">
@@ -158,28 +190,102 @@ export function DivisionForm(
           />
         </label>
 
+        {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page (owner,
+            2026-09-08). The list is long enough that the form's own fields
+            scrolled off before the last province arrived, and choosing
+            provinces is a task with its own tools - search, the short name the
+            map draws, and what each standard carve says - none of which belong
+            in the middle of a two-field form. What stays on the page is the
+            ANSWER: which provinces this 大区 holds. */}
         <div className="gap-2xs flex flex-col">
           <span className="text-body-sm font-medium">
             {PLANNING_TEXT.divisionProvincesLabel}
           </span>
-          <div className="gap-2xs md:grid-cols-3 grid grid-cols-2 xl:grid-cols-4">
-            {options.map((o) => (
-              <label className="gap-2xs flex items-center" key={o.province}>
-                <input
-                  type="checkbox"
-                  checked={chosen.has(o.province)}
-                  onChange={() => toggle(o.province)}
-                  disabled={pending}
-                />
-                <span className="text-body-sm">{o.province}</span>
-                {/* Where it sits now, so a tick that moves it says so. */}
-                {o.heldBy && !provinces.includes(o.province) ? (
-                  <span className="text-muted-foreground text-body-sm">({o.heldBy})</span>
-                ) : null}
-              </label>
-            ))}
+          <div className="gap-2xs flex flex-wrap items-center">
+            {chosenList.length === 0 ? (
+              <span className="text-muted-foreground text-body-sm">
+                {PLANNING_TEXT.divisionPickEmpty}
+              </span>
+            ) : (
+              chosenList.map((p) => (
+                <StatusBadge key={p} tone="neutral">
+                  {shortOf.get(p) ?? p}
+                </StatusBadge>
+              ))
+            )}
+          </div>
+          <div className="gap-sm mt-xs flex items-center">
+            <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
+              {PLANNING_TEXT.divisionPick}
+            </Button>
+            <span className="text-muted-foreground text-body-sm">
+              {PLANNING_TEXT.divisionChosen(chosenList.length)}
+            </span>
           </div>
         </div>
+
+        <Drawer
+          open={picking}
+          onClose={() => setPicking(false)}
+          width="lg"
+          title={PLANNING_TEXT.divisionPickTitle}
+          description={PLANNING_TEXT.divisionPickWhy}
+          closeLabel={PLANNING_TEXT.divisionPickDone}
+          footer={
+            <div className="gap-sm flex items-center justify-between">
+              <span className="text-muted-foreground text-body-sm">
+                {PLANNING_TEXT.divisionChosen(chosenList.length)}
+              </span>
+              <div className="gap-sm flex items-center">
+                <Button variant="secondary" onClick={() => setChosen(new Set())}>
+                  {PLANNING_TEXT.divisionPickClear}
+                </Button>
+                <Button onClick={() => setPicking(false)}>
+                  {PLANNING_TEXT.divisionPickDone}
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <div className="gap-sm flex flex-col">
+            {/* SEARCHES THE SHORT NAME TOO, because that is the name on the
+                map and on every screen that has no room for 内蒙古自治区. */}
+            <Input
+              value={query}
+              placeholder={PLANNING_TEXT.divisionSearch}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {matches.length === 0 ? (
+              <p className="text-muted-foreground text-body-sm">
+                {PLANNING_TEXT.divisionPickNone}
+              </p>
+            ) : null}
+            <ul className="gap-2xs flex flex-col">
+              {matches.map((o) => (
+                <li key={o.province}>
+                  <label className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
+                    <input
+                      type="checkbox"
+                      checked={chosen.has(o.province)}
+                      onChange={() => toggle(o.province)}
+                    />
+                    {/* 前缀: the two-character short name, in a fixed-width
+                        column so the full names below it line up. */}
+                    <span className="text-body-sm w-[4ch] shrink-0 font-medium">{o.short}</span>
+                    <span className="text-body-sm grow">{o.province}</span>
+                    {/* 后缀: what each standard carve says about it. */}
+                    <span className="text-muted-foreground text-body-sm shrink-0">
+                      {PLANNING_TEXT.divisionHintPresets(o.five, o.seven)}
+                    </span>
+                    {o.heldBy && !provinces.includes(o.province) ? (
+                      <span className="text-warning text-body-sm shrink-0">{o.heldBy}</span>
+                    ) : null}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Drawer>
 
         {takenFrom.length > 0 ? (
           <ul className="gap-2xs flex flex-col">

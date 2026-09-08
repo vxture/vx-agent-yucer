@@ -2,16 +2,16 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import {
-  ALL_PROVINCES,
-  PROVINCES_BY_REGION,
-  regionOfProvince,
-  shortProvince,
-} from "./provinces";
+import { ALL_PROVINCES, shortProvince } from "./provinces";
 import { CHINA } from "../../(screen)/lib/china-geometry";
 
 // The province vocabulary exists in THREE places and they must agree exactly:
 // this module, incr/0035's CHECK constraint, and the screen's map geometry.
+//
+// 大区 IS NOT ONE OF THEM ANY MORE. The roll-up from a province to its division
+// used to live here as a hard-coded seven, which made the carve a property of
+// the build; it is per-workspace data now (incr/0036) and is covered by
+// market-division.test.ts. What is left here is the vocabulary itself.
 //
 // A disagreement does not throw. It drops a province from a national total and
 // says nothing - which is the whole reason the column is CHECK-constrained in
@@ -51,25 +51,9 @@ test("the map has a shape for every province, and no shape without one", () => {
   );
 });
 
-test("every province rolls up to exactly one 大区", () => {
-  for (const p of ALL_PROVINCES) {
-    const r = regionOfProvince(p);
-    assert.ok(r, `${p} has no region`);
-    assert.ok(PROVINCES_BY_REGION[r].includes(p as never), `${p} not listed under ${r}`);
-  }
-  // and no province is claimed twice
-  const claimed = Object.values(PROVINCES_BY_REGION).flat();
-  assert.equal(claimed.length, new Set(claimed).size);
-});
 
-test("an unknown province returns null rather than a guess", () => {
-  // 江苏 is the mis-spelling the CHECK refuses. If it ever reaches this module
-  // the honest answer is "I do not know", because a guessed 大区 puts the row
-  // into a total nobody can trace back.
-  assert.equal(regionOfProvince("江苏"), null);
-  assert.equal(regionOfProvince(null), null);
-  assert.equal(regionOfProvince(""), null);
-});
+
+
 
 test("short labels stay unambiguous", () => {
   assert.equal(shortProvince("内蒙古自治区"), "内蒙古");

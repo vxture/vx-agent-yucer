@@ -5,7 +5,7 @@ import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listTerritories } from "../../../domains/planning/service";
-import { listAccounts } from "../../../domains/account/service";
+import { listAccounts, listMarketDivisions } from "../../../domains/account/service";
 import { TerritoryForm } from "../../components/territory-form";
 import { saveTerritory } from "../../planning/actions";
 
@@ -33,9 +33,13 @@ export default async function NewTerritoryPage() {
     entitlement: session.entitlement,
     store: getPlanningStore(),
   };
-  const [territories, accounts] = await Promise.all([
+  const [territories, accounts, divisions] = await Promise.all([
     listTerritories(ctx, { includeRetired: true }),
     listAccounts({ ...ctx, store: session.stores.account() }),
+    /* The coverage picker's vocabulary. Read here rather than typed into the
+       form so a workspace that carves its market differently gets its own
+       names - the whole point of incr/0036. */
+    listMarketDivisions({ ...ctx, store: session.stores.account() }),
   ]);
 
   return (
@@ -44,6 +48,7 @@ export default async function NewTerritoryPage() {
       <TerritoryForm
         rows={territories.ok ? territories.value : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
+        divisions={divisions.ok ? divisions.value.map((d) => d.name) : []}
         onSave={saveTerritory}
       />
     </ViewLayout>

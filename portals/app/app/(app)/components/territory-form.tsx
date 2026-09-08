@@ -14,7 +14,6 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
   FormPage,
-  splitListField,
   useFormSubmit,
   type AssistSuggestion,
 } from "./form-page";
@@ -32,6 +31,7 @@ type Saved = { ok: boolean; error?: string };
 export function TerritoryForm({
   rows,
   accountRegions,
+  divisions,
   onSave,
 }: {
   readonly rows: readonly {
@@ -42,6 +42,12 @@ export function TerritoryForm({
     readonly status: string;
   }[];
   readonly accountRegions: readonly (string | null)[];
+  /* 大区 THIS WORKSPACE HAS, in its own order (incr/0036). The field used to be
+     free text with "如：华东, 华南" under it, which is how the second
+     vocabulary kept coming back: routing matches these strings against
+     `account.region`, so a typed 华东 produced a territory that covered
+     nothing and routed nothing, silently. You can only tick what exists. */
+  readonly divisions: readonly string[];
   readonly onSave: (input: {
     territoryCode: string;
     name: string;
@@ -57,7 +63,7 @@ export function TerritoryForm({
   const [parentId, setParentId] = useState("");
   const [ownerSub, setOwnerSub] = useState("");
   const [status, setStatus] = useState("active");
-  const [regions, setRegions] = useState("");
+  const [regions, setRegions] = useState<readonly string[]>([]);
   const submit = useFormSubmit("/territory");
 
   // THE CODE IS THE IDENTITY - typing an existing code edits that territory
@@ -68,12 +74,28 @@ export function TerritoryForm({
     if (!t) return;
     setCode(t.territoryCode);
     setName(t.name);
-    setRegions(t.regions.join(", "));
+    setRegions(t.regions);
     setStatus(t.status);
   }
 
   const gaps = useMemo(() => uncoveredRegions(accountRegions, rows), [accountRegions, rows]);
-  const inField = new Set(splitListField(regions));
+  const inField = new Set(regions);
+
+  /* WHAT THE WORKSPACE CARVES, PLUS WHATEVER THIS TERRITORY ALREADY SAYS.
+     A division can be renamed or dropped after a territory named it, and
+     hiding the orphan would let a save quietly delete coverage the reader
+     never saw. It stays tickable, and stays visibly not one of the current
+     carve's names. */
+  const covers = useMemo(() => {
+    const extra = regions.filter((r) => !divisions.includes(r));
+    return [
+      ...divisions.map((name) => ({ name, known: true })),
+      ...extra.map((name) => ({ name, known: false })),
+    ];
+  }, [divisions, regions]);
+
+  const toggleRegion = (name: string) =>
+    setRegions((prev) => (prev.includes(name) ? prev.filter((r) => r !== name) : [...prev, name]));
 
   const suggestions: AssistSuggestion[] = gaps
     .filter((g) => !inField.has(g.region))
@@ -84,7 +106,7 @@ export function TerritoryForm({
       // The reason is the routing rule itself: leads route territory-first, so
       // ground no territory covers is ground where every lead is unroutable.
       reason: ASSIST_TEXT.uncoveredRegionWhy,
-      apply: () => setRegions((r) => (r.trim() === "" ? g.region : `${r}, ${g.region}`)),
+      apply: () => setRegions((r) => (r.includes(g.region) ? r : [...r, g.region])),
     }));
 
   const ready = code.trim() !== "" && name.trim() !== "";
@@ -115,14 +137,35 @@ export function TerritoryForm({
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field>
-              {/* The field the inline panel never had. Comma-separated in either
-                  language's comma; the rule layer refuses sloppy lists. */}
+              {/* The field the inline panel never had - a picker since
+                  2026-09-08, over the workspace's own 大区. */}
               <FieldLabel>{PLANNING_TEXT.territoryRegions}</FieldLabel>
-              <Input
-                value={regions}
-                placeholder={PLANNING_TEXT.territoryRegionsHint}
-                onChange={(e) => setRegions(e.target.value)}
-              />
+              {covers.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">
+                  {PLANNING_TEXT.territoryRegionsNone}
+                </p>
+              ) : (
+                <div className="gap-2xs md:grid-cols-3 grid grid-cols-2">
+                  {covers.map((c) => (
+                    <label className="gap-2xs flex items-center" key={c.name}>
+                      <input
+                        type="checkbox"
+                        checked={inField.has(c.name)}
+                        onChange={() => toggleRegion(c.name)}
+                      />
+                      <span className="text-body-sm">{c.name}</span>
+                      {c.known ? null : (
+                        <span className="text-warning text-body-sm">
+                          {PLANNING_TEXT.territoryRegionGone}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+              <span className="text-muted-foreground text-body-sm">
+                {PLANNING_TEXT.territoryRegionsHint}
+              </span>
             </Field>
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryParent}</FieldLabel>
@@ -158,7 +201,7 @@ export function TerritoryForm({
                         parentId: parentId === "" ? null : parentId,
                         ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
                         status,
-                        regions: splitListField(regions),
+                        regions,
                       }),
                     (c) => TERRITORY_ERROR[c] ?? TERRITORY_ERROR.denied,
                   )

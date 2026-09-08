@@ -4,8 +4,8 @@ import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
 import { listMarketDivisions } from "../../../../domains/account/service";
-import { ALL_PROVINCES } from "../../../../domains/shared/provinces";
 import { DivisionForm } from "../../../components/division-form";
+import { provinceOptions } from "../../../lib/province-options";
 
 // 编辑大区 - the same form, opened on an existing one.
 
@@ -51,7 +51,7 @@ export default async function EditDivisionPage(
         // Empty when editing: referencing a preset would silently overwrite
         // what this workspace has already decided.
         presets={[]}
-        options={ALL_PROVINCES.map((p) => ({ province: p, heldBy: heldBy.get(p) ?? null }))}
+        options={provinceOptions(heldBy)}
       />
     </ViewLayout>
   );

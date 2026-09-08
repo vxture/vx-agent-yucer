@@ -11,9 +11,14 @@
  * market-division.test.ts parses incr/0036 and fails if the two disagree, in
  * either direction. The one that must be right is the SQL.
  *
- * NOT `account.region`. That column carries the older 华东 / 华北 grouping and
- * TERRITORY ROUTING matches on it (incr/0017); the two are different questions
- * and incr/0036 says why they coexist.
+ * `account.region` NAMES ONE OF THESE. It used to carry a separate seven-way
+ * 华东 / 华北 grouping that lived in the build, so territory routing matched on
+ * one vocabulary while the screen grouped by another and nothing joined them;
+ * since 2026-09-08 the column holds a division NAME from this table and the
+ * demo is seeded that way. The two are still different QUESTIONS - a 大区 is
+ * how the market is carved, a 辖区 is which team works it, and a team may
+ * cover several - which is why territory coverage is a list of these names
+ * rather than a foreign key. incr/0036 says why they coexist.
  */
 
 export interface MarketDivision {
@@ -32,8 +37,10 @@ export const MARKET_DIVISIONS: readonly MarketDivision[] = [
 
 /** Province -> division code. Every one of the 34 is placed. */
 export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
-  // 东部
-  辽宁省: "east", 北京市: "east", 天津市: "east", 河北省: "east",
+  /* 东部 - the coast from 山东 south. 辽宁/北京/天津/河北 moved to 北部
+     (owner, 2026-09-08): they are the northern seaboard and the capital
+     region, and a sales organisation reads them with 内蒙古 and the north-east
+     rather than with 上海 and 福建. */
   山东省: "east", 江苏省: "east", 上海市: "east", 浙江省: "east",
   福建省: "east", 台湾省: "east",
   // 南部
@@ -44,6 +51,7 @@ export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
   西藏自治区: "west", 陕西省: "west", 甘肃省: "west", 青海省: "west",
   宁夏回族自治区: "west", 新疆维吾尔自治区: "west",
   // 北部
+  辽宁省: "north", 北京市: "north", 天津市: "north", 河北省: "north",
   内蒙古自治区: "north", 山西省: "north", 吉林省: "north", 黑龙江省: "north",
   // 中部
   河南省: "central", 湖北省: "central", 湖南省: "central",
@@ -55,7 +63,8 @@ export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
  *
  * TWO OF THEM, because both are standard ways to carve China and neither is
  * more correct: the five-way 东南西北中, and the seven-way 华北/东北/华东/华中/
- * 华南/西南/西北 that this repo's territory routing already speaks.
+ * 华南/西南/西北. The seven-way is the one this repo's territory routing used
+ * to speak from a hard-coded table; it is a template now, chosen or not.
  *
  * THEY ARE TEMPLATES, NOT A LAYER THE TENANT SITS ON TOP OF. Importing one
  * MATERIALISES rows into the workspace; nothing afterwards points back here.
@@ -78,7 +87,7 @@ export interface DivisionTemplate {
   readonly provinces: Readonly<Record<string, string>>;
 }
 
-/** 七分法 - the grouping territory routing already matches on. */
+/** 七分法 - the other standard carve. */
 const SEVEN_DIVISIONS: readonly MarketDivision[] = [
   { code: "north", name: "华北", sortOrder: 1 },
   { code: "northeast", name: "东北", sortOrder: 2 },
@@ -107,6 +116,33 @@ export const DIVISION_TEMPLATES: readonly DivisionTemplate[] = [
   { key: "five", divisions: MARKET_DIVISIONS, provinces: MARKET_DIVISION_PROVINCES },
   { key: "seven", divisions: SEVEN_DIVISIONS, provinces: SEVEN_PROVINCES },
 ];
+
+/**
+ * Where each province sits in EVERY shipped carve - the hint the province
+ * picker prints beside a name.
+ *
+ * WHY A PICKER NEEDS IT: carving a market is not a memory test. Somebody
+ * building 新疆基地 out of one province, or deciding whether 安徽 belongs with
+ * the coast or the middle, is answering a question the standard carves already
+ * have an opinion about, and showing both opinions beside the checkbox is the
+ * difference between choosing and guessing. It is a HINT, not a constraint:
+ * nothing here refuses a selection that disagrees with both.
+ *
+ * Derived from the templates rather than typed again - a third copy of the
+ * mapping is a third chance to be wrong about it.
+ */
+export const PRESET_MEMBERSHIP: Readonly<Record<string, Readonly<Record<string, string>>>> =
+  Object.fromEntries(
+    DIVISION_TEMPLATES.map((t) => [
+      t.key,
+      Object.fromEntries(
+        Object.entries(t.provinces).map(([province, code]) => [
+          province,
+          t.divisions.find((d) => d.code === code)?.name ?? "",
+        ]),
+      ),
+    ]),
+  );
 
 /**
  * Is this division exactly as some template ships it?

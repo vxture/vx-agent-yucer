@@ -4,9 +4,9 @@ import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
 import { listMarketDivisions } from "../../../../domains/account/service";
-import { ALL_PROVINCES } from "../../../../domains/shared/provinces";
 import { DIVISION_TEMPLATES } from "../../../../domains/shared/market-division";
 import { DivisionForm } from "../../../components/division-form";
+import { provinceOptions } from "../../../lib/province-options";
 
 // 新建大区 - the create half of the module's own list/create split.
 
@@ -41,7 +41,7 @@ export default async function NewDivisionPage() {
         code=""
         name=""
         provinces={[]}
-        options={ALL_PROVINCES.map((p) => ({ province: p, heldBy: heldBy.get(p) ?? null }))}
+        options={provinceOptions(heldBy)}
         /* Every division from every shipped carve, labelled with the carve it
            belongs to - both name a 华东 and a reader picking one has to be able
            to tell which. */

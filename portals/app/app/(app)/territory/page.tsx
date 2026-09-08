@@ -1,4 +1,4 @@
-import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
@@ -16,7 +16,6 @@ import {
 } from "../../domains/shared/market-division";
 import { TerritoryPanel } from "../components/territory-panel";
 import { loadFailureText } from "../lib/load-failure";
-import { NewEntryLink } from "../components/form-page";
 
 // D2 sales territories - a module page since 2026-08-30.
 //
@@ -29,7 +28,7 @@ import { NewEntryLink } from "../components/form-page";
 export const dynamic = "force-dynamic";
 
 export default async function TerritoryPage() {
-  const { LOAD_ERROR, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
+  const { ASSIST_TEXT, LOAD_ERROR, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -119,32 +118,35 @@ export default async function TerritoryPage() {
           }
         />
       ) : null}
-      {/* 引用预置 sits BELOW the roster, not above it: adopting a carve
-          replaces what the list shows, so the reader should have seen it
-          first. */}
-      {divisions.ok
-        && can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed ? (
-        <DivisionImport
-          currentDivisions={divisionRows.length}
-          customCount={
-            divisionRows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
-          }
-          templates={DIVISION_TEMPLATES.map((t) => ({
-            key: t.key,
-            label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
-            divisions: t.divisions.length,
-            names: t.divisions.map((d) => d.name),
-          }))}
-        />
-      ) : null}
-      {/* Creation and editing left for /territory/new on 2026-09-05 - which
-          also carries the regions field this page's panel never had. */}
+      {/* ONE ACTION ROW. 新建大区 and 重置预置 are the same kind of thing -
+          both decide how the market is carved - and the reset used to sit in a
+          panel of its own below the roster, which read as a third subject
+          rather than as an action on the second. 新建辖区 keeps them company
+          because this page's two rosters both get their doorway here. */}
       {can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
         .allowed ? (
-        <>
-          <NewEntryLink href="/territory/new" />
-          <NewEntryLink href="/territory/division/new" label={PLANNING_TEXT.divisionNew} />
-        </>
+        <div className="gap-sm mt-md flex flex-wrap items-center">
+          <Button asChild variant="secondary">
+            <a href="/territory/new">{ASSIST_TEXT.newEntry}</a>
+          </Button>
+          <Button asChild variant="secondary">
+            <a href="/territory/division/new">{PLANNING_TEXT.divisionNew}</a>
+          </Button>
+          {divisions.ok ? (
+            <DivisionImport
+              currentDivisions={divisionRows.length}
+              customCount={
+                divisionRows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
+              }
+              templates={DIVISION_TEMPLATES.map((t) => ({
+                key: t.key,
+                label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
+                divisions: t.divisions.length,
+                names: t.divisions.map((d) => d.name),
+              }))}
+            />
+          ) : null}
+        </div>
       ) : null}
     </ViewLayout>
   );

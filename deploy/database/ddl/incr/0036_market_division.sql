@@ -97,8 +97,9 @@ ON CONFLICT (workspace_id, division_code) DO NOTHING;
 INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id)
 SELECT d.workspace_id, v.province, d.id
   FROM (VALUES
-   -- 东部: the coast, from 辽宁 down to 海南.
-   ('辽宁省','east'),('北京市','east'),('天津市','east'),('河北省','east'),
+   -- 东部: the coast from 山东 south. 辽宁/北京/天津/河北 sit in 北部
+   -- (owner, 2026-09-08) - the northern seaboard and the capital region read
+   -- with 内蒙古 and the north-east, not with 上海 and 福建.
    ('山东省','east'),('江苏省','east'),('上海市','east'),('浙江省','east'),
    ('福建省','east'),('台湾省','east'),
    -- 南部
@@ -109,6 +110,7 @@ SELECT d.workspace_id, v.province, d.id
    ('西藏自治区','west'),('陕西省','west'),('甘肃省','west'),('青海省','west'),
    ('宁夏回族自治区','west'),('新疆维吾尔自治区','west'),
    -- 北部
+   ('辽宁省','north'),('北京市','north'),('天津市','north'),('河北省','north'),
    ('内蒙古自治区','north'),('山西省','north'),('吉林省','north'),('黑龙江省','north'),
    -- 中部
    ('河南省','central'),('湖北省','central'),('湖南省','central'),

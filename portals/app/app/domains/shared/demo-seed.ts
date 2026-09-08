@@ -326,7 +326,7 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
       // cover two regions, so region derivation there always finds more than
       // one candidate and always declines to guess; this is the only ground in
       // the demo where a deal's territory names exactly one region.
-      territory("terr_hk", workspaceId, "HK", "Hong Kong & Macau", REP1, DEMO_TERRITORY_REGIONS.HK),
+      territory("terr_hk", workspaceId, "HK", DEMO_TERRITORY_NAMES.HK, REP1, DEMO_TERRITORY_REGIONS.HK),
     ],
     targets: [
       target("tgt_ws", workspaceId, "workspace", null, null, 12_000_000, "committed"),

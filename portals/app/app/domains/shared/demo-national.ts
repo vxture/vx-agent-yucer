@@ -25,7 +25,18 @@
 // the same figures on every run. A demo whose numbers move between reloads
 // cannot be reviewed, and a screenshot of it cannot be compared to anything.
 
-import { PROVINCES_BY_REGION, regionOfProvince } from "./provinces";
+import { ALL_PROVINCES } from "./provinces";
+import { MARKET_DIVISIONS, MARKET_DIVISION_PROVINCES } from "./market-division";
+
+/* The cohort seeds `account.region` with a 大区 NAME, and takes it from the
+   five-way preset - the same carve incr/0036 gives a fresh workspace. It is a
+   fixture reading the shipped default, not a second copy of the mapping: a
+   workspace that re-carves afterwards changes what the screen groups by, and
+   these rows keep whatever the column was seeded with, exactly as a real
+   customer record would. */
+const DIVISION_NAME = new Map(MARKET_DIVISIONS.map((d) => [d.code, d.name]));
+const regionOfProvince = (province: string): string | null =>
+  DIVISION_NAME.get(MARKET_DIVISION_PROVINCES[province] ?? "") ?? null;
 
 /** FNV-1a over the province name, then xorshift. No Math.random anywhere. */
 function rng(seed: string): () => number {
@@ -218,8 +229,12 @@ export function buildNationalCohort(
 
   let a = 0, o = 0, p = 0, l = 0, m = 0, inst = 0, pr = 0, sg = 0;
 
-  for (const [region, provinces] of Object.entries(PROVINCES_BY_REGION)) {
-    for (const province of provinces) {
+  for (const province of ALL_PROVINCES) {
+    {
+      /* Non-null by construction: the preset places all 34 and
+         market-division.test.ts holds it to that, so a province with no
+         division here would be a broken preset rather than a missing value. */
+      const region = regionOfProvince(province)!;
       const r = rng("nat|" + province);
       const w = WEIGHT[province] ?? 0.2;
 
@@ -475,7 +490,4 @@ export function buildNationalCohort(
 }
 
 /** Every province the cohort touches - used by the screen's roll-up and tests. */
-export const NATIONAL_PROVINCES: readonly string[] =
-  Object.values(PROVINCES_BY_REGION).flat();
-
-export { regionOfProvince };
+export const NATIONAL_PROVINCES: readonly string[] = ALL_PROVINCES;

@@ -1063,8 +1063,33 @@ test("the demo has a customer whose region the data can derive, or the completen
   );
   const derivable = fillable(gaps).find((g) => g.field === "region");
   assert.ok(derivable, "no derivable region gap - a single-region territory alone is not enough without a deal on it");
-  assert.equal(derivable?.suggestion, "港澳");
+  assert.equal(derivable?.suggestion, "南部");
   assert.ok(derivable?.basis, "a suggestion with no basis is a machine writing into a record on nobody's authority");
+
+  /* AND THE OTHER ROUTE AGREES. The call above passes no division table, so it
+     took the territory fallback; completeness.ts prefers the PROVINCE when it
+     has one, and a demo where the two routes disagreed would be a demo that
+     hides which one ran. Both say 南部 because 香港 sits in 南部 and the team
+     that works it is registered there. */
+  /* THE WORKSPACE'S OWN TABLE, read back from the store rather than from the
+     preset module - and keyed by division NAME, which is what the service
+     passes and what `account.region` holds. A code-keyed map would suggest
+     "south", a value no territory covers and no screen groups by. */
+  const divisionOf: Record<string, string> = {};
+  for (const d of await s.account.listMarketDivisions(WS)) {
+    for (const p of d.provinces) divisionOf[p] = d.name;
+  }
+  const viaProvince = accountGaps(
+    account,
+    deals
+      .filter((d) => d.accountId === account.id)
+      .map((d) => ({ territoryId: d.territoryId, ownerSub: d.ownerSub })),
+    territoryInputs,
+    [],
+    divisionOf,
+  );
+  const byProvince = fillable(viaProvince).find((g) => g.field === "region");
+  assert.equal(byProvince?.suggestion, "南部");
 });
 
 test("every other demo territory still covers two regions - the ambiguous case is not accidentally gone", async () => {
