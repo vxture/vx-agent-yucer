@@ -1369,6 +1369,12 @@ export const SHELL_TEXT = {
   noRolesDescription:
     "工作区已订阅，但你还没有任何角色，因此暂时看不到任何模块。请联系工作区管理员为你分配角色。",
   loadFailed: "数据加载失败",
+  /* DS 侧栏导航（ShellSidebarNav）四个控件的无障碍名。件的默认值是英文，
+     双语产品必须自己传，否则中文档下读屏念的是英文。 */
+  expandNav: "展开导航",
+  collapseNav: "收起导航",
+  expandAllGroups: "展开全部分组",
+  collapseAllGroups: "收起全部分组",
 } as const;
 
 /**

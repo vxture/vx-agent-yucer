@@ -10,6 +10,7 @@ import {
 } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { resolveNavigation, ADMIN_NAV_ENTRIES } from "../lib/navigation";
+import { ADMIN_NAV_GROUPS } from "../lib/admin-nav";
 import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
 import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
@@ -47,6 +48,12 @@ export default async function AdminHomePage() {
   const nav = resolveNavigation(session.authz, session.entitlement);
   const keys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
   const entries = nav.filter((e) => keys.has(e.key) && e.state === "visible");
+  /* The unbuilt half of the map, from the same registry the menu reads. It is
+     drawn only when the reader can see the plane at all - a card saying "not
+     built yet" is still a statement about a workspace they may not administer. */
+  const planned = entries.length === 0
+    ? []
+    : ADMIN_NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.href === null);
 
   // A LIVE FACT PER CARD, because the cards used to print their own href as
   // body text - a URL is neither something a reader wants nor something they
@@ -159,6 +166,21 @@ export default async function AdminHomePage() {
                   </span>
                 </PanelCard>
               </Link>
+            ))}
+            {/* 未建的条目，灰显. THE MAP IS MORE USEFUL COMPLETE - the launcher's
+                own ruling (functional-domains.ts): a greyed row answers "does
+                this product do that" with "yes, not yet", and an absent row
+                answers it with "no". They are NOT in the sidebar: a DS nav item
+                is a destination, and a disabled row is not one. */}
+            {planned.map((item) => (
+              <PanelCard
+                key={item.key}
+                icon={item.icon}
+                title={DOMAIN_LABEL[item.key] ?? item.key}
+                description={ADMIN_TEXT.entryHint[item.key] ?? ""}
+              >
+                <StatusBadge tone="neutral">{ADMIN_TEXT.planned}</StatusBadge>
+              </PanelCard>
             ))}
           </div>
         </Section>

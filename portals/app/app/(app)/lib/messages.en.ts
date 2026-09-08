@@ -149,6 +149,10 @@ export const en: Dictionary = {
     noRolesDescription:
       "The workspace is subscribed, but you hold no role, so nothing is visible to you yet. Ask a workspace administrator to assign one.",
     loadFailed: "Could not load the data",
+    expandNav: "Expand navigation",
+    collapseNav: "Collapse navigation",
+    expandAllGroups: "Expand all groups",
+    collapseAllGroups: "Collapse all groups",
   },
 
   DOMAIN_LABEL: {

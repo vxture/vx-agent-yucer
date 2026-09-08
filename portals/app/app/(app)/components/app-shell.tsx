@@ -338,9 +338,26 @@ export function AppShell({
 
          The consequence to know: the collapse TRANSITION on the sidebar frame
          is gone. The flanks still collapse - they unmount - they just no longer
-         animate their width. That is the price of the two widths and the gap. */
-      sidebarMode="hidden"
-      sidebar={null}
+         animate their width. That is the price of the two widths and the gap.
+
+         配置管理 IS THE EXCEPTION, and it goes through the slot (2026-09-08).
+         Its menu is the DS's own ShellSidebarNav, built for exactly this
+         placement: flush to the viewport edge, full height, its own width and
+         collapse transition. Rendering it as a pane inside the padded row
+         instead put 24px of our padding and a 32px gap around a component that
+         already carries its own - a frame nobody asked for, and the nav pushed
+         off the edge it is meant to sit on. */
+      sidebar={
+        isAdmin ? (
+          <AdminNav
+            nav={admin}
+            pathname={pathname}
+            collapsed={!showBoard}
+            onToggleCollapsed={toggleBoard}
+          />
+        ) : null
+      }
+      sidebarMode={isAdmin ? (showBoard ? "expanded" : "collapsed") : "hidden"}
       header={
         <ShellHeader
           leading={
@@ -563,11 +580,6 @@ export function AppShell({
       <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
         {/* LEFT - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
-        {boardVisible && isAdmin ? (
-          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
-            <AdminNav nav={admin} pathname={pathname} />
-          </aside>
-        ) : null}
         {boardVisible && !isAdmin ? (
           <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
             <NavBoard
