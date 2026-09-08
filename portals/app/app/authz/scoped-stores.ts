@@ -104,6 +104,15 @@ class ScopedAccountStore implements AccountStore {
     private readonly scope: DataScope,
   ) {}
 
+  /* PASSED STRAIGHT THROUGH, deliberately. A 大区 is how the WORKSPACE divides
+     its market - it is configuration, not somebody's book of business, and it
+     carries no owner to narrow by. Filtering it to a member's scope would give
+     two colleagues different maps of the same country. What they may SEE
+     inside each division is scoped by the account read below; the division
+     list itself is the same for everyone. */
+  listMarketDivisions: AccountStore["listMarketDivisions"] = (...a) =>
+    this.inner.listMarketDivisions(...a);
+
   async listAccounts(
     ...args: Parameters<AccountStore["listAccounts"]>
   ): ReturnType<AccountStore["listAccounts"]> {

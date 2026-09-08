@@ -2,7 +2,7 @@ import { EmptyState } from "@vxture/design-ui";
 import { resolveAppSession } from "../../(app)/lib/session";
 import { getMessages } from "../../(app)/lib/i18n/server";
 import { can } from "../../authz/decide";
-import { listAccounts } from "../../domains/account/service";
+import { listAccounts, listMarketDivisions } from "../../domains/account/service";
 import { listPipeline } from "../../domains/pipeline/service";
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listLeads } from "../../domains/signal/service";
@@ -81,13 +81,30 @@ export default async function NationalScreenPage() {
      carries no owner column and so has no scoped wrapper; it takes the registry
      getter like /delivery does. */
   const deliveryCtx = { ...base, store: getDeliveryStore() };
-  const [accounts, deals, projects, leads, proposals] = await Promise.all([
+  const [accounts, deals, projects, leads, proposals, divisionRows] = await Promise.all([
     listAccounts({ ...base, store: session.stores.account() }),
     listPipeline({ ...base, store: session.stores.pipeline() }, { includeClosed: true }),
     listProjects(deliveryCtx),
     listLeads({ ...base, store: session.stores.signal() }),
     listProposals({ ...base, store: getCopilotStore() }),
+    listMarketDivisions({ ...base, store: session.stores.account() }),
   ]);
+
+  /* 大区, READ FROM THE WORKSPACE (incr/0036). Nothing on this screen knows how
+     many divisions there are or what they are called: a tenant that renames one
+     or moves a province between them gets a menu, a map, a breadcrumb and a
+     title that all agree, without a deploy.
+     An empty list is a real state - a workspace that deleted its divisions -
+     and the screen degrades to 全国 and provinces, which is the honest shape
+     for it rather than an error. */
+  const divisions = (divisionRows.ok ? divisionRows.value : []).map((d) => ({
+    code: d.code,
+    name: d.name,
+  }));
+  const provinceDivision: Record<string, string> = {};
+  for (const d of divisionRows.ok ? divisionRows.value : []) {
+    for (const p of d.provinces) provinceDivision[p] = d.code;
+  }
 
   /* THE INSTALMENTS COME OFF THE PROJECT VIEW, one call per project, exactly as
      /collection reads them. It is an N+1 and it is deliberate: the schedule
@@ -184,6 +201,12 @@ export default async function NationalScreenPage() {
        the account table renders a monospaced id in its owner column until a
        directory lands. Dressing an id up as a person is the defect that page
        already fixed once. */
-    <NationalScreen rows={rows} enter={enter} viewerSub={session.user.sub} />
+    <NationalScreen
+      rows={rows}
+      divisions={divisions}
+      provinceDivision={provinceDivision}
+      enter={enter}
+      viewerSub={session.user.sub}
+    />
   );
 }

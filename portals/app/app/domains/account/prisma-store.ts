@@ -9,6 +9,7 @@ import type {
   AccountRecord,
   AccountStore,
   AccountTier,
+  MarketDivisionRecord,
   ContactRecord,
   HealthInputs,
   OpportunityContactRecord,
@@ -47,6 +48,24 @@ export class PrismaAccountStore implements AccountStore {
    * Production constructs this with no argument and nothing changes.
    */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
+
+  async listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]> {
+    const p = await this.client();
+    const rows = await p.marketDivision.findMany({
+      where: { workspaceId },
+      // The workspace's OWN order, then name - a tenant that re-orders its
+      // divisions expects the menu and the breadcrumb to follow.
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      include: { provinces: { select: { province: true } } },
+    });
+    return rows.map((d) => ({
+      id: d.id,
+      code: d.divisionCode,
+      name: d.name,
+      sortOrder: d.sortOrder,
+      provinces: d.provinces.map((x) => x.province),
+    }));
+  }
 
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
     const p = await this.client();

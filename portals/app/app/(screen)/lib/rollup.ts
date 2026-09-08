@@ -1,5 +1,5 @@
 import type { AccountRecord } from "../../domains/account/store";
-import { ALL_PROVINCES, regionOfProvince, type Region } from "../../domains/shared/provinces";
+import { ALL_PROVINCES } from "../../domains/shared/provinces";
 import { within, type Period } from "./period";
 
 // 全国态势的口径 - the screen's roll-up, as a pure function.
@@ -88,6 +88,8 @@ export interface RollupExtra {
   readonly milestones?: readonly MilestoneLike[];
   /** 统计周期. Every dated row outside it is dropped before anything is summed. */
   readonly period?: Period;
+  /** province -> 大区 code, as this workspace divides its market (incr/0036). */
+  readonly provinceDivision?: Readonly<Record<string, string>>;
   /** The clock, injected so the 30-day window is testable. */
   readonly now?: Date;
 }
@@ -95,7 +97,15 @@ export interface RollupExtra {
 /** One province's figures. Money is in the store's own minor unit (CNY yuan). */
 export interface ProvinceRollup {
   readonly province: string;
-  readonly region: Region;
+  /**
+   * The 大区 this province is in, by code.
+   *
+   * COMES FROM THE WORKSPACE, not from a constant: the division is a sales
+   * structure the tenant owns (incr/0036), so a province's 大区 is whatever
+   * that workspace says it is. Empty string when the workspace has not placed
+   * it - which is a real state on a tenant that has edited its own divisions.
+   */
+  readonly division: string;
   readonly accounts: number;
   /** Open deals - the pipeline still being worked. */
   readonly openDeals: number;
@@ -170,7 +180,8 @@ export interface ProvinceRollup {
 
 export interface NationalRollup {
   readonly provinces: readonly ProvinceRollup[];
-  readonly byRegion: ReadonlyMap<Region, readonly ProvinceRollup[]>;
+  /** Provinces grouped by 大区 code, in the workspace's own division order. */
+  readonly byDivision: ReadonlyMap<string, readonly ProvinceRollup[]>;
   /** Accounts with no province on file: counted nationally, drawn nowhere. */
   readonly unplacedAccounts: number;
 }
@@ -434,11 +445,15 @@ function foldMilestones(
 }
 
 /** Close one province's cell into the reading the screen renders. */
-function readingOf(province: string, c: Cell): ProvinceRollup {
+function readingOf(
+  province: string,
+  c: Cell,
+  divisionOf: Readonly<Record<string, string>>,
+): ProvinceRollup {
   const decided = c.contractValue + c.lostValue;
   return {
     province,
-    region: regionOfProvince(province)!,
+    division: divisionOf[province] ?? "",
     accounts: c.accounts,
     openDeals: c.openDeals,
     pipelineValue: c.pipelineValue,
@@ -573,16 +588,18 @@ export function rollUpByProvince(
     provinceOfProject, acc,
   );
 
-  const provinces = ALL_PROVINCES.map((p) => readingOf(p, acc.get(p)!));
+  const divisionOf = extra.provinceDivision ?? {};
+  const provinces = ALL_PROVINCES.map((p) => readingOf(p, acc.get(p)!, divisionOf));
 
-  const byRegion = new Map<Region, ProvinceRollup[]>();
+  const byDivision = new Map<string, ProvinceRollup[]>();
   for (const p of provinces) {
-    const list = byRegion.get(p.region) ?? [];
+    if (!p.division) continue;   // unplaced by this workspace; national only
+    const list = byDivision.get(p.division) ?? [];
     list.push(p);
-    byRegion.set(p.region, list);
+    byDivision.set(p.division, list);
   }
 
-  return { provinces, byRegion, unplacedAccounts: unplaced };
+  return { provinces, byDivision, unplacedAccounts: unplaced };
 }
 
 /**

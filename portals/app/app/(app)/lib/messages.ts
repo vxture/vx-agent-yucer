@@ -2332,7 +2332,7 @@ export const DATA_TABLE_LABELS = {
  */
 /** 全国销售态势屏 - the situation screen's own copy. */
 export const SCREEN_TEXT = {
-  title: "全国销售态势屏",
+  title: "市场态势图",
   subtitle: "National Sales Situation Screen",
   deniedTitle: "无法显示态势屏",
   /** Says WHICH gate, without naming permissions a reader cannot act on. */

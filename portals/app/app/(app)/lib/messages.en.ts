@@ -1753,7 +1753,7 @@ export const en: Dictionary = {
   // --- /signal ------------------------------------------------------------
 
   SCREEN_TEXT: {
-    title: "National Sales Situation Screen",
+    title: "Market situation",
     subtitle: "National Sales Situation Screen",
     deniedTitle: "The situation screen cannot be shown",
     deniedDescription:

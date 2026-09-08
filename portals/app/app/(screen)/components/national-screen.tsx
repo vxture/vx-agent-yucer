@@ -17,11 +17,7 @@ import {
 } from "../lib/rollup";
 import { anchorOf, periodsFor, type PeriodKey } from "../lib/period";
 import type { EntryKey } from "../lib/entry";
-import {
-  PROVINCES_BY_REGION,
-  shortProvince,
-  type Region,
-} from "../../domains/shared/provinces";
+import { shortProvince } from "../../domains/shared/provinces";
 import {
   AdoptionTrend, Bars, CashChart, HealthDonut, Ring, StageChart,
 } from "./screen-charts";
@@ -72,6 +68,10 @@ export type ScreenEntry = Readonly<Record<EntryKey, string | null>>;
 
 export interface NationalScreenProps {
   readonly rows: ScreenRows;
+  /** 大区 as this workspace divides its market, in its own order. */
+  readonly divisions: readonly { code: string; name: string }[];
+  /** province -> 大区 code, from the same source. */
+  readonly provinceDivision: Readonly<Record<string, string>>;
   readonly enter: ScreenEntry;
   readonly viewerSub: string;
 }
@@ -265,14 +265,18 @@ function FoldArc(
   );
 }
 
-export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) {
+export function NationalScreen(
+  { rows, divisions, provinceDivision, enter, viewerSub }: NationalScreenProps,
+) {
   const { SCREEN_TEXT } = useMessages();
   const units = {
     yi: SCREEN_TEXT.unitYi, wan: SCREEN_TEXT.unitWan, yuan: SCREEN_TEXT.unitYuan,
   };
   const cash = (v: number) => money(v, units);
   const [level, setLevel] = useState<Level>("nation");
-  const [region, setRegion] = useState<Region | null>(null);
+  // A DIVISION CODE, not a name: the tenant may rename a division, and a
+  // selection stored by name would silently unselect itself when they did.
+  const [region, setRegion] = useState<string | null>(null);
   const [province, setProvince] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>("contractValue");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -373,6 +377,7 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
         proposals: rows.proposals,
         instalments: rows.instalments,
         milestones: rows.milestones,
+        provinceDivision,
         period,
         // The rolling strips end where the period does, so 近 12 期 under a
         // past quarter reads against that quarter rather than into weeks it
@@ -380,7 +385,7 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
         now: anchorOf(period, now ?? new Date()),
       },
     ),
-    [rows, period, now],
+    [rows, provinceDivision, period, now],
   );
 
   /* Dismissing the period menu, for a keyboard as well as a mouse - the same
@@ -413,9 +418,21 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
       const one = byName.get(province);
       return one ? [one] : [];
     }
-    if (level === "region" && region) return rollup.byRegion.get(region) ?? [];
+    if (level === "region" && region) return rollup.byDivision.get(region) ?? [];
     return rollup.provinces;
   }, [level, region, province, rollup, byName]);
+
+  const divisionName = (code: string | null) =>
+    code === null ? null : divisions.find((d) => d.code === code)?.name ?? null;
+
+  /* WHAT THIS SCREEN IS CURRENTLY LOOKING AT, in one place. The title and the
+     breadcrumb are the same statement in two typefaces, so they read it from
+     here rather than each assembling their own - which is how they came to
+     disagree, one saying 广东省 while the other said 广东. */
+  const scopeName =
+    level === "province" && province ? shortProvince(province)
+    : level === "region" ? divisionName(region) ?? SCREEN_TEXT.nation
+    : SCREEN_TEXT.nation;
 
   const total = useMemo(() => totalOf(scope), [scope]);
   const inScope = useMemo(() => new Set(scope.map((p) => p.province)), [scope]);
@@ -611,7 +628,10 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
         </div>
 
         <div className="title">
-          <h1>{SCREEN_TEXT.title}</h1>
+          {/* 跟随选择变化 - the scope, a centre dot, then what this is. It read
+              a fixed 全国销售态势屏 at every level, so drilling into 广东 left
+              the largest words on the screen describing the country. */}
+          <h1>{scopeName}<span className="dot">·</span>{SCREEN_TEXT.title}</h1>
           <p>{SCREEN_TEXT.subtitle}</p>
         </div>
 
@@ -713,22 +733,27 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
                   aria-haspopup="menu"
                   onClick={() => setMenuOpen((v) => !v)}
                 >
-                  {region ?? SCREEN_TEXT.regionDefault} ▾
+                  {divisionName(region) ?? SCREEN_TEXT.regionDefault} ▾
                 </button>
                 {menuOpen ? (
                   <span className="screen-pop" role="menu">
                     <button type="button" role="menuitem" onClick={() => { setLevel("nation"); setRegion(null); setProvince(null); setMenuOpen(false); }}>
                       {SCREEN_TEXT.regionDefault}
                     </button>
-                    {(Object.keys(PROVINCES_BY_REGION) as Region[]).map((r) => (
+                    {/* THE WORKSPACE'S OWN DIVISIONS, in its own order. Nothing
+                        here knows there are five of them or what they are
+                        called - a tenant that renames 东部 or moves a province
+                        gets a menu, a map and a breadcrumb that all agree,
+                        without a deploy. */}
+                    {divisions.map((d) => (
                       <button
-                        key={r}
+                        key={d.code}
                         type="button"
                         role="menuitem"
-                        className={r === region ? "on" : ""}
-                        onClick={() => { setLevel("region"); setRegion(r); setProvince(null); setMenuOpen(false); }}
+                        className={d.code === region ? "on" : ""}
+                        onClick={() => { setLevel("region"); setRegion(d.code); setProvince(null); setMenuOpen(false); }}
                       >
-                        {r}
+                        {d.name}
                       </button>
                     ))}
                   </span>
@@ -737,7 +762,10 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
               {level === "province" && province ? (
                 <>
                   <span className="sep">▸</span>
-                  <span className="cur">{province}</span>
+                  {/* THE SHORT NAME, the same one the map labels it with and
+                      the same one the title carries. 广东省 in the breadcrumb
+                      beside 广东 on the map reads as two different places. */}
+                  <span className="cur">{shortProvince(province)}</span>
                 </>
               ) : null}
             </nav>
@@ -785,7 +813,9 @@ export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) 
                     onClick={() => {
                       setLevel("province");
                       setProvince(p.province);
-                      setRegion(p.region);
+                      // The workspace's division for it, so stepping out of a
+                      // province lands in the 大区 that workspace puts it in.
+                      setRegion(p.division || null);
                     }}
                     onPointerMove={(e) => moveTip(e, p)}
                     onPointerLeave={() => setTip(null)}

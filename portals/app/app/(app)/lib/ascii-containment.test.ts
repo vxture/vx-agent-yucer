@@ -49,6 +49,14 @@ const ALLOWED = new Set([
   // would put a third encoding of the same identifier in play and guarantee the
   // drift provinces.test.ts exists to catch.
   "(screen)/lib/china-geometry.ts",
+  // 大区 (incr/0036). PRESET DATA, not copy, and the distinction is the whole
+  // reason this file exists: the division names are rows the tenant may rename,
+  // seeded by the SQL and read back from the database at runtime. This module
+  // is the same preset for the in-memory store the demo runs on, and
+  // market-division.test.ts parses incr/0036 and fails if the two disagree -
+  // so escaping them here would put a second encoding of the seed in play and
+  // guarantee exactly the drift that test exists to catch.
+  "domains/shared/market-division.ts",
 ]);
 
 // CJK and fullwidth ranges - actual text in a human language. The typographic

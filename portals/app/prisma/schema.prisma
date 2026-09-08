@@ -1074,3 +1074,50 @@ model LineDiscountApproval {
   @@map("line_discount_approval")
   @@schema("yucer_pipeline")
 }
+
+/// incr/0036. 大区 - how a workspace divides its market, PRESET AND EDITABLE.
+/// Not `account.region`: that column carries the older 华东 / 华北 grouping and
+/// territory routing matches on it, so it cannot be repurposed. A 大区 is a
+/// sales structure rather than a fact of geography, which is why it is data the
+/// tenant owns instead of a constant in the build.
+model MarketDivision {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  /// The anchor the preset and every import upsert on. Not updatable by the
+  /// service role: a division whose code changed is a new division wearing an
+  /// old one's history.
+  divisionCode String   @map("division_code") @db.VarChar(32)
+  name         String   @db.VarChar(64)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  provinces MarketDivisionProvince[]
+
+  @@unique([workspaceId, divisionCode], map: "uidx_market_division_code")
+  @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")
+  @@map("market_division")
+  @@schema("yucer_core")
+}
+
+/// incr/0036. Which province sits in which 大区.
+/// ONE DIVISION PER PROVINCE, enforced by the primary key rather than by the
+/// application: a province in two divisions double-counts every figure rolled
+/// up from it, and a national total that does not equal the sum of its parts is
+/// the one failure the situation screen cannot survive.
+model MarketDivisionProvince {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  /// CHECK-constrained to the same 34 divisions incr/0035 constrains
+  /// `account.province` to, so a mapping cannot name ground no account could
+  /// sit on. Not updatable: it is half the primary key.
+  province    String   @db.VarChar(32)
+  divisionId  String   @map("division_id") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  division MarketDivision @relation(fields: [divisionId], references: [id], onDelete: Restrict, map: "fk_market_division_province_division")
+
+  @@id([workspaceId, province], map: "pk_market_division_province")
+  @@index([workspaceId, divisionId], map: "idx_market_division_province_div")
+  @@map("market_division_province")
+  @@schema("yucer_core")
+}

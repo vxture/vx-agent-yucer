@@ -39,6 +39,7 @@ import type { Stage } from "../pipeline/lib/stage";
 import type {
   AccountFilter,
   AccountRecord,
+  MarketDivisionRecord,
   AccountStore,
   AccountTier,
   ContactRecord,
@@ -52,6 +53,25 @@ export interface AccountContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: AccountStore;
+}
+
+/**
+ * How this workspace divides its market: 大区 and the provinces in each.
+ *
+ * GATED ON account.view, not on a new action. Reading how the customer base is
+ * grouped is part of reading the customer base - a member who may list accounts
+ * may see which 大区 they fall in, and one who may not has no use for the
+ * grouping. Feature keys are frozen at 19 and this is not separately sellable
+ * (ADR-017), so it earns no key of its own either.
+ *
+ * "data", not "ui": this answers a read, and the caller decides what to draw.
+ */
+export async function listMarketDivisions(
+  ctx: AccountContext,
+): Promise<RuleResult<MarketDivisionRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listMarketDivisions(ctx.workspaceId));
 }
 
 export async function listAccounts(

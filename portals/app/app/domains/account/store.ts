@@ -7,6 +7,10 @@
 // deleted or left standing - it is never rewritten in place, because "who
 // reported to whom last quarter" is a fact the decision-chain analysis reads.
 
+import {
+  MARKET_DIVISIONS,
+  MARKET_DIVISION_PROVINCES,
+} from "../shared/market-division";
 import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
@@ -133,8 +137,28 @@ export interface HealthInputs {
   overdueRevenueCount: number;
 }
 
+/** One 大区, as this workspace has it (incr/0036). */
+export interface MarketDivisionRecord {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  /** The provinces placed in it, in no particular order. */
+  provinces: string[];
+}
+
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
+  /**
+   * How this workspace divides its market.
+   *
+   * PRESET, THEN THEIRS. incr/0036 seeds five divisions and places all 34
+   * provinces; the tenant may rename, re-order and move provinces afterwards.
+   * Read rather than derived, because a 大区 is a sales structure and not a
+   * fact of geography - deriving it in code would make the division a property
+   * of the build and the same for every tenant.
+   */
+  listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]>;
   /**
    * The stated buying roles for one deal - incr/0027.
    *
@@ -218,6 +242,23 @@ export interface AccountStore {
 export class InMemoryAccountStore implements AccountStore {
   private plans = new Map<string, AccountPlanRecord>();
   private seq = 0;
+
+  /* The demo has no database, so it carries the same preset incr/0036 seeds.
+     market-division.test.ts parses that SQL and fails if the two ever
+     disagree - the SQL is the authority, this is a copy for a store that has
+     nothing to read. A tenant's edits live in the database; there are none
+     here to make. */
+  async listMarketDivisions(_workspaceId: string): Promise<MarketDivisionRecord[]> {
+    return MARKET_DIVISIONS.map((d) => ({
+      id: `div_${d.code}`,
+      code: d.code,
+      name: d.name,
+      sortOrder: d.sortOrder,
+      provinces: Object.entries(MARKET_DIVISION_PROVINCES)
+        .filter(([, code]) => code === d.code)
+        .map(([province]) => province),
+    }));
+  }
 
   async getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
     const p = this.plans.get(`${workspaceId}|${accountId}`);

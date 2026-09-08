@@ -108,9 +108,13 @@ test("a province name outside the vocabulary is a fault, not a new province", ()
 test("大区 totals are the sum of their provinces", () => {
   const accounts = [account("a1", "江苏省"), account("a2", "浙江省"), account("a3", "广东省")];
   const deals = [deal("d1", "a1", "won", 100), deal("d2", "a2", "won", 200), deal("d3", "a3", "won", 400)];
-  const r = rollUpByProvince(accounts, deals, []);
-  const east = totalOf(r.byRegion.get("华东")!);
-  assert.equal(east.contractValue, 300, "华东 is 江苏 + 浙江, not the country");
+  const r = rollUpByProvince(accounts, deals, [], {
+    provinceDivision: { 江苏省: "east", 浙江省: "east", 广东省: "south" },
+  });
+  // Grouped by the workspace's OWN divisions, passed in - there is no built-in
+  // grouping any more, which is the point of incr/0036.
+  const east = totalOf(r.byDivision.get("east")!);
+  assert.equal(east.contractValue, 300, "东部 is 江苏 + 浙江, not the country");
   const nation = totalOf(r.provinces);
   assert.equal(nation.contractValue, 700);
 });

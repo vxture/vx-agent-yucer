@@ -139,6 +139,13 @@
 }
 .screen .title::before{ left: -8px; }
 .screen .title::after{ right: -8px; transform: scaleX(-1); }
+/* The centre dot separating the scope from the name. Quieter than either side
+   and given its own air, so 广东·市场态势图 reads as two things rather than a
+   hyphenated one. */
+.screen .title h1 .dot{
+  color: var(--screen-line); font-weight: 400;
+  margin: 0 0.42em 0 0.32em; letter-spacing: 0;
+}
 .screen .title h1{
   margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.3em;
   padding-left: 0.3em; color: var(--screen-ink);
