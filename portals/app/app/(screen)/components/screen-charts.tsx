@@ -232,15 +232,31 @@ export function HealthDonut(
   const total = mix.reduce((a, b) => a + b, 0);
   const pcts = HEALTH_KEYS.map((_, i) => (total === 0 ? 0 : (mix[i] ?? 0) / total));
 
+  /* ONE HOVER, TWO PLACES. The arc and its line in the key are the same
+     reading, so pointing at either lights both - hovering an arc and watching
+     an unrelated-looking row change is what tells a reader they belong
+     together. Held in state rather than done in CSS because the two elements
+     are in different subtrees and no selector joins them. */
+  const [at, setAt] = useState<number | null>(null);
+
   let a0 = -Math.PI / 2;
   const arcs = pcts.map((v, i) => {
     if (v <= 0) return null;
+    const on = at === i;
+    const common = {
+      fill: cols[i],
+      className: `band${on ? " on" : ""}`,
+      onPointerEnter: () => setAt(i),
+      onPointerLeave: () => setAt(null),
+    };
     // A single band covering everything cannot be drawn as an arc - its start
     // and end coincide - so it is a plain ring.
     if (v >= 0.999) {
       return (
         <circle key={i} cx={cx} cy={cy} r={r - th / 2} fill="none"
-                stroke={cols[i]} strokeWidth={th} />
+                stroke={cols[i]} strokeWidth={th}
+                className={`band${on ? " on" : ""}`}
+                onPointerEnter={() => setAt(i)} onPointerLeave={() => setAt(null)} />
       );
     }
     const a1 = a0 + v * Math.PI * 2 - 0.05;
@@ -256,21 +272,32 @@ export function HealthDonut(
       `M${P(a0, r)} A${r} ${r} 0 ${big} 1 ${P(a1, r)}` +
       `L${P(a1, r - th)} A${r - th} ${r - th} 0 ${big} 0 ${P(a0, r - th)} Z`;
     a0 = a1 + 0.05;
-    return <path key={i} d={d} fill={cols[i]} />;
+    return <path key={i} d={d} {...common} />;
   });
+
+  // The centre shows whatever is being pointed at, and 健康 when nothing is.
+  const shown = at === null ? 0 : at;
 
   return (
     <div className="screen-health">
       <svg viewBox="0 0 116 116" style={{ width: 108, flex: "none" }} role="img">
         {arcs}
-        <text x={cx} y={cy + 2} textAnchor="middle" className="val" fontSize="23" fill={CYAN_B}>
-          {total === 0 ? "-" : `${Math.round(pcts[0]! * 100)}%`}
+        <text x={cx} y={cy + 2} textAnchor="middle" className="val donutval"
+              fontSize="23" fill={cols[shown]}>
+          {total === 0 ? "-" : `${Math.round(pcts[shown]! * 100)}%`}
         </text>
-        <text x={cx} y={cy + 18} textAnchor="middle" className="tick">{centreLabel}</text>
+        <text x={cx} y={cy + 18} textAnchor="middle" className="tick">
+          {at === null ? centreLabel : labels[at]}
+        </text>
       </svg>
       <div className="legend">
         {labels.map((k, i) => (
-          <div key={k}>
+          <div
+            key={k}
+            className={at === i ? "on" : ""}
+            onPointerEnter={() => setAt(i)}
+            onPointerLeave={() => setAt(null)}
+          >
             <i style={{ background: cols[i] }} />
             {k}
             <b style={{ color: cols[i] }}>
@@ -283,7 +310,14 @@ export function HealthDonut(
   );
 }
 
-/** 回款兑现's split bar over the 7-period collection rate. */
+/**
+ * 回款兑现's split bar over the 7-period collection rate.
+ *
+ * The line takes the same readout the copilot's trend has: a dashed vertical
+ * reference following the pointer with that period's rate beside it. Seven
+ * points across 328px are twenty pixels apart, which is close enough that
+ * reading one off the axis is guesswork without it.
+ */
 export function CashChart(
   { collected, receivable, overdue, series, labelCollected, labelOverdue, label }:
   {
@@ -294,22 +328,50 @@ export function CashChart(
     label: string;
   },
 ) {
-  const W = 328;
+  const W = 328, H = 112;
   const total = collected + receivable || 1;
   const y0 = 48, y1 = 94, N = series.length;
   const xs = (i: number) => i * ((W - 4) / (N - 1));
   const ys = (v: number) => y1 - (v / 100) * (y1 - y0);
 
-  // A period in which nothing fell due has no rate; the line carries the last
-  // reading across rather than plunging to zero on a quiet fortnight.
+  /* A period in which nothing fell due has no rate; the line carries the last
+     reading across rather than plunging to zero on a quiet fortnight. `real`
+     remembers which ones were measured, so the readout can say so. */
   let carried = 0;
-  const pts = series.map((d) => {
+  const pts: number[] = [];
+  const real: boolean[] = [];
+  for (const d of series) {
     if (d.due > 0) carried = Math.max(0, Math.min(100, (d.got / d.due) * 100));
-    return carried;
-  });
+    pts.push(carried);
+    real.push(d.due > 0);
+  }
+
+  const [at, setAt] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Screen pixels to viewBox units, so the readout stays under the cursor at
+  // any rail width - a raw offsetX only agrees when the two happen to match.
+  const track = (e: React.PointerEvent<SVGSVGElement>) => {
+    const box = svgRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    const x = ((e.clientX - box.left) / box.width) * W;
+    const i = Math.round((x / (W - 4)) * (N - 1));
+    setAt(Math.max(0, Math.min(N - 1, i)));
+  };
+
+  const v = at === null ? null : pts[at]!;
+  const flip = at !== null && xs(at) > W - 58;
 
   return (
-    <svg viewBox={`0 0 ${W} 112`} style={{ flex: 1, minHeight: 0 }} role="img" aria-label={label}>
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ flex: 1, minHeight: 0 }}
+      role="img"
+      aria-label={label}
+      onPointerMove={track}
+      onPointerLeave={() => setAt(null)}
+    >
       <rect x="0" y="4" width={W} height="18" className="trough" />
       <rect x="0" y="4" width={(W * collected) / total} height="18" fill={CYAN} />
       <rect x={(W * collected) / total} y="4"
@@ -323,14 +385,33 @@ export function CashChart(
       <text className="tick" x={W} y="37" textAnchor="end">
         {labelOverdue(`${((overdue / total) * 100).toFixed(1)}%`)}
       </text>
-      <path d={pts.map((v, i) => `${i ? "L" : "M"}${xs(i)} ${ys(v)}`).join(" ")}
+
+      <path d={pts.map((p, i) => `${i ? "L" : "M"}${xs(i)} ${ys(p)}`).join(" ")}
             fill="none" stroke={CYAN} strokeWidth="2" />
-      {pts.map((v, i) => (
-        <circle key={i} cx={xs(i)} cy={ys(v)} r="2.6"
+      {pts.map((p, i) => (
+        <circle key={i} cx={xs(i)} cy={ys(p)} r="2.6"
                 fill="var(--screen-ground)" stroke={CYAN} strokeWidth="1.5" />
       ))}
+
+      {at !== null && v !== null ? (
+        <g className="crosshair">
+          <line x1={xs(at)} y1={y0 - 8} x2={xs(at)} y2={y1} className="crossline" />
+          <circle cx={xs(at)} cy={ys(v)} r="3.4" fill={CYAN_B} />
+          <text
+            className="crossval"
+            x={flip ? xs(at) - 6 : xs(at) + 6}
+            y={Math.max(y0 - 2, ys(v) - 7)}
+            textAnchor={flip ? "end" : "start"}
+          >
+            {real[at] ? `${v.toFixed(1)}%` : "-"}
+          </text>
+        </g>
+      ) : null}
+
       <line x1="0" y1={y1} x2={W} y2={y1} className="axis" />
       <text className="slab" x="0" y="109">{label}</text>
+      {/* Over the line, so a data point never steals the pointer. */}
+      <rect x="0" y={y0 - 8} width={W} height={y1 - y0 + 8} fill="transparent" />
     </svg>
   );
 }

@@ -8,11 +8,7 @@ import { listProjects, projectView } from "../../domains/delivery/service";
 import { listLeads } from "../../domains/signal/service";
 import { listProposals } from "../../domains/copilot/service";
 import { getCopilotStore, getDeliveryStore } from "../../domains/shared/registry";
-import {
-  rollUpByProvince,
-  type InstalmentLike,
-  type MilestoneLike,
-} from "../lib/rollup";
+import type { InstalmentLike, MilestoneLike } from "../lib/rollup";
 import { NationalScreen } from "../components/national-screen";
 
 // 全国销售态势屏 - the situation screen, as a page of this product.
@@ -129,23 +125,48 @@ export default async function NationalScreenPage() {
     });
   }
 
-  const rollup = rollUpByProvince(
-    accounts.ok ? accounts.value : [],
-    deals.ok ? deals.value : [],
-    projects.ok ? projects.value : [],
-    {
-      leads: leads.ok ? leads.value : [],
-      proposals: proposals.ok ? proposals.value : [],
-      instalments,
-      milestones,
-    },
-  );
+  /* THE ROWS GO TO THE CLIENT, NOT THE ROLL-UP.
+     统计周期 is chosen on the screen, and every figure on it is counted over
+     that window, so the aggregation has to be able to run again when the
+     window changes. Rolling up here would mean either a round trip per choice
+     or six pre-computed copies of every province; the rows themselves are a
+     few hundred small objects and re-summing them is instant.
+
+     They are TRIMMED to what the roll-up reads. Shipping the store records
+     whole would put commercial detail on the wire that this screen never
+     draws - and it is a screen people stand in front of. */
+  const rows = {
+    accounts: (accounts.ok ? accounts.value : []).map((a) => ({
+      id: a.id, province: a.province,
+    })),
+    deals: (deals.ok ? deals.value : []).map((d) => ({
+      id: d.id, accountId: d.accountId, status: d.status,
+      amount: d.amount ? { amount: d.amount.amount } : null,
+      probability: d.probability, stage: d.stage,
+      closedAt: d.closedAt, expectedCloseAt: d.expectedCloseAt,
+    })),
+    projects: (projects.ok ? projects.value : []).map((p) => ({
+      id: p.id, accountId: p.accountId, opportunityId: p.opportunityId,
+      status: p.status, health: p.health,
+      contractAmount: p.contractAmount ? { amount: p.contractAmount.amount } : null,
+    })),
+    leads: (leads.ok ? leads.value : []).map((l) => ({
+      id: l.id, accountId: l.accountId, status: l.status,
+      ownerSub: l.ownerSub, createdAt: l.createdAt,
+    })),
+    proposals: (proposals.ok ? proposals.value : []).map((a) => ({
+      id: a.id, status: a.status, subjectType: a.subjectType,
+      subjectId: a.subjectId, createdAt: a.createdAt,
+    })),
+    instalments,
+    milestones,
+  };
 
   return (
     /* THE SUB, not a display name. AuthUser carries no name - the same reason
        the account table renders a monospaced id in its owner column until a
        directory lands. Dressing an id up as a person is the defect that page
        already fixed once. */
-    <NationalScreen rollup={rollup} viewerSub={session.user.sub} />
+    <NationalScreen rows={rows} viewerSub={session.user.sub} />
   );
 }

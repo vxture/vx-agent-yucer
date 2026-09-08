@@ -202,29 +202,76 @@
 /* 日期 - out of flow, so folding the title moves it rather than reflowing the
    screen. Folded it sits at the top edge and IS the control that brings the
    title back; the chevron points where the title is about to go. */
-.screen > .today{
+/* 统计周期条 - out of flow, so folding the title moves it rather than
+   reflowing the screen. Folded it sits at the top edge and stays usable. */
+.screen > .periodbar{
   position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9;
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 20px; padding: 0 12px;
-  font-family: var(--screen-figure); font-size: 13px; font-weight: 600;
-  letter-spacing: 0.14em; color: var(--screen-faint);
-  font-variant-numeric: tabular-nums;
-  background: none; border: 1px solid transparent; cursor: pointer;
-  transition: top 0.34s var(--screen-ease), color 0.18s,
-              border-color 0.18s, background 0.18s;
+  display: inline-flex; align-items: center; gap: 2px; height: 22px;
+  transition: top 0.34s var(--screen-ease);
 }
-.screen .today svg{
-  width: 8px; height: 8px; flex: none; opacity: 0.7;
+.screen.folded > .periodbar{ top: 2px; }
+
+/* The fold handle. WIDER THAN IT LOOKS on purpose: it is hit far more often
+   than it is read, and a bare caret is a small target on a screen people drive
+   standing up. 34px against the caret's own 8. */
+.screen .periodbar .fold{
+  width: 36px; height: 22px; flex: none;
+  display: grid; place-items: center;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--screen-faint);
+  transition: color 0.18s, background 0.18s;
+}
+.screen .periodbar .fold svg{
+  width: 15px; height: 15px; opacity: 0.7;
   transform: rotate(180deg);
   transition: transform 0.34s var(--screen-ease);
 }
-.screen .today:hover{
+.screen.folded .periodbar .fold svg{ transform: rotate(0deg); }
+.screen .periodbar .fold:hover{
   color: var(--screen-accent);
-  border-color: var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-raised) 70%, transparent);
+}
+
+/* NO BORDER (owner). The period reads as a label that happens to be
+   changeable, not as a form control sitting on the title rule. */
+.screen .period{ position: relative; display: inline-flex; }
+.screen .period-btn{
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 22px; padding: 0 8px;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--screen-figure); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.14em; color: var(--screen-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.18s, background 0.18s;
+}
+.screen .period-btn svg{ width: 8px; height: 8px; opacity: 0.7; }
+.screen .period-btn:hover,
+.screen .period-btn[aria-expanded="true"]{
+  color: var(--screen-accent);
+  background: color-mix(in oklab, var(--screen-raised) 70%, transparent);
+}
+
+.screen .period-pop{
+  position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  z-index: 12; display: flex; flex-direction: column; min-width: 100%;
+  background: color-mix(in oklab, var(--screen-surface) 96%, transparent);
+  border: 1px solid var(--screen-line);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  padding: 3px 0;
+}
+.screen .period-pop button{
+  padding: 5px 16px; text-align: left; white-space: nowrap;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--screen-figure); font-size: 12.5px; font-weight: 600;
+  letter-spacing: 0.1em; color: var(--screen-dim);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.14s, background 0.14s;
+}
+.screen .period-pop button:hover{
+  color: var(--screen-accent-hi);
   background: color-mix(in oklab, var(--screen-raised) 80%, transparent);
 }
-.screen.folded > .today{ top: 2px; }
-.screen.folded .today svg{ transform: rotate(0deg); }
+.screen .period-pop button.on{ color: var(--screen-accent-hi); }
 
 /* ---------- deck ---------- */
 .screen .screen-deck{ flex: 1; min-height: 0; display: flex; align-items: stretch; }
@@ -437,6 +484,17 @@
   transition: font-size 0.14s var(--screen-ease), fill 0.14s linear;
 }
 .screen .stagerow:hover .stageval{ font-size: 17px; fill: var(--screen-accent-hi); }
+
+/* 交付履约's donut and its key - the same enlarge-on-hover as 商机储备, but
+   driven from state rather than :hover because the arc and the row it belongs
+   to sit in different subtrees and no selector joins them. */
+.screen .legend div{ transition: color 0.14s linear; }
+.screen .legend b{ transition: font-size 0.14s var(--screen-ease); }
+.screen .legend div.on{ color: var(--screen-ink); }
+.screen .legend div.on b{ font-size: 18px; }
+.screen .band{ transition: filter 0.14s linear; cursor: default; }
+.screen .band.on{ filter: brightness(1.22); }
+.screen .donutval{ transition: font-size 0.14s var(--screen-ease); }
 .screen .stagerow:hover rect:nth-of-type(2){ filter: brightness(1.18); }
 
 /* ---------- arena ---------- */
@@ -543,11 +601,24 @@
   border: 1px solid var(--screen-accent); border-radius: var(--radius-sm);
   background: color-mix(in oklab, var(--screen-surface) 85%, transparent);
 }
+.screen .screen-scale .none { margin-right: 2px; }
+.screen .screen-scale .none-label { margin-right: 10px; }
 .screen .screen-scale{ position: absolute; left: var(--space-md); bottom: var(--space-sm); display: flex; align-items: center; gap: 0; z-index: 3; }
 .screen .screen-scale i{ width: 2rem; height: 8px; display: block; }
 .screen .screen-scale span{ font-size: 0.68rem; color: var(--screen-faint); margin: 0 var(--space-2xs); font-variant-numeric: tabular-nums; }
 
 /* The fold bracket. Drawn rather than imported - see TD-025. */
+/* Shown over the map when the chosen period holds nothing. */
+.screen .screen-empty{
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  z-index: 8; margin: 0; padding: 10px 18px;
+  font-size: 13px; letter-spacing: 0.08em; color: var(--screen-dim);
+  background: color-mix(in oklab, var(--screen-surface) 92%, transparent);
+  border: 1px solid var(--screen-line);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  pointer-events: none;
+}
+
 /* 省份信息面板 - follows the pointer over the map.
    pointer-events:none is load-bearing, not tidiness: the panel sits under the
    cursor by construction, so without it the pointer would leave the province

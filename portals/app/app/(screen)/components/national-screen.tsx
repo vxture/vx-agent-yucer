@@ -4,7 +4,18 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMessages } from "../../(app)/lib/i18n/provider";
 import { CHINA } from "../lib/china-geometry";
-import { totalOf, type NationalRollup, type ProvinceRollup } from "../lib/rollup";
+import {
+  rollUpByProvince,
+  totalOf,
+  type DealLike,
+  type InstalmentLike,
+  type LeadLike,
+  type MilestoneLike,
+  type ProjectLike,
+  type ProposalLike,
+  type ProvinceRollup,
+} from "../lib/rollup";
+import { anchorOf, periodsFor, type PeriodKey } from "../lib/period";
 import {
   PROVINCES_BY_REGION,
   shortProvince,
@@ -39,8 +50,19 @@ import "./national-screen.css";
 type Level = "nation" | "region" | "province";
 type Metric = "contractValue" | "pipelineValue" | "inDelivery" | "healthRate";
 
+/** The rows the roll-up reads, trimmed on the server to exactly these fields. */
+export interface ScreenRows {
+  readonly accounts: readonly { id: string; province: string | null }[];
+  readonly deals: readonly DealLike[];
+  readonly projects: readonly ProjectLike[];
+  readonly leads: readonly LeadLike[];
+  readonly proposals: readonly ProposalLike[];
+  readonly instalments: readonly InstalmentLike[];
+  readonly milestones: readonly MilestoneLike[];
+}
+
 export interface NationalScreenProps {
-  readonly rollup: NationalRollup;
+  readonly rows: ScreenRows;
   readonly viewerSub: string;
 }
 
@@ -66,7 +88,28 @@ const num = (v: number) => Math.round(v).toLocaleString("en-US");
  * inventing a person's to put in the circle is the thing this deliberately
  * does not do.
  */
-const ratio = (a: number, b: number): number | null => (b === 0 ? null : a / b);
+/**
+ * A survival rate between two funnel stages, or null when there is not one.
+ *
+ * TWO WAYS THERE IS NO RATE, and both print "-" rather than a number:
+ *
+ * Nothing entered the stage. A division by zero is not 0% - a scope with no
+ * pipeline has no conversion INTO contract, and 0% would read as total failure
+ * rather than as nothing having arrived yet.
+ *
+ * ABOVE 100%, WHICH MEANS THE MEASURE DOES NOT APPLY. Under a narrow 统计周期
+ * the two stages are not the same cohort: contracts signed this quarter came
+ * from pipeline that existed BEFORE it, not from the pipeline still open
+ * inside it, so the ratio can exceed one. 2026Q3 read 579.2% - which is not a
+ * spectacular quarter, it is a sign that the question does not hold over that
+ * window. The same defect as the 130% arrow 在交付 produced, arriving by a
+ * different route.
+ */
+const ratio = (a: number, b: number): number | null => {
+  if (b === 0) return null;
+  const r = a / b;
+  return r > 1 ? null : r;
+};
 
 function initialsOf(sub: string): string {
   const body = sub.replace(/^usr[_-]/i, "").replace(/[^a-z0-9]/gi, "");
@@ -193,7 +236,7 @@ function FoldArc(
   );
 }
 
-export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
+export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
   const { SCREEN_TEXT } = useMessages();
   const units = {
     yi: SCREEN_TEXT.unitYi, wan: SCREEN_TEXT.unitWan, yuan: SCREEN_TEXT.unitYuan,
@@ -227,39 +270,15 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
      off the edge, and only the second is a defect. */
   const tipSize = useRef({ w: 190, h: 155 });
 
-  /* THE DATE IS THE VIEWER'S, resolved after mount. Formatting it during the
-     server render would stamp the server's day into the HTML and then disagree
-     with the client's - a hydration mismatch, and on a screen left running
-     overnight, a date that silently goes stale. */
-  const [today, setToday] = useState("--");
-  /* Remeasure whenever the panel is on screen. useLayoutEffect, so the reading
-     is taken before paint and the NEXT hover is already positioned from a real
-     size rather than the fallback. */
-  useLayoutEffect(() => {
-    const el = tipRef.current;
-    if (!el) return;
-    const b = el.getBoundingClientRect();
-    if (b.width > 0 && b.height > 0) tipSize.current = { w: b.width, h: b.height };
-  }, [tip]);
-
-  useEffect(() => {
-    const stamp = () => {
-      const d = new Date(), p = (n: number) => String(n).padStart(2, "0");
-      setToday(`${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`);
-    };
-    stamp();
-    const t = setInterval(stamp, 30_000);
-    return () => clearInterval(t);
-  }, []);
   const menuRef = useRef<HTMLSpanElement>(null);
 
   /* DISMISSING THE 大区 MENU, for a keyboard as well as a mouse.
      This used to be an onClick on the root <div>, which is a handler a keyboard
      can never fire: with no pointer there was no way to close the menu at all,
      and the swallow-the-click <span> around it existed only to stop that same
-     handler. Both are gone. Escape closes it and returns focus to the trigger,
-     a pointer landing outside closes it, and neither depends on an element
-     pretending to be interactive. The listeners exist only while it is open. */
+     handler. Escape closes it and returns focus to the trigger, a pointer
+     landing outside closes it, and neither depends on an element pretending to
+     be interactive. The listeners exist only while it is open. */
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: PointerEvent) => {
@@ -277,6 +296,83 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
       document.removeEventListener("keydown", onKey);
     };
   }, [menuOpen]);
+
+  /* 本年度 by default (owner), not 全部. A screen that opens on every deal the
+     workspace has ever done answers a question nobody walked up to it to ask;
+     the year is the window a national review is actually held over. 全部 stays
+     one click away. */
+  const [periodKey, setPeriodKey] = useState<PeriodKey>("year");
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const periodRef = useRef<HTMLSpanElement>(null);
+
+  /* THE CLOCK IS RESOLVED AFTER MOUNT, not during the server render. The
+     period list is built from the current year and the rolling chart windows
+     are measured back from now; stamping the server's clock into the HTML
+     would put its day into the markup and then disagree with the client's -
+     a hydration mismatch, and on a screen left running overnight, a period
+     list that silently goes stale. Null until then, and the roll-up simply
+     waits: rendering against a guessed date would be worse than rendering a
+     moment late. */
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const stamp = () => setNow(new Date());
+    stamp();
+    const t = setInterval(stamp, 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const periods = useMemo(
+    () => periodsFor(now ?? new Date(0), {
+      all: SCREEN_TEXT.periodAll,
+      year: SCREEN_TEXT.periodYear,
+      quarter: SCREEN_TEXT.periodQuarter,
+    }),
+    [now, SCREEN_TEXT],
+  );
+  const period = periods.find((p) => p.key === periodKey) ?? periods[0]!;
+
+  /* THE ROLL-UP RUNS HERE, so changing the period re-counts everything
+     without a round trip. Same pure function the tests cover; the only thing
+     that moved is where it is called. */
+  const rollup = useMemo(
+    () => rollUpByProvince(
+      rows.accounts as never,
+      rows.deals,
+      rows.projects,
+      {
+        leads: rows.leads,
+        proposals: rows.proposals,
+        instalments: rows.instalments,
+        milestones: rows.milestones,
+        period,
+        // The rolling strips end where the period does, so 近 12 期 under a
+        // past quarter reads against that quarter rather than into weeks it
+        // excludes and drawing nothing.
+        now: anchorOf(period, now ?? new Date()),
+      },
+    ),
+    [rows, period, now],
+  );
+
+  /* Dismissing the period menu, for a keyboard as well as a mouse - the same
+     contract the 大区 menu keeps. */
+  useEffect(() => {
+    if (!periodOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!periodRef.current?.contains(e.target as Node)) setPeriodOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setPeriodOpen(false);
+      periodRef.current?.querySelector("button")?.focus();
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [periodOpen]);
 
   const byName = useMemo(
     () => new Map(rollup.provinces.map((p) => [p.province, p])),
@@ -301,15 +397,34 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   // The ramp is graded over the CURRENT scope, so drilling into a region
   // re-grades against that region rather than leaving every province in it the
   // same shade it had nationally.
-  const values = scope.map(readMetric).filter((v): v is number => v !== null);
+  /* THE RAMP IS GRADED OVER PROVINCES THAT HAVE SOMETHING, and zero is not
+     something. Including the empty ones dragged `lo` to 0 in every metric, so
+     the whole country was graded against a floor nobody occupies and the
+     provinces that DO have business were squeezed into the top of the scale. */
+  const values = scope
+    .map(readMetric)
+    .filter((v): v is number => v !== null && v !== 0);
   const lo = values.length ? Math.min(...values) : 0;
   const hi = values.length ? Math.max(...values) : 0;
 
+  /* Nothing HAPPENED in this window - not "nothing loaded". Judged on the four
+     stages the ribbon draws, because those are what the period actually
+     filters; 客户 is deliberately not among them, since accounts carry no date
+     and are never filtered. */
+  const empty =
+    total.leads === 0 && total.pipelineValue === 0 &&
+    total.contractValue === 0 && total.collected === 0;
+
   const shadeOf = (p: ProvinceRollup): string => {
     const v = readMetric(p);
-    // NO READING IS ITS OWN SHADE, not the bottom of the ramp. A province where
-    // nothing has been delivered is not the least healthy province.
-    if (v === null) return "var(--screen-blank)";
+    /* NOTHING IS ITS OWN COLOUR, not the bottom of the ramp. A province with no
+       contracts at all was drawn in the ramp's darkest blue, which says "least
+       of the ones that have some" - a different and much weaker claim than
+       "none". Grey says 未覆盖 and cannot be misread as a small amount.
+       Null and zero take the same colour deliberately: the map is asked "how
+       much is here", and "nothing has been recorded" and "nothing happened"
+       are the same answer to that question. */
+    if (v === null || v === 0) return "var(--screen-blank)";
     const t = hi === lo ? 0.6 : (v - lo) / (hi - lo);
     return `var(--screen-l${Math.min(5, Math.max(0, Math.round(t * 5)))})`;
   };
@@ -386,23 +501,66 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
     <div className={`screen${titleFolded ? " folded" : ""}`}>
       <ScreenHex />
 
-      {/* 日期条 - it lives OUTSIDE the title bar so it can survive the fold.
-          Folded, it rides up to the top edge and becomes the control that
-          brings the title back; the chevron points where the title is ABOUT to
-          go, not where it is (owner, 2026-09-07). */}
-      <button
-        type="button"
-        className="today"
-        aria-label={titleFolded ? SCREEN_TEXT.unfoldTitle : SCREEN_TEXT.foldTitle}
-        aria-expanded={!titleFolded}
-        onClick={() => setTitleFolded((v) => !v)}
-      >
-        <span>{today}</span>
-        <svg viewBox="0 0 8 8" fill="none" aria-hidden>
-          <path d="M1.5 2.5 L4 5.5 L6.5 2.5" stroke="currentColor" strokeWidth="1.3"
-                strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
+      {/* 统计周期条 - it lives OUTSIDE the title bar so it survives the fold.
+          Folded, it rides up to the top edge and stays usable there.
+
+          TWO CONTROLS, NOT ONE. It was a single button that both showed the
+          date and folded the title, which meant the only way to read the date
+          was to hover a control that does something else. They are now
+          separate: a fold handle, then the period. The handle is deliberately
+          the wider of the two - it is hit far more often than it is read, and
+          a caret alone is a small target on a screen people drive standing up.
+          Its chevron points where the title is ABOUT to go, not where it is. */}
+      <div className="periodbar">
+        <button
+          type="button"
+          className="fold"
+          aria-label={titleFolded ? SCREEN_TEXT.unfoldTitle : SCREEN_TEXT.foldTitle}
+          aria-expanded={!titleFolded}
+          onClick={() => setTitleFolded((v) => !v)}
+        >
+          {/* A CIRCLED CARET (owner). The bare chevron read as punctuation
+              rather than as something to press; the ring gives it an edge and
+              makes the target legible at the distance this screen is read
+              from. The caret still points where the title is about to go. */}
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden>
+            <circle cx="8" cy="8" r="6.6" stroke="currentColor" strokeWidth="1.1" opacity=".55" />
+            <path d="M5.4 6.9 L8 9.5 L10.6 6.9" stroke="currentColor" strokeWidth="1.3"
+                  strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        <span className="period" ref={periodRef}>
+          <button
+            type="button"
+            className="period-btn"
+            aria-expanded={periodOpen}
+            aria-haspopup="menu"
+            onClick={() => setPeriodOpen((v) => !v)}
+          >
+            {period.label}
+            <svg viewBox="0 0 8 8" fill="none" aria-hidden>
+              <path d="M1.5 2.5 L4 5.5 L6.5 2.5" stroke="currentColor" strokeWidth="1.3"
+                    strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {periodOpen ? (
+            <span className="period-pop" role="menu">
+              {periods.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  role="menuitem"
+                  className={p.key === periodKey ? "on" : ""}
+                  onClick={() => { setPeriodKey(p.key); setPeriodOpen(false); }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </span>
+          ) : null}
+        </span>
+      </div>
 
       <header className={`titlebar${titleFolded ? " folded" : ""}`}>
         <div className="chips">
@@ -655,13 +813,28 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
               </button>
             ) : null}
 
+            {/* GREY IS ON THE KEY, off to the side and separated by a gap.
+                It is not the ramp's first step - it is the other answer - and
+                a reader who sees a grey province needs somewhere to look it
+                up. Without this the legend implied the ramp covered
+                everything on the map. */}
             <div className="screen-scale">
+              <i className="none" style={{ background: "var(--screen-blank)" }} />
+              <span className="none-label">{SCREEN_TEXT.uncovered}</span>
               <span>{fmtMetric(values.length ? lo : null)}</span>
               {[0, 1, 2, 3, 4, 5].map((i) => (
                 <i key={i} style={{ background: `var(--screen-l${i})` }} />
               ))}
               <span>{fmtMetric(values.length ? hi : null)}</span>
             </div>
+
+            {/* A PERIOD WITH NOTHING IN IT SAYS SO. Otherwise it is a wall of
+                zeros over 34 grey provinces, which is indistinguishable from a
+                screen that has failed to load - and the reader's next move is
+                to report a bug rather than to pick another period. */}
+            {empty ? (
+              <p className="screen-empty">{SCREEN_TEXT.emptyPeriod(period.label)}</p>
+            ) : null}
 
             {tip ? (
               <div

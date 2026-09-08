@@ -1,5 +1,6 @@
 import type { AccountRecord } from "../../domains/account/store";
 import { ALL_PROVINCES, regionOfProvince, type Region } from "../../domains/shared/provinces";
+import { within, type Period } from "./period";
 
 // 全国态势的口径 - the screen's roll-up, as a pure function.
 //
@@ -31,11 +32,15 @@ export interface DealLike {
   /** Which of the four stages 商机储备 charts. */
   readonly stage: string;
   readonly closedAt: Date | null;
+  /** Where an open deal sits in time, since it has not closed. */
+  readonly expectedCloseAt: Date | null;
 }
 
 export interface ProjectLike {
   readonly id: string;
   readonly accountId: string;
+  /** The deal that created it - a project's only commercial date. */
+  readonly opportunityId: string | null;
   readonly status: string;
   readonly health: string;
   readonly contractAmount: { readonly amount: number } | null;
@@ -81,6 +86,8 @@ export interface RollupExtra {
   readonly proposals?: readonly ProposalLike[];
   readonly instalments?: readonly InstalmentLike[];
   readonly milestones?: readonly MilestoneLike[];
+  /** 统计周期. Every dated row outside it is dropped before anything is summed. */
+  readonly period?: Period;
   /** The clock, injected so the 30-day window is testable. */
   readonly now?: Date;
 }
@@ -523,13 +530,48 @@ export function rollUpByProvince(
   for (const p of ALL_PROVINCES) acc.set(p, blank());
 
   const now = extra.now ?? new Date();
+  const period = extra.period;
+
+  /* THE PERIOD IS APPLIED ONCE, HERE, at the door. Filtering inside each fold
+     would mean six places that each have to remember - and the one that forgot
+     would produce a screen whose stages no longer add up, which is the failure
+     this file exists to prevent.
+
+     Each row is placed by its OWN event date. A deal belongs to the quarter it
+     closed in, or the one it is expected to close in if it has not; an
+     instalment to when it arrived, or when it fell due if it has not. */
+  const keep = <T,>(rows: readonly T[], at: (r: T) => Date | null | undefined) =>
+    period ? rows.filter((r) => within(at(r), period)) : rows;
+
+  const closedOf = new Map<string, Date | null>();
+  for (const d of deals) closedOf.set(d.id, d.closedAt ?? d.expectedCloseAt);
+
+  const inDeals = keep(deals, (d) => d.closedAt ?? d.expectedCloseAt);
+  // A project has no commercial date of its own, so it takes its deal's.
+  const inProjects = keep(projects, (p) =>
+    p.opportunityId ? closedOf.get(p.opportunityId) ?? null : null);
+  const liveProjectIds = new Set(inProjects.map((p) => p.id));
+
   const unplaced = foldAccounts(accounts, acc);
-  foldDeals(deals, provinceOf, acc, now);
-  foldProjects(projects, provinceOf, acc);
-  foldLeads(extra.leads ?? [], provinceOf, acc, now);
-  foldProposals(extra.proposals ?? [], accountOfSubject, valueOfSubject, provinceOf, acc, now);
-  foldInstalments(extra.instalments ?? [], provinceOfProject, acc, now);
-  foldMilestones(extra.milestones ?? [], provinceOfProject, acc);
+  foldDeals(inDeals, provinceOf, acc, now);
+  foldProjects(inProjects, provinceOf, acc);
+  foldLeads(keep(extra.leads ?? [], (l) => l.createdAt), provinceOf, acc, now);
+  foldProposals(
+    keep(extra.proposals ?? [], (a) => a.createdAt),
+    accountOfSubject, valueOfSubject, provinceOf, acc, now,
+  );
+  // A schedule belongs to the period its project does, and then to its own
+  // date within it - otherwise a quarter shows money against work it excludes.
+  foldInstalments(
+    keep(extra.instalments ?? [], (i) => i.settledAt ?? i.dueAt)
+      .filter((i) => !period || liveProjectIds.has(i.projectId)),
+    provinceOfProject, acc, now,
+  );
+  foldMilestones(
+    keep(extra.milestones ?? [], (m) => m.completedAt ?? m.dueAt)
+      .filter((m) => !period || liveProjectIds.has(m.projectId)),
+    provinceOfProject, acc,
+  );
 
   const provinces = ALL_PROVINCES.map((p) => readingOf(p, acc.get(p)!));
 

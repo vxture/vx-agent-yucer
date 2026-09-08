@@ -22,17 +22,20 @@ const account = (id: string, province: string | null): AccountRecord =>
 
 const deal = (
   id: string, accountId: string, status: string, amount: number,
-  extra: { probability?: number; stage?: string; closedAt?: Date } = {},
+  extra: { probability?: number; stage?: string; closedAt?: Date; expectedCloseAt?: Date } = {},
 ): DealLike => ({
   id, accountId, status, amount: { amount },
   probability: extra.probability ?? null,
   stage: extra.stage ?? "qualify",
   closedAt: extra.closedAt ?? null,
+  expectedCloseAt: extra.expectedCloseAt ?? null,
 });
 
 const project = (
   id: string, accountId: string, status: string, health: string, contract: number,
-): ProjectLike => ({ id, accountId, status, health, contractAmount: { amount: contract } });
+): ProjectLike => ({
+  id, accountId, opportunityId: null, status, health, contractAmount: { amount: contract },
+});
 
 test("every province appears, including the ones with nothing in them", () => {
   // A province missing from the list is a hole in the map, and a hole reads as
@@ -261,4 +264,74 @@ test("a province that has lost everything still counts in the national denominat
   const rows = rollUpByProvince(accounts, deals, []).provinces;
   assert.equal(rows.find((p) => p.province === "青海省")!.winRate, 0);
   assert.equal(totalOf(rows).winRate, 100 / 400);
+});
+
+// ---------------------------------------------------------------------------
+// 统计周期. Every dated row is placed by its OWN event date, and the filter is
+// applied once at the door so no stage can drift out of step with another.
+
+const PNOW = new Date(2026, 8, 7);
+const Q1 = { key: "q1" as const, label: "2026Q1", from: new Date(2026, 0, 1), to: new Date(2026, 3, 1) };
+const Q3 = { key: "q3" as const, label: "2026Q3", from: new Date(2026, 6, 1), to: new Date(2026, 9, 1) };
+const ALL = { key: "all" as const, label: "全部", from: null, to: null };
+
+test("统计周期 - a deal belongs to the quarter it closed in", () => {
+  const accounts = [account("a1", "江苏省")];
+  const deals = [
+    deal("d1", "a1", "won", 100, { closedAt: new Date(2026, 1, 10) }),  // Q1
+    deal("d2", "a1", "won", 900, { closedAt: new Date(2026, 7, 10) }),  // Q3
+  ];
+  const q1 = totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q1 }).provinces);
+  const q3 = totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q3 }).provinces);
+  const all = totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: ALL }).provinces);
+  assert.equal(q1.contractValue, 100);
+  assert.equal(q3.contractValue, 900);
+  assert.equal(all.contractValue, 1000, "全部 is the sum of the parts");
+});
+
+test("统计周期 - an OPEN deal is placed by when it is expected to close", () => {
+  // It has no close date, and dropping it from every named period would empty
+  // 商机储备 the moment anyone picked a quarter.
+  const accounts = [account("a1", "江苏省")];
+  const deals = [deal("d1", "a1", "open", 500, { expectedCloseAt: new Date(2026, 7, 20) })];
+  assert.equal(totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q3 }).provinces).pipelineValue, 500);
+  assert.equal(totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q1 }).provinces).pipelineValue, 0);
+});
+
+test("统计周期 - the stages still reconcile inside a quarter", () => {
+  /* THE POINT OF FILTERING ONCE AT THE DOOR. If any one list were filtered
+     somewhere else, a quarter could show contracts whose projects had been
+     excluded - a screen whose stages no longer add up, which is worse than a
+     screen showing nothing. */
+  const accounts = [account("a1", "江苏省")];
+  const deals = [
+    deal("d1", "a1", "won", 400, { closedAt: new Date(2026, 1, 5) }),
+    deal("d2", "a1", "won", 700, { closedAt: new Date(2026, 7, 5) }),
+  ];
+  const projects: ProjectLike[] = [
+    { id: "p1", accountId: "a1", opportunityId: "d1", status: "delivering", health: "green", contractAmount: { amount: 400 } },
+    { id: "p2", accountId: "a1", opportunityId: "d2", status: "delivering", health: "green", contractAmount: { amount: 700 } },
+  ];
+  const q1 = totalOf(rollUpByProvince(accounts, deals, projects, { now: PNOW, period: Q1 }).provinces);
+  assert.equal(q1.contractValue, 400);
+  assert.equal(q1.inDelivery, 400, "only the project of the deal that quarter counted");
+  assert.equal(q1.projectsLive, 1);
+});
+
+test("统计周期 - a lead is placed by when it arrived", () => {
+  const accounts = [account("a1", "江苏省")];
+  const leads = [
+    lead("l1", "a1", "new", null, new Date(2026, 1, 2)),
+    lead("l2", "a1", "new", null, new Date(2026, 7, 2)),
+  ];
+  assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: Q1, leads }).provinces).leads, 1);
+  assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: ALL, leads }).provinces).leads, 2);
+});
+
+test("统计周期 - accounts are NOT filtered, because they carry no date", () => {
+  // Said out loud rather than faked: AccountRecord has no created date, so
+  // 客户 is the workspace's customers and not a quarter's. Inventing a date to
+  // filter on would report a number nobody could reproduce.
+  const accounts = [account("a1", "江苏省"), account("a2", "广东省")];
+  assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: Q1 }).provinces).accounts, 2);
 });
