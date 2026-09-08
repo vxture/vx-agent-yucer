@@ -19,7 +19,7 @@ import { anchorOf, periodsFor, type PeriodKey } from "../lib/period";
 import type { EntryKey } from "../lib/entry";
 import { shortProvince } from "../../domains/shared/provinces";
 import {
-  AdoptionTrend, Bars, CashChart, HealthDonut, Ring, StageChart,
+  AdoptionTrend, Bars, CashChart, HealthDonut, Ring, StageChart, TitleDot,
 } from "./screen-charts";
 import { ScreenHex } from "./screen-hex";
 import { ScreenTools } from "./screen-tools";
@@ -631,7 +631,7 @@ export function NationalScreen(
           {/* 跟随选择变化 - the scope, a centre dot, then what this is. It read
               a fixed 全国销售态势屏 at every level, so drilling into 广东 left
               the largest words on the screen describing the country. */}
-          <h1>{scopeName}<span className="dot">·</span>{SCREEN_TEXT.title}</h1>
+          <h1>{scopeName}<TitleDot />{SCREEN_TEXT.title}</h1>
           <p>{SCREEN_TEXT.subtitle}</p>
         </div>
 

@@ -139,34 +139,42 @@
 }
 .screen .title::before{ left: -8px; }
 .screen .title::after{ right: -8px; transform: scaleX(-1); }
-/* 标题中心点 - the separator between the scope and the name.
-   IT WAS ON --screen-line, the faintest token on the screen, at the title's own
-   size: against a 24px wordmark with a glow behind it the dot read as a mark
-   left over from the typography rather than as a deliberate one. It now carries
-   the title's own accent, sits larger than the words either side, and breathes
-   on the SAME 3.4s rhythm as the six panel marks - one pulse across the screen,
-   not two competing ones. Two properties on that rhythm: opacity and scale do
-   the 呼吸, the text-shadow does the 眩晕, widening as it brightens so the halo
-   reads as light coming off the dot rather than the dot changing colour.
-   inline-block is required - transform does nothing to an inline box. */
+/* 标题中心点 - an SVG, not the character.
+   IT USED TO JUMP. The glyph "·" sits high and off-centre in its em box, so
+   scaling it pivoted on the box rather than on the ink and the dot travelled
+   vertically as it grew. A circle's centre is where it is drawn, so this one
+   holds still: the CORE never changes size or position, and the breathing is
+   carried by a ring expanding out from behind it plus the glow around it.
+   That is steadier to look at than a pulsing mark, and it is what the effect
+   was meant to be - 呼吸 in the halo, 眩晕 in the light. Same 3.4s rhythm as
+   the six panel marks, so the screen has one heartbeat rather than two. */
 .screen .title h1 .dot{
-  display: inline-block;
-  font-size: 1.35em; line-height: 0;
-  vertical-align: -0.04em;
-  color: var(--screen-accent-hi); font-weight: 400;
-  margin: 0 0.34em 0 0.26em; letter-spacing: 0;
-  animation: title-dot 3.4s ease-in-out infinite;
+  display: inline-block; vertical-align: middle;
+  width: 1.05em; height: 1.05em;
+  margin: 0 0.16em; position: relative; top: -0.06em;
 }
-@keyframes title-dot {
-  0%, 100% {
-    opacity: 0.55; transform: scale(0.9);
-    text-shadow: 0 0 6px oklch(from var(--screen-accent) l c h / 0.35);
-  }
+.screen .title h1 .dot svg{ display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Fixed. Only its glow moves, so there is nothing to track with the eye. */
+.screen .dot-core{
+  filter: drop-shadow(0 0 3px oklch(from var(--screen-accent) l c h / 0.9));
+  animation: title-dot-core 3.4s ease-in-out infinite;
+}
+/* The 眩晕: a ring that swells out of the core and fades as it goes. */
+.screen .dot-halo{
+  transform-box: fill-box; transform-origin: center;
+  animation: title-dot-halo 3.4s ease-in-out infinite;
+}
+@keyframes title-dot-core {
+  0%, 100% { filter: drop-shadow(0 0 3px oklch(from var(--screen-accent) l c h / 0.55)); }
   50% {
-    opacity: 1; transform: scale(1.12);
-    text-shadow: 0 0 16px oklch(from var(--screen-accent) l c h / 0.9),
-                 0 0 30px oklch(from var(--screen-accent) l c h / 0.45);
+    filter: drop-shadow(0 0 7px oklch(from var(--screen-accent) l c h / 1))
+            drop-shadow(0 0 15px oklch(from var(--screen-accent) l c h / 0.5));
   }
+}
+@keyframes title-dot-halo {
+  0%, 100% { opacity: 0.28; transform: scale(0.72); }
+  50% { opacity: 0.85; transform: scale(1.28); }
 }
 
 .screen .title h1{

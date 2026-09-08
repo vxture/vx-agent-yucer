@@ -444,3 +444,32 @@ export function Ring() {
     </span>
   );
 }
+
+/**
+ * The title's centre dot.
+ *
+ * AN SVG, NOT THE CHARACTER "·", and the reason is the wobble it replaces. A
+ * middle dot sits high and off-centre inside its em box, so `scale()` - which
+ * pivots on that BOX, not on the ink - moved the visible dot up and down as it
+ * grew. It read as jumping rather than breathing, and no amount of
+ * vertical-align fixes it, because the mismatch is between the glyph's centre
+ * and its box's.
+ *
+ * A circle's centre is exactly where it is put, so this one does not move at
+ * all: THE CORE NEVER CHANGES SIZE OR POSITION. The breathing is carried
+ * entirely by a ring expanding outward from behind it and by the glow around
+ * it - which is what "呼吸 + 眩晕" actually looks like, and is steadier than
+ * pulsing the mark itself.
+ *
+ * Same 3.4s rhythm as the six panel marks: one heartbeat across the screen.
+ */
+export function TitleDot() {
+  return (
+    <span className="dot" aria-hidden>
+      <svg viewBox="0 0 24 24" fill="none">
+        <circle className="dot-halo" cx="12" cy="12" r="6" stroke={CYAN} strokeWidth="1.5" />
+        <circle className="dot-core" cx="12" cy="12" r="3.4" fill={CYAN_B} />
+      </svg>
+    </span>
+  );
+}
