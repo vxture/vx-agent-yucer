@@ -17,7 +17,7 @@ import {
 } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listTerritories } from "../../domains/planning/service";
-import { NewEntryLink } from "../components/form-page";
+import { EntryActions, NewEntryLink } from "../components/form-page";
 import {
   forecastHistory,
   forecastScorecard,
@@ -314,7 +314,9 @@ export default async function PipelinePage({
         "pipeline.opportunity.create",
         "ui",
       ).allowed ? (
-        <NewEntryLink href="/pipeline/new" />
+        <EntryActions>
+          <NewEntryLink href="/pipeline/new" />
+        </EntryActions>
       ) : null}
 
       <PipelineBoard

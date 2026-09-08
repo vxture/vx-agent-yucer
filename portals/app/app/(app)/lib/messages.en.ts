@@ -2676,7 +2676,6 @@ export const en: Dictionary = {
     scopeTerritory: "Territory",
     scopeOwner: "Me",
     setMetric: "Metric",
-    territoryTitle: "Sales territories",
     divisionName: "Region",
     divisionProvinceCount: "Provinces",
     divisionScope: "Covers",
@@ -2711,7 +2710,6 @@ export const en: Dictionary = {
     templateWhy:
       "Two standard ways to carve the China market, neither more correct: the five-way and the seven-way. Adopt one as a starting point and edit from there.",
     templateReset: "Reset to a standard carve",
-    templateAdopt: "Adopt this one",
     templateConfirm: "Replace",
     templateCancel: "Cancel",
     templateReplaceWarn: (current: number, custom: number) =>
@@ -2739,7 +2737,9 @@ export const en: Dictionary = {
     divisionUnplaced: (n: number) =>
       `${n} provinces sit in no region. They appear in no figure grouped by region, and the situation screen draws them grey - which reads as "no business here" rather than "nobody has filed this ground".`,
     territoryWhy:
-      "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target. The code is the identity: an existing code edits that territory, a new one creates it.",
+      "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target.",
+    territoryFormWhy:
+      "The code is the identity: an existing code edits that territory, a new one creates it. Pick the regions it covers, or routing cannot find it.",
     territoryNone: "No territories yet",
     territoryNoneWhy:
       "Create one before setting a target on it or attributing deals to it.",

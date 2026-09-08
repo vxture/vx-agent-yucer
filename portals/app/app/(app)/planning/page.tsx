@@ -5,7 +5,7 @@ import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
-import { NewEntryLink } from "../components/form-page";
+import { EntryActions, NewEntryLink } from "../components/form-page";
 import { updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
@@ -129,7 +129,9 @@ export default async function PlanningPage() {
         "planning.target.create",
         "ui",
       ).allowed ? (
-        <NewEntryLink href="/planning/new" />
+        <EntryActions>
+          <NewEntryLink href="/planning/new" />
+        </EntryActions>
       ) : null}
 
       {/* BELOW the target form and above the table. A territory is a

@@ -44,7 +44,7 @@ export default async function NewTerritoryPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader title={PLANNING_TEXT.territoryFormTitle} description={PLANNING_TEXT.territoryWhy} />
+      <ViewHeader title={PLANNING_TEXT.territoryFormTitle} description={PLANNING_TEXT.territoryFormWhy} />
       <TerritoryForm
         rows={territories.ok ? territories.value : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}

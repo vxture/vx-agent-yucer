@@ -12,7 +12,7 @@ import type { CampaignRecord } from "../../domains/strategy/store";
 import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
 import { moveCampaign } from "./actions";
-import { NewEntryLink } from "../components/form-page";
+import { EntryActions, NewEntryLink } from "../components/form-page";
 import {
   ExecutionPanel,
   type ExecutionRow,
@@ -177,7 +177,9 @@ export default async function CampaignPage() {
         "campaign.execution.upsert",
         "ui",
       ).allowed ? (
-        <NewEntryLink href="/campaign/new" />
+        <EntryActions>
+          <NewEntryLink href="/campaign/new" />
+        </EntryActions>
       ) : null}
     </ViewLayout>
   );

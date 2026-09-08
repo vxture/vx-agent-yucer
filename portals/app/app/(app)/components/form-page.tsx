@@ -45,18 +45,32 @@ export function FormPage({
 }
 
 /**
- * The one control a display page keeps: the way in to its creation page.
+ * WHERE A DISPLAY PAGE PUTS ITS ACTIONS - one row, one spacing, everywhere.
+ *
+ * It used to be the wrapper inside NewEntryLink, which worked while every page
+ * had exactly one doorway and broke the moment /territory had three: that page
+ * grew its own flex row with its own gap and its own raw Buttons, and the
+ * result was two conventions on one screen. The row is a component now, so a
+ * page with three actions and a page with one are laid out by the same code.
+ */
+export function EntryActions({ children }: { readonly children: ReactNode }) {
+  return <div className="gap-sm mt-md flex flex-wrap items-center">{children}</div>;
+}
+
+/**
+ * The way in to a creation page.
  * A real <a>, not a router.push - middle-click and open-in-new-tab must work,
  * because a person adding five rows wants five tabs, not five round trips.
+ *
+ * IT CARRIES NO SPACING OF ITS OWN. Put it in an EntryActions row; a control
+ * that positions itself cannot sit beside another one.
  */
 export function NewEntryLink({ href, label }: { readonly href: string; readonly label?: string }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <div className="mt-md">
-      <Button asChild variant="secondary">
-        <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
-      </Button>
-    </div>
+    <Button asChild variant="secondary">
+      <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
+    </Button>
   );
 }
 

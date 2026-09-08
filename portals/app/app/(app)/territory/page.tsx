@@ -1,4 +1,4 @@
-import { Button, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
@@ -16,6 +16,7 @@ import {
 } from "../../domains/shared/market-division";
 import { TerritoryPanel } from "../components/territory-panel";
 import { loadFailureText } from "../lib/load-failure";
+import { EntryActions, NewEntryLink } from "../components/form-page";
 
 // D2 sales territories - a module page since 2026-08-30.
 //
@@ -28,7 +29,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function TerritoryPage() {
-  const { ASSIST_TEXT, LOAD_ERROR, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
+  const { LOAD_ERROR, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -80,6 +81,13 @@ export default async function TerritoryPage() {
 
   const unowned = territories.value.filter((t) => !t.ownerSub).length;
 
+  /* ONE READING OF THE WRITE GATE. It was evaluated three times, once per
+     control, which is three chances for the doorways on one page to disagree
+     about who may open them. */
+  const upsert = can(
+    session.authz, session.entitlement, "planning.territory.upsert", "ui",
+  ).allowed;
+
   return (
     <ViewLayout>
       {/* NO FOLD: territories are a MAP, not a distribution - the useful
@@ -104,6 +112,20 @@ export default async function TerritoryPage() {
         }
       />
       <TerritoryPanel rows={territories.value} />
+      {/* THE DOORWAY SITS WITH THE ROSTER IT ADDS TO. All three actions used to
+          be stacked in one row at the foot of the page, which asked the reader
+          to remember which table each of them belonged to. */}
+      {upsert ? (
+        <EntryActions>
+          {/* NO LABEL - the default 新建, the same word every other module
+              page uses. territoryNew ("新建一个区域") is the form's own select
+              option and reads as a sentence on a button. The row sits under
+              the 销售区域 heading, so what it creates is not in doubt; the 大区
+              row below names its subject because it holds two controls. */}
+          <NewEntryLink href="/territory/new" />
+        </EntryActions>
+      ) : null}
+
       {divisions.ok ? (
         <DivisionPanel
           rows={divisionRows.map((d) => ({
@@ -113,40 +135,27 @@ export default async function TerritoryPage() {
           unassigned={unassigned}
           // The same gate the write path enforces. A picker that appears and
           // then refuses is worse than one that is not offered.
-          editable={
-            can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed
-          }
+          editable={upsert}
         />
       ) : null}
-      {/* ONE ACTION ROW. 新建大区 and 重置预置 are the same kind of thing -
-          both decide how the market is carved - and the reset used to sit in a
-          panel of its own below the roster, which read as a third subject
-          rather than as an action on the second. 新建辖区 keeps them company
-          because this page's two rosters both get their doorway here. */}
-      {can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
-        .allowed ? (
-        <div className="gap-sm mt-md flex flex-wrap items-center">
-          <Button asChild variant="secondary">
-            <a href="/territory/new">{ASSIST_TEXT.newEntry}</a>
-          </Button>
-          <Button asChild variant="secondary">
-            <a href="/territory/division/new">{PLANNING_TEXT.divisionNew}</a>
-          </Button>
-          {divisions.ok ? (
-            <DivisionImport
-              currentDivisions={divisionRows.length}
-              customCount={
-                divisionRows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
-              }
-              templates={DIVISION_TEMPLATES.map((t) => ({
-                key: t.key,
-                label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
-                divisions: t.divisions.length,
-                names: t.divisions.map((d) => d.name),
-              }))}
-            />
-          ) : null}
-        </div>
+      {/* 重置预置 sits beside 新建大区 and not in a panel of its own: adopting a
+          carve wholesale is one more way to decide what the table above says. */}
+      {divisions.ok && upsert ? (
+        <EntryActions>
+          <NewEntryLink href="/territory/division/new" label={PLANNING_TEXT.divisionNew} />
+          <DivisionImport
+            currentDivisions={divisionRows.length}
+            customCount={
+              divisionRows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
+            }
+            templates={DIVISION_TEMPLATES.map((t) => ({
+              key: t.key,
+              label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
+              divisions: t.divisions.length,
+              names: t.divisions.map((d) => d.name),
+            }))}
+          />
+        </EntryActions>
       ) : null}
     </ViewLayout>
   );

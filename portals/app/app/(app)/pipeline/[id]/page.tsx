@@ -58,7 +58,7 @@ import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
-import { NewEntryLink } from "../../components/form-page";
+import { EntryActions, NewEntryLink } from "../../components/form-page";
 import { LineEditor } from "../../components/line-editor";
 import {
   advanceOpportunityStage,
@@ -692,7 +692,9 @@ export default async function OpportunityDetailPage({
         "pipeline.opportunity.update",
         "ui",
       ).allowed && opportunity.closedAt === null ? (
-        <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
+        <EntryActions>
+          <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
+        </EntryActions>
       ) : null}
 
       <DealTerms

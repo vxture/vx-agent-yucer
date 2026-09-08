@@ -76,17 +76,20 @@ export const DEMO_CONTACTS = [
  * 覆盖", a Chinese sentence with an English noun wedged into it.
  */
 export const DEMO_TERRITORY_NAMES: Record<string, string> = {
-  EAST: "东部辖区",
-  NORTH: "北部辖区",
-  SOUTH: "南部辖区",
+  /* 区域, NOT 辖区. The module is called 销售区域 and its own panel counts
+     "4 个区域"; naming the rows 辖区 put a second word for one thing on the
+     same screen. One word, and it is the module's. */
+  EAST: "东部区域",
+  NORTH: "北部区域",
+  SOUTH: "南部区域",
   // WAS "Hong Kong & Macau", written inline in demo-seed.ts because that file
   // may hold no Chinese - which produced exactly the sentence this block warns
   // about, an English noun wedged into a Chinese one. A name a reader sees
   // belongs here whatever language it is in.
-  HK: "港澳辖区",
+  HK: "港澳区域",
 };
 
-/* 辖区覆盖的大区 - the join lead routing needs.
+/* 区域覆盖的大区 - the join lead routing needs.
  *
  * THESE NAME THE WORKSPACE'S OWN 大区 now, not a hard-coded seven. Routing
  * matches these strings against `account.region`, so a territory naming 华东

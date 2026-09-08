@@ -1370,7 +1370,7 @@ export const BOARD_TEXT = {
   plans: "计划",
   campaigns: "战役",
   targets: "目标",
-  territories: "辖区",
+  territories: "区域",
   accounts: "客户",
   signals: "信号",
   leads: "线索",
@@ -3044,7 +3044,6 @@ export const PLANNING_TEXT = {
   scopeTerritory: "销售区域",
   scopeOwner: "我自己",
   setMetric: "指标",
-  territoryTitle: "销售区域",
   // --- 大区 - 省级设置 (incr/0036) ---
   divisionName: "大区",
   divisionProvinceCount: "省份数",
@@ -3081,7 +3080,6 @@ export const PLANNING_TEXT = {
   templateWhy:
     "两种都是标准的中国市场切法，谁也不比谁更对：五分法（东南西北中），七分法（华北/东北/华东/华中/华南/西南/西北）。选一种作为起点，之后随便改。",
   templateReset: "重置预置",
-  templateAdopt: "引用这套",
   templateConfirm: "确认替换",
   templateCancel: "取消",
   templateReplaceWarn: (current: number, custom: number) =>
@@ -3108,15 +3106,20 @@ export const PLANNING_TEXT = {
   divisionAllPlaced: "全部省份都已归入大区。",
   divisionUnplaced: (n: number) =>
     `还有 ${n} 个省没有归入任何大区。它们不会出现在任何按大区汇总的口径里；在态势屏上会被画成灰色，读起来像「这里没有业务」，而不是「这块地还没人认领」。`,
+  // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
-    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。",
+    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",
+  // 表单页读的那句。「代码是身份」讲的是这张表单的行为，名册页上没有表单，
+  // 却跟着显示了这句话，是页面拆分时留下的。
+  territoryFormWhy:
+    "区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。先选覆盖的大区，路由才认得它。",
   territoryNone: "还没有销售区域",
   territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
   territoryFormTitle: "新建 / 编辑销售区域",
   territoryEditing: "编辑已有区域",
   territoryNew: "新建一个区域",
-  territoryRegions: "覆盖地区",
-  territoryRegionsHint: "勾选这个辖区负责的大区。一个大区可以由多个辖区共同负责；不勾选任何一个，路由就当它谁也不覆盖。",
+  territoryRegions: "覆盖大区",
+  territoryRegionsHint: "勾选这个区域负责的大区。一个大区可以由多个区域共同负责；不勾选任何一个，路由就当它谁也不覆盖。",
   territoryRegionsNone: "这个工作区还没有大区。先去「新建大区」建一个，或引用一套预置划分。",
   territoryRegionGone: "已不在当前划分中",
   territoryCode: "区域代码",

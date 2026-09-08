@@ -54,7 +54,16 @@ export function DivisionPanel(
   const [selected, setSelected] = useState<string[]>([]);
 
   return (
-    <Section id="divisions" icon="map-pin">
+    /* TITLED. The copy for this heading existed in both dictionaries and was
+       rendered by nothing, so the page showed two tables and named one - and a
+       reader arriving at the second had to infer that 大区 and 辖区 are
+       different questions from the column headers alone. */
+    <Section
+      id="divisions"
+      icon="map-pin"
+      title={PLANNING_TEXT.divisionTitle}
+      description={PLANNING_TEXT.divisionWhy}
+    >
       {rows.length === 0 ? (
         <EmptyState
           title={PLANNING_TEXT.divisionEmptyTitle}
