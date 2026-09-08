@@ -345,36 +345,11 @@
 .screen .mod-hd .mod-mark{ flex: none; width: 18px; height: 18px; display: block; }
 .screen .mod-hd .mod-mark svg{ display: block; width: 100%; height: 100%; overflow: visible; }
 
-/* 呼吸 - the outer circle pulses and glows. Two properties on one rhythm:
-   opacity does the 闪烁 and the drop-shadow does the 眩晕, widening as it
-   brightens so the halo reads as light coming off the ring rather than as the
-   ring simply changing colour. transform-box is required for a percentage
-   transform-origin on an SVG shape; without it the scale pivots on the
-   viewport origin and the circle swings across the header. */
-.screen .mod-mark .halo{
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mark-breathe 3.4s ease-in-out infinite;
-}
-.screen .mod-mark .core{
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mark-core 3.4s ease-in-out infinite;
-}
-@keyframes mark-breathe {
-  0%, 100% {
-    opacity: 0.35; transform: scale(0.92);
-    filter: drop-shadow(0 0 0 oklch(from var(--screen-warn) l c h / 0));
-  }
-  50% {
-    opacity: 0.95; transform: scale(1.06);
-    filter: drop-shadow(0 0 3.5px oklch(from var(--screen-warn) l c h / 0.85));
-  }
-}
-@keyframes mark-core {
-  0%, 100% { opacity: 0.75; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.18); }
-}
+/* STATIC, AND DELIBERATELY SO. The mark used to breathe, back when it was a
+   ring around a core - two parts that could pulse against each other. It is one
+   solid piece now, and a solid shape that throbs reads as a glitch rather than
+   as life. The screen keeps one breathing element, the title's dot, which is
+   enough to say it is live. */
 .screen .mod-hd h2{
   margin: 0; font-size: 16px; font-weight: 700; letter-spacing: 0.15em;
   color: var(--screen-ink); white-space: nowrap;

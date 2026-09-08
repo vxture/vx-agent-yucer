@@ -419,27 +419,39 @@ export function CashChart(
 /**
  * The mark beside every panel title.
  *
- * THE CLASS IS NOT `ring`, AND THAT IS THE WHOLE BUG IT FIXES. `ring` is a
- * Tailwind utility - `box-shadow: 0 0 0 1px` - and the DS ships Tailwind, so
- * naming the span `ring` drew a 1px SQUARE outline around an 18x18 box that no
- * stylesheet in this repo asked for. The mock could call it that safely
- * because it has no utility layer; here the name was already taken. Removing
- * the outer CIRCLE, which is what I did first, was the wrong reading of a
- * square frame nobody had drawn on purpose.
+ * ONE PIECE, ONE COLOUR (owner). Four parts - a ring, a half-circle outside it,
+ * two blocks standing proud at top and bottom, and a centre dot - all in the
+ * same amber at full opacity. No second hue, no dimmed layer, no per-part
+ * differentiation: it reads as a single solid object, which is what a mark is.
+ * Earlier versions shaded the ring back and tinted the centre, and every one of
+ * those decisions made it look like several things stacked up.
  *
- * Three parts, and the outer one breathes: a slow pulse in opacity and size
- * with a glow that widens as it brightens. It is the only moving thing in the
- * six panel headers, which is the point - a live screen should look live
- * without anything on it demanding to be read.
+ * BUILT GEOMETRICALLY, not stroked (owner). Each part is a filled path - the
+ * rings are annuli with an even-odd hole rather than a stroked circle - so the
+ * shape is exact at any size and nothing depends on how a renderer resolves a
+ * half-pixel stroke at 18px, which is the size it is actually used at.
+ *
+ * Reconstructed from the owner's Figma (node 1-21286): the gold was sampled at
+ * #FFCD48 and lands on --screen-warn, the amber this screen already uses for
+ * every warm element.
  */
 export function Ring() {
-  const R = 9;
   return (
     <span className="mod-mark" aria-hidden>
-      <svg viewBox={`0 0 ${R * 2} ${R * 2}`} fill="none">
-        <circle className="halo" cx={R} cy={R} r={R - 1} stroke={AMBER} strokeWidth="1" />
-        <circle cx={R} cy={R} r={R * 0.52} stroke={CYAN} strokeWidth="1" />
-        <circle className="core" cx={R} cy={R} r={R * 0.21} fill={CYAN} />
+      <svg viewBox="0 0 24 24" fill="var(--screen-warn)">
+        {/* the circle - an annulus, outer 8.4 / inner 7.5 */}
+        <path
+          fillRule="evenodd"
+          d="M12 3.6a8.4 8.4 0 1 0 0 16.8a8.4 8.4 0 1 0 0-16.8Z
+             M12 4.5a7.5 7.5 0 1 1 0 15a7.5 7.5 0 1 1 0-15Z"
+        />
+        {/* the half-circle, OUTSIDE the ring: 8.4 to 10, spanning 140 degrees
+            about west so it stops 20 short of each block */}
+        <path d="M8.58 2.603A10 10 0 0 0 8.58 21.397L9.127 19.893A8.4 8.4 0 0 1 9.127 4.107Z" />
+        {/* the two blocks, crossing the ring and standing proud */}
+        <rect x="11.2" y="1.4" width="1.6" height="3.4" rx=".2" />
+        <rect x="11.2" y="19.2" width="1.6" height="3.4" rx=".2" />
+        <circle cx="12" cy="12" r="1.9" />
       </svg>
     </span>
   );
