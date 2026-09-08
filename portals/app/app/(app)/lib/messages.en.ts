@@ -64,6 +64,8 @@ export const en: Dictionary = {
 
   COMPLETENESS_ERROR: {
     ...GATE_ERROR,
+    province_unknown:
+      "The province must be one of the 34 provincial-level divisions - pick one from the list",
     not_found:
       "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field the copilot may fill.",
@@ -84,6 +86,7 @@ export const en: Dictionary = {
       "Two kinds of gap: what this workspace's own data can already work out, and what the assistant has to find. The first kind shows what it was read from - a fill that cannot say where the value came from is a machine signing your name on a customer record.",
     fill: "Fill in",
     fields: {
+      province: "Province",
       region: "Region",
       industry: "Industry",
       segmentCode: "Segment",
@@ -103,6 +106,8 @@ export const en: Dictionary = {
 
   BATCH_COMPLETE_ERROR: {
     ...GATE_ERROR,
+    province_unknown:
+      "The province must be one of the 34 provincial-level divisions - pick one from the list",
     not_found:
       "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field batch completeness fills.",
@@ -1261,6 +1266,8 @@ export const en: Dictionary = {
   },
   PROPOSAL_ERROR: {
     ...GATE_ERROR,
+    province_unknown:
+      "The province must be one of the 34 provincial-level divisions - pick one from the list",
     not_found: "Not found, or not in this workspace.",
     not_pending: "This proposal has already been decided.",
     decider_required: "Accepting must land on a named person.",

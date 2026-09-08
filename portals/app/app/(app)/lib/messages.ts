@@ -1018,6 +1018,10 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
 export const PROPOSAL_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  /* incr/0035 CHECK-constrains this column, so an unknown province fails at
+     the database with an error nobody can act on. Said in the product's own
+     terms instead, naming what the value has to be. */
+  province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
   not_found: "提案不存在，或不属于当前工作区",
   not_pending: "这条提案已经被裁决过了",
   decider_required: "接受提案必须落到一个具体的人",
@@ -1190,6 +1194,10 @@ export const MEMBER_ERROR: Record<string, string> = {
 // 数据已经知道的（免费、确定、一键），和只有模型能答的（一次 turn，走提案队列）。
 export const COMPLETENESS_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  /* incr/0035 CHECK-constrains this column, so an unknown province fails at
+     the database with an error nobody can act on. Said in the product's own
+     terms instead, naming what the value has to be. */
+  province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在助手可填写的范围内",
   value_required: "填写需要一个值——空白不是填写",
@@ -1207,6 +1215,7 @@ export const COMPLETENESS_TEXT = {
     "缺的信息分两种：本工作区的数据已经能推出来的，和需要问助手的。推出来的会写明依据——一次说不出来路的填写，等于机器替你在客户档案上签字。",
   fill: "填入",
   fields: {
+    province: "所在省份",
     region: "所在区域",
     industry: "行业",
     segmentCode: "细分市场",
@@ -1227,6 +1236,10 @@ export const COMPLETENESS_TEXT = {
 
 export const BATCH_COMPLETE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  /* incr/0035 CHECK-constrains this column, so an unknown province fails at
+     the database with an error nobody can act on. Said in the product's own
+     terms instead, naming what the value has to be. */
+  province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在批量补齐的范围内",
   value_required: "这一条建议是空的，跳过",

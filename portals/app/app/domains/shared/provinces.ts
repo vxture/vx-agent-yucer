@@ -63,3 +63,16 @@ export function shortProvince(province: string): string {
     .replace("宁夏回族自治区", "宁夏")
     .replace(/(省|市|自治区|特别行政区)$/, "");
 }
+
+/**
+ * Is this one of the 34 provincial-level divisions?
+ *
+ * The same set incr/0035 CHECK-constrains `account.province` to. Needed on the
+ * write path because the in-memory store has no CHECK: without it a demo write
+ * would succeed and put a customer on ground the map has no shape for, and a
+ * real write would fail at the database with a constraint error nobody can act
+ * on. Refused in the product's own terms in both.
+ */
+export function isProvince(value: string): boolean {
+  return (ALL_PROVINCES as readonly string[]).includes(value);
+}

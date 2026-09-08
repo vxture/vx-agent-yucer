@@ -10,12 +10,14 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
+import { isProvince } from "../shared/provinces";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import {
   accountGaps,
   fillable,
   forModel,
+  FILLABLE_FIELDS,
   type AccountGap,
 } from "./lib/completeness";
 import type { PipelineStore } from "../pipeline/store";
@@ -460,10 +462,11 @@ export async function accountCompleteness(
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
 
-  const [deals, territories, segments] = await Promise.all([
+  const [deals, territories, segments, divisions] = await Promise.all([
     ctx.pipeline.listOpportunities(ctx.workspaceId, { accountId, includeClosed: true }),
     ctx.planning.listTerritories(ctx.workspaceId),
     ctx.strategy.listSegments(ctx.workspaceId),
+    ctx.store.listMarketDivisions(ctx.workspaceId),
   ]);
 
   const gaps = accountGaps(
@@ -482,13 +485,28 @@ export async function accountCompleteness(
       industries: sg.criteria?.industries ?? [],
       regions: sg.criteria?.regions ?? [],
     })),
+    provinceDivision(divisions),
   );
 
   return ok({ gaps, derivable: fillable(gaps), askable: forModel(gaps) });
 }
 
-export const FILLABLE_ACCOUNT_FIELDS = ["region", "industry", "segmentCode", "ownerSub"] as const;
+/* ONE LIST, RE-EXPORTED - it was two, and they had already drifted. This module
+   kept its own copy of the fillable fields beside the one in
+   lib/completeness.ts, so adding `province` to the gap model left the write
+   path still refusing it, and the type error was the only thing that said so.
+   A second copy of a vocabulary is a second chance to be wrong about it. */
+export const FILLABLE_ACCOUNT_FIELDS = FILLABLE_FIELDS;
 export type FillableAccountField = (typeof FILLABLE_ACCOUNT_FIELDS)[number];
+
+/** province -> 大区 name, as this workspace divides its market (incr/0036). */
+function provinceDivision(
+  divisions: readonly MarketDivisionRecord[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of divisions) for (const p of d.provinces) out[p] = d.name;
+  return out;
+}
 
 export function isFillableAccountField(v: string): v is FillableAccountField {
   return (FILLABLE_ACCOUNT_FIELDS as readonly string[]).includes(v);
@@ -508,6 +526,19 @@ export async function fillAccountField(
   }
   if (!value.trim()) {
     return fail(violation("value_required", "filling a field needs a value, not a blank", "value"));
+  }
+  /* THE SAME VOCABULARY THE DATABASE ENFORCES. incr/0035 CHECK-constrains this
+     column to the 34 provincial-level divisions, so a free-text write fails at
+     the database with a constraint error nobody can act on - and in the
+     in-memory store, which has no CHECK, it would succeed and quietly put a
+     customer on ground the map has no shape for. Refused here, in the product's
+     own terms, in both. */
+  if (field === "province" && !isProvince(value.trim())) {
+    return fail(violation(
+      "province_unknown",
+      `${value.trim()} is not one of the 34 provincial-level divisions`,
+      "value",
+    ));
   }
 
   const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
@@ -545,12 +576,16 @@ export async function workspaceCompleteness(
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
 
-  const [accounts, deals, territories, segments] = await Promise.all([
+  // Read ONCE for the whole roster, like the territories and segments beside
+  // it - the division table is the same for every row on the page.
+  const [accounts, deals, territories, segments, divisions] = await Promise.all([
     ctx.store.listAccounts(ctx.workspaceId),
     ctx.pipeline.listOpportunities(ctx.workspaceId, { includeClosed: true }),
     ctx.planning.listTerritories(ctx.workspaceId),
     ctx.strategy.listSegments(ctx.workspaceId),
+    ctx.store.listMarketDivisions(ctx.workspaceId),
   ]);
+  const divisionOf = provinceDivision(divisions);
 
   const dealsByAccount = new Map<string, { territoryId: string | null; ownerSub: string | null }[]>();
   for (const d of deals) {
@@ -580,6 +615,7 @@ export async function workspaceCompleteness(
       dealsByAccount.get(account.id) ?? [],
       territoryInputs,
       segmentInputs,
+      divisionOf,
     );
     for (const gap of fillable(gaps)) {
       rows.push({ accountId: account.id, accountName: account.name, gap });
