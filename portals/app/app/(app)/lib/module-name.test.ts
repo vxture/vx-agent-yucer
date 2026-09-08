@@ -39,24 +39,28 @@ const COUNT_LEAD: Record<string, string> = {
 };
 
 /**
- * Keys whose `app/(app)/<key>/page.tsx` is NOT the page the menu entry opens.
+ * Every nav entry, paired with the page it opens.
  *
- * `admin` points at /admin/members; /admin/page.tsx is the PLANE'S HOME - the
- * hub the gear opens, listing members, adoption and 市场划分. The path
- * coincidence made this test compare the hub's title against the members
- * entry's label, which held only while the hub had exactly one card and wore
- * that card's name. It has three now (2026-09-08), so the hub is titled 管理
- * and the members page keeps 成员与角色 - the name the menu really means.
+ * FROM THE HREF, not from the key. It used to build the path out of the key -
+ * `app/(app)/<key>/page.tsx` - which happened to be right for every top-level
+ * module and quietly wrong for everything else: it never checked a page under
+ * a prefix, and it DID check /admin/page.tsx against the `admin` entry, whose
+ * href has always been /admin/members. That coincidence held only while the
+ * gear's hub had one card and wore that card's name; 配置管理 has seven now.
+ *
+ * Reading the href covers the plane's pages the key never could, and the
+ * existsSync filter still drops entries whose route is not a page of its own.
  */
-const PLANE_HOME: Record<string, string> = {
-  admin: "the gear's hub; the menu entry opens /admin/members, which is named there",
-};
-
 function navEntries(): { key: string; page: string }[] {
-  const nav = readFileSync(join(LIB, "navigation.ts"), "utf8");
-  const keys = [...nav.matchAll(/key: "(\w+)"/g)].map((m) => m[1]!);
-  return [...new Set(keys)]
-    .map((key) => ({ key, page: join(APP, key, "page.tsx") }))
+  const src = ["navigation.ts", "admin-nav.ts"]
+    .map((f) => readFileSync(join(LIB, f), "utf8"))
+    .join("\n");
+  const pairs = [...src.matchAll(/key: "(\w+)",\s*(?:\n\s*)?href: "([^"]+)"/g)];
+  return pairs
+    .map(([, key, href]) => ({
+      key: key!,
+      page: join(APP, ...href!.split("/").filter(Boolean), "page.tsx"),
+    }))
     .filter((e) => existsSync(e.page));
 }
 
@@ -84,7 +88,7 @@ test("every module page calls itself what the menu calls it", () => {
   const wrong: string[] = [];
 
   for (const { key, page } of navEntries()) {
-    if (key in COUNT_LEAD || key in PLANE_HOME) continue;
+    if (key in COUNT_LEAD) continue;
     const src = readFileSync(page, "utf8");
 
     // ModuleHeadline takes the key and looks the name up itself - the shape

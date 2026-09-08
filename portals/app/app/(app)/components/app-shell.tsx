@@ -26,6 +26,7 @@ import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
 import { NavBoard } from "./nav-board";
+import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { WorkspaceScope } from "./workspace-scope";
@@ -234,7 +235,15 @@ export function AppShell({
   // just been handed the reason they opened the product. You choose a domain
   // from the launcher; the nav exists once you are inside one.
   const isHome = segments.length === 0;
+
+  /* 配置管理 IS A PLANE OF ITS OWN (owner, 2026-09-08), and these two lines
+     are what makes that true rather than asserted: inside it the business
+     board is replaced by the plane's own menu, and the copilot deck does not
+     render at all. A deck pushing today's deals beside a permission matrix is
+     noise, and the board would be a second answer to "where am I". */
+  const isAdmin = segments[0] === "admin";
   const boardVisible = showBoard && !isDetail && !isHome;
+  const deckVisible = showDock && !isAdmin;
 
   const toggleBoard = () =>
     setShowBoard((prev) => {
@@ -554,7 +563,12 @@ export function AppShell({
       <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
         {/* LEFT - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
-        {boardVisible ? (
+        {boardVisible && isAdmin ? (
+          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
+            <AdminNav nav={admin} pathname={pathname} />
+          </aside>
+        ) : null}
+        {boardVisible && !isAdmin ? (
           <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
             <NavBoard
               sections={board}
@@ -578,7 +592,7 @@ export function AppShell({
         </div>
 
         {/* RIGHT - the agent, and what it is looking at. */}
-        {showDock ? (
+        {deckVisible ? (
           <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto">
             {deck}
           </aside>

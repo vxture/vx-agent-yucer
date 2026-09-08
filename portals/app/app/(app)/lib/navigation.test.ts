@@ -59,13 +59,19 @@ test("administration is nav, but it is not a capability domain", () => {
   // not a domain". Adoption belongs here for the same reason: it is a statement
   // about whether the product is used, which is not a capability the product
   // sells.
-  // 市场划分 joined on 2026-09-08. It is configuration - how the market is
-  // carved, set once and read by every figure grouped by 大区 - and it was a
-  // business module until the owner separated the two dimensions: the TEAM
-  // half (销售区域) became a section of 销售规划, the CARVE came here.
+  /* 配置管理 BECAME A PLANE on 2026-09-08 (owner), and this list is what that
+     cost: the single "admin" entry was four questions answered by one table -
+     who is in, what role they hold, what a role means, and what they may see -
+     so it is four entries now, and the two configuration surfaces that were
+     hiding in business modules (市场划分, 产品配置) joined them.
+
+     THE ORDER IS THE MENU'S, group by group (admin-nav.ts), because this list
+     is derived from it rather than restated. A key that appears here without
+     appearing there is impossible by construction; a key that appears in
+     neither is the drift this test is watching for. */
   assert.deepEqual(
     ADMIN_NAV_ENTRIES.map((e) => e.key),
-    ["admin", "adoption", "division"],
+    ["division", "members", "roles", "permissions", "scope", "product", "adoption"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -180,6 +186,13 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "national",
     "pipeline",
     "pricebook",
+    /* 产品配置 rides catalog.product.view, exactly as /catalog does - it edits
+       the same three vocabularies the catalogue displays, and its ACTIONS
+       carry catalog.product.upsert. It appears at every tier for the same
+       reason the catalogue does: those actions carry no feature key. A reader
+       who may not edit lands on it and is redirected, which is the courtesy
+       gate /catalog/settings already had. */
+    "product",
     // /quote rides pipeline.view: a quote is the current state of a deal's
     // lines, so whoever may read the deal may read what it offers. It appears
     // wherever /pipeline does, on every tier.
@@ -208,24 +221,27 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   // carry a *.view action a viewer holds, so an enterprise viewer reaches
   // them. That is the promotion behaving - a page that appeared but could not
   // be opened would mean the split had invented a gate.
-  /* PLUS 市场划分, and the +1 is the point rather than an adjustment to make
-     the number fit. It sits in ADMIN_NAV_ENTRIES but is gated on
-     planning.territory.view, which a viewer holds - so a viewer reaches the
-     gear and finds one card there: the carve, read-only, because editing it
-     needs planning.territory.upsert. That is deliberate. The carve explains
-     every figure the product groups by 大区, and a reader who cannot see how
-     江苏 is filed cannot check the number they are being shown. */
+  /* PLUS TWO ITEMS OF 配置管理, and the +2 is the point rather than an
+     adjustment to make the number fit. Both are gated on actions a viewer
+     holds - 市场划分 on planning.territory.view, 产品配置 on
+     catalog.product.view - so a viewer who opens the gear finds those two and
+     nothing else: the four 成员权限 items need admin.member.view, which a
+     viewer does not hold. Reading is deliberate on both: the carve explains
+     every figure grouped by 大区, and the product vocabulary explains every
+     line on a quote. Editing either needs an upsert action they lack. */
+  const inPlane = ["division", "product"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
-    DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length + 1,
+    DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length
+      + inPlane.length,
   );
+  for (const key of inPlane) {
+    assert.equal(nav.some((e) => e.key === key && e.state === "visible"), true, key);
+  }
   assert.equal(
-    nav.some((e) => e.key === "division" && e.state === "visible"),
-    true,
-  );
-  assert.equal(
-    nav.some((e) => e.key === "admin"),
+    nav.some((e) => e.key === "members"),
     false,
+    "成员管理 needs admin.member.view, which a viewer does not hold",
   );
 });
 
@@ -270,7 +286,7 @@ test("an unsubscribed workspace still gets the subscribe remedy", () => {
   // the members screen and never see the conversion exit.
   const admin = resolveNavigation(ctx("sales_leader"), ent({ tier: null }));
   assert.equal(lockoutReason(admin), "no_entitlement");
-  assert.equal(admin.find((e) => e.key === "admin")?.state, "locked");
+  assert.equal(admin.find((e) => e.key === "members")?.state, "locked");
 });
 
 test("both gaps at once is an entitlement problem first", () => {
@@ -297,7 +313,7 @@ test("an administrator of a paid workspace can always reach the members screen",
   ] as const) {
     const nav = resolveNavigation(ctx("sales_ops"), ent({ tier }));
     assert.equal(
-      nav.find((e) => e.key === "admin")?.state,
+      nav.find((e) => e.key === "members")?.state,
       "visible",
       `administration is not reachable at ${tier}`,
     );

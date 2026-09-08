@@ -13,6 +13,7 @@ import { resolveNavigation, ADMIN_NAV_ENTRIES } from "../lib/navigation";
 import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
 import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
+import { PERM_CODES, ROLE_CODES } from "../../authz/catalog";
 import { listMarketDivisions } from "../../domains/account/service";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
@@ -91,14 +92,14 @@ export default async function AdminHomePage() {
   );
   /* A LOOKUP, NOT A TERNARY. It read `e.key === "admin" ? memberFact :
      adoptionFact`, which silently gave every future card the adoption
-     sentence - and 市场划分 became the third card the day after. The carve's
-     own fact is the shape of the table rather than a count: how many divisions
-     and whether every province is in one, which is the question somebody opens
-     this page to settle. */
+     sentence - and the plane went from three cards to seven the next day.
+     A card with no live fact says nothing rather than borrowing another
+     card's sentence; its description already says what it is for. */
   const FACTS: Record<string, string> = {
-    admin: memberFact,
+    members: memberFact,
     adoption: adoptionFact,
     division: divisionFact,
+    roles: ADMIN_TEXT.rolesFact(ROLE_CODES.length, PERM_CODES.length),
   };
 
   return (
@@ -139,7 +140,10 @@ export default async function AdminHomePage() {
               left in the app - everything else is on the DS scale - and a lone
               12px that does not come from a token is exactly the kind of drift
               that is invisible until six of them disagree. */}
-          <div className="grid gap-md sm:grid-cols-2">
+          {/* THREE ACROSS at width, not two. The plane lists seven items now;
+              a two-column grid turned that into four rows of cards and a page
+              that scrolls to answer "what is in here". */}
+          <div className="grid gap-md sm:grid-cols-2 xl:grid-cols-3">
             {entries.map((e) => (
               <Link key={e.key} href={e.href} className="no-underline">
                 <PanelCard

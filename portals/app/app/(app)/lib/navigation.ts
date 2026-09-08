@@ -62,7 +62,17 @@ export type NavIcon =
   // The assault objective itself.
   | "target"
   // Same for the forecast rule.
-  | "trend-up";
+  | "trend-up"
+  // 配置管理's own glyphs (2026-09-08). The plane splits one page into eight
+  // items, and each answers a different question, so each gets its own mark
+  // rather than eight settings cogs.
+  | "tree-structure"
+  | "users"
+  | "role"
+  | "key"
+  | "eye"
+  | "seal-check"
+  | "clipboard";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -172,38 +182,14 @@ export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
  * which is what keeps an unsubscribed workspace on the subscribe screen rather
  * than dropping it into a shell containing only this entry.
  */
-export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
-  {
-    key: "admin",
-    href: "/admin/members",
-    icon: "settings",
-    action: "admin.member.view",
-  },
-  {
-    key: "adoption",
-    href: "/admin/adoption",
-    icon: "chart-bar",
-    action: "admin.adoption.view",
-  },
-  /* 市场划分 - configuration, here since 2026-09-08 (owner).
-   *
-   * It was a business module at /territory, sharing a page with the sales
-   * territories, and the two kept being read as one thing. A 大区 is how the
-   * market is CARVED; a 区域 is a team working it. The team half went to
-   * /planning, where the number it carries is set; the carve is workspace
-   * configuration and belongs behind the gear.
-   *
-   * ITS ACTION IS A PLANNING ONE, and that is not an oversight: who may
-   * re-carve the market is the same authority as who may redraw the
-   * territories on it. An admin.division permission invented to match the URL
-   * would answer a question the catalogue already answers. */
-  {
-    key: "division",
-    href: "/admin/division",
-    icon: "map-pin",
-    action: "planning.territory.view",
-  },
-];
+/* MOVED to admin-nav.ts on 2026-09-08, where it is DERIVED from the grouped
+   menu the plane draws. It stayed a flat list here for as long as the plane
+   was three cards behind a gear; it is a plane with its own navigation now,
+   and one list feeding both the menu and the gate is what keeps them from
+   disagreeing. Re-exported so callers that only need the gateable entries do
+   not have to know about groups. */
+export { ADMIN_NAV_ENTRIES } from "./admin-nav";
+import { ADMIN_NAV_ENTRIES } from "./admin-nav";
 
 /**
  * Modules that are pages of their own but are NOT capability partitions.

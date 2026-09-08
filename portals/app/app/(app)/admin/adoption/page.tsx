@@ -35,7 +35,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
-  const { ADOPTION_TEXT, SHELL_TEXT, STAGE_LABEL, LOAD_ERROR } = await getMessages();
+  const { ADOPTION_TEXT, DOMAIN_LABEL, SHELL_TEXT, STAGE_LABEL, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -161,7 +161,7 @@ export default async function AdoptionPage() {
     <ViewLayout>
       <ViewHeader
         icon="chart-bar"
-        title={ADOPTION_TEXT.title}
+        title={DOMAIN_LABEL.adoption}
         description={ADOPTION_TEXT.description}
         action={
           <StatusBadge tone={verdict.tone} dot>

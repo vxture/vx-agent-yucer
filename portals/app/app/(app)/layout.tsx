@@ -8,6 +8,7 @@ import { MessagesProvider } from "./lib/i18n/provider";
 import { getMessages } from "./lib/i18n/server";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
+import { ADMIN_NAV_ENTRIES } from "./lib/admin-nav";
 import { can } from "../authz/decide";
 import { AppShell } from "./components/app-shell";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
@@ -146,7 +147,13 @@ export default async function AppLayout({
   // home page reusing it does not compute the most expensive read twice.
   // Administration still comes from the gate resolver, not the board: it is
   // setup rather than work, and it lives as a header icon.
-  const admin = nav.filter((e) => e.key === "admin" || e.key === "adoption");
+  /* THE PLANE'S ENTRIES, from the registry rather than a hand-listed pair.
+     It read `key === "admin" || key === "adoption"`, which was fine while the
+     plane was two items and silently wrong the moment it became seven: the
+     hub still listed them all (it filters by ADMIN_NAV_ENTRIES) while the
+     plane's own menu showed the two that happened to be named here. */
+  const adminKeys = new Set(ADMIN_NAV_ENTRIES.map((e) => e.key));
+  const admin = nav.filter((e) => adminKeys.has(e.key));
 
   // ONLY for the header badge. The deck itself is a parallel route now, so the
   // layout does not build it - but the count has to reach the header, and the

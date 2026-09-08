@@ -30,7 +30,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
-  const { LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -72,7 +72,7 @@ export default async function MembersPage() {
   return (
     <ViewLayout>
       <ViewHeader
-        title={MEMBER_TEXT.title}
+        title={DOMAIN_LABEL.members}
         description={MEMBER_TEXT.description}
       />
       <MemberRoles

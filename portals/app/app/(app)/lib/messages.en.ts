@@ -176,7 +176,13 @@ export const en: Dictionary = {
     catalog: "Catalogue",
     home: "Today's calls",
     queue: "Awaiting me",
-    admin: "Members and roles",
+    members: "Members",
+    roles: "Roles",
+    permissions: "Permissions",
+    scope: "Data scope",
+    orgUnit: "Teams",
+    product: "Product settings",
+    audit: "Audit trail",
     adoption: "Adoption",
     renewal: "Renewals",
     forecastRule: "Forecast rules",
@@ -1747,8 +1753,13 @@ export const en: Dictionary = {
     emptyTitle: "You hold no administration permission",
     emptyDescription:
       "This is not a subscription tier problem and money will not fix it. An administrator has to assign you a role.",
+    planned: "Not built",
     entryHint: {
-      admin: "Who can enter this workspace, and what each of them may do",
+      members: "Who is in this workspace: activation, deactivation, handover",
+      roles: "What each of the nine roles is, and what it may do",
+      permissions: "The twenty-five permissions, and which roles hold them",
+      scope: "Workspace / territory / own - who sits at which",
+      product: "Product types, statuses and pricing units",
       adoption:
         "Whether follow-up notes are actually being used. Criteria in ADR-012",
       division: "How the country is carved into regions, and which provinces each holds",
@@ -1757,6 +1768,7 @@ export const en: Dictionary = {
       `${members} members - ${roles} roles in use`,
     memberNone: "No members yet - they appear after their first sign-in",
     memberNoRead: "No permission to read members",
+    rolesFact: (roles: number, perms: number) => `${roles} roles · ${perms} permissions`,
     divisionCount: (divisions: number, placed: number, total: number) =>
       placed === total
         ? `${divisions} regions · all ${total} provinces assigned`
@@ -2728,7 +2740,6 @@ export const en: Dictionary = {
     templateRef: "Start from a standard region",
     templateRefNone: "Start blank",
     templateRefWhy: "Pick one and its code, name and provinces are filled in - still editable.",
-    divisionTitle: "Regions and provinces",
     divisionWhy:
       "How the country is carved into regions, and which provinces each holds. This is market structure, not team structure: who covers which ground is decided in planning, and one region may be worked by several territories. A province belongs to at most one region, so this changes where it sits rather than ticking boxes - and every figure the situation screen groups by region reads from this table.",
     divisionEmptyTitle: "This workspace has no regions yet",
@@ -3139,6 +3150,73 @@ export const en: Dictionary = {
 
   // --- /admin -------------------------------------------------------------
 
+  ADMIN_GROUP_LABEL: {
+    org: "Organisation",
+    access: "People and access",
+    params: "Business parameters",
+    ops: "Operations",
+  },
+  PERMISSION_LABEL: {
+    "strategy.read": "View strategy and market segments",
+    "strategy.write": "Edit strategy and market segments",
+    "strategy.approve": "Approve a plan - the moment it becomes a commitment",
+    "planning.read": "View planning",
+    "planning.write": "Edit territories and targets",
+    "campaign.read": "View campaigns",
+    "campaign.write": "Edit campaigns and executions",
+    "account.read": "View accounts",
+    "account.write": "Edit accounts, contacts and the relationship graph",
+    "account.record": "Record what happened - interactions and commitments, not the master record",
+    "signal.read": "View signals",
+    "signal.triage": "Triage signals - score, match, promote, dedup",
+    "pipeline.read": "View opportunities",
+    "pipeline.write": "Edit opportunities and advance stages",
+    "pipeline.forecast": "Submit forecast snapshots",
+    "pipeline.discount": "Authorise a price below the product floor",
+    "delivery.read": "View delivery projects",
+    "delivery.write": "Edit milestones, tasks and revenue schedules",
+    "copilot.use": "Use the copilot - open sessions and ask",
+    "copilot.decide": "Accept or reject what the copilot proposes",
+    "copilot.autopilot": "Authorise autonomous execution",
+    "catalog.read": "Read the catalogue, solutions and price books",
+    "catalog.write": "Maintain products and solutions",
+    "catalog.price": "Set list and floor prices - the floor decides which discounts need a signature",
+    "admin.manage": "Administration - roles and the workspace catalogues",
+  },
+  SCOPE_LABEL: {
+    workspace: "Whole workspace",
+    territory: "Their territories",
+    own: "Their own rows",
+  },
+  ADMIN_PAGE_TEXT: {
+    rolesTitle: "Roles",
+    rolesWhy:
+      "The nine roles and what each of them holds. Roles and grants are seeded DDL mirrored in authz/catalog.ts, and changing one means changing the seed, the mirror and the catalogue doc together - so this page reads rather than edits.",
+    rolesColumnRole: "Role",
+    rolesColumnPerms: "Permissions",
+    rolesColumnMembers: "Members",
+    rolesColumnList: "What it may do",
+    rolesMembers: (n: number) => `${n}`,
+    rolesNoMember: "Nobody holds it",
+    permissionsTitle: "Permissions",
+    permissionsWhy:
+      "The twenty-five permissions, and which roles hold each. This is the whole answer to who may do what; whether it appears on screen also depends on the tier gate.",
+    permissionsColumnCode: "Code",
+    permissionsColumnName: "What it allows",
+    permissionsColumnRoles: "Held by",
+    permissionsNoRole: "No role holds it",
+    permissionsCount: (perms: number, roles: number, grants: number) =>
+      `${perms} permissions · ${roles} roles · ${grants} grants`,
+    scopeTitle: "Data scope",
+    scopeWhy:
+      "The same permission, different rows: the whole workspace, the territories they carry, or only what they own. Scope is an attribute of a member and is changed there; this page answers who sits at which.",
+    scopeColumnMember: "Member",
+    scopeColumnScope: "Scope",
+    scopeColumnDetail: "Covers",
+    scopeTerritories: (n: number) => `${n} territories`,
+    scopeNoTerritory: "No territory assigned - this member sees nothing",
+    scopeCount: (n: number) => `${n} members`,
+  },
   MEMBER_TEXT: {
     title: "Members and roles",
     description:

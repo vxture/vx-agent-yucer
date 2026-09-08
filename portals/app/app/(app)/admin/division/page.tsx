@@ -33,7 +33,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function DivisionPage() {
-  const { PLANNING_TEXT, SHELL_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -79,7 +79,7 @@ export default async function DivisionPage() {
           moduleIcon() resolves icons for MODULES, and this is not one. */}
       <ViewHeader
         icon="map-pin"
-        title={PLANNING_TEXT.divisionTitle}
+        title={DOMAIN_LABEL.division}
         description={PLANNING_TEXT.divisionWhy}
         secondary={
           <StatusBadge tone={unassigned.length === 0 ? "success" : "warning"}>

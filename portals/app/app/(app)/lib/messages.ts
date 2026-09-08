@@ -92,7 +92,14 @@ export const DOMAIN_LABEL: Record<string, string> = {
   catalog: "产品目录",
   home: "今日判断",
   queue: "待我裁决",
-  admin: "成员与角色",
+  // 配置管理平面的条目 (2026-09-08). 四字为准 (owner)，每个条目一件事。
+  members: "成员管理",
+  roles: "角色管理",
+  permissions: "权限管理",
+  scope: "数据范围",
+  orgUnit: "部门团队",
+  product: "产品配置",
+  audit: "操作审计",
   adoption: "使用情况",
 };
 
@@ -1118,6 +1125,73 @@ export const ROLE_LABEL: Record<string, string> = {
   regional_director: "大区总监",
 };
 
+/** 权限的中文说明。25 条，与 authz/catalog.ts 的 PERM_CODES 一一对应；
+ *  catalog.test.ts 比对种子与镜像，permission-label.test.ts 比对镜像与这里。 */
+export const PERMISSION_LABEL: Record<string, string> = {
+  "strategy.read": "查看战略与细分市场",
+  "strategy.write": "编辑战略与细分市场",
+  "strategy.approve": "批准战略计划——计划由此变成承诺",
+  "planning.read": "查看销售规划",
+  "planning.write": "编辑销售区域与目标",
+  "campaign.read": "查看营销活动",
+  "campaign.write": "编辑活动与执行项",
+  "account.read": "查看客户",
+  "account.write": "编辑客户、联系人与关系图",
+  "account.record": "记录互动与承诺——记发生了什么，不是改客户主档",
+  "signal.read": "查看信号",
+  "signal.triage": "信号分诊——评分、匹配、升级、判重",
+  "pipeline.read": "查看商机",
+  "pipeline.write": "编辑商机与推进阶段",
+  "pipeline.forecast": "提交预测快照",
+  "pipeline.discount": "批准低于底价的报价",
+  "delivery.read": "查看交付项目",
+  "delivery.write": "编辑里程碑、任务与回款计划",
+  "copilot.use": "使用销售助手——发起会话与提问",
+  "copilot.decide": "裁决助手提出的动作",
+  "copilot.autopilot": "授权助手自主执行",
+  "catalog.read": "查看产品目录、方案与价目表",
+  "catalog.write": "维护产品与解决方案",
+  "catalog.price": "设定标价与底价——底价决定哪些折扣需要签字",
+  "admin.manage": "配置管理——成员角色与各类目录",
+};
+
+/** 数据范围的三档 (incr/0022)。 */
+export const SCOPE_LABEL: Record<string, string> = {
+  workspace: "整个工作区",
+  territory: "所辖区域",
+  own: "仅自己",
+};
+
+export const ADMIN_PAGE_TEXT = {
+  rolesTitle: "角色管理",
+  rolesWhy:
+    "九个角色，各自持有哪些权限。角色与授权是数据库种子（incr/0021）与 authz/catalog.ts 的镜像，改一处要同时改种子、镜像和目录文档，所以这里只读——给一个能勾选的开关，等于假装它能改。",
+  rolesColumnRole: "角色",
+  rolesColumnPerms: "权限数",
+  rolesColumnMembers: "成员数",
+  rolesColumnList: "持有的权限",
+  rolesMembers: (n: number) => `${n} 人`,
+  rolesNoMember: "暂无成员",
+  permissionsTitle: "权限管理",
+  permissionsWhy:
+    "二十五条权限，以及每一条被哪些角色持有。这是「谁能做什么」的完整答案；同一件事在界面上是否出现，还要先过档位那道门。",
+  permissionsColumnCode: "权限码",
+  permissionsColumnName: "说明",
+  permissionsColumnRoles: "持有的角色",
+  permissionsNoRole: "无角色持有",
+  permissionsCount: (perms: number, roles: number, grants: number) =>
+    `${perms} 条权限 · ${roles} 个角色 · ${grants} 条授权`,
+  scopeTitle: "数据范围",
+  scopeWhy:
+    "同样的权限，看到的行不一样：整个工作区、所辖区域、或仅自己名下。范围是成员的属性，在成员管理里改；这里回答的是「现在谁在哪一档」。",
+  scopeColumnMember: "成员",
+  scopeColumnScope: "范围",
+  scopeColumnDetail: "覆盖",
+  scopeTerritories: (n: number) => `${n} 个区域`,
+  scopeNoTerritory: "未指定区域——按此配置什么也看不到",
+  scopeCount: (n: number) => `${n} 位成员`,
+} as const;
+
 export const MEMBER_TEXT = {
   title: "成员与角色",
   description:
@@ -1557,15 +1631,28 @@ export const HEADER_TEXT = {
   logoAlt: "Vxture",
 } as const;
 
+/** 配置管理的分组名。四字，与条目同一把尺子。 */
+export const ADMIN_GROUP_LABEL: Record<string, string> = {
+  org: "组织架构",
+  access: "成员权限",
+  params: "业务参数",
+  ops: "运行状况",
+};
+
 export const ADMIN_TEXT = {
   tagMembers: (n: number) => `${n} 位成员`,
-  title: "管理",
+  title: "配置管理",
   description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
   emptyTitle: "你没有管理权限",
   emptyDescription:
     "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
+  planned: "未建",
   entryHint: {
-    admin: "谁能进这个工作区，各自能做什么",
+    members: "谁在这个工作区，启用、停用与离职交接",
+    roles: "九个角色各自是什么，各自能做哪些事",
+    permissions: "二十五条权限，以及哪个角色拿到了它",
+    scope: "工作区 / 区域 / 仅自己，谁在哪一档",
+    product: "产品的类型、状态与计价单位",
     adoption: "跟进记录有没有被用起来。判据见 ADR-012",
     division: "全国怎么切成大区，每个大区管哪些省",
   } as Record<string, string>,
@@ -1579,6 +1666,7 @@ export const ADMIN_TEXT = {
   // subpage's own empty state says the true thing, so the card says it too.
   memberNone: "还没有成员——首次登录后才会出现",
   memberNoRead: "没有成员读取权限",
+  rolesFact: (roles: number, perms: number) => `${roles} 个角色 · ${perms} 条权限`,
   divisionCount: (divisions: number, placed: number, total: number) =>
     placed === total
       ? `${divisions} 个大区 · ${total} 个省级行政区都已归入`
@@ -3100,7 +3188,6 @@ export const PLANNING_TEXT = {
   templateRef: "引用预置大区",
   templateRefNone: "不引用，自己填",
   templateRefWhy: "选一个预置大区，代码、名称和省份会自动填好，再改也行。",
-  divisionTitle: "大区与省份",
   // 这页不再和销售区域同屏，所以不能再说「上面的销售区域……」。两个维度的
   // 区别要在这里自己说清楚。
   divisionWhy:

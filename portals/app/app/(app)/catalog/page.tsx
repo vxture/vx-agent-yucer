@@ -81,7 +81,7 @@ export default async function ProductsPage() {
               action={
                 canWrite ? (
                   <Link
-                    href="/catalog/settings"
+                    href="/admin/product"
                     aria-label={CATALOG_TEXT.settingsLink}
                     title={CATALOG_TEXT.settingsLink}
                     className="text-muted-foreground hover:text-foreground"
