@@ -1211,6 +1211,8 @@ export const en: Dictionary = {
 
   TERRITORY_ERROR: {
     ...GATE_ERROR,
+    province_unknown: "The province must be one of the 34 provincial-level divisions",
+    division_unknown: "That region does not belong to this workspace",
     code_required: "A territory needs a code",
     name_required: "A territory needs a name",
     unknown_status: "Unknown territory status",
@@ -2675,6 +2677,21 @@ export const en: Dictionary = {
     scopeOwner: "Me",
     setMetric: "Metric",
     territoryTitle: "Sales territories",
+    divisionTitle: "Regions and provinces",
+    divisionWhy:
+      "The roster above says who covers which ground; this says which provinces a region is made of. Read together they answer \"who covers Jiangsu\" without anyone knowing the mapping by heart. A province belongs to at most one region, so this changes where it sits rather than ticking boxes.",
+    divisionEmptyTitle: "This workspace has no regions yet",
+    divisionEmptyWhy:
+      "Five are seeded when the database is initialised. None at all usually means this workspace predates that.",
+    divisionNone: "Unassigned",
+    divisionHoldsNothing: "This region holds no provinces",
+    moveProvince: (p: string) => `Move ${p} to another region`,
+    provinceCount: (n: number) => `${n} provinces`,
+    divisionCoverage: (placed: number, total: number, divisions: number) =>
+      `${placed} of ${total} provincial-level divisions sit in ${divisions} regions`,
+    divisionAllPlaced: "Every province is assigned.",
+    divisionUnplaced: (n: number) =>
+      `${n} provinces sit in no region. They appear in no figure grouped by region, and the situation screen draws them grey - which reads as "no business here" rather than "nobody has filed this ground".`,
     territoryWhy:
       "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target. The code is the identity: an existing code edits that territory, a new one creates it.",
     territoryNone: "No territories yet",

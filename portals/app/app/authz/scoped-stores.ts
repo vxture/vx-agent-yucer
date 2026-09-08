@@ -113,6 +113,11 @@ class ScopedAccountStore implements AccountStore {
   listMarketDivisions: AccountStore["listMarketDivisions"] = (...a) =>
     this.inner.listMarketDivisions(...a);
 
+  /* Also workspace configuration, not somebody's book of business - the gate on
+     the service decides who may change it, and there is no owner to narrow by. */
+  setProvinceDivision: AccountStore["setProvinceDivision"] = (...a) =>
+    this.inner.setProvinceDivision(...a);
+
   async listAccounts(
     ...args: Parameters<AccountStore["listAccounts"]>
   ): ReturnType<AccountStore["listAccounts"]> {

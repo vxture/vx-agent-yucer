@@ -160,6 +160,18 @@ export interface AccountStore {
    */
   listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]>;
   /**
+   * Move one province into one 大区, or out of every 大区 when code is null.
+   *
+   * A province belongs to AT MOST ONE division - the table's primary key says
+   * so - therefore this replaces rather than adds. Returns false when the
+   * division code is not one this workspace has.
+   */
+  setProvinceDivision(
+    workspaceId: string,
+    province: string,
+    divisionCode: string | null,
+  ): Promise<boolean>;
+  /**
    * The stated buying roles for one deal - incr/0027.
    *
    * An EMPTY result is the ordinary case and means something: this deal has not
@@ -248,13 +260,41 @@ export class InMemoryAccountStore implements AccountStore {
      disagree - the SQL is the authority, this is a copy for a store that has
      nothing to read. A tenant's edits live in the database; there are none
      here to make. */
-  async listMarketDivisions(_workspaceId: string): Promise<MarketDivisionRecord[]> {
+  /* The tenant's own edits, over the preset. A workspace that has moved
+     nothing has an empty map and reads the preset exactly; the demo has no
+     database, so this is where its edits live for the life of the process. */
+  private divisionMoves = new Map<string, Map<string, string | null>>();
+
+  async setProvinceDivision(
+    workspaceId: string,
+    province: string,
+    divisionCode: string | null,
+  ): Promise<boolean> {
+    if (divisionCode !== null && !MARKET_DIVISIONS.some((d) => d.code === divisionCode)) {
+      return false;
+    }
+    let ws = this.divisionMoves.get(workspaceId);
+    if (!ws) { ws = new Map(); this.divisionMoves.set(workspaceId, ws); }
+    ws.set(province, divisionCode);
+    return true;
+  }
+
+  async listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]> {
+    const moved = this.divisionMoves.get(workspaceId) ?? new Map<string, string | null>();
+    const placement = new Map<string, string>();
+    for (const [province, code] of Object.entries(MARKET_DIVISION_PROVINCES)) {
+      placement.set(province, code);
+    }
+    for (const [province, code] of moved) {
+      if (code === null) placement.delete(province);
+      else placement.set(province, code);
+    }
     return MARKET_DIVISIONS.map((d) => ({
       id: `div_${d.code}`,
       code: d.code,
       name: d.name,
       sortOrder: d.sortOrder,
-      provinces: Object.entries(MARKET_DIVISION_PROVINCES)
+      provinces: [...placement.entries()]
         .filter(([, code]) => code === d.code)
         .map(([province]) => province),
     }));

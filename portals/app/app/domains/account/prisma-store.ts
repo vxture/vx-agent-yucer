@@ -49,6 +49,35 @@ export class PrismaAccountStore implements AccountStore {
    */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
 
+  async setProvinceDivision(
+    workspaceId: string,
+    province: string,
+    divisionCode: string | null,
+  ): Promise<boolean> {
+    const p = await this.client();
+    if (divisionCode === null) {
+      // Out of every 大区. A DELETE, not a null division_id: the column is NOT
+      // NULL, and "in no division" is the absence of a row rather than a row
+      // pointing nowhere.
+      await p.marketDivisionProvince.deleteMany({ where: { workspaceId, province } });
+      return true;
+    }
+    const division = await p.marketDivision.findFirst({
+      where: { workspaceId, divisionCode },
+      select: { id: true },
+    });
+    if (!division) return false;
+    /* UPSERT ON THE PRIMARY KEY, because a province belongs to at most one
+       division and the table enforces that. An insert would collide; a plain
+       update would silently do nothing for a province nobody had placed. */
+    await p.marketDivisionProvince.upsert({
+      where: { workspaceId_province: { workspaceId, province } },
+      create: { workspaceId, province, divisionId: division.id },
+      update: { divisionId: division.id, updatedAt: new Date() },
+    });
+    return true;
+  }
+
   async listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]> {
     const p = await this.client();
     const rows = await p.marketDivision.findMany({

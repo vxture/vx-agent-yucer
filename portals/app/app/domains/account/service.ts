@@ -68,6 +68,47 @@ export interface AccountContext {
  *
  * "data", not "ui": this answers a read, and the caller decides what to draw.
  */
+/**
+ * Move one province into a 大区, or out of all of them.
+ *
+ * GATED ON planning.territory.upsert, not on an account action. The division
+ * is not a fact about any customer - it is how this company carves up the
+ * ground it sells on, which is the same decision the territory editor makes and
+ * the same people who make it. Reading it stays on account.view, because every
+ * roster that shows a customer's 大区 needs to resolve one.
+ *
+ * NO NEW PERMISSION for it. Permissions are not frozen, but this is not a new
+ * question of who-may-do-what: whoever may draw a territory may say which
+ * provinces a 大区 holds.
+ */
+export async function moveProvinceToDivision(
+  ctx: AccountContext,
+  province: string,
+  divisionCode: string | null,
+): Promise<RuleResult<{ province: string; divisionCode: string | null }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  // The same 34 the database CHECK-constrains the mapping table to.
+  if (!isProvince(province)) {
+    return fail(violation(
+      "province_unknown",
+      `${province} is not one of the 34 provincial-level divisions`,
+      "province",
+    ));
+  }
+
+  const moved = await ctx.store.setProvinceDivision(ctx.workspaceId, province, divisionCode);
+  if (!moved) {
+    return fail(violation(
+      "division_unknown",
+      `${divisionCode} is not a market division this workspace has`,
+      "divisionCode",
+    ));
+  }
+  return ok({ province, divisionCode });
+}
+
 export async function listMarketDivisions(
   ctx: AccountContext,
 ): Promise<RuleResult<MarketDivisionRecord[]>> {
@@ -496,8 +537,15 @@ export async function accountCompleteness(
    lib/completeness.ts, so adding `province` to the gap model left the write
    path still refusing it, and the type error was the only thing that said so.
    A second copy of a vocabulary is a second chance to be wrong about it. */
-export const FILLABLE_ACCOUNT_FIELDS = FILLABLE_FIELDS;
-export type FillableAccountField = (typeof FILLABLE_ACCOUNT_FIELDS)[number];
+/* A RE-EXPORT, NOT AN ASSIGNMENT, and the difference is load order. Writing
+   `const FILLABLE_ACCOUNT_FIELDS = FILLABLE_FIELDS` evaluates at module scope,
+   so under a circular import - this module already reaches pipeline/service -
+   the imported binding can still be in its temporal dead zone and the whole app
+   dies with "FILLABLE_FIELDS is not defined". A re-export is a live binding:
+   nothing is read until somebody actually uses it. Type-checking cannot see
+   this; only running it can, which is how it was found. */
+export { FILLABLE_FIELDS as FILLABLE_ACCOUNT_FIELDS };
+export type FillableAccountField = (typeof FILLABLE_FIELDS)[number];
 
 /** province -> 大区 name, as this workspace divides its market (incr/0036). */
 function provinceDivision(
@@ -509,7 +557,7 @@ function provinceDivision(
 }
 
 export function isFillableAccountField(v: string): v is FillableAccountField {
-  return (FILLABLE_ACCOUNT_FIELDS as readonly string[]).includes(v);
+  return (FILLABLE_FIELDS as readonly string[]).includes(v);
 }
 
 export async function fillAccountField(

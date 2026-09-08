@@ -5,6 +5,9 @@ import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { listTerritories } from "../../domains/planning/service";
+import { listMarketDivisions } from "../../domains/account/service";
+import { ALL_PROVINCES } from "../../domains/shared/provinces";
+import { DivisionPanel } from "../components/division-panel";
 import { TerritoryPanel } from "../components/territory-panel";
 import { loadFailureText } from "../lib/load-failure";
 import { NewEntryLink } from "../components/form-page";
@@ -31,6 +34,13 @@ export default async function TerritoryPage() {
     );
   }
 
+  const ctx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+
   const territories = await listTerritories(
     {
       workspaceId: session.workspaceId,
@@ -50,6 +60,18 @@ export default async function TerritoryPage() {
       />
     );
   }
+
+  /* 大区-省级. Read from the account store because that is where incr/0036
+     put the table, and gated on account.view - every roster that shows a
+     customer's 大区 has to resolve one, so it is not a separate privilege.
+     A failed read is not fatal to this page: the territory roster above still
+     answers its own question, so the section below simply does not render. */
+  const divisions = await listMarketDivisions({ ...ctx, store: session.stores.account() });
+  const divisionRows = divisions.ok ? divisions.value : [];
+  const placed = new Set(divisionRows.flatMap((d) => d.provinces));
+  // Computed from the SAME 34 the map and the database CHECK both use, so a
+  // province cannot be missing from this list and present on the map.
+  const unassigned = ALL_PROVINCES.filter((p) => !placed.has(p));
 
   const unowned = territories.value.filter((t) => !t.ownerSub).length;
 
@@ -77,6 +99,19 @@ export default async function TerritoryPage() {
         }
       />
       <TerritoryPanel rows={territories.value} />
+      {divisions.ok ? (
+        <DivisionPanel
+          divisions={divisionRows.map((d) => ({
+            code: d.code, name: d.name, provinces: d.provinces,
+          }))}
+          unassigned={unassigned}
+          // The same gate the write path enforces. A picker that appears and
+          // then refuses is worse than one that is not offered.
+          editable={
+            can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed
+          }
+        />
+      ) : null}
       {/* Creation and editing left for /territory/new on 2026-09-05 - which
           also carries the regions field this page's panel never had. */}
       {can(session.authz, session.entitlement, "planning.territory.upsert", "ui")

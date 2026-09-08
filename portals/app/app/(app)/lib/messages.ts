@@ -2119,6 +2119,9 @@ export const OPPORTUNITY_TEXT = {
 
 export const TERRITORY_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  // incr/0036 的两个：省份词表与大区归属，都由数据库约束，说人话而不是抛约束名。
+  province_unknown: "省份必须是全国 34 个省级行政区之一",
+  division_unknown: "这个大区不属于当前工作区",
   code_required: "区域代码不能为空",
   name_required: "区域名称不能为空",
   unknown_status: "未知的区域状态",
@@ -3042,6 +3045,22 @@ export const PLANNING_TEXT = {
   scopeOwner: "我自己",
   setMetric: "指标",
   territoryTitle: "销售区域",
+  // --- 大区 - 省级设置 (incr/0036) ---
+  divisionTitle: "大区与省份",
+  divisionWhy:
+    "上面的销售区域说的是「谁负责哪片地」，这里说的是「一个大区由哪些省组成」。两段连起来读，才能不靠记忆回答「江苏归谁管」。一个省最多属于一个大区，所以这里是改归属，不是勾选。",
+  divisionEmptyTitle: "这个工作区还没有大区",
+  divisionEmptyWhy:
+    "大区在数据库初始化时预置五个（东部/南部/西部/北部/中部）。一个都没有，通常意味着这个工作区是在预置之前建的。",
+  divisionNone: "未归入",
+  divisionHoldsNothing: "这个大区目前不含任何省份",
+  moveProvince: (p: string) => `把 ${p} 改到其他大区`,
+  provinceCount: (n: number) => `${n} 个省`,
+  divisionCoverage: (placed: number, total: number, divisions: number) =>
+    `${total} 个省级行政区中，${placed} 个已归入 ${divisions} 个大区`,
+  divisionAllPlaced: "全部省份都已归入大区。",
+  divisionUnplaced: (n: number) =>
+    `还有 ${n} 个省没有归入任何大区。它们不会出现在任何按大区汇总的口径里；在态势屏上会被画成灰色，读起来像「这里没有业务」，而不是「这块地还没人认领」。`,
   territoryWhy:
     "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。",
   territoryNone: "还没有销售区域",
