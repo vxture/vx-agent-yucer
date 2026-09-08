@@ -5,13 +5,17 @@ import { can } from "../../../authz/decide";
 import { CatalogPage } from "../../catalog/shell";
 import { CatalogTypeConfig } from "../../components/catalog-type-config";
 import { CatalogStatusConfig } from "../../components/catalog-status-config";
+import { CatalogUnitConfig } from "../../components/catalog-unit-config";
 import {
   deleteProductType,
   deleteStatusRow,
+  deleteUnitRow,
   moveProductTypeRow,
   moveStatusRow,
+  moveUnitRow,
   saveProductType,
   saveStatusRow,
+  saveUnitRow,
 } from "../../catalog/actions";
 
 // 产品配置 - moved out of /catalog/settings on 2026-09-08 (owner).
@@ -37,7 +41,7 @@ export default async function ProductSettingsPage() {
   const { ADMIN_TEXT, DOMAIN_LABEL } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, types, statuses, authz, entitlement }) => {
+      render={({ products, types, statuses, units, authz, entitlement }) => {
         if (!can(authz, entitlement, "catalog.product.upsert", "ui").allowed) {
           redirect("/admin");
         }
@@ -61,6 +65,13 @@ export default async function ProductSettingsPage() {
               onSave={saveStatusRow}
               onMove={moveStatusRow}
               onDelete={deleteStatusRow}
+            />
+            <CatalogUnitConfig
+              units={units}
+              products={products}
+              onSave={saveUnitRow}
+              onMove={moveUnitRow}
+              onDelete={deleteUnitRow}
             />
           </ViewLayout>
         );

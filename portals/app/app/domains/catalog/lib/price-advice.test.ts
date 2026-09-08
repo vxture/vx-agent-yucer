@@ -10,7 +10,7 @@ const product = (id: string, name: string): ProductRecord => ({
   productCode: id.toUpperCase(),
   name,
   typeId: null,
-  unit: "套",
+  unitId: "u_套",
   statusId: "st_active",
   sortOrder: 1,
 });

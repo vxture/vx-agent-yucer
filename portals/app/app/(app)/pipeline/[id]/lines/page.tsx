@@ -9,6 +9,7 @@ import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
   listProductStatuses as listCatalogStatuses,
+  listProductUnits as listCatalogUnits,
 } from "../../../../domains/catalog/service";
 import { LineEditor } from "../../../components/line-editor";
 import { approveDiscount, saveOpportunityLines } from "../../stage-action";
@@ -47,11 +48,15 @@ export default async function DealLinesPage({
   if (!canEdit) redirect(`/pipeline/${id}`);
 
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [lineRows, productRows, statusRows] = await Promise.all([
+  const [lineRows, productRows, statusRows, unitRows] = await Promise.all([
     listOpportunityLines(catalogCtx),
     listCatalogProducts(catalogCtx),
     listCatalogStatuses(catalogCtx),
+    listCatalogUnits(catalogCtx),
   ]);
+  const unitName = new Map(
+    (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
+  );
   // Quotable = the canonical 在售 row. Products on a workspace-added status
   // are visible in the catalogue but not offered on a quote line.
   const onSaleId = statusRows.ok
@@ -78,7 +83,14 @@ export default async function DealLinesPage({
           }))}
         products={(productRows.ok ? productRows.value : [])
           .filter((p) => p.statusId === onSaleId)
-          .map((p) => ({ id: p.id, name: p.name, unit: p.unit }))}
+          /* THE UNIT'S NAME, not its uuid (0037). The editor prints it beside
+             every quantity - "12 套" - so a raw id here would be a line item
+             nobody can read. */
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            unit: unitName.get(p.unitId) ?? "",
+          }))}
         canEdit
         canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}
         closed={opportunity.closedAt !== null}

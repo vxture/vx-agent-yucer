@@ -24,7 +24,12 @@ import {
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
-import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
+import type {
+  ProductRecord,
+  ProductStatusRecord,
+  ProductTypeRecord,
+  ProductUnitRecord,
+} from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
@@ -52,6 +57,11 @@ export interface ProductRosterProps {
   readonly types: readonly ProductTypeRecord[];
   /** The status vocabulary - labels, tones and legal moves all read it. */
   readonly statuses: readonly ProductStatusRecord[];
+  /** 计价单位 (0037) - the row carries a uuid, this turns it into 套 / 人天.
+   *  REQUIRED, not optional-with-a-default: an optional one let /catalog
+   *  render the roster without it and print an empty 单位 column, which is
+   *  exactly the kind of miss a type can catch and a default cannot. */
+  readonly units: readonly ProductUnitRecord[];
   readonly canWrite: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
@@ -68,6 +78,7 @@ const SORT_ON = {
 };
 
 export function ProductRoster({
+  units,
   products,
   types,
   statuses,
@@ -92,6 +103,7 @@ export function ProductRoster({
   const { toast } = useToast();
 
   const typeName = new Map(types.map((t) => [t.id, t.name]));
+  const unitName = new Map(units.map((u) => [u.id, u.name]));
   const vocab = new Map(statuses.map((r) => [r.id, r]));
   const codeOf = (p: ProductRecord) => vocab.get(p.statusId)?.statusCode;
 
@@ -188,7 +200,11 @@ export function ProductRoster({
     {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
-      cell: (r: ProductRecord) => r.unit,
+      /* THE NAME, resolved from the vocabulary (0037). The row carries a uuid;
+         printing it would be a column of hex. A product whose unit row was
+         deleted underneath it cannot exist - fk_product_unit RESTRICTs - so
+         the fallback is for a partial read, not for a real state. */
+      cell: (r: ProductRecord) => unitName.get(r.unitId) ?? "",
     },
   ];
 

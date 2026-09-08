@@ -69,6 +69,7 @@ import {
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
+  listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
 import { StageControl } from "../../components/stage-control";
 import { StageJourney } from "../../components/stage-journey";
@@ -157,7 +158,7 @@ export default async function OpportunityDetailPage({
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [account, chain, roles, projects, feed, proposals, lineRows, productRows] =
+  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows] =
     await Promise.all([
       getAccountDetail(accountCtx, opportunity.accountId),
       // incr/0027. THIS PAGE IS A DEAL, so it asks the deal's question. It used
@@ -189,7 +190,11 @@ export default async function OpportunityDetailPage({
       ),
       listOpportunityLines(catalogCtx),
       listCatalogProducts(catalogCtx),
+      listCatalogUnits(catalogCtx),
     ]);
+  const unitName = new Map(
+    (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
+  );
   const plan =
     account.ok && account.value.account.tier === "strategic"
       ? await session.stores.account().getAccountPlan(
@@ -666,7 +671,8 @@ export default async function OpportunityDetailPage({
         products={(productRows.ok ? productRows.value : []).map((p) => ({
           id: p.id,
           name: p.name,
-          unit: p.unit,
+          // The name, resolved from 计价单位 (0037) - the row carries a uuid.
+          unit: unitName.get(p.unitId) ?? "",
         }))}
         // READ VIEW since 2026-09-05: the 418-line editor moved to
         // /pipeline/[id]/lines (owner ruling - the heaviest content operation

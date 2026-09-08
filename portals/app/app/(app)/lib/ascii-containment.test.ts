@@ -35,6 +35,10 @@ const ALLOWED = new Set([
   // afterwards. Same nature as demo-fixtures: data that happens to be text.
   "domains/catalog/lib/status-vocab.ts",
   "domains/catalog/lib/type-vocab.ts",
+  // 计价单位 (0037) joined them for the same reason, and the seed SQL carries
+  // the identical rows - two copies of the same starter data, which the DDL
+  // and this module have to agree on.
+  "domains/catalog/lib/unit-vocab.ts",
   // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
   // Same nature again - data that happens to be text - with one addition that
   // matters more here than anywhere else on this list: these 34 strings are a

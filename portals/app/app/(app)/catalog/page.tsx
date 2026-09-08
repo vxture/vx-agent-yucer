@@ -22,7 +22,7 @@ export default async function ProductsPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, types, statuses, authz, entitlement }) => {
+      render={({ products, types, statuses, units, authz, entitlement }) => {
         const canWrite = can(authz, entitlement, "catalog.product.upsert", "ui").allowed;
         // The two tags and the roster split are wired to the CANONICAL rows -
         // products on a workspace-added status live in the main roster and
@@ -98,6 +98,7 @@ export default async function ProductsPage() {
               products={products}
               types={types}
               statuses={statuses}
+              units={units}
               canWrite={canWrite}
               onMove={moveProductRow}
               onStatus={changeProductStatus}

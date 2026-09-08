@@ -5,12 +5,20 @@ import { getMessages } from "../lib/i18n/server";
 import type { PermissionHolder } from "../../authz/decide";
 import type { Entitlement } from "../../entitlement/types";
 import { getCatalogStore } from "../../domains/shared/registry";
-import { listPrices, listProducts, listProductStatuses, listProductTypes, listSolutions } from "../../domains/catalog/service";
+import {
+  listPrices,
+  listProducts,
+  listProductStatuses,
+  listProductTypes,
+  listProductUnits,
+  listSolutions,
+} from "../../domains/catalog/service";
 import type {
   PriceEntryRecord,
   ProductRecord,
   ProductStatusRecord,
   ProductTypeRecord,
+  ProductUnitRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "../../domains/catalog/store";
@@ -36,6 +44,9 @@ export interface CatalogData {
   types: readonly ProductTypeRecord[];
   /** The status vocabulary - names and 状态描述 come from here. */
   statuses: readonly ProductStatusRecord[];
+  /** 计价单位 (0037). Read for the same reason the other two are: a product row
+   *  carries a uuid, and every surface that shows a product shows its unit. */
+  units: readonly ProductUnitRecord[];
   solutions: readonly { solution: SolutionRecord; items: readonly SolutionItemRecord[] }[];
   prices: readonly PriceEntryRecord[];
   authz: PermissionHolder;
@@ -67,10 +78,11 @@ export async function CatalogPage({
     store: getCatalogStore(),
   };
 
-  const [products, types, statuses, solutions, prices] = await Promise.all([
+  const [products, types, statuses, units, solutions, prices] = await Promise.all([
     listProducts(ctx),
     listProductTypes(ctx),
     listProductStatuses(ctx),
+    listProductUnits(ctx),
     listSolutions(ctx),
     listPrices(ctx),
   ]);
@@ -93,6 +105,7 @@ export async function CatalogPage({
         products: products.value,
         types: types.ok ? types.value : [],
         statuses: statuses.ok ? statuses.value : [],
+        units: units.ok ? units.value : [],
         solutions: solutions.ok ? solutions.value : [],
         prices: prices.ok ? prices.value : [],
         authz: session.authz,

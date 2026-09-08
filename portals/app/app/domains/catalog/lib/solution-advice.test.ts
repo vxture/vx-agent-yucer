@@ -9,7 +9,7 @@ const RETIRED = "st_retired";
 
 const product = (id: string, name: string, statusId = ON_SALE): ProductRecord => ({
   id, workspaceId: WS, productCode: id.toUpperCase(), name,
-  typeId: null, unit: "套", statusId, sortOrder: 1,
+  typeId: null, unitId: "u_套", statusId, sortOrder: 1,
 });
 const solution = (id: string, name: string, over: Partial<SolutionRecord> = {}): SolutionRecord => ({
   id, workspaceId: WS, solutionCode: id.toUpperCase(), name,

@@ -741,6 +741,17 @@ export const CATALOG_TEXT = {
   // 配置页（owner 裁定 2026-09-05 第二轮）：次级配置页，不摆模块页头——
   // 返回 + 面包屑一行，小标题一行，不带描述。
   settingsTitle: "产品配置",
+  // 计价单位 (0037) - 产品配置的第三段
+  unitsTitle: "计价单位",
+  unitsWhy:
+    "产品按什么卖：套、人天、年。每一条报价行都是数量乘单价，所以单位不是标签——「12 × 8,000」在知道一个是什么之前不成句。这里定好，产品表单里只能选，不能自己敲。",
+  addUnit: "新建单位",
+  renameUnit: "重命名",
+  saveUnit: "保存单位",
+  unitCode: "单位代码",
+  unitCodeHint: "创建后不可更改，作为这个单位的锚。用英文小写，如 set / month。",
+  colUnitName: "单位名称",
+  unitDeleteConsequence: "还有产品按这个单位计价时会被拒绝——先把它们改成别的单位。",
   back: "返回",
   typesTitle: "产品类型",
   typesWhy:
@@ -1106,6 +1117,9 @@ export const CATALOG_ERROR: Record<string, string> = {
   born_shelved: "产品不能一出生就是已退役",
   system_status: "内置三个状态不可删除——可以改名、改描述、排序",
   status_in_use: "还有产品处于这个状态，先把它们转走",
+  // 0037 计价单位
+  unit_not_found: "找不到这个计价单位，页面可能已过期，请刷新",
+  unit_in_use: "还有产品按这个单位计价，先把它们改成别的单位",
 };
 
 export const ROLE_LABEL: Record<string, string> = {

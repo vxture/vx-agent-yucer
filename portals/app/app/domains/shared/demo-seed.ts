@@ -55,6 +55,7 @@ import {
 import { buildNationalCohort } from "./demo-national";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
+import { DEFAULT_UNIT_VOCABULARY } from "../catalog/lib/unit-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
   CommitmentRecord,
@@ -1656,6 +1657,19 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }));
   const statusIdOf = new Map(statuses.map((r) => [r.statusCode, r.id]));
 
+  /* 计价单位 (incr/0037), the shipped list - and the demo's products name their
+     unit by CODE in the fixtures, resolved to a uuid here exactly as the type
+     and status are. The fixtures said "套" and "人月" when the column was free
+     text; those are NAMES, and the vocabulary's own codes are set / month. */
+  const units = DEFAULT_UNIT_VOCABULARY.map((d, i) => ({
+    id: `pun_demo_${i + 1}`,
+    workspaceId,
+    unitCode: d.unitCode,
+    name: d.name,
+    sortOrder: i + 1,
+  }));
+  const unitIdOf = new Map(units.map((u) => [u.unitCode, u.id]));
+
   const products = [
     ...DEMO_PRODUCTS.map((p, i) => ({
       id: `prd_demo_${i + 1}`,
@@ -1663,7 +1677,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       productCode: p.code,
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
-      unit: p.unit,
+      unitId: unitIdOf.get(p.unit)!,
       statusId: statusIdOf.get("active")!,
       sortOrder: i + 1,
     })),
@@ -1675,7 +1689,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       productCode: p.code,
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
-      unit: p.unit,
+      unitId: unitIdOf.get(p.unit)!,
       statusId: statusIdOf.get("in_development")!,
       sortOrder: DEMO_PRODUCTS.length + i + 1,
     })),
@@ -1687,7 +1701,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       productCode: p.code,
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
-      unit: p.unit,
+      unitId: unitIdOf.get(p.unit)!,
       statusId: statusIdOf.get("retired")!,
       sortOrder: DEMO_PRODUCTS.length + DEMO_DEV_PRODUCTS.length + i + 1,
     })),
@@ -1790,7 +1804,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }),
   );
 
-  stores.catalog.seed({ products, types, statuses, solutions, items, prices, lines });
+  stores.catalog.seed({ products, types, units, statuses, solutions, items, prices, lines });
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */

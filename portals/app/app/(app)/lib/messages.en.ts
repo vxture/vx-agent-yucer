@@ -700,6 +700,8 @@ export const en: Dictionary = {
     born_shelved: "A product cannot be created already retired",
     system_status: "The three built-in statuses never delete - rename, describe, reorder them",
     status_in_use: "Products still carry this status - move them first",
+    unit_not_found: "No such unit - the page may be stale, reload it",
+    unit_in_use: "Products are still priced in this unit - move them to another one first",
     product_in_use:
       "Quote lines or solutions still reference this product - retire it instead of deleting",
     move_at_edge: "Already at that end of the list",
@@ -831,6 +833,16 @@ export const en: Dictionary = {
     sortTitle: "Current catalogue order",
     sortWhy: "A new product joins at the end. Move it into place - this order is the one customers see.",
     settingsTitle: "Catalogue configuration",
+    unitsTitle: "Pricing units",
+    unitsWhy:
+      "What a product is sold by: sets, person-days, years. Every quote line multiplies quantity by unit price, so the unit is not a label - a line reading \"12 x 8,000\" is not a sentence until you know what one of them is. Configured here; the product form picks from this list rather than accepting typed text.",
+    addUnit: "New unit",
+    renameUnit: "Rename",
+    saveUnit: "Save unit",
+    unitCode: "Unit code",
+    unitCodeHint: "Fixed once created - it is this unit\'s anchor. Lowercase ASCII, e.g. set / month.",
+    colUnitName: "Unit",
+    unitDeleteConsequence: "Refused while products are priced in it - move them to another unit first.",
     back: "Back",
     typesTitle: "Product types",
     typesWhy:

@@ -927,7 +927,9 @@ model Product {
   name        String   @db.VarChar(255)
   /// The type association - a uuid since 0029; the business code never joins.
   typeId      String?  @map("type_id") @db.Uuid
-  unit        String   @default("set") @db.VarChar(32)
+  /// The unit association - a uuid since 0037, for the reason the type and the
+  /// status became one: a string that multiplies money cannot be free text.
+  unitId      String   @map("unit_id") @db.Uuid
   /// The status association - a uuid like the type's (0029).
   statusId    String   @map("status_id") @db.Uuid
   sortOrder   Int      @default(0) @map("sort_order")
@@ -938,6 +940,7 @@ model Product {
   @@index([workspaceId, sortOrder], map: "idx_product_ws_sort")
   @@index([workspaceId, typeId], map: "idx_product_ws_type")
   @@index([workspaceId, statusId], map: "idx_product_ws_status")
+  @@index([workspaceId, unitId], map: "idx_product_ws_unit")
   @@map("product")
   @@schema("yucer_catalog")
 }
@@ -963,6 +966,23 @@ model ProductType {
 /// The workspace's status vocabulary - incr/0029. Rows ARE the content:
 /// code (anchor), name, 状态描述, order. The three canonical rows are
 /// rule-protected from deletion; everything else is the workspace's.
+/// 计价单位 - the third catalogue vocabulary (0037). Independent of type and
+/// status: none of the three knows the others exist.
+model ProductUnit {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  unitCode    String   @map("unit_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, unitCode], map: "uidx_product_unit_code")
+  @@index([workspaceId, sortOrder], map: "idx_product_unit_ws_sort")
+  @@map("product_unit")
+  @@schema("yucer_catalog")
+}
+
 model ProductStatus {
   id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid

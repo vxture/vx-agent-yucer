@@ -19,6 +19,7 @@ import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type {
   ProductRecord,
   ProductStatusRecord,
+  ProductUnitRecord,
   ProductTypeRecord,
   SolutionItemRecord,
   SolutionRecord,
@@ -66,6 +67,7 @@ export function NewProductForm({
   products,
   types,
   statuses,
+  units,
   initial,
   onSave,
 }: {
@@ -74,6 +76,9 @@ export function NewProductForm({
   readonly types: readonly ProductTypeRecord[];
   /** The status vocabulary - the birth choice selects from it. */
   readonly statuses: readonly ProductStatusRecord[];
+  /** 计价单位 (incr/0037). A picker since the unit stopped being free text:
+   *  套 typed here and 台 typed there were two units nobody could group by. */
+  readonly units: readonly ProductUnitRecord[];
   /** Present = EDIT mode (?code= on the page): code locked, status untouched -
    * transitions belong to the roster's row menu, not the form. */
   readonly initial?: ProductRecord;
@@ -81,7 +86,7 @@ export function NewProductForm({
     productCode: string;
     name: string;
     typeId: string | null;
-    unit: string;
+    unitId: string;
     statusId?: string;
   }) => Promise<Saved>;
 }) {
@@ -90,7 +95,12 @@ export function NewProductForm({
   const [code, setCode] = useState(initial?.productCode ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [typeId, setTypeId] = useState(initial?.typeId ?? "");
-  const [unit, setUnit] = useState(initial?.unit ?? "");
+  const [unitId, setUnitId] = useState(
+    /* The first row of the vocabulary on a new product - a unit is required
+       and every workspace has one, so an empty select would be a field the
+       reader has to open to say the obvious. An edit keeps what the row has. */
+    () => initial?.unitId ?? units[0]?.id ?? "",
+  );
   // The birth choice: any status except the shelf - born-retired is a record
   // error the service refuses. An edit never sends status at all; transitions
   // belong to the roster's row menu.
@@ -107,7 +117,7 @@ export function NewProductForm({
     () => suggestNextCode(products.map((p) => p.productCode)),
     [products],
   );
-  const units = useMemo(() => knownValues(products.map((p) => p.unit)), [products]);
+
 
   const suggestions: AssistSuggestion[] = [];
   if (!editing && nextCode && code.trim() === "") {
@@ -118,16 +128,7 @@ export function NewProductForm({
       apply: () => setCode(nextCode),
     });
   }
-  if (unit.trim() === "" && units.length > 0) {
-    suggestions.push({
-      id: "unit",
-      label: ASSIST_TEXT.unitKnown(units[0]!),
-      reason: ASSIST_TEXT.unitKnownWhy,
-      apply: () => setUnit(units[0]!),
-    });
-  }
-
-  const ready = code.trim() !== "" && name.trim() !== "" && unit.trim() !== "";
+  const ready = code.trim() !== "" && name.trim() !== "" && unitId !== "";
   return (
     <FormPage
       form={
@@ -166,9 +167,17 @@ export function NewProductForm({
             <Field>
               {/* Required, and the rule layer refuses without it: a unit-less
                   product makes every quantity on every quote a meaningless
-                  number. */}
+                  number. A PICKER since 0037 - the vocabulary is configured in
+                  配置管理, and typing one here is how two spellings of the
+                  same unit got into one catalogue. */}
               <FieldLabel>{CATALOG_TEXT.colUnit}</FieldLabel>
-              <Input value={unit} onChange={(e) => setUnit(e.target.value)} />
+              <NativeSelect value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </NativeSelect>
             </Field>
             {!editing ? (
               <Field>
@@ -193,7 +202,7 @@ export function NewProductForm({
                         productCode: code.trim(),
                         name: name.trim(),
                         typeId: typeId || null,
-                        unit: unit.trim(),
+                        unitId,
                         // An edit never sends status: the row menu owns
                         // transitions and the service keeps what the row has.
                         ...(editing ? {} : { statusId }),
