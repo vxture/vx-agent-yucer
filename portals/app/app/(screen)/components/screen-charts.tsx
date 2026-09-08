@@ -438,7 +438,14 @@ export function CashChart(
 export function Ring() {
   return (
     <span className="mod-mark" aria-hidden>
-      <svg viewBox="0 0 24 24" fill="var(--screen-warn)">
+      {/* THE viewBox IS THE INK, not a round 24. Drawn at 0 0 24 24 the shape
+          only occupies 18.4 x 21.2 of it, so an eighth of the box was empty and
+          the mark rendered smaller than the space it was given. Worse, the
+          margin was UNEVEN - 2.0 left against 3.6 right, because the
+          half-circle protrudes left and nothing protrudes right - so the mark
+          sat off-centre beside its title. Cropping to the ink fixes both: it
+          fills its box and its optical centre is the box's centre. */}
+      <svg viewBox="0.6 1.4 21.2 21.2" fill="var(--screen-warn)">
         {/* the circle - an annulus, outer 8.4 / inner 7.5 */}
         <path
           fillRule="evenodd"

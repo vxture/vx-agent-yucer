@@ -342,7 +342,9 @@
   content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
   background: linear-gradient(90deg, var(--screen-line) 0%, var(--screen-line-faint) 55%, transparent 100%);
 }
-.screen .mod-hd .mod-mark{ flex: none; width: 18px; height: 18px; display: block; }
+/* 20, against the title's 16px. The mark is the panel's identity and reads
+   from three metres; at 18 it sat smaller than the words it introduces. */
+.screen .mod-hd .mod-mark{ flex: none; width: 20px; height: 20px; display: block; }
 .screen .mod-hd .mod-mark svg{ display: block; width: 100%; height: 100%; overflow: visible; }
 
 /* STATIC, AND DELIBERATELY SO. The mark used to breathe, back when it was a
