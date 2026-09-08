@@ -22,6 +22,19 @@
   --screen-dim: var(--vx-color-neutral-300);
   --screen-faint: var(--vx-color-neutral-400);
   --screen-line: var(--vx-color-neutral-700);
+  --screen-line-faint: var(--vx-color-neutral-800);
+
+  /* THE DESIGN'S THREE FACES, MAPPED ONTO THE DS's THREE. The mock sets
+     Rajdhani on every numeral, Orbitron on the step marks and Noto Sans SC on
+     the qualifiers. This stylesheet may not define a face - globals.css is
+     DS-owned and that is the rigid zone - so each is mapped to the DS face
+     doing the same JOB: the display face for figures, mono for the small
+     technical marks, sans for running text. Registered under TD-025 with the
+     rest of what the DS has no equivalent for. */
+  --screen-rail: 376px;
+  --screen-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --screen-figure: var(--vx-font-brand);
+  --screen-mark: var(--vx-font-mono);
 
   --screen-accent: var(--vx-color-sky-400);
   --screen-accent-hi: var(--vx-color-sky-300);
@@ -73,153 +86,245 @@
 }
 .screen > *:not(.screen-hex) { position: relative; z-index: 1; }
 
-/* ---------- header ---------- */
-.screen-head {
-  flex: none;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg) var(--space-sm);
+/* ---------- 标题栏 ---------- */
+.titlebar {
+  flex: none; height: 100px;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: start; gap: 16px; padding: 12px 28px 6px; overflow: hidden;
+  transition: height 0.34s var(--screen-ease), opacity 0.24s linear,
+              padding 0.34s var(--screen-ease);
 }
-.screen-head-l { display: flex; align-items: center; gap: var(--space-sm); }
-.screen-head-r {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: var(--space-sm); font-size: 0.78rem; color: var(--screen-faint);
-}
-.screen-home {
-  display: inline-flex; align-items: center;
-  height: var(--space-control-md); padding: 0 var(--space-sm);
-  border: 1px solid var(--screen-line);
-  border-radius: var(--radius-sm);
-  color: var(--screen-dim); text-decoration: none; font-size: 0.8rem;
-  transition: color 0.18s, border-color 0.18s;
-}
-.screen-home:hover { color: var(--screen-accent); border-color: var(--screen-accent); }
-.screen-chip {
-  display: inline-flex; flex-direction: column; gap: 2px;
-  padding: 4px var(--space-sm);
-  border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
-  background: color-mix(in oklab, var(--screen-surface) 70%, transparent);
-}
-.screen-chip b { font-size: 0.66rem; font-weight: 600; color: var(--screen-faint); }
-.screen-chip i {
-  font-style: normal; font-size: 1.05rem; font-weight: 700; line-height: 1;
-  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
-}
-.screen-note { max-width: 22rem; text-align: right; line-height: 1.45; }
-.screen-viewer {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.72rem; color: var(--screen-faint);
-  max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.titlebar.folded {
+  height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; pointer-events: none;
 }
 
-.screen-title { text-align: center; padding-bottom: var(--space-xs); border-bottom: 1px solid var(--screen-accent); }
-.screen-title h1 {
-  margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3em;
+.chips { display: flex; gap: 9px; }
+.home {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--screen-dim); text-decoration: none;
+  transition: color 0.18s;
+}
+.home svg { width: 13px; height: 13px; flex: none; }
+.home:hover { color: var(--screen-accent); }
+/* The clipped corner is the design's, and it is why these are not DS Cards:
+   a Card is a rounded rectangle and this is a notched panel. */
+.chip {
+  min-width: 112px; padding: 5px 13px 7px;
+  border: 1px solid var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.chip .k { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; color: var(--screen-dim); }
+.chip .v {
+  font-family: var(--screen-figure); font-weight: 700; font-size: 19px; line-height: 1.2;
+  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+}
+
+.title {
+  position: relative; text-align: center;
+  padding: 2px 36px 9px; border-bottom: 1px solid var(--screen-line);
+}
+/* The hatched corners on the rule. */
+.title::before, .title::after {
+  content: ""; position: absolute; bottom: -1px; width: 32px; height: 8px;
+  background: repeating-linear-gradient(
+    115deg, var(--screen-accent) 0 3px, transparent 3px 7px);
+}
+.title::before { left: -8px; }
+.title::after { right: -8px; transform: scaleX(-1); }
+.title h1 {
+  margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.3em;
   padding-left: 0.3em; color: var(--screen-ink);
+  text-shadow: 0 0 22px oklch(from var(--screen-accent) l c h / 0.5);
 }
-.screen-title p {
-  margin: 4px 0 0; font-size: 0.6rem; font-weight: 600; letter-spacing: 0.32em;
-  padding-left: 0.32em; color: var(--screen-accent); text-transform: uppercase;
+.title p {
+  margin: 4px 0 0; font-family: var(--screen-mark);
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.34em;
+  color: var(--screen-accent); text-transform: uppercase; padding-left: 0.34em;
 }
+
+.ident {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 14px; font-size: 12.5px; color: var(--screen-dim);
+}
+.screen-note { max-width: 20rem; text-align: right; line-height: 1.45; font-size: 11px; }
+.screen-viewer {
+  font-family: var(--screen-mark); font-size: 11px; color: var(--screen-faint);
+  max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 日期 - out of flow, so folding the title moves it rather than reflowing the
+   screen. Folded it sits at the top edge and IS the control that brings the
+   title back; the chevron points where the title is about to go. */
+.screen > .today {
+  position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 20px; padding: 0 12px;
+  font-family: var(--screen-figure); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.14em; color: var(--screen-faint);
+  font-variant-numeric: tabular-nums;
+  background: none; border: 1px solid transparent; cursor: pointer;
+  transition: top 0.34s var(--screen-ease), color 0.18s,
+              border-color 0.18s, background 0.18s;
+}
+.today svg {
+  width: 8px; height: 8px; flex: none; opacity: 0.7;
+  transform: rotate(180deg);
+  transition: transform 0.34s var(--screen-ease);
+}
+.today:hover {
+  color: var(--screen-accent);
+  border-color: var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-raised) 80%, transparent);
+}
+.screen.folded > .today { top: 2px; }
+.screen.folded .today svg { transform: rotate(0deg); }
 
 /* ---------- deck ---------- */
 .screen-deck { flex: 1; min-height: 0; display: flex; align-items: stretch; }
-.screen-rail {
-  /* overflow-x hidden is what makes the fold work - the rail animates to zero
-     width and the content must not spill. overflow-y is AUTO, not hidden,
-     because the screen is built for a 1080-tall wall display and a shorter
-     window would otherwise cut the last panel off with nothing to show that it
-     had: a figure that is silently absent reads as a figure that is zero. */
-  width: 20rem; flex: none; min-width: 0;
-  overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
-  display: flex; flex-direction: column; gap: var(--space-lg);
-  padding: var(--space-md) var(--space-lg) var(--space-md);
-  transition: width 0.28s ease, padding 0.28s ease;
-}
-.screen-rail.folded { width: 0; padding-left: 0; padding-right: 0; }
-.screen-mod { display: flex; flex-direction: column; }
-.screen-mod-grow { flex: 1; min-height: 0; }
 
-/* The panel header: title left, step right, on one rule. The step is the
-   reading ORDER through the six panels - 01 leads, 05 collections - which is a
-   real sequence, so numbering it says something rather than decorating it. */
-.screen-mod-hd {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: var(--space-xs); margin-bottom: var(--space-xs);
-  padding-bottom: var(--space-2xs);
-  border-bottom: 1px solid var(--screen-line);
+/* ---------- 边栏与板块 (the design's rail / mod) ---------- */
+/* 376, and it is load-bearing: minus the body's 24px of side padding it
+   leaves exactly 328, which is the width every chart's viewBox is drawn at.
+   At 320 the charts were being scaled down to fit and the design's 7px bar
+   labels went sub-pixel. */
+.rail {
+  position: relative; width: var(--screen-rail); min-width: 0; overflow: hidden;
+  transition: width 0.28s var(--screen-ease);
 }
-.screen-mod-hd h2 {
-  margin: 0; font-size: 0.86rem; font-weight: 700; letter-spacing: 0.14em;
-  color: var(--screen-ink);
+.rail.folded { width: 0; }
+/* 顶部留白 (owner, 2026-09-07): the rails used to start flush against the title
+   bar, so the first module's ring sat on the same line as the header rule above
+   it and read as part of it. */
+.rail__body {
+  width: var(--screen-rail); height: 100%; padding: 18px 24px 12px;
+  display: flex; flex-direction: column; gap: 22px;
 }
-.screen-step {
-  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
-  color: var(--screen-faint); font-variant-numeric: tabular-nums;
+.rail-left .rail__body { margin-left: auto; }
+
+.mod { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mod-hd {
+  position: relative; display: flex; align-items: center; gap: 9px;
+  padding-bottom: 7px; margin-bottom: 9px;
+}
+.mod-hd::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, var(--screen-line) 0%, var(--screen-line-faint) 55%, transparent 100%);
+}
+.mod-hd .ring { flex: none; width: 18px; height: 18px; display: block; }
+.mod-hd .ring svg { display: block; width: 100%; height: 100%; }
+.mod-hd h2 {
+  margin: 0; font-size: 16px; font-weight: 700; letter-spacing: 0.15em;
+  color: var(--screen-ink); white-space: nowrap;
+}
+.mod-hd .step {
+  font-family: var(--screen-mark); font-size: 9px; font-weight: 600;
+  color: var(--screen-faint); letter-spacing: 0.1em;
+}
+.mod-hd .rule {
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--screen-line-faint), transparent);
+}
+/* The right rail reverses its header so the rule always runs toward the map. */
+.mod-hd.rev { flex-direction: row-reverse; }
+.mod-hd.rev::after {
+  background: linear-gradient(270deg, var(--screen-line) 0%, var(--screen-line-faint) 55%, transparent 100%);
+}
+.mod-hd.rev .rule {
+  background: linear-gradient(270deg, var(--screen-line-faint), transparent);
 }
 
-.screen-lead {
-  font-size: 2rem; font-weight: 700; line-height: 1.05;
+.mod-bd { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.cells { display: flex; margin-bottom: 8px; }
+.cells > div { flex: 1; padding: 0 11px; position: relative; min-width: 0; }
+.cells > div:first-child { padding-left: 1px; }
+.cells > div + div::before {
+  content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 1px;
+  background: var(--screen-line-faint);
+}
+.cells .k { font-size: 11px; color: var(--screen-dim); margin-bottom: 3px; white-space: nowrap; }
+.cells .v {
+  font-family: var(--screen-figure); font-weight: 700; font-size: 24px; line-height: 1;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.cells .v small { font-size: 10.5px; color: var(--screen-dim); font-weight: 600; margin-left: 2px; }
+.cells .v.lead { font-size: 28px; color: var(--screen-accent-hi); }
+.cells .v.hi { color: var(--screen-warn); }
+.cells .v.amber { color: var(--screen-warn); }
+.cells .v.red { color: var(--screen-danger); }
+
+/* 智能副驾: one hero figure, then a pair. */
+.hero { display: flex; align-items: center; gap: 13px; margin-bottom: 6px; }
+.hero-v {
+  font-family: var(--screen-figure); font-weight: 700; font-size: 46px; line-height: 0.95;
   color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 26px oklch(from var(--screen-accent) l c h / 0.35);
 }
-.screen-lead small { font-size: 0.8rem; color: var(--screen-faint); margin-left: 4px; font-weight: 600; }
-.screen-sub { margin-top: 2px; font-size: 0.72rem; color: var(--screen-faint); }
-/* One line, not a second stacked figure: the 30-day pair explains the hero
-   rate above it and must not compete with it for the eye. */
-.screen-note {
-  margin-top: var(--space-2xs); font-size: 0.72rem; color: var(--screen-dim);
+.hero-v small { font-size: 17px; color: var(--screen-dim); margin-left: 2px; font-weight: 600; }
+.hero-s { min-width: 0; }
+.hero-k { font-size: 12px; color: var(--screen-ink); letter-spacing: 0.1em; margin-bottom: 3px; }
+.hero-r { font-size: 11px; color: var(--screen-faint); white-space: nowrap; }
+.hero-r b {
+  font-family: var(--screen-figure); font-size: 14px; font-weight: 700;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums;
+}
+.hero-r span {
+  font-family: var(--screen-figure); font-size: 13px; color: var(--screen-dim);
   font-variant-numeric: tabular-nums;
 }
 
-/* The secondary cells, side by side on one line. Two at most - a third turns
-   the panel into a table and the hero figure stops being the hero. */
-.screen-cells {
-  display: flex; gap: var(--space-md); margin-top: var(--space-sm);
-  padding-top: var(--space-2xs);
+.duo { display: flex; margin-top: 2px; }
+.duo > div { flex: 1; padding: 0 12px; position: relative; min-width: 0; }
+.duo > div:first-child { padding-left: 1px; }
+.duo > div + div::before {
+  content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 1px;
+  background: var(--screen-line-faint);
 }
-.screen-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.screen-cell .k {
-  font-size: 0.68rem; letter-spacing: 0.08em; color: var(--screen-faint);
-  white-space: nowrap;
+.duo .k { font-size: 11px; color: var(--screen-dim); margin-bottom: 3px; }
+.duo .v {
+  font-family: var(--screen-figure); font-weight: 700; font-size: 25px; line-height: 1;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.screen-cell .v {
-  font-size: 1.02rem; font-weight: 700; color: var(--screen-ink);
-  font-variant-numeric: tabular-nums; line-height: 1.1;
+.duo .v small { font-size: 10.5px; color: var(--screen-dim); font-weight: 600; margin-left: 2px; }
+.duo .v.hi { color: var(--screen-accent-hi); }
+.duo .v.amber { color: var(--screen-warn); }
+.duo .v .qual {
+  font-family: var(--vx-font-sans); font-size: 11px; font-weight: 400;
+  color: var(--screen-faint); margin-left: 7px; letter-spacing: 0.04em;
 }
-/* Tone is the reading's MEANING, and each one is a DS token: overdue money is
-   the product's danger, an unclaimed lead is merely waiting, health is the
-   figure the owner asked to stand out from the other three. */
-.screen-cell .v.hi { color: var(--screen-warn); }
-.screen-cell .v.warn { color: var(--screen-accent-hi); }
-.screen-cell .v.danger { color: var(--screen-danger); }
+.duo .v .plus { color: var(--screen-danger); font-size: 19px; margin-left: 1px; }
 
-/* The bar strip. The value is small until the row is hovered (owner,
-   2026-09-07), so six figures cannot out-shout the panel's hero number. */
-.screen-bars {
-  list-style: none; margin: var(--space-sm) 0 0; padding: 0;
-  display: flex; flex-direction: column; gap: 5px;
+/* 交付履约's donut and its key. */
+.screen-health { flex: 1; display: flex; align-items: center; gap: 14px; min-height: 0; }
+.legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.legend div { display: flex; align-items: center; font-size: 12px; color: var(--screen-ink); }
+.legend i { width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; flex: none; }
+.legend b {
+  font-family: var(--screen-figure); font-weight: 700; margin-left: auto;
+  font-variant-numeric: tabular-nums; font-size: 14px;
 }
-.screen-bars li { display: flex; align-items: center; gap: var(--space-2xs); }
-.screen-bars .p {
-  font-size: 0.72rem; color: var(--screen-dim); min-width: 3.2rem;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+
+/* ---------- 图内的排版 ---------- */
+.tick {
+  font-family: var(--screen-figure); font-size: 11px; fill: var(--screen-faint);
+  font-variant-numeric: tabular-nums;
 }
-.screen-bars i {
-  flex: 1; height: 7px; border-radius: 2px; min-width: 0;
-  background: var(--screen-blank); overflow: hidden; display: block;
+.slab { font-size: 11px; fill: var(--screen-dim); }
+.val {
+  font-family: var(--screen-figure); font-weight: 700; fill: var(--screen-accent-hi);
+  font-variant-numeric: tabular-nums;
 }
-.screen-bars em {
-  display: block; height: 100%; border-radius: 2px;
-  background: linear-gradient(90deg, var(--screen-l2), var(--screen-l5));
+.gridline { stroke: var(--screen-line); stroke-width: 1; opacity: 0.55; }
+.axis { stroke: var(--screen-line); stroke-width: 1; }
+.trough { fill: var(--screen-accent); fill-opacity: 0.11; }
+.barval {
+  font-family: var(--screen-figure); font-weight: 700; font-size: 7px;
+  fill: var(--screen-faint); font-variant-numeric: tabular-nums; pointer-events: none;
+  transition: font-size 0.14s var(--screen-ease), fill 0.14s linear;
 }
-.screen-bars b {
-  font-size: 0.66rem; font-weight: 700; color: var(--screen-dim);
-  font-variant-numeric: tabular-nums; min-width: 4.2rem; text-align: right;
-  transition: font-size 0.15s ease, color 0.15s ease;
-}
-.screen-bars li:hover b { font-size: 0.86rem; color: var(--screen-accent-hi); }
+.barcol:hover .barval { font-size: 12px; fill: var(--screen-accent-hi); }
+.barcol:hover rect:first-of-type { filter: brightness(1.18); }
 
 /* ---------- arena ---------- */
 .screen-arena { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -310,24 +415,39 @@
 .screen-scale span { font-size: 0.68rem; color: var(--screen-faint); margin: 0 var(--space-2xs); font-variant-numeric: tabular-nums; }
 
 /* The fold bracket. Drawn rather than imported - see TD-025. */
-.screen-arc {
-  position: relative; align-self: center; flex: none;
-  z-index: 6; width: 1.4rem; height: min(45%, 22rem); cursor: pointer;
-  background: none; border: none; padding: 0;
+/* ---------- 收起边栏的折角 ----------
+   ONE GRAPHIC, MIRRORED. This is vxtpl's own bracket, copied as a single asset
+   and flipped for the right-hand side rather than drawn twice - the owner asked
+   for exactly that, and two hand-built shapes would drift apart the first time
+   either was touched. It sits inside the map wrapper, pinned to its edges.
+
+   Either bracket drives the SAME state, so one click folds and unfolds both
+   rails: they are one gesture, not two independent panels. */
+.arc {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  z-index: 6; width: 38px; height: min(66%, 560px);
+  background: none; border: none; padding: 0; cursor: pointer;
 }
-.screen-arc span {
-  display: block; width: 100%; height: 100%; opacity: 0.35;
-  background: linear-gradient(180deg, transparent, var(--screen-accent) 20%, var(--screen-accent) 80%, transparent);
-  clip-path: polygon(60% 0, 100% 6%, 100% 94%, 60% 100%, 40% 50%);
-  transition: opacity 0.2s;
+.arc-left { left: 0; }
+.arc-right { right: 0; }
+.arc__art {
+  display: block; width: 100%; height: 100%;
+  background: url("/screen/fold-bracket.png") center / contain no-repeat;
+  opacity: 0.26;
+  transition: transform 0.28s var(--screen-ease),
+              filter 0.24s linear, opacity 0.3s linear;
+  animation: screen-ember 3.4s ease-in-out infinite;
 }
-/* ONE GRAPHIC, MIRRORED. The right bracket is the left one flipped; folded
-   state flips it again, so the caret always points where the rail is about to
-   go rather than where it came from. */
-.screen-arc-r span { transform: scaleX(-1); }
-.screen-arc.folded span { transform: scaleX(-1); }
-.screen-arc-r.folded span { transform: none; }
-.screen-arc:hover span { opacity: 1; }
+.arc__art--flip { transform: scaleX(-1); }
+.arc:hover .arc__art,
+.arc:focus-visible .arc__art {
+  animation: none; opacity: 1;
+  filter: drop-shadow(0 0 10px oklch(from var(--screen-warn) l c h / 0.55)) brightness(1.1);
+}
+@keyframes screen-ember {
+  0%, 100% { opacity: 0.19; }
+  50% { opacity: 0.34; }
+}
 
 /* ---------- 漏斗带 ---------- */
 .screen-ribbon {

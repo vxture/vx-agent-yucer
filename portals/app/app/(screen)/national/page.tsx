@@ -8,7 +8,11 @@ import { listProjects, projectView } from "../../domains/delivery/service";
 import { listLeads } from "../../domains/signal/service";
 import { listProposals } from "../../domains/copilot/service";
 import { getCopilotStore, getDeliveryStore } from "../../domains/shared/registry";
-import { rollUpByProvince } from "../lib/rollup";
+import {
+  rollUpByProvince,
+  type InstalmentLike,
+  type MilestoneLike,
+} from "../lib/rollup";
 import { NationalScreen } from "../components/national-screen";
 
 // 全国销售态势屏 - the situation screen, as a page of this product.
@@ -94,10 +98,8 @@ export default async function NationalScreenPage() {
      second read path that can disagree with the page a collections review
      actually opens. A project whose view is refused contributes nothing rather
      than a zero - a missing schedule is not an empty one. */
-  const instalments: {
-    id: string; projectId: string; status: string;
-    plannedAmount: number; actualAmount: number | null;
-  }[] = [];
+  const instalments: InstalmentLike[] = [];
+  const milestones: MilestoneLike[] = [];
   if (projects.ok) {
     const views = await Promise.all(projects.value.map((p) => projectView(deliveryCtx, p.id)));
     views.forEach((v, i) => {
@@ -110,6 +112,18 @@ export default async function NationalScreenPage() {
           status: inst.status,
           plannedAmount: inst.plannedAmount.amount,
           actualAmount: inst.actualAmount?.amount ?? null,
+          dueAt: inst.dueAt,
+          settledAt: inst.settledAt,
+        });
+      }
+      // 里程碑准点 is measured off the gates, which travel on the same view.
+      for (const ms of v.value.milestones) {
+        milestones.push({
+          id: ms.id,
+          projectId,
+          status: ms.status,
+          dueAt: ms.dueAt,
+          completedAt: ms.completedAt,
         });
       }
     });
@@ -123,6 +137,7 @@ export default async function NationalScreenPage() {
       leads: leads.ok ? leads.value : [],
       proposals: proposals.ok ? proposals.value : [],
       instalments,
+      milestones,
     },
   );
 

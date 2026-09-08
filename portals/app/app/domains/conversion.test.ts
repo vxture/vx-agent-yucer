@@ -24,6 +24,7 @@ function lead(over: Partial<LeadRecord> = {}): LeadRecord {
     ownerSub: "usr_rep",
     status: "qualified",
     convertedOpportunityId: null,
+    createdAt: new Date("2026-08-01T00:00:00Z"),
     ...over,
   };
 }

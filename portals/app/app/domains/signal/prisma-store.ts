@@ -266,5 +266,6 @@ function toLead(r: Record<string, unknown>): LeadRecord {
     ownerSub: (r.ownerSub as string | null) ?? null,
     status: r.status as LeadStatus,
     convertedOpportunityId: (r.convertedOpportunityId as string | null) ?? null,
+    createdAt: r.createdAt as Date,
   };
 }

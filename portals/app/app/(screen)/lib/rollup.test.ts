@@ -9,6 +9,8 @@ import { ALL_PROVINCES } from "../../domains/shared/provinces";
 // map looks equally convincing whether or not 合同额 is the value of the deals
 // under it.
 
+const NOW = new Date("2026-09-07T00:00:00Z");
+
 const account = (id: string, province: string | null): AccountRecord =>
   ({
     id, workspaceId: "ws", accountNo: id, name: id,
@@ -18,8 +20,15 @@ const account = (id: string, province: string | null): AccountRecord =>
     creditCode: null, website: null, employeeCount: null, parentId: null,
   }) as AccountRecord;
 
-const deal = (id: string, accountId: string, status: string, amount: number): DealLike =>
-  ({ id, accountId, status, amount: { amount } });
+const deal = (
+  id: string, accountId: string, status: string, amount: number,
+  extra: { probability?: number; stage?: string; closedAt?: Date } = {},
+): DealLike => ({
+  id, accountId, status, amount: { amount },
+  probability: extra.probability ?? null,
+  stage: extra.stage ?? "qualify",
+  closedAt: extra.closedAt ?? null,
+});
 
 const project = (
   id: string, accountId: string, status: string, health: string, contract: number,
@@ -119,16 +128,20 @@ test("rates average over provinces that HAVE a reading", () => {
 // The three lists the six panels added. Same rule throughout: a row that cannot
 // be attributed to a province is not guessed onto one.
 
-const lead = (id: string, accountId: string | null, status: string, owner: string | null) =>
-  ({ id, accountId, status, ownerSub: owner });
+const lead = (
+  id: string, accountId: string | null, status: string, owner: string | null,
+  createdAt: Date = new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+) => ({ id, accountId, status, ownerSub: owner, createdAt });
 
-const NOW = new Date("2026-09-07T00:00:00Z");
+
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
 const proposal = (id: string, subjectType: string, subjectId: string, status: string, age: number) =>
   ({ id, subjectType, subjectId, status, createdAt: daysAgo(age) });
 
-const inst = (id: string, projectId: string, status: string, planned: number, actual: number | null = null) =>
-  ({ id, projectId, status, plannedAmount: planned, actualAmount: actual });
+const inst = (
+  id: string, projectId: string, status: string, planned: number,
+  actual: number | null = null, dueAt: Date | null = null, settledAt: Date | null = null,
+) => ({ id, projectId, status, plannedAmount: planned, actualAmount: actual, dueAt, settledAt });
 
 test("线索供给 - a lead with no account is attributed nowhere", () => {
   // The COMMON case, not an edge one: a lead becomes an account by being
@@ -172,9 +185,7 @@ test("智能副驾 - the 30-day window applies to the flow, never to the queue",
   assert.equal(js.proposals30, 2, "only the two inside the window are flow");
 });
 
-test("智能副驾 - only a decision counts toward 采纳率", () => {
-  // expired and failed are not a refusal; counting them would report an
-  // adoption rate nobody chose.
+test("智能副驾 - 采纳率 is accepted over proposed, matching the pair beneath it", () => {
   const r = rollUpByProvince(
     [account("a1", "江苏省")], [], [],
     { now: NOW, proposals: [
@@ -187,8 +198,11 @@ test("智能副驾 - only a decision counts toward 采纳率", () => {
   );
   const js = r.provinces.find((p) => p.province === "江苏省")!;
   assert.equal(js.accepted30, 2, "executed is the human having said yes");
-  assert.equal(js.decided30, 3);
-  assert.equal(js.adoption, 2 / 3);
+  assert.equal(js.proposals30, 5);
+  // 采纳率 is accepted over PROPOSED, which is the pair the panel spells out
+  // beneath it as "2 / 5 已采纳". A rate over decisions only would not match
+  // the two numbers printed next to it.
+  assert.equal(js.adoption, 2 / 5);
 });
 
 test("智能副驾 - a proposal reaches a province through its subject", () => {

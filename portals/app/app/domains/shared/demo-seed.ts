@@ -823,7 +823,7 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       // to the national screen. These give 线索供给 something to rank.
       ...NATIONAL.leads.map((nl) =>
         lead(nl.id, workspaceId, nl.n, nl.companyName, nl.accountId, nl.signalId, null,
-             nl.score, nl.ownerSub, nl.status, nl.convertedOpportunityId),
+             nl.score, nl.ownerSub, nl.status, nl.convertedOpportunityId, nl.agedDays),
       ),
     ],
   });
@@ -1384,8 +1384,11 @@ function lead(
   ownerSub: string | null,
   status: string,
   convertedOpportunityId: string | null,
+  /** How long ago it arrived. 本期新增 counts these, so they have to be real. */
+  agedDays = 9,
 ) {
   return {
+    createdAt: daysAgo(agedDays),
     id,
     workspaceId,
     leadNo: `LEAD-${String(n).padStart(5, "0")}`,

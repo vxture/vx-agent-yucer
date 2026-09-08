@@ -66,10 +66,22 @@ export interface LeadRecord {
   ownerSub: string | null;
   status: LeadStatus;
   convertedOpportunityId: string | null;
+  /**
+   * When the lead arrived.
+   *
+   * The column has existed since the baseline (`created_at TIMESTAMPTZ NOT
+   * NULL DEFAULT now()`); it simply was not carried onto the record, so
+   * "本期新增" - how many leads came in this period - was a question the
+   * product held the data for and could not answer. Read-only: nothing
+   * patches it, and `updateLead` strips it with the other anchors.
+   */
+  createdAt: Date;
 }
 
 export interface NewLead {
   companyName: string;
+  /** Fixtures place leads in time; live creation leaves it to the clock. */
+  createdAt?: Date;
   contactName?: string | null;
   accountId: string | null;
   signalId: string | null;
@@ -256,6 +268,7 @@ export class InMemorySignalStore implements SignalStore {
       ownerSub: lead.ownerSub ?? null,
       status: "new",
       convertedOpportunityId: null,
+      createdAt: lead.createdAt ?? new Date(),
     };
     this.leads.set(record.id, record);
     return record;
@@ -320,7 +333,10 @@ export class InMemorySignalStore implements SignalStore {
     if (!l || l.workspaceId !== workspaceId) return false;
     // signal_id and campaign_id are absent from the patch type on purpose; this
     // guard is the runtime half of the same rule.
-    const { signalId, campaignId, id: _id, workspaceId: _ws, leadNo: _no, ...writable } = patch;
+    const {
+      signalId, campaignId, id: _id, workspaceId: _ws, leadNo: _no,
+      createdAt: _created, ...writable
+    } = patch;
     void signalId;
     void campaignId;
     void _id;

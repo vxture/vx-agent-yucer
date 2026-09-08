@@ -129,6 +129,8 @@ export interface NationalLead {
   readonly ownerSub: string | null;
   readonly status: string;
   readonly convertedOpportunityId: string | null;
+  /** Days ago it arrived - spread across 12 weeks so 近 12 期 has a shape. */
+  readonly agedDays: number;
 }
 
 export interface NationalSignal {
@@ -345,13 +347,21 @@ export function buildNationalCohort(
                  never produce. */
               const settled = !live || (k === 0 && roll < 0.72);
               const late = !settled && dueInDays < 0;
+              /* ON OR BEFORE THE DATE, mostly. This was dueInDays + 1 for
+                 every gate, which completed all of them one day LATE and made
+                 里程碑准点 read 7.5% - a delivery organisation that has never
+                 once hit a date. About a fifth slip, which is what the figure
+                 exists to show; the rest land on or ahead of the gate. */
+              const slipped = r() < 0.22;
               milestones.push({
                 id: msId, projectId,
                 name: `${short}节点${k + 1}`,
                 sequence: k + 1,
                 status: settled ? "done" : late ? "missed" : "pending",
                 dueInDays,
-                doneInDays: settled ? dueInDays + 1 : null,
+                doneInDays: settled
+                  ? dueInDays + (slipped ? 2 + Math.round(r() * 9) : -Math.round(r() * 3))
+                  : null,
               });
               instalments.push({
                 id: `inst_nat_${inst}`,
@@ -386,12 +396,18 @@ export function buildNationalCohort(
               subjectId: status === "open" ? `opp_nat_${o}` : id,
               confidence: Math.round(40 + r() * 55),
               decidedBySub: decided ? owners[0]! : null,
-              /* Inside the 30-day window the panel rates AND inside the 7-day
-                 proposal TTL. The demo owns exactly one proposal old enough for
-                 the expiry sweep to retire (act_demo_6) because that is how the
-                 rule is shown working; cohort rows crossing the TTL would bury
-                 it in a crowd and the demonstration would be lost. */
-              agedDays: 1 + Math.round(r() * 4),
+              /* SPREAD OVER THE 30 DAYS THE PANEL CHARTS, and the two states
+                 have different ceilings. A DECIDED proposal may be any age -
+                 the sweep only ever touches pending ones - so those fill the
+                 trend's history. A PENDING one has to stay inside the 7-day
+                 TTL: the demo owns exactly one proposal old enough to be
+                 retired (act_demo_6) because that is how the expiry rule is
+                 shown working, and cohort rows crossing it would bury the
+                 demonstration in a crowd.
+
+                 Capped one day short of the TTL, not at it: a row seeded at
+                 exactly 7 days is already expired by the time anyone looks. */
+              agedDays: decided ? 1 + Math.round(r() * 28) : 1 + Math.round(r() * 5),
             });
           }
         }
@@ -442,6 +458,10 @@ export function buildNationalCohort(
             ownerSub: roll < 0.25 ? null : owners[a % owners.length]!,
             status: converted ? "converted" : roll < 0.5 ? "qualified" : roll < 0.78 ? "working" : "new",
             convertedOpportunityId: converted ? oppIds[sg % oppIds.length]! : null,
+            /* SPREAD ACROSS THE 12 WEEKS the panel charts, weighted toward the
+               recent end the way an actual intake is. A cohort that all
+               arrived on the same day makes 近 12 期新增线索 a single bar. */
+            agedDays: Math.round(Math.pow(r(), 1.4) * 83),
           });
         }
       }

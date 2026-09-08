@@ -65,15 +65,42 @@ test("a converted lead converted into something that exists", () => {
   }
 });
 
-test("no generated proposal is old enough for the expiry sweep", () => {
-  // The demo owns exactly ONE proposal past the 7-day TTL (act_demo_6), which
-  // is how the expiry rule is shown working. Cohort rows crossing it would
-  // bury that demonstration in a crowd.
+test("no PENDING proposal is old enough for the expiry sweep", () => {
+  /* The sweep only ever touches proposals still awaiting a decision, so that
+     is where the ceiling belongs. The demo owns exactly ONE proposal past the
+     7-day TTL (act_demo_6), which is how the expiry rule is shown working;
+     cohort rows crossing it would bury that demonstration in a crowd.
+
+     A DECIDED proposal has no ceiling and needs none - it also has to be able
+     to be old, or 采纳率 · 近 30 天 has no history to draw and the panel's
+     trend is a flat line against the right-hand edge. */
   const c = buildNationalCohort(OWNERS, 60);
-  assert.ok(c.proposals.length > 0);
-  for (const p of c.proposals) {
-    assert.ok(p.agedDays < 7, `${p.id} is ${p.agedDays} days old and would be swept`);
+  const pending = c.proposals.filter((p) => p.status === "proposed");
+  const decided = c.proposals.filter((p) => p.status !== "proposed");
+  assert.ok(pending.length > 0 && decided.length > 0);
+  for (const p of pending) {
+    assert.ok(p.agedDays < 7, `${p.id} is pending at ${p.agedDays} days and would be swept`);
   }
+  for (const p of c.proposals) {
+    assert.ok(p.agedDays <= 30, `${p.id} at ${p.agedDays} days falls outside the charted window`);
+  }
+  assert.ok(
+    Math.max(...decided.map((p) => p.agedDays)) > 14,
+    "decided proposals must reach back through the window, or the trend has no history",
+  );
+});
+
+test("delivery hits most of its gates, and misses some", () => {
+  /* Every gate was completed one day AFTER its date, so 里程碑准点 read 7.5% -
+     a delivery organisation that has never once hit a date. Both halves have
+     to exist: a fixture where nothing slips cannot show the figure moving. */
+  const c = buildNationalCohort(OWNERS, 60);
+  const done = c.milestones.filter((m) => m.doneInDays !== null);
+  assert.ok(done.length > 0);
+  const onTime = done.filter((m) => m.doneInDays! <= m.dueInDays).length;
+  const rate = onTime / done.length;
+  assert.ok(rate > 0.5, `only ${(rate * 100).toFixed(1)}% of gates are on time`);
+  assert.ok(rate < 1, "and some must slip, or the reading can never move");
 });
 
 test("every instalment stands on a milestone of its own project", () => {
