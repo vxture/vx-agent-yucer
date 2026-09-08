@@ -63,7 +63,7 @@ export const REVENUE_STATUS_LABEL: Record<RevenueStatus, string> = {
 
 /** Domain navigation labels, keyed by the nav entry key. */
 export const DOMAIN_LABEL: Record<string, string> = {
-  national: "全国态势",
+  national: "销售大屏",
   strategy: "市场战略",
   segment: "细分市场",
   solution: "解决方案",

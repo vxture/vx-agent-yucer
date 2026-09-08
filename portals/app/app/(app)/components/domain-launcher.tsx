@@ -108,6 +108,18 @@ const COLUMNS = "grid grid-cols-2 gap-x-lg md:grid-cols-3 xl:grid-cols-5";
 export const COLUMN_RULE =
   "xl:border-l xl:border-dashed xl:border-primary/10 xl:dark:border-primary/20 xl:pl-md xl:pr-md";
 
+/**
+ * The same rule, on the crosscutting row, at EVERY width.
+ *
+ * COLUMN_RULE is `xl:`-only because below five columns the domain blocks wrap
+ * and a rule would then divide two things that are not side by side. The first
+ * row cannot wrap: the template's narrowest form is already two columns and
+ * this row has exactly two entries, so the two are always neighbours and the
+ * divider between them is always true.
+ */
+export const CROSSCUTTING_RULE =
+  "border-l border-dashed border-primary/10 dark:border-primary/20 pl-md";
+
 export function DomainLauncher({
   nav,
   activeKey,
@@ -305,24 +317,38 @@ export function DomainLauncher({
         aria-label={LAUNCHER_TEXT.panelLabel}
         className="w-(--vx-container-7xl) max-w-(--radix-popover-content-available-width)"
       >
-        {/* TWO GRIDS, ONE COLUMN TEMPLATE. 今日判断 is the first row and is one
-            column wide - the same width as the blocks beneath it, because the
-            two grids are declared with the same template and therefore resolve
-            to the same track sizes. It is not a sixth column: it belongs to no
-            domain and sits above them, which is what a first row says and what
-            a column beside them did not.
+        {/* TWO GRIDS, ONE COLUMN TEMPLATE, and that is the whole alignment
+            story: the crosscutting row and the domain blocks declare the same
+            tracks, so 今日判断 sits over the first domain column and 销售大屏
+            over the second. Neither is a sixth column - they belong to no
+            domain and read across all of them, which is what a first ROW says
+            and what a column beside them did not.
 
-            It was a full-width section before that: one row stretched across
-            the whole panel with its label at the far left and nothing else on
-            the line. The width carried no content - the section simply had no
-            neighbours. */}
+            ONE SECTION, NOT TWO. The row is a single region with the grid
+            INSIDE it, so the two entries are one thing with a divider between
+            them rather than two sections that happen to be adjacent. The grid
+            is on an inner element rather than on the section itself: the
+            section sets its own display, and two competing display
+            declarations on one element resolve by stylesheet order, which is
+            not something to rely on.
+
+            It was a full-width section before all this: one row stretched
+            across the whole panel with its label at the far left and nothing
+            else on the line. */}
         <div className="flex flex-col gap-lg">
           {crosscutting.length > 0 ? (
-            <div className={COLUMNS}>
-              <ShellPanelSection divided={false}>
-                {crosscutting.map(row)}
-              </ShellPanelSection>
-            </div>
+            <ShellPanelSection divided={false}>
+              <div className={COLUMNS}>
+                {crosscutting.map((m, i) => (
+                  <div
+                    key={`cross-${m.key}`}
+                    className={i === 0 ? "pr-md" : CROSSCUTTING_RULE}
+                  >
+                    {row(m)}
+                  </div>
+                ))}
+              </div>
+            </ShellPanelSection>
           ) : null}
 
           <div className={COLUMNS}>

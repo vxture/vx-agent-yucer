@@ -147,7 +147,7 @@ export const en: Dictionary = {
   },
 
   DOMAIN_LABEL: {
-    national: "National view",
+    national: "Sales screen",
     strategy: "Market strategy",
     planning: "Sales planning",
     campaign: "Campaigns",

@@ -206,7 +206,16 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
  * The home stream stays because it IS a destination: it is where you land and
  * what you come back to.
  */
-export const CROSSCUTTING_MODULES: readonly DomainModule[] = [built("home")];
+export const CROSSCUTTING_MODULES: readonly DomainModule[] = [
+  built("home"),
+  /* 销售大屏 sits beside 今日判断 rather than in a domain column, for the same
+     reason 今日判断 does: it OWNS NO OBJECT. It is a way of looking at what the
+     domains already hold, so putting it in one of their columns would claim it
+     belongs to that domain, and putting it in a sixth would break the
+     five-domain shape. Both entries are destinations that read ACROSS the
+     domains, which is what this row is for. */
+  built("national"),
+];
 
 /** A module resolved against one member's gates, ready to render. */
 export type ResolvedModule =
