@@ -338,18 +338,27 @@ export function CashChart(
 /**
  * The mark beside every panel title.
  *
- * NO OUTER RING (owner). It carried an amber circle around the outside, which
- * put a boxed frame on six titles that need no framing - the header already
- * has its rule. What is left is the part that reads as a mark: a thin circle
- * and its core.
+ * THE CLASS IS NOT `ring`, AND THAT IS THE WHOLE BUG IT FIXES. `ring` is a
+ * Tailwind utility - `box-shadow: 0 0 0 1px` - and the DS ships Tailwind, so
+ * naming the span `ring` drew a 1px SQUARE outline around an 18x18 box that no
+ * stylesheet in this repo asked for. The mock could call it that safely
+ * because it has no utility layer; here the name was already taken. Removing
+ * the outer CIRCLE, which is what I did first, was the wrong reading of a
+ * square frame nobody had drawn on purpose.
+ *
+ * Three parts, and the outer one breathes: a slow pulse in opacity and size
+ * with a glow that widens as it brightens. It is the only moving thing in the
+ * six panel headers, which is the point - a live screen should look live
+ * without anything on it demanding to be read.
  */
 export function Ring() {
   const R = 9;
   return (
-    <span className="ring" aria-hidden>
+    <span className="mod-mark" aria-hidden>
       <svg viewBox={`0 0 ${R * 2} ${R * 2}`} fill="none">
+        <circle className="halo" cx={R} cy={R} r={R - 1} stroke={AMBER} strokeWidth="1" />
         <circle cx={R} cy={R} r={R * 0.52} stroke={CYAN} strokeWidth="1" />
-        <circle cx={R} cy={R} r={R * 0.21} fill={CYAN} />
+        <circle className="core" cx={R} cy={R} r={R * 0.21} fill={CYAN} />
       </svg>
     </span>
   );
