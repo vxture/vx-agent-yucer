@@ -13,6 +13,7 @@ import {
 import {
   AdoptionTrend, Bars, CashChart, HealthDonut, Ring, StageChart,
 } from "./screen-charts";
+import { ScreenHex } from "./screen-hex";
 import "./national-screen.css";
 
 // 全国销售态势屏 - the display itself.
@@ -56,6 +57,20 @@ function money(v: number, u: { yi: string; wan: string; yuan: string }): { n: st
   return { n: Math.round(v).toLocaleString("en-US"), u: u.yuan };
 }
 const num = (v: number) => Math.round(v).toLocaleString("en-US");
+
+/**
+ * Two characters for the avatar, taken from the sub.
+ *
+ * A sub is `usr_<uuid>`, so its own letters are the only initials there are -
+ * inventing a person's to put in the circle is the thing this deliberately
+ * does not do.
+ */
+const ratio = (a: number, b: number): number | null => (b === 0 ? null : a / b);
+
+function initialsOf(sub: string): string {
+  const body = sub.replace(/^usr[_-]/i, "").replace(/[^a-z0-9]/gi, "");
+  return (body.slice(0, 2) || "??").toUpperCase();
+}
 
 /**
  * The viewBox that frames a scope.
@@ -131,9 +146,31 @@ function Cell(
  * Both brackets drive the SAME state, so either click folds and unfolds both
  * rails together: they are one gesture, not two independent panels.
  */
+/**
+ * The connector between two stages: an arrow, and what survived across it.
+ *
+ * A DIVISION BY ZERO IS NOT 0%. A scope with no pipeline has no conversion
+ * INTO contract - the rate does not exist - and printing 0% there would read
+ * as total failure rather than as nothing having entered the funnel yet.
+ */
+function Conv({ rate }: { rate: number | null }) {
+  return (
+    <div className="conv">
+      <svg viewBox="0 0 52 9" aria-hidden>
+        <path d="M0 4.5 H44 M38 1 L44 4.5 L38 8" fill="none"
+              stroke="var(--screen-accent)" strokeWidth="1.2" opacity=".75" />
+      </svg>
+      <span>{rate === null ? "-" : `${(rate * 100).toFixed(1)}%`}</span>
+    </div>
+  );
+}
+
 function FoldArc(
-  { side, folded, onToggle, label }:
-  { side: "left" | "right"; folded: boolean; onToggle: () => void; label: string },
+  { side, folded, lit, onToggle, onHover, label }:
+  {
+    side: "left" | "right"; folded: boolean; lit: boolean;
+    onToggle: () => void; onHover: (on: boolean) => void; label: string;
+  },
 ) {
   // Flipped on the right; folding flips it again, so the bracket always points
   // the way the rail is ABOUT to move rather than the way it came.
@@ -141,10 +178,14 @@ function FoldArc(
   return (
     <button
       type="button"
-      className={`arc arc-${side}`}
+      className={`arc arc-${side}${lit ? " lit" : ""}`}
       aria-expanded={!folded}
       aria-label={label}
       onClick={onToggle}
+      onPointerEnter={() => onHover(true)}
+      onPointerLeave={() => onHover(false)}
+      onFocus={() => onHover(true)}
+      onBlur={() => onHover(false)}
     >
       <span className={`arc__art${flip ? " arc__art--flip" : ""}`} aria-hidden />
     </button>
@@ -164,6 +205,8 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [railsFolded, setRailsFolded] = useState(false);
   const [titleFolded, setTitleFolded] = useState(false);
+  // One flag for both brackets: they are one control with two handles.
+  const [arcLit, setArcLit] = useState(false);
 
   /* THE DATE IS THE VIEWER'S, resolved after mount. Formatting it during the
      server render would stamp the server's day into the HTML and then disagree
@@ -279,7 +322,7 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
 
   return (
     <div className={`screen${titleFolded ? " folded" : ""}`}>
-      <div className="screen-hex" aria-hidden />
+      <ScreenHex />
 
       {/* 日期条 - it lives OUTSIDE the title bar so it can survive the fold.
           Folded, it rides up to the top edge and becomes the control that
@@ -332,10 +375,19 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
               {SCREEN_TEXT.unplacedNote(rollup.unplacedAccounts)}
             </span>
           ) : null}
-          {/* The design puts a named person here. This shows the SUB, because
-              AuthUser carries no name and dressing an id up as a person is the
-              defect the account page already fixed once. */}
-          <span className="screen-viewer" title={viewerSub}>{viewerSub}</span>
+          {/* The design puts a named person here with an avatar, a name and a
+              role. Two of the three are real: the avatar takes the sub's own
+              initials and the second line is the sub itself, monospaced. The
+              NAME line is the workspace, not an invented person - AuthUser
+              carries no display name, and dressing an id up as somebody called
+              张明 is the defect the account page already fixed once. */}
+          <div className="user">
+            <div className="av" aria-hidden>{initialsOf(viewerSub)}</div>
+            <div>
+              <div className="nm">{SCREEN_TEXT.viewerRole}</div>
+              <div className="rl" title={viewerSub}>{viewerSub}</div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -376,12 +428,16 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
                 <Cell k={SCREEN_TEXT.cellWonDeals} v={num(total.wonDeals)} />
                 <Cell k={SCREEN_TEXT.cellWinRate} {...pctCell(total.winRate)} />
               </Cells>
+              {/* THE NUMBER ONLY, no unit. Twelve labels each carrying 万元
+                  ran the strip out of room and the figures collided; the unit
+                  is already on the 合同额 cell directly above, which is what a
+                  reader checks it against. */}
               <Bars
                 id="signChart"
                 series={total.signSeries}
                 colour="var(--screen-accent-hi)"
                 label={SCREEN_TEXT.chartSign}
-                fmt={(v) => cash(v).n + cash(v).u}
+                fmt={(v) => cash(v).n}
               />
             </Mod>
           </div>
@@ -434,10 +490,6 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
                 </>
               ) : null}
             </nav>
-
-            <span className="screen-hint">
-              {level === "nation" ? SCREEN_TEXT.drillHint : SCREEN_TEXT.backHint}
-            </span>
 
             <div className="screen-picks">
               {METRICS.map((m) => (
@@ -550,36 +602,57 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
             <FoldArc
               side="left"
               folded={railsFolded}
+              lit={arcLit}
+              onHover={setArcLit}
               onToggle={() => setRailsFolded((v) => !v)}
               label={railsFolded ? SCREEN_TEXT.unfoldRails : SCREEN_TEXT.foldRails}
             />
             <FoldArc
               side="right"
               folded={railsFolded}
+              lit={arcLit}
+              onHover={setArcLit}
               onToggle={() => setRailsFolded((v) => !v)}
               label={railsFolded ? SCREEN_TEXT.unfoldRails : SCREEN_TEXT.foldRails}
             />
           </div>
 
-          {/* 漏斗带 - the stages in money order, largest type on the screen.
-              Each figure is the previous stage's subset, never an independent
-              number, so the row reconciles by construction. */}
+          {/* 漏斗带 - the four stages with the conversion between each.
+              THE ARROWS ARE THE POINT, and they were missing: without them
+              this is four unrelated totals sitting in a row, and nothing says
+              that each one is what survived from the one on its left. The rate
+              on each connector is that survival, stated.
+
+              线索 -> 商机 -> 合同 -> 回款, which is a genuine chain: every
+              figure is derived from the rows behind the previous one, so the
+              row reconciles by construction. 在交付 is deliberately NOT here -
+              it is a SUBSET of 合同 rather than the next link, and putting it
+              in the chain produced an arrow reading 130%. */}
           <div className="screen-ribbon">
             <div className="node">
-              <span>{SCREEN_TEXT.funnelAccounts}</span>
-              <b>{num(total.accounts)}<small> {SCREEN_TEXT.accountsUnit(0).replace("0 ", "")}</small></b>
+              <div className="k">{SCREEN_TEXT.funnelLeads}</div>
+              <div className="v">{num(total.leads)}<small>{SCREEN_TEXT.leadsUnit}</small></div>
             </div>
+
+            <Conv rate={ratio(total.openDeals, total.leads)} />
+
             <div className="node">
-              <span>{SCREEN_TEXT.funnelPipeline}</span>
-              <b>{cash(total.pipelineValue).n}<small>{cash(total.pipelineValue).u}</small></b>
+              <div className="k">{SCREEN_TEXT.funnelPipeline}</div>
+              <div className="v">{cash(total.pipelineValue).n}<small>{cash(total.pipelineValue).u}</small></div>
             </div>
+
+            <Conv rate={ratio(total.contractValue, total.pipelineValue)} />
+
             <div className="node win">
-              <span>{SCREEN_TEXT.funnelContract}</span>
-              <b>{cash(total.contractValue).n}<small>{cash(total.contractValue).u}</small></b>
+              <div className="k">{SCREEN_TEXT.funnelContract}</div>
+              <div className="v">{cash(total.contractValue).n}<small>{cash(total.contractValue).u}</small></div>
             </div>
+
+            <Conv rate={ratio(total.collected, total.contractValue)} />
+
             <div className="node cash">
-              <span>{SCREEN_TEXT.funnelDelivery}</span>
-              <b>{cash(total.inDelivery).n}<small>{cash(total.inDelivery).u}</small></b>
+              <div className="k">{SCREEN_TEXT.funnelCollected}</div>
+              <div className="v">{cash(total.collected).n}<small>{cash(total.collected).u}</small></div>
             </div>
           </div>
         </section>

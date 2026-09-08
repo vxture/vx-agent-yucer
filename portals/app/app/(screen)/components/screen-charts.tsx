@@ -275,13 +275,19 @@ export function CashChart(
   );
 }
 
-/** The mark beside every panel title. One graphic, three concentric parts. */
+/**
+ * The mark beside every panel title.
+ *
+ * NO OUTER RING (owner). It carried an amber circle around the outside, which
+ * put a boxed frame on six titles that need no framing - the header already
+ * has its rule. What is left is the part that reads as a mark: a thin circle
+ * and its core.
+ */
 export function Ring() {
   const R = 9;
   return (
     <span className="ring" aria-hidden>
       <svg viewBox={`0 0 ${R * 2} ${R * 2}`} fill="none">
-        <circle cx={R} cy={R} r={R - 1} stroke={AMBER} strokeWidth="1" opacity=".55" />
         <circle cx={R} cy={R} r={R * 0.52} stroke={CYAN} strokeWidth="1" />
         <circle cx={R} cy={R} r={R * 0.21} fill={CYAN} />
       </svg>

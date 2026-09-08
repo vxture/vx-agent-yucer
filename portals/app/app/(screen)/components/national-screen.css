@@ -33,6 +33,12 @@
      rest of what the DS has no equivalent for. */
   --screen-rail: 376px;
   --screen-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* The lit and sunk hexagons. Kept as tokens rather than inline on the SVG
+     so the ground's contrast is adjustable in one place. */
+  --screen-hex-hi-top: var(--vx-color-neutral-700);
+  --screen-hex-hi-bottom: var(--vx-color-neutral-800);
+  --screen-hex-lo-top: var(--vx-color-neutral-900);
+  --screen-hex-lo-bottom: var(--vx-color-neutral-950);
   --screen-figure: var(--vx-font-brand);
   --screen-mark: var(--vx-font-mono);
 
@@ -67,23 +73,14 @@
 
 /* 蜂窝底 - a pointy-top hex lattice, the same construction the marketing site
    uses for its dark ground. Two strokes per cell give each one its bevel. */
+/* The honeycomb ground is an SVG component now (screen-hex.tsx) - a CSS tile
+   drew every cell identically and the design's whole effect is that they are
+   NOT identical. This only places it. */
 .screen-hex {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  background-color: var(--screen-ground);
-  background-image:
-    radial-gradient(120% 90% at 50% 45%, var(--vx-color-sky-950) 0%, transparent 60%),
-    url("data:image/svg+xml;utf8,\
-<svg xmlns='http://www.w3.org/2000/svg' width='111' height='192' viewBox='0 0 110.85 192'>\
-<g fill='none' stroke='%23262626' stroke-width='2'>\
-<path d='M55.43 0 L110.85 32 L110.85 96 L55.43 128 L0 96 L0 32 Z'/>\
-<path d='M0 96 L55.43 128 L55.43 192 L0 224 L-55.43 192 L-55.43 128 Z'/>\
-<path d='M110.85 96 L166.28 128 L166.28 192 L110.85 224 L55.43 192 L55.43 128 Z'/>\
-</g></svg>");
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  width: 100%; height: 100%;
 }
+
 .screen > *:not(.screen-hex) { position: relative; z-index: 1; }
 
 /* ---------- 标题栏 ---------- */
@@ -99,13 +96,23 @@
 }
 
 .chips { display: flex; gap: 9px; }
+/* A BUTTON, not a line of text. Same notched shape as the metric switches, so
+   the one control that leaves the screen looks like a control. */
 .home {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12.5px; color: var(--screen-dim); text-decoration: none;
-  transition: color 0.18s;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 14px 0 11px;
+  border: 1px solid var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
+  color: var(--screen-dim); font-size: 12.5px; letter-spacing: 0.06em;
+  text-decoration: none;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.home:hover {
+  color: var(--screen-accent); border-color: var(--screen-line);
+  background: color-mix(in oklab, var(--screen-raised) 88%, transparent);
 }
 .home svg { width: 13px; height: 13px; flex: none; }
-.home:hover { color: var(--screen-accent); }
 /* The clipped corner is the design's, and it is why these are not DS Cards:
    a Card is a rounded rectangle and this is a notched panel. */
 .chip {
@@ -148,9 +155,27 @@
   gap: 14px; font-size: 12.5px; color: var(--screen-dim);
 }
 .screen-note { max-width: 20rem; text-align: right; line-height: 1.45; font-size: 11px; }
-.screen-viewer {
-  font-family: var(--screen-mark); font-size: 11px; color: var(--screen-faint);
-  max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* 用户信息区 - the design's avatar, name and role, divided from the rest of
+   the header by its own rule. */
+.user {
+  display: flex; align-items: center; gap: 9px;
+  padding-left: 14px; border-left: 1px solid var(--screen-line-faint);
+}
+.user .av {
+  width: 31px; height: 31px; flex: none; display: grid; place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--screen-accent), var(--vx-color-sky-800));
+  color: var(--vx-color-neutral-950);
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em;
+  box-shadow: 0 0 0 1px oklch(from var(--screen-accent) l c h / 0.45),
+              0 0 14px oklch(from var(--screen-accent) l c h / 0.22);
+}
+.user .nm { font-size: 13px; color: var(--screen-ink); line-height: 1.3; }
+/* The SUB, monospaced and truncated. AuthUser carries no display name, and
+   dressing an id up as a person is the defect the account page fixed once. */
+.user .rl {
+  font-family: var(--screen-mark); font-size: 10.5px; color: var(--screen-faint);
+  max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 /* 日期 - out of flow, so folding the title moves it rather than reflowing the
@@ -356,24 +381,44 @@
 .screen-pop button.on { color: var(--screen-accent); font-weight: 700; }
 .screen-hint { font-size: 0.7rem; color: var(--screen-faint); }
 .screen-picks { margin-left: auto; display: flex; gap: 6px; }
+/* NOTCHED, NOT ROUNDED. The clipped corner is the design's shape and it is
+   what makes these read as instrument switches rather than web buttons; a
+   border-radius here quietly turned them into ordinary chips. */
 .screen-pick {
-  height: var(--space-control-sm); padding: 0 var(--space-sm);
-  font-size: 0.72rem; letter-spacing: 0.06em; cursor: pointer;
-  color: var(--screen-dim);
-  border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
-  background: color-mix(in oklab, var(--screen-surface) 70%, transparent);
-  transition: color 0.18s, border-color 0.18s, background 0.18s;
+  height: 25px; padding: 0 12px; font-size: 11.5px; letter-spacing: 0.08em;
+  color: var(--screen-dim); cursor: pointer;
+  border: 1px solid var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
 }
-.screen-pick:hover { color: var(--screen-accent); border-color: var(--screen-accent); }
+.screen-pick:hover { color: var(--screen-accent); border-color: var(--screen-line); }
 .screen-pick.on {
   color: var(--vx-color-neutral-950); background: var(--screen-accent);
   border-color: var(--screen-accent); font-weight: 700;
 }
-/* 健康度 is a RATE, not a fourth amount - the other three share one axis, and
-   reading this one as another currency figure is the mistake the row invites.
-   It takes the amber the delivery figures already use, so no new hue enters. */
-.screen-pick.rate { color: var(--screen-warn); border-color: color-mix(in oklab, var(--screen-warn) 45%, transparent); }
-.screen-pick.rate:hover { border-color: var(--screen-warn); color: var(--vx-color-amber-200); }
+/* 健康度 is the odd one out on purpose (owner): a rate among three money
+   figures, so it carries the warm tint and a leading tick rather than sitting
+   in the same blue row as the other three. */
+.screen-pick.rate {
+  color: var(--screen-warn); letter-spacing: 0.14em; font-weight: 600;
+  border-color: oklch(from var(--screen-warn) l c h / 0.42);
+  background: oklch(from var(--screen-warn) l c h / 0.08);
+}
+.screen-pick.rate::before {
+  content: ""; display: inline-block; width: 3px; height: 11px; margin-right: 7px;
+  background: var(--screen-warn); vertical-align: -1px;
+}
+.screen-pick.rate:hover {
+  color: var(--vx-color-amber-200); border-color: var(--screen-warn);
+  background: oklch(from var(--screen-warn) l c h / 0.16);
+}
+.screen-pick.rate.on {
+  color: var(--vx-color-neutral-950); background: var(--screen-warn);
+  border-color: var(--screen-warn); font-weight: 700;
+  box-shadow: 0 0 14px oklch(from var(--screen-warn) l c h / 0.4);
+}
+.screen-pick.rate.on::before { background: var(--vx-color-neutral-950); opacity: 0.5; }
 .screen-pick.rate.on { color: var(--vx-color-neutral-950); background: var(--screen-warn); border-color: var(--screen-warn); }
 
 .screen-map { position: relative; flex: 1; min-height: 0; }
@@ -439,8 +484,13 @@
   animation: screen-ember 3.4s ease-in-out infinite;
 }
 .arc__art--flip { transform: scaleX(-1); }
+/* BOTH BRACKETS LIGHT TOGETHER (owner). They drive one piece of state and one
+   click moves both rails, so lighting only the one under the pointer says the
+   two are independent controls. `.lit` is set on both from the component; the
+   :hover/:focus-visible rules stay so the effect survives without JS. */
 .arc:hover .arc__art,
-.arc:focus-visible .arc__art {
+.arc:focus-visible .arc__art,
+.arc.lit .arc__art {
   animation: none; opacity: 1;
   filter: drop-shadow(0 0 10px oklch(from var(--screen-warn) l c h / 0.55)) brightness(1.1);
 }
@@ -451,22 +501,43 @@
 
 /* ---------- 漏斗带 ---------- */
 .screen-ribbon {
-  flex: none; display: flex; align-items: stretch;
+  flex: none; display: flex; align-items: center; justify-content: center;
   width: 100%; max-width: 62rem; margin: 0 auto;
   padding: var(--space-2xs) var(--space-lg) var(--space-md);
 }
-.screen-ribbon .node { flex: 1; text-align: center; padding: 0 var(--space-2xs); }
-.screen-ribbon .node span {
-  display: block; font-size: 0.72rem; letter-spacing: 0.12em;
-  color: var(--screen-faint); margin-bottom: 4px;
+.screen-ribbon .node { flex: 1; text-align: center; padding: 0 var(--space-2xs); min-width: 0; }
+.screen-ribbon .node .k {
+  font-size: 11.5px; color: var(--screen-dim);
+  letter-spacing: 0.14em; margin-bottom: 4px;
 }
-.screen-ribbon .node b {
-  font-size: 1.7rem; font-weight: 700; line-height: 1;
+.screen-ribbon .node .v {
+  font-family: var(--screen-figure); font-weight: 700; font-size: 33px; line-height: 1;
   color: var(--screen-ink); font-variant-numeric: tabular-nums;
 }
-.screen-ribbon .node b small { font-size: 0.75rem; color: var(--screen-faint); margin-left: 3px; font-weight: 600; }
-.screen-ribbon .node.win b { color: var(--screen-accent-hi); }
-.screen-ribbon .node.cash b { color: var(--screen-warn); }
+.screen-ribbon .node .v small {
+  font-size: 13px; color: var(--screen-dim); margin-left: 3px; font-weight: 600;
+}
+.screen-ribbon .node.win .v {
+  color: var(--screen-accent-hi);
+  text-shadow: 0 0 24px oklch(from var(--screen-accent) l c h / 0.45);
+}
+.screen-ribbon .node.cash .v {
+  color: var(--screen-warn);
+  text-shadow: 0 0 24px oklch(from var(--screen-warn) l c h / 0.35);
+}
+
+/* The connector: an arrow and the rate that survived across it. Fixed width,
+   so the four stages stay evenly spaced whatever their figures are. */
+.conv {
+  flex: none; width: 72px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px;
+}
+.conv svg { width: 52px; height: 9px; }
+.conv span {
+  font-family: var(--screen-figure); font-size: 12px; font-weight: 600;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .screen *, .screen *::before, .screen *::after { transition-duration: 0.01ms !important; }
