@@ -2422,6 +2422,7 @@ export const SCREEN_TEXT = {
   periodYear: (y: number) => `${y} 年度`,
   periodQuarter: (y: number, q: number) => `${y}Q${q}`,
   emptyPeriod: (p: string): string => `${p} 没有记录：换一个统计周期看看`,
+  enter: "进入",
   uncovered: "未覆盖",
   viewerRole: "销售运营 · 全国",
   foldTitle: "收起标题",

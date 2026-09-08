@@ -1831,6 +1831,7 @@ export const en: Dictionary = {
     periodYear: (y: number) => `${y}`,
     periodQuarter: (y: number, q: number) => `${y} Q${q}`,
     emptyPeriod: (p: string): string => `Nothing recorded in ${p} - try another period`,
+    enter: "Open",
     uncovered: "No activity",
     viewerRole: "Sales ops - national",
     foldTitle: "Collapse the title",

@@ -9,6 +9,7 @@ import { listLeads } from "../../domains/signal/service";
 import { listProposals } from "../../domains/copilot/service";
 import { getCopilotStore, getDeliveryStore } from "../../domains/shared/registry";
 import type { InstalmentLike, MilestoneLike } from "../lib/rollup";
+import { ENTRY_TARGETS, type EntryKey } from "../lib/entry";
 import { NationalScreen } from "../components/national-screen";
 
 // 全国销售态势屏 - the situation screen, as a page of this product.
@@ -135,6 +136,22 @@ export default async function NationalScreenPage() {
      They are TRIMMED to what the roll-up reads. Shipping the store records
      whole would put commercial detail on the wire that this screen never
      draws - and it is a screen people stand in front of. */
+  /* 板块直达 - resolved FROM THE CATALOGUE, not written out here.
+     Each card is gated on its DESTINATION's own action rather than on this
+     screen's: the screen asks for five view actions, and two of these pages
+     are not among them - /copilot enforces copilot.playbook.view (the plays,
+     not the queue) and /collection delivery.revenue.view (the money, not the
+     project). Deriving the links from the screen's gates would show a button
+     that leads to a refusal, which is worse than no button at all.
+     A refused card simply has none; nothing is greyed out, because an entry
+     point nobody can use is not information. ENTRY_TARGETS is checked against
+     the navigation catalogue by entry.test.ts, so a link cannot drift away
+     from the gate its page actually enforces. */
+  const enter = {} as Record<EntryKey, string | null>;
+  for (const t of ENTRY_TARGETS) {
+    enter[t.key] = can(ctx.holder, ctx.entitlement, t.action, "ui").allowed ? t.href : null;
+  }
+
   const rows = {
     accounts: (accounts.ok ? accounts.value : []).map((a) => ({
       id: a.id, province: a.province,
@@ -167,6 +184,6 @@ export default async function NationalScreenPage() {
        the account table renders a monospaced id in its owner column until a
        directory lands. Dressing an id up as a person is the defect that page
        already fixed once. */
-    <NationalScreen rows={rows} viewerSub={session.user.sub} />
+    <NationalScreen rows={rows} enter={enter} viewerSub={session.user.sub} />
   );
 }

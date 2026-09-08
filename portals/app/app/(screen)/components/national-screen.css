@@ -358,6 +358,40 @@
   background: linear-gradient(270deg, var(--screen-line-faint), transparent);
 }
 
+/* 进入 - a ghost button, absent until the card is pointed at.
+   GHOST MEANS NO FILL AND NO BORDER until it is itself hovered; the panel
+   headers already carry a mark, a title, a step and a rule, and a sixth solid
+   control on each would make the rail read as a toolbar rather than a reading.
+
+   HIDDEN BY OPACITY, NOT display:none, and focus-within reveals it: a control
+   that only exists while a pointer is over it cannot be reached by keyboard at
+   all, which would make six links invisible to anyone not using a mouse. It
+   stays out of the layout's way either way, because the rule beside it takes
+   all the free space and the button is sized to its own text. */
+.screen .mod-hd .enter{
+  flex: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 18px; padding: 0 6px; margin-left: 2px;
+  font-family: var(--vx-font-sans);
+  font-size: 11px; letter-spacing: 0.08em; line-height: 1;
+  color: var(--screen-faint); text-decoration: none;
+  border: 1px solid transparent;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.16s linear, color 0.16s linear, border-color 0.16s linear;
+}
+.screen .mod-hd .enter svg{ width: 9px; height: 9px; }
+.screen .mod:hover .enter,
+.screen .mod:focus-within .enter{ opacity: 1; pointer-events: auto; }
+.screen .mod-hd .enter:hover,
+.screen .mod-hd .enter:focus-visible{
+  color: var(--screen-accent-hi);
+  border-color: var(--screen-line);
+  background: color-mix(in oklab, var(--screen-raised) 70%, transparent);
+}
+/* The right rail reverses its header, so the button lands at the far left
+   there; only its own breathing space needs flipping. */
+.screen .mod-hd.rev .enter{ margin-left: 0; margin-right: 2px; }
+
 .screen .mod-bd{ flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 .screen .cells{ display: flex; margin-bottom: 8px; }

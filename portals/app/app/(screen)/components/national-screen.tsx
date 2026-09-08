@@ -16,6 +16,7 @@ import {
   type ProvinceRollup,
 } from "../lib/rollup";
 import { anchorOf, periodsFor, type PeriodKey } from "../lib/period";
+import type { EntryKey } from "../lib/entry";
 import {
   PROVINCES_BY_REGION,
   shortProvince,
@@ -61,8 +62,17 @@ export interface ScreenRows {
   readonly milestones: readonly MilestoneLike[];
 }
 
+/**
+ * Where each card's 进入 goes, or null when the reader may not go there.
+ *
+ * KEYED OFF THE CATALOGUE rather than listed again here, so adding a seventh
+ * card cannot leave a hole in this map that reads as "no permission".
+ */
+export type ScreenEntry = Readonly<Record<EntryKey, string | null>>;
+
 export interface NationalScreenProps {
   readonly rows: ScreenRows;
+  readonly enter: ScreenEntry;
   readonly viewerSub: string;
 }
 
@@ -149,8 +159,12 @@ function frameFor(level: Level, scope: readonly ProvinceRollup[]) {
    reverses the header, so the rule always runs toward the map. */
 
 function Mod(
-  { step, title, right, children }:
-  { step: string; title: string; right?: boolean; children: React.ReactNode },
+  { step, title, right, href, enterLabel, children }:
+  {
+    step: string; title: string; right?: boolean;
+    href?: string | null; enterLabel: string;
+    children: React.ReactNode;
+  },
 ) {
   return (
     <section className="mod">
@@ -159,6 +173,21 @@ function Mod(
         <h2>{title}</h2>
         <span className="step">{step}</span>
         <span className="rule" />
+        {/* AT THE OTHER END OF THE TITLE ROW, and symmetric without being
+            positioned twice: it comes after the rule in DOM order, and the
+            right rail's header is row-reverse, so the same markup puts it at
+            the far right on the left rail and the far left on the right one.
+            Null when the reader may not open that page - a disabled entry
+            point is not information, it is an advertisement for a refusal. */}
+        {href ? (
+          <Link className="enter" href={href} aria-label={`${enterLabel} ${title}`}>
+            {enterLabel}
+            <svg viewBox="0 0 10 10" fill="none" aria-hidden>
+              <path d="M3.4 2 L6.6 5 L3.4 8" stroke="currentColor" strokeWidth="1.4"
+                    strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+        ) : null}
       </div>
       <div className="mod-bd">{children}</div>
     </section>
@@ -236,7 +265,7 @@ function FoldArc(
   );
 }
 
-export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
+export function NationalScreen({ rows, enter, viewerSub }: NationalScreenProps) {
   const { SCREEN_TEXT } = useMessages();
   const units = {
     yi: SCREEN_TEXT.unitYi, wan: SCREEN_TEXT.unitWan, yuan: SCREEN_TEXT.unitYuan,
@@ -616,7 +645,7 @@ export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
       <div className="screen-deck">
         <aside className={`rail rail-left${railsFolded ? " folded" : ""}`}>
           <div className="rail__body">
-            <Mod step="01" title={SCREEN_TEXT.panelLeads}>
+            <Mod step="01" title={SCREEN_TEXT.panelLeads} href={enter.leads} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellLeadsNew} v={num(total.leadsNew)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellLeadsUnclaimed} v={num(total.leadsUnclaimed)} tone="amber" />
@@ -631,7 +660,7 @@ export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
               />
             </Mod>
 
-            <Mod step="02" title={SCREEN_TEXT.panelPipeline}>
+            <Mod step="02" title={SCREEN_TEXT.panelPipeline} href={enter.pipeline} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellPipelineValue} {...moneyCell(total.pipelineValue)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellOpenDeals} v={num(total.openDeals)} />
@@ -644,7 +673,7 @@ export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
               />
             </Mod>
 
-            <Mod step="03" title={SCREEN_TEXT.panelContract}>
+            <Mod step="03" title={SCREEN_TEXT.panelContract} href={enter.contract} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellContractValue} {...moneyCell(total.contractValue)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellWonDeals} v={num(total.wonDeals)} />
@@ -938,7 +967,7 @@ export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
                 so the two collided into a single dense band at the boundary. The
                 three figures now sit together at the top and the panel closes on
                 the chart, which gives the next panel's numbers a quiet edge. */}
-            <Mod step="AI" title={SCREEN_TEXT.panelCopilot} right>
+            <Mod step="AI" title={SCREEN_TEXT.panelCopilot} right href={enter.copilot} enterLabel={SCREEN_TEXT.enter}>
               <div className="hero">
                 <div className="hero-v">
                   {total.adoption === null ? SCREEN_TEXT.noReading : (total.adoption * 100).toFixed(1)}
@@ -972,7 +1001,7 @@ export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
               <AdoptionTrend series={total.adoptionSeries} label={SCREEN_TEXT.chartAdoption} />
             </Mod>
 
-            <Mod step="04" title={SCREEN_TEXT.panelDelivery} right>
+            <Mod step="04" title={SCREEN_TEXT.panelDelivery} right href={enter.delivery} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellInDelivery} {...moneyCell(total.inDelivery)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellProjectsLive} v={num(total.projectsLive)} />
@@ -985,7 +1014,7 @@ export function NationalScreen({ rows, viewerSub }: NationalScreenProps) {
               />
             </Mod>
 
-            <Mod step="05" title={SCREEN_TEXT.panelCollection} right>
+            <Mod step="05" title={SCREEN_TEXT.panelCollection} right href={enter.collection} enterLabel={SCREEN_TEXT.enter}>
               <Cells>
                 <Cell k={SCREEN_TEXT.cellCollected} {...moneyCell(total.collected)} tone="lead" />
                 <Cell k={SCREEN_TEXT.cellReceivable} {...moneyCell(total.receivable)} />
