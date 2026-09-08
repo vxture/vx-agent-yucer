@@ -2696,6 +2696,21 @@ export const en: Dictionary = {
     divisionNew: "New region",
     divisionRemove: "Delete region",
     divisionRemoveWhy: "Only a region holding no provinces can be deleted. Move them out first.",
+    templateTitle: "Standard carves",
+    templateWhy:
+      "Two standard ways to carve the China market, neither more correct: the five-way, and the seven-way that territory routing already speaks. Adopt one as a starting point and edit from there.",
+    templateAdopt: "Adopt this one",
+    templateConfirm: "Replace",
+    templateCancel: "Cancel",
+    templateReplaceWarn: (current: number, custom: number) =>
+      custom > 0
+        ? `Replaces the current ${current} regions; ${custom} of them are yours and will be discarded.`
+        : `Replaces the current ${current} regions.`,
+    templateFive: "Five-way",
+    templateSeven: "Seven-way",
+    templateRef: "Start from a standard region",
+    templateRefNone: "Start blank",
+    templateRefWhy: "Pick one and its code, name and provinces are filled in - still editable.",
     divisionTitle: "Regions and provinces",
     divisionWhy:
       "The roster above says who covers which ground; this says which provinces a region is made of. Read together they answer \"who covers Jiangsu\" without anyone knowing the mapping by heart. A province belongs to at most one region, so this changes where it sits rather than ticking boxes.",

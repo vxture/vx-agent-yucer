@@ -7,8 +7,13 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { listTerritories } from "../../domains/planning/service";
 import { listMarketDivisions } from "../../domains/account/service";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
-import { isSystemDivision } from "../../domains/shared/market-division";
+
 import { DivisionPanel } from "../components/division-panel";
+import { DivisionImport } from "../components/division-import";
+import {
+  DIVISION_TEMPLATES,
+  isSystemDivision,
+} from "../../domains/shared/market-division";
 import { TerritoryPanel } from "../components/territory-panel";
 import { loadFailureText } from "../lib/load-failure";
 import { NewEntryLink } from "../components/form-page";
@@ -112,6 +117,24 @@ export default async function TerritoryPage() {
           editable={
             can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed
           }
+        />
+      ) : null}
+      {/* 引用预置 sits BELOW the roster, not above it: adopting a carve
+          replaces what the list shows, so the reader should have seen it
+          first. */}
+      {divisions.ok
+        && can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed ? (
+        <DivisionImport
+          currentDivisions={divisionRows.length}
+          customCount={
+            divisionRows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
+          }
+          templates={DIVISION_TEMPLATES.map((t) => ({
+            key: t.key,
+            label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
+            divisions: t.divisions.length,
+            names: t.divisions.map((d) => d.name),
+          }))}
         />
       ) : null}
       {/* Creation and editing left for /territory/new on 2026-09-05 - which

@@ -11,6 +11,7 @@
 //     only explanation is "the model said so" is an account nobody acts on.
 
 import { isProvince } from "../shared/provinces";
+import { DIVISION_TEMPLATES } from "../shared/market-division";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import {
@@ -68,6 +69,55 @@ export interface AccountContext {
  *
  * "data", not "ui": this answers a read, and the caller decides what to draw.
  */
+/**
+ * Replace the workspace's whole carve with a shipped one.
+ *
+ * REPLACES, DELIBERATELY. Both the five-way and the seven-way place all 34
+ * provinces, so importing one is a statement about the entire market, not an
+ * addition to it - merging would leave divisions from the old carve holding
+ * provinces the new one has claimed elsewhere, which is a shape neither
+ * template describes and nobody asked for. The caller is told how many
+ * divisions it is about to discard before it happens.
+ *
+ * Divisions the template does not have are removed only AFTER their provinces
+ * have been re-placed, because the foreign key refuses to drop one that still
+ * holds any (ON DELETE RESTRICT) - the order here is the constraint's, not a
+ * preference.
+ */
+export async function importDivisionTemplate(
+  ctx: AccountContext,
+  key: string,
+): Promise<RuleResult<{ key: string; divisions: number; replaced: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const template = DIVISION_TEMPLATES.find((t) => t.key === key);
+  if (!template) {
+    return fail(violation("template_unknown", `${key} is not a shipped carve`, "key"));
+  }
+
+  const before = await ctx.store.listMarketDivisions(ctx.workspaceId);
+
+  for (const d of template.divisions) {
+    await ctx.store.upsertMarketDivision(ctx.workspaceId, {
+      code: d.code, name: d.name, sortOrder: d.sortOrder,
+    });
+  }
+  for (const [province, code] of Object.entries(template.provinces)) {
+    await ctx.store.setProvinceDivision(ctx.workspaceId, province, code);
+  }
+  // Now that nothing points at them.
+  const keep = new Set(template.divisions.map((d) => d.code));
+  let replaced = 0;
+  for (const old of before) {
+    if (keep.has(old.code)) continue;
+    await ctx.store.removeMarketDivision(ctx.workspaceId, old.code);
+    replaced += 1;
+  }
+
+  return ok({ key, divisions: template.divisions.length, replaced });
+}
+
 /**
  * Create a 大区, or rename one that exists, and set which provinces it holds.
  *

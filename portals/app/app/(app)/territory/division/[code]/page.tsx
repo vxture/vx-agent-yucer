@@ -48,6 +48,9 @@ export default async function EditDivisionPage(
         code={mine.code}
         name={mine.name}
         provinces={mine.provinces}
+        // Empty when editing: referencing a preset would silently overwrite
+        // what this workspace has already decided.
+        presets={[]}
         options={ALL_PROVINCES.map((p) => ({ province: p, heldBy: heldBy.get(p) ?? null }))}
       />
     </ViewLayout>

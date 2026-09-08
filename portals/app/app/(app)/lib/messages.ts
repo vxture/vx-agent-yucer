@@ -3065,6 +3065,21 @@ export const PLANNING_TEXT = {
   divisionNew: "新建大区",
   divisionRemove: "删除大区",
   divisionRemoveWhy: "只有不含任何省份的大区才能删除。先把省份移走，再删。",
+  templateTitle: "预置划分",
+  templateWhy:
+    "两种都是标准的中国市场切法，谁也不比谁更对：五分法（东南西北中），七分法（华北/东北/华东/华中/华南/西南/西北，也是辖区路由现在说的那套）。引用其中一种作为起点，之后随便改。",
+  templateAdopt: "引用这套",
+  templateConfirm: "确认替换",
+  templateCancel: "取消",
+  templateReplaceWarn: (current: number, custom: number) =>
+    custom > 0
+      ? `会替换当前 ${current} 个大区，其中 ${custom} 个是你自己配置的，将被丢弃。`
+      : `会替换当前 ${current} 个大区。`,
+  templateFive: "五分法 · 东南西北中",
+  templateSeven: "七分法 · 华北/东北/华东/华中/华南/西南/西北",
+  templateRef: "引用预置大区",
+  templateRefNone: "不引用，自己填",
+  templateRefWhy: "选一个预置大区，代码、名称和省份会自动填好，再改也行。",
   divisionTitle: "大区与省份",
   divisionWhy:
     "上面的销售区域说的是「谁负责哪片地」，这里说的是「一个大区由哪些省组成」。两段连起来读，才能不靠记忆回答「江苏归谁管」。一个省最多属于一个大区，所以这里是改归属，不是勾选。",

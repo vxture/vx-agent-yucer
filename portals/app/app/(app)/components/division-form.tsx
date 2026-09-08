@@ -23,13 +23,25 @@ export interface ProvinceOption {
   readonly heldBy: string | null;
 }
 
+/** One division out of a shipped carve, offered as a starting point. */
+export interface PresetOption {
+  readonly key: string;
+  readonly code: string;
+  readonly name: string;
+  readonly provinces: readonly string[];
+  /** Which carve it comes from, so two 华东s are distinguishable. */
+  readonly from: string;
+}
+
 export function DivisionForm(
-  { code, name, provinces, options, isNew }:
+  { code, name, provinces, options, presets, isNew }:
   {
     readonly code: string;
     readonly name: string;
     readonly provinces: readonly string[];
     readonly options: readonly ProvinceOption[];
+    /** Empty when editing: referencing a preset is a way to START one. */
+    readonly presets: readonly PresetOption[];
     readonly isNew: boolean;
   },
 ) {
@@ -88,6 +100,38 @@ export function DivisionForm(
       {error ? <p className="text-destructive text-body-sm" role="alert">{error}</p> : null}
 
       <div className="gap-md flex flex-col">
+        {/* 引用预置. Fills the three fields and leaves them editable - the
+            point is to save typing, not to lock the shape. Only while
+            creating: on an existing division it would silently overwrite
+            whatever the workspace had already decided. */}
+        {isNew && presets.length > 0 ? (
+          <label className="gap-2xs flex flex-col">
+            <span className="text-body-sm font-medium">{PLANNING_TEXT.templateRef}</span>
+            <select
+              className="border-input bg-background h-control-md rounded-sm border px-sm"
+              disabled={pending}
+              defaultValue=""
+              onChange={(e) => {
+                const p = presets.find((x) => `${x.key}:${x.code}` === e.target.value);
+                if (!p) return;
+                setCode(p.code);
+                setName(p.name);
+                setChosen(new Set(p.provinces));
+              }}
+            >
+              <option value="">{PLANNING_TEXT.templateRefNone}</option>
+              {presets.map((p) => (
+                <option key={`${p.key}:${p.code}`} value={`${p.key}:${p.code}`}>
+                  {p.from} · {p.name}
+                </option>
+              ))}
+            </select>
+            <span className="text-muted-foreground text-body-sm">
+              {PLANNING_TEXT.templateRefWhy}
+            </span>
+          </label>
+        ) : null}
+
         <label className="gap-2xs flex flex-col">
           <span className="text-body-sm font-medium">{PLANNING_TEXT.divisionCode}</span>
           <input
