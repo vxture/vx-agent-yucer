@@ -59,9 +59,13 @@ test("administration is nav, but it is not a capability domain", () => {
   // not a domain". Adoption belongs here for the same reason: it is a statement
   // about whether the product is used, which is not a capability the product
   // sells.
+  // 市场划分 joined on 2026-09-08. It is configuration - how the market is
+  // carved, set once and read by every figure grouped by 大区 - and it was a
+  // business module until the owner separated the two dimensions: the TEAM
+  // half (销售区域) became a section of 销售规划, the CARVE came here.
   assert.deepEqual(
     ADMIN_NAV_ENTRIES.map((e) => e.key),
-    ["admin", "adoption"],
+    ["admin", "adoption", "division"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -204,9 +208,20 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   // carry a *.view action a viewer holds, so an enterprise viewer reaches
   // them. That is the promotion behaving - a page that appeared but could not
   // be opened would mean the split had invented a gate.
+  /* PLUS 市场划分, and the +1 is the point rather than an adjustment to make
+     the number fit. It sits in ADMIN_NAV_ENTRIES but is gated on
+     planning.territory.view, which a viewer holds - so a viewer reaches the
+     gear and finds one card there: the carve, read-only, because editing it
+     needs planning.territory.upsert. That is deliberate. The carve explains
+     every figure the product groups by 大区, and a reader who cannot see how
+     江苏 is filed cannot check the number they are being shown. */
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
-    DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length,
+    DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length + 1,
+  );
+  assert.equal(
+    nav.some((e) => e.key === "division" && e.state === "visible"),
+    true,
   );
   assert.equal(
     nav.some((e) => e.key === "admin"),

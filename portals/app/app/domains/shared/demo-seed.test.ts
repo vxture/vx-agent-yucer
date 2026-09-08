@@ -1092,18 +1092,43 @@ test("the demo has a customer whose region the data can derive, or the completen
   assert.equal(byProvince?.suggestion, "南部");
 });
 
-test("every other demo territory still covers two regions - the ambiguous case is not accidentally gone", async () => {
-  // This account exists BECAUSE the other three territories are ambiguous for
-  // region derivation; if that ever stopped being true, this test's account
-  // would be redundant and the workplan note that motivated it would be
-  // wrong. Pinning it here means a future edit that narrows terr_east etc.
-  // down to one region gets caught rather than silently making 港澳零售集团
-  // the only reason this repo still needs a single-region territory.
+test("an ambiguous territory still exists, or the refusal branch has no demo case", async () => {
+  /* WHAT THIS USED TO SAY, and why it was wrong: "every other demo territory
+     covers exactly two regions". That was arithmetic, not design - seven
+     divisions split three ways plus a remainder - and when the carve became
+     five and the territories became TEAMS (直销一部 / 直销二部 / 渠道部 /
+     港澳组), holding the old shape would have meant inventing coverage nobody
+     sells to, just to keep a number at two.
+
+     The property that actually matters is that AMBIGUITY EXISTS: at least one
+     territory covers more than one 大区, so accountGaps() has a case where it
+     must decline to derive a region rather than pick the first candidate. Here
+     it is 西部, worked by both the direct-sales and the channel team. */
   const s = seeded();
   const territories = await s.planning.listTerritories(WS);
-  const original = territories.filter((t) => t.id !== "terr_hk");
-  assert.ok(original.length > 0);
-  for (const t of original) {
-    assert.equal(t.regions.length, 2, `${t.name} no longer covers exactly two regions`);
-  }
+  const ambiguous = territories.filter((t) => t.regions.length > 1);
+  assert.ok(
+    ambiguous.length > 0,
+    "no territory covers more than one 大区 - nothing in the demo reaches the refusal",
+  );
+  const single = territories.filter((t) => t.regions.length === 1);
+  assert.ok(
+    single.length > 0,
+    "no single-region territory - the derivable-by-territory case has nothing to derive from",
+  );
 });
+
+test("the demo has a child territory, or the 上级区域 column is always blank", async () => {
+  // parentId was hard-coded null in the seed helper, so a column the roster
+  // has drawn since it was built had never once held a value. A field the
+  // demo never fills reads as a field the product does not have.
+  const s = seeded();
+  const territories = await s.planning.listTerritories(WS);
+  const children = territories.filter((t) => t.parentId !== null);
+  assert.equal(children.length, 1);
+  assert.ok(
+    territories.some((t) => t.id === children[0]!.parentId),
+    "the child's parent is not a territory in this workspace",
+  );
+});
+

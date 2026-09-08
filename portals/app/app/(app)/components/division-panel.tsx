@@ -17,7 +17,8 @@ import { useMessages } from "../lib/i18n/provider";
  *
  * It had pickers in it, which put editing inside a roster and made the page do
  * two jobs at once. The module already had the right shape and I ignored it:
- * /territory lists, /territory/new edits. This is the list; the division form
+ * /admin/division lists, /admin/division/[code] edits. This is the list; the
+ * division form
  * is its own page, reached from the row.
  *
  * MULTI-TENANT, so nothing here assumes five divisions or their names. A
@@ -40,11 +41,15 @@ const SORT_ON = {
 };
 
 export function DivisionPanel(
-  { rows, unassigned, editable }:
+  { rows, unassigned, total, editable }:
   {
     readonly rows: readonly DivisionRow[];
     /** Provinces in no 大区 at all - the statistic this section closes on. */
     readonly unassigned: readonly string[];
+    /** How many there are in total. It was the literal 34, beside a prop
+     *  derived from ALL_PROVINCES - two copies of one number, one of which
+     *  cannot follow the vocabulary if it ever changes. */
+    readonly total: number;
     readonly editable: boolean;
   },
 ) {
@@ -54,16 +59,11 @@ export function DivisionPanel(
   const [selected, setSelected] = useState<string[]>([]);
 
   return (
-    /* TITLED. The copy for this heading existed in both dictionaries and was
-       rendered by nothing, so the page showed two tables and named one - and a
-       reader arriving at the second had to infer that 大区 and 辖区 are
-       different questions from the column headers alone. */
-    <Section
-      id="divisions"
-      icon="map-pin"
-      title={PLANNING_TEXT.divisionTitle}
-      description={PLANNING_TEXT.divisionWhy}
-    >
+    /* NO TITLE HERE. It carried one for a day, while this panel was the
+       unnamed second table on /territory; its own page names it now, and two
+       identical headings one above the other is what the module-name guard
+       exists to prevent one level up. */
+    <Section id="divisions">
       {rows.length === 0 ? (
         <EmptyState
           title={PLANNING_TEXT.divisionEmptyTitle}
@@ -74,7 +74,23 @@ export function DivisionPanel(
            all three on every converted table; the edge classes give the
            selection and index columns an equal share so they line up with the
            DS's own. */
-        <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`}>
+        /* THE THREE SHORT COLUMNS TAKE EXPLICIT WIDTHS, and the province list
+           takes what is left. Same constraint-from-outside the catalog config
+           tables carry: the DS's `width` tiers are MIN-widths and fixed layout
+           ignores minimums, so untiered the seven columns split evenly and
+           覆盖省份 got the same ~120px as 来源 - which wrapped 广西壮族自治区
+           one character per line. Under fixed layout a column with no width
+           takes the remainder, so naming the short ones is what gives the
+           content column its room. Measured, not guessed: with the tiers alone
+           the header still computed 121px against a min-width of 200. */
+        <div
+          className={
+            `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+            + " [&_thead_th:nth-child(3)]:w-[9rem]"
+            + " [&_thead_th:nth-child(4)]:w-[7rem]"
+            + " [&_thead_th:nth-child(5)]:w-[5rem]"
+          }
+        >
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
@@ -88,7 +104,7 @@ export function DivisionPanel(
                       id: "edit",
                       label: PLANNING_TEXT.divisionEdit,
                       onSelect: () =>
-                        router.push(`/territory/division/${encodeURIComponent(r.code)}`),
+                        router.push(`/admin/division/${encodeURIComponent(r.code)}`),
                     }]
                   // The column still renders with no items - a table whose
                   // action column disappears for a read-only reader shifts
@@ -110,7 +126,7 @@ export function DivisionPanel(
               sortable: true,
               cell: (r: DivisionRow) =>
                 editable ? (
-                  <Link href={`/territory/division/${encodeURIComponent(r.code)}`}>
+                  <Link href={`/admin/division/${encodeURIComponent(r.code)}`}>
                     <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
                   </Link>
                 ) : (
@@ -165,7 +181,7 @@ export function DivisionPanel(
           on. Counted off the same 34 the map and the database CHECK use. */}
       <div className="border-border gap-2xs mt-md flex flex-col border-t pt-md">
         <p className="text-body-sm">
-          {PLANNING_TEXT.divisionCoverage(34 - unassigned.length, 34, rows.length)}
+          {PLANNING_TEXT.divisionCoverage(total - unassigned.length, total, rows.length)}
         </p>
         {unassigned.length === 0 ? (
           <p className="text-muted-foreground text-body-sm">

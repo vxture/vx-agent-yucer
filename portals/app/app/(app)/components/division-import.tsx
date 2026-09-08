@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button, DialogForm } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { importTemplate } from "../territory/actions";
+import { importTemplate } from "../admin/division/actions";
 
 /* 重置预置 - adopt a shipped carve wholesale.
  *

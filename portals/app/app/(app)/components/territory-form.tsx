@@ -64,7 +64,7 @@ export function TerritoryForm({
   const [ownerSub, setOwnerSub] = useState("");
   const [status, setStatus] = useState("active");
   const [regions, setRegions] = useState<readonly string[]>([]);
-  const submit = useFormSubmit("/territory");
+  const submit = useFormSubmit("/planning");
 
   // THE CODE IS THE IDENTITY - typing an existing code edits that territory
   // (upsert-by-anchor, ADR-017's shape). The page keeps that semantic and adds

@@ -76,44 +76,45 @@ export const DEMO_CONTACTS = [
  * 覆盖", a Chinese sentence with an English noun wedged into it.
  */
 export const DEMO_TERRITORY_NAMES: Record<string, string> = {
-  /* 区域, NOT 辖区. The module is called 销售区域 and its own panel counts
-     "4 个区域"; naming the rows 辖区 put a second word for one thing on the
-     same screen. One word, and it is the module's. */
-  EAST: "东部区域",
-  NORTH: "北部区域",
-  SOUTH: "南部区域",
-  // WAS "Hong Kong & Macau", written inline in demo-seed.ts because that file
-  // may hold no Chinese - which produced exactly the sentence this block warns
-  // about, an English noun wedged into a Chinese one. A name a reader sees
-  // belongs here whatever language it is in.
-  HK: "港澳区域",
+  /* NAMED AS TEAMS, NOT AS GEOGRAPHY (owner, 2026-09-08). They were 东部区域 /
+     北部区域 / 南部区域 - the division names with a suffix - which made the
+     two tables look like one table entered twice, and left the reader with no
+     way to see what a 区域 is FOR. A 大区 is how the market is carved; a 区域
+     is a team that works it, and two teams can work the same ground for
+     different reasons. That is why coverage is a list and why a province's
+     region cannot always be derived from the team that sells to it. */
+  EAST: "直销一部",
+  NORTH: "直销二部",
+  SOUTH: "渠道部",
+  // 港澳组 sits UNDER 渠道部 (parentId) - the demo's only hierarchy, and the
+  // reason the roster's 上级区域 column had been empty since it was built.
+  HK: "港澳组",
 };
 
 /* 区域覆盖的大区 - the join lead routing needs.
  *
- * THESE NAME THE WORKSPACE'S OWN 大区 now, not a hard-coded seven. Routing
- * matches these strings against `account.region`, so a territory naming 华东
- * covered ground no account sits on any more, and routed nothing.
+ * THESE NAME THE WORKSPACE'S OWN 大区, not a hard-coded seven. Routing matches
+ * these strings against `account.region`.
  *
- * A 辖区 IS NOT A 大区, which is why coverage is a LIST. The carve is how the
- * market is divided; a territory is a team, and teams overlap and reach past
- * their home division - 北部 here is worked by both the eastern and the
- * northern team, and 西部 by the northern and the southern one. That overlap
- * is load-bearing: it is what makes region derivation from a territory
- * ambiguous, and therefore what terr_hk exists to contrast with.
+ * THE OVERLAP HAS A REASON NOW. It used to be arithmetic: three territories
+ * covering two divisions each, because seven divided that way and the
+ * derivation test needed an ambiguous case. Here 西部 is worked by both 直销二部
+ * and 渠道部 - direct sales in the north-west, channel in the south-west - which
+ * is exactly the situation that makes "which 大区 is this customer in?"
+ * underivable from the team, and therefore why completeness.ts refuses to
+ * guess unless a territory names exactly one.
  *
- * 中部 STAYS UNCOVERED on purpose, the way 东北 used to: the demo depends on a
- * 未分区 case being visible - an account whose region no territory claims is
- * seen by every territory member, and that is what the completeness roster
- * reports. Adding it here would delete the lesson.
+ * 中部 STAYS UNCOVERED on purpose: the demo depends on a 未分区 case being
+ * visible - an account whose region no territory claims is seen by every
+ * territory member, and that is what the completeness roster reports.
  */
 export const DEMO_TERRITORY_REGIONS: Record<string, readonly string[]> = {
-  EAST: ["东部", "北部"],
+  EAST: ["东部"],
   NORTH: ["北部", "西部"],
   SOUTH: ["南部", "西部"],
   // Single-region on purpose - see 港澳零售集团 above. 港澳 has no division of
   // its own under this carve, so the team that works it is registered against
-  // 南部, which the southern territory also covers.
+  // 南部, which its parent also covers.
   HK: ["南部"],
 };
 

@@ -23,7 +23,8 @@ import { useMessages } from "../lib/i18n/provider";
 // nav entry and the host here is /planning, which IS one - the same test that
 // keeps 战略客户 planned, since its only host would be a detail page.
 //
-// DISPLAY ONLY since 2026-09-05: creating and editing left for /territory/new
+// DISPLAY ONLY since 2026-09-05: creating and editing left for
+// /planning/territory/new
 // (owner ruling), which also carries the regions field this panel never had.
 
 export interface TerritoryRow {
@@ -76,7 +77,7 @@ export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[
               ),
             },
             {
-              // The regions column joined with the /territory/new page: the
+              // The regions column joined with the create page: the
               // list is what routing matches against, so a blank here is the
               // "dead ground" the form's assistant warns about.
               id: "regions",

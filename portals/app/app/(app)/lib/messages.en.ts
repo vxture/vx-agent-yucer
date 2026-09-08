@@ -164,6 +164,7 @@ export const en: Dictionary = {
     solution: "Solutions",
     pricebook: "Product pricing",
     territory: "Territories",
+    division: "Market carve",
     namedAccount: "Named accounts",
     quote: "Quotes",
     routing: "Lead routing",
@@ -1750,11 +1751,17 @@ export const en: Dictionary = {
       admin: "Who can enter this workspace, and what each of them may do",
       adoption:
         "Whether follow-up notes are actually being used. Criteria in ADR-012",
+      division: "How the country is carved into regions, and which provinces each holds",
     },
     memberCount: (members: number, roles: number) =>
       `${members} members - ${roles} roles in use`,
     memberNone: "No members yet - they appear after their first sign-in",
     memberNoRead: "No permission to read members",
+    divisionCount: (divisions: number, placed: number, total: number) =>
+      placed === total
+        ? `${divisions} regions · all ${total} provinces assigned`
+        : `${divisions} regions · ${total - placed} provinces unassigned`,
+    divisionNoRead: "No permission to read regions",
     adoptionCriterion: (weeks: number, judge: number) =>
       `Judged over the last ${weeks} weeks; ${judge} consecutive weeks at target counts as adopted`,
     open: "Open",
@@ -2723,7 +2730,7 @@ export const en: Dictionary = {
     templateRefWhy: "Pick one and its code, name and provinces are filled in - still editable.",
     divisionTitle: "Regions and provinces",
     divisionWhy:
-      "The roster above says who covers which ground; this says which provinces a region is made of. Read together they answer \"who covers Jiangsu\" without anyone knowing the mapping by heart. A province belongs to at most one region, so this changes where it sits rather than ticking boxes.",
+      "How the country is carved into regions, and which provinces each holds. This is market structure, not team structure: who covers which ground is decided in planning, and one region may be worked by several territories. A province belongs to at most one region, so this changes where it sits rather than ticking boxes - and every figure the situation screen groups by region reads from this table.",
     divisionEmptyTitle: "This workspace has no regions yet",
     divisionEmptyWhy:
       "Five are seeded when the database is initialised. None at all usually means this workspace predates that.",
@@ -2743,6 +2750,8 @@ export const en: Dictionary = {
     territoryNone: "No territories yet",
     territoryNoneWhy:
       "Create one before setting a target on it or attributing deals to it.",
+    territoryNewEntry: "New territory",
+    targetNew: "New target",
     territoryFormTitle: "New / edit territory",
     territoryEditing: "Edit an existing territory",
     territoryNew: "Create a new territory",

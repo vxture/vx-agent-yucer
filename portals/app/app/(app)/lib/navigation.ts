@@ -185,6 +185,24 @@ export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
     icon: "chart-bar",
     action: "admin.adoption.view",
   },
+  /* 市场划分 - configuration, here since 2026-09-08 (owner).
+   *
+   * It was a business module at /territory, sharing a page with the sales
+   * territories, and the two kept being read as one thing. A 大区 is how the
+   * market is CARVED; a 区域 is a team working it. The team half went to
+   * /planning, where the number it carries is set; the carve is workspace
+   * configuration and belongs behind the gear.
+   *
+   * ITS ACTION IS A PLANNING ONE, and that is not an oversight: who may
+   * re-carve the market is the same authority as who may redraw the
+   * territories on it. An admin.division permission invented to match the URL
+   * would answer a question the catalogue already answers. */
+  {
+    key: "division",
+    href: "/admin/division",
+    icon: "map-pin",
+    action: "planning.territory.view",
+  },
 ];
 
 /**
@@ -211,7 +229,6 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "solution", href: "/solution", icon: "puzzle", action: "catalog.solution.view" },
   { key: "pricebook", href: "/pricebook", icon: "scales", action: "catalog.pricebook.view" },
   { key: "namedAccount", href: "/named", icon: "star", action: "account.view" },
-  { key: "territory", href: "/territory", icon: "map-pin", action: "planning.territory.view" },
   { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
   { key: "quote", href: "/quote", icon: "file-text", action: "pipeline.view" },
   // 线索管理 - its own module since 2026-09-06 (design_yucer_110). It used to

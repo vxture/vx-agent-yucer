@@ -127,11 +127,12 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     key: "deployment",
     icon: "users",
     modules: [
-      // A page of its own since 2026-08-30. It sat above the target table on
-      // /planning because a territory is a PRECONDITION for a regional target;
-      // that relationship is still stated there, and the module is now where
-      // the menu says it is.
-      built("territory"),
+      /* 销售区域 IS NOT A MODULE ANY MORE (owner, 2026-09-08). It was one from
+         2026-08-30 to today, and the split cost more than it bought: drawing
+         the ground and setting the number it carries are one act - 规划团队,
+         划定区域, 明确指标 - and they were behind two menu entries. The roster
+         is a section of 销售规划 now. 大区 went the other way, to configuration
+         behind the gear, because how the market is carved is not planning. */
       // A page since 2026-08-30. The write path shipped in 6c on
       // /account/[id]; what was missing was the ROSTER - who our named
       // accounts are, together - and a control on a detail page is not a

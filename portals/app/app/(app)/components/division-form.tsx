@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Button, Drawer, Input, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { removeDivisionAction, saveDivision } from "../territory/actions";
+import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 
 /* 配置大区 - 编辑面. Separate from the roster on purpose: the list answers
  * "how is the market carved", this answers "carve it differently", and putting
@@ -108,7 +108,7 @@ export function DivisionForm(
     start(async () => {
       const r = await removeDivisionAction(code);
       if (!r.ok) setError(TERRITORY_ERROR[r.error] ?? r.error);
-      else router.push("/territory");
+      else router.push("/admin/division");
     });
   };
 
@@ -121,7 +121,7 @@ export function DivisionForm(
         provinces: [...chosen],
       });
       if (!r.ok) setError(TERRITORY_ERROR[r.error] ?? r.error);
-      else router.push("/territory");
+      else router.push("/admin/division");
     });
   };
 

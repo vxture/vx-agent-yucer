@@ -1,13 +1,13 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { redirect } from "next/navigation";
-import { resolveAppSession } from "../../lib/session";
-import { getMessages } from "../../lib/i18n/server";
-import { can } from "../../../authz/decide";
-import { getPlanningStore } from "../../../domains/shared/registry";
-import { listTerritories } from "../../../domains/planning/service";
-import { listAccounts, listMarketDivisions } from "../../../domains/account/service";
-import { TerritoryForm } from "../../components/territory-form";
-import { saveTerritory } from "../../planning/actions";
+import { resolveAppSession } from "../../../lib/session";
+import { getMessages } from "../../../lib/i18n/server";
+import { can } from "../../../../authz/decide";
+import { getPlanningStore } from "../../../../domains/shared/registry";
+import { listTerritories } from "../../../../domains/planning/service";
+import { listAccounts, listMarketDivisions } from "../../../../domains/account/service";
+import { TerritoryForm } from "../../../components/territory-form";
+import { saveTerritory } from "../../actions";
 
 // 新建/编辑销售区域 - a page since 2026-09-05, and the move FIXES A GAP: the
 // inline panel never sent `regions`, so every UI-created territory covered
@@ -23,7 +23,7 @@ export default async function NewTerritoryPage() {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
   if (!can(session.authz, session.entitlement, "planning.territory.upsert", "ui").allowed) {
-    redirect("/territory");
+    redirect("/planning");
   }
 
   const ctx = {

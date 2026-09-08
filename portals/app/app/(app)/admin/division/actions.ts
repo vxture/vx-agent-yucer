@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { resolveAppSession } from "../lib/session";
+import { resolveAppSession } from "../../lib/session";
 import {
   importDivisionTemplate,
   removeMarketDivision as removeDivision,
   saveMarketDivision,
-} from "../../domains/account/service";
+} from "../../../domains/account/service";
 
 /* 大区-省级 的写入路径.
  *
@@ -43,7 +43,7 @@ export async function saveDivision(input: {
     input,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/territory");
+  revalidatePath("/admin/division");
   revalidatePath("/national");
   return { ok: true, code: result.value.code, moved: result.value.moved };
 }
@@ -65,7 +65,7 @@ export async function removeDivisionAction(code: string): Promise<RemoveDivision
     code,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/territory");
+  revalidatePath("/admin/division");
   revalidatePath("/national");
   return { ok: true };
 }
@@ -90,7 +90,7 @@ export async function importTemplate(key: string): Promise<ImportTemplateResult>
     key,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  revalidatePath("/territory");
+  revalidatePath("/admin/division");
   revalidatePath("/national");
   return { ok: true, divisions: result.value.divisions, replaced: result.value.replaced };
 }

@@ -68,7 +68,10 @@ export const DOMAIN_LABEL: Record<string, string> = {
   segment: "细分市场",
   solution: "解决方案",
   pricebook: "产品定价",
+  // 销售区域 is a SECTION of 销售规划 since 2026-09-08, not a module of its
+  // own; the label stays because the section still needs a name.
   territory: "销售区域",
+  division: "市场划分",
   namedAccount: "重点客户",
   quote: "报价管理",
   routing: "线索分派",
@@ -1564,6 +1567,7 @@ export const ADMIN_TEXT = {
   entryHint: {
     admin: "谁能进这个工作区，各自能做什么",
     adoption: "跟进记录有没有被用起来。判据见 ADR-012",
+    division: "全国怎么切成大区，每个大区管哪些省",
   } as Record<string, string>,
   // What each card says about the state behind it. The cards used to print
   // their own href as body text - a URL is not something a reader wants and
@@ -1575,6 +1579,11 @@ export const ADMIN_TEXT = {
   // subpage's own empty state says the true thing, so the card says it too.
   memberNone: "还没有成员——首次登录后才会出现",
   memberNoRead: "没有成员读取权限",
+  divisionCount: (divisions: number, placed: number, total: number) =>
+    placed === total
+      ? `${divisions} 个大区 · ${total} 个省级行政区都已归入`
+      : `${divisions} 个大区 · 还有 ${total - placed} 个省没有归入`,
+  divisionNoRead: "没有大区读取权限",
   adoptionCriterion: (weeks: number, judge: number) =>
     `按最近 ${weeks} 周判定，连续 ${judge} 周达标才算被用起来`,
   open: "打开",
@@ -3092,8 +3101,10 @@ export const PLANNING_TEXT = {
   templateRefNone: "不引用，自己填",
   templateRefWhy: "选一个预置大区，代码、名称和省份会自动填好，再改也行。",
   divisionTitle: "大区与省份",
+  // 这页不再和销售区域同屏，所以不能再说「上面的销售区域……」。两个维度的
+  // 区别要在这里自己说清楚。
   divisionWhy:
-    "上面的销售区域说的是「谁负责哪片地」，这里说的是「一个大区由哪些省组成」。两段连起来读，才能不靠记忆回答「江苏归谁管」。一个省最多属于一个大区，所以这里是改归属，不是勾选。",
+    "全国怎么切成大区，每个大区管哪些省。这是市场结构，不是团队安排：谁负责哪片地在「销售规划」里定，一个大区可以由多个区域共同负责。一个省最多属于一个大区，所以这里是改归属，不是勾选；态势屏上按大区汇总的每一个数字，都按这张表来。",
   divisionEmptyTitle: "这个工作区还没有大区",
   divisionEmptyWhy:
     "大区在数据库初始化时预置五个（东部/南部/西部/北部/中部）。一个都没有，通常意味着这个工作区是在预置之前建的。",
@@ -3115,6 +3126,9 @@ export const PLANNING_TEXT = {
     "区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。先选覆盖的大区，路由才认得它。",
   territoryNone: "还没有销售区域",
   territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
+  // 两个入口同处一页（区域名册 + 指标表），所以各自说清楚建的是什么。
+  territoryNewEntry: "新建区域",
+  targetNew: "新建目标",
   territoryFormTitle: "新建 / 编辑销售区域",
   territoryEditing: "编辑已有区域",
   territoryNew: "新建一个区域",

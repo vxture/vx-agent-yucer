@@ -38,6 +38,20 @@ const COUNT_LEAD: Record<string, string> = {
   copilot: "a conversation, not a register - it opens on the thread",
 };
 
+/**
+ * Keys whose `app/(app)/<key>/page.tsx` is NOT the page the menu entry opens.
+ *
+ * `admin` points at /admin/members; /admin/page.tsx is the PLANE'S HOME - the
+ * hub the gear opens, listing members, adoption and 市场划分. The path
+ * coincidence made this test compare the hub's title against the members
+ * entry's label, which held only while the hub had exactly one card and wore
+ * that card's name. It has three now (2026-09-08), so the hub is titled 管理
+ * and the members page keeps 成员与角色 - the name the menu really means.
+ */
+const PLANE_HOME: Record<string, string> = {
+  admin: "the gear's hub; the menu entry opens /admin/members, which is named there",
+};
+
 function navEntries(): { key: string; page: string }[] {
   const nav = readFileSync(join(LIB, "navigation.ts"), "utf8");
   const keys = [...nav.matchAll(/key: "(\w+)"/g)].map((m) => m[1]!);
@@ -70,7 +84,7 @@ test("every module page calls itself what the menu calls it", () => {
   const wrong: string[] = [];
 
   for (const { key, page } of navEntries()) {
-    if (key in COUNT_LEAD) continue;
+    if (key in COUNT_LEAD || key in PLANE_HOME) continue;
     const src = readFileSync(page, "utf8");
 
     // ModuleHeadline takes the key and looks the name up itself - the shape

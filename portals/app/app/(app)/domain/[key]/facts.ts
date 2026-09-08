@@ -151,7 +151,7 @@ async function deploymentFacts(ctx: FactsContext): Promise<DomainFact[]> {
 
   // The fact neither page holds alone: a territory nobody has a target for is
   // ground assigned to no number, and a target scoped to a territory that has
-  // been retired is a number pointing at nothing. /territory knows the first
+  // been retired is a number pointing at nothing. /planning knows the first
   // half, /planning the second.
   const rows = targets.ok ? targets.value : null;
   const covered = new Set(
@@ -164,9 +164,9 @@ async function deploymentFacts(ctx: FactsContext): Promise<DomainFact[]> {
     : null;
 
   return visibleFacts([
-    fact("territories", territories.ok ? territories.value.length : null, "/territory"),
+    fact("territories", territories.ok ? territories.value.length : null, "/planning"),
     fact("activeTargets", rows ? rows.length : null, "/planning"),
-    fact("uncoveredTerritories", uncovered, "/territory", true),
+    fact("uncoveredTerritories", uncovered, "/planning", true),
   ]);
 }
 

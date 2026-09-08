@@ -13,6 +13,8 @@ import { resolveNavigation, ADMIN_NAV_ENTRIES } from "../lib/navigation";
 import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
 import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
+import { listMarketDivisions } from "../../domains/account/service";
+import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
 import { getMessages } from "../lib/i18n/server";
 // Administration, as its own domain rather than a sidebar group.
@@ -58,6 +60,23 @@ export default async function AdminHomePage() {
     entitlement: session.entitlement,
     store: getAuthzStore(),
   });
+  /* Read through the same gated service the page itself uses. A failed read is
+     not an error here - the card simply states what it measures instead. */
+  const divisions = await listMarketDivisions({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: session.stores.account(),
+  });
+  const divisionFact = !divisions.ok
+    ? ADMIN_TEXT.divisionNoRead
+    : ADMIN_TEXT.divisionCount(
+        divisions.value.length,
+        new Set(divisions.value.flatMap((d) => d.provinces)).size,
+        ALL_PROVINCES.length,
+      );
+
   const memberFact = !members.ok
     ? ADMIN_TEXT.memberNoRead
     : members.value.length === 0
@@ -70,6 +89,17 @@ export default async function AdminHomePage() {
     CAPTURE_CRITERION.windowWeeks,
     CAPTURE_CRITERION.judgeWeeks,
   );
+  /* A LOOKUP, NOT A TERNARY. It read `e.key === "admin" ? memberFact :
+     adoptionFact`, which silently gave every future card the adoption
+     sentence - and 市场划分 became the third card the day after. The carve's
+     own fact is the shape of the table rather than a count: how many divisions
+     and whether every province is in one, which is the question somebody opens
+     this page to settle. */
+  const FACTS: Record<string, string> = {
+    admin: memberFact,
+    adoption: adoptionFact,
+    division: divisionFact,
+  };
 
   return (
     <ViewLayout>
@@ -82,9 +112,14 @@ export default async function AdminHomePage() {
 
           The member count still moved into the title row, because a count is
           not a title wherever it appears. */}
+      {/* TITLED 管理, not 成员与角色 (2026-09-08). This page held one card for
+          most of its life and wore that card's name; with 市场划分 beside
+          members and adoption, the old title said the hub was one of the three
+          things it lists. The members PAGE still carries that name - it is
+          the one place it belongs. */}
       <ViewHeader
         icon="settings"
-        title={DOMAIN_LABEL.admin}
+        title={ADMIN_TEXT.title}
         description={ADMIN_TEXT.description}
         secondary={
           members.ok ? (
@@ -114,7 +149,7 @@ export default async function AdminHomePage() {
                 >
                   <span className="flex items-center justify-between gap-md">
                     <span className="text-muted-foreground text-body-sm">
-                      {e.key === "admin" ? memberFact : adoptionFact}
+                      {FACTS[e.key] ?? ""}
                     </span>
                     <Icon name="arrow-right" size="xs" />
                   </span>

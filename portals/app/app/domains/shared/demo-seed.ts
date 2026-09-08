@@ -322,11 +322,12 @@ function seedPlanning(workspaceId: string, stores: DemoStores): void {
       territory("terr_east", workspaceId, "EAST", DEMO_TERRITORY_NAMES.EAST, REP1, DEMO_TERRITORY_REGIONS.EAST),
       territory("terr_north", workspaceId, "NORTH", DEMO_TERRITORY_NAMES.NORTH, REP2, DEMO_TERRITORY_REGIONS.NORTH),
       territory("terr_south", workspaceId, "SOUTH", DEMO_TERRITORY_NAMES.SOUTH, REP2, DEMO_TERRITORY_REGIONS.SOUTH),
-      // Single-region, deliberately - see 港澳零售集团. The other three each
-      // cover two regions, so region derivation there always finds more than
-      // one candidate and always declines to guess; this is the only ground in
-      // the demo where a deal's territory names exactly one region.
-      territory("terr_hk", workspaceId, "HK", DEMO_TERRITORY_NAMES.HK, REP1, DEMO_TERRITORY_REGIONS.HK),
+      // Single-region, deliberately - see 港澳零售集团. 直销二部 and 渠道部 each
+      // cover two, so region derivation from them finds more than one candidate
+      // and declines to guess; this is the only ground in the demo where a
+      // deal's territory names exactly one region. It is also the only child
+      // team, which is what puts anything in the 上级区域 column.
+      territory("terr_hk", workspaceId, "HK", DEMO_TERRITORY_NAMES.HK, REP1, DEMO_TERRITORY_REGIONS.HK, "terr_south"),
     ],
     targets: [
       target("tgt_ws", workspaceId, "workspace", null, null, 12_000_000, "committed"),
@@ -1222,8 +1223,13 @@ function territory(
   name: string,
   ownerSub: string,
   regions: readonly string[],
+  /* THE HIERARCHY, which the demo did not have. parentId was hard-coded null
+     here, so the roster's 上级区域 column had been empty since the day it was
+     built - a column that is always blank teaches a reader that the product
+     does not do that. 港澳组 sits under 渠道部. */
+  parentId: string | null = null,
 ) {
-  return { id, workspaceId, territoryCode: code, name, parentId: null, ownerSub, regions, status: "active" };
+  return { id, workspaceId, territoryCode: code, name, parentId, ownerSub, regions, status: "active" };
 }
 
 function target(
