@@ -7,6 +7,7 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { listTerritories } from "../../domains/planning/service";
 import { listMarketDivisions } from "../../domains/account/service";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
+import { isSystemDivision } from "../../domains/shared/market-division";
 import { DivisionPanel } from "../components/division-panel";
 import { TerritoryPanel } from "../components/territory-panel";
 import { loadFailureText } from "../lib/load-failure";
@@ -101,8 +102,9 @@ export default async function TerritoryPage() {
       <TerritoryPanel rows={territories.value} />
       {divisions.ok ? (
         <DivisionPanel
-          divisions={divisionRows.map((d) => ({
-            code: d.code, name: d.name, provinces: d.provinces,
+          rows={divisionRows.map((d) => ({
+            code: d.code, name: d.name, sortOrder: d.sortOrder, provinces: d.provinces,
+            system: isSystemDivision(d.code, d.name, d.provinces),
           }))}
           unassigned={unassigned}
           // The same gate the write path enforces. A picker that appears and
@@ -116,7 +118,10 @@ export default async function TerritoryPage() {
           also carries the regions field this page's panel never had. */}
       {can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
         .allowed ? (
-        <NewEntryLink href="/territory/new" />
+        <>
+          <NewEntryLink href="/territory/new" />
+          <NewEntryLink href="/territory/division/new" label={PLANNING_TEXT.divisionNew} />
+        </>
       ) : null}
     </ViewLayout>
   );

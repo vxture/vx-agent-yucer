@@ -2,7 +2,12 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { MARKET_DIVISIONS, MARKET_DIVISION_PROVINCES } from "./market-division";
+import {
+  DIVISION_TEMPLATES,
+  isSystemDivision,
+  MARKET_DIVISIONS,
+  MARKET_DIVISION_PROVINCES,
+} from "./market-division";
 import { ALL_PROVINCES } from "./provinces";
 
 /* The preset exists in TWO places and they must agree exactly: incr/0036, which
@@ -63,4 +68,67 @@ test("every division named in the mapping is one of the five", () => {
       `${d.name} has no provinces`,
     );
   }
+});
+
+// --- 系统配置 (templates) ---------------------------------------------------
+
+test("both templates place every province, in exactly one division each", () => {
+  // The same invariant the primary key enforces on a tenant's own rows. A
+  // template that broke it would import a workspace straight into a state the
+  // database would then refuse.
+  for (const t of DIVISION_TEMPLATES) {
+    const codes = new Set(t.divisions.map((d) => d.code));
+    assert.deepEqual(
+      Object.keys(t.provinces).sort(), [...ALL_PROVINCES].sort(),
+      `${t.key} must place all 34`,
+    );
+    for (const [province, code] of Object.entries(t.provinces)) {
+      assert.ok(codes.has(code), `${t.key}: ${province} points at unknown ${code}`);
+    }
+    for (const d of t.divisions) {
+      assert.ok(
+        Object.values(t.provinces).includes(d.code),
+        `${t.key}: ${d.name} holds nothing`,
+      );
+    }
+  }
+});
+
+test("the five-way template is the preset the SQL seeds", () => {
+  // Otherwise "import 五分法" would hand a workspace something different from
+  // what a fresh database gives it.
+  const five = DIVISION_TEMPLATES.find((t) => t.key === "five")!;
+  assert.deepEqual([...five.divisions], [...MARKET_DIVISIONS]);
+  assert.deepEqual({ ...five.provinces }, { ...MARKET_DIVISION_PROVINCES });
+});
+
+test("系统 or 自定义 is derived, and flips the moment a tenant changes anything", () => {
+  /* No stored column, so the label cannot drift from the truth. Compared on
+     NAME AND PROVINCE SET, not code alone: keeping the code and re-carving the
+     ground is a tenant's own decision and must not be labelled as ours. */
+  const east = MARKET_DIVISIONS.find((d) => d.code === "east")!;
+  const eastProvinces = Object.entries(MARKET_DIVISION_PROVINCES)
+    .filter(([, c]) => c === "east").map(([p]) => p);
+
+  assert.equal(isSystemDivision("east", east.name, eastProvinces), true);
+  // renamed -> theirs
+  assert.equal(isSystemDivision("east", "东部大区", eastProvinces), false);
+  // a province moved out -> theirs
+  assert.equal(
+    isSystemDivision("east", east.name, eastProvinces.filter((p) => p !== "山东省")),
+    false,
+  );
+  // a division they invented -> theirs
+  assert.equal(isSystemDivision("xinjiang", "新疆基地", ["新疆维吾尔自治区"]), false);
+});
+
+test("the seven-way template speaks the vocabulary territory routing matches on", () => {
+  // account.region and territory.regions hold these exact strings; a template
+  // that spelled them differently would import a workspace whose divisions
+  // route nothing.
+  const seven = DIVISION_TEMPLATES.find((t) => t.key === "seven")!;
+  assert.deepEqual(
+    seven.divisions.map((d) => d.name).sort(),
+    ["东北", "华东", "华中", "华北", "华南", "西北", "西南"].sort(),
+  );
 });

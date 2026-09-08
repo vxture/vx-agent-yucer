@@ -49,6 +49,45 @@ export class PrismaAccountStore implements AccountStore {
    */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
 
+  async upsertMarketDivision(
+    workspaceId: string,
+    input: { code: string; name: string; sortOrder?: number },
+  ): Promise<MarketDivisionRecord> {
+    const p = await this.client();
+    /* KEYED ON THE CODE, which is the anchor: upserting an existing code
+       renames it, a new one creates a division. 98/incr-0036 deliberately do
+       NOT grant UPDATE on division_code - a division whose code changed is a
+       new division wearing an old one's history. */
+    const row = await p.marketDivision.upsert({
+      where: { workspaceId_divisionCode: { workspaceId, divisionCode: input.code } },
+      create: {
+        workspaceId, divisionCode: input.code, name: input.name,
+        sortOrder: input.sortOrder ?? 0,
+      },
+      update: {
+        name: input.name,
+        ...(input.sortOrder === undefined ? {} : { sortOrder: input.sortOrder }),
+        updatedAt: new Date(),
+      },
+      include: { provinces: { select: { province: true } } },
+    });
+    return {
+      id: row.id, code: row.divisionCode, name: row.name, sortOrder: row.sortOrder,
+      provinces: row.provinces.map((x) => x.province),
+    };
+  }
+
+  async removeMarketDivision(workspaceId: string, code: string): Promise<boolean> {
+    const p = await this.client();
+    /* The FK is ON DELETE RESTRICT, so a division still holding provinces
+       cannot be removed - deleted here rather than letting Postgres raise,
+       so the caller gets a countable answer instead of a constraint name. */
+    const { count } = await p.marketDivision.deleteMany({
+      where: { workspaceId, divisionCode: code, provinces: { none: {} } },
+    });
+    return count > 0;
+  }
+
   async setProvinceDivision(
     workspaceId: string,
     province: string,

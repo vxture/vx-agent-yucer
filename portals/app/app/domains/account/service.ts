@@ -69,44 +69,93 @@ export interface AccountContext {
  * "data", not "ui": this answers a read, and the caller decides what to draw.
  */
 /**
- * Move one province into a 大区, or out of all of them.
+ * Create a 大区, or rename one that exists, and set which provinces it holds.
  *
- * GATED ON planning.territory.upsert, not on an account action. The division
- * is not a fact about any customer - it is how this company carves up the
- * ground it sells on, which is the same decision the territory editor makes and
- * the same people who make it. Reading it stays on account.view, because every
- * roster that shows a customer's 大区 needs to resolve one.
+ * THE TENANT OWNS THE LIST. Five are preset because a workspace has to start
+ * somewhere, not because five is right: a company that sells through a 新疆基地
+ * covering one province is dividing its market correctly, and nothing here
+ * should argue. Codes are the anchor - upserting an existing one renames it.
  *
- * NO NEW PERMISSION for it. Permissions are not frozen, but this is not a new
- * question of who-may-do-what: whoever may draw a territory may say which
- * provinces a 大区 holds.
+ * A PROVINCE ALREADY IN ANOTHER 大区 IS MOVED, not refused (owner). Refusing
+ * would make the caller go and unassign it first, which is two screens to say
+ * one thing; and the primary key means it could never have been in two places
+ * anyway. `moved` reports which ones changed hands, so the interface can say so
+ * rather than silently reorganising somebody else's division.
  */
-export async function moveProvinceToDivision(
+export async function saveMarketDivision(
   ctx: AccountContext,
-  province: string,
-  divisionCode: string | null,
-): Promise<RuleResult<{ province: string; divisionCode: string | null }>> {
+  input: { code: string; name: string; sortOrder?: number; provinces: readonly string[] },
+): Promise<RuleResult<{ code: string; moved: { province: string; from: string }[] }>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  // The same 34 the database CHECK-constrains the mapping table to.
-  if (!isProvince(province)) {
-    return fail(violation(
-      "province_unknown",
-      `${province} is not one of the 34 provincial-level divisions`,
-      "province",
-    ));
+  const code = input.code.trim();
+  const name = input.name.trim();
+  if (!code) return fail(violation("code_required", "a division needs a code", "code"));
+  if (!name) return fail(violation("name_required", "a division needs a name", "name"));
+
+  for (const p of input.provinces) {
+    if (!isProvince(p)) {
+      return fail(violation(
+        "province_unknown",
+        `${p} is not one of the 34 provincial-level divisions`,
+        "provinces",
+      ));
+    }
   }
 
-  const moved = await ctx.store.setProvinceDivision(ctx.workspaceId, province, divisionCode);
-  if (!moved) {
+  const before = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  await ctx.store.upsertMarketDivision(ctx.workspaceId, { code, name, sortOrder: input.sortOrder });
+
+  const wanted = new Set(input.provinces);
+  const moved: { province: string; from: string }[] = [];
+
+  for (const p of wanted) {
+    const owner = before.find((d) => d.code !== code && d.provinces.includes(p));
+    if (owner) moved.push({ province: p, from: owner.name });
+    await ctx.store.setProvinceDivision(ctx.workspaceId, p, code);
+  }
+  /* Provinces this division used to hold and no longer claims become UNPLACED
+     rather than being left behind: the form states the whole membership, so a
+     province dropped from it has been deliberately removed. Unplaced is a real
+     state the roster reports, not a loss. */
+  const mine = before.find((d) => d.code === code)?.provinces ?? [];
+  for (const p of mine) {
+    if (!wanted.has(p)) await ctx.store.setProvinceDivision(ctx.workspaceId, p, null);
+  }
+
+  return ok({ code, moved });
+}
+
+/**
+ * Remove a 大区.
+ *
+ * REFUSED WHILE IT STILL HOLDS PROVINCES, which is the foreign key's own rule
+ * (ON DELETE RESTRICT) said in the product's terms. Cascading would silently
+ * unplace everything it held, and those provinces would then vanish from every
+ * roll-up grouped by 大区 with nothing to say why.
+ */
+export async function removeMarketDivision(
+  ctx: AccountContext,
+  code: string,
+): Promise<RuleResult<{ code: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const divisions = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  const target = divisions.find((d) => d.code === code);
+  if (!target) {
+    return fail(violation("division_unknown", `${code} is not a division here`, "code"));
+  }
+  if (target.provinces.length > 0) {
     return fail(violation(
-      "division_unknown",
-      `${divisionCode} is not a market division this workspace has`,
-      "divisionCode",
+      "division_not_empty",
+      `${code} still holds ${target.provinces.length} provinces`,
+      "code",
     ));
   }
-  return ok({ province, divisionCode });
+  await ctx.store.removeMarketDivision(ctx.workspaceId, code);
+  return ok({ code });
 }
 
 export async function listMarketDivisions(

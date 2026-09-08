@@ -172,6 +172,21 @@ export interface AccountStore {
     divisionCode: string | null,
   ): Promise<boolean>;
   /**
+   * Create a 大区, or rename/re-order one that exists.
+   *
+   * THE TENANT OWNS THE LIST, not just the membership. Five are preset, and a
+   * workspace that sells differently is expected to change them - a 新疆基地
+   * holding one province is as legitimate a division as 西部 holding ten. The
+   * code is the anchor and is never rewritten: upserting an existing code
+   * renames it, a new code creates one.
+   */
+  upsertMarketDivision(
+    workspaceId: string,
+    input: { code: string; name: string; sortOrder?: number },
+  ): Promise<MarketDivisionRecord>;
+  /** Remove a 大区. Refuses while it still holds provinces - see the service. */
+  removeMarketDivision(workspaceId: string, code: string): Promise<boolean>;
+  /**
    * The stated buying roles for one deal - incr/0027.
    *
    * An EMPTY result is the ordinary case and means something: this deal has not
@@ -265,12 +280,52 @@ export class InMemoryAccountStore implements AccountStore {
      database, so this is where its edits live for the life of the process. */
   private divisionMoves = new Map<string, Map<string, string | null>>();
 
+  /* The tenant's own divisions, over the preset. Same shape as divisionMoves:
+     an empty map means "the preset, unchanged". */
+  private divisionEdits = new Map<string, Map<string, { name: string; sortOrder: number } | null>>();
+
+  private divisionsFor(workspaceId: string): { code: string; name: string; sortOrder: number }[] {
+    const edits = this.divisionEdits.get(workspaceId) ?? new Map();
+    const out = new Map<string, { code: string; name: string; sortOrder: number }>();
+    for (const d of MARKET_DIVISIONS) {
+      out.set(d.code, { code: d.code, name: d.name, sortOrder: d.sortOrder });
+    }
+    for (const [code, edit] of edits) {
+      if (edit === null) out.delete(code);
+      else out.set(code, { code, name: edit.name, sortOrder: edit.sortOrder });
+    }
+    return [...out.values()].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  }
+
+  async upsertMarketDivision(
+    workspaceId: string,
+    input: { code: string; name: string; sortOrder?: number },
+  ): Promise<MarketDivisionRecord> {
+    let ws = this.divisionEdits.get(workspaceId);
+    if (!ws) { ws = new Map(); this.divisionEdits.set(workspaceId, ws); }
+    const existing = this.divisionsFor(workspaceId).find((d) => d.code === input.code);
+    ws.set(input.code, {
+      name: input.name,
+      sortOrder: input.sortOrder ?? existing?.sortOrder ?? this.divisionsFor(workspaceId).length + 1,
+    });
+    const rows = await this.listMarketDivisions(workspaceId);
+    return rows.find((d) => d.code === input.code)!;
+  }
+
+  async removeMarketDivision(workspaceId: string, code: string): Promise<boolean> {
+    if (!this.divisionsFor(workspaceId).some((d) => d.code === code)) return false;
+    let ws = this.divisionEdits.get(workspaceId);
+    if (!ws) { ws = new Map(); this.divisionEdits.set(workspaceId, ws); }
+    ws.set(code, null);
+    return true;
+  }
+
   async setProvinceDivision(
     workspaceId: string,
     province: string,
     divisionCode: string | null,
   ): Promise<boolean> {
-    if (divisionCode !== null && !MARKET_DIVISIONS.some((d) => d.code === divisionCode)) {
+    if (divisionCode !== null && !this.divisionsFor(workspaceId).some((d) => d.code === divisionCode)) {
       return false;
     }
     let ws = this.divisionMoves.get(workspaceId);
@@ -289,7 +344,7 @@ export class InMemoryAccountStore implements AccountStore {
       if (code === null) placement.delete(province);
       else placement.set(province, code);
     }
-    return MARKET_DIVISIONS.map((d) => ({
+    return this.divisionsFor(workspaceId).map((d) => ({
       id: `div_${d.code}`,
       code: d.code,
       name: d.name,

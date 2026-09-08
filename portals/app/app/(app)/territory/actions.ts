@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { moveProvinceToDivision } from "../../domains/account/service";
+import {
+  removeMarketDivision as removeDivision,
+  saveMarketDivision,
+} from "../../domains/account/service";
 
 /* 大区-省级 的写入路径.
  *
@@ -15,36 +18,53 @@ import { moveProvinceToDivision } from "../../domains/account/service";
  * messages for its own reader, and the interface looks the code up in the
  * message dictionary (TD-010).
  */
-export type MoveProvinceResult =
-  | { ok: true; province: string; divisionCode: string | null }
+export type SaveDivisionResult =
+  | { ok: true; code: string; moved: { province: string; from: string }[] }
   | { ok: false; error: string };
 
-export async function moveProvince(input: {
-  province: string;
-  /** null takes the province out of every 大区. */
-  divisionCode: string | null;
-}): Promise<MoveProvinceResult> {
+/** Create or rename a 大区 and state which provinces it holds. */
+export async function saveDivision(input: {
+  code: string;
+  name: string;
+  provinces: string[];
+}): Promise<SaveDivisionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
 
-  const result = await moveProvinceToDivision(
+  const result = await saveMarketDivision(
     {
       workspaceId: session.workspaceId,
       sub: session.user.sub,
       holder: session.authz,
       entitlement: session.entitlement,
-      // The SCOPED store, like every other caller. A division is workspace
-      // configuration and is not narrowed by it, but reaching past the session
-      // for an unscoped store here would be the habit that eventually does.
       store: session.stores.account(),
     },
-    input.province,
-    input.divisionCode,
+    input,
   );
-
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-  // Both surfaces that read the division: this page, and the screen's map.
   revalidatePath("/territory");
   revalidatePath("/national");
-  return { ok: true, province: input.province, divisionCode: input.divisionCode };
+  return { ok: true, code: result.value.code, moved: result.value.moved };
+}
+
+export type RemoveDivisionResult = { ok: true } | { ok: false; error: string };
+
+export async function removeDivisionAction(code: string): Promise<RemoveDivisionResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await removeDivision(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    code,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/territory");
+  revalidatePath("/national");
+  return { ok: true };
 }

@@ -118,6 +118,12 @@ class ScopedAccountStore implements AccountStore {
   setProvinceDivision: AccountStore["setProvinceDivision"] = (...a) =>
     this.inner.setProvinceDivision(...a);
 
+  upsertMarketDivision: AccountStore["upsertMarketDivision"] = (...a) =>
+    this.inner.upsertMarketDivision(...a);
+
+  removeMarketDivision: AccountStore["removeMarketDivision"] = (...a) =>
+    this.inner.removeMarketDivision(...a);
+
   async listAccounts(
     ...args: Parameters<AccountStore["listAccounts"]>
   ): ReturnType<AccountStore["listAccounts"]> {
