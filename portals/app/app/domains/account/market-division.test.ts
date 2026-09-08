@@ -22,7 +22,9 @@ const ctxOf = (store: InMemoryAccountStore) => ({
   workspaceId: WS,
   sub: "usr_a",
   holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) },
-  entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier: "enterprise" },
+  entitlement: {
+    ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier: "enterprise" as const,
+  },
   store,
 });
 const unwrap = <T,>(r: { ok: boolean; value?: T; violations?: { code: string }[] }): T => {
