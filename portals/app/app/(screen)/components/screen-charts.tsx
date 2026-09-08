@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { STAGE_KEYS, HEALTH_KEYS } from "../lib/rollup";
 
 /* 态势屏的六个图 - the design's charts, drawn from the product's own data.
@@ -96,13 +97,19 @@ export function StageChart(
       {STAGE_KEYS.map((_, i) => {
         const v = (mix[i] ?? 0) / total, y = 2 + i * 26;
         return (
-          <g key={i}>
+          /* THE SAME HOVER AS THE BAR STRIPS. This panel had none at all - it
+             is the one chart in the left rail that is not `Bars`, so it was
+             silently left out of a behaviour the other two have. The hit area
+             spans the whole row, not the drawn bar: a stage with almost
+             nothing in it draws three pixels and would be untargetable. */
+          <g className="stagerow" key={i}>
             <text className="slab" x="0" y={y + 13}>{labels[i]}</text>
             <rect x={x0} y={y + 2} width={barW} height="14" className="trough" />
             <rect x={x0} y={y + 2} width={Math.max(3, v * barW)} height="14" fill={`url(#sg${i})`} />
-            <text className="val" x={W} y={y + 13} fontSize="13" textAnchor="end">
+            <text className="val stageval" x={W} y={y + 13} textAnchor="end">
               {fmt.money(mix[i] ?? 0)}
             </text>
+            <rect className="barhit" x="0" y={y} width={W} height="22" fill="transparent" />
           </g>
         );
       })}
@@ -127,15 +134,49 @@ export function AdoptionTrend(
   const xs = (i: number) => i * (W / (N - 1));
   const ys = (v: number) => H - 16 - v * (H - 26);
 
+  /* A day on which the copilot proposed nothing has no rate, so the line
+     CARRIES FORWARD the last reading rather than dropping to zero: a quiet day
+     is not a day on which the humans rejected everything. `real` remembers
+     which days were actually measured, so the readout can say so. */
   let carried = 0;
-  const pts = series.map((d) => {
+  const pts: number[] = [];
+  const real: boolean[] = [];
+  for (const d of series) {
     if (d.prop > 0) carried = d.acc / d.prop;
-    return carried;
-  });
+    pts.push(carried);
+    real.push(d.prop > 0);
+  }
   const d = pts.map((v, i) => `${i ? "L" : "M"}${xs(i)} ${ys(v)}`).join(" ");
 
+  const [at, setAt] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  /* The pointer arrives in SCREEN pixels and the chart is drawn in viewBox
+     units; the two are only the same when the rail happens to be its design
+     width. Scaling by the rendered rect keeps the readout under the cursor at
+     any size, which a raw offsetX does not. */
+  const track = (e: React.PointerEvent<SVGSVGElement>) => {
+    const box = svgRef.current?.getBoundingClientRect();
+    if (!box || box.width === 0) return;
+    const x = ((e.clientX - box.left) / box.width) * W;
+    const i = Math.round((x / W) * (N - 1));
+    setAt(Math.max(0, Math.min(N - 1, i)));
+  };
+
+  const v = at === null ? null : pts[at]!;
+  // Keep the readout inside the chart when the cursor is near the right edge.
+  const flip = at !== null && xs(at) > W - 64;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ marginTop: "auto" }} role="img" aria-label={label}>
+    <svg
+      ref={svgRef}
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ marginTop: "auto" }}
+      role="img"
+      aria-label={label}
+      onPointerMove={track}
+      onPointerLeave={() => setAt(null)}
+    >
       <defs>
         <linearGradient id="agg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={CYAN} stopOpacity=".4" />
@@ -151,8 +192,27 @@ export function AdoptionTrend(
       ))}
       <path d={d} fill="none" stroke={CYAN} strokeWidth="1.8" />
       <circle cx={xs(N - 1)} cy={ys(pts[N - 1] ?? 0)} r="3.4" fill={CYAN_B} />
+
+      {at !== null && v !== null ? (
+        <g className="crosshair">
+          <line x1={xs(at)} y1="0" x2={xs(at)} y2={H - 14} className="crossline" />
+          <circle cx={xs(at)} cy={ys(v)} r="3.6" fill={CYAN_B} />
+          <text
+            className="crossval"
+            x={flip ? xs(at) - 7 : xs(at) + 7}
+            y={Math.max(11, ys(v) - 8)}
+            textAnchor={flip ? "end" : "start"}
+          >
+            {`${(v * 100).toFixed(1)}%`}
+          </text>
+        </g>
+      ) : null}
+
       <line x1="0" y1={H - 14} x2={W} y2={H - 14} className="axis" />
       <text className="slab" x="0" y={H}>{label}</text>
+      {/* Drawn last and over everything, so the pointer is never stolen by a
+          gridline or the filled area beneath it. */}
+      <rect x="0" y="0" width={W} height={H - 14} fill="transparent" />
     </svg>
   );
 }

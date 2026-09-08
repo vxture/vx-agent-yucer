@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMessages } from "../../(app)/lib/i18n/provider";
 import { CHINA } from "../lib/china-geometry";
@@ -14,6 +14,7 @@ import {
   AdoptionTrend, Bars, CashChart, HealthDonut, Ring, StageChart,
 } from "./screen-charts";
 import { ScreenHex } from "./screen-hex";
+import { ScreenTools } from "./screen-tools";
 import "./national-screen.css";
 
 // 全国销售态势屏 - the display itself.
@@ -208,11 +209,39 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   // One flag for both brackets: they are one control with two handles.
   const [arcLit, setArcLit] = useState(false);
 
+  /* 省份信息面板. It follows the pointer over the map and carries the five
+     figures a reader is actually comparing provinces on.
+     A NATIVE <title> IS NOT THIS. That is what the map had: a browser tooltip
+     that waits about a second, renders in the OS font on a white chip, cannot
+     hold five rows, and never appears at all on a touch screen. It reads as
+     nothing having been built. */
+  // x and y are the FINAL position, already fitted to the map's box.
+  const [tip, setTip] = useState<{ p: ProvinceRollup; x: number; y: number } | null>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  /* The panel's measured size, remembered between hovers.
+     IT IS THE SAME PANEL EVERY TIME - one title and five rows - so one
+     measurement serves every province. The fallback is only ever used for the
+     very first hover of a session, and is deliberately generous: over-
+     estimating flips the panel a few pixels early, under-estimating lets it
+     off the edge, and only the second is a defect. */
+  const tipSize = useRef({ w: 190, h: 155 });
+
   /* THE DATE IS THE VIEWER'S, resolved after mount. Formatting it during the
      server render would stamp the server's day into the HTML and then disagree
      with the client's - a hydration mismatch, and on a screen left running
      overnight, a date that silently goes stale. */
   const [today, setToday] = useState("--");
+  /* Remeasure whenever the panel is on screen. useLayoutEffect, so the reading
+     is taken before paint and the NEXT hover is already positioned from a real
+     size rather than the fallback. */
+  useLayoutEffect(() => {
+    const el = tipRef.current;
+    if (!el) return;
+    const b = el.getBoundingClientRect();
+    if (b.width > 0 && b.height > 0) tipSize.current = { w: b.width, h: b.height };
+  }, [tip]);
+
   useEffect(() => {
     const stamp = () => {
       const d = new Date(), p = (n: number) => String(n).padStart(2, "0");
@@ -298,6 +327,39 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
   const pct = (v: number | null) =>
     v === null ? SCREEN_TEXT.noReading : `${(v * 100).toFixed(1)}%`;
 
+  /* Positioned against the MAP's box, which is the element the panel is
+     absolutely positioned inside.
+     PREFER, THEN CLAMP - and the clamp is the part that matters. Opening away
+     from the cursor near an edge is not enough on its own, because the pointer
+     is not always inside the box: a province's own shape can extend past the
+     frame (海南 sits nearly 100px below it), so the cursor can be outside the
+     container the panel lives in and "flip" then pushes it further out. The
+     preference decides which side of the cursor it opens on; the clamp
+     guarantees it is on the map whatever the preference produced.
+
+     The size is MEASURED rather than assumed. A proportion of the frame - "the
+     bottom 30%" - happens to work at 1080 tall and fails on a short window,
+     where 30% of the map is less than the panel itself; that is the same class
+     of bug as the hard-coded 228 it replaced. */
+  const moveTip = (e: React.PointerEvent, p: ProvinceRollup) => {
+    const box = mapRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const { w, h } = tipSize.current;
+    const cx = e.clientX - box.left;
+    const cy = e.clientY - box.top;
+
+    const fit = (near: number, far: number, size: number, limit: number) => {
+      const chosen = near + size <= limit ? near : far;
+      return Math.max(0, Math.min(chosen, limit - size));
+    };
+
+    setTip({
+      p,
+      x: fit(cx + 16, cx - 16 - w, w, box.width),
+      y: fit(cy + 14, cy - 14 - h, h, box.height),
+    });
+  };
+
   const fmtMetric = (v: number | null): string => {
     if (v === null) return SCREEN_TEXT.noReading;
     if (metric === "healthRate") return `${(v * 100).toFixed(1)}%`;
@@ -381,6 +443,8 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
               NAME line is the workspace, not an invented person - AuthUser
               carries no display name, and dressing an id up as somebody called
               张明 is the defect the account page already fixed once. */}
+          <ScreenTools />
+
           <div className="user">
             <div className="av" aria-hidden>{initialsOf(viewerSub)}</div>
             <div>
@@ -507,6 +571,7 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
 
           <div
             className="screen-map"
+            ref={mapRef}
             onContextMenu={(e) => { e.preventDefault(); stepOut(); }}
           >
             <svg
@@ -535,9 +600,9 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
                       setProvince(p.province);
                       setRegion(p.region);
                     }}
-                  >
-                    <title>{`${p.province} · ${fmtMetric(readMetric(p))}`}</title>
-                  </path>
+                    onPointerMove={(e) => moveTip(e, p)}
+                    onPointerLeave={() => setTip(null)}
+                  />
                 );
               })}
               {/* 南海诸岛 in the corner, the conventional treatment and a
@@ -597,6 +662,37 @@ export function NationalScreen({ rollup, viewerSub }: NationalScreenProps) {
               ))}
               <span>{fmtMetric(values.length ? hi : null)}</span>
             </div>
+
+            {tip ? (
+              <div
+                ref={tipRef}
+                className="tip"
+                style={{ left: tip.x, top: tip.y }}
+                role="status"
+              >
+                <div className="t">{tip.p.province}</div>
+                <div className="r">
+                  <span>{SCREEN_TEXT.cellPipelineValue}</span>
+                  <b>{cash(tip.p.pipelineValue).n}{cash(tip.p.pipelineValue).u}</b>
+                </div>
+                <div className="r">
+                  <span>{SCREEN_TEXT.cellContractValue}</span>
+                  <b>{cash(tip.p.contractValue).n}{cash(tip.p.contractValue).u}</b>
+                </div>
+                <div className="r">
+                  <span>{SCREEN_TEXT.cellCollected}</span>
+                  <b>{cash(tip.p.collected).n}{cash(tip.p.collected).u}</b>
+                </div>
+                <div className="r">
+                  <span>{SCREEN_TEXT.cellOverdue}</span>
+                  <b>{cash(tip.p.overdue).n}{cash(tip.p.overdue).u}</b>
+                </div>
+                <div className="r">
+                  <span>{SCREEN_TEXT.metricHealth}</span>
+                  <b>{pct(tip.p.healthRate)}</b>
+                </div>
+              </div>
+            ) : null}
 
             {/* Pinned to the map's own edges, as the design places them. */}
             <FoldArc
