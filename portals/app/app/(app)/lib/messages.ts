@@ -2388,6 +2388,8 @@ export const ROLE_TEXT = {
   newRole: "新建角色",
   remove: "删除角色",
   removeWhy: "只有没有成员持有的角色才能删除。先在成员管理里移除，再删。",
+  removeTarget: (name: string) => `「${name}」`,
+  removeConsequence: "角色及其权限配置会被删除，不可撤销。",
   // --- 权限详情抽屉 ---
   detailsTitle: (name: string) => `${name} · 权限详情`,
   detailsWhy: (n: number, total: number) => `持有 ${n} / ${total} 条权限。打勾的操作可以执行。`,

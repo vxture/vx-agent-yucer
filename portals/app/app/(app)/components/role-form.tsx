@@ -256,16 +256,6 @@ export function RoleForm({
               </ButtonGroup>
             </Field>
 
-            {/* REMOVAL IS OFFERED ONLY WHEN NOBODY HOLDS IT - the foreign
-                key's own rule (ON DELETE RESTRICT) shown rather than enforced
-                after the fact. */}
-            {!isNew && members === 0 ? (
-              <div className="w-fit">
-                <Button variant="secondary" disabled={pending} onClick={remove}>
-                  {ROLE_TEXT.remove}
-                </Button>
-              </div>
-            ) : null}
           </div>
         </Section>
 
@@ -307,7 +297,12 @@ export function RoleForm({
       </div>
 
       {/* THE WAY OUT, ACROSS BOTH COLUMNS: 保存 primary, 放弃 secondary, and
-          the failure banner beside the button that failed. */}
+          the failure banner beside the button that failed. 删除角色 SITS AFTER
+          THEM (owner, 2026-09-09: 放到底部，保存角色后面) - it is a way out of
+          the page too, not a control in the column - and is OFFERED ONLY
+          WHEN NOBODY HOLDS IT, the foreign key's own rule (ON DELETE
+          RESTRICT) shown rather than enforced after the fact. Red, and
+          confirmed: it is the one button here that cannot be undone. */}
       <div className="border-border mt-lg flex flex-col gap-md border-t pt-md">
         <div className="gap-sm flex items-center">
           <Button onClick={submit} disabled={pending}>
@@ -316,6 +311,21 @@ export function RoleForm({
           <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/roles")}>
             {ROLE_TEXT.discard}
           </Button>
+          {!isNew && members === 0 ? (
+            <DestructiveButton
+              disabled={pending}
+              confirm={{
+                verb: ROLE_TEXT.remove,
+                target: ROLE_TEXT.removeTarget(name),
+                consequence: ROLE_TEXT.removeConsequence,
+                titleTemplate: ROLE_TEXT.destructiveTitle,
+                cancelLabel: ROLE_TEXT.cancel,
+                onConfirm: remove,
+              }}
+            >
+              {ROLE_TEXT.remove}
+            </DestructiveButton>
+          ) : null}
         </div>
         {error ? <Banner tone="danger" title={ROLE_TEXT.saveFailed} description={error} /> : null}
       </div>
