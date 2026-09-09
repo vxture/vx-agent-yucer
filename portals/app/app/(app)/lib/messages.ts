@@ -2364,10 +2364,10 @@ export const TERRITORY_ERROR: Record<string, string> = {
   province_unknown: "省份必须是全国 34 个省级行政区之一",
   division_unknown: "这个大区不属于当前工作区",
   // incr/0043-0045：框架与代码、预置、范围本身、成员。
-  template_scope_mismatch: "这套预置切的不是当前市场范围",
+  template_unknown: "找不到这套预置方案，或它切的不是当前市场范围",
   scope_not_open: "这个市场范围还没开放，先用中国市场",
   scope_code_required: "省级市场要指定是哪个省",
-  scope_province_not_open: "这个省还没开放省级市场。目前开放：陕西",
+  scope_province_not_open: "这个省还没开放省级市场",
   member_unknown: "成员必须在当前市场范围之内，请从列表中选择",
   code_prefix: "区域代码必须带当前市场范围的前缀",
   move_at_edge: "已经在这一端了",
@@ -3303,6 +3303,11 @@ export const PLANNING_TEXT = {
     china: "省份",
     province: "市",
   } as Record<string, string>,
+  /* 省级市场里一个区域装的是什么：省装市，直辖市装区。 */
+  unitNoun: {
+    city: "市",
+    district: "区",
+  } as Record<string, string>,
   divisionName: "区域",
   divisionMemberCount: (noun: string) => `${noun}数`,
   divisionScope: (noun: string) => `覆盖${noun}`,
@@ -3349,11 +3354,8 @@ export const PLANNING_TEXT = {
       : `会替换当前 ${current} 个大区。`,
   /* 预置的名字只是名字（owner, 2026-09-09）：下拉里读「五分法-中部」，不再拖着
      一串「东南西北中」。这一串在重置对话框里才有意义，那里单独列。 */
-  templateName: {
-    five: "五分法",
-    seven: "七分法",
-    "shaanxi-three": "陕西三分法",
-  } as Record<string, string>,
+  /* A carve's NAME is a column of yucer_ref.market_carve (incr/0047), not
+     copy: 五分法 / 陕西三分法 / 北京各区独立 print as the table has them. */
   presetOption: (from: string, name: string) => `${from}-${name}`,
   templateRef: "引用系统配置",
   templateRefNone: "不引用，自己填",
@@ -3374,9 +3376,9 @@ export const PLANNING_TEXT = {
   scopeButton: (current: string) => `市场范围 · ${current}`,
   /* 省级市场 · 陕西 —— 按钮和「包括范围」都要连省一起说，范围才算定了。 */
   scopeProvinceFrame: (label: string, province: string) => `${label} · ${province}`,
-  scopeIncludesProvince: (province: string) => `${province} · 包括为市级`,
+  scopeIncludesProvince: (province: string, noun: string) => `${province} · 包括为${noun}级`,
   scopeProvinceLabel: "哪个省",
-  scopeProvinceOpen: (names: readonly string[]) => `目前开放：${names.join("、")}。其他省份陆续开放。`,
+  scopeProvinceOpen: (n: number) => `${n} 个省级行政区可选；台湾、香港、澳门暂无下级区划数据。`,
   scopeConfirm: "确认",
   scopeCancel: "取消",
   scopeWhy: "区域在哪个框架里切：全球按国家，全国按省，一省按市。范围定了，区域能装什么才有基础。",

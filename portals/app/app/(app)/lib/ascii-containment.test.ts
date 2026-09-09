@@ -54,6 +54,10 @@ const ALLOWED = new Set([
   // identifier in three encodings and guarantee the drift provinces.test.ts
   // exists to catch.
   "domains/shared/provinces.ts",
+  // The ground of every 省级市场 (incr/0045-0046): 367 unit names GENERATED
+  // from yucer_ref.admin_division, a KEY like the 34 above - the db lane
+  // proves file == table, which escaping would make impossible to read.
+  "domains/shared/province-frames.ts",
   "domains/shared/demo-national.ts",
   // The map's shapes, keyed by that same vocabulary (incr/0035). Generated, and
   // a KEY rather than copy for the same reason provinces.ts is: escaping these

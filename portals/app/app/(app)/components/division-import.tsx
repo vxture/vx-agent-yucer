@@ -61,7 +61,7 @@ export function DivisionImport(
              is mounted (the drawer beside it does exactly that), and the
              carves offered under 陕西 are not the ones offered under 中国市场:
              a choice remembered from the old list would submit a key the
-             service refuses (template_scope_mismatch). */
+             service refuses (template_unknown). */
           setChosen(templates[0]?.key ?? "");
           setError(null);
           setOpen(true);

@@ -12,11 +12,11 @@
 
 import { isProvince } from "../shared/provinces";
 import {
-  DIVISION_TEMPLATES,
   MARKET_SCOPES,
   provinceFrame,
   scopeOpen,
   scopePrefix,
+  type DivisionTemplate,
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
@@ -108,18 +108,17 @@ export async function importDivisionTemplate(
   const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  const template = DIVISION_TEMPLATES.find((t) => t.key === key);
-  if (!template) {
-    return fail(violation("template_unknown", `${key} is not a shipped carve`, "key"));
-  }
-  /* incr/0043. A carve cuts ONE frame - 五分法 cuts 中国市场, 陕西三分法 cuts
-     陕西; adopting one inside another frame would land codes the database
-     refuses there, and would be the wrong answer even if it did not. */
+  /* FROM THE TABLE (incr/0047): the store answers only the carves that cut
+     this workspace's frame, so a key from another frame - 五分法 under 陕西,
+     陕西三分法 under 中国市场 - is not found HERE, and that is the refusal:
+     adopting it would land codes the database refuses there, and would be
+     the wrong answer even if it did not. */
   const scope = await ctx.store.getMarketScope(ctx.workspaceId);
-  if (template.scope !== scope.kind || (template.scope === "province" && template.province !== scope.code)) {
+  const template = (await ctx.store.listCarves(ctx.workspaceId)).find((t) => t.key === key);
+  if (!template) {
     return fail(violation(
-      "template_scope_mismatch",
-      `${key} carves ${template.scope}/${template.province ?? "-"}; this workspace's frame is ${scope.kind}/${scope.code ?? "-"}`,
+      "template_unknown",
+      `${key} is not a carve of this workspace's frame ${scope.kind}/${scope.code ?? "-"}`,
       "key",
     ));
   }
@@ -349,6 +348,13 @@ export async function frameMembers(ctx: AccountContext): Promise<RuleResult<Mark
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listFrameMembers(ctx.workspaceId));
+}
+
+/** 预置方案 - the carves that cut the current frame (incr/0047). */
+export async function listCarves(ctx: AccountContext): Promise<RuleResult<DivisionTemplate[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listCarves(ctx.workspaceId));
 }
 
 /* ---------------------------------------------------------------------------

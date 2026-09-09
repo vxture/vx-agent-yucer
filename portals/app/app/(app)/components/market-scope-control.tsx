@@ -131,9 +131,9 @@ export function MarketScopeControl({
           </RadioGroup>
 
           {/* THE SECOND HALF OF A PROVINCE FRAME. Offered only once 省级市场 is
-              ticked, and only the provinces the product has opened - 陕西
-              first. The rule behind the short list is setMarketScope's
-              scope_province_not_open. */}
+              ticked: the 31 provincial-level divisions the table has ground
+              for (owner: 全国的都加上). The three it has none for are refused
+              by setMarketScope's scope_province_not_open. */}
           {chosen === "province" ? (
             <Field>
               <FieldLabel>{PLANNING_TEXT.scopeProvinceLabel}</FieldLabel>
@@ -149,7 +149,7 @@ export function MarketScopeControl({
                 ))}
               </NativeSelect>
               <FieldDescription>
-                {PLANNING_TEXT.scopeProvinceOpen(PROVINCE_FRAMES.map((f) => shortProvince(f.province)))}
+                {PLANNING_TEXT.scopeProvinceOpen(PROVINCE_FRAMES.length)}
               </FieldDescription>
             </Field>
           ) : null}

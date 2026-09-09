@@ -11,8 +11,11 @@ import {
   DEFAULT_MARKET_SCOPE,
   MARKET_DIVISIONS,
   MARKET_DIVISION_PROVINCES,
+  DIVISION_TEMPLATES,
   frameMembers,
   scopePrefix,
+  templatesFor,
+  type DivisionTemplate,
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
@@ -220,6 +223,12 @@ export interface AccountStore {
    */
   listFrameMembers(workspaceId: string): Promise<MarketMember[]>;
   /**
+   * 预置方案 - the shipped carves that cut the current frame (incr/0047),
+   * read from yucer_ref.market_carve. The service adopts one by copying its
+   * rows; it never holds a carve of its own.
+   */
+  listCarves(workspaceId: string): Promise<DivisionTemplate[]>;
+  /**
    * Place one member (a province, or a city) in one 大区, or in none when
    * code is null.
    *
@@ -407,6 +416,11 @@ export class InMemoryAccountStore implements AccountStore {
 
   async listFrameMembers(workspaceId: string): Promise<MarketMember[]> {
     return [...frameMembers(await this.getMarketScope(workspaceId))];
+  }
+
+  async listCarves(workspaceId: string): Promise<DivisionTemplate[]> {
+    // The mirror of incr/0047, proved against the table by market-carve.db.test.ts.
+    return [...templatesFor(DIVISION_TEMPLATES, await this.getMarketScope(workspaceId))];
   }
 
   async placeMember(

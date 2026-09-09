@@ -1,4 +1,5 @@
-import { ALL_PROVINCES, provinceTag } from "./provinces";
+import { PROVINCE_GROUNDS, type ProvinceGround } from "./province-frames";
+import { ALL_PROVINCES, provinceTag, shortProvince } from "./provinces";
 
 /* 大区 - how a workspace divides its market.
  *
@@ -72,42 +73,168 @@ export interface MarketMember {
 }
 
 /**
- * 省级市场 - the provinces a workspace may carve as its whole market.
+ * 省级市场 - every provincial-level division with anything below it is a
+ * frame (owner, 2026-09-09: 你把全国的都加上吧; 行政区划数据应该先预置完整).
  *
- * ONE ENTRY, and it is not an example (owner, 2026-09-09). 陕西 is the first
- * province-level market the product supports; each further province is added
- * here with its cities and its standard carve, in the same increment that
- * proves them against yucer_ref.admin_division.
+ * THE GROUND COMES FROM THE TABLE. province-frames.ts is generated from
+ * yucer_ref.admin_division and lists, for each of the 31, the units a region
+ * is made of: prefecture-level cities, or a municipality's districts and
+ * counties. 台湾 / 香港 / 澳门 have no rows below them and are not offered.
+ *
+ * TWO CARVES PER PROVINCE (owner: 省级需要两套). 各市独立 - one region per
+ * unit - is derived for all 31. 传统大区分法 is typed here only where a
+ * reading everyone in the province recognises exists and I am sure of it;
+ * the rest carry none until the owner names theirs. A carve is a claim about
+ * a province, and a guessed one is worse than an absent one.
  */
-export interface ProvinceFrame {
-  /** The two GB/T 2260 letters market_scope.scope_province stores. */
-  readonly code: string;
-  readonly province: string;
-  /** The province's six-digit adcode - the parent of its cities in admin_division. */
-  readonly adcode: string;
-  /** Its prefecture-level cities, in GB/T 2260 order: 六位码 / 全称 / 简称. */
-  readonly cities: readonly { readonly code: string; readonly name: string; readonly short: string }[];
+export interface ProvinceFrame extends ProvinceGround {
+  readonly traditional: {
+    readonly key: string;
+    readonly name: string;
+    readonly divisions: readonly MarketDivision[];
+    /** unit adcode -> division code; every unit placed exactly once. */
+    readonly members: Readonly<Record<string, string>>;
+  } | null;
 }
 
-export const PROVINCE_FRAMES: readonly ProvinceFrame[] = [
-  {
-    code: "SN",
-    province: "陕西省",
-    adcode: "610000",
-    cities: [
-      { code: "610100", name: "西安市", short: "西安" },
-      { code: "610200", name: "铜川市", short: "铜川" },
-      { code: "610300", name: "宝鸡市", short: "宝鸡" },
-      { code: "610400", name: "咸阳市", short: "咸阳" },
-      { code: "610500", name: "渭南市", short: "渭南" },
-      { code: "610600", name: "延安市", short: "延安" },
-      { code: "610700", name: "汉中市", short: "汉中" },
-      { code: "610800", name: "榆林市", short: "榆林" },
-      { code: "610900", name: "安康市", short: "安康" },
-      { code: "611000", name: "商洛市", short: "商洛" },
+/**
+ * GB/T 2260's filing rows - XX9000 省直辖县级行政区划 (419000 holds 济源), and
+ * the four municipalities' 市辖区 / 县 rows - are conventions, not places a
+ * region holds. The generator and the store leave them out through this.
+ *
+ * NAMED, NOT PATTERNED, for the municipal ones: XX0100 is a filing row under
+ * 北京 and is 西安 under 陕西, and a pattern that said "XX0100 is pseudo"
+ * silently dropped two cities from every province on 2026-09-09 - past a db
+ * test that filtered both sides through it. A test that applies the rule
+ * under test to its own expectation proves nothing.
+ */
+const MUNICIPAL_FILING_ROWS = new Set(["110100", "120100", "310100", "500100", "500200"]);
+export function isPseudoCity(code: string): boolean {
+  return /^\d{2}9000$/.test(code) || MUNICIPAL_FILING_ROWS.has(code);
+}
+
+const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
+  /* 陕西三分法 - 关中 / 陕北 / 陕南, the carve every reading of the province
+     agrees on. 陕北 is 延安 and 榆林, 陕南 is 汉中 安康 商洛, the five cities
+     of the Wei valley are 关中. */
+  SN: {
+    key: "shaanxi-three",
+    name: "陕西三分法",
+    divisions: [
+      { code: "SN-GUANZHONG", name: "关中", sortOrder: 1 },
+      { code: "SN-SHAANBEI", name: "陕北", sortOrder: 2 },
+      { code: "SN-SHAANNAN", name: "陕南", sortOrder: 3 },
     ],
+    members: {
+      "610100": "SN-GUANZHONG", "610200": "SN-GUANZHONG", "610300": "SN-GUANZHONG",
+      "610400": "SN-GUANZHONG", "610500": "SN-GUANZHONG",
+      "610600": "SN-SHAANBEI", "610800": "SN-SHAANBEI",
+      "610700": "SN-SHAANNAN", "610900": "SN-SHAANNAN", "611000": "SN-SHAANNAN",
+    },
   },
-];
+  /* 四川五区 - the province's own 五区协同 (2018): 成都平原 / 川南 / 川东北 /
+     攀西 / 川西北. Twenty-one prefecture-level units, each in one. */
+  SC: {
+    key: "sichuan-five",
+    name: "四川五区",
+    divisions: [
+      { code: "SC-CHENGDU_PLAIN", name: "成都平原", sortOrder: 1 },
+      { code: "SC-SOUTH", name: "川南", sortOrder: 2 },
+      { code: "SC-NORTHEAST", name: "川东北", sortOrder: 3 },
+      { code: "SC-PANXI", name: "攀西", sortOrder: 4 },
+      { code: "SC-NORTHWEST", name: "川西北", sortOrder: 5 },
+    ],
+    members: {
+      "510100": "SC-CHENGDU_PLAIN", "510600": "SC-CHENGDU_PLAIN", "510700": "SC-CHENGDU_PLAIN",
+      "510900": "SC-CHENGDU_PLAIN", "511100": "SC-CHENGDU_PLAIN", "511400": "SC-CHENGDU_PLAIN",
+      "511800": "SC-CHENGDU_PLAIN", "512000": "SC-CHENGDU_PLAIN",
+      "510300": "SC-SOUTH", "510500": "SC-SOUTH", "511000": "SC-SOUTH", "511500": "SC-SOUTH",
+      "510800": "SC-NORTHEAST", "511300": "SC-NORTHEAST", "511600": "SC-NORTHEAST",
+      "511700": "SC-NORTHEAST", "511900": "SC-NORTHEAST",
+      "510400": "SC-PANXI", "513400": "SC-PANXI",
+      "513200": "SC-NORTHWEST", "513300": "SC-NORTHWEST",
+    },
+  },
+  /* 河南五分法 - 豫中 / 豫北 / 豫东 / 豫西 / 豫南. 开封 is filed with 豫中 (the
+     郑汴 pair), the more common of its two readings; a tenant that reads it as
+     豫东 moves it. 济源 sits under 419000 and is not a prefecture. */
+  HA: {
+    key: "henan-five",
+    name: "河南五分法",
+    divisions: [
+      { code: "HA-CENTRAL", name: "豫中", sortOrder: 1 },
+      { code: "HA-NORTH", name: "豫北", sortOrder: 2 },
+      { code: "HA-EAST", name: "豫东", sortOrder: 3 },
+      { code: "HA-WEST", name: "豫西", sortOrder: 4 },
+      { code: "HA-SOUTH", name: "豫南", sortOrder: 5 },
+    ],
+    members: {
+      "410100": "HA-CENTRAL", "410200": "HA-CENTRAL", "410400": "HA-CENTRAL",
+      "411000": "HA-CENTRAL", "411100": "HA-CENTRAL",
+      "410500": "HA-NORTH", "410600": "HA-NORTH", "410700": "HA-NORTH",
+      "410800": "HA-NORTH", "410900": "HA-NORTH",
+      "411400": "HA-EAST", "411600": "HA-EAST",
+      "410300": "HA-WEST", "411200": "HA-WEST",
+      "411300": "HA-SOUTH", "411500": "HA-SOUTH", "411700": "HA-SOUTH",
+    },
+  },
+  /* 广东四分 - 珠三角 / 粤东 / 粤西 / 粤北, the reading every Guangdong plan
+     uses (一核一带一区 keeps the same four groups). */
+  GD: {
+    key: "guangdong-four",
+    name: "广东四分",
+    divisions: [
+      { code: "GD-PRD", name: "珠三角", sortOrder: 1 },
+      { code: "GD-EAST", name: "粤东", sortOrder: 2 },
+      { code: "GD-WEST", name: "粤西", sortOrder: 3 },
+      { code: "GD-NORTH", name: "粤北", sortOrder: 4 },
+    ],
+    members: {
+      "440100": "GD-PRD", "440300": "GD-PRD", "440400": "GD-PRD", "440600": "GD-PRD",
+      "441300": "GD-PRD", "441900": "GD-PRD", "442000": "GD-PRD", "440700": "GD-PRD", "441200": "GD-PRD",
+      "440500": "GD-EAST", "441500": "GD-EAST", "445100": "GD-EAST", "445200": "GD-EAST",
+      "440800": "GD-WEST", "440900": "GD-WEST", "441700": "GD-WEST",
+      "440200": "GD-NORTH", "441600": "GD-NORTH", "441400": "GD-NORTH", "441800": "GD-NORTH", "445300": "GD-NORTH",
+    },
+  },
+  /* 江苏三分 - 苏南 / 苏中 / 苏北, the province's own statistical grouping. */
+  JS: {
+    key: "jiangsu-three",
+    name: "江苏三分",
+    divisions: [
+      { code: "JS-SOUTH", name: "苏南", sortOrder: 1 },
+      { code: "JS-CENTRAL", name: "苏中", sortOrder: 2 },
+      { code: "JS-NORTH", name: "苏北", sortOrder: 3 },
+    ],
+    members: {
+      "320100": "JS-SOUTH", "320200": "JS-SOUTH", "320400": "JS-SOUTH", "320500": "JS-SOUTH", "321100": "JS-SOUTH",
+      "321000": "JS-CENTRAL", "321200": "JS-CENTRAL", "320600": "JS-CENTRAL",
+      "320300": "JS-NORTH", "320700": "JS-NORTH", "320800": "JS-NORTH", "320900": "JS-NORTH", "321300": "JS-NORTH",
+    },
+  },
+  /* 湖南四大板块 - 长株潭 / 洞庭湖 / 湘南 / 大湘西, the province's own. */
+  HN: {
+    key: "hunan-four",
+    name: "湖南四大板块",
+    divisions: [
+      { code: "HN-CZT", name: "长株潭", sortOrder: 1 },
+      { code: "HN-DONGTING", name: "洞庭湖", sortOrder: 2 },
+      { code: "HN-SOUTH", name: "湘南", sortOrder: 3 },
+      { code: "HN-WEST", name: "大湘西", sortOrder: 4 },
+    ],
+    members: {
+      "430100": "HN-CZT", "430200": "HN-CZT", "430300": "HN-CZT",
+      "430600": "HN-DONGTING", "430700": "HN-DONGTING", "430900": "HN-DONGTING",
+      "430400": "HN-SOUTH", "431000": "HN-SOUTH", "431100": "HN-SOUTH",
+      "430500": "HN-WEST", "431200": "HN-WEST", "431300": "HN-WEST", "430800": "HN-WEST", "433100": "HN-WEST",
+    },
+  },
+};
+
+export const PROVINCE_FRAMES: readonly ProvinceFrame[] = PROVINCE_GROUNDS.map((g) => ({
+  ...g,
+  traditional: TRADITIONAL[g.code] ?? null,
+}));
 
 export function provinceFrame(code: string | null): ProvinceFrame | null {
   return PROVINCE_FRAMES.find((f) => f.code === code) ?? null;
@@ -132,7 +259,7 @@ export function frameMembers(scope: MarketScope): readonly MarketMember[] {
     return ALL_PROVINCES.map((p) => ({ key: p, label: provinceTag(p) }));
   }
   if (scope.kind === "province") {
-    return (provinceFrame(scope.code)?.cities ?? []).map((c) => ({ key: c.code, label: c.short }));
+    return (provinceFrame(scope.code)?.units ?? []).map((u) => ({ key: u.code, label: u.short }));
   }
   return [];
 }
@@ -217,6 +344,8 @@ export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
 
 export interface DivisionTemplate {
   readonly key: string;
+  /** 五分法 / 陕西三分法 / 北京各区独立 - what the dialogs print. Data, like the rest. */
+  readonly name: string;
   /** Which frame the carve belongs to, and for a province frame, which province. */
   readonly scope: MarketScopeKind;
   readonly province: string | null;
@@ -251,61 +380,52 @@ const SEVEN_PROVINCES: Readonly<Record<string, string>> = {
   宁夏回族自治区: "CHINA-NORTHWEST", 新疆维吾尔自治区: "CHINA-NORTHWEST",
 };
 
-/* 陕西三分法 - 关中 / 陕北 / 陕南, the carve every reading of the province
- * agrees on. By CITY: 陕北 is 延安 and 榆林, 陕南 is 汉中 安康 商洛, and the five
- * cities of the Wei valley are 关中. Codes carry the frame: SN-GUANZHONG. */
-const SHAANXI_DIVISIONS: readonly MarketDivision[] = [
-  { code: "SN-GUANZHONG", name: "关中", sortOrder: 1 },
-  { code: "SN-SHAANBEI", name: "陕北", sortOrder: 2 },
-  { code: "SN-SHAANNAN", name: "陕南", sortOrder: 3 },
-];
+/* 各市独立 - one region per unit (owner, 2026-09-09: 省级需要两套，一个是传统
+ * 大区分法，一个是各市独立，几个市几个区域). DERIVED from the frame's ground:
+ * ten cities make ten regions, in GB/T 2260 order, named by the unit's short
+ * name and CODED BY ITS ADCODE - SN-610100. The table carries no romanised
+ * city names (0038 refused to fabricate them), and the adcode is the one key
+ * anything importing this carve would match on anyway. */
+function byUnitTemplate(frame: ProvinceFrame): DivisionTemplate {
+  return {
+    key: `${frame.code.toLowerCase()}-units`,
+    name: `${shortProvince(frame.province)}${frame.unit === "district" ? "各区独立" : "各市独立"}`,
+    scope: "province",
+    province: frame.code,
+    divisions: frame.units.map((u, i) => ({
+      code: `${frame.code}-${u.code}`, name: u.short, sortOrder: i + 1,
+    })),
+    members: Object.fromEntries(frame.units.map((u) => [u.code, `${frame.code}-${u.code}`])),
+  };
+}
 
-const SHAANXI_CITIES: Readonly<Record<string, string>> = {
-  "610100": "SN-GUANZHONG", "610200": "SN-GUANZHONG", "610300": "SN-GUANZHONG",
-  "610400": "SN-GUANZHONG", "610500": "SN-GUANZHONG",
-  "610600": "SN-SHAANBEI", "610800": "SN-SHAANBEI",
-  "610700": "SN-SHAANNAN", "610900": "SN-SHAANNAN", "611000": "SN-SHAANNAN",
-};
-
+/* THE MIRROR OF yucer_ref.market_carve (incr/0047) for the store that has no
+ * table to read. NOT a second source of truth: market-carve.db.test.ts reads
+ * the table and fails if the two disagree in either direction, and the
+ * service reads carves through the store, never from here. */
 export const DIVISION_TEMPLATES: readonly DivisionTemplate[] = [
-  { key: "five", scope: "china", province: null, divisions: MARKET_DIVISIONS, members: MARKET_DIVISION_PROVINCES },
-  { key: "seven", scope: "china", province: null, divisions: SEVEN_DIVISIONS, members: SEVEN_PROVINCES },
-  { key: "shaanxi-three", scope: "province", province: "SN", divisions: SHAANXI_DIVISIONS, members: SHAANXI_CITIES },
+  { key: "five", name: "五分法", scope: "china", province: null, divisions: MARKET_DIVISIONS, members: MARKET_DIVISION_PROVINCES },
+  { key: "seven", name: "七分法", scope: "china", province: null, divisions: SEVEN_DIVISIONS, members: SEVEN_PROVINCES },
+  /* THE TRADITIONAL CARVE FIRST WHERE THERE IS ONE, then one region per unit -
+     like the two per country, neither more correct: a distributor with three
+     area managers wants the first, one with a rep in every city the second. */
+  ...PROVINCE_FRAMES.flatMap((f) => [
+    ...(f.traditional
+      ? [{ key: f.traditional.key, name: f.traditional.name, scope: "province" as const, province: f.code,
+          divisions: f.traditional.divisions, members: f.traditional.members }]
+      : []),
+    byUnitTemplate(f),
+  ]),
 ];
 
-/** The shipped carves that cut THIS frame - and nothing from another one. */
-export function templatesFor(scope: MarketScope): readonly DivisionTemplate[] {
-  return DIVISION_TEMPLATES.filter(
+/** The carves that cut THIS frame - and nothing from another one. */
+export function templatesFor(
+  templates: readonly DivisionTemplate[], scope: MarketScope,
+): readonly DivisionTemplate[] {
+  return templates.filter(
     (t) => t.scope === scope.kind && (t.scope !== "province" || t.province === scope.code),
   );
 }
-
-/**
- * Where each province sits in EVERY shipped carve - the hint the province
- * picker prints beside a name.
- *
- * WHY A PICKER NEEDS IT: carving a market is not a memory test. Somebody
- * building 新疆基地 out of one province, or deciding whether 安徽 belongs with
- * the coast or the middle, is answering a question the standard carves already
- * have an opinion about, and showing both opinions beside the checkbox is the
- * difference between choosing and guessing. It is a HINT, not a constraint:
- * nothing here refuses a selection that disagrees with both.
- *
- * Derived from the templates rather than typed again - a third copy of the
- * mapping is a third chance to be wrong about it.
- */
-export const PRESET_MEMBERSHIP: Readonly<Record<string, Readonly<Record<string, string>>>> =
-  Object.fromEntries(
-    DIVISION_TEMPLATES.map((t) => [
-      t.key,
-      Object.fromEntries(
-        Object.entries(t.members).map(([member, code]) => [
-          member,
-          t.divisions.find((d) => d.code === code)?.name ?? "",
-        ]),
-      ),
-    ]),
-  );
 
 /**
  * Is this division exactly as some template ships it?
@@ -315,10 +435,10 @@ export const PRESET_MEMBERSHIP: Readonly<Record<string, Readonly<Record<string, 
  * would label a tenant's own decision as ours.
  */
 export function isSystemDivision(
-  code: string, name: string, members: readonly string[],
+  templates: readonly DivisionTemplate[], code: string, name: string, members: readonly string[],
 ): boolean {
-  const d = DIVISION_TEMPLATES.map((t) => t.divisions.find((x) => x.code === code) ?? null);
-  return DIVISION_TEMPLATES.some((t, i) => {
+  const d = templates.map((t) => t.divisions.find((x) => x.code === code) ?? null);
+  return templates.some((t, i) => {
     const shipped = d[i];
     if (!shipped || shipped.name !== name) return false;
     /* COMPARED AS SETS, not as sorted arrays. Sorting to compare needed a

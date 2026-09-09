@@ -26,11 +26,11 @@ import {
 import {
   divisionCode,
   localCode,
-  provinceFrame,
   scopePrefix,
   type MarketScope,
 } from "../../domains/shared/market-division";
 import { useMessages } from "../lib/i18n/provider";
+import { frameIncludes, frameNoun } from "../lib/frame-copy";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 import { Tag } from "./tag";
 
@@ -107,13 +107,8 @@ export function DivisionForm({
   const [error, setError] = useState<string | null>(null);
 
   const prefix = scopePrefix(scope);
-  const noun = PLANNING_TEXT.memberNoun[scope.kind] ?? scope.kind;
-  const includes =
-    scope.kind === "province"
-      ? PLANNING_TEXT.scopeIncludesProvince(
-          provinceFrame(scope.code)?.province ?? scope.code ?? "",
-        )
-      : (PLANNING_TEXT.scopeIncludes[scope.kind] ?? scope.kind);
+  const noun = frameNoun(scope, PLANNING_TEXT);
+  const includes = frameIncludes(scope, PLANNING_TEXT);
   const [local, setLocal] = useState(localCode(scope, code));
   const [nameValue, setName] = useState(name);
   const [chosen, setChosen] = useState<Set<string>>(new Set(members));

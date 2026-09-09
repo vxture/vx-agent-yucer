@@ -18,6 +18,7 @@ import { PERM_CODES, ROLE_CODES } from "../../authz/catalog";
 import { frameMembers, listMarketDivisions, marketScope } from "../../domains/account/service";
 
 import { getMessages } from "../lib/i18n/server";
+import { frameNoun } from "../lib/frame-copy";
 import { Tag } from "../components/tag";
 // Administration, as its own domain rather than a sidebar group.
 //
@@ -90,7 +91,7 @@ export default async function AdminHomePage() {
         divisions.value.length,
         new Set(divisions.value.flatMap((d) => d.members.map((m) => m.key))).size,
         ground.value.length,
-        PLANNING_TEXT.memberNoun[scope.ok ? scope.value.kind : "china"] ?? "",
+        frameNoun(scope.ok ? scope.value : { kind: "china", code: null }, PLANNING_TEXT),
       );
 
   const memberFact = !members.ok

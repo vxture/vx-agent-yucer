@@ -10,6 +10,7 @@ import { InMemoryAccountStore } from "./store";
 import {
   frameMembers,
   importDivisionTemplate,
+  listCarves,
   listMarketDivisions,
   moveMarketDivision,
   removeMarketDivision,
@@ -183,9 +184,9 @@ test("中国市场 and 陕西 are open; 全球市场 and every other province ar
   // A province frame names its province (owner: 选择省级时需要确定是哪个省的市场)...
   const unnamed = await setMarketScope(ctxOf(s), { kind: "province", code: null });
   assert.equal(unnamed.ok === false && unnamed.violations[0].code, "scope_code_required");
-  // ...and only one the product has opened. 陕西 first, formally.
-  const gd = await setMarketScope(ctxOf(s), { kind: "province", code: "GD" });
-  assert.equal(gd.ok === false && gd.violations[0].code, "scope_province_not_open");
+  // ...and only one with ground below it - 台湾 has none in the table yet.
+  const tw = await setMarketScope(ctxOf(s), { kind: "province", code: "TW" });
+  assert.equal(tw.ok === false && tw.violations[0].code, "scope_province_not_open");
   assert.deepEqual(unwrap(await setMarketScope(ctxOf(s), { kind: "province", code: "SN" })), {
     kind: "province",
     code: "SN",
@@ -227,11 +228,11 @@ test("陕西三分法 imports under 陕西 and only there, and places all ten ci
   const s = new InMemoryAccountStore();
   // Under china it is another frame's carve.
   const wrong = await importDivisionTemplate(ctxOf(s), "shaanxi-three");
-  assert.equal(wrong.ok === false && wrong.violations[0].code, "template_scope_mismatch");
+  assert.equal(wrong.ok === false && wrong.violations[0].code, "template_unknown");
   unwrap(await setMarketScope(ctxOf(s), { kind: "province", code: "SN" }));
   // And 五分法 is not 陕西's.
   const five = await importDivisionTemplate(ctxOf(s), "five");
-  assert.equal(five.ok === false && five.violations[0].code, "template_scope_mismatch");
+  assert.equal(five.ok === false && five.violations[0].code, "template_unknown");
   const r = unwrap(await importDivisionTemplate(ctxOf(s), "shaanxi-three"));
   assert.equal(r.divisions, 3);
   const rows = unwrap(await listMarketDivisions(ctxOf(s)));
@@ -240,7 +241,7 @@ test("陕西三分法 imports under 陕西 and only there, and places all ten ci
   // 陕北 holds 延安 and 榆林 - and it reads as 系统配置 until somebody touches it.
   const north = rows.find((d) => d.code === "SN-SHAANBEI")!;
   assert.deepEqual(north.members.map((m) => m.label).sort(), ["延安", "榆林"]);
-  assert.equal(isSystemDivision(north.code, north.name, north.members.map((m) => m.key)), true);
+  assert.equal(isSystemDivision(unwrap(await listCarves(ctxOf(s))), north.code, north.name, north.members.map((m) => m.key)), true);
   unwrap(await saveMarketDivision(ctxOf(s), { code: "SN-SHAANBEI", name: north.name, members: ["610600"] }));
   const after = unwrap(await listMarketDivisions(ctxOf(s)));
   assert.equal(after.flatMap((d) => d.members).length, 9, "榆林 is unplaced, not lost");
@@ -256,7 +257,7 @@ test("a shipped carve is refused outside the frame it cuts", async () => {
   const s = new InMemoryAccountStore();
   await s.setMarketScope(WS, { kind: "global", code: null });
   const r = await importDivisionTemplate(ctxOf(s), "five");
-  assert.equal(r.ok === false && r.violations[0].code, "template_scope_mismatch");
+  assert.equal(r.ok === false && r.violations[0].code, "template_unknown");
   assert.equal((await s.listMarketDivisions(WS)).length, 0, "a global frame lists no china carve");
 });
 

@@ -1,0 +1,118 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { Client } from "pg";
+import { DIVISION_TEMPLATES } from "./market-division";
+import { ALL_PROVINCES } from "./provinces";
+
+/* incr/0047 - 预置方案, against a real Postgres.
+ *
+ * THE POINT: the carves are DATA (owner: 不容许代码写死), and the service reads
+ * them from yucer_ref.market_carve. The TypeScript list still exists for the
+ * store that has no table to read, and this file is what stops it becoming a
+ * second truth: every carve in the table equals its mirror, in both
+ * directions, and the by-unit carves the SQL derives from admin_division are
+ * exactly what the build derives from the same rows.
+ *
+ * SELF-SKIPPING without DATABASE_URL, like every *.db.test.ts.
+ */
+
+const DATABASE_URL = process.env.DATABASE_URL;
+const skip = DATABASE_URL ? false : "no DATABASE_URL - see ci.yml job db-contract";
+
+async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const c = new Client({ connectionString: DATABASE_URL });
+  await c.connect();
+  try {
+    return await fn(c);
+  } finally {
+    await c.end();
+  }
+}
+
+test("the table and the mirror hold the same carves, exactly", { skip }, async () => {
+  await withPg(async (c) => {
+    const carves = (
+      await c.query(`SELECT carve_key, scope_kind, scope_province, name FROM yucer_ref.market_carve ORDER BY sort_order`)
+    ).rows;
+    assert.equal(carves.length, DIVISION_TEMPLATES.length, "2 national + 6 typed + 31 derived");
+    for (const row of carves) {
+      const t = DIVISION_TEMPLATES.find((x) => x.key === row.carve_key);
+      assert.ok(t, `${row.carve_key} is in the table and not in the mirror`);
+      assert.deepEqual([t.scope, t.province, t.name], [row.scope_kind, row.scope_province, row.name], row.carve_key);
+      const divisions = (
+        await c.query(
+          `SELECT division_code, name, sort_order FROM yucer_ref.market_carve_division WHERE carve_key = $1 ORDER BY sort_order`,
+          [row.carve_key],
+        )
+      ).rows;
+      assert.deepEqual(
+        divisions.map((d) => ({ code: d.division_code, name: d.name, sortOrder: d.sort_order })),
+        [...t.divisions],
+        `${row.carve_key}: divisions`,
+      );
+      const members = (
+        await c.query(`SELECT member_key, division_code FROM yucer_ref.market_carve_member WHERE carve_key = $1`, [row.carve_key])
+      ).rows;
+      assert.deepEqual(
+        Object.fromEntries(members.map((m) => [m.member_key, m.division_code])),
+        { ...t.members },
+        `${row.carve_key}: members`,
+      );
+    }
+  });
+});
+
+test("a china carve places all 34 provinces; a province carve's members are its own units", { skip }, async () => {
+  await withPg(async (c) => {
+    const china = (
+      await c.query(
+        `SELECT c.carve_key, count(m.member_key)::int AS n
+           FROM yucer_ref.market_carve c LEFT JOIN yucer_ref.market_carve_member m USING (carve_key)
+          WHERE c.scope_kind = 'china' GROUP BY c.carve_key`,
+      )
+    ).rows;
+    assert.deepEqual(china.map((r) => r.n), china.map(() => ALL_PROVINCES.length));
+    // Every member of a province carve is a level-4 or level-5 row UNDER that
+    // province - the same rows fk_market_division_member_place will accept.
+    const stray = (
+      await c.query(
+        `SELECT c.carve_key, m.member_key FROM yucer_ref.market_carve c
+           JOIN yucer_ref.market_carve_member m USING (carve_key)
+           JOIN yucer_ref.admin_division p ON p.level = 3 AND p.abbr_en = c.scope_province
+          WHERE c.scope_kind = 'province'
+            AND NOT EXISTS (
+              SELECT 1 FROM yucer_ref.admin_division a
+               WHERE a.code = m.member_key AND a.level IN (4, 5) AND a.path LIKE p.path || '/%'
+            )`,
+      )
+    ).rows;
+    assert.deepEqual(stray, []);
+    // And every unit under a province is in its by-unit carve - nothing
+    // dropped (the first cut of the ground rule dropped 西安).
+    const missing = (
+      await c.query(
+        `SELECT p.abbr_en, u.code, u.name_zh FROM yucer_ref.admin_division p
+           JOIN yucer_ref.admin_division u ON u.status = 'active' AND (
+                 (p.code NOT IN ('110000','120000','310000','500000') AND u.level = 4 AND u.parent_id = p.id AND u.name_zh !~ '直辖县级行政区划$')
+              OR (p.code IN ('110000','120000','310000','500000') AND u.level = 5 AND u.path LIKE p.path || '/%'))
+          WHERE p.level = 3
+            AND NOT EXISTS (SELECT 1 FROM yucer_ref.market_carve_member m
+                             WHERE m.carve_key = lower(p.abbr_en) || '-units' AND m.member_key = u.code)`,
+      )
+    ).rows;
+    assert.deepEqual(missing, []);
+  });
+});
+
+test("the service role may read the carves and may not write them", { skip }, async () => {
+  await withPg(async (c) => {
+    for (const t of ["market_carve", "market_carve_division", "market_carve_member"]) {
+      const priv = (p: string) =>
+        c.query(`SELECT has_table_privilege('yucer_svc', 'yucer_ref.${t}', $1) AS ok`, [p]);
+      assert.equal((await priv("SELECT")).rows[0].ok, true, `${t}: read`);
+      for (const p of ["INSERT", "UPDATE", "DELETE"]) {
+        assert.equal((await priv(p)).rows[0].ok, false, `${t}: ${p} must not be granted`);
+      }
+    }
+  });
+});

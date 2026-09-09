@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
-import { frameMembers, listMarketDivisions, marketScope } from "../../../../domains/account/service";
-import { templatesFor } from "../../../../domains/shared/market-division";
+import { frameMembers, listCarves, listMarketDivisions, marketScope } from "../../../../domains/account/service";
 import { DivisionForm } from "../../../components/division-form";
 import { memberOptions } from "../../../lib/member-options";
+import { frameNoun } from "../../../lib/frame-copy";
 
 // 新建大区 - the create half of the module's own list/create split.
 
@@ -30,12 +30,13 @@ export default async function NewDivisionPage() {
     entitlement: session.entitlement,
     store: session.stores.account(),
   };
-  const [divisions, scope, ground] = await Promise.all([
-    listMarketDivisions(ctx), marketScope(ctx), frameMembers(ctx),
+  const [divisions, scope, ground, carveRows] = await Promise.all([
+    listMarketDivisions(ctx), marketScope(ctx), frameMembers(ctx), listCarves(ctx),
   ]);
+  const carves = carveRows.ok ? carveRows.value : [];
   const rows = divisions.ok ? divisions.value : [];
   const frame = scope.ok ? scope.value : { kind: "china" as const, code: null };
-  const noun = PLANNING_TEXT.memberNoun[frame.kind] ?? frame.kind;
+  const noun = frameNoun(frame, PLANNING_TEXT);
   const heldBy = new Map<string, string>();
   for (const d of rows) for (const m of d.members) heldBy.set(m.key, d.name);
 
@@ -56,21 +57,20 @@ export default async function NewDivisionPage() {
         name=""
         members={[]}
         options={memberOptions(
-          frame,
+          carves,
           ground.ok ? ground.value : [],
           heldBy,
-          (key) => PLANNING_TEXT.templateName[key] ?? key,
           PLANNING_TEXT.divisionHintPreset,
         )}
-        /* Every division from every shipped carve OF THIS FRAME, labelled with
-           the carve it belongs to - both china carves name a 华东 and a reader
-           picking one has to be able to tell which. */
-        presets={templatesFor(frame).flatMap((t) =>
+        /* Every division from every carve OF THIS FRAME (incr/0047), labelled
+           with the carve it belongs to - both china carves name a 华东 and a
+           reader picking one has to be able to tell which. */
+        presets={carves.flatMap((t) =>
           t.divisions.map((d) => ({
             key: t.key,
             code: d.code,
             name: d.name,
-            from: PLANNING_TEXT.templateName[t.key] ?? t.key,
+            from: t.name,
             members: Object.entries(t.members)
               .filter(([, c]) => c === d.code)
               .map(([member]) => member),

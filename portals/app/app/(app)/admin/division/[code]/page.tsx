@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
-import { frameMembers, listMarketDivisions, marketScope } from "../../../../domains/account/service";
+import { frameMembers, listCarves, listMarketDivisions, marketScope } from "../../../../domains/account/service";
 import { DivisionForm } from "../../../components/division-form";
 import { memberOptions } from "../../../lib/member-options";
+import { frameNoun } from "../../../lib/frame-copy";
 
 // 编辑大区 - the same form, opened on an existing one.
 
@@ -32,12 +33,13 @@ export default async function EditDivisionPage(
     entitlement: session.entitlement,
     store: session.stores.account(),
   };
-  const [divisions, scope, ground] = await Promise.all([
-    listMarketDivisions(ctx), marketScope(ctx), frameMembers(ctx),
+  const [divisions, scope, ground, carveRows] = await Promise.all([
+    listMarketDivisions(ctx), marketScope(ctx), frameMembers(ctx), listCarves(ctx),
   ]);
+  const carves = carveRows.ok ? carveRows.value : [];
   const rows = divisions.ok ? divisions.value : [];
   const frame = scope.ok ? scope.value : { kind: "china" as const, code: null };
-  const noun = PLANNING_TEXT.memberNoun[frame.kind] ?? frame.kind;
+  const noun = frameNoun(frame, PLANNING_TEXT);
   const mine = rows.find((d) => d.code === decodeURIComponent(code));
   // A code nobody has is not an error page - the list is one click away and
   // the division may simply have been removed since the link was drawn.
@@ -66,10 +68,9 @@ export default async function EditDivisionPage(
         // what this workspace has already decided.
         presets={[]}
         options={memberOptions(
-          frame,
+          carves,
           ground.ok ? ground.value : [],
           heldBy,
-          (key) => PLANNING_TEXT.templateName[key] ?? key,
           PLANNING_TEXT.divisionHintPreset,
         )}
       />

@@ -143,6 +143,7 @@ class ScopedAccountStore implements AccountStore {
      the service decides who may change it, and there is no owner to narrow by. */
   listFrameMembers: AccountStore["listFrameMembers"] = (...a) =>
     this.inner.listFrameMembers(...a);
+  listCarves: AccountStore["listCarves"] = (...a) => this.inner.listCarves(...a);
   placeMember: AccountStore["placeMember"] = (...a) => this.inner.placeMember(...a);
 
   upsertMarketDivision: AccountStore["upsertMarketDivision"] = (...a) =>

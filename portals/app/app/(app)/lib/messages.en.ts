@@ -1247,10 +1247,10 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     province_unknown: "The province must be one of the 34 provincial-level divisions",
     division_unknown: "That region does not belong to this workspace",
-    template_scope_mismatch: "That standard carve is for the China market; the current scope is not",
+    template_unknown: "No such standard carve, or it does not cut the current market scope",
     scope_not_open: "That market scope is not open yet - stay on China",
     scope_code_required: "A one-province scope has to say which province",
-    scope_province_not_open: "That province is not open as a market scope yet. Open today: Shaanxi",
+    scope_province_not_open: "That province is not open as a market scope yet",
     member_unknown: "A member has to be part of the current market scope - pick from the list",
     code_prefix: "A region code has to carry the current market scope's prefix",
     move_at_edge: "Already at that end",
@@ -2871,6 +2871,10 @@ export const en: Dictionary = {
       china: "provinces",
       province: "cities",
     } as Record<string, string>,
+    unitNoun: {
+      city: "cities",
+      district: "districts",
+    } as Record<string, string>,
     divisionName: "Region",
     divisionMemberCount: (noun: string) => noun.charAt(0).toUpperCase() + noun.slice(1),
     divisionScope: (_noun: string) => "Covers",
@@ -2912,11 +2916,6 @@ export const en: Dictionary = {
       custom > 0
         ? `Replaces the current ${current} regions; ${custom} of them are yours and will be discarded.`
         : `Replaces the current ${current} regions.`,
-    templateName: {
-      five: "Five-way",
-      seven: "Seven-way",
-      "shaanxi-three": "Shaanxi three-way",
-    } as Record<string, string>,
     presetOption: (from: string, name: string) => `${from} - ${name}`,
     scopeLabel: {
       global: "Global",
@@ -2932,9 +2931,9 @@ export const en: Dictionary = {
     scopeLabelTitle: "Market scope",
     scopeButton: (current: string) => `Market scope - ${current}`,
     scopeProvinceFrame: (label: string, province: string) => `${label} - ${province}`,
-    scopeIncludesProvince: (province: string) => `${province} - regions are made of its cities`,
+    scopeIncludesProvince: (province: string, noun: string) => `${province} - regions are made of its ${noun}`,
     scopeProvinceLabel: "Which province",
-    scopeProvinceOpen: (names: readonly string[]) => `Open today: ${names.join(", ")}. More provinces follow.`,
+    scopeProvinceOpen: (n: number) => `${n} provincial-level divisions available; Taiwan, Hong Kong and Macao have no lower-level data yet.`,
     scopeConfirm: "Confirm",
     scopeCancel: "Cancel",
     scopeWhy: "The frame regions are carved in: the world by country, the country by province, one province by city. Once it is set, what a region may hold follows.",

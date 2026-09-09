@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
-import { PROVINCE_FRAMES } from "./market-division";
+import { isPseudoCity, PROVINCE_FRAMES } from "./market-division";
 import { ALL_PROVINCES, PROVINCE_CODE, shortProvince } from "./provinces";
 
 // incr/0038 - 行政区划, against a real Postgres.
@@ -185,11 +185,11 @@ test("the service role may read it and may not write it", { skip }, async () => 
   });
 });
 
-test("陕西's cities in the build are the table's, exactly (incr/0045)", { skip }, async () => {
-  /* THE SEAM FOR THE FIRST PROVINCE FRAME. The in-memory store carves 陕西
-     from PROVINCE_FRAMES; the Prisma store reads the same cities from this
-     table. If the two disagreed, the demo would offer a city the database
-     would then refuse to place (fk_market_division_member_place). */
+test("every province frame's ground in the build is the table's, exactly (incr/0045-0046)", { skip }, async () => {
+  /* THE SEAM FOR THE PROVINCE FRAMES. The in-memory store carves a province
+     from province-frames.ts (generated from this table); the Prisma store
+     reads the same rows live. If the two disagreed, the demo would offer a
+     unit the database would then refuse to place (fk_market_division_member_place). */
   await withPg(async (c) => {
     for (const f of PROVINCE_FRAMES) {
       const province = (
@@ -201,18 +201,34 @@ test("陕西's cities in the build are the table's, exactly (incr/0045)", { skip
       assert.ok(province, `${f.province} must be a level-3 row`);
       assert.equal(province.name_zh, f.province);
       assert.equal(province.abbr_en, f.code);
-      const cities = (
-        await c.query(
-          `SELECT code, name_zh, short_zh FROM yucer_ref.admin_division
-            WHERE level = 4 AND parent_id = $1 AND status = 'active' ORDER BY sort_order`,
-          [province.id],
-        )
+      // A province's ground is its level-4 rows; a municipality's is the
+      // level-5 districts and counties under its filing rows (0046). Minus
+      // the filing rows themselves, through the same helper the store uses.
+      const units = (
+        f.unit === "district"
+          ? await c.query(
+              `SELECT code, name_zh, short_zh FROM yucer_ref.admin_division
+                WHERE level = 5 AND status = 'active' AND path LIKE $1 ORDER BY sort_order`,
+              [`AS/CN/${f.adcode}/%`],
+            )
+          : await c.query(
+              `SELECT code, name_zh, short_zh FROM yucer_ref.admin_division
+                WHERE level = 4 AND parent_id = $1 AND status = 'active' ORDER BY sort_order`,
+              [province.id],
+            )
       ).rows;
+      // The filing rows are named by the table's own text, NOT by the
+      // helper under test: the first cut of that helper dropped 西安 from
+      // 陕西 and this test, filtering both sides through it, passed.
+      const real = units.filter((r) => !/^(省|自治区)直辖县级行政区划$|^市辖区$|^县$/.test(r.name_zh));
       assert.deepEqual(
-        cities.map((r) => [r.code, r.name_zh, r.short_zh]),
-        f.cities.map((x) => [x.code, x.name, x.short]),
-        `${f.province}: the build's city list must be the table's`,
+        real.map((r) => [r.code, r.name_zh, r.short_zh]),
+        f.units.map((x) => [x.code, x.name, x.short]),
+        `${f.province}: the build's ground must be the table's`,
       );
+      for (const r of units) {
+        assert.equal(isPseudoCity(r.code), !real.includes(r), `${r.code} ${r.name_zh}: isPseudoCity`);
+      }
     }
   });
 });

@@ -6,7 +6,10 @@ import type { IndustryDraft } from "./lib/industry-vocab";
 import {
   DEFAULT_MARKET_SCOPE,
   frameMembers,
+  isPseudoCity,
+  provinceFrame,
   scopePrefix,
+  type DivisionTemplate,
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
@@ -133,18 +136,54 @@ export class PrismaAccountStore implements AccountStore {
   async listFrameMembers(workspaceId: string): Promise<MarketMember[]> {
     const scope = await this.getMarketScope(workspaceId);
     if (scope.kind !== "province") return [...frameMembers(scope)];
+    const frame = provinceFrame(scope.code);
+    if (!frame) return [];
     const p = await this.client();
     const province = await p.adminDivision.findFirst({
-      where: { level: 3, abbrEn: scope.code ?? "" },
-      select: { id: true },
+      where: { level: 3, code: frame.adcode },
+      select: { id: true, path: true },
     });
     if (!province) return [];
-    const cities = await p.adminDivision.findMany({
-      where: { level: 4, parentId: province.id, status: "active" },
+    /* A province's ground is its level-4 rows; a municipality's is its
+       level-5 districts and counties under the filing rows (incr/0046). The
+       filing rows themselves - 419000, 110100 - are not places: isPseudoCity. */
+    const units = await p.adminDivision.findMany({
+      where: frame.unit === "district"
+        ? { level: 5, status: "active", path: { startsWith: `${province.path}/` } }
+        : { level: 4, status: "active", parentId: province.id },
       orderBy: { sortOrder: "asc" },
       select: { code: true, shortZh: true },
     });
-    return cities.map((c) => ({ key: c.code, label: c.shortZh }));
+    return units.filter((u) => !isPseudoCity(u.code)).map((u) => ({ key: u.code, label: u.shortZh }));
+  }
+
+  /* --- 预置方案 (incr/0047) ------------------------------------------------
+     THE TABLE, NOT THE CONSTANT (owner: 不容许代码写死). Three tables read as
+     one carve each; the frame filter is the same pairing the service checks
+     before adopting one. */
+  async listCarves(workspaceId: string): Promise<DivisionTemplate[]> {
+    const scope = await this.getMarketScope(workspaceId);
+    const p = await this.client();
+    const rows = await p.marketCarve.findMany({
+      where: { scopeKind: scope.kind, scopeProvince: scope.kind === "province" ? scope.code : null },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        divisions: {
+          orderBy: { sortOrder: "asc" },
+          include: { members: { select: { memberKey: true } } },
+        },
+      },
+    });
+    return rows.map((c) => ({
+      key: c.carveKey,
+      name: c.name,
+      scope: c.scopeKind as MarketScope["kind"],
+      province: c.scopeProvince,
+      divisions: c.divisions.map((d) => ({ code: d.divisionCode, name: d.name, sortOrder: d.sortOrder })),
+      members: Object.fromEntries(
+        c.divisions.flatMap((d) => d.members.map((m) => [m.memberKey, d.divisionCode])),
+      ),
+    }));
   }
 
   async placeMember(
@@ -157,7 +196,7 @@ export class PrismaAccountStore implements AccountStore {
        else is an admin_division row and goes to 0045's, at the level the
        frame carves by. The frame decides, not the shape of the key. */
     const scope = await this.getMarketScope(workspaceId);
-    const level = scope.kind === "global" ? 2 : 4;
+    const level = scope.kind === "global" ? 2 : provinceFrame(scope.code)?.unit === "district" ? 5 : 4;
     if (divisionCode === null) {
       // Out of every 大区. A DELETE, not a null division_id: the column is NOT
       // NULL, and "in no division" is the absence of a row rather than a row

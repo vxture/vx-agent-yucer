@@ -3,17 +3,13 @@ import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
-import { frameMembers, listMarketDivisions, marketScope } from "../../../domains/account/service";
+import { frameMembers, listCarves, listMarketDivisions, marketScope } from "../../../domains/account/service";
 import { MarketScopeControl } from "../../components/market-scope-control";
 import { DivisionPanel } from "../../components/division-panel";
 import { DivisionImport } from "../../components/division-import";
 import { NewEntryLink } from "../../components/form-page";
-import {
-  isSystemDivision,
-  provinceFrame,
-  templatesFor,
-  type MarketScope,
-} from "../../../domains/shared/market-division";
+import { isSystemDivision, type MarketScope } from "../../../domains/shared/market-division";
+import { frameName, frameNoun } from "../../lib/frame-copy";
 
 // 市场划分 (大区) - CONFIGURATION, not a business module (owner, 2026-09-08).
 //
@@ -66,10 +62,11 @@ export default async function DivisionPage() {
   /* Read from the account store because that is where incr/0036 put the table,
      and gated on account.view - every roster that shows a customer's 大区 has
      to resolve one, so it is not a separate privilege. */
-  const [divisions, scope, ground] = await Promise.all([
+  const [divisions, scope, ground, carveRows] = await Promise.all([
     listMarketDivisions(ctx),
     marketScope(ctx),
     frameMembers(ctx),
+    listCarves(ctx),
   ]);
   if (!divisions.ok) {
     return (
@@ -81,10 +78,9 @@ export default async function DivisionPage() {
   }
 
   const frame = scope.ok ? scope.value : CHINA;
-  const noun = PLANNING_TEXT.memberNoun[frame.kind] ?? frame.kind;
-  const frameName = frame.kind === "province"
-    ? provinceFrame(frame.code)?.province ?? frame.code ?? ""
-    : PLANNING_TEXT.scopeLabel[frame.kind] ?? frame.kind;
+  const noun = frameNoun(frame, PLANNING_TEXT);
+  // 预置方案, from the table (incr/0047) - only the carves of THIS frame.
+  const carves = carveRows.ok ? carveRows.value : [];
   const rows = divisions.value;
   const placed = new Set(rows.flatMap((d) => d.members.map((m) => m.key)));
   // Counted off the frame's OWN ground - the same rows the picker offers - so a
@@ -106,7 +102,7 @@ export default async function DivisionPage() {
       <ViewHeader
         icon="map-pin"
         title={DOMAIN_LABEL.division}
-        description={PLANNING_TEXT.divisionWhy(frameName, noun)}
+        description={PLANNING_TEXT.divisionWhy(frameName(frame, PLANNING_TEXT), noun)}
         /* ONE SENTENCE, ONCE (owner, 2026-09-09): placed and regions, and the
            unplaced count only when there is one. The same figure used to
            close the table as well; a number said twice on one screen is a
@@ -131,15 +127,11 @@ export default async function DivisionPage() {
               <DivisionImport
                 currentDivisions={rows.length}
                 customCount={
-                  rows.filter((d) => !isSystemDivision(d.code, d.name, d.members.map((m) => m.key))).length
+                  rows.filter((d) => !isSystemDivision(carves, d.code, d.name, d.members.map((m) => m.key))).length
                 }
-                /* Only the carves of THIS frame: 五分法 / 七分法 cut 中国市场,
-                   陕西三分法 cuts 陕西. Offering another frame's carve here
-                   would be refused by the service (template_scope_mismatch)
-                   and would have been the wrong offer before that. */
-                templates={templatesFor(frame).map((t) => ({
+                templates={carves.map((t) => ({
                   key: t.key,
-                  label: PLANNING_TEXT.templateName[t.key] ?? t.key,
+                  label: t.name,
                   divisions: t.divisions.length,
                   names: t.divisions.map((d) => d.name),
                 }))}
@@ -151,7 +143,7 @@ export default async function DivisionPage() {
       <DivisionPanel
         rows={rows.map((d) => ({
           code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
-          system: isSystemDivision(d.code, d.name, d.members.map((m) => m.key)),
+          system: isSystemDivision(carves, d.code, d.name, d.members.map((m) => m.key)),
         }))}
         unassigned={unassigned}
         noun={noun}

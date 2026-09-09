@@ -1246,6 +1246,51 @@ model MarketDivisionMember {
   @@schema("yucer_core")
 }
 
+/// 预置方案 (incr/0047) - the shipped carves a workspace adopts as a start.
+/// Reference data, read-only to the service role; the by-unit carves are
+/// derived in SQL from admin_division. member_key is the workspace member
+/// tables' own key: a province NAME (0036) or a unit ADCODE (0045).
+model MarketCarve {
+  carveKey      String @id @map("carve_key") @db.VarChar(32)
+  scopeKind     String @map("scope_kind") @db.VarChar(16)
+  scopeProvince String? @map("scope_province") @db.VarChar(8)
+  name          String @db.VarChar(64)
+  sortOrder     Int    @default(0) @map("sort_order")
+
+  divisions MarketCarveDivision[]
+
+  @@index([scopeKind, scopeProvince, sortOrder], map: "idx_market_carve_scope")
+  @@map("market_carve")
+  @@schema("yucer_ref")
+}
+
+model MarketCarveDivision {
+  carveKey     String @map("carve_key") @db.VarChar(32)
+  divisionCode String @map("division_code") @db.VarChar(32)
+  name         String @db.VarChar(64)
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  carve   MarketCarve         @relation(fields: [carveKey], references: [carveKey], onDelete: Cascade)
+  members MarketCarveMember[]
+
+  @@id([carveKey, divisionCode], map: "pk_market_carve_division")
+  @@map("market_carve_division")
+  @@schema("yucer_ref")
+}
+
+model MarketCarveMember {
+  carveKey     String @map("carve_key") @db.VarChar(32)
+  memberKey    String @map("member_key") @db.VarChar(32)
+  divisionCode String @map("division_code") @db.VarChar(32)
+
+  division MarketCarveDivision @relation(fields: [carveKey, divisionCode], references: [carveKey, divisionCode], onDelete: Cascade, map: "fk_market_carve_member_division")
+
+  @@id([carveKey, memberKey], map: "pk_market_carve_member")
+  @@index([carveKey, divisionCode], map: "idx_market_carve_member_division")
+  @@map("market_carve_member")
+  @@schema("yucer_ref")
+}
+
 /// 行政区划 - 全球五级参照表 (incr/0038). GLOBAL: no workspaceId, because which
 /// provinces China has is not a tenant's decision. The service role holds
 /// SELECT and nothing else; rows change by increment, from the generator.

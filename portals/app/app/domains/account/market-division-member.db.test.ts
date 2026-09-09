@@ -84,11 +84,14 @@ test("a member is an admin_division row, at the level the frame carves by", { sk
     const { guanzhong } = await seed(c);
     // A code nobody has.
     await assert.rejects(place(c, 4, "619999", guanzhong), /fk_market_division_member_place/);
-    // 西安 exists at level 4; the same digits at level 5 do not - and level 5
-    // (county) is not a level a region holds anyway (owner: 陕西看市级).
-    await assert.rejects(place(c, 5, "610100", guanzhong), /chk_market_division_member_level/);
+    // 西安 exists at level 4; the same digits at level 5 do not (0046 lets a
+    // municipality place its level-5 districts, but 610100 is not one).
+    await assert.rejects(place(c, 5, "610100", guanzhong), /fk_market_division_member_place/);
     // A province is level 3 and belongs in market_division_province.
     await assert.rejects(place(c, 3, "610000", guanzhong), /chk_market_division_member_level/);
+    // A district under 北京 is level 5 and may be placed (incr/0046).
+    await place(c, 5, "110101", guanzhong);
+    await c.query(`DELETE FROM yucer_core.market_division_member WHERE workspace_id = $1 AND member_level = 5`, [WS]);
     await place(c, 4, "610100", guanzhong);
     // And it can be read back with its name, which is the whole point of the
     // foreign key: the roster prints 西安 without a second copy of the name.
