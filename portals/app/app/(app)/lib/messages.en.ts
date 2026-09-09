@@ -2965,7 +2965,6 @@ export const en: Dictionary = {
     scopeWhy: "The frame regions are carved in: the world by country, the country by province, one province by city. Once it is set, what a region may hold follows.",
     scopeSaved: "Market scope updated",
     divisionIncludes: "Made of",
-    divisionListMeta: (includes: string, n: number, noun: string) => `${includes} · ${n} ${noun}`,
     colIndex: "#",
     colAbbr: "Code",
     colName: "Name",

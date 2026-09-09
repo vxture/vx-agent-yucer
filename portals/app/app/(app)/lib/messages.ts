@@ -3417,8 +3417,6 @@ export const PLANNING_TEXT = {
   scopeWhy: "区域在哪个框架里切：全球按国家，全国按省，一省按市。范围定了，区域能装什么才有基础。",
   scopeSaved: "市场范围已更新",
   divisionIncludes: "包括范围",
-  /* 右栏清单的说明行：范围是什么，装了几个。「陕西省 · 包括为市级 · 5 个市」 */
-  divisionListMeta: (includes: string, n: number, noun: string) => `${includes} · ${n} 个${noun}`,
   // 右栏清单的五列（owner, 2026-09-09）。简称代号是国标的两个字母，省有市无。
   colIndex: "序号",
   colAbbr: "简称代号",

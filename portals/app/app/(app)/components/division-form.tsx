@@ -34,7 +34,7 @@ import {
   type MarketScope,
 } from "../../domains/shared/market-division";
 import { useMessages } from "../lib/i18n/provider";
-import { frameIncludes, frameNoun } from "../lib/frame-copy";
+import { frameNoun } from "../lib/frame-copy";
 import { matchPreset } from "../lib/preset-match";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 import { Tag } from "./tag";
@@ -118,7 +118,6 @@ export function DivisionForm({
 
   const prefix = scopePrefix(scope);
   const noun = frameNoun(scope, PLANNING_TEXT);
-  const includes = frameIncludes(scope, PLANNING_TEXT);
   const [local, setLocal] = useState(localCode(scope, code));
   const [nameValue, setName] = useState(name);
   const [chosen, setChosen] = useState<Set<string>>(new Set(members));
@@ -368,18 +367,13 @@ export function DivisionForm({
           </div>
         </Section>
 
-        {/* RIGHT - the roster as it stands. The heading carries the frame's
-            ground and the count; the rows carry a number and a name; nothing
-            else, and no operations column (owner: 保留序号，名称，移除操作) -
-            the DS's own table primitives rather than DataTable, whose three
-            fittings are for tables somebody acts IN. */}
+        {/* RIGHT - the roster as it stands. A heading and the rows, and no
+            line under the heading (owner, 2026-09-09: 纯粹垃圾信息，还影响了
+            左右对齐 - the frame is the page header's business, the count is
+            the table's). DS table primitives rather than DataTable, whose
+            three fittings are for tables somebody acts IN. */}
         <Section
           title={PLANNING_TEXT.divisionIncludes}
-          description={PLANNING_TEXT.divisionListMeta(
-            includes,
-            chosenList.length,
-            noun,
-          )}
         >
           <div className="gap-md flex flex-col">
             {chosenList.length === 0 ? (
