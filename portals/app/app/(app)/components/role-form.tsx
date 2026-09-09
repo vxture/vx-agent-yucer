@@ -78,6 +78,7 @@ export function RoleForm({
   members,
   options,
   presets,
+  returnTo = "/admin/roles",
 }: {
   readonly isNew: boolean;
   readonly code: string;
@@ -88,6 +89,8 @@ export function RoleForm({
   readonly members: number;
   readonly options: readonly PermissionOption[];
   readonly presets: readonly RolePreset[];
+  /** Where 保存 and 放弃 go - the roster, or the drawer this was opened from. */
+  readonly returnTo?: string;
 }) {
   const { ROLE_ERROR, ROLE_TEXT } = useMessages();
   const router = useRouter();
@@ -170,7 +173,7 @@ export function RoleForm({
         permissions: [...chosen],
       });
       if (!r.ok) setError(ROLE_ERROR[r.error] ?? r.error);
-      else router.push("/admin/roles");
+      else router.push(returnTo);
     });
   };
 
@@ -308,7 +311,7 @@ export function RoleForm({
           <Button onClick={submit} disabled={pending}>
             {ROLE_TEXT.save}
           </Button>
-          <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/roles")}>
+          <Button variant="secondary" disabled={pending} onClick={() => router.push(returnTo)}>
             {ROLE_TEXT.discard}
           </Button>
           {!isNew && members === 0 ? (

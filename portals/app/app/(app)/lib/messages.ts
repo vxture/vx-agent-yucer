@@ -2400,6 +2400,7 @@ export const ROLE_TEXT = {
   detailsDone: "关闭",
   detailsEmpty: "这个角色没有任何权限，持有它的成员看不到任何模块。",
   detailsColHeld: "持有",
+  detailsEdit: "编辑",
   // --- 表单 ---
   formTitle: "配置角色",
   formWhy: "代码、名称、一句说明，以及这个角色持有的权限。",

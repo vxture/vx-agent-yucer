@@ -1279,6 +1279,7 @@ export const en: Dictionary = {
     detailsDone: "Close",
     detailsEmpty: "This role holds no permission; a member holding it sees no module.",
     detailsColHeld: "Held",
+    detailsEdit: "Edit",
     formTitle: "Configure role",
     formWhy: "A code, a name, one sentence, and the permissions this role holds.",
     code: "Role code",

@@ -6,6 +6,7 @@ import {
   ButtonGroup,
   DataTable,
   Icon,
+  SegmentedControl,
   StatusBadge,
   Table,
   TableBody,
@@ -308,16 +309,22 @@ export function PermissionTree({
  * operations under it the role may perform. `onlyGranted` prunes to what
  * the role can do before flattening, so the counts and the rows agree.
  */
+export type PermissionView = "granted" | "all";
+
 export function PermissionTreeTable({
   tree,
   held,
-  onlyGranted,
+  view,
+  onViewChange,
 }: {
   readonly tree: readonly PermissionNode[];
   readonly held: ReadonlySet<string>;
-  readonly onlyGranted: boolean;
+  /** 只看可执行 / 显示全部 - the switch sits on the table's own toolbar row. */
+  readonly view: PermissionView;
+  readonly onViewChange: (view: PermissionView) => void;
 }) {
   const { PERMISSION_TREE_TEXT: T, ROLE_TEXT } = useMessages();
+  const onlyGranted = view === "granted";
   const { title, subtitle } = useNodeCopy();
 
   const granted = (n: PermissionNode) => n.permission !== null && held.has(n.permission);
@@ -345,31 +352,49 @@ export function PermissionTreeTable({
 
   return (
     <div className="gap-md flex flex-col">
-      <div className="gap-sm flex flex-wrap items-center">
-        <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
-        <ButtonGroup>
-          {/* Keys from the FULL tree, so switching 只看可执行 / 显示全部 keeps
-              the same level open rather than showing the newly revealed
-              branches folded. */}
-          {(["module", "page", "action"] as const).map((lvl) => (
-            <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
-              {T.levelLabel[lvl]}
+      {/* ONE TOOLBAR ROW (owner, 2026-09-09: 展开操作、显示切换同一操作行): the
+          expand-to buttons on the left, the 滑块式 view switch on the right. */}
+      <div className="gap-sm flex flex-wrap items-center justify-between">
+        <div className="gap-sm flex items-center">
+          <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
+          <ButtonGroup>
+            {/* Keys from the FULL tree, so switching 只看可执行 / 显示全部 keeps
+                the same level open rather than showing the newly revealed
+                branches folded. */}
+            {(["module", "page", "action"] as const).map((lvl) => (
+              <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
+                {T.levelLabel[lvl]}
+              </Button>
+            ))}
+            <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
+              {T.collapseAll}
             </Button>
-          ))}
-          <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
-            {T.collapseAll}
-          </Button>
-        </ButtonGroup>
+          </ButtonGroup>
+        </div>
+        <SegmentedControl<PermissionView>
+          size="sm"
+          value={view}
+          onChange={onViewChange}
+          ariaLabel={ROLE_TEXT.details}
+          items={[
+            { value: "granted", label: ROLE_TEXT.detailsOnlyGranted },
+            { value: "all", label: ROLE_TEXT.detailsAll },
+          ]}
+        />
       </div>
       {/* FIXED LAYOUT, THREE SHARES: the point takes what the two short
-          columns leave, the level tag and the mark each get a fixed slot so
-          the marks line up down the drawer. */}
-      <Table className="table-fixed">
+          columns leave; the level tag and the mark each get a slot SIZED TO
+          THEIR WIDEST CONTENT, measured - 业务域 in a badge is 90px and
+          `3 / 12` in a tag 85px, and the DS strips the last column's right
+          padding, so 5.5rem / 5rem overflowed the table by ten pixels and
+          the drawer grew a horizontal scrollbar (owner: 需要优化自适应列宽).
+          6.5rem and 6rem hold both with the cell's own padding. */}
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
             <TableHead>{T.colPoint}</TableHead>
-            <TableHead className="w-[5.5rem]">{T.colLevel}</TableHead>
-            <TableHead className="w-[5rem] text-center">{ROLE_TEXT.detailsColHeld}</TableHead>
+            <TableHead className="w-[6.5rem]">{T.colLevel}</TableHead>
+            <TableHead className="w-[6rem] text-center">{ROLE_TEXT.detailsColHeld}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -1,41 +1,49 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, Drawer, EmptyState, SegmentedControl } from "@vxture/design-ui";
+import { Button, Drawer, EmptyState } from "@vxture/design-ui";
+import { useRouter } from "next/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { buildPermissionTree } from "../lib/permission-tree";
-import { PermissionTreeTable } from "./permission-tree";
+import { PermissionTreeTable, type PermissionView } from "./permission-tree";
 
 /* 权限详情 - one role's permissions as the four-level tree, in a drawer
- * (owner, 2026-09-09: 点击操作/权限详情，抽屉模式展示树状权限清单).
+ * (owner, 2026-09-09: 点击角色名，抽屉模式展示树状权限清单; 按表格模式优化，能
+ * 操作树展开收起).
  *
  * THE ROSTER DOES NOT LIST GRANTS (owner: 不显示所有权限名称). It gives a
  * sentence and a count; the tree is here, one click away, and it is the SAME
  * tree /admin/permissions draws for every role at once - built off the action
  * catalogue, never typed in - read for one role. What the reader usually
  * wants is "what can this role do", so the table opens pruned to what it can
- * and one switch shows everything. The tree is a TABLE with the full
- * page's chevrons and expand-to buttons (owner: 按表格模式优化，能操作树展开
- * 收起), and the NAME in the roster opens it - a role's name is a question
- * about what it may do, and this is the answer; editing is the row menu's
- * 配置.
+ * and the switch on the toolbar shows everything.
+ *
+ * THE FOOT CARRIES 编辑 BESIDE 关闭 (owner: 在底部关闭位置需要一个编辑按钮，跳转
+ * 编辑界面，需权限), for a reader who may: looking at what a role does is how
+ * somebody decides to change it. The edit page is told it was reached from
+ * here, and comes back to this drawer, open on the same role, when it is
+ * saved or discarded - see RolePanel for the state that makes that possible.
  */
 export function RolePermissionsDrawer({
   role,
   total,
   open,
   onClose,
+  editHref,
 }: {
   readonly role: { readonly name: string; readonly permissions: readonly string[] } | null;
   /** How many permissions the catalogue has - the denominator. */
   readonly total: number;
   readonly open: boolean;
   readonly onClose: () => void;
+  /** Where 编辑 goes; absent for a reader who may not edit. */
+  readonly editHref: string | null;
 }) {
   const { ROLE_TEXT } = useMessages();
+  const router = useRouter();
   const tree = useMemo(() => buildPermissionTree(), []);
   const held = useMemo(() => new Set(role?.permissions ?? []), [role]);
-  const [view, setView] = useState<"granted" | "all">("granted");
+  const [view, setView] = useState<PermissionView>("granted");
 
   return (
     <Drawer
@@ -46,29 +54,19 @@ export function RolePermissionsDrawer({
       description={role ? ROLE_TEXT.detailsWhy(role.permissions.length, total) : ""}
       closeLabel={ROLE_TEXT.detailsDone}
       footer={
-        <div className="flex justify-end">
-          <Button onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
+        <div className="gap-sm flex items-center justify-end">
+          <Button variant="secondary" onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
+          {editHref ? (
+            <Button onClick={() => router.push(editHref)}>{ROLE_TEXT.detailsEdit}</Button>
+          ) : null}
         </div>
       }
     >
-      <div className="gap-md flex flex-col">
-        {held.size === 0 ? (
-          <EmptyState title={ROLE_TEXT.pickEmpty} description={ROLE_TEXT.detailsEmpty} />
-        ) : (
-          <>
-            <SegmentedControl<"granted" | "all">
-              value={view}
-              onChange={setView}
-              ariaLabel={ROLE_TEXT.details}
-              items={[
-                { value: "granted", label: ROLE_TEXT.detailsOnlyGranted },
-                { value: "all", label: ROLE_TEXT.detailsAll },
-              ]}
-            />
-            <PermissionTreeTable tree={tree} held={held} onlyGranted={view === "granted"} />
-          </>
-        )}
-      </div>
+      {held.size === 0 ? (
+        <EmptyState title={ROLE_TEXT.pickEmpty} description={ROLE_TEXT.detailsEmpty} />
+      ) : (
+        <PermissionTreeTable tree={tree} held={held} view={view} onViewChange={setView} />
+      )}
     </Drawer>
   );
 }

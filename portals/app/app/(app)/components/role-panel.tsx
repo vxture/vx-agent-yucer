@@ -1,8 +1,8 @@
 "use client";
 
 import { DataTable, EmptyState, Section, StatusBadge, TableTitleCell, useToast } from "@vxture/design-ui";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -53,8 +53,25 @@ export function RolePanel({
 }) {
   const { DATA_TABLE_LABELS, ROLE_ERROR, ROLE_TEXT } = useMessages();
   const router = useRouter();
+  const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
-  const [details, setDetails] = useState<RoleRow | null>(null);
+  /* WHICH ROLE THE DRAWER SHOWS IS IN THE URL (`?details=<code>`), not in
+     component state (owner, 2026-09-09: 保持侧边栏抽屉打开状态). So it survives
+     the refresh every row move causes, a reload, and the round trip through
+     the edit page - 编辑 in the drawer's foot goes there and 保存 / 放弃 come
+     back to this address, drawer open on the same role, now showing what
+     was changed. A code the list no longer has reads as closed. */
+  const details = useMemo(() => {
+    const code = params.get("details");
+    return code ? (rows.find((r) => r.code === code) ?? null) : null;
+  }, [params, rows]);
+  const setDetails = (r: RoleRow | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (r) next.set("details", r.code);
+    else next.delete("details");
+    const qs = next.toString();
+    router.replace(qs ? `/admin/roles?${qs}` : "/admin/roles", { scroll: false });
+  };
   const [pending, start] = useTransition();
   const { toast } = useToast();
   const move = (code: string, direction: MoveDirection) =>
@@ -215,6 +232,8 @@ export function RolePanel({
         total={total}
         open={details !== null}
         onClose={() => setDetails(null)}
+        /* `from=details` is how the edit page knows to come back here. */
+        editHref={editable && details ? `/admin/roles/${details.id}?from=details` : null}
       />
     </Section>
   );
