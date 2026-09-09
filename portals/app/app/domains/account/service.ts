@@ -14,6 +14,7 @@ import { isProvince } from "../shared/provinces";
 import {
   MARKET_SCOPES,
   provinceFrame,
+  CODE_BODY,
   scopeOpen,
   scopePrefix,
   type DivisionTemplate,
@@ -171,15 +172,25 @@ export async function saveMarketDivision(
   const name = input.name.trim();
   if (!code) return fail(violation("code_required", "a division needs a code", "code"));
   if (!name) return fail(violation("name_required", "a division needs a name", "name"));
-  /* THE CODE CARRIES THE FRAME (incr/0043). The form composes it from the
-     frame's prefix, so a person never types this wrong; an import can, and
+  /* THE CODE'S SHAPE IS THE FRAME'S (incr/0043, 0048). A national code
+     carries CHINA-; a province code carries no prefix at all - the province
+     is its own column - and is an adcode or a word. The form composes it, so
+     a person never types this wrong; an import can, and
      chk_market_division_code_frame would refuse it with a constraint name.
      Said here in the product's own words first. */
   const scope = await ctx.store.getMarketScope(ctx.workspaceId);
-  if (!code.startsWith(scopePrefix(scope))) {
+  const prefix = scopePrefix(scope);
+  if (!code.startsWith(prefix)) {
     return fail(violation(
       "code_prefix",
-      `${code} does not carry the ${scope.kind} frame's prefix ${scopePrefix(scope)}`,
+      `${code} does not carry the ${scope.kind} frame's prefix ${prefix}`,
+      "code",
+    ));
+  }
+  if (!CODE_BODY.test(code.slice(prefix.length))) {
+    return fail(violation(
+      "code_shape",
+      `${code}: after the prefix a code is letters, digits and underscores, and under a province frame it carries no prefix`,
       "code",
     ));
   }

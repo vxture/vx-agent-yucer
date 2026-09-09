@@ -156,6 +156,42 @@ test("a code that does not carry its frame is refused by the database", { skip }
         `${code} in a ${scope} frame`,
       );
     }
+    /* 0048: a province code carries NO prefix, and the province is a column
+       that must be there - and only there. */
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_core.market_division (workspace_id, division_code, name, scope, scope_province)
+         VALUES ($1, 'SN-GUANZHONG', 'x', 'province', 'SN')`,
+        [WS],
+      ),
+      /chk_market_division_code_frame/,
+      "a prefixed province code",
+    );
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_core.market_division (workspace_id, division_code, name, scope)
+         VALUES ($1, '610100', 'x', 'province')`,
+        [WS],
+      ),
+      /chk_market_division_frame_province/,
+      "a province row has to name its province",
+    );
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_core.market_division (workspace_id, division_code, name, scope, scope_province)
+         VALUES ($1, 'CHINA-X', 'x', 'china', 'SN')`,
+        [WS],
+      ),
+      /chk_market_division_frame_province/,
+      "a china row names no province",
+    );
+    // And the same word may live under two frames: the key is per frame.
+    await c.query(
+      `INSERT INTO yucer_core.market_division (workspace_id, division_code, name, scope, scope_province)
+       VALUES ($1, 'GUANZHONG', 'x', 'province', 'SN'), ($1, 'GUANZHONG', 'y', 'province', 'GD')`,
+      [WS],
+    );
+    await c.query(`DELETE FROM yucer_core.market_division WHERE workspace_id = $1 AND scope = 'province'`, [WS]);
     // And the frame row pairs its kind with its code, both ways.
     await assert.rejects(
       c.query(`INSERT INTO yucer_core.market_scope (workspace_id, scope_kind) VALUES ($1, 'province')`, [WS]),

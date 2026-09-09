@@ -8,7 +8,6 @@ import {
   frameMembers,
   isPseudoCity,
   provinceFrame,
-  scopePrefix,
   type DivisionTemplate,
   type MarketMember,
   type MarketScope,
@@ -97,9 +96,15 @@ export class PrismaAccountStore implements AccountStore {
        CHECKs that the code carries that frame's prefix. */
     const scope = await this.getMarketScope(workspaceId);
     const row = await p.marketDivision.upsert({
-      where: { workspaceId_divisionCode: { workspaceId, divisionCode: input.code } },
+      where: {
+        workspaceId_scope_scopeProvince_divisionCode: {
+          workspaceId, scope: scope.kind, scopeProvince: scope.kind === "province" ? scope.code ?? "" : "",
+          divisionCode: input.code,
+        },
+      },
       create: {
         workspaceId, divisionCode: input.code, name: input.name, scope: scope.kind,
+        scopeProvince: scope.kind === "province" ? scope.code ?? "" : "",
         sortOrder: input.sortOrder ?? 0,
       },
       update: {
@@ -112,6 +117,7 @@ export class PrismaAccountStore implements AccountStore {
     return {
       id: row.id, code: row.divisionCode, name: row.name, sortOrder: row.sortOrder,
       scope: row.scope as MarketScope["kind"],
+      scopeProvince: row.scopeProvince || null,
       members: membersOf(row),
     };
   }
@@ -264,9 +270,9 @@ export class PrismaAccountStore implements AccountStore {
     const scope = await this.getMarketScope(workspaceId);
     const rows = await p.marketDivision.findMany({
       // BY FRAME - a carve made under another frame stays out of this roster.
-      // The prefix as well as the kind: 陕西's carve and 广东's are both
-      // `province`, and only the code tells them apart.
-      where: { workspaceId, scope: scope.kind, divisionCode: { startsWith: scopePrefix(scope) } },
+      // The province as well as the kind (0048): 陕西's carve and 广东's are
+      // both `province`.
+      where: { workspaceId, scope: scope.kind, scopeProvince: scope.kind === "province" ? scope.code ?? "" : "" },
       // The workspace's OWN order, then name - a tenant that re-orders its
       // divisions expects the menu and the breadcrumb to follow.
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -277,6 +283,7 @@ export class PrismaAccountStore implements AccountStore {
       code: d.divisionCode,
       name: d.name,
       scope: d.scope as MarketScope["kind"],
+      scopeProvince: d.scopeProvince || null,
       sortOrder: d.sortOrder,
       members: membersOf(d),
     }));

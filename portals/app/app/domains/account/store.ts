@@ -13,7 +13,6 @@ import {
   MARKET_DIVISION_PROVINCES,
   DIVISION_TEMPLATES,
   frameMembers,
-  scopePrefix,
   templatesFor,
   type DivisionTemplate,
   type MarketMember,
@@ -168,8 +167,10 @@ export interface MarketDivisionRecord {
   id: string;
   code: string;
   name: string;
-  /** The frame it was carved in (incr/0043). Its code carries the prefix. */
+  /** The frame it was carved in (incr/0043), and for a province frame which
+   *  province (0048) - the letters that used to prefix the code. */
   scope: MarketScope["kind"];
+  scopeProvince: string | null;
   sortOrder: number;
   /** What it holds - provinces under 中国市场, cities under 省级市场 - in no
    *  particular order. `key` is the stored identity, `label` the printed one. */
@@ -376,15 +377,28 @@ export class InMemoryAccountStore implements AccountStore {
 
   /* The tenant's own divisions, over the preset. Same shape as divisionMoves:
      an empty map means "the preset, unchanged". */
+  /* KEYED BY FRAME AND CODE (0048): a province code carries no prefix, so
+     GUANZHONG under 陕西 and a GUANZHONG a tenant typed under 中国市场 are two
+     rows, the way (workspace_id, scope, scope_province, division_code) is
+     the database's key. */
   private divisionEdits = new Map<string, Map<string, { name: string; sortOrder: number } | null>>();
 
-  private divisionsFor(workspaceId: string): { code: string; name: string; sortOrder: number }[] {
+  private static frameKey(scope: MarketScope): string {
+    return `${scope.kind}:${scope.code ?? ""}`;
+  }
+
+  private divisionsFor(workspaceId: string, scope: MarketScope): { code: string; name: string; sortOrder: number }[] {
+    const frame = InMemoryAccountStore.frameKey(scope);
     const edits = this.divisionEdits.get(workspaceId) ?? new Map();
     const out = new Map<string, { code: string; name: string; sortOrder: number }>();
-    for (const d of MARKET_DIVISIONS) {
-      out.set(d.code, { code: d.code, name: d.name, sortOrder: d.sortOrder });
+    if (scope.kind === "china") {
+      for (const d of MARKET_DIVISIONS) {
+        out.set(d.code, { code: d.code, name: d.name, sortOrder: d.sortOrder });
+      }
     }
-    for (const [code, edit] of edits) {
+    for (const [key, edit] of edits) {
+      if (!key.startsWith(`${frame}|`)) continue;
+      const code = key.slice(frame.length + 1);
       if (edit === null) out.delete(code);
       else out.set(code, { code, name: edit.name, sortOrder: edit.sortOrder });
     }
@@ -395,22 +409,25 @@ export class InMemoryAccountStore implements AccountStore {
     workspaceId: string,
     input: { code: string; name: string; sortOrder?: number },
   ): Promise<MarketDivisionRecord> {
+    const scope = await this.getMarketScope(workspaceId);
     let ws = this.divisionEdits.get(workspaceId);
     if (!ws) { ws = new Map(); this.divisionEdits.set(workspaceId, ws); }
-    const existing = this.divisionsFor(workspaceId).find((d) => d.code === input.code);
-    ws.set(input.code, {
+    const mine = this.divisionsFor(workspaceId, scope);
+    const existing = mine.find((d) => d.code === input.code);
+    ws.set(`${InMemoryAccountStore.frameKey(scope)}|${input.code}`, {
       name: input.name,
-      sortOrder: input.sortOrder ?? existing?.sortOrder ?? this.divisionsFor(workspaceId).length + 1,
+      sortOrder: input.sortOrder ?? existing?.sortOrder ?? mine.length + 1,
     });
     const rows = await this.listMarketDivisions(workspaceId);
     return rows.find((d) => d.code === input.code)!;
   }
 
   async removeMarketDivision(workspaceId: string, code: string): Promise<boolean> {
-    if (!this.divisionsFor(workspaceId).some((d) => d.code === code)) return false;
+    const scope = await this.getMarketScope(workspaceId);
+    if (!this.divisionsFor(workspaceId, scope).some((d) => d.code === code)) return false;
     let ws = this.divisionEdits.get(workspaceId);
     if (!ws) { ws = new Map(); this.divisionEdits.set(workspaceId, ws); }
-    ws.set(code, null);
+    ws.set(`${InMemoryAccountStore.frameKey(scope)}|${code}`, null);
     return true;
   }
 
@@ -428,7 +445,8 @@ export class InMemoryAccountStore implements AccountStore {
     memberKey: string,
     divisionCode: string | null,
   ): Promise<boolean> {
-    if (divisionCode !== null && !this.divisionsFor(workspaceId).some((d) => d.code === divisionCode)) {
+    const scope = await this.getMarketScope(workspaceId);
+    if (divisionCode !== null && !this.divisionsFor(workspaceId, scope).some((d) => d.code === divisionCode)) {
       return false;
     }
     let ws = this.divisionMoves.get(workspaceId);
@@ -447,21 +465,20 @@ export class InMemoryAccountStore implements AccountStore {
       if (code === null) placement.delete(member);
       else placement.set(member, code);
     }
-    /* BY FRAME: the preset is a china carve, and so is anything a tenant adds
-       through the form, since the form composes the code from the frame's
-       prefix. A row whose prefix is not this frame's belongs to a carve made
-       under another frame and stays out of this list - and so do its members,
-       since a member follows its division. Labels come from the frame's own
-       ground; a key it does not know (a province placed while the frame was
-       china, read back under 陕西) is not a member here. */
+    /* BY FRAME: the preset is a china carve, and a tenant's own rows are
+       keyed by the frame they were carved in. A carve made under another
+       frame stays out of this list - and so do its members, since a member
+       follows its division. Labels come from the frame's own ground; a key
+       it does not know (a province placed while the frame was china, read
+       back under 陕西) is not a member here. */
     const scope = await this.getMarketScope(workspaceId);
-    const prefix = scopePrefix(scope);
     const label = new Map(frameMembers(scope).map((m) => [m.key, m.label]));
-    return this.divisionsFor(workspaceId).filter((d) => d.code.startsWith(prefix)).map((d) => ({
-      id: `div_${d.code}`,
+    return this.divisionsFor(workspaceId, scope).map((d) => ({
+      id: `div_${InMemoryAccountStore.frameKey(scope)}|${d.code}`,
       code: d.code,
       name: d.name,
       scope: scope.kind,
+      scopeProvince: scope.kind === "province" ? scope.code : null,
       sortOrder: d.sortOrder,
       members: [...placement.entries()]
         .filter(([key, code]) => code === d.code && label.has(key))

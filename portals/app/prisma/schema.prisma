@@ -1177,6 +1177,10 @@ model MarketDivision {
   /// incr/0043. The frame this division was carved in: global | china |
   /// province. Not updatable - its members are level-bound to the frame.
   scope        String   @default("china") @db.VarChar(16)
+  /// incr/0048. The province's two letters for a province frame, '' for the
+  /// other two - the letters that used to prefix the code. Empty string, not
+  /// null, so it can sit inside the unique key.
+  scopeProvince String  @default("") @map("scope_province") @db.VarChar(8)
   sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -1184,7 +1188,7 @@ model MarketDivision {
   provinces MarketDivisionProvince[]
   members   MarketDivisionMember[]
 
-  @@unique([workspaceId, divisionCode], map: "uidx_market_division_code")
+  @@unique([workspaceId, scope, scopeProvince, divisionCode], map: "uidx_market_division_code")
   @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")
   @@map("market_division")
   @@schema("yucer_core")

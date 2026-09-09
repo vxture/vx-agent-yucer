@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import {
   DIVISION_TEMPLATES,
+  CODE_BODY,
   frameMembers,
   isPseudoCity,
   isSystemDivision,
@@ -11,6 +12,7 @@ import {
   MARKET_DIVISION_PROVINCES,
   PROVINCE_FRAMES,
   scopeOpen,
+  scopePrefix,
   templatesFor,
 } from "./market-division";
 import { ALL_PROVINCES } from "./provinces";
@@ -148,15 +150,16 @@ test("系统 or 自定义 is derived, and flips the moment a tenant changes anyt
 });
 
 test("every shipped code carries its frame, in the shape the database CHECKs", () => {
-  // chk_market_division_code_frame (0046): ^[A-Z]{2,8}-[A-Z0-9][A-Z0-9_]*$ and
-  // a china code starts with CHINA-, a province code with the province's
-  // letters. A template that shipped `east` would import a workspace straight
-  // into a row the database refuses.
+  // chk_market_division_code_frame (0048): a china code is CHINA-<body>; a
+  // province code is a bare <body> - an adcode or the region's own word, no
+  // province prefix (owner: 不要 SN- 前缀). A template that shipped `east`
+  // would import a workspace straight into a row the database refuses.
   for (const t of DIVISION_TEMPLATES) {
-    const prefix = t.scope === "china" ? "CHINA-" : `${t.province}-`;
+    const prefix = scopePrefix({ kind: t.scope, code: t.province });
     for (const d of t.divisions) {
-      assert.match(d.code, /^[A-Z]{2,8}-[A-Z0-9][A-Z0-9_]*$/, `${t.key}: ${d.code}`);
-      assert.ok(d.code.startsWith(prefix), `${t.key}: ${d.code} must start with ${prefix}`);
+      assert.ok(d.code.startsWith(prefix), `${t.key}: ${d.code} must start with "${prefix}"`);
+      assert.match(d.code.slice(prefix.length), CODE_BODY, `${t.key}: ${d.code}`);
+      if (t.scope === "province") assert.ok(!d.code.includes("-"), `${t.key}: ${d.code} carries a prefix`);
     }
   }
 });
@@ -240,18 +243,18 @@ test("a frame is offered only its own carves", () => {
   const three = DIVISION_TEMPLATES.find((t) => t.key === "shaanxi-three")!;
   assert.deepEqual(three.divisions.map((d) => d.name), ["关中", "陕北", "陕南"]);
   const by = (code: string) => Object.entries(three.members).filter(([, c]) => c === code).map(([k]) => k);
-  assert.deepEqual(by("SN-SHAANBEI").sort(), ["610600", "610800"], "延安 榆林");
-  assert.deepEqual(by("SN-SHAANNAN").sort(), ["610700", "610900", "611000"], "汉中 安康 商洛");
-  assert.equal(by("SN-GUANZHONG").length, 5);
+  assert.deepEqual(by("SHAANBEI").sort(), ["610600", "610800"], "延安 榆林");
+  assert.deepEqual(by("SHAANNAN").sort(), ["610700", "610900", "611000"], "汉中 安康 商洛");
+  assert.equal(by("GUANZHONG").length, 5);
   // 各市独立: ten cities, ten regions, each holding exactly its own city, in
   // GB/T 2260 order, coded by ADCODE - the shape 0046 CHECKs.
   const units = DIVISION_TEMPLATES.find((t) => t.key === "sn-units")!;
   assert.equal(units.divisions.length, 10);
   assert.deepEqual(units.divisions.slice(0, 2), [
-    { code: "SN-610100", name: "西安", sortOrder: 1 },
-    { code: "SN-610200", name: "铜川", sortOrder: 2 },
+    { code: "610100", name: "西安", sortOrder: 1 },
+    { code: "610200", name: "铜川", sortOrder: 2 },
   ]);
-  assert.equal(units.members["610100"], "SN-610100");
+  assert.equal(units.members["610100"], "610100");
   assert.equal(new Set(Object.values(units.members)).size, 10, "no two cities share a region");
 });
 

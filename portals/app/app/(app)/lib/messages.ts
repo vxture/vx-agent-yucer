@@ -2370,6 +2370,7 @@ export const TERRITORY_ERROR: Record<string, string> = {
   scope_province_not_open: "这个省还没开放省级市场",
   member_unknown: "成员必须在当前市场范围之内，请从列表中选择",
   code_prefix: "区域代码必须带当前市场范围的前缀",
+  code_shape: "区域代码只能是字母、数字和下划线；省级市场下不带前缀",
   move_at_edge: "已经在这一端了",
   not_movable: "这一条不能移动",
   not_found: "这个区域不存在，或不属于当前工作区",
@@ -3388,6 +3389,8 @@ export const PLANNING_TEXT = {
   divisionListMeta: (includes: string, n: number, noun: string) => `${includes} · ${n} 个${noun}`,
   divisionPickEmptyWhy: (noun: string) => `用左侧「选择${noun}」加入，或引用系统配置。`,
   divisionCodePrefixHint: "前缀由市场范围决定，只填后半段，如 EAST。",
+  // 省级市场下不带前缀：行政区划代码按国标裸用，或自定义一个词。
+  divisionCodeUnitHint: "填行政区划代码（如 610100）或自定义代码（如 GUANZHONG），不带省份前缀。",
   divisionMovedTitle: (n: number, noun: string) => `${n} 个${noun}将从其他区域迁入`,
   divisionMovedWhy: "保存后它们会离开原区域。原区域的汇总口径随之变化。",
   divisionSaveFailed: "保存失败",

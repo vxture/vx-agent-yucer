@@ -40,15 +40,15 @@ async function seed(c: Client): Promise<{ guanzhong: string; shaanbei: string }>
     [WS],
   );
   const ids: Record<string, string> = {};
-  for (const [code, name, ord] of [["SN-GUANZHONG", "关中", 1], ["SN-SHAANBEI", "陕北", 2]] as const) {
+  for (const [code, name, ord] of [["GUANZHONG", "关中", 1], ["SHAANBEI", "陕北", 2]] as const) {
     const r = await c.query(
-      `INSERT INTO yucer_core.market_division (workspace_id, division_code, name, scope, sort_order)
-       VALUES ($1,$2,$3,'province',$4) RETURNING id`,
+      `INSERT INTO yucer_core.market_division (workspace_id, division_code, name, scope, scope_province, sort_order)
+       VALUES ($1,$2,$3,'province','SN',$4) RETURNING id`,
       [WS, code, name, ord],
     );
     ids[code] = r.rows[0].id;
   }
-  return { guanzhong: ids["SN-GUANZHONG"]!, shaanbei: ids["SN-SHAANBEI"]! };
+  return { guanzhong: ids["GUANZHONG"]!, shaanbei: ids["SHAANBEI"]! };
 }
 
 const place = (c: Client, level: number, code: string, divisionId: string) =>
@@ -75,7 +75,7 @@ test("a city sits in at most one region - the primary key", { skip }, async () =
         WHERE m.workspace_id = $1`,
       [WS],
     );
-    assert.deepEqual(r.rows.map((x) => x.division_code), ["SN-SHAANBEI"]);
+    assert.deepEqual(r.rows.map((x) => x.division_code), ["SHAANBEI"]);
   });
 });
 

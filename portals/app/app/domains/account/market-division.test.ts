@@ -172,7 +172,9 @@ test("a code has to carry the frame's prefix, and the form never lets it not", a
   assert.equal(r.ok === false && r.violations[0].code, "code_prefix");
   assert.equal(divisionCode({ kind: "china", code: null }, "xin jiang"), "CHINA-XIN_JIANG");
   assert.equal(localCode({ kind: "china", code: null }, "CHINA-EAST"), "EAST");
-  assert.equal(scopePrefix({ kind: "province", code: "GD" }), "GD-");
+  // No prefix under a province frame (0048): the province is its own column.
+  assert.equal(scopePrefix({ kind: "province", code: "GD" }), "");
+  assert.equal(divisionCode({ kind: "province", code: "SN" }, "guan zhong"), "GUAN_ZHONG");
 });
 
 test("中国市场 and 陕西 are open; 全球市场 and every other province are not, and the rule says so", async () => {
@@ -209,13 +211,14 @@ test("under 陕西 a region holds cities, the roster is 陕西's own, and the ch
   // Nothing carved yet in this frame - the five china divisions are not shown.
   assert.deepEqual(unwrap(await listMarketDivisions(ctxOf(s))), []);
   // A province is not a member here; a city is.
-  const bad = await saveMarketDivision(ctxOf(s), { code: "SN-XIAN", name: "西安", members: ["陕西省"] });
+  const bad = await saveMarketDivision(ctxOf(s), { code: "XIAN", name: "西安", members: ["陕西省"] });
   assert.equal(bad.ok === false && bad.violations[0].code, "member_unknown");
-  const wrongPrefix = await saveMarketDivision(ctxOf(s), { code: "CHINA-XIAN", name: "西安", members: [] });
-  assert.equal(wrongPrefix.ok === false && wrongPrefix.violations[0].code, "code_prefix");
-  unwrap(await saveMarketDivision(ctxOf(s), { code: "SN-XIAN", name: "西安都市圈", members: ["610100", "610400"] }));
+  // A prefix of any kind is refused under a province frame (0048).
+  const prefixed = await saveMarketDivision(ctxOf(s), { code: "SN-XIAN", name: "西安", members: [] });
+  assert.equal(prefixed.ok === false && prefixed.violations[0].code, "code_shape");
+  unwrap(await saveMarketDivision(ctxOf(s), { code: "XIAN", name: "西安都市圈", members: ["610100", "610400"] }));
   const rows = unwrap(await listMarketDivisions(ctxOf(s)));
-  assert.deepEqual(rows.map((d) => d.code), ["SN-XIAN"]);
+  assert.deepEqual(rows.map((d) => [d.code, d.scopeProvince]), [["XIAN", "SN"]]);
   assert.deepEqual(rows[0]!.members.map((m) => m.label).sort(), ["咸阳", "西安"]);
   // Back to china: the five divisions are still there, all 34 still placed.
   unwrap(await setMarketScope(ctxOf(s), { kind: "china", code: null }));
@@ -239,10 +242,10 @@ test("陕西三分法 imports under 陕西 and only there, and places all ten ci
   assert.deepEqual(rows.map((d) => d.name), ["关中", "陕北", "陕南"]);
   assert.equal(rows.flatMap((d) => d.members).length, 10, "every city placed");
   // 陕北 holds 延安 and 榆林 - and it reads as 系统配置 until somebody touches it.
-  const north = rows.find((d) => d.code === "SN-SHAANBEI")!;
+  const north = rows.find((d) => d.code === "SHAANBEI")!;
   assert.deepEqual(north.members.map((m) => m.label).sort(), ["延安", "榆林"]);
   assert.equal(isSystemDivision(unwrap(await listCarves(ctxOf(s))), north.code, north.name, north.members.map((m) => m.key)), true);
-  unwrap(await saveMarketDivision(ctxOf(s), { code: "SN-SHAANBEI", name: north.name, members: ["610600"] }));
+  unwrap(await saveMarketDivision(ctxOf(s), { code: "SHAANBEI", name: north.name, members: ["610600"] }));
   const after = unwrap(await listMarketDivisions(ctxOf(s)));
   assert.equal(after.flatMap((d) => d.members).length, 9, "榆林 is unplaced, not lost");
 });
@@ -285,7 +288,7 @@ test("the order is global and the four moves change it - inside one frame", asyn
   // A move under 陕西 orders 陕西's carve and leaves the china order alone.
   unwrap(await setMarketScope(ctxOf(s), { kind: "province", code: "SN" }));
   unwrap(await importDivisionTemplate(ctxOf(s), "shaanxi-three"));
-  unwrap(await moveMarketDivision(ctxOf(s), { code: "SN-SHAANNAN", direction: "top" }));
+  unwrap(await moveMarketDivision(ctxOf(s), { code: "SHAANNAN", direction: "top" }));
   assert.deepEqual(await names(), ["陕南", "关中", "陕北"]);
   unwrap(await setMarketScope(ctxOf(s), { kind: "china", code: null }));
   assert.deepEqual(await names(), ["东部", "南部", "西部", "北部", "中部"]);

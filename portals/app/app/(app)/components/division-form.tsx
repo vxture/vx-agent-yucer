@@ -195,7 +195,10 @@ export function DivisionForm({
                     The database CHECKs the same composition, so nothing typed
                     here can land a code in the wrong frame. */}
               <InputGroup>
-                <InputGroupAddon align="start">{prefix}</InputGroupAddon>
+                {/* NO ADDON UNDER A PROVINCE FRAME (0048): the province is the
+                    header's business, and the code is the unit's own - 610100, or
+                    a word. */}
+                {prefix ? <InputGroupAddon align="start">{prefix}</InputGroupAddon> : null}
                 <InputGroupInput
                   value={local}
                   onChange={(e) => setLocal(e.target.value.toUpperCase())}
@@ -210,8 +213,10 @@ export function DivisionForm({
                     tells the person what to TYPE (new) or why they cannot. */}
               <FieldDescription>
                 {isNew
-                  ? PLANNING_TEXT.divisionCodePrefixHint
-                  : PLANNING_TEXT.divisionCodeHint}
+                    ? prefix
+                      ? PLANNING_TEXT.divisionCodePrefixHint
+                      : PLANNING_TEXT.divisionCodeUnitHint
+                    : PLANNING_TEXT.divisionCodeHint}
               </FieldDescription>
             </Field>
 

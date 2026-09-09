@@ -37,10 +37,12 @@ import { ALL_PROVINCES, provinceTag, shortProvince } from "./provinces";
  * 第一个省级支持区域，正式的), and the others arrive one increment at a time
  * with their template; 全球市场 is stored, constrained and offered as 未建.
  *
- * THE CODE CARRIES THE FRAME. CHINA-EAST / SN-GUANZHONG, not EAST: a code is
- * what an import matches on, and "EAST" alone cannot tell 华东 from the eastern
- * half of 广东. The database CHECKs that a division's code starts with its
- * frame's prefix; `divisionCode()` is the one place the product composes one.
+ * A NATIONAL CODE CARRIES THE FRAME - CHINA-EAST, not EAST: a code is what an
+ * import matches on, and "EAST" alone cannot tell 华东 from the eastern half
+ * of 广东. A PROVINCE CODE DOES NOT: the province's letters are their own
+ * column (market_division.scope_province, 0048), and the code is the unit's
+ * adcode or the region's own word - GUANZHONG, YUBEI. `divisionCode()` is
+ * the one place the product composes one.
  */
 export type MarketScopeKind = "global" | "china" | "province";
 
@@ -113,6 +115,9 @@ export function isPseudoCity(code: string): boolean {
   return /^\d{2}9000$/.test(code) || MUNICIPAL_FILING_ROWS.has(code);
 }
 
+/* CODED BY THE PROVINCE'S OWN WORD - YUBEI, SUNAN, CHUANNAN - not by a
+   prefix: the province is a column. The word is what people in the province
+   say, so two provinces' "north" never collide (豫北 / 苏北 / 陕北). */
 const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
   /* 陕西三分法 - 关中 / 陕北 / 陕南, the carve every reading of the province
      agrees on. 陕北 is 延安 and 榆林, 陕南 is 汉中 安康 商洛, the five cities
@@ -121,15 +126,15 @@ const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
     key: "shaanxi-three",
     name: "陕西三分法",
     divisions: [
-      { code: "SN-GUANZHONG", name: "关中", sortOrder: 1 },
-      { code: "SN-SHAANBEI", name: "陕北", sortOrder: 2 },
-      { code: "SN-SHAANNAN", name: "陕南", sortOrder: 3 },
+      { code: "GUANZHONG", name: "关中", sortOrder: 1 },
+      { code: "SHAANBEI", name: "陕北", sortOrder: 2 },
+      { code: "SHAANNAN", name: "陕南", sortOrder: 3 },
     ],
     members: {
-      "610100": "SN-GUANZHONG", "610200": "SN-GUANZHONG", "610300": "SN-GUANZHONG",
-      "610400": "SN-GUANZHONG", "610500": "SN-GUANZHONG",
-      "610600": "SN-SHAANBEI", "610800": "SN-SHAANBEI",
-      "610700": "SN-SHAANNAN", "610900": "SN-SHAANNAN", "611000": "SN-SHAANNAN",
+      "610100": "GUANZHONG", "610200": "GUANZHONG", "610300": "GUANZHONG",
+      "610400": "GUANZHONG", "610500": "GUANZHONG",
+      "610600": "SHAANBEI", "610800": "SHAANBEI",
+      "610700": "SHAANNAN", "610900": "SHAANNAN", "611000": "SHAANNAN",
     },
   },
   /* 四川五区 - the province's own 五区协同 (2018): 成都平原 / 川南 / 川东北 /
@@ -138,21 +143,21 @@ const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
     key: "sichuan-five",
     name: "四川五区",
     divisions: [
-      { code: "SC-CHENGDU_PLAIN", name: "成都平原", sortOrder: 1 },
-      { code: "SC-SOUTH", name: "川南", sortOrder: 2 },
-      { code: "SC-NORTHEAST", name: "川东北", sortOrder: 3 },
-      { code: "SC-PANXI", name: "攀西", sortOrder: 4 },
-      { code: "SC-NORTHWEST", name: "川西北", sortOrder: 5 },
+      { code: "CHENGDUPINGYUAN", name: "成都平原", sortOrder: 1 },
+      { code: "CHUANNAN", name: "川南", sortOrder: 2 },
+      { code: "CHUANDONGBEI", name: "川东北", sortOrder: 3 },
+      { code: "PANXI", name: "攀西", sortOrder: 4 },
+      { code: "CHUANXIBEI", name: "川西北", sortOrder: 5 },
     ],
     members: {
-      "510100": "SC-CHENGDU_PLAIN", "510600": "SC-CHENGDU_PLAIN", "510700": "SC-CHENGDU_PLAIN",
-      "510900": "SC-CHENGDU_PLAIN", "511100": "SC-CHENGDU_PLAIN", "511400": "SC-CHENGDU_PLAIN",
-      "511800": "SC-CHENGDU_PLAIN", "512000": "SC-CHENGDU_PLAIN",
-      "510300": "SC-SOUTH", "510500": "SC-SOUTH", "511000": "SC-SOUTH", "511500": "SC-SOUTH",
-      "510800": "SC-NORTHEAST", "511300": "SC-NORTHEAST", "511600": "SC-NORTHEAST",
-      "511700": "SC-NORTHEAST", "511900": "SC-NORTHEAST",
-      "510400": "SC-PANXI", "513400": "SC-PANXI",
-      "513200": "SC-NORTHWEST", "513300": "SC-NORTHWEST",
+      "510100": "CHENGDUPINGYUAN", "510600": "CHENGDUPINGYUAN", "510700": "CHENGDUPINGYUAN",
+      "510900": "CHENGDUPINGYUAN", "511100": "CHENGDUPINGYUAN", "511400": "CHENGDUPINGYUAN",
+      "511800": "CHENGDUPINGYUAN", "512000": "CHENGDUPINGYUAN",
+      "510300": "CHUANNAN", "510500": "CHUANNAN", "511000": "CHUANNAN", "511500": "CHUANNAN",
+      "510800": "CHUANDONGBEI", "511300": "CHUANDONGBEI", "511600": "CHUANDONGBEI",
+      "511700": "CHUANDONGBEI", "511900": "CHUANDONGBEI",
+      "510400": "PANXI", "513400": "PANXI",
+      "513200": "CHUANXIBEI", "513300": "CHUANXIBEI",
     },
   },
   /* 河南五分法 - 豫中 / 豫北 / 豫东 / 豫西 / 豫南. 开封 is filed with 豫中 (the
@@ -162,20 +167,20 @@ const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
     key: "henan-five",
     name: "河南五分法",
     divisions: [
-      { code: "HA-CENTRAL", name: "豫中", sortOrder: 1 },
-      { code: "HA-NORTH", name: "豫北", sortOrder: 2 },
-      { code: "HA-EAST", name: "豫东", sortOrder: 3 },
-      { code: "HA-WEST", name: "豫西", sortOrder: 4 },
-      { code: "HA-SOUTH", name: "豫南", sortOrder: 5 },
+      { code: "YUZHONG", name: "豫中", sortOrder: 1 },
+      { code: "YUBEI", name: "豫北", sortOrder: 2 },
+      { code: "YUDONG", name: "豫东", sortOrder: 3 },
+      { code: "YUXI", name: "豫西", sortOrder: 4 },
+      { code: "YUNAN", name: "豫南", sortOrder: 5 },
     ],
     members: {
-      "410100": "HA-CENTRAL", "410200": "HA-CENTRAL", "410400": "HA-CENTRAL",
-      "411000": "HA-CENTRAL", "411100": "HA-CENTRAL",
-      "410500": "HA-NORTH", "410600": "HA-NORTH", "410700": "HA-NORTH",
-      "410800": "HA-NORTH", "410900": "HA-NORTH",
-      "411400": "HA-EAST", "411600": "HA-EAST",
-      "410300": "HA-WEST", "411200": "HA-WEST",
-      "411300": "HA-SOUTH", "411500": "HA-SOUTH", "411700": "HA-SOUTH",
+      "410100": "YUZHONG", "410200": "YUZHONG", "410400": "YUZHONG",
+      "411000": "YUZHONG", "411100": "YUZHONG",
+      "410500": "YUBEI", "410600": "YUBEI", "410700": "YUBEI",
+      "410800": "YUBEI", "410900": "YUBEI",
+      "411400": "YUDONG", "411600": "YUDONG",
+      "410300": "YUXI", "411200": "YUXI",
+      "411300": "YUNAN", "411500": "YUNAN", "411700": "YUNAN",
     },
   },
   /* 广东四分 - 珠三角 / 粤东 / 粤西 / 粤北, the reading every Guangdong plan
@@ -184,17 +189,17 @@ const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
     key: "guangdong-four",
     name: "广东四分",
     divisions: [
-      { code: "GD-PRD", name: "珠三角", sortOrder: 1 },
-      { code: "GD-EAST", name: "粤东", sortOrder: 2 },
-      { code: "GD-WEST", name: "粤西", sortOrder: 3 },
-      { code: "GD-NORTH", name: "粤北", sortOrder: 4 },
+      { code: "ZHUSANJIAO", name: "珠三角", sortOrder: 1 },
+      { code: "YUEDONG", name: "粤东", sortOrder: 2 },
+      { code: "YUEXI", name: "粤西", sortOrder: 3 },
+      { code: "YUEBEI", name: "粤北", sortOrder: 4 },
     ],
     members: {
-      "440100": "GD-PRD", "440300": "GD-PRD", "440400": "GD-PRD", "440600": "GD-PRD",
-      "441300": "GD-PRD", "441900": "GD-PRD", "442000": "GD-PRD", "440700": "GD-PRD", "441200": "GD-PRD",
-      "440500": "GD-EAST", "441500": "GD-EAST", "445100": "GD-EAST", "445200": "GD-EAST",
-      "440800": "GD-WEST", "440900": "GD-WEST", "441700": "GD-WEST",
-      "440200": "GD-NORTH", "441600": "GD-NORTH", "441400": "GD-NORTH", "441800": "GD-NORTH", "445300": "GD-NORTH",
+      "440100": "ZHUSANJIAO", "440300": "ZHUSANJIAO", "440400": "ZHUSANJIAO", "440600": "ZHUSANJIAO",
+      "441300": "ZHUSANJIAO", "441900": "ZHUSANJIAO", "442000": "ZHUSANJIAO", "440700": "ZHUSANJIAO", "441200": "ZHUSANJIAO",
+      "440500": "YUEDONG", "441500": "YUEDONG", "445100": "YUEDONG", "445200": "YUEDONG",
+      "440800": "YUEXI", "440900": "YUEXI", "441700": "YUEXI",
+      "440200": "YUEBEI", "441600": "YUEBEI", "441400": "YUEBEI", "441800": "YUEBEI", "445300": "YUEBEI",
     },
   },
   /* 江苏三分 - 苏南 / 苏中 / 苏北, the province's own statistical grouping. */
@@ -202,14 +207,14 @@ const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
     key: "jiangsu-three",
     name: "江苏三分",
     divisions: [
-      { code: "JS-SOUTH", name: "苏南", sortOrder: 1 },
-      { code: "JS-CENTRAL", name: "苏中", sortOrder: 2 },
-      { code: "JS-NORTH", name: "苏北", sortOrder: 3 },
+      { code: "SUNAN", name: "苏南", sortOrder: 1 },
+      { code: "SUZHONG", name: "苏中", sortOrder: 2 },
+      { code: "SUBEI", name: "苏北", sortOrder: 3 },
     ],
     members: {
-      "320100": "JS-SOUTH", "320200": "JS-SOUTH", "320400": "JS-SOUTH", "320500": "JS-SOUTH", "321100": "JS-SOUTH",
-      "321000": "JS-CENTRAL", "321200": "JS-CENTRAL", "320600": "JS-CENTRAL",
-      "320300": "JS-NORTH", "320700": "JS-NORTH", "320800": "JS-NORTH", "320900": "JS-NORTH", "321300": "JS-NORTH",
+      "320100": "SUNAN", "320200": "SUNAN", "320400": "SUNAN", "320500": "SUNAN", "321100": "SUNAN",
+      "321000": "SUZHONG", "321200": "SUZHONG", "320600": "SUZHONG",
+      "320300": "SUBEI", "320700": "SUBEI", "320800": "SUBEI", "320900": "SUBEI", "321300": "SUBEI",
     },
   },
   /* 湖南四大板块 - 长株潭 / 洞庭湖 / 湘南 / 大湘西, the province's own. */
@@ -217,16 +222,16 @@ const TRADITIONAL: Readonly<Record<string, ProvinceFrame["traditional"]>> = {
     key: "hunan-four",
     name: "湖南四大板块",
     divisions: [
-      { code: "HN-CZT", name: "长株潭", sortOrder: 1 },
-      { code: "HN-DONGTING", name: "洞庭湖", sortOrder: 2 },
-      { code: "HN-SOUTH", name: "湘南", sortOrder: 3 },
-      { code: "HN-WEST", name: "大湘西", sortOrder: 4 },
+      { code: "CHANGZHUTAN", name: "长株潭", sortOrder: 1 },
+      { code: "DONGTINGHU", name: "洞庭湖", sortOrder: 2 },
+      { code: "XIANGNAN", name: "湘南", sortOrder: 3 },
+      { code: "DAXIANGXI", name: "大湘西", sortOrder: 4 },
     ],
     members: {
-      "430100": "HN-CZT", "430200": "HN-CZT", "430300": "HN-CZT",
-      "430600": "HN-DONGTING", "430700": "HN-DONGTING", "430900": "HN-DONGTING",
-      "430400": "HN-SOUTH", "431000": "HN-SOUTH", "431100": "HN-SOUTH",
-      "430500": "HN-WEST", "431200": "HN-WEST", "431300": "HN-WEST", "430800": "HN-WEST", "433100": "HN-WEST",
+      "430100": "CHANGZHUTAN", "430200": "CHANGZHUTAN", "430300": "CHANGZHUTAN",
+      "430600": "DONGTINGHU", "430700": "DONGTINGHU", "430900": "DONGTINGHU",
+      "430400": "XIANGNAN", "431000": "XIANGNAN", "431100": "XIANGNAN",
+      "430500": "DAXIANGXI", "431200": "DAXIANGXI", "431300": "DAXIANGXI", "430800": "DAXIANGXI", "433100": "DAXIANGXI",
     },
   },
 };
@@ -264,12 +269,22 @@ export function frameMembers(scope: MarketScope): readonly MarketMember[] {
   return [];
 }
 
-/** `CHINA-` / `GLOBAL-` / `GD-` - the prefix every code in this frame carries. */
+/**
+ * `CHINA-` / `GLOBAL-` - the prefix a national or global code carries; NONE
+ * under a province frame (owner, 2026-09-09: 不要 SN- 前缀，这个 SN 可以单列).
+ * There the province's letters are market_division.scope_province, and the
+ * code is the unit's own: an adcode (610100) is a national standard and is
+ * not to be dressed up, and a traditional region is its own word (GUANZHONG).
+ */
 export function scopePrefix(scope: MarketScope): string {
   if (scope.kind === "global") return "GLOBAL-";
   if (scope.kind === "china") return "CHINA-";
-  return `${scope.code ?? ""}-`;
+  return "";
 }
+
+/** The shape every code has after its prefix: `^[A-Z0-9][A-Z0-9_]*$` - what
+ *  chk_market_division_code_frame (0048) CHECKs. */
+export const CODE_BODY = /^[A-Z0-9][A-Z0-9_]*$/;
 
 /** The stored code for what a person typed after the prefix: `east` -> CHINA-EAST. */
 export function divisionCode(scope: MarketScope, local: string): string {
@@ -383,9 +398,10 @@ const SEVEN_PROVINCES: Readonly<Record<string, string>> = {
 /* 各市独立 - one region per unit (owner, 2026-09-09: 省级需要两套，一个是传统
  * 大区分法，一个是各市独立，几个市几个区域). DERIVED from the frame's ground:
  * ten cities make ten regions, in GB/T 2260 order, named by the unit's short
- * name and CODED BY ITS ADCODE - SN-610100. The table carries no romanised
- * city names (0038 refused to fabricate them), and the adcode is the one key
- * anything importing this carve would match on anyway. */
+ * name and CODED BY ITS ADCODE, bare - 610100 (owner: 行政区划代码全国有标准,
+ * 不要 SN- 前缀). The table carries no romanised city names (0038 refused to
+ * fabricate them), and the adcode is the one key anything importing this
+ * carve would match on anyway. */
 function byUnitTemplate(frame: ProvinceFrame): DivisionTemplate {
   return {
     key: `${frame.code.toLowerCase()}-units`,
@@ -393,9 +409,9 @@ function byUnitTemplate(frame: ProvinceFrame): DivisionTemplate {
     scope: "province",
     province: frame.code,
     divisions: frame.units.map((u, i) => ({
-      code: `${frame.code}-${u.code}`, name: u.short, sortOrder: i + 1,
+      code: u.code, name: u.short, sortOrder: i + 1,
     })),
-    members: Object.fromEntries(frame.units.map((u) => [u.code, `${frame.code}-${u.code}`])),
+    members: Object.fromEntries(frame.units.map((u) => [u.code, u.code])),
   };
 }
 
