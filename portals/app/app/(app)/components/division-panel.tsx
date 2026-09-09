@@ -70,6 +70,8 @@ export function DivisionPanel(
     start(async () => {
       const r = await moveDivisionAction(code, direction);
       if (!r.ok) toast({ tone: "danger", title: TERRITORY_ERROR[r.error] ?? r.error });
+      // Read the new order back explicitly - see vocabulary-config.tsx.
+      else router.refresh();
     });
 
   return (

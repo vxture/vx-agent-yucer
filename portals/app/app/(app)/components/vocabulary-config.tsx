@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   DataTable,
@@ -182,12 +183,23 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   const sorted = useTableSort<T>([], { name: (r: T) => r.name, ...sortOn });
   const select = rowClickSelection(rows, (r) => r.id, selected, setSelected);
   const { toast } = useToast();
+  const router = useRouter();
 
+  /* REFRESH EXPLICITLY AFTER A WRITE THAT LANDED (2026-09-09). The action
+     revalidates its path, and the RSC payload that rides back on the action
+     response is what usually re-draws the table - usually. The owner moved
+     four groups and watched nothing happen while the server had re-ordered
+     every one of them: the response stream was cut before the client read
+     it, and the page stayed on what it had. A refresh is one more request
+     and makes the table read what was written, every time. */
   const run = (p: Promise<VocabularyResult>) =>
     start(async () => {
       const r = await p;
       if (!r.ok) toast({ tone: "danger", title: errors[r.error ?? "denied"] ?? r.error ?? "" });
-      else setDialog(null);
+      else {
+        setDialog(null);
+        router.refresh();
+      }
     });
 
   const add = (

@@ -75,10 +75,15 @@ export function RolePanel({
   };
   const [pending, start] = useTransition();
   const { toast } = useToast();
+  /* A move that landed is read back with an explicit refresh - the same
+     reason vocabulary-config.tsx gives: the payload on the action response
+     did not always reach the page, and a re-ordered list nobody could see
+     is a move that "did not work". */
   const move = (code: string, direction: MoveDirection) =>
     start(async () => {
       const r = await moveRoleAction(code, direction);
       if (!r.ok) toast({ tone: "danger", title: ROLE_ERROR[r.error] ?? r.error });
+      else router.refresh();
     });
   /* The hammer, behind the DS's confirm (owner, 2026-09-09: 所有删除、重置、清空
      等危险操作，按区域设置模式弹窗确认). A refusal is shown as a toast and
@@ -91,6 +96,7 @@ export function RolePanel({
       throw new Error(r.error);
     }
     if (details?.code === code) setDetails(null);
+    router.refresh();
   };
 
   return (
