@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
+import { provinceTag } from "../../domains/shared/provinces";
 
 /* 大区与省份 - 展示. DISPLAY ONLY.
  *
@@ -164,10 +165,23 @@ export function DivisionPanel(
             {
               id: "scope",
               header: PLANNING_TEXT.divisionScope,
-              // Listed in full rather than truncated: which provinces a 大区
-              // covers IS the row's content, and a reader checking whether
-              // 江苏 is in it should not have to open anything.
-              cell: (r: DivisionRow) => r.provinces.join(" / "),
+              align: "left",
+              /* TAGS, LAID OUT ACROSS THE ROW (owner, 2026-09-08). It was
+                 "江苏省 / 上海市 / ..." - one string that wrapped mid-name and
+                 gave the eye nothing to land on. Each province is a chip now,
+                 `JS 江苏`, and the row is scanned rather than read.
+                 Listed in FULL rather than truncated: which provinces a region
+                 covers IS the row's content, and a reader checking whether
+                 江苏 is in it should not have to open anything. */
+              cell: (r: DivisionRow) => (
+                <span className="gap-2xs flex flex-wrap">
+                  {r.provinces.map((p) => (
+                    <StatusBadge key={p} tone="neutral">
+                      {provinceTag(p)}
+                    </StatusBadge>
+                  ))}
+                </span>
+              ),
             },
           ]}
         />
@@ -192,7 +206,7 @@ export function DivisionPanel(
             <p className="text-warning text-body-sm">
               {PLANNING_TEXT.divisionUnplaced(unassigned.length)}
             </p>
-            <p className="text-muted-foreground text-body-sm">{unassigned.join(" / ")}</p>
+            <p className="text-muted-foreground text-body-sm">{unassigned.map(provinceTag).join(" · ")}</p>
           </>
         )}
       </div>

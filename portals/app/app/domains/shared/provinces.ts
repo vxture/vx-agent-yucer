@@ -57,3 +57,34 @@ export function shortProvince(province: string): string {
 export function isProvince(value: string): boolean {
   return (ALL_PROVINCES as readonly string[]).includes(value);
 }
+
+/**
+ * 省级行政区的两位字母码 - GB/T 2260 的字母代码，与 ISO 3166-2:CN 同源。
+ *
+ * WHY A CODE AT ALL (owner, 2026-09-08): the tag that stands for a province in
+ * configuration reads `JS 江苏`, not `江苏` alone. The letters are the standard
+ * ones - a workspace that exports its carve, or matches it against anything
+ * else, is matching on these - and two characters of latin ahead of the name
+ * make a wall of 34 tags scannable in a way 34 Chinese words are not.
+ *
+ * NOT INVENTED HERE: the codes are the national standard's own. A house
+ * abbreviation would be a second vocabulary for the same 34 things.
+ */
+export const PROVINCE_CODE: Readonly<Record<string, string>> = {
+  北京市: "BJ", 天津市: "TJ", 河北省: "HE", 山西省: "SX", 内蒙古自治区: "NM",
+  辽宁省: "LN", 吉林省: "JL", 黑龙江省: "HL",
+  上海市: "SH", 江苏省: "JS", 浙江省: "ZJ", 安徽省: "AH", 福建省: "FJ",
+  江西省: "JX", 山东省: "SD",
+  河南省: "HA", 湖北省: "HB", 湖南省: "HN",
+  广东省: "GD", 广西壮族自治区: "GX", 海南省: "HI",
+  重庆市: "CQ", 四川省: "SC", 贵州省: "GZ", 云南省: "YN", 西藏自治区: "XZ",
+  陕西省: "SN", 甘肃省: "GS", 青海省: "QH", 宁夏回族自治区: "NX",
+  新疆维吾尔自治区: "XJ",
+  台湾省: "TW", 香港特别行政区: "HK", 澳门特别行政区: "MO",
+};
+
+/** `JS 江苏` - what a province looks like wherever configuration shows one. */
+export function provinceTag(province: string): string {
+  const code = PROVINCE_CODE[province];
+  return code ? `${code} ${shortProvince(province)}` : shortProvince(province);
+}

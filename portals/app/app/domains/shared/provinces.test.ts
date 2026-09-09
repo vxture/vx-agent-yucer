@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { ALL_PROVINCES, shortProvince } from "./provinces";
+import { ALL_PROVINCES, PROVINCE_CODE, provinceTag, shortProvince } from "./provinces";
 import { CHINA } from "../../(screen)/lib/china-geometry";
 
 // The province vocabulary exists in THREE places and they must agree exactly:
@@ -64,4 +64,20 @@ test("short labels stay unambiguous", () => {
   // draws these, and two provinces sharing a label is a map that lies.
   const shorts = ALL_PROVINCES.map(shortProvince);
   assert.equal(new Set(shorts).size, 34);
+});
+
+test("every province has a distinct two-letter code", () => {
+  // The tag in configuration is `JS 江苏`; a province with no code would silently
+  // render as a bare name beside 33 coded ones, and two provinces sharing a code
+  // would make the tag ambiguous exactly where it is meant to disambiguate.
+  const codes = ALL_PROVINCES.map((p) => PROVINCE_CODE[p]);
+  assert.equal(codes.filter(Boolean).length, 34);
+  assert.equal(new Set(codes).size, 34);
+  for (const c of codes) assert.match(c!, /^[A-Z]{2}$/);
+});
+
+test("the tag is the code and the short name, in that order", () => {
+  assert.equal(provinceTag("江苏省"), "JS 江苏");
+  assert.equal(provinceTag("内蒙古自治区"), "NM 内蒙古");
+  assert.equal(provinceTag("香港特别行政区"), "HK 香港");
 });

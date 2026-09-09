@@ -2,7 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { Button, Drawer, Input, Section, StatusBadge } from "@vxture/design-ui";
+import {
+  Button,
+  Drawer,
+  Field,
+  FieldDescription,
+  FieldLabel,
+  Input,
+  NativeSelect,
+  Section,
+  StatusBadge,
+} from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 
@@ -21,8 +31,9 @@ export interface ProvinceOption {
   readonly province: string;
   /** The 大区 it sits in now, or null. */
   readonly heldBy: string | null;
-  /** 两字简称 - what the map draws and what a reader searches by. */
-  readonly short: string;
+  /** `JS 江苏` - the code and the short name, the one shape a province takes
+   *  in configuration. */
+  readonly tag: string;
   /** Where the five-way carve puts it, and where the seven-way does. */
   readonly five: string;
   readonly seven: string;
@@ -61,8 +72,11 @@ export function DivisionForm(
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
 
-  const shortOf = useMemo(
-    () => new Map(options.map((o) => [o.province, o.short])),
+  /* 省份标签 - `JS 江苏`, the same shape everywhere configuration shows a
+     province (owner, 2026-09-08). The two letters are GB/T 2260's, not a house
+     abbreviation. */
+  const tagOf = useMemo(
+    () => new Map(options.map((o) => [o.province, o.tag])),
     [options],
   );
   /* ORDERED BY THE OPTION LIST, not by the click order: the badges read as a
@@ -78,7 +92,7 @@ export function DivisionForm(
     return options.filter(
       (o) =>
         o.province.includes(q)
-        || o.short.includes(q)
+        || o.tag.toUpperCase().includes(q.toUpperCase())
         || o.five.includes(q)
         || o.seven.includes(q),
     );
@@ -131,99 +145,119 @@ export function DivisionForm(
     <Section title={PLANNING_TEXT.divisionFormTitle}>
       {error ? <p className="text-destructive text-body-sm" role="alert">{error}</p> : null}
 
-      <div className="gap-md flex flex-col">
-        {/* 引用预置. Fills the three fields and leaves them editable - the
-            point is to save typing, not to lock the shape. Only while
-            creating: on an existing division it would silently overwrite
-            whatever the workspace had already decided. */}
-        {isNew && presets.length > 0 ? (
-          <label className="gap-2xs flex flex-col">
-            <span className="text-body-sm font-medium">{PLANNING_TEXT.templateRef}</span>
-            <select
-              className="border-input bg-background h-control-md rounded-sm border px-sm"
+      {/* THE PAGE IS FULL WIDTH; THE CONTROLS ARE NOT (owner, 2026-09-08).
+          A text field stretched across 1400px is harder to read and harder to
+          aim at than one sized to its content, and a code is eight characters
+          - the field should not be able to hold eighty. The grid caps at a
+          reading measure and the page keeps the rest of its width for the
+          province tags below, which actually use it. */}
+      <div className="gap-md flex max-w-(--vx-container-md) flex-col">
+        {/* CODE THEN NAME, ON ONE ROW (owner): the code is the anchor and is
+            typed first; the name is what everyone reads afterwards. Two short
+            fields stacked into two rows made the form look longer than the
+            decision it is asking for. */}
+        <div className="gap-md sm:grid-cols-2 grid grid-cols-1">
+          <Field>
+            <FieldLabel>{PLANNING_TEXT.divisionCode}</FieldLabel>
+            <Input
+              value={codeValue}
+              onChange={(e) => setCode(e.target.value)}
+              /* The anchor. Editable only while creating: every import and
+                 every mapping row keys on it, and a division whose code
+                 changed is a new division wearing an old one's history. */
+              disabled={!isNew || pending}
+            />
+            <FieldDescription>{PLANNING_TEXT.divisionCodeHint}</FieldDescription>
+          </Field>
+
+          <Field>
+            <FieldLabel>{PLANNING_TEXT.divisionNameLabel}</FieldLabel>
+            <Input
+              value={nameValue}
+              onChange={(e) => setName(e.target.value)}
               disabled={pending}
-              defaultValue=""
-              onChange={(e) => {
-                const p = presets.find((x) => `${x.key}:${x.code}` === e.target.value);
-                if (!p) return;
-                setCode(p.code);
-                setName(p.name);
-                setChosen(new Set(p.provinces));
-              }}
-            >
-              <option value="">{PLANNING_TEXT.templateRefNone}</option>
-              {presets.map((p) => (
-                <option key={`${p.key}:${p.code}`} value={`${p.key}:${p.code}`}>
-                  {p.from} · {p.name}
-                </option>
-              ))}
-            </select>
-            <span className="text-muted-foreground text-body-sm">
-              {PLANNING_TEXT.templateRefWhy}
-            </span>
-          </label>
-        ) : null}
+            />
+          </Field>
+        </div>
 
-        <label className="gap-2xs flex flex-col">
-          <span className="text-body-sm font-medium">{PLANNING_TEXT.divisionCode}</span>
-          <input
-            className="border-input bg-background h-control-md rounded-sm border px-sm"
-            value={codeValue}
-            onChange={(e) => setCode(e.target.value)}
-            /* The anchor. Editable only while creating: every import and every
-               mapping row keys on it, and a division whose code changed is a
-               new division wearing an old one's history. */
-            disabled={!isNew || pending}
-          />
-          <span className="text-muted-foreground text-body-sm">
-            {PLANNING_TEXT.divisionCodeHint}
-          </span>
-        </label>
-
-        <label className="gap-2xs flex flex-col">
-          <span className="text-body-sm font-medium">{PLANNING_TEXT.divisionNameLabel}</span>
-          <input
-            className="border-input bg-background h-control-md rounded-sm border px-sm"
-            value={nameValue}
-            onChange={(e) => setName(e.target.value)}
-            disabled={pending}
-          />
-        </label>
-
-        {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page (owner,
-            2026-09-08). The list is long enough that the form's own fields
-            scrolled off before the last province arrived, and choosing
-            provinces is a task with its own tools - search, the short name the
-            map draws, and what each standard carve says - none of which belong
-            in the middle of a two-field form. What stays on the page is the
-            ANSWER: which provinces this 大区 holds. */}
+        {/* 覆盖省份 - TWO SOURCES, side by side, because they answer the same
+            question two ways: take a shipped carve wholesale, or pick the
+            provinces yourself. They were stacked at opposite ends of the form,
+            which read as two unrelated fields. */}
         <div className="gap-2xs flex flex-col">
           <span className="text-body-sm font-medium">
             {PLANNING_TEXT.divisionProvincesLabel}
           </span>
-          <div className="gap-2xs flex flex-wrap items-center">
-            {chosenList.length === 0 ? (
-              <span className="text-muted-foreground text-body-sm">
-                {PLANNING_TEXT.divisionPickEmpty}
-              </span>
-            ) : (
-              chosenList.map((p) => (
-                <StatusBadge key={p} tone="neutral">
-                  {shortOf.get(p) ?? p}
-                </StatusBadge>
-              ))
-            )}
-          </div>
-          <div className="gap-sm mt-xs flex items-center">
-            <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
-              {PLANNING_TEXT.divisionPick}
-            </Button>
-            <span className="text-muted-foreground text-body-sm">
-              {PLANNING_TEXT.divisionChosen(chosenList.length)}
-            </span>
+          <div className="gap-md sm:grid-cols-2 grid grid-cols-1">
+            {/* 引用系统内置. Fills all three fields and leaves them editable -
+                the point is to save typing, not to lock the shape. Only while
+                creating: on an existing division it would silently overwrite
+                what the workspace had already decided. */}
+            {isNew && presets.length > 0 ? (
+              <Field>
+                <FieldLabel>{PLANNING_TEXT.templateRef}</FieldLabel>
+                <NativeSelect
+                  disabled={pending}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const p = presets.find((x) => `${x.key}:${x.code}` === e.target.value);
+                    if (!p) return;
+                    setCode(p.code);
+                    setName(p.name);
+                    setChosen(new Set(p.provinces));
+                  }}
+                >
+                  <option value="">{PLANNING_TEXT.templateRefNone}</option>
+                  {presets.map((p) => (
+                    <option key={`${p.key}:${p.code}`} value={`${p.key}:${p.code}`}>
+                      {p.from} · {p.name}
+                    </option>
+                  ))}
+                </NativeSelect>
+                <FieldDescription>{PLANNING_TEXT.templateRefWhy}</FieldDescription>
+              </Field>
+            ) : null}
+            <Field>
+              {/* NOT 「选择省份」 TWICE: the label names the source, the button
+                  is the door. A field labelled with the same words as the
+                  control inside it says one thing and takes two lines. */}
+              <FieldLabel>{PLANNING_TEXT.divisionPickManual}</FieldLabel>
+              {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page: the
+                  list is long enough that the fields above scrolled away
+                  before the last province arrived, and choosing provinces has
+                  its own tools - search, the letter code, what each shipped
+                  carve says. What stays on the page is the ANSWER. */}
+              <div className="w-fit">
+                <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
+                  {PLANNING_TEXT.divisionPick}
+                </Button>
+              </div>
+              <FieldDescription>
+                {PLANNING_TEXT.divisionChosen(chosenList.length)}
+              </FieldDescription>
+            </Field>
           </div>
         </div>
+      </div>
 
+      {/* THE ANSWER, ACROSS THE FULL WIDTH. Tags wrap; this is the one part of
+          the form that earns the page's width, and capping it at the reading
+          measure above would have wrapped 34 provinces into a narrow column. */}
+      <div className="gap-2xs mt-sm flex flex-wrap items-center">
+        {chosenList.length === 0 ? (
+          <span className="text-muted-foreground text-body-sm">
+            {PLANNING_TEXT.divisionPickEmpty}
+          </span>
+        ) : (
+          chosenList.map((p) => (
+            <StatusBadge key={p} tone="neutral">
+              {tagOf.get(p) ?? p}
+            </StatusBadge>
+          ))
+        )}
+      </div>
+
+      <div className="gap-md flex flex-col">
         <Drawer
           open={picking}
           onClose={() => setPicking(false)}
@@ -269,9 +303,11 @@ export function DivisionForm(
                       checked={chosen.has(o.province)}
                       onChange={() => toggle(o.province)}
                     />
-                    {/* 前缀: the two-character short name, in a fixed-width
-                        column so the full names below it line up. */}
-                    <span className="text-body-sm w-[4ch] shrink-0 font-medium">{o.short}</span>
+                    {/* 前缀: the letter code, in a fixed column so the names
+                        beside it line up down the list. */}
+                    <span className="text-body-sm w-[3ch] shrink-0 font-medium tabular-nums">
+                      {o.tag.slice(0, 2)}
+                    </span>
                     <span className="text-body-sm grow">{o.province}</span>
                     {/* 后缀: what each standard carve says about it. */}
                     <span className="text-muted-foreground text-body-sm shrink-0">

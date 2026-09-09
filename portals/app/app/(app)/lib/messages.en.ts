@@ -2719,6 +2719,7 @@ export const en: Dictionary = {
     divisionNameLabel: "Region name",
     divisionProvincesLabel: "Provinces covered",
     divisionPick: "Choose provinces",
+    divisionPickManual: "Pick them yourself",
     divisionPickTitle: "Choose provinces",
     divisionPickWhy: "Tick provinces. The suffix shows where the two standard carves put each one.",
     divisionPickDone: "Done",

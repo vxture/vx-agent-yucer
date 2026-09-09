@@ -1,4 +1,4 @@
-import { ALL_PROVINCES, shortProvince } from "../../domains/shared/provinces";
+import { ALL_PROVINCES, provinceTag } from "../../domains/shared/provinces";
 import { PRESET_MEMBERSHIP } from "../../domains/shared/market-division";
 import type { ProvinceOption } from "../components/division-form";
 
@@ -16,12 +16,12 @@ export function provinceOptions(
   return ALL_PROVINCES.map((province) => ({
     province,
     heldBy: heldBy.get(province) ?? null,
-    /* TWO CHARACTERS, taken off the short name rather than the full one:
-       蒙 / 黑 style one-character plate codes are unreadable in a list of 34,
-       and 内蒙古自治区 in a fixed prefix column would push every full name out
-       of alignment. The full name sits right beside it, so the prefix only has
-       to be scannable, not sufficient on its own. */
-    short: shortProvince(province).slice(0, 2),
+    /* `JS 江苏` (owner, 2026-09-08). Two LATIN letters, not two Chinese
+       characters: the letters are GB/T 2260's own codes - the thing anyone
+       matching this carve against another system matches on - and a column of
+       latin ahead of the names makes 34 rows scannable in a way 34 Chinese
+       words are not. */
+    tag: provinceTag(province),
     five: PRESET_MEMBERSHIP.five?.[province] ?? "",
     seven: PRESET_MEMBERSHIP.seven?.[province] ?? "",
   }));
