@@ -8,13 +8,13 @@ import {
   FieldLabel,
   Input,
   Section,
-  StatusBadge,
   ViewHeader,
   useToast,
 } from "@vxture/design-ui";
 import { FormFields } from "./form-page";
 import { ageingBands } from "../../domains/delivery/lib/collection-stats";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // 账龄分档 - where this workspace cuts an overdue receivable (incr/0042).
 //
@@ -73,7 +73,7 @@ export function AgeingPolicyConfig({
         icon="clock-counter-clockwise"
         title={AGEING_TEXT.title}
         description={AGEING_TEXT.why}
-        secondary={<StatusBadge tone="neutral">{AGEING_TEXT.bandCount(cutoffs.length + 1)}</StatusBadge>}
+        secondary={<Tag>{AGEING_TEXT.bandCount(cutoffs.length + 1)}</Tag>}
         action={
           canWrite ? (
             <Button onClick={save} disabled={pending || !dirty || !usable}>
@@ -103,9 +103,9 @@ export function AgeingPolicyConfig({
             <div className="gap-sm flex flex-wrap">
               {usable
                 ? ageingBands(parsed).map((b) => (
-                    <StatusBadge key={label(b)} tone="neutral">
+                    <Tag key={label(b)}>
                       {label(b)}
-                    </StatusBadge>
+                    </Tag>
                   ))
                 : <span className="text-body-sm text-muted-foreground">{AGEING_TEXT.previewUnusable}</span>}
             </div>

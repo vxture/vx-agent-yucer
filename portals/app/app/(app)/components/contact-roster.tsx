@@ -10,11 +10,11 @@ import {
   Input,
   NativeSelect,
   Section,
-  StatusBadge,
   TableTitleCell,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // The people inside a customer.
 //
@@ -44,7 +44,7 @@ function ContactStatus({
   // Nothing for the ordinary case: a column of "active" badges is noise that
   // hides the two rows where the status is the point.
   if (status === "active") return null;
-  return <StatusBadge tone="neutral">{labels[status] ?? status}</StatusBadge>;
+  return <Tag>{labels[status] ?? status}</Tag>;
 }
 
 export interface ContactRow {

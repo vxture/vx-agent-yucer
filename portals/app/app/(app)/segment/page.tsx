@@ -13,6 +13,7 @@ import { SegmentRoster, type SegmentRow } from "../components/segment-roster";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { loadFailureText } from "../lib/load-failure";
 import { changeSegmentStatus, deleteSegment, moveSegmentRow } from "../strategy/actions";
+import { Tag } from "../components/tag";
 
 // D1 market segments - a module page since 2026-08-30.
 //
@@ -121,9 +122,9 @@ export default async function SegmentPage() {
               {STRATEGY_TEXT.tagSegmentActive(live.length)}
             </StatusBadge>
             {rows.length > live.length ? (
-              <StatusBadge tone="neutral">
+              <Tag>
                 {STRATEGY_TEXT.tagSegmentShelved(rows.length - live.length)}
-              </StatusBadge>
+              </Tag>
             ) : null}
           </>
         }

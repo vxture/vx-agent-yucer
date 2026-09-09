@@ -4,12 +4,12 @@ import {
   DataTable,
   EmptyState,
   Section,
-  StatusBadge,
   TableTitleCell,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
 import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // The territory roster: who carries which patch of the market.
 //
@@ -112,9 +112,9 @@ export function TerritoryPanel({
               header: PLANNING_TEXT.territoryStatus,
               cell: (r: TerritoryRow) =>
                 r.status === "active" ? null : (
-                  <StatusBadge tone="neutral">
+                  <Tag>
                     {PLANNING_TEXT.territoryRetired}
-                  </StatusBadge>
+                  </Tag>
                 ),
             },
           ]}

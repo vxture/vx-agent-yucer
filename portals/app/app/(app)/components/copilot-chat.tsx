@@ -6,6 +6,7 @@ import { Button, Section, StatusBadge, Textarea } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
 import { explainModelPlaneError } from "../lib/model-plane-error";
+import { Tag } from "./tag";
 // The copilot conversation.
 //
 // The design decision that matters here is what the surface REFUSES to imply.
@@ -163,9 +164,9 @@ export function CopilotChat({
       ) : null}
 
       {outcome && outcome.droppedProposals > 0 ? (
-        <StatusBadge tone="neutral">
+        <Tag>
           {COPILOT_TEXT.droppedProposals(outcome.droppedProposals)}
-        </StatusBadge>
+        </Tag>
       ) : null}
 
       {outcome && outcome.capabilitiesUsed.length > 0 ? (

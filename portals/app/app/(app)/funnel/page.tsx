@@ -9,6 +9,7 @@ import { readFunnel, type StageInput } from "../../domains/shared/funnel";
 import type { FunnelStage } from "../../domains/shared/funnel-exit";
 import { ModuleHeadline } from "../components/module-headline";
 import { FunnelOverview } from "../components/funnel-overview";
+import { Tag } from "../components/tag";
 
 // 漏斗总览 - the whole chain in one reading (design_yucer_110 batch E).
 //
@@ -141,12 +142,12 @@ export default async function FunnelPage() {
                 every funnel - one of them always loses most - and colouring it
                 as an alarm would make the page shout on every visit. */}
             {reading.biggestLeak ? (
-              <StatusBadge tone="neutral">
+              <Tag>
                 {FUNNEL_TEXT.tagLeak(
                   FUNNEL_TEXT.stage[reading.biggestLeak.stage] ?? reading.biggestLeak.stage,
                   reading.biggestLeak.exited,
                 )}
-              </StatusBadge>
+              </Tag>
             ) : null}
           </>
         }

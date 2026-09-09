@@ -15,7 +15,6 @@ import {
   ShellHeader,
   ShellPageContainer,
   ShellViewport,
-  StatusBadge,
 } from "@vxture/design-ui";
 import {
   LOCALE_CONFIGS,
@@ -37,6 +36,7 @@ import type { BoardModuleCard, BoardSection } from "../lib/board";
 // resolved to - so it reads the dictionary rather than one locale's copy of it.
 import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
+import { Tag } from "./tag";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -422,11 +422,11 @@ export function AppShell({
                 bolted onto an English identifier was neither - and absent
                 entirely in production. */}
               {isProduction ? null : (
-                <StatusBadge tone={tier ? "brand" : "neutral"}>
+                <Tag tone={tier ? "brand" : "neutral"}>
                   {tier
                     ? HEADER_TEXT.subscription(tier)
                     : HEADER_TEXT.subscriptionNone}
-                </StatusBadge>
+                </Tag>
               )}
 
               {/* (6) The rule. It separates identity from scope: everything to

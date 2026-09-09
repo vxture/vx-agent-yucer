@@ -61,7 +61,8 @@ export function IndustryConfig({
           sortable: true,
           header: INDUSTRY_TEXT.colFiled,
           width: "sm",
-          align: "numeric",
+          // A short count: centred by default, not padded into a numeric block.
+          
           cell: (r) => <span className="tabular-nums">{usage[r.id] ?? 0}</span>,
         },
       ]}

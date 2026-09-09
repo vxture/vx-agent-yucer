@@ -3,6 +3,7 @@
 import { DataTable, StatusBadge, TableTitleCell } from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 /* 数据范围 - which rows each member may see (incr/0022).
  *
@@ -72,9 +73,9 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
             header: ADMIN_PAGE_TEXT.scopeColumnScope,
             sortable: true,
             cell: (r: ScopeRow) => (
-              <StatusBadge tone={r.scope === "workspace" ? "info" : "neutral"}>
+              <Tag tone={r.scope === "workspace" ? "info" : "neutral"}>
                 {SCOPE_LABEL[r.scope] ?? r.scope}
-              </StatusBadge>
+              </Tag>
             ),
           },
           {
@@ -84,7 +85,7 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
                configuration nobody intends and nothing else reports. It reads
                as a warning rather than as an empty cell. */
             cell: (r: ScopeRow) => {
-              if (!r.active) return <StatusBadge tone="neutral">{MEMBER_TEXT.inactive}</StatusBadge>;
+              if (!r.active) return <Tag>{MEMBER_TEXT.inactive}</Tag>;
               if (r.scope !== "territory") return null;
               return r.territories === 0 ? (
                 <StatusBadge tone="warning">{ADMIN_PAGE_TEXT.scopeNoTerritory}</StatusBadge>

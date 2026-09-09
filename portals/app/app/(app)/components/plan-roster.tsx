@@ -6,7 +6,6 @@ import {
   DataTable,
   EmptyState,
   Section,
-  StatusBadge,
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
@@ -19,6 +18,7 @@ import {
   RowActions,
   useTableSort,
 } from "./table-fittings";
+import { Tag } from "./tag";
 
 // 战略计划清单 - the catalogue module's pattern, applied to plans on the
 // owner's 2026-09-05 ruling. It replaces strategy-table.tsx, which was the
@@ -139,9 +139,9 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
       header: CATALOG_TEXT.colStatus,
       width: "sm" as const,
       cell: (r: PlanRow) => (
-        <StatusBadge tone={r.status === "active" ? "success" : "neutral"}>
+        <Tag tone={r.status === "active" ? "success" : "neutral"}>
           {PLAN_STATUS_LABEL[r.status] ?? r.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];

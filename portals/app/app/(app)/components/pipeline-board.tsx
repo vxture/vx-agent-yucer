@@ -38,6 +38,7 @@ import {
 
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { loadFailureText } from "../lib/load-failure";
+import { Tag } from "./tag";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
 // A thin binding of DS elements to yucer's domain semantics, which is the one
@@ -226,14 +227,14 @@ export function PipelineBoard({
       header: PIPELINE_TEXT.columnStageForecast,
       cell: (row) => (
         <Stack gap="sm">
-          <StatusBadge tone={STAGE_TONE[row.stage as Stage]} dot>
+          <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
             {STAGE_LABEL[row.stage as Stage]}
-          </StatusBadge>
-          <StatusBadge
+          </Tag>
+          <Tag
             tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
           >
             {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
-          </StatusBadge>
+          </Tag>
         </Stack>
       ),
     },
@@ -388,9 +389,9 @@ export function PipelineBoard({
                         : `${row.opportunityNo} / ${row.accountName}`
                     }
                     status={
-                      <StatusBadge tone={FORECAST_TONE[row.forecastCategory]}>
+                      <Tag tone={FORECAST_TONE[row.forecastCategory]}>
                         {FORECAST_LABEL[row.forecastCategory]}
-                      </StatusBadge>
+                      </Tag>
                     }
                     actions={
                       <ActionMenu
@@ -407,9 +408,9 @@ export function PipelineBoard({
                     }
                     meta={
                       <>
-                        <StatusBadge tone={STAGE_TONE[row.stage as Stage]}>
+                        <Tag tone={STAGE_TONE[row.stage as Stage]}>
                           {STAGE_LABEL[row.stage as Stage] ?? row.stage}
-                        </StatusBadge>
+                        </Tag>
                         <span className="tabular-nums">
                           {formatMoney(
                             row.amount?.amount ?? null,

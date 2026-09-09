@@ -24,6 +24,7 @@ import {
   rowClickSelection,
   useTableSort,
 } from "./table-fittings";
+import { Tag } from "./tag";
 
 // 产品类型 - one of the config page's two INDEPENDENT vocabularies (owner
 // ruling 2026-09-05: 类型是类型，状态是状态 - this file and the status config
@@ -163,7 +164,7 @@ export function CatalogTypeConfig({
             width: "lg" as const,
             cell: (t: ProductTypeRecord) =>
               t.status === "retired" ? (
-                <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>
+                <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag>
               ) : (
                 <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>
               ),

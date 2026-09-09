@@ -35,6 +35,7 @@ import type { LeadRecord } from "../../domains/signal/store";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
 import type { LeadAction, LeadActionResult } from "../signal/lead-actions";
+import { Tag } from "./tag";
 
 // The lead list, and the button that walks the attribution seam.
 //
@@ -267,9 +268,9 @@ export function LeadList({
         row.score == null ? (
           "-"
         ) : (
-          <StatusBadge tone={confidenceTone(row.score)}>
+          <Tag tone={confidenceTone(row.score)}>
             {row.score}
-          </StatusBadge>
+          </Tag>
         ),
     },
     {
@@ -290,9 +291,9 @@ export function LeadList({
               ? "signal_campaign"
               : "self_sourced";
         return (
-          <StatusBadge tone={source === "campaign" ? "info" : "neutral"}>
+          <Tag tone={source === "campaign" ? "info" : "neutral"}>
             {SOURCE_LABEL[source] ?? source}
-          </StatusBadge>
+          </Tag>
         );
       },
     },
@@ -330,9 +331,9 @@ export function LeadList({
         const exit = exitReasons.get(row.id);
         return (
           <span className="flex flex-col items-center gap-3xs">
-            <StatusBadge tone={row.status === "converted" ? "success" : "neutral"} dot>
+            <Tag tone={row.status === "converted" ? "success" : "neutral"} dot>
               {LEAD_STATUS_LABEL[row.status] ?? row.status}
-            </StatusBadge>
+            </Tag>
             {exit ? (
               <span
                 className="text-muted-foreground truncate text-body-sm"

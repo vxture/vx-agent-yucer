@@ -13,6 +13,7 @@ import {
 } from "@vxture/design-ui";
 
 import { getMessages } from "../lib/i18n/server";
+import { Tag } from "./tag";
 // The manager's first screen: promises that have gone past their date.
 //
 // This is the one derived view stage 1 ships, and it is derived from recorded
@@ -138,9 +139,9 @@ async function Row({ row: r, days }: { row: OverdueRow; days: number }) {
             <StatusBadge tone="danger" dot>
               {FIELD_TEXT.commitDaysOverdue(days)}
             </StatusBadge>
-            <StatusBadge tone={r.direction === "they_owe" ? "info" : "neutral"}>
+            <Tag tone={r.direction === "they_owe" ? "info" : "neutral"}>
               {DIRECTION_LABEL[r.direction] ?? r.direction}
-            </StatusBadge>
+            </Tag>
             <Link
               href={`/account/${r.accountId}`}
               className="text-foreground min-w-0 truncate text-body-md hover:underline"

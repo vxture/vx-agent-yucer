@@ -8,6 +8,7 @@ import { ModuleHeadline, type HeadlineStat } from "../components/module-headline
 import { movePlan } from "./actions";
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
+import { Tag } from "../components/tag";
 
 // D1 strategy: the top of the chain. Everything downstream can trace back here,
 // which is what makes "how much of this quarter came from the segment we chose
@@ -107,9 +108,9 @@ export default async function StrategyPage() {
               {STRATEGY_TEXT.tagPlanRunning(running.length)}
             </StatusBadge>
             {settled.length > 0 ? (
-              <StatusBadge tone="neutral">
+              <Tag>
                 {STRATEGY_TEXT.tagPlanSettled(settled.length)}
-              </StatusBadge>
+              </Tag>
             ) : null}
             {campaigns.ok && orphanCampaigns > 0 ? (
               <StatusBadge tone="warning">

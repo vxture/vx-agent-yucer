@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { ActionMenu, Button, Card, StatusBadge, useToast } from "@vxture/design-ui";
+import { ActionMenu, Button, Card, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // THE ASSISTANT SURFACE - one grammar for everything the product's
 // intelligence says, wherever it says it (owner ruling 2026-09-05).
@@ -196,7 +197,7 @@ export function AssistantSection({ section }: { readonly section: AssistantSecti
         <div className="mt-sm flex items-center gap-xs">
           {section.footer}
           {ignored.length > 0 ? (
-            <StatusBadge tone="neutral">{ASSISTANT_TEXT.ignored(ignored.length)}</StatusBadge>
+            <Tag>{ASSISTANT_TEXT.ignored(ignored.length)}</Tag>
           ) : null}
         </div>
       ) : null}

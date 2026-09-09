@@ -8,13 +8,13 @@ import {
   FieldLabel,
   Input,
   Section,
-  StatusBadge,
   ViewHeader,
   useToast,
 } from "@vxture/design-ui";
 import { FormFields } from "./form-page";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // 预测阈值 - where this workspace's confidence bands start (incr/0041).
 //
@@ -102,9 +102,9 @@ export function ForecastThresholdConfig({
         title={FORECAST_PARAM_TEXT.title}
         description={FORECAST_PARAM_TEXT.why}
         secondary={
-          <StatusBadge tone="neutral">
+          <Tag>
             {FORECAST_PARAM_TEXT.ladder(thresholds.bestCaseAt, thresholds.commitAt)}
-          </StatusBadge>
+          </Tag>
         }
         action={
           canWrite ? (

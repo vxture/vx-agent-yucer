@@ -1,4 +1,4 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -7,6 +7,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { ScopeTable } from "../../components/scope-table";
 import { loadFailureText } from "../../lib/load-failure";
+import { Tag } from "../../components/tag";
 
 // 数据范围 - who sees which rows, across everyone at once.
 //
@@ -70,7 +71,7 @@ export default async function ScopePage() {
         title={ADMIN_PAGE_TEXT.scopeTitle}
         description={ADMIN_PAGE_TEXT.scopeWhy}
         secondary={
-          <StatusBadge tone="neutral">{ADMIN_PAGE_TEXT.scopeCount(rows.length)}</StatusBadge>
+          <Tag>{ADMIN_PAGE_TEXT.scopeCount(rows.length)}</Tag>
         }
       />
       <ScopeTable rows={rows} />

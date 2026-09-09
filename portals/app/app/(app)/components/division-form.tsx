@@ -11,11 +11,11 @@ import {
   Input,
   NativeSelect,
   Section,
-  StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { FormFields } from "./form-page";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
+import { Tag } from "./tag";
 
 /* 配置大区 - 编辑面. Separate from the roster on purpose: the list answers
  * "how is the market carved", this answers "carve it differently", and putting
@@ -254,9 +254,9 @@ export function DivisionForm(
           </span>
         ) : (
           chosenList.map((p) => (
-            <StatusBadge key={p} tone="neutral">
+            <Tag key={p}>
               {tagOf.get(p) ?? p}
-            </StatusBadge>
+            </Tag>
           ))
         )}
       </div>

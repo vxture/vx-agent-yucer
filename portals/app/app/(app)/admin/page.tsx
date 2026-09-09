@@ -19,6 +19,7 @@ import { listMarketDivisions } from "../../domains/account/service";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
 import { getMessages } from "../lib/i18n/server";
+import { Tag } from "../components/tag";
 // Administration, as its own domain rather than a sidebar group.
 //
 // It is neither work nor data: it is setup, visited rarely and usually for one
@@ -179,7 +180,7 @@ export default async function AdminHomePage() {
                 title={DOMAIN_LABEL[item.key] ?? item.key}
                 description={ADMIN_TEXT.entryHint[item.key] ?? ""}
               >
-                <StatusBadge tone="neutral">{ADMIN_TEXT.planned}</StatusBadge>
+                <Tag>{ADMIN_TEXT.planned}</Tag>
               </PanelCard>
             ))}
           </div>

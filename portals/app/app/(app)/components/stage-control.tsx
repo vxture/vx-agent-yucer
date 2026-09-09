@@ -20,6 +20,7 @@ import {
   type Stage,
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // Moving a deal, with the rule visible before the click rather than after it.
 //
@@ -72,9 +73,9 @@ export function StageControl({
   if (!canAdvance) {
     return (
       <Section title={OPPORTUNITY_TEXT.advanceTitle}>
-        <StatusBadge tone="neutral">
+        <Tag>
           {OPPORTUNITY_TEXT.advanceReadOnly}
-        </StatusBadge>
+        </Tag>
       </Section>
     );
   }

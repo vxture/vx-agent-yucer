@@ -4,7 +4,6 @@ import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
   DataTable,
-  StatusBadge,
   ViewHeader,
   DialogForm,
   Field,
@@ -25,6 +24,7 @@ import {
   rowClickSelection,
   useTableSort,
 } from "./table-fittings";
+import { Tag } from "./tag";
 
 // 词表配置面板 - the one table four vocabularies are configured through.
 //
@@ -165,7 +165,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           icon={page.icon}
           title={text.title}
           description={text.why}
-          secondary={<StatusBadge tone="neutral">{page.count(rows.length)}</StatusBadge>}
+          secondary={<Tag>{page.count(rows.length)}</Tag>}
           action={add}
         />
       ) : null}

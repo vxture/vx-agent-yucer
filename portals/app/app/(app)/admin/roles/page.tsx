@@ -1,4 +1,4 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -7,6 +7,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { ROLE_CODES, ROLE_PERMISSIONS } from "../../../authz/catalog";
 import { RoleTable } from "../../components/role-table";
+import { Tag } from "../../components/tag";
 
 // 角色管理 - what each of the nine roles actually is.
 //
@@ -81,13 +82,13 @@ export default async function RolesPage() {
         title={ADMIN_PAGE_TEXT.rolesTitle}
         description={ADMIN_PAGE_TEXT.rolesWhy}
         secondary={
-          <StatusBadge tone="neutral">
+          <Tag>
             {ADMIN_PAGE_TEXT.permissionsCount(
               new Set(rows.flatMap((r) => r.permissions)).size,
               rows.length,
               grants,
             )}
-          </StatusBadge>
+          </Tag>
         }
       />
       <RoleTable rows={rows} />

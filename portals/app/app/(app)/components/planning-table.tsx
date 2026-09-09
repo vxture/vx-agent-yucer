@@ -8,7 +8,6 @@ import {
   FilterBar,
   ListCard,
   ListCardGrid,
-  StatusBadge,
   TableTitleCell,
   Tooltip,
   TooltipContent,
@@ -24,6 +23,7 @@ import { formatMoney, formatPercent } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
+import { Tag } from "./tag";
 // The attainment table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -174,11 +174,11 @@ export function PlanningTable({
       id: "status",
       header: PLANNING_TEXT.columnStatus,
       cell: (row) => (
-        <StatusBadge
+        <Tag
           tone={row.target.status === "committed" ? "warning" : "neutral"}
         >
           {TARGET_STATUS_LABEL[row.target.status] ?? row.target.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
@@ -353,9 +353,9 @@ function Attainment({ row }: { row: AttainmentRow }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <span>
-            <StatusBadge tone="neutral">
+            <Tag>
               {PLANNING_TEXT.gapLabel[m.code]}
-            </StatusBadge>
+            </Tag>
           </span>
         </TooltipTrigger>
         <TooltipContent>{PLANNING_TEXT.gapHint[m.code]}</TooltipContent>
@@ -363,8 +363,8 @@ function Attainment({ row }: { row: AttainmentRow }) {
     );
   }
   return (
-    <StatusBadge tone={m.ratio != null && m.ratio >= 1 ? "success" : "neutral"}>
+    <Tag tone={m.ratio != null && m.ratio >= 1 ? "success" : "neutral"}>
       {formatPercent(m.ratio)}
-    </StatusBadge>
+    </Tag>
   );
 }

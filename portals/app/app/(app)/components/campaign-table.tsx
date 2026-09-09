@@ -21,6 +21,7 @@ import { formatMoney } from "../lib/view-model";
 import { LifecycleControl } from "./lifecycle-control";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // The campaign table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -108,21 +109,21 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
         row.returnOnBudget == null ? (
           "-"
         ) : (
-          <StatusBadge tone={row.returnOnBudget >= 1 ? "success" : "neutral"}>
+          <Tag tone={row.returnOnBudget >= 1 ? "success" : "neutral"}>
             {row.returnOnBudget.toFixed(1)}x
-          </StatusBadge>
+          </Tag>
         ),
     },
     {
       id: "status",
       header: CAMPAIGN_TEXT.columnStatus,
       cell: (row) => (
-        <StatusBadge
+        <Tag
           tone={row.status === "running" ? "success" : "neutral"}
           dot
         >
           {CAMPAIGN_STATUS_LABEL[row.status] ?? row.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
@@ -180,12 +181,12 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
                 title={row.name}
                 description={`${row.campaignNo}${row.channel ? ` / ${row.channel}` : ""}`}
                 status={
-                  <StatusBadge
+                  <Tag
                     tone={row.status === "completed" ? "success" : "neutral"}
                     dot
                   >
                     {CAMPAIGN_STATUS_LABEL[row.status] ?? row.status}
-                  </StatusBadge>
+                  </Tag>
                 }
                 actions={actions(row)}
                 meta={

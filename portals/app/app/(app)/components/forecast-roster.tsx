@@ -26,6 +26,7 @@ import {
 } from "./table-fittings";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import { moreOptimistic } from "../../domains/pipeline/lib/forecast-stats";
+import { Tag } from "./tag";
 
 // 口径清单 - the catalogue module's pattern, applied to the forecast rule's
 // second opinion.
@@ -131,7 +132,7 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
       id: "filed",
       header: FORECAST_RULE_TEXT.colFiled,
       cell: (r: ForecastRow) => (
-        <StatusBadge tone={FORECAST_TONE[r.filed]}>{FORECAST_LABEL[r.filed]}</StatusBadge>
+        <Tag tone={FORECAST_TONE[r.filed]}>{FORECAST_LABEL[r.filed]}</Tag>
       ),
     },
     {
@@ -143,9 +144,9 @@ export function ForecastRoster({ rows, canApply, onApply }: ForecastRosterProps)
           <span className="text-muted-foreground text-body-sm">{FORECAST_RULE_TEXT.agrees}</span>
         ) : (
           <span className="flex flex-col items-center gap-3xs">
-            <StatusBadge tone={FORECAST_TONE[r.suggested]}>
+            <Tag tone={FORECAST_TONE[r.suggested]}>
               {FORECAST_LABEL[r.suggested]}
-            </StatusBadge>
+            </Tag>
             {/* WHICH WAY the disagreement goes, said on the row. Filing surer
                 than the rule inflates a number somebody will be held to;
                 filing less sure hides work that is going well. They are

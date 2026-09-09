@@ -31,6 +31,7 @@ import type {
   ProductUnitRecord,
 } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
 // row is where the operations live, locked to the right.
@@ -191,9 +192,9 @@ export function ProductRoster({
       cell: (r: ProductRecord) => {
         const row = vocab.get(r.statusId);
         return (
-          <StatusBadge tone={row ? statusTone(row) : "neutral"}>
+          <Tag tone={row ? statusTone(row) : "neutral"}>
             {row?.name ?? ""}
-          </StatusBadge>
+          </Tag>
         );
       },
     },

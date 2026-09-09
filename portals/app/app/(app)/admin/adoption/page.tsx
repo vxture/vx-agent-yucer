@@ -22,6 +22,7 @@ import type { Stage } from "../../../domains/pipeline/lib/stage";
 
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
+import { Tag } from "../../components/tag";
 // The instrument behind ADR-012's kill criterion.
 //
 // Stage 1 was shipped with a condition attached - if the capture habit does not
@@ -238,9 +239,9 @@ export default async function AdoptionPage() {
           <ul>
             {dark.map((o: OpportunityRecord) => (
               <li key={o.id}>
-                <StatusBadge tone="neutral">
+                <Tag>
                   {STAGE_LABEL[o.stage as Stage] ?? o.stage}
-                </StatusBadge>
+                </Tag>
                 <Link href={`/pipeline/${o.id}`}>{o.name}</Link>
                 <span>{o.ownerSub ?? "-"}</span>
               </li>

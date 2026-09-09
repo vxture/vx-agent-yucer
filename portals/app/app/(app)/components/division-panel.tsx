@@ -13,6 +13,7 @@ import { useState } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { provinceTag } from "../../domains/shared/provinces";
+import { Tag } from "./tag";
 
 /* 大区与省份 - 展示. DISPLAY ONLY.
  *
@@ -143,7 +144,7 @@ export function DivisionPanel(
               header: PLANNING_TEXT.divisionSource,
               cell: (r: DivisionRow) =>
                 r.system ? (
-                  <StatusBadge tone="neutral">{PLANNING_TEXT.divisionSystem}</StatusBadge>
+                  <Tag>{PLANNING_TEXT.divisionSystem}</Tag>
                 ) : (
                   <StatusBadge tone="info">{PLANNING_TEXT.divisionCustom}</StatusBadge>
                 ),
@@ -152,7 +153,11 @@ export function DivisionPanel(
               id: "provinces",
               header: PLANNING_TEXT.divisionProvinceCount,
               sortable: true,
-              align: "numeric",
+              /* CENTRED, which is the DS's default and its own rule for this
+                 kind of number: `numeric` is for digits that have to line up
+                 (money, sizes), and it puts the value in a fixed-width block -
+                 on a count that never passes 34 that block leaves a gap the
+                 width of the column to its left. 短数字：默认居中. */
               // A division holding nothing is worth flagging: it appears in
               // every menu and answers for no ground.
               cell: (r: DivisionRow) =>
@@ -176,9 +181,9 @@ export function DivisionPanel(
               cell: (r: DivisionRow) => (
                 <span className="gap-2xs flex flex-wrap">
                   {r.provinces.map((p) => (
-                    <StatusBadge key={p} tone="neutral">
+                    <Tag key={p}>
                       {provinceTag(p)}
-                    </StatusBadge>
+                    </Tag>
                   ))}
                 </span>
               ),

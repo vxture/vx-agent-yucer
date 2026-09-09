@@ -22,6 +22,7 @@ import {
 } from "../../authz/catalog";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // Who is in the workspace and what they can do.
 //
 // The roleless member is the case this screen exists for, so it is called out
@@ -182,7 +183,7 @@ export function MemberRoles({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span>
-                    <StatusBadge tone="neutral">{MEMBER_TEXT.inactive}</StatusBadge>
+                    <Tag>{MEMBER_TEXT.inactive}</Tag>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{MEMBER_TEXT.inactiveHint}</TooltipContent>
@@ -219,9 +220,9 @@ export function MemberRoles({
               const key = `${row.sub}:${role}`;
               return (
                 <span key={role}>
-                  <StatusBadge tone={isAdminRole(role) ? "info" : "neutral"}>
+                  <Tag tone={isAdminRole(role) ? "info" : "neutral"}>
                     {ROLE_LABEL[role] ?? role}
-                  </StatusBadge>
+                  </Tag>
                   {canManage ? (
                     last ? (
                       <Tooltip>
@@ -511,7 +512,7 @@ export function MemberRoles({
       }
     >
       {!canManage ? (
-        <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge>
+        <Tag>{MEMBER_TEXT.readOnly}</Tag>
       ) : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}

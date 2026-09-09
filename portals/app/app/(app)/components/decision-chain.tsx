@@ -14,6 +14,7 @@ import type {
   ContactNode,
 } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // The decision chain.
 //
@@ -91,9 +92,9 @@ export function DecisionChain({
       <div>
         <span>{CHAIN_TEXT.covered}</span>
         {coverage.covered.map((role) => (
-          <StatusBadge key={role} tone="neutral">
+          <Tag key={role}>
             {DECISION_ROLE_LABEL[role] ?? role}
-          </StatusBadge>
+          </Tag>
         ))}
       </div>
 

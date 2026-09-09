@@ -4,6 +4,7 @@ import { Card, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import type { FunnelReading, StageReading } from "../../domains/shared/funnel";
 import type { FunnelStage } from "../../domains/shared/funnel-exit";
+import { Tag } from "./tag";
 
 // 漏斗总览 - five stages, what passed, what leaked, and why.
 //
@@ -120,9 +121,9 @@ export function FunnelOverview({
             {s.reasons.length > 0 ? (
               <div className="flex flex-wrap gap-xs">
                 {s.reasons.map((r) => (
-                  <StatusBadge key={r.code} tone="neutral">
+                  <Tag key={r.code}>
                     {EXIT_REASON_LABEL[r.code] ?? r.code} {r.count}
-                  </StatusBadge>
+                  </Tag>
                 ))}
               </div>
             ) : null}

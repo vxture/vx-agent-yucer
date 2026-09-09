@@ -1,6 +1,7 @@
 import { Card, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 
 import { getMessages } from "../lib/i18n/server";
+import { Tag } from "./tag";
 // The forecast series, drawn.
 //
 // This component is the payoff for forecast_snapshot having UPDATE revoked.
@@ -137,11 +138,11 @@ export async function ForecastTrajectory({
               a caveat about the plot. */}
           {accuracy ? (
             accuracy.attainment === null ? (
-              <StatusBadge tone="neutral">
+              <Tag>
                 {accuracy.hasOpening
                   ? PIPELINE_TEXT.accuracyNoCommit
                   : PIPELINE_TEXT.accuracyNoOpening}
-              </StatusBadge>
+              </Tag>
             ) : (
               <>
                 {/* ATTAINMENT ALWAYS, and it is the same sentence in both
@@ -168,9 +169,9 @@ export async function ForecastTrajectory({
           ) : null}
           {scopePicker}
           {points.length > shown.length ? (
-            <StatusBadge tone="neutral">
+            <Tag>
               {PIPELINE_TEXT.trajectoryWindow(shown.length, points.length)}
-            </StatusBadge>
+            </Tag>
           ) : null}
           {submit}
         </div>

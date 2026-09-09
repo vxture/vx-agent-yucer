@@ -1,9 +1,10 @@
 "use client";
 
-import { Checkbox, Field, FieldDescription, FieldLabel, StatusBadge } from "@vxture/design-ui";
+import { Checkbox, Field, FieldDescription, FieldLabel } from "@vxture/design-ui";
 import type { WinLossReasonRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
+import { Tag } from "./tag";
 
 // 赢丢原因 - the workspace's own list (incr/0039).
 //
@@ -75,13 +76,13 @@ export function WinLossReasonConfig({
           header: WINLOSS_TEXT.colApplies,
           width: "sm",
           cell: (r) => (
-            <StatusBadge tone="neutral">
+            <Tag>
               {r.forWon && r.forLost
                 ? WINLOSS_TEXT.appliesBoth
                 : r.forWon
                   ? WINLOSS_TEXT.appliesWon
                   : WINLOSS_TEXT.appliesLost}
-            </StatusBadge>
+            </Tag>
           ),
         },
         {
@@ -89,7 +90,8 @@ export function WinLossReasonConfig({
           sortable: true,
           header: WINLOSS_TEXT.colCited,
           width: "sm",
-          align: "numeric",
+          // A short count: centred by default. See division-panel.
+          
           cell: (r) => <span className="tabular-nums">{usage[r.id] ?? 0}</span>,
         },
       ]}

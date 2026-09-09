@@ -1,8 +1,9 @@
 "use client";
 
-import { DataTable, StatusBadge, TableTitleCell } from "@vxture/design-ui";
+import { DataTable, TableTitleCell } from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 /* 角色管理 - the nine roles and what each of them may do.
  *
@@ -65,20 +66,21 @@ export function RoleTable({ rows }: { readonly rows: readonly RoleRow[] }) {
             id: "permissions",
             header: ADMIN_PAGE_TEXT.rolesColumnPerms,
             sortable: true,
-            align: "numeric",
+            // 25 at most: a short number, centred by default.
+            
             cell: (r: RoleRow) => r.permissions.length,
           },
           {
             id: "members",
             header: ADMIN_PAGE_TEXT.rolesColumnMembers,
             sortable: true,
-            align: "numeric",
+            
             // A role nobody holds is a fact worth seeing, not a zero to skim
             // past: it is either a role the workspace has not started using or
             // one it has stopped.
             cell: (r: RoleRow) =>
               r.members === 0 ? (
-                <StatusBadge tone="neutral">{ADMIN_PAGE_TEXT.rolesNoMember}</StatusBadge>
+                <Tag>{ADMIN_PAGE_TEXT.rolesNoMember}</Tag>
               ) : (
                 ADMIN_PAGE_TEXT.rolesMembers(r.members)
               ),

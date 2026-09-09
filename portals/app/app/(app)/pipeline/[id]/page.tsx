@@ -3,7 +3,6 @@ import {
   EmptyState,
   MetricGrid,
   Section,
-  StatusBadge,
   ViewHeader,
   ViewLayout,
   type MetricGridItem,
@@ -79,6 +78,7 @@ import {
   settleCommitment,
 } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
+import { Tag } from "../../components/tag";
 
 // D6 opportunity detail: where the deal is, how it got there, and where it goes.
 //
@@ -402,16 +402,16 @@ export default async function OpportunityDetailPage({
         description={accountName}
         action={
           <>
-            <StatusBadge tone={STAGE_TONE[opportunity.stage as Stage]} dot>
+            <Tag tone={STAGE_TONE[opportunity.stage as Stage]} dot>
               {STAGE_LABEL[opportunity.stage as Stage] ?? opportunity.stage}
-            </StatusBadge>
-            <StatusBadge
+            </Tag>
+            <Tag
               tone={
                 FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]
               }
             >
               {FORECAST_LABEL[opportunity.forecastCategory as ForecastCategory]}
-            </StatusBadge>
+            </Tag>
           </>
         }
       />
@@ -420,7 +420,7 @@ export default async function OpportunityDetailPage({
           pursuit from a one-off deal, and the page should say which before it
           says anything else. */}
       <div className="flex flex-wrap items-center gap-xs">
-        <StatusBadge
+        <Tag
           tone={
             tier === "strategic"
               ? "brand"
@@ -434,12 +434,12 @@ export default async function OpportunityDetailPage({
             : tier === "key"
               ? POSITION_TEXT.tierKey
               : POSITION_TEXT.tierStandard}
-        </StatusBadge>
+        </Tag>
         {plan ? (
           <>
-            <StatusBadge tone="neutral">
+            <Tag>
               {POSITION_TEXT.planOf(plan.period)}
-            </StatusBadge>
+            </Tag>
             <span className="text-muted-foreground text-body-sm">
               {POSITION_TEXT.triangleOf(
                 plan.ownerSub ?? POSITION_TEXT.roleUnset,
@@ -612,13 +612,13 @@ export default async function OpportunityDetailPage({
           <div>
             <span>{OPPORTUNITY_TEXT.campaign}: </span>
             {opportunity.campaignId ? (
-              <StatusBadge tone="neutral">{opportunity.campaignId}</StatusBadge>
+              <Tag>{opportunity.campaignId}</Tag>
             ) : (
               // A blank cell would read as missing data. Not every deal starts as
               // a campaign response, and that is a fact rather than a gap.
-              <StatusBadge tone="neutral">
+              <Tag>
                 {OPPORTUNITY_TEXT.noAttribution}
-              </StatusBadge>
+              </Tag>
             )}
           </div>
         </Section>

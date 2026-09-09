@@ -26,6 +26,7 @@ import type { Dictionary } from "../lib/i18n/dictionary";
 import { confidenceTone } from "../lib/view-model";
 import { formatNumber, type Locale } from "@vxture/shared";
 import { ScoreRing } from "./score-ring";
+import { Tag } from "./tag";
 
 // The detective's queue.
 //
@@ -407,9 +408,9 @@ function Row({
             and narrow enough to stay attached. */}
         <div className="flex min-w-0 items-center gap-lg">
           <span className="flex min-w-0 items-center gap-xs">
-            <StatusBadge tone="neutral">
+            <Tag>
               {SIGNAL_TYPE_LABEL[r.signalType] ?? r.signalType}
-            </StatusBadge>
+            </Tag>
             <StatusBadge tone={tone}>
               {verdict(r.score, SIGNAL_TEXT)}
             </StatusBadge>

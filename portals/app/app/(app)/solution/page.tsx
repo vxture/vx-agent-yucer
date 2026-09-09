@@ -5,6 +5,7 @@ import { CatalogPage } from "../catalog/shell";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { SolutionRoster } from "../components/solution-roster";
 import { changeSolutionStatus, deleteSolution, moveSolutionRow } from "../catalog/actions";
+import { Tag } from "../components/tag";
 
 // D9 solutions - the catalogue module page's pattern, applied here on the
 // owner's 2026-09-05 ruling, with the difference the ruling names: a solution
@@ -68,9 +69,9 @@ export default async function SolutionPage() {
                     {CATALOG_TEXT.tagSolutionActive(live.length)}
                   </StatusBadge>
                   {solutions.length > live.length ? (
-                    <StatusBadge tone="neutral">
+                    <Tag>
                       {CATALOG_TEXT.tagSolutionRetired(solutions.length - live.length)}
-                    </StatusBadge>
+                    </Tag>
                   ) : null}
                 </>
               }

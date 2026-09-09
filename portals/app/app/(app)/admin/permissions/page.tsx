@@ -1,10 +1,11 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { PERM_CODES, ROLE_CODES, ROLE_PERMISSIONS } from "../../../authz/catalog";
 import { PermissionTable } from "../../components/permission-table";
+import { Tag } from "../../components/tag";
 
 // 权限管理 - the catalogue, read from the mirror rather than restated.
 //
@@ -52,9 +53,9 @@ export default async function PermissionsPage() {
         title={ADMIN_PAGE_TEXT.permissionsTitle}
         description={ADMIN_PAGE_TEXT.permissionsWhy}
         secondary={
-          <StatusBadge tone="neutral">
+          <Tag>
             {ADMIN_PAGE_TEXT.permissionsCount(rows.length, ROLE_CODES.length, grants)}
-          </StatusBadge>
+          </Tag>
         }
       />
       <PermissionTable rows={rows} />

@@ -22,6 +22,7 @@ import {
   SearchSlot,
   useTableSort,
 } from "./table-fittings";
+import { Tag } from "./tag";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -165,7 +166,7 @@ export function SolutionRoster({
       width: "sm" as const,
       cell: (r: SolutionView) =>
         r.solution.status === "retired" ? (
-          <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>
+          <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag>
         ) : (
           <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>
         ),

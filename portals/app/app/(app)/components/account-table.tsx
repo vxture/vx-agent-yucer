@@ -23,6 +23,7 @@ import { recomputeAccountHealth } from "../account/actions";
 import { healthTone } from "../lib/view-model";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // The account list's table.
 //
 // It lives in a CLIENT component because DataTableColumn.cell is a function,
@@ -231,18 +232,18 @@ export function AccountTable({
       cell: (row) => (
         <Stack gap="sm" className="items-center">
           {row.healthScore == null ? (
-            <StatusBadge tone="neutral">{ACCOUNT_TEXT.unscored}</StatusBadge>
+            <Tag>{ACCOUNT_TEXT.unscored}</Tag>
           ) : (
-            <StatusBadge tone={healthTone(row.healthScore)}>
+            <Tag tone={healthTone(row.healthScore)}>
               {row.healthScore}
-            </StatusBadge>
+            </Tag>
           )}
-          <StatusBadge
+          <Tag
             tone={row.status === "churned" ? "danger" : "neutral"}
             dot
           >
             {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
-          </StatusBadge>
+          </Tag>
         </Stack>
       ),
     },
@@ -285,13 +286,13 @@ export function AccountTable({
                 description={row.accountNo}
                 status={
                   row.healthScore == null ? (
-                    <StatusBadge tone="neutral">
+                    <Tag>
                       {ACCOUNT_TEXT.unscored}
-                    </StatusBadge>
+                    </Tag>
                   ) : (
-                    <StatusBadge tone={healthTone(row.healthScore)}>
+                    <Tag tone={healthTone(row.healthScore)}>
                       {row.healthScore}
-                    </StatusBadge>
+                    </Tag>
                   )
                 }
                 actions={actions(row)}

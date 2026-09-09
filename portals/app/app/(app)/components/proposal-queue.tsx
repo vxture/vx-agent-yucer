@@ -32,6 +32,7 @@ import {
 } from "./table-fittings";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // The copilot proposal queue - where a human decides what the agent may do.
 //
 // ADR-003 named the risk this surface exists to answer: one-at-a-time
@@ -267,20 +268,20 @@ export function ProposalQueue({
       id: "confidence",
       header: PROPOSAL_TEXT.columnConfidence,
       cell: (row) => (
-        <StatusBadge tone={confidenceTone(row.confidence)}>
+        <Tag tone={confidenceTone(row.confidence)}>
           {row.confidence == null
             ? PROPOSAL_TEXT.confidenceMissing
             : `${row.confidence}%`}
-        </StatusBadge>
+        </Tag>
       ),
     },
     {
       id: "status",
       header: PROPOSAL_TEXT.columnStatus,
       cell: (row) => (
-        <StatusBadge tone={ACTION_STATUS_TONE[row.status]} dot>
+        <Tag tone={ACTION_STATUS_TONE[row.status]} dot>
           {ACTION_STATUS_LABEL[row.status]}
-        </StatusBadge>
+        </Tag>
       ),
     },
     {

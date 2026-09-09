@@ -26,6 +26,7 @@ import {
   rowClickSelection,
   useTableSort,
 } from "./table-fittings";
+import { Tag } from "./tag";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -162,7 +163,7 @@ export function CatalogStatusConfig({
                 title={r.name}
                 tooltip={r.name}
                 titleSuffix={
-                  <StatusBadge tone={statusTone(r)}>{r.statusCode}</StatusBadge>
+                  <Tag tone={statusTone(r)}>{r.statusCode}</Tag>
                 }
               />
             ),

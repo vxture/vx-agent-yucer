@@ -1,6 +1,5 @@
 import {
   EmptyState,
-  StatusBadge,
   ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
@@ -61,6 +60,7 @@ import {
   settleCommitment,
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
+import { Tag } from "../../components/tag";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -268,12 +268,12 @@ export default async function AccountDetailPage({
           .filter(Boolean)
           .join(" / ")}
         action={
-          <StatusBadge
+          <Tag
             tone={account.status === "churned" ? "danger" : "neutral"}
             dot
           >
             {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
-          </StatusBadge>
+          </Tag>
         }
       />
 

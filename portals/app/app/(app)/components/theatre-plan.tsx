@@ -1,8 +1,9 @@
 "use client";
 
-import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import { EmptyState, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
+import { Tag } from "./tag";
 
 // The theatre's next move.
 //
@@ -76,11 +77,11 @@ export function TheatrePlan({
                   <span className="text-foreground min-w-0 truncate text-body-md">
                     {p.title}
                   </span>
-                  <StatusBadge tone={confidenceTone(p.confidence)}>
+                  <Tag tone={confidenceTone(p.confidence)}>
                     {p.confidence == null
                       ? PROPOSAL_TEXT.confidenceMissing
                       : `${p.confidence}%`}
-                  </StatusBadge>
+                  </Tag>
                 </div>
                 {/* The reasoning is always on the row, never behind a click: a
                     decision made without reading it is not human-in-the-loop. */}

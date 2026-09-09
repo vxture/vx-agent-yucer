@@ -7,7 +7,6 @@ import {
   EmptyState,
   FilterBar,
   Section,
-  StatusBadge,
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
@@ -19,6 +18,7 @@ import {
   RowActions,
   useTableSort,
 } from "./table-fittings";
+import { Tag } from "./tag";
 
 // How the market is cut - the catalogue module pattern, applied on the
 // owner's 2026-09-05 ruling.
@@ -129,7 +129,8 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       // Side by side, and coloured when they disagree: the divergence is the
       // finding this page exists to show.
       sortable: true,
-      align: "numeric" as const,
+      // "12 / 8" is a pair, not a number - there is nothing to line up.
+      
       cell: (r: SegmentRow) => (
         <span
           className={`tabular-nums text-body-sm ${
@@ -145,9 +146,9 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       header: CATALOG_TEXT.colStatus,
       width: "sm" as const,
       cell: (r: SegmentRow) => (
-        <StatusBadge tone={r.status === "active" ? "success" : "neutral"}>
+        <Tag tone={r.status === "active" ? "success" : "neutral"}>
           {(STRATEGY_TEXT.segmentStatusLabel as Record<string, string>)[r.status] ?? r.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
