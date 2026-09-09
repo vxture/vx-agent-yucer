@@ -1,7 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Button, ButtonGroup, DataTable, Icon, StatusBadge, type IconName } from "@vxture/design-ui";
+import { useMemo, useState, type CSSProperties } from "react";
+import {
+  Button,
+  ButtonGroup,
+  DataTable,
+  Icon,
+  StatusBadge,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type IconName,
+} from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import {
@@ -24,9 +34,14 @@ import { Tag } from "./tag";
  * opens it; a level tag says what the row is.
  *
  * THE ROLES ARE COLUMNS, ONE EACH (owner: 角色应该展开列，用 icon 显示，不要混合在
- * 一行), and there are nine, so the header carries an icon and a short name
- * with the full name on hover, the table scrolls sideways, and the title
- * column stays put on the left as the action column does on the right.
+ * 一行), and there are nine. The fixed columns (选择 / 序号 / 权限点 / 层级 /
+ * 操作) take their stated widths and the roles SPLIT WHAT IS LEFT, equally
+ * (owner, 2026-09-09: 其他列平分). A role header reads icon + short name by
+ * default, drops to the icon alone when its column gets too narrow for the
+ * name, and always carries the full name in a tooltip. The table only
+ * scrolls sideways once a role column would fall below the floor a single
+ * icon needs; then the leading columns stay put on the left as the action
+ * column does on the right.
  *
  * READ-ONLY, BY RULING (owner: 权限当前全部为预置功能，不可增删改): the grants
  * are seeded DDL mirrored in authz/catalog.ts. The action column is the
@@ -58,6 +73,31 @@ const LEVEL_TONE = {
   page: "neutral",
   action: "warning",
 } as const;
+
+/* THE WIDTHS, IN REM, MEASURED AGAINST THE DS'S OWN CELL.
+ *
+ * A DS table cell pads 16px each side (`px-md`) and a `sm` icon is 16px, so
+ * the narrowest column that still shows its icon whole is 48px - that is the
+ * FLOOR, and the scroll threshold. The owner proposed 32px and asked whether
+ * it holds: it does not, under this DS - 32px is exactly the padding, with
+ * no room left for the mark, so a ✓ at 32px is a clipped ✓. 32px would only
+ * work with the role cells' padding cut to 8px, which is restyling the DS's
+ * cell to fit a number; the floor follows the cell instead.
+ *
+ * The header keeps its short name while the CONTENT box (column minus the
+ * padding) can hold icon + gap + name at 12px: the longest short name is
+ * three characters (负责人), 16 + 4 + 36 = 56px. Two steps down from there,
+ * each measured: under 56px the gap goes first (16 + 36 = 52px still shows
+ * the name), and under 52px the name goes and the icon stands alone. A name
+ * never half-shows. Full-HD is the case that decided the second step: a
+ * 1440px content area gives nine roles 85px each, 53px of content - the
+ * name fits there without its gap and not with it.
+ *
+ * FIXED = 选择 4 + 序号 4 + 权限点 24 + 层级 6 + 操作 4. The title column is
+ * wide enough for an id and its permission on one line.
+ */
+const FIXED_REM = 4 + 4 + 24 + 6 + 4;
+const ROLE_FLOOR_REM = 3;
 
 /* PINNED EDGES. The three leading columns (选择 / 序号 / 权限点) and the
    action column stay put while the nine role columns scroll under them. The
@@ -131,15 +171,16 @@ export function PermissionTree({
 
       <div
         className={
-          /* THE RAIL IS WIDER THAN THE PAGE ON PURPOSE (owner: 简写 + 横向滚动):
-             4 + 4 + 24 + 6 + 9 x 5.5 + 4 = 91.5rem, each role column wide
-             enough for its icon and short name, the title column wide enough
-             for an id and its permission. The page scrolls the roles under
-             the pinned edges rather than squeezing every column to fit. */
-          `overflow-x-auto [&_table]:min-w-[92rem] [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}${PINNED}`
+          /* NO WIDTH ON THE ROLE COLUMNS. Under `table-fixed` the columns
+             left unsized share the slack equally, which is the 平分; the
+             minimum width below is the fixed sum plus one floor per role,
+             and the wrapper scrolls only once the page is narrower than
+             that. Set as a variable because the count is the roles' and
+             a class string cannot compute. */
+          `overflow-x-auto [&_table]:w-full [&_table]:min-w-[var(--perm-min)] [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}${PINNED}`
           + " [&_thead_th:nth-child(3)]:w-[24rem] [&_thead_th:nth-child(4)]:w-[6rem]"
-          + " [&_thead_th:nth-child(n+5):not(:last-child)]:w-[5.5rem]"
         }
+        style={{ "--perm-min": `${FIXED_REM + roles.length * ROLE_FLOOR_REM}rem` } as CSSProperties}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
@@ -197,10 +238,21 @@ export function PermissionTree({
             ...roles.map((role) => ({
               id: role,
               header: (
-                <span className="gap-3xs inline-flex items-center" title={ROLE_LABEL[role] ?? role}>
-                  <Icon name={ROLE_ICON[role]} size="sm" />
-                  <span>{T.roleShort[role] ?? ROLE_LABEL[role] ?? role}</span>
-                </span>
+                /* The header measures its own cell (`@container` on a block
+                   that fills the th's content box) and hides the short name
+                   once that box is under 52px, its gap under 56 - see ROLE_FLOOR_REM. The
+                   tooltip carries the full name in both states. */
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="@container block w-full cursor-default">
+                      <span className="gap-2xs @max-[56px]:gap-0 inline-flex items-center">
+                        <Icon name={ROLE_ICON[role]} size="sm" />
+                        <span className="@max-[52px]:hidden">{T.roleShort[role] ?? ROLE_LABEL[role] ?? role}</span>
+                      </span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{ROLE_LABEL[role] ?? role}</TooltipContent>
+                </Tooltip>
               ),
               align: "center" as const,
               cell: (r: PermissionRow) => {
