@@ -2394,7 +2394,8 @@ export const ROLE_TEXT = {
   rankField: "层级",
   groupUnset: "请选择",
   ungrouped: "未分组",
-  groupsButton: "角色分组",
+  groupsButton: "分组管理",
+  groupConfigure: "配置",
   colDescription: "说明",
   colPerms: "权限数",
   colMembers: "成员数",
@@ -2503,7 +2504,7 @@ export const ROLE_TEXT = {
  * 预置八条业务线、六级层级，可增删改排；有角色在用的删不掉。
  */
 export const ROLE_GROUP_TEXT = {
-  pageTitle: "角色分组",
+  pageTitle: "分组管理",
   pageWhy: "角色按业务线和层级归类。预置的可以改名、排序，也可以新增；有角色在用的分组不能删。",
   count: (lines: number, ranks: number) => `${lines} 条业务线 · ${ranks} 级层级`,
   edit: "编辑",

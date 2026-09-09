@@ -244,23 +244,43 @@ export function RoleForm({
 
             {/* THE TWO GROUPS (owner, 2026-09-09: 一个按业务，一个按层级), from
                 the workspace's own lists - 角色分组 on the roster edits them. */}
+            {/* SELECT + 配置 ON ONE LINE, THE COLUMN'S FULL SPAN (owner: 下拉框
+                缩短一点，留出按钮位置，总体跨度一致). The pair sits inside the same
+                measure every control here has; the select grows into what
+                the button leaves, so both rows end where the inputs above
+                them end. 配置 opens 分组管理 - the list is the workspace's,
+                and the form is where somebody finds out it is one short. */}
             <Field>
               <FieldLabel>{ROLE_TEXT.lineField}</FieldLabel>
-              <NativeSelect value={lineValue} onChange={(e) => setLineValue(e.target.value)} disabled={pending}>
-                <option value="">{ROLE_TEXT.groupUnset}</option>
-                {lines.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </NativeSelect>
+              <div className="gap-sm flex items-center">
+                <div className="min-w-0 grow">
+                  <NativeSelect value={lineValue} onChange={(e) => setLineValue(e.target.value)} disabled={pending}>
+                    <option value="">{ROLE_TEXT.groupUnset}</option>
+                    {lines.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <Button asChild variant="secondary" className="shrink-0">
+                  <a href="/admin/roles/groups">{ROLE_TEXT.groupConfigure}</a>
+                </Button>
+              </div>
             </Field>
             <Field>
               <FieldLabel>{ROLE_TEXT.rankField}</FieldLabel>
-              <NativeSelect value={rankValue} onChange={(e) => setRankValue(e.target.value)} disabled={pending}>
-                <option value="">{ROLE_TEXT.groupUnset}</option>
-                {ranks.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name}</option>
-                ))}
-              </NativeSelect>
+              <div className="gap-sm flex items-center">
+                <div className="min-w-0 grow">
+                  <NativeSelect value={rankValue} onChange={(e) => setRankValue(e.target.value)} disabled={pending}>
+                    <option value="">{ROLE_TEXT.groupUnset}</option>
+                    {ranks.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <Button asChild variant="secondary" className="shrink-0">
+                  <a href="/admin/roles/groups">{ROLE_TEXT.groupConfigure}</a>
+                </Button>
+              </div>
             </Field>
 
             <Field>

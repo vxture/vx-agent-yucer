@@ -1256,7 +1256,8 @@ export const en: Dictionary = {
     rankField: "Rank",
     groupUnset: "Choose",
     ungrouped: "Ungrouped",
-    groupsButton: "Role groups",
+    groupsButton: "Group settings",
+    groupConfigure: "Configure",
     colDescription: "Description",
     colPerms: "Permissions",
     colMembers: "Members",
@@ -1354,7 +1355,7 @@ export const en: Dictionary = {
     emptyWhy: "The presets have not been generated for this workspace. Create one, or reset the presets.",
   },
   ROLE_GROUP_TEXT: {
-    pageTitle: "Role groups",
+    pageTitle: "Group settings",
     pageWhy: "Roles are placed by business line and rank. The shipped ones can be renamed and re-ordered, new ones added; a group with roles in it cannot be deleted.",
     count: (lines: number, ranks: number) => `${lines} lines · ${ranks} ranks`,
     edit: "Edit",
