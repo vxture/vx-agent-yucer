@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
-import { ALL_PROVINCES, PROVINCE_CODE } from "./provinces";
+import { ALL_PROVINCES, PROVINCE_CODE, shortProvince } from "./provinces";
 
 // incr/0038 - 行政区划, against a real Postgres.
 //
@@ -77,22 +77,82 @@ test("China's provinces are the same 34 the build knows", { skip }, async () => 
   await withPg(async (c) => {
     const rows = (
       await c.query(
-        `SELECT d.name, d.code, d.alpha_code
+        `SELECT d.name_zh, d.short_zh, d.name_en, d.code, d.abbr_en
            FROM yucer_ref.admin_division d
            JOIN yucer_ref.admin_division p ON p.id = d.parent_id
           WHERE d.level = 3 AND p.code = 'CN'`,
       )
     ).rows;
     assert.deepEqual(
-      rows.map((r) => r.name).sort(),
+      rows.map((r) => r.name_zh).sort(),
       [...ALL_PROVINCES].sort(),
       "the table and domains/shared/provinces.ts must name the same 34",
     );
-    // And the letter codes the configuration tags print.
+    // The tag configuration prints is `GD 广东`, and both halves of it come
+    // from the build today. If the table disagreed with either, the day the
+    // interface starts reading the table the labels would quietly change.
     for (const r of rows) {
-      assert.equal(r.alpha_code, PROVINCE_CODE[r.name], `${r.name} letter code`);
-      assert.match(r.code, /^\d{6}$/, `${r.name} should carry a six-digit adcode`);
+      assert.equal(r.abbr_en, PROVINCE_CODE[r.name_zh], `${r.name_zh} letter code`);
+      assert.equal(r.short_zh, shortProvince(r.name_zh), `${r.name_zh} short name`);
+      assert.ok(r.name_en, `${r.name_zh} needs an English name`);
+      assert.match(r.code, /^\d{6}$/, `${r.name_zh} should carry a six-digit adcode`);
     }
+  });
+});
+
+test("every row carries the three names the interface needs", { skip }, async () => {
+  await withPg(async (c) => {
+    // 中文全称 and 中文简称 are NOT NULL by column definition; what a test has
+    // to prove is that the short one is a short one where a rule could safely
+    // produce it, and honestly equal to the full name where none could.
+    const cn = (
+      await c.query(
+        `SELECT code, name_zh, short_zh, name_en, abbr_en FROM yucer_ref.admin_division
+          WHERE code IN ('CN', '440000', '150000', '440300', '422800')`,
+      )
+    ).rows;
+    const by = new Map(cn.map((r) => [r.code, r]));
+    assert.deepEqual(
+      [by.get("CN")!.name_zh, by.get("CN")!.short_zh, by.get("CN")!.abbr_en],
+      ["中华人民共和国", "中国", "CN"],
+    );
+    assert.deepEqual(
+      [by.get("440000")!.short_zh, by.get("440000")!.abbr_en, by.get("440000")!.name_en],
+      ["广东", "GD", "Guangdong"],
+    );
+    assert.equal(by.get("150000")!.short_zh, "内蒙古");
+    assert.equal(by.get("440300")!.short_zh, "深圳", "a city drops its 市");
+    // The refusal, which matters more than the rule: cutting the ethnic
+    // qualifier off would be writing a name rather than shortening one.
+    assert.equal(by.get("422800")!.short_zh, "恩施土家族苗族自治州");
+  });
+});
+
+test("the path is the ancestry, and it is queryable as a prefix", { skip }, async () => {
+  await withPg(async (c) => {
+    const gd = (
+      await c.query(`SELECT path FROM yucer_ref.admin_division WHERE level = 3 AND code = '440000'`)
+    ).rows[0].path;
+    assert.equal(gd, "AS/CN/440000");
+    // The query the materialised path exists for: everything under Guangdong,
+    // at any depth, without a recursive CTE.
+    const under = Number(
+      (
+        await c.query(
+          `SELECT count(*)::int AS n FROM yucer_ref.admin_division WHERE path LIKE $1`,
+          [`${gd}/%`],
+        )
+      ).rows[0].n,
+    );
+    assert.ok(under > 100, `expected Guangdong's cities and counties, got ${under}`);
+    // And a path that does not match its parent's would make that query lie.
+    const broken = await count(
+      c,
+      `parent_id IS NOT NULL AND path <> (
+         SELECT p.path FROM yucer_ref.admin_division p WHERE p.id = admin_division.parent_id
+       ) || '/' || code`,
+    );
+    assert.equal(broken, 0, "a path that does not extend its parent's");
   });
 });
 

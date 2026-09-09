@@ -1152,12 +1152,23 @@ model AdminDivision {
   /// ISO alpha-2 at levels 1-2, GB/T 2260's six digits at 3-5. Unique WITH the
   /// level, never alone: NA is both North America and Namibia.
   code      String          @db.VarChar(12)
-  name      String          @db.VarChar(128)
+  /// 两字母英文简称 - AS / CN / GD. Null below province.
+  abbrEn    String?         @map("abbr_en") @db.VarChar(8)
+  /// 中文全称 / 中文简称 / 英文全称. short_zh equals name_zh where no safe
+  /// shortening rule applies; name_en is null below province.
+  nameZh    String          @map("name_zh") @db.VarChar(128)
+  shortZh   String          @map("short_zh") @db.VarChar(64)
   nameEn    String?         @map("name_en") @db.VarChar(128)
-  alphaCode String?         @map("alpha_code") @db.VarChar(8)
   parentId  String?         @map("parent_id") @db.Uuid
   parent    AdminDivision?  @relation("AdminDivisionTree", fields: [parentId], references: [id], onDelete: Restrict)
   children  AdminDivision[] @relation("AdminDivisionTree")
+  /// Materialised path of codes: 'AS/CN/440000/440300/440304'.
+  path      String          @db.VarChar(64)
+  /// active | retired. A division that is abolished is retired, never deleted:
+  /// records that name it must keep resolving.
+  status    String          @default("active") @db.VarChar(16)
+  /// Which dataset put this row here - the table is three sources at once.
+  source    String          @db.VarChar(64)
   sortOrder Int             @default(0) @map("sort_order")
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt DateTime        @default(now()) @map("updated_at") @db.Timestamptz()
@@ -1165,6 +1176,7 @@ model AdminDivision {
   @@unique([level, code], map: "uidx_admin_division_code")
   @@index([parentId, sortOrder], map: "idx_admin_division_parent")
   @@index([level, sortOrder], map: "idx_admin_division_level")
+  @@index([path], map: "idx_admin_division_path")
   @@map("admin_division")
   @@schema("yucer_ref")
 }

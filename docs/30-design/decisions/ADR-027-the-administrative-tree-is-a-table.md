@@ -45,6 +45,40 @@ A change is the next increment.
 collide across levels - NA is North America and also Namibia - so the natural
 key is `(level, code)` and the parent link is by id.
 
+**Names, three of them, and one code (owner, 2026-09-08).** Every row carries
+`abbr_en` (两字母英文简称: AS / CN / GD, null below province), `name_zh`
+(中文全称: 中华人民共和国 / 广东省 / 深圳市), `short_zh` (中文简称: 中国 /
+广东 / 深圳) and `name_en` (英文全称: Asia / People's Republic of China /
+Guangdong, null below province).
+
+Two of those need their limits stated, because a column that is sometimes wrong
+is worse than one that is sometimes absent:
+
+- `short_zh` EQUALS `name_zh` where no safe rule applies. 恩施土家族苗族自治州
+  has no short form anybody says; dropping the suffix leaves
+  恩施土家族苗族, and dropping the ethnic qualifier as well would be writing a
+  name rather than shortening one. The rule fires for 省/市/县/区/旗/盟 and for
+  the five autonomous regions whose short forms are universal, and refuses
+  everywhere else - including the standard's own scaffolding rows (市辖区,
+  省直辖县级行政区划), which are not places.
+- `name_en` is NULL below province. Romanising 2,978 county names is a
+  generation step with its own failure mode - 重庆 is Chongqing, not Zhongqing -
+  and a wrong romanisation of a place name is fabricated data, which is the one
+  thing this whole batch was built to avoid.
+
+**i18n stops at two languages on purpose.** Chinese and English are what the
+product ships; two name columns are the right shape for two. A third locale is
+when `admin_division_name (division_id, locale, name, short_name)` earns its
+place - a child table, not a third and fourth column. That is the trigger.
+
+**Three more columns, each for a question that already exists.** `path` is the
+materialised ancestry (`AS/CN/440000/440300`), so "everything under Guangdong"
+is one indexed prefix scan rather than a recursive CTE. `status` is
+active/retired, because divisions get abolished (巢湖市, 2011) and a row that
+historical records name cannot be deleted. `source` says which of the three
+sources produced the row - the table is two datasets plus three hand-seeded
+SARs, and a refresh has to tell them apart.
+
 ## The rows are generated, and that is part of the decision
 
 `scripts/data/build-admin-division.mjs` pulls two published datasets, each
