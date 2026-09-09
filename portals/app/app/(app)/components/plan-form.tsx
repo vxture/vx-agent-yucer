@@ -13,6 +13,7 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
+  FormFields,
   FormPage,
   useFormSubmit,
   type AssistSuggestion,
@@ -118,7 +119,8 @@ export function NewPlanForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="flag">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.newPlanNo}</FieldLabel>
               {initial ? (
@@ -146,6 +148,7 @@ export function NewPlanForm({
               <FieldLabel>{STRATEGY_TEXT.newPlanObjective}</FieldLabel>
               <Input value={objective} onChange={(e) => setObjective(e.target.value)} />
             </Field>
+            </FormFields>
             {/* The number is the anchor: workspace-unique, no UPDATE grant, so
                 it cannot be corrected later. Said before the first attempt. */}
             {initial ? null : (

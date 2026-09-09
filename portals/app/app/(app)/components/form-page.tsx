@@ -72,12 +72,34 @@ export function FormFields({ children }: { readonly children: ReactNode }) {
     <div className="@container">
       {/* gap-xl (32px) rather than the md the stacked forms used: two columns
           need a gutter wide enough to read as a gutter, or the two fields look
-          like one wrapped row. */}
-      <div className="gap-xl @xl:grid-cols-2 grid grid-cols-1 *:min-w-0 *:max-w-(--vx-container-lg)">
+          like one wrapped row.
+
+          THE MEASURE IS A VARIABLE, not a class, and that is what lets
+          FormFieldWide exist. `*:max-w-(--vx-field-measure)` sets the cap on
+          every direct child, and a child selector beats a class the child
+          carries itself - so a wide field cannot simply declare max-w-none.
+          Redeclaring the VARIABLE on itself works, because the value is
+          resolved on the element the declaration lands on. */}
+      <div className="gap-xl @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)">
         {children}
       </div>
     </div>
   );
+}
+
+/**
+ * A field that takes the whole row inside FormFields.
+ *
+ * FOR THE ONES THAT ARE NOT HALF A ROW'S WORTH OF QUESTION: the "which record
+ * am I editing" selector at the top of an upsert form governs everything under
+ * it rather than sitting beside one of them, and a control whose content is a
+ * sentence needs the width. Everything else is a field and takes a column.
+ *
+ * It also drops the measure - a full row that stopped at half of it would be
+ * the squeeze this grid exists to end, one row lower.
+ */
+export function FormFieldWide({ children }: { readonly children: ReactNode }) {
+  return <div className="@xl:col-span-2 [--vx-field-measure:none]">{children}</div>;
 }
 
 /**

@@ -11,7 +11,13 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import {
+  AssistPanel,
+  FormFields,
+  FormPage,
+  useFormSubmit,
+  type AssistSuggestion,
+} from "./form-page";
 import { accountsWithoutOpenDeal } from "../../domains/pipeline/lib/suggest";
 import { coveringTerritories } from "../../domains/planning/lib/suggest";
 
@@ -119,7 +125,8 @@ export function OpportunityForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="plus">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{PIPELINE_TEXT.newName}</FieldLabel>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -175,6 +182,7 @@ export function OpportunityForm({
               <FieldLabel>{PIPELINE_TEXT.newExpectedClose}</FieldLabel>
               <Input type="date" value={closeAt} onChange={(e) => setCloseAt(e.target.value)} />
             </Field>
+            </FormFields>
             {/* Frozen the moment the button is pressed: campaign_id has no
                 UPDATE grant, so a deal entered here is self-sourced forever. */}
             <p className="text-muted-foreground text-body-sm">{PIPELINE_TEXT.newSelfSourced}</p>

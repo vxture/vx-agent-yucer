@@ -11,7 +11,14 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import {
+  AssistPanel,
+  FormFields,
+  FormFieldWide,
+  FormPage,
+  useFormSubmit,
+  type AssistSuggestion,
+} from "./form-page";
 import { knownValues } from "../../domains/shared/suggest";
 
 // 新建/编辑联系人 - a page since 2026-09-05 (owner ruling: content-rich
@@ -126,7 +133,10 @@ export function PersonForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="user">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
+            {/* WHICH PERSON - the choice of what the fields describe. */}
+            <FormFieldWide>
             <Field>
               <FieldLabel>{ACCOUNT_TEXT.contactEditing}</FieldLabel>
               <NativeSelect value={form.id} onChange={(e) => pick(e.target.value)}>
@@ -138,6 +148,7 @@ export function PersonForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFieldWide>
             <Field>
               <FieldLabel>{ACCOUNT_TEXT.contactName}</FieldLabel>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -182,6 +193,7 @@ export function PersonForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFields>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

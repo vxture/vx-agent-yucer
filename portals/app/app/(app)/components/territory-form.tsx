@@ -13,6 +13,8 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
+  FormFields,
+  FormFieldWide,
   FormPage,
   useFormSubmit,
   type AssistSuggestion,
@@ -116,7 +118,10 @@ export function TerritoryForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="map-pin">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
+            {/* WHICH TERRITORY - the choice of what the fields describe. */}
+            <FormFieldWide>
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryEditing}</FieldLabel>
               <NativeSelect value="" onChange={(e) => e.target.value && pick(e.target.value)}>
@@ -128,6 +133,7 @@ export function TerritoryForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFieldWide>
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryCode}</FieldLabel>
               <Input value={code} onChange={(e) => setCode(e.target.value)} />
@@ -136,9 +142,10 @@ export function TerritoryForm({
               <FieldLabel>{PLANNING_TEXT.territoryName}</FieldLabel>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
+            {/* A GRID OF CHECKBOXES takes the row: it is a list, not a
+                control, and half a row would wrap it into a column. */}
+            <FormFieldWide>
             <Field>
-              {/* The field the inline panel never had - a picker since
-                  2026-09-08, over the workspace's own 大区. */}
               <FieldLabel>{PLANNING_TEXT.territoryRegions}</FieldLabel>
               {covers.length === 0 ? (
                 <p className="text-muted-foreground text-body-sm">
@@ -167,6 +174,7 @@ export function TerritoryForm({
                 {PLANNING_TEXT.territoryRegionsHint}
               </span>
             </Field>
+            </FormFieldWide>
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryParent}</FieldLabel>
               <NativeSelect value={parentId} onChange={(e) => setParentId(e.target.value)}>
@@ -189,6 +197,7 @@ export function TerritoryForm({
                 <option value="retired">{PLANNING_TEXT.territoryRetired}</option>
               </NativeSelect>
             </Field>
+            </FormFields>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

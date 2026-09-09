@@ -6,7 +6,6 @@ import {
   Button,
   Field,
   FieldDescription,
-  FieldGroup,
   FieldLabel,
   Input,
   NativeSelect,
@@ -14,7 +13,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, type AssistSuggestion } from "./form-page";
+import { AssistPanel, FormFields, FormPage, type AssistSuggestion } from "./form-page";
 import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
 import type {
   ProductRecord,
@@ -137,7 +136,8 @@ export function NewProductForm({
           title={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
           description={editing ? CATALOG_TEXT.editHint : CATALOG_TEXT.codeHint}
         >
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{CATALOG_TEXT.colCode}</FieldLabel>
               {/* The code is the identity the upsert matches on - editable it
@@ -192,6 +192,7 @@ export function NewProductForm({
                 <p className="text-muted-foreground text-body-sm">{CATALOG_TEXT.newStatusWhy}</p>
               </Field>
             ) : null}
+            </FormFields>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}
@@ -329,7 +330,7 @@ export function NewSolutionForm({
           title={editing ? CATALOG_TEXT.editSolution : CATALOG_TEXT.newSolution}
           description={CATALOG_TEXT.rosterSolutionWhy}
         >
-          <FieldGroup className="max-w-(--vx-container-xl)">
+          <FormFields>
             <Field>
               <FieldLabel htmlFor="sol-code">{CATALOG_TEXT.colCode}</FieldLabel>
               <Input
@@ -362,7 +363,7 @@ export function NewSolutionForm({
               />
               <FieldDescription>{CATALOG_TEXT.scenarioHint}</FieldDescription>
             </Field>
-          </FieldGroup>
+          </FormFields>
 
           {/* THE COMBINATION, and the customisation of each line beside it. */}
           <div className="mt-lg flex flex-col gap-md">

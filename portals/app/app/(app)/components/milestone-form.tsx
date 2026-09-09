@@ -11,7 +11,13 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import {
+  AssistPanel,
+  FormFields,
+  FormPage,
+  useFormSubmit,
+  type AssistSuggestion,
+} from "./form-page";
 import { nextSequence, projectsWithoutMilestones } from "../../domains/delivery/lib/suggest";
 
 // 录入里程碑 - a page since 2026-09-05 (owner ruling; one form per file, see
@@ -172,7 +178,8 @@ export function MilestoneForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="flag">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{DELIVERY_TEXT.milestoneProject}</FieldLabel>
               <NativeSelect
@@ -272,6 +279,7 @@ export function MilestoneForm({
                 </p>
               </Field>
             ) : null}
+            </FormFields>
             {/* Said out loud, because it is the reason this form is not
                 bookkeeping: a missed milestone overrides a reported green. */}
             <p className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.milestoneAffectsHealth}</p>

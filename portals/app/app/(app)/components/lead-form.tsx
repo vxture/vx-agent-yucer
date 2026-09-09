@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button, Field, FieldLabel, Input, NativeSelect, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { FormPage, useFormSubmit } from "./form-page";
+import { FormFields, FormPage, useFormSubmit } from "./form-page";
 
 // 添加线索 - the hand-entered half of the funnel's mouth.
 //
@@ -46,7 +46,8 @@ export function LeadForm({
     <FormPage
       form={
         <Section icon="target">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{LEAD_TEXT.columnCompany}</FieldLabel>
               <Input
@@ -80,6 +81,7 @@ export function LeadForm({
                   own 匹配客户. */}
               <p className="text-muted-foreground text-body-sm">{LEAD_TEXT.formAccountWhy}</p>
             </Field>
+            </FormFields>
 
             <p className="text-muted-foreground text-body-sm">{LEAD_TEXT.formOwnerNote}</p>
 
