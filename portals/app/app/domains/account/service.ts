@@ -172,7 +172,7 @@ export async function saveMarketDivision(
   const name = input.name.trim();
   if (!code) return fail(violation("code_required", "a division needs a code", "code"));
   if (!name) return fail(violation("name_required", "a division needs a name", "name"));
-  /* THE CODE'S SHAPE IS THE FRAME'S (incr/0043, 0048). A national code
+  /* THE CODE'S SHAPE IS THE FRAME'S (incr/0043, 0045). A national code
      carries CHINA-; a province code carries no prefix at all - the province
      is its own column - and is an adcode or a word. The form composes it, so
      a person never types this wrong; an import can, and

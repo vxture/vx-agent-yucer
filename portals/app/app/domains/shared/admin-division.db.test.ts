@@ -198,7 +198,7 @@ test("the 34 provincial rows in the build are the table's - letters, name, adcod
   });
 });
 
-test("every province frame's ground in the build is the table's, exactly (incr/0045-0046)", { skip }, async () => {
+test("every province frame's ground in the build is the table's, exactly (incr/0045)", { skip }, async () => {
   /* THE SEAM FOR THE PROVINCE FRAMES. The in-memory store carves a province
      from province-frames.ts (generated from this table); the Prisma store
      reads the same rows live. If the two disagreed, the demo would offer a
@@ -215,7 +215,7 @@ test("every province frame's ground in the build is the table's, exactly (incr/0
       assert.equal(province.name_zh, f.province);
       assert.equal(province.abbr_en, f.code);
       // A province's ground is its level-4 rows; a municipality's is the
-      // level-5 districts and counties under its filing rows (0046). Minus
+      // level-5 districts and counties under its filing rows (0045). Minus
       // the filing rows themselves, through the same helper the store uses.
       const units = (
         f.unit === "district"

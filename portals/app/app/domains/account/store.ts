@@ -169,7 +169,7 @@ export interface MarketDivisionRecord {
   code: string;
   name: string;
   /** The frame it was carved in (incr/0043), and for a province frame which
-   *  province (0048) - the letters that used to prefix the code. */
+   *  province (0045) - the letters that used to prefix the code. */
   scope: MarketScope["kind"];
   scopeProvince: string | null;
   sortOrder: number;
@@ -378,7 +378,7 @@ export class InMemoryAccountStore implements AccountStore {
 
   /* The tenant's own divisions, over the preset. Same shape as divisionMoves:
      an empty map means "the preset, unchanged". */
-  /* KEYED BY FRAME AND CODE (0048): a province code carries no prefix, so
+  /* KEYED BY FRAME AND CODE (0045): a province code carries no prefix, so
      GUANZHONG under 陕西 and a GUANZHONG a tenant typed under 中国市场 are two
      rows, the way (workspace_id, scope, scope_province, division_code) is
      the database's key. */

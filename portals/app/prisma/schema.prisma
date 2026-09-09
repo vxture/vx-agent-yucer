@@ -1293,7 +1293,7 @@ model MarketCarveDivision {
   @@schema("yucer_ref")
 }
 
-/// incr/0045 (uuid relations, 0049's ruling): the place is an admin_division
+/// incr/0045 (uuid relations, 0045's ruling): the place is an admin_division
 /// row by id; carve and division by id. A place sits in one division per carve.
 model MarketCarveMember {
   carveId         String @map("carve_id") @db.Uuid
@@ -1330,7 +1330,7 @@ model AdminDivision {
   parentId  String?         @map("parent_id") @db.Uuid
   parent    AdminDivision?  @relation("AdminDivisionTree", fields: [parentId], references: [id], onDelete: Restrict)
   children  AdminDivision[] @relation("AdminDivisionTree")
-  /// incr/0045 / 0049 - the divisions this row has been placed in, across
+  /// incr/0045 - the divisions this row has been placed in, across
   /// workspaces, and the carves it appears in.
   placements         MarketDivisionMember[]
   provincePlacements MarketDivisionProvince[]

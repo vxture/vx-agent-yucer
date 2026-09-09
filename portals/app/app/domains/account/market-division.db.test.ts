@@ -87,7 +87,7 @@ test("a province outside the vocabulary is refused", { skip }, async () => {
     await assert.rejects(
       c.query(
         /* With a real place id and the wrong NAME: the name CHECK is what
-           refuses - 0049's id relation does not replace it. */
+           refuses - 0045's id relation does not replace it. */
         `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id, admin_division_id)
          SELECT $1, '江苏', d.id, a.id FROM yucer_core.market_division d
            JOIN yucer_ref.admin_division a ON a.level = 3 AND a.name_zh = '江苏省'
@@ -161,7 +161,7 @@ test("a code that does not carry its frame is refused by the database", { skip }
         `${code} in a ${scope} frame`,
       );
     }
-    /* 0048: a province code carries NO prefix, and the province is a column
+    /* 0045: a province code carries NO prefix, and the province is a column
        that must be there - and only there. */
     await assert.rejects(
       c.query(

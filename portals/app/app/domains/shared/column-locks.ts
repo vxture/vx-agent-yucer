@@ -253,7 +253,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
      editable. `province` is not here: it is half the primary key, and changing
      it in place is a delete and an insert wearing one statement. */
   "yucer_core.market_division_province": ["division_id", "updated_at"],
-  /* 0045 / 0049. The same rule for the frames whose members are admin_division
+  /* 0045. The same rule for the frames whose members are admin_division
      rows: a city moves between divisions; (workspace_id, admin_division_id)
      is the key and is not rewritten. */
   "yucer_core.market_division_member": ["division_id", "updated_at"],

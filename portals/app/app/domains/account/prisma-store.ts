@@ -51,7 +51,7 @@ const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
 /* A division's members come from two tables (incr/0036 provinces, incr/0045
    admin_division rows), and a row holds whichever its frame uses. Read both,
    print each in its own shape: `JS 江苏` for a province, `西安` for a city. */
-/* The relation is by id (0049); everything the interface prints comes
+/* The relation is by id (0045); everything the interface prints comes
    through it from admin_division, and the member's KEY - the adcode - is read
    there too, never stored twice. */
 const PLACE = { select: { code: true, shortZh: true, nameZh: true, abbrEn: true } } as const;
@@ -189,7 +189,7 @@ export class PrismaAccountStore implements AccountStore {
         },
       },
     });
-    /* The relation is by id (0049); the KEY the service speaks is read back
+    /* The relation is by id (0045); the KEY the service speaks is read back
        through it - a province's name, a unit's adcode. */
     return rows.map((c) => ({
       key: c.carveKey,
@@ -211,7 +211,7 @@ export class PrismaAccountStore implements AccountStore {
     divisionCode: string | null,
   ): Promise<boolean> {
     const p = await this.client();
-    /* TWO TABLES, ONE VERB, ONE RELATION (0049). The key the service speaks -
+    /* TWO TABLES, ONE VERB, ONE RELATION (0045). The key the service speaks -
        a province's name under 中国市场, a unit's adcode under 省级市场 - is
        resolved to the admin_division ROW here, at the boundary, and the row's
        id is what both tables relate by. A key the reference table does not
@@ -286,7 +286,7 @@ export class PrismaAccountStore implements AccountStore {
     const scope = await this.getMarketScope(workspaceId);
     const rows = await p.marketDivision.findMany({
       // BY FRAME - a carve made under another frame stays out of this roster.
-      // The province as well as the kind (0048): 陕西's carve and 广东's are
+      // The province as well as the kind (0045): 陕西's carve and 广东's are
       // both `province`.
       where: { workspaceId, scope: scope.kind, scopeProvince: scope.kind === "province" ? scope.code ?? "" : "" },
       // The workspace's OWN order, then name - a tenant that re-orders its

@@ -40,7 +40,7 @@ import { ALL_PROVINCES, PROVINCE_CODE, provinceTag, shortProvince } from "./prov
  * A NATIONAL CODE CARRIES THE FRAME - CHINA-EAST, not EAST: a code is what an
  * import matches on, and "EAST" alone cannot tell 华东 from the eastern half
  * of 广东. A PROVINCE CODE DOES NOT: the province's letters are their own
- * column (market_division.scope_province, 0048), and the code is the unit's
+ * column (market_division.scope_province, 0045), and the code is the unit's
  * adcode or the region's own word - GUANZHONG, YUBEI. `divisionCode()` is
  * the one place the product composes one.
  */
@@ -303,7 +303,7 @@ export function scopePrefix(scope: MarketScope): string {
 }
 
 /** The shape every code has after its prefix: `^[A-Z0-9][A-Z0-9_]*$` - what
- *  chk_market_division_code_frame (0048) CHECKs. */
+ *  chk_market_division_code_frame (0045) CHECKs. */
 export const CODE_BODY = /^[A-Z0-9][A-Z0-9_]*$/;
 
 /** The stored code for what a person typed after the prefix: `east` -> CHINA-EAST. */

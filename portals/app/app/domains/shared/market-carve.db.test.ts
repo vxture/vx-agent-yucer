@@ -52,7 +52,7 @@ test("the table and the mirror hold the same carves, exactly", { skip }, async (
         [...t.divisions],
         `${row.carve_key}: divisions`,
       );
-      // The relation is by id (0049); the mirror's KEY - a province name, a
+      // The relation is by id (0045); the mirror's KEY - a province name, a
       // unit adcode - is read back through admin_division.
       const members = (
         await c.query(

@@ -7,7 +7,7 @@ import { Client } from "pg";
  * The first province-level market (陕西, carved by city) stands on four
  * database properties, and none of them is visible to the unit suite: a
  * primary key that keeps a city in at most one region, a foreign key that
- * makes a member an admin_division row BY ID and nothing else (0049), and a
+ * makes a member an admin_division row BY ID and nothing else (0045), and a
  * grant set that lets the service role place and move but never rewrite the
  * key.
  *
@@ -52,7 +52,7 @@ async function seed(c: Client): Promise<{ guanzhong: string; shaanbei: string }>
 }
 
 /** Place the admin_division row with this (level, code) - resolved to its id
- *  here, the way the store does it; the table relates by the id (0049). */
+ *  here, the way the store does it; the table relates by the id (0045). */
 const place = (c: Client, level: number, code: string, divisionId: string) =>
   c.query(
     `INSERT INTO yucer_core.market_division_member (workspace_id, admin_division_id, division_id)
@@ -108,7 +108,7 @@ test("a member is an admin_division row, by id - a key the table does not have p
       [WS],
     );
     assert.deepEqual(r.rows, [{ short_zh: "西安", code: "610100" }]);
-    // A district under 北京 is level 5 and may be placed too (0046).
+    // A district under 北京 is level 5 and may be placed too (0045).
     await place(c, 5, "110101", guanzhong);
     await c.query(`DELETE FROM yucer_core.market_division_member WHERE workspace_id = $1`, [WS]);
   });

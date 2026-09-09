@@ -173,7 +173,7 @@ test("a code has to carry the frame's prefix, and the form never lets it not", a
   assert.equal(r.ok === false && r.violations[0].code, "code_prefix");
   assert.equal(divisionCode({ kind: "china", code: null }, "xin jiang"), "CHINA-XIN_JIANG");
   assert.equal(localCode({ kind: "china", code: null }, "CHINA-EAST"), "EAST");
-  // No prefix under a province frame (0048): the province is its own column.
+  // No prefix under a province frame (0045): the province is its own column.
   assert.equal(scopePrefix({ kind: "province", code: "GD" }), "");
   assert.equal(divisionCode({ kind: "province", code: "SN" }, "guan zhong"), "GUAN_ZHONG");
 });
@@ -214,7 +214,7 @@ test("under 陕西 a region holds cities, the roster is 陕西's own, and the ch
   // A province is not a member here; a city is.
   const bad = await saveMarketDivision(ctxOf(s), { code: "XIAN", name: "西安", members: ["陕西省"] });
   assert.equal(bad.ok === false && bad.violations[0].code, "member_unknown");
-  // A prefix of any kind is refused under a province frame (0048).
+  // A prefix of any kind is refused under a province frame (0045).
   const prefixed = await saveMarketDivision(ctxOf(s), { code: "SN-XIAN", name: "西安", members: [] });
   assert.equal(prefixed.ok === false && prefixed.violations[0].code, "code_shape");
   unwrap(await saveMarketDivision(ctxOf(s), { code: "XIAN", name: "西安都市圈", members: ["610100", "610400"] }));
