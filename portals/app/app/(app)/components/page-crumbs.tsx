@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Breadcrumb,
@@ -6,7 +8,10 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
+  Button,
+  Icon,
 } from "@vxture/design-ui";
+import { useMessages } from "../lib/i18n/provider";
 
 /**
  * 二级页面的面包屑 (owner, 2026-09-08).
@@ -30,6 +35,20 @@ import {
  * WHERE IT GOES: first child of the page's ViewLayout, above the ViewHeader.
  * The header answers "what is this"; the crumb answers "where am I", and the
  * second question is the one you have while your eyes are still moving.
+ *
+ * THE BACK BUTTON LEADS THE ROW (owner, 2026-09-08), and it is an ICON:
+ * going up one level is the most common next action on a page like this, and
+ * the trail already spells out where that is - a second copy of the word would
+ * be the same instruction twice.
+ *
+ * arrow-left, NOT chevron-left: the separators between crumbs are chevrons,
+ * and two chevron glyphs a centimetre apart pointing opposite ways read as one
+ * broken widget (owner, 2026-09-05, on the page this pattern comes from).
+ *
+ * It goes to the IMMEDIATE PARENT - the last crumb before this page - rather
+ * than to browser history: the trail is what the reader is looking at, and a
+ * control that lands somewhere the trail does not name is a different promise.
+ * A page with no ancestors renders no button rather than a disabled one.
  */
 export function PageCrumbs({
   trail,
@@ -41,23 +60,35 @@ export function PageCrumbs({
   /** This page. Rendered as text, never as a link. */
   readonly current: string;
 }) {
+  const { SHELL_TEXT } = useMessages();
+  const up = trail.at(-1);
+
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        {trail.map((step) => (
-          <BreadcrumbItem key={step.href}>
-            {/* asChild + next/link: a breadcrumb is in-app navigation, and a
-                bare <a> would reload the whole shell to move one level up. */}
-            <BreadcrumbLink asChild>
-              <Link href={step.href}>{step.label}</Link>
-            </BreadcrumbLink>
-            <BreadcrumbSeparator />
+    <div className="gap-2xs flex items-center">
+      {up ? (
+        <Button asChild variant="ghost" size="icon-sm" aria-label={SHELL_TEXT.backUp}>
+          <Link href={up.href}>
+            <Icon name="arrow-left" size="sm" />
+          </Link>
+        </Button>
+      ) : null}
+      <Breadcrumb>
+        <BreadcrumbList>
+          {trail.map((step) => (
+            <BreadcrumbItem key={step.href}>
+              {/* asChild + next/link: a breadcrumb is in-app navigation, and a
+                  bare <a> would reload the whole shell to move one level up. */}
+              <BreadcrumbLink asChild>
+                <Link href={step.href}>{step.label}</Link>
+              </BreadcrumbLink>
+              <BreadcrumbSeparator />
+            </BreadcrumbItem>
+          ))}
+          <BreadcrumbItem>
+            <BreadcrumbPage>{current}</BreadcrumbPage>
           </BreadcrumbItem>
-        ))}
-        <BreadcrumbItem>
-          <BreadcrumbPage>{current}</BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </div>
   );
 }
