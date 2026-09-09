@@ -2903,6 +2903,7 @@ export const en: Dictionary = {
     divisionClearTarget: (n: number, noun: string) => `the ${n} ${noun} chosen`,
     divisionClearConsequence: "The list empties; anything ticked by hand has to be ticked again. Discard undoes it until you save.",
     divisionResetPresetNone: "No preset matches the current code",
+    divisionResetPresetAmbiguous: (n: number) => `${n} carves share this code - click to pick one`,
     divisionPick: (noun: string) => `Choose ${noun}`,
     divisionPickTitle: (noun: string) => `Choose ${noun}`,
     divisionPickWhy: (noun: string) => `Tick ${noun}. The suffix shows where the standard carves put each one.`,

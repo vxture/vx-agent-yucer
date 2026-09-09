@@ -35,6 +35,7 @@ import {
 } from "../../domains/shared/market-division";
 import { useMessages } from "../lib/i18n/provider";
 import { frameIncludes, frameNoun } from "../lib/frame-copy";
+import { matchPreset } from "../lib/preset-match";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 import { Tag } from "./tag";
 
@@ -126,13 +127,20 @@ export function DivisionForm({
   const [applying, setApplying] = useState(false);
   const [presetChoice, setPresetChoice] = useState("");
 
-  /* The preset that matches THIS code - what 重置预置 restores. On a new
-     region it follows what has been typed; on an existing one the code is
-     fixed and so is the match. */
-  const presetForCode = useMemo(
-    () => presets.find((p) => p.code === divisionCode(scope, local)) ?? null,
-    [presets, scope, local],
+  /* The preset that matches THIS region - what 重置预置 restores. By code
+     AND name (preset-match.ts says why: CHINA-EAST is 五分法's 东部 and
+     七分法's 华东, and matching on code alone reset one to the other). When
+     the code alone is ambiguous, 重置预置 asks which carve. On a new region
+     the match follows what has been typed; on an existing one the code is
+     fixed. */
+  const presetMatch = useMemo(
+    () => matchPreset(presets, divisionCode(scope, local), nameValue),
+    [presets, scope, local, nameValue],
   );
+  const presetForCode = presetMatch.kind === "one" ? presetMatch.preset : null;
+  /* Which presets the 应用预置 dialog lists: all of them, or - when 重置预置
+     has to ask - only the carves that share this code. */
+  const [presetPool, setPresetPool] = useState<readonly PresetOption[]>(presets);
   /* Lay a preset over the form. The CODE follows only while creating - it is
      the anchor, and on an existing region it stays. */
   const applyPreset = (p: PresetOption) => {
@@ -272,6 +280,7 @@ export function DivisionForm({
                   variant="secondary"
                   disabled={pending || presets.length === 0}
                   onClick={() => {
+                    setPresetPool(presets);
                     setPresetChoice(presetForCode ? `${presetForCode.key}:${presetForCode.code}` : "");
                     setApplying(true);
                   }}
@@ -283,6 +292,25 @@ export function DivisionForm({
                     危险确认框) - the DS's own contract: a verb, a target and a
                     consequence, and the button wears red so the row says
                     which of the four can cost you something. */}
+                {presetMatch.kind === "ambiguous" ? (
+                  /* SEVERAL CARVES SHARE THIS CODE and none matches the name:
+                     ask which, through the same dialog, narrowed to them. Not
+                     destructive yet - nothing is applied until a carve is
+                     picked and confirmed there. */
+                  <Button
+                    variant="secondary"
+                    disabled={pending}
+                    title={PLANNING_TEXT.divisionResetPresetAmbiguous(presetMatch.candidates.length)}
+                    onClick={() => {
+                      setPresetPool(presetMatch.candidates);
+                      const p = presetMatch.preferred;
+                      setPresetChoice(p ? `${p.key}:${p.code}` : "");
+                      setApplying(true);
+                    }}
+                  >
+                    {PLANNING_TEXT.divisionResetPreset}
+                  </Button>
+                ) : (
                 <DestructiveButton
                   disabled={pending || !presetForCode}
                   title={
@@ -307,6 +335,7 @@ export function DivisionForm({
                 >
                   {PLANNING_TEXT.divisionResetPreset}
                 </DestructiveButton>
+                )}
                 <DestructiveButton
                   disabled={pending || chosen.size === 0}
                   confirm={{
@@ -453,7 +482,7 @@ export function DivisionForm({
         submitDisabled={presetChoice === ""}
         onSubmit={(e) => {
           e.preventDefault();
-          const p = presets.find((x) => `${x.key}:${x.code}` === presetChoice);
+          const p = presetPool.find((x) => `${x.key}:${x.code}` === presetChoice);
           if (p) applyPreset(p);
           setApplying(false);
         }}
@@ -461,7 +490,7 @@ export function DivisionForm({
         {/* 五分法-中部, one per line: the carve's own list of names belongs
             in the roster's reset dialog, not beside every option. */}
         <RadioGroup value={presetChoice} onValueChange={setPresetChoice} className="gap-sm flex flex-col">
-          {presets.map((p) => (
+          {presetPool.map((p) => (
             <label className="gap-sm flex items-center" key={`${p.key}:${p.code}`} htmlFor={`preset-${p.key}-${p.code}`}>
               <RadioGroupItem id={`preset-${p.key}-${p.code}`} value={`${p.key}:${p.code}`} />
               <span className="text-body">{PLANNING_TEXT.presetOption(p.from, p.name)}</span>

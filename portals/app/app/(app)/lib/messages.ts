@@ -3341,6 +3341,7 @@ export const PLANNING_TEXT = {
   divisionClearTarget: (n: number, noun: string) => `已选的 ${n} 个${noun}`,
   divisionClearConsequence: "清单会清空，逐个勾选的辖区需要重新选；未保存前可以「放弃」。",
   divisionResetPresetNone: "当前代码没有对应的预置",
+  divisionResetPresetAmbiguous: (n: number) => `这个代码在 ${n} 套预置里都有，点击后选一套`,
   // --- 成员选择抽屉 ---
   divisionPick: (noun: string) => `选择${noun}`,
   divisionPickTitle: (noun: string) => `选择${noun}`,
