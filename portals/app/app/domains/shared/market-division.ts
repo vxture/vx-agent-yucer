@@ -1,5 +1,5 @@
-import { PROVINCE_GROUNDS, type ProvinceGround } from "./province-frames";
-import { ALL_PROVINCES, provinceTag, shortProvince } from "./provinces";
+import { PROVINCE_GROUNDS, PROVINCE_ROWS, type ProvinceGround } from "./province-frames";
+import { ALL_PROVINCES, PROVINCE_CODE, provinceTag, shortProvince } from "./provinces";
 
 /* 大区 - how a workspace divides its market.
  *
@@ -72,6 +72,24 @@ export const MARKET_SCOPES: readonly { readonly kind: MarketScopeKind; readonly 
 export interface MarketMember {
   readonly key: string;
   readonly label: string;
+  /** 简称代号 - the two GB/T 2260 letters a country or province has (JS); null
+   *  below province, where the standard has none (owner: 市县级不用). */
+  readonly abbr: string | null;
+  /** 全称 - 江苏省 / 西安市. */
+  readonly name: string;
+  /** 行政区划代码 - the six digits, at every level. */
+  readonly adcode: string;
+}
+
+/** A province as a member of 中国市场, in the roster's full shape. */
+export function provinceMember(province: string): MarketMember {
+  return {
+    key: province,
+    label: provinceTag(province),
+    abbr: PROVINCE_CODE[province] ?? null,
+    name: province,
+    adcode: PROVINCE_ROWS.find((r) => r.province === province)?.adcode ?? "",
+  };
 }
 
 /**
@@ -261,10 +279,12 @@ export function scopeOpen(scope: MarketScope): boolean {
  */
 export function frameMembers(scope: MarketScope): readonly MarketMember[] {
   if (scope.kind === "china") {
-    return ALL_PROVINCES.map((p) => ({ key: p, label: provinceTag(p) }));
+    return ALL_PROVINCES.map(provinceMember);
   }
   if (scope.kind === "province") {
-    return (provinceFrame(scope.code)?.units ?? []).map((u) => ({ key: u.code, label: u.short }));
+    return (provinceFrame(scope.code)?.units ?? []).map((u) => ({
+      key: u.code, label: u.short, abbr: null, name: u.name, adcode: u.code,
+    }));
   }
   return [];
 }

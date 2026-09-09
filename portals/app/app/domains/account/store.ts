@@ -472,7 +472,7 @@ export class InMemoryAccountStore implements AccountStore {
        it does not know (a province placed while the frame was china, read
        back under 陕西) is not a member here. */
     const scope = await this.getMarketScope(workspaceId);
-    const label = new Map(frameMembers(scope).map((m) => [m.key, m.label]));
+    const known = new Map(frameMembers(scope).map((m) => [m.key, m]));
     return this.divisionsFor(workspaceId, scope).map((d) => ({
       id: `div_${InMemoryAccountStore.frameKey(scope)}|${d.code}`,
       code: d.code,
@@ -481,8 +481,8 @@ export class InMemoryAccountStore implements AccountStore {
       scopeProvince: scope.kind === "province" ? scope.code : null,
       sortOrder: d.sortOrder,
       members: [...placement.entries()]
-        .filter(([key, code]) => code === d.code && label.has(key))
-        .map(([key]) => ({ key, label: label.get(key)! })),
+        .filter(([key, code]) => code === d.code && known.has(key))
+        .map(([key]) => known.get(key)!),
     }));
   }
 

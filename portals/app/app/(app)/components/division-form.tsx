@@ -66,6 +66,11 @@ export interface MemberOption {
   readonly key: string;
   /** `JS 江苏` / `西安` - the one shape a member takes in configuration. */
   readonly label: string;
+  /** 简称代号 (JS) - a province has one, a city does not. */
+  readonly abbr: string | null;
+  /** 全称 and 行政区划代码 - the roster's own columns. */
+  readonly name: string;
+  readonly adcode: string;
   /** The 大区 it sits in now, or null. */
   readonly heldBy: string | null;
   /** Where each shipped carve of this frame puts it - `五分法 中部 · 七分法 华中`. */
@@ -277,26 +282,16 @@ export function DivisionForm({
               </div>
             </Field>
 
-            <div className="gap-sm flex items-center">
-              <Button onClick={submit} disabled={pending}>
-                {PLANNING_TEXT.divisionSave}
-              </Button>
-              {/* REMOVAL IS OFFERED ONLY WHEN IT HOLDS NOTHING, which is the
-                  foreign key's own rule (ON DELETE RESTRICT) shown rather than
-                  enforced after the fact. */}
-              {!isNew && members.length === 0 ? (
+            {/* REMOVAL IS OFFERED ONLY WHEN IT HOLDS NOTHING, which is the
+                foreign key's own rule (ON DELETE RESTRICT) shown rather than
+                enforced after the fact. It stays in the column: it is an
+                operation on this region, not the way out of the page. */}
+            {!isNew && members.length === 0 ? (
+              <div className="w-fit">
                 <Button variant="secondary" disabled={pending} onClick={remove}>
                   {PLANNING_TEXT.divisionRemove}
                 </Button>
-              ) : null}
-            </div>
-
-            {error ? (
-              <Banner
-                tone="danger"
-                title={PLANNING_TEXT.divisionSaveFailed}
-                description={error}
-              />
+              </div>
             ) : null}
           </div>
         </Section>
@@ -321,11 +316,19 @@ export function DivisionForm({
                 description={PLANNING_TEXT.divisionPickEmptyWhy(noun)}
               />
             ) : (
+              /* THE ROSTER'S COLUMNS (owner, 2026-09-09: 序号，简称代号，名称，
+                 行政区划代码，操作). 简称代号 is the standard's two letters and
+                 exists for a province, not for a city - the cell is blank
+                 there rather than invented. 移除 unticks the row: the one
+                 operation a member has here. */
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[4rem] text-center">#</TableHead>
-                    <TableHead>{noun}</TableHead>
+                    <TableHead className="w-[3.5rem] text-center">{PLANNING_TEXT.colIndex}</TableHead>
+                    <TableHead className="w-[6rem]">{PLANNING_TEXT.colAbbr}</TableHead>
+                    <TableHead>{PLANNING_TEXT.colName}</TableHead>
+                    <TableHead className="w-[8rem]">{PLANNING_TEXT.colAdcode}</TableHead>
+                    <TableHead className="w-[5rem] text-center">{PLANNING_TEXT.colOps}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -334,7 +337,19 @@ export function DivisionForm({
                       <TableCell className="text-muted-foreground text-center tabular-nums">
                         {i + 1}
                       </TableCell>
-                      <TableCell>{o.label}</TableCell>
+                      <TableCell className="font-medium tabular-nums">{o.abbr ?? ""}</TableCell>
+                      <TableCell>{o.name}</TableCell>
+                      <TableCell className="tabular-nums">{o.adcode}</TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => toggle(o.key)}
+                        >
+                          {PLANNING_TEXT.divisionRemoveMember}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -358,6 +373,25 @@ export function DivisionForm({
             ) : null}
           </div>
         </Section>
+      </div>
+
+      {/* THE WAY OUT, ACROSS BOTH COLUMNS (owner, 2026-09-09: 保存需要一个底部
+          拉通的 section，并且需要上方分割线; 保存、放弃，主、辅). Saving commits
+          what both columns say, so it belongs to neither: a full-width foot
+          under a rule, 保存 primary and 放弃 secondary, and the failure
+          banner beside the button that failed. */}
+      <div className="border-border mt-lg flex flex-col gap-md border-t pt-md">
+        <div className="gap-sm flex items-center">
+          <Button onClick={submit} disabled={pending}>
+            {PLANNING_TEXT.divisionSave}
+          </Button>
+          <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/division")}>
+            {PLANNING_TEXT.divisionDiscard}
+          </Button>
+        </div>
+        {error ? (
+          <Banner tone="danger" title={PLANNING_TEXT.divisionSaveFailed} description={error} />
+        ) : null}
       </div>
 
       <Drawer

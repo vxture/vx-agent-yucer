@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
 import { isPseudoCity, PROVINCE_FRAMES } from "./market-division";
+import { PROVINCE_ROWS } from "./province-frames";
 import { ALL_PROVINCES, PROVINCE_CODE, shortProvince } from "./provinces";
 
 // incr/0038 - 行政区划, against a real Postgres.
@@ -182,6 +183,18 @@ test("the service role may read it and may not write it", { skip }, async () => 
     for (const p of ["INSERT", "UPDATE", "DELETE"]) {
       assert.equal((await priv(p)).rows[0].ok, false, `${p} must not be granted`);
     }
+  });
+});
+
+test("the 34 provincial rows in the build are the table's - letters, name, adcode", { skip }, async () => {
+  await withPg(async (c) => {
+    const rows = (
+      await c.query(`SELECT abbr_en, name_zh, code FROM yucer_ref.admin_division WHERE level = 3 ORDER BY sort_order`)
+    ).rows;
+    assert.deepEqual(
+      rows.map((r) => ({ code: r.abbr_en, province: r.name_zh, adcode: r.code })),
+      [...PROVINCE_ROWS],
+    );
   });
 });
 

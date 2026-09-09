@@ -8,11 +8,11 @@ import {
   frameMembers,
   isPseudoCity,
   provinceFrame,
+  provinceMember,
   type DivisionTemplate,
   type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
-import { provinceTag } from "../shared/provinces";
 import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
@@ -53,16 +53,20 @@ const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
    print each in its own shape: `JS 江苏` for a province, `西安` for a city. */
 const MEMBERS = {
   provinces: { select: { province: true } },
-  members: { select: { memberCode: true, place: { select: { shortZh: true } } } },
+  members: {
+    select: { memberCode: true, place: { select: { shortZh: true, nameZh: true, abbrEn: true } } },
+  },
 } as const;
 
 function membersOf(row: {
   provinces: { province: string }[];
-  members: { memberCode: string; place: { shortZh: string } }[];
+  members: { memberCode: string; place: { shortZh: string; nameZh: string; abbrEn: string | null } }[];
 }): MarketMember[] {
   return [
-    ...row.provinces.map((x) => ({ key: x.province, label: provinceTag(x.province) })),
-    ...row.members.map((x) => ({ key: x.memberCode, label: x.place.shortZh })),
+    ...row.provinces.map((x) => provinceMember(x.province)),
+    ...row.members.map((x) => ({
+      key: x.memberCode, label: x.place.shortZh, abbr: x.place.abbrEn, name: x.place.nameZh, adcode: x.memberCode,
+    })),
   ];
 }
 
@@ -158,9 +162,11 @@ export class PrismaAccountStore implements AccountStore {
         ? { level: 5, status: "active", path: { startsWith: `${province.path}/` } }
         : { level: 4, status: "active", parentId: province.id },
       orderBy: { sortOrder: "asc" },
-      select: { code: true, shortZh: true },
+      select: { code: true, shortZh: true, nameZh: true, abbrEn: true },
     });
-    return units.filter((u) => !isPseudoCity(u.code)).map((u) => ({ key: u.code, label: u.shortZh }));
+    return units
+      .filter((u) => !isPseudoCity(u.code))
+      .map((u) => ({ key: u.code, label: u.shortZh, abbr: u.abbrEn, name: u.nameZh, adcode: u.code }));
   }
 
   /* --- 预置方案 (incr/0047) ------------------------------------------------

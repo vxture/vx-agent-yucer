@@ -19,6 +19,44 @@ export interface ProvinceGround {
   readonly units: readonly { readonly code: string; readonly name: string; readonly short: string }[];
 }
 
+/** Every provincial-level division, with the adcode the letters stand for. */
+export const PROVINCE_ROWS: readonly { readonly code: string; readonly province: string; readonly adcode: string }[] = [
+  { code: "BJ", province: "北京市", adcode: "110000" },
+  { code: "TJ", province: "天津市", adcode: "120000" },
+  { code: "HE", province: "河北省", adcode: "130000" },
+  { code: "SX", province: "山西省", adcode: "140000" },
+  { code: "NM", province: "内蒙古自治区", adcode: "150000" },
+  { code: "LN", province: "辽宁省", adcode: "210000" },
+  { code: "JL", province: "吉林省", adcode: "220000" },
+  { code: "HL", province: "黑龙江省", adcode: "230000" },
+  { code: "SH", province: "上海市", adcode: "310000" },
+  { code: "JS", province: "江苏省", adcode: "320000" },
+  { code: "ZJ", province: "浙江省", adcode: "330000" },
+  { code: "AH", province: "安徽省", adcode: "340000" },
+  { code: "FJ", province: "福建省", adcode: "350000" },
+  { code: "JX", province: "江西省", adcode: "360000" },
+  { code: "SD", province: "山东省", adcode: "370000" },
+  { code: "HA", province: "河南省", adcode: "410000" },
+  { code: "HB", province: "湖北省", adcode: "420000" },
+  { code: "HN", province: "湖南省", adcode: "430000" },
+  { code: "GD", province: "广东省", adcode: "440000" },
+  { code: "GX", province: "广西壮族自治区", adcode: "450000" },
+  { code: "HI", province: "海南省", adcode: "460000" },
+  { code: "CQ", province: "重庆市", adcode: "500000" },
+  { code: "SC", province: "四川省", adcode: "510000" },
+  { code: "GZ", province: "贵州省", adcode: "520000" },
+  { code: "YN", province: "云南省", adcode: "530000" },
+  { code: "XZ", province: "西藏自治区", adcode: "540000" },
+  { code: "SN", province: "陕西省", adcode: "610000" },
+  { code: "GS", province: "甘肃省", adcode: "620000" },
+  { code: "QH", province: "青海省", adcode: "630000" },
+  { code: "NX", province: "宁夏回族自治区", adcode: "640000" },
+  { code: "XJ", province: "新疆维吾尔自治区", adcode: "650000" },
+  { code: "TW", province: "台湾省", adcode: "710000" },
+  { code: "HK", province: "香港特别行政区", adcode: "810000" },
+  { code: "MO", province: "澳门特别行政区", adcode: "820000" },
+];
+
 export const PROVINCE_GROUNDS: readonly ProvinceGround[] = [
   { code: "BJ", province: "北京市", adcode: "110000", unit: "district", units: [
     { code: "110101", name: "东城区", short: "东城" },

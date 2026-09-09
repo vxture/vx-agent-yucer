@@ -105,7 +105,8 @@ test("the owner's case: a 新疆基地 takes 新疆 off 西部, and nothing else
     code: "CHINA-XINJIANG", name: "新疆基地", members: ["新疆维吾尔自治区"],
   }));
   // Reported, not silent: this reorganised somebody else's division.
-  assert.deepEqual(r.moved, [{ member: { key: "新疆维吾尔自治区", label: "XJ 新疆" }, from: "西部" }]);
+  assert.deepEqual(r.moved.map((m) => [m.member.key, m.member.label, m.member.abbr, m.member.adcode, m.from]),
+    [["新疆维吾尔自治区", "XJ 新疆", "XJ", "650000", "西部"]]);
 
   const after = await s.listMarketDivisions(WS);
   assert.equal(after.length, 6);

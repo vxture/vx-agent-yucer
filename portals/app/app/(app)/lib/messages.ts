@@ -3331,6 +3331,7 @@ export const PLANNING_TEXT = {
   divisionHintPreset: (from: string, name: string) => `${from} ${name}`,
   divisionTakenFrom: (p: string, from: string) => `${p} 原属 ${from}，将移入当前区域`,
   divisionSave: "保存区域",
+  divisionDiscard: "放弃",
   divisionSource: "来源",
   divisionSystem: "系统配置",
   divisionCustom: "自定义",
@@ -3387,6 +3388,13 @@ export const PLANNING_TEXT = {
   divisionIncludes: "包括范围",
   /* 右栏清单的说明行：范围是什么，装了几个。「陕西省 · 包括为市级 · 5 个市」 */
   divisionListMeta: (includes: string, n: number, noun: string) => `${includes} · ${n} 个${noun}`,
+  // 右栏清单的五列（owner, 2026-09-09）。简称代号是国标的两个字母，省有市无。
+  colIndex: "序号",
+  colAbbr: "简称代号",
+  colName: "名称",
+  colAdcode: "行政区划代码",
+  colOps: "操作",
+  divisionRemoveMember: "移除",
   divisionPickEmptyWhy: (noun: string) => `用左侧「选择${noun}」加入，或引用系统配置。`,
   divisionCodePrefixHint: "前缀由市场范围决定，只填后半段，如 EAST。",
   // 省级市场下不带前缀：行政区划代码按国标裸用，或自定义一个词。

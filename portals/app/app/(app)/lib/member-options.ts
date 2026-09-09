@@ -28,6 +28,9 @@ export function memberOptions(
        the name make 34 rows scannable in a way 34 Chinese words are not. A
        city has no standard letters, so its tag is its short name. */
     label: m.label,
+    abbr: m.abbr,
+    name: m.name,
+    adcode: m.adcode,
     heldBy: heldBy.get(m.key) ?? null,
     hint: carves
       .map((t) => {

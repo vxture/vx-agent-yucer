@@ -54,6 +54,14 @@ const provinces = (
       ORDER BY p.sort_order`,
   )
 ).rows;
+/* All 34 provincial-level rows, ground or not: the china frame's members need
+   their adcode (320000) beside the letters (JS) the build already knows. */
+const allProvinces = (
+  await c.query(
+    `SELECT abbr_en, name_zh, code FROM yucer_ref.admin_division
+      WHERE level = 3 AND status = 'active' ORDER BY sort_order`,
+  )
+).rows;
 const frames = [];
 for (const p of provinces) {
   const municipality = MUNICIPALITIES.has(p.code);
@@ -103,6 +111,13 @@ lines.push('  readonly unit: "city" | "district";');
 lines.push("  /** In GB/T 2260 order: 六位码 / 全称 / 简称. */");
 lines.push("  readonly units: readonly { readonly code: string; readonly name: string; readonly short: string }[];");
 lines.push("}");
+lines.push("");
+lines.push("/** Every provincial-level division, with the adcode the letters stand for. */");
+lines.push("export const PROVINCE_ROWS: readonly { readonly code: string; readonly province: string; readonly adcode: string }[] = [");
+for (const p of allProvinces) {
+  lines.push(`  { code: ${JSON.stringify(p.abbr_en)}, province: ${JSON.stringify(p.name_zh)}, adcode: ${JSON.stringify(p.code)} },`);
+}
+lines.push("];");
 lines.push("");
 lines.push("export const PROVINCE_GROUNDS: readonly ProvinceGround[] = [");
 for (const f of frames) {
