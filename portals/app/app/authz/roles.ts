@@ -24,8 +24,8 @@
 
 import { can, type PermissionHolder } from "./decide";
 import { invalidateAuthz } from "./context";
-import { ROLE_CODE_SHAPE, isPermCode, type PermCode, type PresetRole } from "./catalog";
-import type { AuthzStore, WorkspaceRole } from "./store";
+import { DEFAULT_ROLE_LINES, DEFAULT_ROLE_RANKS, GROUP_CODE_SHAPE, ROLE_CODE_SHAPE, isPermCode, type PermCode, type PresetRole } from "./catalog";
+import type { AuthzStore, RoleGroup, RoleGroupKind, WorkspaceRole } from "./store";
 import type { Entitlement } from "../entitlement/types";
 import { fail, ok, violation, type RuleResult } from "../domains/shared/result";
 import { planMove, type MoveDirection } from "../domains/shared/ordering";
@@ -82,10 +82,17 @@ function audit(ctx: RoleContext, action: string, objectId: string, outcome: Audi
  */
 export function isPresetRole(
   presets: readonly PresetRole[],
-  role: { readonly code: string; readonly name: string; readonly description: string; readonly permissions: readonly string[] },
+  role: {
+    readonly code: string; readonly name: string; readonly description: string;
+    readonly line: { readonly code: string } | null; readonly rank: { readonly code: string } | null;
+    readonly permissions: readonly string[];
+  },
 ): boolean {
   const p = presets.find((x) => x.code === role.code);
   if (!p || p.name !== role.name || p.description !== role.description) return false;
+  // The group by its CODE: the preset names a shipped code, the copy holds
+  // the workspace's row for it. A renamed 销售 line is still the sales line.
+  if (role.line?.code !== p.line || role.rank?.code !== p.rank) return false;
   if (p.permissions.length !== role.permissions.length) return false;
   const held = new Set(role.permissions);
   return p.permissions.every((c) => held.has(c));
@@ -137,7 +144,12 @@ export async function listPresetRoles(ctx: RoleContext): Promise<RuleResult<Pres
  */
 export async function saveRole(
   ctx: RoleContext,
-  input: { code: string; name: string; description: string; permissions: readonly string[] },
+  input: {
+    code: string; name: string; description: string;
+    /** Ids of the workspace's own 业务线 / 层级 rows - both required. */
+    lineId: string; rankId: string;
+    permissions: readonly string[];
+  },
 ): Promise<RuleResult<WorkspaceRole>> {
   const action = "admin.role.upsert";
   const gate = can(ctx.holder, ctx.entitlement, action, "data");
@@ -160,6 +172,18 @@ export async function saveRole(
   if (description.length > 500) {
     return fail(violation("description_too_long", "a role's description is one sentence, at most 500 characters", "description"));
   }
+  /* THE TWO GROUPS ARE ROWS OF THIS WORKSPACE'S OWN VOCABULARIES (0047):
+     an id nobody here has is refused in the product's words before the
+     foreign key refuses it in Postgres's. Both are required - a role the
+     roster cannot place is a role nobody can find. */
+  const [lines, ranks] = await Promise.all([
+    ctx.store.listRoleGroups(ctx.workspaceId, "line"),
+    ctx.store.listRoleGroups(ctx.workspaceId, "rank"),
+  ]);
+  const line = lines.find((g) => g.id === input.lineId);
+  const rank = ranks.find((g) => g.id === input.rankId);
+  if (!line) return fail(violation("line_unknown", `${input.lineId} is not a business line of this workspace`, "lineId"));
+  if (!rank) return fail(violation("rank_unknown", `${input.rankId} is not a rank of this workspace`, "rankId"));
   /* THE PERMISSION CATALOGUE IS CLOSED: a code outside it is refused here in
      the product's words, before the foreign key refuses it in Postgres's. */
   const permissions: PermCode[] = [];
@@ -171,9 +195,9 @@ export async function saveRole(
   }
 
   const before = await ctx.store.listRoles(ctx.workspaceId);
-  const after = before.map((r) => (r.code === code ? { ...r, name, description, permissions } : r));
+  const after = before.map((r) => (r.code === code ? { ...r, name, description, line, rank, permissions } : r));
   if (!after.some((r) => r.code === code)) {
-    after.push({ id: "", code, name, description, sortOrder: before.length + 1, permissions });
+    after.push({ id: "", code, name, description, line, rank, sortOrder: before.length + 1, permissions });
   }
   /* THE LAST-ADMINISTRATOR GUARD, on the role rather than the member: taking
      admin.manage off the only role the workspace's administrators hold locks
@@ -187,7 +211,9 @@ export async function saveRole(
     ));
   }
 
-  const row = await ctx.store.upsertRole(ctx.workspaceId, { code, name, description, permissions });
+  const row = await ctx.store.upsertRole(ctx.workspaceId, {
+    code, name, description, lineId: line.id, rankId: rank.id, permissions,
+  });
   // Every member holding it reads a different permission set now, and the
   // gate caches for 45s: the whole workspace is invalidated, not one sub.
   invalidateAuthz(ctx.workspaceId);
@@ -250,7 +276,9 @@ export async function moveRole(
     const row = by.get(o.id)!;
     if (row.sortOrder === o.sortOrder) continue;
     await ctx.store.upsertRole(ctx.workspaceId, {
-      code: row.code, name: row.name, description: row.description, sortOrder: o.sortOrder, permissions: row.permissions,
+      code: row.code, name: row.name, description: row.description,
+      lineId: row.line?.id ?? null, rankId: row.rank?.id ?? null,
+      sortOrder: o.sortOrder, permissions: row.permissions,
     });
   }
   return ok(true);
@@ -279,6 +307,18 @@ export async function resetPresetRoles(
     ctx.store.listPresetRoles(),
     ctx.store.listRoles(ctx.workspaceId),
   ]);
+  /* A preset's group has to be a row of THIS workspace's vocabulary. A
+     shipped code the tenant deleted (only possible once nothing stood in it)
+     comes back with the preset - the vocabulary is restored where the
+     reset needs it, and nowhere else. */
+  const groupFor = async (kind: RoleGroupKind, code: string): Promise<string> => {
+    const rows = await ctx.store.listRoleGroups(ctx.workspaceId, kind);
+    const have = rows.find((g) => g.code === code);
+    if (have) return have.id;
+    const shipped = (kind === "line" ? DEFAULT_ROLE_LINES : DEFAULT_ROLE_RANKS).find((g) => g.code === code);
+    const made = await ctx.store.upsertRoleGroup(ctx.workspaceId, kind, { code, name: shipped?.name ?? code });
+    return made.id;
+  };
   let restored = 0;
   let unchanged = 0;
   for (const p of presets) {
@@ -294,7 +334,9 @@ export async function resetPresetRoles(
       continue;
     }
     await ctx.store.upsertRole(ctx.workspaceId, {
-      code: p.code, name: p.name, description: p.description, sortOrder: p.sortOrder, permissions: p.permissions,
+      code: p.code, name: p.name, description: p.description,
+      lineId: await groupFor("line", p.line), rankId: await groupFor("rank", p.rank),
+      sortOrder: p.sortOrder, permissions: p.permissions,
     });
     if (same) unchanged += 1;
     else restored += 1;
@@ -305,7 +347,9 @@ export async function resetPresetRoles(
     if (presets.some((p) => p.code === r.code)) continue;
     if (r.sortOrder !== next) {
       await ctx.store.upsertRole(ctx.workspaceId, {
-        code: r.code, name: r.name, description: r.description, sortOrder: next, permissions: r.permissions,
+        code: r.code, name: r.name, description: r.description,
+        lineId: r.line?.id ?? null, rankId: r.rank?.id ?? null,
+        sortOrder: next, permissions: r.permissions,
       });
     }
     next += 1;
@@ -313,4 +357,88 @@ export async function resetPresetRoles(
   invalidateAuthz(ctx.workspaceId);
   await audit(ctx, action, "presets", "success");
   return ok({ restored, unchanged });
+}
+
+/* ---------------------------------------------------------------------------
+ * 业务线 / 层级 - the two vocabularies (incr/0047), the verbs 行业分类 has.
+ *
+ * READ rides admin.member.view like the roles; WRITE is admin.role.upsert -
+ * deciding what lines and rungs exist is the same authority as deciding
+ * what a role is. Deleting a group a role stands in is refused with the
+ * count (the FK RESTRICTs underneath), and the way out is to move those
+ * roles first.
+ * ------------------------------------------------------------------------ */
+
+export interface RoleGroupView extends RoleGroup {
+  /** How many of the workspace's roles stand in it - the delete refusal's number. */
+  readonly roles: number;
+}
+
+export async function listRoleGroups(ctx: RoleContext, kind: RoleGroupKind): Promise<RuleResult<RoleGroupView[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
+  if (!gate.allowed) return denied(gate);
+  const [rows, roles] = await Promise.all([
+    ctx.store.listRoleGroups(ctx.workspaceId, kind),
+    ctx.store.listRoles(ctx.workspaceId),
+  ]);
+  return ok(rows.map((g) => ({
+    ...g,
+    roles: roles.filter((r) => (kind === "line" ? r.line?.id : r.rank?.id) === g.id).length,
+  })));
+}
+
+export async function saveRoleGroup(
+  ctx: RoleContext,
+  kind: RoleGroupKind,
+  input: { code: string; name: string },
+): Promise<RuleResult<RoleGroup>> {
+  const action = "admin.role.upsert";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) return denied(gate);
+  const code = input.code.trim();
+  const name = input.name.trim();
+  if (!code) return fail(violation("code_required", `a ${kind} needs a code`, "code"));
+  if (!GROUP_CODE_SHAPE.test(code)) {
+    return fail(violation("code_shape", `${code}: a group code is lower-case letters, digits and underscores`, "code"));
+  }
+  if (!name) return fail(violation("name_required", `a ${kind} needs a name`, "name"));
+  const row = await ctx.store.upsertRoleGroup(ctx.workspaceId, kind, { code, name });
+  await audit(ctx, action, `${kind}:${code}`, "success");
+  return ok(row);
+}
+
+export async function moveRoleGroup(
+  ctx: RoleContext,
+  kind: RoleGroupKind,
+  input: { id: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.role.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const rows = await ctx.store.listRoleGroups(ctx.workspaceId, kind);
+  const plan = planMove(rows.map((r) => ({ id: r.id, movable: true })), input.id, input.direction);
+  if (!plan.ok) return plan as RuleResult<true>;
+  await ctx.store.setRoleGroupOrder(ctx.workspaceId, kind, plan.value);
+  return ok(true);
+}
+
+export async function removeRoleGroup(
+  ctx: RoleContext,
+  kind: RoleGroupKind,
+  id: string,
+): Promise<RuleResult<true>> {
+  const action = "admin.role.remove";
+  const gate = can(ctx.holder, ctx.entitlement, action, "data");
+  if (!gate.allowed) return denied(gate);
+  const standing = await ctx.store.countRolesInGroup(ctx.workspaceId, kind, id);
+  if (standing > 0) {
+    return fail(violation(
+      kind === "line" ? "line_in_use" : "rank_in_use",
+      `${standing} role(s) stand in this ${kind} - it cannot be deleted`,
+      "id",
+    ));
+  }
+  const removed = await ctx.store.removeRoleGroup(ctx.workspaceId, kind, id);
+  if (!removed) return fail(violation("not_found", `no such ${kind}`, "id"));
+  await audit(ctx, action, `${kind}:${id}`, "success");
+  return ok(true);
 }

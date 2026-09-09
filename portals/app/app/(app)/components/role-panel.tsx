@@ -35,6 +35,9 @@ export interface RoleRow {
   readonly code: string;
   readonly name: string;
   readonly description: string;
+  /** The group rows' names (0047); null reads as 未分组. */
+  readonly line: { readonly code: string; readonly name: string } | null;
+  readonly rank: { readonly code: string; readonly name: string } | null;
   readonly permissions: readonly string[];
   /** Still exactly its preset - name, description and grants. Derived. */
   readonly preset: boolean;
@@ -102,10 +105,12 @@ export function RolePanel({
         <div
           className={
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-            + " [&_thead_th:nth-child(3)]:w-[14rem]"
-            + " [&_thead_th:nth-child(4)]:w-[7rem]"
-            + " [&_thead_th:nth-child(5)]:w-[6rem]"
-            + " [&_thead_th:nth-child(6)]:w-[6rem]"
+            + " [&_thead_th:nth-child(3)]:w-[13rem]"
+            + " [&_thead_th:nth-child(4)]:w-[6.5rem]"
+            + " [&_thead_th:nth-child(5)]:w-[6.5rem]"
+            + " [&_thead_th:nth-child(6)]:w-[6.5rem]"
+            + " [&_thead_th:nth-child(7)]:w-[6rem]"
+            + " [&_thead_th:nth-child(8)]:w-[6rem]"
           }
         >
           <DataTable
@@ -221,6 +226,21 @@ export function RolePanel({
                   ) : (
                     <StatusBadge tone="info">{ROLE_TEXT.custom}</StatusBadge>
                   ),
+              },
+              /* THE TWO GROUPS (0047): the workspace's own words for the line
+                 and the rung, as tags; a role in neither says 未分组 in the
+                 muted tone, which is a fact about it worth seeing. */
+              {
+                id: "line",
+                header: ROLE_TEXT.colLine,
+                cell: (r: RoleRow) =>
+                  r.line ? <Tag>{r.line.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>,
+              },
+              {
+                id: "rank",
+                header: ROLE_TEXT.colRank,
+                cell: (r: RoleRow) =>
+                  r.rank ? <Tag>{r.rank.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>,
               },
               {
                 id: "members",

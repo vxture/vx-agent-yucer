@@ -15,6 +15,7 @@ import {
   FieldDescription,
   FieldLabel,
   Input,
+  NativeSelect,
   RadioGroup,
   RadioGroupItem,
   Section,
@@ -61,12 +62,22 @@ export interface PermissionOption {
   readonly unlocks: number;
 }
 
-/** One preset, offered as a starting point or a reset. */
+/** One preset, offered as a starting point or a reset. Its group by CODE -
+ *  the form resolves it to this workspace's own row. */
 export interface RolePreset {
   readonly code: string;
   readonly name: string;
   readonly description: string;
+  readonly line: string;
+  readonly rank: string;
   readonly permissions: readonly string[];
+}
+
+/** One row of a grouping vocabulary, as the two selects offer it (0047). */
+export interface GroupOption {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
 }
 
 export function RoleForm({
@@ -74,6 +85,10 @@ export function RoleForm({
   code,
   name,
   description,
+  lineId,
+  rankId,
+  lines,
+  ranks,
   permissions,
   members,
   options,
@@ -83,6 +98,12 @@ export function RoleForm({
   readonly code: string;
   readonly name: string;
   readonly description: string;
+  /** The role's group rows, by id; null for a role that has none yet. */
+  readonly lineId: string | null;
+  readonly rankId: string | null;
+  /** The workspace's two vocabularies, in their order (0047). */
+  readonly lines: readonly GroupOption[];
+  readonly ranks: readonly GroupOption[];
   readonly permissions: readonly string[];
   /** How many members hold it - delete is offered only at zero. */
   readonly members: number;
@@ -97,6 +118,11 @@ export function RoleForm({
   const [codeValue, setCodeValue] = useState(code);
   const [nameValue, setNameValue] = useState(name);
   const [descValue, setDescValue] = useState(description);
+  /* BOTH REQUIRED, and neither guessed: a role without a line or a rung
+     starts on the empty option and the service refuses the save until one is
+     chosen (line_unknown / rank_unknown). */
+  const [lineValue, setLineValue] = useState(lineId ?? "");
+  const [rankValue, setRankValue] = useState(rankId ?? "");
   const [chosen, setChosen] = useState<Set<string>>(new Set(permissions));
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
@@ -116,6 +142,12 @@ export function RoleForm({
     if (isNew) setCodeValue(p.code);
     setNameValue(p.name);
     setDescValue(p.description);
+    // The preset's group by code -> this workspace's row; a code the tenant
+    // deleted leaves the select where it was rather than guessing.
+    const line = lines.find((g) => g.code === p.line);
+    const rank = ranks.find((g) => g.code === p.rank);
+    if (line) setLineValue(line.id);
+    if (rank) setRankValue(rank.id);
     setChosen(new Set(p.permissions));
   };
 
@@ -167,6 +199,8 @@ export function RoleForm({
         code: codeValue.trim(),
         name: nameValue.trim(),
         description: descValue.trim(),
+        lineId: lineValue,
+        rankId: rankValue,
         permissions: [...chosen],
       });
       if (!r.ok) setError(ROLE_ERROR[r.error] ?? r.error);
@@ -206,6 +240,27 @@ export function RoleForm({
                 disabled={pending}
               />
               <FieldDescription>{ROLE_TEXT.descriptionHint}</FieldDescription>
+            </Field>
+
+            {/* THE TWO GROUPS (owner, 2026-09-09: 一个按业务，一个按层级), from
+                the workspace's own lists - 角色分组 on the roster edits them. */}
+            <Field>
+              <FieldLabel>{ROLE_TEXT.lineField}</FieldLabel>
+              <NativeSelect value={lineValue} onChange={(e) => setLineValue(e.target.value)} disabled={pending}>
+                <option value="">{ROLE_TEXT.groupUnset}</option>
+                {lines.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field>
+              <FieldLabel>{ROLE_TEXT.rankField}</FieldLabel>
+              <NativeSelect value={rankValue} onChange={(e) => setRankValue(e.target.value)} disabled={pending}>
+                <option value="">{ROLE_TEXT.groupUnset}</option>
+                {ranks.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </NativeSelect>
             </Field>
 
             <Field>

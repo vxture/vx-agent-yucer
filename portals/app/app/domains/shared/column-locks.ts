@@ -29,7 +29,15 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   "local_authz.member": ["display_name", "avatar_hash", "status", "scope", "updated_at"],
   // incr/0046 - the workspace's own roles. role_code is the anchor every
   // member link and every reset keys on, and is deliberately not here.
-  "local_authz.workspace_role": ["name", "description", "sort_order", "updated_at"],
+  "local_authz.workspace_role": [
+    "name", "description",
+    // incr/0047 - which line and rung, by id; the tenant's like the name.
+    "line_id", "rank_id",
+    "sort_order", "updated_at",
+  ],
+  // incr/0047 - the two grouping vocabularies; the code is the anchor.
+  "local_authz.role_line": ["name", "sort_order", "updated_at"],
+  "local_authz.role_rank": ["name", "sort_order", "updated_at"],
   "local_usage.raw": ["flushed"],
   "local_usage.checkpoint": ["flushed_at"],
 

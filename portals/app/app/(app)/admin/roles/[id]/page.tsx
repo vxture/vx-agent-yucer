@@ -5,7 +5,7 @@ import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
 import { getAuthzStore } from "../../../../authz/store";
-import { listPresetRoles, listRoles } from "../../../../authz/roles";
+import { listPresetRoles, listRoleGroups, listRoles } from "../../../../authz/roles";
 import { RoleForm } from "../../../components/role-form";
 import { permissionOptions } from "../../../lib/role-options";
 
@@ -31,7 +31,9 @@ export default async function EditRolePage({ params }: { params: Promise<{ id: s
     entitlement: session.entitlement,
     store: getAuthzStore(),
   };
-  const [roles, presets] = await Promise.all([listRoles(ctx), listPresetRoles(ctx)]);
+  const [roles, presets, lines, ranks] = await Promise.all([
+    listRoles(ctx), listPresetRoles(ctx), listRoleGroups(ctx, "line"), listRoleGroups(ctx, "rank"),
+  ]);
   const mine = roles.ok ? roles.value.find((r) => r.id === id) : undefined;
   // An id nobody has is not an error page - the list is one click away.
   if (!mine) redirect("/admin/roles");
@@ -51,6 +53,10 @@ export default async function EditRolePage({ params }: { params: Promise<{ id: s
         code={mine.code}
         name={mine.name}
         description={mine.description}
+        lineId={mine.line?.id ?? null}
+        rankId={mine.rank?.id ?? null}
+        lines={lines.ok ? lines.value : []}
+        ranks={ranks.ok ? ranks.value : []}
         permissions={mine.permissions}
         members={mine.members}
         /* The module's word: the sidebar's, and for the admin plane the

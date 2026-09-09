@@ -75,6 +75,9 @@ export default async function RolesPage() {
           editable ? (
             <>
               <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} />
+              {/* The two vocabularies' own page (0047): configuration beside
+                  the other ways to change what the roster says. */}
+              <NewEntryLink href="/admin/roles/groups" label={ROLE_TEXT.groupsButton} />
               <RoleReset changed={changed} missing={missing} />
             </>
           ) : null

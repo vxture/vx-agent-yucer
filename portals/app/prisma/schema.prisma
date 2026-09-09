@@ -106,6 +106,10 @@ model Role {
   /// incr/0046 - one sentence on what the role is for, and the order the
   /// catalogue lists them.
   description String @default("") @db.VarChar(500)
+  /// incr/0047 - the template's line and rung, as CODES into the shipped
+  /// vocabularies; resolved to the workspace's rows when it is materialised.
+  businessLine String @default("sales") @map("business_line") @db.VarChar(32)
+  rank         String @default("staff") @db.VarChar(32)
   sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
@@ -122,12 +126,48 @@ model WorkspaceRole {
   roleCode    String   @map("role_code") @db.VarChar(64)
   name        String   @db.VarChar(255)
   description String   @default("") @db.VarChar(500)
+  /// incr/0047 - which line and which rung, BY ID into the workspace's own
+  /// vocabularies; null for a role made before either existed.
+  lineId      String?  @map("line_id") @db.Uuid
+  rankId      String?  @map("rank_id") @db.Uuid
   sortOrder   Int      @default(0) @map("sort_order")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, roleCode], map: "uidx_workspace_role_code")
   @@map("workspace_role")
+  @@schema("local_authz")
+}
+
+/// 业务线 - the workspace's own list (incr/0047), the shape Industry has.
+model RoleLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  lineCode    String   @map("line_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, lineCode], map: "uidx_role_line_code")
+  @@index([workspaceId, sortOrder], map: "idx_role_line_ws_sort")
+  @@map("role_line")
+  @@schema("local_authz")
+}
+
+/// 层级 - the workspace's own ladder of rungs (incr/0047).
+model RoleRank {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  rankCode    String   @map("rank_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, rankCode], map: "uidx_role_rank_code")
+  @@index([workspaceId, sortOrder], map: "idx_role_rank_ws_sort")
+  @@map("role_rank")
   @@schema("local_authz")
 }
 

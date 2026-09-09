@@ -64,3 +64,13 @@ guard is on the service, where it was, and refuses in the product's words
   order; 成员管理's assignment menu does the same.
 - `planMove` moved to `domains/shared/ordering.ts` so authz could order roles
   without importing a domain.
+
+## Amended 2026-09-09 (incr/0047): the ladder, and two vocabularies
+
+The owner redesigned the presets for a group-scale company - 24 rungs and
+functions, so a tenant seldom needs a role of its own - and added two
+groupings, 业务线 and 层级. Both are TABLES the workspace owns (`role_line`,
+`role_rank`, the shape `industry` has), related by uuid from `workspace_role`,
+seeded from the shipped lists and extended by the tenant; a preset names its
+group by code. The rule that no two presets share a permission set holds
+across all 24 and is now a test.

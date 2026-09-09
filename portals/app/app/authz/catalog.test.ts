@@ -12,6 +12,8 @@ import {
   isRoleCode,
   permissionsForRoles,
   presetRoles,
+  DEFAULT_ROLE_LINES,
+  DEFAULT_ROLE_RANKS,
   type PermCode,
   type RoleCode,
 } from "./catalog";
@@ -106,7 +108,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 25 permissions, 9 roles, 117 grants", () => {
+test("the catalog is the documented size: 25 permissions, 24 roles, 287 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -129,10 +131,15 @@ test("the catalog is the documented size: 25 permissions, 9 roles, 117 grants", 
   // (owner, 2026-09-01). PERMISSIONS DID NOT MOVE - every code they grant
   // already existed, so the product gained no new thing anyone may do, it
   // gained two places to stand.
+  //
+  // 9 -> 24 roles and 117 -> 287 grants by incr/0047 (owner, 2026-09-09:
+  // 集团级公司规模，尽量减少用户自定义): the ladder. PERMISSIONS DID NOT MOVE
+  // again - twenty-five is still the whole vocabulary - and no two presets
+  // hold the same set (presets.test.ts holds that).
   assert.equal(PERM_CODES.length, 25);
-  assert.equal(ROLE_CODES.length, 9);
+  assert.equal(ROLE_CODES.length, 24);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 117);
+  assert.equal(total, 287);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
@@ -185,15 +192,25 @@ test("pipeline.forecast goes to leadership and ops, never to the rep", () => {
   // grows. incr/0021 added the two rungs between a rep and the whole
   // organisation, and both of them exist precisely BECAUSE they commit a number
   // upward - that is the line a first-line manager crosses.
+  // incr/0047 widened the list to the group-scale ladder: every rung from
+  // manager up, the two ops rungs, and 大客户经理, who commits on the accounts
+  // they own. The invariant is unchanged: nobody on the bottom rung.
   const holders = ROLE_CODES.filter((r) => ROLE_PERMISSIONS[r].includes("pipeline.forecast"));
-  assert.deepEqual(holders.sort(), [
+  assert.deepEqual([...holders].sort(), [
+    "key_account_manager",
     "regional_director",
+    "regional_general_manager",
     "sales_leader",
     "sales_manager",
     "sales_ops",
+    "sales_ops_specialist",
+    "senior_channel_manager",
+    "senior_sales_manager",
   ]);
+  for (const bottom of ["sales_rep", "channel_manager", "sdr", "presales", "marketing_specialist"] as const) {
+    assert.ok(!ROLE_PERMISSIONS[bottom].includes("pipeline.forecast"), `${bottom} does not commit a number`);
+  }
   assert.ok(ROLE_PERMISSIONS.sales_rep.includes("pipeline.write"));
-  assert.ok(!ROLE_PERMISSIONS.sales_rep.includes("pipeline.forecast"));
 });
 
 test("the two new rungs are a ladder, not two labels for the same thing", () => {
@@ -309,26 +326,69 @@ test("no product role reuses a platform governance role code", () => {
 
 // --- incr/0046: the presets carry name, description and order as DATA ---------
 
-/** The nine (code, name, description, order) rows 0046 writes onto local_authz.role. */
-function seedPresetRows(): Array<[string, string, string, number]> {
-  const body = seedSection("UPDATE local_authz.role r SET name = v.name", ") AS v(code, name, description, ord)");
-  return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*(\d+)\)/g)].map(
-    (m) => [m[1]!, m[2]!, m[3]!, Number(m[4])],
+/** The (code, name, description, line, rank, order) rows the LAST preset
+ *  statement writes onto local_authz.role - 0047's, which restates all 24
+ *  and therefore supersedes 0046's four-column rows. */
+function seedPresetRows(): Array<[string, string, string, string, string, number]> {
+  const body = seedSection(
+    "UPDATE local_authz.role r SET name = v.name, description = v.description,\n  business_line = v.line",
+    ") AS v(code, name, description, line, rank, ord)",
+  );
+  return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*(\d+)\)/g)].map(
+    (m) => [m[1]!, m[2]!, m[3]!, m[4]!, m[5]!, Number(m[6])],
   );
 }
 
-test("the presets' names, descriptions and order mirror incr/0046 exactly", () => {
-  // A workspace copy starts from these columns and prints them (incr/0046),
-  // so the in-memory store's presets and the table's have to be the same
-  // rows - or the demo would show one 销售经理 and production another.
+test("the presets' names, descriptions, lines, ranks and order mirror incr/0047 exactly", () => {
+  // A workspace copy starts from these columns and prints them (incr/0046,
+  // 0047), so the in-memory store's presets and the table's have to be the
+  // same rows - or the demo would show one 销售经理 and production another.
   const rows = seedPresetRows();
-  assert.equal(rows.length, ROLE_CODES.length, "0046 names every preset once");
+  assert.equal(rows.length, ROLE_CODES.length, "0047 names every preset once");
   const mirror = presetRoles();
-  for (const [code, name, description, ord] of rows) {
+  for (const [code, name, description, line, rank, ord] of rows) {
     const p = mirror.find((x) => x.code === code);
-    assert.ok(p, `${code} is in 0046 but not in presetRoles()`);
+    assert.ok(p, `${code} is in 0047 but not in presetRoles()`);
     assert.equal(p.name, name, `${code}: name`);
     assert.equal(p.description, description, `${code}: description`);
+    assert.equal(p.line, line, `${code}: business_line`);
+    assert.equal(p.rank, rank, `${code}: rank`);
     assert.equal(p.sortOrder, ord, `${code}: sort_order`);
+  }
+  // Roster order is dense and starts with the group layer.
+  assert.deepEqual([...mirror.map((p) => p.sortOrder)], mirror.map((_, i) => i + 1));
+  assert.equal(mirror[0]!.code, "sales_leader");
+});
+
+test("no two presets hold the same permission set - a rung adds something", () => {
+  // The owner's standing rule since 总经理 was refused: two codes with one
+  // set is a catalogue pretending to distinguish. Every rung of the 0047
+  // ladder differs from every other preset in at least one grant.
+  const seen = new Map<string, string>();
+  for (const p of presetRoles()) {
+    const key = [...p.permissions].sort().join("|");
+    assert.ok(!seen.has(key), `${p.code} holds exactly what ${seen.get(key)} holds`);
+    seen.set(key, p.code);
+  }
+});
+
+/** The (code, name, order) rows 0047 seeds into a workspace's vocabulary. */
+function seedGroupRows(table: "role_line" | "role_rank"): Array<[string, string, number]> {
+  const body = seedSection(`INSERT INTO local_authz.${table} (workspace_id`, ") AS v(code, name, ord)");
+  return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\s*,\s*(\d+)\)/g)].map((m) => [m[1]!, m[2]!, Number(m[3])]);
+}
+
+test("the shipped 业务线 and 层级 mirror incr/0047 exactly, and every preset names one of each", () => {
+  // The memory store seeds a workspace from these lists; 0047 seeded the
+  // workspaces that were already there from its VALUES. Same rows, or the
+  // demo and production disagree about what a 销售 line is called.
+  for (const [table, list] of [["role_line", DEFAULT_ROLE_LINES], ["role_rank", DEFAULT_ROLE_RANKS]] as const) {
+    const rows = seedGroupRows(table);
+    assert.deepEqual(rows.map(([c, n]) => ({ code: c, name: n })), [...list], table);
+    assert.deepEqual(rows.map(([, , o]) => o), rows.map((_, i) => i + 1), `${table}: dense order`);
+  }
+  for (const p of presetRoles()) {
+    assert.ok(DEFAULT_ROLE_LINES.some((g) => g.code === p.line), `${p.code}: line ${p.line} is shipped`);
+    assert.ok(DEFAULT_ROLE_RANKS.some((g) => g.code === p.rank), `${p.code}: rank ${p.rank} is shipped`);
   }
 });

@@ -5,7 +5,7 @@ import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
 import { getAuthzStore } from "../../../../authz/store";
-import { listPresetRoles } from "../../../../authz/roles";
+import { listPresetRoles, listRoleGroups } from "../../../../authz/roles";
 import { RoleForm } from "../../../components/role-form";
 import { permissionOptions } from "../../../lib/role-options";
 
@@ -22,13 +22,16 @@ export default async function NewRolePage() {
   if (!can(session.authz, session.entitlement, "admin.role.upsert", "ui").allowed) {
     redirect("/admin/roles");
   }
-  const presets = await listPresetRoles({
+  const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: getAuthzStore(),
-  });
+  };
+  const [presets, lines, ranks] = await Promise.all([
+    listPresetRoles(ctx), listRoleGroups(ctx, "line"), listRoleGroups(ctx, "rank"),
+  ]);
 
   return (
     <ViewLayout>
@@ -45,6 +48,10 @@ export default async function NewRolePage() {
         code=""
         name=""
         description=""
+        lineId={null}
+        rankId={null}
+        lines={lines.ok ? lines.value : []}
+        ranks={ranks.ok ? ranks.value : []}
         permissions={[]}
         members={0}
         /* The module's word: the sidebar's, and for the admin plane the

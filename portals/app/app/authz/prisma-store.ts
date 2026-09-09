@@ -1,7 +1,7 @@
-import type { AuthzStore, MemberRecord, MemberSighting, WorkspaceRole } from "./store";
+import type { AuthzStore, MemberRecord, MemberSighting, RoleGroup, RoleGroupKind, WorkspaceRole } from "./store";
 import { isDataScope, type DataScopeKind, type ScopeSetting } from "./scope";
 import { getPrismaClient } from "../lib/db";
-import { PERM_CODES, isPermCode, isRoleCode, type PermCode, type PresetRole } from "./catalog";
+import { DEFAULT_ROLE_LINES, DEFAULT_ROLE_RANKS, PERM_CODES, isPermCode, isRoleCode, type PermCode, type PresetRole, type RoleLine, type RoleRank } from "./catalog";
 
 // Prisma-backed AuthzStore over local_authz. Used when DATABASE_URL is set;
 // @prisma/client loads lazily via getPrismaClient().
@@ -16,6 +16,15 @@ import { PERM_CODES, isPermCode, isRoleCode, type PermCode, type PresetRole } fr
 // local_authz.member allows UPDATE only on (display_name, avatar_hash, status,
 // updated_at), and member_role is insert/delete only - which is exactly why
 // revokeRole deletes a row instead of flipping a flag.
+
+/** A preset's group code, typed by the shipped lists it names into. A
+    template outside them is a build ahead of this one; it reads as the
+    first shipped code rather than as a type nothing here can name. */
+const lineOf = (v: string): RoleLine => (DEFAULT_ROLE_LINES.some((g) => g.code === v) ? (v as RoleLine) : "sales");
+const rankOf = (v: string): RoleRank => (DEFAULT_ROLE_RANKS.some((g) => g.code === v) ? (v as RoleRank) : "staff");
+
+type GroupRow = { id: string; workspaceId: string; name: string; sortOrder: number; lineCode?: string; rankCode?: string };
+const toGroup = (r: GroupRow): RoleGroup => ({ id: r.id, code: r.lineCode ?? r.rankCode ?? "", name: r.name, sortOrder: r.sortOrder });
 
 export class PrismaAuthzStore implements AuthzStore {
   async seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean }> {
@@ -148,10 +157,12 @@ export class PrismaAuthzStore implements AuthzStore {
     // ones it can name.
     return roles
       .filter((r: { roleCode: string }) => isRoleCode(r.roleCode))
-      .map((r: { id: string; roleCode: string; name: string; description: string; sortOrder: number }) => ({
+      .map((r: { id: string; roleCode: string; name: string; description: string; businessLine: string; rank: string; sortOrder: number }) => ({
         code: r.roleCode as PresetRole["code"],
         name: r.name,
         description: r.description,
+        line: lineOf(r.businessLine),
+        rank: rankOf(r.rank),
         sortOrder: r.sortOrder,
         permissions: PERM_CODES.filter((c) => held.get(r.id)?.has(c)),
       }));
@@ -165,10 +176,14 @@ export class PrismaAuthzStore implements AuthzStore {
     });
     if (roles.length === 0) return [];
     const ids = roles.map((r: { id: string }) => r.id);
-    const [grants, perms] = await Promise.all([
+    const [grants, perms, lines, ranks] = await Promise.all([
       p.workspaceRolePermission.findMany({ where: { workspaceRoleId: { in: ids } } }),
       p.permission.findMany(),
+      this.listRoleGroups(workspaceId, "line"),
+      this.listRoleGroups(workspaceId, "rank"),
     ]);
+    const lineById = new Map(lines.map((g) => [g.id, g]));
+    const rankById = new Map(ranks.map((g) => [g.id, g]));
     const codeOf = new Map<string, string>(perms.map((x: { id: string; permCode: string }) => [x.id, x.permCode]));
     const held = new Map<string, Set<string>>();
     for (const g of grants as Array<{ workspaceRoleId: string; permissionId: string }>) {
@@ -176,11 +191,13 @@ export class PrismaAuthzStore implements AuthzStore {
       set.add(codeOf.get(g.permissionId) ?? "");
       held.set(g.workspaceRoleId, set);
     }
-    return roles.map((r: { id: string; roleCode: string; name: string; description: string; sortOrder: number }) => ({
+    return roles.map((r: { id: string; roleCode: string; name: string; description: string; lineId: string | null; rankId: string | null; sortOrder: number }) => ({
       id: r.id,
       code: r.roleCode,
       name: r.name,
       description: r.description,
+      line: (r.lineId && lineById.get(r.lineId)) || null,
+      rank: (r.rankId && rankById.get(r.rankId)) || null,
       sortOrder: r.sortOrder,
       permissions: PERM_CODES.filter((c) => held.get(r.id)?.has(c)),
     }));
@@ -189,21 +206,102 @@ export class PrismaAuthzStore implements AuthzStore {
   async seedPresetRoles(workspaceId: string): Promise<boolean> {
     const p = await getPrismaClient();
     if ((await p.workspaceRole.count({ where: { workspaceId } })) > 0) return false;
+    // The vocabularies first, when EMPTY (the 0040 guard), so a preset's
+    // line and rung resolve to rows of this workspace's own.
+    await this.seedGroups(workspaceId);
+    const [lines, ranks] = await Promise.all([
+      this.listRoleGroups(workspaceId, "line"), this.listRoleGroups(workspaceId, "rank"),
+    ]);
     // FROM THE TABLE, not the mirror: local_authz.role is the runtime authority
     // and this is a copy of its rows, the same copy incr/0046 made for the
     // workspaces that were already there.
     for (const preset of await this.listPresetRoles()) {
       await this.upsertRole(workspaceId, {
         code: preset.code, name: preset.name, description: preset.description,
+        lineId: lines.find((g) => g.code === preset.line)?.id ?? null,
+        rankId: ranks.find((g) => g.code === preset.rank)?.id ?? null,
         sortOrder: preset.sortOrder, permissions: preset.permissions,
       });
     }
     return true;
   }
 
+  /** The shipped lists into an EMPTY vocabulary - the same guard 0047 used. */
+  private async seedGroups(workspaceId: string): Promise<void> {
+    const p = await getPrismaClient();
+    if ((await p.roleLine.count({ where: { workspaceId } })) === 0) {
+      await p.roleLine.createMany({
+        data: DEFAULT_ROLE_LINES.map((g, i) => ({ workspaceId, lineCode: g.code, name: g.name, sortOrder: i + 1 })),
+        skipDuplicates: true,
+      });
+    }
+    if ((await p.roleRank.count({ where: { workspaceId } })) === 0) {
+      await p.roleRank.createMany({
+        data: DEFAULT_ROLE_RANKS.map((g, i) => ({ workspaceId, rankCode: g.code, name: g.name, sortOrder: i + 1 })),
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  async listRoleGroups(workspaceId: string, kind: RoleGroupKind): Promise<RoleGroup[]> {
+    const p = await getPrismaClient();
+    const order = [{ sortOrder: "asc" as const }, kind === "line" ? { lineCode: "asc" as const } : { rankCode: "asc" as const }];
+    const rows = kind === "line"
+      ? await p.roleLine.findMany({ where: { workspaceId }, orderBy: order })
+      : await p.roleRank.findMany({ where: { workspaceId }, orderBy: order });
+    return (rows as GroupRow[]).map(toGroup);
+  }
+
+  async upsertRoleGroup(workspaceId: string, kind: RoleGroupKind, input: { code: string; name: string }): Promise<RoleGroup> {
+    const p = await getPrismaClient();
+    const update = { name: input.name, updatedAt: new Date() };
+    if (kind === "line") {
+      const tail = await p.roleLine.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+      const row = await p.roleLine.upsert({
+        where: { workspaceId_lineCode: { workspaceId, lineCode: input.code } },
+        update,
+        create: { workspaceId, lineCode: input.code, sortOrder: (tail._max?.sortOrder ?? 0) + 1, ...update },
+      });
+      return toGroup(row as GroupRow);
+    }
+    const tail = await p.roleRank.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const row = await p.roleRank.upsert({
+      where: { workspaceId_rankCode: { workspaceId, rankCode: input.code } },
+      update,
+      create: { workspaceId, rankCode: input.code, sortOrder: (tail._max?.sortOrder ?? 0) + 1, ...update },
+    });
+    return toGroup(row as GroupRow);
+  }
+
+  async setRoleGroupOrder(workspaceId: string, kind: RoleGroupKind, orders: readonly { id: string; sortOrder: number }[]): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const data = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      if (kind === "line") await p.roleLine.updateMany({ where: { workspaceId, id: o.id }, data });
+      else await p.roleRank.updateMany({ where: { workspaceId, id: o.id }, data });
+    }
+  }
+
+  async removeRoleGroup(workspaceId: string, kind: RoleGroupKind, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refused a group in use; the FK RESTRICTs underneath.
+    const { count } = kind === "line"
+      ? await p.roleLine.deleteMany({ where: { workspaceId, id } })
+      : await p.roleRank.deleteMany({ where: { workspaceId, id } });
+    return count > 0;
+  }
+
+  async countRolesInGroup(workspaceId: string, kind: RoleGroupKind, id: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.workspaceRole.count({ where: kind === "line" ? { workspaceId, lineId: id } : { workspaceId, rankId: id } });
+  }
+
   async upsertRole(
     workspaceId: string,
-    input: { code: string; name: string; description: string; sortOrder?: number; permissions: readonly PermCode[] },
+    input: {
+      code: string; name: string; description: string; lineId: string | null; rankId: string | null;
+      sortOrder?: number; permissions: readonly PermCode[];
+    },
   ): Promise<WorkspaceRole> {
     const p = await getPrismaClient();
     const where = { workspaceId_roleCode: { workspaceId, roleCode: input.code } };
@@ -216,6 +314,8 @@ export class PrismaAuthzStore implements AuthzStore {
         data: {
           name: input.name,
           description: input.description,
+          lineId: input.lineId,
+          rankId: input.rankId,
           ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
           updatedAt: new Date(),
         },
@@ -224,7 +324,10 @@ export class PrismaAuthzStore implements AuthzStore {
     } else {
       const sortOrder = input.sortOrder ?? (await p.workspaceRole.count({ where: { workspaceId } })) + 1;
       const row = await p.workspaceRole.create({
-        data: { workspaceId, roleCode: input.code, name: input.name, description: input.description, sortOrder },
+        data: {
+          workspaceId, roleCode: input.code, name: input.name, description: input.description,
+          lineId: input.lineId, rankId: input.rankId, sortOrder,
+        },
       });
       id = row.id;
     }

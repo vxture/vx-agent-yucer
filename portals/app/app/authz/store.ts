@@ -10,7 +10,7 @@
 
 import { prismaEnabled } from "../lib/db";
 import { PrismaAuthzStore } from "./prisma-store";
-import { PERM_CODES, presetRoles, type PermCode, type PresetRole } from "./catalog";
+import { DEFAULT_ROLE_LINES, DEFAULT_ROLE_RANKS, PERM_CODES, presetRoles, type PermCode, type PresetRole } from "./catalog";
 import { isDataScope, type DataScopeKind, type ScopeSetting } from "./scope";
 
 export interface MemberSighting {
@@ -47,10 +47,29 @@ export interface WorkspaceRole {
   name: string;
   /** One sentence on what it is for; '' when the tenant wrote none. */
   description: string;
+  /** Which business line it serves and which rung it stands on (0047):
+   *  the workspace's own vocabulary rows, resolved; null for a role made
+   *  before either existed, or whose group was never chosen. */
+  line: RoleGroup | null;
+  rank: RoleGroup | null;
   sortOrder: number;
   /** In catalogue order, so two roles compare without sorting. */
   permissions: PermCode[];
 }
+
+/**
+ * One row of a grouping vocabulary (incr/0047): a 业务线 or a 层级. `code` is
+ * the anchor and never changes; `name` and the order are the tenant's. The
+ * same shape 行业分类 has, for the same reason.
+ */
+export interface RoleGroup {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+}
+
+export type RoleGroupKind = "line" | "rank";
 
 export interface AuthzStore {
   /**
@@ -96,8 +115,25 @@ export interface AuthzStore {
    */
   upsertRole(
     workspaceId: string,
-    input: { code: string; name: string; description: string; sortOrder?: number; permissions: readonly PermCode[] },
+    input: {
+      code: string; name: string; description: string;
+      /** Ids of the workspace's own vocabulary rows; null leaves it ungrouped. */
+      lineId: string | null; rankId: string | null;
+      sortOrder?: number; permissions: readonly PermCode[];
+    },
   ): Promise<WorkspaceRole>;
+  /* --- 业务线 / 层级 (incr/0047) ---------------------------------------------
+     Two vocabularies the workspace owns, the shape 行业分类 has: list in
+     order, upsert by code (a known code renames), re-order, remove - which
+     the FK RESTRICTs while a role stands in the group. `kind` picks the
+     table; the verbs are otherwise identical, and so is the screen. */
+  listRoleGroups(workspaceId: string, kind: RoleGroupKind): Promise<RoleGroup[]>;
+  upsertRoleGroup(workspaceId: string, kind: RoleGroupKind, input: { code: string; name: string }): Promise<RoleGroup>;
+  setRoleGroupOrder(workspaceId: string, kind: RoleGroupKind, orders: readonly { id: string; sortOrder: number }[]): Promise<void>;
+  /** False when the id is not here. Throws while a role stands in it. */
+  removeRoleGroup(workspaceId: string, kind: RoleGroupKind, id: string): Promise<boolean>;
+  /** How many of the workspace's roles stand in this group. */
+  countRolesInGroup(workspaceId: string, kind: RoleGroupKind, id: string): Promise<number>;
   /** Remove a role nobody holds. False when the code is not here. The
    *  service refuses a held role first; the FK (RESTRICT) refuses it last. */
   removeRole(workspaceId: string, code: string): Promise<boolean>;
@@ -149,11 +185,51 @@ function key(workspaceId: string, sub: string): string {
   return `${workspaceId}\0${sub}`;
 }
 
+/** A role as the memory store keeps it: the group by id, like the table. */
+type StoredRole = Omit<WorkspaceRole, "line" | "rank"> & { lineId: string | null; rankId: string | null };
+
 export class InMemoryAuthzStore implements AuthzStore {
   private members = new Map<string, MemberRecord>();
-  /** workspaceId -> its roles, by code, in insertion order (sorted on read). */
-  private roles = new Map<string, Map<string, WorkspaceRole>>();
+  /** workspaceId -> its roles, by code, in insertion order (sorted on read).
+   *  The group is held by id and resolved on read, like the table does. */
+  private roles = new Map<string, Map<string, StoredRole>>();
+  /** `${workspaceId}|line` / `|rank` -> that vocabulary's rows. */
+  private groups = new Map<string, RoleGroup[]>();
   private nextId = 1;
+
+  private groupKey(workspaceId: string, kind: RoleGroupKind): string {
+    return `${workspaceId}|${kind}`;
+  }
+
+  private groupRows(workspaceId: string, kind: RoleGroupKind): RoleGroup[] {
+    const k = this.groupKey(workspaceId, kind);
+    let rows = this.groups.get(k);
+    if (!rows) { rows = []; this.groups.set(k, rows); }
+    return rows;
+  }
+
+  private resolve(workspaceId: string, r: StoredRole): WorkspaceRole {
+    const { lineId, rankId, ...rest } = r;
+    return {
+      ...rest,
+      permissions: [...r.permissions],
+      line: this.groupRows(workspaceId, "line").find((g) => g.id === lineId) ?? null,
+      rank: this.groupRows(workspaceId, "rank").find((g) => g.id === rankId) ?? null,
+    };
+  }
+
+  /** The shipped lists, when the vocabulary is EMPTY - the 0040 guard. */
+  private seedGroups(workspaceId: string): void {
+    for (const [kind, list] of [["line", DEFAULT_ROLE_LINES], ["rank", DEFAULT_ROLE_RANKS]] as const) {
+      const rows = this.groupRows(workspaceId, kind);
+      if (rows.length > 0) continue;
+      list.forEach((g, i) => rows.push({ id: `${kind}_${this.nextId++}`, code: g.code, name: g.name, sortOrder: i + 1 }));
+    }
+  }
+
+  private groupId(workspaceId: string, kind: RoleGroupKind, code: string): string | null {
+    return this.groupRows(workspaceId, kind).find((g) => g.code === code)?.id ?? null;
+  }
 
   async seeMember(m: MemberSighting): Promise<{ memberId: string; created: boolean }> {
     const k = key(m.workspaceId, m.sub);
@@ -219,38 +295,96 @@ export class InMemoryAuthzStore implements AuthzStore {
 
   async listRoles(workspaceId: string): Promise<WorkspaceRole[]> {
     return [...(this.roles.get(workspaceId)?.values() ?? [])]
-      .map((r) => ({ ...r, permissions: [...r.permissions] }))
+      .map((r) => this.resolve(workspaceId, r))
       .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
   }
 
   async seedPresetRoles(workspaceId: string): Promise<boolean> {
     if ((this.roles.get(workspaceId)?.size ?? 0) > 0) return false;
+    // The vocabularies first, so a preset's line and rung resolve to rows.
+    this.seedGroups(workspaceId);
     for (const p of presetRoles()) {
       await this.upsertRole(workspaceId, {
-        code: p.code, name: p.name, description: p.description, sortOrder: p.sortOrder, permissions: p.permissions,
+        code: p.code, name: p.name, description: p.description,
+        lineId: this.groupId(workspaceId, "line", p.line), rankId: this.groupId(workspaceId, "rank", p.rank),
+        sortOrder: p.sortOrder, permissions: p.permissions,
       });
     }
     return true;
   }
 
+  async listRoleGroups(workspaceId: string, kind: RoleGroupKind): Promise<RoleGroup[]> {
+    return [...this.groupRows(workspaceId, kind)]
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code))
+      .map((g) => ({ ...g }));
+  }
+
+  async upsertRoleGroup(workspaceId: string, kind: RoleGroupKind, input: { code: string; name: string }): Promise<RoleGroup> {
+    const rows = this.groupRows(workspaceId, kind);
+    const at = rows.findIndex((g) => g.code === input.code);
+    if (at >= 0) {
+      // The code is the anchor: an upsert on it renames, never re-keys.
+      rows[at] = { ...rows[at]!, name: input.name };
+      return { ...rows[at]! };
+    }
+    const tail = Math.max(0, ...rows.map((g) => g.sortOrder));
+    const row: RoleGroup = { id: `${kind}_${this.nextId++}`, code: input.code, name: input.name, sortOrder: tail + 1 };
+    rows.push(row);
+    return { ...row };
+  }
+
+  async setRoleGroupOrder(workspaceId: string, kind: RoleGroupKind, orders: readonly { id: string; sortOrder: number }[]): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    const rows = this.groupRows(workspaceId, kind);
+    rows.forEach((g, i) => { if (want.has(g.id)) rows[i] = { ...g, sortOrder: want.get(g.id)! }; });
+  }
+
+  async removeRoleGroup(workspaceId: string, kind: RoleGroupKind, id: string): Promise<boolean> {
+    const rows = this.groupRows(workspaceId, kind);
+    const at = rows.findIndex((g) => g.id === id);
+    if (at < 0) return false;
+    // The FK's rule (RESTRICT), kept here so the two adapters agree.
+    if ((await this.countRolesInGroup(workspaceId, kind, id)) > 0) {
+      throw new Error(`${kind} ${id} still has roles in it`);
+    }
+    rows.splice(at, 1);
+    return true;
+  }
+
+  async countRolesInGroup(workspaceId: string, kind: RoleGroupKind, id: string): Promise<number> {
+    return [...(this.roles.get(workspaceId)?.values() ?? [])]
+      .filter((r) => (kind === "line" ? r.lineId : r.rankId) === id).length;
+  }
+
   async upsertRole(
     workspaceId: string,
-    input: { code: string; name: string; description: string; sortOrder?: number; permissions: readonly PermCode[] },
+    input: {
+      code: string; name: string; description: string; lineId: string | null; rankId: string | null;
+      sortOrder?: number; permissions: readonly PermCode[];
+    },
   ): Promise<WorkspaceRole> {
     let ws = this.roles.get(workspaceId);
     if (!ws) { ws = new Map(); this.roles.set(workspaceId, ws); }
     const existing = ws.get(input.code);
     const wanted = new Set(input.permissions);
-    const row: WorkspaceRole = {
+    // The FK's rule: a group id has to be one of this workspace's rows.
+    for (const [kind, id] of [["line", input.lineId], ["rank", input.rankId]] as const) {
+      if (id !== null && !this.groupRows(workspaceId, kind).some((g) => g.id === id)) {
+        throw new Error(`${kind} ${id} is not a group of this workspace`);
+      }
+    }
+    const row: StoredRole = {
       id: existing?.id ?? `role_${this.nextId++}`,
       code: input.code,
       name: input.name,
       description: input.description,
+      lineId: input.lineId,
+      rankId: input.rankId,
       sortOrder: input.sortOrder ?? existing?.sortOrder ?? ws.size + 1,
       permissions: PERM_CODES.filter((p) => wanted.has(p)),
     };
     ws.set(input.code, row);
-    return { ...row, permissions: [...row.permissions] };
+    return this.resolve(workspaceId, row);
   }
 
   async removeRole(workspaceId: string, code: string): Promise<boolean> {
@@ -315,9 +449,11 @@ export class InMemoryAuthzStore implements AuthzStore {
     if (!ws || ws.size === 0) {
       ws = new Map();
       this.roles.set(workspaceId, ws);
+      this.seedGroups(workspaceId);
       for (const p of presetRoles()) {
         ws.set(p.code, {
           id: `role_${this.nextId++}`, code: p.code, name: p.name, description: p.description,
+          lineId: this.groupId(workspaceId, "line", p.line), rankId: this.groupId(workspaceId, "rank", p.rank),
           sortOrder: p.sortOrder, permissions: [...p.permissions],
         });
       }

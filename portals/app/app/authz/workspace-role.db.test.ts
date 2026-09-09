@@ -36,6 +36,9 @@ async function cleanup(c: Client): Promise<void> {
   );
   await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [WS]);
   await c.query(`DELETE FROM local_authz.workspace_role WHERE workspace_id = $1`, [WS]);
+  // 0047: the two vocabularies, after the roles that stand in them.
+  await c.query(`DELETE FROM local_authz.role_line WHERE workspace_id = $1`, [WS]);
+  await c.query(`DELETE FROM local_authz.role_rank WHERE workspace_id = $1`, [WS]);
 }
 
 /** A role with two grants. */
@@ -55,16 +58,21 @@ async function role(c: Client, code: string, perms: string[]): Promise<string> {
   return id;
 }
 
-test("the presets carry the names, descriptions and order 0046 wrote", { skip }, async () => {
+test("the presets carry the names, descriptions, lines, ranks and order 0047 wrote", { skip }, async () => {
   await withPg(async (c) => {
     const { rows } = await c.query(
       `SELECT role_code, name, description, sort_order FROM local_authz.role ORDER BY sort_order`,
     );
-    assert.equal(rows.length, 9);
-    assert.deepEqual(rows.map((r) => r.sort_order), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    // 0047: twenty-four, roster order dense, 集团层 first, each with a line
+    // and a rung the CHECKs admit.
+    assert.equal(rows.length, 24);
+    assert.deepEqual(rows.map((r) => r.sort_order), rows.map((_, i) => i + 1));
     assert.equal(rows[0].role_code, "sales_leader");
     assert.equal(rows[0].name, "销售负责人");
+    assert.equal(rows.find((r) => r.role_code === "sales_ops")?.name, "销售运营经理");
     assert.ok(rows.every((r) => r.description.length > 0), "every preset has its sentence");
+    const meta = await c.query(`SELECT count(DISTINCT business_line)::int AS lines, count(DISTINCT rank)::int AS ranks FROM local_authz.role`);
+    assert.deepEqual(meta.rows[0], { lines: 8, ranks: 6 });
   });
 });
 
@@ -76,6 +84,12 @@ test("one code per workspace, in the code's shape - and the same code in two wor
     for (const bad of ["Channel", "9lives", "with-dash", "with space"]) {
       await assert.rejects(role(c, bad, []), /chk_workspace_role_code/, bad);
     }
+    // 0047: a group is a row of THIS workspace's vocabulary, by id - a made-up
+    // id is refused by the foreign key.
+    await assert.rejects(
+      c.query(`INSERT INTO local_authz.workspace_role (workspace_id, role_code, name, line_id) VALUES ($1, 'x_line', 'x', '00000000-0000-0000-0000-000000000000')`, [WS]),
+      /fk_workspace_role_line/,
+    );
     // Another workspace may have the same code: the key is per workspace.
     const other = "eeeeeeee-0000-0000-0000-000000000047";
     await c.query(`DELETE FROM local_authz.workspace_role WHERE workspace_id = $1`, [other]);
@@ -162,7 +176,7 @@ test("the service role may rename and re-order, and never rewrite the code", { s
           AND grantee = 'yucer_svc' AND privilege_type = 'UPDATE'
         ORDER BY column_name`,
     );
-    assert.deepEqual(rows.map((r) => r.column_name), ["description", "name", "sort_order", "updated_at"]);
+    assert.deepEqual(rows.map((r) => r.column_name), ["description", "line_id", "name", "rank_id", "sort_order", "updated_at"]);
     const link = await c.query(
       `SELECT count(*)::int AS n FROM information_schema.column_privileges
         WHERE table_schema = 'local_authz' AND table_name = 'workspace_role_permission'
@@ -174,5 +188,47 @@ test("the service role may rename and re-order, and never rewrite the code", { s
       `SELECT has_table_privilege('yucer_svc', 'local_authz.role', 'UPDATE') AS ok`,
     );
     assert.equal(preset.rows[0].ok, false);
+  });
+});
+
+test("业务线 / 层级 are the workspace's own rows: one code each, the code's shape, deletable only while empty", { skip }, async () => {
+  await withPg(async (c) => {
+    await cleanup(c);
+    const line = await c.query(
+      `INSERT INTO local_authz.role_line (workspace_id, line_code, name) VALUES ($1, 'public_sector', '政企') RETURNING id`,
+      [WS],
+    );
+    await assert.rejects(
+      c.query(`INSERT INTO local_authz.role_line (workspace_id, line_code, name) VALUES ($1, 'public_sector', 'x')`, [WS]),
+      /uidx_role_line_code|duplicate key/,
+    );
+    await assert.rejects(
+      c.query(`INSERT INTO local_authz.role_rank (workspace_id, rank_code, name) VALUES ($1, 'Vice-President', 'x')`, [WS]),
+      /chk_role_rank_code/,
+    );
+    // A role standing in the line keeps it (RESTRICT); empty, it goes.
+    const id = await role(c, "gov_manager", ["account.read"]);
+    await c.query(`UPDATE local_authz.workspace_role SET line_id = $1 WHERE id = $2`, [line.rows[0].id, id]);
+    await assert.rejects(
+      c.query(`DELETE FROM local_authz.role_line WHERE id = $1`, [line.rows[0].id]),
+      /fk_workspace_role_line|violates foreign key/,
+    );
+    await c.query(`DELETE FROM local_authz.workspace_role WHERE id = $1`, [id]);
+    await c.query(`DELETE FROM local_authz.role_line WHERE id = $1`, [line.rows[0].id]);
+    // Grants: the service may add, rename, re-order and delete; never re-key.
+    for (const t of ["local_authz.role_line", "local_authz.role_rank"]) {
+      for (const p of ["SELECT", "INSERT", "DELETE"]) {
+        const r = await c.query(`SELECT has_table_privilege('yucer_svc', $1, $2) AS ok`, [t, p]);
+        assert.equal(r.rows[0].ok, true, `${p} on ${t}`);
+      }
+      const cols = await c.query(
+        `SELECT column_name FROM information_schema.column_privileges
+          WHERE table_schema = 'local_authz' AND table_name = $1 AND grantee = 'yucer_svc' AND privilege_type = 'UPDATE'
+          ORDER BY column_name`,
+        [t.split(".")[1]],
+      );
+      assert.deepEqual(cols.rows.map((r) => r.column_name), ["name", "sort_order", "updated_at"], t);
+    }
+    await cleanup(c);
   });
 });

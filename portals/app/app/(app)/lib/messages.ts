@@ -1238,7 +1238,7 @@ export const ROLE_LABEL: Record<string, string> = {
   sales_rep: "销售代表",
   presales: "售前顾问",
   delivery_manager: "交付经理",
-  sales_ops: "销售运营",
+  sales_ops: "销售运营经理",
   viewer: "只读成员",
   // 0021 的两级（owner 2026-09-01 裁定）。
   //
@@ -1247,6 +1247,23 @@ export const ROLE_LABEL: Record<string, string> = {
   // 是一份假装自己做了区分的目录。要org 头衔上屏，那是改这里的标签，不是加角色。
   sales_manager: "销售经理",
   regional_director: "大区总监",
+  // 0047 - the group-scale presets. Display names come from the workspace's
+  // own row since 0046; these are the fallback for a code with no row.
+  executive: "高管",
+  finance: "财务",
+  workspace_admin: "系统管理员",
+  senior_sales_manager: "高级销售经理",
+  regional_general_manager: "大区总经理",
+  channel_manager: "渠道经理",
+  senior_channel_manager: "高级渠道经理",
+  senior_delivery_manager: "高级交付经理",
+  senior_presales: "高级售前顾问",
+  marketing_specialist: "市场专员",
+  sales_ops_specialist: "销售运营专员",
+  key_account_manager: "大客户经理",
+  sdr: "商机开发代表",
+  deal_desk: "商务专员",
+  customer_success: "客户成功经理",
 };
 
 /** 权限的中文说明。25 条，与 authz/catalog.ts 的 PERM_CODES 一一对应；
@@ -2370,6 +2387,14 @@ export const ROLE_TEXT = {
     `${roles} 个角色${custom > 0 ? `，其中 ${custom} 个自定义` : ""} · ${perms} 条权限`,
   colRole: "角色",
   colSource: "来源",
+  // 0047: the two groups, the workspace's own words for them.
+  colLine: "业务线",
+  colRank: "层级",
+  lineField: "业务线",
+  rankField: "层级",
+  groupUnset: "请选择",
+  ungrouped: "未分组",
+  groupsButton: "角色分组",
   colDescription: "说明",
   colPerms: "权限数",
   colMembers: "成员数",
@@ -2473,6 +2498,53 @@ export const ROLE_TEXT = {
   emptyWhy: "工作区尚未生成预置角色。新建一个，或重置预置。",
 } as const;
 
+/**
+ * 角色分组 (incr/0047)：业务线与层级两套词表，工作区自己的，参考区域设置——
+ * 预置八条业务线、六级层级，可增删改排；有角色在用的删不掉。
+ */
+export const ROLE_GROUP_TEXT = {
+  pageTitle: "角色分组",
+  pageWhy: "角色按业务线和层级归类。预置的可以改名、排序，也可以新增；有角色在用的分组不能删。",
+  count: (lines: number, ranks: number) => `${lines} 条业务线 · ${ranks} 级层级`,
+  edit: "编辑",
+  save: "保存",
+  codeHint: "小写字母、数字和下划线，字母开头。创建后不可更改；已存在的代码表示改名。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+  colRoles: "角色数",
+  line: {
+    title: "业务线",
+    why: "角色服务的业务条线：销售、渠道、交付、售前、市场、运营、客户，以及集团与通用。",
+    add: "新建业务线",
+    code: "业务线代码",
+    name: "业务线名称",
+    colName: "业务线",
+    deleteConsequence: "该业务线将从角色分组中移除。有角色归在它下面就删不掉。",
+  },
+  rank: {
+    title: "层级",
+    why: "角色所在的职级：专员 / 代表、经理、高级经理、总监、总经理、高管。",
+    add: "新建层级",
+    code: "层级代码",
+    name: "层级名称",
+    colName: "层级",
+    deleteConsequence: "该层级将从角色分组中移除。有角色归在它下面就删不掉。",
+  },
+} as const;
+
+export const ROLE_GROUP_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "代码不能为空",
+  code_shape: "代码只能是小写字母、数字和下划线，且以字母开头",
+  name_required: "名称不能为空",
+  line_in_use: "还有角色归在这条业务线下，先把它们改到别处",
+  rank_in_use: "还有角色归在这个层级下，先把它们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个分组，可能刚被删掉，刷新后重试",
+};
+
 /** 角色管理的拒绝理由。规则层给 code，句子在这里（TD-010）。 */
 export const ROLE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
@@ -2481,6 +2553,8 @@ export const ROLE_ERROR: Record<string, string> = {
   name_required: "角色名称不能为空",
   description_too_long: "角色说明最多 500 个字符",
   permission_unknown: "权限不在目录中，请从列表中选择",
+  line_unknown: "请选择一个业务线；没有合适的，先在角色分组里加上",
+  rank_unknown: "请选择一个层级；没有合适的，先在角色分组里加上",
   role_unknown: "这个角色不属于当前工作区",
   role_in_use: "还有成员持有这个角色，先在成员管理里移除，再删",
   last_admin: "这是工作区管理员持有的唯一管理角色；去掉配置管理权限后将无人能再改回来",
@@ -4636,5 +4710,21 @@ export const PERMISSION_TREE_TEXT = {
     viewer: "只读",
     sales_manager: "经理",
     regional_director: "总监",
+    // 0047 - the fifteen new rungs and functions.
+    executive: "高管",
+    finance: "财务",
+    workspace_admin: "管理员",
+    senior_sales_manager: "高销经",
+    regional_general_manager: "区总",
+    channel_manager: "渠道",
+    senior_channel_manager: "高渠道",
+    senior_delivery_manager: "高交付",
+    senior_presales: "高售前",
+    marketing_specialist: "市专",
+    sales_ops_specialist: "运专",
+    key_account_manager: "大客户",
+    sdr: "商开",
+    deal_desk: "商务",
+    customer_success: "客成",
   } as Record<string, string>,
 } as const;
