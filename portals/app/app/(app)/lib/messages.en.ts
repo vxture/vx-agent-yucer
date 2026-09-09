@@ -2884,8 +2884,20 @@ export const en: Dictionary = {
     divisionCode: "Region code",
     divisionCodeHint: "Fixed once created - it is this region's anchor. An existing code renames it.",
     divisionNameLabel: "Region name",
+    divisionMembersConfig: "Coverage",
+    divisionPickMembers: "Choose members",
+    divisionApplyPreset: "Apply a preset",
+    divisionResetPreset: "Reset to preset",
+    divisionClearMembers: "Clear",
+    divisionApplyPresetTitle: "Apply a preset",
+    divisionApplyPresetWhy: (isNew: boolean): string =>
+      isNew
+        ? "Pick a standard region; its code, name and members are filled in - still editable."
+        : "Pick a standard region; its name and members are applied here. The code is the anchor and stays.",
+    divisionApplyConfirm: "Apply",
+    divisionResetPresetHint: (from: string, name: string) => `Restore name and members from ${from} - ${name}`,
+    divisionResetPresetNone: "No preset matches the current code",
     divisionPick: (noun: string) => `Choose ${noun}`,
-    divisionPickManual: "Pick them yourself",
     divisionPickTitle: (noun: string) => `Choose ${noun}`,
     divisionPickWhy: (noun: string) => `Tick ${noun}. The suffix shows where the standard carves put each one.`,
     divisionPickDone: "Done",

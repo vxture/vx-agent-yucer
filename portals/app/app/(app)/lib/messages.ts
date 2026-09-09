@@ -3317,9 +3317,24 @@ export const PLANNING_TEXT = {
   divisionCode: "区域代码",
   divisionCodeHint: "创建后不可更改。已存在的代码表示改名。",
   divisionNameLabel: "区域名称",
+  /* 辖区配置 (owner, 2026-09-09): 手动选择只是一种方式，不能当 label。四个动作
+     并排：选择辖区（抽屉）、应用预置（任选一个预置区域套上来）、重置预置
+     （按当前代码对应的预置恢复）、清空选择。 */
+  divisionMembersConfig: "辖区配置",
+  divisionPickMembers: "选择辖区",
+  divisionApplyPreset: "应用预置",
+  divisionResetPreset: "重置预置",
+  divisionClearMembers: "清空选择",
+  divisionApplyPresetTitle: "应用预置",
+  divisionApplyPresetWhy: (isNew: boolean): string =>
+    isNew
+      ? "选一个预置区域，代码、名称与辖区自动填好，可再改。"
+      : "选一个预置区域，名称与辖区套用到当前区域；代码是锚，保持不变。",
+  divisionApplyConfirm: "应用",
+  divisionResetPresetHint: (from: string, name: string) => `按「${from}-${name}」恢复名称与辖区`,
+  divisionResetPresetNone: "当前代码没有对应的预置",
   // --- 成员选择抽屉 ---
   divisionPick: (noun: string) => `选择${noun}`,
-  divisionPickManual: "手动选择",
   divisionPickTitle: (noun: string) => `选择${noun}`,
   divisionPickWhy: (noun: string) => `勾选${noun}。后缀是内置切法的归属，供参考。`,
   divisionPickDone: "完成",

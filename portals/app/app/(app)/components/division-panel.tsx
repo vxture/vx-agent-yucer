@@ -208,7 +208,10 @@ export function DivisionPanel(
             {
               id: "scope",
               header: PLANNING_TEXT.divisionScope(noun),
-              align: "left",
+              /* CENTRED (owner, 2026-09-09): left-aligned, a region holding
+                 one unit put its single tag far from a header centred over
+                 the widest column on the page. Tags wrap from the middle. */
+              align: "center",
               /* TAGS, LAID OUT ACROSS THE ROW (owner, 2026-09-08). It was
                  "江苏省 / 上海市 / ..." - one string that wrapped mid-name and
                  gave the eye nothing to land on. Each province is a chip now,
@@ -217,7 +220,7 @@ export function DivisionPanel(
                  covers IS the row's content, and a reader checking whether
                  江苏 is in it should not have to open anything. */
               cell: (r: DivisionRow) => (
-                <span className="gap-2xs flex flex-wrap">
+                <span className="gap-2xs flex flex-wrap justify-center">
                   {r.members.map((m) => (
                     <Tag key={m.key}>
                       {m.label}

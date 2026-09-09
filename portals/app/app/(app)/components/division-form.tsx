@@ -5,6 +5,8 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Banner,
   Button,
+  ButtonGroup,
+  DialogForm,
   Drawer,
   EmptyState,
   Field,
@@ -14,7 +16,8 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-  NativeSelect,
+  RadioGroup,
+  RadioGroupItem,
   Section,
   Table,
   TableBody,
@@ -119,6 +122,23 @@ export function DivisionForm({
   const [chosen, setChosen] = useState<Set<string>>(new Set(members));
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [presetChoice, setPresetChoice] = useState("");
+
+  /* The preset that matches THIS code - what 重置预置 restores. On a new
+     region it follows what has been typed; on an existing one the code is
+     fixed and so is the match. */
+  const presetForCode = useMemo(
+    () => presets.find((p) => p.code === divisionCode(scope, local)) ?? null,
+    [presets, scope, local],
+  );
+  /* Lay a preset over the form. The CODE follows only while creating - it is
+     the anchor, and on an existing region it stays. */
+  const applyPreset = (p: PresetOption) => {
+    if (isNew) setLocal(localCode(scope, p.code));
+    setName(p.name);
+    setChosen(new Set(p.members));
+  };
 
   /* ORDERED BY THE OPTION LIST, not by the click order: the roster reads as a
      stable list of what this 大区 holds, and one that reshuffled every time
@@ -234,52 +254,49 @@ export function DivisionForm({
               />
             </Field>
 
-            {/* THE TWO WAYS TO FILL THE LIST: take a shipped region wholesale,
-                or open the picker. Both are actions. */}
-            {isNew && presets.length > 0 ? (
-              <Field>
-                <FieldLabel>{PLANNING_TEXT.templateRef}</FieldLabel>
-                <NativeSelect
-                  disabled={pending}
-                  defaultValue=""
-                  onChange={(e) => {
-                    const p = presets.find(
-                      (x) => `${x.key}:${x.code}` === e.target.value,
-                    );
-                    if (!p) return;
-                    setLocal(localCode(scope, p.code));
-                    setName(p.name);
-                    setChosen(new Set(p.members));
-                  }}
-                >
-                  <option value="">{PLANNING_TEXT.templateRefNone}</option>
-                  {/* 五分法-中部, and nothing else: the carve's own list of
-                        names belongs in the reset dialog, not in every option. */}
-                  {presets.map((p) => (
-                    <option
-                      key={`${p.key}:${p.code}`}
-                      value={`${p.key}:${p.code}`}
-                    >
-                      {PLANNING_TEXT.presetOption(p.from, p.name)}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </Field>
-            ) : null}
+            {/* 辖区配置 - FOUR WAYS TO FILL THE LIST, in one row (owner,
+                2026-09-09: 手动选择只是其中一种方式，不能把手动选择作为 label).
+                选择辖区 opens the picker; 应用预置 lays any preset region over
+                this one; 重置预置 restores the preset that matches THIS code,
+                and is greyed when none does; 清空选择 empties the list. Each
+                is greyed when it could do nothing, so the row reads as what
+                can be done right now. */}
             <Field>
-              <FieldLabel>{PLANNING_TEXT.divisionPickManual}</FieldLabel>
-              {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page: the
-                    list is long enough that the fields above scrolled away
-                    before the last province arrived. */}
-              <div className="w-fit">
+              <FieldLabel>{PLANNING_TEXT.divisionMembersConfig}</FieldLabel>
+              <ButtonGroup>
+                <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
+                  {PLANNING_TEXT.divisionPickMembers}
+                </Button>
                 <Button
                   variant="secondary"
-                  disabled={pending}
-                  onClick={() => setPicking(true)}
+                  disabled={pending || presets.length === 0}
+                  onClick={() => {
+                    setPresetChoice(presetForCode ? `${presetForCode.key}:${presetForCode.code}` : "");
+                    setApplying(true);
+                  }}
                 >
-                  {PLANNING_TEXT.divisionPick(noun)}
+                  {PLANNING_TEXT.divisionApplyPreset}
                 </Button>
-              </div>
+                <Button
+                  variant="secondary"
+                  disabled={pending || !presetForCode}
+                  title={
+                    presetForCode
+                      ? PLANNING_TEXT.divisionResetPresetHint(presetForCode.from, presetForCode.name)
+                      : PLANNING_TEXT.divisionResetPresetNone
+                  }
+                  onClick={() => presetForCode && applyPreset(presetForCode)}
+                >
+                  {PLANNING_TEXT.divisionResetPreset}
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={pending || chosen.size === 0}
+                  onClick={() => setChosen(new Set())}
+                >
+                  {PLANNING_TEXT.divisionClearMembers}
+                </Button>
+              </ButtonGroup>
             </Field>
 
             {/* REMOVAL IS OFFERED ONLY WHEN IT HOLDS NOTHING, which is the
@@ -399,6 +416,33 @@ export function DivisionForm({
           <Banner tone="danger" title={PLANNING_TEXT.divisionSaveFailed} description={error} />
         ) : null}
       </div>
+
+      <DialogForm
+        open={applying}
+        onOpenChange={setApplying}
+        title={PLANNING_TEXT.divisionApplyPresetTitle}
+        description={PLANNING_TEXT.divisionApplyPresetWhy(isNew)}
+        submitLabel={PLANNING_TEXT.divisionApplyConfirm}
+        cancelLabel={PLANNING_TEXT.divisionDiscard}
+        submitDisabled={presetChoice === ""}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const p = presets.find((x) => `${x.key}:${x.code}` === presetChoice);
+          if (p) applyPreset(p);
+          setApplying(false);
+        }}
+      >
+        {/* 五分法-中部, one per line: the carve's own list of names belongs
+            in the roster's reset dialog, not beside every option. */}
+        <RadioGroup value={presetChoice} onValueChange={setPresetChoice} className="gap-sm flex flex-col">
+          {presets.map((p) => (
+            <label className="gap-sm flex items-center" key={`${p.key}:${p.code}`} htmlFor={`preset-${p.key}-${p.code}`}>
+              <RadioGroupItem id={`preset-${p.key}-${p.code}`} value={`${p.key}:${p.code}`} />
+              <span className="text-body">{PLANNING_TEXT.presetOption(p.from, p.name)}</span>
+            </label>
+          ))}
+        </RadioGroup>
+      </DialogForm>
 
       <Drawer
         open={picking}

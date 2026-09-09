@@ -72,9 +72,20 @@ export default async function EditDivisionPage(
         code={mine.code}
         name={mine.name}
         members={mine.members.map((m) => m.key)}
-        // Empty when editing: referencing a preset would silently overwrite
-        // what this workspace has already decided.
-        presets={[]}
+        /* The frame's carves, on edit too (owner, 2026-09-09: 辖区配置 - 应用
+           预置 / 重置预置). The form keeps the code - the anchor - and applies
+           a preset's name and members on top, by an explicit click. */
+        presets={carves.flatMap((t) =>
+          t.divisions.map((d) => ({
+            key: t.key,
+            code: d.code,
+            name: d.name,
+            from: t.name,
+            members: Object.entries(t.members)
+              .filter(([, c]) => c === d.code)
+              .map(([member]) => member),
+          })),
+        )}
         options={memberOptions(
           carves,
           ground.ok ? ground.value : [],
