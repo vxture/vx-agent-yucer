@@ -1,0 +1,222 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { Button, ButtonGroup, DataTable, Icon, StatusBadge, type IconName } from "@vxture/design-ui";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import { useMessages } from "../lib/i18n/provider";
+import {
+  flattenTree,
+  keysDownTo,
+  type PermissionLevel,
+  type PermissionNode,
+  type PermissionRow,
+} from "../lib/permission-tree";
+import type { RoleCode } from "../../authz/catalog";
+import { Tag } from "./tag";
+
+/* 权限管理 - 业务域 / 模块 / 页面 / 操作, one tree in one table (owner,
+ * 2026-09-09; the reference is the platform console's permission tree).
+ *
+ * ONE FLAT TABLE, NOT NESTED TABLES. The tree is flattened by its expansion
+ * state and each row indents by its depth, so the DS's DataTable draws it
+ * with its own three fittings and its own header - what a nested component
+ * per level would have had to fake. A chevron on a row that has children
+ * opens it; a level tag says what the row is.
+ *
+ * THE ROLES ARE COLUMNS, ONE EACH (owner: 角色应该展开列，用 icon 显示，不要混合在
+ * 一行), and there are nine, so the header carries an icon and a short name
+ * with the full name on hover, the table scrolls sideways, and the title
+ * column stays put on the left as the action column does on the right.
+ *
+ * READ-ONLY, BY RULING (owner: 权限当前全部为预置功能，不可增删改): the grants
+ * are seeded DDL mirrored in authz/catalog.ts. The action column is the
+ * fitting every table carries, with nothing in it.
+ */
+
+export const ROLE_ICON: Readonly<Record<RoleCode, IconName>> = {
+  sales_leader: "star",
+  marketing_manager: "megaphone",
+  sales_rep: "user",
+  presales: "headset",
+  delivery_manager: "cube",
+  sales_ops: "settings",
+  viewer: "eye",
+  sales_manager: "users",
+  regional_director: "flag",
+};
+
+const LEVEL_ICON: Readonly<Record<PermissionLevel, IconName>> = {
+  domain: "folder",
+  module: "squares-four",
+  page: "table",
+  action: "key",
+};
+
+const LEVEL_TONE = {
+  domain: "brand",
+  module: "info",
+  page: "neutral",
+  action: "warning",
+} as const;
+
+/* PINNED EDGES. The three leading columns (选择 / 序号 / 权限点) and the
+   action column stay put while the nine role columns scroll under them. The
+   DS pins its own action column; the left pin is this wrapper's, laid over
+   the DS's cells with the surface colour so scrolled cells pass beneath. */
+const PINNED =
+  " [&_thead_th:nth-child(1)]:sticky [&_thead_th:nth-child(1)]:left-0 [&_tbody_td:nth-child(1)]:sticky [&_tbody_td:nth-child(1)]:left-0"
+  + " [&_thead_th:nth-child(2)]:sticky [&_thead_th:nth-child(2)]:left-[4rem] [&_tbody_td:nth-child(2)]:sticky [&_tbody_td:nth-child(2)]:left-[4rem]"
+  + " [&_thead_th:nth-child(3)]:sticky [&_thead_th:nth-child(3)]:left-[8rem] [&_tbody_td:nth-child(3)]:sticky [&_tbody_td:nth-child(3)]:left-[8rem]"
+  + " [&_thead_th:nth-child(-n+3)]:z-10 [&_tbody_td:nth-child(-n+3)]:z-10"
+  + " [&_thead_th:nth-child(-n+3)]:bg-background [&_tbody_td:nth-child(-n+3)]:bg-background";
+
+export function PermissionTree({
+  tree,
+  roles,
+  holds,
+}: {
+  readonly tree: readonly PermissionNode[];
+  /** Column order. */
+  readonly roles: readonly RoleCode[];
+  /** role -> the permissions it holds. */
+  readonly holds: Readonly<Record<string, readonly string[]>>;
+}) {
+  const { DATA_TABLE_LABELS, DOMAIN_GROUP_LABEL, DOMAIN_LABEL, PERMISSION_TREE_TEXT: T, ROLE_LABEL } = useMessages();
+  // Open to the pages by default: the shape is visible, the 69 operations are
+  // one click away each rather than a wall.
+  const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
+  const rows = useMemo(() => flattenTree(tree, expanded), [tree, expanded]);
+  const held = useMemo(
+    () => new Map(roles.map((r) => [r, new Set(holds[r] ?? [])])),
+    [roles, holds],
+  );
+
+  const toggle = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const title = (n: PermissionNode): string => {
+    if (n.level === "domain") return T.groupLabel[n.name] ?? DOMAIN_GROUP_LABEL[n.name] ?? n.name;
+    if (n.level === "module") return T.moduleLabel[n.name] ?? DOMAIN_LABEL[n.name] ?? n.name;
+    if (n.level === "page") return T.pageLabel[n.name] ?? n.name;
+    return T.actionLabel[n.name] ?? n.name;
+  };
+  /* THE SUBTITLE IS THE CODE (owner: 权限码副标题): the node's own name, and
+     for an operation the permission it needs after it - that is the column
+     the roles are read against. */
+  const subtitle = (n: PermissionNode): string =>
+    n.level === "action" && n.permission ? `${n.name} · ${n.permission}` : n.name;
+
+  return (
+    <div className="gap-md flex flex-col">
+      {/* Expand to a level, or fold everything: the two things a reader does
+          with a tree of this size. */}
+      <div className="gap-sm flex items-center">
+        <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
+        <ButtonGroup>
+          {(["module", "page", "action"] as const).map((lvl) => (
+            <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
+              {T.levelLabel[lvl]}
+            </Button>
+          ))}
+          <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
+            {T.collapseAll}
+          </Button>
+        </ButtonGroup>
+      </div>
+
+      <div
+        className={
+          /* THE RAIL IS WIDER THAN THE PAGE ON PURPOSE (owner: 简写 + 横向滚动):
+             4 + 4 + 24 + 6 + 9 x 5.5 + 4 = 91.5rem, each role column wide
+             enough for its icon and short name, the title column wide enough
+             for an id and its permission. The page scrolls the roles under
+             the pinned edges rather than squeezing every column to fit. */
+          `overflow-x-auto [&_table]:min-w-[92rem] [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}${PINNED}`
+          + " [&_thead_th:nth-child(3)]:w-[24rem] [&_thead_th:nth-child(4)]:w-[6rem]"
+          + " [&_thead_th:nth-child(n+5):not(:last-child)]:w-[5.5rem]"
+        }
+      >
+        <DataTable
+          labels={DATA_TABLE_LABELS}
+          leadingSpacer
+          indexStart={1}
+          rowActions={() => <RowActions items={[]} />}
+          rowKey={(r: PermissionRow) => r.node.key}
+          rows={rows}
+          columns={[
+            {
+              id: "point",
+              header: T.colPoint,
+              cell: (r: PermissionRow) => {
+                const n = r.node;
+                const branch = n.children.length > 0;
+                return (
+                  <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
+                    {/* The chevron is the row's own control; a leaf keeps
+                        its width so titles line up down a level. */}
+                    {branch ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-expanded={r.expanded}
+                        aria-label={title(n)}
+                        onClick={() => toggle(n.key)}
+                      >
+                        <Icon name={r.expanded ? "chevron-down" : "chevron-right"} size="sm" />
+                      </Button>
+                    ) : (
+                      <span className="w-8 shrink-0" />
+                    )}
+                    <Icon name={LEVEL_ICON[n.level]} size="sm" className="text-muted-foreground shrink-0" />
+                    <span className="gap-3xs flex min-w-0 flex-col">
+                      <span className="gap-xs flex items-center">
+                        <span className="text-body truncate font-medium">{title(n)}</span>
+                        {branch ? <Tag>{T.childCount(n.children.length)}</Tag> : null}
+                      </span>
+                      <span className="text-muted-foreground text-body-sm truncate">{subtitle(n)}</span>
+                    </span>
+                  </span>
+                );
+              },
+            },
+            {
+              id: "level",
+              header: T.colLevel,
+              cell: (r: PermissionRow) => (
+                <StatusBadge tone={LEVEL_TONE[r.node.level]}>{T.levelLabel[r.node.level]}</StatusBadge>
+              ),
+            },
+            /* ONE COLUMN PER ROLE. A leaf reads ✓ or —; a branch reads
+               nothing, because a module does not hold a permission - its
+               operations do, each on its own row. */
+            ...roles.map((role) => ({
+              id: role,
+              header: (
+                <span className="gap-3xs inline-flex items-center" title={ROLE_LABEL[role] ?? role}>
+                  <Icon name={ROLE_ICON[role]} size="sm" />
+                  <span>{T.roleShort[role] ?? ROLE_LABEL[role] ?? role}</span>
+                </span>
+              ),
+              align: "center" as const,
+              cell: (r: PermissionRow) => {
+                const p = r.node.permission;
+                if (!p) return null;
+                const ok = held.get(role)?.has(p) ?? false;
+                return ok ? (
+                  <Icon name="check" size="sm" className="text-success" aria-label={T.granted} />
+                ) : (
+                  <span className="text-muted-foreground" aria-label={T.notGranted}>—</span>
+                );
+              },
+            })),
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
