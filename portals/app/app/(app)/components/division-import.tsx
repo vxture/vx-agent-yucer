@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Button, DialogForm } from "@vxture/design-ui";
+import { useState } from "react";
+import { Banner, Button, ConfirmDestructive, DialogForm, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { importTemplate } from "../admin/division/actions";
 
@@ -19,6 +19,12 @@ import { importTemplate } from "../admin/division/actions";
  * so adopting one is a statement about the whole market - and a workspace that
  * has already customised is told exactly how many of its own divisions the
  * reset would discard, in its own numbers rather than as "are you sure".
+ *
+ * TWO STEPS, THE SECOND DESTRUCTIVE (owner, 2026-09-09: 配置首页的重置预置也
+ * 需要危险确认，并提示危险性). The dialog is where the carve is CHOSEN, with a
+ * danger banner stating what adopting it costs; 确认替换 then opens the DS's
+ * destructive confirmation - verb, target, consequence - and only that lands
+ * the change. Choosing and destroying are two different clicks.
  */
 export interface TemplateOption {
   readonly key: string;
@@ -38,18 +44,22 @@ export function DivisionImport(
   },
 ) {
   const { DS_LABELS, PLANNING_TEXT, TERRITORY_ERROR } = useMessages();
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [chosen, setChosen] = useState(templates[0]?.key ?? "");
+  const { toast } = useToast();
+  const picked = templates.find((t) => t.key === chosen) ?? null;
 
-  const run = () => {
-    setError(null);
-    start(async () => {
-      const r = await importTemplate(chosen);
-      if (!r.ok) setError(TERRITORY_ERROR[r.error] ?? r.error);
-      else setOpen(false);
-    });
+  /* The hammer. A refusal is shown as a toast and RE-THROWN, so the DS keeps
+     the confirmation open: the person must see that the click did not land. */
+  const run = async () => {
+    const r = await importTemplate(chosen);
+    if (!r.ok) {
+      toast({ tone: "danger", title: TERRITORY_ERROR[r.error] ?? r.error });
+      throw new Error(r.error);
+    }
+    setConfirming(false);
+    setOpen(false);
   };
 
   return (
@@ -63,7 +73,6 @@ export function DivisionImport(
              a choice remembered from the old list would submit a key the
              service refuses (template_unknown). */
           setChosen(templates[0]?.key ?? "");
-          setError(null);
           setOpen(true);
         }}
       >
@@ -76,7 +85,6 @@ export function DivisionImport(
         description={PLANNING_TEXT.templateWhy}
         submitLabel={PLANNING_TEXT.templateConfirm}
         cancelLabel={PLANNING_TEXT.templateCancel}
-        submitting={pending}
         /* OURS, not the DS default - which renders "Working..." and put an
            English word in the middle of a Chinese dialog the moment the button
            was pressed. Same rule as every other DS label this product passes
@@ -84,16 +92,15 @@ export function DivisionImport(
         pendingLabel={DS_LABELS.confirmPending}
         submitDisabled={chosen === ""}
         /* DESTRUCTIVE, and typed as such: it discards divisions the tenant may
-           have carved by hand. The red button is the warning below stated in
-           the shape of the control. */
+           have carved by hand. The red button is the banner below stated in
+           the shape of the control; pressing it asks once more. */
         danger
         onSubmit={(e) => {
           e.preventDefault();
-          run();
+          setConfirming(true);
         }}
       >
         <div className="gap-md flex flex-col">
-          {error ? <p className="text-destructive text-body-sm" role="alert">{error}</p> : null}
           {templates.map((t) => (
             <label className="gap-sm flex items-start" key={t.key}>
               <input
@@ -102,7 +109,6 @@ export function DivisionImport(
                 className="mt-2xs"
                 checked={chosen === t.key}
                 onChange={() => setChosen(t.key)}
-                disabled={pending}
               />
               <span className="gap-2xs flex flex-col">
                 <span className="text-body font-semibold">{t.label}</span>
@@ -110,11 +116,25 @@ export function DivisionImport(
               </span>
             </label>
           ))}
-          <p className="text-warning text-body-sm">
-            {PLANNING_TEXT.templateReplaceWarn(currentDivisions, customCount)}
-          </p>
+          {/* THE DANGER, AS THE DS DRAWS IT - not a line of coloured text. */}
+          <Banner
+            tone="danger"
+            title={PLANNING_TEXT.templateDangerTitle}
+            description={PLANNING_TEXT.templateReplaceWarn(currentDivisions, customCount)}
+          />
         </div>
       </DialogForm>
+      <ConfirmDestructive
+        open={confirming}
+        onOpenChange={setConfirming}
+        verb={PLANNING_TEXT.templateConfirmVerb}
+        target={PLANNING_TEXT.templateConfirmTarget(picked?.label ?? "")}
+        consequence={PLANNING_TEXT.templateConsequence(currentDivisions, customCount)}
+        titleTemplate={PLANNING_TEXT.destructiveTitle}
+        cancelLabel={PLANNING_TEXT.templateCancel}
+        pendingLabel={DS_LABELS.confirmPending}
+        onConfirm={run}
+      />
     </>
   );
 }

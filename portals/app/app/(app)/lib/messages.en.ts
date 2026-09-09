@@ -2896,6 +2896,12 @@ export const en: Dictionary = {
         : "Pick a standard region; its name and members are applied here. The code is the anchor and stays.",
     divisionApplyConfirm: "Apply",
     divisionResetPresetHint: (from: string, name: string) => `Restore name and members from ${from} - ${name}`,
+    destructiveTitle: "{verb} {target}?",
+    divisionResetTarget: (from: string, name: string) => `to ${from} - ${name}`,
+    divisionResetConsequence: (n: number, noun: string) =>
+      `The current name and the ${n} ${noun} chosen are replaced by the preset; Discard undoes it until you save.`,
+    divisionClearTarget: (n: number, noun: string) => `the ${n} ${noun} chosen`,
+    divisionClearConsequence: "The list empties; anything ticked by hand has to be ticked again. Discard undoes it until you save.",
     divisionResetPresetNone: "No preset matches the current code",
     divisionPick: (noun: string) => `Choose ${noun}`,
     divisionPickTitle: (noun: string) => `Choose ${noun}`,
@@ -2926,6 +2932,11 @@ export const en: Dictionary = {
     templateReset: "Reset to a standard carve",
     templateConfirm: "Replace",
     templateCancel: "Cancel",
+    templateDangerTitle: "This replacement cannot be undone",
+    templateConfirmVerb: "Replace",
+    templateConfirmTarget: (carve: string) => `with ${carve}`,
+    templateConsequence: (current: number, custom: number) =>
+      `All ${current} regions and their members are re-laid from the preset${custom > 0 ? `; ${custom} custom regions are discarded` : ""}. It takes effect at once and cannot be undone.`,
     templateReplaceWarn: (current: number, custom: number) =>
       custom > 0
         ? `Replaces the current ${current} regions; ${custom} of them are yours and will be discarded.`

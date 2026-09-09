@@ -6,6 +6,7 @@ import {
   Banner,
   Button,
   ButtonGroup,
+  DestructiveButton,
   DialogForm,
   Drawer,
   EmptyState,
@@ -277,25 +278,50 @@ export function DivisionForm({
                 >
                   {PLANNING_TEXT.divisionApplyPreset}
                 </Button>
-                <Button
-                  variant="secondary"
+                {/* THE TWO THAT THROW AWAY WHAT IS ON SCREEN are destructive
+                    and confirmed as such (owner, 2026-09-09: 危险操作，应该添加
+                    危险确认框) - the DS's own contract: a verb, a target and a
+                    consequence, and the button wears red so the row says
+                    which of the four can cost you something. */}
+                <DestructiveButton
                   disabled={pending || !presetForCode}
                   title={
                     presetForCode
                       ? PLANNING_TEXT.divisionResetPresetHint(presetForCode.from, presetForCode.name)
                       : PLANNING_TEXT.divisionResetPresetNone
                   }
-                  onClick={() => presetForCode && applyPreset(presetForCode)}
+                  confirm={{
+                    verb: PLANNING_TEXT.divisionResetPreset,
+                    target: presetForCode
+                      ? PLANNING_TEXT.divisionResetTarget(presetForCode.from, presetForCode.name)
+                      : "",
+                    consequence: PLANNING_TEXT.divisionResetConsequence(chosenList.length, noun),
+                    titleTemplate: PLANNING_TEXT.destructiveTitle,
+                    /* OURS, not the DS default - which rendered "Cancel" in
+                       the middle of a Chinese dialog. */
+                    cancelLabel: PLANNING_TEXT.templateCancel,
+                    onConfirm: () => {
+                      if (presetForCode) applyPreset(presetForCode);
+                    },
+                  }}
                 >
                   {PLANNING_TEXT.divisionResetPreset}
-                </Button>
-                <Button
-                  variant="secondary"
+                </DestructiveButton>
+                <DestructiveButton
                   disabled={pending || chosen.size === 0}
-                  onClick={() => setChosen(new Set())}
+                  confirm={{
+                    verb: PLANNING_TEXT.divisionClearMembers,
+                    target: PLANNING_TEXT.divisionClearTarget(chosenList.length, noun),
+                    consequence: PLANNING_TEXT.divisionClearConsequence,
+                    titleTemplate: PLANNING_TEXT.destructiveTitle,
+                    /* OURS, not the DS default - which rendered "Cancel" in
+                       the middle of a Chinese dialog. */
+                    cancelLabel: PLANNING_TEXT.templateCancel,
+                    onConfirm: () => setChosen(new Set()),
+                  }}
                 >
                   {PLANNING_TEXT.divisionClearMembers}
-                </Button>
+                </DestructiveButton>
               </ButtonGroup>
             </Field>
 

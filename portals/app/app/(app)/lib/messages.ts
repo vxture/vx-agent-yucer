@@ -3332,6 +3332,14 @@ export const PLANNING_TEXT = {
       : "选一个预置区域，名称与辖区套用到当前区域；代码是锚，保持不变。",
   divisionApplyConfirm: "应用",
   divisionResetPresetHint: (from: string, name: string) => `按「${from}-${name}」恢复名称与辖区`,
+  /* 两个危险动作的确认框（owner）：动词、对象、后果，DS 的契约。标题句式由产品
+     定：「重置预置 陕西三分法-关中？」 */
+  destructiveTitle: "{verb}{target}？",
+  divisionResetTarget: (from: string, name: string) => `为「${from}-${name}」`,
+  divisionResetConsequence: (n: number, noun: string) =>
+    `当前名称和已选的 ${n} 个${noun}会被预置覆盖；未保存前可以「放弃」。`,
+  divisionClearTarget: (n: number, noun: string) => `已选的 ${n} 个${noun}`,
+  divisionClearConsequence: "清单会清空，逐个勾选的辖区需要重新选；未保存前可以「放弃」。",
   divisionResetPresetNone: "当前代码没有对应的预置",
   // --- 成员选择抽屉 ---
   divisionPick: (noun: string) => `选择${noun}`,
@@ -3365,6 +3373,13 @@ export const PLANNING_TEXT = {
   templateReset: "重置预置",
   templateConfirm: "确认替换",
   templateCancel: "取消",
+  /* 两步：对话框里选方案并用 danger Banner 说明代价；「确认替换」再弹危险确认
+     （owner, 2026-09-09），落锤在确认框里。 */
+  templateDangerTitle: "这是不可撤销的替换",
+  templateConfirmVerb: "替换",
+  templateConfirmTarget: (carve: string) => `为「${carve}」`,
+  templateConsequence: (current: number, custom: number) =>
+    `当前 ${current} 个区域及其辖区归属全部按预置重排${custom > 0 ? `，其中 ${custom} 个自定义区域会被丢弃` : ""}；保存即生效，不可撤销。`,
   templateReplaceWarn: (current: number, custom: number) =>
     custom > 0
       ? `会替换当前 ${current} 个大区，其中 ${custom} 个是你自己配置的，将被丢弃。`
