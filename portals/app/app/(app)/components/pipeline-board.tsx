@@ -69,7 +69,8 @@ export interface PipelineRow extends ForecastableOpportunity {
 
 export interface PipelineBoardProps {
   readonly rows: readonly PipelineRow[];
-  readonly currency?: string;
+  /** The workspace's default (incr/0044), for rows that carry no amount. */
+  readonly currency: string;
   readonly loading?: boolean;
   /** Shown when the member may read but not advance anything. */
   readonly readOnly?: boolean;
@@ -93,7 +94,7 @@ const SORT_ON = {
 
 export function PipelineBoard({
   rows,
-  currency = "CNY",
+  currency,
   loading,
   readOnly,
   undated = 0,

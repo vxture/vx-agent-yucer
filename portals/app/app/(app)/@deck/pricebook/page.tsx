@@ -1,7 +1,8 @@
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { getCatalogStore } from "../../../domains/shared/registry";
-import { analysePriceBook } from "../../../domains/catalog/service";
+import { analysePriceBook, pricingPolicy } from "../../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 import { AgentCapture } from "../../components/agent-capture";
 import { PriceAdvicePanel } from "../../components/price-advice-panel";
 import { savePrice } from "../../catalog/actions";
@@ -40,16 +41,17 @@ export default async function PricebookDeck({
       ? params.analyze.split(",").filter(Boolean)
       : undefined;
 
-  const advice = await analysePriceBook(
-    {
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: getCatalogStore(),
-    },
-    { productIds: selection },
-  );
+  const ctx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getCatalogStore(),
+  };
+  const [advice, policy] = await Promise.all([
+    analysePriceBook(ctx, { productIds: selection }),
+    pricingPolicy(ctx),
+  ]);
 
   return (
     <div className="flex flex-col gap-sm">
@@ -60,6 +62,7 @@ export default async function PricebookDeck({
       />
       {advice.ok ? (
         <PriceAdvicePanel
+          currency={policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency}
           advice={advice.value}
           scope={selection ? "selection" : "all"}
           canPrice={

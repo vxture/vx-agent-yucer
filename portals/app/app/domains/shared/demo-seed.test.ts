@@ -924,6 +924,7 @@ test("the demo has a quarter that is over, with a scorecard the two figures disa
       holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) },
       entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier: "enterprise" },
       store: s.pipeline,
+      catalog: s.catalog,
     },
     DEMO_PRIOR_PERIOD,
     { now: DEMO_NOW },

@@ -1,3 +1,4 @@
+import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 // The product catalogue - see ADR-014.
 //
 // A dimension referenced across domains and written by none of them: deals,
@@ -287,6 +288,12 @@ export interface CatalogStore {
     workspaceId: string,
     input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,
   ): Promise<DiscountApprovalRecord>;
+
+  /* --- 计价规则 (incr/0044) -------------------------------------------------
+     One row per workspace: `get` answers the shipped default where no row
+     exists yet, `set` writes it either way. */
+  getPricingPolicy(workspaceId: string): Promise<PricingPolicy>;
+  setPricingPolicy(workspaceId: string, policy: PricingPolicy): Promise<void>;
 }
 
 export class InMemoryCatalogStore implements CatalogStore {
@@ -299,7 +306,16 @@ export class InMemoryCatalogStore implements CatalogStore {
   private prices: PriceEntryRecord[] = [];
   private lines: OpportunityLineRecord[] = [];
   private approvals: DiscountApprovalRecord[] = [];
+  private policies = new Map<string, PricingPolicy>();
   private seq = 0;
+
+  async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {
+    return this.policies.get(workspaceId) ?? DEFAULT_PRICING_POLICY;
+  }
+
+  async setPricingPolicy(workspaceId: string, policy: PricingPolicy): Promise<void> {
+    this.policies.set(workspaceId, { ...policy });
+  }
 
   seed(input: {
     products?: ProductRecord[];

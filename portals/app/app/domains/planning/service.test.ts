@@ -15,6 +15,7 @@ import {
   type PlanningContext,
 } from "./service";
 import type { TargetScope } from "./lib/target";
+import { InMemoryCatalogStore, type CatalogStore } from "../catalog/store";
 
 const WS = "ws_1";
 
@@ -38,13 +39,14 @@ function target(over: Partial<TargetRecord> = {}): TargetRecord {
   };
 }
 
-function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryPlanningStore()): PlanningContext {
+function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryPlanningStore()): PlanningContext & { catalog: CatalogStore } {
   return {
     workspaceId: WS,
     sub: "usr_me",
     holder: { permissions: new Set(permissionsForRoles([role])) },
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
     store,
+    catalog: new InMemoryCatalogStore(),
   };
 }
 

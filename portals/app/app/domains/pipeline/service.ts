@@ -62,8 +62,6 @@ import type {
   WinLossReviewRecord,
 } from "./store";
 
-/** What a line is priced in when the deal has no amount yet to inherit from. */
-const DEFAULT_LINE_CURRENCY = "CNY";
 
 export interface PipelineContext {
   workspaceId: string;
@@ -123,11 +121,15 @@ export async function listPipeline(
  * with, which is the ownership rule rather than an omission.
  */
 export async function createOpportunity(
-  ctx: PipelineContext,
+  /* THE CATALOGUE IS READ HERE for one thing: what a deal is priced in when
+     nobody said (incr/0044). It was "CNY" in this file; it is the workspace's
+     计价规则 now, and the pipeline reads it the way it reads a price. */
+  ctx: PipelineContext & { catalog: CatalogStore },
   input: NewOpportunityDraft & { currency?: string },
 ): Promise<RuleResult<OpportunityRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunity.create", "data");
   if (!gate.allowed) return denied(gate);
+  const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
 
   // THE CREATOR OWNS IT UNLESS SOMEBODY IS NAMED, and the default is applied
   // HERE, before the rule, rather than inside it. The rule's job is to refuse
@@ -153,7 +155,7 @@ export async function createOpportunity(
       // Refused by the rule when blank and by a CHECK when empty (incr/0034).
       requirement: plan.value.requirement!,
       amount: plan.value.amount,
-      currency: plan.value.amount?.currency ?? input.currency ?? DEFAULT_LINE_CURRENCY,
+      currency: plan.value.amount?.currency ?? input.currency ?? policy.defaultCurrency,
       expectedCloseAt: plan.value.expectedCloseAt,
       // Written once, frozen after. A renewal carries the project it came
       // from; every other deal carries null, which is the honest answer and
@@ -679,7 +681,7 @@ export interface ForecastScorecard {
  * against it either way.
  */
 export async function forecastScorecard(
-  ctx: PipelineContext,
+  ctx: PipelineContext & { catalog: CatalogStore },
   period: string,
   opts: { now?: Date; scope?: ForecastScope } = {},
 ): Promise<RuleResult<ForecastScorecard>> {
@@ -721,7 +723,10 @@ export async function forecastScorecard(
   // definition of the actual, and the two would drift the first time either
   // filter changed.
   const opportunities = await ctx.store.listOpportunities(ctx.workspaceId, { includeClosed: true });
-  const live = planSnapshot({ period, scope, opportunities, snapshotAt: now });
+  const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
+  const live = planSnapshot({
+    period, scope, opportunities, snapshotAt: now, currency: policy.defaultCurrency,
+  });
   if (!live.ok) return live as RuleResult<ForecastScorecard>;
 
   const settled = range.end.getTime() <= now.getTime();
@@ -755,7 +760,7 @@ export async function forecastScorecard(
 }
 
 export async function submitForecast(
-  ctx: PipelineContext,
+  ctx: PipelineContext & { catalog: CatalogStore },
   input: { period: string; scope: ForecastScope; currency?: string; snapshotAt?: Date },
 ): Promise<RuleResult<SnapshotRow>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.snapshot", "data");
@@ -764,7 +769,14 @@ export async function submitForecast(
   // Closed deals are included: closed_amount is part of the snapshot and is what
   // attainment is measured from.
   const opportunities = await ctx.store.listOpportunities(ctx.workspaceId, { includeClosed: true });
-  const row = planSnapshot({ ...input, opportunities });
+  // 计价规则 (incr/0044): the snapshot is in the workspace's currency unless
+  // the caller named one.
+  const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
+  const row = planSnapshot({
+    ...input,
+    currency: input.currency ?? policy.defaultCurrency,
+    opportunities,
+  });
   if (!row.ok) return row;
 
   await ctx.store.appendForecastSnapshot(ctx.workspaceId, row.value);
@@ -824,14 +836,15 @@ export async function replaceOpportunityLines(
     }
   }
 
-  const currency = current.amount?.currency ?? DEFAULT_LINE_CURRENCY;
+  const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
+  const currency = current.amount?.currency ?? policy.defaultCurrency;
   const priced = [];
   for (const d of drafts) {
     // Priced ONE AT A TIME against the entry in force for that product and
     // currency. Pricing the batch off a single lookup would let a stale floor
     // decide approval for a product it never applied to.
     const entry = await ctx.catalog.priceFor(ctx.workspaceId, d.productId, currency);
-    priced.push(priceLine({ ...d, currency }, entry));
+    priced.push(priceLine({ ...d, currency }, entry, policy.defaultCurrency));
   }
 
   const written = await ctx.catalog.replaceLines(ctx.workspaceId, opportunityId, priced);

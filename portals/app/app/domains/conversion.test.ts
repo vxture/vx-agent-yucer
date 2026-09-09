@@ -7,6 +7,7 @@ import { unwrap } from "./shared/result";
 import { InMemorySignalStore, type LeadRecord, type SignalRecord } from "./signal/store";
 import { InMemoryPipelineStore } from "./pipeline/store";
 import { convertLeadToOpportunity, type ConversionContext } from "./conversion";
+import { InMemoryCatalogStore } from "./catalog/store";
 
 const WS = "ws_1";
 
@@ -52,6 +53,7 @@ function ctx(
   tier: Entitlement["tier"],
   signalStore = new InMemorySignalStore(),
   pipelineStore = new InMemoryPipelineStore(),
+  catalogStore = new InMemoryCatalogStore(),
 ): ConversionContext {
   return {
     workspaceId: WS,
@@ -60,6 +62,7 @@ function ctx(
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
     signalStore,
     pipelineStore,
+    catalogStore,
   };
 }
 

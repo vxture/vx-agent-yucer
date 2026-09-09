@@ -260,6 +260,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0037. unit_code is the anchor, like the two above it; name and order are
   // the workspace's.
   "yucer_catalog.product_unit": ["name", "sort_order", "updated_at"],
+  // 0044. The one number the row is for.
+  "yucer_catalog.pricing_policy": ["default_currency", "updated_at"],
   // 0039. reason_code is the anchor; the name, which outcome it explains, and
   // the order are the workspace's.
   "yucer_pipeline.win_loss_reason": ["name", "for_won", "for_lost", "sort_order", "updated_at"],

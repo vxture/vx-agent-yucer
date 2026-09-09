@@ -19,11 +19,14 @@ export function PriceAdvicePanel({
   advice,
   scope,
   canPrice,
+  currency,
   onApply,
 }: {
   readonly advice: readonly PriceAdvice[];
   readonly scope: "all" | "selection";
   readonly canPrice: boolean;
+  /** The workspace's default (incr/0044), for advice that names no currency. */
+  readonly currency: string;
   readonly onApply: (input: {
     productId: string;
     currency: string;
@@ -70,7 +73,7 @@ export function PriceAdvicePanel({
             run: () =>
               onApply({
                 productId: a.productId,
-                currency: a.currency ?? "CNY",
+                currency: a.currency ?? currency,
                 listPrice: a.listPrice!,
                 floorPrice: a.suggestedFloor!,
               }),

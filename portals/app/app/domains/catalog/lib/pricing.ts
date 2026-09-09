@@ -35,8 +35,15 @@ export interface PricedLine {
  * breach would make every new product need approval on its first quote, which
  * teaches people that the flag means nothing.
  */
-export function priceLine(draft: DraftLine, entry: PriceEntryRecord | null): PricedLine {
-  const currency = draft.currency ?? entry?.currency ?? "CNY";
+export function priceLine(
+  draft: DraftLine,
+  entry: PriceEntryRecord | null,
+  /** The workspace's default (incr/0044) - what a line is priced in when
+   *  neither the draft nor the book says. Passed rather than assumed: this
+   *  function is pure, and a literal here was one of the eleven. */
+  defaultCurrency: string,
+): PricedLine {
+  const currency = draft.currency ?? entry?.currency ?? defaultCurrency;
   // Rounded to cents at the line, so a sum of lines cannot drift from a header
   // by fractions no screen ever shows.
   const amount = Math.round(draft.quantity * draft.unitPrice * 100) / 100;

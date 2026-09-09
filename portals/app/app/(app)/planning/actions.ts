@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getPlanningStore } from "../../domains/shared/registry";
+import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
 import { createTarget, updateTarget, upsertTerritory } from "../../domains/planning/service";
 import {
   TARGET_METRICS,
@@ -63,6 +63,7 @@ export async function createSalesTarget(input: {
       holder: session.authz,
       entitlement: session.entitlement,
       store: getPlanningStore(),
+      catalog: getCatalogStore(),
     },
     {
       scope: {

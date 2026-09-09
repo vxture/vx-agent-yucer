@@ -276,7 +276,8 @@ export default function ProductPreviewPage() {
 
         <Separator />
 
-        <PipelineBoard rows={OPPORTUNITIES} readOnly={!canWritePipeline} />
+        <PipelineBoard
+          currency="CNY" rows={OPPORTUNITIES} readOnly={!canWritePipeline} />
 
         <ProposalQueue
           actions={PROPOSALS}

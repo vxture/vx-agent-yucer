@@ -21,7 +21,7 @@ import {
   type TargetStatus,
 } from "./lib/target";
 import { planTerritory, type TerritoryDraft } from "./lib/territory";
-import { DEFAULT_CURRENCY } from "../shared/money";
+import type { CatalogStore } from "../catalog/store";
 import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
 
 export interface PlanningContext {
@@ -95,18 +95,22 @@ export async function upsertTerritory(
  * the only shape on offer was money.
  */
 export async function createTarget(
-  ctx: PlanningContext,
+  /* THE CATALOGUE IS READ for one thing: what a target is in when the caller
+     did not say (incr/0044). It was money.ts's constant; it is the workspace's
+     计价规则 now, read the way the pipeline reads it. */
+  ctx: PlanningContext & { catalog: CatalogStore },
   input: { scope: TargetScope; amount: number; currency?: string; planId?: string | null },
 ): Promise<RuleResult<TargetRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.target.create", "data");
   if (!gate.allowed) return denied(gate);
+  const policy = await ctx.catalog.getPricingPolicy(ctx.workspaceId);
 
   // The duplicate check is done against the scope tuple, so the caller gets
   // "a target already exists for this scope" instead of a unique-index error.
   const existing = await ctx.store.listTargets(ctx.workspaceId, { period: input.scope.period });
   const plan = planTargetCreation({
     scope: input.scope,
-    targetValue: targetValue(input.scope.metric, input.amount, input.currency ?? DEFAULT_CURRENCY),
+    targetValue: targetValue(input.scope.metric, input.amount, input.currency ?? policy.defaultCurrency),
     planId: input.planId,
     existing,
   });

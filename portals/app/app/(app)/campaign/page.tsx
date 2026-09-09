@@ -2,7 +2,10 @@ import { EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui"
 import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
-import { getStrategyStore } from "../../domains/shared/registry";
+import {
+  getStrategyStore,
+  getCatalogStore,
+} from "../../domains/shared/registry";
 import {
   campaignReturn,
   listCampaigns,
@@ -20,6 +23,8 @@ import {
 
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
+import { pricingPolicy } from "../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 export const dynamic = "force-dynamic";
 
 // D3 market execution.
@@ -87,6 +92,12 @@ export default async function CampaignPage() {
     entitlement: session.entitlement,
     store: getStrategyStore(),
   };
+  /* 计价规则 (incr/0044): the currency a total is in when no row carries one. */
+  const policyRead = await pricingPolicy({ ...ctx, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+
 
   const campaigns = await listCampaigns(ctx);
   if (!campaigns.ok) {
@@ -125,7 +136,7 @@ export default async function CampaignPage() {
   // currencies in a single total would be wrong, and this domain has no
   // conversion - if that day comes the sum has to become per-currency rather
   // than quietly adding yuan to dollars.
-  const currency = rows.find((r) => r.budget != null)?.currency ?? "CNY";
+  const currency = rows.find((r) => r.budget != null)?.currency ?? defaultCurrency;
   const budgetTotal = rows.reduce((n, r) => n + (r.budget ?? 0), 0);
   const wonTotal = rows.reduce((n, r) => n + (r.wonAmount ?? 0), 0);
 

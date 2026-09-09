@@ -91,9 +91,18 @@ export default async function DivisionPage() {
         title={DOMAIN_LABEL.division}
         description={PLANNING_TEXT.divisionWhy}
         secondary={
-          <StatusBadge tone={unassigned.length === 0 ? "success" : "warning"}>
-            {PLANNING_TEXT.divisionCoverage(placed.size, ALL_PROVINCES.length, rows.length)}
-          </StatusBadge>
+          <>
+            {/* THE FRAME, AS ONE VALUE (owner, 2026-09-09): a select that reads
+                中国市场 and nothing else until opened. The page is about the
+                regions; the frame is the fact they sit inside. */}
+            <MarketScopeControl
+              scope={scope.ok ? scope.value : { kind: "china", code: null }}
+              editable={upsert}
+            />
+            <StatusBadge tone={unassigned.length === 0 ? "success" : "warning"}>
+              {PLANNING_TEXT.divisionCoverage(placed.size, ALL_PROVINCES.length, rows.length)}
+            </StatusBadge>
+          </>
         }
         /* BOTH ACTIONS IN THE PAGE HEADER'S SLOT (DS: 右侧动作区，通常是一到
            两个 Button). They were a row under the table; 新建 and 重置预置 are
@@ -118,12 +127,6 @@ export default async function DivisionPage() {
             </>
           ) : null
         }
-      />
-      {/* THE FRAME FIRST (owner, 2026-09-09): the roster is a list of regions
-          carved inside it, so it is read before the roster. */}
-      <MarketScopeControl
-        scope={scope.ok ? scope.value : { kind: "china", code: null }}
-        editable={upsert}
       />
       <DivisionPanel
         rows={rows.map((d) => ({

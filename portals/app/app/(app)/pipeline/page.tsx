@@ -34,8 +34,10 @@ import { ForecastScopePicker } from "../components/forecast-scope-picker";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
+  pricingPolicy,
 } from "../../domains/catalog/service";
 import { loadFailureText } from "../lib/load-failure";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 // D6 pipeline page.
 //
 // Dynamic, never cached: the rows are workspace-scoped and gate-filtered, and a
@@ -79,6 +81,9 @@ export default async function PipelinePage({
   // gate is decided from the session and the DATA comes from the port - two
   // domains reading the same request need two contexts, not one with a union.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
+  // 计价规则 (incr/0044): what the board's totals are in when a row says nothing.
+  const policy = await pricingPolicy(catalogCtx);
+  const currency = policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency;
 
   const [result, history, score, lines, products, accounts, territories, feed] =
     await Promise.all([
@@ -93,7 +98,7 @@ export default async function PipelinePage({
       // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
       // promised this number in its own description since batch 1 ("预测准确率是
       // 期末实际对期初快照"), while nothing computed it.
-      forecastScorecard(ctx, period, { scope }),
+      forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
       // THROUGH THE SERVICE, not the store handle. Both of these used to call
       // getCatalogStore() straight from the page, which skips BOTH gates - the
       // same defect PR #26 fixed on the account detail page. The catalogue read
@@ -313,6 +318,7 @@ export default async function PipelinePage({
           fresh workspace the board is empty, and a doorway under a list nobody
           can populate is a doorway behind a locked door. */}
       <PipelineBoard
+        currency={currency}
         rows={rows}
         undated={undated}
         readOnly={

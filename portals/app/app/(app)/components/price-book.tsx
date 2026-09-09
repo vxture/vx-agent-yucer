@@ -62,6 +62,8 @@ export interface PriceBookProps {
    * moment it stopped applying - the next price's effective time. */
   readonly superseded: readonly SupersededPrice[];
   readonly canPrice: boolean;
+  /** The workspace's default (incr/0044) - what every entry here is in. */
+  readonly currency: string;
   readonly onSave: (input: {
     productId: string;
     currency: string;
@@ -76,7 +78,6 @@ export interface PriceBookProps {
  * choice, so a column repeating "CNY" on every row was spending the product
  * name's width on a constant. The column returns the day a second currency
  * does. */
-const CURRENCY = "CNY";
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
    renders - a money cell sorts on the raw amount, not its formatted string. */
@@ -91,6 +92,7 @@ export function PriceBook({
   current,
   superseded,
   canPrice,
+  currency,
   onSave,
   onDelete,
 }: PriceBookProps) {
@@ -157,7 +159,7 @@ export function PriceBook({
     startTransition(() => {
       void onSave({
         productId: dialog.productId,
-        currency: CURRENCY,
+        currency,
         listPrice: list,
         floorPrice: floor,
       }).then((r) => {

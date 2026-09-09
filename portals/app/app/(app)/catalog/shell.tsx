@@ -7,6 +7,7 @@ import type { Entitlement } from "../../entitlement/types";
 import { getCatalogStore } from "../../domains/shared/registry";
 import {
   listPrices,
+  pricingPolicy,
   listProducts,
   listProductStatuses,
   listProductTypes,
@@ -24,6 +25,7 @@ import type {
 } from "../../domains/catalog/store";
 
 import { loadFailureText } from "../lib/load-failure";
+import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
 
 // The catalogue's three module pages share one body.
 //
@@ -49,6 +51,8 @@ export interface CatalogData {
   units: readonly ProductUnitRecord[];
   solutions: readonly { solution: SolutionRecord; items: readonly SolutionItemRecord[] }[];
   prices: readonly PriceEntryRecord[];
+  /** 计价规则 (incr/0044): what the price book's numbers are in. */
+  policy: PricingPolicy;
   authz: PermissionHolder;
   entitlement: Entitlement;
 }
@@ -78,13 +82,14 @@ export async function CatalogPage({
     store: getCatalogStore(),
   };
 
-  const [products, types, statuses, units, solutions, prices] = await Promise.all([
+  const [products, types, statuses, units, solutions, prices, policy] = await Promise.all([
     listProducts(ctx),
     listProductTypes(ctx),
     listProductStatuses(ctx),
     listProductUnits(ctx),
     listSolutions(ctx),
     listPrices(ctx),
+    pricingPolicy(ctx),
   ]);
 
   // Products gate all three: a solution is a list of them and a price entry
@@ -108,6 +113,7 @@ export async function CatalogPage({
         units: units.ok ? units.value : [],
         solutions: solutions.ok ? solutions.value : [],
         prices: prices.ok ? prices.value : [],
+        policy: policy.ok ? policy.value : DEFAULT_PRICING_POLICY,
         authz: session.authz,
         entitlement: session.entitlement,
       })}

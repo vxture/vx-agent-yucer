@@ -199,6 +199,7 @@ export const en: Dictionary = {
     industry: "Industries",
     forecastThreshold: "Forecast bands",
     ageingPolicy: "Ageing bands",
+    pricingPolicy: "Pricing rules",
     audit: "Audit trail",
     adoption: "Adoption",
     renewal: "Renewals",
@@ -1592,6 +1593,21 @@ export const en: Dictionary = {
       "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days).",
   },
 
+  PRICING_ERROR: {
+    currency_invalid: "A currency is a three-letter ISO code, like CNY or USD",
+
+    ...GATE_ERROR,
+  },
+
+  PRICING_TEXT: {
+    title: "Pricing rules",
+    why: "What quotes, prices and roll-ups are in unless a row says otherwise.",
+    save: "Save",
+    saved: "Saved. Deals and lines created from now on take the new currency.",
+    currencyLabel: "Default currency",
+    currencyHint: "ISO 4217, three letters. Existing prices and deals are untouched; only what is written next.",
+  },
+
   AGEING_ERROR: {
     cutoff_count: "An ageing policy has between one and five cutoffs",
     cutoff_range: "A cutoff is a whole number of days, 1 to 3650",
@@ -1907,6 +1923,7 @@ export const en: Dictionary = {
       industry: "How customers are filed by industry - change it once, everywhere follows",
       forecastThreshold: "Where commit and best case start",
       ageingPolicy: "How many days overdue makes a band",
+      pricingPolicy: "What currency a quote assumes",
       adoption:
         "Whether follow-up notes are actually being used. Criteria in ADR-012",
       division: "How the country is carved into regions, and which provinces each holds",

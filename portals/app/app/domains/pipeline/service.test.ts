@@ -5,7 +5,7 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
-import { InMemoryCatalogStore } from "../catalog/store";
+import { InMemoryCatalogStore , type CatalogStore } from "../catalog/store";
 import { approvalFor } from "../catalog/lib/pricing";
 import {
   advanceStage,
@@ -51,13 +51,20 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
   };
 }
 
-function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryPipelineStore()): PipelineContext {
+function ctx(
+  role: RoleCode,
+  tier: Entitlement["tier"],
+  store = new InMemoryPipelineStore(),
+): PipelineContext & { catalog: CatalogStore } {
   return {
     workspaceId: WS,
     sub: "usr_me",
     holder: { permissions: new Set(permissionsForRoles([role])) },
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
     store,
+    // incr/0044: what a deal is priced in when nobody said comes from the
+    // catalogue's 计价规则, so the pipeline's context carries the catalogue.
+    catalog: new InMemoryCatalogStore(),
   };
 }
 

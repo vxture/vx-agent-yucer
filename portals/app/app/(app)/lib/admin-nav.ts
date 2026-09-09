@@ -101,6 +101,9 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          the deals and the money rather than deciding the policy. */
       { key: "forecastThreshold", href: "/admin/forecast", icon: "trend-up", action: "pipeline.forecast.view" },
       { key: "ageingPolicy", href: "/admin/ageing", icon: "clock-counter-clockwise", action: "delivery.revenue.view" },
+      /* 计价规则 (incr/0044): the currency every line assumes. Rides the price
+         book's read gate; its write is the floor-price permission. */
+      { key: "pricingPolicy", href: "/admin/pricing", icon: "scales", action: "catalog.pricebook.view" },
     ],
   },
   {

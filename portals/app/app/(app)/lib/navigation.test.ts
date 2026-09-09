@@ -81,7 +81,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // They are rule PARAMETERS rather than vocabularies, which is a difference
     // in what they hold and not in where they belong.
     ["division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
-     "forecastThreshold", "ageingPolicy", "adoption"],
+     "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -201,6 +201,9 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "national",
     "pipeline",
     "pricebook",
+    /* 计价规则 rides catalog.pricebook.view - no feature key, catalog.read -
+       so it is on every tier, exactly as /pricebook is. */
+    "pricingPolicy",
     /* 产品配置 rides catalog.product.view, exactly as /catalog does - it edits
        the same three vocabularies the catalogue displays, and its ACTIONS
        carry catalog.product.upsert. It appears at every tier for the same
@@ -250,7 +253,9 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
     // A viewer holds pipeline.read and delivery.read, so both parameter pages
     // are readable; writing them needs permissions a viewer does not hold, and
     // the panels render without their save button.
-    "forecastThreshold", "ageingPolicy"];
+    "forecastThreshold", "ageingPolicy",
+    // 计价规则 rides catalog.read, which every role holds.
+    "pricingPolicy"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length

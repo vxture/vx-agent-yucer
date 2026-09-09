@@ -30,6 +30,7 @@ import { completeConversion, convertLead } from "./signal/service";
 import type { SignalStore } from "./signal/store";
 import type { Attribution } from "./pipeline/lib/attribution";
 import type { OpportunityRecord, PipelineStore } from "./pipeline/store";
+import type { CatalogStore } from "./catalog/store";
 
 export interface ConversionContext {
   workspaceId: string;
@@ -38,6 +39,8 @@ export interface ConversionContext {
   entitlement: Entitlement;
   signalStore: SignalStore;
   pipelineStore: PipelineStore;
+  /** For the currency a converted lead's deal is priced in (incr/0044). */
+  catalogStore: CatalogStore;
 }
 
 export interface ConversionOutcome {
@@ -93,7 +96,10 @@ export async function convertLeadToOpportunity(
   const lead = await ctx.signalStore.getLead(ctx.workspaceId, input.leadId);
   if (!lead) return fail(violation("not_found", `lead ${input.leadId} was not found`, "leadId"));
 
-  const currency = input.currency ?? input.amount?.currency ?? "CNY";
+  const currency =
+    input.currency
+    ?? input.amount?.currency
+    ?? (await ctx.catalogStore.getPricingPolicy(ctx.workspaceId)).defaultCurrency;
 
   // 2. D6 creates the opportunity, carrying the frozen attribution.
   const opportunity = await ctx.pipelineStore.createOpportunity(ctx.workspaceId, {
@@ -141,6 +147,6 @@ export async function convertLeadToOpportunity(
 }
 
 /** Convenience for a caller that has only a number and a currency string. */
-export function amountOf(value: number | null | undefined, currency = "CNY"): Money | undefined {
+export function amountOf(value: number | null | undefined, currency: string): Money | undefined {
   return value == null || Number.isNaN(value) ? undefined : money(value, currency);
 }

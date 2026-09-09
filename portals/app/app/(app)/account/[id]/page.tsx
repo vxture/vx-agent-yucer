@@ -13,6 +13,7 @@ import {
   getFieldStore,
   getPlanningStore,
   getStrategyStore,
+  getCatalogStore,
 } from "../../../domains/shared/registry";
 import {
   accountCompleteness,
@@ -61,6 +62,8 @@ import {
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
+import { pricingPolicy } from "../../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -160,6 +163,12 @@ export default async function AccountDetailPage({
     holder: session.authz,
     entitlement: session.entitlement,
   };
+  /* 计价规则 (incr/0044): the currency a total is in when no row carries one. */
+  const policyRead = await pricingPolicy({ ...base, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+
   const [deals, projects, feed, proposals] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
@@ -301,7 +310,7 @@ export default async function AccountDetailPage({
           and a 320px column would leave 190 for everything else. */}
       <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
         <div className="flex min-w-0 flex-col gap-lg">
-          <TheatreRoster deals={rosterDeals} projects={rosterProjects} />
+          <TheatreRoster deals={rosterDeals} projects={rosterProjects} defaultCurrency={defaultCurrency} />
 
           {/* OUTSIDE the chain block below, and that is the point. The chain is
               gated by `account.graph`, a pro capability; recording who you met

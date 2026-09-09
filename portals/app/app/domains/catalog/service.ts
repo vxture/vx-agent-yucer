@@ -1,3 +1,4 @@
+import { planPricingPolicy, type PricingPolicy } from "./lib/pricing-policy";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
@@ -813,6 +814,33 @@ export async function removeSolution(
  * the catalogue, held by different roles. Same shape as pipeline.forecast
  * splitting off pipeline.write one domain over.
  */
+/* ---------------------------------------------------------------------------
+ * 计价规则 - the currency a workspace prices in (incr/0044).
+ *
+ * READ rides catalog.pricebook.view: the price book is meaningless without
+ * knowing what its numbers are in. WRITE is catalog.pricebook.upsert - the
+ * floor-price permission - because changing the currency every line assumes
+ * is a pricing decision, not a catalogue edit.
+ * ------------------------------------------------------------------------ */
+
+export async function pricingPolicy(ctx: CatalogContext): Promise<RuleResult<PricingPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getPricingPolicy(ctx.workspaceId));
+}
+
+export async function setPricingPolicy(
+  ctx: CatalogContext,
+  input: PricingPolicy,
+): Promise<RuleResult<PricingPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planPricingPolicy(input);
+  if (!plan.ok) return plan;
+  await ctx.store.setPricingPolicy(ctx.workspaceId, plan.value);
+  return ok(plan.value);
+}
+
 export async function setPrice(
   ctx: CatalogContext,
   input: {

@@ -13,6 +13,8 @@ import {
 import { isStage, type Stage } from "../../domains/pipeline/lib/stage";
 import { isForecastCategory } from "../../domains/pipeline/lib/forecast";
 import { money } from "../../domains/shared/money";
+import { pricingPolicy } from "../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 
 // Moving a deal.
 //
@@ -98,6 +100,16 @@ export async function repriceOpportunity(
   if (!session) return { ok: false, error: "not_authenticated" };
 
   const patch: Parameters<typeof updateCommercialTerms>[2] = {};
+  /* The currency an amount typed without one is in: the workspace's 计价规则
+     (incr/0044), read through the catalogue's own gate. */
+  const policyRead = await pricingPolicy({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getCatalogStore(),
+  });
+  const policy = policyRead.ok ? policyRead.value : DEFAULT_PRICING_POLICY;
 
   if (input.amount !== undefined) {
     const trimmed = input.amount.trim();
@@ -108,7 +120,7 @@ export async function repriceOpportunity(
     } else {
       const parsed = Number(trimmed);
       if (!Number.isFinite(parsed)) return { ok: false, error: "amount_invalid" };
-      patch.amount = money(parsed, input.currency?.trim() || "CNY");
+      patch.amount = money(parsed, input.currency?.trim() || policy.defaultCurrency);
     }
   }
 
@@ -274,6 +286,7 @@ export async function createDeal(input: {
       holder: session.authz,
       entitlement: session.entitlement,
       store: session.stores.pipeline(),
+      catalog: getCatalogStore(),
     },
     {
       name: input.name,

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getDeliveryStore, getPipelineStore } from "../../domains/shared/registry";
+import {
+  getDeliveryStore,
+  getPipelineStore,
+  getCatalogStore,
+} from "../../domains/shared/registry";
 import { renewalDraft } from "../../domains/delivery/service";
 import { createOpportunity, listRenewedProjectIds } from "../../domains/pipeline/service";
 
@@ -53,7 +57,7 @@ export async function openRenewal(input: {
   if (!draft.ok) return { ok: false, error: draft.violations[0]?.code ?? "denied" };
 
   const created = await createOpportunity(
-    { ...base, store: session.stores.pipeline() },
+    { ...base, store: session.stores.pipeline(), catalog: getCatalogStore() },
     {
       name: draft.value.name,
       accountId: draft.value.accountId,

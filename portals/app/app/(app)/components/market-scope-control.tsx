@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Section, SegmentedControl, useToast } from "@vxture/design-ui";
+import { NativeSelect, useToast } from "@vxture/design-ui";
 import {
   MARKET_SCOPES,
   type MarketScope,
@@ -10,19 +10,17 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { setMarketScopeAction } from "../admin/division/actions";
 
-/* 市场范围 - the frame the regions below are carved inside (incr/0043).
+/* 市场范围 - the frame the regions are carved inside (incr/0043).
  *
- * THE FIRST THING ON THE PAGE, above the roster, because it decides what the
- * roster is a list OF: regions made of countries, of provinces, or of one
- * province's cities. Changing it does not destroy a carve - the rows keep
- * their own frame and drop out of view - but everything grouped by region
- * follows it, so it sits where a person cannot miss having changed it.
+ * ONE CONTROL SHOWING ONE VALUE (owner, 2026-09-09: 市场范围也是一个按钮选项
+ * 就行，只展示其一). The page is 区域配置; the frame is a fact about the
+ * tenant that the roster sits inside, not a section of the page. So it is a
+ * select in the header that reads "中国市场" at rest, and only when opened
+ * shows the other two - greyed and marked 未建, because a frame this build
+ * cannot carve in is a promise, not a choice. Three segments laid flat across
+ * the page put the frame ahead of the regions, which is backwards.
  *
- * TWO OF THE THREE ARE 未建 and the control says so rather than hiding them:
- * a greyed segment answers "does this product do that" with "yes, not yet",
- * the same call the launcher and the admin menu make for their planned items.
- * The rule behind the grey is setMarketScope's `scope_not_open`; the control
- * is only the sentence.
+ * The rule behind the grey is setMarketScope's `scope_not_open`.
  */
 export function MarketScopeControl({
   scope,
@@ -51,19 +49,24 @@ export function MarketScopeControl({
   };
 
   return (
-    <Section title={PLANNING_TEXT.scopeLabelTitle} description={PLANNING_TEXT.scopeWhy}>
-      <SegmentedControl<MarketScopeKind>
-        ariaLabel={PLANNING_TEXT.scopeLabelTitle}
-        value={kind}
-        onChange={change}
-        items={MARKET_SCOPES.map((s) => ({
-          value: s.kind,
-          label: s.open
+    <NativeSelect
+      /* SIZED TO ITS VALUE, not to the header: it is one option beside a
+         badge, and a select stretched across the slot read as a filter bar.
+         On the WRAPPER, as the DS says: the chevron anchors to it, and a
+         width on the select alone leaves the arrow stranded at the far edge. */
+      wrapperClassName="w-fit"
+      aria-label={PLANNING_TEXT.scopeLabelTitle}
+      value={kind}
+      disabled={!editable || pending}
+      onChange={(e) => change(e.target.value as MarketScopeKind)}
+    >
+      {MARKET_SCOPES.map((s) => (
+        <option key={s.kind} value={s.kind} disabled={!s.open}>
+          {s.open
             ? PLANNING_TEXT.scopeLabel[s.kind]
-            : `${PLANNING_TEXT.scopeLabel[s.kind]} · ${PLANNING_TEXT.scopePlanned}`,
-          disabled: !s.open || !editable || pending,
-        }))}
-      />
-    </Section>
+            : `${PLANNING_TEXT.scopeLabel[s.kind]} · ${PLANNING_TEXT.scopePlanned}`}
+        </option>
+      ))}
+    </NativeSelect>
   );
 }

@@ -12,6 +12,7 @@ import { attainment, listTargets } from "../../domains/planning/service";
 import {
   listOpportunityLines,
   listProducts,
+  pricingPolicy,
 } from "../../domains/catalog/service";
 import { summaryTarget } from "../../domains/planning/lib/target";
 import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
@@ -21,6 +22,7 @@ import {
 } from "../../domains/planning/lib/coverage";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { loadFailureText } from "../lib/load-failure";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 
 // 承诺达成 - the assault objective (owner ruling, 2026-08-31).
 //
@@ -124,7 +126,12 @@ export default async function AttainmentPage() {
   const quarterOpen = window ? window.kept : [];
   // rollUp returns a RuleResult - a refusal degrades to no pool card rather
   // than a card of zeros.
-  const rolled = window ? rollUp(quarterOpen) : null;
+  /* 计价规则 (incr/0044): what the quarter's open pipeline is summed in. */
+  const policyRead = await pricingPolicy({ ...base, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+  const rolled = window ? rollUp(quarterOpen, defaultCurrency) : null;
   const totals = rolled?.ok ? rolled.value : null;
   const quarterWorth = quarterOpen.reduce(
     (sum, d) => sum + (d.amount?.amount ?? 0),

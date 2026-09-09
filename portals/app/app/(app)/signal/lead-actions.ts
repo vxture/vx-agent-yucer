@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getPipelineStore, getSignalStore } from "../../domains/shared/registry";
+import {
+  getPipelineStore,
+  getSignalStore,
+  getCatalogStore,
+} from "../../domains/shared/registry";
 import {
   advanceLead,
   assignLead,
@@ -226,6 +230,7 @@ export async function convertLeadNow(
       entitlement: session.entitlement,
       signalStore: session.stores.signal(),
       pipelineStore: session.stores.pipeline(),
+      catalogStore: getCatalogStore(),
     },
     { leadId, requirement },
   );

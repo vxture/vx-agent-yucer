@@ -43,7 +43,10 @@ export interface RosterProject {
 export function TheatreRoster({
   deals,
   projects,
+  defaultCurrency,
 }: {
+  /** The workspace's default (incr/0044), when no deal carries an amount. */
+  readonly defaultCurrency: string;
   readonly deals: readonly RosterDeal[];
   readonly projects: readonly RosterProject[];
 }) {
@@ -51,7 +54,7 @@ export function TheatreRoster({
   const locale = useLocale();
 
   const total = deals.reduce((n, d) => n + (d.amount ?? 0), 0);
-  const currency = deals.find((d) => d.amount != null)?.currency ?? "CNY";
+  const currency = deals.find((d) => d.amount != null)?.currency ?? defaultCurrency;
 
   return (
     <PanelCard

@@ -103,6 +103,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   industry: "行业分类",
   forecastThreshold: "预测阈值",
   ageingPolicy: "账龄分档",
+  pricingPolicy: "计价规则",
   audit: "操作审计",
   adoption: "使用情况",
 };
@@ -1141,6 +1142,21 @@ export const FORECAST_PARAM_TEXT = {
   stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。",
 };
 
+/** 计价规则的回执 (0044)。 */
+export const PRICING_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  currency_invalid: "币种是三个大写字母的 ISO 代码，如 CNY、USD",
+};
+
+export const PRICING_TEXT = {
+  title: "计价规则",
+  why: "报价、价目与汇总默认按哪个币种。行上另有币种时以行为准。",
+  save: "保存",
+  saved: "已保存，之后新建的商机与报价行按新币种计",
+  currencyLabel: "默认币种",
+  currencyHint: "ISO 4217 三字母代码。已有的价目与商机不改，只影响之后新写的。",
+};
+
 /** 账龄分档的回执 (0042)。 */
 export const AGEING_ERROR: Record<string, string> = {
   ...GATE_ERROR,
@@ -1779,6 +1795,7 @@ export const ADMIN_TEXT = {
     industry: "客户按行业归档，一处改，处处改",
     forecastThreshold: "承诺、最好情况从多少概率起算",
     ageingPolicy: "逾期多少天算一档",
+    pricingPolicy: "报价默认用什么币种",
     adoption: "跟进记录有没有被用起来",
     division: "全国怎么切成区域，每个区域管哪些省",
   } as Record<string, string>,

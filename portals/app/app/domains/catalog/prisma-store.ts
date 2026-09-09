@@ -1,3 +1,4 @@
+import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type {
@@ -32,6 +33,8 @@ const PRODUCT_UNIT_TABLE = "yucer_catalog.product_unit";
 const PRODUCT_STATUS_TABLE = "yucer_catalog.product_status";
 const SOLUTION_TABLE = "yucer_catalog.solution";
 const ITEM_TABLE = "yucer_catalog.solution_item";
+// incr/0044. 计价规则, one row per workspace.
+const PRICING_POLICY_TABLE = "yucer_catalog.pricing_policy";
 
 function num(v: unknown): number {
   return Number(String(v));
@@ -661,6 +664,29 @@ export class PrismaCatalogStore implements CatalogStore {
    * row - the table records who signed and when, and collapsing two signings
    * into one would lose the earlier one.
    */
+  /* --- 计价规则 (incr/0044) -------------------------------------------------
+     No row reads as the shipped default: the increment seeds every workspace
+     that prices or sells, and one created afterwards has none until somebody
+     changes it. */
+
+  async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {
+    const p = await getPrismaClient();
+    const row = await p.pricingPolicy.findUnique({ where: { workspaceId } });
+    return row ? { defaultCurrency: row.defaultCurrency } : DEFAULT_PRICING_POLICY;
+  }
+
+  async setPricingPolicy(workspaceId: string, policy: PricingPolicy): Promise<void> {
+    const p = await getPrismaClient();
+    const update = { defaultCurrency: policy.defaultCurrency, updatedAt: new Date() };
+    const guard = assertWritable(PRICING_POLICY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked pricing_policy column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.pricingPolicy.upsert({ where: { workspaceId }, update, create: { workspaceId, ...update } });
+  }
+
   async appendApproval(
     workspaceId: string,
     input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,
