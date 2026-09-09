@@ -230,7 +230,7 @@ export function RolePanel({
         total={total}
         open={details !== null}
         onClose={() => setDetails(null)}
-        editable={editable}
+        editHref={editable && details ? `/admin/roles/${details.id}` : null}
       />
     </Section>
   );

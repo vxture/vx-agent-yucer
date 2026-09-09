@@ -4,7 +4,6 @@ import { useMemo, useState, type CSSProperties } from "react";
 import {
   Button,
   ButtonGroup,
-  Checkbox,
   DataTable,
   Icon,
   SegmentedControl,
@@ -30,7 +29,6 @@ import {
   type PermissionRow,
 } from "../lib/permission-tree";
 import { Tag } from "./tag";
-import type { PermCode } from "../../authz/catalog";
 
 /* 权限管理 - 业务域 / 模块 / 页面 / 操作, one tree in one table (owner,
  * 2026-09-09; the reference is the platform console's permission tree).
@@ -318,24 +316,15 @@ export function PermissionTreeTable({
   held,
   view,
   onViewChange,
-  onToggle,
 }: {
   readonly tree: readonly PermissionNode[];
   readonly held: ReadonlySet<string>;
   /** 只看可执行 / 显示全部 - the switch sits on the table's own toolbar row. */
   readonly view: PermissionView;
   readonly onViewChange: (view: PermissionView) => void;
-  /**
-   * EDITING, when given: every operation's 持有 cell is a checkbox bound to
-   * the PERMISSION it needs, and ticking one operation ticks every operation
-   * that needs the same permission - that is what a grant is. The switch is
-   * hidden while editing: the whole tree has to be on screen to add to it.
-   */
-  readonly onToggle?: (permission: PermCode) => void;
 }) {
   const { PERMISSION_TREE_TEXT: T, ROLE_TEXT } = useMessages();
-  const editing = onToggle !== undefined;
-  const onlyGranted = !editing && view === "granted";
+  const onlyGranted = view === "granted";
   const { title, subtitle } = useNodeCopy();
 
   const granted = (n: PermissionNode) => n.permission !== null && held.has(n.permission);
@@ -382,18 +371,16 @@ export function PermissionTreeTable({
             </Button>
           </ButtonGroup>
         </div>
-        {editing ? null : (
-          <SegmentedControl<PermissionView>
-            size="sm"
-            value={view}
-            onChange={onViewChange}
-            ariaLabel={ROLE_TEXT.details}
-            items={[
-              { value: "granted", label: ROLE_TEXT.detailsOnlyGranted },
-              { value: "all", label: ROLE_TEXT.detailsAll },
-            ]}
-          />
-        )}
+        <SegmentedControl<PermissionView>
+          size="sm"
+          value={view}
+          onChange={onViewChange}
+          ariaLabel={ROLE_TEXT.details}
+          items={[
+            { value: "granted", label: ROLE_TEXT.detailsOnlyGranted },
+            { value: "all", label: ROLE_TEXT.detailsAll },
+          ]}
+        />
       </div>
       {/* FIXED LAYOUT, THREE SHARES: the point takes what the two short
           columns leave; the level tag and the mark each get a slot SIZED TO
@@ -448,12 +435,6 @@ export function PermissionTreeTable({
                     <Tag tone={ok === 0 ? "neutral" : ok === all.length ? "success" : "info"}>
                       {`${ok} / ${all.length}`}
                     </Tag>
-                  ) : editing && n.permission ? (
-                    <Checkbox
-                      checked={granted(n)}
-                      aria-label={`${title(n)} · ${n.permission}`}
-                      onCheckedChange={() => onToggle(n.permission!)}
-                    />
                   ) : granted(n) ? (
                     <Icon name="check" size="sm" className="text-success" aria-label={T.granted} />
                   ) : (
