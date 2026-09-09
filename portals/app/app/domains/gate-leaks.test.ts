@@ -47,8 +47,10 @@ function seededAccounts(): InMemoryAccountStore {
         workspaceId: WS,
         accountNo: "ACC-0001",
         name: "Customer",
+        industryId: null,
         industry: "retail",
         region: "east",
+        province: null,
         segmentCode: "MID",
         ownerSub: "usr_rep",
         healthScore: 40,
@@ -137,6 +139,7 @@ function deals(): InMemoryPipelineStore {
     {
       id: "opp_1",
       workspaceId: WS,
+      requirement: "POS replacement",
       opportunityNo: "OPP-1",
       createdAt: new Date("2026-01-01T00:00:00Z"),
       name: "Deal",

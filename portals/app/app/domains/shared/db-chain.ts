@@ -60,6 +60,8 @@ export const CHAIN = {
   opportunity: id("08"),
   product: id("09"),
   productStatus: id("22"),
+  productUnit: id("23"),
+  winLossReason: id("24"),
   priceEntry: id("10"),
   solution: id("11"),
   solutionItem: id("12"),
@@ -83,6 +85,10 @@ export const CHAIN = {
  */
 export async function clearChain(c: Client): Promise<void> {
   for (const sql of [
+    // incr/0033. First in the list because nothing references it and it
+    // references nothing - a polymorphic subject_id has no foreign key, so
+    // leaving these behind would leak rows between tests.
+    `DELETE FROM yucer_pipeline.funnel_exit WHERE workspace_id = $1`,
     `DELETE FROM yucer_agent.judgement_snooze WHERE workspace_id = $1`,
     `DELETE FROM yucer_agent.agent_playbook WHERE workspace_id = $1`,
     `DELETE FROM yucer_agent.agent_autonomy WHERE workspace_id = $1`,
@@ -98,7 +104,10 @@ export async function clearChain(c: Client): Promise<void> {
     `DELETE FROM yucer_catalog.price_book_entry WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product_status WHERE workspace_id = $1`,
+    `DELETE FROM yucer_catalog.product_unit WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`,
+    `DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`,
+    `DELETE FROM yucer_pipeline.win_loss_reason WHERE workspace_id = $1`,
     `DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account_plan WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account WHERE workspace_id = $1`,
@@ -171,10 +180,13 @@ export async function seedChain(c: Client): Promise<void> {
   );
 
   await c.query(
+    // owner_sub and requirement are NOT NULL since incr/0034 - a deal has
+    // somebody responsible for it and says what the customer wants.
     `INSERT INTO yucer_pipeline.opportunity
        (id, workspace_id, opportunity_no, name, account_id, campaign_id, territory_id,
-        stage, forecast_category, amount, currency, status)
+        owner_sub, requirement, stage, forecast_category, amount, currency, status)
      VALUES ($1, $2, 'OPP-DB-1', 'chain fixture deal', $3, $4, $5,
+             'usr_db_rep', 'replace the till system across 40 stores',
              'propose', 'commit', 1000000, 'CNY', 'open')`,
     [CHAIN.opportunity, CHAIN_WS, CHAIN.account, CHAIN.campaign, CHAIN.territory],
   );
@@ -186,10 +198,25 @@ export async function seedChain(c: Client): Promise<void> {
      VALUES ($1, $2, 'active', 'chain fixture status', 'the quotable state')`,
     [CHAIN.productStatus, CHAIN_WS],
   );
+  // 0037: the unit joins by uuid too, for the reason the status does - so its
+  // row exists before any product references it.
   await c.query(
-    `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit, status_id)
-     VALUES ($1, $2, 'PROD-DB-1', 'chain fixture product', 'seat', $3)`,
-    [CHAIN.product, CHAIN_WS, CHAIN.productStatus],
+    `INSERT INTO yucer_catalog.product_unit (id, workspace_id, unit_code, name)
+     VALUES ($1, $2, 'seat', 'seat')`,
+    [CHAIN.productUnit, CHAIN_WS],
+  );
+  // 0039: same shape again - a review names its reason by uuid, so the
+  // vocabulary row has to exist before any review can be written.
+  await c.query(
+    `INSERT INTO yucer_pipeline.win_loss_reason
+       (id, workspace_id, reason_code, name, for_won, for_lost)
+     VALUES ($1, $2, 'no_decision', 'no decision', FALSE, TRUE)`,
+    [CHAIN.winLossReason, CHAIN_WS],
+  );
+  await c.query(
+    `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit_id, status_id)
+     VALUES ($1, $2, 'PROD-DB-1', 'chain fixture product', $3, $4)`,
+    [CHAIN.product, CHAIN_WS, CHAIN.productUnit, CHAIN.productStatus],
   );
   await c.query(
     `INSERT INTO yucer_catalog.price_book_entry
@@ -253,10 +280,14 @@ export async function seedChain(c: Client): Promise<void> {
   // The renewal, and the reason incr/0019 exists: a deal that knows which
   // delivered project it renews, on a column with no UPDATE grant.
   await c.query(
+    // A renewal's requirement is the engagement it continues (incr/0034) -
+    // derived from the project rather than asked for, which is what
+    // planRenewal does in the rule layer.
     `INSERT INTO yucer_pipeline.opportunity
        (id, workspace_id, opportunity_no, name, account_id, source_project_id,
-        stage, forecast_category, amount, currency, status)
+        owner_sub, requirement, stage, forecast_category, amount, currency, status)
      VALUES ($1, $2, 'OPP-DB-2', 'chain fixture renewal', $3, $4,
+             'usr_db_rep', 'chain fixture project',
              'qualify', 'pipeline', 400000, 'CNY', 'open')`,
     [CHAIN.renewal, CHAIN_WS, CHAIN.account, CHAIN.project],
   );

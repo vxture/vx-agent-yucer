@@ -1,6 +1,7 @@
 import { EmptyState, PanelCard, Section, StatusBadge } from "@vxture/design-ui";
 
 import { getMessages } from "../lib/i18n/server";
+import { Tag } from "./tag";
 // The plays the agent is grounded on.
 //
 // This panel exists because grounding is otherwise INVISIBLE. Workspace-authored
@@ -56,9 +57,9 @@ export async function PlaybookCatalog({
       // reader who sees eight plays listed would otherwise assume all eight
       // shape every answer.
       action={
-        <StatusBadge tone="neutral">
+        <Tag>
           {PLAYBOOK_TEXT.grounding(maxPerTurn)}
-        </StatusBadge>
+        </Tag>
       }
     >
       {playbooks.map((p) => (
@@ -70,10 +71,10 @@ export async function PlaybookCatalog({
               <StatusBadge tone="info">
                 {PLAYBOOK_SCOPE_LABEL[p.scopeDomain] ?? p.scopeDomain}
               </StatusBadge>
-              <StatusBadge tone="neutral">{p.playbookCode}</StatusBadge>
-              <StatusBadge tone="neutral">
+              <Tag>{p.playbookCode}</Tag>
+              <Tag>
                 {PLAYBOOK_TEXT.version} {p.version}
-              </StatusBadge>
+              </Tag>
             </>
           }
         >

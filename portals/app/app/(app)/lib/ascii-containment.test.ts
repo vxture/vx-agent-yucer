@@ -35,6 +35,43 @@ const ALLOWED = new Set([
   // afterwards. Same nature as demo-fixtures: data that happens to be text.
   "domains/catalog/lib/status-vocab.ts",
   "domains/catalog/lib/type-vocab.ts",
+  // 计价单位 (0037) joined them for the same reason, and the seed SQL carries
+  // the identical rows - two copies of the same starter data, which the DDL
+  // and this module have to agree on.
+  "domains/catalog/lib/unit-vocab.ts",
+  // 赢丢原因 (0039), the same shape again: six shipped rows a workspace renames
+  // and extends. The names are seeded by the increment too, which is what makes
+  // them data rather than the copy this containment is about.
+  "domains/pipeline/lib/win-loss-vocab.ts",
+  // 行业分类 (0040), the same shape a fourth time: thirteen shipped rows the
+  // workspace renames and extends, seeded identically by the increment.
+  "domains/account/lib/industry-vocab.ts",
+  // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
+  // Same nature again - data that happens to be text - with one addition that
+  // matters more here than anywhere else on this list: these 34 strings are a
+  // KEY, not copy. They are matched against the database's CHECK constraint and
+  // against the map's geometry, so escaping them would put three copies of an
+  // identifier in three encodings and guarantee the drift provinces.test.ts
+  // exists to catch.
+  "domains/shared/provinces.ts",
+  // The ground of every 省级市场 (incr/0045): 367 unit names GENERATED
+  // from yucer_ref.admin_division, a KEY like the 34 above - the db lane
+  // proves file == table, which escaping would make impossible to read.
+  "domains/shared/province-frames.ts",
+  "domains/shared/demo-national.ts",
+  // The map's shapes, keyed by that same vocabulary (incr/0035). Generated, and
+  // a KEY rather than copy for the same reason provinces.ts is: escaping these
+  // would put a third encoding of the same identifier in play and guarantee the
+  // drift provinces.test.ts exists to catch.
+  "(screen)/lib/china-geometry.ts",
+  // 大区 (incr/0036). PRESET DATA, not copy, and the distinction is the whole
+  // reason this file exists: the division names are rows the tenant may rename,
+  // seeded by the SQL and read back from the database at runtime. This module
+  // is the same preset for the in-memory store the demo runs on, and
+  // market-division.test.ts parses incr/0036 and fails if the two disagree -
+  // so escaping them here would put a second encoding of the seed in play and
+  // guarantee exactly the drift that test exists to catch.
+  "domains/shared/market-division.ts",
 ]);
 
 // CJK and fullwidth ranges - actual text in a human language. The typographic

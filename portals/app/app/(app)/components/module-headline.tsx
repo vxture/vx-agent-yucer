@@ -112,7 +112,17 @@ export function ModuleHeadline({
   readonly tags?: ReactNode;
   /** An extra control in the header's right slot, left of the fold trigger. */
   readonly action?: ReactNode;
-  readonly stats: readonly HeadlineStat[];
+  /**
+   * Omit for a header with NO FOLD AT ALL - card, icon, title, badges and
+   * action, and nothing beneath them.
+   *
+   * DIFFERENT FROM AN EMPTY ARRAY, which still opens onto `emptyNote`: that
+   * says "there is a breakdown here and it is empty", and this says "this
+   * module has no breakdown". 线索分派 is the second (owner, 2026-09-06:
+   * 去掉下拉展示内容，只留标题) - and it still wants the card and the icon
+   * every other module's header carries.
+   */
+  readonly stats?: readonly HeadlineStat[];
   /**
    * Draw a proportion bar above the cells, segmented in the SAME ORDER and the
    * SAME COLOURS (owner, 2026-09-06: 一个看数字，一个直观看比例).
@@ -131,39 +141,54 @@ export function ModuleHeadline({
    * agree instead of reading either.
    */
   readonly share?: boolean;
-  readonly emptyNote: string;
+  readonly emptyNote?: string;
 }) {
   const { CATALOG_TEXT, DOMAIN_LABEL } = useMessages();
   const [open, setOpen] = useState(true);
+  const folds = stats !== undefined;
   // The denominator for the per-cell percentage. Zero total means no shares to
   // state - not 0% five times over, which would read as a claim.
-  const total = stats.reduce((n, s) => n + Math.max(s.value, 0), 0);
+  const cells = stats ?? [];
+  const total = cells.reduce((n, s) => n + Math.max(s.value, 0), 0);
+
+  const header = (
+    <ViewHeader
+      icon={moduleIcon(moduleKey)}
+      title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
+      description={description}
+      secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
+      action={
+        <span className="flex items-center gap-sm">
+          {action}
+          {/* NO TRIGGER WHEN THERE IS NOTHING TO OPEN. A chevron over an empty
+              fold is a control that teaches the reader it does nothing. */}
+          {folds ? (
+            <CollapsibleTrigger
+              aria-label={open ? CATALOG_TEXT.byTypeCollapse : CATALOG_TEXT.byTypeExpand}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
+            </CollapsibleTrigger>
+          ) : null}
+        </span>
+      }
+    />
+  );
+
+  // THE CARD AND THE ICON ARE THE MODULE HEADER, not the fold's packaging.
+  // A page that opted out of the breakdown still belongs to the same set of
+  // pages, and dropping to a bare title made it look like a different product.
+  if (!folds) return <Card className="p-lg">{header}</Card>;
 
   return (
     <Card className="p-lg">
       <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-md">
-        <ViewHeader
-          icon={moduleIcon(moduleKey)}
-          title={DOMAIN_LABEL[moduleKey] ?? moduleKey}
-          description={description}
-          secondary={tags ? <span className="flex items-center gap-xs">{tags}</span> : undefined}
-          action={
-            <span className="flex items-center gap-sm">
-              {action}
-              <CollapsibleTrigger
-                aria-label={open ? CATALOG_TEXT.byTypeCollapse : CATALOG_TEXT.byTypeExpand}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Icon name={open ? "chevron-up" : "chevron-down"} size="sm" />
-              </CollapsibleTrigger>
-            </span>
-          }
-        />
+        {header}
 
         <CollapsibleContent className="flex flex-col gap-md">
-          {share && stats.length > 0 ? (
+          {share && cells.length > 0 ? (
             <div className="flex h-xs w-full overflow-hidden rounded-full">
-              {stats.map((s) => (
+              {cells.map((s) => (
                 <span
                   key={s.key}
                   className={fill(s)}
@@ -174,11 +199,11 @@ export function ModuleHeadline({
               ))}
             </div>
           ) : null}
-          {stats.length === 0 ? (
+          {cells.length === 0 ? (
             <p className="text-muted-foreground text-body-sm">{emptyNote}</p>
           ) : (
             <ul className="border-border flex w-full flex-wrap items-stretch rounded-md border">
-              {stats.map((s) => (
+              {cells.map((s) => (
                 <li
                   key={s.key}
                   /* Hairline between neighbours only - survives wrapping, no

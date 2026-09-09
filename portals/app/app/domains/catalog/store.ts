@@ -1,3 +1,4 @@
+import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 // The product catalogue - see ADR-014.
 //
 // A dimension referenced across domains and written by none of them: deals,
@@ -12,7 +13,10 @@ export interface ProductRecord {
   /** The type association - a uuid since incr/0029 (internal joins are uuid;
    * the business code never joins). Null = untyped. */
   typeId: string | null;
-  unit: string;
+  /** The unit association - a uuid since incr/0037, for the reason the type
+   * and the status became uuids: a line quotes qty x unit price, so the field
+   * multiplies money and cannot be free text. */
+  unitId: string;
   /** The status association - a uuid like the type's; the vocabulary row
    * carries the name and 状态描述 the interface renders. */
   statusId: string;
@@ -29,6 +33,16 @@ export interface ProductTypeRecord {
   name: string;
   sortOrder: number;
   status: "active" | "retired";
+}
+
+/** 计价单位 - the third catalogue vocabulary (incr/0037). Anchor code, display
+ * name, order; independent of type and status. */
+export interface ProductUnitRecord {
+  id: string;
+  workspaceId: string;
+  unitCode: string;
+  name: string;
+  sortOrder: number;
 }
 
 /** One row of the status vocabulary - incr/0029. Rows ARE the content: a
@@ -199,6 +213,17 @@ export interface CatalogStore {
   /** Delete a type outright. The SERVICE refuses in-use types first
    * (planTypeRemoval); the FK RESTRICTs underneath as the last line. */
   removeProductType(workspaceId: string, typeId: string): Promise<boolean>;
+  listProductUnits(workspaceId: string): Promise<ProductUnitRecord[]>;
+  upsertProductUnit(
+    workspaceId: string,
+    input: Omit<ProductUnitRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductUnitRecord>;
+  setProductUnitOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeProductUnit(workspaceId: string, unitId: string): Promise<boolean>;
+  countProductsByUnit(workspaceId: string, unitId: string): Promise<number>;
   /** How many products carry this type - what planTypeRemoval judges. */
   countProductsByType(workspaceId: string, typeId: string): Promise<number>;
 
@@ -263,22 +288,39 @@ export interface CatalogStore {
     workspaceId: string,
     input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,
   ): Promise<DiscountApprovalRecord>;
+
+  /* --- 计价规则 (incr/0044) -------------------------------------------------
+     One row per workspace: `get` answers the shipped default where no row
+     exists yet, `set` writes it either way. */
+  getPricingPolicy(workspaceId: string): Promise<PricingPolicy>;
+  setPricingPolicy(workspaceId: string, policy: PricingPolicy): Promise<void>;
 }
 
 export class InMemoryCatalogStore implements CatalogStore {
   private products: ProductRecord[] = [];
   private types: ProductTypeRecord[] = [];
+  private units: ProductUnitRecord[] = [];
   private statuses: ProductStatusRecord[] = [];
   private solutions: SolutionRecord[] = [];
   private items: SolutionItemRecord[] = [];
   private prices: PriceEntryRecord[] = [];
   private lines: OpportunityLineRecord[] = [];
   private approvals: DiscountApprovalRecord[] = [];
+  private readonly policies = new Map<string, PricingPolicy>();
   private seq = 0;
+
+  async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {
+    return this.policies.get(workspaceId) ?? DEFAULT_PRICING_POLICY;
+  }
+
+  async setPricingPolicy(workspaceId: string, policy: PricingPolicy): Promise<void> {
+    this.policies.set(workspaceId, { ...policy });
+  }
 
   seed(input: {
     products?: ProductRecord[];
     types?: ProductTypeRecord[];
+    units?: ProductUnitRecord[];
     statuses?: ProductStatusRecord[];
     solutions?: SolutionRecord[];
     items?: SolutionItemRecord[];
@@ -288,6 +330,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   }): void {
     if (input.products) this.products = [...input.products];
     if (input.types) this.types = [...input.types];
+    if (input.units) this.units = [...input.units];
     if (input.statuses) this.statuses = [...input.statuses];
     if (input.solutions) this.solutions = [...input.solutions];
     if (input.items) this.items = [...input.items];
@@ -451,6 +494,58 @@ export class InMemoryCatalogStore implements CatalogStore {
   async countProductsByType(workspaceId: string, typeId: string): Promise<number> {
     return this.products.filter(
       (p) => p.workspaceId === workspaceId && p.typeId === typeId,
+    ).length;
+  }
+
+  /* 计价单位 - the same five methods the type vocabulary has, because it is the
+     same shape of thing: a per-workspace list with an anchor code, a manual
+     order, and a count of what is pointing at a row before it may go. */
+  async listProductUnits(workspaceId: string): Promise<ProductUnitRecord[]> {
+    return this.units
+      .filter((u) => u.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.unitCode.localeCompare(b.unitCode));
+  }
+
+  async upsertProductUnit(
+    workspaceId: string,
+    input: Omit<ProductUnitRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductUnitRecord> {
+    const at = this.units.findIndex(
+      (u) => u.workspaceId === workspaceId && u.unitCode === input.unitCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.units[at]!, ...input, unitCode: this.units[at]!.unitCode };
+      this.units[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.units.filter((u) => u.workspaceId === workspaceId).map((u) => u.sortOrder),
+    );
+    const row: ProductUnitRecord = { id: `pun_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    this.units.push(row);
+    return row;
+  }
+
+  async setProductUnitOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.units = this.units.map((u) =>
+      u.workspaceId === workspaceId && want.has(u.id) ? { ...u, sortOrder: want.get(u.id)! } : u,
+    );
+  }
+
+  async removeProductUnit(workspaceId: string, unitId: string): Promise<boolean> {
+    const before = this.units.length;
+    this.units = this.units.filter((u) => !(u.workspaceId === workspaceId && u.id === unitId));
+    return this.units.length < before;
+  }
+
+  async countProductsByUnit(workspaceId: string, unitId: string): Promise<number> {
+    return this.products.filter(
+      (p) => p.workspaceId === workspaceId && p.unitId === unitId,
     ).length;
   }
 

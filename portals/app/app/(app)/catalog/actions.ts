@@ -10,6 +10,9 @@ import {
   removeProduct,
   removeProductStatus,
   removeProductType,
+  moveProductUnit,
+  removeProductUnit,
+  upsertProductUnit,
   moveSolution,
   removePrice,
   removeSolution,
@@ -51,7 +54,7 @@ export async function saveProduct(input: {
   productCode: string;
   name: string;
   typeId: string | null;
-  unit: string;
+  unitId: string;
   /** A status row's uuid. Only the create form sends this; an edit omits it
    * and keeps the row's status - transitions belong to the row operations. */
   statusId?: string;
@@ -198,7 +201,7 @@ export async function saveProductType(input: {
   const r = await upsertProductType(ctx, input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
-  revalidatePath("/catalog/settings");
+  revalidatePath("/admin/product");
   return { ok: true };
 }
 
@@ -211,7 +214,7 @@ export async function moveProductTypeRow(
   const r = await moveProductType(ctx, { typeId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
-  revalidatePath("/catalog/settings");
+  revalidatePath("/admin/product");
   return { ok: true };
 }
 
@@ -221,7 +224,49 @@ export async function deleteProductType(typeId: string): Promise<CatalogResult> 
   const r = await removeProductType(ctx, { typeId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
-  revalidatePath("/catalog/settings");
+  revalidatePath("/admin/product");
+  return { ok: true };
+}
+
+// --- the config page: 计价单位 (incr/0037) ------------------------------------
+
+export async function saveUnitRow(input: {
+  unitCode: string;
+  name: string;
+}): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await upsertProductUnit(ctx, input);
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  /* BOTH PAGES. The vocabulary is configured in 配置管理 and rendered on every
+     product surface - the roster's 单位 column and the quote line's "12 套" -
+     so a rename that only invalidated the page it was typed on would leave the
+     catalogue showing the old word. */
+  revalidatePath("/catalog");
+  revalidatePath("/admin/product");
+  return { ok: true };
+}
+
+export async function moveUnitRow(
+  unitId: string,
+  direction: "up" | "down",
+): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await moveProductUnit(ctx, { unitId, direction });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/admin/product");
+  return { ok: true };
+}
+
+export async function deleteUnitRow(unitId: string): Promise<CatalogResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "not_authenticated" };
+  const r = await removeProductUnit(ctx, { unitId });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/catalog");
+  revalidatePath("/admin/product");
   return { ok: true };
 }
 
@@ -237,7 +282,7 @@ export async function saveStatusRow(input: {
   const r = await saveProductStatus(ctx, input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
-  revalidatePath("/catalog/settings");
+  revalidatePath("/admin/product");
   revalidatePath("/catalog/new");
   return { ok: true };
 }
@@ -248,7 +293,7 @@ export async function deleteStatusRow(statusId: string): Promise<CatalogResult> 
   const r = await removeProductStatus(ctx, { statusId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
-  revalidatePath("/catalog/settings");
+  revalidatePath("/admin/product");
   revalidatePath("/catalog/new");
   return { ok: true };
 }
@@ -262,7 +307,7 @@ export async function moveStatusRow(
   const r = await moveProductStatus(ctx, { statusId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/catalog");
-  revalidatePath("/catalog/settings");
+  revalidatePath("/admin/product");
   return { ok: true };
 }
 

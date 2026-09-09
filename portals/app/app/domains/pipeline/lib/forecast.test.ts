@@ -54,7 +54,7 @@ test("each opportunity lands in exactly one bucket - the buckets do not nest", (
       o({ id: "b", forecastCategory: "best_case", amount: money(50) }),
       o({ id: "c", forecastCategory: "pipeline", amount: money(25) }),
       o({ id: "d", forecastCategory: "closed", amount: money(10), stage: "won" }),
-    ]),
+    ], "CNY"),
   );
   assert.equal(t.commitAmount.amount, 100);
   assert.equal(t.bestCaseAmount.amount, 50);
@@ -69,13 +69,13 @@ test("money arithmetic is exact - no floating point drift in a total", () => {
     rollUp([
       o({ forecastCategory: "commit", amount: money(0.1) }),
       o({ forecastCategory: "commit", amount: money(0.2) }),
-    ]),
+    ], "CNY"),
   );
   assert.equal(t.commitAmount.amount, 0.3);
 });
 
 test("an amount-less opportunity contributes zero rather than vanishing", () => {
-  const t = unwrap(rollUp([o({ forecastCategory: "commit", amount: null })]));
+  const t = unwrap(rollUp([o({ forecastCategory: "commit", amount: null })], "CNY"));
   assert.equal(t.commitAmount.amount, 0);
 });
 
@@ -83,13 +83,13 @@ test("mixed currencies are refused, never silently added", () => {
   const r = rollUp([
     o({ forecastCategory: "commit", amount: money(100, "CNY") }),
     o({ forecastCategory: "commit", amount: money(100, "USD") }),
-  ]);
+  ], "CNY");
   assert.equal(r.ok, false);
   assert.equal(r.ok === false && r.violations[0].code, "currency_mismatch");
 });
 
 test("an unknown category is refused rather than dropped from the total", () => {
-  const r = rollUp([o({ forecastCategory: "maybe" as never })]);
+  const r = rollUp([o({ forecastCategory: "maybe" as never })], "CNY");
   assert.equal(r.ok, false);
   assert.equal(r.ok === false && r.violations[0].code, "unknown_forecast_category");
 });
@@ -101,7 +101,7 @@ test("openPipelineTotal names what it includes so nobody has to guess", () => {
       o({ forecastCategory: "best_case", amount: money(50) }),
       o({ forecastCategory: "pipeline", amount: money(25) }),
       o({ forecastCategory: "closed", amount: money(999), stage: "won" }),
-    ]),
+    ], "CNY"),
   );
   assert.equal(unwrap(openPipelineTotal(t)).amount, 175, "closed is not open pipeline");
 });
@@ -144,6 +144,7 @@ test("inScope filters by the scope's own key", () => {
 test("a snapshot carries its scope, period and instant", () => {
   const row = unwrap(
     planSnapshot({
+    currency: "CNY",
       period: "2026Q3",
       scope: { scopeType: "owner", territoryId: null, ownerSub: "usr_1" },
       opportunities: [o({ ownerSub: "usr_1", forecastCategory: "commit", amount: money(500) })],
@@ -161,6 +162,7 @@ test("a snapshot carries its scope, period and instant", () => {
 test("a snapshot only rolls up what its scope covers", () => {
   const row = unwrap(
     planSnapshot({
+    currency: "CNY",
       period: "2026Q3",
       scope: { scopeType: "owner", territoryId: null, ownerSub: "usr_1" },
       opportunities: [
@@ -175,6 +177,7 @@ test("a snapshot only rolls up what its scope covers", () => {
 
 test("a snapshot needs a period", () => {
   const r = planSnapshot({
+    currency: "CNY",
     period: "  ",
     scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
     opportunities: [],
@@ -187,6 +190,7 @@ test("an empty scope still produces a snapshot, of zeroes", () => {
   // row would leave a gap indistinguishable from "nobody submitted".
   const row = unwrap(
     planSnapshot({
+    currency: "CNY",
       period: "2026Q4",
       scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
       opportunities: [],
@@ -279,7 +283,7 @@ test("a lost deal contributes to no category, closed included", () => {
     rollUp([
       { id: "won", stage: "won", forecastCategory: "closed", amount: money(500_000), territoryId: null, ownerSub: null, status: "won" },
       { id: "lost", stage: "lost", forecastCategory: "closed", amount: money(300_000), territoryId: null, ownerSub: null, status: "lost" },
-    ]),
+    ], "CNY"),
   );
   assert.equal(totals.closedAmount.amount, 500_000);
 });
@@ -288,7 +292,7 @@ test("an opportunity with no status is treated as live - legacy rows still roll 
   const totals = unwrap(
     rollUp([
       { id: "a", stage: "negotiate", forecastCategory: "commit", amount: money(100_000), territoryId: null, ownerSub: null },
-    ]),
+    ], "CNY"),
   );
   assert.equal(totals.commitAmount.amount, 100_000);
 });
@@ -361,11 +365,12 @@ test("an unparseable period yields null, not zero", () => {
 
 test("a snapshot carries the count, and rollUp on its own does not invent one", () => {
   const all = [won("o1", "acc_a", "2026-07-10"), won("o2", "acc_b", "2026-05-01")];
-  const row = unwrap(planSnapshot({ period: "2026Q3", scope: WS_SCOPE, opportunities: all }));
+  const row = unwrap(planSnapshot({
+    currency: "CNY", period: "2026Q3", scope: WS_SCOPE, opportunities: all }));
   assert.equal(row.newLogoCount, 1);
   // rollUp sees only the in-scope slice and cannot answer "first ever", so it
   // reports null rather than a count derived from a partial list.
-  assert.equal(unwrap(rollUp(all)).newLogoCount, null);
+  assert.equal(unwrap(rollUp(all, "CNY")).newLogoCount, null);
 });
 
 // --- Period filtering (TD-014) ----------------------------------------------
@@ -414,6 +419,7 @@ test("a snapshot rolls up only the period it names", () => {
   // workspace had, including next quarter's.
   const row = unwrap(
     planSnapshot({
+    currency: "CNY",
       period: "2026Q3",
       scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
       opportunities: [
@@ -430,6 +436,7 @@ test("a snapshot refuses a period it cannot bound", () => {
   // An unfiltered snapshot is the defect. Refusing names the accepted forms so
   // the refusal is actionable.
   const r = planSnapshot({
+    currency: "CNY",
     period: "FY26H1",
     scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
     opportunities: [o()],
@@ -442,6 +449,7 @@ test("the whole-year tab is a period the snapshot accepts", () => {
   // parser rejected would make that tab the one you cannot forecast from.
   const row = unwrap(
     planSnapshot({
+    currency: "CNY",
       period: "Y2026",
       scope: { scopeType: "workspace", territoryId: null, ownerSub: null },
       opportunities: [

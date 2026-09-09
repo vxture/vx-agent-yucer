@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   APPEND_ONLY_TABLES,
+  READ_ONLY_TABLES,
+  isReadOnly,
   FROZEN_COLUMN_REASON,
   WRITABLE_COLUMNS,
   assertWritable,
@@ -28,6 +30,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../../../..");
 // creates it, and this mirror has to read them from there or it would demand
 // parity against half the picture.
 const LOCK_FILES = [
+  // 97 carries the SCHEMA-WIDE grants - "SELECT, INSERT, DELETE ON ALL TABLES
+  // IN SCHEMA ..." - which is how almost every table becomes insertable. Read
+  // here since 2026-09-08: without it a schema granted nothing but SELECT
+  // (yucer_ref) is indistinguishable from one covered by the blanket grant.
+  join(ROOT, "deploy/database/ddl/97_service_role.sql"),
   join(ROOT, "deploy/database/ddl/98_column_locks.sql"),
   ...readdirSync(join(ROOT, "deploy/database/ddl/incr"))
     .filter((f) => f.endsWith(".sql"))
@@ -200,13 +207,54 @@ test("the mirror invents nothing the DDL does not grant", () => {
   }
 });
 
-test("every table the DDL cannot UPDATE is listed as append-only", () => {
+test("every table the DDL cannot UPDATE is declared, in the right category", () => {
   // Both routes to append-only: granted-then-revoked, and never granted at all.
   // A table with a column-level GRANT UPDATE is writable by either route.
-  const appendOnlyFromDdl = [...new Set([...revokes, ...neverUpdatable])]
-    .filter((t) => !grants.has(t))
-    .sort();
-  assert.deepEqual([...APPEND_ONLY_TABLES].sort(), appendOnlyFromDdl);
+  //
+  // AND THE THIRD CATEGORY (2026-09-08): a table granted SELECT and nothing
+  // else is READ-ONLY, not append-only. Sorting it into append-only would say
+  // the application may add rows to it, which its grant refuses - and the
+  // difference matters for exactly the tables where it is easiest to assume
+  // otherwise, reference data being written by a seed nobody re-reads.
+  const unwritable = [...new Set([...revokes, ...neverUpdatable])]
+    .filter((t) => !grants.has(t));
+  // INSERT arrives two ways and both count: the schema-wide grant in
+  // 97_service_role.sql ("GRANT SELECT, INSERT, DELETE ON ALL TABLES IN SCHEMA
+  // a, b, c"), or a table-level grant in an increment. A schema that appears in
+  // neither - yucer_ref - is reference data by construction.
+  const insertSchemas = new Set(
+    [...uncommented.matchAll(
+      /GRANT\s+([A-Z,\s]+?)\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+([\w,\s]+?)\s+TO\s+\w+/gi,
+    )]
+      .filter((m) => /\bINSERT\b/.test(m[1]!.toUpperCase()))
+      .flatMap((m) => m[2]!.split(",").map((x) => x.trim())),
+  );
+  const insertTables = new Set(
+    [...uncommented.matchAll(/GRANT\s+([A-Z,\s]+?)\s+ON\s+(\w+\.\w+)\s+TO\s+\w+/gi)]
+      .filter((m) => /\bINSERT\b/.test(m[1]!.toUpperCase()))
+      .map((m) => m[2]!),
+  );
+  const insertable = (t: string) =>
+    insertSchemas.has(t.split(".")[0]!) || insertTables.has(t);
+  assert.ok(insertSchemas.size > 2, `parsed no schema-wide INSERT grants`);
+  assert.deepEqual(
+    [...APPEND_ONLY_TABLES].sort(),
+    unwritable.filter((t) => insertable(t)).sort(),
+  );
+  assert.deepEqual(
+    [...READ_ONLY_TABLES].sort(),
+    unwritable.filter((t) => !insertable(t)).sort(),
+  );
+});
+
+test("a read-only table refuses every write, like an append-only one", () => {
+  // The categories differ in what the DDL grants, not in what the rule layer
+  // allows: neither may be updated through the service role.
+  for (const t of READ_ONLY_TABLES) {
+    assert.equal(writableColumns(t).length, 0, `${t} must have no writable columns`);
+    assert.equal(isReadOnly(t), true);
+    assert.equal(isAppendOnly(t), false, `${t} is reference data, not an append-only log`);
+  }
 });
 
 test("a table is never both writable and append-only", () => {

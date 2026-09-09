@@ -14,7 +14,7 @@ generator client {
 // the five product domains.
 datasource db {
   provider = "postgresql"
-  schemas  = ["vx_provision", "local_authz", "local_usage", "local_audit", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field"]
+  schemas  = ["vx_provision", "local_authz", "local_usage", "local_audit", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field", "yucer_ref"]
 }
 
 // ===== vx_provision =====
@@ -205,8 +205,17 @@ model Account {
   workspaceId   String    @map("workspace_id") @db.Uuid
   accountNo     String    @map("account_no") @db.VarChar(64)
   name          String    @db.VarChar(255)
-  industry      String?   @db.VarChar(64)
+  /// incr/0040. The industry is a row in the workspace's own vocabulary, the
+  /// way the product's type, status and unit already were. Nullable, unlike
+  /// product.unit_id: a fresh prospect legitimately has no industry yet.
+  industryId    String?   @map("industry_id") @db.Uuid
   region        String?   @db.VarChar(64)
+  /// incr/0035. The provincial-level division, one granularity below `region`.
+  /// Both are stored: `region` (大区) is what territory routing matches on, so
+  /// it cannot be repurposed, and deriving it from the province on read would
+  /// move that mapping out of the database where the routing rule cannot see it.
+  /// CHECK-constrained to the 34 divisions, spelled as the map's geometry keys them.
+  province      String?   @db.VarChar(32)
   segmentCode   String?   @map("segment_code") @db.VarChar(64)
   ownerSub      String?   @map("owner_sub") @db.VarChar(128)
   /// strategic | key | standard. Set by D1, not by the owner - see ADR-013.
@@ -228,7 +237,55 @@ model Account {
   deletedAt     DateTime? @map("deleted_at") @db.Timestamptz()
 
   @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
+  @@index([workspaceId, province], map: "idx_account_ws_province")
+  @@index([workspaceId, industryId], map: "idx_account_ws_industry")
   @@map("account")
+  @@schema("yucer_core")
+}
+
+/// incr/0041. 预测阈值 - where the confidence bands start, and how long a stall
+/// takes to count. One row per workspace, keyed by the workspace itself: a
+/// settings row is not a list, and two rows of thresholds for one workspace
+/// would be a state with no meaning.
+model ForecastThreshold {
+  workspaceId         String   @id @map("workspace_id") @db.Uuid
+  commitProbability   Int      @default(80) @map("commit_probability") @db.SmallInt
+  bestCaseProbability Int      @default(50) @map("best_case_probability") @db.SmallInt
+  stallDays           Int      @default(45) @map("stall_days") @db.SmallInt
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("forecast_threshold")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0042. 账龄分档 - where each late band ends, in days overdue. An array
+/// rather than rows because it is read whole every time and nothing joins to
+/// it (ADR-026); one row per workspace, like the thresholds above.
+model AgeingPolicy {
+  workspaceId String   @id @map("workspace_id") @db.Uuid
+  lateCutoffs Int[]    @default([30, 60]) @map("late_cutoffs") @db.SmallInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("ageing_policy")
+  @@schema("yucer_delivery")
+}
+
+/// incr/0040. 行业 - the workspace's own industry vocabulary, same shape as the
+/// catalogue's three: an anchor code, a display name, an order.
+model Industry {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  industryCode String   @map("industry_code") @db.VarChar(32)
+  name         String   @db.VarChar(64)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, industryCode], map: "uidx_industry_code")
+  @@index([workspaceId, sortOrder], map: "idx_industry_ws_sort")
+  @@map("industry")
   @@schema("yucer_core")
 }
 
@@ -505,12 +562,17 @@ model Opportunity {
   // The return leg from D7. Frozen after creation like campaign_id - 0019
   // deliberately grants no UPDATE on it.
   sourceProjectId  String?   @map("source_project_id") @db.Uuid
-  ownerSub         String?   @map("owner_sub") @db.VarChar(128)
+  // incr/0034 - NOT NULL. Every deal has an owner; it used to be a nullable
+  // column that one function happened to fill.
+  ownerSub         String    @map("owner_sub") @db.VarChar(128)
   stage            String    @default("qualify") @db.VarChar(32)
   forecastCategory String    @default("pipeline") @map("forecast_category") @db.VarChar(32)
   amount           Decimal?  @db.Decimal(18, 2)
   currency         String    @default("CNY") @db.VarChar(8)
   probability      Int?      @db.SmallInt
+  /// incr/0034 - what the customer actually wants. NOT NULL and CHECKed
+  /// non-blank: an empty string satisfies NOT NULL and says nothing.
+  requirement      String    @db.Text
   expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
   closedAt         DateTime? @map("closed_at") @db.Timestamptz()
   status           String    @default("open") @db.VarChar(32)
@@ -562,20 +624,47 @@ model ForecastSnapshot {
   @@schema("yucer_pipeline")
 }
 
+/// Why anything left the funnel (incr/0033). Append-only.
+///
+/// `subjectId` is POLYMORPHIC - it points at a signal, lead, opportunity,
+/// project or revenue_schedule, and `stage` is what says which. There is no
+/// relation here because the database cannot constrain one; see the increment
+/// for why that trade was taken.
+model FunnelExit {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  stage        String   @db.VarChar(16)
+  subjectId    String   @map("subject_id") @db.Uuid
+  outcome      String   @db.VarChar(24)
+  reasonCode   String   @map("reason_code") @db.VarChar(32)
+  note         String?  @db.VarChar(500)
+  decidedBySub String   @map("decided_by_sub") @db.VarChar(128)
+  decidedAt    DateTime @default(now()) @map("decided_at") @db.Timestamptz()
+
+  @@index([workspaceId, stage, decidedAt(sort: Desc)], map: "idx_funnel_exit_ws_stage")
+  @@index([subjectId, decidedAt(sort: Desc)], map: "idx_funnel_exit_subject")
+  @@map("funnel_exit")
+  @@schema("yucer_pipeline")
+}
+
 model WinLossReview {
-  id            String   @id @default(uuid()) @db.Uuid
-  workspaceId   String   @map("workspace_id") @db.Uuid
-  opportunityId String   @map("opportunity_id") @db.Uuid
-  outcome       String   @db.VarChar(32)
-  primaryReason String?  @map("primary_reason") @db.VarChar(64)
-  competitor    String?  @db.VarChar(255)
-  lessons       String?  @db.Text
-  reviewerSub   String?  @map("reviewer_sub") @db.VarChar(128)
-  reviewedAt    DateTime @default(now()) @map("reviewed_at") @db.Timestamptz()
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  id              String         @id @default(uuid()) @db.Uuid
+  workspaceId     String         @map("workspace_id") @db.Uuid
+  opportunityId   String         @map("opportunity_id") @db.Uuid
+  outcome         String         @db.VarChar(32)
+  /// 赢丢原因 - a vocabulary row since 0039, for the reason the catalogue's
+  /// three became uuids: why a deal was lost is the workspace's own list.
+  primaryReasonId String?        @map("primary_reason_id") @db.Uuid
+  primaryReason   WinLossReason? @relation(fields: [primaryReasonId], references: [id], onDelete: Restrict)
+  competitor      String?        @db.VarChar(255)
+  lessons         String?        @db.Text
+  reviewerSub     String?        @map("reviewer_sub") @db.VarChar(128)
+  reviewedAt      DateTime       @default(now()) @map("reviewed_at") @db.Timestamptz()
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime       @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([opportunityId], map: "uidx_win_loss_review_opp")
+  @@index([workspaceId, primaryReasonId], map: "idx_win_loss_review_reason")
   @@map("win_loss_review")
   @@schema("yucer_pipeline")
 }
@@ -892,7 +981,9 @@ model Product {
   name        String   @db.VarChar(255)
   /// The type association - a uuid since 0029; the business code never joins.
   typeId      String?  @map("type_id") @db.Uuid
-  unit        String   @default("set") @db.VarChar(32)
+  /// The unit association - a uuid since 0037, for the reason the type and the
+  /// status became one: a string that multiplies money cannot be free text.
+  unitId      String   @map("unit_id") @db.Uuid
   /// The status association - a uuid like the type's (0029).
   statusId    String   @map("status_id") @db.Uuid
   sortOrder   Int      @default(0) @map("sort_order")
@@ -903,6 +994,7 @@ model Product {
   @@index([workspaceId, sortOrder], map: "idx_product_ws_sort")
   @@index([workspaceId, typeId], map: "idx_product_ws_type")
   @@index([workspaceId, statusId], map: "idx_product_ws_status")
+  @@index([workspaceId, unitId], map: "idx_product_ws_unit")
   @@map("product")
   @@schema("yucer_catalog")
 }
@@ -928,6 +1020,35 @@ model ProductType {
 /// The workspace's status vocabulary - incr/0029. Rows ARE the content:
 /// code (anchor), name, 状态描述, order. The three canonical rows are
 /// rule-protected from deletion; everything else is the workspace's.
+/// 计价单位 - the third catalogue vocabulary (0037). Independent of type and
+/// status: none of the three knows the others exist.
+/// incr/0044. 计价规则 - the currency a workspace quotes in by default. One row
+/// per workspace; the database CHECKs three capitals and nothing more.
+model PricingPolicy {
+  workspaceId     String   @id @map("workspace_id") @db.Uuid
+  defaultCurrency String   @default("CNY") @map("default_currency") @db.Char(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("pricing_policy")
+  @@schema("yucer_catalog")
+}
+
+model ProductUnit {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  unitCode    String   @map("unit_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, unitCode], map: "uidx_product_unit_code")
+  @@index([workspaceId, sortOrder], map: "idx_product_unit_ws_sort")
+  @@map("product_unit")
+  @@schema("yucer_catalog")
+}
+
 model ProductStatus {
   id          String   @id @default(uuid()) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
@@ -1037,5 +1158,220 @@ model LineDiscountApproval {
 
   @@index([workspaceId, opportunityId], map: "line_discount_approval_by_opp")
   @@map("line_discount_approval")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0036. 大区 - how a workspace divides its market, PRESET AND EDITABLE.
+/// Not `account.region`: that column carries the older 华东 / 华北 grouping and
+/// territory routing matches on it, so it cannot be repurposed. A 大区 is a
+/// sales structure rather than a fact of geography, which is why it is data the
+/// tenant owns instead of a constant in the build.
+model MarketDivision {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  /// The anchor the preset and every import upsert on. Not updatable by the
+  /// service role: a division whose code changed is a new division wearing an
+  /// old one's history.
+  divisionCode String   @map("division_code") @db.VarChar(32)
+  name         String   @db.VarChar(64)
+  /// incr/0043. The frame this division was carved in: global | china |
+  /// province. Not updatable - its members are level-bound to the frame.
+  scope        String   @default("china") @db.VarChar(16)
+  /// incr/0045. The province's two letters for a province frame, '' for the
+  /// other two - the letters that used to prefix the code. Empty string, not
+  /// null, so it can sit inside the unique key.
+  scopeProvince String  @default("") @map("scope_province") @db.VarChar(8)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  provinces MarketDivisionProvince[]
+  members   MarketDivisionMember[]
+
+  @@unique([workspaceId, scope, scopeProvince, divisionCode], map: "uidx_market_division_code")
+  @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")
+  @@map("market_division")
+  @@schema("yucer_core")
+}
+
+/// incr/0036. Which province sits in which 大区.
+/// ONE DIVISION PER PROVINCE, enforced by the primary key rather than by the
+/// application: a province in two divisions double-counts every figure rolled
+/// up from it, and a national total that does not equal the sum of its parts is
+/// the one failure the situation screen cannot survive.
+/// incr/0043. 市场范围 - the frame a workspace carves inside. One row per
+/// workspace; scope_province is the province's two letters and only for a
+/// province-level frame (the database CHECKs the pairing).
+model MarketScope {
+  workspaceId String   @id @map("workspace_id") @db.Uuid
+  scopeKind   String   @default("china") @map("scope_kind") @db.VarChar(16)
+  scopeProvince String? @map("scope_province") @db.VarChar(8)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("market_scope")
+  @@schema("yucer_core")
+}
+
+model MarketDivisionProvince {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  /// CHECK-constrained to the same 34 divisions incr/0035 constrains
+  /// `account.province` to, so a mapping cannot name ground no account could
+  /// sit on. Not updatable: it is half the primary key.
+  province    String   @db.VarChar(32)
+  divisionId  String   @map("division_id") @db.Uuid
+  /// incr/0045. The same place by id - the relation; the name stays because
+  /// account.province and the map key on it.
+  adminDivisionId String @map("admin_division_id") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  division MarketDivision @relation(fields: [divisionId], references: [id], onDelete: Restrict, map: "fk_market_division_province_division")
+  place    AdminDivision  @relation(fields: [adminDivisionId], references: [id], onDelete: Restrict, map: "fk_market_division_province_place")
+
+  @@id([workspaceId, province], map: "pk_market_division_province")
+  @@unique([workspaceId, adminDivisionId], map: "uidx_market_division_province_place")
+  @@index([workspaceId, divisionId], map: "idx_market_division_province_div")
+  @@map("market_division_province")
+  @@schema("yucer_core")
+}
+
+/// incr/0045. Which country (level 2) or prefecture-level city (level 4) sits
+/// in which 大区 - the member table for the frames that are not 中国市场. The
+/// member IS an admin_division row, by composite foreign key; the primary key
+/// keeps a member in at most one division, exactly as 0036 does for provinces.
+model MarketDivisionMember {
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  /// incr/0045. The place, by its admin_division id - (level, code) is read
+  /// through the relation, never stored twice.
+  adminDivisionId String   @map("admin_division_id") @db.Uuid
+  divisionId      String   @map("division_id") @db.Uuid
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  division MarketDivision @relation(fields: [divisionId], references: [id], onDelete: Restrict, map: "fk_market_division_member_division")
+  place    AdminDivision  @relation(fields: [adminDivisionId], references: [id], onDelete: Restrict, map: "fk_market_division_member_place")
+
+  @@id([workspaceId, adminDivisionId], map: "pk_market_division_member")
+  @@index([workspaceId, divisionId], map: "idx_market_division_member_div")
+  @@map("market_division_member")
+  @@schema("yucer_core")
+}
+
+/// 预置方案 (incr/0045) - the shipped carves a workspace adopts as a start.
+/// Reference data, read-only to the service role; the by-unit carves are
+/// derived in SQL from admin_division. member_key is the workspace member
+/// tables' own key: a province NAME (0036) or a unit ADCODE (0045).
+model MarketCarve {
+  id            String  @id @default(uuid()) @db.Uuid
+  /// The business anchor - five / seven / sn-units. Unique; joined on by nothing.
+  carveKey      String  @unique(map: "uidx_market_carve_key") @map("carve_key") @db.VarChar(32)
+  scopeKind     String  @map("scope_kind") @db.VarChar(16)
+  scopeProvince String? @map("scope_province") @db.VarChar(8)
+  name          String  @db.VarChar(64)
+  sortOrder     Int     @default(0) @map("sort_order")
+
+  divisions MarketCarveDivision[]
+  members   MarketCarveMember[]
+
+  @@index([scopeKind, scopeProvince, sortOrder], map: "idx_market_carve_scope")
+  @@map("market_carve")
+  @@schema("yucer_ref")
+}
+
+model MarketCarveDivision {
+  id           String @id @default(uuid()) @db.Uuid
+  carveId      String @map("carve_id") @db.Uuid
+  divisionCode String @map("division_code") @db.VarChar(32)
+  name         String @db.VarChar(64)
+  sortOrder    Int    @default(0) @map("sort_order")
+
+  carve   MarketCarve         @relation(fields: [carveId], references: [id], onDelete: Cascade)
+  members MarketCarveMember[]
+
+  @@unique([carveId, divisionCode], map: "uidx_market_carve_division_code")
+  @@index([carveId, sortOrder], map: "idx_market_carve_division_carve")
+  @@map("market_carve_division")
+  @@schema("yucer_ref")
+}
+
+/// incr/0045 (uuid relations, 0045's ruling): the place is an admin_division
+/// row by id; carve and division by id. A place sits in one division per carve.
+model MarketCarveMember {
+  carveId         String @map("carve_id") @db.Uuid
+  adminDivisionId String @map("admin_division_id") @db.Uuid
+  divisionId      String @map("division_id") @db.Uuid
+
+  carve    MarketCarve         @relation(fields: [carveId], references: [id], onDelete: Cascade)
+  place    AdminDivision       @relation(fields: [adminDivisionId], references: [id], onDelete: Restrict)
+  division MarketCarveDivision @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+
+  @@id([carveId, adminDivisionId], map: "pk_market_carve_member")
+  @@index([divisionId], map: "idx_market_carve_member_division")
+  @@map("market_carve_member")
+  @@schema("yucer_ref")
+}
+
+/// 行政区划 - 全球五级参照表 (incr/0038). GLOBAL: no workspaceId, because which
+/// provinces China has is not a tenant's decision. The service role holds
+/// SELECT and nothing else; rows change by increment, from the generator.
+model AdminDivision {
+  id        String          @id @default(uuid()) @db.Uuid
+  /// 1 continent, 2 country, 3 province, 4 city, 5 county.
+  level     Int             @db.SmallInt
+  /// ISO alpha-2 at levels 1-2, GB/T 2260's six digits at 3-5. Unique WITH the
+  /// level, never alone: NA is both North America and Namibia.
+  code      String          @db.VarChar(12)
+  /// 两字母英文简称 - AS / CN / GD. Null below province.
+  abbrEn    String?         @map("abbr_en") @db.VarChar(8)
+  /// 中文全称 / 中文简称 / 英文全称. short_zh equals name_zh where no safe
+  /// shortening rule applies; name_en is null below province.
+  nameZh    String          @map("name_zh") @db.VarChar(128)
+  shortZh   String          @map("short_zh") @db.VarChar(64)
+  nameEn    String?         @map("name_en") @db.VarChar(128)
+  parentId  String?         @map("parent_id") @db.Uuid
+  parent    AdminDivision?  @relation("AdminDivisionTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  AdminDivision[] @relation("AdminDivisionTree")
+  /// incr/0045 - the divisions this row has been placed in, across
+  /// workspaces, and the carves it appears in.
+  placements         MarketDivisionMember[]
+  provincePlacements MarketDivisionProvince[]
+  carveMembers       MarketCarveMember[]
+  /// Materialised path of codes: 'AS/CN/440000/440300/440304'.
+  path      String          @db.VarChar(64)
+  /// active | retired. A division that is abolished is retired, never deleted:
+  /// records that name it must keep resolving.
+  status    String          @default("active") @db.VarChar(16)
+  /// Which dataset put this row here - the table is three sources at once.
+  source    String          @db.VarChar(64)
+  sortOrder Int             @default(0) @map("sort_order")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime        @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([level, code], map: "uidx_admin_division_code")
+  @@index([parentId, sortOrder], map: "idx_admin_division_parent")
+  @@index([level, sortOrder], map: "idx_admin_division_level")
+  @@index([path], map: "idx_admin_division_path")
+  @@map("admin_division")
+  @@schema("yucer_ref")
+}
+
+/// 赢丢原因 - per workspace (incr/0039). The same shape as the catalogue's
+/// three vocabularies: an anchor code, a name, an order. for_won / for_lost
+/// say which outcome it explains, because a reason may serve one or both.
+model WinLossReason {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  reasonCode  String   @map("reason_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  forWon      Boolean  @default(true) @map("for_won")
+  forLost     Boolean  @default(true) @map("for_lost")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  reviews WinLossReview[]
+
+  @@unique([workspaceId, reasonCode], map: "uidx_win_loss_reason_code")
+  @@index([workspaceId, sortOrder], map: "idx_win_loss_reason_ws_sort")
+  @@map("win_loss_reason")
   @@schema("yucer_pipeline")
 }

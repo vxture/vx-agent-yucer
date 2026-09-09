@@ -53,7 +53,6 @@ const NOT_YET_CONVERTED: Record<string, string> = {
   "planning-table.tsx": "D6 planning - not rebuilt yet",
   "proposal-queue.tsx": "D9 copilot - not rebuilt yet",
   "quote-table.tsx": "D5 quote - not rebuilt yet",
-  "routing-table.tsx": "D5 routing - not rebuilt yet",
   "territory-panel.tsx": "D2 territory - not rebuilt yet",
 };
 

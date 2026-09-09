@@ -7,6 +7,7 @@ import {
   ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { resolveNavigation } from "../../lib/navigation";
@@ -92,6 +93,12 @@ export default async function DomainHomePage({
 
   return (
     <ViewLayout>
+      {/* A DOMAIN HOME sits under the launcher, and the launcher lives on
+          今日判断 - the one page that is nobody's child. */}
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.home, href: "/" }]}
+        current={DOMAIN_GROUP_LABEL[key] ?? key}
+      />
       <ViewHeader
         title={DOMAIN_GROUP_LABEL[key] ?? key}
         description={DOMAIN_GROUP_QUESTION[key] ?? ""}

@@ -1,15 +1,9 @@
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   EmptyState,
-  StatusBadge,
   ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import Link from "next/link";
 import { can } from "../../../authz/decide";
@@ -19,6 +13,7 @@ import {
   getFieldStore,
   getPlanningStore,
   getStrategyStore,
+  getCatalogStore,
 } from "../../../domains/shared/registry";
 import {
   accountCompleteness,
@@ -66,6 +61,9 @@ import {
   settleCommitment,
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
+import { Tag } from "../../components/tag";
+import { pricingPolicy } from "../../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
 // D4 account detail: health with its reasons, and the decision chain.
 //
@@ -83,7 +81,6 @@ export default async function AccountDetailPage({
 }) {
   const {
     ACCOUNT_STATUS_LABEL,
-    ACCOUNT_TEXT,
     AGENT_ACTION_LABEL,
     BOARD_TEXT,
     CHAIN_TEXT,
@@ -92,6 +89,7 @@ export default async function AccountDetailPage({
     SHELL_TEXT,
     STAGE_LABEL,
     LOAD_ERROR,
+    DOMAIN_LABEL,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -164,6 +162,12 @@ export default async function AccountDetailPage({
     holder: session.authz,
     entitlement: session.entitlement,
   };
+  /* 计价规则 (incr/0044): the currency a total is in when no row carries one. */
+  const policyRead = await pricingPolicy({ ...base, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+
   const [deals, projects, feed, proposals] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
@@ -259,22 +263,10 @@ export default async function AccountDetailPage({
 
   return (
     <ViewLayout>
-      {/* THE WAY BACK. With the board gone this page offers no navigation of
-          its own, and returning to the list you came from is the most common
-          next action - the shell no longer covers it, so the page must. */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/account">
-              {ACCOUNT_TEXT.backToList}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{account.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      {/* THE WAY BACK, through the same binding every other second-level
+          page uses. This one wrote its own for months and took the parent's
+          name from its own dictionary; the trail reads the registry now. */}
+      <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
 
       <ViewHeader
         secondary={account.accountNo}
@@ -284,12 +276,12 @@ export default async function AccountDetailPage({
           .filter(Boolean)
           .join(" / ")}
         action={
-          <StatusBadge
+          <Tag
             tone={account.status === "churned" ? "danger" : "neutral"}
             dot
           >
             {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
-          </StatusBadge>
+          </Tag>
         }
       />
 
@@ -317,7 +309,7 @@ export default async function AccountDetailPage({
           and a 320px column would leave 190 for everything else. */}
       <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
         <div className="flex min-w-0 flex-col gap-lg">
-          <TheatreRoster deals={rosterDeals} projects={rosterProjects} />
+          <TheatreRoster deals={rosterDeals} projects={rosterProjects} defaultCurrency={defaultCurrency} />
 
           {/* OUTSIDE the chain block below, and that is the point. The chain is
               gated by `account.graph`, a pro capability; recording who you met

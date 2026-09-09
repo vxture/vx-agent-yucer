@@ -4,9 +4,15 @@ import {
   daysAtStage,
   planSuggestedCategory,
   suggestCategory,
-  STALL_DAYS,
+  planForecastThresholds,
+  DEFAULT_FORECAST_THRESHOLDS,
   type CategorizableDeal,
 } from "./forecast-rule";
+
+// The shipped stall clock, which these cases are written around. It stopped
+// being a constant with incr/0041 - a workspace sets its own - and the default
+// is what the rule uses when nobody has.
+const STALL_DAYS = DEFAULT_FORECAST_THRESHOLDS.stallDays;
 
 const NOW = new Date("2026-08-31T00:00:00Z");
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);

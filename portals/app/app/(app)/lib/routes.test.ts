@@ -14,14 +14,22 @@ import { DOMAIN_LABEL } from "./messages";
 // nav shipped before five of its destinations did, and nothing failed.
 
 const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
+/* TWO SURFACE GROUPS (2026-09-07). A nav href resolves under (app) OR (screen):
+   the situation screen is a page of this product with an entry in the rail, but
+   it deliberately does not wear the shell, so its file lives in the other group.
+   Checking only (app) would have reported a working link as a 404. */
+const SCREEN_DIR = join(APP_DIR, "..", "(screen)");
 
 test("every nav entry has a page file", () => {
   for (const entry of NAV_ENTRIES) {
     const segment = entry.href.replace(/^\//, "");
-    const page = join(APP_DIR, segment, "page.tsx");
+    const candidates = [
+      join(APP_DIR, segment, "page.tsx"),
+      join(SCREEN_DIR, segment, "page.tsx"),
+    ];
     assert.ok(
-      existsSync(page),
-      `nav entry "${entry.key}" points at ${entry.href} but ${segment}/page.tsx does not exist`,
+      candidates.some((c) => existsSync(c)),
+      `nav entry "${entry.key}" points at ${entry.href} but no page.tsx exists under (app) or (screen)`,
     );
   }
 });

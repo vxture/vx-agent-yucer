@@ -127,11 +127,12 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     key: "deployment",
     icon: "users",
     modules: [
-      // A page of its own since 2026-08-30. It sat above the target table on
-      // /planning because a territory is a PRECONDITION for a regional target;
-      // that relationship is still stated there, and the module is now where
-      // the menu says it is.
-      built("territory"),
+      /* 销售区域 IS NOT A MODULE ANY MORE (owner, 2026-09-08). It was one from
+         2026-08-30 to today, and the split cost more than it bought: drawing
+         the ground and setting the number it carries are one act - 规划团队,
+         划定区域, 明确指标 - and they were behind two menu entries. The roster
+         is a section of 销售规划 now. 大区 went the other way, to configuration
+         behind the gear, because how the market is carved is not planning. */
       // A page since 2026-08-30. The write path shipped in 6c on
       // /account/[id]; what was missing was the ROSTER - who our named
       // accounts are, together - and a control on a detail page is not a
@@ -151,7 +152,14 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
     modules: [
       built("campaign"),
       built("signal"),
-      built("routing"),
+      // The funnel's order: a signal becomes a lead. Assignment is a button
+      // inside 线索管理 rather than a module beside it (owner, 2026-09-06:
+      // 无需过度拆分).
+      built("lead"),
+      // LAST in 战场侦察域, and it is the only module here that is about the
+      // whole chain rather than one link in it - so it reads as the summary of
+      // what the three above feed, which is what it is.
+      built("funnel"),
     ],
   },
   {
@@ -199,7 +207,16 @@ export const FUNCTIONAL_DOMAINS: readonly FunctionalDomain[] = [
  * The home stream stays because it IS a destination: it is where you land and
  * what you come back to.
  */
-export const CROSSCUTTING_MODULES: readonly DomainModule[] = [built("home")];
+export const CROSSCUTTING_MODULES: readonly DomainModule[] = [
+  built("home"),
+  /* 销售大屏 sits beside 今日判断 rather than in a domain column, for the same
+     reason 今日判断 does: it OWNS NO OBJECT. It is a way of looking at what the
+     domains already hold, so putting it in one of their columns would claim it
+     belongs to that domain, and putting it in a sixth would break the
+     five-domain shape. Both entries are destinations that read ACROSS the
+     domains, which is what this row is for. */
+  built("national"),
+];
 
 /** A module resolved against one member's gates, ready to render. */
 export type ResolvedModule =

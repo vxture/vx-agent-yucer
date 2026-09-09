@@ -2,16 +2,28 @@
 
 import Link from "next/link";
 import { useState, useTransition, type ReactNode } from "react";
-import { DataTable, EmptyState, Section, StatusBadge, useToast } from "@vxture/design-ui";
+import {
+  DataTable,
+  EmptyState,
+  FilterBar,
+  Input,
+  NativeSelect,
+  Section,
+  StatusBadge,
+  TableTitleCell,
+  useToast,
+} from "@vxture/design-ui";
+import { formatMoney } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { formatMoney } from "../lib/view-model";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
-  MoneyCell,
+  FilterSlot,
   RowActions,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 import { worseThan, type ProjectHealth } from "../../domains/delivery/lib/delivery-stats";
 import { projectProgress } from "../../domains/delivery/lib/progress";
@@ -126,6 +138,13 @@ export interface DeliveryRosterProps {
   ) => Promise<{ ok: boolean; changed?: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: DeliveryRow) => r.name,
+  contract: (r: DeliveryRow) => r.contractAmount,
+};
+
 export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: DeliveryRosterProps) {
   const {
     DELIVERY_TEXT,
@@ -133,8 +152,10 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     PROJECT_ERROR,
     PROJECT_STATUS_LABEL,
     HEALTH_LABEL,
+    TABLE_TOOLBAR_TEXT,
   } = useMessages();
   const { toast } = useToast();
+  const sorted = useTableSort<DeliveryRow>([], SORT_ON);
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx).
   const [selected, setSelected] = useState<readonly string[]>([]);
@@ -142,13 +163,44 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
   // expandedContent is used, because "expand everything" has to be pressable
   // from outside the table.
   const [expanded, setExpanded] = useState<readonly string[]>([]);
+  // 工具行的两个状态. Both tables read them: a keyword narrows the running and
+  // the finished list at once, which is what somebody looking for ONE project
+  // by name wants - they do not know, and should not have to know, which of
+  // the two it ended up in.
+  const [query, setQuery] = useState("");
+  const [healthFilter, setHealthFilter] = useState("");
 
-  const running = rows.filter(
-    (r) => r.status !== "delivered" && r.status !== "closed" && r.status !== "cancelled",
-  );
-  const finished = rows.filter(
-    (r) => r.status === "delivered" || r.status === "closed" || r.status === "cancelled",
-  );
+  /* WHAT THE BOX SEARCHES is what the row SHOWS - project name, project
+     number, customer. Searching a field the table does not render produces a
+     hit the reader cannot see the reason for. */
+  const match = (r: DeliveryRow) => {
+    const q = query.trim().toLowerCase();
+    const hitQuery =
+      q === "" ||
+      [r.name, r.projectNo, r.accountName ?? ""].some((v) =>
+        v.toLowerCase().includes(q),
+      );
+    /* 健康度 filters on the DERIVED reading, not the reported one: the
+       question this filter answers is "which projects are actually in
+       trouble", and the reported colour is a claim about that, not the
+       answer. */
+    return hitQuery && (healthFilter === "" || r.derived === healthFilter);
+  };
+
+  const filtered = rows.filter(match);
+  const narrowed = query.trim() !== "" || healthFilter !== "";
+
+  /* The UNFILTERED totals - the denominators of "3 / 12 条", and the test for
+     whether an archive exists at all as opposed to having been narrowed to
+     nothing. Read off `rows`, never off `filtered`, or the ratio would always
+     be N / N. */
+  const isFinished = (r: DeliveryRow) =>
+    r.status === "delivered" || r.status === "closed" || r.status === "cancelled";
+  const inFlight = rows.filter((r) => !isFinished(r)).length;
+  const archived = rows.filter(isFinished).length;
+
+  const running = filtered.filter((r) => !isFinished(r));
+  const finished = filtered.filter(isFinished);
 
   const tone = (h: ProjectHealth) =>
     h === "red" ? "danger" : h === "amber" ? "warning" : "success";
@@ -156,26 +208,27 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: DELIVERY_TEXT.columnNameAccount,
       cell: (r: DeliveryRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副行是客户 (owner, 2026-09-06). An identifier
-              is what the detail page is for; the customer is what a reader
-              scans this column for. */}
-          <span className="text-foreground truncate text-body-lg font-semibold">{r.name}</span>
-          <Link
-            href={`/account/${r.accountId}`}
-            className="text-muted-foreground truncate text-body-sm hover:underline"
-          >
-            {r.accountName ?? r.accountId}
-          </Link>
-        </span>
+        /* The subtitle stays a LINK here - the customer is the one thing on
+           this row that leads somewhere else, and the DS takes a node. An
+           identifier is what the detail page is for; the customer name is
+           what a reader scans this column for. */
+        <TableTitleCell
+          title={r.name}
+          tooltip={r.name}
+          description={
+            <Link href={`/account/${r.accountId}`} className="hover:underline">
+              {r.accountName ?? r.accountId}
+            </Link>
+          }
+        />
       ),
     },
     {
       id: "manager",
       header: DELIVERY_TEXT.columnManager,
-      align: "center" as const,
       // A raw subject, marked as one - dressing a machine string as a person
       // is how a UUID ends up in front of someone who then does not chase it.
       cell: (r: DeliveryRow) =>
@@ -188,7 +241,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "health",
       header: DELIVERY_TEXT.columnHealthStatus,
-      align: "center" as const,
       cell: (r: DeliveryRow) => (
         <span className="flex flex-col items-center gap-3xs">
           <StatusBadge tone={tone(r.derived)}>
@@ -209,7 +261,6 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "progress",
       header: DELIVERY_TEXT.columnProgress,
-      align: "center" as const,
       // TWO FACTS, and the order is the reading: WHERE the project is, then
       // how far that is through the plan (owner, 2026-09-06). The percentage
       // alone says nothing about what happens next; the milestone name alone
@@ -222,10 +273,11 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
     {
       id: "contract",
       header: DELIVERY_TEXT.columnContract,
-      align: "right" as const,
-      cell: (r: DeliveryRow) => (
-        <MoneyCell pad="0.5rem">{formatMoney(r.contractAmount, r.currency)}</MoneyCell>
-      ),
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
+      // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
+      sortable: true,
+      align: "money" as const,
+      cell: (r: DeliveryRow) => formatMoney(r.contractAmount, r.currency),
     },
   ];
 
@@ -323,7 +375,9 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: DeliveryRow) => r.id}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={columns}
           rowActions={rowActions}
           expandedContent={expandedContent}
@@ -343,25 +397,105 @@ export function DeliveryRoster({ rows, canWrite, canPlan, onReconcile }: Deliver
         title={DELIVERY_TEXT.rosterRunning}
         description={DELIVERY_TEXT.rosterRunningWhy}
       >
+        {/* ONE TOOL ROW FOR BOTH TABLES, and it lives with the running one
+            because that is the list people work. A keyword narrows the
+            archive below at the same time - somebody hunting one project by
+            name does not know which of the two it ended up in, and should not
+            have to guess before typing. The archive says so itself rather
+            than narrowing silently: its own heading carries the note. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(running.length, inFlight)
+              : DELIVERY_TEXT.rowCount(running.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={DELIVERY_TEXT.searchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setHealthFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot>
+            <NativeSelect
+              value={healthFilter}
+              aria-label={DELIVERY_TEXT.filterAllHealth}
+              onChange={(e) => setHealthFilter(e.target.value)}
+            >
+              <option value="">{DELIVERY_TEXT.filterAllHealth}</option>
+              {Object.entries(HEALTH_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(
           running,
-          <EmptyState title={DELIVERY_TEXT.noProjects} description={DELIVERY_TEXT.description} />,
+          /* A NARROWED EMPTY LIST IS NOT AN EMPTY LIST. "还没有交付项目" under
+             an active keyword is simply false, and it sends the reader to
+             create a project that already exists. */
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState title={DELIVERY_TEXT.noProjects} description={DELIVERY_TEXT.description} />
+          ),
         )}
       </Section>
 
-      {finished.length > 0 ? (
+      {/* STAYS ON SCREEN WHILE NARROWED even with nothing in it. Gating on
+          `finished.length` alone made the archive disappear outright the
+          moment a keyword matched none of it - and the note explaining why
+          went with it, so the reader saw a section vanish and nothing said a
+          search had done it (measured, 2026-09-07). */}
+      {finished.length > 0 || (narrowed && archived > 0) ? (
         <Section
           id="delivery-finished"
           icon="file-text"
           title={DELIVERY_TEXT.rosterFinished}
           description={DELIVERY_TEXT.rosterFinishedWhy}
+          /* Says out loud that a control in the section ABOVE is narrowing
+             this one. Without it the archive quietly loses rows and nothing
+             on screen explains where they went. */
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{DELIVERY_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(
             finished,
-            <EmptyState
-              title={DELIVERY_TEXT.noProjects}
-              description={DELIVERY_TEXT.description}
-            />,
+            narrowed ? (
+              <EmptyState
+                title={TABLE_TOOLBAR_TEXT.noMatch}
+                description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+              />
+            ) : (
+              <EmptyState
+                title={DELIVERY_TEXT.noProjects}
+                description={DELIVERY_TEXT.description}
+              />
+            ),
           )}
         </Section>
       ) : null}

@@ -5,13 +5,20 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
   Section,
-  StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  useTableSort,
+} from "./table-fittings";
+import { Tag } from "./tag";
 
 // How the market is cut - the catalogue module pattern, applied on the
 // owner's 2026-09-05 ruling.
@@ -48,12 +55,21 @@ export interface SegmentRosterProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: SegmentRow) => r.name,
+  counts: (r: SegmentRow) => r.accountCount,
+};
+
 export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: SegmentRosterProps) {
-  const { STRATEGY_TEXT, SEGMENT_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS } = useMessages();
+  const { STRATEGY_TEXT, SEGMENT_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are ids.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<SegmentRow>([], SORT_ON);
   const { toast } = useToast();
 
   const live = rows.filter((r) => r.status === "active");
@@ -73,12 +89,10 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: STRATEGY_TEXT.colSegmentName,
       cell: (r: SegmentRow) => (
-        <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate">{r.name}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.segmentCode}</span>
-        </span>
+        <TableTitleCell title={r.name} description={r.segmentCode} tooltip={r.name} />
       ),
     },
     {
@@ -112,9 +126,11 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       id: "counts",
       header: STRATEGY_TEXT.colSegmentCounts,
       width: "sm" as const,
-      align: "center" as const,
       // Side by side, and coloured when they disagree: the divergence is the
       // finding this page exists to show.
+      sortable: true,
+      // "12 / 8" is a pair, not a number - there is nothing to line up.
+      
       cell: (r: SegmentRow) => (
         <span
           className={`tabular-nums text-body-sm ${
@@ -129,11 +145,10 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
       id: "status",
       header: CATALOG_TEXT.colStatus,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: SegmentRow) => (
-        <StatusBadge tone={r.status === "active" ? "success" : "neutral"}>
+        <Tag tone={r.status === "active" ? "success" : "neutral"}>
           {(STRATEGY_TEXT.segmentStatusLabel as Record<string, string>)[r.status] ?? r.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
@@ -227,7 +242,9 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: SegmentRow) => r.id}
-        rows={[...list]}
+        rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={columns}
         rowActions={rowActions}
         empty={
@@ -255,6 +272,14 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
           ) : undefined
         }
       >
+        {/* 按需 - COUNT ONLY, no search box (owner's 按需添加, 2026-09-07).
+            Segments are a curated set kept in priority order, a dozen at the
+            outside, and the whole list is on screen at once: a keyword box
+            here would be a control for finding something already visible.
+            The count still earns its place - "how many cuts of the market do
+            we run" is a question the heading cannot answer. */}
+        <FilterBar count={STRATEGY_TEXT.segmentCount(live.length)} />
+
         {table(live)}
       </Section>
 

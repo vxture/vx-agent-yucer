@@ -7,11 +7,13 @@ import {
   ShellIconButton,
   ShellIconGroup,
 } from "@vxture/design-system";
-import { Badge,
+import {
+  Badge,
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@vxture/design-ui";
+import { CountBadge } from "./count-badge";
 import { useMessages } from "../lib/i18n/provider";
 
 /**
@@ -125,9 +127,7 @@ export function HeaderTools({
                 className="pointer-events-none absolute -top-2xs -right-2xs"
                 aria-hidden="true"
               >
-                <Badge variant="destructive">
-                  {notifications > 99 ? HEADER_TEXT.countOverflow : notifications}
-                </Badge>
+                <CountBadge count={notifications} />
               </span>
             ) : null}
           </span>

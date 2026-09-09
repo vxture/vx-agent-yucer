@@ -11,7 +11,14 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import {
+  AssistPanel,
+  FormFields,
+  FormFieldWide,
+  FormPage,
+  useFormSubmit,
+  type AssistSuggestion,
+} from "./form-page";
 import { campaignsWithoutExecutions } from "../../domains/campaign/lib/suggest";
 import { knownValues } from "../../domains/shared/suggest";
 
@@ -122,7 +129,11 @@ export function ExecutionForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="list-checks">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
+            {/* WHICH EXECUTION, and it takes the whole row: it chooses what
+                everything below is describing rather than describing it. */}
+            <FormFieldWide>
             <Field>
               <FieldLabel>{CAMPAIGN_TEXT.executionEditing}</FieldLabel>
               <NativeSelect value={form.id} onChange={(e) => pick(e.target.value)}>
@@ -136,6 +147,7 @@ export function ExecutionForm({
                   ))}
               </NativeSelect>
             </Field>
+            </FormFieldWide>
             <Field>
               <FieldLabel>{CAMPAIGN_TEXT.executionCampaign}</FieldLabel>
               <NativeSelect
@@ -195,6 +207,7 @@ export function ExecutionForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFields>
             <p className="text-muted-foreground text-body-sm">{CAMPAIGN_TEXT.executionBlocks}</p>
             <div className="flex items-center gap-md">
               <Button

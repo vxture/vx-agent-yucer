@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
@@ -35,7 +36,7 @@ export default async function CapturePage({
   searchParams: Promise<{ account?: string; opportunity?: string; back?: string }>;
 }) {
   const { account: accountId, opportunity: opportunityId, back } = await searchParams;
-  const { SHELL_TEXT, FIELD_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, FIELD_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -69,6 +70,13 @@ export default async function CapturePage({
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[
+          { label: DOMAIN_LABEL.account, href: "/account" },
+          { label: detail.value.account.name, href: `/account/${accountId}` },
+        ]}
+        current={FIELD_TEXT.captureCrumb}
+      />
       <ViewHeader
         title={FIELD_TEXT.captureTitle(detail.value.account.name)}
         description={FIELD_TEXT.captureWhy}

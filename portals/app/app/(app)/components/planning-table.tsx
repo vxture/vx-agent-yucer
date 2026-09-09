@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActionMenu,
   DataTable,
@@ -8,21 +8,22 @@ import {
   FilterBar,
   ListCard,
   ListCardGrid,
-  StatusBadge,
+  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  useToast,
   type DataTableColumn,
   type FilterBarView,
-  useToast,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import type { AttainmentRow } from "../../domains/planning/service";
 import type { TargetValue } from "../../domains/planning/lib/target";
 import { formatMoney, formatPercent } from "../lib/view-model";
-import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
 import type { Dictionary } from "../lib/i18n/dictionary";
+import { Tag } from "./tag";
 // The attainment table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -106,6 +107,21 @@ export function PlanningTable({
   }
   const names = territoryNames ?? new Map<string, string>();
 
+  /* 排序取值 lives INSIDE the component here, unlike the other tables: the
+     scope column sorts on its rendered label, and that label needs both the
+     territory names and the dictionary - neither of which exists at module
+     scope. Memoised because the hook keys its comparator on this object. */
+  const SORT_ON = useMemo(
+    () => ({
+      scope: (r: AttainmentRow) => scopeLabel(r, names, PLANNING_TEXT),
+      target: (r: AttainmentRow) => r.target.targetValue.amount,
+      closed: (r: AttainmentRow) =>
+        r.measurement.kind === "measured" ? r.measurement.achieved.amount : null,
+    }),
+    [names, PLANNING_TEXT],
+  );
+  const sorted = useTableSort(rows, SORT_ON);
+
   if (rows.length === 0) {
     return (
       <EmptyState
@@ -118,8 +134,9 @@ export function PlanningTable({
   const columns: readonly DataTableColumn<AttainmentRow>[] = [
     {
       id: "scope",
+  sortable: true,
       header: PLANNING_TEXT.columnScope,
-      cell: (row) => scopeLabel(row, names, PLANNING_TEXT),
+      cell: (row) => <TableTitleCell title={scopeLabel(row, names, PLANNING_TEXT)} />,
     },
     {
       id: "metric",
@@ -131,15 +148,17 @@ export function PlanningTable({
     {
       id: "target",
       header: PLANNING_TEXT.columnTarget,
-      align: "right",
+      sortable: true,
+      align: "numeric",
       cell: (row) => formatValue(row.target.targetValue, PLANNING_TEXT),
     },
     {
       id: "closed",
       header: PLANNING_TEXT.columnClosed,
-      align: "right",
       // Blank, not zero, when the metric could not be measured: there is no
       // achieved number, which is a different fact from having achieved none.
+      sortable: true,
+      align: "numeric",
       cell: (row) =>
         row.measurement.kind === "measured"
           ? formatValue(row.measurement.achieved, PLANNING_TEXT)
@@ -148,20 +167,18 @@ export function PlanningTable({
     {
       id: "attainment",
       header: PLANNING_TEXT.columnAttainment,
-      align: "center",
       // "No snapshot yet" is rendered as its own state, never as 0%.
       cell: (row) => <Attainment row={row} />,
     },
     {
       id: "status",
       header: PLANNING_TEXT.columnStatus,
-      align: "center",
       cell: (row) => (
-        <StatusBadge
+        <Tag
           tone={row.target.status === "committed" ? "warning" : "neutral"}
         >
           {TARGET_STATUS_LABEL[row.target.status] ?? row.target.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
@@ -258,14 +275,15 @@ export function PlanningTable({
           A CLOSED target gets no menu at all rather than a disabled one: it is
           frozen by rule (planTargetUpdate refuses every patch), and a greyed
           menu invites a click that can only ever fail. */}
-      <TableCard>
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
             rowActions={canUpdate && onUpdate ? actions : undefined}
             indexStart={1}
             columns={columns}
-            rows={rows}
+            rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.target.id}
           />
         ) : (
@@ -296,7 +314,6 @@ export function PlanningTable({
             ))}
           </ListCardGrid>
         )}
-      </TableCard>
     </>
   );
 }
@@ -336,9 +353,9 @@ function Attainment({ row }: { row: AttainmentRow }) {
       <Tooltip>
         <TooltipTrigger asChild>
           <span>
-            <StatusBadge tone="neutral">
+            <Tag>
               {PLANNING_TEXT.gapLabel[m.code]}
-            </StatusBadge>
+            </Tag>
           </span>
         </TooltipTrigger>
         <TooltipContent>{PLANNING_TEXT.gapHint[m.code]}</TooltipContent>
@@ -346,8 +363,8 @@ function Attainment({ row }: { row: AttainmentRow }) {
     );
   }
   return (
-    <StatusBadge tone={m.ratio != null && m.ratio >= 1 ? "success" : "neutral"}>
+    <Tag tone={m.ratio != null && m.ratio >= 1 ? "success" : "neutral"}>
       {formatPercent(m.ratio)}
-    </StatusBadge>
+    </Tag>
   );
 }

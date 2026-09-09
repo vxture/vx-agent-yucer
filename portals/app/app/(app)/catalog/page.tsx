@@ -1,7 +1,6 @@
 import { can } from "../../authz/decide";
 import { CatalogPage } from "./shell";
-import { Icon, StatusBadge } from "@vxture/design-ui";
-import Link from "next/link";
+import { StatusBadge } from "@vxture/design-ui";
 import { ModuleHeadline, type HeadlineStat } from "../components/module-headline";
 import { ProductRoster } from "../components/product-roster";
 import { changeProductStatus, deleteProduct, moveProductRow } from "./actions";
@@ -22,7 +21,7 @@ export default async function ProductsPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, types, statuses, authz, entitlement }) => {
+      render={({ products, types, statuses, units, authz, entitlement }) => {
         const canWrite = can(authz, entitlement, "catalog.product.upsert", "ui").allowed;
         // The two tags and the roster split are wired to the CANONICAL rows -
         // products on a workspace-added status live in the main roster and
@@ -78,18 +77,6 @@ export default async function ProductsPage() {
                   ) : null}
                 </>
               }
-              action={
-                canWrite ? (
-                  <Link
-                    href="/catalog/settings"
-                    aria-label={CATALOG_TEXT.settingsLink}
-                    title={CATALOG_TEXT.settingsLink}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <Icon name="settings" size="sm" />
-                  </Link>
-                ) : null
-              }
               stats={stats}
               emptyNote={CATALOG_TEXT.byTypeEmpty}
             />
@@ -98,6 +85,7 @@ export default async function ProductsPage() {
               products={products}
               types={types}
               statuses={statuses}
+              units={units}
               canWrite={canWrite}
               onMove={moveProductRow}
               onStatus={changeProductStatus}

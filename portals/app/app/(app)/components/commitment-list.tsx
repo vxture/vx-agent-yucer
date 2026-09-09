@@ -16,6 +16,7 @@ import {
   isOverdue,
 } from "../../domains/account/lib/commitment";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -127,15 +128,15 @@ export function CommitmentList({
         const chosen = picked[c.id] ?? "";
         return (
           <div key={c.id}>
-            <StatusBadge tone={c.direction === "they_owe" ? "info" : "neutral"}>
+            <Tag tone={c.direction === "they_owe" ? "info" : "neutral"}>
               {DIRECTION_LABEL[c.direction] ?? c.direction}
-            </StatusBadge>
+            </Tag>
             <span>{c.statement}</span>
-            <StatusBadge tone={overdue ? "danger" : "neutral"} dot={overdue}>
+            <Tag tone={overdue ? "danger" : "neutral"} dot={overdue}>
               {overdue
                 ? FIELD_TEXT.commitDaysOverdue(days)
                 : FIELD_TEXT.commitDueIn(days)}
-            </StatusBadge>
+            </Tag>
 
             {canWrite ? (
               <>
@@ -225,7 +226,7 @@ export function CommitmentList({
 
       {settled.map((c) => (
         <div key={c.id}>
-          <StatusBadge
+          <Tag
             tone={
               c.status === "met"
                 ? "success"
@@ -235,7 +236,7 @@ export function CommitmentList({
             }
           >
             {COMMIT_STATUS_LABEL[c.status] ?? c.status}
-          </StatusBadge>
+          </Tag>
           <span>{c.statement}</span>
         </div>
       ))}

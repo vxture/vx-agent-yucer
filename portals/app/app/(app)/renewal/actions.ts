@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getDeliveryStore, getPipelineStore } from "../../domains/shared/registry";
+import {
+  getDeliveryStore,
+  getCatalogStore,
+} from "../../domains/shared/registry";
 import { renewalDraft } from "../../domains/delivery/service";
 import { createOpportunity, listRenewedProjectIds } from "../../domains/pipeline/service";
 
@@ -53,7 +56,7 @@ export async function openRenewal(input: {
   if (!draft.ok) return { ok: false, error: draft.violations[0]?.code ?? "denied" };
 
   const created = await createOpportunity(
-    { ...base, store: session.stores.pipeline() },
+    { ...base, store: session.stores.pipeline(), catalog: getCatalogStore() },
     {
       name: draft.value.name,
       accountId: draft.value.accountId,
@@ -62,6 +65,13 @@ export async function openRenewal(input: {
       // planning question this derivation has no business answering.
       territoryId: null,
       ownerSub: null,
+      // DERIVED, NOT INVENTED. A renewal's requirement is the engagement it
+      // continues - that is what the customer is buying and the product knows
+      // it without asking. Everything else about a renewal is deliberately
+      // left blank here (no territory, no close date), and this is not an
+      // exception to that: it is the one fact the source project already
+      // states.
+      requirement: draft.value.requirementFromProject,
       amount:
         draft.value.amount === null
           ? null

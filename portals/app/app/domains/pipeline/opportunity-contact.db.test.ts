@@ -44,9 +44,9 @@ async function seed(c: Client) {
   );
   await c.query(`INSERT INTO yucer_core.person (id, workspace_id, name) VALUES ($1, $2, 'Wang')`, [P1, WS]);
   await c.query(
-    `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id, stage)
-     VALUES ($1, $3, 'OPP-B1', 'Supply chain', $4, 'validate'),
-            ($2, $3, 'OPP-B2', 'Scheduling', $4, 'discover')`,
+    `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id, stage, owner_sub, requirement)
+     VALUES ($1, $3, 'OPP-B1', 'Supply chain', $4, 'validate', 'usr_db', 'fixture requirement'),
+            ($2, $3, 'OPP-B2', 'Scheduling', $4, 'discover', 'usr_db', 'fixture requirement')`,
     [OPP, OPP2, WS, ACC],
   );
 }

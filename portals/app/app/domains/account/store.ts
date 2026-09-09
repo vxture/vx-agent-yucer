@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 // D4 account persistence port.
 //
 // One thing here differs from the pipeline port and is worth stating: the
@@ -7,17 +8,55 @@
 // deleted or left standing - it is never rewritten in place, because "who
 // reported to whom last quarter" is a fact the decision-chain analysis reads.
 
+import {
+  DEFAULT_MARKET_SCOPE,
+  MARKET_DIVISIONS,
+  MARKET_DIVISION_PROVINCES,
+  DIVISION_TEMPLATES,
+  frameMembers,
+  templatesFor,
+  type DivisionTemplate,
+  type MarketMember,
+  type MarketScope,
+} from "../shared/market-division";
 import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
+import type { IndustryDraft } from "./lib/industry-vocab";
 
 export interface AccountRecord {
   id: string;
   workspaceId: string;
   accountNo: string;
   name: string;
+  /**
+   * incr/0040. The join into this workspace's own industry vocabulary.
+   *
+   * This is the column; `industry` below is what it reads as. Null is the
+   * ordinary state of a fresh prospect - unlike product.unit_id, which a
+   * quotable product cannot be without.
+   */
+  industryId: string | null;
+  /**
+   * The industry's display name, RESOLVED ON READ from `industryId`.
+   *
+   * Derived, never written: the patch takes `industryId`. It is carried on the
+   * record rather than joined by each screen because the completeness rule
+   * compares it to `market_segment.criteria.industries`, which are names - a
+   * per-screen lookup would put that join in five places and leave the rule
+   * with nothing to compare.
+   */
   industry: string | null;
   region: string | null;
+  /**
+   * incr/0035. The provincial-level division - one granularity below `region`.
+   *
+   * Both are stored rather than one derived from the other: `region` is a 大区
+   * and is what TERRITORY ROUTING matches on, so writing a province into it
+   * would place the account on ground no territory covers and quietly make it
+   * unassignable. CHECK-constrained in the database to the 34 divisions.
+   */
+  province: string | null;
   segmentCode: string | null;
   ownerSub: string | null;
   healthScore: number | null;
@@ -124,8 +163,101 @@ export interface HealthInputs {
   overdueRevenueCount: number;
 }
 
+/** One 大区, as this workspace has it (incr/0036, members by frame since 0045). */
+export interface MarketDivisionRecord {
+  id: string;
+  code: string;
+  name: string;
+  /** The frame it was carved in (incr/0043), and for a province frame which
+   *  province (0045) - the letters that used to prefix the code. */
+  scope: MarketScope["kind"];
+  scopeProvince: string | null;
+  sortOrder: number;
+  /** What it holds - provinces under 中国市场, cities under 省级市场 - in no
+   *  particular order. `key` is the stored identity, `label` the printed one. */
+  members: MarketMember[];
+}
+
+/**
+ * 行业 - one entry in this workspace's own industry vocabulary (incr/0040).
+ *
+ * `industryCode` is the anchor and never changes; `name` is what people read
+ * and may be corrected at any time. Same shape as the catalogue's three
+ * vocabularies, and the same reason for it.
+ */
+export interface IndustryRecord {
+  id: string;
+  workspaceId: string;
+  industryCode: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
+  /**
+   * How this workspace divides its market.
+   *
+   * PRESET, THEN THEIRS. incr/0036 seeds five divisions and places all 34
+   * provinces; the tenant may rename, re-order and move provinces afterwards.
+   * Read rather than derived, because a 大区 is a sales structure and not a
+   * fact of geography - deriving it in code would make the division a property
+   * of the build and the same for every tenant.
+   */
+  /**
+   * The divisions of the workspace's CURRENT frame.
+   *
+   * A workspace that switches frame does not lose the carve it made in the
+   * old one - those rows stay, with their own scope - it stops seeing them.
+   * Listing is by frame so a china carve and a global one never mix in one
+   * roster or one roll-up.
+   */
+  listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]>;
+  /* --- 市场范围 (incr/0043) --------------------------------------------------
+     One row per workspace: `get` answers china where no row exists yet, and
+     `set` writes it either way. */
+  getMarketScope(workspaceId: string): Promise<MarketScope>;
+  setMarketScope(workspaceId: string, scope: MarketScope): Promise<void>;
+  /**
+   * The ground the current frame is carved from: the 34 provinces under
+   * 中国市场, the province's cities under 省级市场. What the picker offers and
+   * what the coverage line counts against.
+   */
+  listFrameMembers(workspaceId: string): Promise<MarketMember[]>;
+  /**
+   * 预置方案 - the shipped carves that cut the current frame (incr/0045),
+   * read from yucer_ref.market_carve. The service adopts one by copying its
+   * rows; it never holds a carve of its own.
+   */
+  listCarves(workspaceId: string): Promise<DivisionTemplate[]>;
+  /**
+   * Place one member (a province, or a city) in one 大区, or in none when
+   * code is null.
+   *
+   * A member belongs to AT MOST ONE division - both member tables' primary
+   * keys say so - therefore this replaces rather than adds. Returns false when
+   * the division code is not one this workspace has.
+   */
+  placeMember(
+    workspaceId: string,
+    memberKey: string,
+    divisionCode: string | null,
+  ): Promise<boolean>;
+  /**
+   * Create a 大区, or rename/re-order one that exists.
+   *
+   * THE TENANT OWNS THE LIST, not just the membership. Five are preset, and a
+   * workspace that sells differently is expected to change them - a 新疆基地
+   * holding one province is as legitimate a division as 西部 holding ten. The
+   * code is the anchor and is never rewritten: upserting an existing code
+   * renames it, a new code creates one.
+   */
+  upsertMarketDivision(
+    workspaceId: string,
+    input: { code: string; name: string; sortOrder?: number },
+  ): Promise<MarketDivisionRecord>;
+  /** Remove a 大区. Refuses while it still holds provinces - see the service. */
+  removeMarketDivision(workspaceId: string, code: string): Promise<boolean>;
   /**
    * The stated buying roles for one deal - incr/0027.
    *
@@ -163,7 +295,7 @@ export interface AccountStore {
     patch: Partial<
       Pick<
         AccountRecord,
-        | "name" | "industry" | "region" | "segmentCode" | "ownerSub" | "healthScore"
+        | "name" | "industryId" | "region" | "province" | "segmentCode" | "ownerSub" | "healthScore"
         | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
       >
     >,
@@ -204,11 +336,171 @@ export interface AccountStore {
 
   /** The inputs a health recompute needs, gathered across domains. */
   healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs>;
+
+  /* --- 行业 (incr/0040) -----------------------------------------------------
+     The same five the catalogue vocabularies have. `countAccountsByIndustry`
+     is what makes the delete refusal predictable: fk_account_industry RESTRICTs
+     underneath, and a control whose refusal is known in advance should say so
+     before it is clicked. */
+  listIndustries(workspaceId: string): Promise<IndustryRecord[]>;
+  upsertIndustry(workspaceId: string, input: IndustryDraft): Promise<IndustryRecord>;
+  setIndustryOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeIndustry(workspaceId: string, industryId: string): Promise<boolean>;
+  countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number>;
 }
 
 export class InMemoryAccountStore implements AccountStore {
   private plans = new Map<string, AccountPlanRecord>();
   private seq = 0;
+
+  /* The demo has no database, so it carries the same preset incr/0036 seeds.
+     market-division.test.ts parses that SQL and fails if the two ever
+     disagree - the SQL is the authority, this is a copy for a store that has
+     nothing to read. A tenant's edits live in the database; there are none
+     here to make. */
+  /* The tenant's own edits, over the preset. A workspace that has moved
+     nothing has an empty map and reads the preset exactly; the demo has no
+     database, so this is where its edits live for the life of the process. */
+  private divisionMoves = new Map<string, Map<string, string | null>>();
+  /* incr/0043. The frame, per workspace; absent reads as china. */
+  private scopes = new Map<string, MarketScope>();
+
+  async getMarketScope(workspaceId: string): Promise<MarketScope> {
+    return this.scopes.get(workspaceId) ?? DEFAULT_MARKET_SCOPE;
+  }
+
+  async setMarketScope(workspaceId: string, scope: MarketScope): Promise<void> {
+    this.scopes.set(workspaceId, { ...scope });
+  }
+
+  /* The tenant's own divisions, over the preset. Same shape as divisionMoves:
+     an empty map means "the preset, unchanged". */
+  /* KEYED BY FRAME AND CODE (0045): a province code carries no prefix, so
+     GUANZHONG under 陕西 and a GUANZHONG a tenant typed under 中国市场 are two
+     rows, the way (workspace_id, scope, scope_province, division_code) is
+     the database's key. */
+  private divisionEdits = new Map<string, Map<string, { name: string; sortOrder: number } | null>>();
+
+  private static frameKey(scope: MarketScope): string {
+    return `${scope.kind}:${scope.code ?? ""}`;
+  }
+
+  /* A STABLE, OPAQUE ID PER ROW, the shape the database gives one: the edit
+     route carries it (owner: 名册连接改 id), so it must not be the code in
+     disguise and must survive a rename - minted once per frame + code. */
+  private divisionIds = new Map<string, string>();
+
+  private idFor(workspaceId: string, scope: MarketScope, code: string): string {
+    const key = `${workspaceId}|${InMemoryAccountStore.frameKey(scope)}|${code}`;
+    let id = this.divisionIds.get(key);
+    if (!id) {
+      id = randomUUID();
+      this.divisionIds.set(key, id);
+    }
+    return id;
+  }
+
+  private divisionsFor(workspaceId: string, scope: MarketScope): { code: string; name: string; sortOrder: number }[] {
+    const frame = InMemoryAccountStore.frameKey(scope);
+    const edits = this.divisionEdits.get(workspaceId) ?? new Map();
+    const out = new Map<string, { code: string; name: string; sortOrder: number }>();
+    if (scope.kind === "china") {
+      for (const d of MARKET_DIVISIONS) {
+        out.set(d.code, { code: d.code, name: d.name, sortOrder: d.sortOrder });
+      }
+    }
+    for (const [key, edit] of edits) {
+      if (!key.startsWith(`${frame}|`)) continue;
+      const code = key.slice(frame.length + 1);
+      if (edit === null) out.delete(code);
+      else out.set(code, { code, name: edit.name, sortOrder: edit.sortOrder });
+    }
+    return [...out.values()].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  }
+
+  async upsertMarketDivision(
+    workspaceId: string,
+    input: { code: string; name: string; sortOrder?: number },
+  ): Promise<MarketDivisionRecord> {
+    const scope = await this.getMarketScope(workspaceId);
+    let ws = this.divisionEdits.get(workspaceId);
+    if (!ws) { ws = new Map(); this.divisionEdits.set(workspaceId, ws); }
+    const mine = this.divisionsFor(workspaceId, scope);
+    const existing = mine.find((d) => d.code === input.code);
+    ws.set(`${InMemoryAccountStore.frameKey(scope)}|${input.code}`, {
+      name: input.name,
+      sortOrder: input.sortOrder ?? existing?.sortOrder ?? mine.length + 1,
+    });
+    const rows = await this.listMarketDivisions(workspaceId);
+    return rows.find((d) => d.code === input.code)!;
+  }
+
+  async removeMarketDivision(workspaceId: string, code: string): Promise<boolean> {
+    const scope = await this.getMarketScope(workspaceId);
+    if (!this.divisionsFor(workspaceId, scope).some((d) => d.code === code)) return false;
+    let ws = this.divisionEdits.get(workspaceId);
+    if (!ws) { ws = new Map(); this.divisionEdits.set(workspaceId, ws); }
+    ws.set(`${InMemoryAccountStore.frameKey(scope)}|${code}`, null);
+    return true;
+  }
+
+  async listFrameMembers(workspaceId: string): Promise<MarketMember[]> {
+    return [...frameMembers(await this.getMarketScope(workspaceId))];
+  }
+
+  async listCarves(workspaceId: string): Promise<DivisionTemplate[]> {
+    // The mirror of incr/0045, proved against the table by market-carve.db.test.ts.
+    return [...templatesFor(DIVISION_TEMPLATES, await this.getMarketScope(workspaceId))];
+  }
+
+  async placeMember(
+    workspaceId: string,
+    memberKey: string,
+    divisionCode: string | null,
+  ): Promise<boolean> {
+    const scope = await this.getMarketScope(workspaceId);
+    if (divisionCode !== null && !this.divisionsFor(workspaceId, scope).some((d) => d.code === divisionCode)) {
+      return false;
+    }
+    let ws = this.divisionMoves.get(workspaceId);
+    if (!ws) { ws = new Map(); this.divisionMoves.set(workspaceId, ws); }
+    ws.set(memberKey, divisionCode);
+    return true;
+  }
+
+  async listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]> {
+    const moved = this.divisionMoves.get(workspaceId) ?? new Map<string, string | null>();
+    const placement = new Map<string, string>();
+    for (const [province, code] of Object.entries(MARKET_DIVISION_PROVINCES)) {
+      placement.set(province, code);
+    }
+    for (const [member, code] of moved) {
+      if (code === null) placement.delete(member);
+      else placement.set(member, code);
+    }
+    /* BY FRAME: the preset is a china carve, and a tenant's own rows are
+       keyed by the frame they were carved in. A carve made under another
+       frame stays out of this list - and so do its members, since a member
+       follows its division. Labels come from the frame's own ground; a key
+       it does not know (a province placed while the frame was china, read
+       back under 陕西) is not a member here. */
+    const scope = await this.getMarketScope(workspaceId);
+    const known = new Map(frameMembers(scope).map((m) => [m.key, m]));
+    return this.divisionsFor(workspaceId, scope).map((d) => ({
+      id: this.idFor(workspaceId, scope, d.code),
+      code: d.code,
+      name: d.name,
+      scope: scope.kind,
+      scopeProvince: scope.kind === "province" ? scope.code : null,
+      sortOrder: d.sortOrder,
+      members: [...placement.entries()]
+        .filter(([key, code]) => code === d.code && known.has(key))
+        .map(([key]) => known.get(key)!),
+    }));
+  }
 
   async getAccountPlan(workspaceId: string, accountId: string): Promise<AccountPlanRecord | null> {
     const p = this.plans.get(`${workspaceId}|${accountId}`);
@@ -236,12 +528,16 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   private accounts = new Map<string, AccountRecord>();
+  /* incr/0040. The workspace's industry vocabulary, which the database holds
+     in yucer_core.industry. */
+  private industries: IndustryRecord[] = [];
   private contacts: ContactRecord[] = [];
   private relations: Array<RelationEdge & { workspaceId: string; accountId: string }> = [];
   private inputs = new Map<string, HealthInputs>();
 
   seed(input: {
     accounts?: AccountRecord[];
+    industries?: IndustryRecord[];
     plans?: AccountPlanRecord[];
     contacts?: ContactRecord[];
     relations?: Array<RelationEdge & { workspaceId: string; accountId: string }>;
@@ -249,6 +545,7 @@ export class InMemoryAccountStore implements AccountStore {
     opportunityContacts?: OpportunityContactRecord[];
   }): void {
     for (const pl of input.plans ?? []) this.plans.set(`${pl.workspaceId}|${pl.accountId}`, pl);
+    this.industries.push(...(input.industries ?? []));
     for (const a of input.accounts ?? []) this.accounts.set(a.id, { ...a });
     this.contacts.push(...(input.contacts ?? []));
     this.relations.push(...(input.relations ?? []));
@@ -306,8 +603,26 @@ export class InMemoryAccountStore implements AccountStore {
     return made;
   }
 
+  /**
+   * `industry` as the vocabulary currently spells it.
+   *
+   * ONLY WHERE THE ROW CARRIES A JOIN. A fixture that seeds a bare industry
+   * name and never touches the vocabulary is describing an account as it reads
+   * back, and this store is where fixtures live; the join itself is a property
+   * of Postgres and is proved there, by the db tests, against the real FK.
+   */
+  private hydrate(a: AccountRecord): AccountRecord {
+    if (!a.industryId) return { ...a };
+    const row = this.industries.find(
+      (i) => i.workspaceId === a.workspaceId && i.id === a.industryId,
+    );
+    return { ...a, industry: row?.name ?? null };
+  }
+
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
-    let rows = [...this.accounts.values()].filter((a) => a.workspaceId === workspaceId);
+    let rows = [...this.accounts.values()]
+      .filter((a) => a.workspaceId === workspaceId)
+      .map((a) => this.hydrate(a));
     if (filter.status) rows = rows.filter((a) => a.status === filter.status);
     if (filter.ownerSub) rows = rows.filter((a) => a.ownerSub === filter.ownerSub);
     if (filter.segmentCode) rows = rows.filter((a) => a.segmentCode === filter.segmentCode);
@@ -321,7 +636,7 @@ export class InMemoryAccountStore implements AccountStore {
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const a = this.accounts.get(id);
-    return a && a.workspaceId === workspaceId ? { ...a } : null;
+    return a?.workspaceId === workspaceId ? this.hydrate(a) : null;
   }
 
   async updateAccount(
@@ -333,6 +648,60 @@ export class InMemoryAccountStore implements AccountStore {
     if (!a || a.workspaceId !== workspaceId) return false;
     Object.assign(a, patch);
     return true;
+  }
+
+  async listIndustries(workspaceId: string): Promise<IndustryRecord[]> {
+    return this.industries
+      .filter((i) => i.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.industryCode.localeCompare(b.industryCode));
+  }
+
+  async upsertIndustry(workspaceId: string, input: IndustryDraft): Promise<IndustryRecord> {
+    const at = this.industries.findIndex(
+      (i) => i.workspaceId === workspaceId && i.industryCode === input.industryCode,
+    );
+    if (at >= 0) {
+      // The code is the anchor: an upsert on it renames, never re-keys.
+      const next = { ...this.industries[at]!, name: input.name };
+      this.industries[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.industries.filter((i) => i.workspaceId === workspaceId).map((i) => i.sortOrder),
+    );
+    const row: IndustryRecord = {
+      id: `ind_${++this.seq}`,
+      workspaceId,
+      sortOrder: tail + 1,
+      ...input,
+    };
+    this.industries.push(row);
+    return row;
+  }
+
+  async setIndustryOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.industries = this.industries.map((i) =>
+      i.workspaceId === workspaceId && want.has(i.id) ? { ...i, sortOrder: want.get(i.id)! } : i,
+    );
+  }
+
+  async removeIndustry(workspaceId: string, industryId: string): Promise<boolean> {
+    const before = this.industries.length;
+    this.industries = this.industries.filter(
+      (i) => !(i.workspaceId === workspaceId && i.id === industryId),
+    );
+    return this.industries.length < before;
+  }
+
+  async countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number> {
+    return [...this.accounts.values()].filter(
+      (a) => a.workspaceId === workspaceId && a.industryId === industryId,
+    ).length;
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {

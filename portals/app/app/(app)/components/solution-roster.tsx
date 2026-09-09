@@ -5,14 +5,24 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
+  Input,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import type { SolutionItemRecord, SolutionRecord } from "../../domains/catalog/store";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  SearchSlot,
+  useTableSort,
+} from "./table-fittings";
+import { Tag } from "./tag";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -44,6 +54,12 @@ export interface SolutionRosterProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: SolutionView) => r.solution.name,
+};
+
 export function SolutionRoster({
   solutions,
   canWrite,
@@ -51,16 +67,41 @@ export function SolutionRoster({
   onStatus,
   onDelete,
 }: SolutionRosterProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are ids, so a selection is of the
   // things themselves, not of the half of the page they appeared in.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<SolutionView>([], SORT_ON);
   const { toast } = useToast();
 
-  const live = solutions.filter((s) => s.solution.status !== "retired");
-  const retired = solutions.filter((s) => s.solution.status === "retired");
+  /* 工具行. 适用场景 is in the search alongside the name and code, and that
+     is the point of putting a box here at all: the scenario is free text
+     somebody says to a customer, so "找一个讲得通零售连锁的方案" is a lookup
+     nobody can do by scanning a name column.
+
+     No second filter. Status is already the split between the two tables,
+     and a dropdown that re-answers what the headings answer is a control
+     that cannot change anything the reader can see. */
+  const [query, setQuery] = useState("");
+  const narrowed = query.trim() !== "";
+  const match = (r: (typeof solutions)[number]) => {
+    const q = query.trim().toLowerCase();
+    if (q === "") return true;
+    const sol = r.solution;
+    return [sol.name, sol.solutionCode, sol.scenario ?? "", sol.summary ?? ""].some(
+      (v) => v.toLowerCase().includes(q),
+    );
+  };
+
+  const liveTotal = solutions.filter((s) => s.solution.status !== "retired").length;
+  const retiredTotal = solutions.filter((s) => s.solution.status === "retired").length;
+
+  const shown = solutions.filter(match);
+  const live = shown.filter((s) => s.solution.status !== "retired");
+  const retired = shown.filter((s) => s.solution.status === "retired");
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     startTransition(() => {
@@ -76,21 +117,20 @@ export function SolutionRoster({
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: CATALOG_TEXT.colSolutionName,
       cell: (r: SolutionView) => (
-        <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate">{r.solution.name}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">
-            {r.solution.solutionCode}
-          </span>
-        </span>
+        <TableTitleCell
+          title={r.solution.name}
+          description={r.solution.solutionCode}
+          tooltip={r.solution.name}
+        />
       ),
     },
     {
       id: "composition",
       header: CATALOG_TEXT.colComposition,
       width: "sm" as const,
-      align: "center" as const,
       // The combination AND its customisation in one cell: how much of this
       // is the answer, and how much is tailored per deal.
       cell: (r: SolutionView) => (
@@ -105,6 +145,12 @@ export function SolutionRoster({
     {
       id: "scenario",
       header: CATALOG_TEXT.colScenario,
+      // LEFT, against the new default. design-ui 8.0.0 centres every non-first
+      // column, which is right for codes, badges and dates - but 场景 is free
+      // text by design (incr/0031: a sentence a salesperson says to a
+      // customer), and centred prose has a ragged left edge the eye has to
+      // re-find on every row.
+      align: "left" as const,
       cell: (r: SolutionView) =>
         r.solution.scenario ? (
           <span className="text-muted-foreground text-body-sm">{r.solution.scenario}</span>
@@ -118,10 +164,9 @@ export function SolutionRoster({
       id: "status",
       header: CATALOG_TEXT.colStatus,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: SolutionView) =>
         r.solution.status === "retired" ? (
-          <StatusBadge tone="neutral">{CATALOG_TEXT.typeRetiredBadge}</StatusBadge>
+          <Tag>{CATALOG_TEXT.typeRetiredBadge}</Tag>
         ) : (
           <StatusBadge tone="success">{CATALOG_TEXT.typeEffectiveBadge}</StatusBadge>
         ),
@@ -212,14 +257,23 @@ export function SolutionRoster({
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: SolutionView) => r.solution.id}
-        rows={[...rows]}
+        rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={columns}
         rowActions={rowActions}
         empty={
-          <EmptyState
-            title={CATALOG_TEXT.noSolutions}
-            description={CATALOG_TEXT.rosterSolutionWhy}
-          />
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState
+              title={CATALOG_TEXT.noSolutions}
+              description={CATALOG_TEXT.rosterSolutionWhy}
+            />
+          )
         }
       />
     </div>
@@ -240,15 +294,46 @@ export function SolutionRoster({
           ) : undefined
         }
       >
+        {/* One tool row for both rosters; the retired list says on its own
+            heading that this control is narrowing it. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
+              : CATALOG_TEXT.solutionCount(live.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={CATALOG_TEXT.solutionSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={narrowed ? () => setQuery("") : undefined}
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        />
+
         {table(live)}
       </Section>
 
-      {retired.length > 0 ? (
+      {/* Holds its place while narrowed rather than vanishing under a keyword
+          and taking its own explanation with it. */}
+      {retired.length > 0 || (narrowed && retiredTotal > 0) ? (
         <Section
           id="solutions-retired"
           icon="file-text"
           title={CATALOG_TEXT.rosterSolutionRetired}
           description={CATALOG_TEXT.rosterSolutionRetiredWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(retired)}
         </Section>

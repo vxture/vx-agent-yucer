@@ -24,7 +24,7 @@ export default async function PricebookPage() {
   const { CATALOG_TEXT } = await getMessages();
   return (
     <CatalogPage
-      render={({ products, prices, types, statuses, authz, entitlement }) => {
+      render={({ products, prices, types, statuses, policy, authz, entitlement }) => {
         const canPrice = can(authz, entitlement, "catalog.pricebook.upsert", "ui").allowed;
 
         // Only what can actually be sold is expected to carry a price: a
@@ -125,6 +125,7 @@ export default async function PricebookPage() {
             />
 
             <PriceBook
+              currency={policy.defaultCurrency}
               products={products}
               current={current}
               superseded={superseded}

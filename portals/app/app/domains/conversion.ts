@@ -30,6 +30,7 @@ import { completeConversion, convertLead } from "./signal/service";
 import type { SignalStore } from "./signal/store";
 import type { Attribution } from "./pipeline/lib/attribution";
 import type { OpportunityRecord, PipelineStore } from "./pipeline/store";
+import type { CatalogStore } from "./catalog/store";
 
 export interface ConversionContext {
   workspaceId: string;
@@ -38,6 +39,8 @@ export interface ConversionContext {
   entitlement: Entitlement;
   signalStore: SignalStore;
   pipelineStore: PipelineStore;
+  /** For the currency a converted lead's deal is priced in (incr/0044). */
+  catalogStore: CatalogStore;
 }
 
 export interface ConversionOutcome {
@@ -50,6 +53,12 @@ export interface ConvertInput {
   leadId: string;
   /** Required when the lead was never matched to an account. */
   accountId?: string;
+  /**
+   * What the customer wants (incr/0034). REQUIRED, and it cannot be defaulted:
+   * a lead carries a company, a contact and a score, none of which say what
+   * they need. Converting is the moment somebody writes it down.
+   */
+  requirement: string;
   name?: string;
   amount?: Money;
   currency?: string;
@@ -87,7 +96,10 @@ export async function convertLeadToOpportunity(
   const lead = await ctx.signalStore.getLead(ctx.workspaceId, input.leadId);
   if (!lead) return fail(violation("not_found", `lead ${input.leadId} was not found`, "leadId"));
 
-  const currency = input.currency ?? input.amount?.currency ?? "CNY";
+  const currency =
+    input.currency
+    ?? input.amount?.currency
+    ?? (await ctx.catalogStore.getPricingPolicy(ctx.workspaceId)).defaultCurrency;
 
   // 2. D6 creates the opportunity, carrying the frozen attribution.
   const opportunity = await ctx.pipelineStore.createOpportunity(ctx.workspaceId, {
@@ -97,7 +109,20 @@ export async function convertLeadToOpportunity(
     planId: plan.value.opportunity.planId,
     territoryId: input.territoryId ?? null,
     // The lead's owner follows the deal. Reassigning is a later, deliberate act.
+    //
+    // A QUALIFIED LEAD ALWAYS HAS ONE since 2026-09-06 - an unowned lead
+    // cannot be qualified, and only a qualified lead converts - so the
+    // fallback is now unreachable rather than load-bearing. It stays as the
+    // belt to the rule's braces.
     ownerSub: lead.ownerSub ?? ctx.sub,
+    // WHAT THE CUSTOMER WANTS, and the caller has to supply it (incr/0034).
+    //
+    // IT CANNOT BE DERIVED FROM THE LEAD. A lead carries a company, a contact
+    // and a score - nothing that says what they need - so converting is the
+    // moment somebody writes it down. The alternative was to copy the company
+    // name into the requirement, which would satisfy the column and teach
+    // every reader afterwards that the field means nothing.
+    requirement: input.requirement,
     amount: input.amount ?? null,
     currency,
     expectedCloseAt: input.expectedCloseAt ?? null,
@@ -122,6 +147,6 @@ export async function convertLeadToOpportunity(
 }
 
 /** Convenience for a caller that has only a number and a currency string. */
-export function amountOf(value: number | null | undefined, currency = "CNY"): Money | undefined {
+export function amountOf(value: number | null | undefined, currency: string): Money | undefined {
   return value == null || Number.isNaN(value) ? undefined : money(value, currency);
 }

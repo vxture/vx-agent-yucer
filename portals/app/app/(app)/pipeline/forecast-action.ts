@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import { getPipelineStore } from "../../domains/shared/registry";
+import {
+  getCatalogStore,
+} from "../../domains/shared/registry";
 import { submitForecast } from "../../domains/pipeline/service";
 import { parseForecastScope } from "../lib/forecast-scope";
 
@@ -47,6 +49,7 @@ export async function submitForecastSnapshot(
       holder: session.authz,
       entitlement: session.entitlement,
       store: session.stores.pipeline(),
+      catalog: getCatalogStore(),
     },
     {
       period,

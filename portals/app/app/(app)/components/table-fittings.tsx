@@ -1,7 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { ActionMenu, type ActionMenuItem } from "@vxture/design-ui";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  ActionMenu,
+  type ActionMenuItem,
+  type DataTableSort,
+} from "@vxture/design-ui";
 
 // 表格三件标配 - owner ruling, 2026-09-06.
 //
@@ -54,6 +58,143 @@ export const EDGE_COLUMNS =
 /** The action column at its default 64px. A table that surfaces a key action
  * inline beside the dots states its own wider figure instead. */
 export const ACTION_COLUMN = "[&_thead_th:last-child]:w-[4rem]";
+
+// `MoneyCell` WAS HERE and design-ui 8.0.0 replaced it: `align:"numeric"` is
+// right alignment plus one step of right padding plus tabular-nums, which is
+// exactly what it hand-rolled - including the measured pad that made a
+// right-aligned column read as centred. A missing element is a request to the
+// DS rather than a local build (CLAUDE.md); the request landed, so the local
+// build goes.
+//
+// THE WIDTH CLASSES ABOVE STAY. The DS still sizes its three fixed columns
+// with `w-control-3xl`, and that token still measures 56px on 8.0.0 - TD-022
+// is unchanged, and the owner's ruling is 64px.
+
+/**
+ * 工具行的两件量具 - the sizing the DS's `FilterBar` leaves to its caller.
+ *
+ * FilterBar takes NODES for its slots and does not size them, which is right:
+ * it cannot know whether the thing you handed it is a search box or a date
+ * range. But its right segment wraps, and a wrapping flex row picks its line
+ * breaks from each item's BASIS before it shrinks anything on a line - so a
+ * caller who just drops a DS control in gets three full-width children on
+ * three rows, because DS form controls fill their container (correct in a
+ * FORM, wrong in a tool row). Measured, 2026-09-07.
+ *
+ * 默认保证一行，弹性布局先压缩搜索框，再可换行 (owner, 2026-09-07). That order
+ * is what these two encode, and it is NOT what flex-shrink gives you:
+ *
+ *   - `SearchSlot` is based at its MINIMUM and grows into the leftover width,
+ *     so the row breaks lines as though the search box were already at 7rem.
+ *     Every pixel above that is given back before anything wraps.
+ *   - `FilterSlot` does not shrink at all. A select compressed to a stub is
+ *     not a smaller control, it is an unreadable one - so the search box
+ *     absorbs the whole squeeze and the filters keep their intrinsic width.
+ *
+ * They are wrappers rather than classNames on the controls because
+ * `NativeSelect` forwards `className` to the <select> INSIDE its chevron
+ * wrapper: sizing the control left the wrapper at the segment's full width,
+ * and the row still rendered three lines.
+ */
+export function SearchSlot({ children }: { readonly children: ReactNode }) {
+  return (
+    <span className="block min-w-[7rem] max-w-[18rem] flex-1 basis-[7rem]">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * One filter control in FilterBar's `children` group, at a fixed width.
+ *
+ * `width` is a Tailwind width class rather than a number: the filter's width
+ * is a judgement about its longest option ("已转商机" needs more than "全部"),
+ * and that judgement belongs at the call site where the options are.
+ */
+export function FilterSlot({
+  width = "w-[8rem]",
+  children,
+}: {
+  readonly width?: string;
+  readonly children: ReactNode;
+}) {
+  return <span className={`block shrink-0 ${width}`}>{children}</span>;
+}
+
+/**
+ * 列排序 - the caller's half of the DS's sort contract.
+ *
+ * `DataTable` draws the header control and the direction marker and does NOT
+ * order anything ("排序本身由调用方做"). That leaves every table to write the
+ * same three things: a piece of state, a change handler, and a comparator. The
+ * comparator is the part worth writing once, because two of its rules are
+ * judgements this product has already made elsewhere:
+ *
+ * 1. EMPTY SORTS LAST IN BOTH DIRECTIONS. A missing value is not a small one.
+ *    This repo keeps saying so in other words - planning-table renders a blank
+ *    rather than a zero because "nobody forecast this" and "this went badly"
+ *    are different facts, and forecast-roster prints 未知 rather than 0 天 for a
+ *    deal older than its journal. Sorting ascending and getting a block of
+ *    blanks at the top would undo that in one click.
+ * 2. TEXT COMPARES WITH `localeCompare`. A bare `<` orders by UTF-16 code unit,
+ *    which is right for ASCII ids by luck and wrong for every Chinese name -
+ *    the same defect Sonar caught in the owner dropdown on 2026-09-07.
+ *
+ * `accessors` maps a column id to the value that column SORTS ON, which is not
+ * always what it renders: a cell showing "第 3 期" sorts on 3, and a cell
+ * showing a badge sorts on the score inside it.
+ */
+/**
+ * The comparator behind `useTableSort`, pulled out as a pure function so the
+ * two judgements above are testable without rendering anything.
+ */
+export function sortRowsBy<R>(
+  list: readonly R[],
+  read: (row: R) => string | number | null | undefined,
+  direction: "asc" | "desc",
+): readonly R[] {
+  const dir = direction === "asc" ? 1 : -1;
+  return [...list].sort((a, b) => {
+    const x = read(a), y = read(b);
+    const xEmpty = x === null || x === undefined || x === "";
+    const yEmpty = y === null || y === undefined || y === "";
+    // Rule 1, both halves: blanks sink whichever way the arrow points, so the
+    // comparison below never sees one.
+    if (xEmpty && yEmpty) return 0;
+    if (xEmpty) return 1;
+    if (yEmpty) return -1;
+    if (typeof x === "number" && typeof y === "number") return (x - y) * dir;
+    // Rule 2: pinyin order, not UTF-16 code units.
+    return String(x).localeCompare(String(y), "zh-CN") * dir;
+  });
+}
+
+export function useTableSort<T>(
+  rows: readonly T[],
+  accessors: Readonly<Record<string, (row: T) => string | number | null | undefined>>,
+  initial?: DataTableSort,
+) {
+  const [sort, setSort] = useState<DataTableSort | undefined>(initial);
+
+  /* Exposed as a FUNCTION as well as a sorted array, because several modules
+     render the same columns twice - 在建/结题, 待回款/已了结, 在售/退役 - from one
+     helper. Those two tables must obey ONE sort state (asked to sort by 合同额,
+     a reader means both lists), and a hook cannot be called from inside the
+     helper. So the state lives at the top and the ordering travels down. */
+  const sortRows = useCallback(
+    <R extends T>(list: readonly R[]): readonly R[] => {
+      if (!sort) return list;
+      const read = accessors[sort.columnId];
+      if (!read) return list;
+      return sortRowsBy(list, read, sort.direction);
+    },
+    [sort, accessors],
+  );
+
+  const sorted = useMemo(() => sortRows(rows), [sortRows, rows]);
+
+  return { sort, onSortChange: setSort, rows: sorted, sortRows };
+}
 
 /**
  * The action column's contents - a single DS trigger, always rendered.
@@ -159,43 +300,4 @@ export function rowClickSelection<T>(
       return () => el.removeEventListener("click", handler);
     },
   };
-}
-
-/**
- * 资金列 - owner ruling, 2026-09-06.
- *
- * Money is the one exception to "everything but the title column centres". A
- * column of centred amounts aligns nothing: 760,000 and 1,400,000 put their
- * digits in different places, so the eye cannot compare two rows without
- * reading both numbers. Right alignment is what puts the units under the
- * units - the decimal points line up - and that is the whole point of a money
- * column.
- *
- * BUT NOT FLUSH TO THE COLUMN EDGE. Right-aligned against the edge reads as
- * pushed away from the column it belongs to, so the block is inset by `pad`:
- * the numbers keep their shared right edge, and the block as a whole sits
- * where a centred one would. Size `pad` at roughly (column - widest number)/2
- * for that column - it is a per-column figure because column widths differ,
- * and only one number width can be exactly centred, so it is the WIDEST that
- * is centred and the shorter ones sit slightly right of it.
- *
- * THE PADDING IS A LITERAL, NOT A DS TOKEN, and that is measured rather than
- * preferred: in this DS build `pr-md`, `pr-lg`, `pr-xs` and `pr-3xs` all
- * compute to 0px - the same shadowing trap as the container widths (TD-022's
- * neighbourhood). A token that silently resolves to nothing would put the
- * amounts back on the edge with nothing in the class list to explain why.
- */
-export function MoneyCell({
-  children,
-  pad,
-}: {
-  readonly children: ReactNode;
-  /** The inset, e.g. "1.375rem". See the note above on sizing it. */
-  readonly pad: string;
-}) {
-  return (
-    <span className="block text-right tabular-nums" style={{ paddingInlineEnd: pad }}>
-      {children}
-    </span>
-  );
 }

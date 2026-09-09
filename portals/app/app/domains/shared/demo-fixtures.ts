@@ -9,38 +9,48 @@
 // See TD-002. Both files go together when the standard is settled.
 
 export const DEMO_ACCOUNTS = [
-  { name: "华东零售集团", industry: "零售", region: "华东" },
-  { name: "西南制造股份", industry: "制造", region: "西南" },
-  { name: "北方通信", industry: "通信", region: "华北" },
-  { name: "长江物流", industry: "物流", region: "华中" },
-  { name: "华南连锁药房", industry: "零售", region: "华南" },
+  /* REGION IS A 大区 NAME, and it is the workspace's own (incr/0036, five-way
+     preset). It used to be a seven-way 华东 / 华北 grouping that lived in the
+     build, and after the carve became data the two vocabularies sat in the
+     same demo: territory routing matched on one, the screen grouped by the
+     other, and nothing said so. Every region here is the division its PROVINCE
+     belongs to, which is also what completeness.ts derives - so the demo shows
+     one carve, the one the workspace can edit. */
+  { name: "华东零售集团", industry: "零售", region: "东部", province: "上海市" },
+  { name: "西南制造股份", industry: "制造", region: "西部", province: "四川省" },
+  { name: "北方通信", industry: "通信", region: "北部", province: "北京市" },
+  // 江苏 rather than 湖北: still the Yangtze, and it leaves 中部 empty of
+  // covered customers, which is what makes the 未分区 case below visible.
+  { name: "长江物流", industry: "物流", region: "东部", province: "江苏省" },
+  { name: "华南连锁药房", industry: "零售", region: "南部", province: "广东省" },
   // Added to exercise two rules the first five never reached. Without them the
   // "本周" tier was permanently 0 and two of the four judgement rules had no
   // demo case at all - a screen nobody could review is not a demo.
-  { name: "西部能源装备", industry: "能源", region: "西北" },
-  { name: "东海精密仪器", industry: "制造", region: "华东" },
-  // 未分区: 东北 is covered by NO territory (EAST/NORTH/SOUTH between them
-  // cover 华东/华中/华北/西北/华南/西南). Added 2026-09-01 so the unplaced rule
-  // has a case a reviewer can actually see - every other demo account sits on
-  // ground somebody covers, which made the rule real in code and invisible on
-  // screen. Same gap the demo had before it gained a settled quarter.
+  { name: "西部能源装备", industry: "能源", region: "西部", province: "陕西省" },
+  { name: "东海精密仪器", industry: "制造", region: "东部", province: "江苏省" },
+  // 未分区: 中部 is covered by NO territory (the four between them cover
+  // 东部/北部/西部/南部). Added 2026-09-01 so the unplaced rule has a case a
+  // reviewer can actually see - every other demo account sits on ground
+  // somebody covers, which made the rule real in code and invisible on screen.
+  // RENAMED from 东北重工集团 on 2026-09-08: the five-way carve has no 东北,
+  // and a customer named for a division that does not exist is exactly the
+  // mixed vocabulary this pass removed.
   // INDUSTRY DELIBERATELY BLANK, on top of the unplaced region. It is the
   // first-entry case the completeness rule exists for: a customer somebody has
   // typed the name of and nothing else, where the industry is a fact about the
   // world that no join can supply and the model can. Without one such account
   // the "ask the assistant" half of that screen rendered on nothing.
-  { name: "东北重工集团", industry: "", region: "东北" },
-  // REGION DELIBERATELY BLANK, and not the same gap 东北重工集团 demonstrates.
+  { name: "中原重工集团", industry: "", region: "中部", province: "河南省" },
+  // REGION DELIBERATELY BLANK, and not the same gap 中原重工集团 demonstrates.
   // That one is 未分区 (a region set that no territory covers); this one has
   // no region on file at all, which is the OTHER half of the "region" gap -
-  // the DERIVABLE half. Its one deal is filed under terr_hk, a territory that
-  // covers exactly one region, so accountGaps() has a single candidate to
-  // suggest rather than refusing to guess between two. Without a single-region
-  // territory the demo could not show this: all three original territories
-  // cover two regions each, so region derivation always found more than one
-  // candidate and always declined - the data-derivable half of the
-  // completeness screen had no case where it could actually derive anything.
-  { name: "港澳零售集团", industry: "零售", region: "" },
+  // the DERIVABLE half. Its province IS on file, so completeness.ts answers it
+  // exactly, from the workspace's own division table, rather than guessing.
+  // Its one deal is also filed under terr_hk, a territory that covers exactly
+  // one region: that is the FALLBACK route, the one that has to serve a
+  // customer with no province at all, and keeping the demo on ground where
+  // both routes agree is what makes the fallback checkable.
+  { name: "港澳零售集团", industry: "零售", region: "", province: "香港特别行政区" },
 ] as const;
 
 /** The unmatched lead's company - deliberately not one of DEMO_ACCOUNTS. */
@@ -56,14 +66,56 @@ export const DEMO_CONTACTS = [
 ] as const;
 
 /** Which regions each demo territory covers - the join lead routing needs. */
+/**
+ * What the demo territories are CALLED, as opposed to which regions they hold.
+ *
+ * Here rather than in demo-seed.ts because that file must stay free of Chinese
+ * string literals (TD-002 containment, enforced by ascii-containment.test.ts) -
+ * and these are names a reader sees: the routing basis quotes the territory
+ * name inside its sentence, so an English one produced "华中 由「East China」
+ * 覆盖", a Chinese sentence with an English noun wedged into it.
+ */
+export const DEMO_TERRITORY_NAMES: Record<string, string> = {
+  /* NAMED AS TEAMS, NOT AS GEOGRAPHY (owner, 2026-09-08). They were 东部区域 /
+     北部区域 / 南部区域 - the division names with a suffix - which made the
+     two tables look like one table entered twice, and left the reader with no
+     way to see what a 区域 is FOR. A 大区 is how the market is carved; a 区域
+     is a team that works it, and two teams can work the same ground for
+     different reasons. That is why coverage is a list and why a province's
+     region cannot always be derived from the team that sells to it. */
+  EAST: "直销一部",
+  NORTH: "直销二部",
+  SOUTH: "渠道部",
+  // 港澳组 sits UNDER 渠道部 (parentId) - the demo's only hierarchy, and the
+  // reason the roster's 上级区域 column had been empty since it was built.
+  HK: "港澳组",
+};
+
+/* 区域覆盖的大区 - the join lead routing needs.
+ *
+ * THESE NAME THE WORKSPACE'S OWN 大区, not a hard-coded seven. Routing matches
+ * these strings against `account.region`.
+ *
+ * THE OVERLAP HAS A REASON NOW. It used to be arithmetic: three territories
+ * covering two divisions each, because seven divided that way and the
+ * derivation test needed an ambiguous case. Here 西部 is worked by both 直销二部
+ * and 渠道部 - direct sales in the north-west, channel in the south-west - which
+ * is exactly the situation that makes "which 大区 is this customer in?"
+ * underivable from the team, and therefore why completeness.ts refuses to
+ * guess unless a territory names exactly one.
+ *
+ * 中部 STAYS UNCOVERED on purpose: the demo depends on a 未分区 case being
+ * visible - an account whose region no territory claims is seen by every
+ * territory member, and that is what the completeness roster reports.
+ */
 export const DEMO_TERRITORY_REGIONS: Record<string, readonly string[]> = {
-  EAST: ["华东", "华中"],
-  NORTH: ["华北", "西北"],
-  SOUTH: ["华南", "西南"],
-  // Single-region on purpose - see 港澳零售集团 above. 东北 stays uncovered by
-  // any of these four; adding it here would resolve the 未分区 case this demo
-  // already depends on.
-  HK: ["港澳"],
+  EAST: ["东部"],
+  NORTH: ["北部", "西部"],
+  SOUTH: ["南部", "西部"],
+  // Single-region on purpose - see 港澳零售集团 above. 港澳 has no division of
+  // its own under this carve, so the team that works it is registered against
+  // 南部, which its parent also covers.
+  HK: ["南部"],
 };
 
 export const DEMO_SEGMENTS = [
@@ -299,25 +351,25 @@ export const DEMO_DEAL_NOTES = {
  * different sales conversation from one that bought neither.
  */
 export const DEMO_PRODUCTS = [
-  { code: "PRD-CORE", name: "零售中台基础平台", category: "software", unit: "套", list: 800_000, floor: 600_000 },
-  { code: "PRD-ANALYTICS", name: "经营分析模块", category: "software", unit: "套", list: 400_000, floor: 300_000 },
-  { code: "PRD-WMS", name: "智能仓储调度", category: "software", unit: "套", list: 600_000, floor: 450_000 },
-  { code: "PRD-INTEGRATION", name: "系统对接实施", category: "implementation", unit: "人月", list: 60_000, floor: 45_000 },
-  { code: "PRD-SUPPORT", name: "年度技术支持", category: "maintenance", unit: "年", list: 200_000, floor: 160_000 },
+  { code: "PRD-CORE", name: "零售中台基础平台", category: "software", unit: "set", list: 800_000, floor: 600_000 },
+  { code: "PRD-ANALYTICS", name: "经营分析模块", category: "software", unit: "set", list: 400_000, floor: 300_000 },
+  { code: "PRD-WMS", name: "智能仓储调度", category: "software", unit: "set", list: 600_000, floor: 450_000 },
+  { code: "PRD-INTEGRATION", name: "系统对接实施", category: "implementation", unit: "month", list: 60_000, floor: 45_000 },
+  { code: "PRD-SUPPORT", name: "年度技术支持", category: "maintenance", unit: "year", list: 200_000, floor: 160_000 },
 ] as const;
 
 /** Products still being BUILT - real in plans and conversations, not quotable.
  * Deliberately given no price rows: an unpriced product must not read as a
  * discount case, and priceLine already treats "no floor" as its own state. */
 export const DEMO_DEV_PRODUCTS = [
-  { code: "PRD-REPLENISH", name: "智能补货预测", category: "software", unit: "套" },
-  { code: "PRD-INSPECT", name: "门店巡检助手", category: "software", unit: "套" },
+  { code: "PRD-REPLENISH", name: "智能补货预测", category: "software", unit: "set" },
+  { code: "PRD-INSPECT", name: "门店巡检助手", category: "software", unit: "set" },
 ] as const;
 
 /** A product with a life already lived - so the retired roster, the 恢复在售
  * row action and the "retire instead of delete" refusal all have a case. */
 export const DEMO_RETIRED_PRODUCTS = [
-  { code: "PRD-POS-LEGACY", name: "单机版收银终端", category: "hardware", unit: "台" },
+  { code: "PRD-POS-LEGACY", name: "单机版收银终端", category: "hardware", unit: "piece" },
 ] as const;
 
 // The demo workspace's type vocabulary IS the shipped starter set

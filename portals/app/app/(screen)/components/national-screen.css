@@ -1,0 +1,778 @@
+/* 全国销售态势屏 - the display's own stylesheet.
+ *
+ * EVERY COLOUR IS A DS TOKEN. The screen is dark whatever the reader's theme -
+ * a wall display is not a document and does not follow a light preference - so
+ * the surfaces are pinned to the dark end of the neutral scale rather than to
+ * `--background`, which flips. What they are NOT is hand-mixed: each value below
+ * names the token it takes.
+ *
+ * The DS has no cyan family (amber / emerald / neutral / purple / red / sky), so
+ * the screen's accent is SKY, its nearest neighbour. The brand indigo would have
+ * made a different screen; sky keeps the approved design on DS values.
+ *
+ * WHAT THE DS HAS NO ELEMENT FOR is registered as TD-025, not quietly built:
+ * the choropleth, the honeycomb ground and the fold bracket.
+ */
+
+.screen{
+  --screen-ground: var(--vx-color-neutral-950);
+  --screen-surface: var(--vx-color-neutral-900);
+  --screen-raised: var(--vx-color-neutral-800);
+  --screen-ink: var(--vx-color-neutral-50);
+  --screen-dim: var(--vx-color-neutral-300);
+  --screen-faint: var(--vx-color-neutral-400);
+  --screen-line: var(--vx-color-neutral-700);
+  --screen-line-faint: var(--vx-color-neutral-800);
+
+  /* THE DESIGN'S THREE FACES, MAPPED ONTO THE DS's THREE. The mock sets
+     Rajdhani on every numeral, Orbitron on the step marks and Noto Sans SC on
+     the qualifiers. This stylesheet may not define a face - globals.css is
+     DS-owned and that is the rigid zone - so each is mapped to the DS face
+     doing the same JOB: the display face for figures, mono for the small
+     technical marks, sans for running text. Registered under TD-025 with the
+     rest of what the DS has no equivalent for. */
+  --screen-rail: 376px;
+  --screen-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* The lit and sunk hexagons. Kept as tokens rather than inline on the SVG
+     so the ground's contrast is adjustable in one place. */
+  --screen-hex-hi-top: var(--vx-color-neutral-700);
+  --screen-hex-hi-bottom: var(--vx-color-neutral-800);
+  --screen-hex-lo-top: var(--vx-color-neutral-900);
+  --screen-hex-lo-bottom: var(--vx-color-neutral-950);
+  --screen-figure: var(--vx-font-brand);
+  --screen-mark: var(--vx-font-mono);
+
+  --screen-accent: var(--vx-color-sky-400);
+  --screen-accent-hi: var(--vx-color-sky-300);
+  --screen-warn: var(--vx-color-amber-400);
+  /* Overdue money only. Kept apart from --screen-warn: amber is the figure the
+     owner asked to STAND OUT, red is the figure that is WRONG, and a screen
+     that spends its one red on emphasis has nothing left to say "late" with. */
+  --screen-danger: var(--vx-color-red-400);
+
+  /* Sequential ramp, sky-900 -> sky-300. The DS has no scale tokens for a
+     choropleth, so this walks its own sky family rather than inventing hues. */
+  --screen-l0: var(--vx-color-sky-900);
+  --screen-l1: var(--vx-color-sky-800);
+  --screen-l2: var(--vx-color-sky-700);
+  --screen-l3: var(--vx-color-sky-600);
+  --screen-l4: var(--vx-color-sky-500);
+  --screen-l5: var(--vx-color-sky-300);
+  /* NO READING is its own shade, not the bottom of the ramp: a province where
+     nothing has happened is not the worst-performing province. */
+  --screen-blank: var(--vx-color-neutral-800);
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--screen-ground);
+  color: var(--screen-ink);
+}
+
+/* 蜂窝底 - a pointy-top hex lattice, the same construction the marketing site
+   uses for its dark ground. Two strokes per cell give each one its bevel. */
+/* The honeycomb ground is an SVG component now (screen-hex.tsx) - a CSS tile
+   drew every cell identically and the design's whole effect is that they are
+   NOT identical. This only places it. */
+.screen .screen-hex{
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  width: 100%; height: 100%;
+}
+
+.screen > *:not(.screen-hex){ position: relative; z-index: 1; }
+
+/* ---------- 标题栏 ---------- */
+.screen .titlebar{
+  flex: none; height: 100px;
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: start; gap: 16px; padding: 12px 28px 6px; overflow: hidden;
+  transition: height 0.34s var(--screen-ease), opacity 0.24s linear,
+              padding 0.34s var(--screen-ease);
+}
+.screen .titlebar.folded{
+  height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; pointer-events: none;
+}
+
+.screen .chips{ display: flex; gap: 9px; }
+/* A BUTTON, not a line of text. Same notched shape as the metric switches, so
+   the one control that leaves the screen looks like a control. */
+.screen .home{
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 14px 0 11px;
+  border: 1px solid var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
+  color: var(--screen-dim); font-size: 12.5px; letter-spacing: 0.06em;
+  text-decoration: none;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.screen .home:hover{
+  color: var(--screen-accent); border-color: var(--screen-line);
+  background: color-mix(in oklab, var(--screen-raised) 88%, transparent);
+}
+.screen .home svg{ width: 13px; height: 13px; flex: none; }
+/* The clipped corner is the design's, and it is why these are not DS Cards:
+   a Card is a rounded rectangle and this is a notched panel. */
+.screen .chip{
+  min-width: 112px; padding: 5px 13px 7px;
+  border: 1px solid var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.screen .chip .k{ font-size: 10px; font-weight: 700; letter-spacing: 0.16em; color: var(--screen-dim); }
+.screen .chip .v{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 19px; line-height: 1.2;
+  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+}
+
+.screen .title{
+  position: relative; text-align: center;
+  padding: 2px 36px 9px; border-bottom: 1px solid var(--screen-line);
+}
+/* The hatched corners on the rule. */
+.screen .title::before, .screen .title::after{
+  content: ""; position: absolute; bottom: -1px; width: 32px; height: 8px;
+  background: repeating-linear-gradient(
+    115deg, var(--screen-accent) 0 3px, transparent 3px 7px);
+}
+.screen .title::before{ left: -8px; }
+.screen .title::after{ right: -8px; transform: scaleX(-1); }
+/* 标题中心点 - an SVG, not the character.
+   IT USED TO JUMP. The glyph "·" sits high and off-centre in its em box, so
+   scaling it pivoted on the box rather than on the ink and the dot travelled
+   vertically as it grew. A circle's centre is where it is drawn, so this one
+   holds still: the CORE never changes size or position, and the breathing is
+   carried by a ring expanding out from behind it plus the glow around it.
+   That is steadier to look at than a pulsing mark, and it is what the effect
+   was meant to be - 呼吸 in the halo, 眩晕 in the light. Same 3.4s rhythm as
+   the six panel marks, so the screen has one heartbeat rather than two. */
+.screen .title h1 .dot{
+  display: inline-block; vertical-align: middle;
+  width: 1.05em; height: 1.05em;
+  margin: 0 0.16em; position: relative; top: -0.06em;
+}
+.screen .title h1 .dot svg{ display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* Fixed. Only its glow moves, so there is nothing to track with the eye. */
+.screen .dot-core{
+  filter: drop-shadow(0 0 3px oklch(from var(--screen-accent) l c h / 0.9));
+  animation: title-dot-core 3.4s ease-in-out infinite;
+}
+/* The 眩晕: a ring that swells out of the core and fades as it goes. */
+.screen .dot-halo{
+  transform-box: fill-box; transform-origin: center;
+  animation: title-dot-halo 3.4s ease-in-out infinite;
+}
+@keyframes title-dot-core {
+  0%, 100% { filter: drop-shadow(0 0 3px oklch(from var(--screen-accent) l c h / 0.55)); }
+  50% {
+    filter: drop-shadow(0 0 7px oklch(from var(--screen-accent) l c h / 1))
+            drop-shadow(0 0 15px oklch(from var(--screen-accent) l c h / 0.5));
+  }
+}
+@keyframes title-dot-halo {
+  0%, 100% { opacity: 0.28; transform: scale(0.72); }
+  50% { opacity: 0.85; transform: scale(1.28); }
+}
+
+.screen .title h1{
+  margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.3em;
+  padding-left: 0.3em; color: var(--screen-ink);
+  text-shadow: 0 0 22px oklch(from var(--screen-accent) l c h / 0.5);
+}
+.screen .title p{
+  margin: 4px 0 0; font-family: var(--screen-mark);
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.34em;
+  color: var(--screen-accent); text-transform: uppercase; padding-left: 0.34em;
+}
+
+.screen .ident{
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 14px; font-size: 12.5px; color: var(--screen-dim);
+}
+.screen .screen-note{ max-width: 20rem; text-align: right; line-height: 1.45; font-size: 11px; }
+/* 全屏 / 语言 / 设置. Ghost buttons - no fill and no border until touched -
+   because they are session controls sitting beside the reading, and three
+   filled buttons in that corner would compete with the header's own chips. */
+.screen .tools{ display: flex; align-items: center; gap: 2px; }
+.screen .tool{
+  width: 28px; height: 28px; flex: none;
+  display: grid; place-items: center;
+  color: var(--screen-faint); background: none;
+  border: 1px solid transparent; cursor: pointer;
+  transition: color 0.18s, border-color 0.18s, background 0.18s;
+}
+.screen .tool svg{ width: 16px; height: 16px; }
+.screen .tool:hover:not(:disabled), .screen .tool:focus-visible:not(:disabled){
+  color: var(--screen-accent);
+  border-color: var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-raised) 80%, transparent);
+}
+.screen .tool[aria-pressed="true"]{ color: var(--screen-accent-hi); }
+/* The placeholder reads as unavailable rather than as broken. */
+.screen .tool:disabled{ opacity: 0.38; cursor: not-allowed; }
+
+/* 用户信息区 - the design's avatar, name and role, divided from the rest of
+   the header by its own rule. */
+.screen .user{
+  display: flex; align-items: center; gap: 9px;
+  padding-left: 14px; border-left: 1px solid var(--screen-line-faint);
+}
+.screen .user .av{
+  width: 31px; height: 31px; flex: none; display: grid; place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--screen-accent), var(--vx-color-sky-800));
+  color: var(--vx-color-neutral-950);
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em;
+  box-shadow: 0 0 0 1px oklch(from var(--screen-accent) l c h / 0.45),
+              0 0 14px oklch(from var(--screen-accent) l c h / 0.22);
+}
+.screen .user .nm{ font-size: 13px; color: var(--screen-ink); line-height: 1.3; }
+/* The SUB, monospaced and truncated. AuthUser carries no display name, and
+   dressing an id up as a person is the defect the account page fixed once. */
+.screen .user .rl{
+  font-family: var(--screen-mark); font-size: 10.5px; color: var(--screen-faint);
+  max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 日期 - out of flow, so folding the title moves it rather than reflowing the
+   screen. Folded it sits at the top edge and IS the control that brings the
+   title back; the chevron points where the title is about to go. */
+/* 统计周期条 - out of flow, so folding the title moves it rather than
+   reflowing the screen. Folded it sits at the top edge and stays usable. */
+.screen > .periodbar{
+  position: absolute; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9;
+  display: inline-flex; align-items: center; gap: 2px; height: 22px;
+  transition: top 0.34s var(--screen-ease);
+}
+.screen.folded > .periodbar{ top: 2px; }
+
+/* The fold handle. WIDER THAN IT LOOKS on purpose: it is hit far more often
+   than it is read, and a bare caret is a small target on a screen people drive
+   standing up. 34px against the caret's own 8. */
+.screen .periodbar .fold{
+  width: 36px; height: 22px; flex: none;
+  display: grid; place-items: center;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--screen-faint);
+  transition: color 0.18s, background 0.18s;
+}
+.screen .periodbar .fold svg{
+  width: 15px; height: 15px; opacity: 0.7;
+  transform: rotate(180deg);
+  transition: transform 0.34s var(--screen-ease);
+}
+.screen.folded .periodbar .fold svg{ transform: rotate(0deg); }
+.screen .periodbar .fold:hover{
+  color: var(--screen-accent);
+  background: color-mix(in oklab, var(--screen-raised) 70%, transparent);
+}
+
+/* NO BORDER (owner). The period reads as a label that happens to be
+   changeable, not as a form control sitting on the title rule. */
+.screen .period{ position: relative; display: inline-flex; }
+.screen .period-btn{
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 22px; padding: 0 8px;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--screen-figure); font-size: 13px; font-weight: 600;
+  letter-spacing: 0.14em; color: var(--screen-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.18s, background 0.18s;
+}
+.screen .period-btn svg{ width: 8px; height: 8px; opacity: 0.7; }
+.screen .period-btn:hover,
+.screen .period-btn[aria-expanded="true"]{
+  color: var(--screen-accent);
+  background: color-mix(in oklab, var(--screen-raised) 70%, transparent);
+}
+
+.screen .period-pop{
+  position: absolute; top: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  z-index: 12; display: flex; flex-direction: column; min-width: 100%;
+  background: color-mix(in oklab, var(--screen-surface) 96%, transparent);
+  border: 1px solid var(--screen-line);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  padding: 3px 0;
+}
+.screen .period-pop button{
+  padding: 5px 16px; text-align: left; white-space: nowrap;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--screen-figure); font-size: 12.5px; font-weight: 600;
+  letter-spacing: 0.1em; color: var(--screen-dim);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.14s, background 0.14s;
+}
+.screen .period-pop button:hover{
+  color: var(--screen-accent-hi);
+  background: color-mix(in oklab, var(--screen-raised) 80%, transparent);
+}
+.screen .period-pop button.on{ color: var(--screen-accent-hi); }
+
+/* ---------- deck ---------- */
+.screen .screen-deck{ flex: 1; min-height: 0; display: flex; align-items: stretch; }
+
+/* ---------- 边栏与板块 (the design's rail / mod) ---------- */
+/* 376, and it is load-bearing: minus the body's 24px of side padding it
+   leaves exactly 328, which is the width every chart's viewBox is drawn at.
+   At 320 the charts were being scaled down to fit and the design's 7px bar
+   labels went sub-pixel. */
+.screen .rail{
+  position: relative; width: var(--screen-rail); min-width: 0; overflow: hidden;
+  transition: width 0.28s var(--screen-ease);
+}
+.screen .rail.folded{ width: 0; }
+/* 顶部留白 (owner, 2026-09-07): the rails used to start flush against the title
+   bar, so the first module's ring sat on the same line as the header rule above
+   it and read as part of it. */
+.screen .rail__body{
+  width: var(--screen-rail); height: 100%; padding: 18px 24px 12px;
+  display: flex; flex-direction: column; gap: 22px;
+}
+.screen .rail-left .rail__body{ margin-left: auto; }
+
+.screen .mod{ flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.screen .mod-hd{
+  position: relative; display: flex; align-items: center; gap: 9px;
+  padding-bottom: 7px; margin-bottom: 9px;
+}
+.screen .mod-hd::after{
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, var(--screen-line) 0%, var(--screen-line-faint) 55%, transparent 100%);
+}
+/* 20, against the title's 16px. The mark is the panel's identity and reads
+   from three metres; at 18 it sat smaller than the words it introduces. */
+.screen .mod-hd .mod-mark{ flex: none; width: 20px; height: 20px; display: block; }
+.screen .mod-hd .mod-mark svg{ display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* STATIC, AND DELIBERATELY SO. The mark used to breathe, back when it was a
+   ring around a core - two parts that could pulse against each other. It is one
+   solid piece now, and a solid shape that throbs reads as a glitch rather than
+   as life. The screen keeps one breathing element, the title's dot, which is
+   enough to say it is live. */
+.screen .mod-hd h2{
+  margin: 0; font-size: 16px; font-weight: 700; letter-spacing: 0.15em;
+  color: var(--screen-ink); white-space: nowrap;
+}
+.screen .mod-hd .step{
+  font-family: var(--screen-mark); font-size: 9px; font-weight: 600;
+  color: var(--screen-faint); letter-spacing: 0.1em;
+}
+.screen .mod-hd .rule{
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--screen-line-faint), transparent);
+}
+/* The right rail reverses its header so the rule always runs toward the map. */
+.screen .mod-hd.rev{ flex-direction: row-reverse; }
+.screen .mod-hd.rev::after{
+  background: linear-gradient(270deg, var(--screen-line) 0%, var(--screen-line-faint) 55%, transparent 100%);
+}
+.screen .mod-hd.rev .rule{
+  background: linear-gradient(270deg, var(--screen-line-faint), transparent);
+}
+
+/* 进入 - a ghost button, absent until the card is pointed at.
+   GHOST MEANS NO FILL AND NO BORDER until it is itself hovered; the panel
+   headers already carry a mark, a title, a step and a rule, and a sixth solid
+   control on each would make the rail read as a toolbar rather than a reading.
+
+   HIDDEN BY OPACITY, NOT display:none, and focus-within reveals it: a control
+   that only exists while a pointer is over it cannot be reached by keyboard at
+   all, which would make six links invisible to anyone not using a mouse. It
+   stays out of the layout's way either way, because the rule beside it takes
+   all the free space and the button is sized to its own text. */
+.screen .mod-hd .enter{
+  flex: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 18px; padding: 0 6px; margin-left: 2px;
+  font-family: var(--vx-font-sans);
+  font-size: 11px; letter-spacing: 0.08em; line-height: 1;
+  color: var(--screen-faint); text-decoration: none;
+  border: 1px solid transparent;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.16s linear, color 0.16s linear, border-color 0.16s linear;
+}
+.screen .mod-hd .enter svg{ width: 9px; height: 9px; }
+.screen .mod:hover .enter,
+.screen .mod:focus-within .enter{ opacity: 1; pointer-events: auto; }
+.screen .mod-hd .enter:hover,
+.screen .mod-hd .enter:focus-visible{
+  color: var(--screen-accent-hi);
+  border-color: var(--screen-line);
+  background: color-mix(in oklab, var(--screen-raised) 70%, transparent);
+}
+/* The right rail reverses its header, so the button lands at the far left
+   there; only its own breathing space needs flipping. */
+.screen .mod-hd.rev .enter{ margin-left: 0; margin-right: 2px; }
+
+.screen .mod-bd{ flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.screen .cells{ display: flex; margin-bottom: 8px; }
+/* WIDTH FOLLOWS CONTENT, not an equal third each.
+   `flex: 1` gave every cell the same width whatever it held, so a panel like
+   回款兑现 - three money figures - crammed 2781.8万元 into the same 109px as
+   在跑商机 gives to a two-digit count, and the long ones collided with their
+   dividers while the short ones sat in empty space. `flex: 1 1 auto` takes the
+   content as the starting basis and shares what is left over from there, so a
+   money cell is wider than a count cell BECAUSE it is wider, and the ratio
+   comes out different in each of the six panels without any of them being
+   told what they contain. min-width keeps a short cell from collapsing to its
+   label. */
+.screen .cells > div{
+  flex: 1 1 auto; min-width: 3.2rem;
+  padding: 0 9px; position: relative;
+}
+.screen .cells > div:first-child{ padding-left: 1px; }
+.screen .cells > div:last-child{ padding-right: 0; }
+.screen .cells > div + div::before{
+  content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 1px;
+  background: var(--screen-line-faint);
+}
+.screen .cells .k{ font-size: 11px; color: var(--screen-dim); margin-bottom: 3px; white-space: nowrap; }
+.screen .cells .v{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 22px; line-height: 1;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.screen .cells .v small{ font-size: 10.5px; color: var(--screen-dim); font-weight: 600; margin-left: 2px; }
+.screen .cells .v.lead{ font-size: 28px; color: var(--screen-accent-hi); }
+.screen .cells .v.hi{ color: var(--screen-warn); }
+.screen .cells .v.amber{ color: var(--screen-warn); }
+.screen .cells .v.red{ color: var(--screen-danger); }
+
+/* 智能副驾: one hero figure, then a pair. */
+.screen .hero{ display: flex; align-items: center; gap: 13px; margin-bottom: 6px; }
+.screen .hero-v{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 46px; line-height: 0.95;
+  color: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 26px oklch(from var(--screen-accent) l c h / 0.35);
+}
+.screen .hero-v small{ font-size: 17px; color: var(--screen-dim); margin-left: 2px; font-weight: 600; }
+.screen .hero-s{ min-width: 0; }
+.screen .hero-k{ font-size: 12px; color: var(--screen-ink); letter-spacing: 0.1em; margin-bottom: 3px; }
+.screen .hero-r{ font-size: 11px; color: var(--screen-faint); white-space: nowrap; }
+.screen .hero-r b{
+  font-family: var(--screen-figure); font-size: 14px; font-weight: 700;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums;
+}
+.screen .hero-r span{
+  font-family: var(--screen-figure); font-size: 13px; color: var(--screen-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.screen .duo{ display: flex; margin-top: 2px; }
+.screen .duo > div{ flex: 1 1 auto; min-width: 3.2rem; padding: 0 10px; position: relative; }
+.screen .duo > div:first-child{ padding-left: 1px; }
+.screen .duo > div:last-child{ padding-right: 0; }
+.screen .duo > div + div::before{
+  content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 1px;
+  background: var(--screen-line-faint);
+}
+.screen .duo .k{ font-size: 11px; color: var(--screen-dim); margin-bottom: 3px; }
+.screen .duo .v{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 25px; line-height: 1;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.screen .duo .v small{ font-size: 10.5px; color: var(--screen-dim); font-weight: 600; margin-left: 2px; }
+.screen .duo .v.hi{ color: var(--screen-accent-hi); }
+.screen .duo .v.amber{ color: var(--screen-warn); }
+.screen .duo .v .qual{
+  font-family: var(--vx-font-sans); font-size: 11px; font-weight: 400;
+  color: var(--screen-faint); margin-left: 7px; letter-spacing: 0.04em;
+}
+.screen .duo .v .plus{ color: var(--screen-danger); font-size: 19px; margin-left: 1px; }
+
+/* 交付履约's donut and its key. */
+.screen .screen-health{ flex: 1; display: flex; align-items: center; gap: 14px; min-height: 0; }
+.screen .legend{ flex: 1; display: flex; flex-direction: column; gap: 7px; }
+.screen .legend div{ display: flex; align-items: center; font-size: 12px; color: var(--screen-ink); transition: color 0.14s linear; }
+.screen .legend i{ width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; flex: none; }
+.screen .legend b{
+  font-family: var(--screen-figure); font-weight: 700; margin-left: auto;
+  transition: font-size 0.14s var(--screen-ease);
+  font-variant-numeric: tabular-nums; font-size: 14px;
+}
+
+/* ---------- 图内的排版 ---------- */
+.screen .tick{
+  font-family: var(--screen-figure); font-size: 11px; fill: var(--screen-faint);
+  font-variant-numeric: tabular-nums;
+}
+.screen .slab{ font-size: 11px; fill: var(--screen-dim); }
+.screen .val{
+  font-family: var(--screen-figure); font-weight: 700; fill: var(--screen-accent-hi);
+  font-variant-numeric: tabular-nums;
+}
+.screen .gridline{ stroke: var(--screen-line); stroke-width: 1; opacity: 0.55; }
+/* 采纳率 readout. Dashed, so it cannot be mistaken for one of the drawn
+   gridlines, and it and its figure ignore the pointer so tracking is smooth. */
+.screen .crosshair{ pointer-events: none; }
+.screen .crossline{
+  stroke: var(--screen-accent-hi); stroke-width: 1;
+  stroke-dasharray: 3 3; opacity: 0.75;
+}
+.screen .crossval{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 13px;
+  fill: var(--screen-accent-hi); font-variant-numeric: tabular-nums;
+}
+.screen .axis{ stroke: var(--screen-line); stroke-width: 1; }
+.screen .trough{ fill: var(--screen-accent); fill-opacity: 0.11; }
+.screen .barval{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 7px;
+  fill: var(--screen-faint); font-variant-numeric: tabular-nums; pointer-events: none;
+  transition: font-size 0.14s var(--screen-ease), fill 0.14s linear;
+}
+/* 15, not 12. At twelve the enlarged figure was barely larger than the label
+   beneath the axis and the gesture did not read as having done anything. */
+.screen .barcol:hover .barval{ font-size: 15px; fill: var(--screen-accent-hi); }
+.screen .barcol:hover rect:first-of-type{ filter: brightness(1.18); }
+
+/* 商机储备's rows, which are not a bar strip and so had no hover at all. */
+.screen .stageval{
+  font-size: 13px;
+  transition: font-size 0.14s var(--screen-ease), fill 0.14s linear;
+}
+.screen .stagerow:hover .stageval{ font-size: 17px; fill: var(--screen-accent-hi); }
+
+/* 交付履约's donut and its key - the same enlarge-on-hover as 商机储备, but
+   driven from state rather than :hover because the arc and the row it belongs
+   to sit in different subtrees and no selector joins them. */
+.screen .legend div.on{ color: var(--screen-ink); }
+.screen .legend div.on b{ font-size: 18px; }
+.screen .band{ transition: filter 0.14s linear; cursor: default; }
+.screen .band.on{ filter: brightness(1.22); }
+.screen .donutval{ transition: font-size 0.14s var(--screen-ease); }
+.screen .stagerow:hover rect:nth-of-type(2){ filter: brightness(1.18); }
+
+/* ---------- arena ---------- */
+.screen .screen-arena{ position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.screen .screen-bar{
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg) var(--space-xs);
+}
+.screen .screen-crumb{ display: flex; align-items: center; gap: var(--space-2xs); font-size: 0.85rem; }
+.screen .screen-crumb button{
+  background: none; border: none; cursor: pointer;
+  color: var(--screen-dim); font: inherit; padding: 2px 4px;
+}
+.screen .screen-crumb button:hover{ color: var(--screen-accent); }
+.screen .screen-crumb .cur{ color: var(--screen-accent); font-weight: 700; }
+.screen .screen-crumb .sep{ color: var(--screen-faint); font-size: 0.7rem; }
+.screen .screen-menu{ position: relative; display: inline-flex; }
+.screen .screen-menu > button{ border: 1px solid transparent; border-radius: var(--radius-sm); }
+.screen .screen-menu > button.placeholder{ color: var(--screen-faint); }
+.screen .screen-menu > button.chosen{ color: var(--screen-accent); font-weight: 700; }
+.screen .screen-menu > button:hover{ border-color: var(--screen-line); }
+.screen .screen-pop{
+  position: absolute; top: 1.6rem; left: 0; z-index: 20; min-width: 6.5rem;
+  display: flex; flex-direction: column; padding: 4px;
+  border: 1px solid var(--screen-line); border-radius: var(--radius-sm);
+  background: var(--screen-raised);
+}
+.screen .screen-pop button{ text-align: left; padding: 5px 8px; border-radius: var(--radius-xs); }
+.screen .screen-pop button:hover{ background: color-mix(in oklab, var(--screen-accent) 15%, transparent); color: var(--screen-accent); }
+.screen .screen-pop button.on{ color: var(--screen-accent); font-weight: 700; }
+.screen .screen-hint{ font-size: 0.7rem; color: var(--screen-faint); }
+.screen .screen-picks{ margin-left: auto; display: flex; gap: 6px; }
+/* NOTCHED, NOT ROUNDED. The clipped corner is the design's shape and it is
+   what makes these read as instrument switches rather than web buttons; a
+   border-radius here quietly turned them into ordinary chips. */
+.screen .screen-pick{
+  height: 25px; padding: 0 12px; font-size: 11.5px; letter-spacing: 0.08em;
+  color: var(--screen-dim); cursor: pointer;
+  border: 1px solid var(--screen-line-faint);
+  background: color-mix(in oklab, var(--screen-surface) 72%, transparent);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.screen .screen-pick:hover{ color: var(--screen-accent); border-color: var(--screen-line); }
+.screen .screen-pick.on{
+  color: var(--vx-color-neutral-950); background: var(--screen-accent);
+  border-color: var(--screen-accent); font-weight: 700;
+}
+/* 健康度 is the odd one out on purpose (owner): a rate among three money
+   figures, so it carries the warm tint and a leading tick rather than sitting
+   in the same blue row as the other three. */
+.screen .screen-pick.rate{
+  color: var(--screen-warn); letter-spacing: 0.14em; font-weight: 600;
+  border-color: oklch(from var(--screen-warn) l c h / 0.42);
+  background: oklch(from var(--screen-warn) l c h / 0.08);
+}
+.screen .screen-pick.rate::before{
+  content: ""; display: inline-block; width: 3px; height: 11px; margin-right: 7px;
+  background: var(--screen-warn); vertical-align: -1px;
+}
+.screen .screen-pick.rate:hover{
+  color: var(--vx-color-amber-200); border-color: var(--screen-warn);
+  background: oklch(from var(--screen-warn) l c h / 0.16);
+}
+.screen .screen-pick.rate.on{
+  color: var(--vx-color-neutral-950); background: var(--screen-warn);
+  border-color: var(--screen-warn); font-weight: 700;
+  box-shadow: 0 0 14px oklch(from var(--screen-warn) l c h / 0.4);
+}
+.screen .screen-pick.rate.on::before{ background: var(--vx-color-neutral-950); opacity: 0.5; }
+
+.screen .screen-map{ position: relative; flex: 1; min-height: 0; }
+.screen .screen-map svg{ position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }
+.screen .screen-prov{
+  stroke: color-mix(in oklab, var(--screen-accent-hi) 55%, transparent);
+  stroke-width: 1.1; vector-effect: non-scaling-stroke; cursor: pointer;
+  transition: fill 0.35s ease, opacity 0.3s ease;
+}
+.screen .screen-prov:hover{ fill: var(--screen-accent-hi) !important; }
+.screen .screen-prov.sel{ stroke: var(--vx-color-neutral-50); stroke-width: 2.2; }
+.screen .screen-plabel{
+  fill: var(--vx-color-sky-100); paint-order: stroke;
+  stroke: var(--vx-color-neutral-950); pointer-events: none;
+}
+.screen .screen-pval{
+  fill: var(--screen-accent-hi); font-weight: 700; paint-order: stroke;
+  stroke: var(--vx-color-neutral-950); pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.screen .screen-sea rect{
+  fill: color-mix(in oklab, var(--screen-surface) 50%, transparent);
+  stroke: var(--screen-line); stroke-width: 1; vector-effect: non-scaling-stroke;
+}
+.screen .screen-sea path{
+  fill: none; stroke: var(--screen-accent); stroke-width: 1.4;
+  vector-effect: non-scaling-stroke; opacity: 0.7;
+}
+
+.screen .screen-back{
+  position: absolute; right: var(--space-md); top: var(--space-sm); z-index: 5;
+  height: var(--space-control-sm); padding: 0 var(--space-sm); cursor: pointer;
+  font-size: 0.72rem; color: var(--screen-accent);
+  border: 1px solid var(--screen-accent); border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--screen-surface) 85%, transparent);
+}
+.screen .screen-scale .none { margin-right: 2px; }
+.screen .screen-scale .none-label { margin-right: 10px; }
+.screen .screen-scale{ position: absolute; left: var(--space-md); bottom: var(--space-sm); display: flex; align-items: center; gap: 0; z-index: 3; }
+.screen .screen-scale i{ width: 2rem; height: 8px; display: block; }
+.screen .screen-scale span{ font-size: 0.68rem; color: var(--screen-faint); margin: 0 var(--space-2xs); font-variant-numeric: tabular-nums; }
+
+/* The fold bracket. Drawn rather than imported - see TD-025. */
+/* Shown over the map when the chosen period holds nothing. */
+.screen .screen-empty{
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  z-index: 8; margin: 0; padding: 10px 18px;
+  font-size: 13px; letter-spacing: 0.08em; color: var(--screen-dim);
+  background: color-mix(in oklab, var(--screen-surface) 92%, transparent);
+  border: 1px solid var(--screen-line);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  pointer-events: none;
+}
+
+/* 省份信息面板 - follows the pointer over the map.
+   pointer-events:none is load-bearing, not tidiness: the panel sits under the
+   cursor by construction, so without it the pointer would leave the province
+   the instant the panel appeared and the two would flicker against each other. */
+.screen .tip{
+  position: absolute; z-index: 9; pointer-events: none;
+  padding: 9px 12px; min-width: 172px;
+  background: color-mix(in oklab, var(--screen-surface) 96%, transparent);
+  border: 1px solid var(--screen-line);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+.screen .tip .t{
+  font-size: 13px; color: var(--screen-ink);
+  margin-bottom: 5px; letter-spacing: 0.05em;
+}
+.screen .tip .r{
+  display: flex; justify-content: space-between; gap: 18px;
+  font-size: 11.5px; color: var(--screen-dim); line-height: 1.75;
+}
+.screen .tip .r b{
+  font-family: var(--screen-figure); color: var(--screen-accent-hi);
+  font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 收起边栏的折角 ----------
+   ONE GRAPHIC, MIRRORED. This is vxtpl's own bracket, copied as a single asset
+   and flipped for the right-hand side rather than drawn twice - the owner asked
+   for exactly that, and two hand-built shapes would drift apart the first time
+   either was touched. It sits inside the map wrapper, pinned to its edges.
+
+   Either bracket drives the SAME state, so one click folds and unfolds both
+   rails: they are one gesture, not two independent panels. */
+.screen .arc{
+  position: absolute; top: 50%; transform: translateY(-50%);
+  z-index: 6; width: 38px; height: min(66%, 560px);
+  background: none; border: none; padding: 0; cursor: pointer;
+}
+.screen .arc-left{ left: 0; }
+.screen .arc-right{ right: 0; }
+.screen .arc__art{
+  display: block; width: 100%; height: 100%;
+  background: url("/screen/fold-bracket.png") center / contain no-repeat;
+  opacity: 0.26;
+  transition: transform 0.28s var(--screen-ease),
+              filter 0.24s linear, opacity 0.3s linear;
+  animation: screen-ember 3.4s ease-in-out infinite;
+}
+.screen .arc__art--flip{ transform: scaleX(-1); }
+/* BOTH BRACKETS LIGHT TOGETHER (owner). They drive one piece of state and one
+   click moves both rails, so lighting only the one under the pointer says the
+   two are independent controls. `.lit` is set on both from the component; the
+   :hover/:focus-visible rules stay so the effect survives without JS. */
+.screen .arc:hover .arc__art, .screen .arc:focus-visible .arc__art, .screen .arc.lit .arc__art{
+  animation: none; opacity: 1;
+  filter: drop-shadow(0 0 10px oklch(from var(--screen-warn) l c h / 0.55)) brightness(1.1);
+}
+@keyframes screen-ember {
+  0%, 100% { opacity: 0.19; }
+  50% { opacity: 0.34; }
+}
+
+/* ---------- 漏斗带 ---------- */
+.screen .screen-ribbon{
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 100%; max-width: 62rem; margin: 0 auto;
+  padding: var(--space-2xs) var(--space-lg) var(--space-md);
+}
+.screen .screen-ribbon .node{ flex: 1; text-align: center; padding: 0 var(--space-2xs); min-width: 0; }
+.screen .screen-ribbon .node .k{
+  font-size: 11.5px; color: var(--screen-dim);
+  letter-spacing: 0.14em; margin-bottom: 4px;
+}
+.screen .screen-ribbon .node .v{
+  font-family: var(--screen-figure); font-weight: 700; font-size: 33px; line-height: 1;
+  color: var(--screen-ink); font-variant-numeric: tabular-nums;
+}
+.screen .screen-ribbon .node .v small{
+  font-size: 13px; color: var(--screen-dim); margin-left: 3px; font-weight: 600;
+}
+.screen .screen-ribbon .node.win .v{
+  color: var(--screen-accent-hi);
+  text-shadow: 0 0 24px oklch(from var(--screen-accent) l c h / 0.45);
+}
+.screen .screen-ribbon .node.cash .v{
+  color: var(--screen-warn);
+  text-shadow: 0 0 24px oklch(from var(--screen-warn) l c h / 0.35);
+}
+
+/* The connector: an arrow and the rate that survived across it. Fixed width,
+   so the four stages stay evenly spaced whatever their figures are. */
+.screen .conv{
+  flex: none; width: 72px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px;
+}
+.screen .conv svg{ width: 52px; height: 9px; }
+.screen .conv span{
+  font-family: var(--screen-figure); font-size: 12px; font-weight: 600;
+  color: var(--screen-accent); font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Animation as well as transition. A pulse that never stops is precisely
+     what this setting exists to turn off, and the marks are decorative - the
+     screen loses nothing by holding them still. */
+  .screen *, .screen *::before, .screen *::after{
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
+}

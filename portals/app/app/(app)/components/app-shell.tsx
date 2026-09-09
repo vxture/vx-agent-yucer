@@ -13,8 +13,8 @@ import {
 import {
   Separator,
   ShellHeader,
+  ShellPageContainer,
   ShellViewport,
-  StatusBadge,
 } from "@vxture/design-ui";
 import {
   LOCALE_CONFIGS,
@@ -26,6 +26,7 @@ import { writeLocale } from "../lib/i18n/write-locale";
 import type { ResolvedNavEntry } from "../lib/navigation";
 import { DomainLauncher } from "./domain-launcher";
 import { NavBoard } from "./nav-board";
+import { AdminNav } from "./admin-nav";
 import { AgentDockButton } from "./agent-dock-button";
 import { HeaderTools, SHELL_BODY_ID } from "./header-tools";
 import { WorkspaceScope } from "./workspace-scope";
@@ -35,6 +36,7 @@ import type { BoardModuleCard, BoardSection } from "../lib/board";
 // resolved to - so it reads the dictionary rather than one locale's copy of it.
 import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
+import { Tag } from "./tag";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -234,7 +236,19 @@ export function AppShell({
   // just been handed the reason they opened the product. You choose a domain
   // from the launcher; the nav exists once you are inside one.
   const isHome = segments.length === 0;
+
+  /* 配置管理 IS A PLANE OF ITS OWN (owner, 2026-09-08), and the body below
+     branches on it rather than filtering pieces out of one row: inside it the
+     business board is replaced by the plane's own menu, the copilot deck does
+     not render at all, and the spacing is the plane's own (2026-09-09). A deck
+     pushing today's deals beside a permission matrix is noise, and the board
+     would be a second answer to "where am I".
+
+     The two flags below are therefore about the BUSINESS body only - the admin
+     branch renders neither flank, so neither flag needs to name it. */
+  const isAdmin = segments[0] === "admin";
   const boardVisible = showBoard && !isDetail && !isHome;
+  const deckVisible = showDock;
 
   const toggleBoard = () =>
     setShowBoard((prev) => {
@@ -329,9 +343,26 @@ export function AppShell({
 
          The consequence to know: the collapse TRANSITION on the sidebar frame
          is gone. The flanks still collapse - they unmount - they just no longer
-         animate their width. That is the price of the two widths and the gap. */
-      sidebarMode="hidden"
-      sidebar={null}
+         animate their width. That is the price of the two widths and the gap.
+
+         配置管理 IS THE EXCEPTION, and it goes through the slot (2026-09-08).
+         Its menu is the DS's own ShellSidebarNav, built for exactly this
+         placement: flush to the viewport edge, full height, its own width and
+         collapse transition. Rendering it as a pane inside the padded row
+         instead put 24px of our padding and a 32px gap around a component that
+         already carries its own - a frame nobody asked for, and the nav pushed
+         off the edge it is meant to sit on. */
+      sidebar={
+        isAdmin ? (
+          <AdminNav
+            nav={admin}
+            pathname={pathname}
+            collapsed={!showBoard}
+            onToggleCollapsed={toggleBoard}
+          />
+        ) : null
+      }
+      sidebarMode={isAdmin ? (showBoard ? "expanded" : "collapsed") : "hidden"}
       header={
         <ShellHeader
           leading={
@@ -391,11 +422,11 @@ export function AppShell({
                 bolted onto an English identifier was neither - and absent
                 entirely in production. */}
               {isProduction ? null : (
-                <StatusBadge tone={tier ? "brand" : "neutral"}>
+                <Tag tone={tier ? "brand" : "neutral"}>
                   {tier
                     ? HEADER_TEXT.subscription(tier)
                     : HEADER_TEXT.subscriptionNone}
-                </StatusBadge>
+                </Tag>
               )}
 
               {/* (6) The rule. It separates identity from scope: everything to
@@ -551,6 +582,50 @@ export function AppShell({
           scroll its own bottom padding away, and the safe area at the foot of
           a long list would vanish exactly when the list got long enough to
           need it. */}
+      {isAdmin ? (
+        /* 配置管理'S OWN BODY: three zones, and only the middle one has
+           anything in it today (owner, 2026-09-09).
+
+           LEFT is the DS sidebar, which is not in here at all - it goes
+           through ShellViewport's own slot, flush to the viewport edge.
+           MIDDLE is the content. RIGHT is held for the agent and renders
+           nothing yet; it is a named slot rather than a comment so that
+           filling it later is one line and not a re-layout.
+
+           THE MIDDLE'S SPACING IS TWO MEASUREMENTS, not one, and only one of
+           them is ours. The INSET - the breathing room inside the content, and
+           the safe area under it - is ShellPageContainer's, which is the DS
+           component for exactly this: px/pt-page-inset (a clamp that tops out
+           at 48px and moves continuously as the window is dragged, rather than
+           stepping at a breakpoint), pb-6xl (80px) so the last row of a
+           scrolled list does not sit on the fold, and a capped, centred measure
+           so a 4K monitor does not hand a table 2,000px of line. Its own
+           documentation gives the same reason the owner did: 用断点切档会在拖
+           窗口时阵变一两次，正好最显眼.
+
+           What is OURS is the MARGIN outside it: --vx-shell-gutter, the
+           standoff between the three zones, fluid to 64px. It is a wrapper
+           rather than a className on the container because the container's
+           mx-auto is what centres it once the measure caps - merging a margin
+           into that class would drop the centring.
+
+           NO gap, NO p-lg on the row: every horizontal measurement in this
+           plane is one of those two, so there is one place to change each. */
+        <div id={SHELL_BODY_ID} className="flex h-full min-h-0">
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+            <div className="mx-(--vx-shell-gutter)">
+              {/* wide-2xl NAMED RATHER THAN INHERITED: it is the DS's current
+                  default, and this plane is tables - the tier the DS itself
+                  labels 数据密集型面板 - so the choice should survive a change
+                  of default. */}
+              <ShellPageContainer width="wide-2xl">{children}</ShellPageContainer>
+            </div>
+          </div>
+          {/* RIGHT - held for the agent. Deliberately empty: a zone reserved
+              with a width would spend it on nothing, and this product has
+              already removed three controls that did nothing. */}
+        </div>
+      ) : (
       <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
         {/* LEFT - ours. Cards that state where things stand; opening one
             navigates, but that is a consequence of the card, not its purpose. */}
@@ -578,12 +653,13 @@ export function AppShell({
         </div>
 
         {/* RIGHT - the agent, and what it is looking at. */}
-        {showDock ? (
+        {deckVisible ? (
           <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto">
             {deck}
           </aside>
         ) : null}
       </div>
+      )}
     </ShellViewport>
   );
 }

@@ -7,6 +7,7 @@ import { unwrap } from "./shared/result";
 import { InMemorySignalStore, type LeadRecord, type SignalRecord } from "./signal/store";
 import { InMemoryPipelineStore } from "./pipeline/store";
 import { convertLeadToOpportunity, type ConversionContext } from "./conversion";
+import { InMemoryCatalogStore } from "./catalog/store";
 
 const WS = "ws_1";
 
@@ -24,6 +25,7 @@ function lead(over: Partial<LeadRecord> = {}): LeadRecord {
     ownerSub: "usr_rep",
     status: "qualified",
     convertedOpportunityId: null,
+    createdAt: new Date("2026-08-01T00:00:00Z"),
     ...over,
   };
 }
@@ -51,6 +53,7 @@ function ctx(
   tier: Entitlement["tier"],
   signalStore = new InMemorySignalStore(),
   pipelineStore = new InMemoryPipelineStore(),
+  catalogStore = new InMemoryCatalogStore(),
 ): ConversionContext {
   return {
     workspaceId: WS,
@@ -59,6 +62,7 @@ function ctx(
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
     signalStore,
     pipelineStore,
+    catalogStore,
   };
 }
 
@@ -70,7 +74,7 @@ test("conversion copies the campaign onto the opportunity and freezes it", async
   signals.seed({ leads: [lead({ campaignId: "camp_1" })], signals: [signal()] });
 
   const out = unwrap(
-    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { leadId: "lead_1" }),
+    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" }),
   );
 
   assert.equal(out.opportunity.campaignId, "camp_1");
@@ -90,7 +94,7 @@ test("a lead with no campaign inherits the signal's lineage", async () => {
   });
 
   const out = unwrap(
-    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { leadId: "lead_1" }),
+    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" }),
   );
   assert.equal(out.attribution.source, "signal_campaign");
   assert.equal(out.opportunity.campaignId, "camp_9");
@@ -102,7 +106,7 @@ test("no lineage converts as self-sourced rather than inventing one", async () =
   signals.seed({ leads: [lead({ campaignId: null, signalId: null })] });
 
   const out = unwrap(
-    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { leadId: "lead_1" }),
+    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" }),
   );
   assert.equal(out.attribution.source, "self_sourced");
   assert.equal(out.opportunity.campaignId, null);
@@ -114,7 +118,7 @@ test("the loop closes: the lead points at the opportunity that exists", async ()
   signals.seed({ leads: [lead()], signals: [signal()] });
 
   const out = unwrap(
-    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { leadId: "lead_1" }),
+    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" }),
   );
 
   const after = await signals.getLead(WS, "lead_1");
@@ -133,7 +137,7 @@ test("a converted deal starts at qualify with the stage default probability", as
   signals.seed({ leads: [lead()], signals: [signal()] });
 
   const out = unwrap(
-    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { leadId: "lead_1" }),
+    await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" }),
   );
   assert.equal(out.opportunity.stage, "qualify");
   assert.equal(out.opportunity.probability, 10);
@@ -147,7 +151,7 @@ test("the lead's owner follows the deal", async () => {
   signals.seed({ leads: [lead({ ownerSub: "usr_rep" })], signals: [signal()] });
 
   const out = unwrap(
-    await convertLeadToOpportunity(ctx("sales_leader", "pro", signals, pipeline), { leadId: "lead_1" }),
+    await convertLeadToOpportunity(ctx("sales_leader", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" }),
   );
   assert.equal(out.opportunity.ownerSub, "usr_rep", "not the converter");
 });
@@ -158,7 +162,7 @@ test("the name defaults to the company and can be overridden", async () => {
   signals.seed({ leads: [lead()], signals: [signal()] });
   const c = ctx("sales_rep", "pro", signals, pipeline);
 
-  const out = unwrap(await convertLeadToOpportunity(c, { leadId: "lead_1", name: "  POS rollout  " }));
+  const out = unwrap(await convertLeadToOpportunity(c, { requirement: "POS replacement", leadId: "lead_1", name: "  POS rollout  " }));
   assert.equal(out.opportunity.name, "POS rollout");
 
   const signals2 = new InMemorySignalStore();
@@ -166,7 +170,7 @@ test("the name defaults to the company and can be overridden", async () => {
   const out2 = unwrap(
     await convertLeadToOpportunity(
       ctx("sales_rep", "pro", signals2, new InMemoryPipelineStore()),
-      { leadId: "lead_2" },
+      { requirement: "POS replacement", leadId: "lead_2" },
     ),
   );
   assert.equal(out2.opportunity.name, "Acme Retail");
@@ -180,6 +184,7 @@ test("an amount and expected close carry across", async () => {
 
   const out = unwrap(
     await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), {
+      requirement: "POS replacement",
       leadId: "lead_1",
       amount: money(1_200_000),
       expectedCloseAt: close,
@@ -198,7 +203,7 @@ test("nothing is created when the rules refuse", async () => {
   const pipeline = new InMemoryPipelineStore();
   signals.seed({ leads: [lead({ status: "working" })] });
 
-  const r = await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { leadId: "lead_1" });
+  const r = await convertLeadToOpportunity(ctx("sales_rep", "pro", signals, pipeline), { requirement: "POS replacement", leadId: "lead_1" });
   assert.equal(r.ok === false && r.violations[0].code, "lead_not_qualified");
   assert.equal((await pipeline.listOpportunities(WS, { includeClosed: true })).length, 0);
 });
@@ -211,7 +216,7 @@ test("nothing is created when the gate refuses", async () => {
   // marketing_manager triages signals but does not create deals.
   const r = await convertLeadToOpportunity(
     ctx("marketing_manager", "pro", signals, pipeline),
-    { leadId: "lead_1" },
+    { requirement: "POS replacement", leadId: "lead_1" },
   );
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
   assert.equal((await pipeline.listOpportunities(WS, { includeClosed: true })).length, 0);
@@ -223,10 +228,10 @@ test("an unmatched lead needs an account supplied", async () => {
   signals.seed({ leads: [lead({ accountId: null })] });
   const c = ctx("sales_rep", "pro", signals, pipeline);
 
-  const without = await convertLeadToOpportunity(c, { leadId: "lead_1" });
+  const without = await convertLeadToOpportunity(c, { requirement: "POS replacement", leadId: "lead_1" });
   assert.equal(without.ok === false && without.violations[0].code, "account_required");
 
-  const out = unwrap(await convertLeadToOpportunity(c, { leadId: "lead_1", accountId: "acc_new" }));
+  const out = unwrap(await convertLeadToOpportunity(c, { requirement: "POS replacement", leadId: "lead_1", accountId: "acc_new" }));
   assert.equal(out.opportunity.accountId, "acc_new");
 });
 
@@ -235,7 +240,7 @@ test("a lead in another workspace is not found", async () => {
   signals.seed({ leads: [lead({ workspaceId: "ws_other" })] });
   const r = await convertLeadToOpportunity(
     ctx("sales_rep", "pro", signals, new InMemoryPipelineStore()),
-    { leadId: "lead_1" },
+    { requirement: "POS replacement", leadId: "lead_1" },
   );
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
 });
@@ -246,8 +251,8 @@ test("converting twice is refused - one piece of demand, one deal", async () => 
   signals.seed({ leads: [lead()], signals: [signal()] });
   const c = ctx("sales_rep", "pro", signals, pipeline);
 
-  unwrap(await convertLeadToOpportunity(c, { leadId: "lead_1" }));
-  const second = await convertLeadToOpportunity(c, { leadId: "lead_1" });
+  unwrap(await convertLeadToOpportunity(c, { requirement: "POS replacement", leadId: "lead_1" }));
+  const second = await convertLeadToOpportunity(c, { requirement: "POS replacement", leadId: "lead_1" });
 
   assert.equal(second.ok === false && second.violations[0].code, "lead_not_qualified");
   assert.equal(

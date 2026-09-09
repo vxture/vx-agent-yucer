@@ -15,7 +15,7 @@
 // capture.
 
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
-import { DEFAULT_CURRENCY, ratio, sumMoney, toMinor, type Money } from "../../shared/money";
+import { ratio, sumMoney, toMinor, type Money } from "../../shared/money";
 import { isTerminal, type Stage } from "./stage";
 import { periodRange, within } from "../../shared/period";
 
@@ -85,7 +85,10 @@ export interface ForecastTotals {
  */
 export function rollUp(
   opportunities: readonly ForecastableOpportunity[],
-  currency: string = DEFAULT_CURRENCY,
+  /** What the totals are in - the workspace's 计价规则 (incr/0044). Required:
+   *  a default here was one more copy of "CNY", and a roll-up that assumed
+   *  a currency could not be told from one that was given the wrong one. */
+  currency: string,
 ): RuleResult<ForecastTotals> {
   const buckets: Record<ForecastCategory, Money[]> = {
     pipeline: [],
@@ -266,10 +269,10 @@ export function planSnapshot(input: {
   period: string;
   scope: ForecastScope;
   opportunities: readonly ForecastableOpportunity[];
-  currency?: string;
+  currency: string;
   snapshotAt?: Date;
 }): RuleResult<SnapshotRow> {
-  const currency = input.currency ?? DEFAULT_CURRENCY;
+  const currency = input.currency;
   if (!input.period.trim()) {
     return fail(violation("period_required", "a snapshot must name the period it forecasts", "period"));
   }

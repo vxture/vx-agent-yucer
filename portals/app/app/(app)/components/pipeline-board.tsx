@@ -14,13 +14,14 @@ import {
   Section,
   Stack,
   StatusBadge,
+  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   type DataTableColumn,
   type MetricGridItem,
 } from "@vxture/design-ui";
-import { TableCard } from "./table-card";
+import { useTableSort } from "./table-fittings";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import {
   rollUp,
@@ -37,6 +38,7 @@ import {
 
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { loadFailureText } from "../lib/load-failure";
+import { Tag } from "./tag";
 // The pipeline board: opportunities plus the forecast roll-up they produce.
 //
 // A thin binding of DS elements to yucer's domain semantics, which is the one
@@ -67,7 +69,8 @@ export interface PipelineRow extends ForecastableOpportunity {
 
 export interface PipelineBoardProps {
   readonly rows: readonly PipelineRow[];
-  readonly currency?: string;
+  /** The workspace's default (incr/0044), for rows that carry no amount. */
+  readonly currency: string;
   readonly loading?: boolean;
   /** Shown when the member may read but not advance anything. */
   readonly readOnly?: boolean;
@@ -81,9 +84,17 @@ export interface PipelineBoardProps {
   readonly undated?: number;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: PipelineRow) => r.name,
+    amount: (r: PipelineRow) => r.amount?.amount ?? null,
+  };
+
 export function PipelineBoard({
   rows,
-  currency = "CNY",
+  currency,
   loading,
   readOnly,
   undated = 0,
@@ -96,6 +107,7 @@ export function PipelineBoard({
     STAGE_LABEL,
     LOAD_ERROR,
   } = useMessages();
+  const sorted = useTableSort<PipelineRow>(rows, SORT_ON);
   // formatMoney and formatPercent DEFAULT to "zh-CN" and no caller was passing
   // anything, so every figure in the product was formatted Chinese-style
   // whatever the reader's locale. Threading it here fixes this page; the
@@ -167,6 +179,7 @@ export function PipelineBoard({
       // account list - and design-ui 2.0 dropped onRowClick entirely, which
       // only removed a second, worse way to reach the same page.
       id: "name",
+  sortable: true,
       header: PIPELINE_TEXT.columnOpportunity,
       // A FLOOR, because auto-layout gives a column what its content demands
       // and this cell no longer demands anything: with the number and the
@@ -174,7 +187,12 @@ export function PipelineBoard({
       // and broke 智能仓储升级 down four lines. The row identity is the one
       // column that should never be the narrowest.
       width: "md",
-      cell: (row) => <Link href={`/pipeline/${row.id}`}>{row.name}</Link>,
+      cell: (row) => (
+        <TableTitleCell
+          title={<Link href={`/pipeline/${row.id}`}>{row.name}</Link>}
+          tooltip={row.name}
+        />
+      ),
     },
     {
       // THE CUSTOMER, main over sub - the same two-line shape delivery uses,
@@ -210,14 +228,14 @@ export function PipelineBoard({
       header: PIPELINE_TEXT.columnStageForecast,
       cell: (row) => (
         <Stack gap="sm">
-          <StatusBadge tone={STAGE_TONE[row.stage as Stage]} dot>
+          <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
             {STAGE_LABEL[row.stage as Stage]}
-          </StatusBadge>
-          <StatusBadge
+          </Tag>
+          <Tag
             tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
           >
             {FORECAST_LABEL[row.forecastCategory as ForecastCategory]}
-          </StatusBadge>
+          </Tag>
         </Stack>
       ),
     },
@@ -232,7 +250,8 @@ export function PipelineBoard({
       // than it was as its own column.
       id: "amount",
       header: PIPELINE_TEXT.columnAmount,
-      align: "right",
+      sortable: true,
+      align: "money",
       cell: (row) =>
         formatMoney(row.amount?.amount ?? null, row.currency, locale),
     },
@@ -242,7 +261,6 @@ export function PipelineBoard({
       // mean entirely different things in a review.
       id: "probability",
       header: PIPELINE_TEXT.columnProbability,
-      align: "right",
       cell: (row) => {
         const p = probabilityDisplay(row);
         if (p.value == null) return "-";
@@ -278,9 +296,12 @@ export function PipelineBoard({
     <Section
       icon="table"
       title={PIPELINE_TEXT.title}
-      description={
-        readOnly ? PIPELINE_TEXT.descriptionReadOnly : PIPELINE_TEXT.description
-      }
+      // ONLY THE READ-ONLY LINE. The module header above carries the ordinary
+      // description, and the same sentence twice on one screen makes a reader
+      // check whether the two agree instead of reading either. The read-only
+      // variant stays because it says something the header does not: that this
+      // particular reader cannot move a deal.
+      description={readOnly ? PIPELINE_TEXT.descriptionReadOnly : undefined}
     >
       {totals.ok ? (
         <MetricGrid
@@ -329,13 +350,14 @@ export function PipelineBoard({
               heading and its tools; the card is the surface the rows sit on, so
               wrapping the whole section would put the heading inside the thing
               it names. */}
-          <TableCard>
             {view === "list" ? (
               <DataTable
                 labels={DATA_TABLE_LABELS}
                 indexStart={1}
                 columns={columns}
-                rows={rows}
+                rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
                 rowKey={(row) => row.id}
                 loading={loading}
                 /* The fixed column: pinned right, locked during horizontal
@@ -368,9 +390,9 @@ export function PipelineBoard({
                         : `${row.opportunityNo} / ${row.accountName}`
                     }
                     status={
-                      <StatusBadge tone={FORECAST_TONE[row.forecastCategory]}>
+                      <Tag tone={FORECAST_TONE[row.forecastCategory]}>
                         {FORECAST_LABEL[row.forecastCategory]}
-                      </StatusBadge>
+                      </Tag>
                     }
                     actions={
                       <ActionMenu
@@ -387,9 +409,9 @@ export function PipelineBoard({
                     }
                     meta={
                       <>
-                        <StatusBadge tone={STAGE_TONE[row.stage as Stage]}>
+                        <Tag tone={STAGE_TONE[row.stage as Stage]}>
                           {STAGE_LABEL[row.stage as Stage] ?? row.stage}
-                        </StatusBadge>
+                        </Tag>
                         <span className="tabular-nums">
                           {formatMoney(
                             row.amount?.amount ?? null,
@@ -411,7 +433,6 @@ export function PipelineBoard({
                 ))}
               </ListCardGrid>
             )}
-          </TableCard>
         </>
       )}
     </Section>

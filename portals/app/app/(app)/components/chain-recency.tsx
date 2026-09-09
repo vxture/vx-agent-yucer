@@ -1,6 +1,7 @@
 import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import { getMessages } from "../lib/i18n/server";
 import type { ChainRecency, ContactNode } from "../../domains/account/lib/health";
+import { Tag } from "./tag";
 
 // Who on the decision chain anyone has actually spoken to.
 //
@@ -36,7 +37,7 @@ export async function ChainRecencyPanel({
           into "no" would state a fact about the customer on the strength of a
           gap in our own record-keeping. */}
       {warmPathToEconomic === null ? (
-        <StatusBadge tone="neutral">{RECENCY_TEXT.warmPathUnknown}</StatusBadge>
+        <Tag>{RECENCY_TEXT.warmPathUnknown}</Tag>
       ) : warmPathToEconomic ? (
         <StatusBadge tone="success" dot>
           {RECENCY_TEXT.warmPathYes}
@@ -73,9 +74,9 @@ export async function ChainRecencyPanel({
         <div>
           <span>{RECENCY_TEXT.unrecorded}</span>
           {unrecorded.map((c) => (
-            <StatusBadge key={c.id} tone="neutral">
+            <Tag key={c.id}>
               {nameOf(c)}
-            </StatusBadge>
+            </Tag>
           ))}
           <EmptyState
             title={RECENCY_TEXT.unrecorded}

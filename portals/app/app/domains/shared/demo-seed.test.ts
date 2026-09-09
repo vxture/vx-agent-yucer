@@ -102,7 +102,15 @@ test("seeding twice does not multiply the fixtures", async () => {
     // duplicated opportunities within a few navigations.
     const { getPipelineStore } = await import("./registry");
     const rows = await getPipelineStore().listOpportunities(WS, { includeClosed: true });
-    assert.equal(rows.length, 21);
+    // SCOPED TO THE CURATED PREFIX (2026-09-07). The workspace also carries the
+    // 全国样本 cohort now, and this test is about DUPLICATION, not population -
+    // pinning a total would make it fail every time the cohort grows while
+    // still not noticing a doubled curated row.
+    assert.equal(rows.filter((r) => r.id.startsWith("opp_demo_")).length, 21);
+    // and the cohort must not double either, which is the same bug one level out
+    const nat = rows.filter((r) => r.id.startsWith("opp_nat_")).length;
+    assert.ok(nat > 0, "the national cohort should be seeded too");
+    assert.equal(new Set(rows.map((r) => r.id)).size, rows.length, "no id appears twice");
   } finally {
     if (saved !== undefined) process.env.YUCER_DEMO_DATA = saved;
     else delete process.env.YUCER_DEMO_DATA;
@@ -125,7 +133,16 @@ test("the demo has the working set it claims: 9 accounts, 21 deals, 6 projects",
     s.delivery.listProjects(WS),
   ]);
 
-  assert.equal(accounts.length, 9);
+  // THE CURATED NINE, counted by prefix. The workspace also holds the 全国样本
+  // cohort (demo-national.ts) so the province map has a distribution to grade;
+  // this file is about the nine rows that each demonstrate a rule, and it says
+  // so explicitly rather than by relying on them being everything present.
+  const curated = accounts.filter((a) => a.id.startsWith("acc_demo_"));
+  assert.equal(curated.length, 9);
+  assert.ok(
+    accounts.length > curated.length,
+    "the national cohort should be seeded alongside the curated nine",
+  );
   // 13 on 2026-08-30: two subscription projects and the renewal deal already
   // open off one of them, so /renewal can show every verdict it has - including
   // `already_renewed`, which proves 0019's link is actually being read.
@@ -154,8 +171,12 @@ test("the demo has the working set it claims: 9 accounts, 21 deals, 6 projects",
   // customer in this seed had two deals open at once, so the thing batch D
   // fixes - one buying committee shared by every deal at a customer - could not
   // be shown, and neither could the fix.
-  assert.equal(opportunities.length, 21);
-  assert.equal(projects.length, 6);
+  //
+  // 2026-09-07: counted by prefix from here on. The 全国样本 cohort shares this
+  // workspace, and every figure above is a statement about the CURATED rows -
+  // pinning the totals would turn a growing cohort into a failing rule test.
+  assert.equal(opportunities.filter((o) => o.id.startsWith("opp_demo_")).length, 21);
+  assert.equal(projects.filter((p) => p.id.startsWith("prj_demo_")).length, 6);
 });
 
 test("every open stage is occupied, so the board has no empty column", async () => {
@@ -903,6 +924,7 @@ test("the demo has a quarter that is over, with a scorecard the two figures disa
       holder: { permissions: new Set(permissionsForRoles(["sales_ops"])) },
       entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier: "enterprise" },
       store: s.pipeline,
+      catalog: s.catalog,
     },
     DEMO_PRIOR_PERIOD,
     { now: DEMO_NOW },
@@ -1042,22 +1064,72 @@ test("the demo has a customer whose region the data can derive, or the completen
   );
   const derivable = fillable(gaps).find((g) => g.field === "region");
   assert.ok(derivable, "no derivable region gap - a single-region territory alone is not enough without a deal on it");
-  assert.equal(derivable?.suggestion, "港澳");
+  assert.equal(derivable?.suggestion, "南部");
   assert.ok(derivable?.basis, "a suggestion with no basis is a machine writing into a record on nobody's authority");
+
+  /* AND THE OTHER ROUTE AGREES. The call above passes no division table, so it
+     took the territory fallback; completeness.ts prefers the PROVINCE when it
+     has one, and a demo where the two routes disagreed would be a demo that
+     hides which one ran. Both say 南部 because 香港 sits in 南部 and the team
+     that works it is registered there. */
+  /* THE WORKSPACE'S OWN TABLE, read back from the store rather than from the
+     preset module - and keyed by division NAME, which is what the service
+     passes and what `account.region` holds. A code-keyed map would suggest
+     "south", a value no territory covers and no screen groups by. */
+  const divisionOf: Record<string, string> = {};
+  for (const d of await s.account.listMarketDivisions(WS)) {
+    for (const m of d.members) divisionOf[m.key] = d.name;
+  }
+  const viaProvince = accountGaps(
+    account,
+    deals
+      .filter((d) => d.accountId === account.id)
+      .map((d) => ({ territoryId: d.territoryId, ownerSub: d.ownerSub })),
+    territoryInputs,
+    [],
+    divisionOf,
+  );
+  const byProvince = fillable(viaProvince).find((g) => g.field === "region");
+  assert.equal(byProvince?.suggestion, "南部");
 });
 
-test("every other demo territory still covers two regions - the ambiguous case is not accidentally gone", async () => {
-  // This account exists BECAUSE the other three territories are ambiguous for
-  // region derivation; if that ever stopped being true, this test's account
-  // would be redundant and the workplan note that motivated it would be
-  // wrong. Pinning it here means a future edit that narrows terr_east etc.
-  // down to one region gets caught rather than silently making 港澳零售集团
-  // the only reason this repo still needs a single-region territory.
+test("an ambiguous territory still exists, or the refusal branch has no demo case", async () => {
+  /* WHAT THIS USED TO SAY, and why it was wrong: "every other demo territory
+     covers exactly two regions". That was arithmetic, not design - seven
+     divisions split three ways plus a remainder - and when the carve became
+     five and the territories became TEAMS (直销一部 / 直销二部 / 渠道部 /
+     港澳组), holding the old shape would have meant inventing coverage nobody
+     sells to, just to keep a number at two.
+
+     The property that actually matters is that AMBIGUITY EXISTS: at least one
+     territory covers more than one 大区, so accountGaps() has a case where it
+     must decline to derive a region rather than pick the first candidate. Here
+     it is 西部, worked by both the direct-sales and the channel team. */
   const s = seeded();
   const territories = await s.planning.listTerritories(WS);
-  const original = territories.filter((t) => t.id !== "terr_hk");
-  assert.ok(original.length > 0);
-  for (const t of original) {
-    assert.equal(t.regions.length, 2, `${t.name} no longer covers exactly two regions`);
-  }
+  const ambiguous = territories.filter((t) => t.regions.length > 1);
+  assert.ok(
+    ambiguous.length > 0,
+    "no territory covers more than one 大区 - nothing in the demo reaches the refusal",
+  );
+  const single = territories.filter((t) => t.regions.length === 1);
+  assert.ok(
+    single.length > 0,
+    "no single-region territory - the derivable-by-territory case has nothing to derive from",
+  );
 });
+
+test("the demo has a child territory, or the 上级区域 column is always blank", async () => {
+  // parentId was hard-coded null in the seed helper, so a column the roster
+  // has drawn since it was built had never once held a value. A field the
+  // demo never fills reads as a field the product does not have.
+  const s = seeded();
+  const territories = await s.planning.listTerritories(WS);
+  const children = territories.filter((t) => t.parentId !== null);
+  assert.equal(children.length, 1);
+  assert.ok(
+    territories.some((t) => t.id === children[0]!.parentId),
+    "the child's parent is not a territory in this workspace",
+  );
+});
+

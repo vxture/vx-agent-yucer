@@ -31,6 +31,10 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-019 | 八个 `prisma-store.ts` 从未跑过真实数据库，两个都是真 bug | 2026-09-02 | **closed 2026-09-02**（94 个 `*.db.test.ts`，PR #149） |
 | TD-020 | 没有任何一次运行能测出本仓的真实覆盖率，而 CI 发布的正是瞎的那一半 | 2026-09-02 | **closed 2026-09-02**（`merge-lcov.mjs` 合并两半，PR #151） |
 | TD-021 | Dependabot 在修复落地之后仍然新建告警，且从不自行复评——四条高危全是陈旧信号 | 2026-09-03 | open（本轮四条已以 `inaccurate` 关闭；复发机制未消除） |
+| TD-022 | DS DataTable 操作列的「固定 64px、锁定」是文档，不是实现 | 2026-09-05 | open（六处 `table-fixed` 包装垫着；已上报 DS） |
+| TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS） |
+| TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
+| TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -121,11 +125,27 @@ DS 元素的表面色，正是 CLAUDE.md 刚性区禁止的那种偏离。角标
 `Badge` 定高 `h-control-2xs` + `px-sm`，单个数字渲染成 30x20，比它挂着的 32px
 按钮还宽——但那个定高在 DS 里也是有理由的（成簇时要对齐），不该由消费方改掉。
 
-**当前表现**：淡红底、红字、红描边的 `Badge variant="destructive"`，尺寸偏大。
-可读、语义正确、但不是被要求的那枚实底小气泡。
+**2026-09-07 更新：垫片已经建了。** owner 第二次提出同一件事（「提示数字现在太大，
+颜色没有警示效果」），那就是裁定，不是再讨论一次的信号。上面那段「为什么不本地覆写」
+的理由**依然成立且被遵守**——所以垫片不是给 `Badge` 加 className，而是
+`(app)/components/count-badge.tsx` 里一个**自己的 span**：它不包 `Badge`、不改任何
+DS 元件的表面，颜色全部取自 DS 令牌（`--destructive` / `--destructive-foreground` /
+`--card`）。这与 TD-023 的步骤条走的是同一条路子。
 
-**恢复条件**：向 DS 提出计数徽标元素（实底、圆形或胶囊、随图标按钮尺寸档走、
-带 99+ 溢出规则）。DS 提供后，删除本地组合，改为消费该元素。
+实测（2026-09-07）：一位数 16x16 圆形、两位数 19x16 胶囊（原先单个数字 30x20），
+实底红 `oklch(0.577 0.245 27.325)` + 白字，10px/600，外加 2px `ring-card` 白圈把
+红色与底下的图标隔开。
+
+**溢出规则改了：最多两位，超过显示 `99`，不是 `99+`**（owner 2026-09-07）。徽章高
+16px，第三个字形要吃掉三分之一宽度去承载一个没人会因此改变动作的区别；过了九十九，
+信息已经是「一次坐下清不完」，确切数字在按钮点开的面板里。`HEADER_TEXT.countOverflow`
+（那个 `"99+"`）随之从两个词典里删除。规则有测试守着
+（`count-badge.test.ts`），因为线上夹具只有 3 和 9——两位以上的每条路径光看页面都
+走不到，这条裁定会无声地坏掉。已按「让守卫失败一次」验过：把上限改回 `99+`，测试
+红；改回来，绿。
+
+**恢复条件**：向 DS 提出计数徽标元素（实底、圆形或胶囊、随图标按钮尺寸档走、溢出
+规则可配）。DS 提供后，删掉 `count-badge.tsx` 与它的测试，改为消费该元素。
 
 ### TD-007 - DS 无正文行宽（measure）token，八处手写 `62ch`
 
@@ -1563,6 +1583,51 @@ overrides 名单里」来佐证，那是被混淆的——**一个包有 overrid
 的其他取值**——`inaccurate` 才准确描述「告警说的事实不成立」，而 `no_bandwidth` 或
 `tolerable_risk` 会把一条假告警记成一笔接受了的真风险。
 
+### TD-025 - DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架
+
+2026-09-07，全国销售态势屏接入平台时确认：DS 里没有「展示大屏」这一族的任何一件。
+逐件核过，不是找得不够仔细：
+
+| 缺的元件 | DS 现状 | 垫片位置 |
+|---|---|---|
+| 分级统计地图（choropleth） | 有 `BarChart`，没有任何地理件，也没有连续色阶 token | `(screen)/components/national-screen.tsx` 的 `<svg>`，几何在 `(screen)/lib/china-geometry.ts` |
+| 蜂窝底纹 | 没有图案/纹理件 | `national-screen.css` 的 `.screen-hex`，内联 SVG data-URI |
+| 折叠托架 | 没有「把侧栏收起」的边缘控件 | `.screen-arc`，一个 `clip-path` 画的按钮 |
+
+**三件都只用 DS 令牌，不改任何 DS 元件的表面。** 颜色全部取自
+`@vxture/design-tokens` 3.0.0：中性档做底与文字、`sky` 做主色、`amber` 做速率档、
+`red` 做危险。色阶走 sky-900→sky-300 —— **DS 没有任何 sequential scale token**，
+这是本条里最实在的一处缺口，因为分级统计图离了连续色阶就只能自己排。
+
+**一处族系替换，属于「DS 没有临近值」那一类**：这块屏是青色系，而 DS 的色族只有
+amber / emerald / neutral / purple / red / sky。**sky 是最近邻**，所以全屏的青都落到
+sky 各档。DS 的品牌色 `--vx-color-brand-600`（`#1e51ff`）是靛蓝，用它是另一块屏。
+
+**恢复条件**：DS 提供地理/分级图元件与连续色阶 token 后，删掉这三处，改为消费该
+元件；`china-geometry.ts` 作为数据仍需保留（它是投影后的几何，不是样式）。已作为
+DS 请求上报（元素缺失，非本仓自建风格）。
+
+### TD-024 - FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反
+
+2026-09-07，按 owner 的表格操作行规范给线索管理接上 `FilterBar` 后，量 DOM 时读到
+两个 ToggleGroupItem 的读屏名是 "List view" / "Card view"——一个全中文界面里的两个
+英文可及名。追到 DS 源码，是两件事叠在一起：
+
+1. `ViewModeSwitch` 有 `labels` / `ariaLabel` 两个文案出口，**但 `FilterBar` 一个都
+   不透传**。`FilterBarProps` 里没有对应的属性，所以经由 `FilterBar` 用到视图切换
+   的调用方（本仓全部列表页）拿不到出口。
+2. `ViewModeSwitch` 的 d.ts 写「默认中文，做 i18n 的消费方传入」，实际发出的是
+   `labels?.list ?? "List view"`。默认值不是中文。**文档说的和代码做的是反的**，
+   所以就算发现了 1，也会以为默认值本身没问题。
+
+只影响读屏名，视觉上看不出来——这正是它能一直在的原因。
+
+**缺失元素**：`FilterBar` 向 `ViewModeSwitch` 透传 `labels` / `ariaLabel`；以及
+`ViewModeSwitch` 的默认值与其文档对齐。**垫片位置**：无，也建不出来——文案出口在
+DS 内部，调用方没有任何入口能改到它，本仓不 fork DS。**回收条件**：DS 补上透传后，
+在每个 `FilterBar` 调用点从 `DS_LABELS` 传入这两个名字（`DATA_TABLE_LABELS` 已经
+是这个走法）。已作为 DS 请求上报（元素缺失，非本仓自建）。
+
 ### TD-023 - DS 没有步骤条 / 时间轴件
 
 2026-09-06，交付计划按 owner 裁定改为「行内展开成流程图,不是表格」时发现:DS 里
@@ -1596,4 +1661,27 @@ token，不改 DS 样式。逐列宽度**一律从左数**（nth-child）：左�
 列总在，而操作列对一个无写权的读者不渲染，从右数会让每个宽度错位一列
 （2026-09-05 评审）。**回收条件**：DS 让 ACTION_COL 按文档发定宽、或列宽档在
 fixed 布局下可用；届时删掉这六处包装即可。已作为 DS 请求上报（元素缺失，非本仓自建）。
+
+**2026-09-07 升级 design-ui 9.1.0 后复量：修好了一半。**
+
+- **已修**：`ACTION_COL` 现在发的是 `w-control-3xl px-md text-right`——`w-` 定宽，
+  不再是 `min-w-`。当初「sticky 钉列在、固定宽不在」的那一半没有了。
+- **仍未修，且成因比原先记的更具体**：`w-control-3xl` 仍是 **56px**，而 d.ts 依旧
+  写「固定 64px」。追到 design-tokens 3.0.0 的源码，这不是笔误而是**密度档错配**：
+  `--vx-spacing: 0.25rem`，`--space-control-3xl = calc(var(--vx-spacing) * N)`，
+  三个密度档的 N 分别是 12 / 14 / 16 —— 也就是 48px / 56px / 64px。文档写的 64
+  只在 `density-comfortable` 下成立，而本仓跑的是 `:root` 默认档（layout.tsx 没有
+  任何 `density-` 类），所以是 56。owner 裁的是 64。`EDGE_COLUMNS` /
+  `ACTION_COLUMN` 垫片**继续保留**，它垫的是这 8px 的密度差，不再是「定宽本身
+  不存在」。**顺带一条判据**：以后再看到 DS 文档给某个 control token 写死 px，
+  先问它说的是哪个密度档。
+- **仍未修**：列宽档 `xs/sm/md/lg` 依然是 `min-w-*`（见 9.1.0 的 `WIDTH`），
+  auto 布局下仍会随内容漂移。本条的第二半原样成立。
+
+**2026-09-07 补一条同型**：八张表的标题格换成 DS 的 `TableTitleCell` 后量到，它
+的两行同样是 `min-h-control-2xs` / `min-h-control-3xs`，而文件头写的是「两行的行高
+钉死（主 20px、辅 16px），不随内容撑」。实测 26px / 22px——`min-h` 是地板不是钉子，
+行高照旧由字号 token 决定。本仓无可观测缺陷（每行走同一个 token，所以行与行仍然
+齐平），不另开 TD，记在这里是因为它与本条是同一个毛病：**DS 的文档说「固定」，
+代码发的是 `min-*`**。看到 d.ts 写「固定」时要去量，不要信。
 

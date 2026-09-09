@@ -1,13 +1,7 @@
-import {
-  Card,
-  EmptyState,
-  SectionHeader,
-  StatusBadge,
-  ViewHeader,
-  ViewLayout,
-} from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
+import { ModuleHeadline } from "../components/module-headline";
 import { SubmitForecast } from "../components/submit-forecast";
 import { submitForecastSnapshot } from "./forecast-action";
 import { createDeal } from "./stage-action";
@@ -40,8 +34,10 @@ import { ForecastScopePicker } from "../components/forecast-scope-picker";
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
+  pricingPolicy,
 } from "../../domains/catalog/service";
 import { loadFailureText } from "../lib/load-failure";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 // D6 pipeline page.
 //
 // Dynamic, never cached: the rows are workspace-scoped and gate-filtered, and a
@@ -56,7 +52,7 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
-  const { BOARD_TEXT, DOMAIN_LABEL, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
+  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
     await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);
@@ -85,6 +81,9 @@ export default async function PipelinePage({
   // gate is decided from the session and the DATA comes from the port - two
   // domains reading the same request need two contexts, not one with a union.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
+  // 计价规则 (incr/0044): what the board's totals are in when a row says nothing.
+  const policy = await pricingPolicy(catalogCtx);
+  const currency = policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency;
 
   const [result, history, score, lines, products, accounts, territories, feed] =
     await Promise.all([
@@ -99,7 +98,7 @@ export default async function PipelinePage({
       // THE READING THE APPEND-ONLY TABLE WAS PAID FOR. The section below has
       // promised this number in its own description since batch 1 ("预测准确率是
       // 期末实际对期初快照"), while nothing computed it.
-      forecastScorecard(ctx, period, { scope }),
+      forecastScorecard({ ...ctx, catalog: getCatalogStore() }, period, { scope }),
       // THROUGH THE SERVICE, not the store handle. Both of these used to call
       // getCatalogStore() straight from the page, which skips BOTH gates - the
       // same defect PR #26 fixed on the account detail page. The catalogue read
@@ -174,6 +173,17 @@ export default async function PipelinePage({
   // is a set rather than a count because a count cannot mark a row.
   const unreachable = new Set(feed.ok ? feed.value.unreachableAccountIds : []);
 
+  // COUNTED OFF THE SAME ARRAY the board is built from, so a badge and the
+  // columns under it cannot describe different deals.
+  //
+  // NO CLOSE DATE is a real gap rather than a tidiness complaint: a deal with
+  // no expected close cannot enter a period forecast at all (ADR-021), so it
+  // is invisible to the number somebody is measured on.
+  const openDeals = inWindow.filter((o) => o.status === "open");
+  const openCount = openDeals.length;
+  const noCloseDate = openDeals.filter((o) => o.expectedCloseAt == null).length;
+  const unowned = openDeals.filter((o) => !o.ownerSub).length;
+
   const rows: PipelineRow[] = inWindow.map((o) => ({
     ...(o as (typeof result.value)[number]),
     accountName:
@@ -230,16 +240,37 @@ export default async function PipelinePage({
       {/* The page's name, at the height every other page's sits at. This was the
           last page still opening on a hand-rolled heading inside a card, which
           is what made it look a size and a height apart from the rest. */}
-      <ViewHeader
-        title={DOMAIN_LABEL.pipeline}
+      {/* THE MODULE HEADER (design_yucer_100). No fold: the deals below are a
+          BOARD grouped by stage with a count on every column, so a stage
+          breakdown up here would redraw what the page already is - the third
+          condition of the fold criterion. What the board cannot say is how
+          much of the open book has no date and how much has nobody chasing
+          it, so those are badges. */}
+      <ModuleHeadline
+        moduleKey="pipeline"
+        action={
+          can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui")
+            .allowed ? <NewEntryLink href="/pipeline/new" /> : null
+        }
         description={PIPELINE_TEXT.description}
+        tags={
+          <>
+            <StatusBadge tone="success">{PIPELINE_TEXT.tagOpen(openCount)}</StatusBadge>
+            {noCloseDate > 0 ? (
+              <StatusBadge tone="warning">{PIPELINE_TEXT.tagNoDate(noCloseDate)}</StatusBadge>
+            ) : null}
+            {unowned > 0 ? (
+              <StatusBadge tone="warning">{PIPELINE_TEXT.tagUnowned(unowned)}</StatusBadge>
+            ) : null}
+          </>
+        }
       />
 
       {/* Then the statement. This card still opens with a FIGURE rather than a
           noun - the whole card is the disclosure that decomposes it, so the
           number is the thing being explained and has to lead.
 
-          NOT an <h1> any more: ViewHeader above owns that, and two of them on
+          NOT an <h1> any more: the module header above owns that, and two of them on
           one page is a document with two subjects. It keeps the size, because
           its weight on the page was never coming from the tag. */}
       <HeadlineCard
@@ -286,16 +317,8 @@ export default async function PipelinePage({
           doorway stays ABOVE the board for the reason the form sat there: on a
           fresh workspace the board is empty, and a doorway under a list nobody
           can populate is a doorway behind a locked door. */}
-      {can(
-        session.authz,
-        session.entitlement,
-        "pipeline.opportunity.create",
-        "ui",
-      ).allowed ? (
-        <NewEntryLink href="/pipeline/new" />
-      ) : null}
-
       <PipelineBoard
+        currency={currency}
         rows={rows}
         undated={undated}
         readOnly={

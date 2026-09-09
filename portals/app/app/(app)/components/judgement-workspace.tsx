@@ -277,20 +277,20 @@ function Engagement({
         }
       >
         {/* ONE ROW: the numbers on the left, the orders on the right.
-            
+
             MEASURED, not preferred. The facts used 375-539px of an 862px row
             and the orders sat on a row of their own beneath them, so every
             panel spent a whole line plus its margin on ~300px of buttons while
             487px of the line above stayed empty. Five of the six panels fit
             both on one line; the sixth wraps, which is what flex-wrap is for -
             two lines when the content needs two, rather than always.
-            
+
             THE GAP IS SPLIT - `md` across, `xs` down. A single `gap-md` also
             applies BETWEEN wrapped lines, which made the narrow-viewport case
             (1024px, where the buttons do drop to a second line) 214px against
             the 208px the two-row layout cost there. Widening the reading gap
             between two rows nobody asked to separate is not a trade.
-            
+
             It also puts the orders at a FIXED RIGHT EDGE down the page, so the
             button is in the same place on every panel instead of starting
             wherever the previous panel's facts happened to end. That is the

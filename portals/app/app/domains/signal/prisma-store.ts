@@ -1,3 +1,4 @@
+import type { FunnelExitDraft } from "../shared/funnel-exit";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { SignalStatus, SignalType } from "./lib/scoring";
@@ -10,6 +11,7 @@ import type {
   SignalFilter,
   SignalRecord,
   SignalStore,
+  FunnelExitRecord,
 } from "./store";
 import { isUniqueViolation, lockKey } from "../shared/allocate";
 
@@ -27,6 +29,20 @@ import { isUniqueViolation, lockKey } from "../shared/allocate";
 
 const SIGNAL_TABLE = "yucer_pipeline.signal";
 const LEAD_TABLE = "yucer_pipeline.lead";
+
+/** One mapping, so the per-subject and workspace-wide reads cannot disagree. */
+function toExit(r: Record<string, unknown>): FunnelExitRecord {
+  return {
+    id: String(r.id),
+    stage: r.stage as FunnelExitDraft["stage"],
+    subjectId: String(r.subjectId),
+    outcome: String(r.outcome),
+    reasonCode: String(r.reasonCode),
+    note: (r.note as string | null) ?? null,
+    decidedBySub: String(r.decidedBySub),
+    decidedAt: r.decidedAt as Date,
+  };
+}
 
 export class PrismaSignalStore implements SignalStore {
   async recordSignal(workspaceId: string, signal: NewSignal): Promise<SignalRecord | null> {
@@ -174,6 +190,49 @@ export class PrismaSignalStore implements SignalStore {
     const res = await p.lead.updateMany({ where: { id, workspaceId }, data });
     return res.count > 0;
   }
+
+  async deleteLead(workspaceId: string, id: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // deleteMany rather than delete: it takes the workspace predicate in the
+    // same statement and returns a count instead of throwing on a miss, so a
+    // lead in another tenant reads as "not found" rather than as an error
+    // that says the row exists.
+    // THE EXIT ROWS GO FIRST, in the same transaction. subject_id is
+    // polymorphic and has no foreign key, so nothing cascades for it
+    // (incr/0033) - and a note explaining why a lead ended must not outlive
+    // the lead. Ordered this way so a failure leaves the lead AND its notes,
+    // rather than notes with nothing to attach to.
+    const [, deleted] = await p.$transaction([
+      p.funnelExit.deleteMany({ where: { workspaceId, stage: "lead", subjectId: id } }),
+      p.lead.deleteMany({ where: { id, workspaceId } }),
+    ]);
+    return deleted.count > 0;
+  }
+
+  async recordFunnelExit(workspaceId: string, input: FunnelExitDraft): Promise<void> {
+    const p = await getPrismaClient();
+    // INSERT ONLY - the table has no UPDATE grant (incr/0033). A correction is
+    // a new row, because this is somebody's account of why something ended.
+    await p.funnelExit.create({ data: { workspaceId, ...input } });
+  }
+
+  async listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.funnelExit.findMany({
+      where: { workspaceId, subjectId },
+      orderBy: { decidedAt: "desc" },
+    });
+    return rows.map(toExit);
+  }
+
+  async listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.funnelExit.findMany({
+      where: { workspaceId },
+      orderBy: { decidedAt: "desc" },
+    });
+    return rows.map(toExit);
+  }
 }
 
 function toSignal(r: Record<string, unknown>): SignalRecord {
@@ -207,5 +266,6 @@ function toLead(r: Record<string, unknown>): LeadRecord {
     ownerSub: (r.ownerSub as string | null) ?? null,
     status: r.status as LeadStatus,
     convertedOpportunityId: (r.convertedOpportunityId as string | null) ?? null,
+    createdAt: r.createdAt as Date,
   };
 }

@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -6,6 +7,7 @@ import { getPipelineStore } from "../../domains/shared/registry";
 import {
   listPendingReviews,
   listPipeline,
+  listWinLossReasons,
 } from "../../domains/pipeline/service";
 import { PendingReviews } from "../components/pending-reviews";
 import { recordReview } from "../pipeline/winloss-action";
@@ -41,9 +43,13 @@ export default async function WinLossPage() {
     store: session.stores.pipeline(),
   };
 
-  const [pending, all] = await Promise.all([
+  const [pending, all, reasons] = await Promise.all([
     listPendingReviews(ctx),
     listPipeline(ctx),
+    // 赢丢原因, the workspace's own (0039). A refused read leaves the picker
+    // empty rather than the page broken: the roster above still answers its
+    // own question.
+    listWinLossReasons(ctx),
   ]);
 
   if (!pending.ok) {
@@ -61,13 +67,23 @@ export default async function WinLossPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={WINLOSS_TEXT.sectionTitle}
+      {/* NO FOLD: won versus lost is TWO buckets, not a partition worth a
+          bar - and the reviews below say which each one was. */}
+      <ModuleHeadline
+        moduleKey="winLossReview"
         description={WINLOSS_TEXT.description}
+        tags={
+          <StatusBadge tone={pending.value.length > 0 ? "warning" : "success"}>
+            {WINLOSS_TEXT.tagPending(pending.value.length)}
+          </StatusBadge>
+        }
       />
       <PendingReviews
         opportunities={pending.value}
         allClosed={closed}
+        reasons={(reasons.ok ? reasons.value : []).map((r) => ({
+          id: r.id, name: r.name, forWon: r.forWon, forLost: r.forLost,
+        }))}
         canRecord={
           can(
             session.authz,

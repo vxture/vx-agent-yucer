@@ -8,11 +8,13 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
   type DataTableColumn,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import {
   ROLE_CODES,
   ROLE_PERMISSIONS,
@@ -20,6 +22,7 @@ import {
 } from "../../authz/catalog";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // Who is in the workspace and what they can do.
 //
 // The roleless member is the case this screen exists for, so it is called out
@@ -106,6 +109,13 @@ const isAdminRole = (role: string): boolean =>
   role in ROLE_PERMISSIONS &&
   ROLE_PERMISSIONS[role as RoleCode].includes("admin.manage");
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    member: (r: MemberView) => r.displayName ?? r.sub,
+  };
+
 export function MemberRoles({
   members,
   canManage,
@@ -122,6 +132,7 @@ export function MemberRoles({
     useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
+  const sorted = useTableSort(members, SORT_ON);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, string>>({});
@@ -152,30 +163,34 @@ export function MemberRoles({
   const columns: readonly DataTableColumn<MemberView>[] = [
     {
       id: "member",
+  sortable: true,
       header: MEMBER_TEXT.columnMember,
+      /* The 已停用 mark rides in `titleSuffix`, which is what that slot is
+         for - it qualifies the NAME itself rather than being another fact
+         about the member, so it has to share the title's line.
+
+         MARKED, NOT HIDDEN. A departed member keeps their row forever - it is
+         the only thing that maps this sub to a name, and every signature in
+         the audit trail reads through it. Hiding them would make the roster
+         tidy and the history unreadable. */
       cell: (row) => (
-        <div>
-          <div className="flex items-center gap-xs">
-            <span>{row.displayName ?? row.sub}</span>
-            {/* MARKED, NOT HIDDEN. A departed member keeps their row forever -
-                it is the only thing that maps this sub to a name, and every
-                signature in the audit trail reads through it. Hiding them would
-                make the roster tidy and the history unreadable. */}
-            {row.status === "inactive" ? (
+        <TableTitleCell
+          title={row.displayName ?? row.sub}
+          tooltip={row.displayName ?? row.sub}
+          description={row.sub}
+          titleSuffix={
+            row.status === "inactive" ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span>
-                    <StatusBadge tone="neutral">
-                      {MEMBER_TEXT.inactive}
-                    </StatusBadge>
+                    <Tag>{MEMBER_TEXT.inactive}</Tag>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>{MEMBER_TEXT.inactiveHint}</TooltipContent>
               </Tooltip>
-            ) : null}
-          </div>
-          <div>{row.sub}</div>
-        </div>
+            ) : undefined
+          }
+        />
       ),
     },
     {
@@ -205,9 +220,9 @@ export function MemberRoles({
               const key = `${row.sub}:${role}`;
               return (
                 <span key={role}>
-                  <StatusBadge tone={isAdminRole(role) ? "info" : "neutral"}>
+                  <Tag tone={isAdminRole(role) ? "info" : "neutral"}>
                     {ROLE_LABEL[role] ?? role}
-                  </StatusBadge>
+                  </Tag>
                   {canManage ? (
                     last ? (
                       <Tooltip>
@@ -243,7 +258,6 @@ export function MemberRoles({
     {
       id: "assign",
       header: MEMBER_TEXT.columnActions,
-      align: "right",
       cell: (row) => {
         if (!canManage) return null;
         // Only roles this member does not already hold. Offering a grant that
@@ -356,7 +370,7 @@ export function MemberRoles({
     {
       id: "lifecycle",
       header: MEMBER_TEXT.columnLifecycle,
-      align: "right",
+
       cell: (row) => {
         if (!canManage) return null;
         const key = `${row.sub}:lifecycle`;
@@ -371,7 +385,7 @@ export function MemberRoles({
           const chosenHeir = heir[row.sub] ?? "";
           const handKey = `${row.sub}:handover`;
           return (
-            <span className="flex items-center justify-end gap-xs">
+            <span className="flex items-center justify-center gap-xs">
               <Button
                 size="sm"
                 variant="ghost"
@@ -498,7 +512,7 @@ export function MemberRoles({
       }
     >
       {!canManage ? (
-        <StatusBadge tone="neutral">{MEMBER_TEXT.readOnly}</StatusBadge>
+        <Tag>{MEMBER_TEXT.readOnly}</Tag>
       ) : null}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
       {notice ? <StatusBadge tone="info">{notice}</StatusBadge> : null}
@@ -516,7 +530,9 @@ export function MemberRoles({
           labels={DATA_TABLE_LABELS}
           indexStart={1}
           columns={columns}
-          rows={members}
+          rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
           rowKey={(row) => row.memberId}
         />
       )}

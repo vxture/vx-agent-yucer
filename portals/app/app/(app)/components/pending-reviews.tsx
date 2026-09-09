@@ -16,10 +16,11 @@ import {
   Section,
   SegmentedControl,
   StatusBadge,
+  TableTitleCell,
   Textarea,
   type DataTableColumn,
 } from "@vxture/design-ui";
-import { TableCard } from "./table-card";
+import { useTableSort } from "./table-fittings";
 import type { OpportunityRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
@@ -49,39 +50,50 @@ export interface PendingReviewsProps {
    */
   readonly allClosed: readonly OpportunityRecord[];
   readonly canRecord: boolean;
+  /**
+   * 赢丢原因, THE WORKSPACE'S OWN (incr/0039). It was six literals in this
+   * file; the list is rows now, and each row says which outcome it explains -
+   * so a loss-only reason is not offered on a win.
+   */
+  readonly reasons: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly forWon: boolean;
+    readonly forLost: boolean;
+  }[];
   readonly onRecord: (
     opportunityId: string,
     input: {
-      primaryReason: string | null;
+      primaryReasonId: string | null;
       competitor?: string;
       lessons?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
-const REASONS = [
-  "price",
-  "fit",
-  "timing",
-  "competitor",
-  "no_decision",
-  "other",
-] as const;
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: OpportunityRecord) => r.name,
+    amount: (r: OpportunityRecord) => r.amount?.amount ?? null,
+  };
 
 export function PendingReviews({
   opportunities,
   allClosed,
   canRecord,
+  reasons,
   onRecord,
 }: PendingReviewsProps) {
   const {
     DATA_TABLE_LABELS,
     DS_LABELS,
     PIPELINE_TEXT,
-    WINLOSS_REASON_LABEL,
     WINLOSS_TEXT,
     REVIEW_ERROR,
   } = useMessages();
+  const sorted = useTableSort<OpportunityRecord>([], SORT_ON);
   const [scope, setScope] = useState<"pending" | "all">("pending");
   const [view, setView] = useState<"list" | "cards">("list");
   // Pending is a SUBSET of all, so the two lists share every row object - the
@@ -89,7 +101,7 @@ export function PendingReviews({
   const pendingIds = new Set(opportunities.map((o) => o.id));
   const shown = scope === "pending" ? opportunities : allClosed;
   const [openId, setOpenId] = useState<string | null>(null);
-  const [reason, setReason] = useState<string>("fit");
+  const [reason, setReason] = useState<string>("");
   const [competitor, setCompetitor] = useState("");
   const [lessons, setLessons] = useState("");
   const [pending, startTransition] = useTransition();
@@ -98,7 +110,7 @@ export function PendingReviews({
   function submit(id: string) {
     setError(null);
     startTransition(() => {
-      void onRecord(id, { primaryReason: reason, competitor, lessons }).then(
+      void onRecord(id, { primaryReasonId: reason || null, competitor, lessons }).then(
         (r) => {
           if (!r.ok) {
             setError(REVIEW_ERROR[r.error ?? "denied"] ?? REVIEW_ERROR.denied);
@@ -115,12 +127,10 @@ export function PendingReviews({
   const columns: readonly DataTableColumn<OpportunityRecord>[] = [
     {
       id: "name",
+  sortable: true,
       header: WINLOSS_TEXT.columnOpportunity,
       cell: (row) => (
-        <div>
-          <div>{row.name}</div>
-          <div>{row.opportunityNo}</div>
-        </div>
+        <TableTitleCell title={row.name} description={row.opportunityNo} tooltip={row.name} />
       ),
     },
     {
@@ -137,7 +147,8 @@ export function PendingReviews({
     {
       id: "amount",
       header: WINLOSS_TEXT.columnAmount,
-      align: "right",
+      sortable: true,
+      align: "money",
       cell: (row) => formatMoney(row.amount?.amount ?? null, row.currency),
     },
     {
@@ -149,7 +160,6 @@ export function PendingReviews({
     {
       id: "state",
       header: WINLOSS_TEXT.columnState,
-      align: "center",
       /* State only. In the "all" view the two populations sit in one table, so
          each row has to say which it is - otherwise a reviewed deal looks like
          outstanding work. The VERB that used to share this cell moved to the
@@ -219,11 +229,9 @@ export function PendingReviews({
               : WINLOSS_TEXT.allEmptyDescription
           }
         />
-      ) : (
-        /* Only the table is in the card - the heading and its tools stay
-           outside it, the same as the board. */
-        <TableCard>
-          {view === "list" ? (
+      ) : view === "list" ? (
+        /* NO CARD (design-ui 8.0.0 透明模式): a table floats on the page
+           canvas, its structure carried by the three rules the DS draws. */
             <DataTable
               /* Every DS copy outlet must be passed - the fallbacks are English
                and exist so a missed prop renders something legible, not so
@@ -232,7 +240,9 @@ export function PendingReviews({
               labels={DATA_TABLE_LABELS}
               indexStart={1}
               columns={columns}
-              rows={shown}
+              rows={[...sorted.sortRows(shown)]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
               rowKey={(row) => row.id}
               /* Pinned right, one trigger. Items stay VISIBLE and disabled
                  rather than absent when they cannot be used, with the reason on
@@ -291,8 +301,6 @@ export function PendingReviews({
                 />
               ))}
             </ListCardGrid>
-          )}
-        </TableCard>
       )}
 
       {target ? (
@@ -303,11 +311,17 @@ export function PendingReviews({
             value={reason}
             onChange={(e) => setReason(e.currentTarget.value)}
           >
-            {REASONS.map((r) => (
-              <option key={r} value={r}>
-                {WINLOSS_REASON_LABEL[r]}
-              </option>
-            ))}
+            {/* The ones that can explain THIS outcome. Offering a
+                loss-only reason on a win invites a review that says nothing,
+                and the service refuses it anyway. */}
+            <option value="">{WINLOSS_TEXT.reasonNone}</option>
+            {reasons
+              .filter((r) => (target.status === "won" ? r.forWon : r.forLost))
+              .map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
           </NativeSelect>
 
           <Label htmlFor="wlr-competitor">{WINLOSS_TEXT.competitorLabel}</Label>

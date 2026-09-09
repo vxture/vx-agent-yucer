@@ -1,3 +1,4 @@
+import { DEFAULT_PRICING_POLICY, type PricingPolicy } from "./lib/pricing-policy";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type {
@@ -9,6 +10,7 @@ import type {
   ProductRecord,
   ProductStatusRecord,
   ProductTypeRecord,
+  ProductUnitRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "./store";
@@ -27,9 +29,12 @@ import type {
 
 const PRODUCT_TABLE = "yucer_catalog.product";
 const PRODUCT_TYPE_TABLE = "yucer_catalog.product_type";
+const PRODUCT_UNIT_TABLE = "yucer_catalog.product_unit";
 const PRODUCT_STATUS_TABLE = "yucer_catalog.product_status";
 const SOLUTION_TABLE = "yucer_catalog.solution";
 const ITEM_TABLE = "yucer_catalog.solution_item";
+// incr/0044. 计价规则, one row per workspace.
+const PRICING_POLICY_TABLE = "yucer_catalog.pricing_policy";
 
 function num(v: unknown): number {
   return Number(String(v));
@@ -53,7 +58,7 @@ export class PrismaCatalogStore implements CatalogStore {
     productCode: string;
     name: string;
     typeId: string | null;
-    unit: string;
+    unitId: string;
     statusId: string;
     sortOrder: number;
   }): ProductRecord {
@@ -63,7 +68,7 @@ export class PrismaCatalogStore implements CatalogStore {
       productCode: row.productCode,
       name: row.name,
       typeId: row.typeId,
-      unit: row.unit,
+      unitId: row.unitId,
       statusId: row.statusId,
       sortOrder: row.sortOrder,
     };
@@ -180,7 +185,7 @@ export class PrismaCatalogStore implements CatalogStore {
     const update = {
       name: input.name,
       typeId: input.typeId,
-      unit: input.unit,
+      unitId: input.unitId,
       statusId: input.statusId,
       updatedAt: new Date(),
     };
@@ -353,6 +358,90 @@ export class PrismaCatalogStore implements CatalogStore {
   async countProductsByType(workspaceId: string, typeId: string): Promise<number> {
     const p = await getPrismaClient();
     return p.product.count({ where: { workspaceId, typeId } });
+  }
+
+  /* 计价单位 (0037) - the same five, written the same way. The lock guard runs
+     on every patch here too: unit_code is the anchor and is not in the grant,
+     so an attempt to rewrite it fails in this process rather than at the
+     database, which is the only place the message is readable. */
+  async listProductUnits(workspaceId: string): Promise<ProductUnitRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.productUnit.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { unitCode: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      unitCode: r.unitCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertProductUnit(
+    workspaceId: string,
+    input: Omit<ProductUnitRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ProductUnitRecord> {
+    const p = await getPrismaClient();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(PRODUCT_UNIT_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked product_unit column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.productUnit.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.productUnit.upsert({
+      where: { workspaceId_unitCode: { workspaceId, unitCode: input.unitCode } },
+      update,
+      create: {
+        workspaceId,
+        unitCode: input.unitCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      unitCode: row.unitCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setProductUnitOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(PRODUCT_UNIT_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked product_unit column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.productUnit.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeProductUnit(workspaceId: string, unitId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refused in-use units via planUnitRemoval; fk_product_unit
+    // RESTRICTs underneath as the last line.
+    const { count } = await p.productUnit.deleteMany({ where: { workspaceId, id: unitId } });
+    return count > 0;
+  }
+
+  async countProductsByUnit(workspaceId: string, unitId: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.product.count({ where: { workspaceId, unitId } });
   }
 
   private toStatus(row: {
@@ -575,6 +664,29 @@ export class PrismaCatalogStore implements CatalogStore {
    * row - the table records who signed and when, and collapsing two signings
    * into one would lose the earlier one.
    */
+  /* --- 计价规则 (incr/0044) -------------------------------------------------
+     No row reads as the shipped default: the increment seeds every workspace
+     that prices or sells, and one created afterwards has none until somebody
+     changes it. */
+
+  async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {
+    const p = await getPrismaClient();
+    const row = await p.pricingPolicy.findUnique({ where: { workspaceId } });
+    return row ? { defaultCurrency: row.defaultCurrency } : DEFAULT_PRICING_POLICY;
+  }
+
+  async setPricingPolicy(workspaceId: string, policy: PricingPolicy): Promise<void> {
+    const p = await getPrismaClient();
+    const update = { defaultCurrency: policy.defaultCurrency, updatedAt: new Date() };
+    const guard = assertWritable(PRICING_POLICY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked pricing_policy column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.pricingPolicy.upsert({ where: { workspaceId }, update, create: { workspaceId, ...update } });
+  }
+
   async appendApproval(
     workspaceId: string,
     input: Omit<DiscountApprovalRecord, "id" | "workspaceId">,

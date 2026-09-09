@@ -12,16 +12,18 @@ import {
   ListCardGrid,
   Stack,
   StatusBadge,
+  TableTitleCell,
   useToast,
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import type { AccountRecord } from "../../domains/account/store";
 import { recomputeAccountHealth } from "../account/actions";
 import { healthTone } from "../lib/view-model";
-import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // The account list's table.
 //
 // It lives in a CLIENT component because DataTableColumn.cell is a function,
@@ -64,6 +66,13 @@ export interface AccountTableProps {
   readonly segmentNames?: ReadonlyMap<string, string>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: AccountRecord) => r.name,
+  };
+
 export function AccountTable({
   rows,
   canRecompute = true,
@@ -75,6 +84,7 @@ export function AccountTable({
   const router = useRouter();
   const { toast } = useToast();
   const [view, setView] = useState<FilterBarView>("list");
+  const sorted = useTableSort(rows, SORT_ON);
   const [pending, start] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -151,24 +161,25 @@ export function AccountTable({
       // holding "零售" and a subject id. Auto distribution reads better here
       // because the name is the only column whose content actually varies.
       id: "name",
+  sortable: true,
       header: ACCOUNT_TEXT.columnName,
       // A link rather than an onRowClick handler: navigable, middle-clickable
       // and shareable in a way a click handler is not.
       cell: (row) => (
-        <div className="flex flex-col gap-3xs">
-          <Link
-            href={`/account/${row.id}`}
-            className="text-foreground hover:underline"
-          >
-            {row.name}
-          </Link>
-          <div className="text-muted-foreground flex items-center gap-2xs text-body-sm">
-            <span className="tabular-nums">{row.accountNo}</span>
-            {buyerUnreachable?.has(row.id) ? (
+        <TableTitleCell
+          title={
+            <Link href={`/account/${row.id}`} className="hover:underline">
+              {row.name}
+            </Link>
+          }
+          tooltip={row.name}
+          titleSuffix={
+            buyerUnreachable?.has(row.id) ? (
               <StatusBadge tone="warning">{ACCOUNT_TEXT.buyerUnreachable}</StatusBadge>
-            ) : null}
-          </div>
-        </div>
+            ) : undefined
+          }
+          description={row.accountNo}
+        />
       ),
     },
     {
@@ -218,22 +229,21 @@ export function AccountTable({
       // reader to pair them; stacked, they are already paired.
       id: "health",
       header: ACCOUNT_TEXT.columnHealthStatus,
-      align: "center",
       cell: (row) => (
         <Stack gap="sm" className="items-center">
           {row.healthScore == null ? (
-            <StatusBadge tone="neutral">{ACCOUNT_TEXT.unscored}</StatusBadge>
+            <Tag>{ACCOUNT_TEXT.unscored}</Tag>
           ) : (
-            <StatusBadge tone={healthTone(row.healthScore)}>
+            <Tag tone={healthTone(row.healthScore)}>
               {row.healthScore}
-            </StatusBadge>
+            </Tag>
           )}
-          <StatusBadge
+          <Tag
             tone={row.status === "churned" ? "danger" : "neutral"}
             dot
           >
             {ACCOUNT_STATUS_LABEL[row.status] ?? row.status}
-          </StatusBadge>
+          </Tag>
         </Stack>
       ),
     },
@@ -252,13 +262,14 @@ export function AccountTable({
 
       {/* ONLY THE TABLE IS IN A CARD, not the section: the section is a heading
           and its tools, the card is the surface the rows sit on. */}
-      <TableCard>
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
             indexStart={1}
             columns={columns}
-            rows={rows}
+            rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.id}
             rowActions={actions}
           />
@@ -275,13 +286,13 @@ export function AccountTable({
                 description={row.accountNo}
                 status={
                   row.healthScore == null ? (
-                    <StatusBadge tone="neutral">
+                    <Tag>
                       {ACCOUNT_TEXT.unscored}
-                    </StatusBadge>
+                    </Tag>
                   ) : (
-                    <StatusBadge tone={healthTone(row.healthScore)}>
+                    <Tag tone={healthTone(row.healthScore)}>
                       {row.healthScore}
-                    </StatusBadge>
+                    </Tag>
                   )
                 }
                 actions={actions(row)}
@@ -297,7 +308,6 @@ export function AccountTable({
             ))}
           </ListCardGrid>
         )}
-      </TableCard>
     </>
   );
 }

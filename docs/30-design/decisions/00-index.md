@@ -29,3 +29,5 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-023 | [一个问题的两个答案](ADR-023-two-answers-to-one-question.md) | accepted | 2026-08-29 |
 | ADR-024 | [人不是公司上的一列，采购角色不是人身上的一个字段](ADR-024-a-person-is-not-a-column-on-a-company.md) | accepted | 2026-09-04 |
 | ADR-025 | [里程碑是收款关口，不是工作包](ADR-025-a-milestone-is-a-payment-gate.md) | accepted | 2026-09-06 |
+| ADR-026 | [什么该是表，什么该是常量](ADR-026-what-is-a-table-and-what-is-a-constant.md) | accepted | 2026-09-08 |
+| ADR-027 | [行政区划是一张表，从大洲到区县](ADR-027-the-administrative-tree-is-a-table.md) | accepted | 2026-09-08 |

@@ -6,10 +6,10 @@ import {
   PanelCard,
   PanelItem,
   PanelList,
-  StatusBadge,
 } from "@vxture/design-ui";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { formatMoney } from "../lib/view-model";
+import { Tag } from "./tag";
 
 // What is being fought on this theatre.
 //
@@ -43,7 +43,10 @@ export interface RosterProject {
 export function TheatreRoster({
   deals,
   projects,
+  defaultCurrency,
 }: {
+  /** The workspace's default (incr/0044), when no deal carries an amount. */
+  readonly defaultCurrency: string;
   readonly deals: readonly RosterDeal[];
   readonly projects: readonly RosterProject[];
 }) {
@@ -51,7 +54,7 @@ export function TheatreRoster({
   const locale = useLocale();
 
   const total = deals.reduce((n, d) => n + (d.amount ?? 0), 0);
-  const currency = deals.find((d) => d.amount != null)?.currency ?? "CNY";
+  const currency = deals.find((d) => d.amount != null)?.currency ?? defaultCurrency;
 
   return (
     <PanelCard
@@ -90,7 +93,7 @@ export function TheatreRoster({
             }
             trail={
               <span className="flex shrink-0 items-center gap-xs">
-                <StatusBadge tone="neutral">{d.stageLabel}</StatusBadge>
+                <Tag>{d.stageLabel}</Tag>
                 <Icon name="chevron-right" size="xs" />
               </span>
             }
@@ -126,7 +129,7 @@ export function TheatreRoster({
               </Link>
             }
             trail={
-              <StatusBadge tone={p.healthTone}>{p.healthLabel}</StatusBadge>
+              <Tag tone={p.healthTone}>{p.healthLabel}</Tag>
             }
           />
         ))}

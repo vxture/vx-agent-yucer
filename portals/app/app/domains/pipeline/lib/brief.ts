@@ -35,7 +35,13 @@
 
 import { isOverdue, type CommitmentDirection, type CommitmentStatus } from "../../account/lib/commitment";
 import type { ChainCoverage } from "../../account/lib/health";
-import { daysAtStage, suggestCategory, STALL_DAYS, type CategorizableDeal } from "./forecast-rule";
+import {
+  DEFAULT_FORECAST_THRESHOLDS,
+  daysAtStage,
+  suggestCategory,
+  type CategorizableDeal,
+  type ForecastThresholds,
+} from "./forecast-rule";
 import type { ForecastCategory } from "./forecast";
 import { OPEN_STAGE_ORDER, type Stage } from "./stage";
 
@@ -108,6 +114,15 @@ export interface DealBriefInput {
   readonly proposals: readonly { readonly id: string; readonly title: string }[];
   readonly text: BriefText;
   readonly now: Date;
+  /**
+   * The workspace's forecast thresholds (incr/0041).
+   *
+   * Optional so a caller that has not loaded them still gets the shipped
+   * numbers rather than a crash - but the deal page passes them, because a
+   * brief that stalls at 45 days while the review page stalls at 60 would be
+   * two answers to one question on two screens.
+   */
+  readonly thresholds?: ForecastThresholds;
 }
 
 /**
@@ -148,13 +163,14 @@ const DAY = 86_400_000;
 
 export function dealBrief(input: DealBriefInput): DealBrief {
   const { deal, chain, commitments, lines, proposals, text, now } = input;
+  const thresholds = input.thresholds ?? DEFAULT_FORECAST_THRESHOLDS;
   const cells: BriefCell[] = [];
   const actions: BriefAction[] = [];
   const terminal = deal.status !== "open";
 
   // --- stage ---------------------------------------------------------------
   const days = daysAtStage(deal, now);
-  const stalled = !terminal && days !== null && days > STALL_DAYS;
+  const stalled = !terminal && days !== null && days > thresholds.stallDays;
   cells.push({
     key: "stage",
     tone: terminal ? "good" : stalled ? "bad" : "good",
@@ -170,7 +186,7 @@ export function dealBrief(input: DealBriefInput): DealBrief {
   // The rule that can catch a person contradicting THEMSELVES - a human 35%
   // on a deal filed as commit. It ran only on the forecast review page until
   // now; the deal page is where the category is actually chosen.
-  const verdict = suggestCategory(deal, now);
+  const verdict = suggestCategory(deal, now, thresholds);
   if (verdict.kind === "settled") {
     cells.push({ key: "forecast", tone: "good", headline: text.forecastSettled, detail: "" });
   } else {

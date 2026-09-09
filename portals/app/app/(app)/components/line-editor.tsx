@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -17,8 +17,10 @@ import {
   NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   Textarea,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 
 // The deal's product lines.
@@ -56,6 +58,9 @@ export interface EditorLine {
 }
 
 export interface LineEditorProps {
+  /** The panel's action, rendered in the Section header beside the
+   *  below-floor warning. The read view passes the way in to the editor. */
+  readonly action?: ReactNode;
   /** Set when the editor is a PAGE: on a successful save it returns there.
    *  Absent = inline legacy mode (kept for the read view on the deal page). */
   readonly doneHref?: string;
@@ -95,7 +100,17 @@ interface Draft {
   unitPrice: string;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  product: (r: EditorLine) => r.productId,
+  qty: (r: EditorLine) => r.quantity,
+  price: (r: EditorLine) => r.unitPrice,
+  amount: (r: EditorLine) => r.amount,
+};
+
 export function LineEditor({
+  action,
   opportunityId,
   lines,
   products,
@@ -116,6 +131,7 @@ export function LineEditor({
       unitPrice: String(l.unitPrice),
     })),
   );
+  const sorted = useTableSort<EditorLine>([], SORT_ON);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -154,12 +170,19 @@ export function LineEditor({
       icon="stack"
       title={OPPORTUNITY_TEXT.linesTitle}
       description={OPPORTUNITY_TEXT.linesWhy}
+      /* THE SECTION'S OWN ACTION SLOT holds both the warning and the way in
+         to the editor. The page used to put that link in a row of its own
+         below the table; the DS puts a panel's action in its header, and one
+         placement for every table is the point (owner, 2026-09-08). */
       action={
-        lines.some((l) => l.needsApproval && !l.approved) ? (
-          <StatusBadge tone="warning">
-            {OPPORTUNITY_TEXT.lineBelowFloor}
-          </StatusBadge>
-        ) : undefined
+        <span className="gap-sm flex items-center">
+          {lines.some((l) => l.needsApproval && !l.approved) ? (
+            <StatusBadge tone="warning">
+              {OPPORTUNITY_TEXT.lineBelowFloor}
+            </StatusBadge>
+          ) : null}
+          {action}
+        </span>
       }
     >
       {lines.length === 0 && drafts.length === 0 ? (
@@ -171,25 +194,32 @@ export function LineEditor({
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(_r: EditorLine, i: number) => `${_r.productId}-${i}`}
-          rows={[...lines]}
+          rows={[...sorted.sortRows(lines)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={[
             {
               id: "product",
+  sortable: true,
               header: OPPORTUNITY_TEXT.lineProduct,
-              cell: (r: EditorLine) => name.get(r.productId) ?? r.productId,
+              cell: (r: EditorLine) => (
+                <TableTitleCell title={name.get(r.productId) ?? r.productId} />
+              ),
             },
             {
               id: "qty",
               header: OPPORTUNITY_TEXT.lineQty,
-              align: "right" as const,
+              sortable: true,
+              align: "numeric" as const,
               cell: (r: EditorLine) => r.quantity,
             },
             {
               id: "price",
               header: OPPORTUNITY_TEXT.linePrice,
-              align: "right" as const,
               // A below-floor price is marked ON THE PRICE, not in a separate
               // column: the reader is looking at the number that caused it.
+              sortable: true,
+              align: "money" as const,
               cell: (r: EditorLine) => (
                 <span
                   className={
@@ -203,7 +233,8 @@ export function LineEditor({
             {
               id: "amount",
               header: OPPORTUNITY_TEXT.lineAmount,
-              align: "right" as const,
+              sortable: true,
+              align: "money" as const,
               cell: (r: EditorLine) => r.amount.toLocaleString(),
             },
             {

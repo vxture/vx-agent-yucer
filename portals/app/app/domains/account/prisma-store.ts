@@ -2,6 +2,17 @@ import type { PrismaClient } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
+import type { IndustryDraft } from "./lib/industry-vocab";
+import {
+  DEFAULT_MARKET_SCOPE,
+  frameMembers,
+  isPseudoCity,
+  provinceFrame,
+  provinceMember,
+  type DivisionTemplate,
+  type MarketMember,
+  type MarketScope,
+} from "../shared/market-division";
 import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
@@ -9,8 +20,10 @@ import type {
   AccountRecord,
   AccountStore,
   AccountTier,
+  MarketDivisionRecord,
   ContactRecord,
   HealthInputs,
+  IndustryRecord,
   OpportunityContactRecord,
 } from "./store";
 
@@ -30,6 +43,37 @@ const ACCOUNT_TABLE = "yucer_core.account";
 const PERSON_TABLE = "yucer_core.person";
 const AFFILIATION_TABLE = "yucer_core.person_affiliation";
 const OPPORTUNITY_CONTACT_TABLE = "yucer_pipeline.opportunity_contact";
+// incr/0040. 行业, the workspace's own vocabulary.
+const INDUSTRY_TABLE = "yucer_core.industry";
+// incr/0043. 市场范围, one row per workspace.
+const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
+
+/* A division's members come from two tables (incr/0036 provinces, incr/0045
+   admin_division rows), and a row holds whichever its frame uses. Read both,
+   print each in its own shape: `JS 江苏` for a province, `西安` for a city. */
+/* The relation is by id (0045); everything the interface prints comes
+   through it from admin_division, and the member's KEY - the adcode - is read
+   there too, never stored twice. */
+const PLACE = { select: { code: true, shortZh: true, nameZh: true, abbrEn: true } } as const;
+const MEMBERS = {
+  provinces: { select: { province: true } },
+  members: { select: { place: PLACE } },
+} as const;
+
+type Place = { code: string; shortZh: string; nameZh: string; abbrEn: string | null };
+const unitMember = (p: Place): MarketMember => ({
+  key: p.code, label: p.shortZh, abbr: p.abbrEn, name: p.nameZh, adcode: p.code,
+});
+
+function membersOf(row: {
+  provinces: { province: string }[];
+  members: { place: Place }[];
+}): MarketMember[] {
+  return [
+    ...row.provinces.map((x) => provinceMember(x.province)),
+    ...row.members.map((x) => unitMember(x.place)),
+  ];
+}
 
 export class PrismaAccountStore implements AccountStore {
   /**
@@ -48,6 +92,219 @@ export class PrismaAccountStore implements AccountStore {
    */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
 
+  async upsertMarketDivision(
+    workspaceId: string,
+    input: { code: string; name: string; sortOrder?: number },
+  ): Promise<MarketDivisionRecord> {
+    const p = await this.client();
+    /* KEYED ON THE CODE, which is the anchor: upserting an existing code
+       renames it, a new one creates a division. 98/incr-0036 deliberately do
+       NOT grant UPDATE on division_code - a division whose code changed is a
+       new division wearing an old one's history.
+       A NEW ROW IS CARVED IN THE CURRENT FRAME (incr/0043); the database then
+       CHECKs that the code carries that frame's prefix. */
+    const scope = await this.getMarketScope(workspaceId);
+    const row = await p.marketDivision.upsert({
+      where: {
+        workspaceId_scope_scopeProvince_divisionCode: {
+          workspaceId, scope: scope.kind, scopeProvince: scope.kind === "province" ? scope.code ?? "" : "",
+          divisionCode: input.code,
+        },
+      },
+      create: {
+        workspaceId, divisionCode: input.code, name: input.name, scope: scope.kind,
+        scopeProvince: scope.kind === "province" ? scope.code ?? "" : "",
+        sortOrder: input.sortOrder ?? 0,
+      },
+      update: {
+        name: input.name,
+        ...(input.sortOrder === undefined ? {} : { sortOrder: input.sortOrder }),
+        updatedAt: new Date(),
+      },
+      include: MEMBERS,
+    });
+    return {
+      id: row.id, code: row.divisionCode, name: row.name, sortOrder: row.sortOrder,
+      scope: row.scope as MarketScope["kind"],
+      scopeProvince: row.scopeProvince || null,
+      members: membersOf(row),
+    };
+  }
+
+  async removeMarketDivision(workspaceId: string, code: string): Promise<boolean> {
+    const p = await this.client();
+    /* The FK is ON DELETE RESTRICT, so a division still holding provinces
+       cannot be removed - deleted here rather than letting Postgres raise,
+       so the caller gets a countable answer instead of a constraint name. */
+    const { count } = await p.marketDivision.deleteMany({
+      where: { workspaceId, divisionCode: code, provinces: { none: {} }, members: { none: {} } },
+    });
+    return count > 0;
+  }
+
+  /* --- the frame's ground (incr/0045) -----------------------------------------
+     中国市场 is the 34 the build knows. A province frame's cities are READ
+     FROM yucer_ref.admin_division, which is the authority; the build's copy
+     (PROVINCE_FRAMES) exists for the store with no database, and
+     admin-division.db.test.ts proves the two agree. */
+
+  async listFrameMembers(workspaceId: string): Promise<MarketMember[]> {
+    const scope = await this.getMarketScope(workspaceId);
+    if (scope.kind !== "province") return [...frameMembers(scope)];
+    const frame = provinceFrame(scope.code);
+    if (!frame) return [];
+    const p = await this.client();
+    const province = await p.adminDivision.findFirst({
+      where: { level: 3, code: frame.adcode },
+      select: { id: true, path: true },
+    });
+    if (!province) return [];
+    /* A province's ground is its level-4 rows; a municipality's is its
+       level-5 districts and counties under the filing rows (incr/0045). The
+       filing rows themselves - 419000, 110100 - are not places: isPseudoCity. */
+    const units = await p.adminDivision.findMany({
+      where: frame.unit === "district"
+        ? { level: 5, status: "active", path: { startsWith: `${province.path}/` } }
+        : { level: 4, status: "active", parentId: province.id },
+      orderBy: { sortOrder: "asc" },
+      select: { code: true, shortZh: true, nameZh: true, abbrEn: true },
+    });
+    return units.filter((u) => !isPseudoCity(u.code)).map(unitMember);
+  }
+
+  /* --- 预置方案 (incr/0045) ------------------------------------------------
+     THE TABLE, NOT THE CONSTANT (owner: 不容许代码写死). Three tables read as
+     one carve each; the frame filter is the same pairing the service checks
+     before adopting one. */
+  async listCarves(workspaceId: string): Promise<DivisionTemplate[]> {
+    const scope = await this.getMarketScope(workspaceId);
+    const p = await this.client();
+    const rows = await p.marketCarve.findMany({
+      where: { scopeKind: scope.kind, scopeProvince: scope.kind === "province" ? scope.code : null },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        divisions: {
+          orderBy: { sortOrder: "asc" },
+          include: { members: { select: { place: { select: { level: true, code: true, nameZh: true } } } } },
+        },
+      },
+    });
+    /* The relation is by id (0045); the KEY the service speaks is read back
+       through it - a province's name, a unit's adcode. */
+    return rows.map((c) => ({
+      key: c.carveKey,
+      name: c.name,
+      scope: c.scopeKind as MarketScope["kind"],
+      province: c.scopeProvince,
+      divisions: c.divisions.map((d) => ({ code: d.divisionCode, name: d.name, sortOrder: d.sortOrder })),
+      members: Object.fromEntries(
+        c.divisions.flatMap((d) =>
+          d.members.map((m) => [m.place.level === 3 ? m.place.nameZh : m.place.code, d.divisionCode]),
+        ),
+      ),
+    }));
+  }
+
+  async placeMember(
+    workspaceId: string,
+    memberKey: string,
+    divisionCode: string | null,
+  ): Promise<boolean> {
+    const p = await this.client();
+    /* TWO TABLES, ONE VERB, ONE RELATION (0045). The key the service speaks -
+       a province's name under 中国市场, a unit's adcode under 省级市场 - is
+       resolved to the admin_division ROW here, at the boundary, and the row's
+       id is what both tables relate by. A key the reference table does not
+       have is not a place and cannot be placed. */
+    const scope = await this.getMarketScope(workspaceId);
+    const level = scope.kind === "china" ? 3 : scope.kind === "global" ? 2 : provinceFrame(scope.code)?.unit === "district" ? 5 : 4;
+    const place = await p.adminDivision.findFirst({
+      where: scope.kind === "china" ? { level, nameZh: memberKey } : { level, code: memberKey },
+      select: { id: true },
+    });
+    if (!place) return false;
+    if (divisionCode === null) {
+      // Out of every 大区. A DELETE, not a null division_id: the column is NOT
+      // NULL, and "in no division" is the absence of a row rather than a row
+      // pointing nowhere.
+      if (scope.kind === "china") {
+        await p.marketDivisionProvince.deleteMany({ where: { workspaceId, adminDivisionId: place.id } });
+      } else {
+        await p.marketDivisionMember.deleteMany({ where: { workspaceId, adminDivisionId: place.id } });
+      }
+      return true;
+    }
+    const division = await p.marketDivision.findFirst({
+      where: { workspaceId, divisionCode },
+      select: { id: true },
+    });
+    if (!division) return false;
+    /* UPSERT ON THE PRIMARY KEY, because a member belongs to at most one
+       division and both tables enforce that. An insert would collide; a plain
+       update would silently do nothing for one nobody had placed. */
+    if (scope.kind === "china") {
+      await p.marketDivisionProvince.upsert({
+        where: { workspaceId_province: { workspaceId, province: memberKey } },
+        create: { workspaceId, province: memberKey, adminDivisionId: place.id, divisionId: division.id },
+        update: { divisionId: division.id, updatedAt: new Date() },
+      });
+    } else {
+      await p.marketDivisionMember.upsert({
+        where: { workspaceId_adminDivisionId: { workspaceId, adminDivisionId: place.id } },
+        create: { workspaceId, adminDivisionId: place.id, divisionId: division.id },
+        update: { divisionId: division.id, updatedAt: new Date() },
+      });
+    }
+    return true;
+  }
+
+  /* --- 市场范围 (incr/0043) --------------------------------------------------
+     NO ROW READS AS CHINA: the increment seeds every workspace that carves,
+     and one created afterwards has none until somebody changes the frame. */
+
+  async getMarketScope(workspaceId: string): Promise<MarketScope> {
+    const p = await this.client();
+    const row = await p.marketScope.findUnique({ where: { workspaceId } });
+    if (!row) return DEFAULT_MARKET_SCOPE;
+    return { kind: row.scopeKind as MarketScope["kind"], code: row.scopeProvince ?? null };
+  }
+
+  async setMarketScope(workspaceId: string, scope: MarketScope): Promise<void> {
+    const p = await this.client();
+    const update = { scopeKind: scope.kind, scopeProvince: scope.code, updatedAt: new Date() };
+    const guard = assertWritable(MARKET_SCOPE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked market_scope column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.marketScope.upsert({ where: { workspaceId }, update, create: { workspaceId, ...update } });
+  }
+
+  async listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]> {
+    const p = await this.client();
+    const scope = await this.getMarketScope(workspaceId);
+    const rows = await p.marketDivision.findMany({
+      // BY FRAME - a carve made under another frame stays out of this roster.
+      // The province as well as the kind (0045): 陕西's carve and 广东's are
+      // both `province`.
+      where: { workspaceId, scope: scope.kind, scopeProvince: scope.kind === "province" ? scope.code ?? "" : "" },
+      // The workspace's OWN order, then name - a tenant that re-orders its
+      // divisions expects the menu and the breadcrumb to follow.
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      include: MEMBERS,
+    });
+    return rows.map((d) => ({
+      id: d.id,
+      code: d.divisionCode,
+      name: d.name,
+      scope: d.scope as MarketScope["kind"],
+      scopeProvince: d.scopeProvince || null,
+      sortOrder: d.sortOrder,
+      members: membersOf(d),
+    }));
+  }
+
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
     const p = await this.client();
     const rows = await p.account.findMany({
@@ -63,13 +320,29 @@ export class PrismaAccountStore implements AccountStore {
       orderBy: [{ healthScore: "asc" }, { name: "asc" }],
       ...(filter.limit ? { take: filter.limit } : {}),
     });
-    return rows.map((r: Record<string, unknown>) => toAccount(r));
+    const names = await this.industryNames(workspaceId);
+    return rows.map((r: Record<string, unknown>) => toAccount(r, names));
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const p = await this.client();
     const row = await p.account.findFirst({ where: { id, workspaceId, deletedAt: null } });
-    return row ? toAccount(row as Record<string, unknown>) : null;
+    if (!row) return null;
+    return toAccount(row as Record<string, unknown>, await this.industryNames(workspaceId));
+  }
+
+  /**
+   * industry_id -> the name it reads as.
+   *
+   * A SECOND QUERY rather than a Prisma relation, because this schema declares
+   * none: the mirror carries columns and indexes, and every join in this
+   * adapter is written by hand. One extra read per account listing, over a
+   * table with at most a few dozen rows in it.
+   */
+  private async industryNames(workspaceId: string): Promise<Map<string, string>> {
+    const p = await this.client();
+    const rows = await p.industry.findMany({ where: { workspaceId } });
+    return new Map(rows.map((r: { id: string; name: string }) => [r.id, r.name]));
   }
 
   async updateAccount(
@@ -303,6 +576,88 @@ export class PrismaAccountStore implements AccountStore {
     }));
   }
 
+  /* --- 行业 (incr/0040) -----------------------------------------------------
+     The same five verbs the catalogue vocabularies have, and the same
+     assertWritable guard on every write: `industry_code` is the anchor, so a
+     patch that reached it would be refused by the grant at the database and is
+     refused here first, where the message names the column. */
+
+  async listIndustries(workspaceId: string): Promise<IndustryRecord[]> {
+    const p = await this.client();
+    const rows = await p.industry.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { industryCode: "asc" }],
+    });
+    return rows.map((r: IndustryRecord) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      industryCode: r.industryCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertIndustry(workspaceId: string, input: IndustryDraft): Promise<IndustryRecord> {
+    const p = await this.client();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(INDUSTRY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked industry column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.industry.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const row = await p.industry.upsert({
+      where: { workspaceId_industryCode: { workspaceId, industryCode: input.industryCode } },
+      update,
+      create: {
+        workspaceId,
+        industryCode: input.industryCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      industryCode: row.industryCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setIndustryOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await this.client();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(INDUSTRY_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked industry column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.industry.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeIndustry(workspaceId: string, industryId: string): Promise<boolean> {
+    const p = await this.client();
+    // The service refused an industry in use; fk_account_industry RESTRICTs
+    // underneath as the last line.
+    const { count } = await p.industry.deleteMany({ where: { workspaceId, id: industryId } });
+    return count > 0;
+  }
+
+  async countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number> {
+    const p = await this.client();
+    // Soft-deleted customers do not count: an industry nothing live carries is
+    // one the workspace may retire.
+    return p.account.count({ where: { workspaceId, industryId, deletedAt: null } });
+  }
+
   async healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs> {
     const p = await this.client();
 
@@ -430,14 +785,17 @@ export class PrismaAccountStore implements AccountStore {
   }
 }
 
-function toAccount(r: Record<string, unknown>): AccountRecord {
+function toAccount(r: Record<string, unknown>, industryNames: Map<string, string>): AccountRecord {
+  const industryId = (r.industryId as string | null) ?? null;
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
     accountNo: String(r.accountNo),
     name: String(r.name),
-    industry: (r.industry as string | null) ?? null,
+    industryId,
+    industry: industryId ? industryNames.get(industryId) ?? null : null,
     region: (r.region as string | null) ?? null,
+    province: (r.province as string | null) ?? null,
     segmentCode: (r.segmentCode as string | null) ?? null,
     ownerSub: (r.ownerSub as string | null) ?? null,
     healthScore: (r.healthScore as number | null) ?? null,

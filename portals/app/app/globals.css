@@ -182,6 +182,29 @@
  * token of the same name cannot be silently shadowed by these.
  */
 :root {
+  /*
+   * THE MANAGEMENT PLANE'S GUTTER (owner, 2026-09-09).
+   *
+   * 配置管理 is laid out in three zones - the DS sidebar, the content, and the
+   * space held for the agent - and this is what stands between them. 64px at a
+   * wide window, easing down to 16px on a narrow one.
+   *
+   * A CLAMP RATHER THAN A BREAKPOINT, which is the whole point of the ruling:
+   * dragging the window narrower must move this margin continuously, not jump
+   * it at 1024px. The bounds are DS tokens (--space-md / --space-5xl) and only
+   * the ratio is ours - the same shape the DS's own --space-page-inset has
+   * (clamp(lg, 3.2vw, 3xl)), which is the token the content's own 48px padding
+   * comes from.
+   *
+   * 4vw REACHES 64px AT 1600px, and that is the measured intent: at 1440 it is
+   * 58, at 1280 it is 51, at 1024 it is 41. The content never loses its
+   * standoff and never spends half a laptop screen on margin.
+   *
+   * vw, NOT cqi: this is a shell measurement, so it tracks the WINDOW. The
+   * zone's own width also changes when the sidebar collapses, and the gutter
+   * following that would make collapsing the menu move the text twice.
+   */
+  --vx-shell-gutter: clamp(var(--space-md), 4vw, var(--space-5xl));
   /* 280px. The own-forces board: wide enough for a two-column figure card. */
   --vx-pane-nav: 17.5rem;
   /* 400px. The agent deck: wide enough for a paragraph of the agent's reading

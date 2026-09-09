@@ -45,18 +45,93 @@ export function FormPage({
 }
 
 /**
- * The one control a display page keeps: the way in to its creation page.
- * A real <a>, not a router.push - middle-click and open-in-new-tab must work,
- * because a person adding five rows wants five tabs, not five round trips.
+ * THE FIELD GRID - two items to a row, evenly (owner, 2026-09-09).
+ *
+ * WHAT IT REPLACES. Forms capped their whole field stack at a reading measure
+ * (max-w-(--vx-container-md), 448px) and put two fields inside it, so on a
+ * page that had just been given its full width the pair sat squeezed into the
+ * left quarter with everything else empty. The owner's words for the two
+ * failure modes it is between: 简单粗暴拉伸 - a control stretched across
+ * 1400px - and 堆积, everything piled into one narrow column.
+ *
+ * SO: THE COLUMNS SPLIT EVENLY and the CONTROLS TIGHTEN UNIFORMLY. Two equal
+ * 1fr columns take the form's width, and every grid item carries the same
+ * max measure, so a wide window spends its extra width on the gutter between
+ * two evenly-set columns rather than on making a code field wide enough for
+ * eighty characters. Both columns are treated identically, which is what
+ * keeps a half-filled column reading as a layout rather than as a squeeze.
+ *
+ * A CONTAINER QUERY, NOT A VIEWPORT BREAKPOINT - the same argument FormPage
+ * makes above it. What decides whether two columns fit is how much room this
+ * form actually has, and with a sidebar and (later) an agent panel beside it
+ * the viewport does not know that. @xl is 36rem of container: two columns only
+ * when each still gets ~17rem.
  */
+export function FormFields({ children }: { readonly children: ReactNode }) {
+  return (
+    <div className="@container">
+      {/* gap-xl (32px) rather than the md the stacked forms used: two columns
+          need a gutter wide enough to read as a gutter, or the two fields look
+          like one wrapped row.
+
+          THE MEASURE IS A VARIABLE, not a class, and that is what lets
+          FormFieldWide exist. `*:max-w-(--vx-field-measure)` sets the cap on
+          every direct child, and a child selector beats a class the child
+          carries itself - so a wide field cannot simply declare max-w-none.
+          Redeclaring the VARIABLE on itself works, because the value is
+          resolved on the element the declaration lands on. */}
+      <div className="gap-xl @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A field that takes the whole row inside FormFields.
+ *
+ * FOR THE ONES THAT ARE NOT HALF A ROW'S WORTH OF QUESTION: the "which record
+ * am I editing" selector at the top of an upsert form governs everything under
+ * it rather than sitting beside one of them, and a control whose content is a
+ * sentence needs the width. Everything else is a field and takes a column.
+ *
+ * It also drops the measure - a full row that stopped at half of it would be
+ * the squeeze this grid exists to end, one row lower.
+ */
+export function FormFieldWide({ children }: { readonly children: ReactNode }) {
+  return <div className="@xl:col-span-2 [--vx-field-measure:none]">{children}</div>;
+}
+
+/**
+ * WHERE A DISPLAY PAGE PUTS ITS ACTIONS - one row, one spacing, everywhere.
+ *
+ * It used to be the wrapper inside NewEntryLink, which worked while every page
+ * had exactly one doorway and broke the moment /territory had three: that page
+ * grew its own flex row with its own gap and its own raw Buttons, and the
+ * result was two conventions on one screen. The row is a component now, so a
+ * page with three actions and a page with one are laid out by the same code.
+ */
+/* EntryActions IS GONE (owner, 2026-09-08: 表格有操作行样式规范，找 DS 模版).
+ *
+ * It was a `div.mt-md.flex` that each page dropped wherever it happened to
+ * read well - under the table on /pipeline and /campaign, between two panels
+ * on /planning, inside a Section on the same page. Four placements for one
+ * kind of control.
+ *
+ * The DS already answers this and has all along: `ViewHeader`/`Section` take
+ * an `action` slot (the header's right side, aligned to the description's
+ * baseline - "按钮属于接下来做什么，挂在页头的收束线上"), and a list-level
+ * 新建 belongs in `FilterBar.actions` where a page has a filter row. So the
+ * button goes into the header of whatever owns the table, and this positioner
+ * has nothing left to do.
+ */
+
 export function NewEntryLink({ href, label }: { readonly href: string; readonly label?: string }) {
   const { ASSIST_TEXT } = useMessages();
   return (
-    <div className="mt-md">
-      <Button asChild variant="secondary">
-        <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
-      </Button>
-    </div>
+    <Button asChild variant="secondary">
+      <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
+    </Button>
   );
 }
 

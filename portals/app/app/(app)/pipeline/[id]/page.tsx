@@ -1,19 +1,13 @@
 import Link from "next/link";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   EmptyState,
   MetricGrid,
   Section,
-  StatusBadge,
   ViewHeader,
   ViewLayout,
   type MetricGridItem,
 } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import {
@@ -69,6 +63,7 @@ import {
 import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
+  listProductUnits as listCatalogUnits,
 } from "../../../domains/catalog/service";
 import { StageControl } from "../../components/stage-control";
 import { StageJourney } from "../../components/stage-journey";
@@ -83,6 +78,7 @@ import {
   settleCommitment,
 } from "../../account/field-actions";
 import { loadFailureText } from "../../lib/load-failure";
+import { Tag } from "../../components/tag";
 
 // D6 opportunity detail: where the deal is, how it got there, and where it goes.
 //
@@ -115,6 +111,7 @@ export default async function OpportunityDetailPage({
     WAR_ROOM_TEXT,
     CHANNEL_LABEL,
     LOAD_ERROR,
+    DOMAIN_LABEL,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -157,7 +154,7 @@ export default async function OpportunityDetailPage({
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [account, chain, roles, projects, feed, proposals, lineRows, productRows] =
+  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows] =
     await Promise.all([
       getAccountDetail(accountCtx, opportunity.accountId),
       // incr/0027. THIS PAGE IS A DEAL, so it asks the deal's question. It used
@@ -189,7 +186,11 @@ export default async function OpportunityDetailPage({
       ),
       listOpportunityLines(catalogCtx),
       listCatalogProducts(catalogCtx),
+      listCatalogUnits(catalogCtx),
     ]);
+  const unitName = new Map(
+    (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
+  );
   const plan =
     account.ok && account.value.account.tier === "strategic"
       ? await session.stores.account().getAccountPlan(
@@ -379,23 +380,20 @@ export default async function OpportunityDetailPage({
     },
   ];
 
+  const linesAction =
+    can(session.authz, session.entitlement, "pipeline.opportunity.update", "ui").allowed
+    && opportunity.closedAt === null ? (
+      <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
+    ) : null;
+
   return (
     <ViewLayout>
       {/* THE WAY BACK. With the board gone this page carries no navigation of
           its own, and returning to the list is the most common next action. */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/pipeline">
-              {PIPELINE_TEXT.title}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{opportunity.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      {/* THE WAY BACK, through the same binding every other second-level
+          page uses. This one wrote its own for months and took the parent's
+          name from its own dictionary; the trail reads the registry now. */}
+      <PageCrumbs trail={[{ label: DOMAIN_LABEL.pipeline, href: "/pipeline" }]} current={opportunity.name} />
 
       <ViewHeader
         secondary={opportunity.opportunityNo}
@@ -404,16 +402,16 @@ export default async function OpportunityDetailPage({
         description={accountName}
         action={
           <>
-            <StatusBadge tone={STAGE_TONE[opportunity.stage as Stage]} dot>
+            <Tag tone={STAGE_TONE[opportunity.stage as Stage]} dot>
               {STAGE_LABEL[opportunity.stage as Stage] ?? opportunity.stage}
-            </StatusBadge>
-            <StatusBadge
+            </Tag>
+            <Tag
               tone={
                 FORECAST_TONE[opportunity.forecastCategory as ForecastCategory]
               }
             >
               {FORECAST_LABEL[opportunity.forecastCategory as ForecastCategory]}
-            </StatusBadge>
+            </Tag>
           </>
         }
       />
@@ -422,7 +420,7 @@ export default async function OpportunityDetailPage({
           pursuit from a one-off deal, and the page should say which before it
           says anything else. */}
       <div className="flex flex-wrap items-center gap-xs">
-        <StatusBadge
+        <Tag
           tone={
             tier === "strategic"
               ? "brand"
@@ -436,12 +434,12 @@ export default async function OpportunityDetailPage({
             : tier === "key"
               ? POSITION_TEXT.tierKey
               : POSITION_TEXT.tierStandard}
-        </StatusBadge>
+        </Tag>
         {plan ? (
           <>
-            <StatusBadge tone="neutral">
+            <Tag>
               {POSITION_TEXT.planOf(plan.period)}
-            </StatusBadge>
+            </Tag>
             <span className="text-muted-foreground text-body-sm">
               {POSITION_TEXT.triangleOf(
                 plan.ownerSub ?? POSITION_TEXT.roleUnset,
@@ -614,13 +612,13 @@ export default async function OpportunityDetailPage({
           <div>
             <span>{OPPORTUNITY_TEXT.campaign}: </span>
             {opportunity.campaignId ? (
-              <StatusBadge tone="neutral">{opportunity.campaignId}</StatusBadge>
+              <Tag>{opportunity.campaignId}</Tag>
             ) : (
               // A blank cell would read as missing data. Not every deal starts as
               // a campaign response, and that is a fact rather than a gap.
-              <StatusBadge tone="neutral">
+              <Tag>
                 {OPPORTUNITY_TEXT.noAttribution}
-              </StatusBadge>
+              </Tag>
             )}
           </div>
         </Section>
@@ -651,7 +649,13 @@ export default async function OpportunityDetailPage({
       {/* BEFORE the commercial terms, because the lines DECIDE the amount that
           the terms panel then shows. Reading them the other way round would put
           the derived number above the thing it is derived from. */}
+      {/* HOISTED, not written inline in the tag below. reachable-codes.test
+          resolves a bound action to the last component tag opened before it,
+          so a <NewEntryLink> nested inside LineEditor's props made the guard
+          read `onApprove`/`onSave` as bound to form-page - which renders no
+          error dictionary. The guard was right about what it saw. */}
       <LineEditor
+        action={linesAction}
         opportunityId={id}
         lines={(lineRows.ok ? lineRows.value : [])
           .filter((l) => l.opportunityId === id)
@@ -666,7 +670,8 @@ export default async function OpportunityDetailPage({
         products={(productRows.ok ? productRows.value : []).map((p) => ({
           id: p.id,
           name: p.name,
-          unit: p.unit,
+          // The name, resolved from 计价单位 (0037) - the row carries a uuid.
+          unit: unitName.get(p.unitId) ?? "",
         }))}
         // READ VIEW since 2026-09-05: the 418-line editor moved to
         // /pipeline/[id]/lines (owner ruling - the heaviest content operation
@@ -686,15 +691,6 @@ export default async function OpportunityDetailPage({
         onSave={saveOpportunityLines}
         onApprove={approveDiscount}
       />
-      {can(
-        session.authz,
-        session.entitlement,
-        "pipeline.opportunity.update",
-        "ui",
-      ).allowed && opportunity.closedAt === null ? (
-        <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
-      ) : null}
-
       <DealTerms
         opportunityId={id}
         stage={opportunity.stage}

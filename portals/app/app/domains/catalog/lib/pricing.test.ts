@@ -15,19 +15,19 @@ const entry = (list: number, floor: number): PriceEntryRecord => ({
 });
 
 test("a price below the floor needs a signature", () => {
-  const l = priceLine({ productId: "prd_1", quantity: 2, unitPrice: 80_000 }, entry(120_000, 90_000));
+  const l = priceLine({ productId: "prd_1", quantity: 2, unitPrice: 80_000 }, entry(120_000, 90_000), "CNY");
   assert.equal(l.needsApproval, true);
   assert.equal(l.amount, 160_000);
 });
 
 test("a price at the floor does not - the floor is the last acceptable price", () => {
-  const l = priceLine({ productId: "prd_1", quantity: 1, unitPrice: 90_000 }, entry(120_000, 90_000));
+  const l = priceLine({ productId: "prd_1", quantity: 1, unitPrice: 90_000 }, entry(120_000, 90_000), "CNY");
   assert.equal(l.needsApproval, false);
 });
 
 // The distinction that keeps the flag meaningful.
 test("an unpriced product is not a discount breach", () => {
-  const l = priceLine({ productId: "prd_new", quantity: 1, unitPrice: 1 }, null);
+  const l = priceLine({ productId: "prd_new", quantity: 1, unitPrice: 1 }, null, "CNY");
   assert.equal(l.needsApproval, false, "no floor and below floor are different states");
 });
 
@@ -43,8 +43,8 @@ test("the header reconciles to its lines, and no lines is legal", () => {
 });
 
 test("cents do not drift when lines are summed", () => {
-  const l1 = priceLine({ productId: "a", quantity: 3, unitPrice: 33.335 }, null);
-  const l2 = priceLine({ productId: "b", quantity: 3, unitPrice: 33.335 }, null);
+  const l1 = priceLine({ productId: "a", quantity: 3, unitPrice: 33.335 }, null, "CNY");
+  const l2 = priceLine({ productId: "b", quantity: 3, unitPrice: 33.335 }, null, "CNY");
   assert.equal(reconciles(lineTotal([l1, l2]), [l1, l2]), true);
 });
 

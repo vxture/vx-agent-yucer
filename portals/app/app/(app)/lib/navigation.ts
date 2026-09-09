@@ -62,7 +62,17 @@ export type NavIcon =
   // The assault objective itself.
   | "target"
   // Same for the forecast rule.
-  | "trend-up";
+  | "trend-up"
+  // 配置管理's own glyphs (2026-09-08). The plane splits one page into eight
+  // items, and each answers a different question, so each gets its own mark
+  // rather than eight settings cogs.
+  | "tree-structure"
+  | "users"
+  | "role"
+  | "key"
+  | "eye"
+  | "seal-check"
+  | "clipboard";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -150,6 +160,15 @@ export const DOMAIN_NAV_ENTRIES: readonly NavEntry[] = [
  */
 export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "home", href: "/", icon: "sparkles", action: "account.view" },
+  /* 全国态势屏. Listed with the work entries rather than among the eight
+     capability domains, because it OWNS NO OBJECT - it is a way of looking at
+     what the domains already hold, and adding it to the domain list would break
+     the eight-domain invariant the comment below depends on.
+     `account.view` is the gate named here, which is the narrowest of the three
+     the page itself requires; the page asks for pipeline and delivery as well
+     and refuses unless all three allow. The nav entry only decides whether the
+     link is worth showing. */
+  { key: "national", href: "/national", icon: "chart-bar", action: "account.view" },
 ];
 
 /**
@@ -163,20 +182,14 @@ export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
  * which is what keeps an unsubscribed workspace on the subscribe screen rather
  * than dropping it into a shell containing only this entry.
  */
-export const ADMIN_NAV_ENTRIES: readonly NavEntry[] = [
-  {
-    key: "admin",
-    href: "/admin/members",
-    icon: "settings",
-    action: "admin.member.view",
-  },
-  {
-    key: "adoption",
-    href: "/admin/adoption",
-    icon: "chart-bar",
-    action: "admin.adoption.view",
-  },
-];
+/* MOVED to admin-nav.ts on 2026-09-08, where it is DERIVED from the grouped
+   menu the plane draws. It stayed a flat list here for as long as the plane
+   was three cards behind a gear; it is a plane with its own navigation now,
+   and one list feeding both the menu and the gate is what keeps them from
+   disagreeing. Re-exported so callers that only need the gateable entries do
+   not have to know about groups. */
+export { ADMIN_NAV_ENTRIES } from "./admin-nav";
+import { ADMIN_NAV_ENTRIES } from "./admin-nav";
 
 /**
  * Modules that are pages of their own but are NOT capability partitions.
@@ -202,10 +215,23 @@ export const MODULE_NAV_ENTRIES: readonly NavEntry[] = [
   { key: "solution", href: "/solution", icon: "puzzle", action: "catalog.solution.view" },
   { key: "pricebook", href: "/pricebook", icon: "scales", action: "catalog.pricebook.view" },
   { key: "namedAccount", href: "/named", icon: "star", action: "account.view" },
-  { key: "territory", href: "/territory", icon: "map-pin", action: "planning.territory.view" },
   { key: "winLossReview", href: "/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
   { key: "quote", href: "/quote", icon: "file-text", action: "pipeline.view" },
-  { key: "routing", href: "/routing", icon: "user-switch", action: "signal.lead.view" },
+  // 线索管理 - its own module since 2026-09-06 (design_yucer_110). It used to
+  // be a second list on the signal page, which made 商机智探 manage two
+  // objects: signals, whose actions are 升级/忽略/判重/重新评分, and leads,
+  // whose lifecycle runs all the way to a converted opportunity.
+  //
+  // 线索分派 IS INSIDE IT, not beside it (owner, same day, after seeing them
+  // apart). Assigning writes one column on a lead and answers one question -
+  // who works this - so a module of its own split the lead's page in two:
+  // judge it here, hand it over there. It is a button in the title row now.
+  { key: "lead", href: "/lead", icon: "target", action: "signal.lead.view" },
+  // 漏斗总览 - the one page that is about the chain rather than a link in it
+  // (design_yucer_110 batch E). Gated on the weakest read that reaches the
+  // exit table; the five stage reads inside carry their own gates, and a
+  // stage the reader cannot see reports nothing rather than zero.
+  { key: "funnel", href: "/funnel", icon: "chart-bar", action: "signal.lead.view" },
   { key: "collection", href: "/collection", icon: "wallet", action: "delivery.revenue.view" },
   // Gated on the DELIVERY read, not on the pipeline write. Seeing which terms
   // are coming up is a delivery question; opening the deal is a separate gate

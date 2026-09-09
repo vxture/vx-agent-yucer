@@ -11,6 +11,7 @@ import {
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { healthTone } from "../lib/view-model";
+import { Tag } from "./tag";
 
 // Account health, with its reasons.
 //
@@ -92,9 +93,9 @@ export function HealthPanel({
         ) : null
       }
     >
-      <StatusBadge tone={healthTone(current.score)}>
+      <Tag tone={healthTone(current.score)}>
         {current.score}
-      </StatusBadge>
+      </Tag>
 
       {current.primaryConcern ? (
         <StatusBadge tone="warning">

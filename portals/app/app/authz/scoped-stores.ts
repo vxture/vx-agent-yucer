@@ -96,6 +96,29 @@ class ScopedPipelineStore implements PipelineStore {
   // the list wrong rather than private.
   listUnreviewedClosed: PipelineStore["listUnreviewedClosed"] = (...a) =>
     this.inner.listUnreviewedClosed(...a);
+
+  /* 赢丢原因 is CONFIGURATION, not rows a member owns: the vocabulary is the
+     workspace's and everybody who may read a review may read the list it was
+     chosen from. Narrowing it by owner would give two reps different pickers
+     for the same review. */
+  listWinLossReasons: PipelineStore["listWinLossReasons"] = (...a) =>
+    this.inner.listWinLossReasons(...a);
+  upsertWinLossReason: PipelineStore["upsertWinLossReason"] = (...a) =>
+    this.inner.upsertWinLossReason(...a);
+  setWinLossReasonOrder: PipelineStore["setWinLossReasonOrder"] = (...a) =>
+    this.inner.setWinLossReasonOrder(...a);
+  removeWinLossReason: PipelineStore["removeWinLossReason"] = (...a) =>
+    this.inner.removeWinLossReason(...a);
+  countReviewsByReason: PipelineStore["countReviewsByReason"] = (...a) =>
+    this.inner.countReviewsByReason(...a);
+  /* incr/0041. 预测阈值 is WORKSPACE-WIDE configuration, not a set of deals: a
+     rep whose scope is their own book still forecasts against the same bands,
+     because they are the workspace's bands. Gated by permission in the service,
+     unfiltered here. */
+  getForecastThresholds: PipelineStore["getForecastThresholds"] = (...a) =>
+    this.inner.getForecastThresholds(...a);
+  setForecastThresholds: PipelineStore["setForecastThresholds"] = (...a) =>
+    this.inner.setForecastThresholds(...a);
 }
 
 class ScopedAccountStore implements AccountStore {
@@ -103,6 +126,31 @@ class ScopedAccountStore implements AccountStore {
     private readonly inner: AccountStore,
     private readonly scope: DataScope,
   ) {}
+
+  /* PASSED STRAIGHT THROUGH, deliberately. A 大区 is how the WORKSPACE divides
+     its market - it is configuration, not somebody's book of business, and it
+     carries no owner to narrow by. Filtering it to a member's scope would give
+     two colleagues different maps of the same country. What they may SEE
+     inside each division is scoped by the account read below; the division
+     list itself is the same for everyone. */
+  listMarketDivisions: AccountStore["listMarketDivisions"] = (...a) =>
+    this.inner.listMarketDivisions(...a);
+  /* incr/0043. The frame is workspace-wide configuration, like the divisions. */
+  getMarketScope: AccountStore["getMarketScope"] = (...a) => this.inner.getMarketScope(...a);
+  setMarketScope: AccountStore["setMarketScope"] = (...a) => this.inner.setMarketScope(...a);
+
+  /* Also workspace configuration, not somebody's book of business - the gate on
+     the service decides who may change it, and there is no owner to narrow by. */
+  listFrameMembers: AccountStore["listFrameMembers"] = (...a) =>
+    this.inner.listFrameMembers(...a);
+  listCarves: AccountStore["listCarves"] = (...a) => this.inner.listCarves(...a);
+  placeMember: AccountStore["placeMember"] = (...a) => this.inner.placeMember(...a);
+
+  upsertMarketDivision: AccountStore["upsertMarketDivision"] = (...a) =>
+    this.inner.upsertMarketDivision(...a);
+
+  removeMarketDivision: AccountStore["removeMarketDivision"] = (...a) =>
+    this.inner.removeMarketDivision(...a);
 
   async listAccounts(
     ...args: Parameters<AccountStore["listAccounts"]>
@@ -145,6 +193,17 @@ class ScopedAccountStore implements AccountStore {
     this.inner.listOpportunityContactsFor(...a);
   setOpportunityContact: AccountStore["setOpportunityContact"] = (...a) =>
     this.inner.setOpportunityContact(...a);
+  /* incr/0040. The industry vocabulary is WORKSPACE-WIDE configuration, not a
+     set of customer records: a seller whose data scope is their own accounts
+     still reads the same list, because it is the list the whole workspace
+     files customers under. Gated by permission in the service, unfiltered
+     here - the same call the market divisions above already make. */
+  listIndustries: AccountStore["listIndustries"] = (...a) => this.inner.listIndustries(...a);
+  upsertIndustry: AccountStore["upsertIndustry"] = (...a) => this.inner.upsertIndustry(...a);
+  setIndustryOrder: AccountStore["setIndustryOrder"] = (...a) => this.inner.setIndustryOrder(...a);
+  removeIndustry: AccountStore["removeIndustry"] = (...a) => this.inner.removeIndustry(...a);
+  countAccountsByIndustry: AccountStore["countAccountsByIndustry"] = (...a) =>
+    this.inner.countAccountsByIndustry(...a);
 }
 
 class ScopedSignalStore implements SignalStore {
@@ -174,4 +233,12 @@ class ScopedSignalStore implements SignalStore {
   getSignal: SignalStore["getSignal"] = (...a) => this.inner.getSignal(...a);
   createLead: SignalStore["createLead"] = (...a) => this.inner.createLead(...a);
   updateLead: SignalStore["updateLead"] = (...a) => this.inner.updateLead(...a);
+  // Pass-through like the rest: WHO may delete is the permission gate's
+  // question and WHETHER this lead may be is the rule's, and neither of them
+  // lives in a data-scope wrapper.
+  deleteLead: SignalStore["deleteLead"] = (...a) => this.inner.deleteLead(...a);
+  recordFunnelExit: SignalStore["recordFunnelExit"] = (...a) => this.inner.recordFunnelExit(...a);
+  listFunnelExits: SignalStore["listFunnelExits"] = (...a) => this.inner.listFunnelExits(...a);
+  listAllFunnelExits: SignalStore["listAllFunnelExits"] = (...a) =>
+    this.inner.listAllFunnelExits(...a);
 }

@@ -1,24 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import {
-  Button,
-  DataTable,
-  DialogForm,
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  Input,
-  Section,
-  StatusBadge,
-  useToast,
-} from "@vxture/design-ui";
+import { Field, FieldLabel, Input } from "@vxture/design-ui";
 import type { ProductRecord, ProductStatusRecord } from "../../domains/catalog/store";
 import { isSystemStatus } from "../../domains/catalog/lib/status-vocab";
 import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import { Tag } from "./tag";
+import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -26,13 +14,16 @@ import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./ta
 // themselves are the content, and a status has no status of its own.
 //
 // COLUMNS AS RULED: 序号 | 状态名称 | 关联产品 | 状态描述 | 操作(右侧锁定).
-// The width tiers (md / sm / lg) are the SAME sequence the type config uses,
-// so the two tables line up column for column.
+// The code rides the title line as a coloured tag - its colour says which
+// lifecycle stage it is - rather than printing underneath as the other
+// vocabularies do; printed both ways it would appear twice.
 //
-// Operations in the row menu: 重命名 / 上移 / 下移 / 删除 - no 停用/启用,
-// because this table has no enablement to toggle. The three canonical rows
-// never offer 删除 (the module page's rosters and the 上线/退役 operations
-// are wired to them); added rows take the full set.
+// NO 停用/启用: this table has no enablement to toggle. The three canonical
+// rows never offer 删除 - not greyed, absent - because the roster and its
+// 上线/退役 operations are wired to them and the rule refuses in every world.
+// Added rows take the full set.
+
+type Extra = { description: string };
 
 export interface CatalogStatusConfigProps {
   readonly statuses: readonly ProductStatusRecord[];
@@ -41,9 +32,9 @@ export interface CatalogStatusConfigProps {
     statusCode: string;
     name: string;
     description?: string | null;
-  }) => Promise<{ ok: boolean; error?: string }>;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
-  readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  }) => Promise<VocabularyResult>;
+  readonly onMove: (id: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }
 
 export function CatalogStatusConfig({
@@ -53,212 +44,69 @@ export function CatalogStatusConfig({
   onMove,
   onDelete,
 }: CatalogStatusConfigProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
-  const [dialog, setDialog] = useState<{
-    mode: "create" | "rename";
-    code: string;
-    name: string;
-    description: string;
-  } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  // 选择列 - one of the three standard fittings (table-fittings.tsx).
-  const [selected, setSelected] = useState<readonly string[]>([]);
-  // Clicking the row toggles it - the checkbox is too small a target
-  // (owner, 2026-09-06).
-  const select = rowClickSelection(statuses, (r) => r.id, selected, setSelected);
-  const { toast } = useToast();
-
+  const { CATALOG_TEXT, CATALOG_ERROR } = useMessages();
+  const rows = statuses.map((r) => ({ ...r, code: r.statusCode }));
   const inUse = (statusId: string) => products.filter((p) => p.statusId === statusId).length;
 
-  const run = (p: Promise<{ ok: boolean; error?: string }>) =>
-    startTransition(() => {
-      void p.then((r) => {
-        if (r.ok) return;
-        toast({
-          tone: "danger",
-          title: CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied,
-        });
-      });
-    });
-
-  const submitDialog = () => {
-    if (!dialog) return;
-    setErr(null);
-    startTransition(() => {
-      void onSave({
-        statusCode: dialog.code.trim(),
-        name: dialog.name.trim(),
-        description: dialog.description.trim() || null,
-      }).then((r) => {
-        if (r.ok) setDialog(null);
-        else setErr(CATALOG_ERROR[r.error ?? "denied"] ?? CATALOG_ERROR.denied);
-      });
-    });
-  };
-
   return (
-    <Section
-      title={CATALOG_TEXT.statusesTitle}
-      description={CATALOG_TEXT.statusesWhy}
-      action={
-        <Button
-          onClick={() => {
-            setErr(null);
-            setDialog({ mode: "create", code: "", name: "", description: "" });
-          }}
-        >
-          {CATALOG_TEXT.addStatus}
-        </Button>
-      }
-    >
-      {/* Two constraints from outside, not a restyle of the DS (TD-022):
-          - table-fixed: the DS width tiers are MIN-widths, and under auto
-            table layout actual widths drift with content - the twin config
-            tables then disagree on where columns sit (owner: 列宽保持一致).
-          - th:last-child w-control-3xl: the DS documents its action column
-            as FIXED and pinned, but ships only min-w-control-3xl, and fixed
-            layout ignores minimums - without an explicit width the action
-            column swallows an equal share. Same token the DS's own 序号
-            column uses, so the two edge columns match. */}
-      <div
-        ref={select.ref}
-        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
-      >
-      <DataTable
-        labels={DATA_TABLE_LABELS}
-        indexStart={1}
-        selectedKeys={selected}
-        onSelectionChange={setSelected}
-        rowKey={(r: ProductStatusRecord) => r.id}
-        rows={[...statuses]}
-        columns={[
-          {
-            id: "name",
-            header: CATALOG_TEXT.colStatusName,
-            width: "md" as const,
-            cell: (r: ProductStatusRecord) => (
-              <StatusBadge tone={statusTone(r)}>{r.name}</StatusBadge>
-            ),
-          },
-          {
-            id: "linked",
-            header: CATALOG_TEXT.colLinkedProducts,
-            width: "sm" as const,
-            align: "center" as const,
-            cell: (r: ProductStatusRecord) => (
-              <span className="tabular-nums">{CATALOG_TEXT.linkedCount(inUse(r.id))}</span>
-            ),
-          },
-          {
-            id: "description",
-            header: CATALOG_TEXT.colStatusDesc,
-            width: "lg" as const,
-            align: "center" as const,
-            cell: (r: ProductStatusRecord) => (
-              <span className="text-muted-foreground text-body-sm">{r.description ?? ""}</span>
-            ),
-          },
-        ]}
-        rowActions={(r: ProductStatusRecord, rowIndex: number) => (
-          <RowActions
-            disabled={pending}
-            items={[
-              {
-                id: "rename",
-                label: CATALOG_TEXT.renameStatus,
-                onSelect: () => {
-                  setErr(null);
-                  setDialog({
-                    mode: "rename",
-                    code: r.statusCode,
-                    name: r.name,
-                    description: r.description ?? "",
-                  });
-                },
-              },
-              {
-                id: "up",
-                label: CATALOG_TEXT.opUp,
-                disabled: rowIndex === 0,
-                separatorBefore: true,
-                onSelect: () => run(onMove(r.id, "up")),
-              },
-              {
-                id: "down",
-                label: CATALOG_TEXT.opDown,
-                disabled: rowIndex === statuses.length - 1,
-                onSelect: () => run(onMove(r.id, "down")),
-              },
-              // Delete never succeeds on a canonical row (the rule refuses it
-              // in every world), so it is not offered there.
-              ...(isSystemStatus(r.statusCode)
-                ? []
-                : [
-                    {
-                      id: "delete",
-                      label: CATALOG_TEXT.opDelete,
-                      danger: true as const,
-                      separatorBefore: true,
-                      confirm: {
-                        verb: CATALOG_TEXT.opDelete,
-                        target: r.name,
-                        consequence: CATALOG_TEXT.statusDeleteConsequence,
-                        onConfirm: () => run(onDelete(r.id)),
-                      },
-                    },
-                  ]),
-            ]}
+    <VocabularyConfig
+      rows={rows}
+      idPrefix="status"
+      errors={CATALOG_ERROR}
+      text={{
+        title: CATALOG_TEXT.statusesTitle,
+        why: CATALOG_TEXT.statusesWhy,
+        add: CATALOG_TEXT.addStatus,
+        edit: CATALOG_TEXT.renameStatus,
+        save: CATALOG_TEXT.saveStatus,
+        codeLabel: CATALOG_TEXT.statusCode,
+        codeHint: CATALOG_TEXT.statusCodeHint,
+        nameLabel: CATALOG_TEXT.colStatusName,
+        colName: CATALOG_TEXT.colStatusName,
+        deleteConsequence: CATALOG_TEXT.statusDeleteConsequence,
+        opUp: CATALOG_TEXT.opUp,
+        opDown: CATALOG_TEXT.opDown,
+        opDelete: CATALOG_TEXT.opDelete,
+      }}
+      nameSuffix={(r) => <Tag tone={statusTone(r)}>{r.statusCode}</Tag>}
+      columns={[
+        {
+          id: "linked",
+          header: CATALOG_TEXT.colLinkedProducts,
+          width: "sm",
+          cell: (r) => <span className="tabular-nums">{CATALOG_TEXT.linkedCount(inUse(r.id))}</span>,
+        },
+        {
+          id: "description",
+          header: CATALOG_TEXT.colStatusDesc,
+          width: "lg",
+          cell: (r) => <span className="text-muted-foreground text-body-sm">{r.description ?? ""}</span>,
+        },
+      ]}
+      sortOn={{ linked: (r) => inUse(r.id) }}
+      deleteHiddenWhen={(r) => isSystemStatus(r.statusCode)}
+      extraDefaults={{ description: "" } as Extra}
+      extraFromRow={(r) => ({ description: r.description ?? "" })}
+      renderExtra={(v, set, disabled) => (
+        <Field>
+          <FieldLabel htmlFor="status-desc">{CATALOG_TEXT.colStatusDesc}</FieldLabel>
+          <Input
+            id="status-desc"
+            value={v.description}
+            disabled={disabled}
+            onChange={(e) => set({ description: e.target.value })}
           />
-        )}
-      />
-      </div>
-
-      <DialogForm
-        open={dialog !== null}
-        onOpenChange={(open) => { if (!open) setDialog(null); }}
-        title={dialog?.mode === "rename" ? CATALOG_TEXT.renameStatus : CATALOG_TEXT.addStatus}
-        submitLabel={CATALOG_TEXT.saveStatus}
-        submitting={pending}
-        onSubmit={(e) => {
-          e.preventDefault();
-          submitDialog();
-        }}
-      >
-        {/* Field groups - see catalog-type-config.tsx for why loose
-            Label/Input siblings floated apart and wrapped. */}
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="status-code">{CATALOG_TEXT.statusCode}</FieldLabel>
-            <Input
-              id="status-code"
-              value={dialog?.code ?? ""}
-              disabled={pending || dialog?.mode === "rename"}
-              onChange={(e) => setDialog((d) => (d ? { ...d, code: e.target.value } : d))}
-            />
-            <FieldDescription>{CATALOG_TEXT.statusCodeHint}</FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="status-name">{CATALOG_TEXT.colStatusName}</FieldLabel>
-            <Input
-              id="status-name"
-              value={dialog?.name ?? ""}
-              disabled={pending}
-              onChange={(e) => setDialog((d) => (d ? { ...d, name: e.target.value } : d))}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="status-desc">{CATALOG_TEXT.colStatusDesc}</FieldLabel>
-            <Input
-              id="status-desc"
-              value={dialog?.description ?? ""}
-              disabled={pending}
-              onChange={(e) => setDialog((d) => (d ? { ...d, description: e.target.value } : d))}
-            />
-          </Field>
-        </FieldGroup>
-        {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-      </DialogForm>
-    </Section>
+        </Field>
+      )}
+      onSave={(input) =>
+        onSave({
+          statusCode: input.code,
+          name: input.name,
+          description: input.description.trim() || null,
+        })
+      }
+      onMove={onMove}
+      onDelete={onDelete}
+    />
   );
 }

@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { can } from "../../../authz/decide";
 import { resolveAppSession } from "../../lib/session";
 import {
@@ -24,7 +25,7 @@ import { applyBatchFill } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function AccountBatchCompletePage() {
-  const { BATCH_COMPLETE_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
+  const { BATCH_COMPLETE_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -57,6 +58,10 @@ export default async function AccountBatchCompletePage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]}
+        current={BATCH_COMPLETE_TEXT.title}
+      />
       <ViewHeader
         title={BATCH_COMPLETE_TEXT.title}
         description={BATCH_COMPLETE_TEXT.description}

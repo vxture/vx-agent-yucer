@@ -4,6 +4,7 @@ import { formatMoney } from "../lib/view-model";
 import {
   getAccountStore,
   getDeliveryStore,
+  getCatalogStore,
 } from "../../domains/shared/registry";
 import { listProjects, projectView } from "../../domains/delivery/service";
 import { listAccounts } from "../../domains/account/service";
@@ -17,6 +18,8 @@ import { can } from "../../authz/decide";
 
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
+import { pricingPolicy } from "../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 export const dynamic = "force-dynamic";
 
 // D7 delivery list.
@@ -46,6 +49,12 @@ export default async function DeliveryPage() {
     entitlement: session.entitlement,
     store: getDeliveryStore(),
   };
+  /* 计价规则 (incr/0044): the currency a total is in when no row carries one. */
+  const policyRead = await pricingPolicy({ ...ctx, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+
 
   const projects = await listProjects(ctx, { limit: 100 });
   if (!projects.ok) {
@@ -118,7 +127,7 @@ export default async function DeliveryPage() {
   }
 
   const stats = deliveryStats(rows);
-  const currency = rows.find((r) => r.contractAmount != null)?.currency ?? "CNY";
+  const currency = rows.find((r) => r.contractAmount != null)?.currency ?? defaultCurrency;
   const running = rows.filter(
     (r) => r.status !== "delivered" && r.status !== "closed" && r.status !== "cancelled",
   );

@@ -63,11 +63,15 @@ export const REVENUE_STATUS_LABEL: Record<RevenueStatus, string> = {
 
 /** Domain navigation labels, keyed by the nav entry key. */
 export const DOMAIN_LABEL: Record<string, string> = {
+  national: "销售大屏",
   strategy: "市场战略",
   segment: "细分市场",
   solution: "解决方案",
   pricebook: "产品定价",
+  // 销售区域 is a SECTION of 销售规划 since 2026-09-08, not a module of its
+  // own; the label stays because the section still needs a name.
   territory: "销售区域",
+  division: "区域设置",
   namedAccount: "重点客户",
   quote: "报价管理",
   routing: "线索分派",
@@ -80,13 +84,27 @@ export const DOMAIN_LABEL: Record<string, string> = {
   campaign: "营销活动",
   account: "客户管理",
   signal: "商机智探",
+  lead: "线索管理",
+  funnel: "漏斗全景",
   pipeline: "商机管理",
   delivery: "项目交付",
   copilot: "销售助手",
   catalog: "产品目录",
   home: "今日判断",
   queue: "待我裁决",
-  admin: "成员与角色",
+  // 配置管理平面的条目 (2026-09-08). 四字为准 (owner)，每个条目一件事。
+  members: "成员管理",
+  roles: "角色管理",
+  permissions: "权限管理",
+  scope: "数据范围",
+  orgUnit: "部门团队",
+  product: "产品配置",
+  winLossReason: "赢丢原因",
+  industry: "行业分类",
+  forecastThreshold: "预测阈值",
+  ageingPolicy: "账龄分档",
+  pricingPolicy: "计价规则",
+  audit: "操作审计",
   adoption: "使用情况",
 };
 
@@ -144,6 +162,8 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  */
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
 export const NAMED_ACCOUNT_TEXT = {
+  why: "战略客户清单。这份名单决定信号定向盯谁，也决定跟进节奏对谁更严。",
+  tagNamed: (n: number) => `${n} 家重点客户`,
   none: "还没有重点客户",
   noneWhy:
     "在客户详情页把一家标为战略或重点，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
@@ -169,6 +189,40 @@ export const ROUTING_TEXT = {
     no_territory: "该区域无区域覆盖",
     no_owner: "覆盖区域无负责人",
   } as Record<string, string>,
+  basisSole: (region: string, territory: string) => `${region} 由「${territory}」覆盖，这片地只有一个负责人`,
+  basisTie: (region: string, n: number, territory: string, load: number) =>
+    `${region} 有 ${n} 个负责人覆盖，「${territory}」手上最少（${load} 条）`,
+  openAccount: "打开客户档案",
+  colRegion: "区域",
+  noRegion: "无区域",
+  // 智能分配 (owner, 2026-09-06). The strip, the analysis block and their
+  // vocabulary were removed with them: the page is a list, the thinking is
+  // something you ask for, and its result lives in the assistant.
+  // 标题行的标签 (owner, 2026-09-06). The page DOES route on load - the owner
+  // was asked and chose it - so these are the router's own counts: how many
+  // would move, and how many nothing can place.
+  tagOpen: (n: number) => `${n} 条待分派`,
+  tagPending: (n: number) => `${n} 条可指派`,
+  tagBlocked: (n: number) => `${n} 条分不出去`,
+  assignTitle: "智能分配",
+  // WHAT THE ANALYSIS COULD NOT PROPOSE, in the same result. A lead nobody can
+  // place is not a move to accept - it is a hole somewhere else, and each of
+  // the three is a different person's job.
+  adviceNoRegion: (n: number) => `${n} 条没有区域：客户还没匹配上，或者档案里区域是空的。规则连第一步都走不了。`,
+  adviceNoTerritory: (n: number) => `${n} 条所在的区域没有任何在用的销售区域覆盖——地图缺了一块。`,
+  adviceNoOwner: (n: number) => `${n} 条有区域覆盖，但那个区域没有负责人。图是全的，人没定。`,
+  adviceImbalance: (who: string, n: number, share: number) =>
+    `全部采纳之后，${who} 会拿到 ${n} 条，占 ${share}%。这片地只有他一个人管就没问题，不止一个就值得再看一眼。`,
+  blockedTitle: "分不出去的",
+  assignIdle: "按区域和负载算一遍，看看哪些线索该换人。算完只是建议，采不采纳你定。",
+  assignRun: "智能分配",
+  assignAgain: "重新分析",
+  assignDiscard: "放弃",
+  assignAccept: "采纳",
+  assignFound: (n: number) => `${n} 条建议`,
+  assignNone: "没有需要换人的线索——现有归属和规则一致。",
+  assignAllDone: "建议都处理完了。",
+  assignMove: (from: string, to: string) => `${from} → ${to}`,
 } as const;
 
 export const RENEWAL_TEXT = {
@@ -194,6 +248,15 @@ export const RENEWAL_TEXT = {
     // 用的是事实推出来的健康度，不是交付团队自己报的那个。
     watch: "交付有风险，谨慎接触",
   } as Record<string, string>,
+  rowCount: (n: number) => `${n} 个待续`,
+  searchHint: "项目名、项目号",
+  filterAllRisk: "全部续约风险",
+  riskLow: "交付正常",
+  riskWatch: "交付有风险",
+  /** A renewal nobody has assessed - a real answer, and the one somebody
+   *  auditing coverage is looking for. */
+  riskNone: "无评级",
+  narrowedNote: "已按检索条件收窄",
   notDue: {
     not_subscription: "一次性项目，交付即结束",
     no_end_date: "订阅项目缺到期日——续约会悄悄漏掉",
@@ -308,6 +371,13 @@ export const FORECAST_RULE_TEXT = {
     `「${name}」填的是${filed}，按规则只到${suggested}——这一笔在抬高承诺。`,
   adviceConservative: (name: string, filed: string, suggested: string) =>
     `「${name}」填的是${filed}，按规则可以到${suggested}——这一笔的进展被低估了。`,
+  rowCount: (n: number) => `${n} 条分歧`,
+  searchHint: "商机名、商机号",
+  /** 归口 as FILED, not as suggested: this page reviews what people have
+   *  committed to, and the machine's opinion is what it is being reviewed
+   *  against. */
+  filterAllFiled: "全部归口",
+  narrowedNote: "已按检索条件收窄",
 } as const;
 
 export const ATTAINMENT_TEXT = {
@@ -368,6 +438,7 @@ export const AUTONOMY_TEXT = {
 } as const;
 
 export const QUOTE_TEXT = {
+  tagCount: (n: number) => `${n} 份报价`,
   title: "报价",
   why: "每笔商机当前报出去的是什么。行项、底价和签字本来就都在，只是从没有一处把它们放在一起——「我们给这家报过什么价」以前只能一单一单翻。",
   none: "还没有报价",
@@ -675,10 +746,19 @@ export const CATALOG_TEXT = {
   // 配置页（owner 裁定 2026-09-05 第二轮）：次级配置页，不摆模块页头——
   // 返回 + 面包屑一行，小标题一行，不带描述。
   settingsTitle: "产品配置",
+  // 计价单位 (0037) - 产品配置的第三段
+  unitsTitle: "计价单位",
+  unitsWhy: "产品按什么卖：套、人天、年。报价行按它计量。",
+  addUnit: "新建单位",
+  renameUnit: "重命名",
+  saveUnit: "保存单位",
+  unitCode: "单位代码",
+  unitCodeHint: "创建后不可更改，作为这个单位的锚。用英文小写，如 set / month。",
+  colUnitName: "单位名称",
+  unitDeleteConsequence: "还有产品按这个单位计价时会被拒绝——先把它们改成别的单位。",
   back: "返回",
   typesTitle: "产品类型",
-  typesWhy:
-    "类型是工作区自己的词表，只描述产品是哪类。被产品引用时不可删除；停用后不再供新产品选择，旧产品照常显示。",
+  typesWhy: "产品是哪一类。被引用时不可删除，可停用。",
   typeCode: "类型编码",
   typeName: "类型名称",
   typeCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
@@ -700,8 +780,7 @@ export const CATALOG_TEXT = {
   typeRetiredBadge: "已停用",
   typeInUse: (n: number) => `${n} 个产品`,
   statusesTitle: "产品状态",
-  statusesWhy:
-    "状态只描述产品处于什么阶段——在研、在售、已退役。行就是内容本身，这张表没有启停概念。",
+  statusesWhy: "产品处于什么阶段：在研、在售、已退役。",
   addStatus: "新增状态",
   renameStatus: "重命名",
   saveStatus: "保存状态",
@@ -825,6 +904,16 @@ export const CATALOG_TEXT = {
   removeItem: "移除",
   saveSolution: "保存方案",
   solutionSaved: "已保存",
+  productCount: (n: number) => `${n} 个产品`,
+  productSearchHint: "产品名、产品编码",
+  solutionCount: (n: number) => `${n} 个方案`,
+  /** 适用场景 is in the search, and that is the point of the box: the scenario
+   *  is a sentence somebody says to a customer, not something a name column
+   *  can be scanned for. */
+  solutionSearchHint: "方案名、编码、适用场景",
+  filterAllTypes: "全部分类",
+  narrowedNote: "已按检索条件收窄",
+  priceCount: (n: number) => `${n} 条价格`,
 } as const;
 
 /**
@@ -892,6 +981,10 @@ export const ACCOUNT_ERROR: Record<string, string> = {
  * 用户点了「转商机」失败，界面一动不动。比裸码更糟的一类（TD-010 巡检发现）。
  */
 export const RENEWAL_ERROR: Record<string, string> = {
+  // incr/0034 - the deal entry gate. Both are refused by planNewOpportunity
+  // and by the database, so both can reach a person.
+  owner_required: "商机必须有负责人",
+  requirement_required: "商机必须写清客户要什么",
   ...GATE_ERROR,
   renewal_not_due: "这个项目现在不该续约——页面可能已经过时，刷新后再看",
   name_required: "商机需要名称",
@@ -936,11 +1029,27 @@ export const SIGNAL_ACTION_ERROR: Record<string, string> = {
   lead_converted: "这条线索已经转成商机了",
   lead_not_qualified: "线索还没有通过资格判定",
   owner_required: "分派必须指到具体的人",
+  signal_resolved: "这条信号已经判过了，不能再改匹配的客户",
+  unknown_stage: "未知的漏斗环节",
+  outcome_not_of_stage: "这个结局不属于该环节",
+  unknown_reason: "未知的结束原因",
+  note_required: "选了「其他」就必须写清楚发生了什么",
+  decider_required: "结束记录需要写明是谁决定的",
+  lead_unowned: "这条线索还没有归属，先分派给人再判定",
 };
 
 /** 参谋提案的裁决。`proposal-queue` 此前对失败毫无反应。 */
 export const PROPOSAL_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  /* incr/0035 CHECK-constrains this column, so an unknown province fails at
+     the database with an error nobody can act on. Said in the product's own
+     terms instead, naming what the value has to be. */
+  province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
+  /* incr/0040 的同一件事：行业也是词表了，写进来的值必须是本工作区已有的一条。
+     code_required / name_required 跟着行业词表的规则一起到达这条路径。 */
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
   not_found: "提案不存在，或不属于当前工作区",
   not_pending: "这条提案已经被裁决过了",
   decider_required: "接受提案必须落到一个具体的人",
@@ -980,9 +1089,112 @@ export const PROPOSAL_ERROR: Record<string, string> = {
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
 export const REVIEW_ERROR: Record<string, string> = {
+  // 0039: the reason is a vocabulary row now, so a review can fail on the row
+  // rather than on the deal.
+  reason_not_found: "找不到这个原因，可能刚被删掉，刷新后重选",
+  reason_in_use: "已有复盘引用这条原因，不能删除——复盘记录的是当时的结论",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  reason_wrong_outcome: "这个原因不适用于当前结果（赢/丢）",
+  code_required: "原因代码不能为空",
+  name_required: "原因名称不能为空",
+  outcome_required: "至少要选一种适用结果：赢、丢，或两者",
+
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   not_closed: "只有已关闭的商机才能复盘——过程未定，结论还不存在",
+};
+
+/** 行业分类的写入回执 (0040)。与目录词表同一套说法。 */
+export const INDUSTRY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
+  industry_in_use: "还有客户归在这个行业下，先把他们改到别处",
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个行业，可能刚被删掉，刷新后重试",
+};
+
+/** 预测阈值的回执 (0041)。 */
+export const FORECAST_PARAM_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  commit_out_of_range: "承诺阈值要在 1 到 100 之间",
+  best_case_out_of_range: "最好情况阈值要在 1 到 100 之间",
+  bands_cross: "最好情况要低于承诺，否则两档分不开",
+  stall_out_of_range: "停滞天数要在 1 到 365 天之间",
+};
+
+export const FORECAST_PARAM_TEXT = {
+  title: "预测阈值",
+  why: "概率到多少算承诺、算最好情况，以及停多久算停滞。",
+  ladder: (best: number, commit: number) => `最好情况 ${best}% · 承诺 ${commit}%`,
+  save: "保存",
+  saved: "已保存，预测口径页立即按新阈值给建议",
+  percent: "%",
+  days: "天",
+  commitLabel: "承诺起算",
+  commitHint: "商机自己的赢率到这个数，就算进承诺。默认 80：谈判阶段默认就是 90，定在 90 等于只是在复述阶段。",
+  bestCaseLabel: "最好情况起算",
+  bestCaseHint: "到这个数算最好情况，低于它算漏斗。必须低于承诺。",
+  stallLabel: "停滞天数",
+  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。",
+};
+
+/** 计价规则的回执 (0044)。 */
+export const PRICING_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  currency_invalid: "币种是三个大写字母的 ISO 代码，如 CNY、USD",
+};
+
+export const PRICING_TEXT = {
+  title: "计价规则",
+  why: "报价、价目与汇总默认按哪个币种。行上另有币种时以行为准。",
+  save: "保存",
+  saved: "已保存，之后新建的商机与报价行按新币种计",
+  currencyLabel: "默认币种",
+  currencyHint: "ISO 4217 三字母代码。已有的价目与商机不改，只影响之后新写的。",
+};
+
+/** 账龄分档的回执 (0042)。 */
+export const AGEING_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  cutoff_count: "分档点要有 1 到 5 个",
+  cutoff_range: "分档点是整天数，1 到 3650 之间",
+  cutoffs_unordered: "分档点必须从小到大，否则两档会抢同一天",
+};
+
+export const AGEING_TEXT = {
+  title: "账龄分档",
+  why: "逾期多少天切一档。未到期和未填到期日永远单独成档。",
+  bandCount: (n: number) => `${n} 个逾期档`,
+  save: "保存",
+  saved: "已保存，回款页的账龄图立即按新分档来切",
+  cutoffsLabel: "分档点（天）",
+  cutoffsHint: "用逗号分隔，从小到大。填 30, 60 得到 1-30 天、31-60 天、60 天以上。",
+  previewLabel: "分出来是这些档",
+  previewHint: "两头的「未到期」「未填到期日」不受分档点影响：一个是还早，一个是没法算。",
+  previewUnusable: "先填成从小到大的正整数",
+};
+
+export const INDUSTRY_TEXT = {
+  // 行业分类的配置面 (0040)。
+  configTitle: "行业分类",
+  configWhy: "客户归档用的行业。有客户在用时不能删。",
+  count: (n: number) => `${n} 个行业`,
+  add: "新建行业",
+  edit: "编辑",
+  save: "保存",
+  code: "行业代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  name: "行业名称",
+  colName: "行业",
+  colFiled: "客户数",
+  deleteConsequence: "该行业将从客户归档中移除。归在它下面的客户不受影响——有人在用就删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
@@ -1015,6 +1227,9 @@ export const CATALOG_ERROR: Record<string, string> = {
   born_shelved: "产品不能一出生就是已退役",
   system_status: "内置三个状态不可删除——可以改名、改描述、排序",
   status_in_use: "还有产品处于这个状态，先把它们转走",
+  // 0037 计价单位
+  unit_not_found: "找不到这个计价单位，页面可能已过期，请刷新",
+  unit_in_use: "还有产品按这个单位计价，先把它们改成别的单位",
 };
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -1034,10 +1249,73 @@ export const ROLE_LABEL: Record<string, string> = {
   regional_director: "大区总监",
 };
 
+/** 权限的中文说明。25 条，与 authz/catalog.ts 的 PERM_CODES 一一对应；
+ *  catalog.test.ts 比对种子与镜像，permission-label.test.ts 比对镜像与这里。 */
+export const PERMISSION_LABEL: Record<string, string> = {
+  "strategy.read": "查看战略与细分市场",
+  "strategy.write": "编辑战略与细分市场",
+  "strategy.approve": "批准战略计划——计划由此变成承诺",
+  "planning.read": "查看销售规划",
+  "planning.write": "编辑销售区域与目标",
+  "campaign.read": "查看营销活动",
+  "campaign.write": "编辑活动与执行项",
+  "account.read": "查看客户",
+  "account.write": "编辑客户、联系人与关系图",
+  "account.record": "记录互动与承诺——记发生了什么，不是改客户主档",
+  "signal.read": "查看信号",
+  "signal.triage": "信号分诊——评分、匹配、升级、判重",
+  "pipeline.read": "查看商机",
+  "pipeline.write": "编辑商机与推进阶段",
+  "pipeline.forecast": "提交预测快照",
+  "pipeline.discount": "批准低于底价的报价",
+  "delivery.read": "查看交付项目",
+  "delivery.write": "编辑里程碑、任务与回款计划",
+  "copilot.use": "使用销售助手——发起会话与提问",
+  "copilot.decide": "裁决助手提出的动作",
+  "copilot.autopilot": "授权助手自主执行",
+  "catalog.read": "查看产品目录、方案与价目表",
+  "catalog.write": "维护产品与解决方案",
+  "catalog.price": "设定标价与底价——底价决定哪些折扣需要签字",
+  "admin.manage": "配置管理——成员角色与各类目录",
+};
+
+/** 数据范围的三档 (incr/0022)。 */
+export const SCOPE_LABEL: Record<string, string> = {
+  workspace: "整个工作区",
+  territory: "所辖区域",
+  own: "仅自己",
+};
+
+export const ADMIN_PAGE_TEXT = {
+  rolesTitle: "角色管理",
+  rolesWhy: "九个角色，各自能做什么。只读。",
+  rolesColumnRole: "角色",
+  rolesColumnPerms: "权限数",
+  rolesColumnMembers: "成员数",
+  rolesColumnList: "持有的权限",
+  rolesMembers: (n: number) => `${n} 人`,
+  rolesNoMember: "暂无成员",
+  permissionsTitle: "权限管理",
+  permissionsWhy: "二十五条权限，各自被哪些角色持有。只读。",
+  permissionsColumnCode: "权限码",
+  permissionsColumnName: "说明",
+  permissionsColumnRoles: "持有的角色",
+  permissionsNoRole: "无角色持有",
+  permissionsCount: (perms: number, roles: number, grants: number) =>
+    `${perms} 条权限 · ${roles} 个角色 · ${grants} 条授权`,
+  scopeTitle: "数据范围",
+  scopeWhy: "谁能看到哪些数据。范围在成员管理里改。",
+  scopeColumnMember: "成员",
+  scopeColumnScope: "范围",
+  scopeColumnDetail: "覆盖",
+  scopeTerritories: (n: number) => `${n} 个区域`,
+  scopeNoTerritory: "未指定区域——按此配置什么也看不到",
+  scopeCount: (n: number) => `${n} 位成员`,
+} as const;
+
 export const MEMBER_TEXT = {
   title: "成员与角色",
-  description:
-    "角色决定成员能看到什么、能改什么。新成员首次登录后出现在这里，默认没有任何角色——在此为其分配。",
+  description: "谁在这个工作区，各自持有哪些角色。",
   columnMember: "成员",
   columnRoles: "角色",
   columnActions: "",
@@ -1113,6 +1391,15 @@ export const MEMBER_ERROR: Record<string, string> = {
 // 数据已经知道的（免费、确定、一键），和只有模型能答的（一次 turn，走提案队列）。
 export const COMPLETENESS_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  /* incr/0035 CHECK-constrains this column, so an unknown province fails at
+     the database with an error nobody can act on. Said in the product's own
+     terms instead, naming what the value has to be. */
+  province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
+  /* incr/0040 的同一件事：行业也是词表了，写进来的值必须是本工作区已有的一条。
+     code_required / name_required 跟着行业词表的规则一起到达这条路径。 */
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在助手可填写的范围内",
   value_required: "填写需要一个值——空白不是填写",
@@ -1130,6 +1417,7 @@ export const COMPLETENESS_TEXT = {
     "缺的信息分两种：本工作区的数据已经能推出来的，和需要问助手的。推出来的会写明依据——一次说不出来路的填写，等于机器替你在客户档案上签字。",
   fill: "填入",
   fields: {
+    province: "所在省份",
     region: "所在区域",
     industry: "行业",
     segmentCode: "细分市场",
@@ -1150,6 +1438,15 @@ export const COMPLETENESS_TEXT = {
 
 export const BATCH_COMPLETE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  /* incr/0035 CHECK-constrains this column, so an unknown province fails at
+     the database with an error nobody can act on. Said in the product's own
+     terms instead, naming what the value has to be. */
+  province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
+  /* incr/0040 的同一件事：行业也是词表了，写进来的值必须是本工作区已有的一条。
+     code_required / name_required 跟着行业词表的规则一起到达这条路径。 */
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在批量补齐的范围内",
   value_required: "这一条建议是空的，跳过",
@@ -1188,6 +1485,14 @@ export const SHELL_TEXT = {
   noRolesDescription:
     "工作区已订阅，但你还没有任何角色，因此暂时看不到任何模块。请联系工作区管理员为你分配角色。",
   loadFailed: "数据加载失败",
+  /** 面包屑前的返回按钮：纯图标，可访问名在这里。 */
+  backUp: "返回上一级",
+  /* DS 侧栏导航（ShellSidebarNav）四个控件的无障碍名。件的默认值是英文，
+     双语产品必须自己传，否则中文档下读屏念的是英文。 */
+  expandNav: "展开导航",
+  collapseNav: "收起导航",
+  expandAllGroups: "展开全部分组",
+  collapseAllGroups: "收起全部分组",
 } as const;
 
 /**
@@ -1280,7 +1585,7 @@ export const BOARD_TEXT = {
   plans: "计划",
   campaigns: "战役",
   targets: "目标",
-  territories: "辖区",
+  territories: "区域",
   accounts: "客户",
   signals: "信号",
   leads: "线索",
@@ -1442,7 +1747,6 @@ export const HEADER_TEXT = {
   boardClose: "收起战况板",
   agentDock: "智能助手",
   agentDockWithCount: (n: number) => `智能助手，${n} 件待你裁决`,
-  countOverflow: "99+",
 
   // The preference panel, inside the user menu. Language lives HERE and not in
   // the header: it is set once and then never again, and a permanent control
@@ -1465,15 +1769,35 @@ export const HEADER_TEXT = {
   logoAlt: "Vxture",
 } as const;
 
+/** 配置管理的分组名。四字，与条目同一把尺子。 */
+export const ADMIN_GROUP_LABEL: Record<string, string> = {
+  org: "组织架构",
+  access: "成员权限",
+  params: "业务参数",
+  ops: "运行状况",
+};
+
 export const ADMIN_TEXT = {
-  title: "管理",
-  description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
+  tagMembers: (n: number) => `${n} 位成员`,
+  title: "配置管理",
+  description: "工作区怎么配置。设一次，各处生效。",
   emptyTitle: "你没有管理权限",
   emptyDescription:
     "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
+  planned: "未建",
   entryHint: {
-    admin: "谁能进这个工作区，各自能做什么",
-    adoption: "跟进记录有没有被用起来。判据见 ADR-012",
+    members: "谁在这个工作区，启用与交接",
+    roles: "九个角色各自能做什么",
+    permissions: "二十五条权限，谁持有它",
+    scope: "工作区 / 区域 / 仅自己，谁在哪一档",
+    product: "产品的类型、状态与计价单位",
+    winLossReason: "复盘时可选的赢丢原因",
+    industry: "客户按行业归档，一处改，处处改",
+    forecastThreshold: "承诺、最好情况从多少概率起算",
+    ageingPolicy: "逾期多少天算一档",
+    pricingPolicy: "报价默认用什么币种",
+    adoption: "跟进记录有没有被用起来",
+    division: "全国怎么切成区域，每个区域管哪些省",
   } as Record<string, string>,
   // What each card says about the state behind it. The cards used to print
   // their own href as body text - a URL is not something a reader wants and
@@ -1485,6 +1809,12 @@ export const ADMIN_TEXT = {
   // subpage's own empty state says the true thing, so the card says it too.
   memberNone: "还没有成员——首次登录后才会出现",
   memberNoRead: "没有成员读取权限",
+  rolesFact: (roles: number, perms: number) => `${roles} 个角色 · ${perms} 条权限`,
+  divisionCount: (divisions: number, placed: number, total: number, noun: string) =>
+    placed === total
+      ? `${divisions} 个区域 · ${total} 个${noun}都已归入`
+      : `${divisions} 个区域 · 还有 ${total - placed} 个${noun}没有归入`,
+  divisionNoRead: "没有区域读取权限",
   adoptionCriterion: (weeks: number, judge: number) =>
     `按最近 ${weeks} 周判定，连续 ${judge} 周达标才算被用起来`,
   open: "打开",
@@ -1597,8 +1927,7 @@ export const RECENCY_TEXT = {
 export const ADOPTION_TEXT = {
   navLabel: "使用情况",
   title: "跟进记录的使用情况",
-  description:
-    "这张表回答的不是「谁干得好」，而是「这套东西有没有被用起来」。二期（智能体基于历史做分析与判断）是否值得建，取决于这里的数字（判据见 ADR-012）——证据表是空的时候，推理层只会产出自信的虚构。",
+  description: "跟进记录有没有被用起来。判据见 ADR-012。",
   // The anti-scoreboard note is user-visible on purpose. If people believe it
   // is a ranking they will record for the ranking, and the number stops
   // measuring the thing it was built to measure.
@@ -1633,6 +1962,9 @@ export const ADOPTION_TEXT = {
 } as const;
 
 export const PIPELINE_TEXT = {
+  tagOpen: (n: number) => `${n} 个在推进`,
+  tagNoDate: (n: number) => `${n} 个没有预计成交日`,
+  tagUnowned: (n: number) => `${n} 个无负责人`,
   title: "商机管道",
   descriptionReadOnly: "只读视图：你可以查看管道，但没有推进商机的权限。",
   description: "预测口径与快照一致，均由同一套规则计算。",
@@ -1724,6 +2056,9 @@ export const PIPELINE_TEXT = {
   newPickAccount: "选择客户",
   newTerritory: "销售区域",
   newNoTerritory: "不指定",
+  newRequirement: "客户需求",
+  newRequirementHint: "客户要解决什么问题",
+  newRequirementWhy: "没坐在那场会里的人，靠这句话判断该不该投入。之后可以改。",
   newAmount: "金额（可后补）",
   newExpectedClose: "预计成交",
   newSave: "建立商机",
@@ -1801,6 +2136,8 @@ export const FIELD_TEXT = {
   // 统一录入(2026-09-05 整合):承诺行长在跟进表单里,记的是「这次谈话里谁答应了什么」。
   commitAdd: "这次有承诺?加一条",
   captureTitle: (name: string) => `记一次接触 · ${name}`,
+  /** 面包屑末段：这一页本身叫什么，不带客户名——客户名已经是上一段。 */
+  captureCrumb: "记一次接触",
   captureWhy:
     "发生了什么照原样倒进来;这次谈话里谁答应了什么,顺手加在下面——承诺会记住它出自哪一次接触。",
   commitRemove: "去掉",
@@ -2023,6 +2360,20 @@ export const OPPORTUNITY_TEXT = {
 
 export const TERRITORY_ERROR: Record<string, string> = {
   ...GATE_ERROR,
+  // incr/0036 的两个：省份词表与大区归属，都由数据库约束，说人话而不是抛约束名。
+  province_unknown: "省份必须是全国 34 个省级行政区之一",
+  division_unknown: "这个大区不属于当前工作区",
+  // incr/0043-0045：框架与代码、预置、范围本身、成员。
+  template_unknown: "找不到这套预置方案，或它切的不是当前市场范围",
+  scope_not_open: "这个市场范围还没开放，先用中国市场",
+  scope_code_required: "省级市场要指定是哪个省",
+  scope_province_not_open: "这个省还没开放省级市场",
+  member_unknown: "成员必须在当前市场范围之内，请从列表中选择",
+  code_prefix: "区域代码必须带当前市场范围的前缀",
+  code_shape: "区域代码只能是字母、数字和下划线；省级市场下不带前缀",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "这个区域不存在，或不属于当前工作区",
   code_required: "区域代码不能为空",
   name_required: "区域名称不能为空",
   unknown_status: "未知的区域状态",
@@ -2076,6 +2427,10 @@ export const FORECAST_ERROR: Record<string, string> = {
 };
 
 export const OPPORTUNITY_ERROR: Record<string, string> = {
+  // incr/0034 - the deal entry gate. Both are refused by planNewOpportunity
+  // and by the database, so both can reach a person.
+  owner_required: "商机必须有负责人",
+  requirement_required: "商机必须写清客户要什么",
   ...GATE_ERROR,
   stage_unchanged: "已经在这个阶段了，不会记录空变更",
   terminal_stage: "商机已关闭；重开需要显式确认",
@@ -2125,6 +2480,9 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
 };
 
 export const PROPOSAL_TEXT = {
+  why: "参谋提出的动作，由人裁决。机器只提议，采纳与否你定（ADR-003）。",
+  tagAwaiting: (n: number) => (n === 0 ? "没有待裁决的" : `${n} 条待裁决`),
+  tagLowConfidence: (n: number) => `${n} 条把握不高`,
   title: "智能助手提案",
   description:
     "智能体提出建议，由人裁决。采纳后才会执行，提案内容本身不可修改。",
@@ -2204,6 +2562,10 @@ export const PROPOSAL_TEXT = {
   confirm: (verb: string) => `确认${verb}`,
   acceptNote: "每一条都会记录你的裁决人身份；批量不会减少留痕。",
   rejectNote: "拒绝同样需要裁决人落章，被拒绝的提案会保留完整记录。",
+  /** The rationale is the only free text on a proposal row: the action type
+   *  is what the filter is for, and the subject is a uuid. */
+  searchHint: "判断理由",
+  filterAllStatus: "全部状态",
 } as const;
 
 /**
@@ -2225,6 +2587,127 @@ export const DATA_TABLE_LABELS = {
   deselectAll: "取消本页全选",
   selectRow: "选择本行",
   rowActions: "操作",
+} as const;
+
+/**
+ * 表格工具行的公共文案 - the three strings every FilterBar needs.
+ *
+ * `searchHint` is deliberately NOT here. It names the fields the box actually
+ * searches ("公司、线索号、联系人、负责人"), which differs per table and is the
+ * only thing telling a reader what a keyword will and will not match - a
+ * generic "搜索" placeholder would be the same word ten times and would say
+ * nothing.
+ */
+/** 全国销售态势屏 - the situation screen's own copy. */
+export const SCREEN_TEXT = {
+  title: "市场态势图",
+  subtitle: "National Sales Situation Screen",
+  deniedTitle: "无法显示态势屏",
+  /** Says WHICH gate, without naming permissions a reader cannot act on. */
+  deniedDescription:
+    "态势屏汇总线索、商机、合同、副驾、交付与回款六个面，需要同时具备客户、商机、交付、线索与副驾五项查看权限。缺少其中任意一项时不做部分展示——少算的全国数字比不展示更糟。",
+  home: "平台首页",
+  provinceCount: "覆盖省份",
+  openDeals: "在跑商机",
+  unplacedNote: (n: number) => `${n} 家客户未填省份，计入全国合计但不落图`,
+  // 面包屑与下钻
+  nation: "全国",
+  regionDefault: "默认",
+  drillHint: "点击省份下钻 · 右键或点击空白返回",
+  backHint: "右键 / 点击空白返回上一级",
+  back: "返回上一级",
+  // 指标
+  metricContract: "合同额",
+  metricPipeline: "商机额",
+  metricInDelivery: "在交付",
+  metricHealth: "健康度",
+  // 漏斗
+  funnelAccounts: "客户",
+  funnelPipeline: "商机",
+  funnelContract: "合同",
+  funnelDelivery: "在交付",
+  noReading: "暂无",
+  /** Money units. COPY, not constants - the English locale says 100M, not 亿元. */
+  unitYi: "亿元",
+  unitWan: "万元",
+  unitYuan: "元",
+  accountsUnit: (n: number) => `${n} 家`,
+  // 六个板块 (D1-D7 的态势切面). 每个板块一个主数字 + 两个副数字。
+  panelLeads: "线索供给",
+  panelPipeline: "商机储备",
+  panelContract: "签约合同",
+  panelCopilot: "智能副驾",
+  panelDelivery: "交付履约",
+  panelCollection: "回款兑现",
+  // 线索供给. 「新线索」而非「本期新增」: 线索表的 created_at 没有出现在
+  // LeadRecord 上, 按状态取 new 是数据真正支持的口径, 不假造一个时间窗。
+  cellLeadsNew: "新线索",
+  cellLeadsUnclaimed: "待认领",
+  cellLeadConversion: "转商机率",
+  // 商机储备. 「均单值」是商机额 / 在跑商机, 由现有数据直接得出。
+  cellPipelineValue: "商机金额",
+  cellOpenDeals: "在跑商机",
+  cellAvgDeal: "均单值",
+  // 签约合同
+  cellContractValue: "合同额",
+  cellWonDeals: "签约数",
+  cellWinRate: "赢率",
+  // 智能副驾
+  cellAdoption: "提案采纳率",
+  cellAdoptionSub: (a: number, n: number) => `${a} / ${n} 已采纳 · 近 30 天提案`,
+  cellPending: "待裁决队列",
+  // 交付履约
+  cellInDelivery: "在交付合同额",
+  cellProjectsLive: "在建项目",
+  cellHealth: "健康度",
+  // 回款兑现
+  cellCollected: "已回款",
+  cellReceivable: "应收余额",
+  cellOverdue: "逾期",
+  cellWeighted: "加权预测",
+  cellOnTime: "里程碑准点",
+  cellInfluenced: "影响金额",
+  qualExpected: "预期",
+  qualLate: "延期",
+  adoptionSuffix: "已采纳 · 近 30 天提案",
+  chartLeads: "近 12 期新增线索",
+  chartSign: "近 12 期签约额",
+  chartAdoption: "采纳率 · 近 30 天",
+  chartCash: "近 7 期回款率",
+  cashCollected: (p: string) => `已回款 ${p}`,
+  cashOverdue: (p: string) => `逾期 ${p}`,
+  stageLabels: ["初步接洽", "方案验证", "商务谈判", "决策签批"],
+  healthLabels: ["健康", "有隐忧", "高风险"],
+  healthCentre: "健康占比",
+  funnelLeads: "线索",
+  funnelCollected: "回款",
+  leadsUnit: "条",
+  enterFullscreen: "全屏显示",
+  exitFullscreen: "退出全屏",
+  switchLocale: (to: string): string => (to === "en-US" ? "切换到 English" : "切换到中文"),
+  settingsSoon: "设置（暂未开放）",
+  periodAll: "全部",
+  periodYear: (y: number) => `${y} 年度`,
+  periodQuarter: (y: number, q: number) => `${y}Q${q}`,
+  emptyPeriod: (p: string): string => `${p} 没有记录：换一个统计周期看看`,
+  enter: "进入",
+  uncovered: "未覆盖",
+  viewerRole: "销售运营 · 全国",
+  foldTitle: "收起标题",
+  unfoldTitle: "展开标题",
+  foldRails: "收起两侧",
+  unfoldRails: "展开两侧",
+  dealsUnit: (n: number) => `${n} 个`,
+} as const;
+
+export const TABLE_TOOLBAR_TEXT = {
+  searchLabel: "检索",
+  resetFilters: "清空筛选",
+  /** Beside a narrowed list. Both numbers, because "6 条" alone reads as the
+   *  whole list to somebody who has forgotten a filter is on. */
+  filteredCount: (n: number, total: number) => `${n} / ${total} 条`,
+  noMatch: "没有匹配的记录",
+  noMatchWhy: "换个关键词，或把筛选条件放宽。",
 } as const;
 
 export const SIGNAL_TEXT = {
@@ -2250,6 +2733,27 @@ export const SIGNAL_TEXT = {
   // --- Added for the redesigned inbox --------------------------------------
   // Opens with what came in, not with the word "inbox".
   lead: (n: number) => `${n} 条情报待判`,
+  // 标题行的标签 (owner, 2026-09-06). Counts of what this page HOLDS, so a
+  // badge and the queue beneath it are the same arithmetic.
+  dismissWhy: "记下为什么忽略。否则同一条信号下周再进来，没人分得清是看过否掉的，还是根本没看。",
+  dismissReason: "原因",
+  dismissReasonPick: "选择原因",
+  dismissNote: "补充说明",
+  dismissNoteRequired: "选了「其他」就必须写清楚",
+  dismissNoteOptional: "可留空",
+  scoutTitle: "智探判断",
+  scoutQuiet: "没有可提的：没有重复，没有能对上的客户，也没有扎堆的公司。",
+  scoutDuplicate: (n: number) =>
+    n === 0 ? "同一天还有一条同类信号，像是同一件事报了两次" : `${n} 天前还有一条同类信号，像是同一件事报了两次`,
+  scoutMatch: (account: string) => `信号里提到了客户档案中的「${account}」`,
+  scoutMatchAccept: "匹配到这家",
+  scoutClusters: "扎堆的公司",
+  scoutCluster: (subject: string, n: number, kinds: number) =>
+    `${subject}：${n} 条待判信号，${kinds} 种类型——一条线，不是 ${n} 件事`,
+  tagSignals: (n: number) => `${n} 条情报待判`,
+  tagNamed: (n: number) => `${n} 条命名客户`,
+  tagStale: (n: number) => `${n} 条已衰减`,
+  tagLeads: (n: number) => `${n} 条线索`,
   leadNamed: (n: number) => `其中 ${n} 条来自命名客户`,
   leadNone: "暂无待判情报",
 
@@ -2384,6 +2888,10 @@ export const PLAYBOOK_SCOPE_LABEL: Record<string, string> = {
 };
 
 export const ACCOUNT_TEXT = {
+  tagTotal: (n: number) => `${n} 家客户`,
+  tagAtRisk: (n: number) => `${n} 家健康度告警`,
+  tagOverdue: (n: number) => `${n} 家跟进逾期`,
+  tagCompletable: (n: number) => `${n} 家资料可补全`,
   // The fact that used to be a board card, now beside the customer it is about.
   buyerUnreachable: "决策人未触达",
   title: "客户管理",
@@ -2487,6 +2995,7 @@ export const ACCOUNT_TEXT = {
   // name on the record to resolve it against; dressing a machine string as a
   // person is how a UUID ends up in front of someone who then does not chase it.
   ownerNone: "未指派",
+  contactCount: (n: number) => `${n} 位联系人`,
 } as const;
 
 export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
@@ -2509,6 +3018,12 @@ export const DELIVERY_TEXT = {
   leadRule:
     "健康度显示的是派生值，不是交付团队报的值。逾期回款不允许显示为健康。",
   rowCount: (n: number) => `${n} 个项目`,
+  /** Names the fields, not the act. A reader who types a manager's name and
+   *  gets nothing should be able to see from the placeholder that manager was
+   *  never one of the fields. */
+  searchHint: "项目名、项目号、客户",
+  filterAllHealth: "全部健康度",
+  narrowedNote: "已按检索条件收窄",
   managerNone: "未指派",
   columnNameAccount: "项目 / 客户",
   columnManager: "项目经理",
@@ -2594,6 +3109,11 @@ export const DELIVERY_TEXT = {
 
   // --- the collections module page (2026-09-06) -----------------------------
   instalmentSeq: (n: number) => `第 ${n} 期`,
+  instalmentCount: (n: number) => `${n} 期`,
+  /** The collections table searches the project name only - an instalment has
+   *  no name of its own, it is 第 N 期 of a project. */
+  collectionSearchHint: "项目名",
+  filterAllRevenueStatus: "全部回款状态",
   rosterOpen: "待回款",
   rosterOpenWhy:
     "已经承诺、还没到账的钱。到期日过了而状态还没跟上，是这张表最该被看见的一种。",
@@ -2623,13 +3143,13 @@ export const DELIVERY_TEXT = {
   ageingWhy: "按逾期天数分档。未到期是健康的那一档，留着才看得出尾巴是例外还是常态。",
   byProjectTitle: "未收集中度",
   byProjectWhy: "未收金额最高的前八个项目。",
+  /* 只剩两头 (incr/0042)：中间几档由工作区自己定的天数拼出来，见下面两个函数。 */
   ageingBand: {
     not_due: "未到期",
-    d1_30: "逾期 1-30 天",
-    d31_60: "逾期 31-60 天",
-    d60_plus: "逾期 60 天以上",
     no_due_date: "未填到期日",
   } as Record<string, string>,
+  ageingBetween: (from: number, to: number) => `逾期 ${from}-${to} 天`,
+  ageingOver: (days: number) => `逾期 ${days} 天以上`,
   collectStatEmpty: "当前没有待回款的项目，头部不做拆解。",
 
   // --- 回款检查 (the dock) ---------------------------------------------------
@@ -2726,6 +3246,11 @@ export const PROJECT_HEALTH_LABEL: Record<string, string> = {
 };
 
 export const PLANNING_TEXT = {
+  tagPeriod: (period: string) => `${period}`,
+  tagScopes: (n: number) => `${n} 个口径`,
+  tagUnforecast: (n: number) => `${n} 个未预测`,
+  tagTerritories: (n: number) => `${n} 个区域`,
+  tagNoOwner: (n: number) => `${n} 个没有负责人`,
   title: "销售规划",
   description:
     "目标由本域设定，达成由商机域的预测快照计算——两个域不互相写对方的数据。",
@@ -2735,6 +3260,10 @@ export const PLANNING_TEXT = {
   leadAttained: (closed: string, target: string, pct: string) =>
     `全工作区 ${closed} / ${target} · 达成 ${pct}`,
   leadNoWorkspaceTarget: "本期未设全工作区目标。",
+  // The target exists but has no measurement yet - the gap's own reason, never
+  // a 0%.
+  leadNotMeasured: (target: string, reason: string) =>
+    `全工作区目标 ${target} · ${reason || "尚无达成数据"}`,
   leadUnforecast: (n: number) =>
     `${n} 个作用域本期还没有提交预测快照——那不是达成 0%。`,
   leadRule:
@@ -2771,16 +3300,177 @@ export const PLANNING_TEXT = {
   scopeTerritory: "销售区域",
   scopeOwner: "我自己",
   setMetric: "指标",
-  territoryTitle: "销售区域",
+  // --- 大区 (incr/0036; 成员随市场范围而定, incr/0045) ---
+  /* 区域装的是什么，由市场范围决定：全国市场装省，省级市场装市。文案里那个
+     名词跟着范围走，所以下面凡是提到「省份」的句子都拿名词做参数。 */
+  memberNoun: {
+    global: "国家",
+    china: "省份",
+    province: "市",
+  } as Record<string, string>,
+  /* 省级市场里一个区域装的是什么：省装市，直辖市装区。 */
+  unitNoun: {
+    city: "市",
+    district: "区",
+  } as Record<string, string>,
+  divisionName: "区域",
+  divisionMemberCount: (noun: string) => `${noun}数`,
+  divisionScope: (noun: string) => `覆盖${noun}`,
+  divisionFormTitle: "配置区域",
+  divisionFormWhy: (noun: string) => `选择这个区域覆盖的${noun}。一个${noun}只属于一个区域。`,
+  divisionCode: "区域代码",
+  divisionCodeHint: "创建后不可更改。已存在的代码表示改名。",
+  divisionNameLabel: "区域名称",
+  /* 辖区配置 (owner, 2026-09-09): 手动选择只是一种方式，不能当 label。四个动作
+     并排：选择辖区（抽屉）、应用预置（任选一个预置区域套上来）、重置预置
+     （按当前代码对应的预置恢复）、清空选择。 */
+  divisionMembersConfig: "辖区配置",
+  divisionPickMembers: "选择辖区",
+  divisionApplyPreset: "应用预置",
+  divisionResetPreset: "重置预置",
+  divisionClearMembers: "清空选择",
+  divisionApplyPresetTitle: "应用预置",
+  divisionApplyPresetWhy: (isNew: boolean): string =>
+    isNew
+      ? "选一个预置区域，代码、名称与辖区自动填好，可再改。"
+      : "选一个预置区域，名称与辖区套用到当前区域；代码是锚，保持不变。",
+  divisionApplyConfirm: "应用",
+  divisionResetPresetHint: (from: string, name: string) => `按「${from}-${name}」恢复名称与辖区`,
+  /* 两个危险动作的确认框（owner）：动词、对象、后果，DS 的契约。标题句式由产品
+     定：「重置预置 陕西三分法-关中？」 */
+  destructiveTitle: "{verb}{target}？",
+  divisionResetTarget: (from: string, name: string) => `为「${from}-${name}」`,
+  divisionResetConsequence: (n: number, noun: string) =>
+    `当前名称和已选的 ${n} 个${noun}会被预置覆盖；未保存前可以「放弃」。`,
+  divisionClearTarget: (n: number, noun: string) => `已选的 ${n} 个${noun}`,
+  divisionClearConsequence: "清单会清空，逐个勾选的辖区需要重新选；未保存前可以「放弃」。",
+  divisionResetPresetNone: "当前代码没有对应的预置",
+  divisionResetPresetAmbiguous: (n: number) => `这个代码在 ${n} 套预置里都有，点击后选一套`,
+  // --- 成员选择抽屉 ---
+  divisionPick: (noun: string) => `选择${noun}`,
+  divisionPickTitle: (noun: string) => `选择${noun}`,
+  divisionPickWhy: (noun: string) => `勾选${noun}。后缀是内置切法的归属，供参考。`,
+  divisionPickDone: "完成",
+  divisionPickClear: "清空",
+  divisionPickEmpty: (noun: string) => `尚未选择${noun}`,
+  divisionPickNone: (noun: string) => `没有匹配的${noun}`,
+  divisionSearch: (noun: string) => `搜索${noun}、代码或简称`,
+  divisionChosen: (n: number, noun: string) => `已选 ${n} 个${noun}`,
+  divisionHintPreset: (from: string, name: string) => `${from} ${name}`,
+  divisionTakenFrom: (p: string, from: string) => `${p} 原属 ${from}，将移入当前区域`,
+  divisionSave: "保存区域",
+  divisionDiscard: "放弃",
+  divisionSource: "来源",
+  divisionSystem: "系统配置",
+  divisionCustom: "自定义",
+  divisionEdit: "配置",
+  // 行菜单里的四个排序操作（owner, 2026-09-09）。顺序是全局的：菜单、态势屏、
+  // 汇总都按它来。
+  divisionMoveUp: "上移",
+  divisionMoveDown: "下移",
+  divisionMoveTop: "移到最顶",
+  divisionMoveBottom: "移到最低",
+  divisionNew: "新建区域",
+  divisionRemove: "删除区域",
+  divisionRemoveWhy: (noun: string) => `只有不含任何${noun}的区域才能删除。先把${noun}移走，再删。`,
+  templateTitle: "重置为预置划分",
+  templateWhy: "选一套预置切法作为起点，之后随便改。",
+  templateReset: "重置预置",
+  templateConfirm: "确认替换",
+  templateCancel: "取消",
+  /* 两步：对话框里选方案并用 danger Banner 说明代价；「确认替换」再弹危险确认
+     （owner, 2026-09-09），落锤在确认框里。 */
+  templateDangerTitle: "这是不可撤销的替换",
+  templateConfirmVerb: "替换",
+  templateConfirmTarget: (carve: string) => `为「${carve}」`,
+  templateConsequence: (current: number, custom: number) =>
+    `当前 ${current} 个区域及其辖区归属全部按预置重排${custom > 0 ? `，其中 ${custom} 个自定义区域会被丢弃` : ""}；保存即生效，不可撤销。`,
+  templateReplaceWarn: (current: number, custom: number) =>
+    custom > 0
+      ? `会替换当前 ${current} 个大区，其中 ${custom} 个是你自己配置的，将被丢弃。`
+      : `会替换当前 ${current} 个大区。`,
+  /* 预置的名字只是名字（owner, 2026-09-09）：下拉里读「五分法-中部」，不再拖着
+     一串「东南西北中」。这一串在重置对话框里才有意义，那里单独列。 */
+  /* A carve's NAME is a column of yucer_ref.market_carve (incr/0045), not
+     copy: 五分法 / 陕西三分法 / 北京各区独立 print as the table has them. */
+  presetOption: (from: string, name: string) => `${from}-${name}`,
+  templateRef: "引用系统配置",
+  templateRefNone: "不引用，自己填",
+  templateRefWhy: "选一个预置区域，代码、名称与成员自动填好，可再改。",
+  // 市场范围 (incr/0043)：区域在哪个框架里切。
+  scopeLabel: {
+    global: "全球市场",
+    china: "中国市场",
+    province: "省级市场",
+  } as Record<string, string>,
+  scopeIncludes: {
+    global: "全球市场 · 包括为国家级",
+    china: "全国市场 · 包括为省级",
+    province: "省级市场 · 包括为市级",
+  } as Record<string, string>,
+  scopePlanned: "未建",
+  scopeLabelTitle: "市场范围",
+  scopeButton: (current: string) => `市场范围 · ${current}`,
+  /* 省级市场 · 陕西 —— 按钮和「包括范围」都要连省一起说，范围才算定了。 */
+  scopeProvinceFrame: (label: string, province: string) => `${label} · ${province}`,
+  scopeIncludesProvince: (province: string, noun: string) => `${province} · 包括为${noun}级`,
+  scopeProvinceLabel: "哪个省",
+  scopeProvinceOpen: (n: number) => `${n} 个省级行政区可选；台湾、香港、澳门暂无下级区划数据。`,
+  scopeConfirm: "确认",
+  scopeCancel: "取消",
+  scopeWhy: "区域在哪个框架里切：全球按国家，全国按省，一省按市。范围定了，区域能装什么才有基础。",
+  scopeSaved: "市场范围已更新",
+  divisionIncludes: "包括范围",
+  // 右栏清单的五列（owner, 2026-09-09）。简称代号是国标的两个字母，省有市无。
+  colIndex: "序号",
+  colAbbr: "简称代号",
+  colName: "名称",
+  colAdcode: "行政区划代码",
+  colOps: "操作",
+  divisionRemoveMember: "移除",
+  divisionPickEmptyWhy: (noun: string) => `用左侧「选择${noun}」加入，或引用系统配置。`,
+  divisionCodePrefixHint: "前缀由市场范围决定，只填后半段，如 EAST。",
+  // 省级市场下不带前缀：行政区划代码按国标裸用，或自定义一个词。
+  divisionCodeUnitHint: "填行政区划代码（如 610100）或自定义代码（如 GUANZHONG），不带省份前缀。",
+  divisionMovedTitle: (n: number, noun: string) => `${n} 个${noun}将从其他区域迁入`,
+  divisionMovedWhy: "保存后它们会离开原区域。原区域的汇总口径随之变化。",
+  divisionSaveFailed: "保存失败",
+  // 这页不再和销售区域同屏，所以不能再说「上面的销售区域……」。两个维度的
+  // 区别要在这里自己说清楚。范围是什么就说什么：全国 / 陕西省。
+  divisionWhy: (frame: string, noun: string) => `${frame}怎么切成区域，每个区域管哪些${noun}。`,
+  divisionEmptyTitle: "这个工作区还没有区域",
+  divisionEmptyWhy: "新建一个，或引用系统内置的划分。",
+  divisionNone: "未归入",
+  divisionHoldsNothing: (noun: string) => `这个区域目前不含任何${noun}`,
+  moveProvince: (p: string) => `把 ${p} 改到其他大区`,
+  provinceCount: (n: number) => `${n} 个省`,
+  /* 页头徽标的一句话（owner, 2026-09-09）：「34 个省份已归入 5 个区域」，有未
+     归入的才接一句「，3 个省份未归入任何区域」。 */
+  divisionCoverage: (placed: number, divisions: number, unplaced: number, noun: string) =>
+    `${placed} 个${noun}已归入 ${divisions} 个区域`
+    + (unplaced > 0 ? `，${unplaced} 个${noun}未归入任何区域` : ""),
+  // 表格底部的结论：全部归入一句话；有未归入的，点名，后面跟标签。
+  divisionAllPlaced: (noun: string) => `全部${noun}都已归入区域。`,
+  divisionUnplacedLead: (n: number, noun: string) => `${n} 个${noun}未归入任何区域：`,
+  // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
-    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。",
+    "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",
+  // 表单页读的那句。「代码是身份」讲的是这张表单的行为，名册页上没有表单，
+  // 却跟着显示了这句话，是页面拆分时留下的。
+  territoryFormWhy:
+    "区域代码是身份：输入已有的代码是编辑那一条，输入新的是新建。先选覆盖的大区，路由才认得它。",
   territoryNone: "还没有销售区域",
   territoryNoneWhy: "先建一个区域，才能给它设目标、把商机归到它名下。",
+  // 两个入口同处一页（区域名册 + 指标表），所以各自说清楚建的是什么。
+  territoryNewEntry: "新建区域",
+  targetNew: "新建目标",
   territoryFormTitle: "新建 / 编辑销售区域",
   territoryEditing: "编辑已有区域",
   territoryNew: "新建一个区域",
-  territoryRegions: "覆盖地区",
-  territoryRegionsHint: "逗号分隔，如：华东, 华南",
+  territoryRegions: "覆盖大区",
+  territoryRegionsHint: "勾选这个区域负责的大区。一个大区可以由多个区域共同负责；不勾选任何一个，路由就当它谁也不覆盖。",
+  territoryRegionsNone: "这个工作区还没有大区。先去「新建大区」建一个，或引用一套预置划分。",
+  territoryRegionGone: "已不在当前划分中",
   territoryCode: "区域代码",
   territoryName: "名称",
   territoryParent: "上级区域",
@@ -2976,6 +3666,7 @@ export const STRATEGY_TEXT = {
   planAdviceNoCampaign: (name: string) => `「${name}」在执行中，底下一场战役都没有。`,
   planAdviceNoSegment: (name: string) => `「${name}」在执行中，但没有任何细分市场指向它。`,
   planAdviceNoObjective: (name: string) => `「${name}」没有写目标陈述。`,
+  segmentCount: (n: number) => `${n} 个分层`,
 } as const;
 
 export const PLAN_STATUS_LABEL: Record<string, string> = {
@@ -2987,6 +3678,8 @@ export const PLAN_STATUS_LABEL: Record<string, string> = {
 };
 
 export const CAMPAIGN_TEXT = {
+  tagCount: (n: number) => `${n} 个战役`,
+  tagSpend: (budget: string, won: string) => `投入 ${budget} · 赢回 ${won}`,
   executionsTitle: "战役执行项",
   executionsWhy:
     "一场战役由哪些动作构成。上面那列「N/M 完成」就是从这里数出来的——而且还有未完成项时，战役无法标记完成。",
@@ -3053,8 +3746,114 @@ export const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
   cancelled: "已取消",
 };
 
+/** 漏斗退出原因 (incr/0033). Nine codes, one vocabulary, read at every stage. */
+export const EXIT_REASON_LABEL: Record<string, string> = {
+  duplicate: "重复记录",
+  not_a_fit: "需求不匹配",
+  no_budget: "没有预算",
+  no_decision: "迟迟没有决策",
+  lost_to_competitor: "输给竞争对手",
+  timing: "时机不对",
+  customer_withdrew: "客户取消了项目",
+  unreachable: "联系不上",
+  other: "其他",
+};
+
+export const FUNNEL_TEXT = {
+  title: "漏斗全景",
+  why: "每一段的数字都是各自模块里那些行的计数。「没有记录原因」有两种来路：商机、项目、回款三段还没有录入入口；信号和线索有入口，但更早结束的行本来就没留下原因。",
+  moduleWhy: "信号 → 线索 → 商机 → 项目 → 回款。这是唯一一个讲整条链的页面——其余每个模块只讲自己那一段。",
+  stage: {
+    signal: "信号",
+    lead: "线索",
+    opportunity: "商机",
+    project: "项目",
+    revenue: "回款",
+  } as Record<string, string>,
+  part: {
+    advanced: "已推进",
+    open: "在手上",
+    exited: "已终止",
+  } as Record<string, string>,
+  passed: (pct: number, reached: number) => `${pct}% 推进 · 共到达 ${reached}`,
+  nothingReached: "还没有东西走到这一段",
+  byStage: "分段明细",
+  // SAYS THE FACT, NOT A CAUSE. A row can be unexplained because the stage has
+  // no surface that asks (商机/项目/回款 today) or because it ended before the
+  // reason was ever recorded - and the count cannot tell those apart.
+  unexplained: (n: number) => `${n} 条终止没有记录原因`,
+  blind: (stages: string) => `你没有权限看：${stages}。这些段不显示，而不是显示为 0。`,
+  listSeparator: "、",
+  tagEntered: (n: number) => `${n} 条进入`,
+  tagLive: (n: number) => `${n} 条在手上`,
+  tagLeak: (stage: string, n: number) => `${stage}漏最多：${n} 条`,
+} as const;
+
 export const LEAD_TEXT = {
   title: "线索",
+  // 模块头部 (design_yucer_110). `description` above is the SECTION's line and
+  // stays with the table; this one explains the module.
+  moduleWhy:
+    "信号升级成线索，线索合格后转化为商机。「智能分配」按区域和负载给出该谁接的建议，采纳与否由你定——无人认领的线索无法判定合格。",
+  addLead: "添加线索",
+  addLeadWhy: "展会、电话、转介绍来的线索——它们背后没有信号。填了就进线索池，由「智能分配」决定谁接。",
+  formContact: "联系人",
+  formNoAccount: "暂不匹配",
+  formAccountWhy: "没有客户就没有区域，分派和转商机都走不了。也可以之后在行操作里补。",
+  formOwnerNote: "负责人和评分这里不填：谁接由「智能分配」按区域和负载给建议；评分是信号的算法，手工录入的线索没有信号。",
+  formSave: "保存线索",
+
+  searchLabel: "检索",
+  resetFilters: "清空筛选",
+  searchHint: "公司、线索号、联系人、负责人",
+  filterAllStatus: "全部状态",
+  filterAllOwners: "全部负责人",
+  filterUnowned: "无人认领",
+  filteredCount: (n: number, total: number) => `${n} / ${total} 条`,
+  noMatch: "没有匹配的线索",
+  noMatchWhy: "换个关键词，或把筛选条件放宽。",
+  startWork: "开始跟进",
+  convertWhy: (company: string) => `把「${company}」转成商机。转化这一刻来源战役被复制到商机上并冻结，之后改不了。`,
+  convertRequirement: "客户需求",
+  convertRequirementHint: "客户要解决什么问题",
+  convertRequirementWhy: "商机必须说清客户要什么——没坐在那场会里的人，靠这句话判断该不该投入。之后可以改。",
+
+  terminate: "终结线索",
+  terminateConsequence: "这条线索是真的，但机会没了。记录会保留，并计入漏斗的分母——原因会被记下来，之后能按原因看漏在哪一段。",
+  hintTerminateWhy: "机会曾经真实存在，但黄了——与「判定不合格」是两回事",
+  exemptAsksReason: "这个动作会先问原因，比确认框更强",
+  endSubmit: "确认结束",
+  endReason: "原因",
+  endReasonPick: "选择原因",
+  endNote: "补充说明",
+  endNoteRequired: "选了「其他」就必须写清楚",
+  endNoteOptional: "可留空",
+
+  hintAlreadyWorking: "已经在跟进或已有判定了",
+  claim: "认领线索",
+  assign: "分派线索",
+  handOver: "转让负责人",
+  matchAccount: "匹配客户",
+  matchWhy: (company: string) => `把「${company}」连到客户档案。没有客户就没有区域，分派和转商机都走不了。`,
+  matchSubmit: "匹配",
+  matchPick: "选择客户",
+  columnAccount: "客户",
+  openAccount: "打开客户档案",
+  remove: "删除线索",
+  removeConsequence: "删除后不可恢复。这条线索将不再出现在任何漏斗统计里——如果它是真实存在过的机会，应该用「判定不合格」保留记录。",
+  hintAlreadyOwned: "已经有负责人了——要换人请用「转让负责人」",
+  hintAlreadyMatched: "已经匹配过客户了",
+  hintAssignOpensPanel: "打开右侧「智能分配」，按区域和负载给建议",
+  hintConvertedKept: "已转商机的线索不能删除——它是那个商机来源的唯一记录",
+  bulkRefused: (n: number) => `有 ${n} 条没有删除`,
+
+  deleteSelected: (n: number) => `删除 ${n} 条`,
+  columnRegion: "区域",
+  noRegion: "无区域",
+  tagOpen: (n: number) => `${n} 条在跟`,
+  tagQualified: (n: number) => `${n} 条已合格`,
+  tagUnowned: (n: number) => `${n} 条无人认领`,
+  tagConverted: (n: number) => `${n} 条已转商机`,
   description:
     "线索合格后转化为商机。转化那一刻，来源战役被复制到商机上并冻结——归因不靠事后填写。",
   columnCompany: "公司",
@@ -3082,6 +3881,7 @@ export const LEAD_TEXT = {
   hintNoTriage: "你没有分拣线索的权限",
   hintNotQualified: "线索还没有判定为合格",
   hintAlreadyQualified: "线索已经判定为合格",
+  hintNoOwner: "还没有归属——先「认领」或用「智能分配」指给人，再做判定",
   hintNoConvert: "你没有转化线索的权限",
   needAccount: "需先匹配客户",
   emptyTitle: "还没有线索",
@@ -3097,6 +3897,29 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const WINLOSS_TEXT = {
+  // 赢丢原因的配置面 (0039)。
+  reasonConfigTitle: "赢丢原因",
+  reasonCount: (n: number) => `${n} 条原因`,
+  reasonConfigWhy: "复盘时可选的原因。被复盘引用后不能删除。",
+  addReason: "新建原因",
+  editReason: "编辑",
+  saveReason: "保存",
+  reasonCode: "原因代码",
+  reasonCodeHint: "创建后不可更改。已存在的代码表示改名。",
+  reasonName: "原因名称",
+  colReasonName: "原因",
+  colApplies: "适用结果",
+  colCited: "被引用",
+  appliesWon: "赢单",
+  appliesLost: "丢单",
+  appliesBoth: "赢丢皆可",
+  appliesHint: "至少选一种。像「客户未决」这样只解释丢单的，就只勾丢单。",
+  reasonDeleteConsequence: "该原因将从复盘表单中移除。已引用它的复盘不受影响——引用中的原因删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+
+  tagPending: (n: number) => (n === 0 ? "没有待复盘的" : `${n} 单待复盘`),
   // Its own section now, so the title names the SUBJECT rather than one of its
   // two states - the pending list is a filter of this, not the whole of it.
   sectionTitle: "总结复盘",
@@ -3119,6 +3942,7 @@ export const WINLOSS_TEXT = {
   outcomeLost: "丢单",
   record: "写复盘",
   reasonLabel: "主要原因",
+  reasonNone: "未选择",
   competitorLabel: "竞争对手",
   lessonsLabel: "经验",
   save: "保存",

@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -19,7 +20,7 @@ export default async function NewMilestonePage({
 }: {
   readonly searchParams: Promise<{ project?: string }>;
 }) {
-  const { SHELL_TEXT, DELIVERY_TEXT } = await getMessages();
+  const { DELIVERY_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -78,6 +79,10 @@ export default async function NewMilestonePage({
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.delivery, href: "/delivery" }]}
+        current={DELIVERY_TEXT.milestonesTitle}
+      />
       <ViewHeader title={DELIVERY_TEXT.milestonesTitle} description={DELIVERY_TEXT.milestonesWhy} />
       <MilestoneForm
         initialProjectId={(await searchParams).project}

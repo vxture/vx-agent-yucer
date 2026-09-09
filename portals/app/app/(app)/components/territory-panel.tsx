@@ -1,7 +1,15 @@
 "use client";
 
-import { DataTable, EmptyState, Section, StatusBadge } from "@vxture/design-ui";
+import {
+  DataTable,
+  EmptyState,
+  Section,
+  TableTitleCell,
+} from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
+import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // The territory roster: who carries which patch of the market.
 //
@@ -16,7 +24,8 @@ import { useMessages } from "../lib/i18n/provider";
 // nav entry and the host here is /planning, which IS one - the same test that
 // keeps 战略客户 planned, since its only host would be a detail page.
 //
-// DISPLAY ONLY since 2026-09-05: creating and editing left for /territory/new
+// DISPLAY ONLY since 2026-09-05: creating and editing left for
+// /planning/territory/new
 // (owner ruling), which also carries the regions field this panel never had.
 
 export interface TerritoryRow {
@@ -29,11 +38,25 @@ export interface TerritoryRow {
   readonly regions: readonly string[];
 }
 
-export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[] }) {
-  const { DATA_TABLE_LABELS, PLANNING_TEXT } = useMessages();
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: TerritoryRow) => r.name,
+};
+
+export function TerritoryPanel({
+  rows,
+  action,
+}: {
+  readonly rows: readonly TerritoryRow[];
+  /** The panel's action, in the DS Section header slot - 新建区域 on /planning. */
+  readonly action?: ReactNode;
+}) {
+  const { DATA_TABLE_LABELS, DOMAIN_LABEL, PLANNING_TEXT } = useMessages();
+  const sorted = useTableSort<TerritoryRow>([], SORT_ON);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   return (
-    <Section id="territories" icon="map-pin">
+    <Section id="territories" icon="map-pin" title={DOMAIN_LABEL.territory} action={action}>
       {rows.length === 0 ? (
         <EmptyState
           title={PLANNING_TEXT.territoryNone}
@@ -43,20 +66,26 @@ export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: TerritoryRow) => r.id}
-          rows={[...rows]}
+          rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={[
             {
-              id: "code",
-              header: PLANNING_TEXT.territoryCode,
-              cell: (r: TerritoryRow) => r.territoryCode,
-            },
-            {
+              /* 编码与名称合成首列 (owner: 首列全部走 TableTitleCell). They were
+                 two columns with the CODE first, which put the row's identity
+                 in second place and forced an `align:"left"` override to undo
+                 the position-based default. As a title cell the name leads and
+                 the code becomes its description - the same shape every other
+                 first column in this product now has. */
               id: "name",
               header: PLANNING_TEXT.territoryName,
-              cell: (r: TerritoryRow) => r.name,
+              sortable: true,
+              cell: (r: TerritoryRow) => (
+                <TableTitleCell title={r.name} description={r.territoryCode} tooltip={r.name} />
+              ),
             },
             {
-              // The regions column joined with the /territory/new page: the
+              // The regions column joined with the create page: the
               // list is what routing matches against, so a blank here is the
               // "dead ground" the form's assistant warns about.
               id: "regions",
@@ -81,12 +110,11 @@ export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[
             {
               id: "status",
               header: PLANNING_TEXT.territoryStatus,
-              align: "center" as const,
               cell: (r: TerritoryRow) =>
                 r.status === "active" ? null : (
-                  <StatusBadge tone="neutral">
+                  <Tag>
                     {PLANNING_TEXT.territoryRetired}
-                  </StatusBadge>
+                  </Tag>
                 ),
             },
           ]}

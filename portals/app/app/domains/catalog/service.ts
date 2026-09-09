@@ -1,3 +1,4 @@
+import { planPricingPolicy, type PricingPolicy } from "./lib/pricing-policy";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
@@ -11,6 +12,7 @@ import {
 } from "./lib/pricing";
 import { planMove, planRemoval } from "./lib/lifecycle";
 import { DEFAULT_TYPE_VOCABULARY, planProductType, planTypeRemoval } from "./lib/type-vocab";
+import { DEFAULT_UNIT_VOCABULARY, planProductUnit, planUnitRemoval } from "./lib/unit-vocab";
 import { analysePrices, type PriceAdvice } from "./lib/price-advice";
 import { analyseSolutions, type SolutionAdvice } from "./lib/solution-advice";
 import {
@@ -29,6 +31,7 @@ import type {
   ProductRecord,
   ProductStatusRecord,
   ProductTypeRecord,
+  ProductUnitRecord,
   SolutionItemRecord,
   SolutionRecord,
 } from "./store";
@@ -173,7 +176,8 @@ export async function upsertProduct(
     productCode: string;
     name: string;
     typeId?: string | null;
-    unit: string;
+    /** A unit row's uuid (incr/0037). */
+    unitId: string;
     /** A status row's uuid. Omitted on an edit = keep what the row has;
      * omitted on a create = the canonical 在售 row. */
     statusId?: string;
@@ -189,6 +193,21 @@ export async function upsertProduct(
     if (!types.some((t) => t.id === input.typeId)) {
       return fail(violation("type_not_found", "no such product type", "typeId"));
     }
+  }
+
+  /* Same check for the unit, and it is not optional: a product is priced in
+     exactly one, so a uuid from another workspace's vocabulary - or from a row
+     deleted between the form loading and saving - has to be named here rather
+     than surfacing as an FK violation nobody can read.
+
+     STRAIGHT OFF THE STORE, like the type check above and NOT through
+     listProductUnits: that verb gates on catalog.product.view, and a holder of
+     catalog.write alone would then be refused its own write by a READ gate it
+     was never meant to need. Caught by the test that exercises write and price
+     as separate grants - which is what that test is for. */
+  const units = await ctx.store.listProductUnits(ctx.workspaceId);
+  if (!units.some((u) => u.id === input.unitId)) {
+    return fail(violation("unit_not_found", "no such unit", "unitId"));
   }
 
   const [existing, vocab] = await Promise.all([
@@ -237,7 +256,7 @@ export async function upsertProduct(
     productCode: input.productCode,
     name: input.name,
     typeId: input.typeId ?? null,
-    unit: input.unit,
+    unitId: input.unitId,
     statusId,
   });
   if (!plan.ok) return plan as RuleResult<ProductRecord>;
@@ -471,6 +490,101 @@ async function ensureStatusVocab(ctx: CatalogContext) {
 }
 
 /** The status vocabulary - what every status label on screen reads. */
+/* ---------------------------------------------------------------------------
+ * 计价单位 - the catalogue's third vocabulary (incr/0037).
+ *
+ * FOUR VERBS, the same four the type has, because it is the same shape of
+ * decision: list, upsert, reorder, delete-if-unused. What it does NOT have is
+ * a retirement state - see planUnitRemoval for why a unit cannot be half-out.
+ * ------------------------------------------------------------------------ */
+
+export async function listProductUnits(
+  ctx: CatalogContext,
+): Promise<RuleResult<ProductUnitRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.view", "data");
+  if (!gate.allowed) return denied(gate);
+  let units = await ctx.store.listProductUnits(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, and only into an untouched workspace - the same
+     guard the type vocabulary uses and the same rows incr/0037 seeds, so the
+     two paths cannot disagree. A workspace that deleted every unit keeps its
+     empty list rather than having ours grow back. */
+  if (units.length === 0) {
+    const products = await ctx.store.listProducts(ctx.workspaceId);
+    if (products.length === 0) {
+      for (const d of DEFAULT_UNIT_VOCABULARY) {
+        await ctx.store.upsertProductUnit(ctx.workspaceId, {
+          unitCode: d.unitCode,
+          name: d.name,
+        });
+      }
+      units = await ctx.store.listProductUnits(ctx.workspaceId);
+    }
+  }
+  return ok(units);
+}
+
+/**
+ * Create or rename a unit.
+ *
+ * `catalog.product.upsert`, not a new permission: whoever may say what a
+ * product IS may say what it is sold by. NOT catalog.price - a unit is not a
+ * number, and the floor-price signature is about amounts.
+ */
+export async function upsertProductUnit(
+  ctx: CatalogContext,
+  input: { unitCode: string; name: string },
+): Promise<RuleResult<ProductUnitRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planProductUnit({ unitCode: input.unitCode, name: input.name });
+  if (!plan.ok) return plan as RuleResult<ProductUnitRecord>;
+
+  return ok(await ctx.store.upsertProductUnit(ctx.workspaceId, plan.value));
+}
+
+/** Reorder the unit vocabulary - the order the product form's picker offers. */
+export async function moveProductUnit(
+  ctx: CatalogContext,
+  input: { unitId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const units = await ctx.store.listProductUnits(ctx.workspaceId);
+  const plan = planMove(
+    units.map((u) => ({ id: u.id, movable: true })),
+    input.unitId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setProductUnitOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a unit outright.
+ *
+ * Refused while products are priced in it - planUnitRemoval names the count,
+ * and fk_product_unit RESTRICTs underneath as the last line.
+ */
+export async function removeProductUnit(
+  ctx: CatalogContext,
+  input: { unitId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const priced = await ctx.store.countProductsByUnit(ctx.workspaceId, input.unitId);
+  const plan = planUnitRemoval(priced);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeProductUnit(ctx.workspaceId, input.unitId);
+  if (!removed) return fail(violation("not_found", "no such unit", "unitId"));
+  return ok(true);
+}
+
 export async function listProductStatuses(
   ctx: CatalogContext,
 ): Promise<RuleResult<ProductStatusRecord[]>> {
@@ -700,6 +814,33 @@ export async function removeSolution(
  * the catalogue, held by different roles. Same shape as pipeline.forecast
  * splitting off pipeline.write one domain over.
  */
+/* ---------------------------------------------------------------------------
+ * 计价规则 - the currency a workspace prices in (incr/0044).
+ *
+ * READ rides catalog.pricebook.view: the price book is meaningless without
+ * knowing what its numbers are in. WRITE is catalog.pricebook.upsert - the
+ * floor-price permission - because changing the currency every line assumes
+ * is a pricing decision, not a catalogue edit.
+ * ------------------------------------------------------------------------ */
+
+export async function pricingPolicy(ctx: CatalogContext): Promise<RuleResult<PricingPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getPricingPolicy(ctx.workspaceId));
+}
+
+export async function setPricingPolicy(
+  ctx: CatalogContext,
+  input: PricingPolicy,
+): Promise<RuleResult<PricingPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planPricingPolicy(input);
+  if (!plan.ok) return plan;
+  await ctx.store.setPricingPolicy(ctx.workspaceId, plan.value);
+  return ok(plan.value);
+}
+
 export async function setPrice(
   ctx: CatalogContext,
   input: {

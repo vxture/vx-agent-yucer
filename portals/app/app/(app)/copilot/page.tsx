@@ -1,4 +1,5 @@
-import { Card, EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Card, EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import {
   getAccountStore,
@@ -120,23 +121,28 @@ export default async function CopilotPage({
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={
-          awaiting.length > 0
-            ? PROPOSAL_TEXT.lead(awaiting.length)
-            : PROPOSAL_TEXT.leadNone
-        }
-        description={
+      {/* THE MODULE HEADER (design_yucer_100). The title was a COUNT of what
+          was waiting, so it changed with every proposal and never matched the
+          menu entry.
+
+          NO FOLD: proposals partition by KIND, and the queue below already
+          groups them that way - ADR-015's split, which is the reason the
+          grouping exists at all. Low confidence is a badge because it cuts
+          ACROSS the kinds: a reader skimming a column of green misses the two
+          that needed reading. */}
+      <ModuleHeadline
+        moduleKey="copilot"
+        description={PROPOSAL_TEXT.why}
+        tags={
           <>
-            {/* Low confidence is surfaced, not filtered. A confidence figure that
-              only ever appears next to the proposal it belongs to lets a reader
-              skim a column of green and miss the two that needed reading. */}
+            <StatusBadge tone={awaiting.length > 0 ? "warning" : "success"}>
+              {PROPOSAL_TEXT.tagAwaiting(awaiting.length)}
+            </StatusBadge>
             {lowConfidence > 0 ? (
-              <span className="block text-(color:--warning-text)">
-                {PROPOSAL_TEXT.leadLowConfidence(lowConfidence)}
-              </span>
+              <StatusBadge tone="warning">
+                {PROPOSAL_TEXT.tagLowConfidence(lowConfidence)}
+              </StatusBadge>
             ) : null}
-            <span className="block">{PROPOSAL_TEXT.leadRule}</span>
           </>
         }
       />

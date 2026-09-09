@@ -7,19 +7,20 @@ import {
   FilterBar,
   ListCard,
   ListCardGrid,
-  StatusBadge,
+  TableTitleCell,
   type DataTableColumn,
   type FilterBarView,
 } from "@vxture/design-ui";
+import { useTableSort } from "./table-fittings";
 import {
   nextCampaignStatuses,
   type CampaignStatus,
 } from "../../domains/strategy/lib/lifecycle";
 import { formatMoney } from "../lib/view-model";
 import { LifecycleControl } from "./lifecycle-control";
-import { TableCard } from "./table-card";
 
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 // The campaign table. Client-side because DataTableColumn.cell is a function
 // and functions do not cross the RSC boundary - see account-table.tsx.
 //
@@ -51,10 +52,19 @@ export interface CampaignTableProps {
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON, which is not always what
+   it renders - a badge sorts on the score inside it, a money cell on the raw
+   amount rather than its formatted string. */
+const SORT_ON = {
+    name: (r: CampaignRow) => r.name,
+    budget: (r: CampaignRow) => r.budget,
+  };
+
 export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
   const { DATA_TABLE_LABELS, CAMPAIGN_STATUS_LABEL, CAMPAIGN_TEXT } =
     useMessages();
   const [view, setView] = useState<FilterBarView>("list");
+  const sorted = useTableSort(rows, SORT_ON);
 
   if (rows.length === 0) {
     return (
@@ -68,12 +78,10 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
   const columns: readonly DataTableColumn<CampaignRow>[] = [
     {
       id: "name",
+  sortable: true,
       header: CAMPAIGN_TEXT.columnName,
       cell: (row) => (
-        <div>
-          <div>{row.name}</div>
-          <div>{row.campaignNo}</div>
-        </div>
+        <TableTitleCell title={row.name} description={row.campaignNo} tooltip={row.name} />
       ),
     },
     {
@@ -84,7 +92,8 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     {
       id: "budget",
       header: CAMPAIGN_TEXT.columnBudget,
-      align: "right",
+      sortable: true,
+      align: "money",
       cell: (row) => formatMoney(row.budget, row.currency),
     },
     {
@@ -95,26 +104,25 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
     {
       id: "return",
       header: CAMPAIGN_TEXT.columnReturn,
-      align: "right",
       cell: (row) =>
         row.returnOnBudget == null ? (
           "-"
         ) : (
-          <StatusBadge tone={row.returnOnBudget >= 1 ? "success" : "neutral"}>
+          <Tag tone={row.returnOnBudget >= 1 ? "success" : "neutral"}>
             {row.returnOnBudget.toFixed(1)}x
-          </StatusBadge>
+          </Tag>
         ),
     },
     {
       id: "status",
       header: CAMPAIGN_TEXT.columnStatus,
       cell: (row) => (
-        <StatusBadge
+        <Tag
           tone={row.status === "running" ? "success" : "neutral"}
           dot
         >
           {CAMPAIGN_STATUS_LABEL[row.status] ?? row.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
@@ -139,11 +147,11 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
         count={CAMPAIGN_TEXT.rowCount(rows.length)}
       />
 
-      {/* Only the table is in the card - the section is a heading and its
-          tools, the card is the surface the rows sit on. Without it the sticky
-          action column masked with the page canvas and read as a bluer stripe
-          against the rows beside it; TableCard points the mask at the card. */}
-      <TableCard>
+      {/* NO CARD (design-ui 8.0.0 透明模式: 表格不套容器卡). The sticky action
+          column masks with `--vx-table-sticky-bg`, which falls back to the page
+          canvas - and the canvas is now what is actually behind it, so the
+          bluer-stripe artefact that TableCard existed to fix cannot occur.
+          Removing the card removed the reason for the card. */}
         {view === "list" ? (
           <DataTable
             labels={DATA_TABLE_LABELS}
@@ -159,7 +167,9 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
                does not exist rather than saying the record is finished. */
             rowActions={actions}
             columns={columns}
-            rows={rows}
+            rows={[...sorted.rows]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
             rowKey={(row) => row.id}
           />
         ) : (
@@ -170,12 +180,12 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
                 title={row.name}
                 description={`${row.campaignNo}${row.channel ? ` / ${row.channel}` : ""}`}
                 status={
-                  <StatusBadge
+                  <Tag
                     tone={row.status === "completed" ? "success" : "neutral"}
                     dot
                   >
                     {CAMPAIGN_STATUS_LABEL[row.status] ?? row.status}
-                  </StatusBadge>
+                  </Tag>
                 }
                 actions={actions(row)}
                 meta={
@@ -199,7 +209,6 @@ export function CampaignTable({ rows, canMove, onMove }: CampaignTableProps) {
             ))}
           </ListCardGrid>
         )}
-      </TableCard>
     </>
   );
 }

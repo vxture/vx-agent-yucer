@@ -9,9 +9,12 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
+  FilterBar,
   Input,
+  NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { moduleIcon } from "../lib/navigation";
@@ -19,9 +22,11 @@ import { useMessages } from "../lib/i18n/provider";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
-  MoneyCell,
+  FilterSlot,
   RowActions,
   rowClickSelection,
+  SearchSlot,
+  useTableSort,
 } from "./table-fittings";
 import { allowedRevenueMoves, type RevenueStatus } from "../../domains/delivery/lib/revenue";
 
@@ -69,13 +74,23 @@ export interface CollectionRosterProps {
   }) => Promise<{ ok: boolean; status?: string; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  project: (r: CollectionRow) => r.projectName,
+  planned: (r: CollectionRow) => r.plannedAmount,
+  actual: (r: CollectionRow) => r.actualAmount,
+};
+
 export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterProps) {
   const {
     DELIVERY_TEXT,
     DATA_TABLE_LABELS,
     REVENUE_ERROR,
     REVENUE_STATUS_LABEL,
+    TABLE_TOOLBAR_TEXT,
   } = useMessages();
+  const sorted = useTableSort<CollectionRow>([], SORT_ON);
   const { toast } = useToast();
   const [pending, start] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
@@ -83,9 +98,33 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [settling, setSettling] = useState<CollectionRow | null>(null);
   const [amount, setAmount] = useState("");
+  // 工具行. One query across both tables, as on 项目交付: somebody chasing one
+  // instalment by project name does not know whether it has settled yet.
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-  const open = rows.filter((r) => r.status !== "settled" && r.status !== "written_off");
-  const closed = rows.filter((r) => r.status === "settled" || r.status === "written_off");
+  /* Searches the PROJECT NAME only, which is the one free-text field the row
+     shows. The instalment has no name of its own - it is 第 N 期 of a project,
+     and a number is what the 期次 column is for. */
+  const match = (r: CollectionRow) => {
+    const q = query.trim().toLowerCase();
+    return (
+      (q === "" || r.projectName.toLowerCase().includes(q)) &&
+      (statusFilter === "" || r.status === statusFilter)
+    );
+  };
+  const narrowed = query.trim() !== "" || statusFilter !== "";
+
+  const isClosed = (r: CollectionRow) =>
+    r.status === "settled" || r.status === "written_off";
+  /* Denominators off the UNFILTERED rows - "2 / 9 条" is only true if the 9
+     never saw the filter. */
+  const openTotal = rows.filter((r) => !isClosed(r)).length;
+  const closedTotal = rows.filter(isClosed).length;
+
+  const filtered = rows.filter(match);
+  const open = filtered.filter((r) => !isClosed(r));
+  const closed = filtered.filter(isClosed);
 
   const tone = (s: RevenueStatus) =>
     s === "settled" ? "success" : s === "overdue" ? "danger" : s === "written_off" ? "neutral" : "info";
@@ -116,54 +155,48 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
   const columns = [
     {
       id: "project",
+  sortable: true,
       header: DELIVERY_TEXT.colProject,
       cell: (r: CollectionRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副行是期次 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">
-            {r.projectName}
-          </span>
-          <span className="text-muted-foreground truncate text-body-sm">
-            {DELIVERY_TEXT.instalmentSeq(r.sequence)}
-          </span>
-        </span>
+        <TableTitleCell
+          title={r.projectName}
+          description={DELIVERY_TEXT.instalmentSeq(r.sequence)}
+          tooltip={r.projectName}
+        />
       ),
     },
     {
       id: "planned",
       header: DELIVERY_TEXT.colPlanned,
-      align: "right" as const,
-      cell: (r: CollectionRow) => (
-        <MoneyCell pad="0.5rem">{r.plannedAmount.toLocaleString()}</MoneyCell>
-      ),
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）：右对齐 + 一档右内
+      // 边距 + tabular-nums。本地那个 MoneyCell 就是手搓的同一件事。
+      sortable: true,
+      align: "money" as const,
+      cell: (r: CollectionRow) => r.plannedAmount.toLocaleString(),
     },
     {
       id: "actual",
       header: DELIVERY_TEXT.colActual,
-      align: "right" as const,
       // A short payment is shown as short rather than rounded away: the gap
       // between planned and received is the number this table is for.
+      sortable: true,
+      align: "money" as const,
       cell: (r: CollectionRow) =>
         r.actualAmount == null ? (
-          <MoneyCell pad="0.5rem">
-            <span className="text-muted-foreground">-</span>
-          </MoneyCell>
+          <span className="text-muted-foreground">-</span>
         ) : (
-          <MoneyCell pad="0.5rem">
-            <span
-              className={
-                r.actualAmount < r.plannedAmount ? "text-(color:--warning-text)" : undefined
-              }
-            >
-              {r.actualAmount.toLocaleString()}
-            </span>
-          </MoneyCell>
+          <span
+            className={
+              r.actualAmount < r.plannedAmount ? "text-(color:--warning-text)" : undefined
+            }
+          >
+            {r.actualAmount.toLocaleString()}
+          </span>
         ),
     },
     {
       id: "due",
       header: DELIVERY_TEXT.colDueStatus,
-      align: "center" as const,
       // DUE OVER STATUS IN ONE CELL, the shape the delivery table settled on:
       // "eight days late, and marked overdue" is ONE reading, and splitting it
       // across two columns made the reader assemble it - while costing a
@@ -267,7 +300,9 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: CollectionRow) => r.id}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={columns}
           rowActions={rowActions}
           empty={empty}
@@ -291,28 +326,97 @@ export function CollectionRoster({ rows, canWrite, onMove }: CollectionRosterPro
           ) : undefined
         }
       >
+        {/* ONE TOOL ROW FOR BOTH TABLES, sitting with the open list because
+            that is the one people work. The settled list below says so on its
+            own heading rather than narrowing in silence. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(open.length, openTotal)
+              : DELIVERY_TEXT.instalmentCount(open.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={DELIVERY_TEXT.collectionSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setStatusFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={statusFilter}
+              aria-label={DELIVERY_TEXT.filterAllRevenueStatus}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">{DELIVERY_TEXT.filterAllRevenueStatus}</option>
+              {Object.entries(REVENUE_STATUS_LABEL).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(
           open,
-          <EmptyState
-            title={DELIVERY_TEXT.noInstalments}
-            description={DELIVERY_TEXT.collectionsWhy}
-          />,
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState
+              title={DELIVERY_TEXT.noInstalments}
+              description={DELIVERY_TEXT.collectionsWhy}
+            />
+          ),
         )}
       </Section>
 
-      {closed.length > 0 ? (
+      {/* Holds its place while narrowed even with nothing left in it - a
+          section that vanishes under a keyword takes its own explanation with
+          it (the 项目交付 finding, 2026-09-07). */}
+      {closed.length > 0 || (narrowed && closedTotal > 0) ? (
         <Section
           id="collections-closed"
           icon="file-text"
           title={DELIVERY_TEXT.rosterClosed}
           description={DELIVERY_TEXT.rosterClosedWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{DELIVERY_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(
             closed,
-            <EmptyState
-              title={DELIVERY_TEXT.noInstalments}
-              description={DELIVERY_TEXT.collectionsWhy}
-            />,
+            narrowed ? (
+              <EmptyState
+                title={TABLE_TOOLBAR_TEXT.noMatch}
+                description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+              />
+            ) : (
+              <EmptyState
+                title={DELIVERY_TEXT.noInstalments}
+                description={DELIVERY_TEXT.collectionsWhy}
+              />
+            ),
           )}
         </Section>
       ) : null}

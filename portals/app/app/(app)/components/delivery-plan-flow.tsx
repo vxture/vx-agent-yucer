@@ -1,7 +1,8 @@
 "use client";
 
-import { Icon, StatusBadge } from "@vxture/design-ui";
+import { Icon } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // 交付计划 - the plan a project row opens onto. Owner rulings: a FLOW rather
 // than a table (2026-09-06), then CARDS in a fixed grid, on a panel that is
@@ -174,11 +175,11 @@ export function DeliveryPlanFlow({ nodes }: { readonly nodes: readonly PlanNode[
                     the eye stop at good news. Null and zero are both absent
                     here on purpose: nothing was committed, or nothing moved. */}
                 {n.slippedDays !== null && n.slippedDays !== 0 ? (
-                  <StatusBadge tone={n.slippedDays > 0 ? "warning" : "neutral"}>
+                  <Tag tone={n.slippedDays > 0 ? "warning" : "neutral"}>
                     {n.slippedDays > 0
                       ? DELIVERY_TEXT.milestoneSlippedLate(n.slippedDays)
                       : DELIVERY_TEXT.milestoneSlippedEarly(-n.slippedDays)}
-                  </StatusBadge>
+                  </Tag>
                 ) : null}
               </span>
               {/* DONE IS NOT ACCEPTED, which is the whole reason these are two

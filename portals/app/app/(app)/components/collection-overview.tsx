@@ -30,9 +30,18 @@ export function CollectionOverview({ stats }: { readonly stats: CollectionStats 
 
   const money = (n: number) => n.toLocaleString();
 
+  /* THE LABEL IS COMPOSED, not looked up (incr/0042). The bands used to be
+     five literals with five translations beside them; a workspace ageing at
+     45/90 has bands no dictionary written in advance has a sentence for, so
+     the band carries its bounds and the copy is a function of them. */
   const ageing = stats.ageing.map((b) => ({
     key: b.key,
-    label: DELIVERY_TEXT.ageingBand[b.key] ?? b.key,
+    label:
+      b.band.kind === "late"
+        ? b.band.to === null
+          ? DELIVERY_TEXT.ageingOver(b.band.from - 1)
+          : DELIVERY_TEXT.ageingBetween(b.band.from, b.band.to)
+        : DELIVERY_TEXT.ageingBand[b.band.kind],
     value: b.amount,
   }));
   // Top eight and no more: a bar per project reads as a chart at eight and as

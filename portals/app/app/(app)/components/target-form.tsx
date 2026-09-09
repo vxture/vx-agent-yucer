@@ -11,7 +11,13 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import {
+  AssistPanel,
+  FormFields,
+  FormPage,
+  useFormSubmit,
+  type AssistSuggestion,
+} from "./form-page";
 import { unsetWorkspaceMetrics, untargetedTerritories } from "../../domains/planning/lib/suggest";
 import { unitOf, type TargetMetric, type TargetScopeType } from "../../domains/planning/lib/target";
 
@@ -109,7 +115,8 @@ export function TargetForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="target">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{PLANNING_TEXT.setScope}</FieldLabel>
               <NativeSelect
@@ -157,6 +164,7 @@ export function TargetForm({
                 onChange={(e) => setAmount(e.target.value)}
               />
             </Field>
+            </FormFields>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}

@@ -5,14 +5,26 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
+  Input,
+  NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
+import { formatMoney } from "../lib/view-model";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { formatMoney } from "../lib/view-model";
-import { ACTION_COLUMN, EDGE_COLUMNS, MoneyCell, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  FilterSlot,
+  RowActions,
+  rowClickSelection,
+  SearchSlot,
+  useTableSort,
+} from "./table-fittings";
 
 // 续约清单 - the catalogue module's pattern, applied to renewals.
 //
@@ -52,16 +64,50 @@ export interface RenewalRosterProps {
   }) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  project: (r: RenewalRow) => r.projectName,
+  amount: (r: RenewalRow) => r.amount,
+};
+
 export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
-  const { DATA_TABLE_LABELS, RENEWAL_TEXT, RENEWAL_ERROR } = useMessages();
+  const { DATA_TABLE_LABELS, RENEWAL_TEXT, RENEWAL_ERROR, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One state
   // across both tables: the keys are project ids.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<RenewalRow>([], SORT_ON);
   const { toast } = useToast();
 
-  const due = rows.filter((r) => r.notDueReason === null);
-  const notDue = rows.filter((r) => r.notDueReason !== null);
+  /* 工具行. Searches the project's name and number - the only free-text
+     fields the row shows. The 风险 filter is the second axis because 续约风险
+     is the reason this page exists: "which of these is likely to churn" is
+     the question, and it is the only closed-set column on the table. */
+  const [query, setQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState("");
+  const match = (r: RenewalRow) => {
+    const q = query.trim().toLowerCase();
+    const hit =
+      q === "" ||
+      r.projectName.toLowerCase().includes(q) ||
+      r.projectNo.toLowerCase().includes(q);
+    /* "无评级" is a real answer, not an absent one: a renewal nobody has
+       assessed is exactly what somebody auditing coverage wants to list. */
+    const risk =
+      riskFilter === "" ||
+      (riskFilter === "__none__" ? r.risk === null : r.risk === riskFilter);
+    return hit && risk;
+  };
+  const narrowed = query.trim() !== "" || riskFilter !== "";
+
+  const dueTotal = rows.filter((r) => r.notDueReason === null).length;
+  const notDueTotal = rows.filter((r) => r.notDueReason !== null).length;
+
+  const shown = rows.filter(match);
+  const due = shown.filter((r) => r.notDueReason === null);
+  const notDue = shown.filter((r) => r.notDueReason !== null);
 
   const run = (p: Promise<{ ok: boolean; error?: string }>) =>
     startTransition(() => {
@@ -77,22 +123,20 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const columns = [
     {
       id: "project",
+  sortable: true,
       header: RENEWAL_TEXT.colProject,
       cell: (r: RenewalRow) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副编号保持小字 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">
-            {r.projectName}
-          </span>
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.projectNo}</span>
-        </span>
+        <TableTitleCell
+          title={r.projectName}
+          description={r.projectNo}
+          tooltip={r.projectName}
+        />
       ),
     },
     {
       id: "ends",
       header: RENEWAL_TEXT.colEnds,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: RenewalRow) =>
         r.daysToEnd === null ? (
           <span className="text-muted-foreground text-body-sm">{RENEWAL_TEXT.noEndDate}</span>
@@ -119,16 +163,15 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
       header: RENEWAL_TEXT.colAmount,
       width: "sm" as const,
       // 资金列：右对齐 + 右侧留白 (owner, 2026-09-06). 7rem column leaves an
-      // 80px content box; the amounts measure 57px, so half the 23px of slack
-      // puts the widest of them where a centred block would sit.
-      align: "right" as const,
+      // 金额列走 DS 的 numeric 档（design-ui 8.0.0）。手量出来的那个 0.7rem 右
+      // 内边距不再需要——DS 自己给一档，整列宽度一致由表格布局保证。
       // WHAT LAST TERM WAS WORTH, carried forward unchanged. What the next one
       // is worth is a negotiation, and seeding it with an invented uplift puts
       // a number nobody chose in front of a customer.
+      sortable: true,
+      align: "money" as const,
       cell: (r: RenewalRow) => (
-        <MoneyCell pad="0.7rem">
-          <span className="text-foreground text-body-sm">{formatMoney(r.amount, r.currency)}</span>
-        </MoneyCell>
+        <span className="text-foreground text-body-sm">{formatMoney(r.amount, r.currency)}</span>
       ),
     },
   ];
@@ -150,7 +193,6 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const analysisColumn = {
     id: "analysis",
     header: RENEWAL_TEXT.colAnalysis,
-    align: "center" as const,
     // COLOUR, NOT A BADGE - the same call the lapsed cell makes. 交付有隐忧
     // inside badge chrome measures about 94px against the 56px content box
     // this table can spare; the wording and the colour are what carry the
@@ -177,7 +219,6 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
   const verdictColumn = {
     id: "verdict",
     header: RENEWAL_TEXT.colVerdict,
-    align: "center" as const,
     cell: (r: RenewalRow) =>
       r.notDueReason ? (
         <span className="text-muted-foreground text-body-sm">
@@ -298,7 +339,9 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
           selectedKeys={selected}
           onSelectionChange={setSelected}
           rowKey={(r: RenewalRow) => r.projectId}
-          rows={[...list]}
+          rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
           columns={due ? [...columns, analysisColumn] : [...columns, verdictColumn]}
           rowActions={rowActions}
           empty={empty}
@@ -315,9 +358,60 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
         title={RENEWAL_TEXT.rosterDue}
         description={RENEWAL_TEXT.rosterDueWhy}
       >
+        {/* One tool row for both tables; the 未到期 list below says on its own
+            heading that this control is narrowing it. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(due.length, dueTotal)
+              : RENEWAL_TEXT.rowCount(due.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={RENEWAL_TEXT.searchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setRiskFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={riskFilter}
+              aria-label={RENEWAL_TEXT.filterAllRisk}
+              onChange={(e) => setRiskFilter(e.target.value)}
+            >
+              <option value="">{RENEWAL_TEXT.filterAllRisk}</option>
+              <option value="low">{RENEWAL_TEXT.riskLow}</option>
+              <option value="watch">{RENEWAL_TEXT.riskWatch}</option>
+              <option value="__none__">{RENEWAL_TEXT.riskNone}</option>
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(
           due,
-          <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />,
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />
+          ),
           true,
         )}
         {!canOpen ? (
@@ -325,16 +419,30 @@ export function RenewalRoster({ rows, canOpen, onOpen }: RenewalRosterProps) {
         ) : null}
       </Section>
 
-      {notDue.length > 0 ? (
+      {/* Holds its place while narrowed rather than vanishing under a keyword
+          and taking its own explanation with it. */}
+      {notDue.length > 0 || (narrowed && notDueTotal > 0) ? (
         <Section
           id="renewal-not-due"
           icon="file-text"
           title={RENEWAL_TEXT.rosterNotDue}
           description={RENEWAL_TEXT.rosterNotDueWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{RENEWAL_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(
             notDue,
-            <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />,
+            narrowed ? (
+              <EmptyState
+                title={TABLE_TOOLBAR_TEXT.noMatch}
+                description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+              />
+            ) : (
+              <EmptyState title={RENEWAL_TEXT.none} description={RENEWAL_TEXT.noneWhy} />
+            ),
             false,
           )}
         </Section>

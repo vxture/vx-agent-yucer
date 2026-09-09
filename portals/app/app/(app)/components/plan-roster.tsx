@@ -6,13 +6,19 @@ import {
   DataTable,
   EmptyState,
   Section,
-  StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import { nextPlanStatuses, type PlanStatus } from "../../domains/strategy/lib/lifecycle";
 import { moduleIcon } from "../lib/navigation";
 import { useMessages } from "../lib/i18n/provider";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  RowActions,
+  useTableSort,
+} from "./table-fittings";
+import { Tag } from "./tag";
 
 // 战略计划清单 - the catalogue module's pattern, applied to plans on the
 // owner's 2026-09-05 ruling. It replaces strategy-table.tsx, which was the
@@ -52,6 +58,12 @@ export interface PlanRosterProps {
   readonly onMove: (id: string, to: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: PlanRow) => r.name,
+};
+
 export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProps) {
   const { STRATEGY_TEXT, PLAN_ERROR, PLAN_STATUS_LABEL, CATALOG_TEXT, DATA_TABLE_LABELS } =
     useMessages();
@@ -59,6 +71,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
   // state across both rosters: the keys are plan ids.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<PlanRow>([], SORT_ON);
   const { toast } = useToast();
 
   const live = rows.filter((r) => r.status !== "closed" && r.status !== "archived");
@@ -75,19 +88,16 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: STRATEGY_TEXT.columnName,
       cell: (r: PlanRow) => (
-        <span className="flex min-w-0 flex-col">
-          <span className="text-foreground truncate">{r.name}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.planNo}</span>
-        </span>
+        <TableTitleCell title={r.name} description={r.planNo} tooltip={r.name} />
       ),
     },
     {
       id: "period",
       header: STRATEGY_TEXT.columnPeriod,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: PlanRow) => (
         <span className="text-muted-foreground tabular-nums text-body-sm">{r.period}</span>
       ),
@@ -107,7 +117,6 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
       id: "campaigns",
       header: STRATEGY_TEXT.columnCampaigns,
       width: "sm" as const,
-      align: "center" as const,
       // THE PAGE'S CLAIM, MADE CHECKABLE - and three states, not two.
       // Undefined means the reader holds no campaign.view and the cell says
       // nothing; zero means the plan exists and nobody acted on it, which is
@@ -129,11 +138,10 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
       id: "status",
       header: CATALOG_TEXT.colStatus,
       width: "sm" as const,
-      align: "center" as const,
       cell: (r: PlanRow) => (
-        <StatusBadge tone={r.status === "active" ? "success" : "neutral"}>
+        <Tag tone={r.status === "active" ? "success" : "neutral"}>
           {PLAN_STATUS_LABEL[r.status] ?? r.status}
-        </StatusBadge>
+        </Tag>
       ),
     },
   ];
@@ -198,7 +206,9 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: PlanRow) => r.id}
-        rows={[...list]}
+        rows={[...sorted.sortRows(list)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={columns}
         rowActions={rowActions}
         empty={

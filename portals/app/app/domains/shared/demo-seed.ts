@@ -49,10 +49,15 @@ import {
   DEMO_UNMATCHED_COMPANY,
   DEMO_WAIVE_REASON,
   DEMO_SEGMENTS,
+  DEMO_TERRITORY_NAMES,
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
+import { buildNationalCohort } from "./demo-national";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
+import { DEFAULT_WIN_LOSS_REASONS } from "../pipeline/lib/win-loss-vocab";
+import { DEFAULT_INDUSTRIES } from "../account/lib/industry-vocab";
+import { DEFAULT_UNIT_VOCABULARY } from "../catalog/lib/unit-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
   CommitmentRecord,
@@ -105,6 +110,8 @@ export const DEMO_NOW = new Date();
 const NOW = DEMO_NOW;
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
 const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+/** Signed offset: the cohort carries one number per date, negative for the past. */
+const offsetDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
 const CNY = "CNY";
 const REP1 = "usr_demo_rep";
@@ -112,6 +119,27 @@ const REP2 = "usr_demo_rep2";
 const PM = "usr_demo_pm";
 export const DEMO_PERIOD = "2026Q3";
 const PERIOD = DEMO_PERIOD;
+
+/* 全国样本 (owner, 2026-09-07: go B). An ADDITIVE population under its own
+   `acc_nat_*` prefix, built once at module load so every seeding of this
+   workspace produces identical rows.
+
+   It exists because a province-level map is unreadable at n=9: nine accounts
+   colour nine provinces and leave twenty-five blank, and blank reads as "no
+   business here" rather than "no data here". It is kept SEPARATE from the nine
+   curated accounts because those were each chosen to demonstrate one rule, and
+   demo-seed.test.ts asserts on them by ordering - burying them under ninety
+   generated rows would make the sickest account and the oldest proposal
+   generated ones, and the fixture would stop teaching what it was built for.
+   The rule assertions scope themselves to `acc_demo_` for exactly that reason. */
+const DAYS_INTO_QUARTER = Math.max(
+  4,
+  Math.round(
+    (NOW.getTime() - new Date(NOW.getFullYear(), Math.floor(NOW.getMonth() / 3) * 3, 1).getTime())
+      / 86_400_000,
+  ),
+);
+const NATIONAL = buildNationalCohort([REP1, REP2, PM], DAYS_INTO_QUARTER);
 
 /**
  * The quarter before, and the reason it exists: SOMETHING HAS TO BE OVER.
@@ -289,14 +317,20 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
 function seedPlanning(workspaceId: string, stores: DemoStores): void {
   stores.planning.seed({
     territories: [
-      territory("terr_east", workspaceId, "EAST", "East China", REP1, DEMO_TERRITORY_REGIONS.EAST),
-      territory("terr_north", workspaceId, "NORTH", "North China", REP2, DEMO_TERRITORY_REGIONS.NORTH),
-      territory("terr_south", workspaceId, "SOUTH", "South China", REP2, DEMO_TERRITORY_REGIONS.SOUTH),
-      // Single-region, deliberately - see 港澳零售集团. The other three each
-      // cover two regions, so region derivation there always finds more than
-      // one candidate and always declines to guess; this is the only ground in
-      // the demo where a deal's territory names exactly one region.
-      territory("terr_hk", workspaceId, "HK", "Hong Kong & Macau", REP1, DEMO_TERRITORY_REGIONS.HK),
+      // NAMED IN THE PRODUCT'S OWN LANGUAGE, like every other demo row - the
+      // routing basis quotes a territory's name inside its sentence, so an
+      // English one wedged an English noun into a Chinese sentence. The names
+      // live in demo-fixtures because Chinese string literals may not appear in
+      // this file (TD-002). The CODE stays ASCII: it is an identifier.
+      territory("terr_east", workspaceId, "EAST", DEMO_TERRITORY_NAMES.EAST, REP1, DEMO_TERRITORY_REGIONS.EAST),
+      territory("terr_north", workspaceId, "NORTH", DEMO_TERRITORY_NAMES.NORTH, REP2, DEMO_TERRITORY_REGIONS.NORTH),
+      territory("terr_south", workspaceId, "SOUTH", DEMO_TERRITORY_NAMES.SOUTH, REP2, DEMO_TERRITORY_REGIONS.SOUTH),
+      // Single-region, deliberately - see 港澳零售集团. 直销二部 and 渠道部 each
+      // cover two, so region derivation from them finds more than one candidate
+      // and declines to guess; this is the only ground in the demo where a
+      // deal's territory names exactly one region. It is also the only child
+      // team, which is what puts anything in the 上级区域 column.
+      territory("terr_hk", workspaceId, "HK", DEMO_TERRITORY_NAMES.HK, REP1, DEMO_TERRITORY_REGIONS.HK, "terr_south"),
     ],
     targets: [
       target("tgt_ws", workspaceId, "workspace", null, null, 12_000_000, "committed"),
@@ -354,6 +388,17 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         status: "active",
       },
     ],
+    /* 行业 (0040) - the shipped thirteen, seeded here rather than through the
+       service's first-contact path for the reason the reasons above are: the
+       accounts below name their industry, and a customer filed under a row
+       that does not exist is the state this vocabulary replaced. */
+    industries: DEFAULT_INDUSTRIES.map((d, i) => ({
+      id: industryId(d.industryCode),
+      workspaceId,
+      industryCode: d.industryCode,
+      name: d.name,
+      sortOrder: i + 1,
+    })),
     accounts: [
       // The group parent, and the one account whose identity IS fully on file -
       // credit code, site, headcount. Everything downstream that asks "do we
@@ -395,6 +440,15 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
       // half has a clean case to show rather than one tangled up with the
       // industry gap acc_demo_8 also carries.
       account("acc_demo_9", workspaceId, 9, DEMO_ACCOUNTS[8], "MIDMARKET", REP1, 70, "active"),
+      // 全国样本 - see NATIONAL above. Appended, never interleaved: the nine
+      // rows over this line are the ones every rule case points at.
+      ...NATIONAL.accounts.map((na) =>
+        account(
+          na.id, workspaceId, na.n,
+          { name: na.name, industry: na.industry, region: na.region, province: na.province },
+          na.segmentCode, na.ownerSub, na.healthScore, na.status, na.tier,
+        ),
+      ),
     ],
     contacts: [
       contact("ct_1", workspaceId, "acc_demo_1", DEMO_CONTACTS[0], {
@@ -755,6 +809,14 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       signal("sig_demo_6", workspaceId, "crm", "crm-3312", "tech_change", DEMO_SIGNALS[5], "acc_demo_2", 58, "scored", 18),
       signal("sig_demo_7", workspaceId, "web", "https://tender.example/7781", "intent", DEMO_SIGNALS[6], "acc_demo_4", 83, "promoted", 22),
       signal("sig_demo_8", workspaceId, "news", "https://news.example/conf/551", "engagement", DEMO_SIGNALS[7], null, 33, "duplicate", 60),
+      // 全国样本. Seeded ONLY for cohort leads that actually converted - a
+      // converted lead whose signal does not exist is the incoherent row the
+      // seed's own invariant test refuses, and the attribution key is frozen
+      // after creation, so it has to be right here rather than repaired later.
+      ...NATIONAL.signals.map((ns) =>
+        signal(ns.id, workspaceId, "cohort", null, ns.signalType, ns.subject,
+               ns.accountId, ns.score, "converted", ns.agedDays, "named_account"),
+      ),
     ],
     leads: [
       lead("lead_demo_1", workspaceId, 1, DEMO_ACCOUNTS[0].name, "acc_demo_1", "sig_demo_1", "camp_demo_1", 88, REP1, "converted", "opp_demo_1"),
@@ -764,6 +826,20 @@ function seedSignals(workspaceId: string, stores: DemoStores): void {
       lead("lead_demo_3", workspaceId, 3, DEMO_ACCOUNTS[4].name, "acc_demo_5", "sig_demo_5", "camp_demo_3", 79, REP1, "converted", "opp_demo_10"),
       lead("lead_demo_4", workspaceId, 4, DEMO_ACCOUNTS[3].name, "acc_demo_4", "sig_demo_7", null, 83, REP2, "qualified", null),
       lead("lead_demo_5", workspaceId, 5, DEMO_ACCOUNTS[2].name, "acc_demo_3", "sig_demo_3", null, 26, REP1, "working", null),
+      // UNOWNED, AND THAT IS THE POINT. Every lead in this fixture had an owner,
+      // so the rule added on 2026-09-06 - a lead nobody owns cannot be
+      // qualified - could not be seen anywhere in the demo, and neither could
+      // the 无人认领 badge or the reason 线索分派 exists. This one arrives with
+      // nobody on it, which is how a lead actually arrives.
+      lead("lead_demo_6", workspaceId, 6, DEMO_ACCOUNTS[5].name, "acc_demo_6", null, null, 64, null, "new", null),
+      // 全国样本, and MATCHED TO AN ACCOUNT every time. A lead reaches a
+      // province only through its account, so unmatched ones - the common real
+      // state, which the six curated rows above already cover - are invisible
+      // to the national screen. These give 线索供给 something to rank.
+      ...NATIONAL.leads.map((nl) =>
+        lead(nl.id, workspaceId, nl.n, nl.companyName, nl.accountId, nl.signalId, null,
+             nl.score, nl.ownerSub, nl.status, nl.convertedOpportunityId, nl.agedDays),
+      ),
     ],
   });
 }
@@ -844,6 +920,17 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
       // in months. Two caps on one row, which is also the only demo case that
       // renders more than one reason in the basis column.
       opp("opp_demo_15", workspaceId, 15, DEMO_OPPORTUNITIES[14], "acc_demo_6", null, "terr_east", REP2, "propose", "commit", 670_000, 85, daysAgo(9), null, "open"),
+      // 全国样本 - appended after every curated deal, so the ordering the rule
+      // tests assert on ("oldest first") is decided by the rows above.
+      ...NATIONAL.opportunities.map((no) =>
+        opp(
+          no.id, workspaceId, no.n, no.name, no.accountId, null, null, no.ownerSub,
+          no.stage, no.forecastCategory, no.amount, no.probability,
+          no.status === "open" ? daysAhead(no.closeInDays) : null,
+          no.status === "open" ? null : daysAgo(-no.closeInDays),
+          no.status,
+        ),
+      ),
     ],
     {
       // A stage never jumps: every event names the stage it came from, and the
@@ -859,6 +946,19 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
         // however long after the anchor the page is opened.
         ...stageHistory("opp_demo_15", ["qualify", "discover", "validate", "propose"], REP2, 200, 75),
       ],
+      /* 赢丢原因 (0039) - the demo seeds the shipped six itself rather than
+         leaning on the service's first-contact path, because the reviews below
+         point at two of them by id and a review whose reason does not resolve
+         is exactly the broken state this vocabulary replaced. */
+      reasons: DEFAULT_WIN_LOSS_REASONS.map((d, i) => ({
+        id: `wlx_demo_${i + 1}`,
+        workspaceId,
+        reasonCode: d.reasonCode,
+        name: d.name,
+        forWon: d.forWon,
+        forLost: d.forLost,
+        sortOrder: i + 1,
+      })),
       // Two of the four closed deals are reviewed; the other two are the debt
       // the pipeline page renders.
       reviews: [
@@ -867,7 +967,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           workspaceId,
           opportunityId: "opp_demo_5",
           outcome: "lost",
-          primaryReason: "fit",
+          primaryReasonId: "wlx_demo_2",
           competitor: null,
           lessons: DEMO_LESSONS[1],
           reviewerSub: "usr_demo_leader",
@@ -878,7 +978,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           workspaceId,
           opportunityId: "opp_demo_8",
           outcome: "won",
-          primaryReason: "fit",
+          primaryReasonId: "wlx_demo_2",
           competitor: null,
           lessons: DEMO_LESSONS[0],
           reviewerSub: "usr_demo_leader",
@@ -985,6 +1085,13 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // other measure, and proposed a second time only if 0019's link is
       // missing, which is exactly the defect that increment exists to close.
       project("prj_demo_6", workspaceId, 6, DEMO_PROJECTS[5], null, "acc_demo_7", 880_000, "green", "on_hold", "subscription", daysAhead(21)),
+      // 全国样本 - a won deal becomes delivery, which is the funnel the screen
+      // draws. Without these the map's 在交付 and 回款 stages would be the
+      // curated six projects nationwide.
+      ...NATIONAL.projects.map((np) =>
+        project(np.id, workspaceId, np.n, np.name, np.opportunityId, np.accountId,
+                np.contract, np.health, np.status),
+      ),
     ],
     milestones: [
       // Done AND signed off: the invoice behind inst_1 had something to stand
@@ -1019,6 +1126,14 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // payment falls due at final acceptance" is the gate it was always
       // implicitly waiting on.
       milestone("ms_8", workspaceId, "prj_demo_3", DEMO_MILESTONES[3], 2, "pending", daysAhead(85), null),
+      // 全国样本. Every cohort instalment needs a gate to stand on - incr/0032
+      // makes milestone_id NOT NULL, because there is no such thing here as
+      // money with no gate.
+      ...NATIONAL.milestones.map((nm) =>
+        milestone(nm.id, workspaceId, nm.projectId, nm.name, nm.sequence, nm.status,
+                  offsetDays(nm.dueInDays),
+                  nm.doneInDays === null ? null : offsetDays(nm.doneInDays)),
+      ),
     ],
     instalments: [
       instalment("inst_1", workspaceId, "prj_demo_1", "ms_1", 1, "settled", 380_000, 380_000, daysAgo(25), daysAgo(24)),
@@ -1030,6 +1145,14 @@ function seedDelivery(workspaceId: string, stores: DemoStores): void {
       // Collected short of plan: the planned-versus-actual gap this domain
       // exists to produce is only visible if one instalment actually has one.
       instalment("inst_7", workspaceId, "prj_demo_4", "ms_7", 1, "settled", 300_000, 290_000, daysAgo(50), daysAgo(49)),
+      // 全国样本. 回款兑现 reads instalments, never contracts, so without these
+      // the panel reported nothing collected against tens of millions signed -
+      // two figures about the same money that could not both be right.
+      ...NATIONAL.instalments.map((ni) =>
+        instalment(ni.id, workspaceId, ni.projectId, ni.milestoneId, ni.sequence, ni.status,
+                   ni.planned, ni.actual, offsetDays(ni.dueInDays),
+                   ni.settledInDays === null ? null : offsetDays(ni.settledInDays)),
+      ),
     ],
   });
 }
@@ -1045,6 +1168,14 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
     // demo shows the outcome the spec asks for - a recommendation nobody
     // decided becomes visibly `expired` rather than quietly staying live.
     proposal("act_demo_6", "proposed", "draft_outreach", "account", "acc_demo_3", { channel: "call" }, DEMO_RATIONALES[1], 44, null, 9),
+    // 全国样本. The curated six all sit in one province, so the screen's
+    // adoption rate was a reading of one city presented as a national figure.
+    ...NATIONAL.proposals.map((np) =>
+      proposal(np.id, np.status, np.actionType, np.subjectType, np.subjectId,
+               np.actionType === "advance_stage" ? { to: "propose" } : { channel: "email" },
+               DEMO_RATIONALES[np.confidence % DEMO_RATIONALES.length]!,
+               np.confidence, np.decidedBySub, np.agedDays),
+    ),
   ]);
 
   stores.copilot.seedPlaybooks(
@@ -1119,8 +1250,13 @@ function territory(
   name: string,
   ownerSub: string,
   regions: readonly string[],
+  /* THE HIERARCHY, which the demo did not have. parentId was hard-coded null
+     here, so the roster's 上级区域 column had been empty since the day it was
+     built - a column that is always blank teaches a reader that the product
+     does not do that. 港澳组 sits under 渠道部. */
+  parentId: string | null = null,
 ) {
-  return { id, workspaceId, territoryCode: code, name, parentId: null, ownerSub, regions, status: "active" };
+  return { id, workspaceId, territoryCode: code, name, parentId, ownerSub, regions, status: "active" };
 }
 
 function target(
@@ -1146,11 +1282,22 @@ function target(
   };
 }
 
+/** The demo's id for one industry row - stable, so accounts can point at it. */
+const industryId = (code: string) => `ind_demo_${code}`;
+
+/* name -> id, over the shipped thirteen. The demo's accounts carry an industry
+   NAME because that is what a person reading the fixture recognises; the store
+   carries the join, so the fixture resolves one to the other here rather than
+   letting the two drift. */
+const INDUSTRY_ID_BY_NAME = new Map(
+  DEFAULT_INDUSTRIES.map((d) => [d.name, industryId(d.industryCode)]),
+);
+
 function account(
   id: string,
   workspaceId: string,
   n: number,
-  info: { name: string; industry: string; region: string },
+  info: { name: string; industry: string; region: string; province?: string },
   segmentCode: string,
   ownerSub: string,
   healthScore: number | null,
@@ -1177,10 +1324,16 @@ function account(
     // for the first-entry account because the type is a plain string; the
     // column and every rule downstream treat a blank as unknown.
     industry: info.industry || null,
+    /* An industry the shipped list does not have would be a customer filed
+       nowhere, so the fixture refuses it rather than writing a dangling id -
+       the same refusal fillAccountField makes at runtime. */
+    industryId: info.industry ? INDUSTRY_ID_BY_NAME.get(info.industry) ?? null : null,
     // Same reasoning as industry, and needed for the same reason: 港澳零售集团
     // writes "" for the region-derivable case, and the column and every rule
     // downstream treat a blank as unknown, not as an account with no region.
     region: info.region || null,
+    // incr/0035. Same blank-is-absent reading as the two above.
+    province: info.province || null,
     creditCode: identity.creditCode ?? null,
     website: identity.website ?? null,
     employeeCount: identity.employeeCount ?? null,
@@ -1274,11 +1427,16 @@ function lead(
   signalId: string | null,
   campaignId: string | null,
   score: number,
-  ownerSub: string,
+  /** Null is a real state, not a gap: 线索分派 exists because leads arrive
+   * with nobody on them, and an unowned lead cannot be qualified. */
+  ownerSub: string | null,
   status: string,
   convertedOpportunityId: string | null,
+  /** How long ago it arrived. 本期新增 counts these, so they have to be real. */
+  agedDays = 9,
 ) {
   return {
+    createdAt: daysAgo(agedDays),
     id,
     workspaceId,
     leadNo: `LEAD-${String(n).padStart(5, "0")}`,
@@ -1301,9 +1459,12 @@ function lead(
  * the same names is a second list to forget. The ids are assigned in fixture
  * order by seedAccounts, and demo-seed.test.ts holds that correspondence.
  */
-const DEMO_ACCOUNT_NAME_BY_ID: Record<string, string> = Object.fromEntries(
-  DEMO_ACCOUNTS.map((a, i) => [`acc_demo_${i + 1}`, a.name]),
-);
+const DEMO_ACCOUNT_NAME_BY_ID: Record<string, string> = Object.fromEntries([
+  ...DEMO_ACCOUNTS.map((a, i) => [`acc_demo_${i + 1}`, a.name] as const),
+  // The cohort too, for the reason the comment on `accountName` in opp() gives:
+  // a missing entry prints the raw id in the customer column.
+  ...NATIONAL.accounts.map((a) => [a.id, a.name] as const),
+]);
 
 function opp(
   id: string,
@@ -1330,6 +1491,12 @@ function opp(
   sourceProjectId: string | null = null,
 ) {
   return {
+    // 客户需求 (incr/0034). DERIVED FROM THE DEAL'S OWN NAME here, and only
+    // here: every demo deal is named after what it is for ("POS 系统替换"),
+    // so the fixture can say something true without inventing a second
+    // sentence per row. Real deals type their own - the form and the
+    // conversion dialog both ask, and neither defaults.
+    requirement: name,
     id,
     workspaceId,
     sourceProjectId,
@@ -1531,6 +1698,19 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }));
   const statusIdOf = new Map(statuses.map((r) => [r.statusCode, r.id]));
 
+  /* 计价单位 (incr/0037), the shipped list - and the demo's products name their
+     unit by CODE in the fixtures, resolved to a uuid here exactly as the type
+     and status are. The fixtures said "套" and "人月" when the column was free
+     text; those are NAMES, and the vocabulary's own codes are set / month. */
+  const units = DEFAULT_UNIT_VOCABULARY.map((d, i) => ({
+    id: `pun_demo_${i + 1}`,
+    workspaceId,
+    unitCode: d.unitCode,
+    name: d.name,
+    sortOrder: i + 1,
+  }));
+  const unitIdOf = new Map(units.map((u) => [u.unitCode, u.id]));
+
   const products = [
     ...DEMO_PRODUCTS.map((p, i) => ({
       id: `prd_demo_${i + 1}`,
@@ -1538,7 +1718,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       productCode: p.code,
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
-      unit: p.unit,
+      unitId: unitIdOf.get(p.unit)!,
       statusId: statusIdOf.get("active")!,
       sortOrder: i + 1,
     })),
@@ -1550,7 +1730,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       productCode: p.code,
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
-      unit: p.unit,
+      unitId: unitIdOf.get(p.unit)!,
       statusId: statusIdOf.get("in_development")!,
       sortOrder: DEMO_PRODUCTS.length + i + 1,
     })),
@@ -1562,7 +1742,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
       productCode: p.code,
       name: p.name,
       typeId: typeIdOf.get(p.category) ?? null,
-      unit: p.unit,
+      unitId: unitIdOf.get(p.unit)!,
       statusId: statusIdOf.get("retired")!,
       sortOrder: DEMO_PRODUCTS.length + DEMO_DEV_PRODUCTS.length + i + 1,
     })),
@@ -1665,7 +1845,7 @@ function seedCatalog(workspaceId: string, stores: DemoStores): void {
     }),
   );
 
-  stores.catalog.seed({ products, types, statuses, solutions, items, prices, lines });
+  stores.catalog.seed({ products, types, units, statuses, solutions, items, prices, lines });
 }
 
 /** One point on the forecast trajectory. Workspace scope, CNY. */

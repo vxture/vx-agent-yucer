@@ -1,0 +1,341 @@
+import { strict as assert } from "node:assert";
+import { test } from "node:test";
+import { rollUpByProvince, totalOf, type DealLike, type ProjectLike } from "./rollup";
+import type { AccountRecord } from "../../domains/account/store";
+import { ALL_PROVINCES } from "../../domains/shared/provinces";
+
+// The screen's arithmetic. Everything it claims is a sum over three lists, and
+// the sums are the half that can be wrong without anybody noticing - a rendered
+// map looks equally convincing whether or not 合同额 is the value of the deals
+// under it.
+
+const NOW = new Date("2026-09-07T00:00:00Z");
+
+const account = (id: string, province: string | null): AccountRecord =>
+  ({
+    id, workspaceId: "ws", accountNo: id, name: id,
+    industry: null, region: null, province,
+    segmentCode: null, ownerSub: null, healthScore: null,
+    status: "active", tier: "standard",
+    creditCode: null, website: null, employeeCount: null, parentId: null,
+  }) as AccountRecord;
+
+const deal = (
+  id: string, accountId: string, status: string, amount: number,
+  extra: { probability?: number; stage?: string; closedAt?: Date; expectedCloseAt?: Date } = {},
+): DealLike => ({
+  id, accountId, status, amount: { amount },
+  probability: extra.probability ?? null,
+  stage: extra.stage ?? "qualify",
+  closedAt: extra.closedAt ?? null,
+  expectedCloseAt: extra.expectedCloseAt ?? null,
+});
+
+const project = (
+  id: string, accountId: string, status: string, health: string, contract: number,
+): ProjectLike => ({
+  id, accountId, opportunityId: null, status, health, contractAmount: { amount: contract },
+});
+
+test("every province appears, including the ones with nothing in them", () => {
+  // A province missing from the list is a hole in the map, and a hole reads as
+  // "no business" rather than "no data". The screen needs all 34 to draw.
+  const r = rollUpByProvince([account("a1", "江苏省")], [], []);
+  assert.equal(r.provinces.length, ALL_PROVINCES.length);
+  assert.equal(r.provinces.find((p) => p.province === "西藏自治区")?.accounts, 0);
+});
+
+test("the stages reconcile - 合同额 is the won subset, not a separate figure", () => {
+  const accounts = [account("a1", "江苏省"), account("a2", "江苏省")];
+  const deals = [
+    deal("d1", "a1", "won", 100),
+    deal("d2", "a1", "lost", 300),
+    deal("d3", "a2", "open", 50),
+    deal("d4", "a2", "open", 70),
+  ];
+  const js = rollUpByProvince(accounts, deals, []).provinces.find((p) => p.province === "江苏省")!;
+  assert.equal(js.accounts, 2);
+  assert.equal(js.wonDeals, 1);
+  assert.equal(js.contractValue, 100);
+  assert.equal(js.openDeals, 2);
+  assert.equal(js.pipelineValue, 120);
+  // won / (won + lost) - a lost deal is decided, an open one is not
+  assert.equal(js.winRate, 100 / 400);
+});
+
+test("在交付 counts only contracts still in flight", () => {
+  const accounts = [account("a1", "广东省")];
+  const projects = [
+    project("p1", "a1", "delivering", "green", 500),
+    project("p2", "a1", "delivered", "green", 900),
+    project("p3", "a1", "closed", "green", 700),
+  ];
+  const gd = rollUpByProvince(accounts, [], projects).provinces.find((p) => p.province === "广东省")!;
+  // The delivered and closed money has arrived; only p1 is still being worked.
+  assert.equal(gd.inDelivery, 500);
+});
+
+test("a province with nothing delivered has NO health rate, not a zero one", () => {
+  // Zero would rank a quiet province below one that is genuinely in trouble.
+  const r = rollUpByProvince([account("a1", "青海省")], [], []);
+  const qh = r.provinces.find((p) => p.province === "青海省")!;
+  assert.equal(qh.healthRate, null);
+  assert.equal(qh.winRate, null);
+});
+
+test("an account with no province is counted nationally and drawn nowhere", () => {
+  // The honest handling of a real state. Dropping it would make the national
+  // total disagree with the sum of the provinces and say nothing about why.
+  const r = rollUpByProvince(
+    [account("a1", "江苏省"), account("a2", null)],
+    [deal("d1", "a2", "won", 999)],
+    [],
+  );
+  assert.equal(r.unplacedAccounts, 1);
+  assert.equal(r.provinces.reduce((s, p) => s + p.accounts, 0), 1);
+  // and its deal is not smuggled into some other province
+  assert.equal(r.provinces.reduce((s, p) => s + p.contractValue, 0), 0);
+});
+
+test("a province name outside the vocabulary is a fault, not a new province", () => {
+  // The database's CHECK should have refused 江苏. If one ever arrives, the
+  // roll-up must not invent a 35th province for it.
+  const r = rollUpByProvince([account("a1", "江苏")], [], []);
+  assert.equal(r.provinces.length, ALL_PROVINCES.length);
+  assert.equal(r.unplacedAccounts, 1);
+});
+
+test("大区 totals are the sum of their provinces", () => {
+  const accounts = [account("a1", "江苏省"), account("a2", "浙江省"), account("a3", "广东省")];
+  const deals = [deal("d1", "a1", "won", 100), deal("d2", "a2", "won", 200), deal("d3", "a3", "won", 400)];
+  const r = rollUpByProvince(accounts, deals, [], {
+    provinceDivision: { 江苏省: "east", 浙江省: "east", 广东省: "south" },
+  });
+  // Grouped by the workspace's OWN divisions, passed in - there is no built-in
+  // grouping any more, which is the point of incr/0036.
+  const east = totalOf(r.byDivision.get("east")!);
+  assert.equal(east.contractValue, 300, "东部 is 江苏 + 浙江, not the country");
+  const nation = totalOf(r.provinces);
+  assert.equal(nation.contractValue, 700);
+});
+
+test("rates average over provinces that HAVE a reading", () => {
+  // Dividing by 34 would drag the national figure toward zero in proportion to
+  // how many provinces are quiet - which is not what a health rate means.
+  const accounts = [account("a1", "江苏省"), account("a2", "西藏自治区")];
+  const projects = [
+    project("p1", "a1", "delivering", "green", 10),
+    project("p2", "a1", "delivering", "red", 10),
+  ];
+  const t = totalOf(rollUpByProvince(accounts, [], projects).provinces);
+  assert.equal(t.healthRate, 0.5, "one province reads 50%; the other 33 have no reading");
+});
+
+// ---------------------------------------------------------------------------
+// The three lists the six panels added. Same rule throughout: a row that cannot
+// be attributed to a province is not guessed onto one.
+
+const lead = (
+  id: string, accountId: string | null, status: string, owner: string | null,
+  createdAt: Date = new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000),
+) => ({ id, accountId, status, ownerSub: owner, createdAt });
+
+
+const daysAgo = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+const proposal = (id: string, subjectType: string, subjectId: string, status: string, age: number) =>
+  ({ id, subjectType, subjectId, status, createdAt: daysAgo(age) });
+
+const inst = (
+  id: string, projectId: string, status: string, planned: number,
+  actual: number | null = null, dueAt: Date | null = null, settledAt: Date | null = null,
+) => ({ id, projectId, status, plannedAmount: planned, actualAmount: actual, dueAt, settledAt });
+
+test("线索供给 - a lead with no account is attributed nowhere", () => {
+  // The COMMON case, not an edge one: a lead becomes an account by being
+  // converted, so most live leads have no account and therefore no province.
+  const r = rollUpByProvince(
+    [account("a1", "江苏省")], [], [],
+    { leads: [lead("l1", "a1", "new", null), lead("l2", null, "new", null)] },
+  );
+  const js = r.provinces.find((p) => p.province === "江苏省")!;
+  assert.equal(js.leads, 1);
+  assert.equal(js.leadsUnclaimed, 1);
+  assert.equal(totalOf(r.provinces).leads, 1, "the unattached lead is in no province total");
+});
+
+test("线索供给 - 转商机率 is converted over all, and null when there are none", () => {
+  const r = rollUpByProvince(
+    [account("a1", "江苏省")], [], [],
+    { leads: [
+      lead("l1", "a1", "converted", "u1"), lead("l2", "a1", "converted", "u1"),
+      lead("l3", "a1", "working", "u1"), lead("l4", "a1", "disqualified", null),
+    ] },
+  );
+  const js = r.provinces.find((p) => p.province === "江苏省")!;
+  assert.equal(js.leadConversion, 0.5);
+  assert.equal(r.provinces.find((p) => p.province === "青海省")!.leadConversion, null);
+});
+
+test("智能副驾 - the 30-day window applies to the flow, never to the queue", () => {
+  // THE DEFECT THIS PINS. Deriving 待裁决 from the window made the backlog grow
+  // whenever the window widened, which is a queue that reports a flow.
+  const r = rollUpByProvince(
+    [account("a1", "江苏省")], [], [],
+    { now: NOW, proposals: [
+      proposal("p1", "account", "a1", "proposed", 3),
+      proposal("p2", "account", "a1", "proposed", 400),
+      proposal("p3", "account", "a1", "accepted", 3),
+    ] },
+  );
+  const js = r.provinces.find((p) => p.province === "江苏省")!;
+  assert.equal(js.pending, 2, "both proposed rows are sitting there now, whatever their age");
+  assert.equal(js.proposals30, 2, "only the two inside the window are flow");
+});
+
+test("智能副驾 - 采纳率 is accepted over proposed, matching the pair beneath it", () => {
+  const r = rollUpByProvince(
+    [account("a1", "江苏省")], [], [],
+    { now: NOW, proposals: [
+      proposal("p1", "account", "a1", "accepted", 1),
+      proposal("p2", "account", "a1", "executed", 1),
+      proposal("p3", "account", "a1", "rejected", 1),
+      proposal("p4", "account", "a1", "expired", 1),
+      proposal("p5", "account", "a1", "proposed", 1),
+    ] },
+  );
+  const js = r.provinces.find((p) => p.province === "江苏省")!;
+  assert.equal(js.accepted30, 2, "executed is the human having said yes");
+  assert.equal(js.proposals30, 5);
+  // 采纳率 is accepted over PROPOSED, which is the pair the panel spells out
+  // beneath it as "2 / 5 已采纳". A rate over decisions only would not match
+  // the two numbers printed next to it.
+  assert.equal(js.adoption, 2 / 5);
+});
+
+test("智能副驾 - a proposal reaches a province through its subject", () => {
+  const accounts = [account("a1", "广东省")];
+  const deals = [deal("d1", "a1", "open", 10)];
+  const projects = [project("pr1", "a1", "delivering", "green", 10)];
+  const r = rollUpByProvince(accounts, deals, projects, {
+    now: NOW,
+    proposals: [
+      proposal("x1", "opportunity", "d1", "proposed", 1),
+      proposal("x2", "project", "pr1", "proposed", 1),
+      proposal("x3", "campaign", "unknown-c", "proposed", 1),
+    ],
+  });
+  const gd = r.provinces.find((p) => p.province === "广东省")!;
+  assert.equal(gd.pending, 2, "the opportunity and the project both resolve to a1");
+  assert.equal(totalOf(r.provinces).pending, 2, "the campaign resolves to nothing and is not guessed");
+});
+
+test("回款兑现 - settled counts what arrived, live counts what was promised", () => {
+  const accounts = [account("a1", "广东省")];
+  const projects = [project("pr1", "a1", "delivering", "green", 1000)];
+  const r = rollUpByProvince(accounts, [], projects, {
+    instalments: [
+      inst("i1", "pr1", "settled", 300, 280),   // short payment is normal here
+      inst("i2", "pr1", "settled", 200, null),  // no actual recorded: fall back
+      inst("i3", "pr1", "overdue", 400),
+      inst("i4", "pr1", "planned", 100),
+      inst("i5", "pr1", "written_off", 900),    // in neither cut
+    ],
+  });
+  const gd = r.provinces.find((p) => p.province === "广东省")!;
+  assert.equal(gd.collected, 480, "280 that arrived plus 200 with nothing recorded");
+  assert.equal(gd.receivable, 500, "overdue and planned are still owed");
+  assert.equal(gd.overdue, 400);
+});
+
+test("a scope's rates are re-derived from its totals, not averaged over provinces", () => {
+  // AVERAGING RATES WEIGHTS 西藏 THE SAME AS 广东. 江苏 wins 900 of 1000 and
+  // 青海 wins 0 of 100: the true rate is 900/1100, not the mean of 90% and 0%.
+  const accounts = [account("a1", "江苏省"), account("a2", "青海省")];
+  const deals = [
+    deal("d1", "a1", "won", 900), deal("d2", "a1", "lost", 100),
+    deal("d3", "a2", "lost", 100),
+  ];
+  const t = totalOf(rollUpByProvince(accounts, deals, []).provinces);
+  assert.equal(t.winRate, 900 / 1100);
+  assert.notEqual(t.winRate, (0.9 + 0) / 2);
+});
+
+test("a province that has lost everything still counts in the national denominator", () => {
+  // Its own win rate is 0, and rebuilding the denominator by dividing by that
+  // rate would have silently dropped its losses out of the national figure.
+  const accounts = [account("a1", "江苏省"), account("a2", "青海省")];
+  const deals = [deal("d1", "a1", "won", 100), deal("d2", "a2", "lost", 300)];
+  const rows = rollUpByProvince(accounts, deals, []).provinces;
+  assert.equal(rows.find((p) => p.province === "青海省")!.winRate, 0);
+  assert.equal(totalOf(rows).winRate, 100 / 400);
+});
+
+// ---------------------------------------------------------------------------
+// 统计周期. Every dated row is placed by its OWN event date, and the filter is
+// applied once at the door so no stage can drift out of step with another.
+
+const PNOW = new Date(2026, 8, 7);
+const Q1 = { key: "q1" as const, label: "2026Q1", from: new Date(2026, 0, 1), to: new Date(2026, 3, 1) };
+const Q3 = { key: "q3" as const, label: "2026Q3", from: new Date(2026, 6, 1), to: new Date(2026, 9, 1) };
+const ALL = { key: "all" as const, label: "全部", from: null, to: null };
+
+test("统计周期 - a deal belongs to the quarter it closed in", () => {
+  const accounts = [account("a1", "江苏省")];
+  const deals = [
+    deal("d1", "a1", "won", 100, { closedAt: new Date(2026, 1, 10) }),  // Q1
+    deal("d2", "a1", "won", 900, { closedAt: new Date(2026, 7, 10) }),  // Q3
+  ];
+  const q1 = totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q1 }).provinces);
+  const q3 = totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q3 }).provinces);
+  const all = totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: ALL }).provinces);
+  assert.equal(q1.contractValue, 100);
+  assert.equal(q3.contractValue, 900);
+  assert.equal(all.contractValue, 1000, "全部 is the sum of the parts");
+});
+
+test("统计周期 - an OPEN deal is placed by when it is expected to close", () => {
+  // It has no close date, and dropping it from every named period would empty
+  // 商机储备 the moment anyone picked a quarter.
+  const accounts = [account("a1", "江苏省")];
+  const deals = [deal("d1", "a1", "open", 500, { expectedCloseAt: new Date(2026, 7, 20) })];
+  assert.equal(totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q3 }).provinces).pipelineValue, 500);
+  assert.equal(totalOf(rollUpByProvince(accounts, deals, [], { now: PNOW, period: Q1 }).provinces).pipelineValue, 0);
+});
+
+test("统计周期 - the stages still reconcile inside a quarter", () => {
+  /* THE POINT OF FILTERING ONCE AT THE DOOR. If any one list were filtered
+     somewhere else, a quarter could show contracts whose projects had been
+     excluded - a screen whose stages no longer add up, which is worse than a
+     screen showing nothing. */
+  const accounts = [account("a1", "江苏省")];
+  const deals = [
+    deal("d1", "a1", "won", 400, { closedAt: new Date(2026, 1, 5) }),
+    deal("d2", "a1", "won", 700, { closedAt: new Date(2026, 7, 5) }),
+  ];
+  const projects: ProjectLike[] = [
+    { id: "p1", accountId: "a1", opportunityId: "d1", status: "delivering", health: "green", contractAmount: { amount: 400 } },
+    { id: "p2", accountId: "a1", opportunityId: "d2", status: "delivering", health: "green", contractAmount: { amount: 700 } },
+  ];
+  const q1 = totalOf(rollUpByProvince(accounts, deals, projects, { now: PNOW, period: Q1 }).provinces);
+  assert.equal(q1.contractValue, 400);
+  assert.equal(q1.inDelivery, 400, "only the project of the deal that quarter counted");
+  assert.equal(q1.projectsLive, 1);
+});
+
+test("统计周期 - a lead is placed by when it arrived", () => {
+  const accounts = [account("a1", "江苏省")];
+  const leads = [
+    lead("l1", "a1", "new", null, new Date(2026, 1, 2)),
+    lead("l2", "a1", "new", null, new Date(2026, 7, 2)),
+  ];
+  assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: Q1, leads }).provinces).leads, 1);
+  assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: ALL, leads }).provinces).leads, 2);
+});
+
+test("统计周期 - accounts are NOT filtered, because they carry no date", () => {
+  // Said out loud rather than faked: AccountRecord has no created date, so
+  // 客户 is the workspace's customers and not a quarter's. Inventing a date to
+  // filter on would report a number nobody could reproduce.
+  const accounts = [account("a1", "江苏省"), account("a2", "广东省")];
+  assert.equal(totalOf(rollUpByProvince(accounts, [], [], { now: PNOW, period: Q1 }).provinces).accounts, 2);
+});

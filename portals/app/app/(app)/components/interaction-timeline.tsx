@@ -9,6 +9,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // What actually happened, newest first.
 //
@@ -85,9 +86,9 @@ export function InteractionTimeline({
       <ol>
         {shown.map((i) => (
           <li key={i.id}>
-            <StatusBadge tone="neutral">
+            <Tag>
               {CHANNEL_LABEL[i.channel] ?? i.channel}
-            </StatusBadge>
+            </Tag>
             <time dateTime={i.occurredAt.toISOString()}>
               {i.occurredAt.toISOString().slice(0, 16).replace("T", " ")}
             </time>

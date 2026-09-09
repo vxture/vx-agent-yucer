@@ -51,8 +51,10 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     workspaceId: WS,
     accountNo: "ACC-0001",
     name: "华东零售集团",
+    industryId: null,
     industry: "retail",
     region: "华东",
+    province: "上海市",
     segmentCode: null,
     ownerSub: ME,
     healthScore: 60,
@@ -103,6 +105,7 @@ function deal(id: string, accountId: string) {
   return {
     id,
     workspaceId: WS,
+    requirement: "POS replacement",
     opportunityNo: id.toUpperCase(),
     name: `Deal ${id}`,
     accountId,

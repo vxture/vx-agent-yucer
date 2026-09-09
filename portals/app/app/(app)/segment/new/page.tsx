@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -21,7 +22,7 @@ import { saveSegment } from "../../strategy/actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewSegmentPage() {
-  const { SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -49,6 +50,10 @@ export default async function NewSegmentPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.segment, href: "/segment" }]}
+        current={STRATEGY_TEXT.segmentFormTitle}
+      />
       <ViewHeader title={STRATEGY_TEXT.segmentFormTitle} description={STRATEGY_TEXT.segmentsWhy} />
       <SegmentForm
         rows={segments.ok ? segments.value : []}

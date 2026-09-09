@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ageingBand, collectionStats, type CollectionStatsRow } from "./collection-stats";
+import {
+  ageingBand,
+  ageingBands,
+  ageingKey,
+  collectionStats,
+  type CollectionStatsRow,
+} from "./collection-stats";
 
 const NOW = new Date("2026-09-06T00:00:00Z");
 
@@ -14,19 +20,36 @@ const row = (over: Partial<CollectionStatsRow> = {}): CollectionStatsRow => ({
   ...over,
 });
 
+const bandOf = (dueAt: string | null, cutoffs?: readonly number[]) =>
+  ageingKey(ageingBand(dueAt, NOW, cutoffs));
+
 test("the ageing bands are the calendar, not a status", () => {
-  assert.equal(ageingBand("2026-12-01", NOW), "not_due");
-  assert.equal(ageingBand("2026-09-06", NOW), "not_due", "due today is not yet late");
-  assert.equal(ageingBand("2026-09-05", NOW), "d1_30");
-  assert.equal(ageingBand("2026-08-07", NOW), "d1_30", "30 days is still the first band");
-  assert.equal(ageingBand("2026-08-06", NOW), "d31_60");
-  assert.equal(ageingBand("2026-07-08", NOW), "d31_60", "60 days is still the second band");
-  assert.equal(ageingBand("2026-07-07", NOW), "d60_plus");
+  assert.equal(bandOf("2026-12-01"), "not_due");
+  assert.equal(bandOf("2026-09-06"), "not_due", "due today is not yet late");
+  assert.equal(bandOf("2026-09-05"), "d1_30");
+  assert.equal(bandOf("2026-08-07"), "d1_30", "30 days is still the first band");
+  assert.equal(bandOf("2026-08-06"), "d31_60");
+  assert.equal(bandOf("2026-07-08"), "d31_60", "60 days is still the second band");
+  assert.equal(bandOf("2026-07-07"), "d61_plus");
+});
+
+test("the cutoffs are the workspace's, and the bands follow them", () => {
+  // incr/0042. The same row lands in a different band under a different
+  // policy, which is the whole point: 30/60 is one way to age a receivable and
+  // 45/90 is another, and neither is a fact about selling.
+  assert.equal(bandOf("2026-08-06", [45, 90]), "d1_45", "31 days late is inside a 45-day band");
+  assert.equal(bandOf("2026-07-07", [45, 90]), "d46_90");
+  assert.equal(bandOf("2026-05-01", [45, 90]), "d91_plus");
+  // One cutoff is a legal policy: late, and very late.
+  assert.deepEqual(
+    ageingBands([30]).map(ageingKey),
+    ["not_due", "d1_30", "d31_plus", "no_due_date"],
+  );
 });
 
 // Not measurable, rather than early.
 test("no due date is its own band", () => {
-  assert.equal(ageingBand(null, NOW), "no_due_date");
+  assert.equal(bandOf(null), "no_due_date");
   const s = collectionStats([row({ dueAt: null })], NOW);
   assert.deepEqual(
     s.ageing.map((b) => b.key),

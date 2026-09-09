@@ -39,8 +39,35 @@ export interface RoutingTerritory {
   status: string;
 }
 
+/**
+ * WHY THIS LEAD WENT WHERE IT WENT, as facts rather than as a sentence.
+ *
+ * `basis` USED TO BE AN ENGLISH STRING BUILT HERE, and it rendered verbatim
+ * into a Chinese page - "region 华中 is covered by East China". That is TD-010:
+ * a rule's message is written for the rule layer's own reader, and the
+ * interface's sentence lives in the message dictionary. So the rule now emits
+ * what it KNEW and the dictionary says it in the reader's language.
+ *
+ * `contenders` is the whole shape of the decision in one number: 1 means the
+ * ground has a single owner and load never ran, more than 1 means load broke
+ * the tie - which is exactly the difference the two sentences describe.
+ */
+export interface RoutingBasis {
+  readonly region: string;
+  readonly territoryName: string;
+  /** How many owned territories covered the region. 1 = load never ran. */
+  readonly contenders: number;
+  /** Open leads the winner was already carrying. */
+  readonly load: number;
+}
+
 export type RoutingOutcome =
-  | { readonly kind: "assigned"; readonly ownerSub: string; readonly territoryId: string; readonly basis: string }
+  | {
+      readonly kind: "assigned";
+      readonly ownerSub: string;
+      readonly territoryId: string;
+      readonly basis: RoutingBasis;
+    }
   | { readonly kind: "unroutable"; readonly reason: "no_region" | "no_territory" | "no_owner" };
 
 /** Territories that cover a region, retired ones excluded. */
@@ -89,7 +116,12 @@ export function routeLead(
       kind: "assigned",
       ownerSub: t.ownerSub!,
       territoryId: t.id,
-      basis: `region ${lead.region} is covered by ${t.name}`,
+      basis: {
+        region: lead.region,
+        territoryName: t.name,
+        contenders: 1,
+        load: openLeadsBySub.get(t.ownerSub!) ?? 0,
+      },
     };
   }
 
@@ -106,7 +138,12 @@ export function routeLead(
     kind: "assigned",
     ownerSub: winner.ownerSub!,
     territoryId: winner.id,
-    basis: `region ${lead.region} has ${owned.length} owners; ${winner.name} carries the fewest open leads (${openLeadsBySub.get(winner.ownerSub!) ?? 0})`,
+    basis: {
+      region: lead.region,
+      territoryName: winner.name,
+      contenders: owned.length,
+      load: openLeadsBySub.get(winner.ownerSub!) ?? 0,
+    },
   };
 }
 

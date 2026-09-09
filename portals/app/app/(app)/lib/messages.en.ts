@@ -64,6 +64,12 @@ export const en: Dictionary = {
 
   COMPLETENESS_ERROR: {
     ...GATE_ERROR,
+    province_unknown:
+      "The province must be one of the 34 provincial-level divisions - pick one from the list",
+    industry_unknown:
+      "Not one of this workspace's industries - add it under Industries first",
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
     not_found:
       "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field the copilot may fill.",
@@ -84,6 +90,7 @@ export const en: Dictionary = {
       "Two kinds of gap: what this workspace's own data can already work out, and what the assistant has to find. The first kind shows what it was read from - a fill that cannot say where the value came from is a machine signing your name on a customer record.",
     fill: "Fill in",
     fields: {
+      province: "Province",
       region: "Region",
       industry: "Industry",
       segmentCode: "Segment",
@@ -103,6 +110,12 @@ export const en: Dictionary = {
 
   BATCH_COMPLETE_ERROR: {
     ...GATE_ERROR,
+    province_unknown:
+      "The province must be one of the 34 provincial-level divisions - pick one from the list",
+    industry_unknown:
+      "Not one of this workspace's industries - add it under Industries first",
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
     not_found:
       "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field batch completeness fills.",
@@ -144,18 +157,27 @@ export const en: Dictionary = {
     noRolesDescription:
       "The workspace is subscribed, but you hold no role, so nothing is visible to you yet. Ask a workspace administrator to assign one.",
     loadFailed: "Could not load the data",
+    backUp: "Back",
+    expandNav: "Expand navigation",
+    collapseNav: "Collapse navigation",
+    expandAllGroups: "Expand all groups",
+    collapseAllGroups: "Collapse all groups",
   },
 
   DOMAIN_LABEL: {
+    national: "Sales screen",
     strategy: "Market strategy",
     planning: "Sales planning",
     campaign: "Campaigns",
     account: "Accounts",
     signal: "Opportunity signals",
+    lead: "Leads",
+    funnel: "Funnel",
     segment: "Segments",
     solution: "Solutions",
     pricebook: "Product pricing",
     territory: "Territories",
+    division: "Region settings",
     namedAccount: "Named accounts",
     quote: "Quotes",
     routing: "Lead routing",
@@ -167,7 +189,18 @@ export const en: Dictionary = {
     catalog: "Catalogue",
     home: "Today's calls",
     queue: "Awaiting me",
-    admin: "Members and roles",
+    members: "Members",
+    roles: "Roles",
+    permissions: "Permissions",
+    scope: "Data scope",
+    orgUnit: "Teams",
+    product: "Product settings",
+    winLossReason: "Win/loss reasons",
+    industry: "Industries",
+    forecastThreshold: "Forecast bands",
+    ageingPolicy: "Ageing bands",
+    pricingPolicy: "Pricing rules",
+    audit: "Audit trail",
     adoption: "Adoption",
     renewal: "Renewals",
     forecastRule: "Forecast rules",
@@ -214,6 +247,8 @@ export const en: Dictionary = {
   },
 
   NAMED_ACCOUNT_TEXT: {
+    why: "The strategic account list. It decides who signal scouting watches and whose contact cadence is judged hardest.",
+    tagNamed: (n: number) => `${n} named accounts`,
     none: "No named accounts yet",
     noneWhy:
       "Mark an account strategic or key on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
@@ -239,6 +274,38 @@ export const en: Dictionary = {
       no_territory: "no territory covers that region",
       no_owner: "the covering territory has no owner",
     } as Record<string, string>,
+    basisSole: (region: string, territory: string) =>
+      `${region} is covered by ${territory}, and by nobody else`,
+    basisTie: (region: string, n: number, territory: string, load: number) =>
+      `${region} has ${n} owners; ${territory} carries the fewest open leads (${load})`,
+    openAccount: "Open customer record",
+    colRegion: "Region",
+    noRegion: "no region",
+    // 智能分配 - see the note on the zh catalogue.
+    // The router's own counts - see the zh catalogue.
+    tagOpen: (n: number) => `${n} open`,
+    tagPending: (n: number) => `${n} to assign`,
+    tagBlocked: (n: number) => `${n} unplaceable`,
+    assignTitle: "Suggested assignments",
+    adviceNoRegion: (n: number) =>
+      `${n} have no region: no account matched, or the record has none. The rule cannot start.`,
+    adviceNoTerritory: (n: number) =>
+      `${n} sit in a region no active territory covers - a piece missing from the map.`,
+    adviceNoOwner: (n: number) =>
+      `${n} are covered by a territory nobody runs. The map is complete; the staffing is not.`,
+    adviceImbalance: (who: string, n: number, share: number) =>
+      `Accepting everything leaves ${who} holding ${n} - ${share}% of the queue. Fine if they own that ground alone.`,
+    blockedTitle: "Could not place",
+    assignIdle:
+      "Run the rule over the open leads and see which should change hands. The result is a proposal; accepting is yours.",
+    assignRun: "Suggest assignments",
+    assignAgain: "Analyse again",
+    assignDiscard: "Discard",
+    assignAccept: "Accept",
+    assignFound: (n: number) => `${n} suggested`,
+    assignNone: "Nothing to move - every lead is already where the rule would put it.",
+    assignAllDone: "All suggestions handled.",
+    assignMove: (from: string, to: string) => `${from} -> ${to}`,
   },
   RENEWAL_TEXT: {
     title: "Renewals",
@@ -301,8 +368,18 @@ export const en: Dictionary = {
       `"${name}" is coming up and there is no contract amount to carry forward.`,
     renewalAdviceDueSoon: (name: string, days: number) =>
       `"${name}" has ${days} days left on its term and can be renewed now.`,
+    rowCount: (n: number) => `${n} due`,
+    searchHint: "Project name or number",
+    filterAllRisk: "All renewal risk",
+    riskLow: "Delivery on track",
+    riskWatch: "Delivery at risk",
+    riskNone: "Not assessed",
+    narrowedNote: "Narrowed by the search above",
   },
   RENEWAL_ERROR: {
+    // incr/0034 - the deal entry gate.
+    owner_required: "A deal needs somebody to own it.",
+    requirement_required: "A deal has to say what the customer wants.",
     ...GATE_ERROR,
     renewal_not_due:
       "This project is not due for renewal - the page may be stale, reload and look again",
@@ -380,6 +457,10 @@ export const en: Dictionary = {
       `"${name}" is filed ${filed}; the rule only reaches ${suggested} - this one is inflating the commitment.`,
     adviceConservative: (name: string, filed: string, suggested: string) =>
       `"${name}" is filed ${filed}; the rule would reach ${suggested} - this one's progress is understated.`,
+    rowCount: (n: number) => `${n} disputed`,
+    searchHint: "Deal name or number",
+    filterAllFiled: "All categories",
+    narrowedNote: "Narrowed by the search above",
   },
   FORECAST_RULE_ERROR: {
     ...GATE_ERROR,
@@ -495,6 +576,7 @@ export const en: Dictionary = {
     unknown_autonomy_mode: "Unknown authority level",
   },
   QUOTE_TEXT: {
+    tagCount: (n: number) => `${n} quotes`,
     title: "Quotes",
     why: 'What each deal is currently offering. The lines, the floor and the signature all existed; nothing put them together, so "what did we quote this customer" meant opening one deal at a time.',
     none: "No quotes yet",
@@ -636,6 +718,8 @@ export const en: Dictionary = {
     born_shelved: "A product cannot be created already retired",
     system_status: "The three built-in statuses never delete - rename, describe, reorder them",
     status_in_use: "Products still carry this status - move them first",
+    unit_not_found: "No such unit - the page may be stale, reload it",
+    unit_in_use: "Products are still priced in this unit - move them to another one first",
     product_in_use:
       "Quote lines or solutions still reference this product - retire it instead of deleting",
     move_at_edge: "Already at that end of the list",
@@ -767,10 +851,18 @@ export const en: Dictionary = {
     sortTitle: "Current catalogue order",
     sortWhy: "A new product joins at the end. Move it into place - this order is the one customers see.",
     settingsTitle: "Catalogue configuration",
+    unitsTitle: "Pricing units",
+    unitsWhy: "What a product is sold by: sets, person-days, years. Quote lines count in it.",
+    addUnit: "New unit",
+    renameUnit: "Rename",
+    saveUnit: "Save unit",
+    unitCode: "Unit code",
+    unitCodeHint: "Fixed once created - it is this unit's anchor. Lowercase ASCII, e.g. set / month.",
+    colUnitName: "Unit",
+    unitDeleteConsequence: "Refused while products are priced in it - move them to another unit first.",
     back: "Back",
     typesTitle: "Product types",
-    typesWhy:
-      "Types are this workspace's own vocabulary and describe only what kind a product is. Deletion is refused while referenced; a retired type stops being offered but keeps rendering.",
+    typesWhy: "What kind of product this is. Cannot be deleted while in use; can be retired.",
     typeCode: "Type code",
     typeName: "Type name",
     typeCodeHint: "The code is this workspace's business anchor and cannot change; internal joins are uuids and never display",
@@ -790,8 +882,7 @@ export const en: Dictionary = {
     typeRetiredBadge: "Retired",
     typeInUse: (n: number) => `${n} products`,
     statusesTitle: "Product statuses",
-    statusesWhy:
-      "A status describes only what stage a product is at - in development, on sale, retired. The rows are the content; this table has no on/off concept.",
+    statusesWhy: "What stage a product is at: in development, on sale, retired.",
     addStatus: "New status",
     renameStatus: "Rename",
     saveStatus: "Save status",
@@ -902,6 +993,13 @@ export const en: Dictionary = {
     priceDenied:
       "You cannot set prices - whoever moves the floor can approve every discount in the product",
     writeDenied: "You cannot maintain the catalogue",
+    productCount: (n: number) => `${n} products`,
+    productSearchHint: "Product name or code",
+    solutionCount: (n: number) => `${n} solutions`,
+    solutionSearchHint: "Name, code, scenario",
+    filterAllTypes: "All types",
+    narrowedNote: "Narrowed by the search above",
+    priceCount: (n: number) => `${n} prices`,
   },
 
   REVENUE_STATUS_LABEL: {
@@ -1147,6 +1245,18 @@ export const en: Dictionary = {
 
   TERRITORY_ERROR: {
     ...GATE_ERROR,
+    province_unknown: "The province must be one of the 34 provincial-level divisions",
+    division_unknown: "That region does not belong to this workspace",
+    template_unknown: "No such standard carve, or it does not cut the current market scope",
+    scope_not_open: "That market scope is not open yet - stay on China",
+    scope_code_required: "A one-province scope has to say which province",
+    scope_province_not_open: "That province is not open as a market scope yet",
+    member_unknown: "A member has to be part of the current market scope - pick from the list",
+    code_prefix: "A region code has to carry the current market scope's prefix",
+    code_shape: "A region code is letters, digits and underscores; under a province scope it carries no prefix",
+    move_at_edge: "Already at that end",
+    not_movable: "This row cannot be moved",
+    not_found: "No such region in this workspace",
     code_required: "A territory needs a code",
     name_required: "A territory needs a name",
     unknown_status: "Unknown territory status",
@@ -1192,9 +1302,22 @@ export const en: Dictionary = {
     lead_converted: "This lead has already been converted.",
     lead_not_qualified: "This lead has not been qualified.",
     owner_required: "An assignment needs somebody to assign to.",
+    signal_resolved: "This signal has already been judged.",
+    unknown_stage: "Unknown funnel stage.",
+    outcome_not_of_stage: "That is not how this stage ends.",
+    unknown_reason: "Unknown reason for ending.",
+    note_required: "'Other' has to say what happened.",
+    decider_required: "An exit record names who decided.",
+    lead_unowned: "This lead has no owner yet - assign it before qualifying it.",
   },
   PROPOSAL_ERROR: {
     ...GATE_ERROR,
+    province_unknown:
+      "The province must be one of the 34 provincial-level divisions - pick one from the list",
+    industry_unknown:
+      "Not one of this workspace's industries - add it under Industries first",
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
     not_found: "Not found, or not in this workspace.",
     not_pending: "This proposal has already been decided.",
     decider_required: "Accepting must land on a named person.",
@@ -1236,6 +1359,15 @@ export const en: Dictionary = {
       "The assistant could not answer this time. Nothing on this record changed.",
   },
   REVIEW_ERROR: {
+    reason_not_found: "That reason no longer exists - refresh and choose again",
+    reason_in_use: "Reviews cite this reason - it cannot be deleted",
+    move_at_edge: "Already at that end",
+    not_movable: "That row cannot be moved",
+    reason_wrong_outcome: "That reason does not explain this outcome",
+    code_required: "A reason needs a code",
+    name_required: "A reason needs a name",
+    outcome_required: "Pick at least one outcome it explains",
+
     ...GATE_ERROR,
     not_found: "Not found, or not in this workspace.",
     not_closed: "Only a closed opportunity can be reviewed.",
@@ -1312,6 +1444,9 @@ export const en: Dictionary = {
   },
 
   OPPORTUNITY_ERROR: {
+    // incr/0034 - the deal entry gate.
+    owner_required: "A deal needs somebody to own it.",
+    requirement_required: "A deal has to say what the customer wants.",
     unknown_forecast_category: "Unknown forecast category",
     quantity_positive: "Quantity must be greater than zero",
     ...GATE_ERROR,
@@ -1437,7 +1572,123 @@ export const en: Dictionary = {
     termsReadOnly: "You cannot change the commercial terms.",
   },
 
+  FORECAST_PARAM_ERROR: {
+    commit_out_of_range: "Commit sits between 1 and 100",
+    best_case_out_of_range: "Best case sits between 1 and 100",
+    bands_cross: "Best case has to start below commit, or the bands cannot be told apart",
+    stall_out_of_range: "A stall clock runs from 1 to 365 days",
+
+    ...GATE_ERROR,
+  },
+
+  FORECAST_PARAM_TEXT: {
+    title: "Forecast bands",
+    why: "What probability counts as commit, as best case, and how long a stall takes.",
+    ladder: (best: number, commit: number) => `Best case ${best}% - commit ${commit}%`,
+    save: "Save",
+    saved: "Saved. The forecast review suggests against the new bands from now on.",
+    percent: "%",
+    days: "days",
+    commitLabel: "Commit starts at",
+    commitHint:
+      "A deal's own probability at or above this reads as commit. 80 by default: negotiate already defaults to 90, so 90 here would only restate the stage.",
+    bestCaseLabel: "Best case starts at",
+    bestCaseHint: "At or above this is best case, below it is pipeline. Has to be under commit.",
+    stallLabel: "A stall is",
+    stallHint:
+      "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days).",
+  },
+
+  PRICING_ERROR: {
+    currency_invalid: "A currency is a three-letter ISO code, like CNY or USD",
+
+    ...GATE_ERROR,
+  },
+
+  PRICING_TEXT: {
+    title: "Pricing rules",
+    why: "What quotes, prices and roll-ups are in unless a row says otherwise.",
+    save: "Save",
+    saved: "Saved. Deals and lines created from now on take the new currency.",
+    currencyLabel: "Default currency",
+    currencyHint: "ISO 4217, three letters. Existing prices and deals are untouched; only what is written next.",
+  },
+
+  AGEING_ERROR: {
+    cutoff_count: "An ageing policy has between one and five cutoffs",
+    cutoff_range: "A cutoff is a whole number of days, 1 to 3650",
+    cutoffs_unordered: "The cutoffs have to rise, or two bands would claim the same day",
+
+    ...GATE_ERROR,
+  },
+
+  AGEING_TEXT: {
+    title: "Ageing bands",
+    why: "Where an overdue receivable is cut. Not yet due and no due date are always their own.",
+    bandCount: (n: number) => `${n} late bands`,
+    save: "Save",
+    saved: "Saved. The collections chart is cut by the new bands from now on.",
+    cutoffsLabel: "Cutoffs (days)",
+    cutoffsHint: "Comma separated, ascending. 30, 60 gives 1-30 days, 31-60 days, and 60+.",
+    previewLabel: "Which gives these bands",
+    previewHint:
+      "The two at the ends do not move: one is money that is simply early, the other is money nobody can age at all.",
+    previewUnusable: "Ascending whole numbers, please",
+  },
+
+  INDUSTRY_ERROR: {
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
+    industry_in_use: "Customers are still filed under this industry - move them first",
+    industry_unknown: "Not one of this workspace's industries - add it under Industries first",
+    move_at_edge: "Already at that end of the list",
+    not_movable: "This one cannot be moved",
+    not_found: "No such industry - it may have just been deleted. Refresh and try again",
+
+    ...GATE_ERROR,
+  },
+
+  INDUSTRY_TEXT: {
+    configTitle: "Industries",
+    configWhy: "What customers are filed under. One in use cannot be deleted.",
+    count: (n: number) => `${n} industries`,
+    add: "New industry",
+    edit: "Edit",
+    save: "Save",
+    code: "Code",
+    codeHint: "Fixed once created. An existing code renames it.",
+    name: "Name",
+    colName: "Industry",
+    colFiled: "Customers",
+    deleteConsequence: "It leaves the customer form. Customers filed under it are untouched - one in use cannot be deleted.",
+    opUp: "Move up",
+    opDown: "Move down",
+    opDelete: "Delete",
+  },
+
   WINLOSS_TEXT: {
+    reasonConfigTitle: "Win/loss reasons",
+    reasonCount: (n: number) => `${n} reasons`,
+    reasonConfigWhy: "What a review may choose from. A reason cited by a review cannot be deleted.",
+    addReason: "New reason",
+    editReason: "Edit",
+    saveReason: "Save",
+    reasonCode: "Code",
+    reasonCodeHint: "Fixed once created. An existing code renames it.",
+    reasonName: "Name",
+    colReasonName: "Reason",
+    colApplies: "Explains",
+    colCited: "Cited",
+    appliesWon: "Wins",
+    appliesLost: "Losses",
+    appliesBoth: "Both",
+    appliesHint: "Pick at least one. A reason like \"customer did not decide\" explains only losses.",
+    reasonDeleteConsequence: "It leaves the review form. Reviews that cite it are untouched - one that is cited cannot be deleted.",
+    opUp: "Move up",
+    opDown: "Move down",
+    opDelete: "Delete",
+
+    tagPending: (n: number) => (n === 0 ? "Nothing awaiting review" : `${n} awaiting review`),
     sectionTitle: "Win/loss reviews",
     filterPending: "Awaiting review",
     filterAll: "All reviews",
@@ -1459,6 +1710,7 @@ export const en: Dictionary = {
     outcomeLost: "Lost",
     record: "Write the review",
     reasonLabel: "Main reason",
+    reasonNone: "Not chosen",
     competitorLabel: "Competitor",
     lessonsLabel: "Lessons",
     save: "Save",
@@ -1641,7 +1893,6 @@ export const en: Dictionary = {
     boardClose: "Hide the board",
     agentDock: "Copilot",
     agentDockWithCount: (n: number) => `Copilot, ${n} awaiting your call`,
-    countOverflow: "99+",
 
     prefTitle: "Preferences",
     prefLocale: "Language",
@@ -1661,26 +1912,139 @@ export const en: Dictionary = {
   },
 
   ADMIN_TEXT: {
-    title: "Administration",
-    description:
-      "Workspace settings. Not daily work, so it does not take sidebar room - it is reached from the top right.",
+    tagMembers: (n: number) => `${n} members`,
+    title: "Configuration",
+    description: "How this workspace is configured.",
     emptyTitle: "You hold no administration permission",
     emptyDescription:
       "This is not a subscription tier problem and money will not fix it. An administrator has to assign you a role.",
+    planned: "Not built",
     entryHint: {
-      admin: "Who can enter this workspace, and what each of them may do",
+      members: "Who is in this workspace: activation, deactivation, handover",
+      roles: "What each of the nine roles is, and what it may do",
+      permissions: "The twenty-five permissions, and which roles hold them",
+      scope: "Workspace / territory / own - who sits at which",
+      product: "Product types, statuses and pricing units",
+      winLossReason: "What a win/loss review may choose from",
+      industry: "How customers are filed by industry - change it once, everywhere follows",
+      forecastThreshold: "Where commit and best case start",
+      ageingPolicy: "How many days overdue makes a band",
+      pricingPolicy: "What currency a quote assumes",
       adoption:
         "Whether follow-up notes are actually being used. Criteria in ADR-012",
+      division: "How the country is carved into regions, and which provinces each holds",
     },
     memberCount: (members: number, roles: number) =>
       `${members} members - ${roles} roles in use`,
     memberNone: "No members yet - they appear after their first sign-in",
     memberNoRead: "No permission to read members",
+    rolesFact: (roles: number, perms: number) => `${roles} roles · ${perms} permissions`,
+    divisionCount: (divisions: number, placed: number, total: number, noun: string) =>
+      placed === total
+        ? `${divisions} regions · all ${total} ${noun} assigned`
+        : `${divisions} regions · ${total - placed} ${noun} unassigned`,
+    divisionNoRead: "No permission to read regions",
     adoptionCriterion: (weeks: number, judge: number) =>
       `Judged over the last ${weeks} weeks; ${judge} consecutive weeks at target counts as adopted`,
     open: "Open",
   },
   // --- /signal ------------------------------------------------------------
+
+  SCREEN_TEXT: {
+    title: "Market situation",
+    subtitle: "National Sales Situation Screen",
+    deniedTitle: "The situation screen cannot be shown",
+    deniedDescription:
+      "It aggregates leads, pipeline, contracts, the copilot queue, delivery and collections on one surface, so it needs the view permission for all five of accounts, pipeline, delivery, leads and copilot actions. With any of them missing it shows nothing rather than a partial national figure.",
+    home: "Platform home",
+    provinceCount: "Provinces",
+    openDeals: "Open deals",
+    unplacedNote: (n: number) => `${n} accounts have no province - counted nationally, drawn nowhere`,
+    nation: "China",
+    regionDefault: "All",
+    drillHint: "Click a province to drill in - right-click or click empty space to go back",
+    backHint: "Right-click / click empty space to go up",
+    back: "Back",
+    metricContract: "Contract",
+    metricPipeline: "Pipeline",
+    metricInDelivery: "In delivery",
+    metricHealth: "Health",
+    funnelAccounts: "Accounts",
+    funnelPipeline: "Pipeline",
+    funnelContract: "Contract",
+    funnelDelivery: "In delivery",
+    noReading: "no reading",
+    unitYi: "00M",
+    unitWan: "K",
+    unitYuan: "",
+    accountsUnit: (n: number) => `${n}`,
+    dealsUnit: (n: number) => `${n}`,
+    panelLeads: "Lead supply",
+    panelPipeline: "Pipeline",
+    panelContract: "Signed contracts",
+    panelCopilot: "Copilot",
+    panelDelivery: "Delivery",
+    panelCollection: "Collections",
+    cellLeadsNew: "New leads",
+    cellLeadsUnclaimed: "Unclaimed",
+    cellLeadConversion: "Conversion",
+    cellPipelineValue: "Pipeline value",
+    cellOpenDeals: "Open deals",
+    cellAvgDeal: "Avg deal",
+    cellContractValue: "Contract value",
+    cellWonDeals: "Deals won",
+    cellWinRate: "Win rate",
+    cellAdoption: "Proposal adoption",
+    cellAdoptionSub: (a: number, n: number) => `${a} / ${n} accepted, last 30 days`,
+    cellPending: "Awaiting a decision",
+    cellInDelivery: "Contract value in delivery",
+    cellProjectsLive: "Live projects",
+    cellHealth: "Health",
+    cellCollected: "Collected",
+    cellReceivable: "Receivable",
+    cellOverdue: "Overdue",
+    cellWeighted: "Weighted",
+    cellOnTime: "Gates on time",
+    cellInfluenced: "Value touched",
+    qualExpected: "expected",
+    qualLate: "late",
+    adoptionSuffix: "accepted, last 30 days",
+    chartLeads: "New leads, last 12 periods",
+    chartSign: "Signed value, last 12 periods",
+    chartAdoption: "Adoption, last 30 days",
+    chartCash: "Collection rate, last 7 periods",
+    cashCollected: (p: string) => `Collected ${p}`,
+    cashOverdue: (p: string) => `Overdue ${p}`,
+    stageLabels: ["Discover", "Validate", "Negotiate", "Approve"],
+    healthLabels: ["Healthy", "At risk", "Critical"],
+    healthCentre: "Healthy",
+    funnelLeads: "Leads",
+    funnelCollected: "Collected",
+    leadsUnit: "",
+    enterFullscreen: "Full screen",
+    exitFullscreen: "Leave full screen",
+    switchLocale: (to: string): string => (to === "en-US" ? "Switch to English" : "Switch to Chinese"),
+    settingsSoon: "Settings (not yet available)",
+    periodAll: "All time",
+    periodYear: (y: number) => `${y}`,
+    periodQuarter: (y: number, q: number) => `${y} Q${q}`,
+    emptyPeriod: (p: string): string => `Nothing recorded in ${p} - try another period`,
+    enter: "Open",
+    uncovered: "No activity",
+    viewerRole: "Sales ops - national",
+    foldTitle: "Collapse the title",
+    unfoldTitle: "Expand the title",
+    foldRails: "Fold both rails",
+    unfoldRails: "Unfold both rails",
+  },
+
+  TABLE_TOOLBAR_TEXT: {
+    searchLabel: "Search",
+    resetFilters: "Clear filters",
+    filteredCount: (n: number, total: number) => `${n} / ${total}`,
+    noMatch: "No matching records",
+    noMatchWhy: "Try a different keyword, or loosen the filters.",
+  },
 
   SIGNAL_TEXT: {
     title: "Signal inbox",
@@ -1704,6 +2068,26 @@ export const en: Dictionary = {
     scoreExplain: (base: number, decay: number, bonus: number) =>
       `type weight ${base} x recency ${decay.toFixed(2)} + match bonus ${bonus}`,
 
+    // Counts of what this page holds - see the zh catalogue.
+    dismissWhy: "Record why. Otherwise the same signal arrives next week and nobody can tell whether it was looked at and rejected or never looked at.",
+    dismissReason: "Reason",
+    dismissReasonPick: "Pick a reason",
+    dismissNote: "Note",
+    dismissNoteRequired: "Required when the reason is Other",
+    dismissNoteOptional: "Optional",
+    scoutTitle: "What the scout noticed",
+    scoutQuiet: "Nothing to raise: no repeats, no exact customer matches, nobody clustering.",
+    scoutDuplicate: (n: number) =>
+      n === 0 ? "Another signal of the same kind the same day - one event reported twice" : `Another signal of the same kind ${n}d earlier - one event reported twice`,
+    scoutMatch: (account: string) => `This names ${account}, a customer already on file`,
+    scoutMatchAccept: "Match to this customer",
+    scoutClusters: "Companies clustering",
+    scoutCluster: (subject: string, n: number, kinds: number) =>
+      `${subject}: ${n} open signals across ${kinds} kinds - one story, not ${n} things`,
+    tagSignals: (n: number) => `${n} to judge`,
+    tagNamed: (n: number) => `${n} named-account`,
+    tagStale: (n: number) => `${n} decayed`,
+    tagLeads: (n: number) => `${n} leads`,
     lead: (n: number) => `${n} signals awaiting your call`,
     leadNamed: (n: number) => `${n} of them from named accounts`,
     leadNone: "Nothing awaiting a call",
@@ -1768,8 +2152,107 @@ export const en: Dictionary = {
     dismissed: "Dismissed",
     duplicate: "Duplicate",
   },
+  EXIT_REASON_LABEL: {
+    duplicate: "Duplicate record",
+    not_a_fit: "Not a fit",
+    no_budget: "No budget",
+    no_decision: "Never decided",
+    lost_to_competitor: "Lost to a competitor",
+    timing: "Wrong timing",
+    customer_withdrew: "Customer cancelled the project",
+    unreachable: "Unreachable",
+    other: "Other",
+  } as Record<string, string>,
+  FUNNEL_TEXT: {
+    title: "The whole funnel",
+    why: "Every number counts rows the modules already show. \"No reason recorded\" has two causes: deals, projects and cash have no surface that asks yet, and rows that ended before signals and leads got one never recorded it.",
+    moduleWhy: "Signal to lead to deal to project to cash. The one page about the whole chain - every other module is about one link in it.",
+    stage: {
+      signal: "Signals",
+      lead: "Leads",
+      opportunity: "Deals",
+      project: "Projects",
+      revenue: "Cash",
+    } as Record<string, string>,
+    part: {
+      advanced: "moved on",
+      open: "in hand",
+      exited: "ended",
+    } as Record<string, string>,
+    passed: (pct: number, reached: number) => `${pct}% moved on of ${reached} reached`,
+    nothingReached: "Nothing has reached this stage",
+    byStage: "Stage by stage",
+    unexplained: (n: number) => `${n} ended with no reason recorded`,
+    blind: (stages: string) => `Not visible to you: ${stages}. Those stages report nothing rather than zero.`,
+    listSeparator: ", ",
+    tagEntered: (n: number) => `${n} entered`,
+    tagLive: (n: number) => `${n} in hand`,
+    tagLeak: (stage: string, n: number) => `${stage} leaks most: ${n}`,
+  },
+
   LEAD_TEXT: {
     title: "Leads",
+    moduleWhy:
+      "Signals become leads; a qualified lead becomes an opportunity. Suggested assignments propose who should work each one by territory then load; a lead nobody owns cannot be qualified.",
+    addLead: "Add lead",
+    addLeadWhy: "Leads from a stand, a phone call or a referral - the ones no signal produced. Saved into the pool; who works it is Suggested assignments' question.",
+    formContact: "Contact",
+    formNoAccount: "Not matched yet",
+    formAccountWhy: "Without a customer there is no region, so neither assignment nor conversion can run. It can be matched later from the row.",
+    formOwnerNote: "No owner and no score here: who works it comes from Suggested assignments by territory then load, and a score is the signal rule's arithmetic - a hand-entered lead has no signal.",
+    formSave: "Save lead",
+
+    searchLabel: "Search",
+    resetFilters: "Clear filters",
+    searchHint: "company, lead no., contact, owner",
+    filterAllStatus: "All statuses",
+    filterAllOwners: "All owners",
+    filterUnowned: "Unowned",
+    filteredCount: (n: number, total: number) => `${n} of ${total}`,
+    noMatch: "No leads match",
+    noMatchWhy: "Try another term, or widen the filters.",
+    startWork: "Start working",
+    convertWhy: (company: string) => `Turn ${company} into a deal. The source campaign is copied onto it at this moment and frozen - it cannot be corrected afterwards.`,
+    convertRequirement: "What the customer wants",
+    convertRequirementHint: "the problem they need solved",
+    convertRequirementWhy: "A deal has to say what it is for - it is how somebody who was not in the meeting judges whether to spend time on it. Editable later.",
+
+    terminate: "Close as lost",
+    terminateConsequence: "The lead was real and the opportunity is gone. The record is kept and stays in the funnel's denominator - the reason is recorded so the leak can be read by stage later.",
+    hintTerminateWhy: "It was real and it died - a different thing from not a fit",
+    exemptAsksReason: "This action asks for a reason first, which is a stronger gate than a confirm box",
+    endSubmit: "End the lead",
+    endReason: "Reason",
+    endReasonPick: "Pick a reason",
+    endNote: "Note",
+    endNoteRequired: "Required when the reason is Other",
+    endNoteOptional: "Optional",
+
+    hintAlreadyWorking: "Already being worked, or already judged",
+    claim: "Claim",
+    assign: "Assign",
+    handOver: "Hand over",
+    matchAccount: "Match a customer",
+    matchWhy: (company: string) => `Link ${company} to a customer record. Without one there is no region, so neither assignment nor conversion can run.`,
+    matchSubmit: "Match",
+    matchPick: "Pick a customer",
+    columnAccount: "Customer",
+    openAccount: "Open customer record",
+    remove: "Delete lead",
+    removeConsequence: "Deletion cannot be undone, and the lead leaves every funnel count. If it was a real opportunity that went nowhere, disqualify it instead - that keeps the record.",
+    hintAlreadyOwned: "It already has an owner - use Hand over to change it",
+    hintAlreadyMatched: "Already matched to a customer",
+    hintAssignOpensPanel: "Opens Suggested assignments, by territory then load",
+    hintConvertedKept: "A converted lead is the only record of where its deal came from",
+    bulkRefused: (n: number) => `${n} could not be deleted`,
+
+    deleteSelected: (n: number) => `Delete ${n}`,
+    columnRegion: "Region",
+    noRegion: "no region",
+    tagOpen: (n: number) => `${n} in play`,
+    tagQualified: (n: number) => `${n} qualified`,
+    tagUnowned: (n: number) => `${n} unowned`,
+    tagConverted: (n: number) => `${n} converted`,
     description:
       "A qualified lead becomes an opportunity. At that moment the source campaign is copied onto the opportunity and frozen - attribution is not filled in afterwards.",
     columnCompany: "Company",
@@ -1791,6 +2274,7 @@ export const en: Dictionary = {
     hintNoTriage: "No permission to triage leads",
     hintNotQualified: "The lead has not been marked qualified",
     hintAlreadyQualified: "The lead is already marked qualified",
+    hintNoOwner: "No owner yet - claim it or use Suggested assignments first",
     hintNoConvert: "No permission to convert leads",
     needAccount: "An account has to be matched first",
     emptyTitle: "No leads yet",
@@ -1816,6 +2300,9 @@ export const en: Dictionary = {
   // --- /pipeline ----------------------------------------------------------
 
   PIPELINE_TEXT: {
+    tagOpen: (n: number) => `${n} open`,
+    tagNoDate: (n: number) => `${n} with no close date`,
+    tagUnowned: (n: number) => `${n} unowned`,
     buyerUnreachable: "buyer unreached",
     title: "Pipeline",
     descriptionReadOnly:
@@ -1882,6 +2369,9 @@ export const en: Dictionary = {
     newPickAccount: "Pick a customer",
     newTerritory: "Territory",
     newNoTerritory: "Unassigned",
+    newRequirement: "What the customer wants",
+    newRequirementHint: "the problem they need solved",
+    newRequirementWhy: "It is how somebody who was not in the meeting judges whether to spend time on this. Editable later.",
     newAmount: "Amount (optional for now)",
     newExpectedClose: "Expected close",
     newSave: "Create deal",
@@ -1917,6 +2407,10 @@ export const en: Dictionary = {
   // --- /account -----------------------------------------------------------
 
   ACCOUNT_TEXT: {
+    tagTotal: (n: number) => `${n} customers`,
+    tagAtRisk: (n: number) => `${n} at risk`,
+    tagOverdue: (n: number) => `${n} overdue for contact`,
+    tagCompletable: (n: number) => `${n} with fillable gaps`,
     buyerUnreachable: "buyer unreached",
     title: "Accounts",
     lead: (n: number) => `${n} accounts`,
@@ -2002,6 +2496,7 @@ export const en: Dictionary = {
     contactSaved: "Saved",
     contactsDenied: "You cannot maintain contacts",
     ownerNone: "Unassigned",
+    contactCount: (n: number) => `${n} contacts`,
   },
 
   ACCOUNT_STATUS_LABEL: {
@@ -2014,6 +2509,8 @@ export const en: Dictionary = {
   // --- /campaign ----------------------------------------------------------
 
   CAMPAIGN_TEXT: {
+    tagCount: (n: number) => `${n} campaigns`,
+    tagSpend: (budget: string, won: string) => `${budget} spent, ${won} won`,
     executionsTitle: "Campaign executions",
     executionsWhy:
       'What a campaign is actually made of. The "N/M done" column above counts these - and a campaign cannot be marked complete while any is outstanding.',
@@ -2199,11 +2696,10 @@ export const en: Dictionary = {
     byProjectWhy: "The eight projects holding the most outstanding money.",
     ageingBand: {
       not_due: "Not yet due",
-      d1_30: "1-30 days late",
-      d31_60: "31-60 days late",
-      d60_plus: "60+ days late",
       no_due_date: "No due date",
     } as Record<string, string>,
+    ageingBetween: (from: number, to: number) => `${from}-${to} days late`,
+    ageingOver: (days: number) => `${days}+ days late`,
     collectStatEmpty: "Nothing is outstanding, so there is nothing to break down.",
 
     collectAdviceTitle: "Collections check",
@@ -2271,6 +2767,12 @@ export const en: Dictionary = {
       `"${name}" is in flight with no milestones at all - no plan means nothing to be late against.`,
     adviceNoContract: (name: string) =>
       `"${name}" is in flight with no contract amount, so delivery has nothing to be measured against.`,
+    searchHint: "Project, number, customer",
+    filterAllHealth: "All health",
+    narrowedNote: "Narrowed by the search above",
+    instalmentCount: (n: number) => `${n} instalments`,
+    collectionSearchHint: "Project",
+    filterAllRevenueStatus: "All collection states",
   },
 
   HEALTH_LABEL: {
@@ -2320,6 +2822,7 @@ export const en: Dictionary = {
   FIELD_TEXT: {
     ...zh.FIELD_TEXT,
     captureTitle: (name: string) => `Record a touch · ${name}`,
+    captureCrumb: "Record a touch",
     captureWhy:
       "Dump what happened verbatim; add who promised what below - each promise remembers the conversation it came from.",
     commitCount: (n: number) => `${n}`,
@@ -2350,6 +2853,11 @@ export const en: Dictionary = {
   // --- /planning ----------------------------------------------------------
 
   PLANNING_TEXT: {
+    tagPeriod: (period: string) => `${period}`,
+    tagScopes: (n: number) => `${n} scopes`,
+    tagUnforecast: (n: number) => `${n} unforecast`,
+    tagTerritories: (n: number) => `${n} territories`,
+    tagNoOwner: (n: number) => `${n} with no owner`,
     setTarget: "Set a target",
     setTargetWhy:
       "A target's scope tuple is its identity: one target per period, scope and metric. To change the number, adjust the one that exists rather than adding a second.",
@@ -2357,17 +2865,149 @@ export const en: Dictionary = {
     scopeTerritory: "Territory",
     scopeOwner: "Me",
     setMetric: "Metric",
-    territoryTitle: "Sales territories",
+    // The noun follows the market scope: provinces nationwide, cities in one
+    // province. English carries it in the plural.
+    memberNoun: {
+      global: "countries",
+      china: "provinces",
+      province: "cities",
+    } as Record<string, string>,
+    unitNoun: {
+      city: "cities",
+      district: "districts",
+    } as Record<string, string>,
+    divisionName: "Region",
+    divisionMemberCount: (noun: string) => noun.charAt(0).toUpperCase() + noun.slice(1),
+    divisionScope: (_noun: string) => "Covers",
+    divisionFormTitle: "Configure a region",
+    divisionFormWhy: (noun: string) => `Choose the ${noun} this region covers. Each belongs to one region.`,
+    divisionCode: "Region code",
+    divisionCodeHint: "Fixed once created - it is this region's anchor. An existing code renames it.",
+    divisionNameLabel: "Region name",
+    divisionMembersConfig: "Coverage",
+    divisionPickMembers: "Choose members",
+    divisionApplyPreset: "Apply a preset",
+    divisionResetPreset: "Reset to preset",
+    divisionClearMembers: "Clear",
+    divisionApplyPresetTitle: "Apply a preset",
+    divisionApplyPresetWhy: (isNew: boolean): string =>
+      isNew
+        ? "Pick a standard region; its code, name and members are filled in - still editable."
+        : "Pick a standard region; its name and members are applied here. The code is the anchor and stays.",
+    divisionApplyConfirm: "Apply",
+    divisionResetPresetHint: (from: string, name: string) => `Restore name and members from ${from} - ${name}`,
+    destructiveTitle: "{verb} {target}?",
+    divisionResetTarget: (from: string, name: string) => `to ${from} - ${name}`,
+    divisionResetConsequence: (n: number, noun: string) =>
+      `The current name and the ${n} ${noun} chosen are replaced by the preset; Discard undoes it until you save.`,
+    divisionClearTarget: (n: number, noun: string) => `the ${n} ${noun} chosen`,
+    divisionClearConsequence: "The list empties; anything ticked by hand has to be ticked again. Discard undoes it until you save.",
+    divisionResetPresetNone: "No preset matches the current code",
+    divisionResetPresetAmbiguous: (n: number) => `${n} carves share this code - click to pick one`,
+    divisionPick: (noun: string) => `Choose ${noun}`,
+    divisionPickTitle: (noun: string) => `Choose ${noun}`,
+    divisionPickWhy: (noun: string) => `Tick ${noun}. The suffix shows where the standard carves put each one.`,
+    divisionPickDone: "Done",
+    divisionPickClear: "Clear",
+    divisionPickEmpty: (noun: string) => `No ${noun} chosen yet`,
+    divisionPickNone: (_noun: string) => "Nothing matches",
+    divisionSearch: (noun: string) => `Search ${noun} by name, code or short name`,
+    divisionChosen: (n: number, _noun: string) => `${n} chosen`,
+    divisionHintPreset: (from: string, name: string) => `${from} ${name}`,
+    divisionTakenFrom: (p: string, from: string) => `${p} currently sits in ${from} and will move here`,
+    divisionSave: "Save region",
+    divisionDiscard: "Discard",
+    divisionSource: "Source",
+    divisionSystem: "Standard",
+    divisionCustom: "Custom",
+    divisionEdit: "Configure",
+    divisionMoveUp: "Move up",
+    divisionMoveDown: "Move down",
+    divisionMoveTop: "Move to top",
+    divisionMoveBottom: "Move to bottom",
+    divisionNew: "New region",
+    divisionRemove: "Delete region",
+    divisionRemoveWhy: (noun: string) => `Only a region holding no ${noun} can be deleted. Move them out first.`,
+    templateTitle: "Reset to a standard carve",
+    templateWhy: "Adopt a standard carve as a starting point, then edit freely.",
+    templateReset: "Reset to a standard carve",
+    templateConfirm: "Replace",
+    templateCancel: "Cancel",
+    templateDangerTitle: "This replacement cannot be undone",
+    templateConfirmVerb: "Replace",
+    templateConfirmTarget: (carve: string) => `with ${carve}`,
+    templateConsequence: (current: number, custom: number) =>
+      `All ${current} regions and their members are re-laid from the preset${custom > 0 ? `; ${custom} custom regions are discarded` : ""}. It takes effect at once and cannot be undone.`,
+    templateReplaceWarn: (current: number, custom: number) =>
+      custom > 0
+        ? `Replaces the current ${current} regions; ${custom} of them are yours and will be discarded.`
+        : `Replaces the current ${current} regions.`,
+    presetOption: (from: string, name: string) => `${from} - ${name}`,
+    scopeLabel: {
+      global: "Global",
+      china: "China",
+      province: "One province",
+    } as Record<string, string>,
+    scopeIncludes: {
+      global: "Global market - regions are made of countries",
+      china: "Nationwide - regions are made of provinces",
+      province: "One province - regions are made of its cities",
+    } as Record<string, string>,
+    scopePlanned: "Not built",
+    scopeLabelTitle: "Market scope",
+    scopeButton: (current: string) => `Market scope - ${current}`,
+    scopeProvinceFrame: (label: string, province: string) => `${label} - ${province}`,
+    scopeIncludesProvince: (province: string, noun: string) => `${province} - regions are made of its ${noun}`,
+    scopeProvinceLabel: "Which province",
+    scopeProvinceOpen: (n: number) => `${n} provincial-level divisions available; Taiwan, Hong Kong and Macao have no lower-level data yet.`,
+    scopeConfirm: "Confirm",
+    scopeCancel: "Cancel",
+    scopeWhy: "The frame regions are carved in: the world by country, the country by province, one province by city. Once it is set, what a region may hold follows.",
+    scopeSaved: "Market scope updated",
+    divisionIncludes: "Made of",
+    colIndex: "#",
+    colAbbr: "Code",
+    colName: "Name",
+    colAdcode: "Division code",
+    colOps: "Actions",
+    divisionRemoveMember: "Remove",
+    divisionPickEmptyWhy: (noun: string) => `Use "Choose ${noun}" on the left, or start from a standard region.`,
+    divisionCodePrefixHint: "The prefix comes from the market scope; type only the rest, e.g. EAST.",
+    divisionCodeUnitHint: "An administrative division code (e.g. 610100) or a word of your own (e.g. GUANZHONG) - no province prefix.",
+    divisionMovedTitle: (n: number, _noun: string) => `${n} will move in from other regions`,
+    divisionMovedWhy: "On save they leave the regions they sit in now, and every figure grouped by region follows.",
+    divisionSaveFailed: "Could not save",
+    templateRef: "Start from a standard region",
+    templateRefNone: "Start blank",
+    templateRefWhy: "Pick one and its code, name and members are filled in - still editable.",
+    divisionWhy: (frame: string, noun: string) => `How ${frame} is carved into regions, and which ${noun} each holds.`,
+    divisionEmptyTitle: "This workspace has no regions yet",
+    divisionEmptyWhy: "This workspace has no regions yet. Create one, or adopt a standard carve.",
+    divisionNone: "Unassigned",
+    divisionHoldsNothing: (noun: string) => `This region holds no ${noun}`,
+    moveProvince: (p: string) => `Move ${p} to another region`,
+    provinceCount: (n: number) => `${n} provinces`,
+    divisionCoverage: (placed: number, divisions: number, unplaced: number, noun: string) =>
+      `${placed} ${noun} in ${divisions} regions`
+      + (unplaced > 0 ? `, ${unplaced} ${noun} in no region` : ""),
+    divisionAllPlaced: (noun: string) => `Every one of the ${noun} is assigned.`,
+    divisionUnplacedLead: (n: number, noun: string) => `${n} ${noun} in no region:`,
     territoryWhy:
-      "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target. The code is the identity: an existing code edits that territory, a new one creates it.",
+      "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target.",
+    territoryFormWhy:
+      "The code is the identity: an existing code edits that territory, a new one creates it. Pick the regions it covers, or routing cannot find it.",
     territoryNone: "No territories yet",
     territoryNoneWhy:
       "Create one before setting a target on it or attributing deals to it.",
+    territoryNewEntry: "New territory",
+    targetNew: "New target",
     territoryFormTitle: "New / edit territory",
     territoryEditing: "Edit an existing territory",
     territoryNew: "Create a new territory",
     territoryRegions: "Regions covered",
-    territoryRegionsHint: "Comma-separated, e.g. East China, South China",
+    territoryRegionsHint: "Tick the regions this territory works. A region may be worked by more than one territory; ticking none means it covers nothing, and routing treats it that way.",
+    territoryRegionsNone: "This workspace has no regions yet. Create one, or adopt a standard carve.",
+    territoryRegionGone: "no longer in the current carve",
     territoryCode: "Code",
     territoryName: "Name",
     territoryParent: "Parent",
@@ -2422,6 +3062,8 @@ export const en: Dictionary = {
     leadAttained: (closed: string, target: string, pct: string) =>
       `Workspace ${closed} / ${target} - ${pct} attained`,
     leadNoWorkspaceTarget: "No workspace-wide target was set this period.",
+    leadNotMeasured: (target: string, reason: string) =>
+      `Workspace target ${target} - ${reason || "not measured yet"}`,
     leadUnforecast: (n: number) =>
       `${n} scopes have submitted no forecast snapshot this period - that is not 0% attained.`,
     leadRule:
@@ -2585,6 +3227,7 @@ export const en: Dictionary = {
     planAdviceNoCampaign: (name: string) => `"${name}" is running with no campaign under it.`,
     planAdviceNoSegment: (name: string) => `"${name}" is running and no segment points at it.`,
     planAdviceNoObjective: (name: string) => `"${name}" states no objective.`,
+    segmentCount: (n: number) => `${n} segments`,
   },
 
   PLAN_STATUS_LABEL: {
@@ -2598,6 +3241,9 @@ export const en: Dictionary = {
   // --- /copilot -----------------------------------------------------------
 
   PROPOSAL_TEXT: {
+    why: "Actions the copilot proposes and a person decides on. The machine proposes; accepting is yours (ADR-003).",
+    tagAwaiting: (n: number) => (n === 0 ? "Nothing awaiting you" : `${n} awaiting your call`),
+    tagLowConfidence: (n: number) => `${n} low confidence`,
     detailRationale: "Full rationale",
     detailPayload: "What it would change",
     detailCapability: "Proposed by",
@@ -2666,6 +3312,8 @@ export const en: Dictionary = {
       "Each one records you as the decider. Doing them in bulk does not reduce the trail.",
     rejectNote:
       "A rejection is signed too, and a rejected proposal keeps its full record.",
+    searchHint: "Rationale",
+    filterAllStatus: "All states",
   },
 
   AGENT_SUBJECT_LABEL: {
@@ -2742,6 +3390,70 @@ export const en: Dictionary = {
 
   // --- /admin -------------------------------------------------------------
 
+  ADMIN_GROUP_LABEL: {
+    org: "Organisation",
+    access: "People and access",
+    params: "Business parameters",
+    ops: "Operations",
+  },
+  PERMISSION_LABEL: {
+    "strategy.read": "View strategy and market segments",
+    "strategy.write": "Edit strategy and market segments",
+    "strategy.approve": "Approve a plan - the moment it becomes a commitment",
+    "planning.read": "View planning",
+    "planning.write": "Edit territories and targets",
+    "campaign.read": "View campaigns",
+    "campaign.write": "Edit campaigns and executions",
+    "account.read": "View accounts",
+    "account.write": "Edit accounts, contacts and the relationship graph",
+    "account.record": "Record what happened - interactions and commitments, not the master record",
+    "signal.read": "View signals",
+    "signal.triage": "Triage signals - score, match, promote, dedup",
+    "pipeline.read": "View opportunities",
+    "pipeline.write": "Edit opportunities and advance stages",
+    "pipeline.forecast": "Submit forecast snapshots",
+    "pipeline.discount": "Authorise a price below the product floor",
+    "delivery.read": "View delivery projects",
+    "delivery.write": "Edit milestones, tasks and revenue schedules",
+    "copilot.use": "Use the copilot - open sessions and ask",
+    "copilot.decide": "Accept or reject what the copilot proposes",
+    "copilot.autopilot": "Authorise autonomous execution",
+    "catalog.read": "Read the catalogue, solutions and price books",
+    "catalog.write": "Maintain products and solutions",
+    "catalog.price": "Set list and floor prices - the floor decides which discounts need a signature",
+    "admin.manage": "Administration - roles and the workspace catalogues",
+  },
+  SCOPE_LABEL: {
+    workspace: "Whole workspace",
+    territory: "Their territories",
+    own: "Their own rows",
+  },
+  ADMIN_PAGE_TEXT: {
+    rolesTitle: "Roles",
+    rolesWhy: "The nine roles and what each may do. Read-only.",
+    rolesColumnRole: "Role",
+    rolesColumnPerms: "Permissions",
+    rolesColumnMembers: "Members",
+    rolesColumnList: "What it may do",
+    rolesMembers: (n: number) => `${n}`,
+    rolesNoMember: "Nobody holds it",
+    permissionsTitle: "Permissions",
+    permissionsWhy: "The twenty-five permissions and who holds each. Read-only.",
+    permissionsColumnCode: "Code",
+    permissionsColumnName: "What it allows",
+    permissionsColumnRoles: "Held by",
+    permissionsNoRole: "No role holds it",
+    permissionsCount: (perms: number, roles: number, grants: number) =>
+      `${perms} permissions · ${roles} roles · ${grants} grants`,
+    scopeTitle: "Data scope",
+    scopeWhy: "Who can see which rows. Scope is changed under Members.",
+    scopeColumnMember: "Member",
+    scopeColumnScope: "Scope",
+    scopeColumnDetail: "Covers",
+    scopeTerritories: (n: number) => `${n} territories`,
+    scopeNoTerritory: "No territory assigned - this member sees nothing",
+    scopeCount: (n: number) => `${n} members`,
+  },
   MEMBER_TEXT: {
     title: "Members and roles",
     description:

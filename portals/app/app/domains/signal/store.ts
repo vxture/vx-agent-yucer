@@ -12,6 +12,7 @@
 
 import type { SignalStatus, SignalType } from "./lib/scoring";
 import { asc, by, desc } from "../shared/order";
+import type { FunnelExitDraft } from "../shared/funnel-exit";
 
 export interface SignalRecord {
   id: string;
@@ -65,10 +66,22 @@ export interface LeadRecord {
   ownerSub: string | null;
   status: LeadStatus;
   convertedOpportunityId: string | null;
+  /**
+   * When the lead arrived.
+   *
+   * The column has existed since the baseline (`created_at TIMESTAMPTZ NOT
+   * NULL DEFAULT now()`); it simply was not carried onto the record, so
+   * "本期新增" - how many leads came in this period - was a question the
+   * product held the data for and could not answer. Read-only: nothing
+   * patches it, and `updateLead` strips it with the other anchors.
+   */
+  createdAt: Date;
 }
 
 export interface NewLead {
   companyName: string;
+  /** Fixtures place leads in time; live creation leaves it to the clock. */
+  createdAt?: Date;
   contactName?: string | null;
   accountId: string | null;
   signalId: string | null;
@@ -121,6 +134,45 @@ export interface SignalStore {
       convertedOpportunityId?: string | null;
     },
   ): Promise<boolean>;
+
+  /**
+   * Remove a lead outright.
+   *
+   * A HARD DELETE, and deliberately so. This is the "should never have
+   * existed" path - a duplicate, a mis-typed company - and a soft-deleted row
+   * that still counts in a funnel rate would defeat the point. What a lead
+   * that WAS real and went nowhere gets is `disqualified`, which keeps it.
+   */
+  deleteLead(workspaceId: string, id: string): Promise<boolean>;
+
+  /**
+   * Record why something left the funnel (incr/0033).
+   *
+   * ON THE SIGNAL PORT because this domain owns the two stages that exit most
+   * often - a dismissed signal and a disqualified lead - and because a port
+   * per stage would be five ways to write one table. The rows themselves are
+   * stage-tagged, so the other domains can reach the same table through their
+   * own ports when their surfaces need it.
+   */
+  recordFunnelExit(workspaceId: string, input: FunnelExitDraft): Promise<void>;
+
+  /** Why this subject ended, newest first. Empty for anything still running. */
+  listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]>;
+
+  /**
+   * Every exit in the workspace - the cross-stage read the single table exists
+   * for (incr/0033).
+   *
+   * WITHOUT A SUBJECT, which is the whole point: "which stage leaks most and
+   * why" cannot be asked one subject at a time, and asking it per stage would
+   * be the five-way UNION the single-table shape was chosen to avoid.
+   */
+  listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]>;
+}
+
+export interface FunnelExitRecord extends FunnelExitDraft {
+  id: string;
+  decidedAt: Date;
 }
 
 export class InMemorySignalStore implements SignalStore {
@@ -216,6 +268,7 @@ export class InMemorySignalStore implements SignalStore {
       ownerSub: lead.ownerSub ?? null,
       status: "new",
       convertedOpportunityId: null,
+      createdAt: lead.createdAt ?? new Date(),
     };
     this.leads.set(record.id, record);
     return record;
@@ -234,6 +287,43 @@ export class InMemorySignalStore implements SignalStore {
     return l && l.workspaceId === workspaceId ? { ...l } : null;
   }
 
+  private exits: Array<FunnelExitRecord & { workspaceId: string }> = [];
+  private exitSeq = 0;
+
+  async recordFunnelExit(workspaceId: string, input: FunnelExitDraft): Promise<void> {
+    this.exits.push({
+      ...input,
+      id: `fx_${++this.exitSeq}`,
+      workspaceId,
+      decidedAt: new Date(),
+    });
+  }
+
+  async listAllFunnelExits(workspaceId: string): Promise<FunnelExitRecord[]> {
+    return this.exits
+      .filter((e) => e.workspaceId === workspaceId)
+      .sort((a, b) => b.decidedAt.getTime() - a.decidedAt.getTime());
+  }
+
+  async listFunnelExits(workspaceId: string, subjectId: string): Promise<FunnelExitRecord[]> {
+    return this.exits
+      .filter((e) => e.workspaceId === workspaceId && e.subjectId === subjectId)
+      .sort((a, b) => b.decidedAt.getTime() - a.decidedAt.getTime());
+  }
+
+  async deleteLead(workspaceId: string, id: string): Promise<boolean> {
+    const held = this.leads.get(id);
+    // The workspace check is the tenant boundary, not a formality: the id
+    // alone is enough to address any row in the map.
+    if (held?.workspaceId !== workspaceId) return false;
+    // THE EXIT ROWS GO WITH IT. A hard-deleted lead is one that should never
+    // have existed, and a note explaining why it ended cannot outlive the
+    // thing it describes - the polymorphic subject_id has no foreign key to
+    // cascade for it (incr/0033).
+    this.exits = this.exits.filter((e) => e.subjectId !== id);
+    return this.leads.delete(id);
+  }
+
   async updateLead(
     workspaceId: string,
     id: string,
@@ -243,7 +333,10 @@ export class InMemorySignalStore implements SignalStore {
     if (!l || l.workspaceId !== workspaceId) return false;
     // signal_id and campaign_id are absent from the patch type on purpose; this
     // guard is the runtime half of the same rule.
-    const { signalId, campaignId, id: _id, workspaceId: _ws, leadNo: _no, ...writable } = patch;
+    const {
+      signalId, campaignId, id: _id, workspaceId: _ws, leadNo: _no,
+      createdAt: _created, ...writable
+    } = patch;
     void signalId;
     void campaignId;
     void _id;

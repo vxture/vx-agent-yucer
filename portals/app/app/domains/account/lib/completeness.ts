@@ -38,6 +38,8 @@ export interface CompletableAccount {
   name: string;
   industry: string | null;
   region: string | null;
+  /** incr/0035. The province the customer sits in; the map is coloured by it. */
+  province: string | null;
   segmentCode: string | null;
   ownerSub: string | null;
 }
@@ -55,7 +57,12 @@ export interface SegmentCriteria {
   regions: readonly string[];
 }
 
-export const FILLABLE_FIELDS = ["region", "industry", "segmentCode", "ownerSub"] as const;
+/* PROVINCE IS FILLABLE, and its absence here was a real hole. incr/0035 added
+   the column and the situation screen colours a map of China by it, but nothing
+   in the product could ever write one: a workspace that was not seeded would
+   have every province grey for ever, and no page said why. The补全 module is
+   where a missing fact on a customer record gets filled, so it belongs here. */
+export const FILLABLE_FIELDS = ["province", "region", "industry", "segmentCode", "ownerSub"] as const;
 export type FillableField = (typeof FILLABLE_FIELDS)[number];
 
 export interface AccountGap {
@@ -102,11 +109,38 @@ export function accountGaps(
   deals: readonly AccountEvidence[],
   territories: readonly RoutingTerritory[],
   segments: readonly SegmentCriteria[],
+  /** province -> 大区, as this workspace divides its market (incr/0036). */
+  divisionOf: Readonly<Record<string, string>> = {},
 ): AccountGap[] {
   const gaps: AccountGap[] = [];
 
+  // --- province ---------------------------------------------------------
+  if (!account.province) {
+    /* NOT DERIVABLE FROM THESE ROWS, and saying so is the point. A 大区 holds
+       four to ten provinces, so knowing the region narrows it and never settles
+       it, and picking one would write a guess into a customer record that the
+       map then reports as fact. Where a company is registered IS a fact about
+       the world, which is what the model plane is for - the same shape as the
+       industry gap below. */
+    gaps.push({ field: "province", suggestion: null, basis: null, forModel: true });
+  }
+
   // --- region -----------------------------------------------------------
-  if (!account.region) {
+  /* DERIVED FROM THE PROVINCE WHEN THERE IS ONE, because that answer is exact.
+     The territory route below is a fallback that needs a covering territory
+     naming exactly one region; the province route needs only the workspace's
+     own division table, which places every province. This is what makes the
+     division data part of the product rather than something the screen keeps
+     to itself. */
+  const fromProvince = account.province ? divisionOf[account.province] ?? null : null;
+  if (!account.region && fromProvince) {
+    gaps.push({
+      field: "region",
+      suggestion: fromProvince,
+      basis: `${account.province} sits in ${fromProvince}`,
+      forModel: false,
+    });
+  } else if (!account.region) {
     // DERIVED FROM WHERE ITS DEALS ARE FILED. A territory names the regions it
     // covers (incr/0017), so a deal filed in one places its customer on that
     // ground. Suggested only when the covering territory names EXACTLY ONE

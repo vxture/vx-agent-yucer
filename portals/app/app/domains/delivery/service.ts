@@ -7,6 +7,7 @@
 // returns the DERIVED health, and says when it downgraded a report and why.
 
 import { changeMilestone, planMilestone, type MilestoneDraft } from "./lib/milestone";
+import { planAgeingCutoffs } from "./lib/collection-stats";
 import {
   assessRenewal,
   daysUntilEnd,
@@ -45,6 +46,35 @@ export interface DeliveryContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: DeliveryStore;
+}
+
+/* ---------------------------------------------------------------------------
+ * 账龄分档 - the workspace's own ageing policy (incr/0042).
+ *
+ * READ is gated on `delivery.revenue.view`, the same gate the collections page
+ * needs: the cutoffs are how that page's chart is cut. WRITE is
+ * `delivery.revenue.upsert` - deciding when a receivable counts as 60 days
+ * late is the money side, not the project side.
+ * ------------------------------------------------------------------------ */
+
+export async function ageingCutoffs(ctx: DeliveryContext): Promise<RuleResult<number[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.revenue.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getAgeingCutoffs(ctx.workspaceId));
+}
+
+export async function setAgeingCutoffs(
+  ctx: DeliveryContext,
+  cutoffs: readonly number[],
+): Promise<RuleResult<number[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "delivery.revenue.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planAgeingCutoffs(cutoffs);
+  if (!plan.ok) return plan as RuleResult<number[]>;
+
+  await ctx.store.setAgeingCutoffs(ctx.workspaceId, plan.value);
+  return ok([...plan.value]);
 }
 
 export async function listProjects(

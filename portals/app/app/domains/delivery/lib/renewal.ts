@@ -113,6 +113,17 @@ export function assessRenewal(
 export interface RenewalDraft {
   accountId: string;
   name: string;
+  /**
+   * What the customer is buying, for the opportunity this becomes (incr/0034).
+   *
+   * DERIVED FROM THE PROJECT, not invented. A renewal continues an engagement
+   * that already exists, so the requirement is that engagement - this is the
+   * one fact about a renewal the product genuinely knows without asking.
+   * Everything else is left blank on purpose: the amount is last term's rather
+   * than a guessed uplift, and there is no close date because when the next
+   * term starts is a negotiation.
+   */
+  requirementFromProject: string;
   amount: number | null;
   currency: string;
   sourceProjectId: string;
@@ -128,6 +139,7 @@ export function planRenewal(project: RenewableProject, verdict: RenewalVerdict):
   return ok({
     accountId: project.accountId,
     name: project.name,
+    requirementFromProject: project.name,
     amount: project.contractAmount,
     currency: project.currency,
     sourceProjectId: project.id,

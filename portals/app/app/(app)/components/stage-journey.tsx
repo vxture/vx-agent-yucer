@@ -2,6 +2,7 @@ import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import { getMessages } from "../lib/i18n/server";
 import { STAGE_TONE } from "../lib/view-model";
+import { Tag } from "./tag";
 
 // The stage journal, oldest first.
 //
@@ -59,9 +60,9 @@ export async function StageJourney({ events, now }: StageJourneyProps) {
       title={OPPORTUNITY_TEXT.journeyTitle}
       description={OPPORTUNITY_TEXT.journeyDescription}
       action={
-        <StatusBadge tone="neutral">
+        <Tag>
           {OPPORTUNITY_TEXT.journeyTotal(daysBetween(first.occurredAt, asOf))}
-        </StatusBadge>
+        </Tag>
       }
     >
       <ol>
@@ -72,9 +73,9 @@ export async function StageJourney({ events, now }: StageJourneyProps) {
           const isCurrent = i === events.length - 1;
           return (
             <li key={e.id}>
-              <StatusBadge tone={STAGE_TONE[e.toStage as Stage]} dot>
+              <Tag tone={STAGE_TONE[e.toStage as Stage]} dot>
                 {STAGE_LABEL[e.toStage as Stage] ?? e.toStage}
-              </StatusBadge>
+              </Tag>
 
               <span>
                 {e.fromStage
@@ -86,11 +87,11 @@ export async function StageJourney({ events, now }: StageJourneyProps) {
                 {e.occurredAt.toISOString().slice(0, 10)}
               </time>
 
-              <StatusBadge tone={isCurrent ? "info" : "neutral"}>
+              <Tag tone={isCurrent ? "info" : "neutral"}>
                 {OPPORTUNITY_TEXT.journeyDuration(
                   daysBetween(e.occurredAt, until),
                 )}
-              </StatusBadge>
+              </Tag>
               {isCurrent ? (
                 <StatusBadge tone="info">
                   {OPPORTUNITY_TEXT.journeyCurrent}

@@ -1,4 +1,5 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
@@ -27,7 +28,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function NamedAccountPage() {
-  const { DOMAIN_LABEL, LOAD_ERROR, NAMED_ACCOUNT_TEXT, SHELL_TEXT } =
+  const { LOAD_ERROR, NAMED_ACCOUNT_TEXT, SHELL_TEXT } =
     await getMessages();
   const session = await resolveAppSession();
   if (!session) {
@@ -76,7 +77,13 @@ export default async function NamedAccountPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader title={DOMAIN_LABEL.namedAccount} />
+      {/* NO FOLD: this list IS a filter of the customer roster - one bucket
+          by construction, so there is nothing to break into shares. */}
+      <ModuleHeadline
+        moduleKey="namedAccount"
+        description={NAMED_ACCOUNT_TEXT.why}
+        tags={<StatusBadge tone="success">{NAMED_ACCOUNT_TEXT.tagNamed(named.length)}</StatusBadge>}
+      />
       <AccountTable
         rows={named}
         canRecompute={

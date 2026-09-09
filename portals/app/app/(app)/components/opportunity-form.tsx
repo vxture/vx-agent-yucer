@@ -11,7 +11,13 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { AssistPanel, FormPage, useFormSubmit, type AssistSuggestion } from "./form-page";
+import {
+  AssistPanel,
+  FormFields,
+  FormPage,
+  useFormSubmit,
+  type AssistSuggestion,
+} from "./form-page";
 import { accountsWithoutOpenDeal } from "../../domains/pipeline/lib/suggest";
 import { coveringTerritories } from "../../domains/planning/lib/suggest";
 
@@ -50,6 +56,8 @@ export function OpportunityForm({
     name: string;
     accountId: string;
     territoryId: string | null;
+    /** What the customer wants (incr/0034). */
+    requirement: string;
     amount: number | null;
     expectedCloseAt: string | null;
   }) => Promise<Saved>;
@@ -58,6 +66,10 @@ export function OpportunityForm({
   const [name, setName] = useState("");
   const [accountId, setAccountId] = useState("");
   const [territoryId, setTerritoryId] = useState("");
+  // 客户需求 (incr/0034). Required by the rule and by a CHECK: a deal that
+  // cannot say what it is for cannot be judged by anybody who did not sit in
+  // the meeting.
+  const [requirement, setRequirement] = useState("");
   const [amount, setAmount] = useState("");
   const [closeAt, setCloseAt] = useState("");
   const submit = useFormSubmit("/pipeline");
@@ -103,6 +115,9 @@ export function OpportunityForm({
   const ready =
     name.trim() !== "" &&
     accountId !== "" &&
+    // Refused by the rule and by a CHECK - refusing it here too is what stops
+    // the reader meeting the condition as an error after the fact.
+    requirement.trim() !== "" &&
     (amount.trim() === "" || (Number.isFinite(n) && n >= 0));
 
   return (
@@ -110,7 +125,8 @@ export function OpportunityForm({
       form={
         // The page ViewHeader owns the title - see plan-form.tsx.
         <Section icon="plus">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
             <Field>
               <FieldLabel>{PIPELINE_TEXT.newName}</FieldLabel>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -138,6 +154,21 @@ export function OpportunityForm({
               </NativeSelect>
             </Field>
             <Field>
+              {/* 客户需求, ABOVE the money. What they want is the reason the
+                  deal exists; the amount is a consequence of it, and a form
+                  that asks for the number first teaches people to fill the
+                  need in afterwards. */}
+              <FieldLabel>{PIPELINE_TEXT.newRequirement}</FieldLabel>
+              <Input
+                value={requirement}
+                placeholder={PIPELINE_TEXT.newRequirementHint}
+                onChange={(e) => setRequirement(e.target.value)}
+              />
+              <p className="text-muted-foreground text-body-sm">
+                {PIPELINE_TEXT.newRequirementWhy}
+              </p>
+            </Field>
+            <Field>
               <FieldLabel>{PIPELINE_TEXT.newAmount}</FieldLabel>
               <Input
                 type="number"
@@ -151,6 +182,7 @@ export function OpportunityForm({
               <FieldLabel>{PIPELINE_TEXT.newExpectedClose}</FieldLabel>
               <Input type="date" value={closeAt} onChange={(e) => setCloseAt(e.target.value)} />
             </Field>
+            </FormFields>
             {/* Frozen the moment the button is pressed: campaign_id has no
                 UPDATE grant, so a deal entered here is self-sourced forever. */}
             <p className="text-muted-foreground text-body-sm">{PIPELINE_TEXT.newSelfSourced}</p>
@@ -164,6 +196,7 @@ export function OpportunityForm({
                         name: name.trim(),
                         accountId,
                         territoryId: territoryId === "" ? null : territoryId,
+                        requirement: requirement.trim(),
                         amount: amount.trim() === "" ? null : n,
                         expectedCloseAt: closeAt === "" ? null : closeAt,
                       }),

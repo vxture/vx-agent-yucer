@@ -33,8 +33,12 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // --- yucer_core ---
   "yucer_core.account": [
     "name",
-    "industry",
+    // incr/0040 - the industry is a row in the workspace's own vocabulary now,
+    // so what an account carries is the join, not the characters.
+    "industry_id",
     "region",
+    // incr/0035 - the province, one granularity below region. Both writable.
+    "province",
     "segment_code",
     "owner_sub",
     "health_score", "tier",
@@ -160,6 +164,10 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "amount",
     "currency",
     "probability",
+    // incr/0034 - what the customer wants. Writable rather than frozen: it is
+    // understood better as a deal progresses, and a first sentence written at
+    // qualify time should be improved, not preserved as a monument.
+    "requirement",
     "expected_close_at",
     "closed_at",
     "status",
@@ -168,7 +176,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
   "yucer_pipeline.win_loss_review": [
     "outcome",
-    "primary_reason",
+    // 0039: the free-text reason left; the vocabulary row's uuid took its place.
+    "primary_reason_id",
     "competitor",
     "lessons",
     "reviewer_sub",
@@ -233,13 +242,45 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0028 added sort_order (manual catalogue order); 0029 replaced category
   // and status with the two uuid joins (internal keys are uuids - owner,
   // 2026-09-05).
-  "yucer_catalog.product": ["name", "unit", "sort_order", "type_id", "status_id", "updated_at"],
+  "yucer_catalog.product": ["name", "sort_order", "type_id", "status_id", "unit_id", "updated_at"],
   // 0028. type_code is the workspace's anchor vocabulary - the join key is
   // the uuid, but the code is still what imports and upserts match on.
+  /* 0036. 大区 - the tenant may RENAME and REORDER a division. Not the code:
+     that is the anchor the preset and every import upsert on, and a division
+     whose code changed is a new division wearing an old one's history. */
+  "yucer_core.market_division": ["name", "sort_order", "updated_at"],
+  /* 0036. Moving a province between divisions is the whole point of it being
+     editable. `province` is not here: it is half the primary key, and changing
+     it in place is a delete and an insert wearing one statement. */
+  "yucer_core.market_division_province": ["division_id", "updated_at"],
+  /* 0045. The same rule for the frames whose members are admin_division
+     rows: a city moves between divisions; (workspace_id, admin_division_id)
+     is the key and is not rewritten. */
+  "yucer_core.market_division_member": ["division_id", "updated_at"],
   "yucer_catalog.product_type": ["name", "sort_order", "status", "updated_at"],
   // 0029. status_code is the anchor; the rest of the row - name, 状态描述,
   // order - is the workspace's to edit.
   "yucer_catalog.product_status": ["name", "description", "sort_order", "updated_at"],
+  // 0037. unit_code is the anchor, like the two above it; name and order are
+  // the workspace's.
+  "yucer_catalog.product_unit": ["name", "sort_order", "updated_at"],
+  // 0044. The one number the row is for.
+  "yucer_catalog.pricing_policy": ["default_currency", "updated_at"],
+  // 0039. reason_code is the anchor; the name, which outcome it explains, and
+  // the order are the workspace's.
+  "yucer_pipeline.win_loss_reason": ["name", "for_won", "for_lost", "sort_order", "updated_at"],
+  // 0041. The three numbers are the whole point of the row; workspace_id is
+  // its identity and is not writable.
+  "yucer_pipeline.forecast_threshold": [
+    "commit_probability", "best_case_probability", "stall_days", "updated_at",
+  ],
+  // 0042. Same shape, one column.
+  "yucer_delivery.ageing_policy": ["late_cutoffs", "updated_at"],
+  // 0040. industry_code is the anchor; the display name and the order are the
+  // workspace's.
+  "yucer_core.industry": ["name", "sort_order", "updated_at"],
+  // 0043. The frame a workspace carves inside - the kind and the province.
+  "yucer_core.market_scope": ["scope_kind", "scope_province", "updated_at"],
   // 0031 added the customisation half: the scenario a solution is shaped for,
   // and the manual order the roster is presented in.
   "yucer_catalog.solution": ["name", "summary", "status", "scenario", "sort_order", "updated_at"],
@@ -298,9 +339,39 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // that can be edited is a note; this one has no UPDATE and no DELETE grant,
   // so a correction is a new row like everything else in this list.
   "yucer_delivery.milestone_change",
+  // incr/0033. Why something left the funnel is a record of somebody's
+  // account at the time, not a field to be tidied later. DELETE is granted on
+  // it for exactly one case - a hard-deleted lead takes its exit rows with it -
+  // and that is a deletion, not an update.
+  "yucer_pipeline.funnel_exit",
+];
+
+/**
+ * Tables the service role may only READ - no UPDATE and no INSERT either.
+ *
+ * A THIRD CATEGORY, added 2026-09-08 with the administrative divisions. The
+ * guard used to sort every table into two: writable, or append-only. A table
+ * granted nothing but SELECT fell into the second and read as "the application
+ * may add rows but not edit them", which is the opposite of what its grant
+ * says. Reference data is not appended to by a running application - which
+ * provinces China has is not a decision this product makes at runtime, and a
+ * row arrives only from the next increment.
+ */
+export const READ_ONLY_TABLES: readonly string[] = [
+  // incr/0038. 3,611 rows of continent / country / province / city / county,
+  // generated from pinned sources. The service role selects them; nothing in
+  // the product writes them.
+  "yucer_ref.admin_division",
+  // incr/0045. 预置方案 - the carves a workspace adopts as a start, and the
+  // by-unit ones derived from admin_division. The service reads; a carve
+  // changes by increment (owner: 不容许代码写死 - data, not constants).
+  "yucer_ref.market_carve",
+  "yucer_ref.market_carve_division",
+  "yucer_ref.market_carve_member",
 ];
 
 const APPEND_ONLY = new Set(APPEND_ONLY_TABLES);
+const READ_ONLY = new Set(READ_ONLY_TABLES);
 
 /** camelCase (Prisma field) -> snake_case (DDL column). */
 export function toSnakeCase(field: string): string {
@@ -309,6 +380,11 @@ export function toSnakeCase(field: string): string {
 
 export function isAppendOnly(table: string): boolean {
   return APPEND_ONLY.has(table);
+}
+
+/** Reference data: readable, never written by the application. */
+export function isReadOnly(table: string): boolean {
+  return READ_ONLY.has(table);
 }
 
 export function writableColumns(table: string): readonly string[] {

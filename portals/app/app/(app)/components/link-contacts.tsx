@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Label, NativeSelect, StatusBadge } from "@vxture/design-ui";
 import { RELATION_TYPES, type ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // Recording a path to the buyer.
 //
@@ -49,9 +50,9 @@ export function LinkContacts({
   const [saved, setSaved] = useState(false);
 
   if (!canLink)
-    return <StatusBadge tone="neutral">{RELATION_TEXT.readOnly}</StatusBadge>;
+    return <Tag>{RELATION_TEXT.readOnly}</Tag>;
   if (contacts.length < 2)
-    return <StatusBadge tone="neutral">{RELATION_TEXT.needTwo}</StatusBadge>;
+    return <Tag>{RELATION_TEXT.needTwo}</Tag>;
 
   const label = (c: ContactNode) =>
     `${c.id} (${DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole})`;

@@ -1,11 +1,5 @@
-import {
-  Card,
-  EmptyState,
-  Progress,
-  StatusBadge,
-  ViewHeader,
-  ViewLayout,
-} from "@vxture/design-ui";
+import { Card, EmptyState, Progress, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import {
@@ -18,6 +12,7 @@ import { attainment, listTargets } from "../../domains/planning/service";
 import {
   listOpportunityLines,
   listProducts,
+  pricingPolicy,
 } from "../../domains/catalog/service";
 import { summaryTarget } from "../../domains/planning/lib/target";
 import { inPeriod, rollUp } from "../../domains/pipeline/lib/forecast";
@@ -27,6 +22,7 @@ import {
 } from "../../domains/planning/lib/coverage";
 import { byProduct } from "../../domains/catalog/lib/pricing";
 import { loadFailureText } from "../lib/load-failure";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 
 // 承诺达成 - the assault objective (owner ruling, 2026-08-31).
 //
@@ -130,7 +126,12 @@ export default async function AttainmentPage() {
   const quarterOpen = window ? window.kept : [];
   // rollUp returns a RuleResult - a refusal degrades to no pool card rather
   // than a card of zeros.
-  const rolled = window ? rollUp(quarterOpen) : null;
+  /* 计价规则 (incr/0044): what the quarter's open pipeline is summed in. */
+  const policyRead = await pricingPolicy({ ...base, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+  const rolled = window ? rollUp(quarterOpen, defaultCurrency) : null;
   const totals = rolled?.ok ? rolled.value : null;
   const quarterWorth = quarterOpen.reduce(
     (sum, d) => sum + (d.amount?.amount ?? 0),
@@ -171,10 +172,10 @@ export default async function AttainmentPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={ATTAINMENT_TEXT.title}
-        description={ATTAINMENT_TEXT.why}
-      />
+      {/* NO FOLD: the card directly below IS the decomposition - target,
+          achieved, the gap - so a strip above it would explain the same number
+          twice, and the coarser one would be on top. */}
+      <ModuleHeadline moduleKey="attainment" description={ATTAINMENT_TEXT.why} />
       <Card className="p-lg">
         <div className="flex flex-col gap-md">
           {wsTarget && measured && pct !== null ? (

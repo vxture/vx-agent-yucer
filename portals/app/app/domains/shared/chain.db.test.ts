@@ -420,3 +420,174 @@ test("a territory assignment is a pair, and cannot be edited into a different on
     assert.equal(left.rows[0].n, "0");
   });
 });
+
+// --- incr/0033: why anything left the funnel ---------------------------------
+//
+// SUBJECT_ID IS A LITERAL HERE, not a row from the chain, and that is not
+// laziness - it is the trade being tested. The column is polymorphic and
+// carries no foreign key, so the database accepts an id that resolves to
+// nothing. Writing it out makes the cost visible in the one place somebody
+// would look for it.
+const EXIT_SUBJECT = "eeeeeeee-0000-0000-0000-00000000f001";
+//
+// THE CHECKS ARE THE WHOLE POINT OF THE TABLE. subject_id is polymorphic and
+// carries no foreign key, so the only thing standing between this table and
+// rows that describe a stage they never belonged to is a pair of CHECK
+// constraints - and a CHECK is a property of Postgres and of nothing else.
+
+test("a lead cannot claim an ending that belongs to another stage", { skip }, async () => {
+  await onChain(async (c) => {
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.funnel_exit
+           (workspace_id, stage, subject_id, outcome, reason_code, decided_by_sub)
+         VALUES ($1, 'lead', $2, 'written_off', 'no_budget', 'usr_db')`,
+        [CHAIN_WS, EXIT_SUBJECT],
+      ),
+      /chk_funnel_exit_outcome/,
+      "a lead counted under revenue is what a cross-stage table must not allow",
+    );
+  });
+});
+
+test("each stage accepts its own outcomes", { skip }, async () => {
+  await onChain(async (c) => {
+    for (const [stage, outcome] of [
+      ["signal", "dismissed"],
+      ["lead", "disqualified"],
+      ["opportunity", "abandoned"],
+      ["project", "cancelled"],
+      ["revenue", "written_off"],
+    ]) {
+      await c.query(
+        `INSERT INTO yucer_pipeline.funnel_exit
+           (workspace_id, stage, subject_id, outcome, reason_code, decided_by_sub)
+         VALUES ($1, $2, $3, $4, 'timing', 'usr_db')`,
+        [CHAIN_WS, stage, EXIT_SUBJECT, outcome],
+      );
+    }
+  });
+});
+
+test("'other' with no note is refused by the database, not only by the rule", { skip }, async () => {
+  await onChain(async (c) => {
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.funnel_exit
+           (workspace_id, stage, subject_id, outcome, reason_code, decided_by_sub)
+         VALUES ($1, 'lead', $2, 'disqualified', 'other', 'usr_db')`,
+        [CHAIN_WS, EXIT_SUBJECT],
+      ),
+      /chk_funnel_exit_other_note/,
+      "a catch-all with no sentence becomes the whole vocabulary within a quarter",
+    );
+    // Whitespace is not a sentence either.
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.funnel_exit
+           (workspace_id, stage, subject_id, outcome, reason_code, note, decided_by_sub)
+         VALUES ($1, 'lead', $2, 'disqualified', 'other', '   ', 'usr_db')`,
+        [CHAIN_WS, EXIT_SUBJECT],
+      ),
+      /chk_funnel_exit_other_note/,
+    );
+  });
+});
+
+test("an exit record cannot be edited afterwards", { skip }, async () => {
+  await onChain(async (c) => {
+    await c.query(
+      `INSERT INTO yucer_pipeline.funnel_exit
+         (workspace_id, stage, subject_id, outcome, reason_code, decided_by_sub)
+       VALUES ($1, 'lead', $2, 'disqualified', 'no_budget', 'usr_db')`,
+      [CHAIN_WS, EXIT_SUBJECT],
+    );
+    await c.query(`SET ROLE yucer_svc`);
+    await assert.rejects(
+      c.query(
+        `UPDATE yucer_pipeline.funnel_exit SET reason_code = 'timing' WHERE workspace_id = $1`,
+        [CHAIN_WS],
+      ),
+      /permission denied/,
+      "append-only: somebody's account of why a deal died is a record, not a field",
+    );
+    // DELETE stays granted, for the one case that needs it: a hard-deleted
+    // lead takes its exit rows with it.
+    await c.query(`DELETE FROM yucer_pipeline.funnel_exit WHERE workspace_id = $1`, [CHAIN_WS]);
+    await c.query(`RESET ROLE`);
+  });
+});
+
+test("an abandoned deal can finally have a review written for it", { skip }, async () => {
+  // opportunity.status has allowed 'abandoned' since the baseline; the review
+  // table's CHECK allowed only won and lost, so the row was refused by the
+  // database rather than merely never written.
+  await onChain(async (c) => {
+    await c.query(`DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`, [CHAIN_WS]);
+    await c.query(
+      `INSERT INTO yucer_pipeline.win_loss_review
+         (workspace_id, opportunity_id, outcome, primary_reason_id, reviewer_sub)
+       VALUES ($1, $2, 'abandoned', $3, 'usr_db')`,
+      [CHAIN_WS, CHAIN.opportunity, CHAIN.winLossReason],
+    );
+  });
+});
+
+// --- incr/0034: a deal has an owner and says what the customer wants ---------
+
+test("a deal cannot be written without an owner", { skip }, async () => {
+  // owner_sub was nullable and one function happened to fill it. Three paths
+  // create opportunities in this product and one reaches the store directly,
+  // so the habit was never a rule until this column said so.
+  await onChain(async (c) => {
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.opportunity
+           (workspace_id, opportunity_no, name, account_id, requirement)
+         VALUES ($1, 'OPP-NOOWNER', 'No owner', $2, 'wants a thing')`,
+        [CHAIN_WS, CHAIN.account],
+      ),
+      /owner_sub/,
+    );
+  });
+});
+
+test("a deal cannot be written without a requirement, blank included", { skip }, async () => {
+  await onChain(async (c) => {
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.opportunity
+           (workspace_id, opportunity_no, name, account_id, owner_sub)
+         VALUES ($1, 'OPP-NOREQ', 'No requirement', $2, 'usr_db')`,
+        [CHAIN_WS, CHAIN.account],
+      ),
+      /requirement/,
+      "NOT NULL",
+    );
+    // AND NOT NULL IS NOT ENOUGH ON TEXT. An empty string passes it and says
+    // nothing - which is exactly the placeholder the migration refuses to
+    // write for anybody.
+    await assert.rejects(
+      c.query(
+        `INSERT INTO yucer_pipeline.opportunity
+           (workspace_id, opportunity_no, name, account_id, owner_sub, requirement)
+         VALUES ($1, 'OPP-BLANKREQ', 'Blank', $2, 'usr_db', '   ')`,
+        [CHAIN_WS, CHAIN.account],
+      ),
+      /chk_opportunity_requirement/,
+    );
+  });
+});
+
+test("the requirement is writable - it is understood better as a deal runs", { skip }, async () => {
+  // Not an attribution key and not an anchor: a first sentence written at
+  // qualify time should be improved, not preserved as a monument.
+  await onChain(async (c) => {
+    await c.query(`SET ROLE yucer_svc`);
+    await c.query(
+      `UPDATE yucer_pipeline.opportunity SET requirement = 'sharper wording' WHERE id = $1`,
+      [CHAIN.opportunity],
+    );
+    await c.query(`RESET ROLE`);
+  });
+});

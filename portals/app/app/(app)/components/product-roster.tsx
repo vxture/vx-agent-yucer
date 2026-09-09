@@ -5,15 +5,33 @@ import {
   Button,
   DataTable,
   EmptyState,
+  FilterBar,
   Icon,
+  Input,
+  NativeSelect,
   Section,
   StatusBadge,
+  TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
-import type { ProductRecord, ProductStatusRecord, ProductTypeRecord } from "../../domains/catalog/store";
 import { statusTone } from "./status-label";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, rowClickSelection } from "./table-fittings";
+import {
+  ACTION_COLUMN,
+  EDGE_COLUMNS,
+  FilterSlot,
+  RowActions,
+  rowClickSelection,
+  SearchSlot,
+  useTableSort,
+} from "./table-fittings";
+import type {
+  ProductRecord,
+  ProductStatusRecord,
+  ProductTypeRecord,
+  ProductUnitRecord,
+} from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
 // row is where the operations live, locked to the right.
@@ -40,6 +58,11 @@ export interface ProductRosterProps {
   readonly types: readonly ProductTypeRecord[];
   /** The status vocabulary - labels, tones and legal moves all read it. */
   readonly statuses: readonly ProductStatusRecord[];
+  /** 计价单位 (0037) - the row carries a uuid, this turns it into 套 / 人天.
+   *  REQUIRED, not optional-with-a-default: an optional one let /catalog
+   *  render the roster without it and print an empty 单位 column, which is
+   *  exactly the kind of miss a type can catch and a default cannot. */
+  readonly units: readonly ProductUnitRecord[];
   readonly canWrite: boolean;
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
@@ -49,7 +72,14 @@ export interface ProductRosterProps {
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
+/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
+   renders - a money cell sorts on the raw amount, not its formatted string. */
+const SORT_ON = {
+  name: (r: ProductRecord) => r.name,
+};
+
 export function ProductRoster({
+  units,
   products,
   types,
   statuses,
@@ -59,12 +89,14 @@ export function ProductRoster({
   onStatus,
   onDelete,
 }: ProductRosterProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS } = useMessages();
+  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+    useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). Held
   // across BOTH rosters because the keys are product ids: a selection is of
   // products, not of whichever half of the page they were shown in.
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const sorted = useTableSort<ProductRecord>([], SORT_ON);
   // Clicking the row toggles it - the checkbox is too small a target
   // (owner, 2026-09-06). Bound per table because each has its own row order.
   const click = (list: readonly ProductRecord[]) =>
@@ -72,10 +104,35 @@ export function ProductRoster({
   const { toast } = useToast();
 
   const typeName = new Map(types.map((t) => [t.id, t.name]));
+  const unitName = new Map(units.map((u) => [u.id, u.name]));
   const vocab = new Map(statuses.map((r) => [r.id, r]));
   const codeOf = (p: ProductRecord) => vocab.get(p.statusId)?.statusCode;
-  const live = products.filter((p) => codeOf(p) !== "retired");
-  const retired = products.filter((p) => codeOf(p) === "retired");
+
+  /* 工具行 - one query across the live and retired rosters. A catalogue is
+     looked up by name or code, and the person looking it up does not
+     necessarily know it has been retired; that is often the answer they came
+     for. The 分类 filter is the second axis because it is the only column
+     with a small, closed set of values. */
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const match = (p: ProductRecord) => {
+    const q = query.trim().toLowerCase();
+    return (
+      (q === "" ||
+        p.name.toLowerCase().includes(q) ||
+        p.productCode.toLowerCase().includes(q)) &&
+      (typeFilter === "" || p.typeId === typeFilter)
+    );
+  };
+  const narrowed = query.trim() !== "" || typeFilter !== "";
+
+  const isRetired = (p: ProductRecord) => codeOf(p) === "retired";
+  const liveTotal = products.filter((p) => !isRetired(p)).length;
+  const retiredTotal = products.filter(isRetired).length;
+
+  const shown = products.filter(match);
+  const live = shown.filter((p) => !isRetired(p));
+  const retired = shown.filter(isRetired);
 
   /** The legal targets for one product - the mirror of
    * planProductStatusChange: a different row, and never INTO 在研 (the birth
@@ -109,40 +166,46 @@ export function ProductRoster({
   const columns = [
     {
       id: "name",
+  sortable: true,
       header: CATALOG_TEXT.colName,
+      /* THE DS'S OWN TITLE CELL (design-ui 8.0.0 `TableTitleCell`), not a
+         hand-rolled flex-col. Same story as MoneyCell: the owner's 16/14
+         ruling of 2026-09-06 is the component's `size="lg"` default as of
+         2026-09-07, so eight tables were each re-deriving it. What the local
+         version could not do is PIN THE TWO LINE HEIGHTS - the DS fixes them
+         at 20px / 16px with a 4px gap so a title lines up with the titles in
+         the rows around it and a subtitle with the subtitles, which is what
+         makes a row readable straight across. */
       cell: (r: ProductRecord) => (
-        <span className="flex min-w-0 flex-col">
-          {/* 主标题字号加大加粗，副编码保持小字 (owner, 2026-09-06). */}
-          <span className="text-foreground truncate text-body-lg font-semibold">{r.name}</span>
-          <span className="text-muted-foreground mono truncate text-body-sm">{r.productCode}</span>
-        </span>
+        <TableTitleCell title={r.name} description={r.productCode} tooltip={r.name} />
       ),
     },
     {
       id: "type",
       header: CATALOG_TEXT.colType,
-      align: "center" as const,
       cell: (r: ProductRecord) =>
         r.typeId ? (typeName.get(r.typeId) ?? CATALOG_TEXT.noCategory) : CATALOG_TEXT.noCategory,
     },
     {
       id: "status",
       header: CATALOG_TEXT.colStatus,
-      align: "center" as const,
       cell: (r: ProductRecord) => {
         const row = vocab.get(r.statusId);
         return (
-          <StatusBadge tone={row ? statusTone(row) : "neutral"}>
+          <Tag tone={row ? statusTone(row) : "neutral"}>
             {row?.name ?? ""}
-          </StatusBadge>
+          </Tag>
         );
       },
     },
     {
       id: "unit",
       header: CATALOG_TEXT.colUnitPrice,
-      align: "center" as const,
-      cell: (r: ProductRecord) => r.unit,
+      /* THE NAME, resolved from the vocabulary (0037). The row carries a uuid;
+         printing it would be a column of hex. A product whose unit row was
+         deleted underneath it cannot exist - fk_product_unit RESTRICTs - so
+         the fallback is for a partial read, not for a real state. */
+      cell: (r: ProductRecord) => unitName.get(r.unitId) ?? "",
     },
   ];
 
@@ -206,7 +269,6 @@ export function ProductRoster({
   const arrowColumn = {
     id: "order",
     header: CATALOG_TEXT.colOps,
-    align: "center" as const,
     cell: (r: ProductRecord, rowIndex: number) => (
       <span className="flex items-center gap-xs">
         <Button
@@ -255,13 +317,22 @@ export function ProductRoster({
         selectedKeys={selected}
         onSelectionChange={setSelected}
         rowKey={(r: ProductRecord) => r.id}
-        rows={[...rows]}
+        rows={[...sorted.sortRows(rows)]}
+          sort={sorted.sort}
+          onSortChange={sorted.onSortChange}
         columns={extra ? [...columns, extra] : columns}
         /* The sort variant puts its arrows in a regular column, so IT is the
            trailing column there - the action slot would be a second one. */
         rowActions={extra ? undefined : rowActions}
         empty={
-          <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+          narrowed ? (
+            <EmptyState
+              title={TABLE_TOOLBAR_TEXT.noMatch}
+              description={TABLE_TOOLBAR_TEXT.noMatchWhy}
+            />
+          ) : (
+            <EmptyState title={CATALOG_TEXT.rosterLive} description={CATALOG_TEXT.byTypeEmpty} />
+          )
         }
       />
       </div>
@@ -291,15 +362,71 @@ export function ProductRoster({
           ) : undefined
         }
       >
+        {/* ONE TOOL ROW FOR BOTH ROSTERS. A catalogue is looked up by name or
+            code, and the person looking does not necessarily know the product
+            has been retired - that is often the answer they came for. The
+            retired roster below says on its own heading that the same control
+            is narrowing it. */}
+        <FilterBar
+          count={
+            narrowed
+              ? TABLE_TOOLBAR_TEXT.filteredCount(live.length, liveTotal)
+              : CATALOG_TEXT.productCount(live.length)
+          }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={CATALOG_TEXT.productSearchHint}
+                aria-label={TABLE_TOOLBAR_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={
+            narrowed
+              ? () => {
+                  setQuery("");
+                  setTypeFilter("");
+                }
+              : undefined
+          }
+          resetLabel={TABLE_TOOLBAR_TEXT.resetFilters}
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={typeFilter}
+              aria-label={CATALOG_TEXT.filterAllTypes}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="">{CATALOG_TEXT.filterAllTypes}</option>
+              {types.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
+
         {table(live)}
       </Section>
 
-      {retired.length > 0 ? (
+      {/* Holds its place while narrowed - a section that vanishes under a
+          keyword takes its own explanation with it. */}
+      {retired.length > 0 || (narrowed && retiredTotal > 0) ? (
         <Section
           id="retired"
           icon="package"
           title={CATALOG_TEXT.rosterRetired}
           description={CATALOG_TEXT.rosterRetiredWhy}
+          action={
+            narrowed ? (
+              <StatusBadge tone="info">{CATALOG_TEXT.narrowedNote}</StatusBadge>
+            ) : undefined
+          }
         >
           {table(retired)}
         </Section>

@@ -35,13 +35,19 @@ function seeded(): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: "t_sw", unit: "seat", statusId: "st_active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: "t_svc", unit: "day", statusId: "st_active", sortOrder: 2 },
-      { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", typeId: null, unit: "seat", statusId: "stx", sortOrder: 1 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: "t_sw", unitId: "u_seat", statusId: "st_active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: "t_svc", unitId: "u_day", statusId: "st_active", sortOrder: 2 },
+      { id: "px", workspaceId: "ws_other", productCode: "P-X", name: "Other", typeId: null, unitId: "u_seat", statusId: "stx", sortOrder: 1 },
     ],
     types: [
       { id: "t_sw", workspaceId: WS, typeCode: "software", name: "software", sortOrder: 1, status: "active" },
       { id: "t_svc", workspaceId: WS, typeCode: "service", name: "service", sortOrder: 2, status: "active" },
+    ],
+    units: [
+      { id: "u_day", workspaceId: WS, unitCode: "day", name: "day", sortOrder: 1 },
+      { id: "u_seat", workspaceId: WS, unitCode: "seat", name: "seat", sortOrder: 2 },
+      { id: "u_人月", workspaceId: WS, unitCode: "人月", name: "人月", sortOrder: 3 },
+      { id: "u_套", workspaceId: WS, unitCode: "套", name: "套", sortOrder: 4 },
     ],
     statuses: [
       { id: "st_dev", workspaceId: WS, statusCode: "in_development", name: "在研", description: null, sortOrder: 1 },
@@ -138,12 +144,12 @@ test("catalog.write maintains the catalogue; catalog.price is a different job", 
   const writer: CatalogContext = { ...base, holder: { permissions: new Set(["catalog.write"] as never) } };
   const pricer: CatalogContext = { ...base, holder: { permissions: new Set(["catalog.price"] as never) } };
 
-  assert.equal((await upsertProduct(writer, { productCode: "P-9", name: "New", unit: "seat" })).ok, true);
+  assert.equal((await upsertProduct(writer, { productCode: "P-9", name: "New", unitId: "u_seat" })).ok, true);
   const refusedPrice = await setPrice(writer, { productId: "p1", currency: "CNY", listPrice: 10, floorPrice: 5 });
   assert.equal(refusedPrice.ok, false, "catalog.write must NOT be able to move the floor");
 
   assert.equal((await setPrice(pricer, { productId: "p1", currency: "CNY", listPrice: 10, floorPrice: 5 })).ok, true);
-  const refusedWrite = await upsertProduct(pricer, { productCode: "P-8", name: "Nope", unit: "seat" });
+  const refusedWrite = await upsertProduct(pricer, { productCode: "P-8", name: "Nope", unitId: "u_seat" });
   assert.equal(refusedWrite.ok, false, "catalog.price must NOT be able to edit the catalogue");
 });
 
@@ -180,7 +186,7 @@ test("upserting a product by code updates rather than duplicating", async () => 
     ...ctx("sales_rep", "free", store),
     holder: { permissions: new Set(["catalog.write", "catalog.read"] as never) },
   };
-  unwrap(await upsertProduct(c, { productCode: "P-1", name: "POS renamed", unit: "seat" }));
+  unwrap(await upsertProduct(c, { productCode: "P-1", name: "POS renamed", unitId: "u_seat" }));
   const products = unwrap(await listProducts(c));
   assert.equal(products.filter((p) => p.productCode === "P-1").length, 1);
   assert.equal(products.find((p) => p.productCode === "P-1")!.name, "POS renamed");
@@ -216,9 +222,15 @@ function lifecycleStore(): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "旗舰", typeId: "t1", unit: "套", statusId: "st_active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "退役品", typeId: "t1", unit: "套", statusId: "st_retired", sortOrder: 2 },
-      { id: "p3", workspaceId: WS, productCode: "P-3", name: "在研品", typeId: "t2", unit: "套", statusId: "st_dev", sortOrder: 3 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "旗舰", typeId: "t1", unitId: "u_套", statusId: "st_active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "退役品", typeId: "t1", unitId: "u_套", statusId: "st_retired", sortOrder: 2 },
+      { id: "p3", workspaceId: WS, productCode: "P-3", name: "在研品", typeId: "t2", unitId: "u_套", statusId: "st_dev", sortOrder: 3 },
+    ],
+    units: [
+      { id: "u_day", workspaceId: WS, unitCode: "day", name: "day", sortOrder: 1 },
+      { id: "u_seat", workspaceId: WS, unitCode: "seat", name: "seat", sortOrder: 2 },
+      { id: "u_人月", workspaceId: WS, unitCode: "人月", name: "人月", sortOrder: 3 },
+      { id: "u_套", workspaceId: WS, unitCode: "套", name: "套", sortOrder: 4 },
     ],
     statuses: [
       { id: "st_dev", workspaceId: WS, statusCode: "in_development", name: "在研", description: null, sortOrder: 1 },
@@ -361,7 +373,7 @@ test("a product cannot be born retired, nor typed with a stranger's type", async
   const shelved = await upsertProduct(c, {
     productCode: "P-DEAD",
     name: "亡品",
-    unit: "套",
+    unitId: "u_套",
     statusId: "st_retired",
   });
   assert.equal(!shelved.ok && shelved.violations[0]!.code, "born_shelved");
@@ -369,7 +381,7 @@ test("a product cannot be born retired, nor typed with a stranger's type", async
     productCode: "P-T",
     name: "有型",
     typeId: "t_missing",
-    unit: "套",
+    unitId: "u_套",
   });
   assert.equal(!badType.ok && badType.violations[0]!.code, "type_not_found");
 });
@@ -409,7 +421,13 @@ test("a fresh tenant gets the starter type vocabulary; a gutted one stays gutted
   const gutted = new InMemoryCatalogStore();
   gutted.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "X", typeId: null, unit: "套", statusId: "st_active", sortOrder: 1 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "X", typeId: null, unitId: "u_套", statusId: "st_active", sortOrder: 1 },
+    ],
+    units: [
+      { id: "u_day", workspaceId: WS, unitCode: "day", name: "day", sortOrder: 1 },
+      { id: "u_seat", workspaceId: WS, unitCode: "seat", name: "seat", sortOrder: 2 },
+      { id: "u_人月", workspaceId: WS, unitCode: "人月", name: "人月", sortOrder: 3 },
+      { id: "u_套", workspaceId: WS, unitCode: "套", name: "套", sortOrder: 4 },
     ],
     statuses: [
       { id: "st_active", workspaceId: WS, statusCode: "active", name: "在售", description: null, sortOrder: 1 },
@@ -503,8 +521,14 @@ function solutionStore(): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "平台", typeId: null, unit: "套", statusId: "st_active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "实施", typeId: null, unit: "人月", statusId: "st_active", sortOrder: 2 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "平台", typeId: null, unitId: "u_套", statusId: "st_active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "实施", typeId: null, unitId: "u_人月", statusId: "st_active", sortOrder: 2 },
+    ],
+    units: [
+      { id: "u_day", workspaceId: WS, unitCode: "day", name: "day", sortOrder: 1 },
+      { id: "u_seat", workspaceId: WS, unitCode: "seat", name: "seat", sortOrder: 2 },
+      { id: "u_人月", workspaceId: WS, unitCode: "人月", name: "人月", sortOrder: 3 },
+      { id: "u_套", workspaceId: WS, unitCode: "套", name: "套", sortOrder: 4 },
     ],
     statuses: [
       { id: "st_active", workspaceId: WS, statusCode: "active", name: "在售", description: null, sortOrder: 1 },

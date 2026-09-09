@@ -1,9 +1,11 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
+import { TerritoryPanel } from "../components/territory-panel";
 import { NewEntryLink } from "../components/form-page";
 import { updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
@@ -12,7 +14,19 @@ import { getMessages } from "../lib/i18n/server";
 import { summaryTarget } from "../../domains/planning/lib/target";
 import { currentPeriod } from "../../domains/shared/period";
 import { loadFailureText } from "../lib/load-failure";
-// D2 planning: targets against what actually closed.
+// D2 planning: 规划团队 -> 划定区域 -> 明确指标 (owner, 2026-09-08).
+//
+// ONE FLOW, ONE PAGE. 销售区域 was a module of its own from 2026-08-30, which
+// put the three steps of one act behind two menu entries: you drew the ground
+// on one page and set the number it carries on another, and the page that
+// needed a territory to exist could only tell you so in a sentence. The roster
+// is here now, above the targets, in the order the work happens - and a reader
+// who finds the scope selector empty is looking at the reason.
+//
+// WHAT DID NOT COME WITH IT: 大区. That is how the market is CARVED, not who
+// works it - configuration, read by every figure the situation screen groups,
+// changed rarely - so it sits behind the gear at /admin/division. Two
+// dimensions, two places; they were one page and kept being read as one thing.
 //
 // The column that matters is attainment, and the thing it must never do is
 // render "no snapshot yet" as 0%. Those are different facts - one means nobody
@@ -47,14 +61,12 @@ export default async function PlanningPage() {
   // Through the gated service, so a member who may read targets but not the
   // territory registry simply gets codes back rather than the page refusing -
   // planning.territory.view is a separate permission from the one above.
-  // RETIRED ONES INCLUDED, once. The roster has to show a wound-down region -
-  // it still holds its code, and un-retiring it is done from that row - while
-  // the target scope selector below must not offer one. One read, and the
-  // narrowing stated at the site that needs it.
+  // RETIRED ONES INCLUDED: the roster below has to show a wound-down region -
+  // it still holds its code, and un-retiring it is done from that row. The
+  // scope selector that must NOT offer one lives on /planning/new and narrows
+  // the list itself; the filtered copy stayed here after the form moved out,
+  // computed for nobody.
   const territories = await listTerritories(ctx, { includeRetired: true });
-  const activeTerritories = territories.ok
-    ? territories.value.filter((t) => t.status === "active")
-    : [];
   const territoryNames = new Map(
     territories.ok ? territories.value.map((t) => [t.id, t.name]) : [],
   );
@@ -77,10 +89,33 @@ export default async function PlanningPage() {
   // count with a yuan sign, which is TD-013 in one sentence. Same rule the
   // board's quota card uses - it was written inline twice and got it wrong
   // both times.
+  // THE SENTENCE MOVED when the headline stopped being the period (it "belongs
+  // beside the targets it describes") and for a while it was computed and
+  // never shown. It heads the targets section now. Three states, each its own
+  // sentence: measured (money / money · pct), not measurable (the gap's own
+  // reason, never 0%), no workspace target at all.
   const summary = summaryTarget(result.value.map((r) => r.target));
   const workspaceRow = summary
     ? result.value.find((r) => r.target.id === summary.id)
     : undefined;
+  const leadLine = (() => {
+    if (!workspaceRow || workspaceRow.target.targetValue.unit !== "money") {
+      return PLANNING_TEXT.leadNoWorkspaceTarget;
+    }
+    const value = workspaceRow.target.targetValue;
+    const m = workspaceRow.measurement;
+    if (m.kind !== "measured" || m.achieved.unit !== "money") {
+      return PLANNING_TEXT.leadNotMeasured(
+        formatMoney(value.amount, value.currency),
+        m.kind === "not_measurable" ? (PLANNING_TEXT.gapLabel[m.code] ?? m.code) : "",
+      );
+    }
+    return PLANNING_TEXT.leadAttained(
+      formatMoney(m.achieved.amount, m.achieved.currency),
+      formatMoney(value.amount, value.currency),
+      formatPercent(m.ratio),
+    );
+  })();
   const unforecast = result.value.filter(
     (r) =>
       r.measurement.kind === "not_measurable" &&
@@ -89,71 +124,64 @@ export default async function PlanningPage() {
 
   return (
     <ViewLayout>
-      <ViewHeader
-        title={PLANNING_TEXT.lead(period)}
-        description={
+      {/* THE MODULE HEADER (design_yucer_100). The title was the PERIOD, which
+          reads as a filter rather than a name, and the attainment sentence it
+          carried belongs beside the targets it describes.
+
+          NO FOLD: the targets below ARE the breakdown - one row per scope with
+          its own measurement - so a strip above them would be the same
+          partition, coarser.
+
+          UNFORECAST IS A BADGE AND NOT A ZERO, which is this page's central
+          rule: a scope nobody has forecast has not failed, and a reader who
+          sees a neutral number with no explanation will read it as one. */}
+      <ModuleHeadline
+        moduleKey="planning"
+        description={PLANNING_TEXT.leadRule}
+        tags={
           <>
-            <span className="block tabular-nums">
-              {workspaceRow
-                ? PLANNING_TEXT.leadAttained(
-                    workspaceRow.measurement.kind === "measured"
-                      ? formatMoney(
-                          workspaceRow.measurement.achieved.amount,
-                          workspaceRow.measurement.achieved.unit === "money"
-                            ? workspaceRow.measurement.achieved.currency
-                            : "",
-                        )
-                      : "-",
-                    workspaceRow.target.targetValue.unit === "money"
-                      ? formatMoney(
-                          workspaceRow.target.targetValue.amount,
-                          workspaceRow.target.targetValue.currency,
-                        )
-                      : String(workspaceRow.target.targetValue.amount),
-                    workspaceRow.measurement.kind === "measured"
-                      ? formatPercent(workspaceRow.measurement.ratio)
-                      : PLANNING_TEXT.gapLabel[workspaceRow.measurement.code]!,
-                  )
-                : PLANNING_TEXT.leadNoWorkspaceTarget}
-            </span>
-            {/* Counted and stated, because the whole point of this page's central
-              rule is that an unforecast scope is NOT a failed one. A reader who
-              sees three neutral badges and no explanation will read them as
-              zeroes. */}
+            <StatusBadge tone="info">{PLANNING_TEXT.tagPeriod(period)}</StatusBadge>
+            <StatusBadge tone="success">{PLANNING_TEXT.tagScopes(result.value.length)}</StatusBadge>
             {unforecast > 0 ? (
-              <span className="block text-(color:--warning-text)">
-                {PLANNING_TEXT.leadUnforecast(unforecast)}
-              </span>
+              <StatusBadge tone="warning">
+                {PLANNING_TEXT.tagUnforecast(unforecast)}
+              </StatusBadge>
             ) : null}
-            <span className="block">{PLANNING_TEXT.leadRule}</span>
           </>
         }
       />
 
-      {/* ABOVE the table, because it is what you do when the table is empty -
-          and on a fresh workspace it always is. A create form tucked under a
-          list nobody can populate is a doorway behind a locked door. */}
-      {/* The doorway to /planning/new, ABOVE the table for the reason the form
-          was: on a fresh workspace the table is empty, and a doorway under a
-          list nobody can populate is a doorway behind a locked door. */}
-      {can(
-        session.authz,
-        session.entitlement,
-        "planning.target.create",
-        "ui",
-      ).allowed ? (
-        <NewEntryLink href="/planning/new" />
-      ) : null}
-
-      {/* BELOW the target form and above the table. A territory is a
-          PRECONDITION for a regional target, so a reader who finds the scope
-          selector empty needs the next thing they see to be where regions come
-          from - not a list of targets they cannot yet scope. */}
+      {/* 划定区域, FIRST - a territory is a precondition for a regional
+          target, and this page used to say that in a sentence while the
+          roster lived elsewhere. RETIRED ONES INCLUDED: a wound-down region
+          still holds its code, and un-retiring it is done from its row. */}
+      {/* THE ACTION SITS IN THE PANEL'S OWN HEADER (DS Section `action`), not
+          in a row under it - this page owns two tables, and a create button
+          floating between them belongs to neither. NAMED for the same reason:
+          two bare 新建 on one page would make the reader guess which. */}
+      <TerritoryPanel
+        rows={territories.ok ? territories.value : []}
+        action={
+          can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
+            .allowed ? (
+            <NewEntryLink
+              href="/planning/territory/new"
+              label={PLANNING_TEXT.territoryNewEntry}
+            />
+          ) : null
+        }
+      />
 
       <Section
         icon="target"
         title={PLANNING_TEXT.title}
-        description={PLANNING_TEXT.description}
+        description={leadLine}
+        action={
+          can(session.authz, session.entitlement, "planning.target.create", "ui")
+            .allowed ? (
+            <NewEntryLink href="/planning/new" label={PLANNING_TEXT.targetNew} />
+          ) : null
+        }
       >
         <PlanningTable
           rows={result.value}

@@ -23,6 +23,7 @@ import {
   type Stage,
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
+import { Tag } from "./tag";
 
 // What the deal is worth, and how sure we are - A DIALOG since 2026-09-05.
 //
@@ -98,9 +99,9 @@ export function DealTerms({
   if (!canEdit) {
     return (
       <Section title={OPPORTUNITY_TEXT.termsTitle}>
-        <StatusBadge tone="neutral">
+        <Tag>
           {OPPORTUNITY_TEXT.termsReadOnly}
-        </StatusBadge>
+        </Tag>
       </Section>
     );
   }

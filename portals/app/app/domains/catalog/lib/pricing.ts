@@ -35,8 +35,15 @@ export interface PricedLine {
  * breach would make every new product need approval on its first quote, which
  * teaches people that the flag means nothing.
  */
-export function priceLine(draft: DraftLine, entry: PriceEntryRecord | null): PricedLine {
-  const currency = draft.currency ?? entry?.currency ?? "CNY";
+export function priceLine(
+  draft: DraftLine,
+  entry: PriceEntryRecord | null,
+  /** The workspace's default (incr/0044) - what a line is priced in when
+   *  neither the draft nor the book says. Passed rather than assumed: this
+   *  function is pure, and a literal here was one of the eleven. */
+  defaultCurrency: string,
+): PricedLine {
+  const currency = draft.currency ?? entry?.currency ?? defaultCurrency;
   // Rounded to cents at the line, so a sum of lines cannot drift from a header
   // by fractions no screen ever shows.
   const amount = Math.round(draft.quantity * draft.unitPrice * 100) / 100;
@@ -99,7 +106,9 @@ export interface ProductDraft {
   name: string;
   /** The type association, by uuid (incr/0029). */
   typeId: string | null;
-  unit: string;
+  /** The unit association, by uuid (incr/0037) - a vocabulary row, not a
+   * typed string. See below for why this field is not decoration. */
+  unitId: string;
   /** A status row's uuid; the SERVICE validates it against the vocabulary
    * (a pure rule cannot see workspace state). */
   statusId: string;
@@ -111,8 +120,12 @@ export interface ProductDraft {
  * THE UNIT IS NOT DECORATION. Every line multiplies quantity by unit price, so
  * a product whose unit nobody declared produces a number whose meaning nobody
  * can state - "10 x 1000" is ten seats or ten days or ten sites, and those are
- * three different deals. The DDL defaults it to "set", which is a shipping
- * default, not permission to leave it blank when a person is typing.
+ * three different deals.
+ *
+ * IT IS A VOCABULARY ROW SINCE 0037, not a typed string, and for the same
+ * reason: 套 typed here and 台 typed there are two units nobody can group by.
+ * A pure rule cannot check the uuid against the workspace's vocabulary - the
+ * SERVICE does that, exactly as it does for statusId.
  */
 export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
   if (!input.productCode.trim()) {
@@ -121,14 +134,14 @@ export function planProduct(input: ProductDraft): RuleResult<ProductDraft> {
   if (!input.name.trim()) {
     return fail(violation("name_required", "a product needs a name", "name"));
   }
-  if (!input.unit.trim()) {
-    return fail(violation("unit_required", "a product needs a unit of sale", "unit"));
+  if (!input.unitId.trim()) {
+    return fail(violation("unit_required", "a product needs a unit of sale", "unitId"));
   }
   return ok({
     ...input,
     productCode: input.productCode.trim(),
     name: input.name.trim(),
-    unit: input.unit.trim(),
+    unitId: input.unitId.trim(),
   });
 }
 

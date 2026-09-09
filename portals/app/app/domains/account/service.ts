@@ -10,12 +10,24 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
+import { isProvince } from "../shared/provinces";
+import {
+  MARKET_SCOPES,
+  provinceFrame,
+  CODE_BODY,
+  scopeOpen,
+  scopePrefix,
+  type DivisionTemplate,
+  type MarketMember,
+  type MarketScope,
+} from "../shared/market-division";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import {
   accountGaps,
   fillable,
   forModel,
+  FILLABLE_FIELDS,
   type AccountGap,
 } from "./lib/completeness";
 import type { PipelineStore } from "../pipeline/store";
@@ -39,12 +51,22 @@ import type { Stage } from "../pipeline/lib/stage";
 import type {
   AccountFilter,
   AccountRecord,
+  IndustryRecord,
+  MarketDivisionRecord,
   AccountStore,
   AccountTier,
   ContactRecord,
   OpportunityContactRecord,
 } from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
+import {
+  DEFAULT_INDUSTRIES,
+  planIndustry,
+  planIndustryRemoval,
+  resolveIndustry,
+  type IndustryDraft,
+} from "./lib/industry-vocab";
+import { planMove, type MoveDirection } from "../catalog/lib/lifecycle";
 
 export interface AccountContext {
   workspaceId: string;
@@ -52,6 +74,409 @@ export interface AccountContext {
   holder: PermissionHolder;
   entitlement: Entitlement;
   store: AccountStore;
+}
+
+/**
+ * How this workspace divides its market: 大区 and the provinces in each.
+ *
+ * GATED ON account.view, not on a new action. Reading how the customer base is
+ * grouped is part of reading the customer base - a member who may list accounts
+ * may see which 大区 they fall in, and one who may not has no use for the
+ * grouping. Feature keys are frozen at 19 and this is not separately sellable
+ * (ADR-017), so it earns no key of its own either.
+ *
+ * "data", not "ui": this answers a read, and the caller decides what to draw.
+ */
+/**
+ * Replace the workspace's whole carve with a shipped one.
+ *
+ * REPLACES, DELIBERATELY. Both the five-way and the seven-way place all 34
+ * provinces, so importing one is a statement about the entire market, not an
+ * addition to it - merging would leave divisions from the old carve holding
+ * provinces the new one has claimed elsewhere, which is a shape neither
+ * template describes and nobody asked for. The caller is told how many
+ * divisions it is about to discard before it happens.
+ *
+ * Divisions the template does not have are removed only AFTER their provinces
+ * have been re-placed, because the foreign key refuses to drop one that still
+ * holds any (ON DELETE RESTRICT) - the order here is the constraint's, not a
+ * preference.
+ */
+export async function importDivisionTemplate(
+  ctx: AccountContext,
+  key: string,
+): Promise<RuleResult<{ key: string; divisions: number; replaced: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  /* FROM THE TABLE (incr/0045): the store answers only the carves that cut
+     this workspace's frame, so a key from another frame - 五分法 under 陕西,
+     陕西三分法 under 中国市场 - is not found HERE, and that is the refusal:
+     adopting it would land codes the database refuses there, and would be
+     the wrong answer even if it did not. */
+  const scope = await ctx.store.getMarketScope(ctx.workspaceId);
+  const template = (await ctx.store.listCarves(ctx.workspaceId)).find((t) => t.key === key);
+  if (!template) {
+    return fail(violation(
+      "template_unknown",
+      `${key} is not a carve of this workspace's frame ${scope.kind}/${scope.code ?? "-"}`,
+      "key",
+    ));
+  }
+
+  const before = await ctx.store.listMarketDivisions(ctx.workspaceId);
+
+  for (const d of template.divisions) {
+    await ctx.store.upsertMarketDivision(ctx.workspaceId, {
+      code: d.code, name: d.name, sortOrder: d.sortOrder,
+    });
+  }
+  for (const [member, code] of Object.entries(template.members)) {
+    await ctx.store.placeMember(ctx.workspaceId, member, code);
+  }
+  // Now that nothing points at them.
+  const keep = new Set(template.divisions.map((d) => d.code));
+  let replaced = 0;
+  for (const old of before) {
+    if (keep.has(old.code)) continue;
+    await ctx.store.removeMarketDivision(ctx.workspaceId, old.code);
+    replaced += 1;
+  }
+
+  return ok({ key, divisions: template.divisions.length, replaced });
+}
+
+/**
+ * Create a 大区, or rename one that exists, and set which members it holds -
+ * provinces under 中国市场, cities under 省级市场.
+ *
+ * THE TENANT OWNS THE LIST. Five are preset because a workspace has to start
+ * somewhere, not because five is right: a company that sells through a 新疆基地
+ * covering one province is dividing its market correctly, and nothing here
+ * should argue. Codes are the anchor - upserting an existing one renames it.
+ *
+ * A PROVINCE ALREADY IN ANOTHER 大区 IS MOVED, not refused (owner). Refusing
+ * would make the caller go and unassign it first, which is two screens to say
+ * one thing; and the primary key means it could never have been in two places
+ * anyway. `moved` reports which ones changed hands, so the interface can say so
+ * rather than silently reorganising somebody else's division.
+ */
+export async function saveMarketDivision(
+  ctx: AccountContext,
+  input: { code: string; name: string; sortOrder?: number; members: readonly string[] },
+): Promise<RuleResult<{ code: string; moved: { member: MarketMember; from: string }[] }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const code = input.code.trim();
+  const name = input.name.trim();
+  if (!code) return fail(violation("code_required", "a division needs a code", "code"));
+  if (!name) return fail(violation("name_required", "a division needs a name", "name"));
+  /* THE CODE'S SHAPE IS THE FRAME'S (incr/0043, 0045). A national code
+     carries CHINA-; a province code carries no prefix at all - the province
+     is its own column - and is an adcode or a word. The form composes it, so
+     a person never types this wrong; an import can, and
+     chk_market_division_code_frame would refuse it with a constraint name.
+     Said here in the product's own words first. */
+  const scope = await ctx.store.getMarketScope(ctx.workspaceId);
+  const prefix = scopePrefix(scope);
+  if (!code.startsWith(prefix)) {
+    return fail(violation(
+      "code_prefix",
+      `${code} does not carry the ${scope.kind} frame's prefix ${prefix}`,
+      "code",
+    ));
+  }
+  if (!CODE_BODY.test(code.slice(prefix.length))) {
+    return fail(violation(
+      "code_shape",
+      `${code}: after the prefix a code is letters, digits and underscores, and under a province frame it carries no prefix`,
+      "code",
+    ));
+  }
+
+  /* A MEMBER IS ONE OF THE FRAME'S OWN. Under 中国市场 that is one of the 34
+     province names 0036 CHECKs; under 陕西 it is one of the ten cities 0045's
+     foreign key resolves. Refused here, in the product's words, before either
+     constraint refuses it in Postgres's. */
+  const ground = new Map((await ctx.store.listFrameMembers(ctx.workspaceId)).map((m) => [m.key, m]));
+  for (const k of input.members) {
+    if (!ground.has(k)) {
+      return fail(violation(
+        "member_unknown",
+        `${k} is not part of the ${scope.kind} frame's ground`,
+        "members",
+      ));
+    }
+  }
+
+  const before = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  await ctx.store.upsertMarketDivision(ctx.workspaceId, { code, name, sortOrder: input.sortOrder });
+
+  const wanted = new Set(input.members);
+  const moved: { member: MarketMember; from: string }[] = [];
+
+  for (const k of wanted) {
+    const owner = before.find((d) => d.code !== code && d.members.some((m) => m.key === k));
+    if (owner) moved.push({ member: ground.get(k)!, from: owner.name });
+    await ctx.store.placeMember(ctx.workspaceId, k, code);
+  }
+  /* Members this division used to hold and no longer claims become UNPLACED
+     rather than being left behind: the form states the whole membership, so a
+     member dropped from it has been deliberately removed. Unplaced is a real
+     state the roster reports, not a loss. */
+  const mine = before.find((d) => d.code === code)?.members ?? [];
+  for (const m of mine) {
+    if (!wanted.has(m.key)) await ctx.store.placeMember(ctx.workspaceId, m.key, null);
+  }
+
+  return ok({ code, moved });
+}
+
+/**
+ * Remove a 大区.
+ *
+ * REFUSED WHILE IT STILL HOLDS PROVINCES, which is the foreign key's own rule
+ * (ON DELETE RESTRICT) said in the product's terms. Cascading would silently
+ * unplace everything it held, and those provinces would then vanish from every
+ * roll-up grouped by 大区 with nothing to say why.
+ */
+export async function removeMarketDivision(
+  ctx: AccountContext,
+  code: string,
+): Promise<RuleResult<{ code: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const divisions = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  const target = divisions.find((d) => d.code === code);
+  if (!target) {
+    return fail(violation("division_unknown", `${code} is not a division here`, "code"));
+  }
+  if (target.members.length > 0) {
+    return fail(violation(
+      "division_not_empty",
+      `${code} still holds ${target.members.length} members`,
+      "code",
+    ));
+  }
+  await ctx.store.removeMarketDivision(ctx.workspaceId, code);
+  return ok({ code });
+}
+
+/**
+ * Re-order the 大区 - up, down, to the top, to the bottom.
+ *
+ * THE ORDER IS GLOBAL (owner, 2026-09-09: 这个排序影响全局). sort_order is what
+ * every reader of the list follows - the roster, the menus, the situation
+ * screen's breadcrumb, every roll-up grouped by 大区 - so the roster is not
+ * re-sorted for display; it IS the order, and this is the one verb that
+ * changes it. Within the current frame only: a 陕西 carve and the china carve
+ * are two lists and never interleave.
+ */
+export async function moveMarketDivision(
+  ctx: AccountContext,
+  input: { code: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  const plan = planMove(rows.map((r) => ({ id: r.code, movable: true })), input.code, input.direction);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  /* Dense renumbering, written through the upsert that already owns
+     sort_order - only the rows whose number changed. */
+  const by = new Map(rows.map((r) => [r.code, r]));
+  for (const o of plan.value) {
+    const row = by.get(o.id)!;
+    if (row.sortOrder === o.sortOrder) continue;
+    await ctx.store.upsertMarketDivision(ctx.workspaceId, { code: row.code, name: row.name, sortOrder: o.sortOrder });
+  }
+  return ok(true);
+}
+
+/* ---------------------------------------------------------------------------
+ * 市场范围 - the frame a workspace carves inside (incr/0043).
+ *
+ * READ rides account.view, like the divisions: every roster that resolves a
+ * customer's 大区 resolves it inside a frame. WRITE is planning.territory.upsert
+ * - who may re-carve the market is who may choose what it is carved out of.
+ * ------------------------------------------------------------------------ */
+
+export async function marketScope(ctx: AccountContext): Promise<RuleResult<MarketScope>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getMarketScope(ctx.workspaceId));
+}
+
+export async function setMarketScope(
+  ctx: AccountContext,
+  input: MarketScope,
+): Promise<RuleResult<MarketScope>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const frame = MARKET_SCOPES.find((s) => s.kind === input.kind);
+  if (!frame) return fail(violation("scope_unknown", `${input.kind} is not a frame`, "kind"));
+  /* 未建, and refused rather than accepted-and-hollow: a workspace switched to
+     a frame it cannot carve in would see an empty roster and a form with no
+     members to pick. The selector shows 全球市场 as planned; this is the rule
+     behind the greyed control. */
+  if (!frame.open) {
+    return fail(violation("scope_not_open", `${input.kind} is not open in this build`, "kind"));
+  }
+  if (input.kind === "province") {
+    /* A province frame NAMES ITS PROVINCE (owner: 选择省级时需要确定是哪个省的
+       市场), and only a province the product has opened - 陕西 first - can be
+       named: the cities and the standard carve arrive together, and a frame
+       with neither is the hollow state above wearing a province's name. */
+    if (!input.code) {
+      return fail(violation("scope_code_required", "a province frame names its province", "code"));
+    }
+    if (!provinceFrame(input.code)) {
+      return fail(violation("scope_province_not_open", `${input.code} is not an open province frame`, "code"));
+    }
+  }
+  const scope: MarketScope = { kind: input.kind, code: input.kind === "province" ? input.code : null };
+  if (!scopeOpen(scope)) {
+    return fail(violation("scope_not_open", `${scope.kind} is not open in this build`, "kind"));
+  }
+  await ctx.store.setMarketScope(ctx.workspaceId, scope);
+  return ok(scope);
+}
+
+export async function listMarketDivisions(
+  ctx: AccountContext,
+): Promise<RuleResult<MarketDivisionRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listMarketDivisions(ctx.workspaceId));
+}
+
+/** The ground the current frame is carved from - what a region may hold. */
+export async function frameMembers(ctx: AccountContext): Promise<RuleResult<MarketMember[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listFrameMembers(ctx.workspaceId));
+}
+
+/** 预置方案 - the carves that cut the current frame (incr/0045). */
+export async function listCarves(ctx: AccountContext): Promise<RuleResult<DivisionTemplate[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listCarves(ctx.workspaceId));
+}
+
+/* ---------------------------------------------------------------------------
+ * 行业 - the workspace's own vocabulary (incr/0040).
+ *
+ * FIVE VERBS, the same five the catalogue vocabularies have. READ is gated on
+ * `account.view` because every screen that lists customers needs the names;
+ * WRITE on `account.upsert`, because deciding what industries exist is the same
+ * authority as deciding what a customer is - and a seller who may not edit a
+ * customer record has no business renaming the categories all of them are
+ * filed under.
+ * ------------------------------------------------------------------------ */
+
+export async function listIndustries(
+  ctx: AccountContext,
+): Promise<RuleResult<IndustryRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let rows = await ctx.store.listIndustries(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard the other
+     vocabularies use, and the same rows incr/0040 seeds, so the two paths
+     cannot disagree.
+     WHAT THE GUARD DOES AND DOES NOT PROMISE. A workspace that deleted SOME
+     industries keeps that list exactly as it left it; one that deleted every
+     last one gets the shipped set back, because a customer cannot be filed
+     under nothing and an empty picker is not a state anybody chose. */
+  if (rows.length === 0) {
+    for (const d of DEFAULT_INDUSTRIES) {
+      await ctx.store.upsertIndustry(ctx.workspaceId, { ...d });
+    }
+    rows = await ctx.store.listIndustries(ctx.workspaceId);
+  }
+  return ok(rows);
+}
+
+/**
+ * How many customers are filed under each industry.
+ *
+ * A SEPARATE VERB rather than a field on the list, for the reason the win/loss
+ * reasons keep the two apart: the customer form needs the names and nothing
+ * else, and only the configuration page needs the counts.
+ */
+export async function industryUsage(
+  ctx: AccountContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listIndustries(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    out[r.id] = await ctx.store.countAccountsByIndustry(ctx.workspaceId, r.id);
+  }
+  return ok(out);
+}
+
+export async function upsertIndustry(
+  ctx: AccountContext,
+  input: IndustryDraft,
+): Promise<RuleResult<IndustryRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planIndustry(input);
+  if (!plan.ok) return plan as RuleResult<IndustryRecord>;
+
+  return ok(await ctx.store.upsertIndustry(ctx.workspaceId, plan.value));
+}
+
+/** Reorder the list - the order every industry picker offers them in. */
+export async function moveIndustry(
+  ctx: AccountContext,
+  input: { industryId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listIndustries(ctx.workspaceId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.industryId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setIndustryOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete an industry outright.
+ *
+ * Refused while customers are filed under it, and that refusal has a way out
+ * the win/loss one does not: re-file those customers and the row becomes
+ * deletable. fk_account_industry RESTRICTs underneath as the last line.
+ */
+export async function removeIndustry(
+  ctx: AccountContext,
+  input: { industryId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countAccountsByIndustry(ctx.workspaceId, input.industryId);
+  const plan = planIndustryRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeIndustry(ctx.workspaceId, input.industryId);
+  if (!removed) return fail(violation("not_found", "no such industry", "industryId"));
+  return ok(true);
 }
 
 export async function listAccounts(
@@ -440,10 +865,11 @@ export async function accountCompleteness(
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
   }
 
-  const [deals, territories, segments] = await Promise.all([
+  const [deals, territories, segments, divisions] = await Promise.all([
     ctx.pipeline.listOpportunities(ctx.workspaceId, { accountId, includeClosed: true }),
     ctx.planning.listTerritories(ctx.workspaceId),
     ctx.strategy.listSegments(ctx.workspaceId),
+    ctx.store.listMarketDivisions(ctx.workspaceId),
   ]);
 
   const gaps = accountGaps(
@@ -462,16 +888,38 @@ export async function accountCompleteness(
       industries: sg.criteria?.industries ?? [],
       regions: sg.criteria?.regions ?? [],
     })),
+    provinceDivision(divisions),
   );
 
   return ok({ gaps, derivable: fillable(gaps), askable: forModel(gaps) });
 }
 
-export const FILLABLE_ACCOUNT_FIELDS = ["region", "industry", "segmentCode", "ownerSub"] as const;
-export type FillableAccountField = (typeof FILLABLE_ACCOUNT_FIELDS)[number];
+/* ONE LIST, RE-EXPORTED - it was two, and they had already drifted. This module
+   kept its own copy of the fillable fields beside the one in
+   lib/completeness.ts, so adding `province` to the gap model left the write
+   path still refusing it, and the type error was the only thing that said so.
+   A second copy of a vocabulary is a second chance to be wrong about it. */
+/* A RE-EXPORT, NOT AN ASSIGNMENT, and the difference is load order. Writing
+   `const FILLABLE_ACCOUNT_FIELDS = FILLABLE_FIELDS` evaluates at module scope,
+   so under a circular import - this module already reaches pipeline/service -
+   the imported binding can still be in its temporal dead zone and the whole app
+   dies with "FILLABLE_FIELDS is not defined". A re-export is a live binding:
+   nothing is read until somebody actually uses it. Type-checking cannot see
+   this; only running it can, which is how it was found. */
+export { FILLABLE_FIELDS as FILLABLE_ACCOUNT_FIELDS };
+export type FillableAccountField = (typeof FILLABLE_FIELDS)[number];
+
+/** province -> 大区 name, as this workspace divides its market (incr/0036). */
+function provinceDivision(
+  divisions: readonly MarketDivisionRecord[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of divisions) for (const m of d.members) out[m.key] = d.name;
+  return out;
+}
 
 export function isFillableAccountField(v: string): v is FillableAccountField {
-  return (FILLABLE_ACCOUNT_FIELDS as readonly string[]).includes(v);
+  return (FILLABLE_FIELDS as readonly string[]).includes(v);
 }
 
 export async function fillAccountField(
@@ -489,10 +937,43 @@ export async function fillAccountField(
   if (!value.trim()) {
     return fail(violation("value_required", "filling a field needs a value, not a blank", "value"));
   }
+  /* THE SAME VOCABULARY THE DATABASE ENFORCES. incr/0035 CHECK-constrains this
+     column to the 34 provincial-level divisions, so a free-text write fails at
+     the database with a constraint error nobody can act on - and in the
+     in-memory store, which has no CHECK, it would succeed and quietly put a
+     customer on ground the map has no shape for. Refused here, in the product's
+     own terms, in both. */
+  if (field === "province" && !isProvince(value.trim())) {
+    return fail(violation(
+      "province_unknown",
+      `${value.trim()} is not one of the 34 provincial-level divisions`,
+      "value",
+    ));
+  }
 
   const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
   if (!current) {
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  /* incr/0040. The industry is a row now, and this is the path a MODEL writes
+     through: ask-complete-action's own warning says a guessed industry decides
+     the segment and then the playbook, so a value outside the workspace's list
+     is refused here rather than becoming a fourteenth industry nobody chose.
+     Accepting the name or the code, because the model produces the former and
+     an import produces the latter. */
+  if (field === "industry") {
+    const vocab = await ctx.store.listIndustries(ctx.workspaceId);
+    const row = resolveIndustry(vocab, value);
+    if (!row) {
+      return fail(violation(
+        "industry_unknown",
+        `${value.trim()} is not one of this workspace's industries`,
+        "value",
+      ));
+    }
+    await ctx.store.updateAccount(ctx.workspaceId, accountId, { industryId: row.id });
+    return ok({ accountId, field, value: row.name });
   }
 
   await ctx.store.updateAccount(ctx.workspaceId, accountId, { [field]: value.trim() });
@@ -525,12 +1006,16 @@ export async function workspaceCompleteness(
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
 
-  const [accounts, deals, territories, segments] = await Promise.all([
+  // Read ONCE for the whole roster, like the territories and segments beside
+  // it - the division table is the same for every row on the page.
+  const [accounts, deals, territories, segments, divisions] = await Promise.all([
     ctx.store.listAccounts(ctx.workspaceId),
     ctx.pipeline.listOpportunities(ctx.workspaceId, { includeClosed: true }),
     ctx.planning.listTerritories(ctx.workspaceId),
     ctx.strategy.listSegments(ctx.workspaceId),
+    ctx.store.listMarketDivisions(ctx.workspaceId),
   ]);
+  const divisionOf = provinceDivision(divisions);
 
   const dealsByAccount = new Map<string, { territoryId: string | null; ownerSub: string | null }[]>();
   for (const d of deals) {
@@ -560,6 +1045,7 @@ export async function workspaceCompleteness(
       dealsByAccount.get(account.id) ?? [],
       territoryInputs,
       segmentInputs,
+      divisionOf,
     );
     for (const gap of fillable(gaps)) {
       rows.push({ accountId: account.id, accountName: account.name, gap });

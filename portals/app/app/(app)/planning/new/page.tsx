@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -18,7 +19,7 @@ import { createSalesTarget } from "../actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewTargetPage() {
-  const { SHELL_TEXT, PLANNING_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -42,6 +43,10 @@ export default async function NewTargetPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.planning, href: "/planning" }]}
+        current={PLANNING_TEXT.setTarget}
+      />
       <ViewHeader title={PLANNING_TEXT.setTarget} description={PLANNING_TEXT.setTargetWhy} />
       <TargetForm
         period={period}

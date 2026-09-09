@@ -17,7 +17,14 @@ test("territory decides WHO, and one covering territory needs no load at all", (
   const r = routeLead({ id: "l1", region: "华东" }, [EAST, SOUTH], new Map());
   assert.equal(r.kind, "assigned");
   assert.equal(r.kind === "assigned" && r.ownerSub, "rep_1");
-  assert.match(r.kind === "assigned" ? r.basis : "", /East China/);
+  // The basis is FACTS, not a sentence (TD-010): contenders === 1 is the rule
+  // saying load never ran, which is the thing this test is about.
+  assert.deepEqual(r.kind === "assigned" ? r.basis : null, {
+    region: "华东",
+    territoryName: "East China",
+    contenders: 1,
+    load: 0,
+  });
 });
 
 test("a territory covers a LIST of regions, not one", () => {
@@ -32,7 +39,12 @@ test("load breaks a tie between owners who both cover the ground", () => {
   const load = new Map([["rep_1", 7], ["rep_3", 2]]);
   const r = routeLead({ id: "l1", region: "华东" }, [EAST, alt, SOUTH], load);
   assert.equal(r.kind === "assigned" && r.ownerSub, "rep_3", "the lighter load takes it");
-  assert.match(r.kind === "assigned" ? r.basis : "", /fewest open leads \(2\)/);
+  assert.deepEqual(r.kind === "assigned" ? r.basis : null, {
+    region: "华东",
+    territoryName: "East China (partner)",
+    contenders: 2,
+    load: 2,
+  });
 });
 
 test("load NEVER overrides territory", () => {

@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
@@ -9,6 +10,7 @@ import {
   listOpportunityLines,
   listProducts as listCatalogProducts,
   listProductStatuses as listCatalogStatuses,
+  listProductUnits as listCatalogUnits,
 } from "../../../../domains/catalog/service";
 import { LineEditor } from "../../../components/line-editor";
 import { approveDiscount, saveOpportunityLines } from "../../stage-action";
@@ -26,7 +28,7 @@ export default async function DealLinesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { SHELL_TEXT, OPPORTUNITY_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, OPPORTUNITY_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -47,11 +49,15 @@ export default async function DealLinesPage({
   if (!canEdit) redirect(`/pipeline/${id}`);
 
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [lineRows, productRows, statusRows] = await Promise.all([
+  const [lineRows, productRows, statusRows, unitRows] = await Promise.all([
     listOpportunityLines(catalogCtx),
     listCatalogProducts(catalogCtx),
     listCatalogStatuses(catalogCtx),
+    listCatalogUnits(catalogCtx),
   ]);
+  const unitName = new Map(
+    (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
+  );
   // Quotable = the canonical 在售 row. Products on a workspace-added status
   // are visible in the catalogue but not offered on a quote line.
   const onSaleId = statusRows.ok
@@ -60,6 +66,13 @@ export default async function DealLinesPage({
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[
+    { label: DOMAIN_LABEL.pipeline, href: "/pipeline" },
+    { label: opportunity.name, href: `/pipeline/${id}` },
+  ]}
+        current={OPPORTUNITY_TEXT.linesTitle}
+      />
       <ViewHeader
         title={OPPORTUNITY_TEXT.linesPageTitle(opportunity.name)}
         description={OPPORTUNITY_TEXT.linesWhy}
@@ -78,7 +91,14 @@ export default async function DealLinesPage({
           }))}
         products={(productRows.ok ? productRows.value : [])
           .filter((p) => p.statusId === onSaleId)
-          .map((p) => ({ id: p.id, name: p.name, unit: p.unit }))}
+          /* THE UNIT'S NAME, not its uuid (0037). The editor prints it beside
+             every quantity - "12 套" - so a raw id here would be a line item
+             nobody can read. */
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            unit: unitName.get(p.unitId) ?? "",
+          }))}
         canEdit
         canApprove={can(session.authz, session.entitlement, "pipeline.discount.approve", "ui").allowed}
         closed={opportunity.closedAt !== null}

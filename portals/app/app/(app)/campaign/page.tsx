@@ -1,7 +1,11 @@
-import { EmptyState, Section, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Section, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney } from "../lib/view-model";
-import { getStrategyStore } from "../../domains/shared/registry";
+import {
+  getStrategyStore,
+  getCatalogStore,
+} from "../../domains/shared/registry";
 import {
   campaignReturn,
   listCampaigns,
@@ -19,6 +23,8 @@ import {
 
 import { getMessages } from "../lib/i18n/server";
 import { loadFailureText } from "../lib/load-failure";
+import { pricingPolicy } from "../../domains/catalog/service";
+import { DEFAULT_PRICING_POLICY } from "../../domains/catalog/lib/pricing-policy";
 export const dynamic = "force-dynamic";
 
 // D3 market execution.
@@ -86,6 +92,12 @@ export default async function CampaignPage() {
     entitlement: session.entitlement,
     store: getStrategyStore(),
   };
+  /* 计价规则 (incr/0044): the currency a total is in when no row carries one. */
+  const policyRead = await pricingPolicy({ ...ctx, store: getCatalogStore() });
+  const defaultCurrency = policyRead.ok
+    ? policyRead.value.defaultCurrency
+    : DEFAULT_PRICING_POLICY.defaultCurrency;
+
 
   const campaigns = await listCampaigns(ctx);
   if (!campaigns.ok) {
@@ -124,7 +136,7 @@ export default async function CampaignPage() {
   // currencies in a single total would be wrong, and this domain has no
   // conversion - if that day comes the sum has to become per-currency rather
   // than quietly adding yuan to dollars.
-  const currency = rows.find((r) => r.budget != null)?.currency ?? "CNY";
+  const currency = rows.find((r) => r.budget != null)?.currency ?? defaultCurrency;
   const budgetTotal = rows.reduce((n, r) => n + (r.budget ?? 0), 0);
   const wonTotal = rows.reduce((n, r) => n + (r.wonAmount ?? 0), 0);
 
@@ -134,29 +146,37 @@ export default async function CampaignPage() {
           rather than only in the section subtitle: it is the one caveat that
           makes the ROI column mean anything, and a reader who meets the number
           first has already drawn the wrong conclusion. */}
-      <ViewHeader
-        title={CAMPAIGN_TEXT.lead(rows.length)}
-        // SPANS, not paragraphs: ViewHeader renders `description` inside a <p>,
-        // and a <p> nested in a <p> is invalid markup that React resolves by
-        // closing the outer one - a hydration mismatch rather than a layout bug.
-        description={
+      {/* THE MODULE HEADER (design_yucer_100). The title was a COUNT again,
+          and the money moved into badges beside it.
+
+          NO FOLD: a campaign's money splits into budget and return, which is
+          two numbers rather than a partition of 3-6 buckets - and the table
+          below carries both per campaign. The proportion between them is the
+          one reading worth the top of the page, so it is said in words. */}
+      <ModuleHeadline
+        moduleKey="campaign"
+        action={
+          can(session.authz, session.entitlement, "campaign.execution.upsert", "ui")
+            .allowed ? <NewEntryLink href="/campaign/new" /> : null
+        }
+        description={CAMPAIGN_TEXT.leadRule}
+        tags={
           <>
-            <span className="block tabular-nums">
-              {CAMPAIGN_TEXT.leadSpend(
+            <StatusBadge tone="success">{CAMPAIGN_TEXT.tagCount(rows.length)}</StatusBadge>
+            <StatusBadge tone="info">
+              {CAMPAIGN_TEXT.tagSpend(
                 formatMoney(budgetTotal, currency),
                 formatMoney(wonTotal, currency),
               )}
-            </span>
-            <span className="block">{CAMPAIGN_TEXT.leadRule}</span>
+            </StatusBadge>
           </>
         }
       />
 
-      <Section
-        icon="target"
-        title={CAMPAIGN_TEXT.title}
-        description={CAMPAIGN_TEXT.description}
-      >
+      {/* No description here: the header above carries it, and the same
+          sentence twice on one screen makes a reader check whether the two
+          agree instead of reading either. */}
+      <Section icon="target" title={CAMPAIGN_TEXT.title}>
         <CampaignTable rows={rows} canMove={canMove} onMove={moveCampaign} />
       </Section>
 
@@ -165,15 +185,6 @@ export default async function CampaignPage() {
           cannot be marked complete. The reader meets the refusal first and
           then what to do about it. */}
       <ExecutionPanel rows={executions} />
-      {/* Creation and editing left for /campaign/new on 2026-09-05. */}
-      {can(
-        session.authz,
-        session.entitlement,
-        "campaign.execution.upsert",
-        "ui",
-      ).allowed ? (
-        <NewEntryLink href="/campaign/new" />
-      ) : null}
     </ViewLayout>
   );
 }

@@ -3,6 +3,10 @@ import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import {
+  DEFAULT_FORECAST_THRESHOLDS,
+  type ForecastThresholds,
+} from "./lib/forecast-rule";
+import {
   DEFAULT_PROBABILITY,
   type OpportunityStatus,
   type Stage,
@@ -13,7 +17,7 @@ import type {
   NewOpportunity,
   NewWinLossReview,
   WinLossReviewRecord,
-  WinLossReason,
+  WinLossReasonRecord,
   OpportunityFilter,
   OpportunityRecord,
   PipelineStore,
@@ -34,6 +38,9 @@ import { lockKey } from "../shared/allocate";
 // function still hits this.
 
 const OPPORTUNITY_TABLE = "yucer_pipeline.opportunity";
+const WIN_LOSS_REASON_TABLE = "yucer_pipeline.win_loss_reason";
+// incr/0041. 预测阈值, one row per workspace.
+const FORECAST_THRESHOLD_TABLE = "yucer_pipeline.forecast_threshold";
 
 interface OpportunityRow {
   id: string;
@@ -44,6 +51,7 @@ interface OpportunityRow {
   planId: string | null;
   campaignId: string | null;
   territoryId: string | null;
+  requirement: string;
   ownerSub: string | null;
   stage: string;
   forecastCategory: string;
@@ -67,7 +75,8 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     planId: row.planId,
     campaignId: row.campaignId,
     territoryId: row.territoryId,
-    ownerSub: row.ownerSub,
+    ownerSub: String(row.ownerSub),
+    requirement: String(row.requirement ?? ""),
     stage: row.stage as Stage,
     forecastCategory: row.forecastCategory as ForecastCategory,
     // NUMERIC arrives as a Decimal. Going through Number would silently lose
@@ -104,6 +113,7 @@ export class PrismaPipelineStore implements PipelineStore {
           planId: input.planId,
           territoryId: input.territoryId,
           ownerSub: input.ownerSub,
+          requirement: input.requirement,
           amount: input.amount?.amount ?? null,
           currency: input.currency,
           probability: DEFAULT_PROBABILITY.qualify,
@@ -335,7 +345,7 @@ export class PrismaPipelineStore implements PipelineStore {
     const p = await getPrismaClient();
     const data = {
       outcome: review.outcome,
-      primaryReason: review.primaryReason,
+      primaryReasonId: review.primaryReasonId,
       competitor: review.competitor ?? null,
       lessons: review.lessons ?? null,
       reviewerSub: review.reviewerSub,
@@ -395,6 +405,137 @@ export class PrismaPipelineStore implements PipelineStore {
     return rows.map((r: OpportunityRow) => toRecord(r));
   }
 
+  /* 赢丢原因 (0039) - the same five, written the same way as the catalogue's
+     vocabularies. The lock guard runs on every patch: reason_code is the
+     anchor and is not in the grant, so an attempt to rewrite it fails here,
+     where the message is readable, rather than at the database. */
+  async listWinLossReasons(workspaceId: string): Promise<WinLossReasonRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.winLossReason.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { reasonCode: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      reasonCode: r.reasonCode,
+      name: r.name,
+      forWon: r.forWon,
+      forLost: r.forLost,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertWinLossReason(
+    workspaceId: string,
+    input: Omit<WinLossReasonRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<WinLossReasonRecord> {
+    const p = await getPrismaClient();
+    const update = {
+      name: input.name,
+      forWon: input.forWon,
+      forLost: input.forLost,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(WIN_LOSS_REASON_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked win_loss_reason column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.winLossReason.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.winLossReason.upsert({
+      where: { workspaceId_reasonCode: { workspaceId, reasonCode: input.reasonCode } },
+      update,
+      create: {
+        workspaceId,
+        reasonCode: input.reasonCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      reasonCode: row.reasonCode,
+      name: row.name,
+      forWon: row.forWon,
+      forLost: row.forLost,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setWinLossReasonOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(WIN_LOSS_REASON_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked win_loss_reason column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.winLossReason.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeWinLossReason(workspaceId: string, reasonId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refused an in-use reason via planReasonRemoval;
+    // fk_win_loss_review_reason RESTRICTs underneath as the last line.
+    const { count } = await p.winLossReason.deleteMany({ where: { workspaceId, id: reasonId } });
+    return count > 0;
+  }
+
+  async countReviewsByReason(workspaceId: string, reasonId: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.winLossReview.count({ where: { workspaceId, primaryReasonId: reasonId } });
+  }
+
+  /* --- 预测阈值 (incr/0041) --------------------------------------------------
+     NO ROW IS A VALID STATE, and it reads as the shipped numbers: incr/0041
+     seeds every workspace that already has deals, and a workspace created
+     afterwards has none until somebody changes something. Falling back is what
+     keeps a fresh workspace's forecast page from being an error. */
+
+  async getForecastThresholds(workspaceId: string): Promise<ForecastThresholds> {
+    const p = await getPrismaClient();
+    const row = await p.forecastThreshold.findUnique({ where: { workspaceId } });
+    if (!row) return DEFAULT_FORECAST_THRESHOLDS;
+    return {
+      commitAt: row.commitProbability,
+      bestCaseAt: row.bestCaseProbability,
+      stallDays: row.stallDays,
+    };
+  }
+
+  async setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void> {
+    const p = await getPrismaClient();
+    const update = {
+      commitProbability: input.commitAt,
+      bestCaseProbability: input.bestCaseAt,
+      stallDays: input.stallDays,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(FORECAST_THRESHOLD_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked forecast_threshold column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.forecastThreshold.upsert({
+      where: { workspaceId },
+      update,
+      create: { workspaceId, ...update },
+    });
+  }
+
   async listForecastSnapshots(
     workspaceId: string,
     query: { period: string; scopeType?: ScopeType },
@@ -413,7 +554,7 @@ function toReview(r: Record<string, unknown>): WinLossReviewRecord {
     id: String(r.id),
     opportunityId: String(r.opportunityId),
     outcome: r.outcome as "won" | "lost",
-    primaryReason: (r.primaryReason as WinLossReason | null) ?? null,
+    primaryReasonId: (r.primaryReasonId as string | null) ?? null,
     competitor: (r.competitor as string | null) ?? null,
     lessons: (r.lessons as string | null) ?? null,
     reviewerSub: (r.reviewerSub as string | null) ?? null,

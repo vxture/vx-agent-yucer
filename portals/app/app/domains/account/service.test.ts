@@ -30,8 +30,10 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     workspaceId: WS,
     accountNo: "ACC-1",
     name: "Acme",
+    industryId: null,
     industry: null,
     region: null,
+    province: null,
     segmentCode: null,
     ownerSub: "usr_rep",
     healthScore: null,
@@ -389,6 +391,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
   return {
     id: "opp_1",
     workspaceId: WS,
+    requirement: "POS replacement",
     opportunityNo: "OPP-1",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     name: "Deal",

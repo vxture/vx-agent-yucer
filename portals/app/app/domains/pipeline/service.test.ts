@@ -5,7 +5,7 @@ import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
-import { InMemoryCatalogStore } from "../catalog/store";
+import { InMemoryCatalogStore , type CatalogStore } from "../catalog/store";
 import { approvalFor } from "../catalog/lib/pricing";
 import {
   advanceStage,
@@ -29,6 +29,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
   return {
     id: "opp_1",
     workspaceId: WS,
+    requirement: "POS replacement",
     opportunityNo: "OPP-1",
   createdAt: new Date("2026-01-01T00:00:00Z"),
     name: "Deal",
@@ -50,13 +51,20 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
   };
 }
 
-function ctx(role: RoleCode, tier: Entitlement["tier"], store = new InMemoryPipelineStore()): PipelineContext {
+function ctx(
+  role: RoleCode,
+  tier: Entitlement["tier"],
+  store = new InMemoryPipelineStore(),
+): PipelineContext & { catalog: CatalogStore } {
   return {
     workspaceId: WS,
     sub: "usr_me",
     holder: { permissions: new Set(permissionsForRoles([role])) },
     entitlement: { ...EMPTY_ENTITLEMENT, workspace_id: WS, product: "yucer", tier },
     store,
+    // incr/0044: what a deal is priced in when nobody said comes from the
+    // catalogue's 计价规则, so the pipeline's context carries the catalogue.
+    catalog: new InMemoryCatalogStore(),
   };
 }
 
@@ -477,8 +485,8 @@ function catalogWith(floor: number | null): InMemoryCatalogStore {
   const store = new InMemoryCatalogStore();
   store.seed({
     products: [
-      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: null, unit: "seat", statusId: "st_active", sortOrder: 1 },
-      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: null, unit: "day", statusId: "st_active", sortOrder: 2 },
+      { id: "p1", workspaceId: WS, productCode: "P-1", name: "POS", typeId: null, unitId: "u_seat", statusId: "st_active", sortOrder: 1 },
+      { id: "p2", workspaceId: WS, productCode: "P-2", name: "Rollout", typeId: null, unitId: "u_day", statusId: "st_active", sortOrder: 2 },
     ],
     prices:
       floor === null
@@ -726,7 +734,8 @@ test("a viewer may read the pipeline and may not create a deal", async () => {
     name: "Corridor deal",
     accountId: "acc_1",
     territoryId: null,
-    ownerSub: null,
+    ownerSub: "usr_test",
+    requirement: "POS replacement",
     amount: null,
     expectedCloseAt: null,
   });
@@ -741,7 +750,12 @@ test("a deal created directly carries no campaign, and the creator owns it", asy
       name: "Corridor deal",
       accountId: "acc_1",
       territoryId: null,
+      // NULL ON PURPOSE - this test is about the convention that whoever
+      // creates a deal owns it. The rule refuses a deal with no owner
+      // (incr/0034); createOpportunity applies the default before the rule
+      // sees it, which is the behaviour asserted below.
       ownerSub: null,
+      requirement: "POS replacement",
       amount: money(500_000),
       expectedCloseAt: null,
     }),
@@ -763,6 +777,7 @@ test("an explicit owner survives, rather than being overwritten by the creator",
       accountId: "acc_1",
       territoryId: null,
       ownerSub: "usr_rep",
+      requirement: "POS replacement",
       amount: null,
       expectedCloseAt: null,
     }),
@@ -781,7 +796,8 @@ test("a created deal is immediately in the pipeline it was created into", async 
       name: "Corridor deal",
       accountId: "acc_1",
       territoryId: null,
-      ownerSub: null,
+      ownerSub: "usr_test",
+    requirement: "POS replacement",
       amount: null,
       expectedCloseAt: null,
     }),
@@ -803,7 +819,8 @@ test("a renewal is attributed to the project, not to a rep who found it", async 
       name: "Renewal of the platform term",
       accountId: "acc_1",
       territoryId: null,
-      ownerSub: null,
+      ownerSub: "usr_test",
+    requirement: "POS replacement",
       amount: money(880_000),
       expectedCloseAt: null,
       sourceProjectId: "prj_6",
@@ -822,7 +839,8 @@ test("an ordinary deal carries no source project", async () => {
       name: "Corridor deal",
       accountId: "acc_1",
       territoryId: null,
-      ownerSub: null,
+      ownerSub: "usr_test",
+    requirement: "POS replacement",
       amount: null,
       expectedCloseAt: null,
     }),
@@ -839,7 +857,8 @@ test("the renewed-project set names every project with a deal open off it", asyn
         name: `Renewal ${projectId}`,
         accountId: "acc_1",
         territoryId: null,
-        ownerSub: null,
+        ownerSub: "usr_test",
+    requirement: "POS replacement",
         amount: null,
         expectedCloseAt: null,
         sourceProjectId: projectId,

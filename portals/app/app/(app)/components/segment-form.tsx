@@ -13,6 +13,8 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import {
   AssistPanel,
+  FormFields,
+  FormFieldWide,
   FormPage,
   splitListField,
   useFormSubmit,
@@ -140,7 +142,11 @@ export function SegmentForm({
         // The page ViewHeader owns the title - repeating it in the Section
         // rendered the same sentence twice within one viewport.
         <Section icon="target">
-          <div className="flex max-w-(--vx-container-xl) flex-col gap-md">
+          <div className="gap-xl flex flex-col">
+            <FormFields>
+            {/* WHICH SEGMENT, and it takes the whole row: it is not one of the
+                fields below, it is the choice of what they are describing. */}
+            <FormFieldWide>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentEditing}</FieldLabel>
               <NativeSelect value={editing ? form.segmentCode : ""} onChange={(e) => pick(e.target.value)}>
@@ -152,6 +158,7 @@ export function SegmentForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFieldWide>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentCodeHeader}</FieldLabel>
               <Input
@@ -164,6 +171,9 @@ export function SegmentForm({
               <FieldLabel>{STRATEGY_TEXT.segmentNameHeader}</FieldLabel>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </Field>
+            {/* The plan this segment belongs under - a link upward, and the
+                option labels are whole plan names. */}
+            <FormFieldWide>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentPlanHeader}</FieldLabel>
               <NativeSelect value={form.planId} onChange={(e) => setForm({ ...form, planId: e.target.value })}>
@@ -175,6 +185,7 @@ export function SegmentForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFieldWide>
             <Field>
               <FieldLabel>{STRATEGY_TEXT.segmentIndustries}</FieldLabel>
               <Input
@@ -210,6 +221,7 @@ export function SegmentForm({
                 ))}
               </NativeSelect>
             </Field>
+            </FormFields>
             <div className="flex items-center gap-md">
               <Button
                 disabled={submit.pending || !ready}
