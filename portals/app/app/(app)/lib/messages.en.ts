@@ -1259,7 +1259,7 @@ export const en: Dictionary = {
     noMember: "Nobody holds it",
     noDescription: "No description",
     permCount: (n: number, total: number) => `${n} / ${total}`,
-    edit: "Configure",
+    edit: "Configure role",
     details: "Permission details",
     moveUp: "Move up",
     moveDown: "Move down",

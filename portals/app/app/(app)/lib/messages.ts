@@ -2379,7 +2379,8 @@ export const ROLE_TEXT = {
   noMember: "暂无成员",
   noDescription: "未填写说明",
   permCount: (n: number, total: number) => `${n} / ${total}`,
-  edit: "配置",
+  // 行菜单里成对读：权限详情 ｜ 角色配置 ｜ 上移 …（owner, 2026-09-09）
+  edit: "角色配置",
   details: "权限详情",
   moveUp: "上移",
   moveDown: "下移",
