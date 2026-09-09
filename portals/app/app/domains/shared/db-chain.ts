@@ -60,6 +60,7 @@ export const CHAIN = {
   opportunity: id("08"),
   product: id("09"),
   productStatus: id("22"),
+  productUnit: id("23"),
   priceEntry: id("10"),
   solution: id("11"),
   solutionItem: id("12"),
@@ -102,6 +103,7 @@ export async function clearChain(c: Client): Promise<void> {
     `DELETE FROM yucer_catalog.price_book_entry WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product_status WHERE workspace_id = $1`,
+    `DELETE FROM yucer_catalog.product_unit WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`,
     `DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account_plan WHERE workspace_id = $1`,
@@ -193,10 +195,17 @@ export async function seedChain(c: Client): Promise<void> {
      VALUES ($1, $2, 'active', 'chain fixture status', 'the quotable state')`,
     [CHAIN.productStatus, CHAIN_WS],
   );
+  // 0037: the unit joins by uuid too, for the reason the status does - so its
+  // row exists before any product references it.
   await c.query(
-    `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit, status_id)
-     VALUES ($1, $2, 'PROD-DB-1', 'chain fixture product', 'seat', $3)`,
-    [CHAIN.product, CHAIN_WS, CHAIN.productStatus],
+    `INSERT INTO yucer_catalog.product_unit (id, workspace_id, unit_code, name)
+     VALUES ($1, $2, 'seat', 'seat')`,
+    [CHAIN.productUnit, CHAIN_WS],
+  );
+  await c.query(
+    `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit_id, status_id)
+     VALUES ($1, $2, 'PROD-DB-1', 'chain fixture product', $3, $4)`,
+    [CHAIN.product, CHAIN_WS, CHAIN.productUnit, CHAIN.productStatus],
   );
   await c.query(
     `INSERT INTO yucer_catalog.price_book_entry

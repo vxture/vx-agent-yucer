@@ -322,7 +322,26 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "yucer_pipeline.funnel_exit",
 ];
 
+/**
+ * Tables the service role may only READ - no UPDATE and no INSERT either.
+ *
+ * A THIRD CATEGORY, added 2026-09-08 with the administrative divisions. The
+ * guard used to sort every table into two: writable, or append-only. A table
+ * granted nothing but SELECT fell into the second and read as "the application
+ * may add rows but not edit them", which is the opposite of what its grant
+ * says. Reference data is not appended to by a running application - which
+ * provinces China has is not a decision this product makes at runtime, and a
+ * row arrives only from the next increment.
+ */
+export const READ_ONLY_TABLES: readonly string[] = [
+  // incr/0038. 3,611 rows of continent / country / province / city / county,
+  // generated from pinned sources. The service role selects them; nothing in
+  // the product writes them.
+  "yucer_ref.admin_division",
+];
+
 const APPEND_ONLY = new Set(APPEND_ONLY_TABLES);
+const READ_ONLY = new Set(READ_ONLY_TABLES);
 
 /** camelCase (Prisma field) -> snake_case (DDL column). */
 export function toSnakeCase(field: string): string {
@@ -331,6 +350,11 @@ export function toSnakeCase(field: string): string {
 
 export function isAppendOnly(table: string): boolean {
   return APPEND_ONLY.has(table);
+}
+
+/** Reference data: readable, never written by the application. */
+export function isReadOnly(table: string): boolean {
+  return READ_ONLY.has(table);
 }
 
 export function writableColumns(table: string): readonly string[] {

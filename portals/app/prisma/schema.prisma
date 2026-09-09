@@ -14,7 +14,7 @@ generator client {
 // the five product domains.
 datasource db {
   provider = "postgresql"
-  schemas  = ["vx_provision", "local_authz", "local_usage", "local_audit", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field"]
+  schemas  = ["vx_provision", "local_authz", "local_usage", "local_audit", "yucer_core", "yucer_gtm", "yucer_pipeline", "yucer_delivery", "yucer_agent", "yucer_catalog", "yucer_field", "yucer_ref"]
 }
 
 // ===== vx_provision =====
@@ -1140,4 +1140,31 @@ model MarketDivisionProvince {
   @@index([workspaceId, divisionId], map: "idx_market_division_province_div")
   @@map("market_division_province")
   @@schema("yucer_core")
+}
+
+/// 行政区划 - 全球五级参照表 (incr/0038). GLOBAL: no workspaceId, because which
+/// provinces China has is not a tenant's decision. The service role holds
+/// SELECT and nothing else; rows change by increment, from the generator.
+model AdminDivision {
+  id        String          @id @default(uuid()) @db.Uuid
+  /// 1 continent, 2 country, 3 province, 4 city, 5 county.
+  level     Int             @db.SmallInt
+  /// ISO alpha-2 at levels 1-2, GB/T 2260's six digits at 3-5. Unique WITH the
+  /// level, never alone: NA is both North America and Namibia.
+  code      String          @db.VarChar(12)
+  name      String          @db.VarChar(128)
+  nameEn    String?         @map("name_en") @db.VarChar(128)
+  alphaCode String?         @map("alpha_code") @db.VarChar(8)
+  parentId  String?         @map("parent_id") @db.Uuid
+  parent    AdminDivision?  @relation("AdminDivisionTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  AdminDivision[] @relation("AdminDivisionTree")
+  sortOrder Int             @default(0) @map("sort_order")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt DateTime        @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([level, code], map: "uidx_admin_division_code")
+  @@index([parentId, sortOrder], map: "idx_admin_division_parent")
+  @@index([level, sortOrder], map: "idx_admin_division_level")
+  @@map("admin_division")
+  @@schema("yucer_ref")
 }
