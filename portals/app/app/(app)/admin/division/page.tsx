@@ -3,15 +3,16 @@ import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
-import { listMarketDivisions, marketScope } from "../../../domains/account/service";
+import { frameMembers, listMarketDivisions, marketScope } from "../../../domains/account/service";
 import { MarketScopeControl } from "../../components/market-scope-control";
-import { ALL_PROVINCES } from "../../../domains/shared/provinces";
 import { DivisionPanel } from "../../components/division-panel";
 import { DivisionImport } from "../../components/division-import";
 import { NewEntryLink } from "../../components/form-page";
 import {
-  DIVISION_TEMPLATES,
   isSystemDivision,
+  provinceFrame,
+  templatesFor,
+  type MarketScope,
 } from "../../../domains/shared/market-division";
 
 // 市场划分 (大区) - CONFIGURATION, not a business module (owner, 2026-09-08).
@@ -27,12 +28,20 @@ import {
 // behind the gear, beside members and adoption. A table that is set once and
 // read by everything is not something a seller opens on a Monday.
 //
+// THE FRAME COMES FIRST (owner, 2026-09-09: 关键是这个范围定了，后面区域包含关系
+// 就有了基础). Everything on this page is read inside it: the roster lists the
+// frame's own carve, the coverage line counts against the frame's ground -
+// 34 provinces, or 陕西's ten cities - and the noun in every sentence is the
+// frame's word for what a region holds.
+//
 // THE GATE IS STILL planning.territory.*, deliberately. Who may re-carve the
 // market is the same authority as who may redraw the territories on it, and
 // inventing an admin.division permission to match the URL would add a
 // permission that answers a question the catalogue already answers.
 
 export const dynamic = "force-dynamic";
+
+const CHINA: MarketScope = { kind: "china", code: null };
 
 export default async function DivisionPage() {
   const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
@@ -51,14 +60,16 @@ export default async function DivisionPage() {
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
+    store: session.stores.account(),
   };
 
   /* Read from the account store because that is where incr/0036 put the table,
      and gated on account.view - every roster that shows a customer's 大区 has
      to resolve one, so it is not a separate privilege. */
-  const [divisions, scope] = await Promise.all([
-    listMarketDivisions({ ...ctx, store: session.stores.account() }),
-    marketScope({ ...ctx, store: session.stores.account() }),
+  const [divisions, scope, ground] = await Promise.all([
+    listMarketDivisions(ctx),
+    marketScope(ctx),
+    frameMembers(ctx),
   ]);
   if (!divisions.ok) {
     return (
@@ -69,11 +80,17 @@ export default async function DivisionPage() {
     );
   }
 
+  const frame = scope.ok ? scope.value : CHINA;
+  const noun = PLANNING_TEXT.memberNoun[frame.kind] ?? frame.kind;
+  const frameName = frame.kind === "province"
+    ? provinceFrame(frame.code)?.province ?? frame.code ?? ""
+    : PLANNING_TEXT.scopeLabel[frame.kind] ?? frame.kind;
   const rows = divisions.value;
-  const placed = new Set(rows.flatMap((d) => d.provinces));
-  // Computed from the SAME 34 the map and the database CHECK both use, so a
-  // province cannot be missing from this list and present on the map.
-  const unassigned = ALL_PROVINCES.filter((p) => !placed.has(p));
+  const placed = new Set(rows.flatMap((d) => d.members.map((m) => m.key)));
+  // Counted off the frame's OWN ground - the same rows the picker offers - so a
+  // member cannot be missing from this line and present in the drawer.
+  const total = ground.ok ? ground.value : [];
+  const unassigned = total.filter((m) => !placed.has(m.key));
   const upsert = can(
     session.authz, session.entitlement, "planning.territory.upsert", "ui",
   ).allowed;
@@ -89,20 +106,11 @@ export default async function DivisionPage() {
       <ViewHeader
         icon="map-pin"
         title={DOMAIN_LABEL.division}
-        description={PLANNING_TEXT.divisionWhy}
+        description={PLANNING_TEXT.divisionWhy(frameName, noun)}
         secondary={
-          <>
-            {/* THE FRAME, AS ONE VALUE (owner, 2026-09-09): a select that reads
-                中国市场 and nothing else until opened. The page is about the
-                regions; the frame is the fact they sit inside. */}
-            <MarketScopeControl
-              scope={scope.ok ? scope.value : { kind: "china", code: null }}
-              editable={upsert}
-            />
-            <StatusBadge tone={unassigned.length === 0 ? "success" : "warning"}>
-              {PLANNING_TEXT.divisionCoverage(placed.size, ALL_PROVINCES.length, rows.length)}
-            </StatusBadge>
-          </>
+          <StatusBadge tone={unassigned.length === 0 ? "success" : "warning"}>
+            {PLANNING_TEXT.divisionCoverage(placed.size, total.length, rows.length, noun)}
+          </StatusBadge>
         }
         /* BOTH ACTIONS IN THE PAGE HEADER'S SLOT (DS: 右侧动作区，通常是一到
            两个 Button). They were a row under the table; 新建 and 重置预置 are
@@ -111,15 +119,23 @@ export default async function DivisionPage() {
         action={
           upsert ? (
             <>
+              {/* THE FRAME IS A BUTTON THAT OPENS A PANEL (owner, 2026-09-09),
+                  beside the two other ways to change what the roster says. A
+                  display page states; configuration happens in what it opens. */}
+              <MarketScopeControl scope={frame} editable={upsert} />
               <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} />
               <DivisionImport
                 currentDivisions={rows.length}
                 customCount={
-                  rows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
+                  rows.filter((d) => !isSystemDivision(d.code, d.name, d.members.map((m) => m.key))).length
                 }
-                templates={DIVISION_TEMPLATES.map((t) => ({
+                /* Only the carves of THIS frame: 五分法 / 七分法 cut 中国市场,
+                   陕西三分法 cuts 陕西. Offering another frame's carve here
+                   would be refused by the service (template_scope_mismatch)
+                   and would have been the wrong offer before that. */
+                templates={templatesFor(frame).map((t) => ({
                   key: t.key,
-                  label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
+                  label: PLANNING_TEXT.templateName[t.key] ?? t.key,
                   divisions: t.divisions.length,
                   names: t.divisions.map((d) => d.name),
                 }))}
@@ -130,11 +146,12 @@ export default async function DivisionPage() {
       />
       <DivisionPanel
         rows={rows.map((d) => ({
-          code: d.code, name: d.name, sortOrder: d.sortOrder, provinces: d.provinces,
-          system: isSystemDivision(d.code, d.name, d.provinces),
+          code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
+          system: isSystemDivision(d.code, d.name, d.members.map((m) => m.key)),
         }))}
         unassigned={unassigned}
-        total={ALL_PROVINCES.length}
+        total={total.length}
+        noun={noun}
         // The same gate the write path enforces. A picker that appears and
         // then refuses is worse than one that is not offered.
         editable={upsert}

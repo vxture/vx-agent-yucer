@@ -15,8 +15,7 @@ import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
 import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
 import { PERM_CODES, ROLE_CODES } from "../../authz/catalog";
-import { listMarketDivisions } from "../../domains/account/service";
-import { ALL_PROVINCES } from "../../domains/shared/provinces";
+import { frameMembers, listMarketDivisions, marketScope } from "../../domains/account/service";
 
 import { getMessages } from "../lib/i18n/server";
 import { Tag } from "../components/tag";
@@ -35,7 +34,7 @@ import { Tag } from "../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHomePage() {
-  const { ADMIN_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -71,19 +70,27 @@ export default async function AdminHomePage() {
   });
   /* Read through the same gated service the page itself uses. A failed read is
      not an error here - the card simply states what it measures instead. */
-  const divisions = await listMarketDivisions({
+  const accountCtx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: session.stores.account(),
-  });
-  const divisionFact = !divisions.ok
+  };
+  const [divisions, ground, scope] = await Promise.all([
+    listMarketDivisions(accountCtx),
+    frameMembers(accountCtx),
+    marketScope(accountCtx),
+  ]);
+  // Counted against the FRAME's ground - 34 provinces, or 陕西's ten cities -
+  // in the frame's own noun (incr/0045).
+  const divisionFact = !divisions.ok || !ground.ok
     ? ADMIN_TEXT.divisionNoRead
     : ADMIN_TEXT.divisionCount(
         divisions.value.length,
-        new Set(divisions.value.flatMap((d) => d.provinces)).size,
-        ALL_PROVINCES.length,
+        new Set(divisions.value.flatMap((d) => d.members.map((m) => m.key))).size,
+        ground.value.length,
+        PLANNING_TEXT.memberNoun[scope.ok ? scope.value.kind : "china"] ?? "",
       );
 
   const memberFact = !members.ok

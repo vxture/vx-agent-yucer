@@ -3,7 +3,14 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
-import { DEFAULT_MARKET_SCOPE, type MarketScope } from "../shared/market-division";
+import {
+  DEFAULT_MARKET_SCOPE,
+  frameMembers,
+  scopePrefix,
+  type MarketMember,
+  type MarketScope,
+} from "../shared/market-division";
+import { provinceTag } from "../shared/provinces";
 import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
@@ -38,6 +45,24 @@ const OPPORTUNITY_CONTACT_TABLE = "yucer_pipeline.opportunity_contact";
 const INDUSTRY_TABLE = "yucer_core.industry";
 // incr/0043. 市场范围, one row per workspace.
 const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
+
+/* A division's members come from two tables (incr/0036 provinces, incr/0045
+   admin_division rows), and a row holds whichever its frame uses. Read both,
+   print each in its own shape: `JS 江苏` for a province, `西安` for a city. */
+const MEMBERS = {
+  provinces: { select: { province: true } },
+  members: { select: { memberCode: true, place: { select: { shortZh: true } } } },
+} as const;
+
+function membersOf(row: {
+  provinces: { province: string }[];
+  members: { memberCode: string; place: { shortZh: string } }[];
+}): MarketMember[] {
+  return [
+    ...row.provinces.map((x) => ({ key: x.province, label: provinceTag(x.province) })),
+    ...row.members.map((x) => ({ key: x.memberCode, label: x.place.shortZh })),
+  ];
+}
 
 export class PrismaAccountStore implements AccountStore {
   /**
@@ -79,12 +104,12 @@ export class PrismaAccountStore implements AccountStore {
         ...(input.sortOrder === undefined ? {} : { sortOrder: input.sortOrder }),
         updatedAt: new Date(),
       },
-      include: { provinces: { select: { province: true } } },
+      include: MEMBERS,
     });
     return {
       id: row.id, code: row.divisionCode, name: row.name, sortOrder: row.sortOrder,
       scope: row.scope as MarketScope["kind"],
-      provinces: row.provinces.map((x) => x.province),
+      members: membersOf(row),
     };
   }
 
@@ -94,22 +119,56 @@ export class PrismaAccountStore implements AccountStore {
        cannot be removed - deleted here rather than letting Postgres raise,
        so the caller gets a countable answer instead of a constraint name. */
     const { count } = await p.marketDivision.deleteMany({
-      where: { workspaceId, divisionCode: code, provinces: { none: {} } },
+      where: { workspaceId, divisionCode: code, provinces: { none: {} }, members: { none: {} } },
     });
     return count > 0;
   }
 
-  async setProvinceDivision(
+  /* --- the frame's ground (incr/0045) -----------------------------------------
+     中国市场 is the 34 the build knows. A province frame's cities are READ
+     FROM yucer_ref.admin_division, which is the authority; the build's copy
+     (PROVINCE_FRAMES) exists for the store with no database, and
+     admin-division.db.test.ts proves the two agree. */
+
+  async listFrameMembers(workspaceId: string): Promise<MarketMember[]> {
+    const scope = await this.getMarketScope(workspaceId);
+    if (scope.kind !== "province") return [...frameMembers(scope)];
+    const p = await this.client();
+    const province = await p.adminDivision.findFirst({
+      where: { level: 3, abbrEn: scope.code ?? "" },
+      select: { id: true },
+    });
+    if (!province) return [];
+    const cities = await p.adminDivision.findMany({
+      where: { level: 4, parentId: province.id, status: "active" },
+      orderBy: { sortOrder: "asc" },
+      select: { code: true, shortZh: true },
+    });
+    return cities.map((c) => ({ key: c.code, label: c.shortZh }));
+  }
+
+  async placeMember(
     workspaceId: string,
-    province: string,
+    memberKey: string,
     divisionCode: string | null,
   ): Promise<boolean> {
     const p = await this.client();
+    /* TWO TABLES, ONE VERB. A province name goes to 0036's table; anything
+       else is an admin_division row and goes to 0045's, at the level the
+       frame carves by. The frame decides, not the shape of the key. */
+    const scope = await this.getMarketScope(workspaceId);
+    const level = scope.kind === "global" ? 2 : 4;
     if (divisionCode === null) {
       // Out of every 大区. A DELETE, not a null division_id: the column is NOT
       // NULL, and "in no division" is the absence of a row rather than a row
       // pointing nowhere.
-      await p.marketDivisionProvince.deleteMany({ where: { workspaceId, province } });
+      if (scope.kind === "china") {
+        await p.marketDivisionProvince.deleteMany({ where: { workspaceId, province: memberKey } });
+      } else {
+        await p.marketDivisionMember.deleteMany({
+          where: { workspaceId, memberLevel: level, memberCode: memberKey },
+        });
+      }
       return true;
     }
     const division = await p.marketDivision.findFirst({
@@ -117,14 +176,24 @@ export class PrismaAccountStore implements AccountStore {
       select: { id: true },
     });
     if (!division) return false;
-    /* UPSERT ON THE PRIMARY KEY, because a province belongs to at most one
-       division and the table enforces that. An insert would collide; a plain
-       update would silently do nothing for a province nobody had placed. */
-    await p.marketDivisionProvince.upsert({
-      where: { workspaceId_province: { workspaceId, province } },
-      create: { workspaceId, province, divisionId: division.id },
-      update: { divisionId: division.id, updatedAt: new Date() },
-    });
+    /* UPSERT ON THE PRIMARY KEY, because a member belongs to at most one
+       division and both tables enforce that. An insert would collide; a plain
+       update would silently do nothing for one nobody had placed. */
+    if (scope.kind === "china") {
+      await p.marketDivisionProvince.upsert({
+        where: { workspaceId_province: { workspaceId, province: memberKey } },
+        create: { workspaceId, province: memberKey, divisionId: division.id },
+        update: { divisionId: division.id, updatedAt: new Date() },
+      });
+    } else {
+      await p.marketDivisionMember.upsert({
+        where: {
+          workspaceId_memberLevel_memberCode: { workspaceId, memberLevel: level, memberCode: memberKey },
+        },
+        create: { workspaceId, memberLevel: level, memberCode: memberKey, divisionId: division.id },
+        update: { divisionId: division.id, updatedAt: new Date() },
+      });
+    }
     return true;
   }
 
@@ -156,11 +225,13 @@ export class PrismaAccountStore implements AccountStore {
     const scope = await this.getMarketScope(workspaceId);
     const rows = await p.marketDivision.findMany({
       // BY FRAME - a carve made under another frame stays out of this roster.
-      where: { workspaceId, scope: scope.kind },
+      // The prefix as well as the kind: 陕西's carve and 广东's are both
+      // `province`, and only the code tells them apart.
+      where: { workspaceId, scope: scope.kind, divisionCode: { startsWith: scopePrefix(scope) } },
       // The workspace's OWN order, then name - a tenant that re-orders its
       // divisions expects the menu and the breadcrumb to follow.
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-      include: { provinces: { select: { province: true } } },
+      include: MEMBERS,
     });
     return rows.map((d) => ({
       id: d.id,
@@ -168,7 +239,7 @@ export class PrismaAccountStore implements AccountStore {
       name: d.name,
       scope: d.scope as MarketScope["kind"],
       sortOrder: d.sortOrder,
-      provinces: d.provinces.map((x) => x.province),
+      members: membersOf(d),
     }));
   }
 

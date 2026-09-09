@@ -1,3 +1,5 @@
+import { ALL_PROVINCES, provinceTag } from "./provinces";
+
 /* 大区 - how a workspace divides its market.
  *
  * FIVE DIVISIONS, PRESET AND EDITABLE (owner, 2026-09-07). The authority is the
@@ -25,15 +27,19 @@
  * 市场范围 - the FRAME a workspace carves inside (owner, 2026-09-09; incr/0043).
  *
  * Three kinds, and a division is made of the level one below its frame:
- * 全球市场 of countries, 中国市场 of provinces, 省级市场 of one province's cities.
- * Every workspace today is 中国市场, and that is the only frame whose members
- * this build can carve - the other two are stored, constrained and offered as
- * 未建 until the member table lands on yucer_ref.admin_division.
+ * 全球市场 of countries, 中国市场 of provinces, 省级市场 of ONE province's
+ * prefecture-level cities (owner: 陕西看市级, not counties). The frame decides
+ * what a region can contain, and that is the whole reason it is chosen first.
  *
- * THE CODE CARRIES THE FRAME. CHINA-EAST, not EAST: a code is what an import
- * matches on, and "EAST" alone cannot tell 华东 from the eastern half of 广东.
- * The database CHECKs that a division's code starts with its frame's prefix;
- * `divisionCode()` is the one place the product composes one.
+ * WHICH FRAMES ARE OPEN. 中国市场 always; 省级市场 for the provinces named in
+ * PROVINCE_FRAMES - 陕西 is the first, formally (owner, 2026-09-09: 陕西作为
+ * 第一个省级支持区域，正式的), and the others arrive one increment at a time
+ * with their template; 全球市场 is stored, constrained and offered as 未建.
+ *
+ * THE CODE CARRIES THE FRAME. CHINA-EAST / SN-GUANZHONG, not EAST: a code is
+ * what an import matches on, and "EAST" alone cannot tell 华东 from the eastern
+ * half of 广东. The database CHECKs that a division's code starts with its
+ * frame's prefix; `divisionCode()` is the one place the product composes one.
  */
 export type MarketScopeKind = "global" | "china" | "province";
 
@@ -46,12 +52,90 @@ export interface MarketScope {
 export const DEFAULT_MARKET_SCOPE: MarketScope = { kind: "china", code: null };
 
 /** The frames, in the order the selector offers them. `open` is which of them
- *  this build can actually carve; the rest are 未建 and not selectable. */
+ *  this build can carve at all; a province frame is open only for the
+ *  provinces in PROVINCE_FRAMES. */
 export const MARKET_SCOPES: readonly { readonly kind: MarketScopeKind; readonly open: boolean }[] = [
   { kind: "global", open: false },
   { kind: "china", open: true },
-  { kind: "province", open: false },
+  { kind: "province", open: true },
 ];
+
+/**
+ * One member of a region: a province under 中国市场, a city under 省级市场.
+ * `key` is what the database stores (the province NAME for 0036's table, the
+ * six-digit adcode for 0045's); `label` is what the interface prints for it -
+ * `JS 江苏`, `西安`.
+ */
+export interface MarketMember {
+  readonly key: string;
+  readonly label: string;
+}
+
+/**
+ * 省级市场 - the provinces a workspace may carve as its whole market.
+ *
+ * ONE ENTRY, and it is not an example (owner, 2026-09-09). 陕西 is the first
+ * province-level market the product supports; each further province is added
+ * here with its cities and its standard carve, in the same increment that
+ * proves them against yucer_ref.admin_division.
+ */
+export interface ProvinceFrame {
+  /** The two GB/T 2260 letters market_scope.scope_province stores. */
+  readonly code: string;
+  readonly province: string;
+  /** The province's six-digit adcode - the parent of its cities in admin_division. */
+  readonly adcode: string;
+  /** Its prefecture-level cities, in GB/T 2260 order: 六位码 / 全称 / 简称. */
+  readonly cities: readonly { readonly code: string; readonly name: string; readonly short: string }[];
+}
+
+export const PROVINCE_FRAMES: readonly ProvinceFrame[] = [
+  {
+    code: "SN",
+    province: "陕西省",
+    adcode: "610000",
+    cities: [
+      { code: "610100", name: "西安市", short: "西安" },
+      { code: "610200", name: "铜川市", short: "铜川" },
+      { code: "610300", name: "宝鸡市", short: "宝鸡" },
+      { code: "610400", name: "咸阳市", short: "咸阳" },
+      { code: "610500", name: "渭南市", short: "渭南" },
+      { code: "610600", name: "延安市", short: "延安" },
+      { code: "610700", name: "汉中市", short: "汉中" },
+      { code: "610800", name: "榆林市", short: "榆林" },
+      { code: "610900", name: "安康市", short: "安康" },
+      { code: "611000", name: "商洛市", short: "商洛" },
+    ],
+  },
+];
+
+export function provinceFrame(code: string | null): ProvinceFrame | null {
+  return PROVINCE_FRAMES.find((f) => f.code === code) ?? null;
+}
+
+/** Can this exact frame be carved in this build? */
+export function scopeOpen(scope: MarketScope): boolean {
+  const frame = MARKET_SCOPES.find((s) => s.kind === scope.kind);
+  if (!frame?.open) return false;
+  return scope.kind !== "province" || provinceFrame(scope.code) !== null;
+}
+
+/**
+ * The ground a frame is carved from, as the BUILD knows it: the 34 provinces
+ * under 中国市场, a supported province's cities under 省级市场, nothing yet
+ * under 全球市场. The in-memory store serves this; the Prisma store reads the
+ * same rows from yucer_ref.admin_division, and admin-division.db.test.ts
+ * proves the two agree.
+ */
+export function frameMembers(scope: MarketScope): readonly MarketMember[] {
+  if (scope.kind === "china") {
+    return ALL_PROVINCES.map((p) => ({ key: p, label: provinceTag(p) }));
+  }
+  if (scope.kind === "province") {
+    return (provinceFrame(scope.code)?.cities ?? []).map((c) => ({ key: c.code, label: c.short }));
+  }
+  return [];
+}
 
 /** `CHINA-` / `GLOBAL-` / `GD-` - the prefix every code in this frame carries. */
 export function scopePrefix(scope: MarketScope): string {
@@ -133,10 +217,13 @@ export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
 
 export interface DivisionTemplate {
   readonly key: string;
-  /** Which frame the carve belongs to. Both shipped carves cut 中国市场. */
+  /** Which frame the carve belongs to, and for a province frame, which province. */
   readonly scope: MarketScopeKind;
+  readonly province: string | null;
   readonly divisions: readonly MarketDivision[];
-  readonly provinces: Readonly<Record<string, string>>;
+  /** member key -> division code. Province NAMES under 中国市场, city adcodes
+   *  under 省级市场 - the same keys the member tables store. */
+  readonly members: Readonly<Record<string, string>>;
 }
 
 /** 七分法 - the other standard carve. */
@@ -164,10 +251,34 @@ const SEVEN_PROVINCES: Readonly<Record<string, string>> = {
   宁夏回族自治区: "CHINA-NORTHWEST", 新疆维吾尔自治区: "CHINA-NORTHWEST",
 };
 
-export const DIVISION_TEMPLATES: readonly DivisionTemplate[] = [
-  { key: "five", scope: "china", divisions: MARKET_DIVISIONS, provinces: MARKET_DIVISION_PROVINCES },
-  { key: "seven", scope: "china", divisions: SEVEN_DIVISIONS, provinces: SEVEN_PROVINCES },
+/* 陕西三分法 - 关中 / 陕北 / 陕南, the carve every reading of the province
+ * agrees on. By CITY: 陕北 is 延安 and 榆林, 陕南 is 汉中 安康 商洛, and the five
+ * cities of the Wei valley are 关中. Codes carry the frame: SN-GUANZHONG. */
+const SHAANXI_DIVISIONS: readonly MarketDivision[] = [
+  { code: "SN-GUANZHONG", name: "关中", sortOrder: 1 },
+  { code: "SN-SHAANBEI", name: "陕北", sortOrder: 2 },
+  { code: "SN-SHAANNAN", name: "陕南", sortOrder: 3 },
 ];
+
+const SHAANXI_CITIES: Readonly<Record<string, string>> = {
+  "610100": "SN-GUANZHONG", "610200": "SN-GUANZHONG", "610300": "SN-GUANZHONG",
+  "610400": "SN-GUANZHONG", "610500": "SN-GUANZHONG",
+  "610600": "SN-SHAANBEI", "610800": "SN-SHAANBEI",
+  "610700": "SN-SHAANNAN", "610900": "SN-SHAANNAN", "611000": "SN-SHAANNAN",
+};
+
+export const DIVISION_TEMPLATES: readonly DivisionTemplate[] = [
+  { key: "five", scope: "china", province: null, divisions: MARKET_DIVISIONS, members: MARKET_DIVISION_PROVINCES },
+  { key: "seven", scope: "china", province: null, divisions: SEVEN_DIVISIONS, members: SEVEN_PROVINCES },
+  { key: "shaanxi-three", scope: "province", province: "SN", divisions: SHAANXI_DIVISIONS, members: SHAANXI_CITIES },
+];
+
+/** The shipped carves that cut THIS frame - and nothing from another one. */
+export function templatesFor(scope: MarketScope): readonly DivisionTemplate[] {
+  return DIVISION_TEMPLATES.filter(
+    (t) => t.scope === scope.kind && (t.scope !== "province" || t.province === scope.code),
+  );
+}
 
 /**
  * Where each province sits in EVERY shipped carve - the hint the province
@@ -188,8 +299,8 @@ export const PRESET_MEMBERSHIP: Readonly<Record<string, Readonly<Record<string, 
     DIVISION_TEMPLATES.map((t) => [
       t.key,
       Object.fromEntries(
-        Object.entries(t.provinces).map(([province, code]) => [
-          province,
+        Object.entries(t.members).map(([member, code]) => [
+          member,
           t.divisions.find((d) => d.code === code)?.name ?? "",
         ]),
       ),
@@ -199,12 +310,12 @@ export const PRESET_MEMBERSHIP: Readonly<Record<string, Readonly<Record<string, 
 /**
  * Is this division exactly as some template ships it?
  *
- * Compared on NAME AND PROVINCE SET, not on code alone: a workspace that keeps
+ * Compared on NAME AND MEMBER SET, not on code alone: a workspace that keeps
  * the code and re-carves the ground has customised it, and saying otherwise
  * would label a tenant's own decision as ours.
  */
 export function isSystemDivision(
-  code: string, name: string, provinces: readonly string[],
+  code: string, name: string, members: readonly string[],
 ): boolean {
   const d = DIVISION_TEMPLATES.map((t) => t.divisions.find((x) => x.code === code) ?? null);
   return DIVISION_TEMPLATES.some((t, i) => {
@@ -215,12 +326,12 @@ export function isSystemDivision(
        question is only "the same provinces", and order is not part of it. It
        also removes a default .sort(), which orders by UTF-16 code unit and is
        the wrong tool for Chinese even when both sides happen to agree. */
-    const mine = new Set(provinces);
+    const mine = new Set(members);
     let n = 0;
-    for (const [province, c] of Object.entries(t.provinces)) {
+    for (const [member, c] of Object.entries(t.members)) {
       if (c !== code) continue;
       n += 1;
-      if (!mine.has(province)) return false;
+      if (!mine.has(member)) return false;
     }
     return n === mine.size;
   });

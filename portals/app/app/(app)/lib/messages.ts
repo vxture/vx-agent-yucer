@@ -1810,10 +1810,10 @@ export const ADMIN_TEXT = {
   memberNone: "还没有成员——首次登录后才会出现",
   memberNoRead: "没有成员读取权限",
   rolesFact: (roles: number, perms: number) => `${roles} 个角色 · ${perms} 条权限`,
-  divisionCount: (divisions: number, placed: number, total: number) =>
+  divisionCount: (divisions: number, placed: number, total: number, noun: string) =>
     placed === total
-      ? `${divisions} 个区域 · ${total} 个省级行政区都已归入`
-      : `${divisions} 个区域 · 还有 ${total - placed} 个省没有归入`,
+      ? `${divisions} 个区域 · ${total} 个${noun}都已归入`
+      : `${divisions} 个区域 · 还有 ${total - placed} 个${noun}没有归入`,
   divisionNoRead: "没有区域读取权限",
   adoptionCriterion: (weeks: number, judge: number) =>
     `按最近 ${weeks} 周判定，连续 ${judge} 周达标才算被用起来`,
@@ -2363,10 +2363,12 @@ export const TERRITORY_ERROR: Record<string, string> = {
   // incr/0036 的两个：省份词表与大区归属，都由数据库约束，说人话而不是抛约束名。
   province_unknown: "省份必须是全国 34 个省级行政区之一",
   division_unknown: "这个大区不属于当前工作区",
-  // incr/0043 的三个：框架与代码、预置、范围本身。
-  template_scope_mismatch: "这套预置是切全国市场的，当前市场范围不是",
+  // incr/0043-0045：框架与代码、预置、范围本身、成员。
+  template_scope_mismatch: "这套预置切的不是当前市场范围",
   scope_not_open: "这个市场范围还没开放，先用中国市场",
   scope_code_required: "省级市场要指定是哪个省",
+  scope_province_not_open: "这个省还没开放省级市场。目前开放：陕西",
+  member_unknown: "成员必须在当前市场范围之内，请从列表中选择",
   code_prefix: "区域代码必须带当前市场范围的前缀",
   code_required: "区域代码不能为空",
   name_required: "区域名称不能为空",
@@ -3290,28 +3292,34 @@ export const PLANNING_TEXT = {
   scopeTerritory: "销售区域",
   scopeOwner: "我自己",
   setMetric: "指标",
-  // --- 大区 - 省级设置 (incr/0036) ---
+  // --- 大区 (incr/0036; 成员随市场范围而定, incr/0045) ---
+  /* 区域装的是什么，由市场范围决定：全国市场装省，省级市场装市。文案里那个
+     名词跟着范围走，所以下面凡是提到「省份」的句子都拿名词做参数。 */
+  memberNoun: {
+    global: "国家",
+    china: "省份",
+    province: "市",
+  } as Record<string, string>,
   divisionName: "区域",
-  divisionProvinceCount: "省份数",
-  divisionScope: "覆盖省份",
+  divisionMemberCount: (noun: string) => `${noun}数`,
+  divisionScope: (noun: string) => `覆盖${noun}`,
   divisionFormTitle: "配置区域",
-  divisionFormWhy: "选择这个区域覆盖的省份。一个省只属于一个区域。",
+  divisionFormWhy: (noun: string) => `选择这个区域覆盖的${noun}。一个${noun}只属于一个区域。`,
   divisionCode: "区域代码",
   divisionCodeHint: "创建后不可更改。已存在的代码表示改名。",
   divisionNameLabel: "区域名称",
-  divisionProvincesLabel: "覆盖省份",
-  // --- 省份选择抽屉 ---
-  divisionPick: "选择省份",
+  // --- 成员选择抽屉 ---
+  divisionPick: (noun: string) => `选择${noun}`,
   divisionPickManual: "手动选择",
-  divisionPickTitle: "选择省份",
-  divisionPickWhy: "勾选省份。后缀是两套内置切法的归属，供参考。",
+  divisionPickTitle: (noun: string) => `选择${noun}`,
+  divisionPickWhy: (noun: string) => `勾选${noun}。后缀是内置切法的归属，供参考。`,
   divisionPickDone: "完成",
   divisionPickClear: "清空",
-  divisionPickEmpty: "尚未选择省份",
-  divisionPickNone: "没有匹配的省份",
-  divisionSearch: "搜索省份、字母码或简称",
-  divisionChosen: (n: number) => `已选 ${n} 个省份`,
-  divisionHintPresets: (five: string, seven: string) => `五分 ${five} · 七分 ${seven}`,
+  divisionPickEmpty: (noun: string) => `尚未选择${noun}`,
+  divisionPickNone: (noun: string) => `没有匹配的${noun}`,
+  divisionSearch: (noun: string) => `搜索${noun}、代码或简称`,
+  divisionChosen: (n: number, noun: string) => `已选 ${n} 个${noun}`,
+  divisionHintPreset: (from: string, name: string) => `${from} ${name}`,
   divisionTakenFrom: (p: string, from: string) => `${p} 原属 ${from}，将移入当前区域`,
   divisionSave: "保存区域",
   divisionSource: "来源",
@@ -3320,7 +3328,7 @@ export const PLANNING_TEXT = {
   divisionEdit: "配置",
   divisionNew: "新建区域",
   divisionRemove: "删除区域",
-  divisionRemoveWhy: "只有不含任何省份的区域才能删除。先把省份移走，再删。",
+  divisionRemoveWhy: (noun: string) => `只有不含任何${noun}的区域才能删除。先把${noun}移走，再删。`,
   templateTitle: "重置为预置划分",
   templateWhy: "选一套预置切法作为起点，之后随便改。",
   templateReset: "重置预置",
@@ -3332,12 +3340,15 @@ export const PLANNING_TEXT = {
       : `会替换当前 ${current} 个大区。`,
   /* 预置的名字只是名字（owner, 2026-09-09）：下拉里读「五分法-中部」，不再拖着
      一串「东南西北中」。这一串在重置对话框里才有意义，那里单独列。 */
-  templateFive: "五分法",
-  templateSeven: "七分法",
+  templateName: {
+    five: "五分法",
+    seven: "七分法",
+    "shaanxi-three": "陕西三分法",
+  } as Record<string, string>,
   presetOption: (from: string, name: string) => `${from}-${name}`,
   templateRef: "引用系统配置",
   templateRefNone: "不引用，自己填",
-  templateRefWhy: "选一个预置区域，代码、名称与省份自动填好，可再改。",
+  templateRefWhy: "选一个预置区域，代码、名称与成员自动填好，可再改。",
   // 市场范围 (incr/0043)：区域在哪个框架里切。
   scopeLabel: {
     global: "全球市场",
@@ -3351,27 +3362,35 @@ export const PLANNING_TEXT = {
   } as Record<string, string>,
   scopePlanned: "未建",
   scopeLabelTitle: "市场范围",
-  scopeWhy: "区域在哪个框架里切：全球按国家，全国按省，一省按市。",
+  scopeButton: (current: string) => `市场范围 · ${current}`,
+  /* 省级市场 · 陕西 —— 按钮和「包括范围」都要连省一起说，范围才算定了。 */
+  scopeProvinceFrame: (label: string, province: string) => `${label} · ${province}`,
+  scopeIncludesProvince: (province: string) => `${province} · 包括为市级`,
+  scopeProvinceLabel: "哪个省",
+  scopeProvinceOpen: (names: readonly string[]) => `目前开放：${names.join("、")}。其他省份陆续开放。`,
+  scopeConfirm: "确认",
+  scopeCancel: "取消",
+  scopeWhy: "区域在哪个框架里切：全球按国家，全国按省，一省按市。范围定了，区域能装什么才有基础。",
   scopeSaved: "市场范围已更新",
   divisionIncludes: "包括范围",
   divisionCodePrefixHint: "前缀由市场范围决定，只填后半段，如 EAST。",
-  divisionMovedTitle: (n: number) => `${n} 个省份将从其他区域迁入`,
-  divisionMovedWhy: "保存后它们会离开原区域。原区域按省汇总的口径随之变化。",
+  divisionMovedTitle: (n: number, noun: string) => `${n} 个${noun}将从其他区域迁入`,
+  divisionMovedWhy: "保存后它们会离开原区域。原区域的汇总口径随之变化。",
   divisionSaveFailed: "保存失败",
   // 这页不再和销售区域同屏，所以不能再说「上面的销售区域……」。两个维度的
-  // 区别要在这里自己说清楚。
-  divisionWhy: "全国怎么切成区域，每个区域管哪些省。",
+  // 区别要在这里自己说清楚。范围是什么就说什么：全国 / 陕西省。
+  divisionWhy: (frame: string, noun: string) => `${frame}怎么切成区域，每个区域管哪些${noun}。`,
   divisionEmptyTitle: "这个工作区还没有区域",
   divisionEmptyWhy: "新建一个，或引用系统内置的划分。",
   divisionNone: "未归入",
-  divisionHoldsNothing: "这个区域目前不含任何省份",
+  divisionHoldsNothing: (noun: string) => `这个区域目前不含任何${noun}`,
   moveProvince: (p: string) => `把 ${p} 改到其他大区`,
   provinceCount: (n: number) => `${n} 个省`,
-  divisionCoverage: (placed: number, total: number, divisions: number) =>
-    `${total} 个省级行政区中，${placed} 个已归入 ${divisions} 个区域`,
-  divisionAllPlaced: "全部省份都已归入区域。",
-  divisionUnplaced: (n: number) =>
-    `还有 ${n} 个省没有归入任何大区。它们不会出现在任何按大区汇总的口径里；在态势屏上会被画成灰色，读起来像「这里没有业务」，而不是「这块地还没人认领」。`,
+  divisionCoverage: (placed: number, total: number, divisions: number, noun: string) =>
+    `${total} 个${noun}中，${placed} 个已归入 ${divisions} 个区域`,
+  divisionAllPlaced: (noun: string) => `全部${noun}都已归入区域。`,
+  divisionUnplaced: (n: number, noun: string) =>
+    `还有 ${n} 个${noun}没有归入任何区域。它们不会出现在任何按区域汇总的口径里；在态势屏上会被画成灰色，读起来像「这里没有业务」，而不是「这块地还没人认领」。`,
   // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
     "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",

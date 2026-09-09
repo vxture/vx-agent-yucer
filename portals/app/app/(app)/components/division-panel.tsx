@@ -12,10 +12,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
-import { provinceTag } from "../../domains/shared/provinces";
+import type { MarketMember } from "../../domains/shared/market-division";
 import { Tag } from "./tag";
 
-/* 大区与省份 - 展示. DISPLAY ONLY.
+/* 大区与成员 - 展示. DISPLAY ONLY.
  *
  * It had pickers in it, which put editing inside a roster and made the page do
  * two jobs at once. The module already had the right shape and I ignored it:
@@ -32,22 +32,25 @@ export interface DivisionRow {
   readonly code: string;
   readonly name: string;
   readonly sortOrder: number;
-  readonly provinces: readonly string[];
+  /** Provinces under 中国市场, cities under 省级市场 - key and printed label. */
+  readonly members: readonly MarketMember[];
   /** True while it still matches a shipped template, exactly. Derived, not stored. */
   readonly system: boolean;
 }
 
 const SORT_ON = {
   name: (r: DivisionRow) => r.name,
-  provinces: (r: DivisionRow) => r.provinces.length,
+  members: (r: DivisionRow) => r.members.length,
 };
 
 export function DivisionPanel(
-  { rows, unassigned, total, editable }:
+  { rows, unassigned, total, noun, editable }:
   {
     readonly rows: readonly DivisionRow[];
-    /** Provinces in no 大区 at all - the statistic this section closes on. */
-    readonly unassigned: readonly string[];
+    /** Members in no 大区 at all - the statistic this section closes on. */
+    readonly unassigned: readonly MarketMember[];
+    /** 省份 / 市 - the frame's own word for what a region holds. */
+    readonly noun: string;
     /** How many there are in total. It was the literal 34, beside a prop
      *  derived from ALL_PROVINCES - two copies of one number, one of which
      *  cannot follow the vocabulary if it ever changes. */
@@ -150,8 +153,8 @@ export function DivisionPanel(
                 ),
             },
             {
-              id: "provinces",
-              header: PLANNING_TEXT.divisionProvinceCount,
+              id: "members",
+              header: PLANNING_TEXT.divisionMemberCount(noun),
               sortable: true,
               /* CENTRED, which is the DS's default and its own rule for this
                  kind of number: `numeric` is for digits that have to line up
@@ -161,15 +164,15 @@ export function DivisionPanel(
               // A division holding nothing is worth flagging: it appears in
               // every menu and answers for no ground.
               cell: (r: DivisionRow) =>
-                r.provinces.length === 0 ? (
-                  <StatusBadge tone="warning">{r.provinces.length}</StatusBadge>
+                r.members.length === 0 ? (
+                  <StatusBadge tone="warning">{r.members.length}</StatusBadge>
                 ) : (
-                  r.provinces.length
+                  r.members.length
                 ),
             },
             {
               id: "scope",
-              header: PLANNING_TEXT.divisionScope,
+              header: PLANNING_TEXT.divisionScope(noun),
               align: "left",
               /* TAGS, LAID OUT ACROSS THE ROW (owner, 2026-09-08). It was
                  "江苏省 / 上海市 / ..." - one string that wrapped mid-name and
@@ -180,9 +183,9 @@ export function DivisionPanel(
                  江苏 is in it should not have to open anything. */
               cell: (r: DivisionRow) => (
                 <span className="gap-2xs flex flex-wrap">
-                  {r.provinces.map((p) => (
-                    <Tag key={p}>
-                      {provinceTag(p)}
+                  {r.members.map((m) => (
+                    <Tag key={m.key}>
+                      {m.label}
                     </Tag>
                   ))}
                 </span>
@@ -200,18 +203,18 @@ export function DivisionPanel(
           on. Counted off the same 34 the map and the database CHECK use. */}
       <div className="border-border gap-2xs mt-md flex flex-col border-t pt-md">
         <p className="text-body-sm">
-          {PLANNING_TEXT.divisionCoverage(total - unassigned.length, total, rows.length)}
+          {PLANNING_TEXT.divisionCoverage(total - unassigned.length, total, rows.length, noun)}
         </p>
         {unassigned.length === 0 ? (
           <p className="text-muted-foreground text-body-sm">
-            {PLANNING_TEXT.divisionAllPlaced}
+            {PLANNING_TEXT.divisionAllPlaced(noun)}
           </p>
         ) : (
           <>
             <p className="text-warning text-body-sm">
-              {PLANNING_TEXT.divisionUnplaced(unassigned.length)}
+              {PLANNING_TEXT.divisionUnplaced(unassigned.length, noun)}
             </p>
-            <p className="text-muted-foreground text-body-sm">{unassigned.map(provinceTag).join(" · ")}</p>
+            <p className="text-muted-foreground text-body-sm">{unassigned.map((m) => m.label).join(" · ")}</p>
           </>
         )}
       </div>

@@ -19,6 +19,7 @@ import {
 import {
   divisionCode,
   localCode,
+  provinceFrame,
   scopePrefix,
   type MarketScope,
 } from "../../domains/shared/market-division";
@@ -33,10 +34,11 @@ import { Tag } from "./tag";
  *                   a person types only the rest.
  *   2. 区域名称
  *   3. 包括范围   - what this region is made of, derived from the frame and
- *                   read-only here: 全国市场 · 包括为省级.
+ *                   read-only here: 全国市场 · 包括为省级 / 陕西省 · 包括为市级.
  *   4. inside that range, the two sources: 引用系统配置 (a preset row, read
- *                   as 五分法-中部 and nothing more) and 选择省份 (the drawer).
- *   5. the answer, as the roster shows it: `JS 江苏` tags across the row.
+ *                   as 五分法-中部 and nothing more) and 选择省份 / 选择市
+ *                   (the drawer). The noun follows the frame (incr/0045).
+ *   5. the answer, as the roster shows it: `JS 江苏` / `西安` tags across the row.
  *   6. WARNINGS AT THE FOOT OF THE SECTION, as the DS's Banner, and only when
  *                   there is something to warn about - provinces about to be
  *                   taken from another region, or a save that failed. In the
@@ -49,16 +51,15 @@ import { Tag } from "./tag";
  * the banner names each one, before saving.
  */
 
-export interface ProvinceOption {
-  readonly province: string;
+export interface MemberOption {
+  /** What the store keys on: the province name, or the city's adcode. */
+  readonly key: string;
+  /** `JS 江苏` / `西安` - the one shape a member takes in configuration. */
+  readonly label: string;
   /** The 大区 it sits in now, or null. */
   readonly heldBy: string | null;
-  /** `JS 江苏` - the code and the short name, the one shape a province takes
-   *  in configuration. */
-  readonly tag: string;
-  /** Where the five-way carve puts it, and where the seven-way does. */
-  readonly five: string;
-  readonly seven: string;
+  /** Where each shipped carve of this frame puts it - `五分法 中部 · 七分法 华中`. */
+  readonly hint: string;
 }
 
 /** One division out of a shipped carve, offered as a starting point. */
@@ -66,20 +67,20 @@ export interface PresetOption {
   readonly key: string;
   readonly code: string;
   readonly name: string;
-  readonly provinces: readonly string[];
+  readonly members: readonly string[];
   /** Which carve it comes from - 五分法 / 七分法 - so two 华东s are distinguishable. */
   readonly from: string;
 }
 
 export function DivisionForm(
-  { scope, code, name, provinces, options, presets, isNew }:
+  { scope, code, name, members, options, presets, isNew }:
   {
     /** The frame this region is carved inside (incr/0043). */
     readonly scope: MarketScope;
     readonly code: string;
     readonly name: string;
-    readonly provinces: readonly string[];
-    readonly options: readonly ProvinceOption[];
+    readonly members: readonly string[];
+    readonly options: readonly MemberOption[];
     /** Empty when editing: referencing a preset is a way to START one. */
     readonly presets: readonly PresetOption[];
     readonly isNew: boolean;
@@ -91,21 +92,24 @@ export function DivisionForm(
   const [error, setError] = useState<string | null>(null);
 
   const prefix = scopePrefix(scope);
+  const noun = PLANNING_TEXT.memberNoun[scope.kind] ?? scope.kind;
+  const includes = scope.kind === "province"
+    ? PLANNING_TEXT.scopeIncludesProvince(provinceFrame(scope.code)?.province ?? scope.code ?? "")
+    : PLANNING_TEXT.scopeIncludes[scope.kind] ?? scope.kind;
   const [local, setLocal] = useState(localCode(scope, code));
   const [nameValue, setName] = useState(name);
-  const [chosen, setChosen] = useState<Set<string>>(new Set(provinces));
+  const [chosen, setChosen] = useState<Set<string>>(new Set(members));
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
 
-  /* 省份标签 - `JS 江苏`, the same shape everywhere configuration shows a
-     province (owner, 2026-09-08). The two letters are GB/T 2260's, not a house
-     abbreviation. */
-  const tagOf = useMemo(() => new Map(options.map((o) => [o.province, o.tag])), [options]);
+  /* 成员标签 - `JS 江苏` for a province (owner, 2026-09-08; the two letters are
+     GB/T 2260's, not a house abbreviation), `西安` for a city. */
+  const labelOf = useMemo(() => new Map(options.map((o) => [o.key, o.label])), [options]);
   /* ORDERED BY THE OPTION LIST, not by the click order: the badges read as a
      stable roster of what this 大区 holds, and a set that reshuffled every
      time somebody unticked one would be unreadable. */
   const chosenList = useMemo(
-    () => options.filter((o) => chosen.has(o.province)).map((o) => o.province),
+    () => options.filter((o) => chosen.has(o.key)).map((o) => o.key),
     [options, chosen],
   );
   const matches = useMemo(() => {
@@ -113,10 +117,9 @@ export function DivisionForm(
     if (q === "") return options;
     return options.filter(
       (o) =>
-        o.province.includes(q)
-        || o.tag.toUpperCase().includes(q.toUpperCase())
-        || o.five.includes(q)
-        || o.seven.includes(q),
+        o.key.includes(q)
+        || o.label.toUpperCase().includes(q.toUpperCase())
+        || o.hint.includes(q),
     );
   }, [options, query]);
 
@@ -128,15 +131,15 @@ export function DivisionForm(
       return next;
     });
 
-  /* Which ticks would take a province off another 大区. Shown BEFORE saving,
+  /* Which ticks would take a member off another 大区. Shown BEFORE saving,
      because reorganising somebody else's division is exactly the kind of thing
      that should not be a surprise. */
   const takenFrom = useMemo(
     () =>
       options.filter(
-        (o) => chosen.has(o.province) && o.heldBy !== null && !provinces.includes(o.province),
+        (o) => chosen.has(o.key) && o.heldBy !== null && !members.includes(o.key),
       ),
-    [options, chosen, provinces],
+    [options, chosen, members],
   );
 
   const remove = () => {
@@ -154,7 +157,7 @@ export function DivisionForm(
       const r = await saveDivision({
         code: divisionCode(scope, local),
         name: nameValue.trim(),
-        provinces: [...chosen],
+        members: [...chosen],
       });
       if (!r.ok) setError(TERRITORY_ERROR[r.error] ?? r.error);
       else router.push("/admin/division");
@@ -203,7 +206,7 @@ export function DivisionForm(
         <FormFields>
           <Field>
             <FieldLabel>{PLANNING_TEXT.divisionIncludes}</FieldLabel>
-            <Input value={PLANNING_TEXT.scopeIncludes[scope.kind] ?? scope.kind} readOnly disabled />
+            <Input value={includes} readOnly disabled />
           </Field>
         </FormFields>
 
@@ -221,7 +224,7 @@ export function DivisionForm(
                   if (!p) return;
                   setLocal(localCode(scope, p.code));
                   setName(p.name);
-                  setChosen(new Set(p.provinces));
+                  setChosen(new Set(p.members));
                 }}
               >
                 <option value="">{PLANNING_TEXT.templateRefNone}</option>
@@ -245,10 +248,10 @@ export function DivisionForm(
                 last province arrived. What stays on the page is the ANSWER. */}
             <div className="w-fit">
               <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
-                {PLANNING_TEXT.divisionPick}
+                {PLANNING_TEXT.divisionPick(noun)}
               </Button>
             </div>
-            <FieldDescription>{PLANNING_TEXT.divisionChosen(chosenList.length)}</FieldDescription>
+            <FieldDescription>{PLANNING_TEXT.divisionChosen(chosenList.length, noun)}</FieldDescription>
           </Field>
         </FormFields>
 
@@ -258,10 +261,10 @@ export function DivisionForm(
         <div className="gap-2xs flex flex-wrap items-center">
           {chosenList.length === 0 ? (
             <span className="text-muted-foreground text-body-sm">
-              {PLANNING_TEXT.divisionPickEmpty}
+              {PLANNING_TEXT.divisionPickEmpty(noun)}
             </span>
           ) : (
-            chosenList.map((p) => <Tag key={p}>{tagOf.get(p) ?? p}</Tag>)
+            chosenList.map((k) => <Tag key={k}>{labelOf.get(k) ?? k}</Tag>)
           )}
         </div>
 
@@ -272,7 +275,7 @@ export function DivisionForm(
           {/* REMOVAL IS OFFERED ONLY WHEN IT HOLDS NOTHING, which is the
               foreign key's own rule (ON DELETE RESTRICT) shown rather than
               enforced after the fact. */}
-          {!isNew && provinces.length === 0 ? (
+          {!isNew && members.length === 0 ? (
             <Button variant="secondary" disabled={pending} onClick={remove}>
               {PLANNING_TEXT.divisionRemove}
             </Button>
@@ -286,11 +289,11 @@ export function DivisionForm(
         {takenFrom.length > 0 ? (
           <Banner
             tone="warning"
-            title={PLANNING_TEXT.divisionMovedTitle(takenFrom.length)}
+            title={PLANNING_TEXT.divisionMovedTitle(takenFrom.length, noun)}
             description={
               <ul className="gap-2xs flex flex-col">
                 {takenFrom.map((o) => (
-                  <li key={o.province}>{PLANNING_TEXT.divisionTakenFrom(o.tag, o.heldBy!)}</li>
+                  <li key={o.key}>{PLANNING_TEXT.divisionTakenFrom(o.label, o.heldBy!)}</li>
                 ))}
               </ul>
             }
@@ -305,13 +308,13 @@ export function DivisionForm(
         open={picking}
         onClose={() => setPicking(false)}
         width="lg"
-        title={PLANNING_TEXT.divisionPickTitle}
-        description={PLANNING_TEXT.divisionPickWhy}
+        title={PLANNING_TEXT.divisionPickTitle(noun)}
+        description={PLANNING_TEXT.divisionPickWhy(noun)}
         closeLabel={PLANNING_TEXT.divisionPickDone}
         footer={
           <div className="gap-sm flex items-center justify-between">
             <span className="text-muted-foreground text-body-sm">
-              {PLANNING_TEXT.divisionChosen(chosenList.length)}
+              {PLANNING_TEXT.divisionChosen(chosenList.length, noun)}
             </span>
             <div className="gap-sm flex items-center">
               <Button variant="secondary" onClick={() => setChosen(new Set())}>
@@ -327,34 +330,29 @@ export function DivisionForm(
               and on every screen that has no room for 内蒙古自治区. */}
           <Input
             value={query}
-            placeholder={PLANNING_TEXT.divisionSearch}
+            placeholder={PLANNING_TEXT.divisionSearch(noun)}
             onChange={(e) => setQuery(e.target.value)}
           />
           {matches.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionPickNone}</p>
+            <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionPickNone(noun)}</p>
           ) : null}
           <ul className="gap-2xs flex flex-col">
             {matches.map((o) => (
-              <li key={o.province}>
+              <li key={o.key}>
                 <label className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
                   <input
                     type="checkbox"
-                    checked={chosen.has(o.province)}
-                    onChange={() => toggle(o.province)}
+                    checked={chosen.has(o.key)}
+                    onChange={() => toggle(o.key)}
                   />
-                  {/* 前缀: the letter code, in a fixed column so the names
-                      beside it line up down the list. */}
-                  <span className="text-body-sm w-[3ch] shrink-0 font-medium tabular-nums">
-                    {o.tag.slice(0, 2)}
-                  </span>
-                  <span className="text-body-sm grow">{o.province}</span>
-                  {/* 后缀: what each standard carve says about it. */}
-                  <span className="text-muted-foreground text-body-sm shrink-0">
-                    {PLANNING_TEXT.divisionHintPresets(o.five, o.seven)}
-                  </span>
+                  {/* THE LABEL IS THE TAG: `JS 江苏`, or `西安`. The province's
+                      letters lead so the names line up down the list. */}
+                  <span className="text-body-sm grow font-medium">{o.label}</span>
+                  {/* 后缀: what each standard carve of this frame says about it. */}
+                  <span className="text-muted-foreground text-body-sm shrink-0">{o.hint}</span>
                   {/* Held elsewhere: a warning-toned tag, the DS's own shape
                       for "this has a state you should notice". */}
-                  {o.heldBy && !provinces.includes(o.province) ? (
+                  {o.heldBy && !members.includes(o.key) ? (
                     <Tag tone="warning">{o.heldBy}</Tag>
                   ) : null}
                 </label>

@@ -54,7 +54,19 @@ export function DivisionImport(
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      <Button
+        variant="secondary"
+        onClick={() => {
+          /* RE-READ THE LIST ON OPEN. The frame can change while this button
+             is mounted (the drawer beside it does exactly that), and the
+             carves offered under 陕西 are not the ones offered under 中国市场:
+             a choice remembered from the old list would submit a key the
+             service refuses (template_scope_mismatch). */
+          setChosen(templates[0]?.key ?? "");
+          setError(null);
+          setOpen(true);
+        }}
+      >
         {PLANNING_TEXT.templateReset}
       </Button>
       <DialogForm

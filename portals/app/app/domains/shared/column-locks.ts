@@ -253,6 +253,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
      editable. `province` is not here: it is half the primary key, and changing
      it in place is a delete and an insert wearing one statement. */
   "yucer_core.market_division_province": ["division_id", "updated_at"],
+  /* 0045. The same rule for the frames whose members are admin_division rows:
+     a city moves between divisions; (member_level, member_code) is the key. */
+  "yucer_core.market_division_member": ["division_id", "updated_at"],
   "yucer_catalog.product_type": ["name", "sort_order", "status", "updated_at"],
   // 0029. status_code is the anchor; the rest of the row - name, 状态描述,
   // order - is the workspace's to edit.

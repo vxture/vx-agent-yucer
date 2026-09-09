@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "pg";
+import { PROVINCE_FRAMES } from "./market-division";
 import { ALL_PROVINCES, PROVINCE_CODE, shortProvince } from "./provinces";
 
 // incr/0038 - 行政区划, against a real Postgres.
@@ -180,6 +181,38 @@ test("the service role may read it and may not write it", { skip }, async () => 
     assert.equal((await priv("SELECT")).rows[0].ok, true, "the service role must be able to read");
     for (const p of ["INSERT", "UPDATE", "DELETE"]) {
       assert.equal((await priv(p)).rows[0].ok, false, `${p} must not be granted`);
+    }
+  });
+});
+
+test("陕西's cities in the build are the table's, exactly (incr/0045)", { skip }, async () => {
+  /* THE SEAM FOR THE FIRST PROVINCE FRAME. The in-memory store carves 陕西
+     from PROVINCE_FRAMES; the Prisma store reads the same cities from this
+     table. If the two disagreed, the demo would offer a city the database
+     would then refuse to place (fk_market_division_member_place). */
+  await withPg(async (c) => {
+    for (const f of PROVINCE_FRAMES) {
+      const province = (
+        await c.query(
+          `SELECT id, name_zh, abbr_en FROM yucer_ref.admin_division WHERE level = 3 AND code = $1`,
+          [f.adcode],
+        )
+      ).rows[0];
+      assert.ok(province, `${f.province} must be a level-3 row`);
+      assert.equal(province.name_zh, f.province);
+      assert.equal(province.abbr_en, f.code);
+      const cities = (
+        await c.query(
+          `SELECT code, name_zh, short_zh FROM yucer_ref.admin_division
+            WHERE level = 4 AND parent_id = $1 AND status = 'active' ORDER BY sort_order`,
+          [province.id],
+        )
+      ).rows;
+      assert.deepEqual(
+        cities.map((r) => [r.code, r.name_zh, r.short_zh]),
+        f.cities.map((x) => [x.code, x.name, x.short]),
+        `${f.province}: the build's city list must be the table's`,
+      );
     }
   });
 });

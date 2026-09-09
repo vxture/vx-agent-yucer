@@ -8,7 +8,7 @@ import {
   saveMarketDivision,
   setMarketScope,
 } from "../../../domains/account/service";
-import type { MarketScope } from "../../../domains/shared/market-division";
+import type { MarketMember, MarketScope } from "../../../domains/shared/market-division";
 
 /* 大区-省级 的写入路径.
  *
@@ -22,14 +22,14 @@ import type { MarketScope } from "../../../domains/shared/market-division";
  * message dictionary (TD-010).
  */
 export type SaveDivisionResult =
-  | { ok: true; code: string; moved: { province: string; from: string }[] }
+  | { ok: true; code: string; moved: { member: MarketMember; from: string }[] }
   | { ok: false; error: string };
 
-/** Create or rename a 大区 and state which provinces it holds. */
+/** Create or rename a 大区 and state which members it holds. */
 export async function saveDivision(input: {
   code: string;
   name: string;
-  provinces: string[];
+  members: string[];
 }): Promise<SaveDivisionResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

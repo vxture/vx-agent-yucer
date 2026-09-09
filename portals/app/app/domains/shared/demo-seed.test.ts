@@ -1078,7 +1078,7 @@ test("the demo has a customer whose region the data can derive, or the completen
      "south", a value no territory covers and no screen groups by. */
   const divisionOf: Record<string, string> = {};
   for (const d of await s.account.listMarketDivisions(WS)) {
-    for (const p of d.provinces) divisionOf[p] = d.name;
+    for (const m of d.members) divisionOf[m.key] = d.name;
   }
   const viaProvince = accountGaps(
     account,

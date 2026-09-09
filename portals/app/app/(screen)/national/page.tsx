@@ -103,7 +103,8 @@ export default async function NationalScreenPage() {
   }));
   const provinceDivision: Record<string, string> = {};
   for (const d of divisionRows.ok ? divisionRows.value : []) {
-    for (const p of d.provinces) provinceDivision[p] = d.code;
+    // The map is a CHINA map: only a china frame's members are provinces.
+    if (d.scope === "china") for (const m of d.members) provinceDivision[m.key] = d.code;
   }
 
   /* THE INSTALMENTS COME OFF THE PROJECT VIEW, one call per project, exactly as

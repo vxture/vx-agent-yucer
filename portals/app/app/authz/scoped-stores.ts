@@ -141,8 +141,9 @@ class ScopedAccountStore implements AccountStore {
 
   /* Also workspace configuration, not somebody's book of business - the gate on
      the service decides who may change it, and there is no owner to narrow by. */
-  setProvinceDivision: AccountStore["setProvinceDivision"] = (...a) =>
-    this.inner.setProvinceDivision(...a);
+  listFrameMembers: AccountStore["listFrameMembers"] = (...a) =>
+    this.inner.listFrameMembers(...a);
+  placeMember: AccountStore["placeMember"] = (...a) => this.inner.placeMember(...a);
 
   upsertMarketDivision: AccountStore["upsertMarketDivision"] = (...a) =>
     this.inner.upsertMarketDivision(...a);

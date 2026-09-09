@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
-import { listMarketDivisions, marketScope } from "../../../../domains/account/service";
+import { frameMembers, listMarketDivisions, marketScope } from "../../../../domains/account/service";
 import { DivisionForm } from "../../../components/division-form";
-import { provinceOptions } from "../../../lib/province-options";
+import { memberOptions } from "../../../lib/member-options";
 
 // 编辑大区 - the same form, opened on an existing one.
 
@@ -32,16 +32,19 @@ export default async function EditDivisionPage(
     entitlement: session.entitlement,
     store: session.stores.account(),
   };
-  const [divisions, scope] = await Promise.all([listMarketDivisions(ctx), marketScope(ctx)]);
+  const [divisions, scope, ground] = await Promise.all([
+    listMarketDivisions(ctx), marketScope(ctx), frameMembers(ctx),
+  ]);
   const rows = divisions.ok ? divisions.value : [];
   const frame = scope.ok ? scope.value : { kind: "china" as const, code: null };
+  const noun = PLANNING_TEXT.memberNoun[frame.kind] ?? frame.kind;
   const mine = rows.find((d) => d.code === decodeURIComponent(code));
   // A code nobody has is not an error page - the list is one click away and
   // the division may simply have been removed since the link was drawn.
   if (!mine) redirect("/admin/division");
 
   const heldBy = new Map<string, string>();
-  for (const d of rows) for (const p of d.provinces) heldBy.set(p, d.name);
+  for (const d of rows) for (const m of d.members) heldBy.set(m.key, d.name);
 
   return (
     <ViewLayout>
@@ -52,17 +55,23 @@ export default async function EditDivisionPage(
         ]}
         current={mine.name}
       />
-      <ViewHeader title={mine.name} description={PLANNING_TEXT.divisionFormWhy} />
+      <ViewHeader title={mine.name} description={PLANNING_TEXT.divisionFormWhy(noun)} />
       <DivisionForm
         scope={frame}
         isNew={false}
         code={mine.code}
         name={mine.name}
-        provinces={mine.provinces}
+        members={mine.members.map((m) => m.key)}
         // Empty when editing: referencing a preset would silently overwrite
         // what this workspace has already decided.
         presets={[]}
-        options={provinceOptions(heldBy)}
+        options={memberOptions(
+          frame,
+          ground.ok ? ground.value : [],
+          heldBy,
+          (key) => PLANNING_TEXT.templateName[key] ?? key,
+          PLANNING_TEXT.divisionHintPreset,
+        )}
       />
     </ViewLayout>
   );

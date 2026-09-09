@@ -10,11 +10,14 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
-import { isProvince, PROVINCE_CODE } from "../shared/provinces";
+import { isProvince } from "../shared/provinces";
 import {
   DIVISION_TEMPLATES,
   MARKET_SCOPES,
+  provinceFrame,
+  scopeOpen,
   scopePrefix,
+  type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
 import type { Entitlement } from "../../entitlement/types";
@@ -109,14 +112,14 @@ export async function importDivisionTemplate(
   if (!template) {
     return fail(violation("template_unknown", `${key} is not a shipped carve`, "key"));
   }
-  /* incr/0043. Both shipped carves cut 中国市场; adopting one inside another
-     frame would land CHINA-* codes the database refuses there, and would be
-     the wrong answer even if it did not. */
+  /* incr/0043. A carve cuts ONE frame - 五分法 cuts 中国市场, 陕西三分法 cuts
+     陕西; adopting one inside another frame would land codes the database
+     refuses there, and would be the wrong answer even if it did not. */
   const scope = await ctx.store.getMarketScope(ctx.workspaceId);
-  if (template.scope !== scope.kind) {
+  if (template.scope !== scope.kind || (template.scope === "province" && template.province !== scope.code)) {
     return fail(violation(
       "template_scope_mismatch",
-      `${key} carves the china market; this workspace's frame is ${scope.kind}`,
+      `${key} carves ${template.scope}/${template.province ?? "-"}; this workspace's frame is ${scope.kind}/${scope.code ?? "-"}`,
       "key",
     ));
   }
@@ -128,8 +131,8 @@ export async function importDivisionTemplate(
       code: d.code, name: d.name, sortOrder: d.sortOrder,
     });
   }
-  for (const [province, code] of Object.entries(template.provinces)) {
-    await ctx.store.setProvinceDivision(ctx.workspaceId, province, code);
+  for (const [member, code] of Object.entries(template.members)) {
+    await ctx.store.placeMember(ctx.workspaceId, member, code);
   }
   // Now that nothing points at them.
   const keep = new Set(template.divisions.map((d) => d.code));
@@ -144,7 +147,8 @@ export async function importDivisionTemplate(
 }
 
 /**
- * Create a 大区, or rename one that exists, and set which provinces it holds.
+ * Create a 大区, or rename one that exists, and set which members it holds -
+ * provinces under 中国市场, cities under 省级市场.
  *
  * THE TENANT OWNS THE LIST. Five are preset because a workspace has to start
  * somewhere, not because five is right: a company that sells through a 新疆基地
@@ -159,8 +163,8 @@ export async function importDivisionTemplate(
  */
 export async function saveMarketDivision(
   ctx: AccountContext,
-  input: { code: string; name: string; sortOrder?: number; provinces: readonly string[] },
-): Promise<RuleResult<{ code: string; moved: { province: string; from: string }[] }>> {
+  input: { code: string; name: string; sortOrder?: number; members: readonly string[] },
+): Promise<RuleResult<{ code: string; moved: { member: MarketMember; from: string }[] }>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
@@ -181,12 +185,17 @@ export async function saveMarketDivision(
     ));
   }
 
-  for (const p of input.provinces) {
-    if (!isProvince(p)) {
+  /* A MEMBER IS ONE OF THE FRAME'S OWN. Under 中国市场 that is one of the 34
+     province names 0036 CHECKs; under 陕西 it is one of the ten cities 0045's
+     foreign key resolves. Refused here, in the product's words, before either
+     constraint refuses it in Postgres's. */
+  const ground = new Map((await ctx.store.listFrameMembers(ctx.workspaceId)).map((m) => [m.key, m]));
+  for (const k of input.members) {
+    if (!ground.has(k)) {
       return fail(violation(
-        "province_unknown",
-        `${p} is not one of the 34 provincial-level divisions`,
-        "provinces",
+        "member_unknown",
+        `${k} is not part of the ${scope.kind} frame's ground`,
+        "members",
       ));
     }
   }
@@ -194,21 +203,21 @@ export async function saveMarketDivision(
   const before = await ctx.store.listMarketDivisions(ctx.workspaceId);
   await ctx.store.upsertMarketDivision(ctx.workspaceId, { code, name, sortOrder: input.sortOrder });
 
-  const wanted = new Set(input.provinces);
-  const moved: { province: string; from: string }[] = [];
+  const wanted = new Set(input.members);
+  const moved: { member: MarketMember; from: string }[] = [];
 
-  for (const p of wanted) {
-    const owner = before.find((d) => d.code !== code && d.provinces.includes(p));
-    if (owner) moved.push({ province: p, from: owner.name });
-    await ctx.store.setProvinceDivision(ctx.workspaceId, p, code);
+  for (const k of wanted) {
+    const owner = before.find((d) => d.code !== code && d.members.some((m) => m.key === k));
+    if (owner) moved.push({ member: ground.get(k)!, from: owner.name });
+    await ctx.store.placeMember(ctx.workspaceId, k, code);
   }
-  /* Provinces this division used to hold and no longer claims become UNPLACED
+  /* Members this division used to hold and no longer claims become UNPLACED
      rather than being left behind: the form states the whole membership, so a
-     province dropped from it has been deliberately removed. Unplaced is a real
+     member dropped from it has been deliberately removed. Unplaced is a real
      state the roster reports, not a loss. */
-  const mine = before.find((d) => d.code === code)?.provinces ?? [];
-  for (const p of mine) {
-    if (!wanted.has(p)) await ctx.store.setProvinceDivision(ctx.workspaceId, p, null);
+  const mine = before.find((d) => d.code === code)?.members ?? [];
+  for (const m of mine) {
+    if (!wanted.has(m.key)) await ctx.store.placeMember(ctx.workspaceId, m.key, null);
   }
 
   return ok({ code, moved });
@@ -234,10 +243,10 @@ export async function removeMarketDivision(
   if (!target) {
     return fail(violation("division_unknown", `${code} is not a division here`, "code"));
   }
-  if (target.provinces.length > 0) {
+  if (target.members.length > 0) {
     return fail(violation(
       "division_not_empty",
-      `${code} still holds ${target.provinces.length} provinces`,
+      `${code} still holds ${target.members.length} members`,
       "code",
     ));
   }
@@ -270,18 +279,27 @@ export async function setMarketScope(
   if (!frame) return fail(violation("scope_unknown", `${input.kind} is not a frame`, "kind"));
   /* 未建, and refused rather than accepted-and-hollow: a workspace switched to
      a frame it cannot carve in would see an empty roster and a form with no
-     members to pick. The selector shows the two as planned; this is the rule
+     members to pick. The selector shows 全球市场 as planned; this is the rule
      behind the greyed control. */
   if (!frame.open) {
     return fail(violation("scope_not_open", `${input.kind} is not open in this build`, "kind"));
   }
   if (input.kind === "province") {
-    const letters = new Set(Object.values(PROVINCE_CODE));
-    if (!input.code || !letters.has(input.code)) {
+    /* A province frame NAMES ITS PROVINCE (owner: 选择省级时需要确定是哪个省的
+       市场), and only a province the product has opened - 陕西 first - can be
+       named: the cities and the standard carve arrive together, and a frame
+       with neither is the hollow state above wearing a province's name. */
+    if (!input.code) {
       return fail(violation("scope_code_required", "a province frame names its province", "code"));
+    }
+    if (!provinceFrame(input.code)) {
+      return fail(violation("scope_province_not_open", `${input.code} is not an open province frame`, "code"));
     }
   }
   const scope: MarketScope = { kind: input.kind, code: input.kind === "province" ? input.code : null };
+  if (!scopeOpen(scope)) {
+    return fail(violation("scope_not_open", `${scope.kind} is not open in this build`, "kind"));
+  }
   await ctx.store.setMarketScope(ctx.workspaceId, scope);
   return ok(scope);
 }
@@ -292,6 +310,13 @@ export async function listMarketDivisions(
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listMarketDivisions(ctx.workspaceId));
+}
+
+/** The ground the current frame is carved from - what a region may hold. */
+export async function frameMembers(ctx: AccountContext): Promise<RuleResult<MarketMember[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listFrameMembers(ctx.workspaceId));
 }
 
 /* ---------------------------------------------------------------------------
@@ -840,7 +865,7 @@ function provinceDivision(
   divisions: readonly MarketDivisionRecord[],
 ): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const d of divisions) for (const p of d.provinces) out[p] = d.name;
+  for (const d of divisions) for (const m of d.members) out[m.key] = d.name;
   return out;
 }
 

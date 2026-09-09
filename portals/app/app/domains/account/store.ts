@@ -11,7 +11,9 @@ import {
   DEFAULT_MARKET_SCOPE,
   MARKET_DIVISIONS,
   MARKET_DIVISION_PROVINCES,
+  frameMembers,
   scopePrefix,
+  type MarketMember,
   type MarketScope,
 } from "../shared/market-division";
 import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
@@ -158,7 +160,7 @@ export interface HealthInputs {
   overdueRevenueCount: number;
 }
 
-/** One 大区, as this workspace has it (incr/0036). */
+/** One 大区, as this workspace has it (incr/0036, members by frame since 0045). */
 export interface MarketDivisionRecord {
   id: string;
   code: string;
@@ -166,8 +168,9 @@ export interface MarketDivisionRecord {
   /** The frame it was carved in (incr/0043). Its code carries the prefix. */
   scope: MarketScope["kind"];
   sortOrder: number;
-  /** The provinces placed in it, in no particular order. */
-  provinces: string[];
+  /** What it holds - provinces under 中国市场, cities under 省级市场 - in no
+   *  particular order. `key` is the stored identity, `label` the printed one. */
+  members: MarketMember[];
 }
 
 /**
@@ -211,15 +214,22 @@ export interface AccountStore {
   getMarketScope(workspaceId: string): Promise<MarketScope>;
   setMarketScope(workspaceId: string, scope: MarketScope): Promise<void>;
   /**
-   * Move one province into one 大区, or out of every 大区 when code is null.
-   *
-   * A province belongs to AT MOST ONE division - the table's primary key says
-   * so - therefore this replaces rather than adds. Returns false when the
-   * division code is not one this workspace has.
+   * The ground the current frame is carved from: the 34 provinces under
+   * 中国市场, the province's cities under 省级市场. What the picker offers and
+   * what the coverage line counts against.
    */
-  setProvinceDivision(
+  listFrameMembers(workspaceId: string): Promise<MarketMember[]>;
+  /**
+   * Place one member (a province, or a city) in one 大区, or in none when
+   * code is null.
+   *
+   * A member belongs to AT MOST ONE division - both member tables' primary
+   * keys say so - therefore this replaces rather than adds. Returns false when
+   * the division code is not one this workspace has.
+   */
+  placeMember(
     workspaceId: string,
-    province: string,
+    memberKey: string,
     divisionCode: string | null,
   ): Promise<boolean>;
   /**
@@ -395,9 +405,13 @@ export class InMemoryAccountStore implements AccountStore {
     return true;
   }
 
-  async setProvinceDivision(
+  async listFrameMembers(workspaceId: string): Promise<MarketMember[]> {
+    return [...frameMembers(await this.getMarketScope(workspaceId))];
+  }
+
+  async placeMember(
     workspaceId: string,
-    province: string,
+    memberKey: string,
     divisionCode: string | null,
   ): Promise<boolean> {
     if (divisionCode !== null && !this.divisionsFor(workspaceId).some((d) => d.code === divisionCode)) {
@@ -405,7 +419,7 @@ export class InMemoryAccountStore implements AccountStore {
     }
     let ws = this.divisionMoves.get(workspaceId);
     if (!ws) { ws = new Map(); this.divisionMoves.set(workspaceId, ws); }
-    ws.set(province, divisionCode);
+    ws.set(memberKey, divisionCode);
     return true;
   }
 
@@ -415,25 +429,29 @@ export class InMemoryAccountStore implements AccountStore {
     for (const [province, code] of Object.entries(MARKET_DIVISION_PROVINCES)) {
       placement.set(province, code);
     }
-    for (const [province, code] of moved) {
-      if (code === null) placement.delete(province);
-      else placement.set(province, code);
+    for (const [member, code] of moved) {
+      if (code === null) placement.delete(member);
+      else placement.set(member, code);
     }
     /* BY FRAME: the preset is a china carve, and so is anything a tenant adds
        through the form, since the form composes the code from the frame's
        prefix. A row whose prefix is not this frame's belongs to a carve made
-       under another frame and stays out of this list. */
+       under another frame and stays out of this list - and so do its members,
+       since a member follows its division. Labels come from the frame's own
+       ground; a key it does not know (a province placed while the frame was
+       china, read back under 陕西) is not a member here. */
     const scope = await this.getMarketScope(workspaceId);
     const prefix = scopePrefix(scope);
+    const label = new Map(frameMembers(scope).map((m) => [m.key, m.label]));
     return this.divisionsFor(workspaceId).filter((d) => d.code.startsWith(prefix)).map((d) => ({
       id: `div_${d.code}`,
       code: d.code,
       name: d.name,
       scope: scope.kind,
       sortOrder: d.sortOrder,
-      provinces: [...placement.entries()]
-        .filter(([, code]) => code === d.code)
-        .map(([province]) => province),
+      members: [...placement.entries()]
+        .filter(([key, code]) => code === d.code && label.has(key))
+        .map(([key]) => ({ key, label: label.get(key)! })),
     }));
   }
 

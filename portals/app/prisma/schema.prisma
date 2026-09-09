@@ -1182,6 +1182,7 @@ model MarketDivision {
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   provinces MarketDivisionProvince[]
+  members   MarketDivisionMember[]
 
   @@unique([workspaceId, divisionCode], map: "uidx_market_division_code")
   @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")
@@ -1225,6 +1226,26 @@ model MarketDivisionProvince {
   @@schema("yucer_core")
 }
 
+/// incr/0045. Which country (level 2) or prefecture-level city (level 4) sits
+/// in which 大区 - the member table for the frames that are not 中国市场. The
+/// member IS an admin_division row, by composite foreign key; the primary key
+/// keeps a member in at most one division, exactly as 0036 does for provinces.
+model MarketDivisionMember {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  memberLevel Int      @map("member_level") @db.SmallInt
+  memberCode  String   @map("member_code") @db.VarChar(12)
+  divisionId  String   @map("division_id") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  division MarketDivision @relation(fields: [divisionId], references: [id], onDelete: Restrict, map: "fk_market_division_member_division")
+  place    AdminDivision  @relation(fields: [memberLevel, memberCode], references: [level, code], onDelete: Restrict, map: "fk_market_division_member_place")
+
+  @@id([workspaceId, memberLevel, memberCode], map: "pk_market_division_member")
+  @@index([workspaceId, divisionId], map: "idx_market_division_member_div")
+  @@map("market_division_member")
+  @@schema("yucer_core")
+}
+
 /// 行政区划 - 全球五级参照表 (incr/0038). GLOBAL: no workspaceId, because which
 /// provinces China has is not a tenant's decision. The service role holds
 /// SELECT and nothing else; rows change by increment, from the generator.
@@ -1245,6 +1266,8 @@ model AdminDivision {
   parentId  String?         @map("parent_id") @db.Uuid
   parent    AdminDivision?  @relation("AdminDivisionTree", fields: [parentId], references: [id], onDelete: Restrict)
   children  AdminDivision[] @relation("AdminDivisionTree")
+  /// incr/0045 - the divisions this row has been placed in, across workspaces.
+  placements MarketDivisionMember[]
   /// Materialised path of codes: 'AS/CN/440000/440300/440304'.
   path      String          @db.VarChar(64)
   /// active | retired. A division that is abolished is retired, never deleted:
