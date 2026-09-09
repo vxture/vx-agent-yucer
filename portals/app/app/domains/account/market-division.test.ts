@@ -11,6 +11,7 @@ import {
   frameMembers,
   importDivisionTemplate,
   listMarketDivisions,
+  moveMarketDivision,
   removeMarketDivision,
   saveMarketDivision,
   marketScope,
@@ -257,4 +258,34 @@ test("a shipped carve is refused outside the frame it cuts", async () => {
   const r = await importDivisionTemplate(ctxOf(s), "five");
   assert.equal(r.ok === false && r.violations[0].code, "template_scope_mismatch");
   assert.equal((await s.listMarketDivisions(WS)).length, 0, "a global frame lists no china carve");
+});
+
+test("the order is global and the four moves change it - inside one frame", async () => {
+  const s = new InMemoryAccountStore();
+  const names = async () => unwrap(await listMarketDivisions(ctxOf(s))).map((d) => d.name);
+  assert.deepEqual(await names(), ["东部", "南部", "西部", "北部", "中部"]);
+  unwrap(await moveMarketDivision(ctxOf(s), { code: "CHINA-CENTRAL", direction: "top" }));
+  assert.deepEqual(await names(), ["中部", "东部", "南部", "西部", "北部"]);
+  unwrap(await moveMarketDivision(ctxOf(s), { code: "CHINA-EAST", direction: "down" }));
+  assert.deepEqual(await names(), ["中部", "南部", "东部", "西部", "北部"]);
+  unwrap(await moveMarketDivision(ctxOf(s), { code: "CHINA-EAST", direction: "up" }));
+  unwrap(await moveMarketDivision(ctxOf(s), { code: "CHINA-CENTRAL", direction: "bottom" }));
+  assert.deepEqual(await names(), ["东部", "南部", "西部", "北部", "中部"]);
+  // The ends refuse in the product's words, and an unknown code is not a move.
+  const edge = await moveMarketDivision(ctxOf(s), { code: "CHINA-EAST", direction: "top" });
+  assert.equal(edge.ok === false && edge.violations[0].code, "move_at_edge");
+  const none = await moveMarketDivision(ctxOf(s), { code: "CHINA-MOON", direction: "up" });
+  assert.equal(none.ok === false && none.violations[0].code, "not_found");
+  // The sort_order written is dense from 1 - what every other reader follows.
+  assert.deepEqual(
+    unwrap(await listMarketDivisions(ctxOf(s))).map((d) => d.sortOrder),
+    [1, 2, 3, 4, 5],
+  );
+  // A move under 陕西 orders 陕西's carve and leaves the china order alone.
+  unwrap(await setMarketScope(ctxOf(s), { kind: "province", code: "SN" }));
+  unwrap(await importDivisionTemplate(ctxOf(s), "shaanxi-three"));
+  unwrap(await moveMarketDivision(ctxOf(s), { code: "SN-SHAANNAN", direction: "top" }));
+  assert.deepEqual(await names(), ["陕南", "关中", "陕北"]);
+  unwrap(await setMarketScope(ctxOf(s), { kind: "china", code: null }));
+  assert.deepEqual(await names(), ["东部", "南部", "西部", "北部", "中部"]);
 });

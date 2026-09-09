@@ -65,7 +65,7 @@ import {
   resolveIndustry,
   type IndustryDraft,
 } from "./lib/industry-vocab";
-import { planMove } from "../catalog/lib/lifecycle";
+import { planMove, type MoveDirection } from "../catalog/lib/lifecycle";
 
 export interface AccountContext {
   workspaceId: string;
@@ -252,6 +252,38 @@ export async function removeMarketDivision(
   }
   await ctx.store.removeMarketDivision(ctx.workspaceId, code);
   return ok({ code });
+}
+
+/**
+ * Re-order the 大区 - up, down, to the top, to the bottom.
+ *
+ * THE ORDER IS GLOBAL (owner, 2026-09-09: 这个排序影响全局). sort_order is what
+ * every reader of the list follows - the roster, the menus, the situation
+ * screen's breadcrumb, every roll-up grouped by 大区 - so the roster is not
+ * re-sorted for display; it IS the order, and this is the one verb that
+ * changes it. Within the current frame only: a 陕西 carve and the china carve
+ * are two lists and never interleave.
+ */
+export async function moveMarketDivision(
+  ctx: AccountContext,
+  input: { code: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  const plan = planMove(rows.map((r) => ({ id: r.code, movable: true })), input.code, input.direction);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  /* Dense renumbering, written through the upsert that already owns
+     sort_order - only the rows whose number changed. */
+  const by = new Map(rows.map((r) => [r.code, r]));
+  for (const o of plan.value) {
+    const row = by.get(o.id)!;
+    if (row.sortOrder === o.sortOrder) continue;
+    await ctx.store.upsertMarketDivision(ctx.workspaceId, { code: row.code, name: row.name, sortOrder: o.sortOrder });
+  }
+  return ok(true);
 }
 
 /* ---------------------------------------------------------------------------

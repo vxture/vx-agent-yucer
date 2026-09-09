@@ -2370,6 +2370,9 @@ export const TERRITORY_ERROR: Record<string, string> = {
   scope_province_not_open: "这个省还没开放省级市场。目前开放：陕西",
   member_unknown: "成员必须在当前市场范围之内，请从列表中选择",
   code_prefix: "区域代码必须带当前市场范围的前缀",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "这个区域不存在，或不属于当前工作区",
   code_required: "区域代码不能为空",
   name_required: "区域名称不能为空",
   unknown_status: "未知的区域状态",
@@ -3326,6 +3329,12 @@ export const PLANNING_TEXT = {
   divisionSystem: "系统配置",
   divisionCustom: "自定义",
   divisionEdit: "配置",
+  // 行菜单里的四个排序操作（owner, 2026-09-09）。顺序是全局的：菜单、态势屏、
+  // 汇总都按它来。
+  divisionMoveUp: "上移",
+  divisionMoveDown: "下移",
+  divisionMoveTop: "移到最顶",
+  divisionMoveBottom: "移到最低",
   divisionNew: "新建区域",
   divisionRemove: "删除区域",
   divisionRemoveWhy: (noun: string) => `只有不含任何${noun}的区域才能删除。先把${noun}移走，再删。`,

@@ -6,13 +6,16 @@ import {
   Section,
   StatusBadge,
   TableTitleCell,
+  useToast,
 } from "@vxture/design-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
+import { useState, useTransition } from "react";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketMember } from "../../domains/shared/market-division";
+import type { MoveDirection } from "../../domains/catalog/lib/lifecycle";
+import { moveDivisionAction } from "../admin/division/actions";
 import { Tag } from "./tag";
 
 /* 大区与成员 - 展示. DISPLAY ONLY.
@@ -26,6 +29,12 @@ import { Tag } from "./tag";
  * MULTI-TENANT, so nothing here assumes five divisions or their names. A
  * workspace that sells through a 新疆基地 covering one province is dividing its
  * market correctly; the table renders whatever that workspace has.
+ *
+ * THE ORDER IS THE ORDER (owner, 2026-09-09: 排序影响全局). The rows come in
+ * sort_order and stay in it - no sortable headers, because a header sort
+ * that re-arranged the display without changing sort_order would show one
+ * order here and another everywhere else. Changing the order is an
+ * operation, in the row's own menu: 上移 / 下移 / 移到最顶 / 移到最低.
  */
 
 export interface DivisionRow {
@@ -37,11 +46,6 @@ export interface DivisionRow {
   /** True while it still matches a shipped template, exactly. Derived, not stored. */
   readonly system: boolean;
 }
-
-const SORT_ON = {
-  name: (r: DivisionRow) => r.name,
-  members: (r: DivisionRow) => r.members.length,
-};
 
 export function DivisionPanel(
   { rows, unassigned, total, noun, editable }:
@@ -58,10 +62,16 @@ export function DivisionPanel(
     readonly editable: boolean;
   },
 ) {
-  const { DATA_TABLE_LABELS, PLANNING_TEXT } = useMessages();
-  const sorted = useTableSort<DivisionRow>([], SORT_ON);
+  const { DATA_TABLE_LABELS, PLANNING_TEXT, TERRITORY_ERROR } = useMessages();
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
+  const [pending, start] = useTransition();
+  const { toast } = useToast();
+  const move = (code: string, direction: MoveDirection) =>
+    start(async () => {
+      const r = await moveDivisionAction(code, direction);
+      if (!r.ok) toast({ tone: "danger", title: TERRITORY_ERROR[r.error] ?? r.error });
+    });
 
   return (
     /* NO TITLE HERE. It carried one for a day, while this panel was the
@@ -101,16 +111,47 @@ export function DivisionPanel(
           indexStart={1}
           selectedKeys={selected}
           onSelectionChange={(keys) => setSelected([...keys])}
-          rowActions={(r: DivisionRow) => (
+          rowActions={(r: DivisionRow, rowIndex: number) => (
             <RowActions
+              disabled={pending}
               items={
                 editable
-                  ? [{
-                      id: "edit",
-                      label: PLANNING_TEXT.divisionEdit,
-                      onSelect: () =>
-                        router.push(`/admin/division/${encodeURIComponent(r.code)}`),
-                    }]
+                  ? [
+                      {
+                        id: "edit",
+                        label: PLANNING_TEXT.divisionEdit,
+                        onSelect: () =>
+                          router.push(`/admin/division/${encodeURIComponent(r.code)}`),
+                      },
+                      /* THE FOUR MOVES, greyed at the end they cannot pass.
+                         rowIndex is the global position, since the rows are
+                         never re-sorted for display. */
+                      {
+                        id: "up",
+                        label: PLANNING_TEXT.divisionMoveUp,
+                        separatorBefore: true,
+                        disabled: rowIndex === 0,
+                        onSelect: () => move(r.code, "up"),
+                      },
+                      {
+                        id: "down",
+                        label: PLANNING_TEXT.divisionMoveDown,
+                        disabled: rowIndex === rows.length - 1,
+                        onSelect: () => move(r.code, "down"),
+                      },
+                      {
+                        id: "top",
+                        label: PLANNING_TEXT.divisionMoveTop,
+                        disabled: rowIndex === 0,
+                        onSelect: () => move(r.code, "top"),
+                      },
+                      {
+                        id: "bottom",
+                        label: PLANNING_TEXT.divisionMoveBottom,
+                        disabled: rowIndex === rows.length - 1,
+                        onSelect: () => move(r.code, "bottom"),
+                      },
+                    ]
                   // The column still renders with no items - a table whose
                   // action column disappears for a read-only reader shifts
                   // every other column across.
@@ -119,16 +160,13 @@ export function DivisionPanel(
             />
           )}
           rowKey={(r: DivisionRow) => r.code}
-          rows={[...sorted.sortRows(rows)]}
-          sort={sorted.sort}
-          onSortChange={sorted.onSortChange}
+          rows={rows}
           columns={[
             {
               // 首列走 TableTitleCell: the name leads, the code is its
               // description - the shape every first column in this product has.
               id: "name",
               header: PLANNING_TEXT.divisionName,
-              sortable: true,
               cell: (r: DivisionRow) =>
                 editable ? (
                   <Link href={`/admin/division/${encodeURIComponent(r.code)}`}>
@@ -155,7 +193,6 @@ export function DivisionPanel(
             {
               id: "members",
               header: PLANNING_TEXT.divisionMemberCount(noun),
-              sortable: true,
               /* CENTRED, which is the DS's default and its own rule for this
                  kind of number: `numeric` is for digits that have to line up
                  (money, sizes), and it puts the value in a fixed-width block -

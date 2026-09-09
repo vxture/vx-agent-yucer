@@ -44,3 +44,16 @@ test("refuses an unknown or unmovable row", () => {
   assert.equal(order(planMove(rows("A+"), "Z", "up")), "not_found");
   assert.equal(order(planMove(rows("A+ B-"), "B", "up")), "not_movable");
 });
+
+test("to the top and to the bottom, past everything visible, keeping the rest in order", () => {
+  // Owner, 2026-09-09: 移到最顶，移到最低. The moving row alone changes place.
+  assert.equal(order(planMove(rows("A+ B+ C+ D+"), "C", "top")), "CABD");
+  assert.equal(order(planMove(rows("A+ B+ C+ D+"), "B", "bottom")), "ACDB");
+  // Lands beside the last row the user can SEE, not past an invisible one:
+  // retired rows at either end stay where they are.
+  assert.equal(order(planMove(rows("X- A+ B+ C+"), "C", "top")), "XCAB");
+  assert.equal(order(planMove(rows("A+ B+ C+ X-"), "A", "bottom")), "BCAX");
+  // Already there is a refusal, not a silent no-op.
+  assert.equal(order(planMove(rows("A+ B+ C+"), "A", "top")), "move_at_edge");
+  assert.equal(order(planMove(rows("A+ B+ C+"), "C", "bottom")), "move_at_edge");
+});

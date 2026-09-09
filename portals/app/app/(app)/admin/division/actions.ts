@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../../lib/session";
 import {
   importDivisionTemplate,
+  moveMarketDivision,
   removeMarketDivision as removeDivision,
   saveMarketDivision,
   setMarketScope,
 } from "../../../domains/account/service";
+import type { MoveDirection } from "../../../domains/catalog/lib/lifecycle";
 import type { MarketMember, MarketScope } from "../../../domains/shared/market-division";
 
 /* 大区-省级 的写入路径.
@@ -65,6 +67,29 @@ export async function removeDivisionAction(code: string): Promise<RemoveDivision
       store: session.stores.account(),
     },
     code,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/admin/division");
+  revalidatePath("/national");
+  return { ok: true };
+}
+
+/** Re-order the regions; the order is global. */
+export async function moveDivisionAction(
+  code: string,
+  direction: MoveDirection,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await moveMarketDivision(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    { code, direction },
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");
