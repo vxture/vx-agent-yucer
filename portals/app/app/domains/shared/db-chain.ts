@@ -61,6 +61,7 @@ export const CHAIN = {
   product: id("09"),
   productStatus: id("22"),
   productUnit: id("23"),
+  winLossReason: id("24"),
   priceEntry: id("10"),
   solution: id("11"),
   solutionItem: id("12"),
@@ -105,6 +106,8 @@ export async function clearChain(c: Client): Promise<void> {
     `DELETE FROM yucer_catalog.product_status WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product_unit WHERE workspace_id = $1`,
     `DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`,
+    `DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`,
+    `DELETE FROM yucer_pipeline.win_loss_reason WHERE workspace_id = $1`,
     `DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account_plan WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account WHERE workspace_id = $1`,
@@ -201,6 +204,14 @@ export async function seedChain(c: Client): Promise<void> {
     `INSERT INTO yucer_catalog.product_unit (id, workspace_id, unit_code, name)
      VALUES ($1, $2, 'seat', 'seat')`,
     [CHAIN.productUnit, CHAIN_WS],
+  );
+  // 0039: same shape again - a review names its reason by uuid, so the
+  // vocabulary row has to exist before any review can be written.
+  await c.query(
+    `INSERT INTO yucer_pipeline.win_loss_reason
+       (id, workspace_id, reason_code, name, for_won, for_lost)
+     VALUES ($1, $2, 'no_decision', 'no decision', FALSE, TRUE)`,
+    [CHAIN.winLossReason, CHAIN_WS],
   );
   await c.query(
     `INSERT INTO yucer_catalog.product (id, workspace_id, product_code, name, unit_id, status_id)

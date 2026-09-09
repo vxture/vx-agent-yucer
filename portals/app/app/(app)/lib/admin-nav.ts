@@ -86,6 +86,10 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          /catalog before, which is how a settings page ends up somewhere
          nobody looks for settings. */
       { key: "product", href: "/admin/product", icon: "cube", action: "catalog.product.view" },
+      /* 赢丢原因 (incr/0039). A vocabulary like the product one, and here for
+         the same reason: it is set once and read by every review afterwards,
+         while 赢丢复盘 is where a person works through the reviews themselves. */
+      { key: "winLossReason", href: "/admin/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
     ],
   },
   {

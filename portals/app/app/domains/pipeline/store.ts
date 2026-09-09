@@ -59,8 +59,17 @@ export interface OpportunityRecord {
   createdAt: Date;
 }
 
-export const WIN_LOSS_REASONS = ["price", "fit", "timing", "competitor", "no_decision", "other"] as const;
-export type WinLossReason = (typeof WIN_LOSS_REASONS)[number];
+/** One row of the 赢丢原因 vocabulary - incr/0039, per workspace. */
+export interface WinLossReasonRecord {
+  id: string;
+  workspaceId: string;
+  reasonCode: string;
+  name: string;
+  /** Which outcome it explains. A reason may serve one or both. */
+  forWon: boolean;
+  forLost: boolean;
+  sortOrder: number;
+}
 
 /**
  * The learning loop. One review per opportunity (unique on opportunity_id), so
@@ -70,7 +79,9 @@ export interface WinLossReviewRecord {
   id: string;
   opportunityId: string;
   outcome: "won" | "lost";
-  primaryReason: WinLossReason | null;
+  /** The vocabulary row's uuid (incr/0039). Null = closed, reason not yet
+   *  given, which is the state the review roster exists to surface. */
+  primaryReasonId: string | null;
   competitor: string | null;
   lessons: string | null;
   reviewerSub: string | null;
@@ -79,7 +90,9 @@ export interface WinLossReviewRecord {
 
 export interface NewWinLossReview {
   outcome: "won" | "lost";
-  primaryReason: WinLossReason | null;
+  /** The vocabulary row's uuid (incr/0039). Null = closed, reason not yet
+   *  given, which is the state the review roster exists to surface. */
+  primaryReasonId: string | null;
   competitor?: string | null;
   lessons?: string | null;
   reviewerSub: string;
@@ -230,6 +243,21 @@ export interface PipelineStore {
   /** Closed deals with no review yet - the outstanding learning debt. A rule
    * that says "must" without a way to see what is outstanding is unenforceable. */
   listUnreviewedClosed(workspaceId: string, limit?: number): Promise<OpportunityRecord[]>;
+
+  /* 赢丢原因 (incr/0039) - the same five the catalogue vocabularies have,
+     because it is the same kind of thing: a per-workspace list with an anchor
+     code, a manual order, and a count of what points at a row before it goes. */
+  listWinLossReasons(workspaceId: string): Promise<WinLossReasonRecord[]>;
+  upsertWinLossReason(
+    workspaceId: string,
+    input: Omit<WinLossReasonRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<WinLossReasonRecord>;
+  setWinLossReasonOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeWinLossReason(workspaceId: string, reasonId: string): Promise<boolean>;
+  countReviewsByReason(workspaceId: string, reasonId: string): Promise<number>;
 }
 
 /** In-memory implementation for the offline path and for tests. */
@@ -238,6 +266,7 @@ export class InMemoryPipelineStore implements PipelineStore {
   private events: StageEventRecord[] = [];
   private snapshots: Array<SnapshotRow & { workspaceId: string }> = [];
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
+  private reasons: WinLossReasonRecord[] = [];
   private seq = 0;
 
   /**
@@ -253,6 +282,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     extra: {
       events?: StageEventRecord[];
       reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
+      reasons?: WinLossReasonRecord[];
       /** A forecast series. Append-only in the DDL; seeded as a series here so
        *  the trajectory the immutability exists for is actually visible. */
       snapshots?: Array<SnapshotRow & { workspaceId: string }>;
@@ -261,6 +291,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     for (const r of records) this.opportunities.set(r.id, { ...r });
     this.events.push(...(extra.events ?? []));
     for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
+    if (extra.reasons) this.reasons = [...extra.reasons];
     this.snapshots.push(...(extra.snapshots ?? []));
   }
 
@@ -396,6 +427,59 @@ export class InMemoryPipelineStore implements PipelineStore {
     this.snapshots.push({ ...row, workspaceId });
   }
 
+  async listWinLossReasons(workspaceId: string): Promise<WinLossReasonRecord[]> {
+    return this.reasons
+      .filter((r) => r.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.reasonCode.localeCompare(b.reasonCode));
+  }
+
+  async upsertWinLossReason(
+    workspaceId: string,
+    input: Omit<WinLossReasonRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<WinLossReasonRecord> {
+    const at = this.reasons.findIndex(
+      (r) => r.workspaceId === workspaceId && r.reasonCode === input.reasonCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.reasons[at]!, ...input, reasonCode: this.reasons[at]!.reasonCode };
+      this.reasons[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.reasons.filter((r) => r.workspaceId === workspaceId).map((r) => r.sortOrder),
+    );
+    const row: WinLossReasonRecord = {
+      id: `wlx_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input,
+    };
+    this.reasons.push(row);
+    return row;
+  }
+
+  async setWinLossReasonOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.reasons = this.reasons.map((r) =>
+      r.workspaceId === workspaceId && want.has(r.id) ? { ...r, sortOrder: want.get(r.id)! } : r,
+    );
+  }
+
+  async removeWinLossReason(workspaceId: string, reasonId: string): Promise<boolean> {
+    const before = this.reasons.length;
+    this.reasons = this.reasons.filter(
+      (r) => !(r.workspaceId === workspaceId && r.id === reasonId),
+    );
+    return this.reasons.length < before;
+  }
+
+  async countReviewsByReason(workspaceId: string, reasonId: string): Promise<number> {
+    return [...this.reviews.values()].filter(
+      (r) => r.workspaceId === workspaceId && r.primaryReasonId === reasonId,
+    ).length;
+  }
+
   async getWinLossReview(
     workspaceId: string,
     opportunityId: string,
@@ -415,7 +499,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       workspaceId,
       opportunityId,
       outcome: review.outcome,
-      primaryReason: review.primaryReason,
+      primaryReasonId: review.primaryReasonId,
       competitor: review.competitor ?? null,
       lessons: review.lessons ?? null,
       reviewerSub: review.reviewerSub,

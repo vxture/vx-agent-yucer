@@ -598,19 +598,23 @@ model FunnelExit {
 }
 
 model WinLossReview {
-  id            String   @id @default(uuid()) @db.Uuid
-  workspaceId   String   @map("workspace_id") @db.Uuid
-  opportunityId String   @map("opportunity_id") @db.Uuid
-  outcome       String   @db.VarChar(32)
-  primaryReason String?  @map("primary_reason") @db.VarChar(64)
-  competitor    String?  @db.VarChar(255)
-  lessons       String?  @db.Text
-  reviewerSub   String?  @map("reviewer_sub") @db.VarChar(128)
-  reviewedAt    DateTime @default(now()) @map("reviewed_at") @db.Timestamptz()
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
-  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+  id              String         @id @default(uuid()) @db.Uuid
+  workspaceId     String         @map("workspace_id") @db.Uuid
+  opportunityId   String         @map("opportunity_id") @db.Uuid
+  outcome         String         @db.VarChar(32)
+  /// 赢丢原因 - a vocabulary row since 0039, for the reason the catalogue's
+  /// three became uuids: why a deal was lost is the workspace's own list.
+  primaryReasonId String?        @map("primary_reason_id") @db.Uuid
+  primaryReason   WinLossReason? @relation(fields: [primaryReasonId], references: [id], onDelete: Restrict)
+  competitor      String?        @db.VarChar(255)
+  lessons         String?        @db.Text
+  reviewerSub     String?        @map("reviewer_sub") @db.VarChar(128)
+  reviewedAt      DateTime       @default(now()) @map("reviewed_at") @db.Timestamptz()
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt       DateTime       @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([opportunityId], map: "uidx_win_loss_review_opp")
+  @@index([workspaceId, primaryReasonId], map: "idx_win_loss_review_reason")
   @@map("win_loss_review")
   @@schema("yucer_pipeline")
 }
@@ -1179,4 +1183,26 @@ model AdminDivision {
   @@index([path], map: "idx_admin_division_path")
   @@map("admin_division")
   @@schema("yucer_ref")
+}
+
+/// 赢丢原因 - per workspace (incr/0039). The same shape as the catalogue's
+/// three vocabularies: an anchor code, a name, an order. for_won / for_lost
+/// say which outcome it explains, because a reason may serve one or both.
+model WinLossReason {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  reasonCode  String   @map("reason_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  forWon      Boolean  @default(true) @map("for_won")
+  forLost     Boolean  @default(true) @map("for_lost")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  reviews WinLossReview[]
+
+  @@unique([workspaceId, reasonCode], map: "uidx_win_loss_reason_code")
+  @@index([workspaceId, sortOrder], map: "idx_win_loss_reason_ws_sort")
+  @@map("win_loss_reason")
+  @@schema("yucer_pipeline")
 }

@@ -47,6 +47,8 @@ async function seedProject(c: Client, id: string): Promise<void> {
 async function cleanup() {
   await withPg(async (c) => {
     await c.query(`DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`, [WS]);
+    // After the reviews that cite them - fk_win_loss_review_reason RESTRICTs.
+    await c.query(`DELETE FROM yucer_pipeline.win_loss_reason WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity_stage_event WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.forecast_snapshot WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
@@ -366,17 +368,25 @@ test("saveWinLossReview creates on the first call and revises in place on the se
   try {
     await withPg(seed);
     const s = await store();
+    // Real vocabulary rows: primary_reason_id is a uuid with an FK (0039), so
+    // a literal code would be refused by Postgres, which is this lane's job.
+    const priceId = (await s.upsertWinLossReason(WS, {
+      reasonCode: "price", name: "price", forWon: true, forLost: true,
+    })).id;
+    const competitorId = (await s.upsertWinLossReason(WS, {
+      reasonCode: "competitor", name: "competitor", forWon: true, forLost: true,
+    })).id;
     const created = await s.createOpportunity(WS, newOpp());
     const first = await s.saveWinLossReview(WS, created.id, {
-      outcome: "lost", primaryReason: "price", reviewerSub: "usr_mgr",
+      outcome: "lost", primaryReasonId: priceId, reviewerSub: "usr_mgr",
     });
     assert.equal(first.outcome, "lost");
 
     const revised = await s.saveWinLossReview(WS, created.id, {
-      outcome: "lost", primaryReason: "competitor", competitor: "Acme", reviewerSub: "usr_mgr",
+      outcome: "lost", primaryReasonId: competitorId, competitor: "Acme", reviewerSub: "usr_mgr",
     });
     assert.equal(revised.id, first.id, "one review per opportunity - the second call must revise, not duplicate");
-    assert.equal(revised.primaryReason, "competitor");
+    assert.equal(revised.primaryReasonId, competitorId);
 
     const count = await withPg((c) => c.query(`SELECT count(*)::int AS n FROM yucer_pipeline.win_loss_review WHERE opportunity_id = $1`, [created.id]));
     assert.equal(count.rows[0].n, 1);
@@ -398,7 +408,7 @@ test("listUnreviewedClosed excludes a closed deal once it has a review", { skip 
     let unreviewed = await s.listUnreviewedClosed(WS);
     assert.equal(unreviewed.length, 2);
 
-    await s.saveWinLossReview(WS, won.id, { outcome: "won", primaryReason: null, reviewerSub: "usr_mgr" });
+    await s.saveWinLossReview(WS, won.id, { outcome: "won", primaryReasonId: null, reviewerSub: "usr_mgr" });
     unreviewed = await s.listUnreviewedClosed(WS);
     assert.deepEqual(unreviewed.map((o) => o.id), [lost.id]);
   } finally {

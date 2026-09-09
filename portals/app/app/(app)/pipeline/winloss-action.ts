@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getPipelineStore } from "../../domains/shared/registry";
 import { recordWinLossReview } from "../../domains/pipeline/service";
-import type { WinLossReason } from "../../domains/pipeline/store";
 
 // Recording a post-mortem.
 //
@@ -20,7 +19,7 @@ export interface RecordReviewResult {
 
 export async function recordReview(
   opportunityId: string,
-  input: { primaryReason: string | null; competitor?: string; lessons?: string },
+  input: { primaryReasonId: string | null; competitor?: string; lessons?: string },
 ): Promise<RecordReviewResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -35,7 +34,10 @@ export async function recordReview(
     },
     opportunityId,
     {
-      primaryReason: (input.primaryReason as WinLossReason | null) ?? null,
+      // The vocabulary row's uuid (0039). The SERVICE checks it belongs to
+      // this workspace and explains this outcome - a cast here would only be
+      // this file claiming to know.
+      primaryReasonId: input.primaryReasonId ?? null,
       competitor: input.competitor?.trim() || null,
       lessons: input.lessons?.trim() || null,
     },

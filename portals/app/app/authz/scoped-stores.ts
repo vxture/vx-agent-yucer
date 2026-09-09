@@ -96,6 +96,21 @@ class ScopedPipelineStore implements PipelineStore {
   // the list wrong rather than private.
   listUnreviewedClosed: PipelineStore["listUnreviewedClosed"] = (...a) =>
     this.inner.listUnreviewedClosed(...a);
+
+  /* 赢丢原因 is CONFIGURATION, not rows a member owns: the vocabulary is the
+     workspace's and everybody who may read a review may read the list it was
+     chosen from. Narrowing it by owner would give two reps different pickers
+     for the same review. */
+  listWinLossReasons: PipelineStore["listWinLossReasons"] = (...a) =>
+    this.inner.listWinLossReasons(...a);
+  upsertWinLossReason: PipelineStore["upsertWinLossReason"] = (...a) =>
+    this.inner.upsertWinLossReason(...a);
+  setWinLossReasonOrder: PipelineStore["setWinLossReasonOrder"] = (...a) =>
+    this.inner.setWinLossReasonOrder(...a);
+  removeWinLossReason: PipelineStore["removeWinLossReason"] = (...a) =>
+    this.inner.removeWinLossReason(...a);
+  countReviewsByReason: PipelineStore["countReviewsByReason"] = (...a) =>
+    this.inner.countReviewsByReason(...a);
 }
 
 class ScopedAccountStore implements AccountStore {

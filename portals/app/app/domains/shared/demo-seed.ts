@@ -55,6 +55,7 @@ import {
 import { buildNationalCohort } from "./demo-national";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
+import { DEFAULT_WIN_LOSS_REASONS } from "../pipeline/lib/win-loss-vocab";
 import { DEFAULT_UNIT_VOCABULARY } from "../catalog/lib/unit-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
@@ -933,6 +934,19 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
         // however long after the anchor the page is opened.
         ...stageHistory("opp_demo_15", ["qualify", "discover", "validate", "propose"], REP2, 200, 75),
       ],
+      /* 赢丢原因 (0039) - the demo seeds the shipped six itself rather than
+         leaning on the service's first-contact path, because the reviews below
+         point at two of them by id and a review whose reason does not resolve
+         is exactly the broken state this vocabulary replaced. */
+      reasons: DEFAULT_WIN_LOSS_REASONS.map((d, i) => ({
+        id: `wlx_demo_${i + 1}`,
+        workspaceId,
+        reasonCode: d.reasonCode,
+        name: d.name,
+        forWon: d.forWon,
+        forLost: d.forLost,
+        sortOrder: i + 1,
+      })),
       // Two of the four closed deals are reviewed; the other two are the debt
       // the pipeline page renders.
       reviews: [
@@ -941,7 +955,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           workspaceId,
           opportunityId: "opp_demo_5",
           outcome: "lost",
-          primaryReason: "fit",
+          primaryReasonId: "wlx_demo_2",
           competitor: null,
           lessons: DEMO_LESSONS[1],
           reviewerSub: "usr_demo_leader",
@@ -952,7 +966,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           workspaceId,
           opportunityId: "opp_demo_8",
           outcome: "won",
-          primaryReason: "fit",
+          primaryReasonId: "wlx_demo_2",
           competitor: null,
           lessons: DEMO_LESSONS[0],
           reviewerSub: "usr_demo_leader",

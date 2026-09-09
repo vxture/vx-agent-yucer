@@ -50,24 +50,26 @@ export interface PendingReviewsProps {
    */
   readonly allClosed: readonly OpportunityRecord[];
   readonly canRecord: boolean;
+  /**
+   * 赢丢原因, THE WORKSPACE'S OWN (incr/0039). It was six literals in this
+   * file; the list is rows now, and each row says which outcome it explains -
+   * so a loss-only reason is not offered on a win.
+   */
+  readonly reasons: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly forWon: boolean;
+    readonly forLost: boolean;
+  }[];
   readonly onRecord: (
     opportunityId: string,
     input: {
-      primaryReason: string | null;
+      primaryReasonId: string | null;
       competitor?: string;
       lessons?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
-
-const REASONS = [
-  "price",
-  "fit",
-  "timing",
-  "competitor",
-  "no_decision",
-  "other",
-] as const;
 
 /* 排序取值: what each sortable column ORDERS ON, which is not always what
    it renders - a badge sorts on the score inside it, a money cell on the raw
@@ -81,13 +83,13 @@ export function PendingReviews({
   opportunities,
   allClosed,
   canRecord,
+  reasons,
   onRecord,
 }: PendingReviewsProps) {
   const {
     DATA_TABLE_LABELS,
     DS_LABELS,
     PIPELINE_TEXT,
-    WINLOSS_REASON_LABEL,
     WINLOSS_TEXT,
     REVIEW_ERROR,
   } = useMessages();
@@ -99,7 +101,7 @@ export function PendingReviews({
   const pendingIds = new Set(opportunities.map((o) => o.id));
   const shown = scope === "pending" ? opportunities : allClosed;
   const [openId, setOpenId] = useState<string | null>(null);
-  const [reason, setReason] = useState<string>("fit");
+  const [reason, setReason] = useState<string>("");
   const [competitor, setCompetitor] = useState("");
   const [lessons, setLessons] = useState("");
   const [pending, startTransition] = useTransition();
@@ -108,7 +110,7 @@ export function PendingReviews({
   function submit(id: string) {
     setError(null);
     startTransition(() => {
-      void onRecord(id, { primaryReason: reason, competitor, lessons }).then(
+      void onRecord(id, { primaryReasonId: reason || null, competitor, lessons }).then(
         (r) => {
           if (!r.ok) {
             setError(REVIEW_ERROR[r.error ?? "denied"] ?? REVIEW_ERROR.denied);
@@ -309,11 +311,17 @@ export function PendingReviews({
             value={reason}
             onChange={(e) => setReason(e.currentTarget.value)}
           >
-            {REASONS.map((r) => (
-              <option key={r} value={r}>
-                {WINLOSS_REASON_LABEL[r]}
-              </option>
-            ))}
+            {/* The ones that can explain THIS outcome. Offering a
+                loss-only reason on a win invites a review that says nothing,
+                and the service refuses it anyway. */}
+            <option value="">{WINLOSS_TEXT.reasonNone}</option>
+            {reasons
+              .filter((r) => (target.status === "won" ? r.forWon : r.forLost))
+              .map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
           </NativeSelect>
 
           <Label htmlFor="wlr-competitor">{WINLOSS_TEXT.competitorLabel}</Label>

@@ -39,6 +39,10 @@ const ALLOWED = new Set([
   // the identical rows - two copies of the same starter data, which the DDL
   // and this module have to agree on.
   "domains/catalog/lib/unit-vocab.ts",
+  // 赢丢原因 (0039), the same shape again: six shipped rows a workspace renames
+  // and extends. The names are seeded by the increment too, which is what makes
+  // them data rather than the copy this containment is about.
+  "domains/pipeline/lib/win-loss-vocab.ts",
   // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
   // Same nature again - data that happens to be text - with one addition that
   // matters more here than anywhere else on this list: these 34 strings are a

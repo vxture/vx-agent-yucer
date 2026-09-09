@@ -201,11 +201,19 @@ test("a win/loss review is revised only within its own workspace", { skip }, asy
          VALUES ($1, $2, 'OPP-WL', 'WL', $3, 'won', 'closed', 'won', 'CNY', 'usr_db', 'fixture requirement')`,
         [opp, WS, acc],
       );
+      // incr/0039: the reason is a row in the workspace's own vocabulary now,
+      // so it exists before the review that cites it.
+      const reason = "dddddddd-0000-0000-0000-000000000001";
+      await c.query(
+        `INSERT INTO yucer_pipeline.win_loss_reason (id, workspace_id, reason_code, name)
+         VALUES ($1, $2, 'fit', 'fit')`,
+        [reason, WS],
+      );
       await c.query(
         `INSERT INTO yucer_pipeline.win_loss_review
-           (workspace_id, opportunity_id, outcome, primary_reason, reviewer_sub)
-         VALUES ($1, $2, 'won', 'fit', 'usr_a')`,
-        [WS, opp],
+           (workspace_id, opportunity_id, outcome, primary_reason_id, reviewer_sub)
+         VALUES ($1, $2, 'won', $3, 'usr_a')`,
+        [WS, opp, reason],
       );
 
       // The workspace-scoped update the adapter now performs, from the WRONG

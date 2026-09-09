@@ -526,9 +526,9 @@ test("an abandoned deal can finally have a review written for it", { skip }, asy
     await c.query(`DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`, [CHAIN_WS]);
     await c.query(
       `INSERT INTO yucer_pipeline.win_loss_review
-         (workspace_id, opportunity_id, outcome, primary_reason, reviewer_sub)
-       VALUES ($1, $2, 'abandoned', 'no_decision', 'usr_db')`,
-      [CHAIN_WS, CHAIN.opportunity],
+         (workspace_id, opportunity_id, outcome, primary_reason_id, reviewer_sub)
+       VALUES ($1, $2, 'abandoned', $3, 'usr_db')`,
+      [CHAIN_WS, CHAIN.opportunity, CHAIN.winLossReason],
     );
   });
 });

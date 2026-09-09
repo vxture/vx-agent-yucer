@@ -17,6 +17,12 @@ import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
 import { planNewOpportunity, type NewOpportunityDraft } from "./lib/opportunity";
+import { planMove } from "../catalog/lib/lifecycle";
+import {
+  DEFAULT_WIN_LOSS_REASONS,
+  planReasonRemoval,
+  planWinLossReason,
+} from "./lib/win-loss-vocab";
 import {
   daysAtStage,
   planSuggestedCategory,
@@ -50,6 +56,7 @@ import type {
   OpportunityRecord,
   PipelineStore,
   StageEventRecord,
+  WinLossReasonRecord,
   WinLossReviewRecord,
 } from "./store";
 
@@ -399,6 +406,114 @@ export async function listPendingReviews(
  * caller: a review claiming "won" on a lost deal would corrupt the one dataset
  * the learning loop reads, and the caller has no business asserting it.
  */
+/* ---------------------------------------------------------------------------
+ * 赢丢原因 - the workspace's own vocabulary (incr/0039).
+ *
+ * FOUR VERBS, the same four the catalogue vocabularies have. Gated on
+ * `pipeline.winloss.record`: whoever may write a post-mortem may say what the
+ * reasons are - the list exists to serve the review, and splitting the two
+ * would mean a team that can record losses cannot name the one it keeps losing
+ * to.
+ * ------------------------------------------------------------------------ */
+
+export async function listWinLossReasons(
+  ctx: PipelineContext,
+): Promise<RuleResult<WinLossReasonRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
+  if (!gate.allowed) return denied(gate);
+  let reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING into an untouched workspace only - the same guard
+     the catalogue vocabularies use, and the same rows incr/0039 seeds, so the
+     two paths cannot disagree. A workspace that deleted every reason keeps its
+     empty list rather than having ours grow back. */
+  if (reasons.length === 0) {
+    for (const d of DEFAULT_WIN_LOSS_REASONS) {
+      await ctx.store.upsertWinLossReason(ctx.workspaceId, { ...d });
+    }
+    reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
+  }
+  return ok(reasons);
+}
+
+/**
+ * How many reviews cite each reason.
+ *
+ * A SEPARATE VERB rather than a field on the list, because the two have
+ * different readers: the review form needs the names and nothing else, and
+ * only the configuration page needs the counts. Folding them together would
+ * put a count query behind every review form render.
+ */
+export async function winLossReasonUsage(
+  ctx: PipelineContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const r of reasons) {
+    out[r.id] = await ctx.store.countReviewsByReason(ctx.workspaceId, r.id);
+  }
+  return ok(out);
+}
+
+export async function upsertWinLossReason(
+  ctx: PipelineContext,
+  input: { reasonCode: string; name: string; forWon: boolean; forLost: boolean },
+): Promise<RuleResult<WinLossReasonRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planWinLossReason(input);
+  if (!plan.ok) return plan as RuleResult<WinLossReasonRecord>;
+
+  return ok(await ctx.store.upsertWinLossReason(ctx.workspaceId, plan.value));
+}
+
+/** Reorder the list - the order the review form offers them in. */
+export async function moveWinLossReason(
+  ctx: PipelineContext,
+  input: { reasonId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
+  const plan = planMove(
+    reasons.map((r) => ({ id: r.id, movable: true })),
+    input.reasonId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setWinLossReasonOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a reason outright.
+ *
+ * Refused while reviews cite it: a review's reason is EVIDENCE, and deleting
+ * the row it points at would rewrite what somebody concluded about a deal that
+ * is already closed. planReasonRemoval names the count; the FK RESTRICTs
+ * underneath as the last line.
+ */
+export async function removeWinLossReason(
+  ctx: PipelineContext,
+  input: { reasonId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const citing = await ctx.store.countReviewsByReason(ctx.workspaceId, input.reasonId);
+  const plan = planReasonRemoval(citing);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeWinLossReason(ctx.workspaceId, input.reasonId);
+  if (!removed) return fail(violation("not_found", "no such reason", "reasonId"));
+  return ok(true);
+}
+
 export async function recordWinLossReview(
   ctx: PipelineContext,
   opportunityId: string,
@@ -415,6 +530,26 @@ export async function recordWinLossReview(
     return fail(
       violation("not_closed", "only a closed opportunity has a win/loss outcome to review", "status"),
     );
+  }
+
+  /* THE REASON MUST BE THE WORKSPACE'S OWN, and must explain THIS outcome.
+     Before 0039 it was a union type over six literals, which is a compile-time
+     claim about a column that would hold whatever a caller sent. A reason from
+     another workspace, or a loss-only reason on a win, is named here rather
+     than surfacing as an FK violation nobody can read. */
+  if (input.primaryReasonId) {
+    const vocab = await listWinLossReasons(ctx);
+    if (!vocab.ok) return vocab as RuleResult<WinLossReviewRecord>;
+    const chosen = vocab.value.find((r) => r.id === input.primaryReasonId);
+    if (!chosen) {
+      return fail(violation("reason_not_found", "no such win/loss reason", "primaryReasonId"));
+    }
+    const fits = opportunity.status === "won" ? chosen.forWon : chosen.forLost;
+    if (!fits) {
+      return fail(
+        violation("reason_wrong_outcome", "that reason does not explain this outcome", "primaryReasonId"),
+      );
+    }
   }
 
   return ok(

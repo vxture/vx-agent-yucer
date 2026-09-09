@@ -8,6 +8,7 @@ import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import {
   advanceStage,
   listPendingReviews,
+  listWinLossReasons,
   recordWinLossReview,
   type PipelineContext,
 } from "./service";
@@ -61,6 +62,15 @@ test("closing a deal reports that a review is required", async () => {
   assert.equal(out.reviewRequired, true);
 });
 
+/** The uuid of a shipped reason, resolved the way a caller resolves it: the
+ *  vocabulary is rows since 0039, so a test cannot name one by literal. */
+async function reasonId(c: Parameters<typeof recordWinLossReview>[0], code: string) {
+  const list = unwrap(await listWinLossReasons(c));
+  const row = list.find((r) => r.reasonCode === code);
+  if (!row) throw new Error(`no such reason: ${code}`);
+  return row.id;
+}
+
 test("re-closing an already-reviewed deal does NOT demand a second review", async () => {
   // The bug this covers: advanceStage did not load the review state, so
   // hasWinLossReview was undefined, requiresWinLossReview was always true, and
@@ -70,7 +80,7 @@ test("re-closing an already-reviewed deal does NOT demand a second review", asyn
   const c = ctx("sales_leader", "business", store);
 
   await advanceStage(c, "opp_1", { to: "won" });
-  unwrap(await recordWinLossReview(c, "opp_1", { primaryReason: "fit", lessons: "Strong champion." }));
+  unwrap(await recordWinLossReview(c, "opp_1", { primaryReasonId: await reasonId(c, "fit"), lessons: "Strong champion." }));
 
   await advanceStage(c, "opp_1", { to: "negotiate", reopen: true, reason: "contract renegotiated" });
   const second = unwrap(await advanceStage(c, "opp_1", { to: "won" }));
@@ -103,7 +113,7 @@ test("unreviewed closed deals are listable - that is what makes MUST enforceable
   const pending = unwrap(await listPendingReviews(c));
   assert.deepEqual(pending.map((o) => o.id).sort(), ["lost_unreviewed", "won_unreviewed"]);
 
-  unwrap(await recordWinLossReview(c, "won_unreviewed", { primaryReason: "price" }));
+  unwrap(await recordWinLossReview(c, "won_unreviewed", { primaryReasonId: await reasonId(c, "price") }));
   const after = unwrap(await listPendingReviews(c));
   assert.deepEqual(after.map((o) => o.id), ["lost_unreviewed"]);
 });
@@ -115,9 +125,10 @@ test("the outcome is derived from the deal, never taken from the request", async
   // learning loop reads.
   const store = new InMemoryPipelineStore();
   store.seed([opp({ status: "lost", stage: "lost", closedAt: new Date() })]);
+  const c = ctx("sales_leader", "business", store);
   const review = unwrap(
-    await recordWinLossReview(ctx("sales_leader", "business", store), "opp_1", {
-      primaryReason: "competitor",
+    await recordWinLossReview(c, "opp_1", {
+      primaryReasonId: await reasonId(c, "competitor"),
       competitor: "Acme Corp",
     }),
   );
@@ -127,8 +138,9 @@ test("the outcome is derived from the deal, never taken from the request", async
 test("the reviewer is the session subject", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp({ status: "won", stage: "won", closedAt: new Date() })]);
+  const c = ctx("sales_leader", "business", store);
   const review = unwrap(
-    await recordWinLossReview(ctx("sales_leader", "business", store), "opp_1", { primaryReason: "fit" }),
+    await recordWinLossReview(c, "opp_1", { primaryReasonId: await reasonId(c, "fit") }),
   );
   assert.equal(review.reviewerSub, "usr_me");
 });
@@ -136,8 +148,9 @@ test("the reviewer is the session subject", async () => {
 test("an open deal has no outcome to review", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
-  const r = await recordWinLossReview(ctx("sales_leader", "business", store), "opp_1", {
-    primaryReason: "fit",
+  const c = ctx("sales_leader", "business", store);
+  const r = await recordWinLossReview(c, "opp_1", {
+    primaryReasonId: await reasonId(c, "fit"),
   });
   assert.equal(r.ok === false && r.violations[0].code, "not_closed");
 });
@@ -147,13 +160,16 @@ test("a review is revised, not duplicated", async () => {
   store.seed([opp({ status: "lost", stage: "lost", closedAt: new Date() })]);
   const c = ctx("sales_leader", "business", store);
 
-  const first = unwrap(await recordWinLossReview(c, "opp_1", { primaryReason: "price" }));
+  const first = unwrap(await recordWinLossReview(c, "opp_1", { primaryReasonId: await reasonId(c, "price") }));
   const second = unwrap(
-    await recordWinLossReview(c, "opp_1", { primaryReason: "competitor", competitor: "Acme" }),
+    await recordWinLossReview(c, "opp_1", { primaryReasonId: await reasonId(c, "competitor"), competitor: "Acme" }),
   );
 
   assert.equal(first.id, second.id, "one review per opportunity");
-  assert.equal((await store.getWinLossReview(WS, "opp_1"))?.primaryReason, "competitor");
+  assert.equal(
+    (await store.getWinLossReview(WS, "opp_1"))?.primaryReasonId,
+    await reasonId(c, "competitor"),
+  );
 });
 
 // --- Gates ------------------------------------------------------------------
@@ -161,7 +177,11 @@ test("a review is revised, not duplicated", async () => {
 test("win/loss is a business-tier capability", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp({ status: "won", stage: "won", closedAt: new Date() })]);
-  const r = await recordWinLossReview(ctx("sales_leader", "pro", store), "opp_1", { primaryReason: "fit" });
+  // The tier gate refuses before any reason is looked up, so the id is one a
+  // business-tier context resolved - the point is the refusal, not the row.
+  const r = await recordWinLossReview(ctx("sales_leader", "pro", store), "opp_1", {
+    primaryReasonId: await reasonId(ctx("sales_leader", "business", store), "fit"),
+  });
   assert.equal(r.ok === false && r.violations[0].code, "feature_not_in_tier");
 });
 
@@ -170,15 +190,19 @@ test("recording needs pipeline.write; reading needs only pipeline.read", async (
   store.seed([opp({ status: "won", stage: "won", closedAt: new Date() })]);
 
   assert.ok(unwrap(await listPendingReviews(ctx("viewer", "business", store))).length === 1);
-  const r = await recordWinLossReview(ctx("viewer", "business", store), "opp_1", { primaryReason: "fit" });
+  // The id comes from a context that MAY read the vocabulary; the refusal
+  // under test is the write, not the lookup.
+  const fit = await reasonId(ctx("sales_leader", "business", store), "fit");
+  const r = await recordWinLossReview(ctx("viewer", "business", store), "opp_1", { primaryReasonId: fit });
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });
 
 test("a review never crosses a workspace boundary", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp({ workspaceId: "ws_other", status: "won", stage: "won", closedAt: new Date() })]);
-  const r = await recordWinLossReview(ctx("sales_leader", "business", store), "opp_1", {
-    primaryReason: "fit",
+  const c = ctx("sales_leader", "business", store);
+  const r = await recordWinLossReview(c, "opp_1", {
+    primaryReasonId: await reasonId(c, "fit"),
   });
   assert.equal(r.ok === false && r.violations[0].code, "not_found");
 });

@@ -174,7 +174,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
   "yucer_pipeline.win_loss_review": [
     "outcome",
-    "primary_reason",
+    // 0039: the free-text reason left; the vocabulary row's uuid took its place.
+    "primary_reason_id",
     "competitor",
     "lessons",
     "reviewer_sub",
@@ -257,6 +258,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0037. unit_code is the anchor, like the two above it; name and order are
   // the workspace's.
   "yucer_catalog.product_unit": ["name", "sort_order", "updated_at"],
+  // 0039. reason_code is the anchor; the name, which outcome it explains, and
+  // the order are the workspace's.
+  "yucer_pipeline.win_loss_reason": ["name", "for_won", "for_lost", "sort_order", "updated_at"],
   // 0031 added the customisation half: the scenario a solution is shaped for,
   // and the manual order the roster is presented in.
   "yucer_catalog.solution": ["name", "summary", "status", "scenario", "sort_order", "updated_at"],

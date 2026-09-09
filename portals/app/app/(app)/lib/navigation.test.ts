@@ -71,7 +71,10 @@ test("administration is nav, but it is not a capability domain", () => {
      neither is the drift this test is watching for. */
   assert.deepEqual(
     ADMIN_NAV_ENTRIES.map((e) => e.key),
-    ["division", "members", "roles", "permissions", "scope", "product", "adoption"],
+    // 赢丢原因 joined 业务参数 on 2026-09-08 (incr/0039): the reasons a
+    // review may choose from are the workspace's own list, and configuring
+    // them is not the same act as working through the reviews.
+    ["division", "members", "roles", "permissions", "scope", "product", "winLossReason", "adoption"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -229,7 +232,9 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
      viewer does not hold. Reading is deliberate on both: the carve explains
      every figure grouped by 大区, and the product vocabulary explains every
      line on a quote. Editing either needs an upsert action they lack. */
-  const inPlane = ["division", "product"];
+  // 赢丢原因 rides pipeline.winloss.view, which a viewer holds - so the gear
+  // shows a viewer three read-only items now, not two.
+  const inPlane = ["division", "product", "winLossReason"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length

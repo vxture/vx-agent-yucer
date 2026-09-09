@@ -99,6 +99,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   scope: "数据范围",
   orgUnit: "部门团队",
   product: "产品配置",
+  winLossReason: "赢丢原因",
   audit: "操作审计",
   adoption: "使用情况",
 };
@@ -1079,6 +1080,17 @@ export const PROPOSAL_ERROR: Record<string, string> = {
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
 export const REVIEW_ERROR: Record<string, string> = {
+  // 0039: the reason is a vocabulary row now, so a review can fail on the row
+  // rather than on the deal.
+  reason_not_found: "找不到这个原因，可能刚被删掉，刷新后重选",
+  reason_in_use: "已有复盘引用这条原因，不能删除——复盘记录的是当时的结论",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  reason_wrong_outcome: "这个原因不适用于当前结果（赢/丢）",
+  code_required: "原因代码不能为空",
+  name_required: "原因名称不能为空",
+  outcome_required: "至少要选一种适用结果：赢、丢，或两者",
+
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   not_closed: "只有已关闭的商机才能复盘——过程未定，结论还不存在",
@@ -1668,6 +1680,7 @@ export const ADMIN_TEXT = {
     permissions: "二十五条权限，谁持有它",
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
+    winLossReason: "复盘时可选的赢丢原因",
     adoption: "跟进记录有没有被用起来",
     division: "全国怎么切成区域，每个区域管哪些省",
   } as Record<string, string>,
@@ -3661,6 +3674,28 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const WINLOSS_TEXT = {
+  // 赢丢原因的配置面 (0039)。
+  reasonConfigTitle: "赢丢原因",
+  reasonCount: (n: number) => `${n} 条原因`,
+  reasonConfigWhy: "复盘时可选的原因。被复盘引用后不能删除。",
+  addReason: "新建原因",
+  editReason: "编辑",
+  saveReason: "保存",
+  reasonCode: "原因代码",
+  reasonCodeHint: "创建后不可更改。已存在的代码表示改名。",
+  reasonName: "原因名称",
+  colReasonName: "原因",
+  colApplies: "适用结果",
+  colCited: "被引用",
+  appliesWon: "赢单",
+  appliesLost: "丢单",
+  appliesBoth: "赢丢皆可",
+  appliesHint: "至少选一种。像「客户未决」这样只解释丢单的，就只勾丢单。",
+  reasonDeleteConsequence: "该原因将从复盘表单中移除。已引用它的复盘不受影响——引用中的原因删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+
   tagPending: (n: number) => (n === 0 ? "没有待复盘的" : `${n} 单待复盘`),
   // Its own section now, so the title names the SUBJECT rather than one of its
   // two states - the pending list is a filter of this, not the whole of it.
@@ -3684,6 +3719,7 @@ export const WINLOSS_TEXT = {
   outcomeLost: "丢单",
   record: "写复盘",
   reasonLabel: "主要原因",
+  reasonNone: "未选择",
   competitorLabel: "竞争对手",
   lessonsLabel: "经验",
   save: "保存",
