@@ -2401,6 +2401,10 @@ export const ROLE_TEXT = {
   detailsEmpty: "这个角色没有任何权限，持有它的成员看不到任何模块。",
   detailsColHeld: "持有",
   detailsEdit: "编辑",
+  detailsEditTitle: (name: string) => `${name} · 编辑权限`,
+  detailsEditWhy: "勾选操作即授予它需要的权限；需要同一权限的操作一起变化。保存后抽屉保持打开。",
+  detailsSave: "保存",
+  detailsSaved: (name: string, n: number, total: number) => `「${name}」已保存，持有 ${n} / ${total} 条权限`,
   // --- 表单 ---
   formTitle: "配置角色",
   formWhy: "代码、名称、一句说明，以及这个角色持有的权限。",

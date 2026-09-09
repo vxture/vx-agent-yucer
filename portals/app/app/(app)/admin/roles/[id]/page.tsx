@@ -14,15 +14,8 @@ import { permissionOptions } from "../../../lib/role-options";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditRolePage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
-}) {
+export default async function EditRolePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { from } = await searchParams;
   const { ADMIN_TEXT, DOMAIN_LABEL, PERMISSION_LABEL, PERMISSION_TREE_TEXT, ROLE_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
@@ -60,9 +53,6 @@ export default async function EditRolePage({
         description={mine.description}
         permissions={mine.permissions}
         members={mine.members}
-        /* Reached from the roster's 权限详情 drawer: go back to it, open on
-           this role, so the change is read where it was decided. */
-        returnTo={from === "details" ? `/admin/roles?details=${encodeURIComponent(mine.code)}` : "/admin/roles"}
         /* The module's word: the sidebar's, and for the admin plane the
            tree's own (成员与权限) - DOMAIN_LABEL has no `admin`. */
         options={permissionOptions(PERMISSION_LABEL, { ...DOMAIN_LABEL, ...PERMISSION_TREE_TEXT.moduleLabel })}

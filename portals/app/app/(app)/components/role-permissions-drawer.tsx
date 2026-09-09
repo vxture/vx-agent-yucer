@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Button, Drawer, EmptyState } from "@vxture/design-ui";
+import { useMemo, useState, useTransition } from "react";
+import { Button, Drawer, EmptyState, useToast } from "@vxture/design-ui";
 import { useRouter } from "next/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { buildPermissionTree } from "../lib/permission-tree";
+import { saveRoleAction } from "../admin/roles/actions";
+import type { PermCode } from "../../authz/catalog";
 import { PermissionTreeTable, type PermissionView } from "./permission-tree";
 
 /* 权限详情 - one role's permissions as the four-level tree, in a drawer
@@ -18,54 +20,132 @@ import { PermissionTreeTable, type PermissionView } from "./permission-tree";
  * wants is "what can this role do", so the table opens pruned to what it can
  * and the switch on the toolbar shows everything.
  *
- * THE FOOT CARRIES 编辑 BESIDE 关闭 (owner: 在底部关闭位置需要一个编辑按钮，跳转
- * 编辑界面，需权限), for a reader who may: looking at what a role does is how
- * somebody decides to change it. The edit page is told it was reached from
- * here, and comes back to this drawer, open on the same role, when it is
- * saved or discarded - see RolePanel for the state that makes that possible.
+ * EDITING HAPPENS HERE, IN THE SAME DRAWER (owner: 底部需要编辑按钮，并保持
+ * 抽屉打开). 编辑 turns every operation's 持有 mark into a checkbox bound to
+ * the permission it needs; 保存 writes the grants and the drawer stays open
+ * on the same role, now reading what was just decided; 取消 puts the draft
+ * down. It never leaves the page - the earlier version hopped to the form
+ * and back, and that was a mess. The form on /admin/roles/[id] remains the
+ * place for the code, the name and the sentence.
  */
+export interface DrawerRole {
+  readonly code: string;
+  readonly name: string;
+  readonly description: string;
+  readonly permissions: readonly string[];
+}
+
 export function RolePermissionsDrawer({
   role,
   total,
   open,
   onClose,
-  editHref,
+  editable,
 }: {
-  readonly role: { readonly name: string; readonly permissions: readonly string[] } | null;
+  readonly role: DrawerRole | null;
   /** How many permissions the catalogue has - the denominator. */
   readonly total: number;
   readonly open: boolean;
   readonly onClose: () => void;
-  /** Where 编辑 goes; absent for a reader who may not edit. */
-  readonly editHref: string | null;
+  /** May this reader change the grants (admin.role.upsert)? */
+  readonly editable: boolean;
 }) {
-  const { ROLE_TEXT } = useMessages();
+  const { ROLE_ERROR, ROLE_TEXT } = useMessages();
   const router = useRouter();
+  const { toast } = useToast();
+  const [pending, start] = useTransition();
   const tree = useMemo(() => buildPermissionTree(), []);
-  const held = useMemo(() => new Set(role?.permissions ?? []), [role]);
   const [view, setView] = useState<PermissionView>("granted");
+  /* The draft: null while viewing, the working set while editing. */
+  const [draft, setDraft] = useState<Set<string> | null>(null);
+  const held = useMemo(() => draft ?? new Set(role?.permissions ?? []), [draft, role]);
+  const editing = draft !== null;
+
+  const close = () => {
+    setDraft(null);
+    onClose();
+  };
+  const toggle = (p: PermCode) =>
+    setDraft((prev) => {
+      const next = new Set(prev ?? role?.permissions ?? []);
+      if (next.has(p)) next.delete(p);
+      else next.add(p);
+      return next;
+    });
+  const save = () => {
+    if (!role || !draft) return;
+    start(async () => {
+      const r = await saveRoleAction({
+        code: role.code,
+        name: role.name,
+        description: role.description,
+        permissions: [...draft],
+      });
+      if (!r.ok) {
+        toast({ tone: "danger", title: ROLE_TEXT.saveFailed, description: ROLE_ERROR[r.error] ?? r.error });
+        return;
+      }
+      toast({ tone: "success", title: ROLE_TEXT.detailsSaved(role.name, draft.size, total) });
+      setDraft(null);
+      // The roster and this drawer read the same rows; refresh brings the
+      // saved grants back through them.
+      router.refresh();
+    });
+  };
 
   return (
     <Drawer
       open={open}
-      onClose={onClose}
+      onClose={close}
       width="lg"
-      title={role ? ROLE_TEXT.detailsTitle(role.name) : ""}
-      description={role ? ROLE_TEXT.detailsWhy(role.permissions.length, total) : ""}
+      title={role ? (editing ? ROLE_TEXT.detailsEditTitle(role.name) : ROLE_TEXT.detailsTitle(role.name)) : ""}
+      description={
+        role
+          ? editing
+            ? ROLE_TEXT.detailsEditWhy
+            : ROLE_TEXT.detailsWhy(role.permissions.length, total)
+          : ""
+      }
       closeLabel={ROLE_TEXT.detailsDone}
       footer={
-        <div className="gap-sm flex items-center justify-end">
-          <Button variant="secondary" onClick={onClose}>{ROLE_TEXT.detailsDone}</Button>
-          {editHref ? (
-            <Button onClick={() => router.push(editHref)}>{ROLE_TEXT.detailsEdit}</Button>
-          ) : null}
+        <div className="gap-sm flex items-center justify-between">
+          {/* While editing the left reads the draft's count, so the person
+              sees what 保存 will write before writing it. */}
+          <span className="text-muted-foreground text-body-sm">
+            {editing ? ROLE_TEXT.chosen(held.size) : ""}
+          </span>
+          <div className="gap-sm flex items-center">
+            {editing ? (
+              <>
+                <Button variant="secondary" disabled={pending} onClick={() => setDraft(null)}>
+                  {ROLE_TEXT.cancel}
+                </Button>
+                <Button disabled={pending} onClick={save}>
+                  {ROLE_TEXT.detailsSave}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={close}>{ROLE_TEXT.detailsDone}</Button>
+                {editable && role ? (
+                  <Button onClick={() => setDraft(new Set(role.permissions))}>{ROLE_TEXT.detailsEdit}</Button>
+                ) : null}
+              </>
+            )}
+          </div>
         </div>
       }
     >
-      {held.size === 0 ? (
+      {held.size === 0 && !editing ? (
         <EmptyState title={ROLE_TEXT.pickEmpty} description={ROLE_TEXT.detailsEmpty} />
       ) : (
-        <PermissionTreeTable tree={tree} held={held} view={view} onViewChange={setView} />
+        <PermissionTreeTable
+          tree={tree}
+          held={held}
+          view={view}
+          onViewChange={setView}
+          onToggle={editing ? toggle : undefined}
+        />
       )}
     </Drawer>
   );

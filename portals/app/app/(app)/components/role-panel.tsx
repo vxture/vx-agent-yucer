@@ -57,10 +57,8 @@ export function RolePanel({
   const [selected, setSelected] = useState<string[]>([]);
   /* WHICH ROLE THE DRAWER SHOWS IS IN THE URL (`?details=<code>`), not in
      component state (owner, 2026-09-09: 保持侧边栏抽屉打开状态). So it survives
-     the refresh every row move causes, a reload, and the round trip through
-     the edit page - 编辑 in the drawer's foot goes there and 保存 / 放弃 come
-     back to this address, drawer open on the same role, now showing what
-     was changed. A code the list no longer has reads as closed. */
+     the refresh every row move - and every save inside the drawer - causes,
+     and a reload. A code the list no longer has reads as closed. */
   const details = useMemo(() => {
     const code = params.get("details");
     return code ? (rows.find((r) => r.code === code) ?? null) : null;
@@ -232,8 +230,7 @@ export function RolePanel({
         total={total}
         open={details !== null}
         onClose={() => setDetails(null)}
-        /* `from=details` is how the edit page knows to come back here. */
-        editHref={editable && details ? `/admin/roles/${details.id}?from=details` : null}
+        editable={editable}
       />
     </Section>
   );
