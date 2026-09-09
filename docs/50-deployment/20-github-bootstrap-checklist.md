@@ -52,8 +52,11 @@ literal the instantiate script wrote (`yucer`).
 ### Repo configuration
 
 - [ ] `PRODUCT_CODE` repo variable = `yucer`.
-- [ ] `APP_PUBLISH_PORT` = _(assigned at platform registration - see
-      `10-platform-registration-checklist.md`)_.
+- [x] `APP_PUBLISH_PORT` repo variable = `4060` (the platform port registry
+      assigned yucer the L3 block `4060-4069` on 2026-09-10: prod `4060`,
+      beta `4061`). Rule R3 makes the code fallback, compose, Dockerfile and
+      `.env.example` the same number; `5000/5001` were self-assigned before
+      registration and are gone.
 - [ ] `production` GitHub Environment + Required reviewer (deploy pauses until
       approved). No `beta` (prod only).
 - [ ] Host secrets for worker02: `DEPLOY_HOST` = `vx-worker-02` (tailnet
