@@ -53,18 +53,21 @@ export function FormPage({
  * result was two conventions on one screen. The row is a component now, so a
  * page with three actions and a page with one are laid out by the same code.
  */
-export function EntryActions({ children }: { readonly children: ReactNode }) {
-  return <div className="gap-sm mt-md flex flex-wrap items-center">{children}</div>;
-}
-
-/**
- * The way in to a creation page.
- * A real <a>, not a router.push - middle-click and open-in-new-tab must work,
- * because a person adding five rows wants five tabs, not five round trips.
+/* EntryActions IS GONE (owner, 2026-09-08: 表格有操作行样式规范，找 DS 模版).
  *
- * IT CARRIES NO SPACING OF ITS OWN. Put it in an EntryActions row; a control
- * that positions itself cannot sit beside another one.
+ * It was a `div.mt-md.flex` that each page dropped wherever it happened to
+ * read well - under the table on /pipeline and /campaign, between two panels
+ * on /planning, inside a Section on the same page. Four placements for one
+ * kind of control.
+ *
+ * The DS already answers this and has all along: `ViewHeader`/`Section` take
+ * an `action` slot (the header's right side, aligned to the description's
+ * baseline - "按钮属于接下来做什么，挂在页头的收束线上"), and a list-level
+ * 新建 belongs in `FilterBar.actions` where a page has a filter row. So the
+ * button goes into the header of whatever owns the table, and this positioner
+ * has nothing left to do.
  */
+
 export function NewEntryLink({ href, label }: { readonly href: string; readonly label?: string }) {
   const { ASSIST_TEXT } = useMessages();
   return (

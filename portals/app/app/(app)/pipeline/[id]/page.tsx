@@ -58,7 +58,7 @@ import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
 import type { Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
-import { EntryActions, NewEntryLink } from "../../components/form-page";
+import { NewEntryLink } from "../../components/form-page";
 import { LineEditor } from "../../components/line-editor";
 import {
   advanceOpportunityStage,
@@ -384,6 +384,12 @@ export default async function OpportunityDetailPage({
     },
   ];
 
+  const linesAction =
+    can(session.authz, session.entitlement, "pipeline.opportunity.update", "ui").allowed
+    && opportunity.closedAt === null ? (
+      <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
+    ) : null;
+
   return (
     <ViewLayout>
       {/* THE WAY BACK. With the board gone this page carries no navigation of
@@ -656,7 +662,13 @@ export default async function OpportunityDetailPage({
       {/* BEFORE the commercial terms, because the lines DECIDE the amount that
           the terms panel then shows. Reading them the other way round would put
           the derived number above the thing it is derived from. */}
+      {/* HOISTED, not written inline in the tag below. reachable-codes.test
+          resolves a bound action to the last component tag opened before it,
+          so a <NewEntryLink> nested inside LineEditor's props made the guard
+          read `onApprove`/`onSave` as bound to form-page - which renders no
+          error dictionary. The guard was right about what it saw. */}
       <LineEditor
+        action={linesAction}
         opportunityId={id}
         lines={(lineRows.ok ? lineRows.value : [])
           .filter((l) => l.opportunityId === id)
@@ -692,17 +704,6 @@ export default async function OpportunityDetailPage({
         onSave={saveOpportunityLines}
         onApprove={approveDiscount}
       />
-      {can(
-        session.authz,
-        session.entitlement,
-        "pipeline.opportunity.update",
-        "ui",
-      ).allowed && opportunity.closedAt === null ? (
-        <EntryActions>
-          <NewEntryLink href={`/pipeline/${id}/lines`} label={OPPORTUNITY_TEXT.linesEdit} />
-        </EntryActions>
-      ) : null}
-
       <DealTerms
         opportunityId={id}
         stage={opportunity.stage}

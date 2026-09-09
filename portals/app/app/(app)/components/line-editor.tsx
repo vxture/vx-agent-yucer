@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -58,6 +58,9 @@ export interface EditorLine {
 }
 
 export interface LineEditorProps {
+  /** The panel's action, rendered in the Section header beside the
+   *  below-floor warning. The read view passes the way in to the editor. */
+  readonly action?: ReactNode;
   /** Set when the editor is a PAGE: on a successful save it returns there.
    *  Absent = inline legacy mode (kept for the read view on the deal page). */
   readonly doneHref?: string;
@@ -107,6 +110,7 @@ const SORT_ON = {
 };
 
 export function LineEditor({
+  action,
   opportunityId,
   lines,
   products,
@@ -166,12 +170,19 @@ export function LineEditor({
       icon="stack"
       title={OPPORTUNITY_TEXT.linesTitle}
       description={OPPORTUNITY_TEXT.linesWhy}
+      /* THE SECTION'S OWN ACTION SLOT holds both the warning and the way in
+         to the editor. The page used to put that link in a row of its own
+         below the table; the DS puts a panel's action in its header, and one
+         placement for every table is the point (owner, 2026-09-08). */
       action={
-        lines.some((l) => l.needsApproval && !l.approved) ? (
-          <StatusBadge tone="warning">
-            {OPPORTUNITY_TEXT.lineBelowFloor}
-          </StatusBadge>
-        ) : undefined
+        <span className="gap-sm flex items-center">
+          {lines.some((l) => l.needsApproval && !l.approved) ? (
+            <StatusBadge tone="warning">
+              {OPPORTUNITY_TEXT.lineBelowFloor}
+            </StatusBadge>
+          ) : null}
+          {action}
+        </span>
       }
     >
       {lines.length === 0 && drafts.length === 0 ? (

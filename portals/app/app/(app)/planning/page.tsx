@@ -6,7 +6,7 @@ import { getPlanningStore } from "../../domains/shared/registry";
 import { attainment, listTerritories } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
 import { TerritoryPanel } from "../components/territory-panel";
-import { EntryActions, NewEntryLink } from "../components/form-page";
+import { NewEntryLink } from "../components/form-page";
 import { updateSalesTarget } from "./actions";
 import { can } from "../../authz/decide";
 
@@ -132,31 +132,34 @@ export default async function PlanningPage() {
           target, and this page used to say that in a sentence while the
           roster lived elsewhere. RETIRED ONES INCLUDED: a wound-down region
           still holds its code, and un-retiring it is done from its row. */}
-      <TerritoryPanel rows={territories.ok ? territories.value : []} />
-      {can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
-        .allowed ? (
-        <EntryActions>
-          {/* NAMED, not the bare 新建 other pages use: this page creates two
-              different things now, and a row of identical buttons would make
-              the reader guess which. */}
-          <NewEntryLink href="/planning/territory/new" label={PLANNING_TEXT.territoryNewEntry} />
-        </EntryActions>
-      ) : null}
+      {/* THE ACTION SITS IN THE PANEL'S OWN HEADER (DS Section `action`), not
+          in a row under it - this page owns two tables, and a create button
+          floating between them belongs to neither. NAMED for the same reason:
+          two bare 新建 on one page would make the reader guess which. */}
+      <TerritoryPanel
+        rows={territories.ok ? territories.value : []}
+        action={
+          can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
+            .allowed ? (
+            <NewEntryLink
+              href="/planning/territory/new"
+              label={PLANNING_TEXT.territoryNewEntry}
+            />
+          ) : null
+        }
+      />
 
       <Section
         icon="target"
         title={PLANNING_TEXT.title}
         description={PLANNING_TEXT.description}
-      >
-        {/* 明确指标. INSIDE the section and above the table, for the reason
-            the form was: on a fresh workspace the table is empty, and a
-            doorway under a list nobody can populate is behind a locked door. */}
-        {can(session.authz, session.entitlement, "planning.target.create", "ui")
-          .allowed ? (
-          <EntryActions>
+        action={
+          can(session.authz, session.entitlement, "planning.target.create", "ui")
+            .allowed ? (
             <NewEntryLink href="/planning/new" label={PLANNING_TEXT.targetNew} />
-          </EntryActions>
-        ) : null}
+          ) : null
+        }
+      >
         <PlanningTable
           rows={result.value}
           territoryNames={territoryNames}

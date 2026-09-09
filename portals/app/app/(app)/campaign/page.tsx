@@ -12,7 +12,7 @@ import type { CampaignRecord } from "../../domains/strategy/store";
 import { can } from "../../authz/decide";
 import { CampaignTable, type CampaignRow } from "../components/campaign-table";
 import { moveCampaign } from "./actions";
-import { EntryActions, NewEntryLink } from "../components/form-page";
+import { NewEntryLink } from "../components/form-page";
 import {
   ExecutionPanel,
   type ExecutionRow,
@@ -144,6 +144,10 @@ export default async function CampaignPage() {
           one reading worth the top of the page, so it is said in words. */}
       <ModuleHeadline
         moduleKey="campaign"
+        action={
+          can(session.authz, session.entitlement, "campaign.execution.upsert", "ui")
+            .allowed ? <NewEntryLink href="/campaign/new" /> : null
+        }
         description={CAMPAIGN_TEXT.leadRule}
         tags={
           <>
@@ -170,17 +174,6 @@ export default async function CampaignPage() {
           cannot be marked complete. The reader meets the refusal first and
           then what to do about it. */}
       <ExecutionPanel rows={executions} />
-      {/* Creation and editing left for /campaign/new on 2026-09-05. */}
-      {can(
-        session.authz,
-        session.entitlement,
-        "campaign.execution.upsert",
-        "ui",
-      ).allowed ? (
-        <EntryActions>
-          <NewEntryLink href="/campaign/new" />
-        </EntryActions>
-      ) : null}
     </ViewLayout>
   );
 }

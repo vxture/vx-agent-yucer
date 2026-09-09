@@ -8,6 +8,7 @@ import {
   TableTitleCell,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
+import type { ReactNode } from "react";
 import { useMessages } from "../lib/i18n/provider";
 
 // The territory roster: who carries which patch of the market.
@@ -43,12 +44,19 @@ const SORT_ON = {
   name: (r: TerritoryRow) => r.name,
 };
 
-export function TerritoryPanel({ rows }: { readonly rows: readonly TerritoryRow[] }) {
-  const { DATA_TABLE_LABELS, PLANNING_TEXT } = useMessages();
+export function TerritoryPanel({
+  rows,
+  action,
+}: {
+  readonly rows: readonly TerritoryRow[];
+  /** The panel's action, in the DS Section header slot - 新建区域 on /planning. */
+  readonly action?: ReactNode;
+}) {
+  const { DATA_TABLE_LABELS, DOMAIN_LABEL, PLANNING_TEXT } = useMessages();
   const sorted = useTableSort<TerritoryRow>([], SORT_ON);
   const nameOf = new Map(rows.map((r) => [r.id, r.name]));
   return (
-    <Section id="territories" icon="map-pin">
+    <Section id="territories" icon="map-pin" title={DOMAIN_LABEL.territory} action={action}>
       {rows.length === 0 ? (
         <EmptyState
           title={PLANNING_TEXT.territoryNone}

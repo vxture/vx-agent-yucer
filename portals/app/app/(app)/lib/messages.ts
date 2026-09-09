@@ -71,7 +71,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // 销售区域 is a SECTION of 销售规划 since 2026-09-08, not a module of its
   // own; the label stays because the section still needs a name.
   territory: "销售区域",
-  division: "市场划分",
+  division: "区域设置",
   namedAccount: "重点客户",
   quote: "报价管理",
   routing: "线索分派",
@@ -743,8 +743,7 @@ export const CATALOG_TEXT = {
   settingsTitle: "产品配置",
   // 计价单位 (0037) - 产品配置的第三段
   unitsTitle: "计价单位",
-  unitsWhy:
-    "产品按什么卖：套、人天、年。每一条报价行都是数量乘单价，所以单位不是标签——「12 × 8,000」在知道一个是什么之前不成句。这里定好，产品表单里只能选，不能自己敲。",
+  unitsWhy: "产品按什么卖：套、人天、年。报价行按它计量。",
   addUnit: "新建单位",
   renameUnit: "重命名",
   saveUnit: "保存单位",
@@ -754,8 +753,7 @@ export const CATALOG_TEXT = {
   unitDeleteConsequence: "还有产品按这个单位计价时会被拒绝——先把它们改成别的单位。",
   back: "返回",
   typesTitle: "产品类型",
-  typesWhy:
-    "类型是工作区自己的词表，只描述产品是哪类。被产品引用时不可删除；停用后不再供新产品选择，旧产品照常显示。",
+  typesWhy: "产品是哪一类。被引用时不可删除，可停用。",
   typeCode: "类型编码",
   typeName: "类型名称",
   typeCodeHint: "编码是本工作区的业务锚点，创建后不可改；内部关联走 uuid，从不显示",
@@ -777,8 +775,7 @@ export const CATALOG_TEXT = {
   typeRetiredBadge: "已停用",
   typeInUse: (n: number) => `${n} 个产品`,
   statusesTitle: "产品状态",
-  statusesWhy:
-    "状态只描述产品处于什么阶段——在研、在售、已退役。行就是内容本身，这张表没有启停概念。",
+  statusesWhy: "产品处于什么阶段：在研、在售、已退役。",
   addStatus: "新增状态",
   renameStatus: "重命名",
   saveStatus: "保存状态",
@@ -1178,8 +1175,7 @@ export const SCOPE_LABEL: Record<string, string> = {
 
 export const ADMIN_PAGE_TEXT = {
   rolesTitle: "角色管理",
-  rolesWhy:
-    "九个角色，各自持有哪些权限。角色与授权是数据库种子（incr/0021）与 authz/catalog.ts 的镜像，改一处要同时改种子、镜像和目录文档，所以这里只读——给一个能勾选的开关，等于假装它能改。",
+  rolesWhy: "九个角色，各自能做什么。只读。",
   rolesColumnRole: "角色",
   rolesColumnPerms: "权限数",
   rolesColumnMembers: "成员数",
@@ -1187,8 +1183,7 @@ export const ADMIN_PAGE_TEXT = {
   rolesMembers: (n: number) => `${n} 人`,
   rolesNoMember: "暂无成员",
   permissionsTitle: "权限管理",
-  permissionsWhy:
-    "二十五条权限，以及每一条被哪些角色持有。这是「谁能做什么」的完整答案；同一件事在界面上是否出现，还要先过档位那道门。",
+  permissionsWhy: "二十五条权限，各自被哪些角色持有。只读。",
   permissionsColumnCode: "权限码",
   permissionsColumnName: "说明",
   permissionsColumnRoles: "持有的角色",
@@ -1196,8 +1191,7 @@ export const ADMIN_PAGE_TEXT = {
   permissionsCount: (perms: number, roles: number, grants: number) =>
     `${perms} 条权限 · ${roles} 个角色 · ${grants} 条授权`,
   scopeTitle: "数据范围",
-  scopeWhy:
-    "同样的权限，看到的行不一样：整个工作区、所辖区域、或仅自己名下。范围是成员的属性，在成员管理里改；这里回答的是「现在谁在哪一档」。",
+  scopeWhy: "谁能看到哪些数据。范围在成员管理里改。",
   scopeColumnMember: "成员",
   scopeColumnScope: "范围",
   scopeColumnDetail: "覆盖",
@@ -1208,8 +1202,7 @@ export const ADMIN_PAGE_TEXT = {
 
 export const MEMBER_TEXT = {
   title: "成员与角色",
-  description:
-    "角色决定成员能看到什么、能改什么。新成员首次登录后出现在这里，默认没有任何角色——在此为其分配。",
+  description: "谁在这个工作区，各自持有哪些角色。",
   columnMember: "成员",
   columnRoles: "角色",
   columnActions: "",
@@ -1662,18 +1655,18 @@ export const ADMIN_GROUP_LABEL: Record<string, string> = {
 export const ADMIN_TEXT = {
   tagMembers: (n: number) => `${n} 位成员`,
   title: "配置管理",
-  description: "工作区的设置项。不是日常工作，所以不占侧边栏——从右上角进来。",
+  description: "工作区怎么配置。设一次，各处生效。",
   emptyTitle: "你没有管理权限",
   emptyDescription:
     "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
   planned: "未建",
   entryHint: {
-    members: "谁在这个工作区，启用、停用与离职交接",
-    roles: "九个角色各自是什么，各自能做哪些事",
-    permissions: "二十五条权限，以及哪个角色拿到了它",
+    members: "谁在这个工作区，启用与交接",
+    roles: "九个角色各自能做什么",
+    permissions: "二十五条权限，谁持有它",
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
-    adoption: "跟进记录有没有被用起来。判据见 ADR-012",
+    adoption: "跟进记录有没有被用起来",
     division: "全国怎么切成大区，每个大区管哪些省",
   } as Record<string, string>,
   // What each card says about the state behind it. The cards used to print
@@ -1804,8 +1797,7 @@ export const RECENCY_TEXT = {
 export const ADOPTION_TEXT = {
   navLabel: "使用情况",
   title: "跟进记录的使用情况",
-  description:
-    "这张表回答的不是「谁干得好」，而是「这套东西有没有被用起来」。二期（智能体基于历史做分析与判断）是否值得建，取决于这里的数字（判据见 ADR-012）——证据表是空的时候，推理层只会产出自信的虚构。",
+  description: "跟进记录有没有被用起来。判据见 ADR-012。",
   // The anti-scoreboard note is user-visible on purpose. If people believe it
   // is a ranking they will record for the ranking, and the number stops
   // measuring the thing it was built to measure.
@@ -3166,8 +3158,7 @@ export const PLANNING_TEXT = {
   divisionProvinceCount: "省份数",
   divisionScope: "覆盖省份",
   divisionFormTitle: "配置大区",
-  divisionFormWhy:
-    "一个大区由哪些省组成，由你决定。可以只含一个省——比如一个只覆盖新疆的基地——也可以覆盖十个。省份如果已经在别的大区里，这里勾选会把它移过来，原大区自动去掉：一个省同一时间只属于一个大区。",
+  divisionFormWhy: "选择这个大区覆盖的省份。一个省只属于一个大区。",
   divisionCode: "大区代码",
   divisionCodeHint: "创建后不可更改，作为这个大区的锚。已存在的代码表示改名。",
   divisionNameLabel: "大区名称",
@@ -3175,8 +3166,7 @@ export const PLANNING_TEXT = {
   // --- 省份选择抽屉 ---
   divisionPick: "选择省份",
   divisionPickTitle: "选择省份",
-  divisionPickWhy:
-    "勾选这个大区覆盖的省份。右侧标注了两套标准切法各自的归属，供参考——你可以完全不按它们来。已经属于别的大区的省份会标出原属，勾选即移入。",
+  divisionPickWhy: "勾选省份。后缀是两套预置切法的归属，供参考。",
   divisionPickDone: "完成",
   divisionPickClear: "清空",
   divisionPickEmpty: "尚未选择省份",
@@ -3194,8 +3184,7 @@ export const PLANNING_TEXT = {
   divisionRemove: "删除大区",
   divisionRemoveWhy: "只有不含任何省份的大区才能删除。先把省份移走，再删。",
   templateTitle: "重置为预置划分",
-  templateWhy:
-    "两种都是标准的中国市场切法，谁也不比谁更对：五分法（东南西北中），七分法（华北/东北/华东/华中/华南/西南/西北）。选一种作为起点，之后随便改。",
+  templateWhy: "选一套预置切法作为起点，之后随便改。",
   templateReset: "重置预置",
   templateConfirm: "确认替换",
   templateCancel: "取消",
@@ -3210,11 +3199,9 @@ export const PLANNING_TEXT = {
   templateRefWhy: "选一个预置大区，代码、名称和省份会自动填好，再改也行。",
   // 这页不再和销售区域同屏，所以不能再说「上面的销售区域……」。两个维度的
   // 区别要在这里自己说清楚。
-  divisionWhy:
-    "全国怎么切成大区，每个大区管哪些省。这是市场结构，不是团队安排：谁负责哪片地在「销售规划」里定，一个大区可以由多个区域共同负责。一个省最多属于一个大区，所以这里是改归属，不是勾选；态势屏上按大区汇总的每一个数字，都按这张表来。",
+  divisionWhy: "全国怎么切成大区，每个大区管哪些省。",
   divisionEmptyTitle: "这个工作区还没有大区",
-  divisionEmptyWhy:
-    "大区在数据库初始化时预置五个（东部/南部/西部/北部/中部）。一个都没有，通常意味着这个工作区是在预置之前建的。",
+  divisionEmptyWhy: "这个工作区还没有大区。新建一个，或引用预置划分。",
   divisionNone: "未归入",
   divisionHoldsNothing: "这个大区目前不含任何省份",
   moveProvince: (p: string) => `把 ${p} 改到其他大区`,

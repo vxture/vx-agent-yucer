@@ -17,7 +17,7 @@ import {
 } from "../../domains/shared/registry";
 import { listAccounts } from "../../domains/account/service";
 import { listTerritories } from "../../domains/planning/service";
-import { EntryActions, NewEntryLink } from "../components/form-page";
+import { NewEntryLink } from "../components/form-page";
 import {
   forecastHistory,
   forecastScorecard,
@@ -243,6 +243,10 @@ export default async function PipelinePage({
           it, so those are badges. */}
       <ModuleHeadline
         moduleKey="pipeline"
+        action={
+          can(session.authz, session.entitlement, "pipeline.opportunity.create", "ui")
+            .allowed ? <NewEntryLink href="/pipeline/new" /> : null
+        }
         description={PIPELINE_TEXT.description}
         tags={
           <>
@@ -308,17 +312,6 @@ export default async function PipelinePage({
           doorway stays ABOVE the board for the reason the form sat there: on a
           fresh workspace the board is empty, and a doorway under a list nobody
           can populate is a doorway behind a locked door. */}
-      {can(
-        session.authz,
-        session.entitlement,
-        "pipeline.opportunity.create",
-        "ui",
-      ).allowed ? (
-        <EntryActions>
-          <NewEntryLink href="/pipeline/new" />
-        </EntryActions>
-      ) : null}
-
       <PipelineBoard
         rows={rows}
         undated={undated}

@@ -168,7 +168,7 @@ export const en: Dictionary = {
     solution: "Solutions",
     pricebook: "Product pricing",
     territory: "Territories",
-    division: "Market carve",
+    division: "Region settings",
     namedAccount: "Named accounts",
     quote: "Quotes",
     routing: "Lead routing",
@@ -838,8 +838,7 @@ export const en: Dictionary = {
     sortWhy: "A new product joins at the end. Move it into place - this order is the one customers see.",
     settingsTitle: "Catalogue configuration",
     unitsTitle: "Pricing units",
-    unitsWhy:
-      "What a product is sold by: sets, person-days, years. Every quote line multiplies quantity by unit price, so the unit is not a label - a line reading \"12 x 8,000\" is not a sentence until you know what one of them is. Configured here; the product form picks from this list rather than accepting typed text.",
+    unitsWhy: "What a product is sold by: sets, person-days, years. Quote lines count in it.",
     addUnit: "New unit",
     renameUnit: "Rename",
     saveUnit: "Save unit",
@@ -849,8 +848,7 @@ export const en: Dictionary = {
     unitDeleteConsequence: "Refused while products are priced in it - move them to another unit first.",
     back: "Back",
     typesTitle: "Product types",
-    typesWhy:
-      "Types are this workspace's own vocabulary and describe only what kind a product is. Deletion is refused while referenced; a retired type stops being offered but keeps rendering.",
+    typesWhy: "What kind of product this is. Cannot be deleted while in use; can be retired.",
     typeCode: "Type code",
     typeName: "Type name",
     typeCodeHint: "The code is this workspace's business anchor and cannot change; internal joins are uuids and never display",
@@ -870,8 +868,7 @@ export const en: Dictionary = {
     typeRetiredBadge: "Retired",
     typeInUse: (n: number) => `${n} products`,
     statusesTitle: "Product statuses",
-    statusesWhy:
-      "A status describes only what stage a product is at - in development, on sale, retired. The rows are the content; this table has no on/off concept.",
+    statusesWhy: "What stage a product is at: in development, on sale, retired.",
     addStatus: "New status",
     renameStatus: "Rename",
     saveStatus: "Save status",
@@ -1763,9 +1760,8 @@ export const en: Dictionary = {
 
   ADMIN_TEXT: {
     tagMembers: (n: number) => `${n} members`,
-    title: "Administration",
-    description:
-      "Workspace settings. Not daily work, so it does not take sidebar room - it is reached from the top right.",
+    title: "Configuration",
+    description: "How this workspace is configured.",
     emptyTitle: "You hold no administration permission",
     emptyDescription:
       "This is not a subscription tier problem and money will not fix it. An administrator has to assign you a role.",
@@ -2715,16 +2711,14 @@ export const en: Dictionary = {
     divisionProvinceCount: "Provinces",
     divisionScope: "Covers",
     divisionFormTitle: "Configure a region",
-    divisionFormWhy:
-      "Which provinces a region is made of is yours to decide - one province, like a base covering only Xinjiang, or ten. Ticking a province that already sits in another region moves it here and drops it from that one: a province belongs to one region at a time.",
+    divisionFormWhy: "Choose the provinces this region covers. A province belongs to one region.",
     divisionCode: "Region code",
     divisionCodeHint: "Fixed once created - it is this region's anchor. An existing code renames it.",
     divisionNameLabel: "Region name",
     divisionProvincesLabel: "Provinces covered",
     divisionPick: "Choose provinces",
     divisionPickTitle: "Choose provinces",
-    divisionPickWhy:
-      "Tick the provinces this region covers. Each row shows where the two standard carves put it, for reference - you are free to disagree with both. A province held by another region is marked, and ticking it moves it here.",
+    divisionPickWhy: "Tick provinces. The suffix shows where the two standard carves put each one.",
     divisionPickDone: "Done",
     divisionPickClear: "Clear",
     divisionPickEmpty: "No provinces chosen yet",
@@ -2742,8 +2736,7 @@ export const en: Dictionary = {
     divisionRemove: "Delete region",
     divisionRemoveWhy: "Only a region holding no provinces can be deleted. Move them out first.",
     templateTitle: "Reset to a standard carve",
-    templateWhy:
-      "Two standard ways to carve the China market, neither more correct: the five-way and the seven-way. Adopt one as a starting point and edit from there.",
+    templateWhy: "Adopt a standard carve as a starting point, then edit freely.",
     templateReset: "Reset to a standard carve",
     templateConfirm: "Replace",
     templateCancel: "Cancel",
@@ -2756,11 +2749,9 @@ export const en: Dictionary = {
     templateRef: "Start from a standard region",
     templateRefNone: "Start blank",
     templateRefWhy: "Pick one and its code, name and provinces are filled in - still editable.",
-    divisionWhy:
-      "How the country is carved into regions, and which provinces each holds. This is market structure, not team structure: who covers which ground is decided in planning, and one region may be worked by several territories. A province belongs to at most one region, so this changes where it sits rather than ticking boxes - and every figure the situation screen groups by region reads from this table.",
+    divisionWhy: "How the country is carved into regions, and which provinces each holds.",
     divisionEmptyTitle: "This workspace has no regions yet",
-    divisionEmptyWhy:
-      "Five are seeded when the database is initialised. None at all usually means this workspace predates that.",
+    divisionEmptyWhy: "This workspace has no regions yet. Create one, or adopt a standard carve.",
     divisionNone: "Unassigned",
     divisionHoldsNothing: "This region holds no provinces",
     moveProvince: (p: string) => `Move ${p} to another region`,
@@ -3206,8 +3197,7 @@ export const en: Dictionary = {
   },
   ADMIN_PAGE_TEXT: {
     rolesTitle: "Roles",
-    rolesWhy:
-      "The nine roles and what each of them holds. Roles and grants are seeded DDL mirrored in authz/catalog.ts, and changing one means changing the seed, the mirror and the catalogue doc together - so this page reads rather than edits.",
+    rolesWhy: "The nine roles and what each may do. Read-only.",
     rolesColumnRole: "Role",
     rolesColumnPerms: "Permissions",
     rolesColumnMembers: "Members",
@@ -3215,8 +3205,7 @@ export const en: Dictionary = {
     rolesMembers: (n: number) => `${n}`,
     rolesNoMember: "Nobody holds it",
     permissionsTitle: "Permissions",
-    permissionsWhy:
-      "The twenty-five permissions, and which roles hold each. This is the whole answer to who may do what; whether it appears on screen also depends on the tier gate.",
+    permissionsWhy: "The twenty-five permissions and who holds each. Read-only.",
     permissionsColumnCode: "Code",
     permissionsColumnName: "What it allows",
     permissionsColumnRoles: "Held by",
@@ -3224,8 +3213,7 @@ export const en: Dictionary = {
     permissionsCount: (perms: number, roles: number, grants: number) =>
       `${perms} permissions · ${roles} roles · ${grants} grants`,
     scopeTitle: "Data scope",
-    scopeWhy:
-      "The same permission, different rows: the whole workspace, the territories they carry, or only what they own. Scope is an attribute of a member and is changed there; this page answers who sits at which.",
+    scopeWhy: "Who can see which rows. Scope is changed under Members.",
     scopeColumnMember: "Member",
     scopeColumnScope: "Scope",
     scopeColumnDetail: "Covers",

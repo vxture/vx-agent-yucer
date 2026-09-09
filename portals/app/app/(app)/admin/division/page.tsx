@@ -6,7 +6,7 @@ import { listMarketDivisions } from "../../../domains/account/service";
 import { ALL_PROVINCES } from "../../../domains/shared/provinces";
 import { DivisionPanel } from "../../components/division-panel";
 import { DivisionImport } from "../../components/division-import";
-import { EntryActions, NewEntryLink } from "../../components/form-page";
+import { NewEntryLink } from "../../components/form-page";
 import {
   DIVISION_TEMPLATES,
   isSystemDivision,
@@ -86,6 +86,29 @@ export default async function DivisionPage() {
             {PLANNING_TEXT.divisionCoverage(placed.size, ALL_PROVINCES.length, rows.length)}
           </StatusBadge>
         }
+        /* BOTH ACTIONS IN THE PAGE HEADER'S SLOT (DS: 右侧动作区，通常是一到
+           两个 Button). They were a row under the table; 新建 and 重置预置 are
+           the two ways to change what the table says, and they belong where
+           the DS puts a page's actions. */
+        action={
+          upsert ? (
+            <>
+              <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} />
+              <DivisionImport
+                currentDivisions={rows.length}
+                customCount={
+                  rows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
+                }
+                templates={DIVISION_TEMPLATES.map((t) => ({
+                  key: t.key,
+                  label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
+                  divisions: t.divisions.length,
+                  names: t.divisions.map((d) => d.name),
+                }))}
+              />
+            </>
+          ) : null
+        }
       />
       <DivisionPanel
         rows={rows.map((d) => ({
@@ -98,25 +121,6 @@ export default async function DivisionPage() {
         // then refuses is worse than one that is not offered.
         editable={upsert}
       />
-      {/* 重置预置 sits beside 新建大区: adopting a carve wholesale is one more
-          way to decide what the table above says. */}
-      {upsert ? (
-        <EntryActions>
-          <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} />
-          <DivisionImport
-            currentDivisions={rows.length}
-            customCount={
-              rows.filter((d) => !isSystemDivision(d.code, d.name, d.provinces)).length
-            }
-            templates={DIVISION_TEMPLATES.map((t) => ({
-              key: t.key,
-              label: t.key === "five" ? PLANNING_TEXT.templateFive : PLANNING_TEXT.templateSeven,
-              divisions: t.divisions.length,
-              names: t.divisions.map((d) => d.name),
-            }))}
-          />
-        </EntryActions>
-      ) : null}
     </ViewLayout>
   );
 }
