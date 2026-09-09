@@ -1162,6 +1162,9 @@ model MarketDivision {
   /// old one's history.
   divisionCode String   @map("division_code") @db.VarChar(32)
   name         String   @db.VarChar(64)
+  /// incr/0043. The frame this division was carved in: global | china |
+  /// province. Not updatable - its members are level-bound to the frame.
+  scope        String   @default("china") @db.VarChar(16)
   sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -1179,6 +1182,20 @@ model MarketDivision {
 /// application: a province in two divisions double-counts every figure rolled
 /// up from it, and a national total that does not equal the sum of its parts is
 /// the one failure the situation screen cannot survive.
+/// incr/0043. 市场范围 - the frame a workspace carves inside. One row per
+/// workspace; scope_province is the province's two letters and only for a
+/// province-level frame (the database CHECKs the pairing).
+model MarketScope {
+  workspaceId String   @id @map("workspace_id") @db.Uuid
+  scopeKind   String   @default("china") @map("scope_kind") @db.VarChar(16)
+  scopeProvince String? @map("scope_province") @db.VarChar(8)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("market_scope")
+  @@schema("yucer_core")
+}
+
 model MarketDivisionProvince {
   workspaceId String   @map("workspace_id") @db.Uuid
   /// CHECK-constrained to the same 34 divisions incr/0035 constrains

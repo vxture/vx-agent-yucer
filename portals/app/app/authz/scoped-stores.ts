@@ -135,6 +135,9 @@ class ScopedAccountStore implements AccountStore {
      list itself is the same for everyone. */
   listMarketDivisions: AccountStore["listMarketDivisions"] = (...a) =>
     this.inner.listMarketDivisions(...a);
+  /* incr/0043. The frame is workspace-wide configuration, like the divisions. */
+  getMarketScope: AccountStore["getMarketScope"] = (...a) => this.inner.getMarketScope(...a);
+  setMarketScope: AccountStore["setMarketScope"] = (...a) => this.inner.setMarketScope(...a);
 
   /* Also workspace configuration, not somebody's book of business - the gate on
      the service decides who may change it, and there is no owner to narrow by. */

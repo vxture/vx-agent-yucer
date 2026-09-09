@@ -8,8 +8,11 @@
 // reported to whom last quarter" is a fact the decision-chain analysis reads.
 
 import {
+  DEFAULT_MARKET_SCOPE,
   MARKET_DIVISIONS,
   MARKET_DIVISION_PROVINCES,
+  scopePrefix,
+  type MarketScope,
 } from "../shared/market-division";
 import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
@@ -160,6 +163,8 @@ export interface MarketDivisionRecord {
   id: string;
   code: string;
   name: string;
+  /** The frame it was carved in (incr/0043). Its code carries the prefix. */
+  scope: MarketScope["kind"];
   sortOrder: number;
   /** The provinces placed in it, in no particular order. */
   provinces: string[];
@@ -191,7 +196,20 @@ export interface AccountStore {
    * fact of geography - deriving it in code would make the division a property
    * of the build and the same for every tenant.
    */
+  /**
+   * The divisions of the workspace's CURRENT frame.
+   *
+   * A workspace that switches frame does not lose the carve it made in the
+   * old one - those rows stay, with their own scope - it stops seeing them.
+   * Listing is by frame so a china carve and a global one never mix in one
+   * roster or one roll-up.
+   */
   listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]>;
+  /* --- 市场范围 (incr/0043) --------------------------------------------------
+     One row per workspace: `get` answers china where no row exists yet, and
+     `set` writes it either way. */
+  getMarketScope(workspaceId: string): Promise<MarketScope>;
+  setMarketScope(workspaceId: string, scope: MarketScope): Promise<void>;
   /**
    * Move one province into one 大区, or out of every 大区 when code is null.
    *
@@ -326,6 +344,16 @@ export class InMemoryAccountStore implements AccountStore {
      nothing has an empty map and reads the preset exactly; the demo has no
      database, so this is where its edits live for the life of the process. */
   private divisionMoves = new Map<string, Map<string, string | null>>();
+  /* incr/0043. The frame, per workspace; absent reads as china. */
+  private scopes = new Map<string, MarketScope>();
+
+  async getMarketScope(workspaceId: string): Promise<MarketScope> {
+    return this.scopes.get(workspaceId) ?? DEFAULT_MARKET_SCOPE;
+  }
+
+  async setMarketScope(workspaceId: string, scope: MarketScope): Promise<void> {
+    this.scopes.set(workspaceId, { ...scope });
+  }
 
   /* The tenant's own divisions, over the preset. Same shape as divisionMoves:
      an empty map means "the preset, unchanged". */
@@ -391,10 +419,17 @@ export class InMemoryAccountStore implements AccountStore {
       if (code === null) placement.delete(province);
       else placement.set(province, code);
     }
-    return this.divisionsFor(workspaceId).map((d) => ({
+    /* BY FRAME: the preset is a china carve, and so is anything a tenant adds
+       through the form, since the form composes the code from the frame's
+       prefix. A row whose prefix is not this frame's belongs to a carve made
+       under another frame and stays out of this list. */
+    const scope = await this.getMarketScope(workspaceId);
+    const prefix = scopePrefix(scope);
+    return this.divisionsFor(workspaceId).filter((d) => d.code.startsWith(prefix)).map((d) => ({
       id: `div_${d.code}`,
       code: d.code,
       name: d.name,
+      scope: scope.kind,
       sortOrder: d.sortOrder,
       provinces: [...placement.entries()]
         .filter(([, code]) => code === d.code)

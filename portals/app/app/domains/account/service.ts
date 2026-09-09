@@ -10,8 +10,13 @@
 //   - It returns the CONTRIBUTIONS alongside the number. A red account whose
 //     only explanation is "the model said so" is an account nobody acts on.
 
-import { isProvince } from "../shared/provinces";
-import { DIVISION_TEMPLATES } from "../shared/market-division";
+import { isProvince, PROVINCE_CODE } from "../shared/provinces";
+import {
+  DIVISION_TEMPLATES,
+  MARKET_SCOPES,
+  scopePrefix,
+  type MarketScope,
+} from "../shared/market-division";
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import {
@@ -104,6 +109,17 @@ export async function importDivisionTemplate(
   if (!template) {
     return fail(violation("template_unknown", `${key} is not a shipped carve`, "key"));
   }
+  /* incr/0043. Both shipped carves cut 中国市场; adopting one inside another
+     frame would land CHINA-* codes the database refuses there, and would be
+     the wrong answer even if it did not. */
+  const scope = await ctx.store.getMarketScope(ctx.workspaceId);
+  if (template.scope !== scope.kind) {
+    return fail(violation(
+      "template_scope_mismatch",
+      `${key} carves the china market; this workspace's frame is ${scope.kind}`,
+      "key",
+    ));
+  }
 
   const before = await ctx.store.listMarketDivisions(ctx.workspaceId);
 
@@ -152,6 +168,18 @@ export async function saveMarketDivision(
   const name = input.name.trim();
   if (!code) return fail(violation("code_required", "a division needs a code", "code"));
   if (!name) return fail(violation("name_required", "a division needs a name", "name"));
+  /* THE CODE CARRIES THE FRAME (incr/0043). The form composes it from the
+     frame's prefix, so a person never types this wrong; an import can, and
+     chk_market_division_code_frame would refuse it with a constraint name.
+     Said here in the product's own words first. */
+  const scope = await ctx.store.getMarketScope(ctx.workspaceId);
+  if (!code.startsWith(scopePrefix(scope))) {
+    return fail(violation(
+      "code_prefix",
+      `${code} does not carry the ${scope.kind} frame's prefix ${scopePrefix(scope)}`,
+      "code",
+    ));
+  }
 
   for (const p of input.provinces) {
     if (!isProvince(p)) {
@@ -215,6 +243,47 @@ export async function removeMarketDivision(
   }
   await ctx.store.removeMarketDivision(ctx.workspaceId, code);
   return ok({ code });
+}
+
+/* ---------------------------------------------------------------------------
+ * 市场范围 - the frame a workspace carves inside (incr/0043).
+ *
+ * READ rides account.view, like the divisions: every roster that resolves a
+ * customer's 大区 resolves it inside a frame. WRITE is planning.territory.upsert
+ * - who may re-carve the market is who may choose what it is carved out of.
+ * ------------------------------------------------------------------------ */
+
+export async function marketScope(ctx: AccountContext): Promise<RuleResult<MarketScope>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getMarketScope(ctx.workspaceId));
+}
+
+export async function setMarketScope(
+  ctx: AccountContext,
+  input: MarketScope,
+): Promise<RuleResult<MarketScope>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const frame = MARKET_SCOPES.find((s) => s.kind === input.kind);
+  if (!frame) return fail(violation("scope_unknown", `${input.kind} is not a frame`, "kind"));
+  /* 未建, and refused rather than accepted-and-hollow: a workspace switched to
+     a frame it cannot carve in would see an empty roster and a form with no
+     members to pick. The selector shows the two as planned; this is the rule
+     behind the greyed control. */
+  if (!frame.open) {
+    return fail(violation("scope_not_open", `${input.kind} is not open in this build`, "kind"));
+  }
+  if (input.kind === "province") {
+    const letters = new Set(Object.values(PROVINCE_CODE));
+    if (!input.code || !letters.has(input.code)) {
+      return fail(violation("scope_code_required", "a province frame names its province", "code"));
+    }
+  }
+  const scope: MarketScope = { kind: input.kind, code: input.kind === "province" ? input.code : null };
+  await ctx.store.setMarketScope(ctx.workspaceId, scope);
+  return ok(scope);
 }
 
 export async function listMarketDivisions(

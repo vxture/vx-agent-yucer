@@ -2346,6 +2346,11 @@ export const TERRITORY_ERROR: Record<string, string> = {
   // incr/0036 的两个：省份词表与大区归属，都由数据库约束，说人话而不是抛约束名。
   province_unknown: "省份必须是全国 34 个省级行政区之一",
   division_unknown: "这个大区不属于当前工作区",
+  // incr/0043 的三个：框架与代码、预置、范围本身。
+  template_scope_mismatch: "这套预置是切全国市场的，当前市场范围不是",
+  scope_not_open: "这个市场范围还没开放，先用中国市场",
+  scope_code_required: "省级市场要指定是哪个省",
+  code_prefix: "区域代码必须带当前市场范围的前缀",
   code_required: "区域代码不能为空",
   name_required: "区域名称不能为空",
   unknown_status: "未知的区域状态",
@@ -3308,11 +3313,34 @@ export const PLANNING_TEXT = {
     custom > 0
       ? `会替换当前 ${current} 个大区，其中 ${custom} 个是你自己配置的，将被丢弃。`
       : `会替换当前 ${current} 个大区。`,
-  templateFive: "五分法 · 东南西北中",
-  templateSeven: "七分法 · 华北/东北/华东/华中/华南/西南/西北",
-  templateRef: "引用系统内置",
+  /* 预置的名字只是名字（owner, 2026-09-09）：下拉里读「五分法-中部」，不再拖着
+     一串「东南西北中」。这一串在重置对话框里才有意义，那里单独列。 */
+  templateFive: "五分法",
+  templateSeven: "七分法",
+  presetOption: (from: string, name: string) => `${from}-${name}`,
+  templateRef: "引用系统配置",
   templateRefNone: "不引用，自己填",
-  templateRefWhy: "选一个内置区域，代码、名称与省份自动填好，可再改。",
+  templateRefWhy: "选一个预置区域，代码、名称与省份自动填好，可再改。",
+  // 市场范围 (incr/0043)：区域在哪个框架里切。
+  scopeLabel: {
+    global: "全球市场",
+    china: "中国市场",
+    province: "省级市场",
+  } as Record<string, string>,
+  scopeIncludes: {
+    global: "全球市场 · 包括为国家级",
+    china: "全国市场 · 包括为省级",
+    province: "省级市场 · 包括为市级",
+  } as Record<string, string>,
+  scopePlanned: "未建",
+  scopeLabelTitle: "市场范围",
+  scopeWhy: "区域在哪个框架里切：全球按国家，全国按省，一省按市。",
+  scopeSaved: "市场范围已更新",
+  divisionIncludes: "包括范围",
+  divisionCodePrefixHint: "前缀由市场范围决定，只填后半段，如 EAST。",
+  divisionMovedTitle: (n: number) => `${n} 个省份将从其他区域迁入`,
+  divisionMovedWhy: "保存后它们会离开原区域。原区域按省汇总的口径随之变化。",
+  divisionSaveFailed: "保存失败",
   // 这页不再和销售区域同屏，所以不能再说「上面的销售区域……」。两个维度的
   // 区别要在这里自己说清楚。
   divisionWhy: "全国怎么切成区域，每个区域管哪些省。",

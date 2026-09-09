@@ -21,6 +21,56 @@
  * rather than a foreign key. incr/0036 says why they coexist.
  */
 
+/* ---------------------------------------------------------------------------
+ * 市场范围 - the FRAME a workspace carves inside (owner, 2026-09-09; incr/0043).
+ *
+ * Three kinds, and a division is made of the level one below its frame:
+ * 全球市场 of countries, 中国市场 of provinces, 省级市场 of one province's cities.
+ * Every workspace today is 中国市场, and that is the only frame whose members
+ * this build can carve - the other two are stored, constrained and offered as
+ * 未建 until the member table lands on yucer_ref.admin_division.
+ *
+ * THE CODE CARRIES THE FRAME. CHINA-EAST, not EAST: a code is what an import
+ * matches on, and "EAST" alone cannot tell 华东 from the eastern half of 广东.
+ * The database CHECKs that a division's code starts with its frame's prefix;
+ * `divisionCode()` is the one place the product composes one.
+ */
+export type MarketScopeKind = "global" | "china" | "province";
+
+export interface MarketScope {
+  readonly kind: MarketScopeKind;
+  /** The province's two GB/T 2260 letters (GD) - only when kind is province. */
+  readonly code: string | null;
+}
+
+export const DEFAULT_MARKET_SCOPE: MarketScope = { kind: "china", code: null };
+
+/** The frames, in the order the selector offers them. `open` is which of them
+ *  this build can actually carve; the rest are 未建 and not selectable. */
+export const MARKET_SCOPES: readonly { readonly kind: MarketScopeKind; readonly open: boolean }[] = [
+  { kind: "global", open: false },
+  { kind: "china", open: true },
+  { kind: "province", open: false },
+];
+
+/** `CHINA-` / `GLOBAL-` / `GD-` - the prefix every code in this frame carries. */
+export function scopePrefix(scope: MarketScope): string {
+  if (scope.kind === "global") return "GLOBAL-";
+  if (scope.kind === "china") return "CHINA-";
+  return `${scope.code ?? ""}-`;
+}
+
+/** The stored code for what a person typed after the prefix: `east` -> CHINA-EAST. */
+export function divisionCode(scope: MarketScope, local: string): string {
+  return scopePrefix(scope) + local.trim().toUpperCase().replace(/[^A-Z0-9_]+/g, "_");
+}
+
+/** The half a person types - CHINA-EAST -> EAST. */
+export function localCode(scope: MarketScope, code: string): string {
+  const prefix = scopePrefix(scope);
+  return code.startsWith(prefix) ? code.slice(prefix.length) : code;
+}
+
 export interface MarketDivision {
   readonly code: string;
   readonly name: string;
@@ -28,11 +78,11 @@ export interface MarketDivision {
 }
 
 export const MARKET_DIVISIONS: readonly MarketDivision[] = [
-  { code: "east", name: "东部", sortOrder: 1 },
-  { code: "south", name: "南部", sortOrder: 2 },
-  { code: "west", name: "西部", sortOrder: 3 },
-  { code: "north", name: "北部", sortOrder: 4 },
-  { code: "central", name: "中部", sortOrder: 5 },
+  { code: "CHINA-EAST", name: "东部", sortOrder: 1 },
+  { code: "CHINA-SOUTH", name: "南部", sortOrder: 2 },
+  { code: "CHINA-WEST", name: "西部", sortOrder: 3 },
+  { code: "CHINA-NORTH", name: "北部", sortOrder: 4 },
+  { code: "CHINA-CENTRAL", name: "中部", sortOrder: 5 },
 ];
 
 /** Province -> division code. Every one of the 34 is placed. */
@@ -41,21 +91,21 @@ export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
      (owner, 2026-09-08): they are the northern seaboard and the capital
      region, and a sales organisation reads them with 内蒙古 and the north-east
      rather than with 上海 and 福建. */
-  山东省: "east", 江苏省: "east", 上海市: "east", 浙江省: "east",
-  福建省: "east", 台湾省: "east",
+  山东省: "CHINA-EAST", 江苏省: "CHINA-EAST", 上海市: "CHINA-EAST", 浙江省: "CHINA-EAST",
+  福建省: "CHINA-EAST", 台湾省: "CHINA-EAST",
   // 南部
-  广东省: "south", 广西壮族自治区: "south", 海南省: "south",
-  香港特别行政区: "south", 澳门特别行政区: "south",
+  广东省: "CHINA-SOUTH", 广西壮族自治区: "CHINA-SOUTH", 海南省: "CHINA-SOUTH",
+  香港特别行政区: "CHINA-SOUTH", 澳门特别行政区: "CHINA-SOUTH",
   // 西部
-  四川省: "west", 重庆市: "west", 贵州省: "west", 云南省: "west",
-  西藏自治区: "west", 陕西省: "west", 甘肃省: "west", 青海省: "west",
-  宁夏回族自治区: "west", 新疆维吾尔自治区: "west",
+  四川省: "CHINA-WEST", 重庆市: "CHINA-WEST", 贵州省: "CHINA-WEST", 云南省: "CHINA-WEST",
+  西藏自治区: "CHINA-WEST", 陕西省: "CHINA-WEST", 甘肃省: "CHINA-WEST", 青海省: "CHINA-WEST",
+  宁夏回族自治区: "CHINA-WEST", 新疆维吾尔自治区: "CHINA-WEST",
   // 北部
-  辽宁省: "north", 北京市: "north", 天津市: "north", 河北省: "north",
-  内蒙古自治区: "north", 山西省: "north", 吉林省: "north", 黑龙江省: "north",
+  辽宁省: "CHINA-NORTH", 北京市: "CHINA-NORTH", 天津市: "CHINA-NORTH", 河北省: "CHINA-NORTH",
+  内蒙古自治区: "CHINA-NORTH", 山西省: "CHINA-NORTH", 吉林省: "CHINA-NORTH", 黑龙江省: "CHINA-NORTH",
   // 中部
-  河南省: "central", 湖北省: "central", 湖南省: "central",
-  安徽省: "central", 江西省: "central",
+  河南省: "CHINA-CENTRAL", 湖北省: "CHINA-CENTRAL", 湖南省: "CHINA-CENTRAL",
+  安徽省: "CHINA-CENTRAL", 江西省: "CHINA-CENTRAL",
 };
 
 /* ---------------------------------------------------------------------------
@@ -83,38 +133,40 @@ export const MARKET_DIVISION_PROVINCES: Readonly<Record<string, string>> = {
 
 export interface DivisionTemplate {
   readonly key: string;
+  /** Which frame the carve belongs to. Both shipped carves cut 中国市场. */
+  readonly scope: MarketScopeKind;
   readonly divisions: readonly MarketDivision[];
   readonly provinces: Readonly<Record<string, string>>;
 }
 
 /** 七分法 - the other standard carve. */
 const SEVEN_DIVISIONS: readonly MarketDivision[] = [
-  { code: "north", name: "华北", sortOrder: 1 },
-  { code: "northeast", name: "东北", sortOrder: 2 },
-  { code: "east", name: "华东", sortOrder: 3 },
-  { code: "central", name: "华中", sortOrder: 4 },
-  { code: "south", name: "华南", sortOrder: 5 },
-  { code: "southwest", name: "西南", sortOrder: 6 },
-  { code: "northwest", name: "西北", sortOrder: 7 },
+  { code: "CHINA-NORTH", name: "华北", sortOrder: 1 },
+  { code: "CHINA-NORTHEAST", name: "东北", sortOrder: 2 },
+  { code: "CHINA-EAST", name: "华东", sortOrder: 3 },
+  { code: "CHINA-CENTRAL", name: "华中", sortOrder: 4 },
+  { code: "CHINA-SOUTH", name: "华南", sortOrder: 5 },
+  { code: "CHINA-SOUTHWEST", name: "西南", sortOrder: 6 },
+  { code: "CHINA-NORTHWEST", name: "西北", sortOrder: 7 },
 ];
 
 const SEVEN_PROVINCES: Readonly<Record<string, string>> = {
-  北京市: "north", 天津市: "north", 河北省: "north", 山西省: "north", 内蒙古自治区: "north",
-  辽宁省: "northeast", 吉林省: "northeast", 黑龙江省: "northeast",
-  上海市: "east", 江苏省: "east", 浙江省: "east", 安徽省: "east",
-  福建省: "east", 江西省: "east", 山东省: "east", 台湾省: "east",
-  河南省: "central", 湖北省: "central", 湖南省: "central",
-  广东省: "south", 广西壮族自治区: "south", 海南省: "south",
-  香港特别行政区: "south", 澳门特别行政区: "south",
-  重庆市: "southwest", 四川省: "southwest", 贵州省: "southwest",
-  云南省: "southwest", 西藏自治区: "southwest",
-  陕西省: "northwest", 甘肃省: "northwest", 青海省: "northwest",
-  宁夏回族自治区: "northwest", 新疆维吾尔自治区: "northwest",
+  北京市: "CHINA-NORTH", 天津市: "CHINA-NORTH", 河北省: "CHINA-NORTH", 山西省: "CHINA-NORTH", 内蒙古自治区: "CHINA-NORTH",
+  辽宁省: "CHINA-NORTHEAST", 吉林省: "CHINA-NORTHEAST", 黑龙江省: "CHINA-NORTHEAST",
+  上海市: "CHINA-EAST", 江苏省: "CHINA-EAST", 浙江省: "CHINA-EAST", 安徽省: "CHINA-EAST",
+  福建省: "CHINA-EAST", 江西省: "CHINA-EAST", 山东省: "CHINA-EAST", 台湾省: "CHINA-EAST",
+  河南省: "CHINA-CENTRAL", 湖北省: "CHINA-CENTRAL", 湖南省: "CHINA-CENTRAL",
+  广东省: "CHINA-SOUTH", 广西壮族自治区: "CHINA-SOUTH", 海南省: "CHINA-SOUTH",
+  香港特别行政区: "CHINA-SOUTH", 澳门特别行政区: "CHINA-SOUTH",
+  重庆市: "CHINA-SOUTHWEST", 四川省: "CHINA-SOUTHWEST", 贵州省: "CHINA-SOUTHWEST",
+  云南省: "CHINA-SOUTHWEST", 西藏自治区: "CHINA-SOUTHWEST",
+  陕西省: "CHINA-NORTHWEST", 甘肃省: "CHINA-NORTHWEST", 青海省: "CHINA-NORTHWEST",
+  宁夏回族自治区: "CHINA-NORTHWEST", 新疆维吾尔自治区: "CHINA-NORTHWEST",
 };
 
 export const DIVISION_TEMPLATES: readonly DivisionTemplate[] = [
-  { key: "five", divisions: MARKET_DIVISIONS, provinces: MARKET_DIVISION_PROVINCES },
-  { key: "seven", divisions: SEVEN_DIVISIONS, provinces: SEVEN_PROVINCES },
+  { key: "five", scope: "china", divisions: MARKET_DIVISIONS, provinces: MARKET_DIVISION_PROVINCES },
+  { key: "seven", scope: "china", divisions: SEVEN_DIVISIONS, provinces: SEVEN_PROVINCES },
 ];
 
 /**

@@ -3,6 +3,7 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
+import { DEFAULT_MARKET_SCOPE, type MarketScope } from "../shared/market-division";
 import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
@@ -35,6 +36,8 @@ const AFFILIATION_TABLE = "yucer_core.person_affiliation";
 const OPPORTUNITY_CONTACT_TABLE = "yucer_pipeline.opportunity_contact";
 // incr/0040. 行业, the workspace's own vocabulary.
 const INDUSTRY_TABLE = "yucer_core.industry";
+// incr/0043. 市场范围, one row per workspace.
+const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
 
 export class PrismaAccountStore implements AccountStore {
   /**
@@ -61,11 +64,14 @@ export class PrismaAccountStore implements AccountStore {
     /* KEYED ON THE CODE, which is the anchor: upserting an existing code
        renames it, a new one creates a division. 98/incr-0036 deliberately do
        NOT grant UPDATE on division_code - a division whose code changed is a
-       new division wearing an old one's history. */
+       new division wearing an old one's history.
+       A NEW ROW IS CARVED IN THE CURRENT FRAME (incr/0043); the database then
+       CHECKs that the code carries that frame's prefix. */
+    const scope = await this.getMarketScope(workspaceId);
     const row = await p.marketDivision.upsert({
       where: { workspaceId_divisionCode: { workspaceId, divisionCode: input.code } },
       create: {
-        workspaceId, divisionCode: input.code, name: input.name,
+        workspaceId, divisionCode: input.code, name: input.name, scope: scope.kind,
         sortOrder: input.sortOrder ?? 0,
       },
       update: {
@@ -77,6 +83,7 @@ export class PrismaAccountStore implements AccountStore {
     });
     return {
       id: row.id, code: row.divisionCode, name: row.name, sortOrder: row.sortOrder,
+      scope: row.scope as MarketScope["kind"],
       provinces: row.provinces.map((x) => x.province),
     };
   }
@@ -121,10 +128,35 @@ export class PrismaAccountStore implements AccountStore {
     return true;
   }
 
+  /* --- 市场范围 (incr/0043) --------------------------------------------------
+     NO ROW READS AS CHINA: the increment seeds every workspace that carves,
+     and one created afterwards has none until somebody changes the frame. */
+
+  async getMarketScope(workspaceId: string): Promise<MarketScope> {
+    const p = await this.client();
+    const row = await p.marketScope.findUnique({ where: { workspaceId } });
+    if (!row) return DEFAULT_MARKET_SCOPE;
+    return { kind: row.scopeKind as MarketScope["kind"], code: row.scopeProvince ?? null };
+  }
+
+  async setMarketScope(workspaceId: string, scope: MarketScope): Promise<void> {
+    const p = await this.client();
+    const update = { scopeKind: scope.kind, scopeProvince: scope.code, updatedAt: new Date() };
+    const guard = assertWritable(MARKET_SCOPE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked market_scope column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.marketScope.upsert({ where: { workspaceId }, update, create: { workspaceId, ...update } });
+  }
+
   async listMarketDivisions(workspaceId: string): Promise<MarketDivisionRecord[]> {
     const p = await this.client();
+    const scope = await this.getMarketScope(workspaceId);
     const rows = await p.marketDivision.findMany({
-      where: { workspaceId },
+      // BY FRAME - a carve made under another frame stays out of this roster.
+      where: { workspaceId, scope: scope.kind },
       // The workspace's OWN order, then name - a tenant that re-orders its
       // divisions expects the menu and the breadcrumb to follow.
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -134,6 +166,7 @@ export class PrismaAccountStore implements AccountStore {
       id: d.id,
       code: d.divisionCode,
       name: d.name,
+      scope: d.scope as MarketScope["kind"],
       sortOrder: d.sortOrder,
       provinces: d.provinces.map((x) => x.province),
     }));

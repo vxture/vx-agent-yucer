@@ -6,7 +6,9 @@ import {
   importDivisionTemplate,
   removeMarketDivision as removeDivision,
   saveMarketDivision,
+  setMarketScope,
 } from "../../../domains/account/service";
+import type { MarketScope } from "../../../domains/shared/market-division";
 
 /* 大区-省级 的写入路径.
  *
@@ -63,6 +65,28 @@ export async function removeDivisionAction(code: string): Promise<RemoveDivision
       store: session.stores.account(),
     },
     code,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath("/admin/division");
+  revalidatePath("/national");
+  return { ok: true };
+}
+
+/** Choose the frame the regions are carved inside (incr/0043). */
+export async function setMarketScopeAction(
+  input: MarketScope,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await setMarketScope(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    input,
   );
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/division");

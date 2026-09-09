@@ -273,6 +273,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0040. industry_code is the anchor; the display name and the order are the
   // workspace's.
   "yucer_core.industry": ["name", "sort_order", "updated_at"],
+  // 0043. The frame a workspace carves inside - the kind and the province.
+  "yucer_core.market_scope": ["scope_kind", "scope_province", "updated_at"],
   // 0031 added the customisation half: the scenario a solution is shaped for,
   // and the manual order the roster is presented in.
   "yucer_catalog.solution": ["name", "summary", "status", "scenario", "sort_order", "updated_at"],

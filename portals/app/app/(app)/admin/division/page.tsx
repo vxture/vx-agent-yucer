@@ -3,7 +3,8 @@ import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
-import { listMarketDivisions } from "../../../domains/account/service";
+import { listMarketDivisions, marketScope } from "../../../domains/account/service";
+import { MarketScopeControl } from "../../components/market-scope-control";
 import { ALL_PROVINCES } from "../../../domains/shared/provinces";
 import { DivisionPanel } from "../../components/division-panel";
 import { DivisionImport } from "../../components/division-import";
@@ -55,7 +56,10 @@ export default async function DivisionPage() {
   /* Read from the account store because that is where incr/0036 put the table,
      and gated on account.view - every roster that shows a customer's 大区 has
      to resolve one, so it is not a separate privilege. */
-  const divisions = await listMarketDivisions({ ...ctx, store: session.stores.account() });
+  const [divisions, scope] = await Promise.all([
+    listMarketDivisions({ ...ctx, store: session.stores.account() }),
+    marketScope({ ...ctx, store: session.stores.account() }),
+  ]);
   if (!divisions.ok) {
     return (
       <EmptyState
@@ -114,6 +118,12 @@ export default async function DivisionPage() {
             </>
           ) : null
         }
+      />
+      {/* THE FRAME FIRST (owner, 2026-09-09): the roster is a list of regions
+          carved inside it, so it is read before the roster. */}
+      <MarketScopeControl
+        scope={scope.ok ? scope.value : { kind: "china", code: null }}
+        editable={upsert}
       />
       <DivisionPanel
         rows={rows.map((d) => ({

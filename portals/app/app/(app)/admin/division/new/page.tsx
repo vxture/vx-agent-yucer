@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
-import { listMarketDivisions } from "../../../../domains/account/service";
+import { listMarketDivisions, marketScope } from "../../../../domains/account/service";
 import { DIVISION_TEMPLATES } from "../../../../domains/shared/market-division";
 import { DivisionForm } from "../../../components/division-form";
 import { provinceOptions } from "../../../lib/province-options";
@@ -23,14 +23,16 @@ export default async function NewDivisionPage() {
     redirect("/admin/division");
   }
 
-  const divisions = await listMarketDivisions({
+  const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: session.stores.account(),
-  });
+  };
+  const [divisions, scope] = await Promise.all([listMarketDivisions(ctx), marketScope(ctx)]);
   const rows = divisions.ok ? divisions.value : [];
+  const frame = scope.ok ? scope.value : { kind: "china" as const, code: null };
   const heldBy = new Map<string, string>();
   for (const d of rows) for (const p of d.provinces) heldBy.set(p, d.name);
 
@@ -45,6 +47,7 @@ export default async function NewDivisionPage() {
       />
       <ViewHeader title={PLANNING_TEXT.divisionNew} description={PLANNING_TEXT.divisionFormWhy} />
       <DivisionForm
+        scope={frame}
         isNew
         code=""
         name=""

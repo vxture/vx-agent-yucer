@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
-import { listMarketDivisions } from "../../../../domains/account/service";
+import { listMarketDivisions, marketScope } from "../../../../domains/account/service";
 import { DivisionForm } from "../../../components/division-form";
 import { provinceOptions } from "../../../lib/province-options";
 
@@ -25,14 +25,16 @@ export default async function EditDivisionPage(
     redirect("/admin/division");
   }
 
-  const divisions = await listMarketDivisions({
+  const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: session.stores.account(),
-  });
+  };
+  const [divisions, scope] = await Promise.all([listMarketDivisions(ctx), marketScope(ctx)]);
   const rows = divisions.ok ? divisions.value : [];
+  const frame = scope.ok ? scope.value : { kind: "china" as const, code: null };
   const mine = rows.find((d) => d.code === decodeURIComponent(code));
   // A code nobody has is not an error page - the list is one click away and
   // the division may simply have been removed since the link was drawn.
@@ -52,6 +54,7 @@ export default async function EditDivisionPage(
       />
       <ViewHeader title={mine.name} description={PLANNING_TEXT.divisionFormWhy} />
       <DivisionForm
+        scope={frame}
         isNew={false}
         code={mine.code}
         name={mine.name}
