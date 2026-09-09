@@ -321,14 +321,20 @@ export function DivisionForm({
                  exists for a province, not for a city - the cell is blank
                  there rather than invented. 移除 unticks the row: the one
                  operation a member has here. */
-              <Table>
+              <Table className="table-fixed">
+                {/* FIXED LAYOUT, PROPORTIONAL COLUMNS (owner: 列宽均衡一点). Auto
+                    layout handed 名称 everything the others did not claim and
+                    squeezed 行政区划代码 against the actions. Five shares that
+                    add to the width, sized to their longest content: a
+                    two-digit index, two letters, a long name, six digits, one
+                    word. */}
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[3.5rem] text-center">{PLANNING_TEXT.colIndex}</TableHead>
-                    <TableHead className="w-[6rem]">{PLANNING_TEXT.colAbbr}</TableHead>
-                    <TableHead>{PLANNING_TEXT.colName}</TableHead>
-                    <TableHead className="w-[8rem]">{PLANNING_TEXT.colAdcode}</TableHead>
-                    <TableHead className="w-[5rem] text-center">{PLANNING_TEXT.colOps}</TableHead>
+                    <TableHead className="w-[12%] text-center">{PLANNING_TEXT.colIndex}</TableHead>
+                    <TableHead className="w-[18%]">{PLANNING_TEXT.colAbbr}</TableHead>
+                    <TableHead className="w-[30%]">{PLANNING_TEXT.colName}</TableHead>
+                    <TableHead className="w-[24%]">{PLANNING_TEXT.colAdcode}</TableHead>
+                    <TableHead className="w-[16%] text-center">{PLANNING_TEXT.colOps}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
