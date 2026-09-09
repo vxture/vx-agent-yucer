@@ -228,7 +228,7 @@ export function DivisionForm({
                     The database CHECKs the same composition, so nothing typed
                     here can land a code in the wrong frame. */}
               <InputGroup>
-                {/* NO ADDON UNDER A PROVINCE FRAME (0048): the province is the
+                {/* NO ADDON UNDER A PROVINCE FRAME (0045): the province is the
                     header's business, and the code is the unit's own - 610100, or
                     a word. */}
                 {prefix ? <InputGroupAddon align="start">{prefix}</InputGroupAddon> : null}

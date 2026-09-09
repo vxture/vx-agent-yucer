@@ -4,7 +4,7 @@ import { Client } from "pg";
 import { DIVISION_TEMPLATES } from "./market-division";
 import { ALL_PROVINCES } from "./provinces";
 
-/* incr/0047 - 预置方案, against a real Postgres.
+/* incr/0045 - 预置方案, against a real Postgres.
  *
  * THE POINT: the carves are DATA (owner: 不容许代码写死), and the service reads
  * them from yucer_ref.market_carve. The TypeScript list still exists for the

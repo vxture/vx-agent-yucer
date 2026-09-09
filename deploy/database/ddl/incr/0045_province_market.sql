@@ -1,35 +1,179 @@
--- 0047_market_carve.sql - 预置方案 (the shipped carves) become reference rows.
+-- 0045_province_market.sql - 省级市场: every province is a frame, carved by
+-- its own units; 预置方案 become reference rows; a region's members relate to
+-- admin_division by id.
 --
--- Authority: owner, 2026-09-09 - "注意全面数据库表，不容许代码写死". The carves a
--- workspace can start from - 五分法 / 七分法 for 中国市场, 陕西三分法 and 各市独立
--- for a province - were TypeScript constants the service imported from. A
--- carve is data: which regions, which members in each. It lives here now, in
--- yucer_ref beside the divisions it is made of, and the service READS it.
+-- ONE INCREMENT FOR ONE AFTERNOON'S RULINGS (owner, 2026-09-09), merged from
+-- five drafts none of which had shipped:
+--   陕西作为第一个省级支持区域，正式的 / 陕西看市级，怎么能是县呢
+--   省级需要两套预置：传统大区分法 + 各市独立 / 你把全国的都加上吧
+--   我们的行政区划数据应该先预置完整 / 注意全面数据库表，不容许代码写死
+--   行政区划代码可以单独列，不要 SN- 前缀，这个 SN 可以单列；国家/省级有字母码
+--   区划代码不能作为系统内部的关联键，需要库表的 uuid
 --
+-- WHAT IT LEAVES BEHIND, in four parts:
+--
+-- 1. yucer_core.market_division_member - which unit sits in which 大区 for
+--    the frames that are not 中国市场: a country (level 2), a prefecture-level
+--    city (level 4), or a municipality's district (level 5). The member IS an
+--    admin_division row, BY ID; (workspace_id, admin_division_id) is the key,
+--    so a unit sits in at most one division. 0036's province table is kept
+--    for 中国市场 - every figure the situation screen groups depends on it.
+--
+-- 2. yucer_core.market_division learns its province: scope_province ('' outside
+--    a province frame, so it can sit inside the unique key); a province-frame
+--    code carries NO prefix - it is the unit's adcode (610100) or the region's
+--    own word (GUANZHONG); the anchor is the code WITHIN its frame.
+--
+-- 3. yucer_core.market_division_province gains admin_division_id beside the
+--    name - the relation by id; the name stays because account.province, the
+--    map and chk_market_division_province key on it.
+--
+-- 4. yucer_ref.market_carve / _division / _member - 预置方案 as reference
+--    rows: 五分法 and 七分法, six provincial carves somebody in the province
+--    would recognise, and 各市独立 for all 31 provinces DERIVED here from
+--    admin_division. Every relation is a uuid; carve_key and division_code
+--    are business anchors nothing joins on. Read-only to the service role.
+--
+-- Idempotent throughout.
+
+-- ============================================================================
+-- 1. market_division_member
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS yucer_core.market_division_member (
+  workspace_id      UUID NOT NULL,                        -- [ref] isolation key
+  -- The place: an admin_division row, by id. Its level says what it is - a
+  -- country, a city, a district; the service decides which level a frame
+  -- admits, and a key the reference table does not have cannot be placed.
+  admin_division_id UUID NOT NULL,
+  division_id       UUID NOT NULL,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT pk_market_division_member PRIMARY KEY (workspace_id, admin_division_id),
+  CONSTRAINT fk_market_division_member_division
+    FOREIGN KEY (division_id) REFERENCES yucer_core.market_division (id) ON DELETE RESTRICT,
+  -- A division still holding places cannot be dropped, and a place that has
+  -- been placed cannot be retired out from under it.
+  CONSTRAINT fk_market_division_member_place
+    FOREIGN KEY (admin_division_id) REFERENCES yucer_ref.admin_division (id) ON DELETE RESTRICT
+);
+
+COMMENT ON TABLE yucer_core.market_division_member IS
+  'Which admin_division row (country / city / district) sits in which 大区, for the global and province frames; see incr/0045.';
+
+CREATE INDEX IF NOT EXISTS idx_market_division_member_div
+  ON yucer_core.market_division_member (workspace_id, division_id);
+
+-- The same set 0036 gave the province table: place, unplace, move. The key
+-- columns are not writable - moving a place in place is a delete and an
+-- insert wearing one statement.
+GRANT SELECT, INSERT, DELETE ON yucer_core.market_division_member TO yucer_svc;
+GRANT UPDATE (division_id, updated_at) ON yucer_core.market_division_member TO yucer_svc;
+
+-- ============================================================================
+-- 2. market_division: the province is a column, and the code has no prefix
+-- ============================================================================
+ALTER TABLE yucer_core.market_division
+  ADD COLUMN IF NOT EXISTS scope_province VARCHAR(8) NOT NULL DEFAULT '';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_market_division_frame_province') THEN
+    ALTER TABLE yucer_core.market_division
+      ADD CONSTRAINT chk_market_division_frame_province CHECK (
+        (scope = 'province') = (scope_province <> '')
+        AND (scope_province = '' OR scope_province ~ '^[A-Z]{2}$')
+      );
+  END IF;
+END $$;
+
+-- 0043's CHECK demanded a prefix on every code. A national code keeps it
+-- (CHINA-EAST / GLOBAL-EU); a province code carries none and is an adcode or
+-- a word. No province row could exist under 0043 - the frame was not open -
+-- so there is nothing to migrate.
+ALTER TABLE yucer_core.market_division
+  DROP CONSTRAINT IF EXISTS chk_market_division_code_frame;
+ALTER TABLE yucer_core.market_division
+  ADD CONSTRAINT chk_market_division_code_frame CHECK (
+    (scope = 'china'    AND division_code ~ '^CHINA-[A-Z0-9][A-Z0-9_]*$')
+    OR (scope = 'global'   AND division_code ~ '^GLOBAL-[A-Z0-9][A-Z0-9_]*$')
+    OR (scope = 'province' AND division_code ~ '^[A-Z0-9][A-Z0-9_]*$')
+  );
+
+-- The anchor is the code WITHIN its frame: GUANZHONG under 陕西 and a
+-- GUANZHONG a tenant typed under 广东 are two rows. 0036 declared the old key
+-- as a table constraint, so it is dropped as one; the new one is too, and the
+-- index it creates keeps the name the Prisma mirror expects.
+ALTER TABLE yucer_core.market_division
+  DROP CONSTRAINT IF EXISTS uidx_market_division_code;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uidx_market_division_code') THEN
+    ALTER TABLE yucer_core.market_division
+      ADD CONSTRAINT uidx_market_division_code UNIQUE (workspace_id, scope, scope_province, division_code);
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_market_division_ws_frame
+  ON yucer_core.market_division (workspace_id, scope, scope_province, sort_order);
+
+-- scope_province is set when the row is carved and never rewritten, like
+-- scope. The UPDATE set is unchanged: name, sort_order, updated_at - restated
+-- whole, as 0043 did, so this increment leaves the grant correct on its own.
+REVOKE UPDATE ON yucer_core.market_division FROM yucer_svc;
+GRANT UPDATE (name, sort_order, updated_at) ON yucer_core.market_division TO yucer_svc;
+
+-- ============================================================================
+-- 3. market_division_province: the id joins the name
+-- ============================================================================
+ALTER TABLE yucer_core.market_division_province
+  ADD COLUMN IF NOT EXISTS admin_division_id UUID;
+
+UPDATE yucer_core.market_division_province p
+   SET admin_division_id = a.id
+  FROM yucer_ref.admin_division a
+ WHERE a.level = 3 AND a.name_zh = p.province
+   AND p.admin_division_id IS NULL;
+
+ALTER TABLE yucer_core.market_division_province
+  ALTER COLUMN admin_division_id SET NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_market_division_province_place') THEN
+    ALTER TABLE yucer_core.market_division_province
+      ADD CONSTRAINT fk_market_division_province_place
+      FOREIGN KEY (admin_division_id) REFERENCES yucer_ref.admin_division (id) ON DELETE RESTRICT;
+  END IF;
+  -- One row per place, by id as well as by name.
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uidx_market_division_province_place') THEN
+    ALTER TABLE yucer_core.market_division_province
+      ADD CONSTRAINT uidx_market_division_province_place UNIQUE (workspace_id, admin_division_id);
+  END IF;
+END $$;
+
+-- Set when a row is placed and never rewritten; INSERT is table-level
+-- already; the UPDATE set is restated whole.
+REVOKE UPDATE ON yucer_core.market_division_province FROM yucer_svc;
+GRANT UPDATE (division_id, updated_at) ON yucer_core.market_division_province TO yucer_svc;
+
+-- ============================================================================
+-- 4. 预置方案 - yucer_ref.market_carve / _division / _member
+-- ============================================================================
 -- THREE TABLES, ONE CARVE. A carve names its frame (kind, and the province for
 -- a province frame); its divisions carry the code and name a workspace gets
 -- when it adopts the carve; its members say which unit sits in which
--- division. EVERY RELATION IS BY UUID (owner, 2026-09-09: 区划代码不能作为系统
--- 内部的关联键，内部关联已经统一过，需要库表的 uuid): a member points at
--- yucer_ref.admin_division.id and at its division's id, a division at its
--- carve's id. carve_key and division_code are business anchors - what a
--- person reads and an import matches on - and nothing joins on them. The
--- natural keys the seed is written in (a province's name, a unit's adcode)
--- are resolved to ids HERE, once, by joining the reference table.
+-- division. EVERY RELATION IS BY UUID: a member points at admin_division.id
+-- and at its division's id, a division at its carve's id. The natural keys
+-- the seed is written in (a province's name, a unit's adcode) are resolved to
+-- ids HERE, once, by joining the reference table.
 --
 -- TWO KINDS OF SEED. The typed carves - the two national ones and the six
--- provincial ones somebody in the province would recognise - are VALUES
--- below. 各市独立 (one region per unit, owner: 几个市几个区域) is DERIVED here in
--- SQL from yucer_ref.admin_division for every provincial-level division with
--- ground below it: a province by its prefecture-level units, a municipality
--- by its districts and counties. Nothing in code lists a province.
+-- provincial ones somebody in the province would recognise - are VALUES. 各市
+-- 独立 (one region per unit) is DERIVED in SQL from admin_division for every
+-- provincial-level division with ground below it. Nothing in code lists a
+-- province.
 --
 -- READ-ONLY to the service role, like admin_division: a carve is what the
 -- product ships, and a workspace that wants a different one edits its own
 -- divisions after adopting the nearest.
---
--- Idempotent throughout.
-
 CREATE TABLE IF NOT EXISTS yucer_ref.market_carve (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   -- The business anchor: five / seven / shaanxi-three / sn-units. Unique,
@@ -87,7 +231,7 @@ CREATE INDEX IF NOT EXISTS idx_market_carve_member_division
   ON yucer_ref.market_carve_member (division_id);
 
 COMMENT ON TABLE yucer_ref.market_carve IS
-  '预置方案 - the shipped carves a workspace adopts as a start: which frame, which regions, which members. Reference data; see incr/0047.';
+  '预置方案 - the shipped carves a workspace adopts as a start: which frame, which regions, which members. Reference data; see incr/0045.';
 
 -- --- 1. the typed carves ---------------------------------------------------
 -- 五分法 and 七分法 are the two standard ways to carve the country; the six

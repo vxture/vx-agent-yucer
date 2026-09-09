@@ -62,7 +62,7 @@ export default async function NewDivisionPage() {
           heldBy,
           PLANNING_TEXT.divisionHintPreset,
         )}
-        /* Every division from every carve OF THIS FRAME (incr/0047), labelled
+        /* Every division from every carve OF THIS FRAME (incr/0045), labelled
            with the carve it belongs to - both china carves name a 华东 and a
            reader picking one has to be able to tell which. */
         presets={carves.flatMap((t) =>

@@ -3387,7 +3387,7 @@ export const PLANNING_TEXT = {
       : `会替换当前 ${current} 个大区。`,
   /* 预置的名字只是名字（owner, 2026-09-09）：下拉里读「五分法-中部」，不再拖着
      一串「东南西北中」。这一串在重置对话框里才有意义，那里单独列。 */
-  /* A carve's NAME is a column of yucer_ref.market_carve (incr/0047), not
+  /* A carve's NAME is a column of yucer_ref.market_carve (incr/0045), not
      copy: 五分法 / 陕西三分法 / 北京各区独立 print as the table has them. */
   presetOption: (from: string, name: string) => `${from}-${name}`,
   templateRef: "引用系统配置",

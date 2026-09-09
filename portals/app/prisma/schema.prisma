@@ -1177,7 +1177,7 @@ model MarketDivision {
   /// incr/0043. The frame this division was carved in: global | china |
   /// province. Not updatable - its members are level-bound to the frame.
   scope        String   @default("china") @db.VarChar(16)
-  /// incr/0048. The province's two letters for a province frame, '' for the
+  /// incr/0045. The province's two letters for a province frame, '' for the
   /// other two - the letters that used to prefix the code. Empty string, not
   /// null, so it can sit inside the unique key.
   scopeProvince String  @default("") @map("scope_province") @db.VarChar(8)
@@ -1220,7 +1220,7 @@ model MarketDivisionProvince {
   /// sit on. Not updatable: it is half the primary key.
   province    String   @db.VarChar(32)
   divisionId  String   @map("division_id") @db.Uuid
-  /// incr/0049. The same place by id - the relation; the name stays because
+  /// incr/0045. The same place by id - the relation; the name stays because
   /// account.province and the map key on it.
   adminDivisionId String @map("admin_division_id") @db.Uuid
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
@@ -1241,7 +1241,7 @@ model MarketDivisionProvince {
 /// keeps a member in at most one division, exactly as 0036 does for provinces.
 model MarketDivisionMember {
   workspaceId     String   @map("workspace_id") @db.Uuid
-  /// incr/0049. The place, by its admin_division id - (level, code) is read
+  /// incr/0045. The place, by its admin_division id - (level, code) is read
   /// through the relation, never stored twice.
   adminDivisionId String   @map("admin_division_id") @db.Uuid
   divisionId      String   @map("division_id") @db.Uuid
@@ -1256,7 +1256,7 @@ model MarketDivisionMember {
   @@schema("yucer_core")
 }
 
-/// 预置方案 (incr/0047) - the shipped carves a workspace adopts as a start.
+/// 预置方案 (incr/0045) - the shipped carves a workspace adopts as a start.
 /// Reference data, read-only to the service role; the by-unit carves are
 /// derived in SQL from admin_division. member_key is the workspace member
 /// tables' own key: a province NAME (0036) or a unit ADCODE (0045).
@@ -1293,7 +1293,7 @@ model MarketCarveDivision {
   @@schema("yucer_ref")
 }
 
-/// incr/0047 (uuid relations, 0049's ruling): the place is an admin_division
+/// incr/0045 (uuid relations, 0049's ruling): the place is an admin_division
 /// row by id; carve and division by id. A place sits in one division per carve.
 model MarketCarveMember {
   carveId         String @map("carve_id") @db.Uuid

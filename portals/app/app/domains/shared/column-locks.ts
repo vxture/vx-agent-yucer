@@ -362,7 +362,7 @@ export const READ_ONLY_TABLES: readonly string[] = [
   // generated from pinned sources. The service role selects them; nothing in
   // the product writes them.
   "yucer_ref.admin_division",
-  // incr/0047. 预置方案 - the carves a workspace adopts as a start, and the
+  // incr/0045. 预置方案 - the carves a workspace adopts as a start, and the
   // by-unit ones derived from admin_division. The service reads; a carve
   // changes by increment (owner: 不容许代码写死 - data, not constants).
   "yucer_ref.market_carve",

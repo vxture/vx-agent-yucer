@@ -79,7 +79,7 @@ export default async function DivisionPage() {
 
   const frame = scope.ok ? scope.value : CHINA;
   const noun = frameNoun(frame, PLANNING_TEXT);
-  // 预置方案, from the table (incr/0047) - only the carves of THIS frame.
+  // 预置方案, from the table (incr/0045) - only the carves of THIS frame.
   const carves = carveRows.ok ? carveRows.value : [];
   const rows = divisions.value;
   const placed = new Set(rows.flatMap((d) => d.members.map((m) => m.key)));

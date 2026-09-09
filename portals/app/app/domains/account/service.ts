@@ -109,7 +109,7 @@ export async function importDivisionTemplate(
   const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
   if (!gate.allowed) return denied(gate);
 
-  /* FROM THE TABLE (incr/0047): the store answers only the carves that cut
+  /* FROM THE TABLE (incr/0045): the store answers only the carves that cut
      this workspace's frame, so a key from another frame - 五分法 under 陕西,
      陕西三分法 under 中国市场 - is not found HERE, and that is the refusal:
      adopting it would land codes the database refuses there, and would be
@@ -361,7 +361,7 @@ export async function frameMembers(ctx: AccountContext): Promise<RuleResult<Mark
   return ok(await ctx.store.listFrameMembers(ctx.workspaceId));
 }
 
-/** 预置方案 - the carves that cut the current frame (incr/0047). */
+/** 预置方案 - the carves that cut the current frame (incr/0045). */
 export async function listCarves(ctx: AccountContext): Promise<RuleResult<DivisionTemplate[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);

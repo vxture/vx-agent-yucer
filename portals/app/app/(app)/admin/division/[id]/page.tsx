@@ -13,7 +13,7 @@ import { frameNoun } from "../../../lib/frame-copy";
 //
 // ROUTED BY ID (owner, 2026-09-09: 名册连接改 id，按行业规范), not by code. The
 // code is the anchor imports match on and it is unique only WITHIN a frame
-// (0048): a tenant with a GUANZHONG under 陕西 and another under 广东 has two
+// (0045): a tenant with a GUANZHONG under 陕西 and another under 广东 has two
 // rows, and a bookmarked /GUANZHONG would open whichever frame was current.
 // The id is the row's, unique across everything, and says nothing a reader
 // could mistake for a name. The rest of the product routes the same way.

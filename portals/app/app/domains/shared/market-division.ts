@@ -435,7 +435,7 @@ function byUnitTemplate(frame: ProvinceFrame): DivisionTemplate {
   };
 }
 
-/* THE MIRROR OF yucer_ref.market_carve (incr/0047) for the store that has no
+/* THE MIRROR OF yucer_ref.market_carve (incr/0045) for the store that has no
  * table to read. NOT a second source of truth: market-carve.db.test.ts reads
  * the table and fails if the two disagree in either direction, and the
  * service reads carves through the store, never from here. */

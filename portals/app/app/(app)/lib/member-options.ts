@@ -11,7 +11,7 @@ import type { MemberOption } from "../components/division-form";
  * the carve the first one shows.
  */
 export function memberOptions(
-  /** The carves of this frame, from yucer_ref.market_carve (incr/0047). */
+  /** The carves of this frame, from yucer_ref.market_carve (incr/0045). */
   carves: readonly DivisionTemplate[],
   ground: readonly MarketMember[],
   /** member key -> the 大区 that holds it now. */

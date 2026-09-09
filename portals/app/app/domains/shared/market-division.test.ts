@@ -150,7 +150,7 @@ test("系统 or 自定义 is derived, and flips the moment a tenant changes anyt
 });
 
 test("every shipped code carries its frame, in the shape the database CHECKs", () => {
-  // chk_market_division_code_frame (0048): a china code is CHINA-<body>; a
+  // chk_market_division_code_frame (0045): a china code is CHINA-<body>; a
   // province code is a bare <body> - an adcode or the region's own word, no
   // province prefix (owner: 不要 SN- 前缀). A template that shipped `east`
   // would import a workspace straight into a row the database refuses.
@@ -247,7 +247,7 @@ test("a frame is offered only its own carves", () => {
   assert.deepEqual(by("SHAANNAN").sort(), ["610700", "610900", "611000"], "汉中 安康 商洛");
   assert.equal(by("GUANZHONG").length, 5);
   // 各市独立: ten cities, ten regions, each holding exactly its own city, in
-  // GB/T 2260 order, coded by ADCODE - the shape 0046 CHECKs.
+  // GB/T 2260 order, coded by ADCODE - the shape 0045 CHECKs.
   const units = DIVISION_TEMPLATES.find((t) => t.key === "sn-units")!;
   assert.equal(units.divisions.length, 10);
   assert.deepEqual(units.divisions.slice(0, 2), [

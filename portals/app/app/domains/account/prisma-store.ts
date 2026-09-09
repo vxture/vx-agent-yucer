@@ -160,7 +160,7 @@ export class PrismaAccountStore implements AccountStore {
     });
     if (!province) return [];
     /* A province's ground is its level-4 rows; a municipality's is its
-       level-5 districts and counties under the filing rows (incr/0046). The
+       level-5 districts and counties under the filing rows (incr/0045). The
        filing rows themselves - 419000, 110100 - are not places: isPseudoCity. */
     const units = await p.adminDivision.findMany({
       where: frame.unit === "district"
@@ -172,7 +172,7 @@ export class PrismaAccountStore implements AccountStore {
     return units.filter((u) => !isPseudoCity(u.code)).map(unitMember);
   }
 
-  /* --- 预置方案 (incr/0047) ------------------------------------------------
+  /* --- 预置方案 (incr/0045) ------------------------------------------------
      THE TABLE, NOT THE CONSTANT (owner: 不容许代码写死). Three tables read as
      one carve each; the frame filter is the same pairing the service checks
      before adopting one. */

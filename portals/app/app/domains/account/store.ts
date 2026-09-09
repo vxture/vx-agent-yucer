@@ -225,7 +225,7 @@ export interface AccountStore {
    */
   listFrameMembers(workspaceId: string): Promise<MarketMember[]>;
   /**
-   * 预置方案 - the shipped carves that cut the current frame (incr/0047),
+   * 预置方案 - the shipped carves that cut the current frame (incr/0045),
    * read from yucer_ref.market_carve. The service adopts one by copying its
    * rows; it never holds a carve of its own.
    */
@@ -452,7 +452,7 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   async listCarves(workspaceId: string): Promise<DivisionTemplate[]> {
-    // The mirror of incr/0047, proved against the table by market-carve.db.test.ts.
+    // The mirror of incr/0045, proved against the table by market-carve.db.test.ts.
     return [...templatesFor(DIVISION_TEMPLATES, await this.getMarketScope(workspaceId))];
   }
 

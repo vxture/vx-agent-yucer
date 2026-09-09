@@ -39,7 +39,7 @@ import { Tag } from "./tag";
 
 export interface DivisionRow {
   /** The row's id - what the edit link carries. The code is unique only
-   *  within a frame (0048); the id is unique full stop. */
+   *  within a frame (0045); the id is unique full stop. */
   readonly id: string;
   readonly code: string;
   readonly name: string;
