@@ -51,22 +51,27 @@ const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
 /* A division's members come from two tables (incr/0036 provinces, incr/0045
    admin_division rows), and a row holds whichever its frame uses. Read both,
    print each in its own shape: `JS 江苏` for a province, `西安` for a city. */
+/* The relation is by id (0049); everything the interface prints comes
+   through it from admin_division, and the member's KEY - the adcode - is read
+   there too, never stored twice. */
+const PLACE = { select: { code: true, shortZh: true, nameZh: true, abbrEn: true } } as const;
 const MEMBERS = {
   provinces: { select: { province: true } },
-  members: {
-    select: { memberCode: true, place: { select: { shortZh: true, nameZh: true, abbrEn: true } } },
-  },
+  members: { select: { place: PLACE } },
 } as const;
+
+type Place = { code: string; shortZh: string; nameZh: string; abbrEn: string | null };
+const unitMember = (p: Place): MarketMember => ({
+  key: p.code, label: p.shortZh, abbr: p.abbrEn, name: p.nameZh, adcode: p.code,
+});
 
 function membersOf(row: {
   provinces: { province: string }[];
-  members: { memberCode: string; place: { shortZh: string; nameZh: string; abbrEn: string | null } }[];
+  members: { place: Place }[];
 }): MarketMember[] {
   return [
     ...row.provinces.map((x) => provinceMember(x.province)),
-    ...row.members.map((x) => ({
-      key: x.memberCode, label: x.place.shortZh, abbr: x.place.abbrEn, name: x.place.nameZh, adcode: x.memberCode,
-    })),
+    ...row.members.map((x) => unitMember(x.place)),
   ];
 }
 
@@ -164,9 +169,7 @@ export class PrismaAccountStore implements AccountStore {
       orderBy: { sortOrder: "asc" },
       select: { code: true, shortZh: true, nameZh: true, abbrEn: true },
     });
-    return units
-      .filter((u) => !isPseudoCity(u.code))
-      .map((u) => ({ key: u.code, label: u.shortZh, abbr: u.abbrEn, name: u.nameZh, adcode: u.code }));
+    return units.filter((u) => !isPseudoCity(u.code)).map(unitMember);
   }
 
   /* --- 预置方案 (incr/0047) ------------------------------------------------
@@ -182,10 +185,12 @@ export class PrismaAccountStore implements AccountStore {
       include: {
         divisions: {
           orderBy: { sortOrder: "asc" },
-          include: { members: { select: { memberKey: true } } },
+          include: { members: { select: { place: { select: { level: true, code: true, nameZh: true } } } } },
         },
       },
     });
+    /* The relation is by id (0049); the KEY the service speaks is read back
+       through it - a province's name, a unit's adcode. */
     return rows.map((c) => ({
       key: c.carveKey,
       name: c.name,
@@ -193,7 +198,9 @@ export class PrismaAccountStore implements AccountStore {
       province: c.scopeProvince,
       divisions: c.divisions.map((d) => ({ code: d.divisionCode, name: d.name, sortOrder: d.sortOrder })),
       members: Object.fromEntries(
-        c.divisions.flatMap((d) => d.members.map((m) => [m.memberKey, d.divisionCode])),
+        c.divisions.flatMap((d) =>
+          d.members.map((m) => [m.place.level === 3 ? m.place.nameZh : m.place.code, d.divisionCode]),
+        ),
       ),
     }));
   }
@@ -204,21 +211,26 @@ export class PrismaAccountStore implements AccountStore {
     divisionCode: string | null,
   ): Promise<boolean> {
     const p = await this.client();
-    /* TWO TABLES, ONE VERB. A province name goes to 0036's table; anything
-       else is an admin_division row and goes to 0045's, at the level the
-       frame carves by. The frame decides, not the shape of the key. */
+    /* TWO TABLES, ONE VERB, ONE RELATION (0049). The key the service speaks -
+       a province's name under 中国市场, a unit's adcode under 省级市场 - is
+       resolved to the admin_division ROW here, at the boundary, and the row's
+       id is what both tables relate by. A key the reference table does not
+       have is not a place and cannot be placed. */
     const scope = await this.getMarketScope(workspaceId);
-    const level = scope.kind === "global" ? 2 : provinceFrame(scope.code)?.unit === "district" ? 5 : 4;
+    const level = scope.kind === "china" ? 3 : scope.kind === "global" ? 2 : provinceFrame(scope.code)?.unit === "district" ? 5 : 4;
+    const place = await p.adminDivision.findFirst({
+      where: scope.kind === "china" ? { level, nameZh: memberKey } : { level, code: memberKey },
+      select: { id: true },
+    });
+    if (!place) return false;
     if (divisionCode === null) {
       // Out of every 大区. A DELETE, not a null division_id: the column is NOT
       // NULL, and "in no division" is the absence of a row rather than a row
       // pointing nowhere.
       if (scope.kind === "china") {
-        await p.marketDivisionProvince.deleteMany({ where: { workspaceId, province: memberKey } });
+        await p.marketDivisionProvince.deleteMany({ where: { workspaceId, adminDivisionId: place.id } });
       } else {
-        await p.marketDivisionMember.deleteMany({
-          where: { workspaceId, memberLevel: level, memberCode: memberKey },
-        });
+        await p.marketDivisionMember.deleteMany({ where: { workspaceId, adminDivisionId: place.id } });
       }
       return true;
     }
@@ -233,15 +245,13 @@ export class PrismaAccountStore implements AccountStore {
     if (scope.kind === "china") {
       await p.marketDivisionProvince.upsert({
         where: { workspaceId_province: { workspaceId, province: memberKey } },
-        create: { workspaceId, province: memberKey, divisionId: division.id },
+        create: { workspaceId, province: memberKey, adminDivisionId: place.id, divisionId: division.id },
         update: { divisionId: division.id, updatedAt: new Date() },
       });
     } else {
       await p.marketDivisionMember.upsert({
-        where: {
-          workspaceId_memberLevel_memberCode: { workspaceId, memberLevel: level, memberCode: memberKey },
-        },
-        create: { workspaceId, memberLevel: level, memberCode: memberKey, divisionId: division.id },
+        where: { workspaceId_adminDivisionId: { workspaceId, adminDivisionId: place.id } },
+        create: { workspaceId, adminDivisionId: place.id, divisionId: division.id },
         update: { divisionId: division.id, updatedAt: new Date() },
       });
     }

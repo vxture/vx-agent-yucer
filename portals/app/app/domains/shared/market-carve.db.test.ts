@@ -41,7 +41,9 @@ test("the table and the mirror hold the same carves, exactly", { skip }, async (
       assert.deepEqual([t.scope, t.province, t.name], [row.scope_kind, row.scope_province, row.name], row.carve_key);
       const divisions = (
         await c.query(
-          `SELECT division_code, name, sort_order FROM yucer_ref.market_carve_division WHERE carve_key = $1 ORDER BY sort_order`,
+          `SELECT d.division_code, d.name, d.sort_order FROM yucer_ref.market_carve_division d
+             JOIN yucer_ref.market_carve c ON c.id = d.carve_id
+            WHERE c.carve_key = $1 ORDER BY d.sort_order`,
           [row.carve_key],
         )
       ).rows;
@@ -50,8 +52,18 @@ test("the table and the mirror hold the same carves, exactly", { skip }, async (
         [...t.divisions],
         `${row.carve_key}: divisions`,
       );
+      // The relation is by id (0049); the mirror's KEY - a province name, a
+      // unit adcode - is read back through admin_division.
       const members = (
-        await c.query(`SELECT member_key, division_code FROM yucer_ref.market_carve_member WHERE carve_key = $1`, [row.carve_key])
+        await c.query(
+          `SELECT CASE WHEN a.level = 3 THEN a.name_zh ELSE a.code END AS member_key, d.division_code
+             FROM yucer_ref.market_carve_member m
+             JOIN yucer_ref.market_carve c ON c.id = m.carve_id
+             JOIN yucer_ref.admin_division a ON a.id = m.admin_division_id
+             JOIN yucer_ref.market_carve_division d ON d.id = m.division_id
+            WHERE c.carve_key = $1`,
+          [row.carve_key],
+        )
       ).rows;
       assert.deepEqual(
         Object.fromEntries(members.map((m) => [m.member_key, m.division_code])),
@@ -66,24 +78,22 @@ test("a china carve places all 34 provinces; a province carve's members are its 
   await withPg(async (c) => {
     const china = (
       await c.query(
-        `SELECT c.carve_key, count(m.member_key)::int AS n
-           FROM yucer_ref.market_carve c LEFT JOIN yucer_ref.market_carve_member m USING (carve_key)
+        `SELECT c.carve_key, count(m.admin_division_id)::int AS n
+           FROM yucer_ref.market_carve c LEFT JOIN yucer_ref.market_carve_member m ON m.carve_id = c.id
           WHERE c.scope_kind = 'china' GROUP BY c.carve_key`,
       )
     ).rows;
     assert.deepEqual(china.map((r) => r.n), china.map(() => ALL_PROVINCES.length));
     // Every member of a province carve is a level-4 or level-5 row UNDER that
-    // province - the same rows fk_market_division_member_place will accept.
+    // province; every member of a china carve is a level-3 row.
     const stray = (
       await c.query(
-        `SELECT c.carve_key, m.member_key FROM yucer_ref.market_carve c
-           JOIN yucer_ref.market_carve_member m USING (carve_key)
-           JOIN yucer_ref.admin_division p ON p.level = 3 AND p.abbr_en = c.scope_province
-          WHERE c.scope_kind = 'province'
-            AND NOT EXISTS (
-              SELECT 1 FROM yucer_ref.admin_division a
-               WHERE a.code = m.member_key AND a.level IN (4, 5) AND a.path LIKE p.path || '/%'
-            )`,
+        `SELECT c.carve_key, a.code FROM yucer_ref.market_carve c
+           JOIN yucer_ref.market_carve_member m ON m.carve_id = c.id
+           JOIN yucer_ref.admin_division a ON a.id = m.admin_division_id
+           LEFT JOIN yucer_ref.admin_division p ON p.level = 3 AND p.abbr_en = c.scope_province
+          WHERE (c.scope_kind = 'china' AND a.level <> 3)
+             OR (c.scope_kind = 'province' AND NOT (a.level IN (4, 5) AND a.path LIKE p.path || '/%'))`,
       )
     ).rows;
     assert.deepEqual(stray, []);
@@ -97,7 +107,8 @@ test("a china carve places all 34 provinces; a province carve's members are its 
               OR (p.code IN ('110000','120000','310000','500000') AND u.level = 5 AND u.path LIKE p.path || '/%'))
           WHERE p.level = 3
             AND NOT EXISTS (SELECT 1 FROM yucer_ref.market_carve_member m
-                             WHERE m.carve_key = lower(p.abbr_en) || '-units' AND m.member_key = u.code)`,
+                              JOIN yucer_ref.market_carve c ON c.id = m.carve_id
+                             WHERE c.carve_key = lower(p.abbr_en) || '-units' AND m.admin_division_id = u.id)`,
       )
     ).rows;
     assert.deepEqual(missing, []);

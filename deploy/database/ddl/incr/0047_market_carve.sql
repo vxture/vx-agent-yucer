@@ -9,9 +9,13 @@
 -- THREE TABLES, ONE CARVE. A carve names its frame (kind, and the province for
 -- a province frame); its divisions carry the code and name a workspace gets
 -- when it adopts the carve; its members say which unit sits in which
--- division. member_key is the SAME key the workspace's own member tables
--- store - the province NAME under 中国市场 (0036), the unit ADCODE under 省级
--- 市场 (0045) - so adopting a carve is copying rows, not translating them.
+-- division. EVERY RELATION IS BY UUID (owner, 2026-09-09: 区划代码不能作为系统
+-- 内部的关联键，内部关联已经统一过，需要库表的 uuid): a member points at
+-- yucer_ref.admin_division.id and at its division's id, a division at its
+-- carve's id. carve_key and division_code are business anchors - what a
+-- person reads and an import matches on - and nothing joins on them. The
+-- natural keys the seed is written in (a province's name, a unit's adcode)
+-- are resolved to ids HERE, once, by joining the reference table.
 --
 -- TWO KINDS OF SEED. The typed carves - the two national ones and the six
 -- provincial ones somebody in the province would recognise - are VALUES
@@ -27,7 +31,10 @@
 -- Idempotent throughout.
 
 CREATE TABLE IF NOT EXISTS yucer_ref.market_carve (
-  carve_key      VARCHAR(32) PRIMARY KEY,
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- The business anchor: five / seven / shaanxi-three / sn-units. Unique,
+  -- read by people and by the import; joined on by nothing.
+  carve_key      VARCHAR(32) NOT NULL,
   -- global | china | province - the frame the carve cuts.
   scope_kind     VARCHAR(16) NOT NULL,
   -- The province's two letters, for a province frame only (same pairing 0043
@@ -37,6 +44,7 @@ CREATE TABLE IF NOT EXISTS yucer_ref.market_carve (
   -- select print.
   name           VARCHAR(64) NOT NULL,
   sort_order     INTEGER NOT NULL DEFAULT 0,
+  CONSTRAINT uidx_market_carve_key UNIQUE (carve_key),
   CONSTRAINT chk_market_carve_kind CHECK (scope_kind IN ('global', 'china', 'province')),
   CONSTRAINT chk_market_carve_province
     CHECK ((scope_kind = 'province') = (scope_province IS NOT NULL)),
@@ -45,37 +53,38 @@ CREATE TABLE IF NOT EXISTS yucer_ref.market_carve (
 );
 
 CREATE TABLE IF NOT EXISTS yucer_ref.market_carve_division (
-  carve_key     VARCHAR(32) NOT NULL REFERENCES yucer_ref.market_carve (carve_key) ON DELETE CASCADE,
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  carve_id      UUID NOT NULL REFERENCES yucer_ref.market_carve (id) ON DELETE CASCADE,
   -- The code a workspace's division gets on adoption - CHINA-EAST, or under a
   -- province frame the unit's bare adcode (610100) or the region's own word
   -- (GUANZHONG): no province prefix (owner - 行政区划代码全国有标准, 不要 SN-
   -- 前缀; the province is scope_province). Same shape 0048 CHECKs on
   -- market_division, so an adoption cannot land a code the workspace table
-  -- refuses.
+  -- refuses. Unique WITHIN its carve; an anchor, not a key.
   division_code VARCHAR(32) NOT NULL,
   name          VARCHAR(64) NOT NULL,
   sort_order    INTEGER NOT NULL DEFAULT 0,
-  CONSTRAINT pk_market_carve_division PRIMARY KEY (carve_key, division_code),
+  CONSTRAINT uidx_market_carve_division_code UNIQUE (carve_id, division_code),
   CONSTRAINT chk_market_carve_division_code CHECK (division_code ~ '^([A-Z]{2,8}-)?[A-Z0-9][A-Z0-9_]*$')
 );
 
 CREATE TABLE IF NOT EXISTS yucer_ref.market_carve_member (
-  carve_key     VARCHAR(32) NOT NULL,
-  -- A province name under 中国市场, a unit adcode under 省级市场.
-  member_key    VARCHAR(32) NOT NULL,
-  division_code VARCHAR(32) NOT NULL,
-  -- A member sits in AT MOST ONE division of a carve: the same invariant the
+  carve_id          UUID NOT NULL REFERENCES yucer_ref.market_carve (id) ON DELETE CASCADE,
+  -- The place: a province (level 3) under 中国市场, a unit (level 4 or 5)
+  -- under 省级市场. The row itself, by id.
+  admin_division_id UUID NOT NULL REFERENCES yucer_ref.admin_division (id) ON DELETE RESTRICT,
+  division_id       UUID NOT NULL REFERENCES yucer_ref.market_carve_division (id) ON DELETE CASCADE,
+  -- A place sits in AT MOST ONE division of a carve: the same invariant the
   -- workspace tables enforce, so adopting a carve cannot violate it.
-  CONSTRAINT pk_market_carve_member PRIMARY KEY (carve_key, member_key),
-  CONSTRAINT fk_market_carve_member_division
-    FOREIGN KEY (carve_key, division_code)
-    REFERENCES yucer_ref.market_carve_division (carve_key, division_code) ON DELETE CASCADE
+  CONSTRAINT pk_market_carve_member PRIMARY KEY (carve_id, admin_division_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_market_carve_scope
   ON yucer_ref.market_carve (scope_kind, scope_province, sort_order);
+CREATE INDEX IF NOT EXISTS idx_market_carve_division_carve
+  ON yucer_ref.market_carve_division (carve_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_market_carve_member_division
-  ON yucer_ref.market_carve_member (carve_key, division_code);
+  ON yucer_ref.market_carve_member (division_id);
 
 COMMENT ON TABLE yucer_ref.market_carve IS
   '预置方案 - the shipped carves a workspace adopts as a start: which frame, which regions, which members. Reference data; see incr/0047.';
@@ -84,7 +93,8 @@ COMMENT ON TABLE yucer_ref.market_carve IS
 -- 五分法 and 七分法 are the two standard ways to carve the country; the six
 -- provincial ones are the reading everybody in that province recognises (the
 -- owner names the rest as they come). Provinces with none carry only the
--- derived 各市独立 below.
+-- derived 各市独立 below. Written in the keys a person can check - a carve
+-- key, a code, a province name or an adcode - and resolved to ids by joins.
 INSERT INTO yucer_ref.market_carve (carve_key, scope_kind, scope_province, name, sort_order) VALUES
   ('five', 'china', NULL, '五分法', 1),
   ('seven', 'china', NULL, '七分法', 2),
@@ -96,7 +106,9 @@ INSERT INTO yucer_ref.market_carve (carve_key, scope_kind, scope_province, name,
   ('shaanxi-three', 'province', 'SN', '陕西三分法', 8)
 ON CONFLICT (carve_key) DO NOTHING;
 
-INSERT INTO yucer_ref.market_carve_division (carve_key, division_code, name, sort_order) VALUES
+INSERT INTO yucer_ref.market_carve_division (carve_id, division_code, name, sort_order)
+SELECT c.id, v.code, v.name, v.ord
+  FROM (VALUES
   ('five', 'CHINA-EAST', '东部', 1),
   ('five', 'CHINA-SOUTH', '南部', 2),
   ('five', 'CHINA-WEST', '西部', 3),
@@ -133,9 +145,15 @@ INSERT INTO yucer_ref.market_carve_division (carve_key, division_code, name, sor
   ('shaanxi-three', 'GUANZHONG', '关中', 1),
   ('shaanxi-three', 'SHAANBEI', '陕北', 2),
   ('shaanxi-three', 'SHAANNAN', '陕南', 3)
-ON CONFLICT (carve_key, division_code) DO NOTHING;
+  ) AS v(carve_key, code, name, ord)
+  JOIN yucer_ref.market_carve c ON c.carve_key = v.carve_key
+ON CONFLICT (carve_id, division_code) DO NOTHING;
 
-INSERT INTO yucer_ref.market_carve_member (carve_key, member_key, division_code) VALUES
+-- A china carve's member is a province NAME (level 3); a province carve's
+-- is a unit ADCODE (level 4 or 5). Both resolve to one admin_division row.
+INSERT INTO yucer_ref.market_carve_member (carve_id, admin_division_id, division_id)
+SELECT c.id, a.id, d.id
+  FROM (VALUES
   ('five', '山东省', 'CHINA-EAST'),
   ('five', '江苏省', 'CHINA-EAST'),
   ('five', '上海市', 'CHINA-EAST'),
@@ -300,29 +318,27 @@ INSERT INTO yucer_ref.market_carve_member (carve_key, member_key, division_code)
   ('shaanxi-three', '610800', 'SHAANBEI'),
   ('shaanxi-three', '610900', 'SHAANNAN'),
   ('shaanxi-three', '611000', 'SHAANNAN')
-ON CONFLICT (carve_key, member_key) DO NOTHING;
+  ) AS v(carve_key, member_key, code)
+  JOIN yucer_ref.market_carve c ON c.carve_key = v.carve_key
+  JOIN yucer_ref.market_carve_division d ON d.carve_id = c.id AND d.division_code = v.code
+  JOIN yucer_ref.admin_division a
+    ON (c.scope_kind = 'china' AND a.level = 3 AND a.name_zh = v.member_key)
+    OR (c.scope_kind = 'province' AND a.level IN (4, 5) AND a.code = v.member_key)
+ON CONFLICT (carve_id, admin_division_id) DO NOTHING;
 
 -- --- 2. 各市独立, derived ---------------------------------------------------
 -- One carve per provincial-level division that has ground below it (台湾 /
 -- 香港 / 澳门 have none in 0038 and get none here), one region per unit, coded
--- by the unit's own adcode - bare, the national standard. A province's units are its
--- level-4 rows minus the XX9000 filing row; a municipality (北京 天津 上海 重庆)
--- has no level-4 places, so its units are the level-5 districts and counties
--- under its filing rows.
+-- by the unit's own adcode - bare, the national standard. A province's units
+-- are its level-4 rows minus the XX9000 filing row; a municipality (北京 天津
+-- 上海 重庆) has no level-4 places, so its units are the level-5 districts and
+-- counties under its filing rows.
 WITH province AS (
   SELECT p.id, p.code, p.abbr_en, p.short_zh, p.path,
          p.code IN ('110000', '120000', '310000', '500000') AS municipality
     FROM yucer_ref.admin_division p
    WHERE p.level = 3 AND p.status = 'active'
      AND EXISTS (SELECT 1 FROM yucer_ref.admin_division x WHERE x.parent_id = p.id)
-),
-unit AS (
-  SELECT pr.abbr_en, u.code, u.short_zh, u.sort_order
-    FROM province pr
-    JOIN yucer_ref.admin_division u
-      ON u.status = 'active'
-     AND ((NOT pr.municipality AND u.level = 4 AND u.parent_id = pr.id AND u.code !~ '^\d\d9000$')
-       OR (pr.municipality AND u.level = 5 AND u.path LIKE pr.path || '/%'))
 )
 INSERT INTO yucer_ref.market_carve (carve_key, scope_kind, scope_province, name, sort_order)
 SELECT lower(abbr_en) || '-units', 'province', abbr_en,
@@ -338,24 +354,29 @@ WITH province AS (
    WHERE p.level = 3 AND p.status = 'active'
 ),
 unit AS (
-  SELECT pr.abbr_en, u.code, u.short_zh, u.sort_order
+  SELECT pr.abbr_en, u.id, u.code, u.short_zh, u.sort_order
     FROM province pr
     JOIN yucer_ref.admin_division u
       ON u.status = 'active'
      AND ((NOT pr.municipality AND u.level = 4 AND u.parent_id = pr.id AND u.code !~ '^\d\d9000$')
        OR (pr.municipality AND u.level = 5 AND u.path LIKE pr.path || '/%'))
 )
-INSERT INTO yucer_ref.market_carve_division (carve_key, division_code, name, sort_order)
-SELECT lower(abbr_en) || '-units', code, short_zh,
-       row_number() OVER (PARTITION BY abbr_en ORDER BY sort_order, code)
-  FROM unit
-ON CONFLICT (carve_key, division_code) DO NOTHING;
+INSERT INTO yucer_ref.market_carve_division (carve_id, division_code, name, sort_order)
+SELECT c.id, u.code, u.short_zh,
+       row_number() OVER (PARTITION BY u.abbr_en ORDER BY u.sort_order, u.code)
+  FROM unit u
+  JOIN yucer_ref.market_carve c ON c.carve_key = lower(u.abbr_en) || '-units'
+ON CONFLICT (carve_id, division_code) DO NOTHING;
 
-INSERT INTO yucer_ref.market_carve_member (carve_key, member_key, division_code)
-SELECT d.carve_key, d.division_code, d.division_code
+-- Each derived division holds exactly its own unit: the row whose adcode is
+-- the division's code, under that carve's province.
+INSERT INTO yucer_ref.market_carve_member (carve_id, admin_division_id, division_id)
+SELECT d.carve_id, u.id, d.id
   FROM yucer_ref.market_carve_division d
- WHERE d.carve_key LIKE '%-units'
-ON CONFLICT (carve_key, member_key) DO NOTHING;
+  JOIN yucer_ref.market_carve c ON c.id = d.carve_id AND c.carve_key LIKE '%-units'
+  JOIN yucer_ref.admin_division p ON p.level = 3 AND p.abbr_en = c.scope_province
+  JOIN yucer_ref.admin_division u ON u.code = d.division_code AND u.level IN (4, 5) AND u.path LIKE p.path || '/%'
+ON CONFLICT (carve_id, admin_division_id) DO NOTHING;
 
 -- --- grants ------------------------------------------------------------------
 -- Reference data: read, and nothing else. A carve changes by increment.

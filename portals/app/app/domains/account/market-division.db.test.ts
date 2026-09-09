@@ -42,9 +42,10 @@ async function seed(c: Client): Promise<void> {
   }
   for (const [province, code] of Object.entries(MARKET_DIVISION_PROVINCES)) {
     await c.query(
-      `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id)
-       SELECT $1, $2, id FROM yucer_core.market_division
-        WHERE workspace_id = $1 AND division_code = $3`,
+      `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id, admin_division_id)
+       SELECT $1, $2, d.id, a.id FROM yucer_core.market_division d
+         JOIN yucer_ref.admin_division a ON a.level = 3 AND a.name_zh = $2
+        WHERE d.workspace_id = $1 AND d.division_code = $3`,
       [WS, province, code],
     );
   }
@@ -65,9 +66,10 @@ test("every province is placed, in exactly one division", { skip }, async () => 
 
     await assert.rejects(
       c.query(
-        `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id)
-         SELECT $1, '山东省', id FROM yucer_core.market_division
-          WHERE workspace_id = $1 AND division_code = 'CHINA-WEST'`,
+        `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id, admin_division_id)
+         SELECT $1, '山东省', d.id, a.id FROM yucer_core.market_division d
+           JOIN yucer_ref.admin_division a ON a.level = 3 AND a.name_zh = '山东省'
+          WHERE d.workspace_id = $1 AND d.division_code = 'CHINA-WEST'`,
         [WS],
       ),
       /pk_market_division_province|duplicate key/,
@@ -84,9 +86,12 @@ test("a province outside the vocabulary is refused", { skip }, async () => {
     await seed(c);
     await assert.rejects(
       c.query(
-        `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id)
-         SELECT $1, '江苏', id FROM yucer_core.market_division
-          WHERE workspace_id = $1 AND division_code = 'CHINA-EAST'`,
+        /* With a real place id and the wrong NAME: the name CHECK is what
+           refuses - 0049's id relation does not replace it. */
+        `INSERT INTO yucer_core.market_division_province (workspace_id, province, division_id, admin_division_id)
+         SELECT $1, '江苏', d.id, a.id FROM yucer_core.market_division d
+           JOIN yucer_ref.admin_division a ON a.level = 3 AND a.name_zh = '江苏省'
+          WHERE d.workspace_id = $1 AND d.division_code = 'CHINA-EAST'`,
         [WS],
       ),
       /chk_market_division_province/,
