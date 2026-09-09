@@ -55,8 +55,15 @@ const EVALUATED = new Set<string>();
 // IS gated, in authz/admin.ts, which is server code that happens to live
 // somewhere else. A guard that cries wolf costs more than no guard.
 const ENFORCED = new Set<string>();
+/* COPY IS NOT A GATE. The message dictionaries name every action - 权限管理
+   prints a title for each of the 69 (permission-tree) - and a quoted id in a
+   label is not an evaluation of it. Scanning them made three actions that gate
+   nothing look wired on 2026-09-09. Named here rather than matched by a
+   pattern, so a new dictionary file has to be added on purpose. */
+const COPY = ["messages.ts", "messages.en.ts"].map((f) => join(ROOT, "(app)", "lib", f));
 for (const file of sources(ROOT)) {
   if (file.endsWith(join("authz", "actions.ts"))) continue;
+  if (COPY.includes(file)) continue;
   const text = readFileSync(file, "utf8");
   const onServer = file.endsWith(".ts");
   for (const m of text.matchAll(/"([a-z][a-zA-Z]*(?:\.[a-zA-Z]+)+)"/g)) {
