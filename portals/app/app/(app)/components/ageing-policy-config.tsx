@@ -5,7 +5,6 @@ import {
   Button,
   Field,
   FieldDescription,
-  FieldGroup,
   FieldLabel,
   Input,
   Section,
@@ -13,6 +12,7 @@ import {
   ViewHeader,
   useToast,
 } from "@vxture/design-ui";
+import { FormFields } from "./form-page";
 import { ageingBands } from "../../domains/delivery/lib/collection-stats";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -83,7 +83,10 @@ export function AgeingPolicyConfig({
         }
       />
       <Section>
-        <FieldGroup>
+        {/* THE CUTOFFS AND WHAT THEY PRODUCE, side by side: the preview is not
+            a footnote to the input, it is the same statement in the form a
+            person actually thinks in. */}
+        <FormFields>
           <Field>
             <FieldLabel htmlFor="ageing-cutoffs">{AGEING_TEXT.cutoffsLabel}</FieldLabel>
             <Input
@@ -108,7 +111,7 @@ export function AgeingPolicyConfig({
             </div>
             <FieldDescription>{AGEING_TEXT.previewHint}</FieldDescription>
           </Field>
-        </FieldGroup>
+        </FormFields>
       </Section>
     </>
   );

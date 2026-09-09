@@ -14,6 +14,7 @@ import {
   StatusBadge,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { FormFields } from "./form-page";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 
 /* 配置大区 - 编辑面. Separate from the roster on purpose: the list answers
@@ -145,18 +146,21 @@ export function DivisionForm(
     <Section title={PLANNING_TEXT.divisionFormTitle}>
       {error ? <p className="text-destructive text-body-sm" role="alert">{error}</p> : null}
 
-      {/* THE PAGE IS FULL WIDTH; THE CONTROLS ARE NOT (owner, 2026-09-08).
+      {/* THE PAGE IS FULL WIDTH; THE CONTROLS ARE NOT (owner, 2026-09-08),
+          AND THE TWO COLUMNS ARE EVEN (owner, 2026-09-09).
           A text field stretched across 1400px is harder to read and harder to
           aim at than one sized to its content, and a code is eight characters
-          - the field should not be able to hold eighty. The grid caps at a
-          reading measure and the page keeps the rest of its width for the
-          province tags below, which actually use it. */}
-      <div className="gap-md flex max-w-(--vx-container-md) flex-col">
+          - the field should not be able to hold eighty. But capping the whole
+          STACK at a reading measure, as this did, squeezed both fields into
+          the left quarter of a page that had just been given its width. The
+          measure belongs on each control (FormFields does it, uniformly) and
+          the rows themselves span the form. */}
+      <div className="gap-xl flex flex-col">
         {/* CODE THEN NAME, ON ONE ROW (owner): the code is the anchor and is
             typed first; the name is what everyone reads afterwards. Two short
             fields stacked into two rows made the form look longer than the
             decision it is asking for. */}
-        <div className="gap-md sm:grid-cols-2 grid grid-cols-1">
+        <FormFields>
           <Field>
             <FieldLabel>{PLANNING_TEXT.divisionCode}</FieldLabel>
             <Input
@@ -178,7 +182,7 @@ export function DivisionForm(
               disabled={pending}
             />
           </Field>
-        </div>
+        </FormFields>
 
         {/* 覆盖省份 - TWO SOURCES, side by side, because they answer the same
             question two ways: take a shipped carve wholesale, or pick the
@@ -188,7 +192,7 @@ export function DivisionForm(
           <span className="text-body-sm font-medium">
             {PLANNING_TEXT.divisionProvincesLabel}
           </span>
-          <div className="gap-md sm:grid-cols-2 grid grid-cols-1">
+          <FormFields>
             {/* 引用系统内置. Fills all three fields and leaves them editable -
                 the point is to save typing, not to lock the shape. Only while
                 creating: on an existing division it would silently overwrite
@@ -236,7 +240,7 @@ export function DivisionForm(
                 {PLANNING_TEXT.divisionChosen(chosenList.length)}
               </FieldDescription>
             </Field>
-          </div>
+          </FormFields>
         </div>
       </div>
 

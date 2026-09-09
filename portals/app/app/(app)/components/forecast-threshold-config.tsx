@@ -5,7 +5,6 @@ import {
   Button,
   Field,
   FieldDescription,
-  FieldGroup,
   FieldLabel,
   Input,
   Section,
@@ -13,6 +12,7 @@ import {
   ViewHeader,
   useToast,
 } from "@vxture/design-ui";
+import { FormFields } from "./form-page";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -115,7 +115,11 @@ export function ForecastThresholdConfig({
         }
       />
       <Section>
-        <FieldGroup>
+        {/* TWO TO A ROW, evenly (owner, 2026-09-09). The commit and best-case
+            thresholds are one decision read together, so they sit side by
+            side; the stall clock is a different question and takes the next
+            row on its own rather than being padded out to fill this one. */}
+        <FormFields>
           {field(
             "commitAt",
             FORECAST_PARAM_TEXT.commitLabel,
@@ -134,7 +138,7 @@ export function ForecastThresholdConfig({
             FORECAST_PARAM_TEXT.stallHint,
             FORECAST_PARAM_TEXT.days,
           )}
-        </FieldGroup>
+        </FormFields>
       </Section>
     </>
   );

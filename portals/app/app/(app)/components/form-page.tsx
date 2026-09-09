@@ -45,6 +45,42 @@ export function FormPage({
 }
 
 /**
+ * THE FIELD GRID - two items to a row, evenly (owner, 2026-09-09).
+ *
+ * WHAT IT REPLACES. Forms capped their whole field stack at a reading measure
+ * (max-w-(--vx-container-md), 448px) and put two fields inside it, so on a
+ * page that had just been given its full width the pair sat squeezed into the
+ * left quarter with everything else empty. The owner's words for the two
+ * failure modes it is between: 简单粗暴拉伸 - a control stretched across
+ * 1400px - and 堆积, everything piled into one narrow column.
+ *
+ * SO: THE COLUMNS SPLIT EVENLY and the CONTROLS TIGHTEN UNIFORMLY. Two equal
+ * 1fr columns take the form's width, and every grid item carries the same
+ * max measure, so a wide window spends its extra width on the gutter between
+ * two evenly-set columns rather than on making a code field wide enough for
+ * eighty characters. Both columns are treated identically, which is what
+ * keeps a half-filled column reading as a layout rather than as a squeeze.
+ *
+ * A CONTAINER QUERY, NOT A VIEWPORT BREAKPOINT - the same argument FormPage
+ * makes above it. What decides whether two columns fit is how much room this
+ * form actually has, and with a sidebar and (later) an agent panel beside it
+ * the viewport does not know that. @xl is 36rem of container: two columns only
+ * when each still gets ~17rem.
+ */
+export function FormFields({ children }: { readonly children: ReactNode }) {
+  return (
+    <div className="@container">
+      {/* gap-xl (32px) rather than the md the stacked forms used: two columns
+          need a gutter wide enough to read as a gutter, or the two fields look
+          like one wrapped row. */}
+      <div className="gap-xl @xl:grid-cols-2 grid grid-cols-1 *:min-w-0 *:max-w-(--vx-container-lg)">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
  * WHERE A DISPLAY PAGE PUTS ITS ACTIONS - one row, one spacing, everywhere.
  *
  * It used to be the wrapper inside NewEntryLink, which worked while every page
