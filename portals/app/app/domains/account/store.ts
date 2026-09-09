@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 // D4 account persistence port.
 //
 // One thing here differs from the pipeline port and is worth stating: the
@@ -387,6 +388,21 @@ export class InMemoryAccountStore implements AccountStore {
     return `${scope.kind}:${scope.code ?? ""}`;
   }
 
+  /* A STABLE, OPAQUE ID PER ROW, the shape the database gives one: the edit
+     route carries it (owner: 名册连接改 id), so it must not be the code in
+     disguise and must survive a rename - minted once per frame + code. */
+  private divisionIds = new Map<string, string>();
+
+  private idFor(workspaceId: string, scope: MarketScope, code: string): string {
+    const key = `${workspaceId}|${InMemoryAccountStore.frameKey(scope)}|${code}`;
+    let id = this.divisionIds.get(key);
+    if (!id) {
+      id = randomUUID();
+      this.divisionIds.set(key, id);
+    }
+    return id;
+  }
+
   private divisionsFor(workspaceId: string, scope: MarketScope): { code: string; name: string; sortOrder: number }[] {
     const frame = InMemoryAccountStore.frameKey(scope);
     const edits = this.divisionEdits.get(workspaceId) ?? new Map();
@@ -474,7 +490,7 @@ export class InMemoryAccountStore implements AccountStore {
     const scope = await this.getMarketScope(workspaceId);
     const known = new Map(frameMembers(scope).map((m) => [m.key, m]));
     return this.divisionsFor(workspaceId, scope).map((d) => ({
-      id: `div_${InMemoryAccountStore.frameKey(scope)}|${d.code}`,
+      id: this.idFor(workspaceId, scope, d.code),
       code: d.code,
       name: d.name,
       scope: scope.kind,

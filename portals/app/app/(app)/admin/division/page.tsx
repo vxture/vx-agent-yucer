@@ -142,7 +142,7 @@ export default async function DivisionPage() {
       />
       <DivisionPanel
         rows={rows.map((d) => ({
-          code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
+          id: d.id, code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
           system: isSystemDivision(carves, d.code, d.name, d.members.map((m) => m.key)),
         }))}
         unassigned={unassigned}

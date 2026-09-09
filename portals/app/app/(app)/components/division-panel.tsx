@@ -22,7 +22,7 @@ import { Tag } from "./tag";
  *
  * It had pickers in it, which put editing inside a roster and made the page do
  * two jobs at once. The module already had the right shape and I ignored it:
- * /admin/division lists, /admin/division/[code] edits. This is the list; the
+ * /admin/division lists, /admin/division/[id] edits. This is the list; the
  * division form
  * is its own page, reached from the row.
  *
@@ -38,6 +38,9 @@ import { Tag } from "./tag";
  */
 
 export interface DivisionRow {
+  /** The row's id - what the edit link carries. The code is unique only
+   *  within a frame (0048); the id is unique full stop. */
+  readonly id: string;
   readonly code: string;
   readonly name: string;
   readonly sortOrder: number;
@@ -116,8 +119,7 @@ export function DivisionPanel(
                       {
                         id: "edit",
                         label: PLANNING_TEXT.divisionEdit,
-                        onSelect: () =>
-                          router.push(`/admin/division/${encodeURIComponent(r.code)}`),
+                        onSelect: () => router.push(`/admin/division/${r.id}`),
                       },
                       /* THE FOUR MOVES, greyed at the end they cannot pass.
                          rowIndex is the global position, since the rows are
@@ -165,7 +167,7 @@ export function DivisionPanel(
               header: PLANNING_TEXT.divisionName,
               cell: (r: DivisionRow) =>
                 editable ? (
-                  <Link href={`/admin/division/${encodeURIComponent(r.code)}`}>
+                  <Link href={`/admin/division/${r.id}`}>
                     <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
                   </Link>
                 ) : (

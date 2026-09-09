@@ -10,13 +10,20 @@ import { memberOptions } from "../../../lib/member-options";
 import { frameNoun } from "../../../lib/frame-copy";
 
 // 编辑大区 - the same form, opened on an existing one.
+//
+// ROUTED BY ID (owner, 2026-09-09: 名册连接改 id，按行业规范), not by code. The
+// code is the anchor imports match on and it is unique only WITHIN a frame
+// (0048): a tenant with a GUANZHONG under 陕西 and another under 广东 has two
+// rows, and a bookmarked /GUANZHONG would open whichever frame was current.
+// The id is the row's, unique across everything, and says nothing a reader
+// could mistake for a name. The rest of the product routes the same way.
 
 export const dynamic = "force-dynamic";
 
 export default async function EditDivisionPage(
-  { params }: { params: Promise<{ code: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const { code } = await params;
+  const { id } = await params;
   const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
@@ -40,7 +47,8 @@ export default async function EditDivisionPage(
   const rows = divisions.ok ? divisions.value : [];
   const frame = scope.ok ? scope.value : { kind: "china" as const, code: null };
   const noun = frameNoun(frame, PLANNING_TEXT);
-  const mine = rows.find((d) => d.code === decodeURIComponent(code));
+  // Within this workspace and its current frame - the list is already both.
+  const mine = rows.find((d) => d.id === id);
   // A code nobody has is not an error page - the list is one click away and
   // the division may simply have been removed since the link was drawn.
   if (!mine) redirect("/admin/division");
