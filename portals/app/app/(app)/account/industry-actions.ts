@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { moveIndustry, removeIndustry, upsertIndustry } from "../../domains/account/service";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 /* 行业分类的写入路径 (incr/0040).
  *
@@ -37,7 +38,7 @@ export async function saveIndustry(input: {
 
 export async function moveIndustryAction(
   industryId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<IndustryResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

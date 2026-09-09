@@ -15,12 +15,6 @@ import {
   type DataTableColumn,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
-import {
-  ROLE_CODES,
-  ROLE_PERMISSIONS,
-  type RoleCode,
-} from "../../authz/catalog";
-
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 // Who is in the workspace and what they can do.
@@ -48,8 +42,19 @@ export interface MemberView {
   readonly territoryIds: readonly string[];
 }
 
+/** One of the workspace's roles, as the assignment menu offers it (0046). */
+export interface RoleChoice {
+  readonly code: string;
+  readonly name: string;
+  /** Carries admin.manage - the last-administrator guard's concern. */
+  readonly admin: boolean;
+}
+
 export interface MemberRolesProps {
   readonly members: readonly MemberView[];
+  /** The workspace's roles, in its order. Names come from here, not from a
+   *  label table: a tenant who renamed 销售经理 sees their word. */
+  readonly roles: readonly RoleChoice[];
   readonly canManage: boolean;
   readonly onGrant: (
     sub: string,
@@ -105,9 +110,6 @@ export interface MemberRolesProps {
   ) => Promise<{ ok: boolean; error?: string }>;
 }
 
-const isAdminRole = (role: string): boolean =>
-  role in ROLE_PERMISSIONS &&
-  ROLE_PERMISSIONS[role as RoleCode].includes("admin.manage");
 
 /* 排序取值: what each sortable column ORDERS ON, which is not always what
    it renders - a badge sorts on the score inside it, a money cell on the raw
@@ -118,6 +120,7 @@ const SORT_ON = {
 
 export function MemberRoles({
   members,
+  roles,
   canManage,
   onGrant,
   onRevoke,
@@ -128,7 +131,11 @@ export function MemberRoles({
   territories = [],
   onScope,
 }: MemberRolesProps) {
-  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROLE_LABEL } =
+  /* The workspace's roles decide both what a code is CALLED and which codes
+     administer (0046) - read off the rows passed in, never off the build. */
+  const nameOf = (code: string) => roles.find((r) => r.code === code)?.name ?? code;
+  const isAdminRole = (code: string) => roles.some((r) => r.code === code && r.admin);
+  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -221,7 +228,7 @@ export function MemberRoles({
               return (
                 <span key={role}>
                   <Tag tone={isAdminRole(role) ? "info" : "neutral"}>
-                    {ROLE_LABEL[role] ?? role}
+                    {nameOf(role)}
                   </Tag>
                   {canManage ? (
                     last ? (
@@ -262,7 +269,7 @@ export function MemberRoles({
         if (!canManage) return null;
         // Only roles this member does not already hold. Offering a grant that
         // would be a no-op is offering a button that does nothing.
-        const available = ROLE_CODES.filter((r) => !row.roles.includes(r));
+        const available = roles.filter((r) => !row.roles.includes(r.code));
         if (available.length === 0) return null;
         const chosen = picked[row.sub] ?? "";
         const key = `${row.sub}:grant`;
@@ -278,8 +285,8 @@ export function MemberRoles({
             >
               <option value="">{MEMBER_TEXT.assignPlaceholder}</option>
               {available.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABEL[r] ?? r}
+                <option key={r.code} value={r.code}>
+                  {r.name}
                 </option>
               ))}
             </NativeSelect>

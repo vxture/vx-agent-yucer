@@ -729,6 +729,12 @@ export const CATALOG_TEXT = {
   colUnitPrice: "计价单位",
   colOps: "操作",
   opEdit: "修改",
+  // 行菜单的 XX（ROW_OPS）：产品配置 / 删除产品，方案配置 / 删除方案。
+  productNoun: "产品",
+  solutionNoun: "方案",
+  statusNoun: "状态",
+  typeNoun: "类型",
+  unitNoun: "单位",
   opLaunch: "上线",
   opRetire: "退役",
   opReinstate: "恢复在售",
@@ -1181,6 +1187,7 @@ export const AGEING_TEXT = {
 export const INDUSTRY_TEXT = {
   // 行业分类的配置面 (0040)。
   configTitle: "行业分类",
+  noun: "行业",
   configWhy: "客户归档用的行业。有客户在用时不能删。",
   count: (n: number) => `${n} 个行业`,
   add: "新建行业",
@@ -1238,7 +1245,7 @@ export const ROLE_LABEL: Record<string, string> = {
   sales_rep: "销售代表",
   presales: "售前顾问",
   delivery_manager: "交付经理",
-  sales_ops: "销售运营",
+  sales_ops: "销售运营经理",
   viewer: "只读成员",
   // 0021 的两级（owner 2026-09-01 裁定）。
   //
@@ -1247,6 +1254,23 @@ export const ROLE_LABEL: Record<string, string> = {
   // 是一份假装自己做了区分的目录。要org 头衔上屏，那是改这里的标签，不是加角色。
   sales_manager: "销售经理",
   regional_director: "大区总监",
+  // 0047 - the group-scale presets. Display names come from the workspace's
+  // own row since 0046; these are the fallback for a code with no row.
+  executive: "高管",
+  finance: "财务",
+  workspace_admin: "系统管理员",
+  senior_sales_manager: "高级销售经理",
+  regional_general_manager: "大区总经理",
+  channel_manager: "渠道经理",
+  senior_channel_manager: "高级渠道经理",
+  senior_delivery_manager: "高级交付经理",
+  senior_presales: "高级售前顾问",
+  marketing_specialist: "市场专员",
+  sales_ops_specialist: "销售运营专员",
+  key_account_manager: "大客户经理",
+  sdr: "商机开发代表",
+  deal_desk: "商务专员",
+  customer_success: "客户成功经理",
 };
 
 /** 权限的中文说明。25 条，与 authz/catalog.ts 的 PERM_CODES 一一对应；
@@ -2358,6 +2382,211 @@ export const OPPORTUNITY_TEXT = {
   lineApproveCancel: "取消",
 } as const;
 
+/**
+ * 角色管理 (incr/0046, owner 2026-09-09)。按区域设定的思路：预置角色可改可删可
+ * 重置，也可以新建；清单只给一句说明和权限数（owner：不显示所有权限名称），
+ * 权限详情走抽屉，树状展开。
+ */
+export const ROLE_TEXT = {
+  title: "角色管理",
+  why: "工作区自己的角色：九个预置角色可改可重置，也可以新建；角色持有哪些权限，决定成员能做什么。",
+  coverage: (roles: number, custom: number, perms: number) =>
+    `${roles} 个角色${custom > 0 ? `，其中 ${custom} 个自定义` : ""} · ${perms} 条权限`,
+  colRole: "角色",
+  colSource: "来源",
+  // 0047: the two groups, the workspace's own words for them.
+  colLine: "业务线",
+  colRank: "层级",
+  lineField: "业务线",
+  rankField: "层级",
+  groupUnset: "请选择",
+  ungrouped: "未分组",
+  groupsButton: "分组管理",
+  groupConfigure: "配置",
+  colDescription: "说明",
+  colPerms: "权限数",
+  colMembers: "成员数",
+  preset: "系统预置",
+  custom: "自定义",
+  members: (n: number) => `${n} 人`,
+  noMember: "暂无成员",
+  noDescription: "未填写说明",
+  permCount: (n: number, total: number) => `${n} / ${total}`,
+  // 行菜单里成对读：权限详情 ｜ 角色配置 ｜ 上移 …（owner, 2026-09-09）
+  edit: "角色配置",
+  details: "权限详情",
+  moveUp: "上移",
+  moveDown: "下移",
+  moveTop: "移到顶部",
+  moveBottom: "移到底部",
+  newRole: "新建角色",
+  remove: "删除角色",
+  removeWhy: "只有没有成员持有的角色才能删除。先在成员管理里移除，再删。",
+  removeTarget: (name: string) => `「${name}」`,
+  removeConsequence: "角色及其权限配置会被删除，不可撤销。",
+  removeHeldHint: (n: number) => `还有 ${n} 人持有，先在成员管理里移除`,
+  // --- 权限详情抽屉 ---
+  detailsTitle: (name: string) => `${name} · 权限详情`,
+  detailsWhy: (n: number, total: number) => `持有 ${n} / ${total} 条权限。打勾的操作可以执行。`,
+  detailsGranted: "可执行",
+  detailsNotGranted: "不可执行",
+  detailsOnlyGranted: "只看可执行",
+  detailsAll: "显示全部",
+  detailsDone: "关闭",
+  detailsEmpty: "这个角色没有任何权限，持有它的成员看不到任何模块。",
+  detailsColHeld: "持有",
+  detailsEdit: "编辑",
+  // --- 表单 ---
+  formTitle: "配置角色",
+  formWhy: "代码、名称、一句说明，以及这个角色持有的权限。",
+  code: "角色代码",
+  codeHint: "小写字母、数字和下划线，字母开头，如 channel_manager。创建后不可更改。",
+  codeLocked: "创建后不可更改。",
+  nameLabel: "角色名称",
+  descriptionLabel: "角色说明",
+  descriptionHint: "一句话说明这个角色做什么。清单和成员管理里会显示。",
+  permsConfig: "权限配置",
+  pick: "选择权限",
+  applyPreset: "应用预置",
+  resetPreset: "重置预置",
+  clear: "清空选择",
+  applyPresetTitle: "应用预置",
+  applyPresetWhy: (isNew: boolean): string =>
+    isNew
+      ? "选一个预置角色，代码、名称、说明与权限自动填好，可再改。"
+      : "选一个预置角色，名称、说明与权限套用到当前角色；代码是锚，保持不变。",
+  applyConfirm: "应用",
+  presetOption: (name: string, n: number) => `${name} · ${n} 条权限`,
+  resetHint: (name: string) => `按预置「${name}」恢复名称、说明与权限`,
+  resetNone: "当前代码没有对应的预置",
+  destructiveTitle: "{verb}{target}？",
+  resetTarget: (name: string) => `为预置「${name}」`,
+  resetConsequence: (n: number) => `当前名称、说明和已选的 ${n} 条权限会被预置覆盖；未保存前可以「放弃」。`,
+  clearTarget: (n: number) => `已选的 ${n} 条权限`,
+  clearConsequence: "清单会清空，需要重新选择；未保存前可以「放弃」。",
+  cancel: "取消",
+  // --- 右栏：持有的权限 ---
+  includes: "持有的权限",
+  pickEmpty: "尚未选择权限",
+  pickEmptyWhy: "用左侧「选择权限」加入，或应用预置。",
+  colIndex: "序号",
+  colCode: "权限码",
+  colName: "说明",
+  colUnlocks: "解锁操作",
+  colOps: "操作",
+  removePerm: "移除",
+  unlocks: (n: number) => `${n} 项`,
+  // --- 选择权限抽屉 ---
+  pickTitle: "选择权限",
+  pickWhy: "按模块勾选。每条权限后面是它解锁的操作数。",
+  pickDone: "完成",
+  pickClear: "清空",
+  search: "搜索权限码或说明",
+  pickNone: "没有匹配的权限",
+  chosen: (n: number) => `已选 ${n} 条权限`,
+  save: "保存角色",
+  discard: "放弃",
+  saveFailed: "保存失败",
+  // --- 清单页的重置预置：两步，第二步危险确认（与区域一致）---
+  resetAllButton: "重置预置",
+  resetAllTitle: "重置预置角色",
+  resetAllWhy: "把九个预置角色恢复为系统配置。自定义角色不受影响。",
+  resetAllDangerTitle: "这是不可撤销的覆盖",
+  resetAllWarn: (changed: number, missing: number) =>
+    changed + missing === 0
+      ? "预置角色当前与系统配置一致，重置不会改变任何东西。"
+      : `${changed > 0 ? `${changed} 个预置角色被改过，名称、说明与权限会被覆盖` : ""}${changed > 0 && missing > 0 ? "；" : ""}${missing > 0 ? `${missing} 个被删除的预置角色会恢复` : ""}。持有这些角色的成员，权限随之变化。`,
+  resetAllConfirm: "确认重置",
+  resetAllVerb: "重置",
+  resetAllTarget: "九个预置角色",
+  resetAllConsequence: (changed: number, missing: number) =>
+    `${changed} 个改过的预置角色会被覆盖，${missing} 个被删除的会恢复；保存即生效，不可撤销。`,
+  resetDone: (restored: number) => `已恢复 ${restored} 个预置角色`,
+  emptyTitle: "还没有角色",
+  emptyWhy: "工作区尚未生成预置角色。新建一个，或重置预置。",
+} as const;
+
+/**
+ * 角色分组 (incr/0047)：业务线与层级两套词表，工作区自己的，参考区域设置——
+ * 预置八条业务线、六级层级，可增删改排；有角色在用的删不掉。
+ */
+/**
+ * 行操作面板的统一词汇 (owner, 2026-09-09: 各操作面板尽量统一，可以保留特色操作):
+ *   XX详情 / XX配置 ｜ 上移 / 下移 / 移到顶部 / 移到底部 ｜ 删除XX.
+ * Every configuration roster builds its menu from these; a module's own
+ * verbs (生命周期、状态流转) sit between the first group and the moves.
+ */
+export const ROW_OPS = {
+  details: (noun: string) => `${noun}详情`,
+  configure: (noun: string) => `${noun}配置`,
+  up: "上移",
+  down: "下移",
+  top: "移到顶部",
+  bottom: "移到底部",
+  remove: (noun: string) => `删除${noun}`,
+} as const;
+
+export const ROLE_GROUP_TEXT = {
+  pageTitle: "分组管理",
+  pageWhy: "角色按业务线和层级归类。预置的可以改名、排序，也可以新增；有角色在用的分组不能删。",
+  count: (lines: number, ranks: number) => `${lines} 条业务线 · ${ranks} 级层级`,
+  edit: "编辑",
+  save: "保存",
+  codeHint: "小写字母、数字和下划线，字母开头。创建后不可更改；已存在的代码表示改名。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+  colRoles: "角色数",
+  line: {
+    title: "业务线",
+    why: "角色服务的业务条线：销售、渠道、交付、售前、市场、运营、客户，以及集团与通用。",
+    add: "新建业务线",
+    code: "业务线代码",
+    name: "业务线名称",
+    colName: "业务线",
+    deleteConsequence: "该业务线将从角色分组中移除。有角色归在它下面就删不掉。",
+  },
+  rank: {
+    title: "层级",
+    why: "角色所在的职级：专员 / 代表、经理、高级经理、总监、总经理、高管。",
+    add: "新建层级",
+    code: "层级代码",
+    name: "层级名称",
+    colName: "层级",
+    deleteConsequence: "该层级将从角色分组中移除。有角色归在它下面就删不掉。",
+  },
+} as const;
+
+export const ROLE_GROUP_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "代码不能为空",
+  code_shape: "代码只能是小写字母、数字和下划线，且以字母开头",
+  name_required: "名称不能为空",
+  line_in_use: "还有角色归在这条业务线下，先把它们改到别处",
+  rank_in_use: "还有角色归在这个层级下，先把它们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个分组，可能刚被删掉，刷新后重试",
+};
+
+/** 角色管理的拒绝理由。规则层给 code，句子在这里（TD-010）。 */
+export const ROLE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "角色代码不能为空",
+  code_shape: "角色代码只能是小写字母、数字和下划线，且以字母开头",
+  name_required: "角色名称不能为空",
+  description_too_long: "角色说明最多 500 个字符",
+  permission_unknown: "权限不在目录中，请从列表中选择",
+  line_unknown: "请选择一个业务线；没有合适的，先在角色分组里加上",
+  rank_unknown: "请选择一个层级；没有合适的，先在角色分组里加上",
+  role_unknown: "这个角色不属于当前工作区",
+  role_in_use: "还有成员持有这个角色，先在成员管理里移除，再删",
+  last_admin: "这是工作区管理员持有的唯一管理角色；去掉配置管理权限后将无人能再改回来",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "这个角色不存在，或不属于当前工作区",
+};
+
 export const TERRITORY_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   // incr/0036 的两个：省份词表与大区归属，都由数据库约束，说人话而不是抛约束名。
@@ -3368,11 +3597,19 @@ export const PLANNING_TEXT = {
   // 汇总都按它来。
   divisionMoveUp: "上移",
   divisionMoveDown: "下移",
-  divisionMoveTop: "移到最顶",
-  divisionMoveBottom: "移到最低",
+  divisionMoveTop: "移到顶部",
+  divisionMoveBottom: "移到底部",
   divisionNew: "新建区域",
   divisionRemove: "删除区域",
   divisionRemoveWhy: (noun: string) => `只有不含任何${noun}的区域才能删除。先把${noun}移走，再删。`,
+  // 行菜单的 删除区域（owner, 2026-09-09: 统一面板）: 确认框与灰掉的理由。
+  divisionRemoveTarget: (name: string) => `「${name}」`,
+  divisionRemoveConsequence: "区域会被删除，不可撤销。它覆盖的范围需要先移到别的区域。",
+  divisionRemoveHeldHint: (n: number, noun: string) => `还覆盖 ${n} 个${noun}，先移走再删`,
+  // 区域详情抽屉：这个区域覆盖的范围，按清单四列。
+  divisionDetailsTitle: (name: string) => `${name} · 区域详情`,
+  divisionDetailsWhy: (n: number, noun: string) => `覆盖 ${n} 个${noun}。`,
+  divisionDetailsDone: "关闭",
   templateTitle: "重置为预置划分",
   templateWhy: "选一套预置切法作为起点，之后随便改。",
   templateReset: "重置预置",
@@ -3542,6 +3779,9 @@ export const TARGET_STATUS_LABEL: Record<string, string> = {
 };
 
 export const STRATEGY_TEXT = {
+  // 行菜单的 XX（ROW_OPS）。
+  segmentNoun: "细分市场",
+  planNoun: "战略方案",
   // 细分模块页（按产品模式重建 2026-09-05）
   tagSegmentActive: (n: number) => `${n} 个在用细分`,
   tagSegmentShelved: (n: number) => `${n} 个已停用`,
@@ -3897,6 +4137,8 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const WINLOSS_TEXT = {
+  // 行菜单的 XX（ROW_OPS）：原因配置 / 删除原因。
+  reasonNoun: "原因",
   // 赢丢原因的配置面 (0039)。
   reasonConfigTitle: "赢丢原因",
   reasonCount: (n: number) => `${n} 条原因`,
@@ -4418,6 +4660,7 @@ export const PERMISSION_TREE_TEXT = {
     "catalog.pricebook": "价目",
     "admin.member": "成员",
     "admin.adoption": "使用情况",
+    "admin.role": "角色",
   } as Record<string, string>,
   actionLabel: {
     "strategy.plan.view": "查看战略方案",
@@ -4489,6 +4732,8 @@ export const PERMISSION_TREE_TEXT = {
     "admin.member.deactivate": "停用成员",
     "admin.member.reactivate": "恢复成员",
     "admin.member.scope": "设置数据范围",
+    "admin.role.upsert": "新建或配置角色",
+    "admin.role.remove": "删除角色",
   } as Record<string, string>,
   /* 简写 for the nine role columns (owner: 角色太多，可以简写); the full name
      is the header's tooltip. */
@@ -4502,5 +4747,21 @@ export const PERMISSION_TREE_TEXT = {
     viewer: "只读",
     sales_manager: "经理",
     regional_director: "总监",
+    // 0047 - the fifteen new rungs and functions.
+    executive: "高管",
+    finance: "财务",
+    workspace_admin: "管理员",
+    senior_sales_manager: "高销经",
+    regional_general_manager: "区总",
+    channel_manager: "渠道",
+    senior_channel_manager: "高渠道",
+    senior_delivery_manager: "高交付",
+    senior_presales: "高售前",
+    marketing_specialist: "市专",
+    sales_ops_specialist: "运专",
+    key_account_manager: "大客户",
+    sdr: "商开",
+    deal_desk: "商务",
+    customer_success: "客成",
   } as Record<string, string>,
 } as const;

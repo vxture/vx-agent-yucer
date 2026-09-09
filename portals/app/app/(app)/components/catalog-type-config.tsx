@@ -5,6 +5,7 @@ import type { ProductRecord, ProductTypeRecord } from "../../domains/catalog/sto
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 产品类型 - one of the config page's INDEPENDENT vocabularies (owner ruling
 // 2026-09-05: 类型是类型，状态是状态 - this file and the status config import
@@ -28,7 +29,7 @@ export interface CatalogTypeConfigProps {
     name: string;
     status?: "active" | "retired";
   }) => Promise<VocabularyResult>;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }
 
@@ -50,18 +51,15 @@ export function CatalogTypeConfig({
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.typesTitle,
+        noun: CATALOG_TEXT.typeNoun,
         why: CATALOG_TEXT.typesWhy,
         add: CATALOG_TEXT.addType,
-        edit: CATALOG_TEXT.renameType,
         save: CATALOG_TEXT.saveType,
         codeLabel: CATALOG_TEXT.typeCode,
         codeHint: CATALOG_TEXT.typeCodeHint,
         nameLabel: CATALOG_TEXT.colTypeName,
         colName: CATALOG_TEXT.colTypeName,
         deleteConsequence: CATALOG_TEXT.typeDeleteConsequence,
-        opUp: CATALOG_TEXT.opUp,
-        opDown: CATALOG_TEXT.opDown,
-        opDelete: CATALOG_TEXT.opDelete,
       }}
       columns={[
         {

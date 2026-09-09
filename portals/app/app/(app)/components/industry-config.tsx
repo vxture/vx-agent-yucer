@@ -3,6 +3,7 @@
 import type { IndustryRecord } from "../../domains/account/store";
 import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 行业分类 - the workspace's own list (incr/0040).
 //
@@ -28,7 +29,7 @@ export function IndustryConfig({
   /** How many customers are filed under each industry, by id. */
   readonly usage: Readonly<Record<string, number>>;
   readonly onSave: (input: { industryCode: string; name: string }) => Promise<VocabularyResult>;
-  readonly onMove: (industryId: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onMove: (industryId: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (industryId: string) => Promise<VocabularyResult>;
 }) {
   const { INDUSTRY_ERROR, INDUSTRY_TEXT } = useMessages();
@@ -42,18 +43,15 @@ export function IndustryConfig({
       page={{ icon: "buildings", count: INDUSTRY_TEXT.count }}
       text={{
         title: INDUSTRY_TEXT.configTitle,
+        noun: INDUSTRY_TEXT.noun,
         why: INDUSTRY_TEXT.configWhy,
         add: INDUSTRY_TEXT.add,
-        edit: INDUSTRY_TEXT.edit,
         save: INDUSTRY_TEXT.save,
         codeLabel: INDUSTRY_TEXT.code,
         codeHint: INDUSTRY_TEXT.codeHint,
         nameLabel: INDUSTRY_TEXT.name,
         colName: INDUSTRY_TEXT.colName,
         deleteConsequence: INDUSTRY_TEXT.deleteConsequence,
-        opUp: INDUSTRY_TEXT.opUp,
-        opDown: INDUSTRY_TEXT.opDown,
-        opDelete: INDUSTRY_TEXT.opDelete,
       }}
       columns={[
         {

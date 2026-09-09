@@ -19,6 +19,7 @@ import {
   type PlanStatus,
   type SegmentStatus,
 } from "../../domains/strategy/lib/lifecycle";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // Moving a plan through its lifecycle.
 //
@@ -201,7 +202,7 @@ export async function changeSegmentStatus(
 
 export async function moveSegmentRow(
   segmentId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<{ ok: boolean; error?: string }> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

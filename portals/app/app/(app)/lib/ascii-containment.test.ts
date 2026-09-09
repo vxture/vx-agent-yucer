@@ -58,6 +58,11 @@ const ALLOWED = new Set([
   // from yucer_ref.admin_division, a KEY like the 34 above - the db lane
   // proves file == table, which escaping would make impossible to read.
   "domains/shared/province-frames.ts",
+  // The nine preset roles' names and one-sentence descriptions (incr/0046):
+  // the same nature as the vocabularies above - rows a workspace is
+  // materialised from and renames afterwards, seeded identically by the
+  // increment, which catalog.test.ts holds in lockstep with this mirror.
+  "authz/catalog.ts",
   "domains/shared/demo-national.ts",
   // The map's shapes, keyed by that same vocabulary (incr/0035). Generated, and
   // a KEY rather than copy for the same reason provinces.ts is: escaping these
