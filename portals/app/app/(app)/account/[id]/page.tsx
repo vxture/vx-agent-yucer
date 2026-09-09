@@ -81,7 +81,6 @@ export default async function AccountDetailPage({
 }) {
   const {
     ACCOUNT_STATUS_LABEL,
-    ACCOUNT_TEXT,
     AGENT_ACTION_LABEL,
     BOARD_TEXT,
     CHAIN_TEXT,

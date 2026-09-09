@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import {
-  getPipelineStore,
   getCatalogStore,
 } from "../../domains/shared/registry";
 import { submitForecast } from "../../domains/pipeline/service";

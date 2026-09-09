@@ -112,7 +112,7 @@ export function ageingBands(
   return [
     { kind: "not_due" },
     ...late,
-    { kind: "late", from: (cutoffs[cutoffs.length - 1] ?? 0) + 1, to: null },
+    { kind: "late", from: (cutoffs.at(-1) ?? 0) + 1, to: null },
     { kind: "no_due_date" },
   ];
 }
@@ -136,7 +136,7 @@ export function ageingBand(
   for (const [i, to] of cutoffs.entries()) {
     if (late <= to) return { kind: "late", from: (cutoffs[i - 1] ?? 0) + 1, to };
   }
-  return { kind: "late", from: (cutoffs[cutoffs.length - 1] ?? 0) + 1, to: null };
+  return { kind: "late", from: (cutoffs.at(-1) ?? 0) + 1, to: null };
 }
 
 export function collectionStats(

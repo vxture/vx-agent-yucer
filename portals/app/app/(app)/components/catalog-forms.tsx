@@ -14,7 +14,7 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { AssistPanel, FormFields, FormPage, type AssistSuggestion } from "./form-page";
-import { knownValues, suggestNextCode } from "../../domains/shared/suggest";
+import { suggestNextCode } from "../../domains/shared/suggest";
 import type {
   ProductRecord,
   ProductStatusRecord,

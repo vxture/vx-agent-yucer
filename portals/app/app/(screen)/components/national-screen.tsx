@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMessages } from "../../(app)/lib/i18n/provider";
 import { CHINA } from "../lib/china-geometry";

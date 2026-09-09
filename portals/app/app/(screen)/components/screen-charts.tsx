@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { carriedPath, carryForward, railX } from "../lib/carried";
 import { STAGE_KEYS, HEALTH_KEYS } from "../lib/rollup";
 
 /* 态势屏的六个图 - the design's charts, drawn from the product's own data.
@@ -131,22 +132,20 @@ export function AdoptionTrend(
   { series: readonly { acc: number; prop: number }[]; label: string },
 ) {
   const W = 328, H = 140, N = series.length;
-  const xs = (i: number) => i * (W / (N - 1));
+  const xs = (i: number) => railX(i, N, W);
   const ys = (v: number) => H - 16 - v * (H - 26);
 
   /* A day on which the copilot proposed nothing has no rate, so the line
      CARRIES FORWARD the last reading rather than dropping to zero: a quiet day
-     is not a day on which the humans rejected everything. `real` remembers
-     which days were actually measured, so the readout can say so. */
-  let carried = 0;
-  const pts: number[] = [];
-  const real: boolean[] = [];
-  for (const d of series) {
-    if (d.prop > 0) carried = d.acc / d.prop;
-    pts.push(carried);
-    real.push(d.prop > 0);
-  }
-  const d = pts.map((v, i) => `${i ? "L" : "M"}${xs(i)} ${ys(v)}`).join(" ");
+     is not a day on which the humans rejected everything. Before the first
+     reading there is nothing to carry, so the line starts there; with no
+     reading at all there is no line. `real` is what lets the readout say
+     "-" on a carried day (carried.ts). */
+  const c = carryForward(
+    series.map((x) => (x.prop > 0 ? Math.max(0, Math.min(1, x.acc / x.prop)) : null)),
+  );
+  const { pts, real, first } = c;
+  const d = carriedPath(c, xs, ys);
 
   const [at, setAt] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -163,7 +162,7 @@ export function AdoptionTrend(
     setAt(Math.max(0, Math.min(N - 1, i)));
   };
 
-  const v = at === null ? null : pts[at]!;
+  const v = at === null || at < first ? null : pts[at]!;
   // Keep the readout inside the chart when the cursor is near the right edge.
   const flip = at !== null && xs(at) > W - 64;
 
@@ -183,15 +182,21 @@ export function AdoptionTrend(
           <stop offset="1" stopColor={CYAN} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={`${d} L${xs(N - 1)} ${H - 14} L0 ${H - 14} Z`} fill="url(#agg)" />
+      {first >= 0 ? (
+        <path d={`${d} L${xs(N - 1)} ${H - 14} L${xs(first)} ${H - 14} Z`} fill="url(#agg)" />
+      ) : null}
       {[0, 0.25, 0.5, 0.75, 1].map((g) => (
         <g key={g}>
           <line x1="0" y1={ys(g)} x2={W} y2={ys(g)} className="gridline" />
           <text className="tick" x={W} y={ys(g) - 3} textAnchor="end">{Math.round(g * 100)}%</text>
         </g>
       ))}
-      <path d={d} fill="none" stroke={CYAN} strokeWidth="1.8" />
-      <circle cx={xs(N - 1)} cy={ys(pts[N - 1] ?? 0)} r="3.4" fill={CYAN_B} />
+      {first >= 0 ? (
+        <>
+          <path d={d} fill="none" stroke={CYAN} strokeWidth="1.8" />
+          <circle cx={xs(N - 1)} cy={ys(pts[N - 1] ?? 0)} r="3.4" fill={CYAN_B} />
+        </>
+      ) : null}
 
       {at !== null && v !== null ? (
         <g className="crosshair">
@@ -203,7 +208,7 @@ export function AdoptionTrend(
             y={Math.max(11, ys(v) - 8)}
             textAnchor={flip ? "end" : "start"}
           >
-            {`${(v * 100).toFixed(1)}%`}
+            {real[at] ? `${(v * 100).toFixed(1)}%` : "-"}
           </text>
         </g>
       ) : null}
@@ -331,20 +336,17 @@ export function CashChart(
   const W = 328, H = 112;
   const total = collected + receivable || 1;
   const y0 = 48, y1 = 94, N = series.length;
-  const xs = (i: number) => i * ((W - 4) / (N - 1));
+  const xs = (i: number) => railX(i, N, W - 4);
   const ys = (v: number) => y1 - (v / 100) * (y1 - y0);
 
   /* A period in which nothing fell due has no rate; the line carries the last
-     reading across rather than plunging to zero on a quiet fortnight. `real`
-     remembers which ones were measured, so the readout can say so. */
-  let carried = 0;
-  const pts: number[] = [];
-  const real: boolean[] = [];
-  for (const d of series) {
-    if (d.due > 0) carried = Math.max(0, Math.min(100, (d.got / d.due) * 100));
-    pts.push(carried);
-    real.push(d.due > 0);
-  }
+     reading across rather than plunging to zero on a quiet fortnight, starts
+     at the first period that had one, and is absent when none did. `real`
+     is what lets the readout say "-" on a carried period (carried.ts). */
+  const c = carryForward(
+    series.map((x) => (x.due > 0 ? Math.max(0, Math.min(100, (x.got / x.due) * 100)) : null)),
+  );
+  const { pts, real, first } = c;
 
   const [at, setAt] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -359,7 +361,7 @@ export function CashChart(
     setAt(Math.max(0, Math.min(N - 1, i)));
   };
 
-  const v = at === null ? null : pts[at]!;
+  const v = at === null || at < first ? null : pts[at]!;
   const flip = at !== null && xs(at) > W - 58;
 
   return (
@@ -386,12 +388,15 @@ export function CashChart(
         {labelOverdue(`${((overdue / total) * 100).toFixed(1)}%`)}
       </text>
 
-      <path d={pts.map((p, i) => `${i ? "L" : "M"}${xs(i)} ${ys(p)}`).join(" ")}
-            fill="none" stroke={CYAN} strokeWidth="2" />
-      {pts.map((p, i) => (
-        <circle key={i} cx={xs(i)} cy={ys(p)} r="2.6"
-                fill="var(--screen-ground)" stroke={CYAN} strokeWidth="1.5" />
-      ))}
+      <path d={carriedPath(c, xs, ys)} fill="none" stroke={CYAN} strokeWidth="2" />
+      {/* A DOT IS A MEASUREMENT. Carried periods get the line and no dot - a
+          dot there would claim a reading nobody took. */}
+      {pts.map((p, i) =>
+        real[i] ? (
+          <circle key={i} cx={xs(i)} cy={ys(p)} r="2.6"
+                  fill="var(--screen-ground)" stroke={CYAN} strokeWidth="1.5" />
+        ) : null,
+      )}
 
       {at !== null && v !== null ? (
         <g className="crosshair">

@@ -315,7 +315,7 @@ export class InMemorySignalStore implements SignalStore {
     const held = this.leads.get(id);
     // The workspace check is the tenant boundary, not a formality: the id
     // alone is enough to address any row in the map.
-    if (!held || held.workspaceId !== workspaceId) return false;
+    if (held?.workspaceId !== workspaceId) return false;
     // THE EXIT ROWS GO WITH IT. A hard-deleted lead is one that should never
     // have existed, and a note explaining why it ended cannot outlive the
     // thing it describes - the polymorphic subject_id has no foreign key to

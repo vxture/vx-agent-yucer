@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Banner, Button, ConfirmDestructive, DialogForm, useToast } from "@vxture/design-ui";
+import {
+  Banner,
+  Button,
+  ConfirmDestructive,
+  DialogForm,
+  RadioGroup,
+  RadioGroupItem,
+  useToast,
+} from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { importTemplate } from "../admin/division/actions";
 
@@ -101,21 +109,20 @@ export function DivisionImport(
         }}
       >
         <div className="gap-md flex flex-col">
-          {templates.map((t) => (
-            <label className="gap-sm flex items-start" key={t.key}>
-              <input
-                type="radio"
-                name="division-template"
-                className="mt-2xs"
-                checked={chosen === t.key}
-                onChange={() => setChosen(t.key)}
-              />
-              <span className="gap-2xs flex flex-col">
-                <span className="text-body font-semibold">{t.label}</span>
-                <span className="text-muted-foreground text-body-sm">{t.names.join(" / ")}</span>
-              </span>
-            </label>
-          ))}
+          {/* THE DS'S RADIO, not a bare <input> (the repo's one UI rule), and
+              each label bound to its control by id so a screen reader and a
+              click on the text both land on the right carve. */}
+          <RadioGroup value={chosen} onValueChange={setChosen} className="gap-md flex flex-col">
+            {templates.map((t) => (
+              <label className="gap-sm flex items-start" key={t.key} htmlFor={`carve-${t.key}`}>
+                <RadioGroupItem id={`carve-${t.key}`} value={t.key} className="mt-2xs" />
+                <span className="gap-2xs flex flex-col">
+                  <span className="text-body font-semibold">{t.label}</span>
+                  <span className="text-muted-foreground text-body-sm">{t.names.join(" / ")}</span>
+                </span>
+              </label>
+            ))}
+          </RadioGroup>
           {/* THE DANGER, AS THE DS DRAWS IT - not a line of coloured text. */}
           <Banner
             tone="danger"

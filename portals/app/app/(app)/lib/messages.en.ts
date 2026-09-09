@@ -857,7 +857,7 @@ export const en: Dictionary = {
     renameUnit: "Rename",
     saveUnit: "Save unit",
     unitCode: "Unit code",
-    unitCodeHint: "Fixed once created - it is this unit\'s anchor. Lowercase ASCII, e.g. set / month.",
+    unitCodeHint: "Fixed once created - it is this unit's anchor. Lowercase ASCII, e.g. set / month.",
     colUnitName: "Unit",
     unitDeleteConsequence: "Refused while products are priced in it - move them to another unit first.",
     back: "Back",
@@ -3062,6 +3062,8 @@ export const en: Dictionary = {
     leadAttained: (closed: string, target: string, pct: string) =>
       `Workspace ${closed} / ${target} - ${pct} attained`,
     leadNoWorkspaceTarget: "No workspace-wide target was set this period.",
+    leadNotMeasured: (target: string, reason: string) =>
+      `Workspace target ${target} - ${reason || "not measured yet"}`,
     leadUnforecast: (n: number) =>
       `${n} scopes have submitted no forecast snapshot this period - that is not 0% attained.`,
     leadRule:

@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon, StatusBadge } from "@vxture/design-ui";
+import { Icon } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 

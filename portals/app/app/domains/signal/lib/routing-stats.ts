@@ -57,7 +57,8 @@ function settled(r: RoutingStatRow): boolean {
 export function routingStats(rows: readonly RoutingStatRow[]): RoutingStats {
   const blocked = rows.filter((r) => r.unroutableReason !== null);
   const placed = rows.filter((r) => r.unroutableReason === null);
-  const atRest = placed.filter(settled);
+  // The settled ones are the complement - total less pending less blocked -
+  // and nothing reads them by name.
   const pending = placed.filter((r) => !settled(r));
 
   const byReason = tally(blocked.map((r) => r.unroutableReason!));

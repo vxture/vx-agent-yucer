@@ -636,7 +636,7 @@ export class InMemoryAccountStore implements AccountStore {
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const a = this.accounts.get(id);
-    return a && a.workspaceId === workspaceId ? this.hydrate(a) : null;
+    return a?.workspaceId === workspaceId ? this.hydrate(a) : null;
   }
 
   async updateAccount(

@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import {
   getDeliveryStore,
-  getPipelineStore,
   getCatalogStore,
 } from "../../domains/shared/registry";
 import { renewalDraft } from "../../domains/delivery/service";

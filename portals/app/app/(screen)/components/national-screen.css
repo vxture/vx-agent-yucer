@@ -486,10 +486,11 @@
 /* 交付履约's donut and its key. */
 .screen .screen-health{ flex: 1; display: flex; align-items: center; gap: 14px; min-height: 0; }
 .screen .legend{ flex: 1; display: flex; flex-direction: column; gap: 7px; }
-.screen .legend div{ display: flex; align-items: center; font-size: 12px; color: var(--screen-ink); }
+.screen .legend div{ display: flex; align-items: center; font-size: 12px; color: var(--screen-ink); transition: color 0.14s linear; }
 .screen .legend i{ width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; flex: none; }
 .screen .legend b{
   font-family: var(--screen-figure); font-weight: 700; margin-left: auto;
+  transition: font-size 0.14s var(--screen-ease);
   font-variant-numeric: tabular-nums; font-size: 14px;
 }
 
@@ -537,8 +538,6 @@
 /* 交付履约's donut and its key - the same enlarge-on-hover as 商机储备, but
    driven from state rather than :hover because the arc and the row it belongs
    to sit in different subtrees and no selector joins them. */
-.screen .legend div{ transition: color 0.14s linear; }
-.screen .legend b{ transition: font-size 0.14s var(--screen-ease); }
 .screen .legend div.on{ color: var(--screen-ink); }
 .screen .legend div.on b{ font-size: 18px; }
 .screen .band{ transition: filter 0.14s linear; cursor: default; }
@@ -614,7 +613,6 @@
   box-shadow: 0 0 14px oklch(from var(--screen-warn) l c h / 0.4);
 }
 .screen .screen-pick.rate.on::before{ background: var(--vx-color-neutral-950); opacity: 0.5; }
-.screen .screen-pick.rate.on{ color: var(--vx-color-neutral-950); background: var(--screen-warn); border-color: var(--screen-warn); }
 
 .screen .screen-map{ position: relative; flex: 1; min-height: 0; }
 .screen .screen-map svg{ position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; }

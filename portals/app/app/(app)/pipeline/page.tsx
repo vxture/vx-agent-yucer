@@ -1,4 +1,4 @@
-import { Card, EmptyState, SectionHeader, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { ForecastTrajectory } from "../components/forecast-trajectory";
 import { ModuleHeadline } from "../components/module-headline";
@@ -52,7 +52,7 @@ export default async function PipelinePage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string }>;
 }) {
-  const { BOARD_TEXT, DOMAIN_LABEL, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
+  const { BOARD_TEXT, PIPELINE_TEXT, SHELL_TEXT, LOAD_ERROR } =
     await getMessages();
   const params = await searchParams;
   const period = resolvePeriod(params.period);

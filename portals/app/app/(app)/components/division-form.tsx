@@ -6,6 +6,7 @@ import {
   Banner,
   Button,
   ButtonGroup,
+  Checkbox,
   DestructiveButton,
   DialogForm,
   Drawer,
@@ -119,7 +120,7 @@ export function DivisionForm({
   const prefix = scopePrefix(scope);
   const noun = frameNoun(scope, PLANNING_TEXT);
   const [local, setLocal] = useState(localCode(scope, code));
-  const [nameValue, setName] = useState(name);
+  const [nameValue, setNameValue] = useState(name);
   const [chosen, setChosen] = useState<Set<string>>(new Set(members));
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
@@ -144,7 +145,7 @@ export function DivisionForm({
      the anchor, and on an existing region it stays. */
   const applyPreset = (p: PresetOption) => {
     if (isNew) setLocal(localCode(scope, p.code));
-    setName(p.name);
+    setNameValue(p.name);
     setChosen(new Set(p.members));
   };
 
@@ -257,7 +258,7 @@ export function DivisionForm({
               <FieldLabel>{PLANNING_TEXT.divisionNameLabel}</FieldLabel>
               <Input
                 value={nameValue}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setNameValue(e.target.value)}
                 disabled={pending}
               />
             </Field>
@@ -532,11 +533,15 @@ export function DivisionForm({
           <ul className="gap-2xs flex flex-col">
             {matches.map((o) => (
               <li key={o.key}>
-                <label className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
-                  <input
-                    type="checkbox"
+                {/* THE DS'S CHECKBOX, bound to its label by id. */}
+                <label
+                  className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs"
+                  htmlFor={`member-${o.key}`}
+                >
+                  <Checkbox
+                    id={`member-${o.key}`}
                     checked={chosen.has(o.key)}
-                    onChange={() => toggle(o.key)}
+                    onCheckedChange={() => toggle(o.key)}
                   />
                   {/* THE LABEL IS THE TAG: `JS 江苏`, or `西安`. The province's
                       letters lead so the names line up down the list. */}

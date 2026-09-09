@@ -3260,6 +3260,10 @@ export const PLANNING_TEXT = {
   leadAttained: (closed: string, target: string, pct: string) =>
     `全工作区 ${closed} / ${target} · 达成 ${pct}`,
   leadNoWorkspaceTarget: "本期未设全工作区目标。",
+  // The target exists but has no measurement yet - the gap's own reason, never
+  // a 0%.
+  leadNotMeasured: (target: string, reason: string) =>
+    `全工作区目标 ${target} · ${reason || "尚无达成数据"}`,
   leadUnforecast: (n: number) =>
     `${n} 个作用域本期还没有提交预测快照——那不是达成 0%。`,
   leadRule:

@@ -476,7 +476,7 @@ export function isSystemDivision(
   const d = templates.map((t) => t.divisions.find((x) => x.code === code) ?? null);
   return templates.some((t, i) => {
     const shipped = d[i];
-    if (!shipped || shipped.name !== name) return false;
+    if (shipped?.name !== name) return false;
     /* COMPARED AS SETS, not as sorted arrays. Sorting to compare needed a
        collation for CJK names that neither side actually depends on - the
        question is only "the same provinces", and order is not part of it. It

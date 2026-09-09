@@ -306,7 +306,7 @@ export class InMemoryCatalogStore implements CatalogStore {
   private prices: PriceEntryRecord[] = [];
   private lines: OpportunityLineRecord[] = [];
   private approvals: DiscountApprovalRecord[] = [];
-  private policies = new Map<string, PricingPolicy>();
+  private readonly policies = new Map<string, PricingPolicy>();
   private seq = 0;
 
   async getPricingPolicy(workspaceId: string): Promise<PricingPolicy> {

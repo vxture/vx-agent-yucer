@@ -31,7 +31,7 @@ import { loadFailureText } from "../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function QuotePage() {
-  const { LOAD_ERROR, QUOTE_TEXT, SHELL_TEXT, DOMAIN_LABEL } = await getMessages();
+  const { LOAD_ERROR, QUOTE_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (

@@ -2,11 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
-import {
-  getPipelineStore,
-  getSignalStore,
-  getCatalogStore,
-} from "../../domains/shared/registry";
+import { getCatalogStore } from "../../domains/shared/registry";
 import {
   advanceLead,
   assignLead,

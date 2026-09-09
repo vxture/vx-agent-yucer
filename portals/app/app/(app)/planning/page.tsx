@@ -89,10 +89,33 @@ export default async function PlanningPage() {
   // count with a yuan sign, which is TD-013 in one sentence. Same rule the
   // board's quota card uses - it was written inline twice and got it wrong
   // both times.
+  // THE SENTENCE MOVED when the headline stopped being the period (it "belongs
+  // beside the targets it describes") and for a while it was computed and
+  // never shown. It heads the targets section now. Three states, each its own
+  // sentence: measured (money / money · pct), not measurable (the gap's own
+  // reason, never 0%), no workspace target at all.
   const summary = summaryTarget(result.value.map((r) => r.target));
   const workspaceRow = summary
     ? result.value.find((r) => r.target.id === summary.id)
     : undefined;
+  const leadLine = (() => {
+    if (!workspaceRow || workspaceRow.target.targetValue.unit !== "money") {
+      return PLANNING_TEXT.leadNoWorkspaceTarget;
+    }
+    const value = workspaceRow.target.targetValue;
+    const m = workspaceRow.measurement;
+    if (m.kind !== "measured" || m.achieved.unit !== "money") {
+      return PLANNING_TEXT.leadNotMeasured(
+        formatMoney(value.amount, value.currency),
+        m.kind === "not_measurable" ? (PLANNING_TEXT.gapLabel[m.code] ?? m.code) : "",
+      );
+    }
+    return PLANNING_TEXT.leadAttained(
+      formatMoney(m.achieved.amount, m.achieved.currency),
+      formatMoney(value.amount, value.currency),
+      formatPercent(m.ratio),
+    );
+  })();
   const unforecast = result.value.filter(
     (r) =>
       r.measurement.kind === "not_measurable" &&
@@ -152,7 +175,7 @@ export default async function PlanningPage() {
       <Section
         icon="target"
         title={PLANNING_TEXT.title}
-        description={PLANNING_TEXT.description}
+        description={leadLine}
         action={
           can(session.authz, session.entitlement, "planning.target.create", "ui")
             .allowed ? (

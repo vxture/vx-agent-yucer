@@ -46,7 +46,7 @@ export function AgeingPolicyConfig({
   const parsed = text
     .split(/[,，\s]+/)
     .filter((p) => p !== "")
-    .map((p) => Number(p));
+    .map(Number);
   const dirty = parsed.join(",") !== cutoffs.join(",");
   const usable = parsed.length > 0 && parsed.every((n) => Number.isInteger(n) && n > 0);
 
