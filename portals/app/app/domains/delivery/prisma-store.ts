@@ -21,9 +21,13 @@ import type {
 // ones. The column-lock mirror would catch an attempt, and the method
 // signatures make it unexpressible in the first place.
 
+import { DEFAULT_AGEING_CUTOFFS } from "./lib/collection-stats";
+
 const PROJECT_TABLE = "yucer_delivery.project";
 const MILESTONE_TABLE = "yucer_delivery.project_milestone";
 const REVENUE_TABLE = "yucer_delivery.revenue_schedule";
+// incr/0042. 账龄分档, one row per workspace.
+const AGEING_POLICY_TABLE = "yucer_delivery.ageing_policy";
 // yucer_delivery.milestone_change has no constant here on purpose: assertWritable
 // guards an UPDATE's column list, and this table has no UPDATE to guard. Its
 // entry in APPEND_ONLY_TABLES is what the mirror checks.
@@ -208,6 +212,33 @@ export class PrismaDeliveryStore implements DeliveryStore {
         dueAt: (r.dueAt as Date | null) ?? null,
         settledAt: (r.settledAt as Date | null) ?? null,
       };
+    });
+  }
+
+  /* --- 账龄分档 (incr/0042) --------------------------------------------------
+     NO ROW READS AS THE SHIPPED CUTOFFS, for the reason 0041's thresholds do:
+     the increment seeds every workspace that already has a schedule, and one
+     created afterwards has none until somebody changes something. */
+
+  async getAgeingCutoffs(workspaceId: string): Promise<number[]> {
+    const p = await getPrismaClient();
+    const row = await p.ageingPolicy.findUnique({ where: { workspaceId } });
+    return row ? row.lateCutoffs.map(Number) : [...DEFAULT_AGEING_CUTOFFS];
+  }
+
+  async setAgeingCutoffs(workspaceId: string, cutoffs: readonly number[]): Promise<void> {
+    const p = await getPrismaClient();
+    const update = { lateCutoffs: [...cutoffs], updatedAt: new Date() };
+    const guard = assertWritable(AGEING_POLICY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked ageing_policy column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.ageingPolicy.upsert({
+      where: { workspaceId },
+      update,
+      create: { workspaceId, ...update },
     });
   }
 

@@ -197,6 +197,8 @@ export const en: Dictionary = {
     product: "Product settings",
     winLossReason: "Win/loss reasons",
     industry: "Industries",
+    forecastThreshold: "Forecast bands",
+    ageingPolicy: "Ageing bands",
     audit: "Audit trail",
     adoption: "Adoption",
     renewal: "Renewals",
@@ -1559,6 +1561,55 @@ export const en: Dictionary = {
     termsReadOnly: "You cannot change the commercial terms.",
   },
 
+  FORECAST_PARAM_ERROR: {
+    commit_out_of_range: "Commit sits between 1 and 100",
+    best_case_out_of_range: "Best case sits between 1 and 100",
+    bands_cross: "Best case has to start below commit, or the bands cannot be told apart",
+    stall_out_of_range: "A stall clock runs from 1 to 365 days",
+
+    ...GATE_ERROR,
+  },
+
+  FORECAST_PARAM_TEXT: {
+    title: "Forecast bands",
+    why: "What probability counts as commit, as best case, and how long a stall takes.",
+    ladder: (best: number, commit: number) => `Best case ${best}% - commit ${commit}%`,
+    save: "Save",
+    saved: "Saved. The forecast review suggests against the new bands from now on.",
+    percent: "%",
+    days: "days",
+    commitLabel: "Commit starts at",
+    commitHint:
+      "A deal's own probability at or above this reads as commit. 80 by default: negotiate already defaults to 90, so 90 here would only restate the stage.",
+    bestCaseLabel: "Best case starts at",
+    bestCaseHint: "At or above this is best case, below it is pipeline. Has to be under commit.",
+    stallLabel: "A stall is",
+    stallHint:
+      "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days).",
+  },
+
+  AGEING_ERROR: {
+    cutoff_count: "An ageing policy has between one and five cutoffs",
+    cutoff_range: "A cutoff is a whole number of days, 1 to 3650",
+    cutoffs_unordered: "The cutoffs have to rise, or two bands would claim the same day",
+
+    ...GATE_ERROR,
+  },
+
+  AGEING_TEXT: {
+    title: "Ageing bands",
+    why: "Where an overdue receivable is cut. Not yet due and no due date are always their own.",
+    bandCount: (n: number) => `${n} late bands`,
+    save: "Save",
+    saved: "Saved. The collections chart is cut by the new bands from now on.",
+    cutoffsLabel: "Cutoffs (days)",
+    cutoffsHint: "Comma separated, ascending. 30, 60 gives 1-30 days, 31-60 days, and 60+.",
+    previewLabel: "Which gives these bands",
+    previewHint:
+      "The two at the ends do not move: one is money that is simply early, the other is money nobody can age at all.",
+    previewUnusable: "Ascending whole numbers, please",
+  },
+
   INDUSTRY_ERROR: {
     code_required: "An industry needs a code",
     name_required: "An industry needs a name",
@@ -1850,6 +1901,8 @@ export const en: Dictionary = {
       product: "Product types, statuses and pricing units",
       winLossReason: "What a win/loss review may choose from",
       industry: "How customers are filed by industry - change it once, everywhere follows",
+      forecastThreshold: "Where commit and best case start",
+      ageingPolicy: "How many days overdue makes a band",
       adoption:
         "Whether follow-up notes are actually being used. Criteria in ADR-012",
       division: "How the country is carved into regions, and which provinces each holds",
@@ -2616,11 +2669,10 @@ export const en: Dictionary = {
     byProjectWhy: "The eight projects holding the most outstanding money.",
     ageingBand: {
       not_due: "Not yet due",
-      d1_30: "1-30 days late",
-      d31_60: "31-60 days late",
-      d60_plus: "60+ days late",
       no_due_date: "No due date",
     } as Record<string, string>,
+    ageingBetween: (from: number, to: number) => `${from}-${to} days late`,
+    ageingOver: (days: number) => `${days}+ days late`,
     collectStatEmpty: "Nothing is outstanding, so there is nothing to break down.",
 
     collectAdviceTitle: "Collections check",

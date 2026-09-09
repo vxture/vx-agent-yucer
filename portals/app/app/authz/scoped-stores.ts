@@ -111,6 +111,14 @@ class ScopedPipelineStore implements PipelineStore {
     this.inner.removeWinLossReason(...a);
   countReviewsByReason: PipelineStore["countReviewsByReason"] = (...a) =>
     this.inner.countReviewsByReason(...a);
+  /* incr/0041. 预测阈值 is WORKSPACE-WIDE configuration, not a set of deals: a
+     rep whose scope is their own book still forecasts against the same bands,
+     because they are the workspace's bands. Gated by permission in the service,
+     unfiltered here. */
+  getForecastThresholds: PipelineStore["getForecastThresholds"] = (...a) =>
+    this.inner.getForecastThresholds(...a);
+  setForecastThresholds: PipelineStore["setForecastThresholds"] = (...a) =>
+    this.inner.setForecastThresholds(...a);
 }
 
 class ScopedAccountStore implements AccountStore {

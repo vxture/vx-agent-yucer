@@ -24,6 +24,7 @@ import type {
   RevenueInstalment,
   RevenueStatus,
 } from "./lib/revenue";
+import { DEFAULT_AGEING_CUTOFFS } from "./lib/collection-stats";
 
 export interface ProjectRecord {
   id: string;
@@ -145,6 +146,12 @@ export interface DeliveryStore {
     id: string,
     patch: { status?: RevenueStatus; actualAmount?: Money; settledAt?: Date | null },
   ): Promise<boolean>;
+
+  /* --- 账龄分档 (incr/0042) --------------------------------------------------
+     One row per workspace, so no list and no delete: `get` answers with the
+     shipped cutoffs where no row exists, and `set` writes it either way. */
+  getAgeingCutoffs(workspaceId: string): Promise<number[]>;
+  setAgeingCutoffs(workspaceId: string, cutoffs: readonly number[]): Promise<void>;
 }
 
 export class InMemoryDeliveryStore implements DeliveryStore {
@@ -153,6 +160,17 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   private seq = 0;
   private instalments: Array<InstalmentRecord & { workspaceId: string }> = [];
   private changes: Array<MilestoneChangeRecord & { workspaceId: string }> = [];
+  /* incr/0042. The workspace's ageing policy, which the database holds in
+     yucer_delivery.ageing_policy. */
+  private cutoffs = new Map<string, number[]>();
+
+  async getAgeingCutoffs(workspaceId: string): Promise<number[]> {
+    return this.cutoffs.get(workspaceId) ?? [...DEFAULT_AGEING_CUTOFFS];
+  }
+
+  async setAgeingCutoffs(workspaceId: string, cutoffs: readonly number[]): Promise<void> {
+    this.cutoffs.set(workspaceId, [...cutoffs]);
+  }
 
   seed(input: {
     projects?: ProjectRecord[];

@@ -243,6 +243,35 @@ model Account {
   @@schema("yucer_core")
 }
 
+/// incr/0041. 预测阈值 - where the confidence bands start, and how long a stall
+/// takes to count. One row per workspace, keyed by the workspace itself: a
+/// settings row is not a list, and two rows of thresholds for one workspace
+/// would be a state with no meaning.
+model ForecastThreshold {
+  workspaceId         String   @id @map("workspace_id") @db.Uuid
+  commitProbability   Int      @default(80) @map("commit_probability") @db.SmallInt
+  bestCaseProbability Int      @default(50) @map("best_case_probability") @db.SmallInt
+  stallDays           Int      @default(45) @map("stall_days") @db.SmallInt
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("forecast_threshold")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0042. 账龄分档 - where each late band ends, in days overdue. An array
+/// rather than rows because it is read whole every time and nothing joins to
+/// it (ADR-026); one row per workspace, like the thresholds above.
+model AgeingPolicy {
+  workspaceId String   @id @map("workspace_id") @db.Uuid
+  lateCutoffs Int[]    @default([30, 60]) @map("late_cutoffs") @db.SmallInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("ageing_policy")
+  @@schema("yucer_delivery")
+}
+
 /// incr/0040. 行业 - the workspace's own industry vocabulary, same shape as the
 /// catalogue's three: an anchor code, a display name, an order.
 model Industry {

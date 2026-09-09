@@ -77,8 +77,11 @@ test("administration is nav, but it is not a capability domain", () => {
     // 行业分类 joined it the same way (incr/0040): what customers are filed
     // under is the workspace's own list, and deciding it is not the same act
     // as working through the customers.
+    // 预测阈值 and 账龄分档 joined 业务参数 on 2026-09-08 (incr/0041, 0042).
+    // They are rule PARAMETERS rather than vocabularies, which is a difference
+    // in what they hold and not in where they belong.
     ["division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
-     "adoption"],
+     "forecastThreshold", "ageingPolicy", "adoption"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -243,7 +246,11 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
      line on a quote. Editing either needs an upsert action they lack. */
   // 赢丢原因 rides pipeline.winloss.view, which a viewer holds - so the gear
   // shows a viewer three read-only items now, not two.
-  const inPlane = ["division", "product", "winLossReason", "industry"];
+  const inPlane = ["division", "product", "winLossReason", "industry",
+    // A viewer holds pipeline.read and delivery.read, so both parameter pages
+    // are readable; writing them needs permissions a viewer does not hold, and
+    // the panels render without their save button.
+    "forecastThreshold", "ageingPolicy"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length

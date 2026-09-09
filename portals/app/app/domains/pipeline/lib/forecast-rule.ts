@@ -40,26 +40,73 @@ export const CONFIDENCE_BANDS = ["pipeline", "best_case", "commit"] as const;
 export type ConfidenceBand = (typeof CONFIDENCE_BANDS)[number];
 
 /**
- * Where the bands start.
+ * Where the bands start, and how long a stall takes to count.
+ *
+ * THE WORKSPACE'S, SINCE incr/0041. These were three constants in this file,
+ * and they decide what a forecast review tells a sales leader their book is
+ * worth - which is a company's own forecast discipline rather than a fact
+ * about selling. The BANDS stay code (the rule branches on them and the
+ * database constrains them); where they START is data.
+ */
+export interface ForecastThresholds {
+  /** At or above this, the deal's own probability reads as commit. */
+  readonly commitAt: number;
+  /** At or above this, and below commitAt, best case. */
+  readonly bestCaseAt: number;
+  /** Days at one stage before the clock caps the band. */
+  readonly stallDays: number;
+}
+
+/**
+ * What a workspace gets before anybody changes it - and the same numbers
+ * incr/0041 writes as the column defaults, so the two cannot disagree.
  *
  * 80 rather than 90 for commit: `negotiate` defaults to 90 and `propose` to 70,
  * so a threshold at 90 would make the band a restatement of "is it at
  * negotiate" and the suggestion would carry no information the stage badge does
  * not already carry. At 80 a rep who has marked a `propose` deal at 85 lands in
  * commit on their own judgement, which is the case worth surfacing.
+ *
+ * 45 days for the stall, and deliberately NOT judgement.ts's STALE_DAYS (30),
+ * which measures something different - days since anyone TALKED to the
+ * customer. A deal can be actively worked and still not move, and it is the
+ * not-moving that a forecast category is wrong about.
  */
-export const COMMIT_PROBABILITY = 80;
-export const BEST_CASE_PROBABILITY = 50;
+export const DEFAULT_FORECAST_THRESHOLDS: ForecastThresholds = {
+  commitAt: 80,
+  bestCaseAt: 50,
+  stallDays: 45,
+};
 
 /**
- * How long at one stage before the clock is the story.
+ * Thresholds a workspace may actually be given.
  *
- * Its own constant rather than judgement.ts's STALE_DAYS (30), which measures
- * something different - days since anyone TALKED to the customer. A deal can be
- * actively worked and still not move, and it is the not-moving that a forecast
- * category is wrong about.
+ * The pair has to be ordered or the ladder is unorderable and every deal lands
+ * in whichever branch is tested first - chk_forecast_threshold_ordered says the
+ * same thing in the database, and this is the sentence a person reads.
  */
-export const STALL_DAYS = 45;
+export function planForecastThresholds(
+  input: ForecastThresholds,
+): RuleResult<ForecastThresholds> {
+  const whole = (n: number) => Number.isInteger(n);
+  if (!whole(input.commitAt) || input.commitAt < 1 || input.commitAt > 100) {
+    return fail(violation("commit_out_of_range", "commit sits between 1 and 100", "commitAt"));
+  }
+  if (!whole(input.bestCaseAt) || input.bestCaseAt < 1 || input.bestCaseAt > 100) {
+    return fail(violation("best_case_out_of_range", "best case sits between 1 and 100", "bestCaseAt"));
+  }
+  if (input.bestCaseAt >= input.commitAt) {
+    return fail(violation(
+      "bands_cross",
+      "best case has to start below commit, or the bands cannot be ordered",
+      "bestCaseAt",
+    ));
+  }
+  if (!whole(input.stallDays) || input.stallDays < 1 || input.stallDays > 365) {
+    return fail(violation("stall_out_of_range", "a stall clock runs from 1 to 365 days", "stallDays"));
+  }
+  return ok(input);
+}
 
 const DAY = 86_400_000;
 
@@ -114,7 +161,7 @@ export type CategoryVerdict =
 export function suggestCategory(
   deal: CategorizableDeal,
   now: Date,
-  opts: { stallDays?: number } = {},
+  thresholds: ForecastThresholds = DEFAULT_FORECAST_THRESHOLDS,
 ): CategoryVerdict {
   if (isTerminal(deal.stage)) return { kind: "settled", reason: "terminal" };
 
@@ -123,9 +170,9 @@ export function suggestCategory(
     deal.probability != null && deal.probability !== DEFAULT_PROBABILITY[deal.stage];
 
   let band: ConfidenceBand =
-    probability >= COMMIT_PROBABILITY
+    probability >= thresholds.commitAt
       ? "commit"
-      : probability >= BEST_CASE_PROBABILITY
+      : probability >= thresholds.bestCaseAt
         ? "best_case"
         : "pipeline";
   const fromProbability = band;
@@ -148,7 +195,7 @@ export function suggestCategory(
   if (
     deal.lastStageChangeAt &&
     Math.floor((now.getTime() - deal.lastStageChangeAt.getTime()) / DAY) >
-      (opts.stallDays ?? STALL_DAYS)
+      thresholds.stallDays
   ) {
     // ONE BAND, NOT STRAIGHT TO PIPELINE. A stall is evidence, not a verdict -
     // long negotiations are ordinary in this business, and a rule that dropped

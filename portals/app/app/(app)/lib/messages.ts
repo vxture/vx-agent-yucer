@@ -101,6 +101,8 @@ export const DOMAIN_LABEL: Record<string, string> = {
   product: "产品配置",
   winLossReason: "赢丢原因",
   industry: "行业分类",
+  forecastThreshold: "预测阈值",
+  ageingPolicy: "账龄分档",
   audit: "操作审计",
   adoption: "使用情况",
 };
@@ -1114,6 +1116,52 @@ export const INDUSTRY_ERROR: Record<string, string> = {
   not_found: "找不到这个行业，可能刚被删掉，刷新后重试",
 };
 
+/** 预测阈值的回执 (0041)。 */
+export const FORECAST_PARAM_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  commit_out_of_range: "承诺阈值要在 1 到 100 之间",
+  best_case_out_of_range: "最好情况阈值要在 1 到 100 之间",
+  bands_cross: "最好情况要低于承诺，否则两档分不开",
+  stall_out_of_range: "停滞天数要在 1 到 365 天之间",
+};
+
+export const FORECAST_PARAM_TEXT = {
+  title: "预测阈值",
+  why: "概率到多少算承诺、算最好情况，以及停多久算停滞。",
+  ladder: (best: number, commit: number) => `最好情况 ${best}% · 承诺 ${commit}%`,
+  save: "保存",
+  saved: "已保存，预测口径页立即按新阈值给建议",
+  percent: "%",
+  days: "天",
+  commitLabel: "承诺起算",
+  commitHint: "商机自己的赢率到这个数，就算进承诺。默认 80：谈判阶段默认就是 90，定在 90 等于只是在复述阶段。",
+  bestCaseLabel: "最好情况起算",
+  bestCaseHint: "到这个数算最好情况，低于它算漏斗。必须低于承诺。",
+  stallLabel: "停滞天数",
+  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。",
+};
+
+/** 账龄分档的回执 (0042)。 */
+export const AGEING_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  cutoff_count: "分档点要有 1 到 5 个",
+  cutoff_range: "分档点是整天数，1 到 3650 之间",
+  cutoffs_unordered: "分档点必须从小到大，否则两档会抢同一天",
+};
+
+export const AGEING_TEXT = {
+  title: "账龄分档",
+  why: "逾期多少天切一档。未到期和未填到期日永远单独成档。",
+  bandCount: (n: number) => `${n} 个逾期档`,
+  save: "保存",
+  saved: "已保存，回款页的账龄图立即按新分档来切",
+  cutoffsLabel: "分档点（天）",
+  cutoffsHint: "用逗号分隔，从小到大。填 30, 60 得到 1-30 天、31-60 天、60 天以上。",
+  previewLabel: "分出来是这些档",
+  previewHint: "两头的「未到期」「未填到期日」不受分档点影响：一个是还早，一个是没法算。",
+  previewUnusable: "先填成从小到大的正整数",
+};
+
 export const INDUSTRY_TEXT = {
   // 行业分类的配置面 (0040)。
   configTitle: "行业分类",
@@ -1729,6 +1777,8 @@ export const ADMIN_TEXT = {
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
     industry: "客户按行业归档，一处改，处处改",
+    forecastThreshold: "承诺、最好情况从多少概率起算",
+    ageingPolicy: "逾期多少天算一档",
     adoption: "跟进记录有没有被用起来",
     division: "全国怎么切成区域，每个区域管哪些省",
   } as Record<string, string>,
@@ -3065,13 +3115,13 @@ export const DELIVERY_TEXT = {
   ageingWhy: "按逾期天数分档。未到期是健康的那一档，留着才看得出尾巴是例外还是常态。",
   byProjectTitle: "未收集中度",
   byProjectWhy: "未收金额最高的前八个项目。",
+  /* 只剩两头 (incr/0042)：中间几档由工作区自己定的天数拼出来，见下面两个函数。 */
   ageingBand: {
     not_due: "未到期",
-    d1_30: "逾期 1-30 天",
-    d31_60: "逾期 31-60 天",
-    d60_plus: "逾期 60 天以上",
     no_due_date: "未填到期日",
   } as Record<string, string>,
+  ageingBetween: (from: number, to: number) => `逾期 ${from}-${to} 天`,
+  ageingOver: (days: number) => `逾期 ${days} 天以上`,
   collectStatEmpty: "当前没有待回款的项目，头部不做拆解。",
 
   // --- 回款检查 (the dock) ---------------------------------------------------

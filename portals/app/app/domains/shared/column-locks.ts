@@ -263,6 +263,13 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0039. reason_code is the anchor; the name, which outcome it explains, and
   // the order are the workspace's.
   "yucer_pipeline.win_loss_reason": ["name", "for_won", "for_lost", "sort_order", "updated_at"],
+  // 0041. The three numbers are the whole point of the row; workspace_id is
+  // its identity and is not writable.
+  "yucer_pipeline.forecast_threshold": [
+    "commit_probability", "best_case_probability", "stall_days", "updated_at",
+  ],
+  // 0042. Same shape, one column.
+  "yucer_delivery.ageing_policy": ["late_cutoffs", "updated_at"],
   // 0040. industry_code is the anchor; the display name and the order are the
   // workspace's.
   "yucer_core.industry": ["name", "sort_order", "updated_at"],

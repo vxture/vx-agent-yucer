@@ -3,6 +3,10 @@ import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import {
+  DEFAULT_FORECAST_THRESHOLDS,
+  type ForecastThresholds,
+} from "./lib/forecast-rule";
+import {
   DEFAULT_PROBABILITY,
   type OpportunityStatus,
   type Stage,
@@ -35,6 +39,8 @@ import { lockKey } from "../shared/allocate";
 
 const OPPORTUNITY_TABLE = "yucer_pipeline.opportunity";
 const WIN_LOSS_REASON_TABLE = "yucer_pipeline.win_loss_reason";
+// incr/0041. 预测阈值, one row per workspace.
+const FORECAST_THRESHOLD_TABLE = "yucer_pipeline.forecast_threshold";
 
 interface OpportunityRow {
   id: string;
@@ -490,6 +496,44 @@ export class PrismaPipelineStore implements PipelineStore {
   async countReviewsByReason(workspaceId: string, reasonId: string): Promise<number> {
     const p = await getPrismaClient();
     return p.winLossReview.count({ where: { workspaceId, primaryReasonId: reasonId } });
+  }
+
+  /* --- 预测阈值 (incr/0041) --------------------------------------------------
+     NO ROW IS A VALID STATE, and it reads as the shipped numbers: incr/0041
+     seeds every workspace that already has deals, and a workspace created
+     afterwards has none until somebody changes something. Falling back is what
+     keeps a fresh workspace's forecast page from being an error. */
+
+  async getForecastThresholds(workspaceId: string): Promise<ForecastThresholds> {
+    const p = await getPrismaClient();
+    const row = await p.forecastThreshold.findUnique({ where: { workspaceId } });
+    if (!row) return DEFAULT_FORECAST_THRESHOLDS;
+    return {
+      commitAt: row.commitProbability,
+      bestCaseAt: row.bestCaseProbability,
+      stallDays: row.stallDays,
+    };
+  }
+
+  async setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void> {
+    const p = await getPrismaClient();
+    const update = {
+      commitProbability: input.commitAt,
+      bestCaseProbability: input.bestCaseAt,
+      stallDays: input.stallDays,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(FORECAST_THRESHOLD_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked forecast_threshold column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.forecastThreshold.upsert({
+      where: { workspaceId },
+      update,
+      create: { workspaceId, ...update },
+    });
   }
 
   async listForecastSnapshots(

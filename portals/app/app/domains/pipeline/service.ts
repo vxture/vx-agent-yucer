@@ -27,8 +27,10 @@ import {
   daysAtStage,
   planSuggestedCategory,
   suggestCategory,
+  planForecastThresholds,
   type CategorizableDeal,
   type CategoryVerdict,
+  type ForecastThresholds,
 } from "./lib/forecast-rule";
 import type { CatalogStore, DiscountApprovalRecord } from "../catalog/store";
 import type { Decision } from "../../authz/gate";
@@ -998,9 +1000,41 @@ export interface CategoryPreview {
  * how much of the book the rule and the rep already agree about, which is the
  * context that makes a disagreement mean anything.
  */
+/* ---------------------------------------------------------------------------
+ * 预测阈值 - the workspace's own bands (incr/0041).
+ *
+ * READ is gated on `pipeline.forecast.view`, the same gate the review page
+ * itself needs: a number the page's suggestions are computed from is part of
+ * reading the forecast. WRITE is `pipeline.forecast.categorize` - deciding
+ * where commit starts is the same authority as re-filing one deal into it, and
+ * the catalog already withholds that from the person who owns the deal.
+ * ------------------------------------------------------------------------ */
+
+export async function forecastThresholds(
+  ctx: PipelineContext,
+): Promise<RuleResult<ForecastThresholds>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getForecastThresholds(ctx.workspaceId));
+}
+
+export async function setForecastThresholds(
+  ctx: PipelineContext,
+  input: ForecastThresholds,
+): Promise<RuleResult<ForecastThresholds>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.categorize", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planForecastThresholds(input);
+  if (!plan.ok) return plan;
+
+  await ctx.store.setForecastThresholds(ctx.workspaceId, plan.value);
+  return ok(plan.value);
+}
+
 export async function previewCategories(
   ctx: PipelineContext,
-  opts: { now?: Date; stallDays?: number } = {},
+  opts: { now?: Date; thresholds?: ForecastThresholds } = {},
 ): Promise<RuleResult<CategoryPreview[]>> {
   // `pipeline.forecast.view`, not `pipeline.view`, and the two gates differ on
   // an axis worth naming: its FEATURE is `pipeline.forecast` (pro tier), while
@@ -1013,9 +1047,15 @@ export async function previewCategories(
   if (!gate.allowed) return denied(gate);
 
   const now = opts.now ?? new Date();
-  const [rows, lastMoved] = await Promise.all([
+  /* THE WORKSPACE'S BANDS, not the build's (incr/0041). Read here rather than
+     taken from the caller so every reader of this verb forecasts against the
+     same numbers - the opts entry stays for a test that wants to vary them. */
+  const [rows, lastMoved, thresholds] = await Promise.all([
     ctx.store.listOpportunities(ctx.workspaceId),
     ctx.store.latestStageChangeAt(ctx.workspaceId),
+    opts.thresholds
+      ? Promise.resolve(opts.thresholds)
+      : ctx.store.getForecastThresholds(ctx.workspaceId),
   ]);
 
   const out = rows.map((opportunity) => {
@@ -1033,7 +1073,7 @@ export async function previewCategories(
     };
     return {
       opportunity,
-      verdict: suggestCategory(deal, now, { stallDays: opts.stallDays }),
+      verdict: suggestCategory(deal, now, thresholds),
       daysAtStage: daysAtStage(deal, now),
     };
   });
@@ -1073,7 +1113,7 @@ function agreesOrSettled(v: CategoryVerdict): boolean {
 export async function applyCategorySuggestion(
   ctx: PipelineContext,
   opportunityId: string,
-  opts: { now?: Date; stallDays?: number } = {},
+  opts: { now?: Date; thresholds?: ForecastThresholds } = {},
 ): Promise<RuleResult<OpportunityRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
   if (!gate.allowed) return denied(gate);
@@ -1083,7 +1123,12 @@ export async function applyCategorySuggestion(
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
 
-  const lastMoved = await ctx.store.latestStageChangeAt(ctx.workspaceId);
+  const [lastMoved, thresholds] = await Promise.all([
+    ctx.store.latestStageChangeAt(ctx.workspaceId),
+    opts.thresholds
+      ? Promise.resolve(opts.thresholds)
+      : ctx.store.getForecastThresholds(ctx.workspaceId),
+  ]);
   const deal: CategorizableDeal = {
     id: current.id,
     stage: current.stage,
@@ -1093,7 +1138,7 @@ export async function applyCategorySuggestion(
     lastStageChangeAt: lastMoved.get(current.id) ?? null,
   };
 
-  const verdict = suggestCategory(deal, opts.now ?? new Date(), { stallDays: opts.stallDays });
+  const verdict = suggestCategory(deal, opts.now ?? new Date(), thresholds);
   const plan = planSuggestedCategory(deal, verdict);
   if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
 

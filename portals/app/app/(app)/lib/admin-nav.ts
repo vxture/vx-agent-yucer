@@ -94,6 +94,13 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          with the widest reach: it decides how customers are filed, which
          decides the market segment, which decides the playbook. */
       { key: "industry", href: "/admin/industry", icon: "buildings", action: "account.view" },
+      /* 预测阈值 (incr/0041) and 账龄分档 (incr/0042). Not vocabularies but
+         RULE PARAMETERS - the numbers two rules compute with. They are here
+         for the same reason the lists are: set once, read by every screen
+         afterwards, and the pages they feed are where somebody works through
+         the deals and the money rather than deciding the policy. */
+      { key: "forecastThreshold", href: "/admin/forecast", icon: "trend-up", action: "pipeline.forecast.view" },
+      { key: "ageingPolicy", href: "/admin/ageing", icon: "clock-counter-clockwise", action: "delivery.revenue.view" },
     ],
   },
   {

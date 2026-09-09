@@ -16,6 +16,10 @@
 import type { Money } from "../shared/money";
 import type { ForecastCategory, ScopeType, SnapshotRow } from "./lib/forecast";
 import {
+  DEFAULT_FORECAST_THRESHOLDS,
+  type ForecastThresholds,
+} from "./lib/forecast-rule";
+import {
   DEFAULT_PROBABILITY,
   type OpportunityStatus,
   type Stage,
@@ -258,6 +262,13 @@ export interface PipelineStore {
   ): Promise<void>;
   removeWinLossReason(workspaceId: string, reasonId: string): Promise<boolean>;
   countReviewsByReason(workspaceId: string, reasonId: string): Promise<number>;
+
+  /* --- 预测阈值 (incr/0041) --------------------------------------------------
+     One row per workspace, so there is no list verb and no delete: `get`
+     answers with the shipped numbers where no row exists yet, and `set` writes
+     the row whether or not it was there. */
+  getForecastThresholds(workspaceId: string): Promise<ForecastThresholds>;
+  setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void>;
 }
 
 /** In-memory implementation for the offline path and for tests. */
@@ -478,6 +489,16 @@ export class InMemoryPipelineStore implements PipelineStore {
     return [...this.reviews.values()].filter(
       (r) => r.workspaceId === workspaceId && r.primaryReasonId === reasonId,
     ).length;
+  }
+
+  private thresholds = new Map<string, ForecastThresholds>();
+
+  async getForecastThresholds(workspaceId: string): Promise<ForecastThresholds> {
+    return this.thresholds.get(workspaceId) ?? DEFAULT_FORECAST_THRESHOLDS;
+  }
+
+  async setForecastThresholds(workspaceId: string, input: ForecastThresholds): Promise<void> {
+    this.thresholds.set(workspaceId, { ...input });
   }
 
   async getWinLossReview(

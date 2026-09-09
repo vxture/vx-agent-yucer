@@ -3,7 +3,7 @@ import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { can } from "../../authz/decide";
 import { getDeliveryStore } from "../../domains/shared/registry";
-import { listProjects, projectView } from "../../domains/delivery/service";
+import { ageingCutoffs, listProjects, projectView } from "../../domains/delivery/service";
 import {
   CollectionRoster,
   type CollectionRow,
@@ -47,6 +47,9 @@ export default async function CollectionPage() {
   };
 
   const projects = await listProjects(ctx);
+  // incr/0042. The workspace's own ageing policy - the chart below is cut by
+  // these, not by two numbers in the build.
+  const cutoffs = await ageingCutoffs(ctx);
   if (!projects.ok) {
     return (
       <EmptyState
@@ -162,7 +165,9 @@ export default async function CollectionPage() {
       {/* 统计为主，列表为具体清单 (owner, 2026-09-06) - so the shape comes
           first and the schedule reads as its detail. Both are computed from
           the SAME rows, so the block and the list cannot disagree. */}
-      <CollectionOverview stats={collectionStats(rows, new Date())} />
+      <CollectionOverview
+        stats={collectionStats(rows, new Date(), cutoffs.ok ? cutoffs.value : undefined)}
+      />
       <CollectionRoster
         rows={rows}
         canWrite={
