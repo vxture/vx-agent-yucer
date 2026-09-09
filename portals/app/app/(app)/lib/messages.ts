@@ -3398,11 +3398,11 @@ export const PLANNING_TEXT = {
   divisionHoldsNothing: (noun: string) => `这个区域目前不含任何${noun}`,
   moveProvince: (p: string) => `把 ${p} 改到其他大区`,
   provinceCount: (n: number) => `${n} 个省`,
-  divisionCoverage: (placed: number, total: number, divisions: number, noun: string) =>
-    `${total} 个${noun}中，${placed} 个已归入 ${divisions} 个区域`,
-  divisionAllPlaced: (noun: string) => `全部${noun}都已归入区域。`,
-  divisionUnplaced: (n: number, noun: string) =>
-    `还有 ${n} 个${noun}没有归入任何区域。它们不会出现在任何按区域汇总的口径里；在态势屏上会被画成灰色，读起来像「这里没有业务」，而不是「这块地还没人认领」。`,
+  /* 页头徽标的一句话（owner, 2026-09-09）：「34 个省份已归入 5 个区域」，有未
+     归入的才接一句「，3 个省份未归入任何区域」。 */
+  divisionCoverage: (placed: number, divisions: number, unplaced: number, noun: string) =>
+    `${placed} 个${noun}已归入 ${divisions} 个区域`
+    + (unplaced > 0 ? `，${unplaced} 个${noun}未归入任何区域` : ""),
   // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
     "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",

@@ -2956,11 +2956,9 @@ export const en: Dictionary = {
     divisionHoldsNothing: (noun: string) => `This region holds no ${noun}`,
     moveProvince: (p: string) => `Move ${p} to another region`,
     provinceCount: (n: number) => `${n} provinces`,
-    divisionCoverage: (placed: number, total: number, divisions: number, noun: string) =>
-      `${placed} of ${total} ${noun} sit in ${divisions} regions`,
-    divisionAllPlaced: (noun: string) => `Every one of the ${noun} is assigned.`,
-    divisionUnplaced: (n: number, noun: string) =>
-      `${n} ${noun} sit in no region. They appear in no figure grouped by region, and the situation screen draws them grey - which reads as "no business here" rather than "nobody has filed this ground".`,
+    divisionCoverage: (placed: number, divisions: number, unplaced: number, noun: string) =>
+      `${placed} ${noun} in ${divisions} regions`
+      + (unplaced > 0 ? `, ${unplaced} ${noun} in no region` : ""),
     territoryWhy:
       "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target.",
     territoryFormWhy:

@@ -48,17 +48,11 @@ export interface DivisionRow {
 }
 
 export function DivisionPanel(
-  { rows, unassigned, total, noun, editable }:
+  { rows, noun, editable }:
   {
     readonly rows: readonly DivisionRow[];
-    /** Members in no 大区 at all - the statistic this section closes on. */
-    readonly unassigned: readonly MarketMember[];
     /** 省份 / 市 - the frame's own word for what a region holds. */
     readonly noun: string;
-    /** How many there are in total. It was the literal 34, beside a prop
-     *  derived from ALL_PROVINCES - two copies of one number, one of which
-     *  cannot follow the vocabulary if it ever changes. */
-    readonly total: number;
     readonly editable: boolean;
   },
 ) {
@@ -233,28 +227,9 @@ export function DivisionPanel(
         </div>
       )}
 
-      {/* 底部统计. THE POINT IS THE GAP, not the total: a province in no 大区
-          appears in no figure grouped by one, and the situation screen draws it
-          grey - which reads as "no business here" rather than "nobody has filed
-          this ground". Named in full, because a count alone cannot be acted
-          on. Counted off the same 34 the map and the database CHECK use. */}
-      <div className="border-border gap-2xs mt-md flex flex-col border-t pt-md">
-        <p className="text-body-sm">
-          {PLANNING_TEXT.divisionCoverage(total - unassigned.length, total, rows.length, noun)}
-        </p>
-        {unassigned.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">
-            {PLANNING_TEXT.divisionAllPlaced(noun)}
-          </p>
-        ) : (
-          <>
-            <p className="text-warning text-body-sm">
-              {PLANNING_TEXT.divisionUnplaced(unassigned.length, noun)}
-            </p>
-            <p className="text-muted-foreground text-body-sm">{unassigned.map((m) => m.label).join(" · ")}</p>
-          </>
-        )}
-      </div>
+      {/* NO CLOSING STATISTIC (owner, 2026-09-09). The coverage sentence is
+          the page header's badge and nothing else; the table ends with its
+          last row. */}
     </Section>
   );
 }

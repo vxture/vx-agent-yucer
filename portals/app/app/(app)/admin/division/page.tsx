@@ -107,9 +107,13 @@ export default async function DivisionPage() {
         icon="map-pin"
         title={DOMAIN_LABEL.division}
         description={PLANNING_TEXT.divisionWhy(frameName, noun)}
+        /* ONE SENTENCE, ONCE (owner, 2026-09-09): placed and regions, and the
+           unplaced count only when there is one. The same figure used to
+           close the table as well; a number said twice on one screen is a
+           number the reader checks against itself. */
         secondary={
           <StatusBadge tone={unassigned.length === 0 ? "success" : "warning"}>
-            {PLANNING_TEXT.divisionCoverage(placed.size, total.length, rows.length, noun)}
+            {PLANNING_TEXT.divisionCoverage(placed.size, rows.length, unassigned.length, noun)}
           </StatusBadge>
         }
         /* BOTH ACTIONS IN THE PAGE HEADER'S SLOT (DS: 右侧动作区，通常是一到
@@ -149,8 +153,6 @@ export default async function DivisionPage() {
           code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
           system: isSystemDivision(d.code, d.name, d.members.map((m) => m.key)),
         }))}
-        unassigned={unassigned}
-        total={total.length}
         noun={noun}
         // The same gate the write path enforces. A picker that appears and
         // then refuses is worse than one that is not offered.
