@@ -2358,6 +2358,131 @@ export const OPPORTUNITY_TEXT = {
   lineApproveCancel: "取消",
 } as const;
 
+/**
+ * 角色管理 (incr/0046, owner 2026-09-09)。按区域设定的思路：预置角色可改可删可
+ * 重置，也可以新建；清单只给一句说明和权限数（owner：不显示所有权限名称），
+ * 权限详情走抽屉，树状展开。
+ */
+export const ROLE_TEXT = {
+  title: "角色管理",
+  why: "工作区自己的角色：九个预置角色可改可重置，也可以新建；角色持有哪些权限，决定成员能做什么。",
+  coverage: (roles: number, custom: number, perms: number) =>
+    `${roles} 个角色${custom > 0 ? `，其中 ${custom} 个自定义` : ""} · ${perms} 条权限`,
+  colRole: "角色",
+  colSource: "来源",
+  colDescription: "说明",
+  colPerms: "权限数",
+  colMembers: "成员数",
+  preset: "系统预置",
+  custom: "自定义",
+  members: (n: number) => `${n} 人`,
+  noMember: "暂无成员",
+  noDescription: "未填写说明",
+  permCount: (n: number, total: number) => `${n} / ${total}`,
+  edit: "配置",
+  details: "权限详情",
+  moveUp: "上移",
+  moveDown: "下移",
+  moveTop: "移到最顶",
+  moveBottom: "移到最低",
+  newRole: "新建角色",
+  remove: "删除角色",
+  removeWhy: "只有没有成员持有的角色才能删除。先在成员管理里移除，再删。",
+  // --- 权限详情抽屉 ---
+  detailsTitle: (name: string) => `${name} · 权限详情`,
+  detailsWhy: (n: number, total: number) => `持有 ${n} / ${total} 条权限。打勾的操作可以执行。`,
+  detailsGranted: "可执行",
+  detailsNotGranted: "不可执行",
+  detailsOnlyGranted: "只看可执行",
+  detailsAll: "显示全部",
+  detailsDone: "关闭",
+  detailsEmpty: "这个角色没有任何权限，持有它的成员看不到任何模块。",
+  // --- 表单 ---
+  formTitle: "配置角色",
+  formWhy: "代码、名称、一句说明，以及这个角色持有的权限。",
+  code: "角色代码",
+  codeHint: "小写字母、数字和下划线，字母开头，如 channel_manager。创建后不可更改。",
+  codeLocked: "创建后不可更改。",
+  nameLabel: "角色名称",
+  descriptionLabel: "角色说明",
+  descriptionHint: "一句话说明这个角色做什么。清单和成员管理里会显示。",
+  permsConfig: "权限配置",
+  pick: "选择权限",
+  applyPreset: "应用预置",
+  resetPreset: "重置预置",
+  clear: "清空选择",
+  applyPresetTitle: "应用预置",
+  applyPresetWhy: (isNew: boolean): string =>
+    isNew
+      ? "选一个预置角色，代码、名称、说明与权限自动填好，可再改。"
+      : "选一个预置角色，名称、说明与权限套用到当前角色；代码是锚，保持不变。",
+  applyConfirm: "应用",
+  presetOption: (name: string, n: number) => `${name} · ${n} 条权限`,
+  resetHint: (name: string) => `按预置「${name}」恢复名称、说明与权限`,
+  resetNone: "当前代码没有对应的预置",
+  destructiveTitle: "{verb}{target}？",
+  resetTarget: (name: string) => `为预置「${name}」`,
+  resetConsequence: (n: number) => `当前名称、说明和已选的 ${n} 条权限会被预置覆盖；未保存前可以「放弃」。`,
+  clearTarget: (n: number) => `已选的 ${n} 条权限`,
+  clearConsequence: "清单会清空，需要重新选择；未保存前可以「放弃」。",
+  cancel: "取消",
+  // --- 右栏：持有的权限 ---
+  includes: "持有的权限",
+  pickEmpty: "尚未选择权限",
+  pickEmptyWhy: "用左侧「选择权限」加入，或应用预置。",
+  colIndex: "序号",
+  colCode: "权限码",
+  colName: "说明",
+  colUnlocks: "解锁操作",
+  colOps: "操作",
+  removePerm: "移除",
+  unlocks: (n: number) => `${n} 项`,
+  // --- 选择权限抽屉 ---
+  pickTitle: "选择权限",
+  pickWhy: "按模块勾选。每条权限后面是它解锁的操作数。",
+  pickDone: "完成",
+  pickClear: "清空",
+  search: "搜索权限码或说明",
+  pickNone: "没有匹配的权限",
+  chosen: (n: number) => `已选 ${n} 条权限`,
+  save: "保存角色",
+  discard: "放弃",
+  saveFailed: "保存失败",
+  // --- 清单页的重置预置：两步，第二步危险确认（与区域一致）---
+  resetAllButton: "重置预置",
+  resetAllTitle: "重置预置角色",
+  resetAllWhy: "把九个预置角色恢复为系统配置。自定义角色不受影响。",
+  resetAllDangerTitle: "这是不可撤销的覆盖",
+  resetAllWarn: (changed: number, missing: number) =>
+    changed + missing === 0
+      ? "预置角色当前与系统配置一致，重置不会改变任何东西。"
+      : `${changed > 0 ? `${changed} 个预置角色被改过，名称、说明与权限会被覆盖` : ""}${changed > 0 && missing > 0 ? "；" : ""}${missing > 0 ? `${missing} 个被删除的预置角色会恢复` : ""}。持有这些角色的成员，权限随之变化。`,
+  resetAllConfirm: "确认重置",
+  resetAllVerb: "重置",
+  resetAllTarget: "九个预置角色",
+  resetAllConsequence: (changed: number, missing: number) =>
+    `${changed} 个改过的预置角色会被覆盖，${missing} 个被删除的会恢复；保存即生效，不可撤销。`,
+  resetDone: (restored: number) => `已恢复 ${restored} 个预置角色`,
+  emptyTitle: "还没有角色",
+  emptyWhy: "工作区尚未生成预置角色。新建一个，或重置预置。",
+} as const;
+
+/** 角色管理的拒绝理由。规则层给 code，句子在这里（TD-010）。 */
+export const ROLE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "角色代码不能为空",
+  code_shape: "角色代码只能是小写字母、数字和下划线，且以字母开头",
+  name_required: "角色名称不能为空",
+  description_too_long: "角色说明最多 500 个字符",
+  permission_unknown: "权限不在目录中，请从列表中选择",
+  role_unknown: "这个角色不属于当前工作区",
+  role_in_use: "还有成员持有这个角色，先在成员管理里移除，再删",
+  last_admin: "这是工作区管理员持有的唯一管理角色；去掉配置管理权限后将无人能再改回来",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "这个角色不存在，或不属于当前工作区",
+};
+
 export const TERRITORY_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   // incr/0036 的两个：省份词表与大区归属，都由数据库约束，说人话而不是抛约束名。
@@ -4418,6 +4543,7 @@ export const PERMISSION_TREE_TEXT = {
     "catalog.pricebook": "价目",
     "admin.member": "成员",
     "admin.adoption": "使用情况",
+    "admin.role": "角色",
   } as Record<string, string>,
   actionLabel: {
     "strategy.plan.view": "查看战略方案",
@@ -4489,6 +4615,8 @@ export const PERMISSION_TREE_TEXT = {
     "admin.member.deactivate": "停用成员",
     "admin.member.reactivate": "恢复成员",
     "admin.member.scope": "设置数据范围",
+    "admin.role.upsert": "新建或配置角色",
+    "admin.role.remove": "删除角色",
   } as Record<string, string>,
   /* 简写 for the nine role columns (owner: 角色太多，可以简写); the full name
      is the header's tooltip. */

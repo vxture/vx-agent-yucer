@@ -273,6 +273,69 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
  */
 export const OWNER_BOOTSTRAP_ROLE: RoleCode = "sales_leader";
 
+/**
+ * The name each preset carries in the table, mirrored from incr/0046 the way
+ * ROLE_PERMISSIONS mirrors the grants - catalog.test.ts parses the increment
+ * and holds the two in lockstep.
+ *
+ * SINCE 0046 A ROLE IS THE WORKSPACE'S OWN ROW (角色管理: 有系统预置角色，可以
+ * 自定义), and the nine here are the PRESETS a workspace is materialised from
+ * on its first sighting and reset to on request. The name is data because the
+ * workspace copy prints its own `name` column - a tenant who renames 销售经理
+ * sees their word - so the copy has to start from the word the product shows.
+ */
+export const PRESET_ROLE_NAMES: Record<RoleCode, string> = {
+  sales_leader: "销售负责人",
+  marketing_manager: "市场经理",
+  sales_rep: "销售代表",
+  presales: "售前顾问",
+  delivery_manager: "交付经理",
+  sales_ops: "销售运营",
+  viewer: "只读成员",
+  sales_manager: "销售经理",
+  regional_director: "大区总监",
+};
+
+/** One sentence on what each preset is FOR, mirrored from incr/0046 like the
+ *  names: the roster prints it beside the permission count (owner,
+ *  2026-09-09: 给出最简单的角色描述，给出权限数量). */
+export const PRESET_ROLE_DESCRIPTIONS: Record<RoleCode, string> = {
+  sales_leader: "统管销售全链路：审批计划、签批折扣、开启自动执行、管理配置。",
+  marketing_manager: "负责战役与信号处置，直到线索交接；不改商机。",
+  sales_rep: "跟进客户与商机，推进阶段；不提交预测。",
+  presales: "配合方案与客户资料；商机与项目只读。",
+  delivery_manager: "管理交付项目、里程碑与回款；客户与商机只读。",
+  sales_ops: "定口径、管配额与角色、设底价；不改商机。",
+  viewer: "各模块只读，可向助手提问。",
+  sales_manager: "带团队推进商机，提交预测；不签批折扣。",
+  regional_director: "统管一个大区的规划与商机，可签批折扣。",
+};
+
+/** A workspace role's code: the shape chk_workspace_role_code CHECKs (0046).
+ *  Lower-case identifier, like the nine seeded ones, at most 64 characters. */
+export const ROLE_CODE_SHAPE = /^[a-z][a-z0-9_]{0,63}$/;
+
+/** One preset, the way the in-memory store materialises it - code, name,
+ *  order and grants, in catalogue order. The Prisma store reads the same rows
+ *  from local_authz.role. */
+export interface PresetRole {
+  readonly code: RoleCode;
+  readonly name: string;
+  readonly description: string;
+  readonly sortOrder: number;
+  readonly permissions: readonly PermCode[];
+}
+
+export function presetRoles(): PresetRole[] {
+  return ROLE_CODES.map((code, i) => ({
+    code,
+    name: PRESET_ROLE_NAMES[code],
+    description: PRESET_ROLE_DESCRIPTIONS[code],
+    sortOrder: i + 1,
+    permissions: ROLE_PERMISSIONS[code],
+  }));
+}
+
 const PERM_SET: ReadonlySet<string> = new Set(PERM_CODES);
 const ROLE_SET: ReadonlySet<string> = new Set(ROLE_CODES);
 

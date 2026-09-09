@@ -27,6 +27,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // workspace administrator. Writable for the same reason `status` is - it is a
   // decision somebody makes about a colleague, not a fact about them.
   "local_authz.member": ["display_name", "avatar_hash", "status", "scope", "updated_at"],
+  // incr/0046 - the workspace's own roles. role_code is the anchor every
+  // member link and every reset keys on, and is deliberately not here.
+  "local_authz.workspace_role": ["name", "description", "sort_order", "updated_at"],
   "local_usage.raw": ["flushed"],
   "local_usage.checkpoint": ["flushed_at"],
 
@@ -323,6 +326,8 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // column that could change. Same reasoning as member_role beside it.
   "local_authz.member_territory",
   "local_authz.role_permission",
+  // incr/0046. A workspace role's grant is a pair, like role_permission's.
+  "local_authz.workspace_role_permission",
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",

@@ -11,6 +11,7 @@ import {
   isPermCode,
   isRoleCode,
   permissionsForRoles,
+  presetRoles,
   type PermCode,
   type RoleCode,
 } from "./catalog";
@@ -303,5 +304,31 @@ test("no product role reuses a platform governance role code", () => {
   // mapping table the spec explicitly refuses to have.
   for (const g of ["owner", "manager", "member", "readonly", "guest"]) {
     assert.ok(!isRoleCode(g), `${g} collides with a platform governance role`);
+  }
+});
+
+// --- incr/0046: the presets carry name, description and order as DATA ---------
+
+/** The nine (code, name, description, order) rows 0046 writes onto local_authz.role. */
+function seedPresetRows(): Array<[string, string, string, number]> {
+  const body = seedSection("UPDATE local_authz.role r SET name = v.name", ") AS v(code, name, description, ord)");
+  return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*(\d+)\)/g)].map(
+    (m) => [m[1]!, m[2]!, m[3]!, Number(m[4])],
+  );
+}
+
+test("the presets' names, descriptions and order mirror incr/0046 exactly", () => {
+  // A workspace copy starts from these columns and prints them (incr/0046),
+  // so the in-memory store's presets and the table's have to be the same
+  // rows - or the demo would show one 销售经理 and production another.
+  const rows = seedPresetRows();
+  assert.equal(rows.length, ROLE_CODES.length, "0046 names every preset once");
+  const mirror = presetRoles();
+  for (const [code, name, description, ord] of rows) {
+    const p = mirror.find((x) => x.code === code);
+    assert.ok(p, `${code} is in 0046 but not in presetRoles()`);
+    assert.equal(p.name, name, `${code}: name`);
+    assert.equal(p.description, description, `${code}: description`);
+    assert.equal(p.sortOrder, ord, `${code}: sort_order`);
   }
 });

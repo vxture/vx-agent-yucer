@@ -1,75 +1,60 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
-import { listWorkspaceMembers } from "../../../authz/admin";
-import { ROLE_CODES, ROLE_PERMISSIONS } from "../../../authz/catalog";
-import { RoleTable } from "../../components/role-table";
-import { Tag } from "../../components/tag";
+import { PERM_CODES } from "../../../authz/catalog";
+import { listPresetRoles, listRoles } from "../../../authz/roles";
+import { RolePanel } from "../../components/role-panel";
+import { RoleReset } from "../../components/role-reset";
+import { NewEntryLink } from "../../components/form-page";
 
-// 角色管理 - what each of the nine roles actually is.
+// 角色管理 - the workspace's own roles (incr/0046).
 //
-// THE QUESTION THAT HAD NO SURFACE. A member page can assign 销售经理 to
-// somebody; nothing in the product could answer what 销售经理 may then do. The
-// answer existed in three places - the seed (incr/0021), authz/catalog.ts and
-// the catalogue doc - and in none of them was it readable by the person doing
-// the assigning.
+// IT USED TO BE READ-ONLY, and honestly so: a role was seeded DDL mirrored in
+// TypeScript. The owner's ruling of 2026-09-09 made a role the workspace's
+// (支持新建，排序，授权; 有系统预置角色，可以自定义), so this is the list half of
+// the same list/create split /admin/division has: the roster states, the row
+// leads to the form, 新建 and 重置预置 sit in the header's action slot.
 //
-// READ-ONLY, and that is the honest shape rather than a missing feature: a
-// role's grants are seeded DDL mirrored in TypeScript, and changing one means
-// changing the seed, the mirror and 50-role-permission-catalog.md together,
-// with mirror tests failing in both directions if they drift. A checkbox here
-// would be a control that cannot keep its promise.
+// THE ROSTER GIVES A SENTENCE AND A COUNT, not the grants (owner: 不显示所有
+// 权限名称). 权限详情 in the row menu opens the tree in a drawer.
 //
-// GATED ON admin.member.view. Who may see the role catalogue is the same
-// question as who may see the members holding those roles.
+// GATED ON admin.member.view to read, admin.role.upsert to change - the same
+// permission (admin.manage) behind both, because whoever may say who holds a
+// role may say what the role is.
 
 export const dynamic = "force-dynamic";
 
 export default async function RolesPage() {
-  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL, ROLE_LABEL, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, ROLE_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
+    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
   if (!can(session.authz, session.entitlement, "admin.member.view", "ui").allowed) {
-    return (
-      <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />
-    );
+    return <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />;
   }
 
-  /* HOW MANY PEOPLE HOLD IT, beside what it can do. A role nobody holds is a
-     different fact from a role that is wrong, and an admin deciding whether to
-     narrow one needs to know who they would be narrowing. A refused read is
-     not fatal: the catalogue half of this page still answers its question. */
-  const members = await listWorkspaceMembers({
+  const ctx = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
     holder: session.authz,
     entitlement: session.entitlement,
     store: getAuthzStore(),
-  });
-  const held = new Map<string, number>();
-  if (members.ok) {
-    for (const m of members.value) {
-      for (const r of m.roles) held.set(r, (held.get(r) ?? 0) + 1);
-    }
+  };
+  const [roles, presets] = await Promise.all([listRoles(ctx), listPresetRoles(ctx)]);
+  if (!roles.ok) {
+    return <EmptyState title={SHELL_TEXT.loadFailed} description={ROLE_TEXT.emptyWhy} />;
   }
-
-  const rows = ROLE_CODES.map((code) => ({
-    code,
-    name: ROLE_LABEL[code] ?? code,
-    permissions: [...ROLE_PERMISSIONS[code]],
-    members: held.get(code) ?? 0,
-  }));
-  const grants = rows.reduce((n, r) => n + r.permissions.length, 0);
+  const rows = roles.value;
+  const editable = can(session.authz, session.entitlement, "admin.role.upsert", "ui").allowed;
+  const custom = rows.filter((r) => !r.preset).length;
+  // What 重置预置 would change, counted here so the dialog can say it.
+  const presetList = presets.ok ? presets.value : [];
+  const changed = rows.filter((r) => presetList.some((p) => p.code === r.code) && !r.preset).length;
+  const missing = presetList.filter((p) => !rows.some((r) => r.code === p.code)).length;
 
   return (
     <ViewLayout>
@@ -79,19 +64,23 @@ export default async function RolesPage() {
       />
       <ViewHeader
         icon="role"
-        title={ADMIN_PAGE_TEXT.rolesTitle}
-        description={ADMIN_PAGE_TEXT.rolesWhy}
+        title={ROLE_TEXT.title}
+        description={ROLE_TEXT.why}
         secondary={
-          <Tag>
-            {ADMIN_PAGE_TEXT.permissionsCount(
-              new Set(rows.flatMap((r) => r.permissions)).size,
-              rows.length,
-              grants,
-            )}
-          </Tag>
+          <StatusBadge tone={rows.some((r) => r.permissions.length === 0) ? "warning" : "success"}>
+            {ROLE_TEXT.coverage(rows.length, custom, PERM_CODES.length)}
+          </StatusBadge>
+        }
+        action={
+          editable ? (
+            <>
+              <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} />
+              <RoleReset changed={changed} missing={missing} />
+            </>
+          ) : null
         }
       />
-      <RoleTable rows={rows} />
+      <RolePanel rows={rows} total={PERM_CODES.length} editable={editable} />
     </ViewLayout>
   );
 }

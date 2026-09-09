@@ -45,6 +45,7 @@ increments. Only entries worth a paragraph are added below; the rest document
 themselves in their own header comment.
 
 | `0032_milestone_as_commercial_gate.sql` | A milestone becomes a payment gate (ADR-025): an immutable `baseline_due_at`, the recorded-acceptance trio, `revenue_schedule.milestone_id` NOT NULL behind a COMPOSITE foreign key, and the append-only `milestone_change`. It CREATES a table, so it carries its own grants per the section above - `check-incr-grants.mjs` counts 19 increment-created tables and verifies every one of them. |
+| `0046_workspace_role.sql` | 角色管理: roles belong to the workspace. `local_authz.role` / `role_permission` become the 预置角色 (Chinese names, `sort_order`); new `workspace_role` (`role_code` locked, `name`/`sort_order` writable) and `workspace_role_permission` (insert/delete only); the nine presets are materialised for every workspace that has a member and `member_role.role_id` is re-pointed at the workspace's own copy, `ON DELETE RESTRICT`. |
 
 Note that `0001` carries DATA, not structure. It ships here rather than in
 `00_baseline.sql` because `local_authz.role` / `local_authz.permission` are

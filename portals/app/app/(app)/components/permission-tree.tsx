@@ -21,7 +21,6 @@ import {
   type PermissionNode,
   type PermissionRow,
 } from "../lib/permission-tree";
-import type { RoleCode } from "../../authz/catalog";
 import { Tag } from "./tag";
 
 /* 权限管理 - 业务域 / 模块 / 页面 / 操作, one tree in one table (owner,
@@ -34,21 +33,29 @@ import { Tag } from "./tag";
  * opens it; a level tag says what the row is.
  *
  * THE ROLES ARE COLUMNS, ONE EACH (owner: 角色应该展开列，用 icon 显示，不要混合在
- * 一行), and there are nine. The fixed columns (选择 / 序号 / 权限点 / 层级 /
- * 操作) take their stated widths and the roles SPLIT WHAT IS LEFT, equally
- * (owner, 2026-09-09: 其他列平分). A role header reads icon + short name by
- * default, drops to the icon alone when its column gets too narrow for the
- * name, and always carries the full name in a tooltip. The table only
- * scrolls sideways once a role column would fall below the floor a single
- * icon needs; then the leading columns stay put on the left as the action
- * column does on the right.
+ * 一行), and they are the WORKSPACE'S roles (incr/0046) - the presets and
+ * whatever the tenant added - so there may be nine or fourteen. The fixed
+ * columns (选择 / 序号 / 权限点 / 层级 / 操作) take their stated widths and the
+ * roles SPLIT WHAT IS LEFT, equally (owner: 其他列平分). A role header reads
+ * icon + short name by default, drops to the icon alone when its column gets
+ * too narrow for the name, and always carries the full name in a tooltip.
+ * The table only scrolls sideways once a role column would fall below the
+ * floor a single icon needs; then the leading columns stay put on the left
+ * as the action column does on the right.
  *
- * READ-ONLY, BY RULING (owner: 权限当前全部为预置功能，不可增删改): the grants
- * are seeded DDL mirrored in authz/catalog.ts. The action column is the
- * fitting every table carries, with nothing in it.
+ * READ-ONLY HERE: the grants are edited on /admin/roles, one role at a time.
+ * The action column is the fitting every table carries, with nothing in it.
  */
 
-export const ROLE_ICON: Readonly<Record<RoleCode, IconName>> = {
+/** One column: a workspace role. `short` is what the header prints. */
+export interface RoleColumn {
+  readonly code: string;
+  readonly name: string;
+  readonly short: string;
+}
+
+/** The presets' icons. A role the tenant added wears the generic one. */
+export const ROLE_ICON: Readonly<Record<string, IconName>> = {
   sales_leader: "star",
   marketing_manager: "megaphone",
   sales_rep: "user",
@@ -60,7 +67,11 @@ export const ROLE_ICON: Readonly<Record<RoleCode, IconName>> = {
   regional_director: "flag",
 };
 
-const LEVEL_ICON: Readonly<Record<PermissionLevel, IconName>> = {
+export function roleIcon(code: string): IconName {
+  return ROLE_ICON[code] ?? "user-circle";
+}
+
+export const LEVEL_ICON: Readonly<Record<PermissionLevel, IconName>> = {
   domain: "folder",
   module: "squares-four",
   page: "table",
@@ -100,7 +111,7 @@ const FIXED_REM = 4 + 4 + 24 + 6 + 4;
 const ROLE_FLOOR_REM = 3;
 
 /* PINNED EDGES. The three leading columns (选择 / 序号 / 权限点) and the
-   action column stay put while the nine role columns scroll under them. The
+   action column stay put while the role columns scroll under them. The
    DS pins its own action column; the left pin is this wrapper's, laid over
    the DS's cells with the surface colour so scrolled cells pass beneath. */
 const PINNED =
@@ -110,35 +121,10 @@ const PINNED =
   + " [&_thead_th:nth-child(-n+3)]:z-10 [&_tbody_td:nth-child(-n+3)]:z-10"
   + " [&_thead_th:nth-child(-n+3)]:bg-background [&_tbody_td:nth-child(-n+3)]:bg-background";
 
-export function PermissionTree({
-  tree,
-  roles,
-  holds,
-}: {
-  readonly tree: readonly PermissionNode[];
-  /** Column order. */
-  readonly roles: readonly RoleCode[];
-  /** role -> the permissions it holds. */
-  readonly holds: Readonly<Record<string, readonly string[]>>;
-}) {
-  const { DATA_TABLE_LABELS, DOMAIN_GROUP_LABEL, DOMAIN_LABEL, PERMISSION_TREE_TEXT: T, ROLE_LABEL } = useMessages();
-  // Open to the pages by default: the shape is visible, the 69 operations are
-  // one click away each rather than a wall.
-  const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
-  const rows = useMemo(() => flattenTree(tree, expanded), [tree, expanded]);
-  const held = useMemo(
-    () => new Map(roles.map((r) => [r, new Set(holds[r] ?? [])])),
-    [roles, holds],
-  );
-
-  const toggle = (key: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
+/** The words for a node, from the dictionaries: the group, the module, the
+ *  page, the operation. Shared by the table and the drawer list. */
+export function useNodeCopy() {
+  const { DOMAIN_GROUP_LABEL, DOMAIN_LABEL, PERMISSION_TREE_TEXT: T } = useMessages();
   const title = (n: PermissionNode): string => {
     if (n.level === "domain") return T.groupLabel[n.name] ?? DOMAIN_GROUP_LABEL[n.name] ?? n.name;
     if (n.level === "module") return T.moduleLabel[n.name] ?? DOMAIN_LABEL[n.name] ?? n.name;
@@ -150,6 +136,38 @@ export function PermissionTree({
      the roles are read against. */
   const subtitle = (n: PermissionNode): string =>
     n.level === "action" && n.permission ? `${n.name} · ${n.permission}` : n.name;
+  return { title, subtitle };
+}
+
+export function PermissionTree({
+  tree,
+  roles,
+  holds,
+}: {
+  readonly tree: readonly PermissionNode[];
+  /** Column order - the workspace's sort_order. */
+  readonly roles: readonly RoleColumn[];
+  /** role code -> the permissions it holds. */
+  readonly holds: Readonly<Record<string, readonly string[]>>;
+}) {
+  const { DATA_TABLE_LABELS, PERMISSION_TREE_TEXT: T } = useMessages();
+  const { title, subtitle } = useNodeCopy();
+  // Open to the pages by default: the shape is visible, the operations are
+  // one click away each rather than a wall.
+  const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
+  const rows = useMemo(() => flattenTree(tree, expanded), [tree, expanded]);
+  const held = useMemo(
+    () => new Map(roles.map((r) => [r.code, new Set(holds[r.code] ?? [])])),
+    [roles, holds],
+  );
+
+  const toggle = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   return (
     <div className="gap-md flex flex-col">
@@ -236,29 +254,30 @@ export function PermissionTree({
                nothing, because a module does not hold a permission - its
                operations do, each on its own row. */
             ...roles.map((role) => ({
-              id: role,
+              id: role.code,
               header: (
                 /* The header measures its own cell (`@container` on a block
                    that fills the th's content box) and hides the short name
-                   once that box is under 52px, its gap under 56 - see ROLE_FLOOR_REM. The
-                   tooltip carries the full name in both states. */
+                   once that box is under 52px, its gap under 56 - see
+                   ROLE_FLOOR_REM. The tooltip carries the full name in both
+                   states. */
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className="@container block w-full cursor-default">
                       <span className="gap-2xs @max-[56px]:gap-0 inline-flex items-center">
-                        <Icon name={ROLE_ICON[role]} size="sm" />
-                        <span className="@max-[52px]:hidden">{T.roleShort[role] ?? ROLE_LABEL[role] ?? role}</span>
+                        <Icon name={roleIcon(role.code)} size="sm" />
+                        <span className="@max-[52px]:hidden">{role.short}</span>
                       </span>
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent>{ROLE_LABEL[role] ?? role}</TooltipContent>
+                  <TooltipContent>{role.name}</TooltipContent>
                 </Tooltip>
               ),
               align: "center" as const,
               cell: (r: PermissionRow) => {
                 const p = r.node.permission;
                 if (!p) return null;
-                const ok = held.get(role)?.has(p) ?? false;
+                const ok = held.get(role.code)?.has(p) ?? false;
                 return ok ? (
                   <Icon name="check" size="sm" className="text-success" aria-label={T.granted} />
                 ) : (
@@ -271,4 +290,63 @@ export function PermissionTree({
       </div>
     </div>
   );
+}
+
+/**
+ * The same tree for ONE role, as a nested list - what the roster's 权限详情
+ * drawer shows (owner, 2026-09-09: 抽屉模式展示树状权限清单). Every branch
+ * counts the operations under it the role may perform; every leaf reads ✓
+ * or —. `onlyGranted` prunes to what the role can do, which is the question
+ * a reader opening the drawer usually has.
+ */
+export function PermissionTreeList({
+  tree,
+  held,
+  onlyGranted,
+}: {
+  readonly tree: readonly PermissionNode[];
+  readonly held: ReadonlySet<string>;
+  readonly onlyGranted: boolean;
+}) {
+  const { PERMISSION_TREE_TEXT: T } = useMessages();
+  const { title, subtitle } = useNodeCopy();
+
+  const leaves = (n: PermissionNode): PermissionNode[] =>
+    n.children.length === 0 ? [n] : n.children.flatMap(leaves);
+  const granted = (n: PermissionNode) => n.permission !== null && held.has(n.permission);
+
+  const render = (nodes: readonly PermissionNode[], depth: number) => (
+    <ul className="gap-2xs flex flex-col">
+      {nodes
+        .filter((n) => !onlyGranted || leaves(n).some(granted))
+        .map((n) => {
+          const branch = n.children.length > 0;
+          const all = leaves(n);
+          const ok = all.filter(granted).length;
+          return (
+            <li key={n.key} className="gap-2xs flex flex-col">
+              <span className="gap-xs flex items-center" style={{ paddingLeft: `${depth * 1.25}rem` }}>
+                <Icon name={LEVEL_ICON[n.level]} size="sm" className="text-muted-foreground shrink-0" />
+                <span className="gap-3xs flex min-w-0 grow flex-col">
+                  <span className={`text-body-sm truncate ${branch ? "font-medium" : ""}`}>{title(n)}</span>
+                  <span className="text-muted-foreground text-label-sm truncate">{subtitle(n)}</span>
+                </span>
+                {branch ? (
+                  <Tag tone={ok === 0 ? "neutral" : ok === all.length ? "success" : "info"}>
+                    {`${ok} / ${all.length}`}
+                  </Tag>
+                ) : granted(n) ? (
+                  <Icon name="check" size="sm" className="text-success shrink-0" aria-label={T.granted} />
+                ) : (
+                  <span className="text-muted-foreground shrink-0" aria-label={T.notGranted}>—</span>
+                )}
+              </span>
+              {branch ? render(n.children, depth + 1) : null}
+            </li>
+          );
+        })}
+    </ul>
+  );
+
+  return render(tree, 0);
 }

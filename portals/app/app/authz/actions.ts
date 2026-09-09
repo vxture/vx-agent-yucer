@@ -564,6 +564,24 @@ export const ACTIONS = {
     permission: "admin.manage",
     writes: true,
   },
+  // 角色管理 (incr/0046, owner 2026-09-09: 支持新建，排序，授权). Two verbs,
+  // one permission: whoever may say who holds a role may also say what the
+  // role is. NO NEW PERMISSION for the same reason deactivation got none - the
+  // catalogue grows when "who inside a workspace may do this" has a new
+  // answer, and it does not: admin.manage already names the person who
+  // administers roles.
+  "admin.role.upsert": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
+  "admin.role.remove": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
 } as const satisfies Record<string, ActionSpec>;
 
 export type ActionId = keyof typeof ACTIONS;

@@ -96,14 +96,49 @@ model MemberTerritory {
   @@schema("local_authz")
 }
 
+/// The 预置角色 (incr/0046): the nine the catalogue seeds, read-only, that a
+/// workspace is materialised from and reset to. A member's role is never one
+/// of these rows - it is the workspace's own copy, WorkspaceRole.
 model Role {
   id        String   @id @default(uuid()) @db.Uuid
   roleCode  String   @map("role_code") @db.VarChar(64)
   name      String   @db.VarChar(255)
+  /// incr/0046 - one sentence on what the role is for, and the order the
+  /// catalogue lists them.
+  description String @default("") @db.VarChar(500)
+  sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@unique([roleCode], map: "uidx_role_role_code")
   @@map("role")
+  @@schema("local_authz")
+}
+
+/// A workspace's own role (incr/0046): a preset copy or the tenant's own.
+/// role_code is the anchor and is locked; name and sort_order are theirs.
+model WorkspaceRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  roleCode    String   @map("role_code") @db.VarChar(64)
+  name        String   @db.VarChar(255)
+  description String   @default("") @db.VarChar(500)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, roleCode], map: "uidx_workspace_role_code")
+  @@map("workspace_role")
+  @@schema("local_authz")
+}
+
+/// Which permissions a workspace role holds (incr/0046). Insert/delete only.
+model WorkspaceRolePermission {
+  workspaceRoleId String   @map("workspace_role_id") @db.Uuid
+  permissionId    String   @map("permission_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@id([workspaceRoleId, permissionId], map: "pk_workspace_role_permission")
+  @@map("workspace_role_permission")
   @@schema("local_authz")
 }
 
@@ -121,6 +156,8 @@ model Permission {
 model MemberRole {
   id        String   @id @default(uuid()) @db.Uuid
   memberId  String   @map("member_id") @db.Uuid
+  /// Since incr/0046 a WorkspaceRole id, not a Role id: the workspace's own
+  /// copy of the role, so editing it edits nobody else's.
   roleId    String   @map("role_id") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
 

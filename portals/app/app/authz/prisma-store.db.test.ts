@@ -40,6 +40,8 @@ async function cleanup() {
       [WS],
     );
     await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [WS]);
+    // 0046: the workspace's own roles, materialised by the first grant.
+    await c.query(`DELETE FROM local_authz.workspace_role WHERE workspace_id = $1`, [WS]);
   });
 }
 
@@ -99,7 +101,11 @@ test("rolesOf is empty before any grant, and permissionsOf derives from the real
     const roles = await s.rolesOf(WS, SUB);
     assert.deepEqual(roles, ["sales_rep"]);
     const perms = await s.permissionsOf(WS, SUB);
-    assert.ok(perms.length > 0, "sales_rep must resolve to at least one real permission through the seeded join");
+    assert.ok(perms.length > 0, "sales_rep must resolve to at least one real permission through the workspace's own rows");
+    // 0046: the first grant materialised the presets, from the table.
+    const mine = await s.listRoles(WS);
+    assert.equal(mine.length, 9);
+    assert.deepEqual(mine.find((r) => r.code === "sales_rep")?.permissions, perms);
   } finally {
     await cleanup();
   }
@@ -129,11 +135,11 @@ test("granting the same role twice does not duplicate the link, on the real uniq
   }
 });
 
-test("granting a role outside the seeded catalog is refused rather than silently ignored", { skip }, async () => {
+test("granting a role the workspace does not have is refused rather than silently ignored", { skip }, async () => {
   await cleanup();
   try {
     const s = await store();
-    await assert.rejects(() => s.grantRole(WS, SUB, "not_a_real_role" as never), /not in the seeded catalog/);
+    await assert.rejects(() => s.grantRole(WS, SUB, "not_a_real_role"), /not a role of this workspace/);
   } finally {
     await cleanup();
   }
