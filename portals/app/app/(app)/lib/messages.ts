@@ -3403,6 +3403,9 @@ export const PLANNING_TEXT = {
   divisionCoverage: (placed: number, divisions: number, unplaced: number, noun: string) =>
     `${placed} 个${noun}已归入 ${divisions} 个区域`
     + (unplaced > 0 ? `，${unplaced} 个${noun}未归入任何区域` : ""),
+  // 表格底部的结论：全部归入一句话；有未归入的，点名，后面跟标签。
+  divisionAllPlaced: (noun: string) => `全部${noun}都已归入区域。`,
+  divisionUnplacedLead: (n: number, noun: string) => `${n} 个${noun}未归入任何区域：`,
   // 名册页读的那句：区域是什么、为什么先有它。
   territoryWhy:
     "谁扛哪一片市场。区域是目标的作用域之一——没有区域，就设不了区域目标。",

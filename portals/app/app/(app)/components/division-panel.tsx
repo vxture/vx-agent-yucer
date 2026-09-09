@@ -48,9 +48,11 @@ export interface DivisionRow {
 }
 
 export function DivisionPanel(
-  { rows, noun, editable }:
+  { rows, unassigned, noun, editable }:
   {
     readonly rows: readonly DivisionRow[];
+    /** Members in no 大区 at all - named one by one at the foot. */
+    readonly unassigned: readonly MarketMember[];
     /** 省份 / 市 - the frame's own word for what a region holds. */
     readonly noun: string;
     readonly editable: boolean;
@@ -227,9 +229,30 @@ export function DivisionPanel(
         </div>
       )}
 
-      {/* NO CLOSING STATISTIC (owner, 2026-09-09). The coverage sentence is
-          the page header's badge and nothing else; the table ends with its
-          last row. */}
+      {/* THE CONCLUSION, UNDER A RULE (owner, 2026-09-09). The header's badge
+          gives the COUNT; this line gives the NAMES. A reader told "3 省份未归入"
+          should not have to scan five rows of tags to work out which three -
+          they are listed here, as tags, in the same shape the rows use, in a
+          warning tone so the eye lands on them. When nothing is unplaced the
+          line says so in one sentence and stops. */}
+      <div className="border-border gap-2xs mt-md flex flex-col border-t pt-md">
+        {unassigned.length === 0 ? (
+          <p className="text-muted-foreground text-body-sm">
+            {PLANNING_TEXT.divisionAllPlaced(noun)}
+          </p>
+        ) : (
+          <div className="gap-sm flex flex-wrap items-center">
+            <span className="text-body-sm">
+              {PLANNING_TEXT.divisionUnplacedLead(unassigned.length, noun)}
+            </span>
+            {unassigned.map((m) => (
+              <Tag key={m.key} tone="warning">
+                {m.label}
+              </Tag>
+            ))}
+          </div>
+        )}
+      </div>
     </Section>
   );
 }

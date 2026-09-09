@@ -2959,6 +2959,8 @@ export const en: Dictionary = {
     divisionCoverage: (placed: number, divisions: number, unplaced: number, noun: string) =>
       `${placed} ${noun} in ${divisions} regions`
       + (unplaced > 0 ? `, ${unplaced} ${noun} in no region` : ""),
+    divisionAllPlaced: (noun: string) => `Every one of the ${noun} is assigned.`,
+    divisionUnplacedLead: (n: number, noun: string) => `${n} ${noun} in no region:`,
     territoryWhy:
       "Who carries which patch of the market. A territory is one of the scopes a target can be set on - with no territory there is no regional target.",
     territoryFormWhy:

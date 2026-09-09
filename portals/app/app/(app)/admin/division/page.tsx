@@ -153,6 +153,7 @@ export default async function DivisionPage() {
           code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
           system: isSystemDivision(d.code, d.name, d.members.map((m) => m.key)),
         }))}
+        unassigned={unassigned}
         noun={noun}
         // The same gate the write path enforces. A picker that appears and
         // then refuses is worse than one that is not offered.
