@@ -31,7 +31,6 @@ import {
   type MarketScope,
 } from "../../domains/shared/market-division";
 import { useMessages } from "../lib/i18n/provider";
-import { FormFields } from "./form-page";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 import { Tag } from "./tag";
 
@@ -83,20 +82,25 @@ export interface PresetOption {
   readonly from: string;
 }
 
-export function DivisionForm(
-  { scope, code, name, members, options, presets, isNew }:
-  {
-    /** The frame this region is carved inside (incr/0043). */
-    readonly scope: MarketScope;
-    readonly code: string;
-    readonly name: string;
-    readonly members: readonly string[];
-    readonly options: readonly MemberOption[];
-    /** Empty when editing: referencing a preset is a way to START one. */
-    readonly presets: readonly PresetOption[];
-    readonly isNew: boolean;
-  },
-) {
+export function DivisionForm({
+  scope,
+  code,
+  name,
+  members,
+  options,
+  presets,
+  isNew,
+}: {
+  /** The frame this region is carved inside (incr/0043). */
+  readonly scope: MarketScope;
+  readonly code: string;
+  readonly name: string;
+  readonly members: readonly string[];
+  readonly options: readonly MemberOption[];
+  /** Empty when editing: referencing a preset is a way to START one. */
+  readonly presets: readonly PresetOption[];
+  readonly isNew: boolean;
+}) {
   const { PLANNING_TEXT, TERRITORY_ERROR } = useMessages();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -104,9 +108,12 @@ export function DivisionForm(
 
   const prefix = scopePrefix(scope);
   const noun = PLANNING_TEXT.memberNoun[scope.kind] ?? scope.kind;
-  const includes = scope.kind === "province"
-    ? PLANNING_TEXT.scopeIncludesProvince(provinceFrame(scope.code)?.province ?? scope.code ?? "")
-    : PLANNING_TEXT.scopeIncludes[scope.kind] ?? scope.kind;
+  const includes =
+    scope.kind === "province"
+      ? PLANNING_TEXT.scopeIncludesProvince(
+          provinceFrame(scope.code)?.province ?? scope.code ?? "",
+        )
+      : (PLANNING_TEXT.scopeIncludes[scope.kind] ?? scope.kind);
   const [local, setLocal] = useState(localCode(scope, code));
   const [nameValue, setName] = useState(name);
   const [chosen, setChosen] = useState<Set<string>>(new Set(members));
@@ -125,9 +132,9 @@ export function DivisionForm(
     if (q === "") return options;
     return options.filter(
       (o) =>
-        o.key.includes(q)
-        || o.label.toUpperCase().includes(q.toUpperCase())
-        || o.hint.includes(q),
+        o.key.includes(q) ||
+        o.label.toUpperCase().includes(q.toUpperCase()) ||
+        o.hint.includes(q),
     );
   }, [options, query]);
 
@@ -143,7 +150,8 @@ export function DivisionForm(
      because reorganising somebody else's division is exactly the kind of thing
      that should not be a surprise. */
   const takenFrom = useMemo(
-    () => chosenList.filter((o) => o.heldBy !== null && !members.includes(o.key)),
+    () =>
+      chosenList.filter((o) => o.heldBy !== null && !members.includes(o.key)),
     [chosenList, members],
   );
 
@@ -177,82 +185,97 @@ export function DivisionForm(
        the list drops under the form - the form is the errand. */
     <div className="@container">
       <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        {/* LEFT - the controls, and only the controls. NO DESCRIPTION: the
-            page's ViewHeader already says what this form is for. */}
+        {/* LEFT - the controls, and only the controls, ONE UNDER THE OTHER
+            (owner: 操作区全部纵向排列, not the two-a-row FormFields grid the
+            full-width forms use - this column is half a page, and a stack
+            reads top to bottom the way the person fills it in). NO
+            DESCRIPTION: the page's ViewHeader already says what this form is
+            for. The measure caps each control at a reading width. */}
         <Section title={PLANNING_TEXT.divisionFormTitle}>
-          <div className="gap-xl flex flex-col">
-            <FormFields>
-              <Field>
-                <FieldLabel>{PLANNING_TEXT.divisionCode}</FieldLabel>
-                {/* THE PREFIX IS THE FRAME'S, NOT THE PERSON'S. SN- sits in the
+          <div className="gap-lg flex flex-col *:max-w-(--vx-container-lg)">
+            <Field>
+              <FieldLabel>{PLANNING_TEXT.divisionCode}</FieldLabel>
+              {/* THE PREFIX IS THE FRAME'S, NOT THE PERSON'S. SN- sits in the
                     addon as a fact; the input holds the half that is theirs.
                     The database CHECKs the same composition, so nothing typed
                     here can land a code in the wrong frame. */}
-                <InputGroup>
-                  <InputGroupAddon align="start">{prefix}</InputGroupAddon>
-                  <InputGroupInput
-                    value={local}
-                    onChange={(e) => setLocal(e.target.value.toUpperCase())}
-                    /* The anchor. Editable only while creating: every import
+              <InputGroup>
+                <InputGroupAddon align="start">{prefix}</InputGroupAddon>
+                <InputGroupInput
+                  value={local}
+                  onChange={(e) => setLocal(e.target.value.toUpperCase())}
+                  /* The anchor. Editable only while creating: every import
                        and every mapping row keys on it, and a division whose
                        code changed is a new division wearing an old one's
                        history. */
-                    disabled={!isNew || pending}
-                  />
-                </InputGroup>
-                {/* The one line under a control that earns its place: it
+                  disabled={!isNew || pending}
+                />
+              </InputGroup>
+              {/* The one line under a control that earns its place: it
                     tells the person what to TYPE (new) or why they cannot. */}
-                <FieldDescription>
-                  {isNew ? PLANNING_TEXT.divisionCodePrefixHint : PLANNING_TEXT.divisionCodeHint}
-                </FieldDescription>
-              </Field>
+              <FieldDescription>
+                {isNew
+                  ? PLANNING_TEXT.divisionCodePrefixHint
+                  : PLANNING_TEXT.divisionCodeHint}
+              </FieldDescription>
+            </Field>
 
+            <Field>
+              <FieldLabel>{PLANNING_TEXT.divisionNameLabel}</FieldLabel>
+              <Input
+                value={nameValue}
+                onChange={(e) => setName(e.target.value)}
+                disabled={pending}
+              />
+            </Field>
+
+            {/* THE TWO WAYS TO FILL THE LIST: take a shipped region wholesale,
+                or open the picker. Both are actions. */}
+            {isNew && presets.length > 0 ? (
               <Field>
-                <FieldLabel>{PLANNING_TEXT.divisionNameLabel}</FieldLabel>
-                <Input value={nameValue} onChange={(e) => setName(e.target.value)} disabled={pending} />
-              </Field>
-            </FormFields>
-
-            {/* THE TWO WAYS TO FILL THE LIST, side by side: take a shipped
-                region wholesale, or open the picker. Both are actions. */}
-            <FormFields>
-              {isNew && presets.length > 0 ? (
-                <Field>
-                  <FieldLabel>{PLANNING_TEXT.templateRef}</FieldLabel>
-                  <NativeSelect
-                    disabled={pending}
-                    defaultValue=""
-                    onChange={(e) => {
-                      const p = presets.find((x) => `${x.key}:${x.code}` === e.target.value);
-                      if (!p) return;
-                      setLocal(localCode(scope, p.code));
-                      setName(p.name);
-                      setChosen(new Set(p.members));
-                    }}
-                  >
-                    <option value="">{PLANNING_TEXT.templateRefNone}</option>
-                    {/* 五分法-中部, and nothing else: the carve's own list of
+                <FieldLabel>{PLANNING_TEXT.templateRef}</FieldLabel>
+                <NativeSelect
+                  disabled={pending}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const p = presets.find(
+                      (x) => `${x.key}:${x.code}` === e.target.value,
+                    );
+                    if (!p) return;
+                    setLocal(localCode(scope, p.code));
+                    setName(p.name);
+                    setChosen(new Set(p.members));
+                  }}
+                >
+                  <option value="">{PLANNING_TEXT.templateRefNone}</option>
+                  {/* 五分法-中部, and nothing else: the carve's own list of
                         names belongs in the reset dialog, not in every option. */}
-                    {presets.map((p) => (
-                      <option key={`${p.key}:${p.code}`} value={`${p.key}:${p.code}`}>
-                        {PLANNING_TEXT.presetOption(p.from, p.name)}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </Field>
-              ) : null}
-              <Field>
-                <FieldLabel>{PLANNING_TEXT.divisionPickManual}</FieldLabel>
-                {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page: the
+                  {presets.map((p) => (
+                    <option
+                      key={`${p.key}:${p.code}`}
+                      value={`${p.key}:${p.code}`}
+                    >
+                      {PLANNING_TEXT.presetOption(p.from, p.name)}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            ) : null}
+            <Field>
+              <FieldLabel>{PLANNING_TEXT.divisionPickManual}</FieldLabel>
+              {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page: the
                     list is long enough that the fields above scrolled away
                     before the last province arrived. */}
-                <div className="w-fit">
-                  <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
-                    {PLANNING_TEXT.divisionPick(noun)}
-                  </Button>
-                </div>
-              </Field>
-            </FormFields>
+              <div className="w-fit">
+                <Button
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() => setPicking(true)}
+                >
+                  {PLANNING_TEXT.divisionPick(noun)}
+                </Button>
+              </div>
+            </Field>
 
             <div className="gap-sm flex items-center">
               <Button onClick={submit} disabled={pending}>
@@ -269,7 +292,11 @@ export function DivisionForm(
             </div>
 
             {error ? (
-              <Banner tone="danger" title={PLANNING_TEXT.divisionSaveFailed} description={error} />
+              <Banner
+                tone="danger"
+                title={PLANNING_TEXT.divisionSaveFailed}
+                description={error}
+              />
             ) : null}
           </div>
         </Section>
@@ -281,7 +308,11 @@ export function DivisionForm(
             fittings are for tables somebody acts IN. */}
         <Section
           title={PLANNING_TEXT.divisionIncludes}
-          description={PLANNING_TEXT.divisionListMeta(includes, chosenList.length, noun)}
+          description={PLANNING_TEXT.divisionListMeta(
+            includes,
+            chosenList.length,
+            noun,
+          )}
         >
           <div className="gap-md flex flex-col">
             {chosenList.length === 0 ? (
@@ -300,7 +331,9 @@ export function DivisionForm(
                 <TableBody>
                   {chosenList.map((o, i) => (
                     <TableRow key={o.key}>
-                      <TableCell className="text-muted-foreground text-center tabular-nums">{i + 1}</TableCell>
+                      <TableCell className="text-muted-foreground text-center tabular-nums">
+                        {i + 1}
+                      </TableCell>
                       <TableCell>{o.label}</TableCell>
                     </TableRow>
                   ))}
@@ -315,7 +348,9 @@ export function DivisionForm(
                 description={
                   <ul className="gap-2xs flex flex-col">
                     {takenFrom.map((o) => (
-                      <li key={o.key}>{PLANNING_TEXT.divisionTakenFrom(o.label, o.heldBy!)}</li>
+                      <li key={o.key}>
+                        {PLANNING_TEXT.divisionTakenFrom(o.label, o.heldBy!)}
+                      </li>
                     ))}
                   </ul>
                 }
@@ -341,7 +376,9 @@ export function DivisionForm(
               <Button variant="secondary" onClick={() => setChosen(new Set())}>
                 {PLANNING_TEXT.divisionPickClear}
               </Button>
-              <Button onClick={() => setPicking(false)}>{PLANNING_TEXT.divisionPickDone}</Button>
+              <Button onClick={() => setPicking(false)}>
+                {PLANNING_TEXT.divisionPickDone}
+              </Button>
             </div>
           </div>
         }
@@ -355,7 +392,9 @@ export function DivisionForm(
             onChange={(e) => setQuery(e.target.value)}
           />
           {matches.length === 0 ? (
-            <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionPickNone(noun)}</p>
+            <p className="text-muted-foreground text-body-sm">
+              {PLANNING_TEXT.divisionPickNone(noun)}
+            </p>
           ) : null}
           <ul className="gap-2xs flex flex-col">
             {matches.map((o) => (
@@ -368,9 +407,13 @@ export function DivisionForm(
                   />
                   {/* THE LABEL IS THE TAG: `JS 江苏`, or `西安`. The province's
                       letters lead so the names line up down the list. */}
-                  <span className="text-body-sm grow font-medium">{o.label}</span>
+                  <span className="text-body-sm grow font-medium">
+                    {o.label}
+                  </span>
                   {/* 后缀: what each standard carve of this frame says about it. */}
-                  <span className="text-muted-foreground text-body-sm shrink-0">{o.hint}</span>
+                  <span className="text-muted-foreground text-body-sm shrink-0">
+                    {o.hint}
+                  </span>
                   {/* Held elsewhere: a warning-toned tag, the DS's own shape
                       for "this has a state you should notice". */}
                   {o.heldBy && !members.includes(o.key) ? (
