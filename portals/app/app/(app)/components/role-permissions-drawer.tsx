@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, Drawer, EmptyState, SegmentedControl } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { buildPermissionTree } from "../lib/permission-tree";
-import { PermissionTreeList } from "./permission-tree";
+import { PermissionTreeTable } from "./permission-tree";
 
 /* 权限详情 - one role's permissions as the four-level tree, in a drawer
  * (owner, 2026-09-09: 点击操作/权限详情，抽屉模式展示树状权限清单).
@@ -13,8 +13,12 @@ import { PermissionTreeList } from "./permission-tree";
  * sentence and a count; the tree is here, one click away, and it is the SAME
  * tree /admin/permissions draws for every role at once - built off the action
  * catalogue, never typed in - read for one role. What the reader usually
- * wants is "what can this role do", so the list opens pruned to what it can
- * and one switch shows everything.
+ * wants is "what can this role do", so the table opens pruned to what it can
+ * and one switch shows everything. The tree is a TABLE with the full
+ * page's chevrons and expand-to buttons (owner: 按表格模式优化，能操作树展开
+ * 收起), and the NAME in the roster opens it - a role's name is a question
+ * about what it may do, and this is the answer; editing is the row menu's
+ * 配置.
  */
 export function RolePermissionsDrawer({
   role,
@@ -37,7 +41,7 @@ export function RolePermissionsDrawer({
     <Drawer
       open={open}
       onClose={onClose}
-      width="md"
+      width="lg"
       title={role ? ROLE_TEXT.detailsTitle(role.name) : ""}
       description={role ? ROLE_TEXT.detailsWhy(role.permissions.length, total) : ""}
       closeLabel={ROLE_TEXT.detailsDone}
@@ -61,7 +65,7 @@ export function RolePermissionsDrawer({
                 { value: "all", label: ROLE_TEXT.detailsAll },
               ]}
             />
-            <PermissionTreeList tree={tree} held={held} onlyGranted={view === "granted"} />
+            <PermissionTreeTable tree={tree} held={held} onlyGranted={view === "granted"} />
           </>
         )}
       </div>

@@ -7,6 +7,12 @@ import {
   DataTable,
   Icon,
   StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -293,13 +299,16 @@ export function PermissionTree({
 }
 
 /**
- * The same tree for ONE role, as a nested list - what the roster's 权限详情
- * drawer shows (owner, 2026-09-09: 抽屉模式展示树状权限清单). Every branch
- * counts the operations under it the role may perform; every leaf reads ✓
- * or —. `onlyGranted` prunes to what the role can do, which is the question
- * a reader opening the drawer usually has.
+ * The same tree for ONE role, AS A TABLE (owner, 2026-09-09: 抽屉权限布局按
+ * 表格模式优化，树状结构并能操作树展开收起) - what the roster's 权限详情
+ * drawer shows. The DS's table primitives rather than DataTable, whose three
+ * fittings are for tables somebody acts in; the tree is the same one
+ * /admin/permissions draws, with the same chevrons and the same expand-to
+ * buttons, read for one role: a leaf reads ✓ or —, a branch counts the
+ * operations under it the role may perform. `onlyGranted` prunes to what
+ * the role can do before flattening, so the counts and the rows agree.
  */
-export function PermissionTreeList({
+export function PermissionTreeTable({
   tree,
   held,
   onlyGranted,
@@ -308,45 +317,110 @@ export function PermissionTreeList({
   readonly held: ReadonlySet<string>;
   readonly onlyGranted: boolean;
 }) {
-  const { PERMISSION_TREE_TEXT: T } = useMessages();
+  const { PERMISSION_TREE_TEXT: T, ROLE_TEXT } = useMessages();
   const { title, subtitle } = useNodeCopy();
 
+  const granted = (n: PermissionNode) => n.permission !== null && held.has(n.permission);
   const leaves = (n: PermissionNode): PermissionNode[] =>
     n.children.length === 0 ? [n] : n.children.flatMap(leaves);
-  const granted = (n: PermissionNode) => n.permission !== null && held.has(n.permission);
+  /* Pruned first, flattened second: a branch with nothing the role can do
+     is not a row when only the granted are shown. */
+  const prune = (nodes: readonly PermissionNode[]): PermissionNode[] =>
+    nodes
+      .filter((n) => !onlyGranted || leaves(n).some(granted))
+      .map((n) => ({ ...n, children: prune(n.children) }));
+  // 114 nodes at most: pruned and flattened on every render, no memo.
+  const shown = prune(tree);
+  // Open to the pages by default, like the full table.
+  const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
+  const rows = flattenTree(shown, expanded);
 
-  const render = (nodes: readonly PermissionNode[], depth: number) => (
-    <ul className="gap-2xs flex flex-col">
-      {nodes
-        .filter((n) => !onlyGranted || leaves(n).some(granted))
-        .map((n) => {
-          const branch = n.children.length > 0;
-          const all = leaves(n);
-          const ok = all.filter(granted).length;
-          return (
-            <li key={n.key} className="gap-2xs flex flex-col">
-              <span className="gap-xs flex items-center" style={{ paddingLeft: `${depth * 1.25}rem` }}>
-                <Icon name={LEVEL_ICON[n.level]} size="sm" className="text-muted-foreground shrink-0" />
-                <span className="gap-3xs flex min-w-0 grow flex-col">
-                  <span className={`text-body-sm truncate ${branch ? "font-medium" : ""}`}>{title(n)}</span>
-                  <span className="text-muted-foreground text-label-sm truncate">{subtitle(n)}</span>
-                </span>
-                {branch ? (
-                  <Tag tone={ok === 0 ? "neutral" : ok === all.length ? "success" : "info"}>
-                    {`${ok} / ${all.length}`}
-                  </Tag>
-                ) : granted(n) ? (
-                  <Icon name="check" size="sm" className="text-success shrink-0" aria-label={T.granted} />
-                ) : (
-                  <span className="text-muted-foreground shrink-0" aria-label={T.notGranted}>—</span>
-                )}
-              </span>
-              {branch ? render(n.children, depth + 1) : null}
-            </li>
-          );
-        })}
-    </ul>
+  const toggle = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  return (
+    <div className="gap-md flex flex-col">
+      <div className="gap-sm flex flex-wrap items-center">
+        <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
+        <ButtonGroup>
+          {/* Keys from the FULL tree, so switching 只看可执行 / 显示全部 keeps
+              the same level open rather than showing the newly revealed
+              branches folded. */}
+          {(["module", "page", "action"] as const).map((lvl) => (
+            <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
+              {T.levelLabel[lvl]}
+            </Button>
+          ))}
+          <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
+            {T.collapseAll}
+          </Button>
+        </ButtonGroup>
+      </div>
+      {/* FIXED LAYOUT, THREE SHARES: the point takes what the two short
+          columns leave, the level tag and the mark each get a fixed slot so
+          the marks line up down the drawer. */}
+      <Table className="table-fixed">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{T.colPoint}</TableHead>
+            <TableHead className="w-[5.5rem]">{T.colLevel}</TableHead>
+            <TableHead className="w-[5rem] text-center">{ROLE_TEXT.detailsColHeld}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((r) => {
+            const n = r.node;
+            const branch = n.children.length > 0;
+            const all = leaves(n);
+            const ok = all.filter(granted).length;
+            return (
+              <TableRow key={n.key}>
+                <TableCell>
+                  <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.25}rem` }}>
+                    {branch ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-expanded={r.expanded}
+                        aria-label={title(n)}
+                        onClick={() => toggle(n.key)}
+                      >
+                        <Icon name={r.expanded ? "chevron-down" : "chevron-right"} size="sm" />
+                      </Button>
+                    ) : (
+                      <span className="w-8 shrink-0" />
+                    )}
+                    <Icon name={LEVEL_ICON[n.level]} size="sm" className="text-muted-foreground shrink-0" />
+                    <span className="gap-3xs flex min-w-0 flex-col">
+                      <span className={`text-body-sm truncate ${branch ? "font-medium" : ""}`}>{title(n)}</span>
+                      <span className="text-muted-foreground text-label-sm truncate">{subtitle(n)}</span>
+                    </span>
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge tone={LEVEL_TONE[n.level]}>{T.levelLabel[n.level]}</StatusBadge>
+                </TableCell>
+                <TableCell className="text-center">
+                  {branch ? (
+                    <Tag tone={ok === 0 ? "neutral" : ok === all.length ? "success" : "info"}>
+                      {`${ok} / ${all.length}`}
+                    </Tag>
+                  ) : granted(n) ? (
+                    <Icon name="check" size="sm" className="text-success" aria-label={T.granted} />
+                  ) : (
+                    <span className="text-muted-foreground" aria-label={T.notGranted}>—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
   );
-
-  return render(tree, 0);
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { DataTable, EmptyState, Section, StatusBadge, TableTitleCell, useToast } from "@vxture/design-ui";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
@@ -142,18 +141,23 @@ export function RolePanel({
             rows={rows}
             columns={[
               {
-                // 首列走 TableTitleCell: the name leads, the code is its
-                // description - the shape every first column in this product has.
+                /* 首列走 TableTitleCell: the name leads, the code is its
+                   description. THE NAME OPENS 权限详情 (owner, 2026-09-09: 点击
+                   角色名改为抽屉查看权限), for every reader - a role's name
+                   is a question about what it may do. Editing is the row
+                   menu's 配置, and only for those who may. */
                 id: "name",
                 header: ROLE_TEXT.colRole,
-                cell: (r: RoleRow) =>
-                  editable ? (
-                    <Link href={`/admin/roles/${r.id}`}>
-                      <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
-                    </Link>
-                  ) : (
+                cell: (r: RoleRow) => (
+                  <button
+                    type="button"
+                    className="cursor-pointer text-left"
+                    aria-label={ROLE_TEXT.detailsTitle(r.name)}
+                    onClick={() => setDetails(r)}
+                  >
                     <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
-                  ),
+                  </button>
+                ),
               },
               {
                 // 系统预置 / 自定义. DERIVED by comparing against the preset,
