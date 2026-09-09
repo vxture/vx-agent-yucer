@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -17,7 +18,7 @@ import { saveLead } from "../assign-actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewLeadPage() {
-  const { LEAD_TEXT, SHELL_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, LEAD_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -38,6 +39,10 @@ export default async function NewLeadPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.lead, href: "/lead" }]}
+        current={LEAD_TEXT.addLead}
+      />
       <ViewHeader title={LEAD_TEXT.addLead} description={LEAD_TEXT.addLeadWhy} />
       <LeadForm
         accounts={(accounts.ok ? accounts.value : []).map((a) => ({ id: a.id, name: a.name }))}

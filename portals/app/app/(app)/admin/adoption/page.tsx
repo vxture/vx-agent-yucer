@@ -8,6 +8,7 @@ import {
   ViewLayout,
   type MetricGridItem,
 } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import {
   getFieldStore,
@@ -35,7 +36,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function AdoptionPage() {
-  const { ADOPTION_TEXT, DOMAIN_LABEL, SHELL_TEXT, STAGE_LABEL, LOAD_ERROR } = await getMessages();
+  const { ADMIN_TEXT, ADOPTION_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT, STAGE_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -159,6 +160,10 @@ export default async function AdoptionPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
+        current={DOMAIN_LABEL.adoption}
+      />
       <ViewHeader
         icon="chart-bar"
         title={DOMAIN_LABEL.adoption}

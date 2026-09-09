@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -27,7 +28,7 @@ export default async function NewPlanPage({
 }: {
   readonly searchParams: Promise<{ no?: string }>;
 }) {
-  const { SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, SHELL_TEXT, STRATEGY_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -56,6 +57,10 @@ export default async function NewPlanPage({
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.strategy, href: "/strategy" }]}
+        current={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
+      />
       <ViewHeader
         title={editable ? STRATEGY_TEXT.editPlanTitle : STRATEGY_TEXT.newPlanTitle}
         description={editable ? STRATEGY_TEXT.editPlanWhy : STRATEGY_TEXT.newPlanWhy}

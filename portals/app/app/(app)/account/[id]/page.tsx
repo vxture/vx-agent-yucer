@@ -1,15 +1,10 @@
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   EmptyState,
   StatusBadge,
   ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import Link from "next/link";
 import { can } from "../../../authz/decide";
@@ -92,6 +87,7 @@ export default async function AccountDetailPage({
     SHELL_TEXT,
     STAGE_LABEL,
     LOAD_ERROR,
+    DOMAIN_LABEL,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -259,22 +255,10 @@ export default async function AccountDetailPage({
 
   return (
     <ViewLayout>
-      {/* THE WAY BACK. With the board gone this page offers no navigation of
-          its own, and returning to the list you came from is the most common
-          next action - the shell no longer covers it, so the page must. */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/account">
-              {ACCOUNT_TEXT.backToList}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{account.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      {/* THE WAY BACK, through the same binding every other second-level
+          page uses. This one wrote its own for months and took the parent's
+          name from its own dictionary; the trail reads the registry now. */}
+      <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
 
       <ViewHeader
         secondary={account.accountNo}

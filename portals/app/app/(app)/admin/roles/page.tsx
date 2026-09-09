@@ -1,4 +1,5 @@
 import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
@@ -27,7 +28,7 @@ import { RoleTable } from "../../components/role-table";
 export const dynamic = "force-dynamic";
 
 export default async function RolesPage() {
-  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, ROLE_LABEL, SHELL_TEXT } = await getMessages();
+  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL, ROLE_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -71,6 +72,10 @@ export default async function RolesPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
+        current={DOMAIN_LABEL.roles}
+      />
       <ViewHeader
         icon="role"
         title={ADMIN_PAGE_TEXT.rolesTitle}

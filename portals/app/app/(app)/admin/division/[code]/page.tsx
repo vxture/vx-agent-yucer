@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
@@ -15,7 +16,7 @@ export default async function EditDivisionPage(
   { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
-  const { SHELL_TEXT, PLANNING_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -42,6 +43,13 @@ export default async function EditDivisionPage(
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[
+          { label: ADMIN_TEXT.title, href: "/admin" },
+          { label: DOMAIN_LABEL.division, href: "/admin/division" },
+        ]}
+        current={mine.name}
+      />
       <ViewHeader title={mine.name} description={PLANNING_TEXT.divisionFormWhy} />
       <DivisionForm
         isNew={false}

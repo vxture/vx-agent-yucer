@@ -1,4 +1,5 @@
 import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
@@ -18,7 +19,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function ScopePage() {
-  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, LOAD_ERROR, SHELL_TEXT } = await getMessages();
+  const { ADMIN_PAGE_TEXT, ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -60,6 +61,10 @@ export default async function ScopePage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
+        current={DOMAIN_LABEL.scope}
+      />
       <ViewHeader
         icon="eye"
         title={ADMIN_PAGE_TEXT.scopeTitle}

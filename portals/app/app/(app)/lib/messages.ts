@@ -2006,6 +2006,8 @@ export const FIELD_TEXT = {
   // 统一录入(2026-09-05 整合):承诺行长在跟进表单里,记的是「这次谈话里谁答应了什么」。
   commitAdd: "这次有承诺?加一条",
   captureTitle: (name: string) => `记一次接触 · ${name}`,
+  /** 面包屑末段：这一页本身叫什么，不带客户名——客户名已经是上一段。 */
+  captureCrumb: "记一次接触",
   captureWhy:
     "发生了什么照原样倒进来;这次谈话里谁答应了什么,顺手加在下面——承诺会记住它出自哪一次接触。",
   commitRemove: "去掉",

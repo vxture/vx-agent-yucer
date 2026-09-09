@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -20,7 +21,7 @@ import { createDeal } from "../stage-action";
 export const dynamic = "force-dynamic";
 
 export default async function NewOpportunityPage() {
-  const { SHELL_TEXT, PIPELINE_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, PIPELINE_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -44,6 +45,10 @@ export default async function NewOpportunityPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.pipeline, href: "/pipeline" }]}
+        current={PIPELINE_TEXT.newTitle}
+      />
       <ViewHeader title={PIPELINE_TEXT.newTitle} description={PIPELINE_TEXT.newWhy} />
       <OpportunityForm
         accounts={

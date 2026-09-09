@@ -1,4 +1,5 @@
 import { ViewHeader } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
@@ -29,7 +30,7 @@ export default async function NewProductPage({
 }: {
   readonly searchParams: Promise<{ code?: string }>;
 }) {
-  const { CATALOG_TEXT } = await getMessages();
+  const { CATALOG_TEXT, DOMAIN_LABEL } = await getMessages();
   const { code } = await searchParams;
   return (
     <CatalogPage
@@ -43,6 +44,10 @@ export default async function NewProductPage({
         const editing = initial !== undefined;
         return (
           <>
+            <PageCrumbs
+              trail={[{ label: DOMAIN_LABEL.catalog, href: "/catalog" }]}
+              current={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
+            />
             <ViewHeader
               title={editing ? CATALOG_TEXT.editProduct : CATALOG_TEXT.newProduct}
               description={CATALOG_TEXT.newProductWhy}

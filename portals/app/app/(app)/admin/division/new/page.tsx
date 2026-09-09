@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
@@ -13,7 +14,7 @@ import { provinceOptions } from "../../../lib/province-options";
 export const dynamic = "force-dynamic";
 
 export default async function NewDivisionPage() {
-  const { SHELL_TEXT, PLANNING_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -35,6 +36,13 @@ export default async function NewDivisionPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[
+          { label: ADMIN_TEXT.title, href: "/admin" },
+          { label: DOMAIN_LABEL.division, href: "/admin/division" },
+        ]}
+        current={PLANNING_TEXT.divisionNew}
+      />
       <ViewHeader title={PLANNING_TEXT.divisionNew} description={PLANNING_TEXT.divisionFormWhy} />
       <DivisionForm
         isNew

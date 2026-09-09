@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
@@ -30,7 +31,7 @@ import { loadFailureText } from "../../lib/load-failure";
 export const dynamic = "force-dynamic";
 
 export default async function MembersPage() {
-  const { DOMAIN_LABEL, LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -71,6 +72,10 @@ export default async function MembersPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
+        current={DOMAIN_LABEL.members}
+      />
       <ViewHeader
         title={DOMAIN_LABEL.members}
         description={MEMBER_TEXT.description}

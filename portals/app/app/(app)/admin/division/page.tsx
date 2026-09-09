@@ -1,4 +1,5 @@
 import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
@@ -33,7 +34,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function DivisionPage() {
-  const { DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
+  const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return (
@@ -77,6 +78,10 @@ export default async function DivisionPage() {
     <ViewLayout>
       {/* ViewHeader rather than ModuleHeadline, for the reason /admin gives:
           moduleIcon() resolves icons for MODULES, and this is not one. */}
+      <PageCrumbs
+        trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
+        current={DOMAIN_LABEL.division}
+      />
       <ViewHeader
         icon="map-pin"
         title={DOMAIN_LABEL.division}

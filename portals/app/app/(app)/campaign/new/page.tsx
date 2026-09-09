@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -19,7 +20,7 @@ import { saveExecution } from "../actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewExecutionPage() {
-  const { SHELL_TEXT, CAMPAIGN_TEXT } = await getMessages();
+  const { CAMPAIGN_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -58,6 +59,10 @@ export default async function NewExecutionPage() {
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[{ label: DOMAIN_LABEL.campaign, href: "/campaign" }]}
+        current={CAMPAIGN_TEXT.executionsTitle}
+      />
       <ViewHeader title={CAMPAIGN_TEXT.executionsTitle} description={CAMPAIGN_TEXT.executionsWhy} />
       <ExecutionForm
         rows={executions}

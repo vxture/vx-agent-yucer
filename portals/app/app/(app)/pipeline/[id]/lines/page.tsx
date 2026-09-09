@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
@@ -27,7 +28,7 @@ export default async function DealLinesPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { SHELL_TEXT, OPPORTUNITY_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, OPPORTUNITY_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -65,6 +66,13 @@ export default async function DealLinesPage({
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[
+    { label: DOMAIN_LABEL.pipeline, href: "/pipeline" },
+    { label: opportunity.name, href: `/pipeline/${id}` },
+  ]}
+        current={OPPORTUNITY_TEXT.linesTitle}
+      />
       <ViewHeader
         title={OPPORTUNITY_TEXT.linesPageTitle(opportunity.name)}
         description={OPPORTUNITY_TEXT.linesWhy}

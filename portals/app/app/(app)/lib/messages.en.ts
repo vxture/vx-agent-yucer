@@ -2665,6 +2665,7 @@ export const en: Dictionary = {
   FIELD_TEXT: {
     ...zh.FIELD_TEXT,
     captureTitle: (name: string) => `Record a touch · ${name}`,
+    captureCrumb: "Record a touch",
     captureWhy:
       "Dump what happened verbatim; add who promised what below - each promise remembers the conversation it came from.",
     commitCount: (n: number) => `${n}`,

@@ -1,4 +1,5 @@
 import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -20,7 +21,7 @@ export default async function NewContactPage({
   searchParams: Promise<{ account?: string; back?: string }>;
 }) {
   const { account: accountId, back } = await searchParams;
-  const { SHELL_TEXT, ACCOUNT_TEXT } = await getMessages();
+  const { ACCOUNT_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
     return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
@@ -46,6 +47,13 @@ export default async function NewContactPage({
 
   return (
     <ViewLayout>
+      <PageCrumbs
+        trail={[
+    { label: DOMAIN_LABEL.account, href: "/account" },
+    { label: detail.value.account.name, href: `/account/${accountId}` },
+  ]}
+        current={ACCOUNT_TEXT.contactNew}
+      />
       <ViewHeader
         title={ACCOUNT_TEXT.contactFormTitle(detail.value.account.name)}
         description={ACCOUNT_TEXT.contactFormWhy}

@@ -1,11 +1,5 @@
 import Link from "next/link";
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
   EmptyState,
   MetricGrid,
   Section,
@@ -14,6 +8,7 @@ import {
   ViewLayout,
   type MetricGridItem,
 } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import {
@@ -116,6 +111,7 @@ export default async function OpportunityDetailPage({
     WAR_ROOM_TEXT,
     CHANNEL_LABEL,
     LOAD_ERROR,
+    DOMAIN_LABEL,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -394,19 +390,10 @@ export default async function OpportunityDetailPage({
     <ViewLayout>
       {/* THE WAY BACK. With the board gone this page carries no navigation of
           its own, and returning to the list is the most common next action. */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/pipeline">
-              {PIPELINE_TEXT.title}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{opportunity.name}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+      {/* THE WAY BACK, through the same binding every other second-level
+          page uses. This one wrote its own for months and took the parent's
+          name from its own dictionary; the trail reads the registry now. */}
+      <PageCrumbs trail={[{ label: DOMAIN_LABEL.pipeline, href: "/pipeline" }]} current={opportunity.name} />
 
       <ViewHeader
         secondary={opportunity.opportunityNo}

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { PageCrumbs } from "../../components/page-crumbs";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { CatalogPage } from "../../catalog/shell";
@@ -47,6 +48,10 @@ export default async function ProductSettingsPage() {
         }
         return (
           <ViewLayout>
+            <PageCrumbs
+              trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
+              current={DOMAIN_LABEL.product}
+            />
             <ViewHeader
               icon="cube"
               title={DOMAIN_LABEL.product}
