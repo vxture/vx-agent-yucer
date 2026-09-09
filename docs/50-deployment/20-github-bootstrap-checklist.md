@@ -64,6 +64,12 @@ literal the instantiate script wrote (`yucer`).
       `ALIYUN_ACR_USERNAME/PASSWORD`, `TAILSCALE_OAUTH_*`; org vars
       `ALIYUN_ACR_REGISTRY/NAMESPACE`, `VXTURE_NPM_REGISTRY`,
       `TAILSCALE_OAUTH_CLIENT_TAG`.
+- [x] `ALIYUN_ACR_NAMESPACE` REPO variable = `vx-agentstudio` (owner,
+      2026-09-09). A repo variable shadows the org one of the same name, and
+      this product's images live in the 阿里云容器镜像服务 namespace
+      `vx-agentstudio`, not the org default. It was `vx-foundation` from the
+      2026-08-29 bootstrap until the owner corrected it; nothing had deployed
+      in between. Verify with `gh variable list`.
 
 ### Secret values the owner must supply
 
