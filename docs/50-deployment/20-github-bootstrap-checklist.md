@@ -52,8 +52,11 @@ literal the instantiate script wrote (`yucer`).
 ### Repo configuration
 
 - [ ] `PRODUCT_CODE` repo variable = `yucer`.
-- [ ] `APP_PUBLISH_PORT` = _(assigned at platform registration - see
-      `10-platform-registration-checklist.md`)_.
+- [x] `APP_PUBLISH_PORT` repo variable = `4060` (the platform port registry
+      assigned yucer the L3 block `4060-4069` on 2026-09-10: prod `4060`,
+      beta `4061`). Rule R3 makes the code fallback, compose, Dockerfile and
+      `.env.example` the same number; `5000/5001` were self-assigned before
+      registration and are gone.
 - [ ] `production` GitHub Environment + Required reviewer (deploy pauses until
       approved). No `beta` (prod only).
 - [ ] Host secrets for worker02: `DEPLOY_HOST` = `vx-worker-02` (tailnet
@@ -64,6 +67,12 @@ literal the instantiate script wrote (`yucer`).
       `ALIYUN_ACR_USERNAME/PASSWORD`, `TAILSCALE_OAUTH_*`; org vars
       `ALIYUN_ACR_REGISTRY/NAMESPACE`, `VXTURE_NPM_REGISTRY`,
       `TAILSCALE_OAUTH_CLIENT_TAG`.
+- [x] `ALIYUN_ACR_NAMESPACE` REPO variable = `vx-agentstudio` (owner,
+      2026-09-09). A repo variable shadows the org one of the same name, and
+      this product's images live in the 阿里云容器镜像服务 namespace
+      `vx-agentstudio`, not the org default. It was `vx-foundation` from the
+      2026-08-29 bootstrap until the owner corrected it; nothing had deployed
+      in between. Verify with `gh variable list`.
 
 ### Secret values the owner must supply
 
