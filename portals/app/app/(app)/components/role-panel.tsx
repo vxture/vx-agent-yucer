@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
-import { moveRoleAction } from "../admin/roles/actions";
+import { moveRoleAction, removeRoleAction } from "../admin/roles/actions";
 import { RolePermissionsDrawer } from "./role-permissions-drawer";
 import { Tag } from "./tag";
 
@@ -77,6 +77,18 @@ export function RolePanel({
       const r = await moveRoleAction(code, direction);
       if (!r.ok) toast({ tone: "danger", title: ROLE_ERROR[r.error] ?? r.error });
     });
+  /* The hammer, behind the DS's confirm (owner, 2026-09-09: 所有删除、重置、清空
+     等危险操作，按区域设置模式弹窗确认). A refusal is shown as a toast and
+     RE-THROWN so the DS keeps the confirmation open: the person must see
+     that the click did not land. */
+  const remove = async (code: string) => {
+    const r = await removeRoleAction(code);
+    if (!r.ok) {
+      toast({ tone: "danger", title: ROLE_ERROR[r.error] ?? r.error });
+      throw new Error(r.error);
+    }
+    if (details?.code === code) setDetails(null);
+  };
 
   return (
     <Section id="roles">
@@ -92,8 +104,8 @@ export function RolePanel({
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
             + " [&_thead_th:nth-child(3)]:w-[14rem]"
             + " [&_thead_th:nth-child(4)]:w-[7rem]"
+            + " [&_thead_th:nth-child(5)]:w-[6rem]"
             + " [&_thead_th:nth-child(6)]:w-[6rem]"
-            + " [&_thead_th:nth-child(7)]:w-[6rem]"
           }
         >
           <DataTable
@@ -105,8 +117,10 @@ export function RolePanel({
               <RowActions
                 disabled={pending}
                 items={[
-                  /* 权限详情 FIRST, and for every reader: the drawer is the
-                     one thing a read-only reader came here to open. */
+                  /* THREE GROUPS, SEPARATED (owner, 2026-09-09): read and
+                     configure; the four moves; delete. 权限详情 FIRST, and for
+                     every reader: the drawer is the one thing a read-only
+                     reader came here to open. */
                   {
                     id: "details",
                     label: ROLE_TEXT.details,
@@ -146,6 +160,28 @@ export function RolePanel({
                           label: ROLE_TEXT.moveBottom,
                           disabled: rowIndex === rows.length - 1,
                           onSelect: () => move(r.code, "bottom"),
+                        },
+                        /* THE THIRD GROUP, UNDER ITS OWN RULE (owner: 按类用分割线
+                           隔开，增加删除按钮): the one thing that cannot be
+                           undone, red, confirmed by the DS - verb, target,
+                           consequence - and greyed with its reason while
+                           somebody holds the role (the FK's RESTRICT, said
+                           first). */
+                        {
+                          id: "remove",
+                          label: ROLE_TEXT.remove,
+                          separatorBefore: true,
+                          danger: true as const,
+                          disabled: r.members > 0,
+                          hint: r.members > 0 ? ROLE_TEXT.removeHeldHint(r.members) : undefined,
+                          confirm: {
+                            verb: ROLE_TEXT.remove,
+                            target: ROLE_TEXT.removeTarget(r.name),
+                            consequence: ROLE_TEXT.removeConsequence,
+                            titleTemplate: ROLE_TEXT.destructiveTitle,
+                            cancelLabel: ROLE_TEXT.cancel,
+                            onConfirm: () => remove(r.code),
+                          },
                         },
                       ]
                     : []),
@@ -187,17 +223,12 @@ export function RolePanel({
                   ),
               },
               {
-                /* THE SENTENCE (owner: 最简单的角色描述). It takes what the
-                   short columns leave, and a role with none says so in the
-                   muted tone rather than leaving a hole. */
-                id: "description",
-                header: ROLE_TEXT.colDescription,
+                id: "members",
+                header: ROLE_TEXT.colMembers,
+                // A role nobody holds is a fact worth seeing, not a zero to
+                // skim past - and it is the only kind that can be deleted.
                 cell: (r: RoleRow) =>
-                  r.description ? (
-                    <span className="text-body-sm">{r.description}</span>
-                  ) : (
-                    <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.noDescription}</span>
-                  ),
+                  r.members === 0 ? <Tag>{ROLE_TEXT.noMember}</Tag> : ROLE_TEXT.members(r.members),
               },
               {
                 /* THE COUNT, over the catalogue's total (owner: 给出权限数量).
@@ -213,12 +244,18 @@ export function RolePanel({
                   ),
               },
               {
-                id: "members",
-                header: ROLE_TEXT.colMembers,
-                // A role nobody holds is a fact worth seeing, not a zero to
-                // skim past - and it is the only kind that can be deleted.
+                /* THE SENTENCE (owner: 最简单的角色描述), LAST BEFORE 操作
+                   (owner: 列顺序 … 成员数 ｜ 权限数 ｜ 说明 ｜ 操作). It takes what
+                   the short columns leave, and a role with none says so in
+                   the muted tone rather than leaving a hole. */
+                id: "description",
+                header: ROLE_TEXT.colDescription,
                 cell: (r: RoleRow) =>
-                  r.members === 0 ? <Tag>{ROLE_TEXT.noMember}</Tag> : ROLE_TEXT.members(r.members),
+                  r.description ? (
+                    <span className="text-body-sm">{r.description}</span>
+                  ) : (
+                    <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.noDescription}</span>
+                  ),
               },
             ]}
           />

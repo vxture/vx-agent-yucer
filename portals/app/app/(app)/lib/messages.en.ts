@@ -1270,6 +1270,7 @@ export const en: Dictionary = {
     removeWhy: "Only a role nobody holds can be deleted. Remove it from members first.",
     removeTarget: (name: string) => ` "${name}"`,
     removeConsequence: "The role and its permission set are deleted; this cannot be undone.",
+    removeHeldHint: (n: number) => `${n} members still hold it; remove it from them first`,
     detailsTitle: (name: string) => `${name} · permissions`,
     detailsWhy: (n: number, total: number) => `Holds ${n} of ${total} permissions. Ticked operations can be performed.`,
     detailsGranted: "Allowed",

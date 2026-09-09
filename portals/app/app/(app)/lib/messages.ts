@@ -2391,6 +2391,7 @@ export const ROLE_TEXT = {
   removeWhy: "只有没有成员持有的角色才能删除。先在成员管理里移除，再删。",
   removeTarget: (name: string) => `「${name}」`,
   removeConsequence: "角色及其权限配置会被删除，不可撤销。",
+  removeHeldHint: (n: number) => `还有 ${n} 人持有，先在成员管理里移除`,
   // --- 权限详情抽屉 ---
   detailsTitle: (name: string) => `${name} · 权限详情`,
   detailsWhy: (n: number, total: number) => `持有 ${n} / ${total} 条权限。打勾的操作可以执行。`,
