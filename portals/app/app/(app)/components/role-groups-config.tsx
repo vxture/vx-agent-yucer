@@ -33,18 +33,15 @@ export function RoleGroupsConfig({ kind, rows }: {
       errors={ROLE_GROUP_ERROR}
       text={{
         title: T.title,
+        noun: T.colName,
         why: T.why,
         add: T.add,
-        edit: ROLE_GROUP_TEXT.edit,
         save: ROLE_GROUP_TEXT.save,
         codeLabel: T.code,
         codeHint: ROLE_GROUP_TEXT.codeHint,
         nameLabel: T.name,
         colName: T.colName,
         deleteConsequence: T.deleteConsequence,
-        opUp: ROLE_GROUP_TEXT.opUp,
-        opDown: ROLE_GROUP_TEXT.opDown,
-        opDelete: ROLE_GROUP_TEXT.opDelete,
       }}
       columns={[
         {

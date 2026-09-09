@@ -35,6 +35,7 @@ import type {
   SolutionItemRecord,
   SolutionRecord,
 } from "./store";
+import type { MoveDirection } from "../shared/ordering";
 
 /**
  * A line with the one fact a reader cannot derive from it: whether the
@@ -308,7 +309,7 @@ export async function setProductStatus(
  */
 export async function moveProduct(
   ctx: CatalogContext,
-  input: { productId: string; direction: "up" | "down" },
+  input: { productId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -417,7 +418,7 @@ export async function upsertProductType(
 /** Reorder the type vocabulary - the order the header's stat cells render in. */
 export async function moveProductType(
   ctx: CatalogContext,
-  input: { typeId: string; direction: "up" | "down" },
+  input: { typeId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -546,7 +547,7 @@ export async function upsertProductUnit(
 /** Reorder the unit vocabulary - the order the product form's picker offers. */
 export async function moveProductUnit(
   ctx: CatalogContext,
-  input: { unitId: string; direction: "up" | "down" },
+  input: { unitId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -640,7 +641,7 @@ export async function removeProductStatus(
 /** Reorder the status vocabulary. */
 export async function moveProductStatus(
   ctx: CatalogContext,
-  input: { statusId: string; direction: "up" | "down" },
+  input: { statusId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.product.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -763,7 +764,7 @@ export async function setSolutionStatus(
  */
 export async function moveSolution(
   ctx: CatalogContext,
-  input: { solutionId: string; direction: "up" | "down" },
+  input: { solutionId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "catalog.solution.upsert", "data");
   if (!gate.allowed) return denied(gate);

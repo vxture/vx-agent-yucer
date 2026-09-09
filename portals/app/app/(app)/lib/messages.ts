@@ -729,6 +729,9 @@ export const CATALOG_TEXT = {
   colUnitPrice: "计价单位",
   colOps: "操作",
   opEdit: "修改",
+  // 行菜单的 XX（ROW_OPS）：产品配置 / 删除产品，方案配置 / 删除方案。
+  productNoun: "产品",
+  solutionNoun: "方案",
   opLaunch: "上线",
   opRetire: "退役",
   opReinstate: "恢复在售",
@@ -2410,8 +2413,8 @@ export const ROLE_TEXT = {
   details: "权限详情",
   moveUp: "上移",
   moveDown: "下移",
-  moveTop: "移到最顶",
-  moveBottom: "移到最低",
+  moveTop: "移到顶部",
+  moveBottom: "移到底部",
   newRole: "新建角色",
   remove: "删除角色",
   removeWhy: "只有没有成员持有的角色才能删除。先在成员管理里移除，再删。",
@@ -2503,6 +2506,22 @@ export const ROLE_TEXT = {
  * 角色分组 (incr/0047)：业务线与层级两套词表，工作区自己的，参考区域设置——
  * 预置八条业务线、六级层级，可增删改排；有角色在用的删不掉。
  */
+/**
+ * 行操作面板的统一词汇 (owner, 2026-09-09: 各操作面板尽量统一，可以保留特色操作):
+ *   XX详情 / XX配置 ｜ 上移 / 下移 / 移到顶部 / 移到底部 ｜ 删除XX.
+ * Every configuration roster builds its menu from these; a module's own
+ * verbs (生命周期、状态流转) sit between the first group and the moves.
+ */
+export const ROW_OPS = {
+  details: (noun: string) => `${noun}详情`,
+  configure: (noun: string) => `${noun}配置`,
+  up: "上移",
+  down: "下移",
+  top: "移到顶部",
+  bottom: "移到底部",
+  remove: (noun: string) => `删除${noun}`,
+} as const;
+
 export const ROLE_GROUP_TEXT = {
   pageTitle: "分组管理",
   pageWhy: "角色按业务线和层级归类。预置的可以改名、排序，也可以新增；有角色在用的分组不能删。",
@@ -3574,11 +3593,19 @@ export const PLANNING_TEXT = {
   // 汇总都按它来。
   divisionMoveUp: "上移",
   divisionMoveDown: "下移",
-  divisionMoveTop: "移到最顶",
-  divisionMoveBottom: "移到最低",
+  divisionMoveTop: "移到顶部",
+  divisionMoveBottom: "移到底部",
   divisionNew: "新建区域",
   divisionRemove: "删除区域",
   divisionRemoveWhy: (noun: string) => `只有不含任何${noun}的区域才能删除。先把${noun}移走，再删。`,
+  // 行菜单的 删除区域（owner, 2026-09-09: 统一面板）: 确认框与灰掉的理由。
+  divisionRemoveTarget: (name: string) => `「${name}」`,
+  divisionRemoveConsequence: "区域会被删除，不可撤销。它覆盖的范围需要先移到别的区域。",
+  divisionRemoveHeldHint: (n: number, noun: string) => `还覆盖 ${n} 个${noun}，先移走再删`,
+  // 区域详情抽屉：这个区域覆盖的范围，按清单四列。
+  divisionDetailsTitle: (name: string) => `${name} · 区域详情`,
+  divisionDetailsWhy: (n: number, noun: string) => `覆盖 ${n} 个${noun}。`,
+  divisionDetailsDone: "关闭",
   templateTitle: "重置为预置划分",
   templateWhy: "选一套预置切法作为起点，之后随便改。",
   templateReset: "重置预置",
@@ -3748,6 +3775,9 @@ export const TARGET_STATUS_LABEL: Record<string, string> = {
 };
 
 export const STRATEGY_TEXT = {
+  // 行菜单的 XX（ROW_OPS）。
+  segmentNoun: "细分市场",
+  planNoun: "战略方案",
   // 细分模块页（按产品模式重建 2026-09-05）
   tagSegmentActive: (n: number) => `${n} 个在用细分`,
   tagSegmentShelved: (n: number) => `${n} 个已停用`,

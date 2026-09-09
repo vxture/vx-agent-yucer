@@ -7,6 +7,7 @@ import { statusTone } from "./status-label";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 产品状态 - the config page's OTHER independent vocabulary (owner ruling
 // 2026-09-05: 状态是状态 - this file and the type config import nothing from
@@ -33,7 +34,7 @@ export interface CatalogStatusConfigProps {
     name: string;
     description?: string | null;
   }) => Promise<VocabularyResult>;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }
 
@@ -55,18 +56,15 @@ export function CatalogStatusConfig({
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.statusesTitle,
+        noun: "状态",
         why: CATALOG_TEXT.statusesWhy,
         add: CATALOG_TEXT.addStatus,
-        edit: CATALOG_TEXT.renameStatus,
         save: CATALOG_TEXT.saveStatus,
         codeLabel: CATALOG_TEXT.statusCode,
         codeHint: CATALOG_TEXT.statusCodeHint,
         nameLabel: CATALOG_TEXT.colStatusName,
         colName: CATALOG_TEXT.colStatusName,
         deleteConsequence: CATALOG_TEXT.statusDeleteConsequence,
-        opUp: CATALOG_TEXT.opUp,
-        opDown: CATALOG_TEXT.opDown,
-        opDelete: CATALOG_TEXT.opDelete,
       }}
       nameSuffix={(r) => <Tag tone={statusTone(r)}>{r.statusCode}</Tag>}
       columns={[

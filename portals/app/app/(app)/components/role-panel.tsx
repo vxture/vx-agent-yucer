@@ -3,7 +3,7 @@
 import { DataTable, EmptyState, Section, StatusBadge, TableTitleCell, useToast } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveRoleAction, removeRoleAction } from "../admin/roles/actions";
@@ -54,7 +54,7 @@ export function RolePanel({
   readonly total: number;
   readonly editable: boolean;
 }) {
-  const { DATA_TABLE_LABELS, ROLE_ERROR, ROLE_TEXT } = useMessages();
+  const { DATA_TABLE_LABELS, ROLE_ERROR, ROLE_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
@@ -144,34 +144,11 @@ export function RolePanel({
                           label: ROLE_TEXT.edit,
                           onSelect: () => router.push(`/admin/roles/${r.id}`),
                         },
-                        /* THE FOUR MOVES, greyed at the end they cannot pass.
-                           rowIndex is the global position, since the rows are
-                           never re-sorted for display. */
-                        {
-                          id: "up",
-                          label: ROLE_TEXT.moveUp,
-                          separatorBefore: true,
-                          disabled: rowIndex === 0,
-                          onSelect: () => move(r.code, "up"),
-                        },
-                        {
-                          id: "down",
-                          label: ROLE_TEXT.moveDown,
-                          disabled: rowIndex === rows.length - 1,
-                          onSelect: () => move(r.code, "down"),
-                        },
-                        {
-                          id: "top",
-                          label: ROLE_TEXT.moveTop,
-                          disabled: rowIndex === 0,
-                          onSelect: () => move(r.code, "top"),
-                        },
-                        {
-                          id: "bottom",
-                          label: ROLE_TEXT.moveBottom,
-                          disabled: rowIndex === rows.length - 1,
-                          onSelect: () => move(r.code, "bottom"),
-                        },
+                        /* THE FOUR MOVES, one set for every panel (ROW_OPS),
+                           greyed at the end they cannot pass. rowIndex is the
+                           global position, since the rows are never re-sorted
+                           for display. */
+                        ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
                         /* THE THIRD GROUP, UNDER ITS OWN RULE (owner: 按类用分割线
                            隔开，增加删除按钮): the one thing that cannot be
                            undone, red, confirmed by the DS - verb, target,

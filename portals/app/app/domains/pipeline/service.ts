@@ -61,6 +61,7 @@ import type {
   WinLossReasonRecord,
   WinLossReviewRecord,
 } from "./store";
+import type { MoveDirection } from "../shared/ordering";
 
 
 export interface PipelineContext {
@@ -481,7 +482,7 @@ export async function upsertWinLossReason(
 /** Reorder the list - the order the review form offers them in. */
 export async function moveWinLossReason(
   ctx: PipelineContext,
-  input: { reasonId: string; direction: "up" | "down" },
+  input: { reasonId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
   if (!gate.allowed) return denied(gate);

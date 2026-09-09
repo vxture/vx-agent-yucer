@@ -24,6 +24,7 @@ import {
   upsertProductType,
   upsertSolution,
 } from "../../domains/catalog/service";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // Catalogue writes.
 //
@@ -114,7 +115,7 @@ export async function changeSolutionStatus(
 
 export async function moveSolutionRow(
   solutionId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -169,7 +170,7 @@ export async function changeProductStatus(
 
 export async function moveProductRow(
   productId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -207,7 +208,7 @@ export async function saveProductType(input: {
 
 export async function moveProductTypeRow(
   typeId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -249,7 +250,7 @@ export async function saveUnitRow(input: {
 
 export async function moveUnitRow(
   unitId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };
@@ -300,7 +301,7 @@ export async function deleteStatusRow(statusId: string): Promise<CatalogResult> 
 
 export async function moveStatusRow(
   statusId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<CatalogResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "not_authenticated" };

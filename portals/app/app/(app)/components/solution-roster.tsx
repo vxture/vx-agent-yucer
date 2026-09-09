@@ -21,8 +21,10 @@ import {
   RowActions,
   SearchSlot,
   useTableSort,
+  moveItems,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The solution module's rosters - the catalogue's pattern, applied here on
 // the owner's 2026-09-05 ruling. A SOLUTION IS A COMBINATION PLUS ITS
@@ -46,7 +48,7 @@ export interface SolutionView {
 export interface SolutionRosterProps {
   readonly solutions: readonly SolutionView[];
   readonly canWrite: boolean;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<{ ok: boolean; error?: string }>;
   readonly onStatus: (
     solutionId: string,
     status: "active" | "retired",
@@ -67,7 +69,7 @@ export function SolutionRoster({
   onStatus,
   onDelete,
 }: SolutionRosterProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
@@ -187,7 +189,7 @@ export function SolutionRoster({
             : [
               {
                 id: "edit",
-                label: CATALOG_TEXT.opEdit,
+                label: ROW_OPS.configure(CATALOG_TEXT.solutionNoun),
                 onSelect: () => {
                   window.location.href = `/solution/new?code=${encodeURIComponent(row.solution.solutionCode)}`;
                 },
@@ -206,26 +208,14 @@ export function SolutionRoster({
                     ),
                   ),
               },
-              {
-                id: "up",
-                label: CATALOG_TEXT.opUp,
-                disabled: rowIndex === 0,
-                separatorBefore: true,
-                onSelect: () => run(onMove(row.solution.id, "up")),
-              },
-              {
-                id: "down",
-                label: CATALOG_TEXT.opDown,
-                disabled: rowIndex === list.length - 1,
-                onSelect: () => run(onMove(row.solution.id, "down")),
-              },
+              ...moveItems(ROW_OPS, rowIndex, list.length, (d) => run(onMove(row.solution.id, d))),
               {
                 id: "delete",
-                label: CATALOG_TEXT.opDelete,
+                label: ROW_OPS.remove(CATALOG_TEXT.solutionNoun),
                 danger: true as const,
                 separatorBefore: true,
                 confirm: {
-                  verb: CATALOG_TEXT.opDelete,
+                  verb: ROW_OPS.remove(CATALOG_TEXT.solutionNoun),
                   target: row.solution.name,
                   consequence: CATALOG_TEXT.solutionDeleteConsequence,
                   onConfirm: () => run(onDelete(row.solution.id)),

@@ -6,6 +6,7 @@ import {
   type ActionMenuItem,
   type DataTableSort,
 } from "@vxture/design-ui";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 表格三件标配 - owner ruling, 2026-09-06.
 //
@@ -300,4 +301,26 @@ export function rowClickSelection<T>(
       return () => el.removeEventListener("click", handler);
     },
   };
+}
+
+/**
+ * 行菜单的四个排序操作，一套 (owner, 2026-09-09: 各操作面板尽量统一):
+ * 上移 / 下移 / 移到顶部 / 移到底部, greyed at the end they cannot pass, the
+ * first with the separator that starts the group. `index` and `count` are
+ * the row's place among the rows it is displayed WITH - a roster that splits
+ * live from retired passes the group's, since a move lands beside a row the
+ * person can see (planMove's `movable`).
+ */
+export function moveItems(
+  ops: { readonly up: string; readonly down: string; readonly top: string; readonly bottom: string },
+  index: number,
+  count: number,
+  move: (direction: MoveDirection) => void,
+): ActionMenuItem[] {
+  return [
+    { id: "up", label: ops.up, separatorBefore: true, disabled: index === 0, onSelect: () => move("up") },
+    { id: "down", label: ops.down, disabled: index === count - 1, onSelect: () => move("down") },
+    { id: "top", label: ops.top, disabled: index === 0, onSelect: () => move("top") },
+    { id: "bottom", label: ops.bottom, disabled: index === count - 1, onSelect: () => move("bottom") },
+  ];
 }

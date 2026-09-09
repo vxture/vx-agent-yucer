@@ -5,6 +5,7 @@ import type { WinLossReasonRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
 import { Tag } from "./tag";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 赢丢原因 - the workspace's own list (incr/0039).
 //
@@ -43,7 +44,7 @@ export function WinLossReasonConfig({
     forWon: boolean;
     forLost: boolean;
   }) => Promise<VocabularyResult>;
-  readonly onMove: (reasonId: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onMove: (reasonId: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (reasonId: string) => Promise<VocabularyResult>;
 }) {
   const { REVIEW_ERROR, WINLOSS_TEXT } = useMessages();
@@ -57,18 +58,15 @@ export function WinLossReasonConfig({
       page={{ icon: "clock-counter-clockwise", count: WINLOSS_TEXT.reasonCount }}
       text={{
         title: WINLOSS_TEXT.reasonConfigTitle,
+        noun: "原因",
         why: WINLOSS_TEXT.reasonConfigWhy,
         add: WINLOSS_TEXT.addReason,
-        edit: WINLOSS_TEXT.editReason,
         save: WINLOSS_TEXT.saveReason,
         codeLabel: WINLOSS_TEXT.reasonCode,
         codeHint: WINLOSS_TEXT.reasonCodeHint,
         nameLabel: WINLOSS_TEXT.reasonName,
         colName: WINLOSS_TEXT.colReasonName,
         deleteConsequence: WINLOSS_TEXT.reasonDeleteConsequence,
-        opUp: WINLOSS_TEXT.opUp,
-        opDown: WINLOSS_TEXT.opDown,
-        opDelete: WINLOSS_TEXT.opDelete,
       }}
       columns={[
         {

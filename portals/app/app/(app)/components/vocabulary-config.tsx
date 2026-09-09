@@ -23,10 +23,12 @@ import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   RowActions,
+  moveItems,
   rowClickSelection,
   useTableSort,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 词表配置面板 - the one table every vocabulary is configured through.
 //
@@ -62,17 +64,15 @@ export interface VocabRow {
 export interface VocabularyText {
   readonly title: string;
   readonly why: string;
+  /** The XX of the row menu - 行业 / 单位 / 业务线: XX配置, 删除XX (ROW_OPS). */
+  readonly noun: string;
   readonly add: string;
-  readonly edit: string;
   readonly save: string;
   readonly codeLabel: string;
   readonly codeHint: string;
   readonly nameLabel: string;
   readonly colName: string;
   readonly deleteConsequence: string;
-  readonly opUp: string;
-  readonly opDown: string;
-  readonly opDelete: string;
 }
 
 export interface VocabularyColumn<T> {
@@ -171,10 +171,10 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   readonly extraFromRow: (row: T) => E;
   readonly renderExtra?: (value: E, set: (next: E) => void, disabled: boolean) => ReactNode;
   readonly onSave: (input: { code: string; name: string } & E) => Promise<VocabularyResult>;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }) {
-  const { DATA_TABLE_LABELS } = useMessages();
+  const { DATA_TABLE_LABELS, ROW_OPS } = useMessages();
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<
     { mode: "create" | "rename"; code: string; name: string; extra: E } | null
@@ -266,9 +266,11 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
             <RowActions
               disabled={pending}
               items={[
+                /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09): XX配置,
+                   the vocabulary's own verbs, the four moves, 删除XX. */
                 {
                   id: "rename",
-                  label: text.edit,
+                  label: ROW_OPS.configure(text.noun),
                   onSelect: () =>
                     setDialog({
                       mode: "rename",
@@ -278,30 +280,18 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                     }),
                 },
                 ...(extraActions ? extraActions(r, run) : []),
-                {
-                  id: "up",
-                  label: text.opUp,
-                  disabled: rowIndex === 0,
-                  separatorBefore: true,
-                  onSelect: () => run(onMove(r.id, "up")),
-                },
-                {
-                  id: "down",
-                  label: text.opDown,
-                  disabled: rowIndex === rows.length - 1,
-                  onSelect: () => run(onMove(r.id, "down")),
-                },
+                ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => run(onMove(r.id, d))),
                 ...(deleteHiddenWhen?.(r)
                   ? []
                   : [
                       {
                         id: "delete",
-                        label: text.opDelete,
+                        label: ROW_OPS.remove(text.noun),
                         danger: true as const,
                         separatorBefore: true,
                         disabled: deletableWhen ? !deletableWhen(r) : false,
                         confirm: {
-                          verb: text.opDelete,
+                          verb: ROW_OPS.remove(text.noun),
                           target: r.name,
                           consequence: text.deleteConsequence,
                           onConfirm: () => run(onDelete(r.id)),
@@ -319,7 +309,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
         onOpenChange={(open) => {
           if (!open) setDialog(null);
         }}
-        title={dialog?.mode === "rename" ? text.edit : text.add}
+        title={dialog?.mode === "rename" ? ROW_OPS.configure(text.noun) : text.add}
         submitLabel={text.save}
         submitting={pending}
         onSubmit={(e) => {

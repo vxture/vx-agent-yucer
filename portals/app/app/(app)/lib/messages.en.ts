@@ -783,6 +783,8 @@ export const en: Dictionary = {
     accept: "Accept",
   },
   CATALOG_TEXT: {
+    productNoun: "product",
+    solutionNoun: "solution",
     newProduct: "New product",
     newProductWhy: "A product is the catalogue's atom: quote lines and solution items both point at one.",
     newSolution: "New solution",
@@ -1353,6 +1355,15 @@ export const en: Dictionary = {
     resetDone: (restored: number) => `${restored} preset roles restored`,
     emptyTitle: "No roles yet",
     emptyWhy: "The presets have not been generated for this workspace. Create one, or reset the presets.",
+  },
+  ROW_OPS: {
+    details: (noun: string) => `${noun} details`,
+    configure: (noun: string) => `Configure ${noun}`,
+    up: "Move up",
+    down: "Move down",
+    top: "Move to top",
+    bottom: "Move to bottom",
+    remove: (noun: string) => `Delete ${noun}`,
   },
   ROLE_GROUP_TEXT: {
     pageTitle: "Group settings",
@@ -3096,6 +3107,12 @@ export const en: Dictionary = {
     divisionNew: "New region",
     divisionRemove: "Delete region",
     divisionRemoveWhy: (noun: string) => `Only a region holding no ${noun} can be deleted. Move them out first.`,
+    divisionRemoveTarget: (name: string) => ` "${name}"`,
+    divisionRemoveConsequence: "The region is deleted; this cannot be undone. Move what it covers to another region first.",
+    divisionRemoveHeldHint: (n: number, noun: string) => `still covers ${n} ${noun}; move them first`,
+    divisionDetailsTitle: (name: string) => `${name} · region details`,
+    divisionDetailsWhy: (n: number, noun: string) => `Covers ${n} ${noun}.`,
+    divisionDetailsDone: "Close",
     templateTitle: "Reset to a standard carve",
     templateWhy: "Adopt a standard carve as a starting point, then edit freely.",
     templateReset: "Reset to a standard carve",
@@ -3270,6 +3287,8 @@ export const en: Dictionary = {
   // --- /strategy ----------------------------------------------------------
 
   STRATEGY_TEXT: {
+    segmentNoun: "segment",
+    planNoun: "plan",
     tagSegmentActive: (n: number) => `${n} in use`,
     tagSegmentShelved: (n: number) => `${n} shelved`,
     segmentStatCovered: (assigned: number, matched: number) =>
