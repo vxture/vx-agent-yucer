@@ -5,6 +5,7 @@ import {
   Button,
   DataTable,
   ViewHeader,
+  type ActionMenuItem,
   DialogForm,
   Field,
   FieldDescription,
@@ -26,7 +27,7 @@ import {
 } from "./table-fittings";
 import { Tag } from "./tag";
 
-// 词表配置面板 - the one table four vocabularies are configured through.
+// 词表配置面板 - the one table every vocabulary is configured through.
 //
 // WHY IT IS ONE COMPONENT. 产品类型, 产品状态, 计价单位, 赢丢原因 and 行业分类
 // are five independent vocabularies - none of them knows about the others, and
@@ -38,9 +39,16 @@ import { Tag } from "./tag";
 // be written for 行业分类.
 //
 // WHAT STAYS WITH THE CALLER: the copy, the extra columns a particular
-// vocabulary needs, and the extra fields its dialog collects. Those are the
-// parts that are actually about the subject; everything else here is the same
-// table five times.
+// vocabulary needs, the extra fields its dialog collects, and the one or two
+// row operations only it has (a type is retired and reinstated; nothing else
+// is). Those are the parts that are actually about the subject; everything
+// else here is the same table five times.
+//
+// 产品类型 and 产品状态 were the last two hand-rolled copies (2026-09-09).
+// They stayed apart for a real reason - the owner's ruling that the two
+// vocabularies know nothing of each other - but that is a rule about the
+// DATA, and it survives untouched: each binding still imports only its own
+// domain module. Sharing the table is not sharing the vocabulary.
 
 /** What every vocabulary row has, whatever its own table calls the columns. */
 export interface VocabRow {
@@ -88,7 +96,10 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   page,
   columns = [],
   sortOn = {},
+  nameSuffix,
+  extraActions,
   deletableWhen,
+  deleteHiddenWhen,
   extraDefaults,
   extraFromRow,
   renderExtra,
@@ -120,12 +131,41 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   readonly columns?: readonly VocabularyColumn<T>[];
   readonly sortOn?: Record<string, (row: T) => string | number>;
   /**
-   * Whether the delete control is offered at all.
+   * Something to show beside the name INSTEAD of the code underneath it.
    *
-   * The rule refuses an in-use row either way; a control whose refusal is
-   * predictable should not be a control. Absent means always offered.
+   * The default prints the code as a second line. A vocabulary whose code
+   * carries a tone - a product status, whose code says which lifecycle stage
+   * it is - shows it as a coloured tag on the title line and prints nothing
+   * underneath, or the code would appear twice.
+   */
+  readonly nameSuffix?: (row: T) => ReactNode;
+  /**
+   * Row operations this vocabulary has and the others do not, placed right
+   * after 编辑. A type is retired and reinstated; a status is not; a unit is
+   * not. The shared table cannot know that, so the binding says.
+   *
+   * `run` is the panel's own dispatcher - transition plus the failure toast -
+   * so an extra operation fails the way every other one does, rather than
+   * silently because the binding forgot to say something.
+   */
+  readonly extraActions?: (
+    row: T,
+    run: (p: Promise<VocabularyResult>) => void,
+  ) => readonly ActionMenuItem[];
+  /**
+   * Whether the delete control is ENABLED. Greyed means "not while something
+   * points at it" - a refusal that goes away once the pointers do. The rule
+   * refuses either way; a control whose refusal is predictable should not be
+   * a live control. Absent means always enabled.
    */
   readonly deletableWhen?: (row: T) => boolean;
+  /**
+   * Whether the delete control is OFFERED. Hidden means "never": the three
+   * canonical product statuses cannot be deleted in any world, because the
+   * roster and its 上线/退役 operations are wired to them, and a greyed control
+   * would say "not yet" about something that is "not ever".
+   */
+  readonly deleteHiddenWhen?: (row: T) => boolean;
   readonly extraDefaults: E;
   readonly extraFromRow: (row: T) => E;
   readonly renderExtra?: (value: E, set: (next: E) => void, disabled: boolean) => ReactNode;
@@ -197,13 +237,16 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
               width: "md" as const,
               /* The code is omitted when it equals the name - a second line
                  repeating the first costs height and says nothing. */
-              cell: (r: T) => (
-                <TableTitleCell
-                  title={r.name}
-                  description={r.code !== r.name ? r.code : undefined}
-                  tooltip={r.name}
-                />
-              ),
+              cell: (r: T) =>
+                nameSuffix ? (
+                  <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
+                ) : (
+                  <TableTitleCell
+                    title={r.name}
+                    description={r.code !== r.name ? r.code : undefined}
+                    tooltip={r.name}
+                  />
+                ),
             },
             ...columns,
           ]}
@@ -222,6 +265,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                       extra: extraFromRow(r),
                     }),
                 },
+                ...(extraActions ? extraActions(r, run) : []),
                 {
                   id: "up",
                   label: text.opUp,
@@ -235,19 +279,23 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                   disabled: rowIndex === rows.length - 1,
                   onSelect: () => run(onMove(r.id, "down")),
                 },
-                {
-                  id: "delete",
-                  label: text.opDelete,
-                  danger: true as const,
-                  separatorBefore: true,
-                  disabled: deletableWhen ? !deletableWhen(r) : false,
-                  confirm: {
-                    verb: text.opDelete,
-                    target: r.name,
-                    consequence: text.deleteConsequence,
-                    onConfirm: () => run(onDelete(r.id)),
-                  },
-                },
+                ...(deleteHiddenWhen?.(r)
+                  ? []
+                  : [
+                      {
+                        id: "delete",
+                        label: text.opDelete,
+                        danger: true as const,
+                        separatorBefore: true,
+                        disabled: deletableWhen ? !deletableWhen(r) : false,
+                        confirm: {
+                          verb: text.opDelete,
+                          target: r.name,
+                          consequence: text.deleteConsequence,
+                          onConfirm: () => run(onDelete(r.id)),
+                        },
+                      },
+                    ]),
               ]}
             />
           )}
