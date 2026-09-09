@@ -100,6 +100,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   orgUnit: "部门团队",
   product: "产品配置",
   winLossReason: "赢丢原因",
+  industry: "行业分类",
   audit: "操作审计",
   adoption: "使用情况",
 };
@@ -1041,6 +1042,11 @@ export const PROPOSAL_ERROR: Record<string, string> = {
      the database with an error nobody can act on. Said in the product's own
      terms instead, naming what the value has to be. */
   province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
+  /* incr/0040 的同一件事：行业也是词表了，写进来的值必须是本工作区已有的一条。
+     code_required / name_required 跟着行业词表的规则一起到达这条路径。 */
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
   not_found: "提案不存在，或不属于当前工作区",
   not_pending: "这条提案已经被裁决过了",
   decider_required: "接受提案必须落到一个具体的人",
@@ -1094,6 +1100,37 @@ export const REVIEW_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   not_found: "商机不存在，或不属于当前工作区",
   not_closed: "只有已关闭的商机才能复盘——过程未定，结论还不存在",
+};
+
+/** 行业分类的写入回执 (0040)。与目录词表同一套说法。 */
+export const INDUSTRY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
+  industry_in_use: "还有客户归在这个行业下，先把他们改到别处",
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个行业，可能刚被删掉，刷新后重试",
+};
+
+export const INDUSTRY_TEXT = {
+  // 行业分类的配置面 (0040)。
+  configTitle: "行业分类",
+  configWhy: "客户归档用的行业。有客户在用时不能删。",
+  count: (n: number) => `${n} 个行业`,
+  add: "新建行业",
+  edit: "编辑",
+  save: "保存",
+  code: "行业代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  name: "行业名称",
+  colName: "行业",
+  colFiled: "客户数",
+  deleteConsequence: "该行业将从客户归档中移除。归在它下面的客户不受影响——有人在用就删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
 };
 
 export const CATALOG_ERROR: Record<string, string> = {
@@ -1294,6 +1331,11 @@ export const COMPLETENESS_ERROR: Record<string, string> = {
      the database with an error nobody can act on. Said in the product's own
      terms instead, naming what the value has to be. */
   province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
+  /* incr/0040 的同一件事：行业也是词表了，写进来的值必须是本工作区已有的一条。
+     code_required / name_required 跟着行业词表的规则一起到达这条路径。 */
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在助手可填写的范围内",
   value_required: "填写需要一个值——空白不是填写",
@@ -1336,6 +1378,11 @@ export const BATCH_COMPLETE_ERROR: Record<string, string> = {
      the database with an error nobody can act on. Said in the product's own
      terms instead, naming what the value has to be. */
   province_unknown: "省份必须是全国 34 个省级行政区之一，请从列表中选择",
+  /* incr/0040 的同一件事：行业也是词表了，写进来的值必须是本工作区已有的一条。
+     code_required / name_required 跟着行业词表的规则一起到达这条路径。 */
+  industry_unknown: "这不是本工作区的行业，先在行业分类里加上",
+  code_required: "行业代码不能为空",
+  name_required: "行业名称不能为空",
   not_found: "这条客户记录不存在，或不属于当前工作区",
   field_not_fillable: "这个字段不在批量补齐的范围内",
   value_required: "这一条建议是空的，跳过",
@@ -1681,6 +1728,7 @@ export const ADMIN_TEXT = {
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
+    industry: "客户按行业归档，一处改，处处改",
     adoption: "跟进记录有没有被用起来",
     division: "全国怎么切成区域，每个区域管哪些省",
   } as Record<string, string>,

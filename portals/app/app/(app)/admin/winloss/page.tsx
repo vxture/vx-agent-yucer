@@ -1,4 +1,4 @@
-import { EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -68,16 +68,8 @@ export default async function WinLossReasonPage() {
         trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
         current={WINLOSS_TEXT.reasonConfigTitle}
       />
-      <ViewHeader
-        icon="clock-counter-clockwise"
-        title={WINLOSS_TEXT.reasonConfigTitle}
-        description={WINLOSS_TEXT.reasonConfigWhy}
-        secondary={
-          <StatusBadge tone="neutral">
-            {WINLOSS_TEXT.reasonCount(reasons.value.length)}
-          </StatusBadge>
-        }
-      />
+      {/* Same as /admin/industry: the header belongs to the panel, because
+          新建原因 opens a dialog only the panel can open. */}
       <WinLossReasonConfig
         reasons={reasons.value}
         usage={usage.ok ? usage.value : {}}

@@ -205,7 +205,10 @@ model Account {
   workspaceId   String    @map("workspace_id") @db.Uuid
   accountNo     String    @map("account_no") @db.VarChar(64)
   name          String    @db.VarChar(255)
-  industry      String?   @db.VarChar(64)
+  /// incr/0040. The industry is a row in the workspace's own vocabulary, the
+  /// way the product's type, status and unit already were. Nullable, unlike
+  /// product.unit_id: a fresh prospect legitimately has no industry yet.
+  industryId    String?   @map("industry_id") @db.Uuid
   region        String?   @db.VarChar(64)
   /// incr/0035. The provincial-level division, one granularity below `region`.
   /// Both are stored: `region` (大区) is what territory routing matches on, so
@@ -235,7 +238,25 @@ model Account {
 
   @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
   @@index([workspaceId, province], map: "idx_account_ws_province")
+  @@index([workspaceId, industryId], map: "idx_account_ws_industry")
   @@map("account")
+  @@schema("yucer_core")
+}
+
+/// incr/0040. 行业 - the workspace's own industry vocabulary, same shape as the
+/// catalogue's three: an anchor code, a display name, an order.
+model Industry {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  industryCode String   @map("industry_code") @db.VarChar(32)
+  name         String   @db.VarChar(64)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, industryCode], map: "uidx_industry_code")
+  @@index([workspaceId, sortOrder], map: "idx_industry_ws_sort")
+  @@map("industry")
   @@schema("yucer_core")
 }
 

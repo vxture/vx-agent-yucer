@@ -66,6 +66,10 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     province_unknown:
       "The province must be one of the 34 provincial-level divisions - pick one from the list",
+    industry_unknown:
+      "Not one of this workspace's industries - add it under Industries first",
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
     not_found:
       "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field the copilot may fill.",
@@ -108,6 +112,10 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     province_unknown:
       "The province must be one of the 34 provincial-level divisions - pick one from the list",
+    industry_unknown:
+      "Not one of this workspace's industries - add it under Industries first",
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
     not_found:
       "That customer record does not exist, or is not in this workspace.",
     field_not_fillable: "That is not a field batch completeness fills.",
@@ -188,6 +196,7 @@ export const en: Dictionary = {
     orgUnit: "Teams",
     product: "Product settings",
     winLossReason: "Win/loss reasons",
+    industry: "Industries",
     audit: "Audit trail",
     adoption: "Adoption",
     renewal: "Renewals",
@@ -1292,6 +1301,10 @@ export const en: Dictionary = {
     ...GATE_ERROR,
     province_unknown:
       "The province must be one of the 34 provincial-level divisions - pick one from the list",
+    industry_unknown:
+      "Not one of this workspace's industries - add it under Industries first",
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
     not_found: "Not found, or not in this workspace.",
     not_pending: "This proposal has already been decided.",
     decider_required: "Accepting must land on a named person.",
@@ -1544,6 +1557,36 @@ export const en: Dictionary = {
     termsTerminalLocked:
       "The deal is closed, so the win rate is fixed and cannot be changed",
     termsReadOnly: "You cannot change the commercial terms.",
+  },
+
+  INDUSTRY_ERROR: {
+    code_required: "An industry needs a code",
+    name_required: "An industry needs a name",
+    industry_in_use: "Customers are still filed under this industry - move them first",
+    industry_unknown: "Not one of this workspace's industries - add it under Industries first",
+    move_at_edge: "Already at that end of the list",
+    not_movable: "This one cannot be moved",
+    not_found: "No such industry - it may have just been deleted. Refresh and try again",
+
+    ...GATE_ERROR,
+  },
+
+  INDUSTRY_TEXT: {
+    configTitle: "Industries",
+    configWhy: "What customers are filed under. One in use cannot be deleted.",
+    count: (n: number) => `${n} industries`,
+    add: "New industry",
+    edit: "Edit",
+    save: "Save",
+    code: "Code",
+    codeHint: "Fixed once created. An existing code renames it.",
+    name: "Name",
+    colName: "Industry",
+    colFiled: "Customers",
+    deleteConsequence: "It leaves the customer form. Customers filed under it are untouched - one in use cannot be deleted.",
+    opUp: "Move up",
+    opDown: "Move down",
+    opDelete: "Delete",
   },
 
   WINLOSS_TEXT: {
@@ -1806,6 +1849,7 @@ export const en: Dictionary = {
       scope: "Workspace / territory / own - who sits at which",
       product: "Product types, statuses and pricing units",
       winLossReason: "What a win/loss review may choose from",
+      industry: "How customers are filed by industry - change it once, everywhere follows",
       adoption:
         "Whether follow-up notes are actually being used. Criteria in ADR-012",
       division: "How the country is carved into regions, and which provinces each holds",

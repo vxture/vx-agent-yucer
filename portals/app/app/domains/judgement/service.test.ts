@@ -51,6 +51,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     workspaceId: WS,
     accountNo: "ACC-0001",
     name: "华东零售集团",
+    industryId: null,
     industry: "retail",
     region: "华东",
     province: "上海市",

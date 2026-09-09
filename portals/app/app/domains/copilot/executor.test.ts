@@ -129,12 +129,19 @@ test("accepting a model's fill writes the field", { skip: false }, async () => {
   // same signature as every other thing the machine suggested.
   const accounts = new InMemoryAccountStore();
   accounts.seed({
+    /* incr/0040. The industry is a vocabulary row, so the workspace has to
+       have one for the model's answer to land on - a value outside the list is
+       now refused rather than becoming a new industry. */
+    industries: [
+      { id: "ind_1", workspaceId: WS, industryCode: "manufacturing", name: "制造", sortOrder: 1 },
+    ],
     accounts: [
       {
         id: "acc_1",
         workspaceId: WS,
         accountNo: "ACC-1",
         name: "东北重工集团",
+        industryId: null,
         industry: null,
         region: null,
         segmentCode: null,

@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
+import type { IndustryDraft } from "./lib/industry-vocab";
 import type { AccountStatus, DecisionRole, ProjectHealth, RelationEdge, RelationType } from "./lib/health";
 import type {
   AccountFilter,
@@ -12,6 +13,7 @@ import type {
   MarketDivisionRecord,
   ContactRecord,
   HealthInputs,
+  IndustryRecord,
   OpportunityContactRecord,
 } from "./store";
 
@@ -31,6 +33,8 @@ const ACCOUNT_TABLE = "yucer_core.account";
 const PERSON_TABLE = "yucer_core.person";
 const AFFILIATION_TABLE = "yucer_core.person_affiliation";
 const OPPORTUNITY_CONTACT_TABLE = "yucer_pipeline.opportunity_contact";
+// incr/0040. 行业, the workspace's own vocabulary.
+const INDUSTRY_TABLE = "yucer_core.industry";
 
 export class PrismaAccountStore implements AccountStore {
   /**
@@ -150,13 +154,29 @@ export class PrismaAccountStore implements AccountStore {
       orderBy: [{ healthScore: "asc" }, { name: "asc" }],
       ...(filter.limit ? { take: filter.limit } : {}),
     });
-    return rows.map((r: Record<string, unknown>) => toAccount(r));
+    const names = await this.industryNames(workspaceId);
+    return rows.map((r: Record<string, unknown>) => toAccount(r, names));
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const p = await this.client();
     const row = await p.account.findFirst({ where: { id, workspaceId, deletedAt: null } });
-    return row ? toAccount(row as Record<string, unknown>) : null;
+    if (!row) return null;
+    return toAccount(row as Record<string, unknown>, await this.industryNames(workspaceId));
+  }
+
+  /**
+   * industry_id -> the name it reads as.
+   *
+   * A SECOND QUERY rather than a Prisma relation, because this schema declares
+   * none: the mirror carries columns and indexes, and every join in this
+   * adapter is written by hand. One extra read per account listing, over a
+   * table with at most a few dozen rows in it.
+   */
+  private async industryNames(workspaceId: string): Promise<Map<string, string>> {
+    const p = await this.client();
+    const rows = await p.industry.findMany({ where: { workspaceId } });
+    return new Map(rows.map((r: { id: string; name: string }) => [r.id, r.name]));
   }
 
   async updateAccount(
@@ -390,6 +410,88 @@ export class PrismaAccountStore implements AccountStore {
     }));
   }
 
+  /* --- 行业 (incr/0040) -----------------------------------------------------
+     The same five verbs the catalogue vocabularies have, and the same
+     assertWritable guard on every write: `industry_code` is the anchor, so a
+     patch that reached it would be refused by the grant at the database and is
+     refused here first, where the message names the column. */
+
+  async listIndustries(workspaceId: string): Promise<IndustryRecord[]> {
+    const p = await this.client();
+    const rows = await p.industry.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { industryCode: "asc" }],
+    });
+    return rows.map((r: IndustryRecord) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      industryCode: r.industryCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertIndustry(workspaceId: string, input: IndustryDraft): Promise<IndustryRecord> {
+    const p = await this.client();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(INDUSTRY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked industry column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.industry.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const row = await p.industry.upsert({
+      where: { workspaceId_industryCode: { workspaceId, industryCode: input.industryCode } },
+      update,
+      create: {
+        workspaceId,
+        industryCode: input.industryCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      industryCode: row.industryCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setIndustryOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await this.client();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(INDUSTRY_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked industry column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.industry.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeIndustry(workspaceId: string, industryId: string): Promise<boolean> {
+    const p = await this.client();
+    // The service refused an industry in use; fk_account_industry RESTRICTs
+    // underneath as the last line.
+    const { count } = await p.industry.deleteMany({ where: { workspaceId, id: industryId } });
+    return count > 0;
+  }
+
+  async countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number> {
+    const p = await this.client();
+    // Soft-deleted customers do not count: an industry nothing live carries is
+    // one the workspace may retire.
+    return p.account.count({ where: { workspaceId, industryId, deletedAt: null } });
+  }
+
   async healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs> {
     const p = await this.client();
 
@@ -517,13 +619,15 @@ export class PrismaAccountStore implements AccountStore {
   }
 }
 
-function toAccount(r: Record<string, unknown>): AccountRecord {
+function toAccount(r: Record<string, unknown>, industryNames: Map<string, string>): AccountRecord {
+  const industryId = (r.industryId as string | null) ?? null;
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
     accountNo: String(r.accountNo),
     name: String(r.name),
-    industry: (r.industry as string | null) ?? null,
+    industryId,
+    industry: industryId ? industryNames.get(industryId) ?? null : null,
     region: (r.region as string | null) ?? null,
     province: (r.province as string | null) ?? null,
     segmentCode: (r.segmentCode as string | null) ?? null,

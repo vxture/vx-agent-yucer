@@ -30,6 +30,7 @@ function account(over: Partial<AccountRecord> = {}): AccountRecord {
     workspaceId: WS,
     accountNo: "ACC-1",
     name: "Acme",
+    industryId: null,
     industry: null,
     region: null,
     province: null,

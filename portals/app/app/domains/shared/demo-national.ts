@@ -82,7 +82,10 @@ const WEIGHT: Record<string, number> = {
 };
 
 /** Industry vocabulary, matching the words the curated accounts already use. */
-const INDUSTRIES = ["零售", "制造", "通信", "物流", "能源", "金融", "医药", "教育"] as const;
+// SPELLED AS THE SHIPPED VOCABULARY SPELLS THEM (incr/0040): the cohort's
+// accounts are filed under these by name, and 医药 where the list says 医药健康
+// would be a customer pointing at a row that does not exist.
+const INDUSTRIES = ["零售", "制造", "通信", "物流", "能源", "金融", "医药健康", "教育"] as const;
 
 /** Second element of a company name, so ninety rows do not read as one row. */
 const TRADES = [

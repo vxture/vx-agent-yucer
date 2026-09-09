@@ -62,6 +62,7 @@ function unreachableAccount(): InMemoryAccountStore {
         workspaceId: WS,
         accountNo: "ACC-0001",
         name: "Customer",
+        industryId: null,
         industry: null,
         region: null,
         province: null,

@@ -29,6 +29,7 @@ const skip = DATABASE_URL ? false : "no DATABASE_URL - see ci.yml job db-contrac
 const WS = "eeeeeeee-0000-0000-0000-000000000001";
 const WS_OTHER = "eeeeeeee-0000-0000-0000-000000000002";
 const ACC = "eeeeeeee-0000-0000-0000-0000000000a1";
+const IND = "eeeeeeee-0000-0000-0000-0000000000d1";
 const ACC_OTHER_WS = "eeeeeeee-0000-0000-0000-0000000000a2";
 const C_HIGH = "eeeeeeee-0000-0000-0000-0000000000c1";
 const C_LOW = "eeeeeeee-0000-0000-0000-0000000000c2";
@@ -56,14 +57,23 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_core.account_plan WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.person WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
+    // incr/0040: the accounts above point at it, so it goes after them.
+    await c.query(`DELETE FROM yucer_core.industry WHERE workspace_id IN ($1, $2)`, [WS, WS_OTHER]);
   });
 }
 
 async function seed(c: Client): Promise<void> {
+  // incr/0040. The industry is a row in the workspace's own vocabulary now, so
+  // the customer below joins it rather than carrying the characters.
   await c.query(
-    `INSERT INTO yucer_core.account (id, workspace_id, account_no, name, industry, region, owner_sub, health_score, status, tier)
-     VALUES ($1, $2, 'ACC-PAS-1', 'Prisma Account Store', 'logistics', 'east', 'usr_rep', 61, 'active', 'strategic')`,
-    [ACC, WS],
+    `INSERT INTO yucer_core.industry (id, workspace_id, industry_code, name)
+     VALUES ($1, $2, 'logistics', 'logistics')`,
+    [IND, WS],
+  );
+  await c.query(
+    `INSERT INTO yucer_core.account (id, workspace_id, account_no, name, industry_id, region, owner_sub, health_score, status, tier)
+     VALUES ($1, $2, 'ACC-PAS-1', 'Prisma Account Store', $3, 'east', 'usr_rep', 61, 'active', 'strategic')`,
+    [ACC, WS, IND],
   );
   await c.query(
     `INSERT INTO yucer_core.account (id, workspace_id, account_no, name, status)
@@ -419,6 +429,7 @@ test("toAccount maps a real row, including the columns that may be null", { skip
     const bare = rows.find((r) => r.name === "Bare Account");
     assert.ok(bare, "the bare account must come back at all");
     assert.equal(bare.industry, null);
+    assert.equal(bare.industryId, null);
     assert.equal(bare.region, null);
     assert.equal(bare.segmentCode, null);
     assert.equal(bare.ownerSub, null);
@@ -429,6 +440,9 @@ test("toAccount maps a real row, including the columns that may be null", { skip
 
     const full = rows.find((r) => r.name === "Prisma Account Store");
     assert.ok(full);
+    // THE JOIN, THROUGH A REAL ROW: the adapter resolves industry_id to the
+    // name the vocabulary currently gives it.
+    assert.equal(full.industryId, IND);
     assert.equal(full.industry, "logistics");
     assert.equal(full.healthScore, 61);
     assert.equal(full.tier, "strategic");

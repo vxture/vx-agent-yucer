@@ -178,6 +178,9 @@ test("listAccounts orders the sickest first and leaves unscored accounts last", 
   const client = async () =>
     ({
       account: { findMany: delegate([], at("findMany")) },
+      // incr/0040: the listing resolves industry_id to its name, so the fake
+      // has to answer for the second table as well as the first.
+      industry: { findMany: async () => [] },
     }) as never;
   await new PrismaAccountStore(client).listAccounts(WS, { status: "active", limit: 5 });
 
@@ -193,7 +196,11 @@ test("an absent filter adds no predicate at all", async () => {
   // `...(filter.x ? {x} : {})` and not `x: filter.x` - an undefined in a Prisma
   // where clause is a different query from an absent key.
   const { calls, at } = spy();
-  const client = async () => ({ account: { findMany: delegate([], at("findMany")) } }) as never;
+  const client = async () =>
+    ({
+      account: { findMany: delegate([], at("findMany")) },
+      industry: { findMany: async () => [] },
+    }) as never;
   await new PrismaAccountStore(client).listAccounts(WS);
 
   const where = (calls.findMany![0] as { where: Record<string, unknown> }).where;

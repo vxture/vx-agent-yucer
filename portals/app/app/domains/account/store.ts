@@ -14,12 +14,30 @@ import {
 import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationEdge } from "./lib/health";
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
+import type { IndustryDraft } from "./lib/industry-vocab";
 
 export interface AccountRecord {
   id: string;
   workspaceId: string;
   accountNo: string;
   name: string;
+  /**
+   * incr/0040. The join into this workspace's own industry vocabulary.
+   *
+   * This is the column; `industry` below is what it reads as. Null is the
+   * ordinary state of a fresh prospect - unlike product.unit_id, which a
+   * quotable product cannot be without.
+   */
+  industryId: string | null;
+  /**
+   * The industry's display name, RESOLVED ON READ from `industryId`.
+   *
+   * Derived, never written: the patch takes `industryId`. It is carried on the
+   * record rather than joined by each screen because the completeness rule
+   * compares it to `market_segment.criteria.industries`, which are names - a
+   * per-screen lookup would put that join in five places and leave the rule
+   * with nothing to compare.
+   */
   industry: string | null;
   region: string | null;
   /**
@@ -147,6 +165,21 @@ export interface MarketDivisionRecord {
   provinces: string[];
 }
 
+/**
+ * 行业 - one entry in this workspace's own industry vocabulary (incr/0040).
+ *
+ * `industryCode` is the anchor and never changes; `name` is what people read
+ * and may be corrected at any time. Same shape as the catalogue's three
+ * vocabularies, and the same reason for it.
+ */
+export interface IndustryRecord {
+  id: string;
+  workspaceId: string;
+  industryCode: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
   /**
@@ -223,7 +256,7 @@ export interface AccountStore {
     patch: Partial<
       Pick<
         AccountRecord,
-        | "name" | "industry" | "region" | "province" | "segmentCode" | "ownerSub" | "healthScore"
+        | "name" | "industryId" | "region" | "province" | "segmentCode" | "ownerSub" | "healthScore"
         | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
       >
     >,
@@ -264,6 +297,20 @@ export interface AccountStore {
 
   /** The inputs a health recompute needs, gathered across domains. */
   healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs>;
+
+  /* --- 行业 (incr/0040) -----------------------------------------------------
+     The same five the catalogue vocabularies have. `countAccountsByIndustry`
+     is what makes the delete refusal predictable: fk_account_industry RESTRICTs
+     underneath, and a control whose refusal is known in advance should say so
+     before it is clicked. */
+  listIndustries(workspaceId: string): Promise<IndustryRecord[]>;
+  upsertIndustry(workspaceId: string, input: IndustryDraft): Promise<IndustryRecord>;
+  setIndustryOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeIndustry(workspaceId: string, industryId: string): Promise<boolean>;
+  countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number>;
 }
 
 export class InMemoryAccountStore implements AccountStore {
@@ -381,12 +428,16 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   private accounts = new Map<string, AccountRecord>();
+  /* incr/0040. The workspace's industry vocabulary, which the database holds
+     in yucer_core.industry. */
+  private industries: IndustryRecord[] = [];
   private contacts: ContactRecord[] = [];
   private relations: Array<RelationEdge & { workspaceId: string; accountId: string }> = [];
   private inputs = new Map<string, HealthInputs>();
 
   seed(input: {
     accounts?: AccountRecord[];
+    industries?: IndustryRecord[];
     plans?: AccountPlanRecord[];
     contacts?: ContactRecord[];
     relations?: Array<RelationEdge & { workspaceId: string; accountId: string }>;
@@ -394,6 +445,7 @@ export class InMemoryAccountStore implements AccountStore {
     opportunityContacts?: OpportunityContactRecord[];
   }): void {
     for (const pl of input.plans ?? []) this.plans.set(`${pl.workspaceId}|${pl.accountId}`, pl);
+    this.industries.push(...(input.industries ?? []));
     for (const a of input.accounts ?? []) this.accounts.set(a.id, { ...a });
     this.contacts.push(...(input.contacts ?? []));
     this.relations.push(...(input.relations ?? []));
@@ -451,8 +503,26 @@ export class InMemoryAccountStore implements AccountStore {
     return made;
   }
 
+  /**
+   * `industry` as the vocabulary currently spells it.
+   *
+   * ONLY WHERE THE ROW CARRIES A JOIN. A fixture that seeds a bare industry
+   * name and never touches the vocabulary is describing an account as it reads
+   * back, and this store is where fixtures live; the join itself is a property
+   * of Postgres and is proved there, by the db tests, against the real FK.
+   */
+  private hydrate(a: AccountRecord): AccountRecord {
+    if (!a.industryId) return { ...a };
+    const row = this.industries.find(
+      (i) => i.workspaceId === a.workspaceId && i.id === a.industryId,
+    );
+    return { ...a, industry: row?.name ?? null };
+  }
+
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
-    let rows = [...this.accounts.values()].filter((a) => a.workspaceId === workspaceId);
+    let rows = [...this.accounts.values()]
+      .filter((a) => a.workspaceId === workspaceId)
+      .map((a) => this.hydrate(a));
     if (filter.status) rows = rows.filter((a) => a.status === filter.status);
     if (filter.ownerSub) rows = rows.filter((a) => a.ownerSub === filter.ownerSub);
     if (filter.segmentCode) rows = rows.filter((a) => a.segmentCode === filter.segmentCode);
@@ -466,7 +536,7 @@ export class InMemoryAccountStore implements AccountStore {
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const a = this.accounts.get(id);
-    return a && a.workspaceId === workspaceId ? { ...a } : null;
+    return a && a.workspaceId === workspaceId ? this.hydrate(a) : null;
   }
 
   async updateAccount(
@@ -478,6 +548,60 @@ export class InMemoryAccountStore implements AccountStore {
     if (!a || a.workspaceId !== workspaceId) return false;
     Object.assign(a, patch);
     return true;
+  }
+
+  async listIndustries(workspaceId: string): Promise<IndustryRecord[]> {
+    return this.industries
+      .filter((i) => i.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.industryCode.localeCompare(b.industryCode));
+  }
+
+  async upsertIndustry(workspaceId: string, input: IndustryDraft): Promise<IndustryRecord> {
+    const at = this.industries.findIndex(
+      (i) => i.workspaceId === workspaceId && i.industryCode === input.industryCode,
+    );
+    if (at >= 0) {
+      // The code is the anchor: an upsert on it renames, never re-keys.
+      const next = { ...this.industries[at]!, name: input.name };
+      this.industries[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.industries.filter((i) => i.workspaceId === workspaceId).map((i) => i.sortOrder),
+    );
+    const row: IndustryRecord = {
+      id: `ind_${++this.seq}`,
+      workspaceId,
+      sortOrder: tail + 1,
+      ...input,
+    };
+    this.industries.push(row);
+    return row;
+  }
+
+  async setIndustryOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.industries = this.industries.map((i) =>
+      i.workspaceId === workspaceId && want.has(i.id) ? { ...i, sortOrder: want.get(i.id)! } : i,
+    );
+  }
+
+  async removeIndustry(workspaceId: string, industryId: string): Promise<boolean> {
+    const before = this.industries.length;
+    this.industries = this.industries.filter(
+      (i) => !(i.workspaceId === workspaceId && i.id === industryId),
+    );
+    return this.industries.length < before;
+  }
+
+  async countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number> {
+    return [...this.accounts.values()].filter(
+      (a) => a.workspaceId === workspaceId && a.industryId === industryId,
+    ).length;
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {

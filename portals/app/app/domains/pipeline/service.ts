@@ -422,10 +422,14 @@ export async function listWinLossReasons(
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
   if (!gate.allowed) return denied(gate);
   let reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
-  /* FIRST-CONTACT SEEDING into an untouched workspace only - the same guard
-     the catalogue vocabularies use, and the same rows incr/0039 seeds, so the
-     two paths cannot disagree. A workspace that deleted every reason keeps its
-     empty list rather than having ours grow back. */
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard the catalogue
+     vocabularies use, and the same rows incr/0039 seeds, so the two paths
+     cannot disagree.
+     THE SENTENCE THAT USED TO BE HERE WAS FALSE: it claimed a workspace that
+     deleted every reason keeps its empty list, and this branch does exactly
+     the opposite. What is true is the weaker thing - deleting SOME reasons
+     sticks, and emptying the list entirely gets the shipped six back, because
+     a review with nothing to choose from is not a state anybody chose. */
   if (reasons.length === 0) {
     for (const d of DEFAULT_WIN_LOSS_REASONS) {
       await ctx.store.upsertWinLossReason(ctx.workspaceId, { ...d });

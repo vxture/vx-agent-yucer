@@ -47,6 +47,7 @@ function seededAccounts(): InMemoryAccountStore {
         workspaceId: WS,
         accountNo: "ACC-0001",
         name: "Customer",
+        industryId: null,
         industry: "retail",
         region: "east",
         province: null,

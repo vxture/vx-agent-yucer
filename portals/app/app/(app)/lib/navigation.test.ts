@@ -74,7 +74,11 @@ test("administration is nav, but it is not a capability domain", () => {
     // 赢丢原因 joined 业务参数 on 2026-09-08 (incr/0039): the reasons a
     // review may choose from are the workspace's own list, and configuring
     // them is not the same act as working through the reviews.
-    ["division", "members", "roles", "permissions", "scope", "product", "winLossReason", "adoption"],
+    // 行业分类 joined it the same way (incr/0040): what customers are filed
+    // under is the workspace's own list, and deciding it is not the same act
+    // as working through the customers.
+    ["division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
+     "adoption"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -178,6 +182,11 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "catalog",
     "copilot",
     "home",
+    /* 行业分类 rides account.view, exactly as the customer list does - it is
+       the list customers are filed under, and its ACTIONS carry
+       account.upsert. Present at every tier because account.view is, and
+       absent only on a permission gap. */
+    "industry",
     // /named rides account.view: the roster is a filtered account list, so
     // whoever may read accounts may read which of them are named. The TIER is
     // written under account.upsert on the detail page.
@@ -234,7 +243,7 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
      line on a quote. Editing either needs an upsert action they lack. */
   // 赢丢原因 rides pipeline.winloss.view, which a viewer holds - so the gear
   // shows a viewer three read-only items now, not two.
-  const inPlane = ["division", "product", "winLossReason"];
+  const inPlane = ["division", "product", "winLossReason", "industry"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length

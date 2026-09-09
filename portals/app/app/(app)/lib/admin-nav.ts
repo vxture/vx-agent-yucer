@@ -90,6 +90,10 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          the same reason: it is set once and read by every review afterwards,
          while 赢丢复盘 is where a person works through the reviews themselves. */
       { key: "winLossReason", href: "/admin/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
+      /* 行业分类 (incr/0040). The third vocabulary in this group, and the one
+         with the widest reach: it decides how customers are filed, which
+         decides the market segment, which decides the playbook. */
+      { key: "industry", href: "/admin/industry", icon: "buildings", action: "account.view" },
     ],
   },
   {

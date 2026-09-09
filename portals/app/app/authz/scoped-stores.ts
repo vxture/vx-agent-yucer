@@ -180,6 +180,17 @@ class ScopedAccountStore implements AccountStore {
     this.inner.listOpportunityContactsFor(...a);
   setOpportunityContact: AccountStore["setOpportunityContact"] = (...a) =>
     this.inner.setOpportunityContact(...a);
+  /* incr/0040. The industry vocabulary is WORKSPACE-WIDE configuration, not a
+     set of customer records: a seller whose data scope is their own accounts
+     still reads the same list, because it is the list the whole workspace
+     files customers under. Gated by permission in the service, unfiltered
+     here - the same call the market divisions above already make. */
+  listIndustries: AccountStore["listIndustries"] = (...a) => this.inner.listIndustries(...a);
+  upsertIndustry: AccountStore["upsertIndustry"] = (...a) => this.inner.upsertIndustry(...a);
+  setIndustryOrder: AccountStore["setIndustryOrder"] = (...a) => this.inner.setIndustryOrder(...a);
+  removeIndustry: AccountStore["removeIndustry"] = (...a) => this.inner.removeIndustry(...a);
+  countAccountsByIndustry: AccountStore["countAccountsByIndustry"] = (...a) =>
+    this.inner.countAccountsByIndustry(...a);
 }
 
 class ScopedSignalStore implements SignalStore {

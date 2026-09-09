@@ -33,7 +33,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // --- yucer_core ---
   "yucer_core.account": [
     "name",
-    "industry",
+    // incr/0040 - the industry is a row in the workspace's own vocabulary now,
+    // so what an account carries is the join, not the characters.
+    "industry_id",
     "region",
     // incr/0035 - the province, one granularity below region. Both writable.
     "province",
@@ -261,6 +263,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0039. reason_code is the anchor; the name, which outcome it explains, and
   // the order are the workspace's.
   "yucer_pipeline.win_loss_reason": ["name", "for_won", "for_lost", "sort_order", "updated_at"],
+  // 0040. industry_code is the anchor; the display name and the order are the
+  // workspace's.
+  "yucer_core.industry": ["name", "sort_order", "updated_at"],
   // 0031 added the customisation half: the scenario a solution is shaped for,
   // and the manual order the roster is presented in.
   "yucer_catalog.solution": ["name", "summary", "status", "scenario", "sort_order", "updated_at"],

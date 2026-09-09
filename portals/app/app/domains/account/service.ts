@@ -42,6 +42,7 @@ import type { Stage } from "../pipeline/lib/stage";
 import type {
   AccountFilter,
   AccountRecord,
+  IndustryRecord,
   MarketDivisionRecord,
   AccountStore,
   AccountTier,
@@ -49,6 +50,14 @@ import type {
   OpportunityContactRecord,
 } from "./store";
 import { planContact, type ContactDraft } from "./lib/contact";
+import {
+  DEFAULT_INDUSTRIES,
+  planIndustry,
+  planIndustryRemoval,
+  resolveIndustry,
+  type IndustryDraft,
+} from "./lib/industry-vocab";
+import { planMove } from "../catalog/lib/lifecycle";
 
 export interface AccountContext {
   workspaceId: string;
@@ -214,6 +223,117 @@ export async function listMarketDivisions(
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.listMarketDivisions(ctx.workspaceId));
+}
+
+/* ---------------------------------------------------------------------------
+ * 行业 - the workspace's own vocabulary (incr/0040).
+ *
+ * FIVE VERBS, the same five the catalogue vocabularies have. READ is gated on
+ * `account.view` because every screen that lists customers needs the names;
+ * WRITE on `account.upsert`, because deciding what industries exist is the same
+ * authority as deciding what a customer is - and a seller who may not edit a
+ * customer record has no business renaming the categories all of them are
+ * filed under.
+ * ------------------------------------------------------------------------ */
+
+export async function listIndustries(
+  ctx: AccountContext,
+): Promise<RuleResult<IndustryRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let rows = await ctx.store.listIndustries(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard the other
+     vocabularies use, and the same rows incr/0040 seeds, so the two paths
+     cannot disagree.
+     WHAT THE GUARD DOES AND DOES NOT PROMISE. A workspace that deleted SOME
+     industries keeps that list exactly as it left it; one that deleted every
+     last one gets the shipped set back, because a customer cannot be filed
+     under nothing and an empty picker is not a state anybody chose. */
+  if (rows.length === 0) {
+    for (const d of DEFAULT_INDUSTRIES) {
+      await ctx.store.upsertIndustry(ctx.workspaceId, { ...d });
+    }
+    rows = await ctx.store.listIndustries(ctx.workspaceId);
+  }
+  return ok(rows);
+}
+
+/**
+ * How many customers are filed under each industry.
+ *
+ * A SEPARATE VERB rather than a field on the list, for the reason the win/loss
+ * reasons keep the two apart: the customer form needs the names and nothing
+ * else, and only the configuration page needs the counts.
+ */
+export async function industryUsage(
+  ctx: AccountContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listIndustries(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    out[r.id] = await ctx.store.countAccountsByIndustry(ctx.workspaceId, r.id);
+  }
+  return ok(out);
+}
+
+export async function upsertIndustry(
+  ctx: AccountContext,
+  input: IndustryDraft,
+): Promise<RuleResult<IndustryRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planIndustry(input);
+  if (!plan.ok) return plan as RuleResult<IndustryRecord>;
+
+  return ok(await ctx.store.upsertIndustry(ctx.workspaceId, plan.value));
+}
+
+/** Reorder the list - the order every industry picker offers them in. */
+export async function moveIndustry(
+  ctx: AccountContext,
+  input: { industryId: string; direction: "up" | "down" },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listIndustries(ctx.workspaceId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.industryId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setIndustryOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete an industry outright.
+ *
+ * Refused while customers are filed under it, and that refusal has a way out
+ * the win/loss one does not: re-file those customers and the row becomes
+ * deletable. fk_account_industry RESTRICTs underneath as the last line.
+ */
+export async function removeIndustry(
+  ctx: AccountContext,
+  input: { industryId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countAccountsByIndustry(ctx.workspaceId, input.industryId);
+  const plan = planIndustryRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeIndustry(ctx.workspaceId, input.industryId);
+  if (!removed) return fail(violation("not_found", "no such industry", "industryId"));
+  return ok(true);
 }
 
 export async function listAccounts(
@@ -691,6 +811,26 @@ export async function fillAccountField(
   const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
   if (!current) {
     return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  /* incr/0040. The industry is a row now, and this is the path a MODEL writes
+     through: ask-complete-action's own warning says a guessed industry decides
+     the segment and then the playbook, so a value outside the workspace's list
+     is refused here rather than becoming a fourteenth industry nobody chose.
+     Accepting the name or the code, because the model produces the former and
+     an import produces the latter. */
+  if (field === "industry") {
+    const vocab = await ctx.store.listIndustries(ctx.workspaceId);
+    const row = resolveIndustry(vocab, value);
+    if (!row) {
+      return fail(violation(
+        "industry_unknown",
+        `${value.trim()} is not one of this workspace's industries`,
+        "value",
+      ));
+    }
+    await ctx.store.updateAccount(ctx.workspaceId, accountId, { industryId: row.id });
+    return ok({ accountId, field, value: row.name });
   }
 
   await ctx.store.updateAccount(ctx.workspaceId, accountId, { [field]: value.trim() });

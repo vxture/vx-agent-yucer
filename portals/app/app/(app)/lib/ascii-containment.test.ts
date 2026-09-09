@@ -43,6 +43,9 @@ const ALLOWED = new Set([
   // and extends. The names are seeded by the increment too, which is what makes
   // them data rather than the copy this containment is about.
   "domains/pipeline/lib/win-loss-vocab.ts",
+  // 行业分类 (0040), the same shape a fourth time: thirteen shipped rows the
+  // workspace renames and extends, seeded identically by the increment.
+  "domains/account/lib/industry-vocab.ts",
   // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
   // Same nature again - data that happens to be text - with one addition that
   // matters more here than anywhere else on this list: these 34 strings are a

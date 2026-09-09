@@ -56,6 +56,7 @@ import { buildNationalCohort } from "./demo-national";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import { DEFAULT_WIN_LOSS_REASONS } from "../pipeline/lib/win-loss-vocab";
+import { DEFAULT_INDUSTRIES } from "../account/lib/industry-vocab";
 import { DEFAULT_UNIT_VOCABULARY } from "../catalog/lib/unit-vocab";
 import type { InMemoryAccountStore } from "../account/store";
 import type {
@@ -387,6 +388,17 @@ function seedAccounts(workspaceId: string, stores: DemoStores): void {
         status: "active",
       },
     ],
+    /* 行业 (0040) - the shipped thirteen, seeded here rather than through the
+       service's first-contact path for the reason the reasons above are: the
+       accounts below name their industry, and a customer filed under a row
+       that does not exist is the state this vocabulary replaced. */
+    industries: DEFAULT_INDUSTRIES.map((d, i) => ({
+      id: industryId(d.industryCode),
+      workspaceId,
+      industryCode: d.industryCode,
+      name: d.name,
+      sortOrder: i + 1,
+    })),
     accounts: [
       // The group parent, and the one account whose identity IS fully on file -
       // credit code, site, headcount. Everything downstream that asks "do we
@@ -1270,6 +1282,17 @@ function target(
   };
 }
 
+/** The demo's id for one industry row - stable, so accounts can point at it. */
+const industryId = (code: string) => `ind_demo_${code}`;
+
+/* name -> id, over the shipped thirteen. The demo's accounts carry an industry
+   NAME because that is what a person reading the fixture recognises; the store
+   carries the join, so the fixture resolves one to the other here rather than
+   letting the two drift. */
+const INDUSTRY_ID_BY_NAME = new Map(
+  DEFAULT_INDUSTRIES.map((d) => [d.name, industryId(d.industryCode)]),
+);
+
 function account(
   id: string,
   workspaceId: string,
@@ -1301,6 +1324,10 @@ function account(
     // for the first-entry account because the type is a plain string; the
     // column and every rule downstream treat a blank as unknown.
     industry: info.industry || null,
+    /* An industry the shipped list does not have would be a customer filed
+       nowhere, so the fixture refuses it rather than writing a dangling id -
+       the same refusal fillAccountField makes at runtime. */
+    industryId: info.industry ? INDUSTRY_ID_BY_NAME.get(info.industry) ?? null : null,
     // Same reasoning as industry, and needed for the same reason: 港澳零售集团
     // writes "" for the region-derivable case, and the column and every rule
     // downstream treat a blank as unknown, not as an account with no region.
