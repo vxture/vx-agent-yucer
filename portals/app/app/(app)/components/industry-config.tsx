@@ -43,7 +43,7 @@ export function IndustryConfig({
       page={{ icon: "buildings", count: INDUSTRY_TEXT.count }}
       text={{
         title: INDUSTRY_TEXT.configTitle,
-        noun: "行业",
+        noun: INDUSTRY_TEXT.noun,
         why: INDUSTRY_TEXT.configWhy,
         add: INDUSTRY_TEXT.add,
         save: INDUSTRY_TEXT.save,

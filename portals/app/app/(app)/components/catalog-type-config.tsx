@@ -51,7 +51,7 @@ export function CatalogTypeConfig({
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.typesTitle,
-        noun: "类型",
+        noun: CATALOG_TEXT.typeNoun,
         why: CATALOG_TEXT.typesWhy,
         add: CATALOG_TEXT.addType,
         save: CATALOG_TEXT.saveType,

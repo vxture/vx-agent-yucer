@@ -47,7 +47,7 @@ export function CatalogUnitConfig({
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.unitsTitle,
-        noun: "单位",
+        noun: CATALOG_TEXT.unitNoun,
         why: CATALOG_TEXT.unitsWhy,
         add: CATALOG_TEXT.addUnit,
         save: CATALOG_TEXT.saveUnit,

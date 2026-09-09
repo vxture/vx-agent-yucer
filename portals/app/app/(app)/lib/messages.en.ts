@@ -785,6 +785,9 @@ export const en: Dictionary = {
   CATALOG_TEXT: {
     productNoun: "product",
     solutionNoun: "solution",
+    statusNoun: "status",
+    typeNoun: "type",
+    unitNoun: "unit",
     newProduct: "New product",
     newProductWhy: "A product is the catalogue's atom: quote lines and solution items both point at one.",
     newSolution: "New solution",
@@ -1828,6 +1831,7 @@ export const en: Dictionary = {
   },
 
   INDUSTRY_TEXT: {
+    noun: "industry",
     configTitle: "Industries",
     configWhy: "What customers are filed under. One in use cannot be deleted.",
     count: (n: number) => `${n} industries`,
@@ -1846,6 +1850,7 @@ export const en: Dictionary = {
   },
 
   WINLOSS_TEXT: {
+    reasonNoun: "reason",
     reasonConfigTitle: "Win/loss reasons",
     reasonCount: (n: number) => `${n} reasons`,
     reasonConfigWhy: "What a review may choose from. A reason cited by a review cannot be deleted.",

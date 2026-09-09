@@ -732,6 +732,9 @@ export const CATALOG_TEXT = {
   // 行菜单的 XX（ROW_OPS）：产品配置 / 删除产品，方案配置 / 删除方案。
   productNoun: "产品",
   solutionNoun: "方案",
+  statusNoun: "状态",
+  typeNoun: "类型",
+  unitNoun: "单位",
   opLaunch: "上线",
   opRetire: "退役",
   opReinstate: "恢复在售",
@@ -1184,6 +1187,7 @@ export const AGEING_TEXT = {
 export const INDUSTRY_TEXT = {
   // 行业分类的配置面 (0040)。
   configTitle: "行业分类",
+  noun: "行业",
   configWhy: "客户归档用的行业。有客户在用时不能删。",
   count: (n: number) => `${n} 个行业`,
   add: "新建行业",
@@ -4133,6 +4137,8 @@ export const LEAD_STATUS_LABEL: Record<string, string> = {
 };
 
 export const WINLOSS_TEXT = {
+  // 行菜单的 XX（ROW_OPS）：原因配置 / 删除原因。
+  reasonNoun: "原因",
   // 赢丢原因的配置面 (0039)。
   reasonConfigTitle: "赢丢原因",
   reasonCount: (n: number) => `${n} 条原因`,

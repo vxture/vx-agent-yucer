@@ -56,7 +56,7 @@ export function CatalogStatusConfig({
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.statusesTitle,
-        noun: "状态",
+        noun: CATALOG_TEXT.statusNoun,
         why: CATALOG_TEXT.statusesWhy,
         add: CATALOG_TEXT.addStatus,
         save: CATALOG_TEXT.saveStatus,

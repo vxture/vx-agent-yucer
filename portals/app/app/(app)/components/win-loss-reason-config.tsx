@@ -58,7 +58,7 @@ export function WinLossReasonConfig({
       page={{ icon: "clock-counter-clockwise", count: WINLOSS_TEXT.reasonCount }}
       text={{
         title: WINLOSS_TEXT.reasonConfigTitle,
-        noun: "原因",
+        noun: WINLOSS_TEXT.reasonNoun,
         why: WINLOSS_TEXT.reasonConfigWhy,
         add: WINLOSS_TEXT.addReason,
         save: WINLOSS_TEXT.saveReason,
