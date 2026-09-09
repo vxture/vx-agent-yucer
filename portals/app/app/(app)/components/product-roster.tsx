@@ -23,6 +23,7 @@ import {
   rowClickSelection,
   SearchSlot,
   useTableSort,
+  moveItems,
 } from "./table-fittings";
 import type {
   ProductRecord,
@@ -32,6 +33,7 @@ import type {
 } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The module page's roster - owner ruling 2026-09-05: the page is DISPLAY, the
 // row is where the operations live, locked to the right.
@@ -67,7 +69,7 @@ export interface ProductRosterProps {
   /** "sort" renders only the live roster with the move arrows - the 新建 page
    * mounts it beside the create form so a new product can be put in place. */
   readonly variant?: "full" | "sort";
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<{ ok: boolean; error?: string }>;
   readonly onStatus: (id: string, statusId: string) => Promise<{ ok: boolean; error?: string }>;
   readonly onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -89,7 +91,7 @@ export function ProductRoster({
   onStatus,
   onDelete,
 }: ProductRosterProps) {
-  const { CATALOG_TEXT, CATALOG_ERROR, DATA_TABLE_LABELS, TABLE_TOOLBAR_TEXT } =
+  const { CATALOG_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, TABLE_TOOLBAR_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). Held
@@ -223,7 +225,7 @@ export function ProductRoster({
             : [
               {
                 id: "edit",
-                label: CATALOG_TEXT.opEdit,
+                label: ROW_OPS.configure(CATALOG_TEXT.productNoun),
                 onSelect: () => {
                   window.location.href = `/catalog/new?code=${encodeURIComponent(row.productCode)}`;
                 },
@@ -233,26 +235,14 @@ export function ProductRoster({
                 label: moveLabel(row, to),
                 onSelect: () => run(onStatus(row.id, to.id)),
               })),
-              {
-                id: "up",
-                label: CATALOG_TEXT.opUp,
-                disabled: rowIndex === 0,
-                separatorBefore: true,
-                onSelect: () => run(onMove(row.id, "up")),
-              },
-              {
-                id: "down",
-                label: CATALOG_TEXT.opDown,
-                disabled: rowIndex === list.length - 1,
-                onSelect: () => run(onMove(row.id, "down")),
-              },
+              ...moveItems(ROW_OPS, rowIndex, list.length, (d) => run(onMove(row.id, d))),
               {
                 id: "delete",
-                label: CATALOG_TEXT.opDelete,
+                label: ROW_OPS.remove(CATALOG_TEXT.productNoun),
                 danger: true as const,
                 separatorBefore: true,
                 confirm: {
-                  verb: CATALOG_TEXT.opDelete,
+                  verb: ROW_OPS.remove(CATALOG_TEXT.productNoun),
                   target: row.name,
                   consequence: CATALOG_TEXT.deleteConsequence,
                   onConfirm: () => run(onDelete(row.id)),

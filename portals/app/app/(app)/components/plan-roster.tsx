@@ -65,7 +65,7 @@ const SORT_ON = {
 };
 
 export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProps) {
-  const { STRATEGY_TEXT, PLAN_ERROR, PLAN_STATUS_LABEL, CATALOG_TEXT, DATA_TABLE_LABELS } =
+  const { CATALOG_TEXT, DATA_TABLE_LABELS, PLAN_ERROR, PLAN_STATUS_LABEL, ROW_OPS, STRATEGY_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
@@ -168,7 +168,7 @@ export function PlanRoster({ rows, canEdit, canApprove, onMove }: PlanRosterProp
                   ? [
                       {
                         id: "edit",
-                        label: CATALOG_TEXT.opEdit,
+                        label: ROW_OPS.configure(STRATEGY_TEXT.planNoun),
                         onSelect: () => {
                           window.location.href = `/strategy/new?no=${encodeURIComponent(row.planNo)}`;
                         },

@@ -1,21 +1,29 @@
 "use client";
 
 import {
+  Button,
   DataTable,
+  Drawer,
   EmptyState,
   Section,
   StatusBadge,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   TableTitleCell,
   useToast,
 } from "@vxture/design-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketMember } from "../../domains/shared/market-division";
-import type { MoveDirection } from "../../domains/catalog/lib/lifecycle";
-import { moveDivisionAction } from "../admin/division/actions";
+import type { MoveDirection } from "../../domains/shared/ordering";
+import { moveDivisionAction, removeDivisionAction } from "../admin/division/actions";
 import { Tag } from "./tag";
 
 /* 大区与成员 - 展示. DISPLAY ONLY.
@@ -61,16 +69,32 @@ export function DivisionPanel(
     readonly editable: boolean;
   },
 ) {
-  const { DATA_TABLE_LABELS, PLANNING_TEXT, TERRITORY_ERROR } = useMessages();
+  const { DATA_TABLE_LABELS, PLANNING_TEXT, ROW_OPS, TERRITORY_ERROR } = useMessages();
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
+  /* 区域详情 - the members as the form's four-column roster, in a drawer:
+     the one menu every panel has (owner, 2026-09-09) starts with XX详情. */
+  const [details, setDetails] = useState<DivisionRow | null>(null);
   const [pending, start] = useTransition();
   const { toast } = useToast();
   const move = (code: string, direction: MoveDirection) =>
     start(async () => {
       const r = await moveDivisionAction(code, direction);
       if (!r.ok) toast({ tone: "danger", title: TERRITORY_ERROR[r.error] ?? r.error });
+      // Read the new order back explicitly - see vocabulary-config.tsx.
+      else router.refresh();
     });
+  /* 删除区域, behind the DS's confirm, greyed with its reason while the region
+     still covers anything (the FK's RESTRICT, said first). A refusal is
+     toasted and RE-THROWN so the confirmation stays open. */
+  const remove = async (code: string) => {
+    const r = await removeDivisionAction(code);
+    if (!r.ok) {
+      toast({ tone: "danger", title: TERRITORY_ERROR[r.error] ?? r.error });
+      throw new Error(r.error);
+    }
+    router.refresh();
+  };
 
   return (
     /* NO TITLE HERE. It carried one for a day, while this panel was the
@@ -113,48 +137,47 @@ export function DivisionPanel(
           rowActions={(r: DivisionRow, rowIndex: number) => (
             <RowActions
               disabled={pending}
-              items={
-                editable
+              items={[
+                /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09: 各操作面板
+                   尽量统一): 区域详情 / 区域配置 ｜ the four moves ｜ 删除区域.
+                   详情 for every reader; the rest for those who may edit. The
+                   column still renders with 详情 alone for a read-only reader -
+                   a table whose action column disappears shifts every other
+                   column across. */
+                {
+                  id: "details",
+                  label: ROW_OPS.details(PLANNING_TEXT.divisionName),
+                  onSelect: () => setDetails(r),
+                },
+                ...(editable
                   ? [
                       {
                         id: "edit",
-                        label: PLANNING_TEXT.divisionEdit,
+                        label: ROW_OPS.configure(PLANNING_TEXT.divisionName),
                         onSelect: () => router.push(`/admin/division/${r.id}`),
                       },
-                      /* THE FOUR MOVES, greyed at the end they cannot pass.
-                         rowIndex is the global position, since the rows are
+                      /* rowIndex is the global position, since the rows are
                          never re-sorted for display. */
+                      ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
                       {
-                        id: "up",
-                        label: PLANNING_TEXT.divisionMoveUp,
+                        id: "remove",
+                        label: ROW_OPS.remove(PLANNING_TEXT.divisionName),
                         separatorBefore: true,
-                        disabled: rowIndex === 0,
-                        onSelect: () => move(r.code, "up"),
-                      },
-                      {
-                        id: "down",
-                        label: PLANNING_TEXT.divisionMoveDown,
-                        disabled: rowIndex === rows.length - 1,
-                        onSelect: () => move(r.code, "down"),
-                      },
-                      {
-                        id: "top",
-                        label: PLANNING_TEXT.divisionMoveTop,
-                        disabled: rowIndex === 0,
-                        onSelect: () => move(r.code, "top"),
-                      },
-                      {
-                        id: "bottom",
-                        label: PLANNING_TEXT.divisionMoveBottom,
-                        disabled: rowIndex === rows.length - 1,
-                        onSelect: () => move(r.code, "bottom"),
+                        danger: true as const,
+                        disabled: r.members.length > 0,
+                        hint: r.members.length > 0 ? PLANNING_TEXT.divisionRemoveHeldHint(r.members.length, noun) : undefined,
+                        confirm: {
+                          verb: ROW_OPS.remove(PLANNING_TEXT.divisionName),
+                          target: PLANNING_TEXT.divisionRemoveTarget(r.name),
+                          consequence: PLANNING_TEXT.divisionRemoveConsequence,
+                          titleTemplate: PLANNING_TEXT.destructiveTitle,
+                          cancelLabel: PLANNING_TEXT.templateCancel,
+                          onConfirm: () => remove(r.code),
+                        },
                       },
                     ]
-                  // The column still renders with no items - a table whose
-                  // action column disappears for a read-only reader shifts
-                  // every other column across.
-                  : []
-              }
+                  : []),
+              ]}
             />
           )}
           rowKey={(r: DivisionRow) => r.code}
@@ -258,6 +281,45 @@ export function DivisionPanel(
           </div>
         )}
       </div>
+      <Drawer
+        open={details !== null}
+        onClose={() => setDetails(null)}
+        width="md"
+        title={details ? PLANNING_TEXT.divisionDetailsTitle(details.name) : ""}
+        description={details ? PLANNING_TEXT.divisionDetailsWhy(details.members.length, noun) : ""}
+        closeLabel={PLANNING_TEXT.divisionDetailsDone}
+        footer={
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={() => setDetails(null)}>{PLANNING_TEXT.divisionDetailsDone}</Button>
+          </div>
+        }
+      >
+        {/* The form's roster, read-only: 序号 / 简称代号 / 名称 / 行政区划代码. */}
+        {details && details.members.length > 0 ? (
+          <Table className="w-full table-fixed">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[4rem] text-center">{PLANNING_TEXT.colIndex}</TableHead>
+                <TableHead className="w-[6rem]">{PLANNING_TEXT.colAbbr}</TableHead>
+                <TableHead>{PLANNING_TEXT.colName}</TableHead>
+                <TableHead className="w-[8rem]">{PLANNING_TEXT.colAdcode}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {details.members.map((m, i) => (
+                <TableRow key={m.key}>
+                  <TableCell className="text-muted-foreground text-center tabular-nums">{i + 1}</TableCell>
+                  <TableCell className="font-medium tabular-nums">{m.abbr ?? ""}</TableCell>
+                  <TableCell>{m.name}</TableCell>
+                  <TableCell className="tabular-nums">{m.adcode}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <EmptyState title={PLANNING_TEXT.divisionPickEmpty(noun)} description={PLANNING_TEXT.divisionRemoveWhy(noun)} />
+        )}
+      </Drawer>
     </Section>
   );
 }

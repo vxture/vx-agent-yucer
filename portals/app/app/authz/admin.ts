@@ -18,17 +18,17 @@
 //      recoverable mistake and a workspace that must be repaired by hand
 //      against the database.
 //
-//   2. THE ROLE CATALOG IS CLOSED. A role code that is not in the catalog is
-//      refused here rather than written and ignored: the in-memory adapter
-//      silently drops an unknown code and the Prisma one would fail on a
-//      foreign key, so without this check the two adapters disagree about what
-//      just happened.
+//   2. A ROLE IS ONE OF THE WORKSPACE'S OWN (incr/0046). A code the workspace
+//      does not have is refused here, in the product's words, rather than
+//      thrown by the store: both adapters throw on an unknown code, and a
+//      throw is not a refusal somebody can read. The list is the workspace's
+//      - 角色管理 adds to it - so "unknown" is read off the store, not off the
+//      build's catalogue.
 
 import { can, type PermissionHolder } from "./decide";
 import { invalidateAuthz } from "./context";
 import { validateScopeSetting, type ScopeSetting } from "./scope";
-import { isRoleCode, ROLE_PERMISSIONS, type RoleCode } from "./catalog";
-import type { AuthzStore, MemberRecord } from "./store";
+import type { AuthzStore, MemberRecord, WorkspaceRole } from "./store";
 import type { Entitlement } from "../entitlement/types";
 import { fail, ok, violation, type RuleResult } from "../domains/shared/result";
 import type { Decision } from "./gate";
@@ -79,9 +79,10 @@ export interface AdminContext {
   store: AuthzStore;
 }
 
-/** True when this role carries the permission that administers roles. */
-function isAdminRole(role: RoleCode): boolean {
-  return ROLE_PERMISSIONS[role].includes("admin.manage");
+/** The codes of the roles that administer the workspace - the ones carrying
+ *  admin.manage - read off the workspace's own list (incr/0046). */
+function adminRoles(roles: readonly WorkspaceRole[]): Set<string> {
+  return new Set(roles.filter((r) => r.permissions.includes("admin.manage")).map((r) => r.code));
 }
 
 export async function listWorkspaceMembers(ctx: AdminContext): Promise<RuleResult<MemberRecord[]>> {
@@ -105,9 +106,10 @@ export async function assignRole(
     return denied(gate);
   }
 
-  if (!isRoleCode(role)) {
+  const roles = await ctx.store.listRoles(ctx.workspaceId);
+  if (!roles.some((r) => r.code === role)) {
     await audit(ctx, action, sub, "error");
-    return fail(violation("unknown_role", `${role} is not a role in the catalog`, "role"));
+    return fail(violation("unknown_role", `${role} is not a role of this workspace`, "role"));
   }
   if (!sub.trim()) {
     await audit(ctx, action, sub, "error");
@@ -135,20 +137,22 @@ export async function revokeRole(
     return denied(gate);
   }
 
-  if (!isRoleCode(role)) {
+  const roles = await ctx.store.listRoles(ctx.workspaceId);
+  if (!roles.some((r) => r.code === role)) {
     await audit(ctx, action, sub, "error");
-    return fail(violation("unknown_role", `${role} is not a role in the catalog`, "role"));
+    return fail(violation("unknown_role", `${role} is not a role of this workspace`, "role"));
   }
+  const admin = adminRoles(roles);
 
   // The last-administrator guard. Computed over the whole workspace rather than
   // over the acting member, because "am I the last one" is a fact about the
   // workspace - an admin revoking a COLLEAGUE's last admin role locks everyone
   // out just as thoroughly as revoking their own.
-  if (isAdminRole(role)) {
+  if (admin.has(role)) {
     const members = await ctx.store.listMembers(ctx.workspaceId);
     const stillAdmin = members.filter((m) => {
       const after = m.sub === sub ? m.roles.filter((r) => r !== role) : m.roles;
-      return after.some(isAdminRole);
+      return after.some((r) => admin.has(r));
     });
     if (stillAdmin.length === 0) {
       await audit(ctx, action, sub, "error");
@@ -214,8 +218,9 @@ export async function deactivateMember(
     return fail(violation("not_found", `${sub} is not a member of this workspace`, "sub"));
   }
 
-  const stillAdmin = members.filter((m) => m.sub !== sub && m.roles.some(isAdminRole));
-  if (target.roles.some(isAdminRole) && stillAdmin.length === 0) {
+  const admin = adminRoles(await ctx.store.listRoles(ctx.workspaceId));
+  const stillAdmin = members.filter((m) => m.sub !== sub && m.roles.some((r) => admin.has(r)));
+  if (target.roles.some((r) => admin.has(r)) && stillAdmin.length === 0) {
     await audit(ctx, action, sub, "error");
     return fail(
       violation(

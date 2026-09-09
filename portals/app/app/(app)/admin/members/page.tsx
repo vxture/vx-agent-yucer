@@ -4,6 +4,7 @@ import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
+import { listRoles } from "../../../authz/roles";
 import { MemberRoles } from "../../components/member-roles";
 import {
   changeMemberScope,
@@ -61,6 +62,15 @@ export default async function MembersPage() {
     store: getPlanningStore(),
   });
 
+  // The roles the menu offers are the WORKSPACE'S (0046), in its order.
+  const roles = await listRoles({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getAuthzStore(),
+  });
+
   if (!result.ok) {
     return (
       <EmptyState
@@ -82,6 +92,15 @@ export default async function MembersPage() {
       />
       <MemberRoles
         members={result.value}
+        roles={
+          roles.ok
+            ? roles.value.map((r) => ({
+                code: r.code,
+                name: r.name,
+                admin: r.permissions.includes("admin.manage"),
+              }))
+            : []
+        }
         onDeactivate={setMemberInactive}
         onReactivate={setMemberActive}
         onHandover={handOverBook}

@@ -3,6 +3,7 @@
 import type { ProductRecord, ProductUnitRecord } from "../../domains/catalog/store";
 import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 计价单位 - 产品配置's third INDEPENDENT vocabulary (incr/0037), added on the
 // owner's instruction of 2026-09-08. Same rule as the other two: this file and
@@ -24,7 +25,7 @@ export interface CatalogUnitConfigProps {
   readonly units: readonly ProductUnitRecord[];
   readonly products: readonly ProductRecord[];
   readonly onSave: (input: { unitCode: string; name: string }) => Promise<VocabularyResult>;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<VocabularyResult>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (id: string) => Promise<VocabularyResult>;
 }
 
@@ -46,18 +47,15 @@ export function CatalogUnitConfig({
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.unitsTitle,
+        noun: CATALOG_TEXT.unitNoun,
         why: CATALOG_TEXT.unitsWhy,
         add: CATALOG_TEXT.addUnit,
-        edit: CATALOG_TEXT.renameUnit,
         save: CATALOG_TEXT.saveUnit,
         codeLabel: CATALOG_TEXT.unitCode,
         codeHint: CATALOG_TEXT.unitCodeHint,
         nameLabel: CATALOG_TEXT.colUnitName,
         colName: CATALOG_TEXT.colUnitName,
         deleteConsequence: CATALOG_TEXT.unitDeleteConsequence,
-        opUp: CATALOG_TEXT.opUp,
-        opDown: CATALOG_TEXT.opDown,
-        opDelete: CATALOG_TEXT.opDelete,
       }}
       columns={[
         {

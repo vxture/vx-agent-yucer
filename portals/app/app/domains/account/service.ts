@@ -439,7 +439,7 @@ export async function upsertIndustry(
 /** Reorder the list - the order every industry picker offers them in. */
 export async function moveIndustry(
   ctx: AccountContext,
-  input: { industryId: string; direction: "up" | "down" },
+  input: { industryId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
   if (!gate.allowed) return denied(gate);

@@ -7,6 +7,7 @@ import {
   removeWinLossReason,
   upsertWinLossReason,
 } from "../../domains/pipeline/service";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 /* 赢丢原因的写入路径 (incr/0039).
  *
@@ -43,7 +44,7 @@ export async function saveWinLossReason(input: {
 
 export async function moveWinLossReasonAction(
   reasonId: string,
-  direction: "up" | "down",
+  direction: MoveDirection,
 ): Promise<ReasonResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };

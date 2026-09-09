@@ -12,7 +12,7 @@
 // the top of that file for what happens if the two are conflated.
 
 import type { AuthUser } from "../auth/lib/claims";
-import { OWNER_BOOTSTRAP_ROLE, type PermCode, type RoleCode } from "./catalog";
+import { OWNER_BOOTSTRAP_ROLE, type PermCode } from "./catalog";
 import { getAuthzStore, type AuthzStore } from "./store";
 
 // Re-exported so a server caller holding a context keeps one import site. The
@@ -23,7 +23,8 @@ export { can, decisionsFor, type PermissionHolder } from "./decide";
 export interface AuthzContext {
   workspaceId: string;
   sub: string;
-  roles: RoleCode[];
+  /** Codes of the workspace's own roles (incr/0046). */
+  roles: string[];
   permissions: ReadonlySet<PermCode>;
   /** Platform workspace:owner - the first-login super-admin baseline. */
   isWorkspaceOwner: boolean;
@@ -82,6 +83,13 @@ export async function resolveAuthzContext(
   if (hit && hit.expiresAt > now) return hit.value;
 
   const { created } = await store.seeMember({ workspaceId, sub: user.sub });
+
+  // A WORKSPACE'S ROLES ARE ITS OWN (incr/0046), and it starts from the
+  // presets: the first member the workspace ever sees brings the nine in,
+  // so the owner bootstrap below finds sales_leader, and /admin/roles has a
+  // list before anybody configures one. A workspace that already has roles
+  // is left exactly as it is - the store's own rule.
+  if (created) await store.seedPresetRoles(workspaceId);
 
   // Bootstrap runs on the FIRST sighting only. Re-applying it on every login
   // would resurrect a role an administrator deliberately revoked, and the

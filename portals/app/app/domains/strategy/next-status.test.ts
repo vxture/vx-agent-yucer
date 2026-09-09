@@ -133,13 +133,18 @@ test("approving a plan is a separate permission from editing one", async () => {
   assert.equal((await store.getPlan(WS, "plan_1"))?.status, "approved");
 });
 
-test("only one role in the catalog can approve a plan", async () => {
+test("only the signing rungs of the catalog can approve a plan", async () => {
   // Asserted over the catalog rather than by example, so a future grant of
-  // strategy.approve is a deliberate act that fails here first.
+  // strategy.approve is a deliberate act that fails here first. incr/0047
+  // (the group-scale ladder) made it three: the one accountable for the
+  // whole chain, the executive who reads everything and signs, and the
+  // general manager who runs a region as a business. Nobody who merely
+  // edits a plan - 市场经理 holds strategy.write - may sign it.
   const holders = (Object.keys(ROLE_PERMISSIONS) as RoleCode[]).filter((r) =>
     ROLE_PERMISSIONS[r].includes("strategy.approve"),
   );
-  assert.deepEqual(holders, ["sales_leader"]);
+  assert.deepEqual([...holders].sort(), ["executive", "regional_general_manager", "sales_leader"]);
+  assert.ok(!ROLE_PERMISSIONS.marketing_manager.includes("strategy.approve"));
 });
 
 test("a role without strategy.write cannot move a plan at all", async () => {

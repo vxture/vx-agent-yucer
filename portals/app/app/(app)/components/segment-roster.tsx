@@ -17,8 +17,10 @@ import {
   EDGE_COLUMNS,
   RowActions,
   useTableSort,
+  moveItems,
 } from "./table-fittings";
 import { Tag } from "./tag";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // How the market is cut - the catalogue module pattern, applied on the
 // owner's 2026-09-05 ruling.
@@ -47,7 +49,7 @@ export interface SegmentRow {
 export interface SegmentRosterProps {
   readonly rows: readonly SegmentRow[];
   readonly canWrite: boolean;
-  readonly onMove: (id: string, direction: "up" | "down") => Promise<{ ok: boolean; error?: string }>;
+  readonly onMove: (id: string, direction: MoveDirection) => Promise<{ ok: boolean; error?: string }>;
   readonly onStatus: (
     id: string,
     status: "active" | "paused" | "retired",
@@ -63,7 +65,7 @@ const SORT_ON = {
 };
 
 export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: SegmentRosterProps) {
-  const { STRATEGY_TEXT, SEGMENT_ERROR, CATALOG_TEXT, DATA_TABLE_LABELS } =
+  const { CATALOG_TEXT, DATA_TABLE_LABELS, ROW_OPS, SEGMENT_ERROR, STRATEGY_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   // 选择列 - one of the three standard fittings (table-fittings.tsx). One
@@ -167,7 +169,7 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
             : [
               {
                 id: "edit",
-                label: CATALOG_TEXT.opEdit,
+                label: ROW_OPS.configure(STRATEGY_TEXT.segmentNoun),
                 onSelect: () => {
                   window.location.href = `/segment/new?code=${encodeURIComponent(row.segmentCode)}`;
                 },
@@ -192,26 +194,14 @@ export function SegmentRoster({ rows, canWrite, onMove, onStatus, onDelete }: Se
                       onSelect: () => run(onStatus(row.id, "active")),
                     },
                   ]),
-              {
-                id: "up",
-                label: CATALOG_TEXT.opUp,
-                disabled: rowIndex === 0,
-                separatorBefore: true,
-                onSelect: () => run(onMove(row.id, "up")),
-              },
-              {
-                id: "down",
-                label: CATALOG_TEXT.opDown,
-                disabled: rowIndex === list.length - 1,
-                onSelect: () => run(onMove(row.id, "down")),
-              },
+              ...moveItems(ROW_OPS, rowIndex, list.length, (d) => run(onMove(row.id, d))),
               {
                 id: "delete",
-                label: CATALOG_TEXT.opDelete,
+                label: ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),
                 danger: true as const,
                 separatorBefore: true,
                 confirm: {
-                  verb: CATALOG_TEXT.opDelete,
+                  verb: ROW_OPS.remove(STRATEGY_TEXT.segmentNoun),
                   target: row.name,
                   consequence: STRATEGY_TEXT.segmentDeleteConsequence,
                   onConfirm: () => run(onDelete(row.id)),

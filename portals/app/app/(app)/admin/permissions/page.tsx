@@ -3,7 +3,8 @@ import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
-import { ROLE_CODES, ROLE_PERMISSIONS } from "../../../authz/catalog";
+import { getAuthzStore } from "../../../authz/store";
+import { listRoles } from "../../../authz/roles";
 import { ACTIONS } from "../../../authz/actions";
 import { buildPermissionTree } from "../../lib/permission-tree";
 import { PermissionTree } from "../../components/permission-tree";
@@ -12,11 +13,10 @@ import { Tag } from "../../components/tag";
 // 权限管理 - the catalogue as a tree: 业务域 / 模块 / 页面 / 操作, with one
 // column per role (owner, 2026-09-09).
 //
-// READ FROM THE MIRRORS, NOT RESTATED. The tree is built off authz/actions.ts
-// and the grants off authz/catalog.ts; both are mirrors of seeded DDL and the
-// mirror tests fail on any drift. The numbers in the header are counted here
-// for the same reason the old page counted them: a page that printed its own
-// copy would be one more place to be wrong.
+// THE TREE IS READ OFF authz/actions.ts, never restated. THE COLUMNS ARE THE
+// WORKSPACE'S ROLES (incr/0046) - the presets and whatever the tenant added,
+// in the tenant's order - and the ticks are the grants those rows hold; the
+// grants are edited on /admin/roles, one role at a time, and read here.
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +38,22 @@ export default async function PermissionsPage() {
   }
 
   const tree = buildPermissionTree();
+  const roles = await listRoles({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getAuthzStore(),
+  });
+  const rows = roles.ok ? roles.value : [];
+  // A preset keeps its short name; a role the tenant added prints its own
+  // name, and the header compresses it to the icon when the column is narrow.
+  const columns = rows.map((r) => ({
+    code: r.code,
+    name: r.name,
+    short: PERMISSION_TREE_TEXT.roleShort[r.code] ?? r.name,
+  }));
+  const holds = Object.fromEntries(rows.map((r) => [r.code, r.permissions]));
 
   return (
     <ViewLayout>
@@ -50,10 +66,10 @@ export default async function PermissionsPage() {
         title={PERMISSION_TREE_TEXT.title}
         description={PERMISSION_TREE_TEXT.why}
         secondary={
-          <Tag>{PERMISSION_TREE_TEXT.count(Object.keys(ACTIONS).length, ROLE_CODES.length)}</Tag>
+          <Tag>{PERMISSION_TREE_TEXT.count(Object.keys(ACTIONS).length, rows.length)}</Tag>
         }
       />
-      <PermissionTree tree={tree} roles={ROLE_CODES} holds={ROLE_PERMISSIONS} />
+      <PermissionTree tree={tree} roles={columns} holds={holds} />
     </ViewLayout>
   );
 }

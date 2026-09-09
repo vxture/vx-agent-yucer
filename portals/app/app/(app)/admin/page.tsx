@@ -14,7 +14,8 @@ import { ADMIN_NAV_GROUPS } from "../lib/admin-nav";
 import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
 import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
-import { PERM_CODES, ROLE_CODES } from "../../authz/catalog";
+import { PERM_CODES } from "../../authz/catalog";
+import { listRoles } from "../../authz/roles";
 import { frameMembers, listMarketDivisions, marketScope } from "../../domains/account/service";
 
 import { getMessages } from "../lib/i18n/server";
@@ -111,11 +112,19 @@ export default async function AdminHomePage() {
      sentence - and the plane went from three cards to seven the next day.
      A card with no live fact says nothing rather than borrowing another
      card's sentence; its description already says what it is for. */
+  // The workspace's own count (0046), not the build's nine.
+  const roleRows = await listRoles({
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getAuthzStore(),
+  });
   const FACTS: Record<string, string> = {
     members: memberFact,
     adoption: adoptionFact,
     division: divisionFact,
-    roles: ADMIN_TEXT.rolesFact(ROLE_CODES.length, PERM_CODES.length),
+    roles: ADMIN_TEXT.rolesFact(roleRows.ok ? roleRows.value.length : 0, PERM_CODES.length),
   };
 
   return (

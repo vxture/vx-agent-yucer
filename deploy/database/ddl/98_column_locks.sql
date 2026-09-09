@@ -28,6 +28,11 @@ REVOKE UPDATE ON local_authz.permission FROM yucer_svc;
 -- link tables: insert/delete only.
 REVOKE UPDATE ON local_authz.member_role FROM yucer_svc;
 REVOKE UPDATE ON local_authz.role_permission FROM yucer_svc;
+-- local_authz.workspace_role and workspace_role_permission are created by
+-- incr/0046 and carry their own locks there: workspace_role allows UPDATE on
+-- (name, sort_order, updated_at) - never role_code - and the link table none.
+-- Since 0046, role / role_permission above are the PRESETS a workspace is
+-- materialised from; member_role.role_id names a workspace_role row.
 
 -- --- local_usage ---
 -- raw: the flush job flips `flushed`; nothing else is mutable.

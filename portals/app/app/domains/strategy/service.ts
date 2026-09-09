@@ -38,6 +38,7 @@ import type {
   SegmentRecord,
   StrategyStore,
 } from "./store";
+import type { MoveDirection } from "../shared/ordering";
 
 export interface StrategyContext {
   workspaceId: string;
@@ -336,7 +337,7 @@ export async function setSegmentStatus(
  */
 export async function moveSegment(
   ctx: StrategyContext,
-  input: { segmentId: string; direction: "up" | "down" },
+  input: { segmentId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "strategy.segment.upsert", "data");
   if (!gate.allowed) return denied(gate);
