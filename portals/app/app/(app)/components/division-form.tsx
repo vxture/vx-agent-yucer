@@ -6,6 +6,7 @@ import {
   Banner,
   Button,
   Drawer,
+  EmptyState,
   Field,
   FieldDescription,
   FieldLabel,
@@ -15,6 +16,12 @@ import {
   InputGroupInput,
   NativeSelect,
   Section,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@vxture/design-ui";
 import {
   divisionCode,
@@ -28,25 +35,29 @@ import { FormFields } from "./form-page";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
 import { Tag } from "./tag";
 
-/* 配置区域 - 编辑面, in the order the owner ruled on 2026-09-09:
+/* 配置区域 - TWO COLUMNS (owner, 2026-09-09: 改为左右布局).
  *
- *   1. 区域代码   - the frame's prefix is fixed in front of it (CHINA-), and
- *                   a person types only the rest.
- *   2. 区域名称
- *   3. 包括范围   - what this region is made of, derived from the frame and
- *                   read-only here: 全国市场 · 包括为省级 / 陕西省 · 包括为市级.
- *   4. inside that range, the two sources: 引用系统配置 (a preset row, read
- *                   as 五分法-中部 and nothing more) and 选择省份 / 选择市
- *                   (the drawer). The noun follows the frame (incr/0045).
- *   5. the answer, as the roster shows it: `JS 江苏` / `西安` tags across the row.
- *   6. WARNINGS AT THE FOOT OF THE SECTION, as the DS's Banner, and only when
- *                   there is something to warn about - provinces about to be
- *                   taken from another region, or a save that failed. In the
- *                   normal case nothing is there.
+ * LEFT IS WHAT THE PERSON DOES, RIGHT IS WHAT THEY HAVE DONE. The left column
+ * holds only controls somebody can act on - the code, the name, a preset to
+ * start from, the door to the picker, save and delete - and nothing that
+ * merely informs. The right column is the region's roster as it stands: a
+ * plain list, numbered, one name per row, no operations. The one operation a
+ * member has is "be picked", and that is the button on the left.
  *
- * A PROVINCE ALREADY IN ANOTHER 大区 CAN STILL BE TICKED (owner). It moves
- * here and drops out of the other one - the primary key means it could never
- * have been in two places, so refusing would only send the reader to a second
+ * WHAT LEFT THE FORM. A read-only 包括范围 input, a sentence under the preset
+ * select, and an 已选 N 个 line under the picker button were all things the
+ * person could read but not use. The frame's ground (陕西省 · 包括为市级) is
+ * the LIST's own heading now, and the count sits beside it, which is where a
+ * reader looks for how many rows a list has.
+ *
+ * WARNINGS SIT WITH WHAT THEY ARE ABOUT. A member about to be taken off
+ * another region is a fact about the roster, so its banner is under the
+ * list; a save that failed is a fact about the form, so its banner is under
+ * the save button. Both are absent in the normal case.
+ *
+ * A MEMBER ALREADY IN ANOTHER 大区 CAN STILL BE TICKED (owner). It moves here
+ * and drops out of the other one - the primary key means it could never have
+ * been in two places, so refusing would only send the reader to a second
  * screen to say one thing. What it must not do is move something quietly:
  * the banner names each one, before saving.
  */
@@ -102,14 +113,11 @@ export function DivisionForm(
   const [picking, setPicking] = useState(false);
   const [query, setQuery] = useState("");
 
-  /* 成员标签 - `JS 江苏` for a province (owner, 2026-09-08; the two letters are
-     GB/T 2260's, not a house abbreviation), `西安` for a city. */
-  const labelOf = useMemo(() => new Map(options.map((o) => [o.key, o.label])), [options]);
-  /* ORDERED BY THE OPTION LIST, not by the click order: the badges read as a
-     stable roster of what this 大区 holds, and a set that reshuffled every
-     time somebody unticked one would be unreadable. */
+  /* ORDERED BY THE OPTION LIST, not by the click order: the roster reads as a
+     stable list of what this 大区 holds, and one that reshuffled every time
+     somebody unticked a row would be unreadable. */
   const chosenList = useMemo(
-    () => options.filter((o) => chosen.has(o.key)).map((o) => o.key),
+    () => options.filter((o) => chosen.has(o.key)),
     [options, chosen],
   );
   const matches = useMemo(() => {
@@ -135,11 +143,8 @@ export function DivisionForm(
      because reorganising somebody else's division is exactly the kind of thing
      that should not be a surprise. */
   const takenFrom = useMemo(
-    () =>
-      options.filter(
-        (o) => chosen.has(o.key) && o.heldBy !== null && !members.includes(o.key),
-      ),
-    [options, chosen, members],
+    () => chosenList.filter((o) => o.heldBy !== null && !members.includes(o.key)),
+    [chosenList, members],
   );
 
   const remove = () => {
@@ -165,143 +170,159 @@ export function DivisionForm(
   };
 
   return (
-    /* NO DESCRIPTION HERE: both pages that render this form put the same
-       sentence in their ViewHeader, and the two sat one above the other. */
-    <Section title={PLANNING_TEXT.divisionFormTitle}>
-      <div className="gap-xl flex flex-col">
-        {/* 1 + 2. CODE THEN NAME, ON ONE ROW: the code is the anchor and is
-            typed first; the name is what everyone reads afterwards. */}
-        <FormFields>
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.divisionCode}</FieldLabel>
-            {/* THE PREFIX IS THE FRAME'S, NOT THE PERSON'S. CHINA- sits in the
-                addon as a fact; the input holds the half that is theirs. The
-                database CHECKs the same composition, so nothing typed here can
-                land a code in the wrong frame. */}
-            <InputGroup>
-              <InputGroupAddon align="start">{prefix}</InputGroupAddon>
-              <InputGroupInput
-                value={local}
-                onChange={(e) => setLocal(e.target.value.toUpperCase())}
-                /* The anchor. Editable only while creating: every import and
-                   every mapping row keys on it, and a division whose code
-                   changed is a new division wearing an old one's history. */
-                disabled={!isNew || pending}
-              />
-            </InputGroup>
-            <FieldDescription>
-              {isNew ? PLANNING_TEXT.divisionCodePrefixHint : PLANNING_TEXT.divisionCodeHint}
-            </FieldDescription>
-          </Field>
+    /* A CONTAINER QUERY, NOT A VIEWPORT BREAKPOINT - the argument form-page.tsx
+       makes: what decides whether two columns fit is the room this page has
+       beside the sidebar, and the viewport does not know that. @3xl = 48rem
+       of container: two columns only when each still gets ~24rem. Narrower,
+       the list drops under the form - the form is the errand. */
+    <div className="@container">
+      <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        {/* LEFT - the controls, and only the controls. NO DESCRIPTION: the
+            page's ViewHeader already says what this form is for. */}
+        <Section title={PLANNING_TEXT.divisionFormTitle}>
+          <div className="gap-xl flex flex-col">
+            <FormFields>
+              <Field>
+                <FieldLabel>{PLANNING_TEXT.divisionCode}</FieldLabel>
+                {/* THE PREFIX IS THE FRAME'S, NOT THE PERSON'S. SN- sits in the
+                    addon as a fact; the input holds the half that is theirs.
+                    The database CHECKs the same composition, so nothing typed
+                    here can land a code in the wrong frame. */}
+                <InputGroup>
+                  <InputGroupAddon align="start">{prefix}</InputGroupAddon>
+                  <InputGroupInput
+                    value={local}
+                    onChange={(e) => setLocal(e.target.value.toUpperCase())}
+                    /* The anchor. Editable only while creating: every import
+                       and every mapping row keys on it, and a division whose
+                       code changed is a new division wearing an old one's
+                       history. */
+                    disabled={!isNew || pending}
+                  />
+                </InputGroup>
+                {/* The one line under a control that earns its place: it
+                    tells the person what to TYPE (new) or why they cannot. */}
+                <FieldDescription>
+                  {isNew ? PLANNING_TEXT.divisionCodePrefixHint : PLANNING_TEXT.divisionCodeHint}
+                </FieldDescription>
+              </Field>
 
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.divisionNameLabel}</FieldLabel>
-            <Input value={nameValue} onChange={(e) => setName(e.target.value)} disabled={pending} />
-          </Field>
-        </FormFields>
+              <Field>
+                <FieldLabel>{PLANNING_TEXT.divisionNameLabel}</FieldLabel>
+                <Input value={nameValue} onChange={(e) => setName(e.target.value)} disabled={pending} />
+              </Field>
+            </FormFields>
 
-        {/* 3. 包括范围 - what this region is made of. Derived from the frame
-            and stated rather than asked: a person carving 中国市场 does not
-            choose to carve it by province, that is what the frame means. */}
-        <FormFields>
-          <Field>
-            <FieldLabel>{PLANNING_TEXT.divisionIncludes}</FieldLabel>
-            <Input value={includes} readOnly disabled />
-          </Field>
-        </FormFields>
+            {/* THE TWO WAYS TO FILL THE LIST, side by side: take a shipped
+                region wholesale, or open the picker. Both are actions. */}
+            <FormFields>
+              {isNew && presets.length > 0 ? (
+                <Field>
+                  <FieldLabel>{PLANNING_TEXT.templateRef}</FieldLabel>
+                  <NativeSelect
+                    disabled={pending}
+                    defaultValue=""
+                    onChange={(e) => {
+                      const p = presets.find((x) => `${x.key}:${x.code}` === e.target.value);
+                      if (!p) return;
+                      setLocal(localCode(scope, p.code));
+                      setName(p.name);
+                      setChosen(new Set(p.members));
+                    }}
+                  >
+                    <option value="">{PLANNING_TEXT.templateRefNone}</option>
+                    {/* 五分法-中部, and nothing else: the carve's own list of
+                        names belongs in the reset dialog, not in every option. */}
+                    {presets.map((p) => (
+                      <option key={`${p.key}:${p.code}`} value={`${p.key}:${p.code}`}>
+                        {PLANNING_TEXT.presetOption(p.from, p.name)}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              ) : null}
+              <Field>
+                <FieldLabel>{PLANNING_TEXT.divisionPickManual}</FieldLabel>
+                {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page: the
+                    list is long enough that the fields above scrolled away
+                    before the last province arrived. */}
+                <div className="w-fit">
+                  <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
+                    {PLANNING_TEXT.divisionPick(noun)}
+                  </Button>
+                </div>
+              </Field>
+            </FormFields>
 
-        {/* 4. INSIDE THAT RANGE, the two sources side by side: take a shipped
-            region wholesale, or pick the provinces yourself. */}
-        <FormFields>
-          {isNew && presets.length > 0 ? (
-            <Field>
-              <FieldLabel>{PLANNING_TEXT.templateRef}</FieldLabel>
-              <NativeSelect
-                disabled={pending}
-                defaultValue=""
-                onChange={(e) => {
-                  const p = presets.find((x) => `${x.key}:${x.code}` === e.target.value);
-                  if (!p) return;
-                  setLocal(localCode(scope, p.code));
-                  setName(p.name);
-                  setChosen(new Set(p.members));
-                }}
-              >
-                <option value="">{PLANNING_TEXT.templateRefNone}</option>
-                {/* 五分法-中部, and nothing else: the carve's own list of
-                    names belongs in the reset dialog, not in every option. */}
-                {presets.map((p) => (
-                  <option key={`${p.key}:${p.code}`} value={`${p.key}:${p.code}`}>
-                    {PLANNING_TEXT.presetOption(p.from, p.name)}
-                  </option>
-                ))}
-              </NativeSelect>
-              <FieldDescription>{PLANNING_TEXT.templateRefWhy}</FieldDescription>
-            </Field>
-          ) : null}
-          <Field>
-            {/* NOT 「选择省份」 TWICE: the label names the source, the button
-                is the door. */}
-            <FieldLabel>{PLANNING_TEXT.divisionPickManual}</FieldLabel>
-            {/* THE PICKER IS A DRAWER, not 34 checkboxes on the page: the list
-                is long enough that the fields above scrolled away before the
-                last province arrived. What stays on the page is the ANSWER. */}
-            <div className="w-fit">
-              <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
-                {PLANNING_TEXT.divisionPick(noun)}
+            <div className="gap-sm flex items-center">
+              <Button onClick={submit} disabled={pending}>
+                {PLANNING_TEXT.divisionSave}
               </Button>
+              {/* REMOVAL IS OFFERED ONLY WHEN IT HOLDS NOTHING, which is the
+                  foreign key's own rule (ON DELETE RESTRICT) shown rather than
+                  enforced after the fact. */}
+              {!isNew && members.length === 0 ? (
+                <Button variant="secondary" disabled={pending} onClick={remove}>
+                  {PLANNING_TEXT.divisionRemove}
+                </Button>
+              ) : null}
             </div>
-            <FieldDescription>{PLANNING_TEXT.divisionChosen(chosenList.length, noun)}</FieldDescription>
-          </Field>
-        </FormFields>
 
-        {/* 5. THE ANSWER, ACROSS THE FULL WIDTH, in the roster's own shape.
-            Tags wrap; this is the one part of the form that earns the page's
-            width. */}
-        <div className="gap-2xs flex flex-wrap items-center">
-          {chosenList.length === 0 ? (
-            <span className="text-muted-foreground text-body-sm">
-              {PLANNING_TEXT.divisionPickEmpty(noun)}
-            </span>
-          ) : (
-            chosenList.map((k) => <Tag key={k}>{labelOf.get(k) ?? k}</Tag>)
-          )}
-        </div>
+            {error ? (
+              <Banner tone="danger" title={PLANNING_TEXT.divisionSaveFailed} description={error} />
+            ) : null}
+          </div>
+        </Section>
 
-        <div className="gap-sm flex items-center">
-          <Button onClick={submit} disabled={pending}>
-            {PLANNING_TEXT.divisionSave}
-          </Button>
-          {/* REMOVAL IS OFFERED ONLY WHEN IT HOLDS NOTHING, which is the
-              foreign key's own rule (ON DELETE RESTRICT) shown rather than
-              enforced after the fact. */}
-          {!isNew && members.length === 0 ? (
-            <Button variant="secondary" disabled={pending} onClick={remove}>
-              {PLANNING_TEXT.divisionRemove}
-            </Button>
-          ) : null}
-        </div>
+        {/* RIGHT - the roster as it stands. The heading carries the frame's
+            ground and the count; the rows carry a number and a name; nothing
+            else, and no operations column (owner: 保留序号，名称，移除操作) -
+            the DS's own table primitives rather than DataTable, whose three
+            fittings are for tables somebody acts IN. */}
+        <Section
+          title={PLANNING_TEXT.divisionIncludes}
+          description={PLANNING_TEXT.divisionListMeta(includes, chosenList.length, noun)}
+        >
+          <div className="gap-md flex flex-col">
+            {chosenList.length === 0 ? (
+              <EmptyState
+                title={PLANNING_TEXT.divisionPickEmpty(noun)}
+                description={PLANNING_TEXT.divisionPickEmptyWhy(noun)}
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[4rem] text-center">#</TableHead>
+                    <TableHead>{noun}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {chosenList.map((o, i) => (
+                    <TableRow key={o.key}>
+                      <TableCell className="text-muted-foreground text-center tabular-nums">{i + 1}</TableCell>
+                      <TableCell>{o.label}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
 
-        {/* 6. WARNINGS, AT THE FOOT, AS THE DS DRAWS THEM - and absent when
-            there is nothing to say. A province about to change hands is a
-            warning about somebody else's region; a failed save is a danger
-            about this one. Neither is a line of coloured text. */}
-        {takenFrom.length > 0 ? (
-          <Banner
-            tone="warning"
-            title={PLANNING_TEXT.divisionMovedTitle(takenFrom.length, noun)}
-            description={
-              <ul className="gap-2xs flex flex-col">
-                {takenFrom.map((o) => (
-                  <li key={o.key}>{PLANNING_TEXT.divisionTakenFrom(o.label, o.heldBy!)}</li>
-                ))}
-              </ul>
-            }
-          />
-        ) : null}
-        {error ? (
-          <Banner tone="danger" title={PLANNING_TEXT.divisionSaveFailed} description={error} />
-        ) : null}
+            {takenFrom.length > 0 ? (
+              <Banner
+                tone="warning"
+                title={PLANNING_TEXT.divisionMovedTitle(takenFrom.length, noun)}
+                description={
+                  <ul className="gap-2xs flex flex-col">
+                    {takenFrom.map((o) => (
+                      <li key={o.key}>{PLANNING_TEXT.divisionTakenFrom(o.label, o.heldBy!)}</li>
+                    ))}
+                  </ul>
+                }
+              />
+            ) : null}
+          </div>
+        </Section>
       </div>
 
       <Drawer
@@ -361,6 +382,6 @@ export function DivisionForm(
           </ul>
         </div>
       </Drawer>
-    </Section>
+    </div>
   );
 }

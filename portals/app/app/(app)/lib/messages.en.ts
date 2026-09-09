@@ -2933,6 +2933,8 @@ export const en: Dictionary = {
     scopeWhy: "The frame regions are carved in: the world by country, the country by province, one province by city. Once it is set, what a region may hold follows.",
     scopeSaved: "Market scope updated",
     divisionIncludes: "Made of",
+    divisionListMeta: (includes: string, n: number, noun: string) => `${includes} · ${n} ${noun}`,
+    divisionPickEmptyWhy: (noun: string) => `Use "Choose ${noun}" on the left, or start from a standard region.`,
     divisionCodePrefixHint: "The prefix comes from the market scope; type only the rest, e.g. EAST.",
     divisionMovedTitle: (n: number, _noun: string) => `${n} will move in from other regions`,
     divisionMovedWhy: "On save they leave the regions they sit in now, and every figure grouped by region follows.",
