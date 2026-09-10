@@ -730,12 +730,15 @@ export const DEFAULT_ROLE_LINES: readonly { readonly code: string; readonly name
   { code: "account", name: "客户与商机开发" },
 ];
 export const DEFAULT_ROLE_RANKS: readonly { readonly code: string; readonly name: string }[] = [
-  { code: "staff", name: "专员 / 代表" },
-  { code: "manager", name: "经理" },
-  { code: "senior", name: "高级经理" },
-  { code: "director", name: "总监" },
-  { code: "general_manager", name: "总经理" },
+  // TOP RUNG FIRST (owner, 2026-09-10: 层级配置的顺序也要改), the way the
+  // roster reads since 0048 and the way an org chart reads. 0047 seeded the
+  // ladder bottom-up; 0050 turns it over where nobody re-ordered it.
   { code: "executive", name: "高管" },
+  { code: "general_manager", name: "总经理" },
+  { code: "director", name: "总监" },
+  { code: "senior", name: "高级经理" },
+  { code: "manager", name: "经理" },
+  { code: "staff", name: "专员" },
 ];
 /** The codes the presets use - the shipped lists', so the mirror types them. */
 export type RoleLine = "group" | "sales" | "channel" | "delivery" | "presales" | "marketing" | "ops" | "account";

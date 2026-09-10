@@ -377,7 +377,9 @@ test("the presets' names, descriptions, lines, ranks and order mirror the latest
     const la = lines.indexOf(a.line);
     const lb = lines.indexOf(b.line);
     assert.ok(la <= lb, `${a.code} before ${b.code}: line order`);
-    if (la === lb) assert.ok(ranks.indexOf(a.rank) >= ranks.indexOf(b.rank), `${a.code} before ${b.code}: rank high to low`);
+    // DEFAULT_ROLE_RANKS runs top rung first (0050), so "high to low" is
+    // ascending index.
+    if (la === lb) assert.ok(ranks.indexOf(a.rank) <= ranks.indexOf(b.rank), `${a.code} before ${b.code}: rank high to low`);
   }
 });
 
@@ -409,6 +411,19 @@ function shippedGroupRows(table: "role_line" | "role_rank"): Array<[string, stri
   for (const m of uncommented(sql).matchAll(re)) {
     const row = rows.find(([c]) => c === m[2]);
     if (row) row[1] = m[1]!;
+  }
+  /* And a later increment may re-order it in place (0050 turned the ladder
+     over): the LAST `SET sort_order = v.ord FROM (VALUES ...)` block on the
+     table gives the shipped order. */
+  const reorder = new RegExp(`UPDATE local_authz\\.${table} r SET sort_order = v\\.ord, updated_at = now\\(\\)\\s*FROM \\(VALUES([^)]*(?:\\)[^)]*)*?)\\) AS v\\(code, ord\\)`, "g");
+  const blocks = [...uncommented(sql).matchAll(reorder)];
+  const last = blocks[blocks.length - 1];
+  if (last) {
+    for (const m of last[1]!.matchAll(/\('([^']+)'\s*,\s*(\d+)\)/g)) {
+      const row = rows.find(([c]) => c === m[1]);
+      if (row) row[2] = Number(m[2]);
+    }
+    rows.sort((a, b) => a[2] - b[2]);
   }
   return rows;
 }
