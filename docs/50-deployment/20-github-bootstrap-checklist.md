@@ -51,22 +51,32 @@ literal the instantiate script wrote (`yucer`).
 
 ### Repo configuration
 
-- [ ] `PRODUCT_CODE` repo variable = `yucer`.
+- [x] `PRODUCT_CODE` repo variable = `yucer` (verified 2026-09-10, `gh variable list`).
 - [x] `APP_PUBLISH_PORT` repo variable = `4060` (the platform port registry
       assigned yucer the L3 block `4060-4069` on 2026-09-10: prod `4060`,
       beta `4061`). Rule R3 makes the code fallback, compose, Dockerfile and
       `.env.example` the same number; `5000/5001` were self-assigned before
       registration and are gone.
-- [ ] `production` GitHub Environment + Required reviewer (deploy pauses until
-      approved). No `beta` (prod only).
+- [x] `production` GitHub Environment + Required reviewer (deploy pauses until
+      approved). Verified 2026-09-10: one protection rule on `production`. No
+      `beta` (prod only) - see "No beta lane" below before cutting a `beta-*` tag.
 - [ ] Host secrets for worker02: `DEPLOY_HOST` = `vx-worker-02` (tailnet
-      MagicDNS), `DEPLOY_USER`, `DEPLOY_PORT` = `22`.
+      MagicDNS), `DEPLOY_USER`, `DEPLOY_PORT` = `22`. Verified 2026-09-10: the
+      `production` environment holds `DEPLOY_HOST` and `DEPLOY_PORT` (values not
+      readable from here); `DEPLOY_USER` is NOT there and must be added unless
+      the org shares it.
 - [ ] Domain `yucer.vxture.com` created and resolving (shared edge -> worker02
-      at the assigned port).
+      at the assigned port). 2026-09-10: resolves to `198.18.0.5` (a benchmark
+      range address, not a public edge) - confirm that is the intended tailnet
+      / edge mapping before relying on it.
 - [ ] Org-level shared credentials shared to this repo: `NODE_AUTH_TOKEN`,
       `ALIYUN_ACR_USERNAME/PASSWORD`, `TAILSCALE_OAUTH_*`; org vars
       `ALIYUN_ACR_REGISTRY/NAMESPACE`, `VXTURE_NPM_REGISTRY`,
-      `TAILSCALE_OAUTH_CLIENT_TAG`.
+      `TAILSCALE_OAUTH_CLIENT_TAG`. Not verifiable without `admin:org`; the repo
+      level holds none of them, and `build.yml` fails fast on an empty
+      `ALIYUN_ACR_REGISTRY` (`test -n`). An org admin checks with
+      `gh api orgs/vxture/actions/variables` / `.../secrets` and the
+      `selected_repositories` of each.
 - [x] `ALIYUN_ACR_NAMESPACE` REPO variable = `vx-agentstudio` (owner,
       2026-09-09). A repo variable shadows the org one of the same name, and
       this product's images live in the 阿里云容器镜像服务 namespace
@@ -85,6 +95,41 @@ literal the instantiate script wrote (`yucer`).
       secrets). The skeleton with every supported key is `.env.example`, produced
       by `node scripts/init/instantiate.mjs yucer` (regenerate with `--dry-run`).
 - [ ] SSH `vx-worker-02` once: create `/srv/md0/yucer`, confirm GHCR/ACR login.
+      2026-09-10: no `yucer-app` package exists on GHCR yet - nothing has ever
+      been built, which is consistent with no deploy having run.
+
+### Verification, 2026-09-10 (owner: 首先需要确认发布规划、目录、产品代码、主机是否符合预期)
+
+What the workflows will do on a `v*.*.*` tag, read off `deploy.yml` /
+`build.yml` / `db-init.yml` / `docker-compose.yml` rather than assumed:
+
+| Item | Value | State |
+|------|-------|-------|
+| product code | `yucer` (`PRODUCT_CODE`, fallback literal) | verified |
+| host | `vx-worker-02` via `tailnet-ssh-connect` (action present) | secret set, value unverified |
+| directory | `/srv/md0/yucer` (`stack_root` in deploy.yml) | fixed in workflow; host bootstrap unticked |
+| compose project / containers | `yucer` / `yucer-app`, `yucer-redis`, `yucer-db` | from compose |
+| image | `ghcr.io/vxture/yucer-app` primary, `<ACR>/vx-agentstudio/yucer-app` fallback | namespace verified; registry var org-level, unverified |
+| port | `4060:4060` (`APP_PUBLISH_PORT=4060`) | verified |
+| database | `vxturebiz_yucer_prod`, role `yucer_svc`, structure via `db-init.yml` only | workflow verified; never run |
+| domain | `yucer.vxture.com` | resolves to `198.18.0.5`; mapping unconfirmed |
+| trigger | `v*.*.*` -> `production`, paused on the reviewer; `beta-*` -> refused | verified |
+
+Still missing before a `v*` tag can succeed: `DEPLOY_USER`, `DEPLOY_SSH_KEY`,
+`DEPLOY_KNOWN_HOSTS`, `ENV_FILE_BASE64` on the `production` environment; the
+org-shared credentials and vars; the host directory; the domain mapping.
+
+### No beta lane
+
+`beta-*` is not a release here, whatever the template's two-tier wording says:
+`deploy.yml` triggers on `v*.*.*` only and its route step exits on any other
+tag; `db-init.yml` targets `vxturebiz_yucer_prod` only; there is no `beta`
+GitHub Environment. A `beta-20260910.1` tag was cut on 2026-09-10, ran nothing
+but `secret-scan`, and was deleted the same day. What a beta lane would need,
+if the owner wants one: a `beta` Environment (no reviewer), a `beta-*` route in
+`deploy.yml` and `db-init.yml`, a second stack root on worker02, port `4061`
+(reserved in the port registry), the `yucer-beta` OIDC client, database
+`vxturebiz_yucer_beta`, and its own `ENV_FILE_BASE64`.
 
 ### Release
 
