@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BulkActionBar,
   Button,
   ButtonGroup,
   Checkbox,
@@ -20,7 +21,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { UNPLACED_ROW_ID, branchIds, flattenOrgView, unitOptions, type OrgView, type OrgViewRow } from "../lib/member-org-view";
-import { addMemberToUnits, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
+import { addMemberToUnits, bulkPlaceMembers, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
 import { MemberViewSwitch, type MemberView } from "./member-view-switch";
 import { Tag } from "./tag";
 
@@ -42,6 +43,16 @@ import { Tag } from "./tag";
  *   5. 操作行：切换居左，右侧添加成员；成员行菜单多几项 - the switch is the
  *      toolbar's left end, 添加成员 its right; a person's row menu offers
  *      成员详情 / 成员配置 / 移动到单位 / 添加到单位 (+ 新角色) / 移出本单位.
+ *
+ * THE COLUMNS (owner, 2026-09-10): 选择｜序号｜名称｜关联区域｜数据范围｜角色｜
+ * 操作 - the first two are the DS DataTable's fittings, the last its action
+ * column. A unit's 关联区域 is the ground it works (0052); a person's is
+ * what their territory scope assigns them, and 数据范围 is that scope.
+ *
+ * THE SELECTION (owner: 多选后 = 移除原单位、移动到单位、复用到单位): the DS
+ * BulkActionBar over the selected PERSON rows - a person selected under two
+ * units is two placements. 移除 ends those placements; 移动 sends them to
+ * a unit; 复用 adds the unit and ends nothing.
  *
  * Every write goes through the members actions, which go through the
  * services' own gates; the view only asks.
@@ -67,7 +78,7 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
   readonly onOpen: (sub: string) => void;
   readonly onConfigure: (sub: string) => void;
 }) {
-  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ORG_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, MEMBER_ERROR, MEMBER_TEXT, ORG_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
   const [pending, start] = useTransition();
@@ -97,7 +108,8 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
   type Dialog =
     | { kind: "place"; unitId: string | null; mode: "add" | "remove"; unitName: string }
     | { kind: "move"; sub: string; name: string; fromUnitId: string }
-    | { kind: "addTo"; sub: string; name: string };
+    | { kind: "addTo"; sub: string; name: string }
+    | { kind: "bulk"; mode: "move" | "copy"; items: readonly { sub: string; unitId: string | null }[] };
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [tickedRoles, setTickedRoles] = useState<Set<string>>(new Set());
@@ -144,10 +156,33 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
         if (!res.ok) return fail(res.error);
         return done(MEMBER_TEXT.orgMoved(dialog.name, unitName(target)));
       }
+      if (dialog.kind === "bulk") {
+        if (!target) return;
+        const res = await bulkPlaceMembers(dialog.items, dialog.mode, target);
+        if (!res.ok) return fail(res.error);
+        setSelected([]);
+        return done(MEMBER_TEXT.orgBulkDone(dialog.items.length, unitName(target)));
+      }
       const res = await addMemberToUnits(dialog.sub, [...ticked], [...tickedRoles]);
       if (!res.ok) return fail(res.error);
       return done(MEMBER_TEXT.orgAddedTo(dialog.name, ticked.size, tickedRoles.size));
     });
+
+  /* THE SELECTION: the person rows among the selected keys. */
+  const selectedItems = useMemo(
+    () => rows.filter((r): r is Extract<OrgViewRow, { kind: "person" }> => r.kind === "person" && selected.includes(r.id)).map((r) => ({ sub: r.sub, unitId: r.unitId })),
+    [rows, selected],
+  );
+  const bulkRemove = async () => {
+    const res = await bulkPlaceMembers(selectedItems, "remove");
+    if (!res.ok) {
+      fail(res.error);
+      throw new Error(res.error);
+    }
+    toast({ tone: "success", title: MEMBER_TEXT.orgBulkRemoved(selectedItems.length) });
+    setSelected([]);
+    router.refresh();
+  };
 
   const remove = async (sub: string, name: string, unitId: string) => {
     const res = await placeMembersInUnit(unitId, [sub], "remove");
@@ -235,7 +270,35 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
           ) : null}
         </div>
       </div>
-      <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(4)]:w-[22rem]`}>
+      {canManage ? (
+        <BulkActionBar
+          count={selectedItems.length}
+          noun={MEMBER_TEXT.orgSelectionNoun}
+          selectionTemplate={DS_LABELS.bulkSelectionTemplate}
+          toolbarLabel={DS_LABELS.bulkToolbar}
+          clearLabel={MEMBER_TEXT.orgClearSelection}
+          onClear={() => setSelected([])}
+          actions={[
+            {
+              id: "remove",
+              label: MEMBER_TEXT.orgBulkRemove,
+              danger: true as const,
+              disabled: selectedItems.every((it) => it.unitId === null),
+              confirm: {
+                verb: MEMBER_TEXT.orgBulkRemove,
+                target: MEMBER_TEXT.orgBulkRemoveTarget(selectedItems.length),
+                consequence: MEMBER_TEXT.orgBulkRemoveWhy,
+                titleTemplate: MEMBER_TEXT.destructiveTitle,
+                cancelLabel: MEMBER_TEXT.cancel,
+                onConfirm: bulkRemove,
+              },
+            },
+            { id: "move", label: MEMBER_TEXT.orgBulkMove, onSelect: () => open({ kind: "bulk", mode: "move", items: selectedItems }) },
+            { id: "copy", label: MEMBER_TEXT.orgBulkCopy, onSelect: () => open({ kind: "bulk", mode: "copy", items: selectedItems }) },
+          ]}
+        />
+      ) : null}
+      <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(5)]:w-[7rem]`}>
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
@@ -274,6 +337,29 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
                   )}
                 </span>
               ),
+            },
+            {
+              /* 关联区域: the unit's ground, or the person's assigned territories. */
+              id: "territories",
+              header: MEMBER_TEXT.orgColTerritories,
+              cell: (r: OrgViewRow) => {
+                if (r.kind === "unit" && r.unplaced) return null;
+                const list = r.territories;
+                return list.length === 0 ? (
+                  <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.orgTerritoriesNone}</span>
+                ) : (
+                  <span className="gap-2xs flex flex-wrap">
+                    {list.map((t) => <Tag key={t}>{t}</Tag>)}
+                  </span>
+                );
+              },
+            },
+            {
+              /* 数据范围: the person's scope kind; nothing on a unit row. */
+              id: "scope",
+              header: MEMBER_TEXT.orgColScope,
+              cell: (r: OrgViewRow) =>
+                r.kind === "person" ? <span className="text-body-md">{MEMBER_TEXT.scopeLabels[r.scope] ?? r.scope}</span> : null,
             },
             {
               /* THE ROLES (point 4), on the person rows. */
@@ -343,6 +429,23 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
         <Field>
           <FieldLabel>{MEMBER_TEXT.orgTargetUnit}</FieldLabel>
           {dialog?.kind === "move" ? unitSelect(target, setTarget, new Set([dialog.fromUnitId])) : null}
+        </Field>
+      </DialogForm>
+
+      {/* 移动到单位 / 复用到单位 for the selection: one target for all. */}
+      <DialogForm
+        open={dialog?.kind === "bulk"}
+        onOpenChange={(o) => { if (!o) setDialog(null); }}
+        title={dialog?.kind === "bulk" ? (dialog.mode === "move" ? MEMBER_TEXT.orgBulkMoveTitle(dialog.items.length) : MEMBER_TEXT.orgBulkCopyTitle(dialog.items.length)) : ""}
+        description={dialog?.kind === "bulk" && dialog.mode === "move" ? MEMBER_TEXT.orgBulkMoveWhy : MEMBER_TEXT.orgBulkCopyWhy}
+        submitLabel={MEMBER_TEXT.orgConfirm}
+        cancelLabel={MEMBER_TEXT.cancel}
+        submitDisabled={!target || pending}
+        onSubmit={(e) => { e.preventDefault(); submit(); }}
+      >
+        <Field>
+          <FieldLabel>{MEMBER_TEXT.orgTargetUnit}</FieldLabel>
+          {dialog?.kind === "bulk" ? unitSelect(target, setTarget, new Set()) : null}
         </Field>
       </DialogForm>
 

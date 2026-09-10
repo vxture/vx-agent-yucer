@@ -196,3 +196,41 @@ export async function addMemberToUnits(sub: string, unitIds: readonly string[], 
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+/**
+ * The selection's operations on 组织管理 (owner, 2026-09-10: 多选后 = 移除原
+ * 单位、移动到单位、复用到单位). Each item is one selected ROW - a person
+ * under a unit - so the same person selected under two units is two items.
+ *   remove: the placement the row sits in ends.
+ *   move:   that placement goes to `toUnitId`.
+ *   copy:   the person also joins `toUnitId`; nothing ends.
+ * One read of the placements, one rewrite per person, one revalidate.
+ */
+export async function bulkPlaceMembers(
+  items: readonly { sub: string; unitId: string | null }[],
+  mode: "remove" | "move" | "copy",
+  toUnitId?: string,
+): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  if (mode !== "remove" && !toUnitId) return { ok: false, error: "unit_unknown" };
+  const c = { ...ctx(session), store: getPlanningStore() };
+  const placements = await listOrgMembers(c);
+  if (!placements.ok) return { ok: false, error: placements.violations[0]?.code ?? "denied" };
+  const bySub = new Map<string, Set<string>>();
+  for (const it of items) {
+    const set = bySub.get(it.sub) ?? new Set(placements.value.get(it.sub) ?? []);
+    if (mode !== "copy" && it.unitId !== null) set.delete(it.unitId);
+    if (mode !== "remove" && toUnitId) set.add(toUnitId);
+    bySub.set(it.sub, set);
+  }
+  for (const [sub, set] of bySub) {
+    const have = placements.value.get(sub) ?? [];
+    const want = [...set];
+    if (want.length === have.length && want.every((u) => have.includes(u))) continue;
+    const r = await setMemberUnits(c, { sub, unitIds: want });
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

@@ -53,7 +53,8 @@ export default async function MembersPage() {
   // sees their word.
   const roleOf = new Map((roles.ok ? roles.value : []).map((r) => [r.code, { code: r.code, name: r.name, admin: r.permissions.includes("admin.manage") }]));
   const unitName = new Map((units.ok ? units.value : []).map((u) => [u.id, u.name]));
-  const territoryName = new Map((territories.ok ? territories.value : []).map((t) => [t.id, t.name]));
+  const worked = territories.ok ? territories.value : [];
+  const territoryName = new Map(worked.map((t) => [t.id, t.name]));
   const placed = placements.ok ? placements.value : new Map<string, string[]>();
   const rows: MemberRow[] = result.value.map((m) => ({
     memberId: m.memberId,
@@ -92,7 +93,13 @@ export default async function MembersPage() {
       <MemberPanel
         rows={rows}
         canManage={canManage}
-        orgUnits={(units.ok ? units.value : []).map((u) => ({ id: u.id, name: u.name, parentId: u.parentId }))}
+        orgUnits={(units.ok ? units.value : []).map((u) => ({
+          id: u.id,
+          name: u.name,
+          parentId: u.parentId,
+          // 关联区域 (0052): the territories this unit works, by name.
+          territories: worked.filter((t) => t.unitIds.includes(u.id)).map((t) => t.name),
+        }))}
         roleOptions={[...roleOf.values()]}
       />
     </ViewLayout>

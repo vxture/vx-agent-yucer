@@ -44,11 +44,12 @@ export function MemberViewSwitch({ value, onChange, ariaLabel, labels }: {
         if (next === "list" || next === "org") onChange(next);
       }}
     >
-      <ToggleGroupItem value="list" aria-label={labels.list} title={labels.list} className={ITEM}>
-        <Icon name="list" size="lg" />
-      </ToggleGroupItem>
+      {/* 组织 first and the default (owner, 2026-09-10: 把组织模式放在前，默认模式). */}
       <ToggleGroupItem value="org" aria-label={labels.org} title={labels.org} className={ITEM}>
         <Icon name="tree-structure" size="lg" />
+      </ToggleGroupItem>
+      <ToggleGroupItem value="list" aria-label={labels.list} title={labels.list} className={ITEM}>
+        <Icon name="list" size="lg" />
       </ToggleGroupItem>
     </ToggleGroup>
   );

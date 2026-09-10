@@ -93,7 +93,8 @@ export const DOMAIN_LABEL: Record<string, string> = {
   home: "今日判断",
   queue: "待我裁决",
   // 配置管理平面的条目 (2026-09-08). 四字为准 (owner)，每个条目一件事。
-  members: "成员管理",
+  // 组织管理（owner 2026-09-10：成员管理改为组织管理，含菜单和页面）。
+  members: "组织管理",
   roles: "角色管理",
   permissions: "权限管理",
   scope: "数据范围",
@@ -1346,8 +1347,8 @@ export const ADMIN_PAGE_TEXT = {
 } as const;
 
 export const MEMBER_TEXT = {
-  title: "成员与角色",
-  description: "谁在这个工作区，各自持有哪些角色。",
+  title: "组织管理",
+  description: "谁在哪个单位，各自的关联区域、数据范围与角色。",
   columnMember: "成员",
   columnRoles: "角色",
   columnActions: "",
@@ -1410,6 +1411,24 @@ export const MEMBER_TEXT = {
   orgConfirm: "确认",
   // 人各一行（owner 2026-09-10）：成员行的操作，与工具行右侧的添加成员。
   orgColName: "名称",
+  // 列（owner 2026-09-10）：选择｜序号｜名称｜关联区域｜数据范围｜角色｜操作。
+  orgColTerritories: "关联区域",
+  orgColScope: "数据范围",
+  orgTerritoriesNone: "无区域",
+  // 多选后的表头操作行：移除原单位、移动到单位、复用到单位。
+  orgSelectionNoun: "人",
+  orgClearSelection: "取消选择",
+  orgBulkRemove: "移除原单位",
+  orgBulkRemoveTarget: (n: number) => `选中的 ${n} 人（各自所在单位）`,
+  orgBulkRemoveWhy: "只解除这些人与所选行所在单位的归属；其他单位和角色不受影响。",
+  orgBulkMove: "移动到单位",
+  orgBulkMoveTitle: (n: number) => `把选中的 ${n} 人移动到`,
+  orgBulkMoveWhy: "各自从所选行所在的单位移到目标单位；其他单位不变。",
+  orgBulkCopy: "复用到单位",
+  orgBulkCopyTitle: (n: number) => `把选中的 ${n} 人复用到`,
+  orgBulkCopyWhy: "在保留现有归属的前提下，再加入目标单位（一人多单位）。",
+  orgBulkDone: (n: number, unit: string) => `已处理 ${n} 人：${unit}。`,
+  orgBulkRemoved: (n: number) => `已把 ${n} 人移出原单位。`,
   orgExpand: (name: string) => `展开 ${name}`,
   orgCollapse: (name: string) => `收起 ${name}`,
   orgTargetUnit: "目标单位",
@@ -1908,7 +1927,7 @@ export const ADMIN_TEXT = {
     "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
   planned: "未建",
   entryHint: {
-    members: "谁在这个工作区，各自的角色、单位与可见范围",
+    members: "谁在哪个单位，各自的关联区域、数据范围与角色",
     roles: "九个角色各自能做什么",
     permissions: "二十五条权限，谁持有它",
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
