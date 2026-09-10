@@ -98,8 +98,9 @@ GRANT UPDATE (name, parent_id, owner_sub, status, updated_at)
 -- yucer_gtm.org_unit_kind / org_unit / org_unit_member are created by
 -- incr/0051 and carry their own locks there: a kind allows UPDATE on
 -- (name, sort_order, updated_at), a unit on (name, kind_id, parent_id,
--- leader_sub, sort_order, updated_at), a placement on (unit_id, updated_at) -
--- never a code. yucer_ref.org_template / org_template_unit are SELECT only.
+-- leader_sub, sort_order, updated_at) - never a code. A placement
+-- (org_unit_member) became a PAIR in incr/0053: UPDATE revoked, one person in
+-- several units. yucer_ref.org_template / org_template_unit are SELECT only.
 -- yucer_gtm.territory_unit / territory_division are created by incr/0052 as
 -- pairs: insert and delete, no UPDATE at all. `regions` above stays granted
 -- and is no longer written since 0052 - the names are derived from the link.

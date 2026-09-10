@@ -35,9 +35,9 @@ test("a unit-scoped member sees their subtree's people and ground; placed nowher
     const south = units.find((u) => u.unitCode === "south")!;
     const team = units.find((u) => u.unitCode === "south_team1")!;
     const north = units.find((u) => u.unitCode === "north")!;
-    await planning.setMemberUnit(WS, "usr_boss", south.id);
-    await planning.setMemberUnit(WS, "usr_rep", team.id);
-    await planning.setMemberUnit(WS, "usr_north", north.id);
+    await planning.setMemberUnits(WS, "usr_boss", [south.id]);
+    await planning.setMemberUnits(WS, "usr_rep", [team.id]);
+    await planning.setMemberUnits(WS, "usr_north", [north.id]);
     await planning.upsertTerritory(WS, {
       territoryCode: "SOUTH", name: "South", parentId: null, ownerSub: "usr_owner", status: "active",
       regions: [], divisionIds: ["d_south"], unitIds: [team.id],

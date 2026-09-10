@@ -117,7 +117,7 @@ export function DivisionImport(
               <label className="gap-sm flex items-start" key={t.key} htmlFor={`carve-${t.key}`}>
                 <RadioGroupItem id={`carve-${t.key}`} value={t.key} className="mt-2xs" />
                 <span className="gap-2xs flex flex-col">
-                  <span className="text-body font-semibold">{t.label}</span>
+                  <span className="text-body-md font-semibold">{t.label}</span>
                   <span className="text-muted-foreground text-body-sm">{t.names.join(" / ")}</span>
                 </span>
               </label>

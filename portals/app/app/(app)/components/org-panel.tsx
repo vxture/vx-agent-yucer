@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, ButtonGroup, DataTable, Drawer, EmptyState, Icon, Section, useToast } from "@vxture/design-ui";
+import { Button, ButtonGroup, DataTable, Drawer, EmptyState, Icon, Section, TableTitleCell, useToast } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
@@ -122,17 +122,19 @@ export function OrgPanel({
   const placedHere = details ? (unitMembers[details.id] ?? []) : [];
 
   return (
-    <Section
-      id="org"
-      action={
-        rows.length > 0 ? (
+    <Section id="org">
+      {/* A TOOLBAR ROW, as the permission tree draws its own. These two sat in
+          the Section's `action` slot and never rendered: the DS's Section
+          draws its header - and the slot with it - only when it has a title
+          (found 2026-09-10 while placing the members page's view switch). */}
+      {rows.length > 0 ? (
+        <div className="gap-sm flex items-center justify-end">
           <ButtonGroup>
             <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set())}>{ORG_TEXT.expandAll}</Button>
             <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set(branches))}>{ORG_TEXT.collapseAll}</Button>
           </ButtonGroup>
-        ) : undefined
-      }
-    >
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState title={ORG_TEXT.emptyTitle} description={ORG_TEXT.emptyWhy} />
       ) : (
@@ -209,18 +211,18 @@ export function OrgPanel({
                     ) : (
                       <span className="w-8 shrink-0" />
                     )}
-                    <button
-                      type="button"
-                      className="gap-3xs flex min-w-0 cursor-pointer flex-col text-left"
-                      aria-label={ORG_TEXT.detailsTitle(r.name)}
-                      onClick={() => setDetails(r)}
-                    >
-                      <span className="gap-xs flex items-center">
-                        <span className="text-body truncate font-medium">{r.name}</span>
-                        {r.children > 0 ? <Tag>{ORG_TEXT.childCount(r.children)}</Tag> : null}
-                      </span>
-                      <span className="text-muted-foreground text-body-sm truncate">{r.unitCode}</span>
-                    </button>
+                    {/* THE DS'S TABLE TITLE CELL, not a hand-set pair of spans
+                        (owner, 2026-09-10: 组织视图文字小了). The old spans
+                        wore `text-body` - no such tier exists, the name fell
+                        through to the table's 12px - and the DS's cell sets
+                        the table tier itself: label-md bold over body-sm. */}
+                    <TableTitleCell
+                      title={r.name}
+                      tooltip={r.name}
+                      titleSuffix={r.children > 0 ? <Tag>{ORG_TEXT.childCount(r.children)}</Tag> : undefined}
+                      description={r.unitCode}
+                      onTitleClick={() => setDetails(r)}
+                    />
                   </span>
                 ),
               },
@@ -234,7 +236,7 @@ export function OrgPanel({
                 id: "leader",
                 header: ORG_TEXT.colLeader,
                 cell: (r: OrgUnitRow) =>
-                  r.leaderName ? <span className="text-body-sm">{r.leaderName}</span> : <span className="text-muted-foreground text-body-sm">{ORG_TEXT.leaderNone}</span>,
+                  r.leaderName ? <span className="text-body-md">{r.leaderName}</span> : <span className="text-muted-foreground text-body-sm">{ORG_TEXT.leaderNone}</span>,
               },
               {
                 id: "members",
@@ -293,7 +295,7 @@ export function OrgPanel({
               <ul className="gap-xs flex flex-col">
                 {details.territories.map((t) => (
                   <li key={t.code} className="gap-xs flex items-center">
-                    <span className="text-body">{t.name}</span>
+                    <span className="text-body-md">{t.name}</span>
                     <span className="text-muted-foreground text-body-sm">{t.code}</span>
                     <span className="text-muted-foreground text-body-sm">
                       {t.regions.length > 0 ? ORG_TEXT.territoryCovers(t.regions.join(" / ")) : ORG_TEXT.territoryCoversNone}
@@ -310,7 +312,7 @@ export function OrgPanel({
               <ul className="gap-xs flex flex-col">
                 {children.map((c) => (
                   <li key={c.id} className="gap-xs flex items-center">
-                    <span className="text-body">{c.name}</span>
+                    <span className="text-body-md">{c.name}</span>
                     {c.kindName ? <Tag>{c.kindName}</Tag> : null}
                     <span className="text-muted-foreground text-body-sm">{ORG_TEXT.members(c.members)}</span>
                   </li>

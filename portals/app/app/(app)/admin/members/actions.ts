@@ -13,7 +13,7 @@ import {
 } from "../../../authz/admin";
 import { isDataScope } from "../../../authz/scope";
 import { getPlanningStore } from "../../../domains/shared/registry";
-import { setMemberUnit } from "../../../domains/planning/service";
+import { setMemberUnits } from "../../../domains/planning/service";
 
 /* 成员管理 的写入路径.
  *
@@ -24,7 +24,7 @@ import { setMemberUnit } from "../../../domains/planning/service";
  * /admin/members/[id] is where a member is configured now, and it saves
  * through this one action: the roles as a set (grants first, then
  * revocations, so swapping one administrator role for another never trips
- * the last-administrator guard), the scope, the unit.
+ * the last-administrator guard), the scope, the units.
  *
  * The administrator is the SESSION subject, never a parameter. The target
  * is a parameter, because configuring somebody else is the point.
@@ -49,7 +49,7 @@ function ctx(session: NonNullable<Awaited<ReturnType<typeof resolveAppSession>>>
 
 export async function saveMemberAction(
   sub: string,
-  input: { roles: readonly string[]; unitId: string; scope: string; territoryIds: readonly string[] },
+  input: { roles: readonly string[]; unitIds: readonly string[]; scope: string; territoryIds: readonly string[] },
 ): Promise<RoleChangeResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
@@ -82,11 +82,9 @@ export async function saveMemberAction(
   });
   if (!scoped.ok) return { ok: false, error: scoped.violations[0]?.code ?? "denied" };
 
-  // THE UNIT (0051), through the planning service and its own gate.
-  const placed = await setMemberUnit(
-    { ...c, store: getPlanningStore() },
-    { sub, unitId: input.unitId === "" ? null : input.unitId },
-  );
+  // THE UNITS (0051, several since 0053), through the planning service and
+  // its own gate.
+  const placed = await setMemberUnits({ ...c, store: getPlanningStore() }, { sub, unitIds: input.unitIds });
   if (!placed.ok) return { ok: false, error: placed.violations[0]?.code ?? "denied" };
 
   // Roles drive the nav and scope decides what every list returns, so the

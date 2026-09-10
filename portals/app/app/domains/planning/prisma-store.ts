@@ -138,21 +138,32 @@ export class PrismaPlanningStore implements PlanningStore {
     return count > 0;
   }
 
-  async listOrgMembers(workspaceId: string): Promise<Map<string, string>> {
+  async listOrgMembers(workspaceId: string): Promise<Map<string, string[]>> {
     const p = await getPrismaClient();
-    const rows = (await p.orgUnitMember.findMany({ where: { workspaceId } })) as Array<{ sub: string; unitId: string }>;
-    return new Map(rows.map((r) => [r.sub, r.unitId]));
+    // Tree order for the unit list, so a person's units read the way the
+    // tree draws them - the same order the memory adapter gives.
+    const [rows, units] = await Promise.all([
+      p.orgUnitMember.findMany({ where: { workspaceId } }) as Promise<Array<{ sub: string; unitId: string }>>,
+      this.listOrgUnits(workspaceId),
+    ]);
+    const order = new Map(units.map((u, i) => [u.id, i]));
+    const out = new Map<string, string[]>();
+    for (const r of rows) (out.get(r.sub) ?? out.set(r.sub, []).get(r.sub)!).push(r.unitId);
+    for (const list of out.values()) list.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+    return out;
   }
 
-  async setMemberUnit(workspaceId: string, sub: string, unitId: string | null): Promise<void> {
+  async setMemberUnits(workspaceId: string, sub: string, unitIds: readonly string[]): Promise<void> {
     const p = await getPrismaClient();
-    if (unitId === null) {
-      await p.orgUnitMember.deleteMany({ where: { workspaceId, sub } });
-      return;
-    }
-    const update = { unitId, updatedAt: new Date() };
-    locked(ORG_MEMBER_TABLE, update);
-    await p.orgUnitMember.upsert({ where: { workspaceId_sub: { workspaceId, sub } }, update, create: { workspaceId, sub, unitId } });
+    // A PAIR TABLE (incr/0053): the set is reconciled by delete and insert,
+    // never by an UPDATE - there is no grant for one. Pairs that stay are
+    // left alone, so updated_at still says when each placement was made.
+    const want = new Set(unitIds);
+    const have = (await p.orgUnitMember.findMany({ where: { workspaceId, sub } })) as Array<{ unitId: string }>;
+    const gone = have.filter((r) => !want.has(r.unitId)).map((r) => r.unitId);
+    const fresh = [...want].filter((id) => !have.some((r) => r.unitId === id));
+    if (gone.length > 0) await p.orgUnitMember.deleteMany({ where: { workspaceId, sub, unitId: { in: gone } } });
+    if (fresh.length > 0) await p.orgUnitMember.createMany({ data: fresh.map((unitId) => ({ workspaceId, sub, unitId })) });
   }
 
   async listOrgTemplates(): Promise<OrgTemplate[]> {

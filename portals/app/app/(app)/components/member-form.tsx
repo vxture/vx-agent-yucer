@@ -21,9 +21,9 @@ import { Tag } from "./tag";
 /* 配置成员 - THE ONE FORM a member is configured on (owner, 2026-09-10).
  *
  * THREE QUESTIONS: which roles (a set of checkboxes over the workspace's own
- * roles, 0046), which unit (0051, with 配置 beside it because the list is the
- * organisation's), and what they may see (0022 / 0052: the scope, and for
- * 本区域 the territories).
+ * roles, 0046), which units (0051, a SET since 0053 - owner: 一人在多个组织内 -
+ * with 配置 beside it because the list is the organisation's), and what they
+ * may see (0022 / 0052: the scope, and for 本区域 the territories).
  *
  * THE LAST-ADMINISTRATOR GUARD IS THE SERVICE'S. This form greys the box it
  * knows would be refused and says why; the refusal is re-decided on save.
@@ -46,7 +46,7 @@ export function MemberForm({
   held,
   lastAdmin,
   units,
-  unitId,
+  unitIds,
   scope,
   scopes,
   territories,
@@ -61,7 +61,7 @@ export function MemberForm({
   /** This member is the only active holder of an administering role. */
   readonly lastAdmin: boolean;
   readonly units: readonly { readonly id: string; readonly name: string; readonly depth: number }[];
-  readonly unitId: string | null;
+  readonly unitIds: readonly string[];
   readonly scope: string;
   readonly scopes: readonly string[];
   readonly territories: readonly { readonly id: string; readonly name: string }[];
@@ -72,7 +72,7 @@ export function MemberForm({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Set<string>>(new Set(held));
-  const [unitValue, setUnitValue] = useState(unitId ?? "");
+  const [chosenUnits, setChosenUnits] = useState<Set<string>>(new Set(unitIds));
   const [scopeValue, setScopeValue] = useState(scope);
   const [terr, setTerr] = useState<Set<string>>(new Set(territoryIds));
 
@@ -81,6 +81,13 @@ export function MemberForm({
       const next = new Set(prev);
       if (next.has(code)) next.delete(code);
       else next.add(code);
+      return next;
+    });
+  const toggleUnit = (id: string) =>
+    setChosenUnits((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   const toggleTerr = (id: string) =>
@@ -96,7 +103,7 @@ export function MemberForm({
     start(async () => {
       const r = await saveMemberAction(sub, {
         roles: [...chosen],
-        unitId: unitValue,
+        unitIds: [...chosenUnits],
         scope: scopeValue,
         territoryIds: [...terr],
       });
@@ -147,22 +154,31 @@ export function MemberForm({
             </Field>
           </FormFieldWide>
 
-          <Field>
-            <FieldLabel>{MEMBER_TEXT.unitField}</FieldLabel>
-            <div className="gap-sm flex items-center">
-              <div className="min-w-0 grow">
-                <NativeSelect value={unitValue} onChange={(e) => setUnitValue(e.target.value)} disabled={pending}>
-                  <option value="">{MEMBER_TEXT.unitNone}</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>{ORG_TEXT.optionIndent(u.depth, u.name)}</option>
-                  ))}
-                </NativeSelect>
+          <FormFieldWide>
+            <Field>
+              <div className="gap-sm flex items-center justify-between">
+                <FieldLabel>{MEMBER_TEXT.unitField}</FieldLabel>
+                <Button asChild variant="secondary" size="sm" className="shrink-0">
+                  <a href="/admin/org">{MEMBER_TEXT.unitConfigure}</a>
+                </Button>
               </div>
-              <Button asChild variant="secondary" className="shrink-0">
-                <a href="/admin/org">{MEMBER_TEXT.unitConfigure}</a>
-              </Button>
-            </div>
-          </Field>
+              {units.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">{MEMBER_TEXT.unitsNone}</p>
+              ) : (
+                /* A set, like the roles: one box per unit, indented to the
+                   tree's depth so a team reads under its region. */
+                <div className="gap-2xs md:grid-cols-3 grid grid-cols-2">
+                  {units.map((u) => (
+                    <label className="gap-2xs flex items-center" key={u.id} htmlFor={`unit-${u.id}`}>
+                      <Checkbox id={`unit-${u.id}`} checked={chosenUnits.has(u.id)} disabled={pending} onCheckedChange={() => toggleUnit(u.id)} />
+                      <span className="text-body-sm whitespace-pre">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <FieldDescription>{MEMBER_TEXT.unitsHint}</FieldDescription>
+            </Field>
+          </FormFieldWide>
 
           <Field>
             <FieldLabel>{MEMBER_TEXT.scopeField}</FieldLabel>
@@ -171,7 +187,7 @@ export function MemberForm({
                 <option key={k} value={k}>{MEMBER_TEXT.scopeLabels[k] ?? k}</option>
               ))}
             </NativeSelect>
-            {scopeValue === "unit" && unitValue === "" ? (
+            {scopeValue === "unit" && chosenUnits.size === 0 ? (
               <FieldDescription>{MEMBER_TEXT.scopeUnitUnplaced}</FieldDescription>
             ) : null}
           </Field>

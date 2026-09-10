@@ -125,7 +125,7 @@ export function NewPlanForm({
               <FieldLabel>{STRATEGY_TEXT.newPlanNo}</FieldLabel>
               {initial ? (
                 <>
-                  <p className="text-foreground mono text-body">{initial.planNo}</p>
+                  <p className="text-foreground mono text-body-md">{initial.planNo}</p>
                   <FieldDescription>{STRATEGY_TEXT.planNoFixed}</FieldDescription>
                 </>
               ) : (

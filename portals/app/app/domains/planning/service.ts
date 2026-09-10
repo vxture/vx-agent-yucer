@@ -255,7 +255,8 @@ export async function listOrgUnits(ctx: PlanningContext): Promise<RuleResult<Org
   ]);
   const kindById = new Map(kinds.map((k) => [k.id, k]));
   const count = new Map<string, number>();
-  for (const unitId of members.values()) count.set(unitId, (count.get(unitId) ?? 0) + 1);
+  // Head-count per unit: a person in two units is counted in both (0053).
+  for (const unitIds of members.values()) for (const unitId of unitIds) count.set(unitId, (count.get(unitId) ?? 0) + 1);
   const depth = new Map<string, number>();
   return ok(
     units.map((u) => {
@@ -267,7 +268,7 @@ export async function listOrgUnits(ctx: PlanningContext): Promise<RuleResult<Org
   );
 }
 
-export async function listOrgMembers(ctx: PlanningContext): Promise<RuleResult<Map<string, string>>> {
+export async function listOrgMembers(ctx: PlanningContext): Promise<RuleResult<Map<string, string[]>>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
   if (!gate.allowed) return denied(gate);
   await ensureOrgSeeded(ctx);
@@ -329,7 +330,9 @@ export async function removeOrgUnit(
   if (units.some((u) => u.parentId === id)) {
     return fail(violation("unit_has_children", "a unit with units under it cannot be removed", "id"));
   }
-  const unplaced = [...members.values()].filter((v) => v === id).length;
+  // Placements that go with the unit - a person also placed elsewhere keeps
+  // their other units and is counted here all the same (0053).
+  const unplaced = [...members.values()].filter((v) => v.includes(id)).length;
   // Territories that listed this unit lose it (0052, CASCADE) - counted first
   // so the caller can say so; a territory with no unit is an ordinary state.
   const detached = territories.filter((t) => t.unitIds.includes(id)).length;
@@ -365,16 +368,22 @@ export async function applyOrgTemplate(
   return ok({ key, units: template.units.length, unplaced: members.size, detached });
 }
 
-/** Place a member in a unit, or in none. Their unit is what the next batch's data scope reads. */
-export async function setMemberUnit(ctx: PlanningContext, input: { sub: string; unitId: string | null }): Promise<RuleResult<true>> {
+/**
+ * Place a member in exactly these units - several, one, or none (incr/0053,
+ * owner: 支持一人在多个组织内). Their units are what the unit data scope
+ * reads: the frame is the union of their subtrees.
+ */
+export async function setMemberUnits(ctx: PlanningContext, input: { sub: string; unitIds: readonly string[] }): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.member.scope", "data");
   if (!gate.allowed) return denied(gate);
   await ensureOrgSeeded(ctx);
-  if (input.unitId !== null) {
+  const unitIds = [...new Set(input.unitIds)];
+  if (unitIds.length > 0) {
     const units = await ctx.store.listOrgUnits(ctx.workspaceId);
-    if (!units.some((u) => u.id === input.unitId)) return fail(violation("unit_unknown", "no such unit", "unitId"));
+    const known = new Set(units.map((u) => u.id));
+    if (unitIds.some((id) => !known.has(id))) return fail(violation("unit_unknown", "no such unit", "unitIds"));
   }
-  await ctx.store.setMemberUnit(ctx.workspaceId, input.sub, input.unitId);
+  await ctx.store.setMemberUnits(ctx.workspaceId, input.sub, unitIds);
   return ok(true);
 }
 

@@ -118,7 +118,7 @@ export function MarketScopeControl({
               <label className="gap-sm flex items-start" key={s.kind} htmlFor={`scope-${s.kind}`}>
                 <RadioGroupItem id={`scope-${s.kind}`} value={s.kind} disabled={!s.open || pending} className="mt-2xs" />
                 <span className="gap-2xs flex flex-col">
-                  <span className="text-body font-semibold">
+                  <span className="text-body-md font-semibold">
                     {PLANNING_TEXT.scopeLabel[s.kind]}
                     {s.open ? "" : ` · ${PLANNING_TEXT.scopePlanned}`}
                   </span>

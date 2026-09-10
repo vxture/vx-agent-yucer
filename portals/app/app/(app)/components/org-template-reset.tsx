@@ -80,7 +80,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed }: {
                 <RadioGroupItem id={`org-template-${t.key}`} value={t.key} className="mt-2xs" />
                 <span className="gap-2xs flex flex-col">
                   <span className="gap-xs flex items-center">
-                    <span className="text-body font-semibold">{ORG_TEXT.templateOption(t.name, t.units)}</span>
+                    <span className="text-body-md font-semibold">{ORG_TEXT.templateOption(t.name, t.units)}</span>
                     {t.isDefault ? <Tag>{ORG_TEXT.templateDefault}</Tag> : null}
                   </span>
                   <span className="text-muted-foreground text-body-sm">{t.description}</span>

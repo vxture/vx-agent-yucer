@@ -83,10 +83,12 @@ export interface PlanningStore {
   setOrgUnitOrder(workspaceId: string, orders: readonly { id: string; sortOrder: number }[]): Promise<void>;
   /** False when the id is not here. Throws while children stand under it. */
   removeOrgUnit(workspaceId: string, unitId: string): Promise<boolean>;
-  /** sub -> unit id, for every placed member of the workspace. */
-  listOrgMembers(workspaceId: string): Promise<Map<string, string>>;
-  /** Place a member in a unit, or in none. Replaces. */
-  setMemberUnit(workspaceId: string, sub: string, unitId: string | null): Promise<void>;
+  /** sub -> the units they are placed in (incr/0053: several), in tree
+   *  order, for every placed member of the workspace. */
+  listOrgMembers(workspaceId: string): Promise<Map<string, string[]>>;
+  /** Place a member in exactly these units (none = un-place). Replaces the
+   *  set; the pairs that stay are not rewritten. */
+  setMemberUnits(workspaceId: string, sub: string, unitIds: readonly string[]): Promise<void>;
   /**
    * Take a unit out of every territory that lists it - the link's CASCADE,
    * done by hand where there is no foreign key. Returns how many
@@ -163,7 +165,8 @@ export class InMemoryPlanningStore implements PlanningStore {
   private orgKinds: OrgKindRecord[] = [];
   private orgUnits: OrgUnitRecord[] = [];
   /** `${workspaceId}|${sub}` -> unit id */
-  private orgMembers = new Map<string, string>();
+  /** (workspace|sub) -> unit ids, a set per person (incr/0053). */
+  private orgMembers = new Map<string, Set<string>>();
 
   async listOrgKinds(workspaceId: string): Promise<OrgKindRecord[]> {
     return this.orgKinds
@@ -247,22 +250,34 @@ export class InMemoryPlanningStore implements PlanningStore {
     // The links go with the unit (0052, CASCADE), as the memberships do.
     await this.detachUnitFromTerritories(workspaceId, unitId);
     // Memberships go with the unit (CASCADE).
-    for (const [k, v] of [...this.orgMembers]) if (k.startsWith(`${workspaceId}|`) && v === unitId) this.orgMembers.delete(k);
+    for (const [k, v] of [...this.orgMembers]) {
+      if (!k.startsWith(`${workspaceId}|`)) continue;
+      v.delete(unitId);
+      if (v.size === 0) this.orgMembers.delete(k);
+    }
     return true;
   }
 
-  async listOrgMembers(workspaceId: string): Promise<Map<string, string>> {
-    const out = new Map<string, string>();
-    for (const [k, v] of this.orgMembers) if (k.startsWith(`${workspaceId}|`)) out.set(k.slice(workspaceId.length + 1), v);
+  async listOrgMembers(workspaceId: string): Promise<Map<string, string[]>> {
+    // In tree order, as the Prisma adapter returns them - the roster and the
+    // org view both read the units in the order the tree draws them.
+    const order = new Map((await this.listOrgUnits(workspaceId)).map((u, i) => [u.id, i]));
+    const out = new Map<string, string[]>();
+    for (const [k, v] of this.orgMembers) {
+      if (!k.startsWith(`${workspaceId}|`)) continue;
+      out.set(k.slice(workspaceId.length + 1), [...v].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)));
+    }
     return out;
   }
 
-  async setMemberUnit(workspaceId: string, sub: string, unitId: string | null): Promise<void> {
-    if (unitId !== null && !this.orgUnits.some((u) => u.workspaceId === workspaceId && u.id === unitId)) {
-      throw new Error(`unit ${unitId} is not a unit of this workspace`);
+  async setMemberUnits(workspaceId: string, sub: string, unitIds: readonly string[]): Promise<void> {
+    for (const unitId of unitIds) {
+      if (!this.orgUnits.some((u) => u.workspaceId === workspaceId && u.id === unitId)) {
+        throw new Error(`unit ${unitId} is not a unit of this workspace`);
+      }
     }
-    if (unitId === null) this.orgMembers.delete(`${workspaceId}|${sub}`);
-    else this.orgMembers.set(`${workspaceId}|${sub}`, unitId);
+    if (unitIds.length === 0) this.orgMembers.delete(`${workspaceId}|${sub}`);
+    else this.orgMembers.set(`${workspaceId}|${sub}`, new Set(unitIds));
   }
 
   async listOrgTemplates(): Promise<OrgTemplate[]> {

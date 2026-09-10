@@ -18,6 +18,11 @@ import { Tag } from "../../components/tag";
 // menu leads to /admin/members/[id], where roles, unit and scope are set;
 // 停用 / 恢复在岗 / 转交客户 are row operations behind their confirmations.
 //
+// TWO VIEWS (owner, 2026-09-10: 提供清单视图、组织视图): the roster as a
+// table, and the same people laid out under the organisation's units -
+// names only. The panel switches; this page supplies both the rows and the
+// unit tree they are placed in (several units per person since 0053).
+//
 // Membership is LAZY: a row appears on the first sighting of (workspace, sub)
 // at login, with no roles. So this list is "everyone who has ever signed in",
 // not "everyone the platform says belongs here". INVITING IS A PLATFORM ACT -
@@ -49,14 +54,16 @@ export default async function MembersPage() {
   const roleOf = new Map((roles.ok ? roles.value : []).map((r) => [r.code, { code: r.code, name: r.name, admin: r.permissions.includes("admin.manage") }]));
   const unitName = new Map((units.ok ? units.value : []).map((u) => [u.id, u.name]));
   const territoryName = new Map((territories.ok ? territories.value : []).map((t) => [t.id, t.name]));
-  const placed = placements.ok ? placements.value : new Map<string, string>();
+  const placed = placements.ok ? placements.value : new Map<string, string[]>();
   const rows: MemberRow[] = result.value.map((m) => ({
     memberId: m.memberId,
     sub: m.sub,
     name: m.displayName ?? m.sub,
     roles: m.roles.map((code) => roleOf.get(code) ?? { code, name: code, admin: false }),
     status: m.status,
-    unit: unitName.get(placed.get(m.sub) ?? "") ?? null,
+    // Several since 0053, in tree order; a unit the tree no longer has keeps
+    // its id on the row rather than vanishing (the FK CASCADEs, so it is rare).
+    units: (placed.get(m.sub) ?? []).map((id) => ({ id, name: unitName.get(id) ?? id })),
     scope: m.scope,
     territories: m.territoryIds.map((id) => territoryName.get(id)).filter((x): x is string => Boolean(x)),
   }));
@@ -82,7 +89,11 @@ export default async function MembersPage() {
           ) : null
         }
       />
-      <MemberPanel rows={rows} canManage={canManage} />
+      <MemberPanel
+        rows={rows}
+        canManage={canManage}
+        orgUnits={(units.ok ? units.value : []).map((u) => ({ id: u.id, name: u.name, parentId: u.parentId }))}
+      />
     </ViewLayout>
   );
 }

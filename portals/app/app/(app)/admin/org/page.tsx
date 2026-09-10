@@ -72,8 +72,9 @@ export default async function OrgPage() {
   const placed = rows.reduce((n, r) => n + r.members, 0);
   // Who is in each unit, by name - what the 单位详情 drawer answers.
   const unitMembers: Record<string, string[]> = {};
-  for (const [sub, unitId] of placements.ok ? placements.value : new Map<string, string>()) {
-    (unitMembers[unitId] ??= []).push(nameOf.get(sub) ?? sub);
+  // A person in two units is listed under both (0053).
+  for (const [sub, unitIds] of placements.ok ? placements.value : new Map<string, string[]>()) {
+    for (const unitId of unitIds) (unitMembers[unitId] ??= []).push(nameOf.get(sub) ?? sub);
   }
 
   return (
