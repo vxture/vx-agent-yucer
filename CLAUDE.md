@@ -332,14 +332,20 @@ so violating them fails at runtime rather than at review:
   product's domain semantics; it must not restyle the DS. Theme and design tokens
   come from the DS - `@yucer/shared`'s `brand.ts` carries product identity only,
   never colours, spacing, or type.
-- `@vxture/design-ui` is declared at an EXACT version matching the umbrella's own
-  pin (`"6.0.4"`, no caret). It has to be declared at all because components here
-  import it directly and pnpm does not resolve phantom dependencies; it has to be
-  exact because a caret range lets the two diverge silently. Verified 2026-08-26:
-  design-system 9.0.4 pins design-ui 6.0.4 while our `^6.0.0` stayed on 6.0.0,
-  putting TWO design-ui copies in one tree - two `Button`s and two Popover /
-  Tooltip / Fullscreen React contexts, with no error. When the umbrella moves,
-  move this pin in the same commit.
+- `@vxture/design-system` and `@vxture/design-ui` are declared at the `latest`
+  dist-tag, NOT locked (owner, 2026-09-10: the DS is not to be locked; use latest).
+  The lockfile still records the exact resolved versions, so a build is
+  reproducible; moving to a newer DS is `pnpm update @vxture/design-system
+  @vxture/design-ui` (or the `ds-upgrade-probe` workflow, which has the org
+  token this machine lacks) followed by a PR. `design-ui` has to be declared at
+  all because components import it directly and pnpm resolves no phantom
+  dependencies. ONE COPY IS STILL THE RULE: the umbrella pins the design-ui it
+  was built against, and `latest` on both is the same version only while the DS
+  team publishes them together - check `pnpm-lock.yaml` for a single
+  `@vxture/design-ui@` entry after every update. Verified 2026-08-26 what two
+  copies do: two `Button`s and two Popover / Tooltip / Fullscreen React
+  contexts, with no error. First applied 2026-09-10: design-system 12.2.0 ->
+  12.3.1, which still pins design-ui 9.1.0 (its latest).
 
 ## Product vocabulary (2026-08-26)
 
