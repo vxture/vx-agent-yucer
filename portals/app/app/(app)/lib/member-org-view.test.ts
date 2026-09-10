@@ -3,17 +3,17 @@ import { test } from "node:test";
 import { UNPLACED_ROW_ID, branchIds, buildOrgView, flattenOrgView, personRowId, unitOptions } from "./member-org-view";
 
 const UNITS = [
-  { id: "hq", name: "总部", parentId: null },
-  { id: "east", name: "华东", parentId: "hq" },
-  { id: "east_t1", name: "华东一组", parentId: "east" },
-  { id: "south", name: "华南", parentId: "hq" },
+  { id: "hq", name: "总部", parentId: null, territories: [] },
+  { id: "east", name: "华东", parentId: "hq", territories: ["华东区域"] },
+  { id: "east_t1", name: "华东一组", parentId: "east", territories: [] },
+  { id: "south", name: "华南", parentId: "hq", territories: [] },
 ];
 
 test("people sit under the unit they are placed in; one person in two units appears under both", () => {
   const view = buildOrgView(UNITS, [
-    { sub: "a", name: "甲", status: "active", unitIds: ["east_t1"] },
-    { sub: "b", name: "乙", status: "active", unitIds: ["east", "south"] },
-    { sub: "c", name: "丙", status: "inactive", unitIds: [] },
+    { sub: "a", name: "甲", status: "active", unitIds: ["east_t1"], scope: "workspace", territories: [] },
+    { sub: "b", name: "乙", status: "active", unitIds: ["east", "south"], scope: "workspace", territories: [] },
+    { sub: "c", name: "丙", status: "inactive", unitIds: [], scope: "workspace", territories: [] },
   ]);
   assert.deepEqual(view.roots.map((r) => r.name), ["总部"]);
   const hq = view.roots[0]!;
@@ -28,8 +28,8 @@ test("people sit under the unit they are placed in; one person in two units appe
 
 test("a placement in a unit the tree no longer has counts as unplaced; an orphan unit is shown as a root", () => {
   const view = buildOrgView(
-    [...UNITS, { id: "lost", name: "孤儿", parentId: "gone" }],
-    [{ sub: "a", name: "甲", status: "active", unitIds: ["nope"] }],
+    [...UNITS, { id: "lost", name: "孤儿", parentId: "gone", territories: [] }],
+    [{ sub: "a", name: "甲", status: "active", unitIds: ["nope"], scope: "workspace", territories: [] }],
   );
   assert.deepEqual(view.unplaced.map((p) => p.name), ["甲"]);
   assert.deepEqual(view.roots.map((r) => r.name), ["总部", "孤儿"]);
@@ -37,9 +37,9 @@ test("a placement in a unit the tree no longer has counts as unplaced; an orphan
 
 test("flattened in tree order: under a unit its child units first, then its people as rows; a folded row hides its subtree; 未归属 last", () => {
   const view = buildOrgView(UNITS, [
-    { sub: "a", name: "甲", status: "active", unitIds: ["east_t1"] },
-    { sub: "b", name: "乙", status: "active", unitIds: ["hq"] },
-    { sub: "c", name: "丙", status: "inactive", unitIds: [] },
+    { sub: "a", name: "甲", status: "active", unitIds: ["east_t1"], scope: "workspace", territories: [] },
+    { sub: "b", name: "乙", status: "active", unitIds: ["hq"], scope: "workspace", territories: [] },
+    { sub: "c", name: "丙", status: "inactive", unitIds: [], scope: "workspace", territories: [] },
   ]);
   const open = flattenOrgView(view, new Set());
   assert.deepEqual(open.map((r) => [r.kind, r.name, r.depth]), [

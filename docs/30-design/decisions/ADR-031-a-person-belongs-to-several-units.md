@@ -42,7 +42,19 @@ the two halves are read together: a person's roles are workspace-wide, not
 per unit. A role that applies in one unit and not another is NOT this design
 and would be a new ruling.
 
-### 4. Two views of the roster
+### 4. Two views of the roster - the page is 组织管理
+
+The menu entry and the page are 组织管理 (owner, 2026-09-10: 成员管理改为组织
+管理); the route stays `/admin/members`. The organisation view is the DEFAULT
+and the first position of the switch; `?view=list` is the roster.
+
+The tree table's columns are 选择｜序号｜名称｜关联区域｜数据范围｜角色｜操作:
+a unit's 关联区域 is the ground it works (0052), a person's is what their
+territory scope assigns, 数据范围 is the person's scope kind. Selecting person
+rows raises the DS BulkActionBar with 移除原单位 / 移动到单位 / 复用到单位 -
+each selected row is one placement, so the same person under two units is
+two of them; 复用 adds a unit and ends nothing.
+
 
 `/admin/members` keeps the table (清单视图) and adds 组织视图: the SAME TREE
 TABLE 组织结构 draws - tree order, indented, a muted chevron per branch - in

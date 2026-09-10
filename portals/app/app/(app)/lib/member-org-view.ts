@@ -18,6 +18,8 @@ export interface OrgViewUnit {
   readonly id: string;
   readonly name: string;
   readonly parentId: string | null;
+  /** The territories this unit works (0052), by name. */
+  readonly territories: readonly string[];
 }
 
 export interface OrgViewPerson {
@@ -25,11 +27,16 @@ export interface OrgViewPerson {
   readonly name: string;
   readonly status: string;
   readonly unitIds: readonly string[];
+  /** Their data scope kind (0022 / 0052). */
+  readonly scope: string;
+  /** Assigned territories, by name - for the territory scope. */
+  readonly territories: readonly string[];
 }
 
 export interface OrgViewNode {
   readonly id: string;
   readonly name: string;
+  readonly territories: readonly string[];
   /** The people placed in THIS unit, in roster order. */
   readonly people: readonly OrgViewPerson[];
   readonly children: readonly OrgViewNode[];
@@ -53,12 +60,12 @@ export function buildOrgView(units: readonly OrgViewUnit[], people: readonly Org
   const build = (parentId: string | null): OrgViewNode[] =>
     units
       .filter((u) => u.parentId === parentId)
-      .map((u) => ({ id: u.id, name: u.name, people: byUnit.get(u.id) ?? [], children: build(u.id) }));
+      .map((u) => ({ id: u.id, name: u.name, territories: u.territories, people: byUnit.get(u.id) ?? [], children: build(u.id) }));
   // A unit whose parent is not in the list (should not happen: the FK) is
   // shown as a root rather than lost.
   const roots = [
     ...build(null),
-    ...units.filter((u) => u.parentId !== null && !known.has(u.parentId)).map((u) => ({ id: u.id, name: u.name, people: byUnit.get(u.id) ?? [], children: build(u.id) })),
+    ...units.filter((u) => u.parentId !== null && !known.has(u.parentId)).map((u) => ({ id: u.id, name: u.name, territories: u.territories, people: byUnit.get(u.id) ?? [], children: build(u.id) })),
   ];
   return { roots, unplaced };
 }
@@ -79,6 +86,7 @@ export type OrgViewRow =
       readonly children: number;
       /** People placed HERE. */
       readonly headcount: number;
+      readonly territories: readonly string[];
       /** The pseudo-unit listing whoever is placed nowhere. Takes nobody. */
       readonly unplaced: boolean;
     }
@@ -91,6 +99,8 @@ export type OrgViewRow =
       readonly depth: number;
       /** The unit this row sits under; null under 未归属. */
       readonly unitId: string | null;
+      readonly scope: string;
+      readonly territories: readonly string[];
     };
 
 export const UNPLACED_ROW_ID = "__unplaced__";
@@ -109,17 +119,17 @@ export function personRowId(unitId: string | null, sub: string): string {
 export function flattenOrgView(view: OrgView, collapsed: ReadonlySet<string>): OrgViewRow[] {
   const out: OrgViewRow[] = [];
   const people = (unitId: string | null, list: readonly OrgViewPerson[], depth: number) => {
-    for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, status: p.status, depth, unitId });
+    for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, status: p.status, depth, unitId, scope: p.scope, territories: p.territories });
   };
   const walk = (node: OrgViewNode, depth: number) => {
-    out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, unplaced: false });
+    out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, territories: node.territories, unplaced: false });
     if (collapsed.has(node.id)) return;
     for (const c of node.children) walk(c, depth + 1);
     people(node.id, node.people, depth + 1);
   };
   for (const r of view.roots) walk(r, 0);
   if (view.unplaced.length > 0) {
-    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", depth: 0, children: 0, headcount: view.unplaced.length, unplaced: true });
+    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", depth: 0, children: 0, headcount: view.unplaced.length, territories: [], unplaced: true });
     if (!collapsed.has(UNPLACED_ROW_ID)) people(null, view.unplaced, 1);
   }
   return out;

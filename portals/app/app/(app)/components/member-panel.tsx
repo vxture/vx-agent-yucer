@@ -95,16 +95,18 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
     const qs = next.toString();
     router.replace(qs ? `/admin/members?${qs}` : "/admin/members", { scroll: false });
   };
-  const view: MemberView = params.get("view") === "org" ? "org" : "list";
+  /* 组织 IS THE DEFAULT (owner, 2026-09-10): no `?view` means the tree;
+     `?view=list` is the roster. */
+  const view: MemberView = params.get("view") === "list" ? "list" : "org";
   const setView = (v: MemberView) => {
     const next = new URLSearchParams(params.toString());
-    if (v === "org") next.set("view", "org");
+    if (v === "list") next.set("view", "list");
     else next.delete("view");
     const qs = next.toString();
     router.replace(qs ? `/admin/members?${qs}` : "/admin/members", { scroll: false });
   };
   const orgView = useMemo(
-    () => buildOrgView(orgUnits, rows.map((r) => ({ sub: r.sub, name: r.name, status: r.status, unitIds: r.units.map((u) => u.id) }))),
+    () => buildOrgView(orgUnits, rows.map((r) => ({ sub: r.sub, name: r.name, status: r.status, unitIds: r.units.map((u) => u.id), scope: r.scope, territories: r.territories }))),
     [orgUnits, rows],
   );
   const openBySub = (sub: string) => setDetails(rows.find((r) => r.sub === sub) ?? null);
