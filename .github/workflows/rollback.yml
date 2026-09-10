@@ -41,8 +41,6 @@ env:
   # Product code source: PRODUCT_CODE repo variable, else the
   # yucer literal an instantiated product repo already replaced.
   PRODUCT_CODE: ${{ vars.PRODUCT_CODE || 'yucer' }}
-  STACK_ROOT: ${{ inputs.environment == 'beta' && format('/srv/md1/{0}', vars.PRODUCT_CODE || 'yucer') || format('/srv/md0/{0}', vars.PRODUCT_CODE || 'yucer') }}
-  PROJECT_NAME: ${{ inputs.environment == 'beta' && format('{0}-beta', vars.PRODUCT_CODE || 'yucer') || (vars.PRODUCT_CODE || 'yucer') }}
 
 jobs:
   rollback:
@@ -51,6 +49,13 @@ jobs:
     timeout-minutes: 20
     environment:
       name: ${{ inputs.environment }}
+    # INSIDE THE JOB, because an Environment's variables are only in scope for
+    # a job that declares the environment. `STACK_ROOT` / `PROJECT_NAME` come
+    # from the Environment (owner, 2026-09-10: configuration, not literals);
+    # the tier defaults apply only until they are set.
+    env:
+      STACK_ROOT: ${{ vars.STACK_ROOT || (inputs.environment == 'beta' && format('/srv/md1/{0}', vars.PRODUCT_CODE || 'yucer') || format('/srv/md0/{0}', vars.PRODUCT_CODE || 'yucer')) }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME || (inputs.environment == 'beta' && format('{0}-beta', vars.PRODUCT_CODE || 'yucer') || (vars.PRODUCT_CODE || 'yucer')) }}
     steps:
       - name: Checkout target revision
         uses: actions/checkout@v7
@@ -115,7 +120,6 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
           IMAGE_TAG: ${{ steps.sha.outputs.image_tag }}
           ALIYUN_ACR_REGISTRY: ${{ vars.ALIYUN_ACR_REGISTRY }}
           ALIYUN_ACR_NAMESPACE: ${{ vars.ALIYUN_ACR_NAMESPACE }}
@@ -126,7 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
-          deploy_dir="${DEPLOY_DIR:-${STACK_ROOT}/deploy}"
+          deploy_dir="${STACK_ROOT}/deploy"
           ssh_opts=(-i ~/.ssh/deploy_key -p "$port" -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30)
 
           cat > /tmp/rollback.sh <<'REMOTE_SCRIPT'

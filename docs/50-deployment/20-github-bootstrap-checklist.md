@@ -129,20 +129,29 @@ root; the same image serves both.
 | tag | `v*.*.*` | `beta-*` |
 | GitHub Environment | `production` (required reviewer) | `beta` (no reviewer) |
 | stack root | `/srv/md0/yucer` | `/srv/md1/yucer` (second array) |
+| where that is set | Environment variable `STACK_ROOT` on `production` | Environment variable `STACK_ROOT` on `beta` |
 | compose project / containers | `yucer` / `yucer-app`, `-redis`, `-db`, net `yucer-net` | `yucer-beta` / `yucer-beta-app`, `-redis`, `-db`, net `yucer-beta-net` |
 | published port | `4060` | `4061` (from the stack's own `etc/.env`) |
 | database | `vxturebiz_yucer_prod` | `vxturebiz_yucer_beta` |
 | OIDC client | `yucer` | `yucer-beta` |
 | db-init / rollback | `-f environment=production` | `-f environment=beta` |
 
-The route lives in `deploy.yml`'s detect job (tag -> environment, stack root,
-project name); `db-init.yml` and `rollback.yml` take `environment` as an input
-and derive the same three. `deploy/deploy.sh` reads `PROJECT_NAME` from CI
+The route lives in `deploy.yml`'s detect job (tag -> environment); WHERE a
+stack lives and what it is called are the Environment's own VARIABLES,
+`STACK_ROOT` and `PROJECT_NAME` (owner, 2026-09-10: 目录是配置，不是写死), visible
+under Settings -> Environments; the tier defaults above apply only until they
+are set. `db-init.yml` and `rollback.yml` take `environment` as an input and
+read the same variables. The deploy directory is always `<STACK_ROOT>/deploy`
+and is rsync --delete'd on every deploy - there is no `DEPLOY_DIR` override,
+because one pointed at the stack root would wipe `etc/` and `data/`. `deploy/deploy.sh` reads `PROJECT_NAME` from CI
 (default: the product code) so the two stacks never share a container name,
 and its health check now curls the port the container actually listens on
 (`4060`; it was `3000` since the template and could never have passed).
 
 - [x] `beta` GitHub Environment, no reviewer (created 2026-09-10 by API).
+- [x] Environment variables (2026-09-10): `STACK_ROOT` = `/srv/md1/yucer` and
+      `PROJECT_NAME` = `yucer-beta` on `beta`; `STACK_ROOT` = `/srv/md0/yucer` on
+      `production`. `gh variable list --env <name>` shows them.
 - [ ] Secrets on the `beta` Environment: `DEPLOY_HOST` = `vx-worker-02`,
       `DEPLOY_USER`, `DEPLOY_PORT` = `22`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`
       (same host as production - GitHub cannot share environment secrets, so

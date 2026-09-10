@@ -74,7 +74,10 @@ jobs:
           if [ -z "$environment" ]; then
             echo "deploy.yml triggered on unsupported tag: $TAG (v*.*.* or beta-*)" >&2; exit 1
           fi
-          # THE TWO STACKS: array, directory and project name follow the tier.
+          # THE TIER DEFAULTS. The Environment's own `STACK_ROOT` / `PROJECT_NAME`
+          # variables win over these in the deploy job (owner, 2026-09-10: the
+          # directory is configuration, not a literal in a workflow); these are
+          # what a product gets before it sets any.
           case "$environment" in
             production) stack_root="/srv/md0/${PRODUCT_CODE}"; project_name="${PRODUCT_CODE}" ;;
             beta)       stack_root="/srv/md1/${PRODUCT_CODE}"; project_name="${PRODUCT_CODE}-beta" ;;
@@ -157,7 +160,9 @@ jobs:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           ENV_FILE_B64: ${{ secrets.ENV_FILE_BASE64 }}
-          STACK_ROOT: ${{ needs.detect.outputs.stack_root }}
+          # WHERE THE STACK LIVES is the Environment's `STACK_ROOT` variable
+          # (visible, per tier); the tier default only until it is set.
+          STACK_ROOT: ${{ vars.STACK_ROOT || needs.detect.outputs.stack_root }}
         run: |
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
@@ -178,9 +183,8 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
-          STACK_ROOT: ${{ needs.detect.outputs.stack_root }}
-          PROJECT_NAME: ${{ needs.detect.outputs.project_name }}
+          STACK_ROOT: ${{ vars.STACK_ROOT || needs.detect.outputs.stack_root }}
+          PROJECT_NAME: ${{ vars.PROJECT_NAME || needs.detect.outputs.project_name }}
           PASSED_SHA: ${{ github.sha }}
           IMAGE_TAG: ${{ needs.call-build.outputs.image_tag }}
           ALIYUN_ACR_REGISTRY: ${{ vars.ALIYUN_ACR_REGISTRY }}
@@ -192,7 +196,10 @@ jobs:
         run: |
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
-          deploy_dir="${DEPLOY_DIR:-${STACK_ROOT}/deploy}"
+          # ALWAYS <stack root>/deploy: deploy.sh finds etc/.env and data/ one level
+          # up, and this directory is rsync --delete'd on every deploy - a stack
+          # root here would wipe them. No override.
+          deploy_dir="${STACK_ROOT}/deploy"
           image_tag="$IMAGE_TAG"
           test -n "$image_tag"
           ssh_opts=(-i ~/.ssh/deploy_key -p "$port" -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30)
