@@ -385,13 +385,13 @@ export class InMemoryPlanningStore implements PlanningStore {
       held.name = input.name;
       held.parentId = input.parentId;
       held.ownerSub = input.ownerSub;
-      held.regions = input.regions;
+      held.regions = input.regions ?? [];
       held.divisionIds = divisionIds;
       held.unitIds = unitIds;
       held.status = input.status;
       return (await this.listTerritories(workspaceId, { includeRetired: true })).find((t) => t.id === held.id)!;
     }
-    const created: TerritoryRecord = { ...input, divisionIds, unitIds, id: `terr_${++this.seq}`, workspaceId };
+    const created: TerritoryRecord = { ...input, regions: input.regions ?? [], divisionIds, unitIds, id: `terr_${++this.seq}`, workspaceId };
     this.territories.push(created);
     return (await this.listTerritories(workspaceId, { includeRetired: true })).find((t) => t.id === created.id)!;
   }

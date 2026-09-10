@@ -30,7 +30,12 @@ export interface TerritoryDraft {
    * Empty covers NOTHING, matching market_segment.criteria: a half-configured
    * territory must not become the router's answer for every lead.
    */
-  regions: readonly string[];
+  /**
+   * LEGACY NAMES (0017), optional since 0052: nothing writes them to the
+   * database any more. A draft may still carry them for the demo seed and
+   * the pre-0052 fixtures; the memory store resolves them to ids on read.
+   */
+  regions?: readonly string[];
   status: TerritoryStatus;
   /**
    * The 大区 it covers, BY ID (incr/0052). This is what is written; `regions`

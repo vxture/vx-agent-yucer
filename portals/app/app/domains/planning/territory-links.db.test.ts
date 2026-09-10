@@ -170,7 +170,7 @@ test("the Prisma adapter writes ids and reads the 大区's current name; a renam
       territoryCode: "EAST", name: "East", parentId: null, ownerSub: null, status: "active",
       regions: [], divisionIds: [east, south], unitIds: [u],
     });
-    assert.deepEqual([saved.divisionIds.sort(), saved.regions.sort(), saved.unitIds], [[east, south].sort(), ["华东", "华南"], [u]]);
+    assert.deepEqual([[...saved.divisionIds].sort(), [...saved.regions].sort(), saved.unitIds], [[east, south].sort(), ["华东", "华南"], [u]]);
     // The column is not written: it still says what it said before 0052.
     const col = await c.query(`SELECT regions FROM yucer_gtm.territory WHERE id = $1`, [saved.id]);
     assert.deepEqual(col.rows[0].regions, []);
@@ -184,7 +184,10 @@ test("the Prisma adapter writes ids and reads the 大区's current name; a renam
     });
     assert.deepEqual([again.divisionIds, again.regions, again.unitIds], [[south], ["华南"], []]);
     // And the by-hand detach the memory store mirrors.
-    await store.upsertTerritory(WS, { ...again, regions: [], divisionIds: [south], unitIds: [u] });
+    await store.upsertTerritory(WS, {
+      territoryCode: "EAST", name: "East", parentId: null, ownerSub: null, status: "active",
+      divisionIds: [south], unitIds: [u],
+    });
     assert.equal(await store.detachUnitFromTerritories(WS, u), 1);
     assert.equal(await store.detachUnitFromTerritories(WS, u), 0);
     await cleanup(c);
