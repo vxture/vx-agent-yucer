@@ -10,6 +10,8 @@ import { resolveNavigation, lockoutReason } from "./lib/navigation";
 import { boardSections, agentPanel } from "./lib/board";
 import { ADMIN_NAV_ENTRIES } from "./lib/admin-nav";
 import { can } from "../authz/decide";
+import { getAuthzStore } from "../authz/store";
+import { consoleUrl } from "./lib/console-url";
 import { AppShell } from "./components/app-shell";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
@@ -48,6 +50,11 @@ export default async function AppLayout({
   const session = await resolveAppSession();
   // Resolved on the SERVER so the first paint is already in the right language.
   const locale = await resolveLocale();
+  /* WHO THIS IS, in the workspace's own words: the member row carries the
+     display name the roster knows this person by. Read off the store -
+     identity in the header is not a data-access question. */
+  const members = session ? await getAuthzStore().listMembers(session.workspaceId) : [];
+  const member = session ? members.find((m) => m.sub === session.user.sub) ?? null : null;
   const { SHELL_TEXT } = await getMessages();
 
   // No session: the product's front door, rendered in place. Auto-redirecting
@@ -256,7 +263,10 @@ export default async function AppLayout({
         searchable={searchable}
         nav={nav}
         admin={admin}
-        userName={session.user.sub}
+        userName={member?.displayName ?? session.user.sub}
+        userSub={session.user.sub}
+        accountStatus={session.user.accountStatus}
+        consoleUrl={consoleUrl()}
         // NOT the tier. The header already states the tier in its own badge, and
         // passing it here printed "enterprise" twice - once as the place you are
         // in and once as what you pay for, which are different facts.

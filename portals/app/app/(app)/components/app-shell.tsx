@@ -130,6 +130,12 @@ export interface AppShellProps {
    * once.
    */
   readonly userName: string;
+  /** The member's sub - the identity line under the name, verbatim. */
+  readonly userSub: string;
+  /** The token's account_status; "active" reads as verified. Null when absent. */
+  readonly accountStatus: string | null;
+  /** The console's account centre; null hides the link. */
+  readonly consoleUrl: string | null;
   readonly workspaceLabel: string;
   readonly upgradeHref: string;
   /** The tier itself, not its display label - null when unsubscribed. */
@@ -174,6 +180,9 @@ export function AppShell({
   nav,
   admin,
   userName,
+  userSub,
+  accountStatus,
+  consoleUrl,
   workspaceLabel,
   upgradeHref,
   tier,
@@ -494,16 +503,64 @@ export function AppShell({
               {/* openLabel, or the trigger announces itself as "User menu" -
                   the DS's English fallback, and the one outlet the header audit
                   caught still defaulting. */}
+              {/* THE DS'S COMPLETE PANEL, as its preview page draws it (owner,
+                  2026-09-10: 按 DS 设计修正 header avatar 弹出的用户面板，有完整
+                  组件面板): the header with the name, the account-status tag and
+                  two meta lines (who the platform says you are; where you are),
+                  the ACCOUNT badges (the preview's Lv.4 / 年费 - not roles: the
+                  owner's correction, 面板不显示角色，显示的是徽章; the one
+                  account-level badge yucer holds is the subscription tier), the
+                  account centre as a link, the preferences, then the action
+                  pair 切换用户 above 退出登录, the latter the one danger row. */}
               <ShellUserMenu
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
                   displayName: userName,
-                  uniqueLine: workspaceLabel,
+                  uniqueLine: userSub,
+                  meta: `${workspaceLabel} · ${tenantId ?? HEADER_TEXT.tenantUnknown}`,
                   // The DS's own default face. The token carries no `picture`
                   // claim, and an <img> with no src is worse than a silhouette.
                   avatarSrc: "/assets/icons/avatar-default.svg",
                   avatarAlt: userName,
+                  statusTag: {
+                    label: HEADER_TEXT.accountStatus(accountStatus),
+                    verified: accountStatus === "active",
+                  },
+                  badges: tier ? [{ key: "tier", label: HEADER_TEXT.subscription(tier) }] : [],
                 }}
+                links={
+                  consoleUrl
+                    ? [{ key: "console", label: HEADER_TEXT.accountCentre, href: consoleUrl, icon: "user-circle", newTab: true }]
+                    : []
+                }
+                actions={[
+                  {
+                    key: "switch",
+                    label: HEADER_TEXT.switchUser,
+                    icon: "user-switch",
+                    // A fresh authorize round with prompt=login: the IdP asks
+                    // for credentials again, and the callback replaces this
+                    // session with whoever signs in. A top-level navigation,
+                    // as the RP contract requires of /auth/login.
+                    onClick: () => window.location.assign("/auth/login?switch=1"),
+                  },
+                  {
+                    key: "logout",
+                    label: HEADER_TEXT.logout,
+                    icon: "sign-out",
+                    danger: true,
+                    // POST /auth/logout ends the RP session and redirects to
+                    // the IdP's end-session - a navigation, so a form, not a
+                    // fetch that would swallow the redirect.
+                    onClick: () => {
+                      const form = document.createElement("form");
+                      form.method = "post";
+                      form.action = "/auth/logout";
+                      document.body.appendChild(form);
+                      form.submit();
+                    },
+                  },
+                ]}
                 /* LANGUAGE LIVES HERE, not in the header. It is set once and
                    then never again; a permanent header control for a
                    once-a-lifetime decision spends width every session to serve

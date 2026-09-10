@@ -1808,6 +1808,12 @@ export const HEADER_TEXT = {
 
   adminAria: "管理",
   userMenuOpen: "打开用户菜单",
+  // The user panel (DS complete panel, owner 2026-09-10).
+  accountStatus: (status: string | null) =>
+    status === "active" ? "账户正常" : status === null ? "状态未知" : status,
+  accountCentre: "账户中心",
+  switchUser: "切换用户",
+  logout: "退出登录",
   // The two flank toggles. Named for what the flank IS, not for the direction it
   // moves: "收起左栏" tells you the geometry, "收起战况板" tells you what you
   // stop being able to see, and only the second is a reason to keep it open.

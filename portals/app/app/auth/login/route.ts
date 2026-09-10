@@ -28,5 +28,10 @@ export async function GET(req: Request): Promise<Response> {
   authorize.searchParams.set("nonce", nonce);
   authorize.searchParams.set("code_challenge", challenge);
   authorize.searchParams.set("code_challenge_method", "S256");
+  // ?switch=1 is the header's 切换用户: OIDC core `prompt=login` makes the IdP
+  // re-authenticate even though it still holds a session, so a different
+  // person can sign in; the callback then replaces the RP session. Additive -
+  // an ordinary login sends no prompt and behaves exactly as before.
+  if (url.searchParams.get("switch") === "1") authorize.searchParams.set("prompt", "login");
   return NextResponse.redirect(authorize.toString());
 }
