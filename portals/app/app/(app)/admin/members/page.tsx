@@ -93,6 +93,7 @@ export default async function MembersPage() {
         rows={rows}
         canManage={canManage}
         orgUnits={(units.ok ? units.value : []).map((u) => ({ id: u.id, name: u.name, parentId: u.parentId }))}
+        roleOptions={[...roleOf.values()]}
       />
     </ViewLayout>
   );

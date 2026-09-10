@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { UNPLACED_ROW_ID, branchIds, buildOrgView, flattenOrgView } from "./member-org-view";
+import { UNPLACED_ROW_ID, branchIds, buildOrgView, flattenOrgView, personRowId, unitOptions } from "./member-org-view";
 
 const UNITS = [
   { id: "hq", name: "总部", parentId: null },
@@ -35,20 +35,30 @@ test("a placement in a unit the tree no longer has counts as unplaced; an orphan
   assert.deepEqual(view.roots.map((r) => r.name), ["总部", "孤儿"]);
 });
 
-test("flattened in tree order with depth; a folded branch hides its subtree; 未归属 last, only when somebody is there", () => {
+test("flattened in tree order: under a unit its child units first, then its people as rows; a folded row hides its subtree; 未归属 last", () => {
   const view = buildOrgView(UNITS, [
     { sub: "a", name: "甲", status: "active", unitIds: ["east_t1"] },
+    { sub: "b", name: "乙", status: "active", unitIds: ["hq"] },
     { sub: "c", name: "丙", status: "inactive", unitIds: [] },
   ]);
   const open = flattenOrgView(view, new Set());
-  assert.deepEqual(open.map((r) => [r.name, r.depth, r.children, r.people.length]), [
-    ["总部", 0, 2, 0], ["华东", 1, 1, 0], ["华东一组", 2, 0, 1], ["华南", 1, 0, 0], ["", 0, 0, 1],
+  assert.deepEqual(open.map((r) => [r.kind, r.name, r.depth]), [
+    ["unit", "总部", 0],
+    ["unit", "华东", 1],
+    ["unit", "华东一组", 2],
+    ["person", "甲", 3],
+    ["unit", "华南", 1],
+    ["person", "乙", 1],
+    ["unit", "", 0],
+    ["person", "丙", 1],
   ]);
-  assert.equal(open[4]!.id, UNPLACED_ROW_ID);
-  assert.equal(open[4]!.unplaced, true);
-  const folded = flattenOrgView(view, new Set(["east"]));
-  assert.deepEqual(folded.map((r) => r.name), ["总部", "华东", "华南", ""]);
-  assert.deepEqual(branchIds(view), ["hq", "east"]);
+  assert.equal(open[6]!.id, UNPLACED_ROW_ID);
+  assert.equal(open[3]!.id, personRowId("east_t1", "a"));
+  assert.equal((open[7] as { unitId: string | null }).unitId, null);
+  const folded = flattenOrgView(view, new Set(["east", UNPLACED_ROW_ID]));
+  assert.deepEqual(folded.map((r) => r.name), ["总部", "华东", "华南", "乙", ""]);
+  assert.deepEqual(branchIds(view), ["hq", "east", "east_t1", UNPLACED_ROW_ID]);
+  assert.deepEqual(unitOptions(view).map((u) => [u.name, u.depth]), [["总部", 0], ["华东", 1], ["华东一组", 2], ["华南", 1]]);
   const nobodyUnplaced = flattenOrgView(buildOrgView(UNITS, []), new Set());
-  assert.equal(nobodyUnplaced.some((r) => r.unplaced), false);
+  assert.equal(nobodyUnplaced.some((r) => r.id === UNPLACED_ROW_ID), false);
 });

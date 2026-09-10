@@ -45,17 +45,23 @@ and would be a new ruling.
 ### 4. Two views of the roster
 
 `/admin/members` keeps the table (清单视图) and adds 组织视图: the SAME TREE
-TABLE 组织结构 draws - tree order, indented, a chevron per branch - with the
-unit column carrying the NAME ONLY (no codes, kinds, leaders or scopes; those
-are the org page's) and the people placed in each unit listed on its row. A
-person in two units is listed under both. Whoever is placed nowhere is the
-last row, 未归属单位. The switch lives in the URL (`?view=org`) like the
-drawer's `?details=`.
+TABLE 组织结构 draws - tree order, indented, a muted chevron per branch - in
+which UNITS AND PEOPLE ARE BOTH ROWS (owner: 每个人是一行，与组织是同级的行).
+Under a unit its child units come first, then the people placed in it, each
+with their roles; a unit row wears one `buildings` icon (no kind
+differentiation), a person row the DS avatar. The unit column carries the
+NAME ONLY (no codes, kinds, leaders or scopes; those are the org page's). A
+person in two units is a row under both. Whoever is placed nowhere sits under
+a last row, 未归属单位. The switch is the toolbar's left end and lives in the
+URL (`?view=org`) like the drawer's `?details=`; 添加成员 is its right end.
 
-The difference from 组织结构 is the row operation (owner: 差别就是在各单位内
-可以添加成员): 添加成员 ticks active members into the unit, 移出成员 takes them
-out of it, both rewriting each person's SET of units through the same service
-verb the form uses - so adding somebody here keeps their other units.
+The difference from 组织结构 is the row operations (owner: 差别就是在各单位内
+可以添加成员): a unit row offers 添加成员 / 移出成员; a person row offers
+成员详情 / 成员配置 / 移动到单位 (this placement goes elsewhere) / 添加到单位
+(more units, and 新角色 alongside) / 移出本单位. Every one rewrites the
+person's SET of units through the same service verb the form uses - so
+adding somebody somewhere keeps their other units - and roles go through
+the roster service's own gate.
 
 The nesting is a pure function (`lib/member-org-view.ts`) with its own test;
 the component only draws.
