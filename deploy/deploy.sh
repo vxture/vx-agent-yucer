@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# On-host deployment lifecycle for the yucer production stack. Invoked
-# by CI (deploy.yml / rollback.yml) after the image build. Single-stack, prod
-# only. worker02 is a data-array box, so a full-stack pull + up -d is fine.
+# On-host deployment lifecycle for one yucer stack. Invoked by CI
+# (deploy.yml / rollback.yml) after the image build. TWO STACKS ON THE HOST
+# since 2026-09-10 - production under /srv/md0, beta under /srv/md1 - told
+# apart by PROJECT_NAME (CI passes it; <code> or <code>-beta), which prefixes
+# every container and the network. worker02 is a data-array box, so a
+# full-stack pull + up -d is fine.
 #
 #   bash deploy.sh all       # directories -> start -> verify
 #   bash deploy.sh start     # pull image (GHCR primary, ACR fallback) + up -d
@@ -13,7 +16,7 @@
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"     # /srv/md0/yucer
+ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"     # /srv/md0/yucer or /srv/md1/yucer
 ENV_FILE="$ROOT/etc/.env"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yml"
 
@@ -22,8 +25,11 @@ COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yml"
 PRODUCT_CODE="${PRODUCT_CODE:-yucer}"
 PRODUCT_CODE_SNAKE="${PRODUCT_CODE//-/_}"
 IMAGE_NAME="${PRODUCT_CODE}-app"
-PROJECT_NAME="${PRODUCT_CODE}"
-APP_PORT="3000"
+PROJECT_NAME="${PROJECT_NAME:-$PRODUCT_CODE}"
+# The port the app listens on INSIDE the container (Dockerfile: PORT=4060,
+# EXPOSE 4060). It was 3000 here since the template, which the health check
+# curled and could never have found - fixed with the beta lane, 2026-09-10.
+APP_PORT="4060"
 # Persistent data lives OUTSIDE the deploy dir (which is rsync --delete'd on every
 # deploy) - container-written data is root-owned and would otherwise break the
 # next deploy's rsync. Absolute path under the stack root.
