@@ -119,17 +119,48 @@ Still missing before a `v*` tag can succeed: `DEPLOY_USER`, `DEPLOY_SSH_KEY`,
 `DEPLOY_KNOWN_HOSTS`, `ENV_FILE_BASE64` on the `production` environment; the
 org-shared credentials and vars; the host directory; the domain mapping.
 
-### No beta lane
+### Beta lane (wired 2026-09-10; owner: 接通 beta 通道, /srv/md1 on worker02)
 
-`beta-*` is not a release here, whatever the template's two-tier wording says:
-`deploy.yml` triggers on `v*.*.*` only and its route step exits on any other
-tag; `db-init.yml` targets `vxturebiz_yucer_prod` only; there is no `beta`
-GitHub Environment. A `beta-20260910.1` tag was cut on 2026-09-10, ran nothing
-but `secret-scan`, and was deleted the same day. What a beta lane would need,
-if the owner wants one: a `beta` Environment (no reviewer), a `beta-*` route in
-`deploy.yml` and `db-init.yml`, a second stack root on worker02, port `4061`
-(reserved in the port registry), the `yucer-beta` OIDC client, database
-`vxturebiz_yucer_beta`, and its own `ENV_FILE_BASE64`.
+Two tiers on ONE host, told apart by the compose project name and the stack
+root; the same image serves both.
+
+| | production | beta |
+|---|---|---|
+| tag | `v*.*.*` | `beta-*` |
+| GitHub Environment | `production` (required reviewer) | `beta` (no reviewer) |
+| stack root | `/srv/md0/yucer` | `/srv/md1/yucer` (second array) |
+| compose project / containers | `yucer` / `yucer-app`, `-redis`, `-db`, net `yucer-net` | `yucer-beta` / `yucer-beta-app`, `-redis`, `-db`, net `yucer-beta-net` |
+| published port | `4060` | `4061` (from the stack's own `etc/.env`) |
+| database | `vxturebiz_yucer_prod` | `vxturebiz_yucer_beta` |
+| OIDC client | `yucer` | `yucer-beta` |
+| db-init / rollback | `-f environment=production` | `-f environment=beta` |
+
+The route lives in `deploy.yml`'s detect job (tag -> environment, stack root,
+project name); `db-init.yml` and `rollback.yml` take `environment` as an input
+and derive the same three. `deploy/deploy.sh` reads `PROJECT_NAME` from CI
+(default: the product code) so the two stacks never share a container name,
+and its health check now curls the port the container actually listens on
+(`4060`; it was `3000` since the template and could never have passed).
+
+- [x] `beta` GitHub Environment, no reviewer (created 2026-09-10 by API).
+- [ ] Secrets on the `beta` Environment: `DEPLOY_HOST` = `vx-worker-02`,
+      `DEPLOY_USER`, `DEPLOY_PORT` = `22`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`
+      (same host as production - GitHub cannot share environment secrets, so
+      they are entered twice), and `ENV_FILE_BASE64` for the BETA `.env`:
+      `NEXT_PUBLIC_APP_ENV=beta`, `APP_PUBLISH_PORT=4061`,
+      `POSTGRES_DB=vxturebiz_yucer_beta`, `DATABASE_URL=...@yucer-beta-db:5432/vxturebiz_yucer_beta`,
+      `OIDC_CLIENT_ID=yucer-beta`, and the beta app URL - the beta DOMAIN is
+      not decided in this repo; `.env.example` carries the prod one only.
+- [ ] Register the `yucer-beta` OIDC client on the platform (10-platform-registration-checklist).
+- [ ] SSH `vx-worker-02` once: create `/srv/md1/yucer`, confirm the array is
+      mounted there and writable by `DEPLOY_USER`.
+- [ ] First beta release: `git tag beta-YYYYMMDD.1 <sha> && git push origin beta-YYYYMMDD.1`
+      (builds, deploys, no approval), then
+      `gh workflow run db-init.yml -f environment=beta -f action=apply -f confirm=yes -f expected_sha=<sha>`
+      for the structure. Order for a fresh stack: deploy first (it creates the
+      db container the DDL runs in), db-init second, then the app reconnects.
+- [ ] Liaison: the template (`vx-agent-vxtpl`) is prod-only; carry this route
+      back to it, or the next instantiated product loses it.
 
 ### Release
 
