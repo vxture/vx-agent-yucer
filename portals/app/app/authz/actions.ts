@@ -582,6 +582,21 @@ export const ACTIONS = {
     permission: "admin.manage",
     writes: true,
   },
+  // 组织结构 (incr/0051, owner 2026-09-10). Same permission, same reasoning as
+  // the roles: whoever administers members decides what units exist and who
+  // belongs where. Reading rides admin.member.view.
+  "admin.org.upsert": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
+  "admin.org.remove": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
 } as const satisfies Record<string, ActionSpec>;
 
 export type ActionId = keyof typeof ACTIONS;

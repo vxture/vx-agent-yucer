@@ -80,7 +80,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // 预测阈值 and 账龄分档 joined 业务参数 on 2026-09-08 (incr/0041, 0042).
     // They are rule PARAMETERS rather than vocabularies, which is a difference
     // in what they hold and not in where they belong.
-    ["division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
+    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
      "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained

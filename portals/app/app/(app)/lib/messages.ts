@@ -97,7 +97,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   roles: "角色管理",
   permissions: "权限管理",
   scope: "数据范围",
-  orgUnit: "部门团队",
+  orgUnit: "组织结构",
   product: "产品配置",
   winLossReason: "赢丢原因",
   industry: "行业分类",
@@ -1384,6 +1384,9 @@ export const MEMBER_TEXT = {
   handoverPartial: (skipped: number) =>
     `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
   // 数据范围（incr/0022，owner 2026-09-01 裁定）。决定权在主管理员，不在角色。
+  // 所属单位（incr/0051）。一人一个单位；组织结构页维护单位本身。
+  columnUnit: "所属单位",
+  unitNone: "未归属",
   columnScope: "可见范围",
   scopeTerritory: "选择销售区域",
   scopeLabels: {
@@ -1401,6 +1404,8 @@ export const MEMBER_ERROR: Record<string, string> = {
   not_found: "该成员不属于当前工作区",
   permission_denied: "你没有管理成员角色的权限",
   no_data_access: "当前工作区无权访问",
+  // 所属单位（incr/0051）。
+  unit_unknown: "这个单位不存在，可能刚被删掉，刷新后重试",
 
   // 转交带来的拒绝理由。域规则会逐条拒，这些句子是它们在成员页上的读法——
   // 而不是把裸 code 丢给读的人（TD-010）。
@@ -1830,6 +1835,7 @@ export const ADMIN_TEXT = {
     pricingPolicy: "报价默认用什么币种",
     adoption: "跟进记录有没有被用起来",
     division: "全国怎么切成区域，每个区域管哪些省",
+    orgUnit: "总部、大区、团队怎么搭，谁归哪个单位",
   } as Record<string, string>,
   // What each card says about the state behind it. The cards used to print
   // their own href as body text - a URL is not something a reader wants and
@@ -2564,6 +2570,110 @@ export const ROLE_GROUP_TEXT = {
     deleteConsequence: "该层级将从角色分组中移除。有角色归在它下面就删不掉。",
   },
 } as const;
+
+/** 组织结构（incr/0051）。 */
+export const ORG_TEXT = {
+  title: "组织结构",
+  why: "公司怎么搭：总部、大区、团队，谁归哪个单位、谁负责。预置三套模版可选，之后随便改。",
+  count: (units: number, placed: number) => `${units} 个单位 · ${placed} 人已归属`,
+  noun: "单位",
+  newUnit: "新建单位",
+  kindsButton: "单位类型",
+  expandAll: "全部展开",
+  collapseAll: "全部收起",
+  childCount: (n: number) => `${n} 个下级`,
+  colUnit: "单位",
+  colKind: "类型",
+  colLeader: "负责人",
+  colMembers: "成员数",
+  kindNone: "未指定类型",
+  leaderNone: "未指定",
+  noMember: "无成员",
+  members: (n: number) => `${n} 人`,
+  /** A flat select showing a tree: the indent is the depth. */
+  optionIndent: (depth: number, name: string) => `${"　".repeat(depth)}${depth > 0 ? "└ " : ""}${name}`,
+  detailsTitle: (name: string) => `${name} · 单位详情`,
+  detailsWhy: (kind: string, leader: string) => `${kind} · 负责人 ${leader}`,
+  detailsMembers: (n: number) => `成员 · ${n} 人`,
+  detailsNoMembers: "还没有成员归属到这个单位。到成员管理里，把成员的所属单位改到这里。",
+  detailsChildren: (n: number) => `下级单位 · ${n} 个`,
+  detailsNoChildren: "没有下级单位。",
+  detailsDone: "关闭",
+  detailsEdit: "编辑单位",
+  remove: "删除单位",
+  removeTarget: (name: string) => `「${name}」`,
+  removeConsequence: (members: number) =>
+    members > 0 ? `${members} 位成员将变为未归属。不可撤销。` : "单位将被删除，不可撤销。",
+  removeChildrenHint: (n: number) => `还有 ${n} 个下级单位，先删掉它们`,
+  removeDone: (unplaced: number) => `${unplaced} 位成员已变为未归属`,
+  destructiveTitle: "{verb}{target}？",
+  cancel: "取消",
+  formTitle: "单位设置",
+  formWhy: "上级、类型、代码、名称与负责人。",
+  parentField: "上级单位",
+  parentNone: "无（顶层）",
+  parentHint: "不能选它自己或它的下级。",
+  kindField: "单位类型",
+  kindUnset: "请选择",
+  kindConfigure: "配置",
+  code: "单位代码",
+  codeHint: "小写字母、数字和下划线，字母开头，如 south_team1。创建后不可更改。",
+  codeLocked: "创建后不可更改。",
+  nameLabel: "单位名称",
+  leaderField: "负责人",
+  leaderHint: "从成员里选一位；可以先不指定。",
+  save: "保存单位",
+  discard: "放弃",
+  saveFailed: "保存失败",
+  templateReset: "重置预置",
+  templateTitle: "重置为预置模版",
+  templateWhy: "选一套预置组织模版作为起点，之后随便改。",
+  templateOption: (name: string, units: number) => `${name} · ${units} 个单位`,
+  templateDefault: "默认",
+  templateDangerTitle: "这是不可撤销的替换",
+  templateWarn: (units: number, placed: number) =>
+    units === 0
+      ? "当前没有单位，直接套用模版。"
+      : `当前 ${units} 个单位将全部删除；${placed} 位成员的所属单位将清空，需要重新归属。`,
+  templateConfirm: "确认替换",
+  templateVerb: "替换",
+  templateTarget: (name: string) => `为「${name}」`,
+  templateDone: (units: number, unplaced: number) => `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属`,
+  emptyTitle: "还没有单位",
+  emptyWhy: "新建一个，或重置预置。",
+} as const;
+
+export const ORG_KIND_TEXT = {
+  title: "单位类型",
+  why: "组织里有哪些层级的单位：总部、事业部、大区、分公司、团队。可改名、排序、新增；有单位在用的类型不能删。",
+  count: (n: number) => `${n} 种类型`,
+  noun: "类型",
+  add: "新建类型",
+  save: "保存",
+  codeLabel: "类型代码",
+  codeHint: "小写字母、数字和下划线，字母开头。创建后不可更改；已存在的代码表示改名。",
+  nameLabel: "类型名称",
+  colName: "类型",
+  colUnits: "单位数",
+  deleteConsequence: "该类型将被删除。有单位属于它就删不掉。",
+} as const;
+
+export const ORG_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "代码不能为空",
+  code_shape: "代码只能是小写字母、数字和下划线，且以字母开头",
+  name_required: "名称不能为空",
+  kind_unknown: "请选择一个单位类型；没有合适的，先在单位类型里加上",
+  parent_not_found: "上级单位不存在，可能刚被删掉，刷新后重试",
+  parent_cycle: "上级不能是它自己或它的下级",
+  unit_has_children: "还有下级单位，先删掉它们",
+  unit_unknown: "这个单位不属于当前工作区",
+  template_unknown: "找不到这套预置模版",
+  kind_in_use: "还有单位属于这个类型，先把它们改到别的类型",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个单位，可能刚被删掉，刷新后重试",
+};
 
 export const ROLE_GROUP_ERROR: Record<string, string> = {
   ...GATE_ERROR,
@@ -4676,6 +4786,7 @@ export const PERMISSION_TREE_TEXT = {
     "admin.member": "成员",
     "admin.adoption": "使用情况",
     "admin.role": "角色",
+    "admin.org": "组织结构",
   } as Record<string, string>,
   actionLabel: {
     "strategy.plan.view": "查看战略方案",
@@ -4749,6 +4860,8 @@ export const PERMISSION_TREE_TEXT = {
     "admin.member.scope": "设置数据范围",
     "admin.role.upsert": "新建或配置角色",
     "admin.role.remove": "删除角色",
+    "admin.org.upsert": "新建或配置单位",
+    "admin.org.remove": "删除单位",
   } as Record<string, string>,
   /* 简写 for the nine role columns (owner: 角色太多，可以简写); the full name
      is the header's tooltip. */

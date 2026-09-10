@@ -50,13 +50,13 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     // 组织架构 - how the company is laid out, before anyone is placed in it.
     key: "org",
     items: [
-      // 部门团队. PLANNED, and not built as a placeholder for its own sake:
-      // there is no department entity in this product, and inventing one is a
-      // table, an increment, column locks and a mirror - its own decision,
-      // not a side effect of drawing a menu (owner, 2026-09-08). What carries
-      // the reporting line today is the territory tree plus each member's
-      // data scope.
-      { key: "orgUnit", href: null, icon: "tree-structure", action: null },
+      // 组织结构 (incr/0051; owner, 2026-09-10). It was PLANNED here for two
+      // days, for the reason the comment gave: a department entity is a
+      // table, an increment, column locks and a mirror - its own decision.
+      // The owner made it: fully customisable, three shipped templates, the
+      // middle one (总部-大区-团队) default. Read behind admin.member.view -
+      // the organisation is what the member list is organised by.
+      { key: "orgUnit", href: "/admin/org", icon: "tree-structure", action: "admin.member.view" },
       { key: "division", href: "/admin/division", icon: "map-pin", action: "planning.territory.view" },
     ],
   },

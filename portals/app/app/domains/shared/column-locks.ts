@@ -100,6 +100,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
 
   // --- yucer_gtm ---
+  // incr/0051 - 组织结构. The unit's code is the anchor; everything else the
+  // tenant may change. The kind vocabulary locks its code like every other.
+  "yucer_gtm.org_unit_kind": ["name", "sort_order", "updated_at"],
+  "yucer_gtm.org_unit": ["name", "kind_id", "parent_id", "leader_sub", "sort_order", "updated_at"],
+  "yucer_gtm.org_unit_member": ["unit_id", "updated_at"],
   "yucer_gtm.strategy_plan": [
     "name",
     "period",
@@ -381,6 +386,11 @@ export const READ_ONLY_TABLES: readonly string[] = [
   "yucer_ref.market_carve",
   "yucer_ref.market_carve_division",
   "yucer_ref.market_carve_member",
+  // incr/0051. 组织模版 - the three organisations a workspace starts from
+  // (集团型大公司 / 中规模全国公司 / 小规模简单团队). The service reads; a
+  // template changes by increment, like a carve.
+  "yucer_ref.org_template",
+  "yucer_ref.org_template_unit",
 ];
 
 const APPEND_ONLY = new Set(APPEND_ONLY_TABLES);

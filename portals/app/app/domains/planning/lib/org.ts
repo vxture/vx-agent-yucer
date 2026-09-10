@@ -1,0 +1,205 @@
+import { fail, ok, violation, type RuleResult } from "../../shared/result";
+
+/* 组织结构 - the rules (incr/0051).
+ *
+ * THE RULING (owner, 2026-09-10): 组织结构是完全可以自定义的；提供平台预置模版，
+ * 多套模版作基准；模版覆盖集团型大公司、中规模全国组织、小规模简单团队，默认中
+ * 规模全国公司，总部-大区-团队三级架构。
+ *
+ * WHAT IT IS FOR. The product had three axes and no fourth: a role says what
+ * a person may DO, a territory says which GROUND a team works, a 大区 says
+ * how the market is CUT - and nothing said which UNIT a person belongs to
+ * or who leads it. 数据范围 was hand-picked territory ids per member; there
+ * was no reporting line for approvals or hand-overs; 成员管理 could not
+ * answer "who is in 华南分公司". This is the fourth axis.
+ *
+ * NOT A SECOND TREE. 销售区域 already has a parent, an owner and a number - it
+ * is "a team working that ground". The organisation is the organisation;
+ * a territory is what a unit works, and the link between them is the next
+ * batch (按组织 data scope). Nothing here duplicates the territory tree.
+ *
+ * THE SHAPE, like every configuration here: a unit has a code (the anchor),
+ * a name, a KIND from a vocabulary the workspace owns (总部 / 事业部 / 大区 /
+ * 分公司 / 团队 shipped; a 中心 is one row away), a parent, a leader (one of
+ * the members) and an order among its siblings. A member belongs to ONE
+ * unit. Templates are reference rows the workspace is materialised from on
+ * first contact and can reset to.
+ */
+
+export interface OrgUnitDraft {
+  unitCode: string;
+  name: string;
+  parentId: string | null;
+  /** A row of the workspace's 单位类型 vocabulary, by id. */
+  kindId: string;
+  /** The member who leads it, by sub; null while nobody does. */
+  leaderSub: string | null;
+}
+
+/** What the rule needs to know about the units already on file. */
+export interface KnownOrgUnit {
+  readonly id: string;
+  readonly unitCode: string;
+  readonly parentId: string | null;
+}
+
+/** A unit's code: chk_org_unit_code (0051) - the shape every anchor here has. */
+export const ORG_UNIT_CODE_SHAPE = /^[a-z][a-z0-9_]{0,63}$/;
+/** A kind's code: chk_org_unit_kind_code (0051), 32 characters. */
+export const ORG_KIND_CODE_SHAPE = /^[a-z][a-z0-9_]{0,31}$/;
+
+/**
+ * Validate a unit before it is written.
+ *
+ * UPSERT BY CODE, like a territory: the code is immutable in the DDL and
+ * absent from the writable columns, so an existing code is edited and a new
+ * one created. The parent has to exist, and may not be the unit itself or
+ * anything under it - a cycle is legal to the foreign key and nonsense to
+ * every reader of the tree.
+ */
+export function planOrgUnit(
+  input: OrgUnitDraft,
+  existing: readonly KnownOrgUnit[],
+  kindIds: ReadonlySet<string>,
+): RuleResult<OrgUnitDraft> {
+  const unitCode = input.unitCode.trim();
+  const name = input.name.trim();
+  if (!unitCode) return fail(violation("code_required", "a unit needs a code", "unitCode"));
+  if (!ORG_UNIT_CODE_SHAPE.test(unitCode)) {
+    return fail(violation("code_shape", `${unitCode}: a unit code is lower-case letters, digits and underscores`, "unitCode"));
+  }
+  if (!name) return fail(violation("name_required", "a unit needs a name", "name"));
+  if (!kindIds.has(input.kindId)) {
+    return fail(violation("kind_unknown", `${input.kindId} is not a unit kind of this workspace`, "kindId"));
+  }
+  const self = existing.find((u) => u.unitCode === unitCode) ?? null;
+  if (input.parentId !== null) {
+    const parent = existing.find((u) => u.id === input.parentId);
+    if (!parent) return fail(violation("parent_not_found", "the parent unit does not exist", "parentId"));
+    if (self && (parent.id === self.id || reaches(existing, parent.id, self.id))) {
+      return fail(violation("parent_cycle", "a unit cannot sit under itself, directly or through a chain", "parentId"));
+    }
+  }
+  return ok({ ...input, unitCode, name, leaderSub: input.leaderSub?.trim() || null });
+}
+
+/** Whether following parent links from `fromId` ever arrives at `targetId`. */
+export function reaches(all: readonly KnownOrgUnit[], fromId: string, targetId: string): boolean {
+  const byId = new Map(all.map((u) => [u.id, u]));
+  const seen = new Set<string>();
+  let cursor: string | null = fromId;
+  while (cursor !== null && !seen.has(cursor)) {
+    if (cursor === targetId) return true;
+    seen.add(cursor);
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
+  return false;
+}
+
+/** The ids of `id` and everything under it, in tree order. */
+export function subtreeIds(all: readonly KnownOrgUnit[], id: string): string[] {
+  const out: string[] = [];
+  const walk = (parent: string) => {
+    out.push(parent);
+    for (const u of all) if (u.parentId === parent) walk(u.id);
+  };
+  walk(id);
+  return out;
+}
+
+/**
+ * The shipped 单位类型 - what a workspace's vocabulary starts from. Mirrored
+ * from incr/0051; org.test.ts holds the two in lockstep.
+ */
+export const DEFAULT_ORG_KINDS: readonly { readonly code: string; readonly name: string }[] = [
+  { code: "headquarters", name: "总部" },
+  { code: "division", name: "事业部" },
+  { code: "region", name: "大区" },
+  { code: "branch", name: "分公司" },
+  { code: "team", name: "团队" },
+];
+
+export interface OrgTemplateUnit {
+  readonly code: string;
+  readonly parent: string | null;
+  readonly kind: string;
+  readonly name: string;
+}
+
+export interface OrgTemplate {
+  readonly key: string;
+  readonly name: string;
+  readonly description: string;
+  readonly isDefault: boolean;
+  /** In tree order: a parent always precedes its children. */
+  readonly units: readonly OrgTemplateUnit[];
+}
+
+/**
+ * The three shipped templates, mirrored from incr/0051 (yucer_ref.org_template
+ * / org_template_unit) the way the presets mirror their seed: the memory
+ * store offers these; the Prisma store reads the table; org.test.ts holds
+ * them equal. 中规模全国公司 is the default - 总部 → 大区 → 团队, the seven
+ * regions the 七分法 carve names.
+ */
+export const ORG_TEMPLATES: readonly OrgTemplate[] = [
+  {
+    key: "group_large", name: "集团型大公司", description: "集团总部 → 事业部 → 大区 → 分公司 → 团队，五级；两个事业部各带三个大区作骨架，改名即用。", isDefault: false,
+    units: [
+      { code: "hq", parent: null, kind: "headquarters", name: "集团总部" },
+      { code: "bu1", parent: "hq", kind: "division", name: "事业部一" },
+      { code: "bu1_north", parent: "bu1", kind: "region", name: "华北大区" },
+      { code: "bu1_north_branch", parent: "bu1_north", kind: "branch", name: "华北分公司" },
+      { code: "bu1_north_team1", parent: "bu1_north_branch", kind: "team", name: "销售一部" },
+      { code: "bu1_east", parent: "bu1", kind: "region", name: "华东大区" },
+      { code: "bu1_east_branch", parent: "bu1_east", kind: "branch", name: "华东分公司" },
+      { code: "bu1_east_team1", parent: "bu1_east_branch", kind: "team", name: "销售一部" },
+      { code: "bu1_south", parent: "bu1", kind: "region", name: "华南大区" },
+      { code: "bu1_south_branch", parent: "bu1_south", kind: "branch", name: "华南分公司" },
+      { code: "bu1_south_team1", parent: "bu1_south_branch", kind: "team", name: "销售一部" },
+      { code: "bu2", parent: "hq", kind: "division", name: "事业部二" },
+      { code: "bu2_north", parent: "bu2", kind: "region", name: "华北大区" },
+      { code: "bu2_north_branch", parent: "bu2_north", kind: "branch", name: "华北分公司" },
+      { code: "bu2_north_team1", parent: "bu2_north_branch", kind: "team", name: "销售一部" },
+      { code: "bu2_east", parent: "bu2", kind: "region", name: "华东大区" },
+      { code: "bu2_east_branch", parent: "bu2_east", kind: "branch", name: "华东分公司" },
+      { code: "bu2_east_team1", parent: "bu2_east_branch", kind: "team", name: "销售一部" },
+      { code: "bu2_south", parent: "bu2", kind: "region", name: "华南大区" },
+      { code: "bu2_south_branch", parent: "bu2_south", kind: "branch", name: "华南分公司" },
+      { code: "bu2_south_team1", parent: "bu2_south_branch", kind: "team", name: "销售一部" },
+    ],
+  },
+  {
+    key: "national_medium", name: "中规模全国公司", description: "总部 → 大区 → 团队，三级；七个大区与七分法一致，每区一个销售团队。默认方案。", isDefault: true,
+    units: [
+      { code: "hq", parent: null, kind: "headquarters", name: "总部" },
+      { code: "north", parent: "hq", kind: "region", name: "华北大区" },
+      { code: "north_team1", parent: "north", kind: "team", name: "销售一部" },
+      { code: "northeast", parent: "hq", kind: "region", name: "东北大区" },
+      { code: "northeast_team1", parent: "northeast", kind: "team", name: "销售一部" },
+      { code: "east", parent: "hq", kind: "region", name: "华东大区" },
+      { code: "east_team1", parent: "east", kind: "team", name: "销售一部" },
+      { code: "central", parent: "hq", kind: "region", name: "华中大区" },
+      { code: "central_team1", parent: "central", kind: "team", name: "销售一部" },
+      { code: "south", parent: "hq", kind: "region", name: "华南大区" },
+      { code: "south_team1", parent: "south", kind: "team", name: "销售一部" },
+      { code: "southwest", parent: "hq", kind: "region", name: "西南大区" },
+      { code: "southwest_team1", parent: "southwest", kind: "team", name: "销售一部" },
+      { code: "northwest", parent: "hq", kind: "region", name: "西北大区" },
+      { code: "northwest_team1", parent: "northwest", kind: "team", name: "销售一部" },
+    ],
+  },
+  {
+    key: "small_team", name: "小规模简单团队", description: "总部下直接是销售、售前、交付三个团队，两级。", isDefault: false,
+    units: [
+      { code: "hq", parent: null, kind: "headquarters", name: "总部" },
+      { code: "sales", parent: "hq", kind: "team", name: "销售团队" },
+      { code: "presales", parent: "hq", kind: "team", name: "售前团队" },
+      { code: "delivery", parent: "hq", kind: "team", name: "交付团队" },
+    ],
+  },
+];
+
+export function defaultOrgTemplate(templates: readonly OrgTemplate[] = ORG_TEMPLATES): OrgTemplate {
+  return templates.find((t) => t.isDefault) ?? templates[0]!;
+}

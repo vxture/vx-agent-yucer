@@ -16,7 +16,7 @@
 | `contact` | 联系人（含决策角色、影响力） | - |
 | `account_relation` | 关系图谱有向边（只追加） | - |
 
-### yucer_gtm（6）
+### yucer_gtm（9）
 
 | 表 | 说明 | 业务号 |
 |----|------|-------|
@@ -26,6 +26,12 @@
 | `sales_target` | 目标/配额 | - |
 | `campaign` | 市场战役 | `campaign_no` |
 | `campaign_execution` | 战役执行项 | - |
+| `org_unit_kind` | 单位类型词表，工作区自有（`incr/0051`，ADR-029） | `kind_code` |
+| `org_unit` | 组织单位（自引用树；上级 RESTRICT，负责人为成员 sub） | `unit_code` |
+| `org_unit_member` | 成员归属：一人一个单位，随单位 CASCADE | - |
+
+`yucer_ref.org_template` / `org_template_unit`（`incr/0051`）为三套预置组织模版，
+只读参考行；工作区首次接触时按默认模版物化，重置预置可整体替换。
 
 ### yucer_pipeline（6）
 

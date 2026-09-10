@@ -13,7 +13,8 @@ import {
   setMemberActive,
   setMemberInactive,
 } from "./actions";
-import { listTerritories } from "../../../domains/planning/service";
+import { listOrgMembers, listOrgUnits, listTerritories } from "../../../domains/planning/service";
+import { setMemberUnitAction } from "../org/actions";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { consoleMembersUrl } from "../../lib/console-url";
 import { handOverBook } from "./handover";
@@ -61,6 +62,17 @@ export default async function MembersPage() {
     entitlement: session.entitlement,
     store: getPlanningStore(),
   });
+
+  // The organisation (0051): the units the 所属单位 column offers, in tree
+  // order, and where everybody stands today.
+  const planningCtx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: getPlanningStore(),
+  };
+  const [units, placements] = await Promise.all([listOrgUnits(planningCtx), listOrgMembers(planningCtx)]);
 
   // The roles the menu offers are the WORKSPACE'S (0046), in its order.
   const roles = await listRoles({
@@ -110,6 +122,9 @@ export default async function MembersPage() {
             ? territories.value.map((t) => ({ id: t.id, name: t.name }))
             : []
         }
+        units={units.ok ? units.value.map((u) => ({ id: u.id, name: u.name, depth: u.depth })) : []}
+        unitOf={placements.ok ? Object.fromEntries(placements.value) : {}}
+        onUnit={setMemberUnitAction}
         inviteUrl={consoleMembersUrl()}
         // Viewing and changing are separate actions on purpose: the list is
         // useful to anyone who can see it, and only an administrator gets the

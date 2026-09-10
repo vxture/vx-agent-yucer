@@ -50,6 +50,7 @@ themselves in their own header comment.
 | `0048_preset_role_order.sql` | 预置角色排序固化: preset `sort_order` runs business line first (the shipped 业务线 order), then rank from the top rung down inside each line; workspace copies that never re-ordered follow. |
 | `0049_preset_lines_v2.sql` | 管理 line (was 集团与通用), seven more presets (a 负责人 per line; 销售总监 / 分公司总经理 / 大区销售总监 cut from the sales ladder), five renames, the owner's order; 24 -> 31 presets, 397 grants. Workspace copies follow only where still at the shipped value. |
 | `0050_rank_order.sql` | The 层级 vocabulary reads top rung first (高管 ... 专员) like the roster since 0048, and 专员 / 代表 reads 专员; workspace rows follow only where never re-ordered. |
+| `0051_org_structure.sql` | 组织结构 (ADR-029): `yucer_ref.org_template` / `org_template_unit` hold the three shipped templates (集团型大公司 21 units, 中规模全国公司 15 - default, 小规模简单团队 4); `yucer_gtm.org_unit_kind` (单位类型, a workspace vocabulary), `org_unit` (the tree: locked code, kind, parent RESTRICT, leader, sibling order) and `org_unit_member` (one unit per member, CASCADE). Workspaces with members receive the kinds and the default tree, guarded on empty. |
 
 Note that `0001` carries DATA, not structure. It ships here rather than in
 `00_baseline.sql` because `local_authz.role` / `local_authz.permission` are

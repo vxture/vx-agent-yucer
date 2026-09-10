@@ -31,3 +31,5 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-025 | [里程碑是收款关口，不是工作包](ADR-025-a-milestone-is-a-payment-gate.md) | accepted | 2026-09-06 |
 | ADR-026 | [什么该是表，什么该是常量](ADR-026-what-is-a-table-and-what-is-a-constant.md) | accepted | 2026-09-08 |
 | ADR-027 | [行政区划是一张表，从大洲到区县](ADR-027-the-administrative-tree-is-a-table.md) | accepted | 2026-09-08 |
+| ADR-028 | [角色属于工作区，九个预置角色是起点](ADR-028-a-role-belongs-to-the-workspace.md) | accepted | 2026-09-09 |
+| ADR-029 | [组织结构是第四个轴，完全自定义，预置模版作基准](ADR-029-the-organisation-is-the-fourth-axis.md) | accepted | 2026-09-10 |
