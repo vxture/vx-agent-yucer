@@ -13,7 +13,7 @@ import {
 } from "../../../authz/admin";
 import { isDataScope } from "../../../authz/scope";
 import { getPlanningStore } from "../../../domains/shared/registry";
-import { setMemberUnits } from "../../../domains/planning/service";
+import { listOrgMembers, setMemberUnits } from "../../../domains/planning/service";
 
 /* 成员管理 的写入路径.
  *
@@ -119,6 +119,35 @@ export async function setMemberActive(sub: string): Promise<RoleChangeResult> {
   const result = await reactivateMember(ctx(session), sub);
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
 
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * 组织视图's row operation (owner, 2026-09-10: 在各单位内可以添加成员): put
+ * these members INTO a unit, or take them OUT of it. Each person's set of
+ * units is read and rewritten through the same service verb the form uses,
+ * so the gate (admin.member.scope) and the unit check are the service's.
+ * A person already in the unit, or already out of it, is left alone.
+ */
+export async function placeMembersInUnit(
+  unitId: string,
+  subs: readonly string[],
+  mode: "add" | "remove",
+): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const c = { ...ctx(session), store: getPlanningStore() };
+  const placements = await listOrgMembers(c);
+  if (!placements.ok) return { ok: false, error: placements.violations[0]?.code ?? "denied" };
+  for (const sub of new Set(subs)) {
+    const have = placements.value.get(sub) ?? [];
+    const want = mode === "add" ? (have.includes(unitId) ? have : [...have, unitId]) : have.filter((u) => u !== unitId);
+    if (want.length === have.length) continue;
+    const r = await setMemberUnits(c, { sub, unitIds: want });
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+  // Placement decides what the unit scope returns, so the whole shell.
   revalidatePath("/", "layout");
   return { ok: true };
 }

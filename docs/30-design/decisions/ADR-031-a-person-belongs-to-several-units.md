@@ -44,13 +44,18 @@ and would be a new ruling.
 
 ### 4. Two views of the roster
 
-`/admin/members` keeps the table (清单视图) and adds 组织视图: the units laid
-out as the tree draws them - the root across the page, its children side by
-side, everything deeper stacked inside its parent - with the people placed in
-each unit listed under it BY NAME ONLY. No codes, kinds, leaders or scopes
-there; those are the roster's and the org page's. A person in two units is
-listed under both. Whoever is placed nowhere is listed apart as 未归属单位.
-The switch lives in the URL (`?view=org`) like the drawer's `?details=`.
+`/admin/members` keeps the table (清单视图) and adds 组织视图: the SAME TREE
+TABLE 组织结构 draws - tree order, indented, a chevron per branch - with the
+unit column carrying the NAME ONLY (no codes, kinds, leaders or scopes; those
+are the org page's) and the people placed in each unit listed on its row. A
+person in two units is listed under both. Whoever is placed nowhere is the
+last row, 未归属单位. The switch lives in the URL (`?view=org`) like the
+drawer's `?details=`.
+
+The difference from 组织结构 is the row operation (owner: 差别就是在各单位内
+可以添加成员): 添加成员 ticks active members into the unit, 移出成员 takes them
+out of it, both rewriting each person's SET of units through the same service
+verb the form uses - so adding somebody here keeps their other units.
 
 The nesting is a pure function (`lib/member-org-view.ts`) with its own test;
 the component only draws.
@@ -71,6 +76,7 @@ oversight, and the minimum the scale allows.
 - No role-per-unit. See 3.
 - No head-count roll-up in the org view: a unit's tag counts the people placed
   THERE. The subtree total is a different fact and nobody has asked for it.
-- No drag-and-drop between units in the org view. Placement is set on the
-  member's form, as every other member fact is (the 2026-09-10 display/form
-  split).
+- No drag-and-drop between units in the org view. A placement is added or
+  removed through a confirmed dialog on the unit's row, or on the member's
+  form - two doors to one fact, never a gesture that files somebody by
+  accident.
