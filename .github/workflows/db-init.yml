@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Which stack: production (/srv/md0) or beta (/srv/md1)"
+        description: "Which stack - each Environment carries its own STACK_ROOT / PROJECT_NAME"
         required: true
         type: choice
         default: production
@@ -69,12 +69,12 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     # INSIDE THE JOB, because an Environment's variables are only in scope for
-    # a job that declares the environment. `STACK_ROOT` / `PROJECT_NAME` come
-    # from the Environment (owner, 2026-09-10: configuration, not literals);
-    # the tier defaults apply only until they are set.
+    # a job that declares the environment. `STACK_ROOT` / `PROJECT_NAME` are
+    # the Environment's (owner, 2026-09-10: configuration, not literals) and
+    # are REQUIRED - the first step refuses to run without them.
     env:
-      STACK_ROOT: ${{ vars.STACK_ROOT || (inputs.environment == 'beta' && format('/srv/md1/{0}', vars.PRODUCT_CODE || 'yucer') || format('/srv/md0/{0}', vars.PRODUCT_CODE || 'yucer')) }}
-      PROJECT_NAME: ${{ vars.PROJECT_NAME || (inputs.environment == 'beta' && format('{0}-beta', vars.PRODUCT_CODE || 'yucer') || (vars.PRODUCT_CODE || 'yucer')) }}
+      STACK_ROOT: ${{ vars.STACK_ROOT }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME }}
       DB_ENV: ${{ inputs.environment == 'beta' && 'beta' || 'prod' }}
     steps:
       - name: Gate on confirm + expected_sha
@@ -95,6 +95,14 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
+      - name: Require the Environment's variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          for v in STACK_ROOT PROJECT_NAME; do
+            [ -n "${!v:-}" ] || { echo "$v is not set on the '${{ inputs.environment }}' Environment" >&2; exit 1; }
+          done
+          case "$STACK_ROOT" in /*) ;; *) echo "STACK_ROOT must be absolute: $STACK_ROOT" >&2; exit 1 ;; esac
 
       - name: Validate secrets
         shell: bash

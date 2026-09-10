@@ -54,8 +54,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       environment: ${{ steps.route.outputs.environment }}
-      stack_root: ${{ steps.route.outputs.stack_root }}
-      project_name: ${{ steps.route.outputs.project_name }}
     steps:
       - name: Route tag to GitHub Environment
         id: route
@@ -74,20 +72,8 @@ jobs:
           if [ -z "$environment" ]; then
             echo "deploy.yml triggered on unsupported tag: $TAG (v*.*.* or beta-*)" >&2; exit 1
           fi
-          # THE TIER DEFAULTS. The Environment's own `STACK_ROOT` / `PROJECT_NAME`
-          # variables win over these in the deploy job (owner, 2026-09-10: the
-          # directory is configuration, not a literal in a workflow); these are
-          # what a product gets before it sets any.
-          case "$environment" in
-            production) stack_root="/srv/md0/${PRODUCT_CODE}"; project_name="${PRODUCT_CODE}" ;;
-            beta)       stack_root="/srv/md1/${PRODUCT_CODE}"; project_name="${PRODUCT_CODE}-beta" ;;
-          esac
-          {
-            echo "environment=$environment"
-            echo "stack_root=$stack_root"
-            echo "project_name=$project_name"
-          } >> "$GITHUB_OUTPUT"
-          echo "route: tag=$TAG -> environment=$environment stack_root=$stack_root project=$project_name"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+          echo "route: tag=$TAG -> environment=$environment"
 
   call-build:
     name: docker-build
@@ -121,7 +107,11 @@ jobs:
         with:
           ref: ${{ github.sha }}
 
-      - name: Validate deployment secrets
+      - name: Validate deployment secrets and variables
+        # EVERY VALUE COMES FROM A GITHUB LAYER (owner, 2026-09-10: 提供了你不用
+        # 就是严重错误): org vars/secrets for the shared registry and tailnet,
+        # repo vars for the product, Environment vars for where THIS tier
+        # lives. Nothing below is guessed; a missing one stops here, named.
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -131,15 +121,23 @@ jobs:
           ALIYUN_ACR_NAMESPACE: ${{ vars.ALIYUN_ACR_NAMESPACE }}
           TAILSCALE_OAUTH_CLIENT_ID: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
           TAILSCALE_OAUTH_CLIENT_SECRET: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          STACK_ROOT: ${{ vars.STACK_ROOT }}
+          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+          APP_PUBLISH_PORT: ${{ vars.APP_PUBLISH_PORT }}
         run: |
           set -euo pipefail
-          test -n "$DEPLOY_HOST"
-          test -n "$DEPLOY_USER"
-          test -n "$DEPLOY_SSH_KEY"
-          test -n "$ALIYUN_ACR_REGISTRY"
-          test -n "$ALIYUN_ACR_NAMESPACE"
-          test -n "$TAILSCALE_OAUTH_CLIENT_ID"
-          test -n "$TAILSCALE_OAUTH_CLIENT_SECRET"
+          need() { [ -n "${!1:-}" ] || { echo "$1 is not set - $2" >&2; exit 1; }; }
+          need DEPLOY_HOST "Environment secret"
+          need DEPLOY_USER "Environment secret"
+          need DEPLOY_SSH_KEY "Environment secret"
+          need ALIYUN_ACR_REGISTRY "org variable, shared to this repo"
+          need ALIYUN_ACR_NAMESPACE "repo variable"
+          need TAILSCALE_OAUTH_CLIENT_ID "org secret, shared to this repo"
+          need TAILSCALE_OAUTH_CLIENT_SECRET "org secret, shared to this repo"
+          need STACK_ROOT "Environment variable: the stack root on the host, e.g. /srv/md1/yucer"
+          need PROJECT_NAME "Environment variable: the compose project, e.g. yucer-beta"
+          need APP_PUBLISH_PORT "repo variable (Environment variable to override per tier)"
+          case "$STACK_ROOT" in /*) ;; *) echo "STACK_ROOT must be absolute: $STACK_ROOT" >&2; exit 1 ;; esac
 
       - name: Join tailnet and prepare SSH
         uses: ./.github/actions/tailnet-ssh-connect
@@ -161,8 +159,8 @@ jobs:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           ENV_FILE_B64: ${{ secrets.ENV_FILE_BASE64 }}
           # WHERE THE STACK LIVES is the Environment's `STACK_ROOT` variable
-          # (visible, per tier); the tier default only until it is set.
-          STACK_ROOT: ${{ vars.STACK_ROOT || needs.detect.outputs.stack_root }}
+          # (visible, per tier). Validated above.
+          STACK_ROOT: ${{ vars.STACK_ROOT }}
         run: |
           set -euo pipefail
           port="${DEPLOY_PORT:-22}"
@@ -183,8 +181,20 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          STACK_ROOT: ${{ vars.STACK_ROOT || needs.detect.outputs.stack_root }}
-          PROJECT_NAME: ${{ vars.PROJECT_NAME || needs.detect.outputs.project_name }}
+          STACK_ROOT: ${{ vars.STACK_ROOT }}
+          PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+          # The published port: the repo variable, shadowed per tier by the
+          # Environment's (beta publishes 4061). The container port stays the
+          # registry allocation baked into the image.
+          APP_PUBLISH_PORT: ${{ vars.APP_PUBLISH_PORT }}
+          # The registry the HOST pulls the fallback image from. The org
+          # provides two ACR hosts: the public one and ALIYUN_ACR_INTERNAL_HOST
+          # for hosts inside the Aliyun VPC. worker02 is not in the VPC, so
+          # the public one; an Environment on a VPC host sets
+          # ACR_PULL_REGISTRY to the internal host's value.
+          ACR_PULL_REGISTRY: ${{ vars.ACR_PULL_REGISTRY || vars.ALIYUN_ACR_REGISTRY }}
+          # The GHCR namespace is the repository's owner - never a literal.
+          GHCR_NAMESPACE: ${{ github.repository_owner }}
           PASSED_SHA: ${{ github.sha }}
           IMAGE_TAG: ${{ needs.call-build.outputs.image_tag }}
           ALIYUN_ACR_REGISTRY: ${{ vars.ALIYUN_ACR_REGISTRY }}
@@ -227,10 +237,11 @@ jobs:
           set -euo pipefail
           cd "$REPO_DIR"
           export IMAGE_REGISTRY="ghcr.io"
-          export IMAGE_NAMESPACE="vxture"
+          export IMAGE_NAMESPACE="$GHCR_NAMESPACE"
           export IMAGE_TAG="$IMAGE_TAG"
           export PROJECT_NAME="$PROJECT_NAME"
-          export FALLBACK_IMAGE_REGISTRY="$ALIYUN_ACR_REGISTRY"
+          export APP_PUBLISH_PORT="$APP_PUBLISH_PORT"
+          export FALLBACK_IMAGE_REGISTRY="$ACR_PULL_REGISTRY"
           export FALLBACK_IMAGE_NAMESPACE="$ALIYUN_ACR_NAMESPACE"
           if [ -n "${GHCR_TOKEN:-}" ]; then
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
@@ -247,6 +258,7 @@ jobs:
 
           remote_env=(
             "PRODUCT_CODE=$PRODUCT_CODE" "PROJECT_NAME=$PROJECT_NAME" "REPO_DIR=$deploy_dir" "IMAGE_TAG=$image_tag"
+            "APP_PUBLISH_PORT=$APP_PUBLISH_PORT" "GHCR_NAMESPACE=$GHCR_NAMESPACE" "ACR_PULL_REGISTRY=$ACR_PULL_REGISTRY"
             "ALIYUN_ACR_REGISTRY=$ALIYUN_ACR_REGISTRY" "ALIYUN_ACR_NAMESPACE=$ALIYUN_ACR_NAMESPACE"
             "ALIYUN_ACR_USERNAME=$ALIYUN_ACR_USERNAME" "ALIYUN_ACR_PASSWORD=$ALIYUN_ACR_PASSWORD"
             "GHCR_USERNAME=$GHCR_USERNAME" "GHCR_TOKEN=$GHCR_TOKEN"
