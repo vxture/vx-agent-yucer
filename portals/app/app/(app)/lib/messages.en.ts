@@ -60,6 +60,8 @@ const GATE_ERROR = {
   denied: "The action was refused",
 } as const;
 
+const LOGIN_ACCOUNT_STATUS_LABEL_EN: Record<string, string> = { active: "Account active" };
+
 export const en: Dictionary = {
   ...(zh as unknown as Dictionary),
 
@@ -2183,7 +2185,7 @@ export const en: Dictionary = {
 
     adminAria: "Administration",
     accountStatus: (status: string | null) =>
-      status === "active" ? "Account active" : status === null ? "Status unknown" : status,
+      status === null ? "Status unknown" : (LOGIN_ACCOUNT_STATUS_LABEL_EN[status] ?? status),
     accountCentre: "Account centre",
     switchUser: "Switch user",
     logout: "Sign out",
