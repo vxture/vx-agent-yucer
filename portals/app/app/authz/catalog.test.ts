@@ -108,7 +108,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 25 permissions, 24 roles, 287 grants", () => {
+test("the catalog is the documented size: 25 permissions, 31 roles, 397 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -137,9 +137,9 @@ test("the catalog is the documented size: 25 permissions, 24 roles, 287 grants",
   // again - twenty-five is still the whole vocabulary - and no two presets
   // hold the same set (presets.test.ts holds that).
   assert.equal(PERM_CODES.length, 25);
-  assert.equal(ROLE_CODES.length, 24);
+  assert.equal(ROLE_CODES.length, 31);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 287);
+  assert.equal(total, 397);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
@@ -197,9 +197,14 @@ test("pipeline.forecast goes to leadership and ops, never to the rep", () => {
   // they own. The invariant is unchanged: nobody on the bottom rung.
   const holders = ROLE_CODES.filter((r) => ROLE_PERMISSIONS[r].includes("pipeline.forecast"));
   assert.deepEqual([...holders].sort(), [
+    "branch_general_manager",
+    "channel_head",
     "key_account_manager",
+    "marketing_head",
+    "ops_head",
     "regional_director",
     "regional_general_manager",
+    "sales_director",
     "sales_leader",
     "sales_manager",
     "sales_ops",
@@ -363,7 +368,7 @@ test("the presets' names, descriptions, lines, ranks and order mirror the latest
   // Roster order is dense, starts with the group layer, and inside a line
   // runs from the top rung down (0048): a reader picks from an org chart.
   assert.deepEqual([...mirror.map((p) => p.sortOrder)], mirror.map((_, i) => i + 1));
-  assert.equal(mirror[0]!.code, "sales_leader");
+  assert.equal(mirror[0]!.code, "executive");
   const lines = DEFAULT_ROLE_LINES.map((g) => g.code);
   const ranks = DEFAULT_ROLE_RANKS.map((g) => g.code);
   for (let i = 1; i < mirror.length; i += 1) {
@@ -394,12 +399,27 @@ function seedGroupRows(table: "role_line" | "role_rank"): Array<[string, string,
   return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\s*,\s*(\d+)\)/g)].map((m) => [m[1]!, m[2]!, Number(m[3])]);
 }
 
-test("the shipped 业务线 and 层级 mirror incr/0047 exactly, and every preset names one of each", () => {
+/** A later increment may rename a shipped group in place -
+ *  `UPDATE local_authz.role_line SET name = '管理' ... WHERE line_code = 'group'`
+ *  (0049) - so the shipped name is the seed's VALUES with those applied. */
+function shippedGroupRows(table: "role_line" | "role_rank"): Array<[string, string, number]> {
+  const rows = seedGroupRows(table);
+  const col = table === "role_line" ? "line_code" : "rank_code";
+  const re = new RegExp(`UPDATE local_authz\\.${table} SET name = '([^']+)'[^;]*WHERE ${col} = '([^']+)'`, "g");
+  for (const m of uncommented(sql).matchAll(re)) {
+    const row = rows.find(([c]) => c === m[2]);
+    if (row) row[1] = m[1]!;
+  }
+  return rows;
+}
+
+test("the shipped 业务线 and 层级 mirror the seed exactly, and every preset names one of each", () => {
   // The memory store seeds a workspace from these lists; 0047 seeded the
-  // workspaces that were already there from its VALUES. Same rows, or the
-  // demo and production disagree about what a 销售 line is called.
+  // workspaces that were already there from its VALUES, and 0049 renamed
+  // one in place. Same rows, or the demo and production disagree about what
+  // a line is called.
   for (const [table, list] of [["role_line", DEFAULT_ROLE_LINES], ["role_rank", DEFAULT_ROLE_RANKS]] as const) {
-    const rows = seedGroupRows(table);
+    const rows = shippedGroupRows(table);
     assert.deepEqual(rows.map(([c, n]) => ({ code: c, name: n })), [...list], table);
     assert.deepEqual(rows.map(([, , o]) => o), rows.map((_, i) => i + 1), `${table}: dense order`);
   }
