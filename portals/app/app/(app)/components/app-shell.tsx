@@ -507,11 +507,18 @@ export function AppShell({
                   2026-09-10: 按 DS 设计修正 header avatar 弹出的用户面板，有完整
                   组件面板): the header with the name, the account-status tag and
                   two meta lines (who the platform says you are; where you are),
-                  the ACCOUNT badges (the preview's Lv.4 / 年费 - not roles: the
-                  owner's correction, 面板不显示角色，显示的是徽章; the one
-                  account-level badge yucer holds is the subscription tier), the
-                  account centre as a link, the preferences, then the action
-                  pair 切换用户 above 退出登录, the latter the one danger row. */}
+                  the USER'S POINTS / LEVEL badges (the preview's Lv.4 - not
+                  roles, and not the subscription tier either; both were the
+                  owner's corrections), the account centre as a link, the
+                  preferences, then the action pair 切换用户 above 退出登录, the
+                  latter the one danger row.
+
+                  The badge bar is EMPTY for now (owner, 2026-09-10: 先留空，等
+                  平台提供). Points and level belong to the platform user
+                  account, and nothing yucer holds carries them: the token
+                  claims stop at sub / account_status, and the entitlement
+                  contract is workspace tier and quota, not a person. An empty
+                  array leaves no blank row (DS: badges 是空数组时不留空行). */}
               <ShellUserMenu
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
@@ -526,7 +533,7 @@ export function AppShell({
                     label: HEADER_TEXT.accountStatus(accountStatus),
                     verified: accountStatus === "active",
                   },
-                  badges: tier ? [{ key: "tier", label: HEADER_TEXT.subscription(tier) }] : [],
+                  badges: [],
                 }}
                 links={
                   consoleUrl

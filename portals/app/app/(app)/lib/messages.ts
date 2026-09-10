@@ -1747,6 +1747,9 @@ export const ASK_ABOUT_TEXT = {
   linkFromAccount: "就这个客户问助手",
 } as const;
 
+/** The platform login account_status values that have a sentence (not the customer-account table below); the rest show as-is. */
+const LOGIN_ACCOUNT_STATUS_LABEL: Record<string, string> = { active: "账户正常" };
+
 export const HEADER_TEXT = {
   searchPlaceholder: "搜索客户、商机、跟进记录",
   searchEmpty: "没有匹配的",
@@ -1810,7 +1813,7 @@ export const HEADER_TEXT = {
   userMenuOpen: "打开用户菜单",
   // The user panel (DS complete panel, owner 2026-09-10).
   accountStatus: (status: string | null) =>
-    status === "active" ? "账户正常" : status === null ? "状态未知" : status,
+    status === null ? "状态未知" : (LOGIN_ACCOUNT_STATUS_LABEL[status] ?? status),
   accountCentre: "账户中心",
   switchUser: "切换用户",
   logout: "退出登录",
