@@ -47,7 +47,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed }: {
       toast({ tone: "danger", title: ORG_ERROR[r.error] ?? r.error });
       throw new Error(r.error);
     }
-    toast({ tone: "success", title: ORG_TEXT.templateDone(r.units, r.unplaced) });
+    toast({ tone: "success", title: ORG_TEXT.templateDone(r.units, r.unplaced, r.detached) });
     setConfirming(false);
     setOpen(false);
     router.refresh();

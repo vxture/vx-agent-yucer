@@ -24,8 +24,18 @@ export interface TerritoryRecord {
   name: string;
   parentId: string | null;
   ownerSub: string | null;
-  /** The regions this territory covers - see 0017. Empty covers NOTHING. */
+  /**
+   * The 大区 NAMES this territory covers - what routing, the scope resolver
+   * and the completeness rule match against `account.region`. DERIVED since
+   * incr/0052 from `divisionIds` through the 大区's current name, so a
+   * renamed 大区 keeps its coverage; before 0052 this was the stored list.
+   * Empty covers NOTHING.
+   */
   regions: readonly string[];
+  /** The 大区 it covers, by id (0052) - the truth `regions` is read from. */
+  divisionIds: readonly string[];
+  /** The units that work it (0052). */
+  unitIds: readonly string[];
   status: string;
 }
 
@@ -77,6 +87,13 @@ export interface PlanningStore {
   listOrgMembers(workspaceId: string): Promise<Map<string, string>>;
   /** Place a member in a unit, or in none. Replaces. */
   setMemberUnit(workspaceId: string, sub: string, unitId: string | null): Promise<void>;
+  /**
+   * Take a unit out of every territory that lists it - the link's CASCADE,
+   * done by hand where there is no foreign key. Returns how many
+   * territories lost it. Prisma's FK does this on delete; the memory store
+   * calls it from removeOrgUnit so both adapters report the same number.
+   */
+  detachUnitFromTerritories(workspaceId: string, unitId: string): Promise<number>;
   /** The shipped templates - the table for Prisma, the mirror for memory. */
   listOrgTemplates(): Promise<OrgTemplate[]>;
   /**
@@ -126,7 +143,23 @@ export interface PlanningStore {
   publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null>;
 }
 
+/** A 大区 as the memory store needs it to name a territory's coverage. */
+export interface DivisionName {
+  readonly id: string;
+  readonly name: string;
+}
+
 export class InMemoryPlanningStore implements PlanningStore {
+  /**
+   * WHERE THE NAMES COME FROM (0052). A territory stores 大区 IDS; the names
+   * routing matches on belong to the account domain, which this store may
+   * reference read-only but not own. The registry hands in the account
+   * store's list; without it (a bare test) the stored `regions` are used as
+   * they are, which is the pre-0052 behaviour and what the old fixtures
+   * still speak.
+   */
+  constructor(private readonly opts: { readonly divisions?: (workspaceId: string) => Promise<readonly DivisionName[]> } = {}) {}
+
   private orgKinds: OrgKindRecord[] = [];
   private orgUnits: OrgUnitRecord[] = [];
   /** `${workspaceId}|${sub}` -> unit id */
@@ -211,6 +244,8 @@ export class InMemoryPlanningStore implements PlanningStore {
     // The FK's rule (RESTRICT on the parent), kept so the adapters agree.
     if (mine.some((u) => u.parentId === unitId)) throw new Error(`unit ${unitId} still has children`);
     this.orgUnits = this.orgUnits.filter((u) => !(u.workspaceId === workspaceId && u.id === unitId));
+    // The links go with the unit (0052, CASCADE), as the memberships do.
+    await this.detachUnitFromTerritories(workspaceId, unitId);
     // Memberships go with the unit (CASCADE).
     for (const [k, v] of [...this.orgMembers]) if (k.startsWith(`${workspaceId}|`) && v === unitId) this.orgMembers.delete(k);
     return true;
@@ -265,11 +300,13 @@ export class InMemoryPlanningStore implements PlanningStore {
 
   seed(input: {
     targets?: TargetRecord[];
-    territories?: TerritoryRecord[];
+    /** The two link lists may be left off: a fixture written before 0052
+     *  names its coverage in `regions`, and the read side resolves it. */
+    territories?: (Omit<TerritoryRecord, "divisionIds" | "unitIds"> & Partial<Pick<TerritoryRecord, "divisionIds" | "unitIds">>)[];
     published?: Record<string, PublishedTotals>;
   }): void {
     for (const t of input.targets ?? []) this.targets.set(t.id, { ...t });
-    this.territories.push(...(input.territories ?? []));
+    this.territories.push(...(input.territories ?? []).map((t) => ({ ...t, divisionIds: t.divisionIds ?? [], unitIds: t.unitIds ?? [] })));
     for (const [k, v] of Object.entries(input.published ?? {})) this.published.set(k, v);
   }
 
@@ -316,28 +353,57 @@ export class InMemoryPlanningStore implements PlanningStore {
     // this one returned them, and production never did because that one
     // filtered. Two adapters answering the same question differently is a
     // fixture that lies.
-    return this.territories
+    const mine = this.territories
       .filter((t) => t.workspaceId === workspaceId)
       .filter((t) => opts.includeRetired || t.status === "active")
       .sort((a, b) => a.territoryCode.localeCompare(b.territoryCode));
+    if (!this.opts.divisions) return mine.map((t) => ({ ...t }));
+    /* BOTH DIRECTIONS, through the 大区's current rows: ids -> names for what
+       the form wrote, and names -> ids for what a pre-0052 fixture seeded,
+       so the demo's territories tick the right boxes on the form. A name no
+       current 大区 carries is dropped, as 0052's migration drops it. */
+    const divisions = await this.opts.divisions(workspaceId);
+    const nameOf = new Map(divisions.map((d) => [d.id, d.name]));
+    const idOf = new Map(divisions.map((d) => [d.name, d.id]));
+    return mine.map((t) => {
+      const divisionIds = t.divisionIds.length > 0
+        ? t.divisionIds
+        : t.regions.map((r) => idOf.get(r)).filter((x): x is string => Boolean(x));
+      const regions = divisionIds.map((id) => nameOf.get(id)).filter((x): x is string => Boolean(x));
+      return { ...t, divisionIds, regions };
+    });
   }
 
   async upsertTerritory(workspaceId: string, input: TerritoryDraft): Promise<TerritoryRecord> {
     const held = this.territories.find(
       (t) => t.workspaceId === workspaceId && t.territoryCode === input.territoryCode,
     );
+    const divisionIds = [...(input.divisionIds ?? [])];
+    const unitIds = [...(input.unitIds ?? [])];
     if (held) {
       // The code is the identity and never moves; everything else may.
       held.name = input.name;
       held.parentId = input.parentId;
       held.ownerSub = input.ownerSub;
       held.regions = input.regions;
+      held.divisionIds = divisionIds;
+      held.unitIds = unitIds;
       held.status = input.status;
-      return held;
+      return (await this.listTerritories(workspaceId, { includeRetired: true })).find((t) => t.id === held.id)!;
     }
-    const created: TerritoryRecord = { ...input, id: `terr_${++this.seq}`, workspaceId };
+    const created: TerritoryRecord = { ...input, divisionIds, unitIds, id: `terr_${++this.seq}`, workspaceId };
     this.territories.push(created);
-    return created;
+    return (await this.listTerritories(workspaceId, { includeRetired: true })).find((t) => t.id === created.id)!;
+  }
+
+  async detachUnitFromTerritories(workspaceId: string, unitId: string): Promise<number> {
+    let n = 0;
+    for (const t of this.territories) {
+      if (t.workspaceId !== workspaceId || !t.unitIds.includes(unitId)) continue;
+      t.unitIds = t.unitIds.filter((u) => u !== unitId);
+      n += 1;
+    }
+    return n;
   }
 
   async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {

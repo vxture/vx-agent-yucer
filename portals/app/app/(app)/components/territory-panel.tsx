@@ -36,6 +36,8 @@ export interface TerritoryRow {
   readonly ownerSub: string | null;
   readonly status: string;
   readonly regions: readonly string[];
+  /** The units that work it (0052), by name; empty reads as 未挂单位. */
+  readonly units: readonly string[];
 }
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
@@ -91,6 +93,16 @@ export function TerritoryPanel({
               id: "regions",
               header: PLANNING_TEXT.territoryRegions,
               cell: (r: TerritoryRow) => r.regions.join(" / "),
+            },
+            {
+              /* 所属单位 (0052): the organisation's side of the joint, beside
+                 the ground it covers. */
+              id: "units",
+              header: PLANNING_TEXT.territoryUnits,
+              cell: (r: TerritoryRow) =>
+                r.units.length === 0
+                  ? <span className="text-muted-foreground text-body-sm">{PLANNING_TEXT.territoryNoUnit}</span>
+                  : r.units.join(" / "),
             },
             {
               id: "parent",

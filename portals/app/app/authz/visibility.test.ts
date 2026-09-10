@@ -170,3 +170,44 @@ test("filtering a list keeps order and drops only what is out of scope", () => {
   );
   assert.equal(visibleRows(WHOLE_WORKSPACE, rows).length, 4);
 });
+
+// --- 按组织 (incr/0052) --------------------------------------------------------
+
+const unit: DataScope = {
+  kind: "unit",
+  unitIds: ["u_south", "u_south_team1"],
+  memberSubs: ["usr_me", "usr_south_rep"],
+  territoryIds: ["t_south"],
+  accountIds: ["acc_south"],
+  ownerSubs: ["usr_south_boss"],
+  unplacedAccountIds: ["acc_nowhere"],
+};
+
+test("unit sees what anyone in the subtree holds, wherever it is filed - the people path", () => {
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_south_rep", territoryId: "t_west" }), true);
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_south_rep", accountId: "acc_west" }), true);
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_me" }), true);
+});
+
+test("unit sees the subtree's ground exactly as a territory member would", () => {
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_other", territoryId: "t_south" }), true);
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_other", accountId: "acc_south" }), true);
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_other", territoryId: "t_west" }), false, "somebody else's ground");
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_other", accountId: "acc_west" }), false, "filed elsewhere");
+  // The fallback and 未分区, unchanged.
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_south_boss", accountId: "acc_nowhere" }), true);
+  assert.equal(canSeeRow(unit, { ownerSub: "usr_other", accountId: "acc_nowhere" }), true);
+  assert.equal(canSeeRow(unit, { ownerSub: null, territoryId: "t_west" }), true, "the queue");
+});
+
+test("a member placed nowhere sees the queue and nothing else", () => {
+  const nowhere: DataScope = { kind: "unit", unitIds: [], memberSubs: [], territoryIds: [], accountIds: [], ownerSubs: [], unplacedAccountIds: [] };
+  assert.equal(canSeeRow(nowhere, { ownerSub: null }), true);
+  assert.equal(canSeeRow(nowhere, { ownerSub: "usr_other", territoryId: "t_south" }), false);
+  assert.equal(canSeeRow(nowhere, { ownerSub: "usr_other", accountId: "acc_west" }), false, "filed elsewhere");
+  // Even their own work, once filed: `memberSubs` is empty, so the people
+  // path does not fire. Placing them is the fix, and the members page says so.
+  assert.equal(canSeeRow(nowhere, { ownerSub: "usr_me", accountId: "acc_west" }), false);
+  // A row filed NOWHERE stays 未分区 - visible to every narrowed member, as ruled.
+  assert.equal(canSeeRow(nowhere, { ownerSub: "usr_me" }), true);
+});

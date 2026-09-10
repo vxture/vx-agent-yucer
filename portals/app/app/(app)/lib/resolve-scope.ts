@@ -1,5 +1,6 @@
 import { WHOLE_WORKSPACE, expandTerritories, type DataScope } from "../../authz/scope";
 import { coveringTerritories } from "../../domains/signal/lib/routing";
+import { subtreeIds } from "../../domains/planning/lib/org";
 import type { AuthzStore } from "../../authz/store";
 import {
   getAccountStore,
@@ -76,6 +77,36 @@ export async function resolveDataScope(
       .map((a) => a.id);
 
     return { kind: "territory", territoryIds, accountIds, ownerSubs, unplacedAccountIds };
+  }
+
+  if (setting.kind === "unit") {
+    // 按组织 (0052). The frame is the member's unit and everything under it;
+    // placed nowhere, the frame is empty and the member sees the queue alone.
+    const planning = getPlanningStore();
+    const [placements, units, territories] = await Promise.all([
+      planning.listOrgMembers(workspaceId),
+      planning.listOrgUnits(workspaceId),
+      planning.listTerritories(workspaceId),
+    ]);
+    const mine = placements.get(sub);
+    const unitIds = mine ? subtreeIds(units, mine) : [];
+    const frame = new Set(unitIds);
+    // THE PEOPLE: everyone placed in the subtree, myself included.
+    const memberSubs = [...placements].filter(([, u]) => frame.has(u)).map(([s]) => s);
+    // THE GROUND: every territory a unit in the subtree works, then down the
+    // territory tree, then the same three answers the territory scope gives.
+    const worked = territories.filter((t) => t.unitIds.some((u) => frame.has(u))).map((t) => t.id);
+    const parentOf = new Map<string, string | null>(territories.map((t) => [t.id, t.parentId ?? null]));
+    const territoryIds = expandTerritories(worked, parentOf);
+    const held = new Set(territoryIds);
+    const covered = new Set(territories.filter((t) => held.has(t.id)).flatMap((t) => t.regions ?? []));
+    const accounts = await getAccountStore().listAccounts(workspaceId);
+    const accountIds = accounts.filter((a) => a.region != null && covered.has(a.region)).map((a) => a.id);
+    const ownerSubs = territories.filter((t) => held.has(t.id) && t.ownerSub).map((t) => t.ownerSub as string);
+    const unplacedAccountIds = accounts
+      .filter((a) => a.region == null || coveringTerritories(a.region, territories).length === 0)
+      .map((a) => a.id);
+    return { kind: "unit", unitIds, memberSubs, territoryIds, accountIds, ownerSubs, unplacedAccountIds };
   }
 
   // `own` - what I hold, plus the customers my work sits on.

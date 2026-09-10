@@ -5,7 +5,7 @@ import { resolveAppSession } from "../../../lib/session";
 import { getMessages } from "../../../lib/i18n/server";
 import { can } from "../../../../authz/decide";
 import { getPlanningStore } from "../../../../domains/shared/registry";
-import { listTerritories } from "../../../../domains/planning/service";
+import { listOrgUnits, listTerritories } from "../../../../domains/planning/service";
 import { listAccounts, listMarketDivisions } from "../../../../domains/account/service";
 import { TerritoryForm } from "../../../components/territory-form";
 import { saveTerritory } from "../../actions";
@@ -34,13 +34,16 @@ export default async function NewTerritoryPage() {
     entitlement: session.entitlement,
     store: getPlanningStore(),
   };
-  const [territories, accounts, divisions] = await Promise.all([
+  const [territories, accounts, divisions, units] = await Promise.all([
     listTerritories(ctx, { includeRetired: true }),
     listAccounts({ ...ctx, store: session.stores.account() }),
     /* The coverage picker's vocabulary. Read here rather than typed into the
        form so a workspace that carves its market differently gets its own
        names - the whole point of incr/0036. */
     listMarketDivisions({ ...ctx, store: session.stores.account() }),
+    /* The units that may work it (0052). Behind admin.member.view; a reader
+       without it gets no picker and keeps the links the row already has. */
+    listOrgUnits(ctx),
   ]);
 
   return (
@@ -53,7 +56,8 @@ export default async function NewTerritoryPage() {
       <TerritoryForm
         rows={territories.ok ? territories.value : []}
         accountRegions={accounts.ok ? accounts.value.map((a) => a.region) : []}
-        divisions={divisions.ok ? divisions.value.map((d) => d.name) : []}
+        divisions={divisions.ok ? divisions.value.map((d) => ({ id: d.id, name: d.name })) : []}
+        units={units.ok ? units.value.map((u) => ({ id: u.id, name: u.name, depth: u.depth })) : []}
         onSave={saveTerritory}
       />
     </ViewLayout>

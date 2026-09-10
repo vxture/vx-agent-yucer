@@ -170,7 +170,17 @@ let planningOverride: PlanningStore | null = null;
 export function getPlanningStore(): PlanningStore {
   if (planningOverride) return planningOverride;
   const memo = memoTable();
-  if (!memo.planning) memo.planning = prismaEnabled() ? new PrismaPlanningStore() : new InMemoryPlanningStore();
+  if (!memo.planning) {
+    memo.planning = prismaEnabled()
+      ? new PrismaPlanningStore()
+      /* The memory store names a territory's coverage through the account
+         store's 大区 rows (0052) - the same read-only reference the Prisma
+         adapter makes through the foreign key. Lazy, so the two stores may
+         be built in either order. */
+      : new InMemoryPlanningStore({
+          divisions: (ws) => getAccountStore().listMarketDivisions(ws).then((rows) => rows.map((d) => ({ id: d.id, name: d.name }))),
+        });
+  }
   return memo.planning as PlanningStore;
 }
 

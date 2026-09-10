@@ -225,12 +225,13 @@ export class PrismaPlanningStore implements PlanningStore {
 
   async upsertTerritory(workspaceId: string, input: TerritoryDraft): Promise<TerritoryRecord> {
     const p = await getPrismaClient();
+    // `regions` is NOT written since 0052: the names are derived from the
+    // division links below, and a stored copy would be a second truth.
     const update = {
       name: input.name,
       parentId: input.parentId,
       ownerSub: input.ownerSub,
       status: input.status,
-      regions: input.regions,
       updatedAt: new Date(),
     };
     // The update half only - the create half writes the anchor once, which is
@@ -246,7 +247,32 @@ export class PrismaPlanningStore implements PlanningStore {
       update,
       create: { workspaceId, territoryCode: input.territoryCode, ...update },
     });
-    return toTerritory(row as Record<string, unknown>);
+    const territoryId = String(row.id);
+    // THE TWO LINKS, REPLACED WHOLESALE (0052): a pair has no third column to
+    // change, so a change is a delete and an insert - the member_territory
+    // shape. An unknown id is refused by the foreign key.
+    await p.territoryDivision.deleteMany({ where: { workspaceId, territoryId } });
+    if ((input.divisionIds ?? []).length > 0) {
+      await p.territoryDivision.createMany({
+        data: (input.divisionIds ?? []).map((divisionId) => ({ workspaceId, territoryId, divisionId })),
+        skipDuplicates: true,
+      });
+    }
+    await p.territoryUnit.deleteMany({ where: { workspaceId, territoryId } });
+    if ((input.unitIds ?? []).length > 0) {
+      await p.territoryUnit.createMany({
+        data: (input.unitIds ?? []).map((unitId) => ({ workspaceId, territoryId, unitId })),
+        skipDuplicates: true,
+      });
+    }
+    const fresh = await p.territory.findUniqueOrThrow({ where: { id: territoryId }, include: TERRITORY_LINKS });
+    return toTerritory(fresh as Record<string, unknown>);
+  }
+
+  async detachUnitFromTerritories(workspaceId: string, unitId: string): Promise<number> {
+    const p = await getPrismaClient();
+    const { count } = await p.territoryUnit.deleteMany({ where: { workspaceId, unitId } });
+    return count;
   }
 
   async createTarget(workspaceId: string, target: SalesTarget): Promise<TargetRecord> {
@@ -309,6 +335,7 @@ export class PrismaPlanningStore implements PlanningStore {
       // management panel asks for the rest by name.
       where: { workspaceId, ...(opts.includeRetired ? {} : { status: "active" }) },
       orderBy: { territoryCode: "asc" },
+      include: TERRITORY_LINKS,
     });
     return rows.map((r: Record<string, unknown>) => toTerritory(r));
   }
@@ -337,16 +364,29 @@ export class PrismaPlanningStore implements PlanningStore {
   }
 }
 
+/* THE JOINTS, read with the row (0052): the unit ids, and the 大区 ids WITH
+   THEIR CURRENT NAMES - a read-only reference into yucer_core, which is what
+   "other domains reference it read-only" permits and the foreign key
+   already states. */
+const TERRITORY_LINKS = {
+  units: { select: { unitId: true } },
+  divisions: { select: { divisionId: true, division: { select: { name: true } } } },
+} as const;
+
 function toTerritory(r: Record<string, unknown>): TerritoryRecord {
+  const units = (r.units as Array<{ unitId: string }> | undefined) ?? [];
+  const divisions = (r.divisions as Array<{ divisionId: string; division: { name: string } }> | undefined) ?? [];
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
     territoryCode: String(r.territoryCode),
     name: String(r.name),
     parentId: (r.parentId as string | null) ?? null,
-    // Tolerant of pre-0017 rows: absent reads as covering nothing, the same
-    // answer an empty list gives and the safe one for a router.
-    regions: Array.isArray(r.regions) ? (r.regions as unknown[]).map(String) : [],
+    // DERIVED from the links, never from the column: since 0052 the names
+    // follow the 大区's current row, and the column is the pre-0052 remainder.
+    regions: divisions.map((d) => d.division.name),
+    divisionIds: divisions.map((d) => d.divisionId),
+    unitIds: units.map((u) => u.unitId),
     ownerSub: (r.ownerSub as string | null) ?? null,
     status: String(r.status),
   };

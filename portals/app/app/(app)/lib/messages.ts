@@ -1393,7 +1393,10 @@ export const MEMBER_TEXT = {
     workspace: "全工作区",
     territory: "本区域",
     own: "仅本人",
+    // 按组织（incr/0052）：本单位子树成员持有的，加子树区域覆盖的客户。
+    unit: "本单位",
   } as Record<string, string>,
+  scopeUnitUnplaced: "未归属任何单位，只能看到无主记录",
 } as const;
 
 export const MEMBER_ERROR: Record<string, string> = {
@@ -2638,7 +2641,17 @@ export const ORG_TEXT = {
   templateConfirm: "确认替换",
   templateVerb: "替换",
   templateTarget: (name: string) => `为「${name}」`,
-  templateDone: (units: number, unplaced: number) => `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属`,
+  templateDone: (units: number, unplaced: number, detached: number) =>
+    `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属${detached > 0 ? `；${detached} 个销售区域已解除挂靠` : ""}`,
+  // 关联区域（incr/0052）：单位这一侧的关系。
+  colTerritories: "区域",
+  territoryCount: (n: number) => `${n} 个`,
+  noTerritory: "无区域",
+  detailsTerritories: (n: number) => `关联区域 · ${n} 个`,
+  detailsNoTerritories: "还没有销售区域挂在这个单位。到销售区域的表单里勾选所属单位。",
+  territoryCovers: (regions: string) => `覆盖 ${regions}`,
+  territoryCoversNone: "未覆盖任何大区",
+  removeDetached: (n: number) => `${n} 个销售区域已解除挂靠`,
   emptyTitle: "还没有单位",
   emptyWhy: "新建一个，或重置预置。",
 } as const;
@@ -2728,6 +2741,8 @@ export const TERRITORY_ERROR: Record<string, string> = {
   parent_cycle: "区域不能直接或间接地成为自己的上级",
   // 可达是 2026-08-31 才成立的：校验器一直存在，但写路径从没调用过它。
   region_too_long: "区域名最多 64 个字符——超过这个长度的多半是粘错了列",
+  // incr/0052：挂靠的单位必须是当前工作区的。
+  unit_unknown: "这个单位不属于当前工作区",
 };
 
 /**
@@ -3728,6 +3743,12 @@ export const PLANNING_TEXT = {
   divisionDetailsTitle: (name: string) => `${name} · 区域详情`,
   divisionDetailsWhy: (n: number, noun: string) => `覆盖 ${n} 个${noun}。`,
   divisionDetailsDone: "关闭",
+  // 谁在干这块地（incr/0052）：区域详情列出覆盖它的销售区域与单位。
+  divisionCoveredBy: (n: number) => `覆盖它的销售区域 · ${n} 个`,
+  divisionCoveredNone: "还没有销售区域覆盖这个大区。到销售区域的表单里勾选它。",
+  divisionCoveredUnits: (units: string) => `单位：${units}`,
+  divisionCoveredNoUnits: "未挂单位",
+  divisionRemoveCoverage: (n: number) => `${n} 个销售区域将失去这块覆盖。`,
   templateTitle: "重置为预置划分",
   templateWhy: "选一套预置切法作为起点，之后随便改。",
   templateReset: "重置预置",
@@ -3826,6 +3847,11 @@ export const PLANNING_TEXT = {
   territoryRegionsHint: "勾选这个区域负责的大区。一个大区可以由多个区域共同负责；不勾选任何一个，路由就当它谁也不覆盖。",
   territoryRegionsNone: "这个工作区还没有大区。先去「新建大区」建一个，或引用一套预置划分。",
   territoryRegionGone: "已不在当前划分中",
+  // 所属单位（incr/0052）：一个区域可挂多个单位。
+  territoryUnits: "所属单位",
+  territoryUnitsHint: "勾选负责这块区域的单位。一个区域可以由多个单位共同负责；不勾选，就只是一块没人负责的地。",
+  territoryUnitsNone: "还没有单位。先到组织结构里建单位。",
+  territoryNoUnit: "未挂单位",
   territoryCode: "区域代码",
   territoryName: "名称",
   territoryParent: "上级区域",

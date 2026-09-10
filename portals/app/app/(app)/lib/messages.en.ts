@@ -1463,7 +1463,16 @@ export const en: Dictionary = {
     templateConfirm: "Confirm replace",
     templateVerb: "Replace",
     templateTarget: (name: string) => `with "${name}"`,
-    templateDone: (units: number, unplaced: number) => `Template applied: ${units} units; ${unplaced} members to place again`,
+    templateDone: (units: number, unplaced: number, detached: number) =>
+      `Template applied: ${units} units; ${unplaced} members to place again${detached > 0 ? `; ${detached} territories detached` : ""}`,
+    colTerritories: "Territories",
+    territoryCount: (n: number) => `${n}`,
+    noTerritory: "None",
+    detailsTerritories: (n: number) => `Territories · ${n}`,
+    detailsNoTerritories: "No territory is worked by this unit yet. Tick the unit on a territory's form.",
+    territoryCovers: (regions: string) => `covers ${regions}`,
+    territoryCoversNone: "covers no region",
+    removeDetached: (n: number) => `${n} territories detached`,
     emptyTitle: "No units yet",
     emptyWhy: "Create one, or reset to a preset.",
   },
@@ -1546,6 +1555,7 @@ export const en: Dictionary = {
       "A territory cannot report to itself, directly or through a chain",
     region_too_long:
       "A region name is at most 64 characters - anything longer is usually the wrong column pasted in",
+    unit_unknown: "That unit is not in this workspace",
   },
 
   EXECUTION_ERROR: {
@@ -3218,6 +3228,11 @@ export const en: Dictionary = {
     divisionDetailsTitle: (name: string) => `${name} · region details`,
     divisionDetailsWhy: (n: number, noun: string) => `Covers ${n} ${noun}.`,
     divisionDetailsDone: "Close",
+    divisionCoveredBy: (n: number) => `Territories covering it · ${n}`,
+    divisionCoveredNone: "No territory covers this region yet. Tick it on a territory's form.",
+    divisionCoveredUnits: (units: string) => `Units: ${units}`,
+    divisionCoveredNoUnits: "No unit",
+    divisionRemoveCoverage: (n: number) => `${n} territories lose this coverage.`,
     templateTitle: "Reset to a standard carve",
     templateWhy: "Adopt a standard carve as a starting point, then edit freely.",
     templateReset: "Reset to a standard carve",
@@ -3298,6 +3313,10 @@ export const en: Dictionary = {
     territoryRegionsHint: "Tick the regions this territory works. A region may be worked by more than one territory; ticking none means it covers nothing, and routing treats it that way.",
     territoryRegionsNone: "This workspace has no regions yet. Create one, or adopt a standard carve.",
     territoryRegionGone: "no longer in the current carve",
+    territoryUnits: "Units",
+    territoryUnitsHint: "Tick the units that work this territory. Several may share it; none means nobody works it.",
+    territoryUnitsNone: "No units yet. Create them under Organization first.",
+    territoryNoUnit: "No unit",
     territoryCode: "Code",
     territoryName: "Name",
     territoryParent: "Parent",
@@ -3962,7 +3981,9 @@ export const en: Dictionary = {
       workspace: "Whole workspace",
       territory: "Their territory",
       own: "Only their own",
+      unit: "Their unit",
     } as Record<string, string>,
+    scopeUnitUnplaced: "Placed in no unit; sees only unowned records",
   },
 
   MEMBER_ERROR: {

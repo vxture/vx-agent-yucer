@@ -55,13 +55,13 @@ export async function saveOrgUnitAction(input: {
   return { ok: true, id: r.value.id };
 }
 
-export async function removeOrgUnitAction(id: string): Promise<Result<{ unplaced: number }>> {
+export async function removeOrgUnitAction(id: string): Promise<Result<{ unplaced: number; detached: number }>> {
   const c = await ctx();
   if (!c) return { ok: false, error: "not_authenticated" };
   const r = await removeOrgUnit(c, id);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/", "layout");
-  return { ok: true, unplaced: r.value.unplaced };
+  return { ok: true, unplaced: r.value.unplaced, detached: r.value.detached };
 }
 
 /** Re-order a unit among its siblings. */
@@ -75,13 +75,13 @@ export async function moveOrgUnitAction(id: string, direction: MoveDirection): P
 }
 
 /** Replace the tree with a shipped template. */
-export async function applyOrgTemplateAction(key: string): Promise<Result<{ units: number; unplaced: number }>> {
+export async function applyOrgTemplateAction(key: string): Promise<Result<{ units: number; unplaced: number; detached: number }>> {
   const c = await ctx();
   if (!c) return { ok: false, error: "not_authenticated" };
   const r = await applyOrgTemplate(c, key);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/", "layout");
-  return { ok: true, units: r.value.units, unplaced: r.value.unplaced };
+  return { ok: true, units: r.value.units, unplaced: r.value.unplaced, detached: r.value.detached };
 }
 
 /** Place a member in a unit, or in none (empty string). */

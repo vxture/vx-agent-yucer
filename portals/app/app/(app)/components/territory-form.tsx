@@ -34,38 +34,50 @@ export function TerritoryForm({
   rows,
   accountRegions,
   divisions,
+  units,
   onSave,
 }: {
   readonly rows: readonly {
     readonly id: string;
     readonly territoryCode: string;
     readonly name: string;
+    readonly parentId: string | null;
+    readonly ownerSub: string | null;
     readonly regions: readonly string[];
+    readonly divisionIds: readonly string[];
+    readonly unitIds: readonly string[];
     readonly status: string;
   }[];
   readonly accountRegions: readonly (string | null)[];
-  /* 大区 THIS WORKSPACE HAS, in its own order (incr/0036). The field used to be
-     free text with "如：华东, 华南" under it, which is how the second
-     vocabulary kept coming back: routing matches these strings against
-     `account.region`, so a typed 华东 produced a territory that covered
-     nothing and routed nothing, silently. You can only tick what exists. */
-  readonly divisions: readonly string[];
+  /* 大区 THIS WORKSPACE HAS, in its own order (incr/0036), BY ID since 0052.
+     The field used to be free text with "如：华东, 华南" under it, which is
+     how the second vocabulary kept coming back: routing matches names
+     against `account.region`, so a typed 华东 produced a territory that
+     covered nothing and routed nothing, silently. You can only tick what
+     exists - and since the tick is an id, renaming a 大区 no longer empties
+     the territories that named it. */
+  readonly divisions: readonly { readonly id: string; readonly name: string }[];
+  /* THE UNITS THAT MAY WORK IT (0052): the organisation in tree order,
+     indented. Several may share a territory (owner: 一个区域可挂多个单位). */
+  readonly units: readonly { readonly id: string; readonly name: string; readonly depth: number }[];
   readonly onSave: (input: {
     territoryCode: string;
     name: string;
     parentId: string | null;
     ownerSub: string | null;
     status: string;
-    regions: readonly string[];
+    divisionIds: readonly string[];
+    unitIds: readonly string[];
   }) => Promise<Saved>;
 }) {
-  const { PLANNING_TEXT, TERRITORY_ERROR, ASSIST_TEXT } = useMessages();
+  const { ORG_TEXT, PLANNING_TEXT, TERRITORY_ERROR, ASSIST_TEXT } = useMessages();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState("");
   const [ownerSub, setOwnerSub] = useState("");
   const [status, setStatus] = useState("active");
-  const [regions, setRegions] = useState<readonly string[]>([]);
+  const [divisionIds, setDivisionIds] = useState<readonly string[]>([]);
+  const [unitIds, setUnitIds] = useState<readonly string[]>([]);
   const submit = useFormSubmit("/planning");
 
   // THE CODE IS THE IDENTITY - typing an existing code edits that territory
@@ -76,31 +88,28 @@ export function TerritoryForm({
     if (!t) return;
     setCode(t.territoryCode);
     setName(t.name);
-    setRegions(t.regions);
+    setParentId(t.parentId ?? "");
+    setOwnerSub(t.ownerSub ?? "");
+    setDivisionIds(t.divisionIds);
+    setUnitIds(t.unitIds);
     setStatus(t.status);
   }
 
   const gaps = useMemo(() => uncoveredRegions(accountRegions, rows), [accountRegions, rows]);
-  const inField = new Set(regions);
+  const inField = new Set(divisionIds);
+  const idOfName = useMemo(() => new Map(divisions.map((d) => [d.name, d.id])), [divisions]);
+  const chosenNames = new Set(divisionIds.map((id) => divisions.find((d) => d.id === id)?.name));
 
-  /* WHAT THE WORKSPACE CARVES, PLUS WHATEVER THIS TERRITORY ALREADY SAYS.
-     A division can be renamed or dropped after a territory named it, and
-     hiding the orphan would let a save quietly delete coverage the reader
-     never saw. It stays tickable, and stays visibly not one of the current
-     carve's names. */
-  const covers = useMemo(() => {
-    const extra = regions.filter((r) => !divisions.includes(r));
-    return [
-      ...divisions.map((name) => ({ name, known: true })),
-      ...extra.map((name) => ({ name, known: false })),
-    ];
-  }, [divisions, regions]);
+  const toggleDivision = (id: string) =>
+    setDivisionIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
+  const toggleUnit = (id: string) =>
+    setUnitIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
 
-  const toggleRegion = (name: string) =>
-    setRegions((prev) => (prev.includes(name) ? prev.filter((r) => r !== name) : [...prev, name]));
-
+  /* The assistant still speaks in the customers' region NAMES - that is what
+     the gap is measured on - and a suggestion taken ticks the 大区 of that
+     name. A name no current 大区 carries is a gap nothing here can close. */
   const suggestions: AssistSuggestion[] = gaps
-    .filter((g) => !inField.has(g.region))
+    .filter((g) => !chosenNames.has(g.region) && idOfName.has(g.region))
     .slice(0, 3)
     .map((g) => ({
       id: `region-${g.region}`,
@@ -108,7 +117,10 @@ export function TerritoryForm({
       // The reason is the routing rule itself: leads route territory-first, so
       // ground no territory covers is ground where every lead is unroutable.
       reason: ASSIST_TEXT.uncoveredRegionWhy,
-      apply: () => setRegions((r) => (r.includes(g.region) ? r : [...r, g.region])),
+      apply: () => {
+        const id = idOfName.get(g.region);
+        if (id) setDivisionIds((r) => (r.includes(id) ? r : [...r, id]));
+      },
     }));
 
   const ready = code.trim() !== "" && name.trim() !== "";
@@ -147,31 +159,54 @@ export function TerritoryForm({
             <FormFieldWide>
             <Field>
               <FieldLabel>{PLANNING_TEXT.territoryRegions}</FieldLabel>
-              {covers.length === 0 ? (
+              {divisions.length === 0 ? (
                 <p className="text-muted-foreground text-body-sm">
                   {PLANNING_TEXT.territoryRegionsNone}
                 </p>
               ) : (
                 <div className="gap-2xs md:grid-cols-3 grid grid-cols-2">
-                  {covers.map((c) => (
-                    <label className="gap-2xs flex items-center" key={c.name}>
+                  {divisions.map((d) => (
+                    <label className="gap-2xs flex items-center" key={d.id}>
                       <input
                         type="checkbox"
-                        checked={inField.has(c.name)}
-                        onChange={() => toggleRegion(c.name)}
+                        checked={inField.has(d.id)}
+                        onChange={() => toggleDivision(d.id)}
                       />
-                      <span className="text-body-sm">{c.name}</span>
-                      {c.known ? null : (
-                        <span className="text-warning text-body-sm">
-                          {PLANNING_TEXT.territoryRegionGone}
-                        </span>
-                      )}
+                      <span className="text-body-sm">{d.name}</span>
                     </label>
                   ))}
                 </div>
               )}
               <span className="text-muted-foreground text-body-sm">
                 {PLANNING_TEXT.territoryRegionsHint}
+              </span>
+            </Field>
+            </FormFieldWide>
+            {/* WHO WORKS IT (0052): the organisation's units, tree order,
+                indented; several may share one ground. */}
+            <FormFieldWide>
+            <Field>
+              <FieldLabel>{PLANNING_TEXT.territoryUnits}</FieldLabel>
+              {units.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">
+                  {PLANNING_TEXT.territoryUnitsNone}
+                </p>
+              ) : (
+                <div className="gap-2xs md:grid-cols-3 grid grid-cols-2">
+                  {units.map((u) => (
+                    <label className="gap-2xs flex items-center" key={u.id}>
+                      <input
+                        type="checkbox"
+                        checked={unitIds.includes(u.id)}
+                        onChange={() => toggleUnit(u.id)}
+                      />
+                      <span className="text-body-sm">{ORG_TEXT.optionIndent(u.depth, u.name)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <span className="text-muted-foreground text-body-sm">
+                {PLANNING_TEXT.territoryUnitsHint}
               </span>
             </Field>
             </FormFieldWide>
@@ -210,7 +245,8 @@ export function TerritoryForm({
                         parentId: parentId === "" ? null : parentId,
                         ownerSub: ownerSub.trim() === "" ? null : ownerSub.trim(),
                         status,
-                        regions,
+                        divisionIds,
+                        unitIds,
                       }),
                     (c) => TERRITORY_ERROR[c] ?? TERRITORY_ERROR.denied,
                   )

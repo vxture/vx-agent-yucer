@@ -341,6 +341,10 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   "local_authz.role_permission",
   // incr/0046. A workspace role's grant is a pair, like role_permission's.
   "local_authz.workspace_role_permission",
+  // incr/0052. The two joints of a territory - which units work it, which 大区
+  // it covers - are pairs: a change is a delete and an insert.
+  "yucer_gtm.territory_unit",
+  "yucer_gtm.territory_division",
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",

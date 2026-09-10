@@ -15,7 +15,7 @@ test("the scope vocabulary is closed, so a bad row cannot widen anybody", () => 
   // The DDL has a CHECK, but a value arriving from anywhere else must not
   // become a scope by being spelled like one - and the failure direction here
   // matters: an unrecognised scope must not fall through to "workspace".
-  assert.deepEqual([...DATA_SCOPES], ["workspace", "territory", "own"]);
+  assert.deepEqual([...DATA_SCOPES], ["workspace", "territory", "own", "unit"]);
   assert.equal(isDataScope("own"), true);
   assert.equal(isDataScope("everything"), false);
   assert.equal(isDataScope(""), false);
@@ -104,4 +104,15 @@ test("an assignment naming a territory that no longer exists yields just itself"
   // so a deleted territory leaves the assignment behind. It expands to nothing
   // beyond itself, which narrows to no rows rather than widening to all of them.
   assert.deepEqual(expandTerritories(["gone"], new Map()), ["gone"]);
+});
+
+// --- 按组织 (incr/0052) --------------------------------------------------------
+
+test("unit is the fourth scope, and needs no territories to be coherent", () => {
+  assert.ok(DATA_SCOPES.includes("unit"));
+  assert.ok(isDataScope("unit"));
+  const s = unwrap(validateScopeSetting({ kind: "unit", territoryIds: [] }));
+  assert.equal(s.kind, "unit");
+  // A stale territory list left behind by switching from `territory` is ignored.
+  assert.equal(unwrap(validateScopeSetting({ kind: "unit", territoryIds: ["t_old"] })).kind, "unit");
 });

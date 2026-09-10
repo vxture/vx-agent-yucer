@@ -511,10 +511,15 @@ model Territory {
   // resolution and completeness derivation all read this. It existed in the
   // DDL but was never mirrored here, so PrismaPlanningStore.upsertTerritory()
   // could not write it at all (TD, see docs/60-operations/00-index.md).
+  // incr/0052: no longer written. The names are derived from `divisions` at
+  // read time; the column stays because an increment never drops one.
   regions       Json     @default("[]") @db.JsonB
   status        String   @default("active") @db.VarChar(32)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  units     TerritoryUnit[]
+  divisions TerritoryDivision[]
 
   @@unique([workspaceId, territoryCode], map: "uidx_territory_ws_code")
   @@map("territory")
@@ -578,9 +583,45 @@ model OrgUnit {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
+  territories TerritoryUnit[]
+
   @@unique([workspaceId, unitCode], map: "uidx_org_unit_code")
   @@index([workspaceId, parentId, sortOrder], map: "idx_org_unit_ws_parent")
   @@map("org_unit")
+  @@schema("yucer_gtm")
+}
+
+/// incr/0052. Which units work a territory - many-to-many, a pair with no
+/// third column (insert / delete only).
+model TerritoryUnit {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  territoryId String   @map("territory_id") @db.Uuid
+  unitId      String   @map("unit_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  territory Territory @relation(fields: [territoryId], references: [id], onDelete: Cascade, map: "fk_territory_unit_territory")
+  unit      OrgUnit   @relation(fields: [unitId], references: [id], onDelete: Cascade, map: "fk_territory_unit_unit")
+
+  @@id([workspaceId, territoryId, unitId], map: "pk_territory_unit")
+  @@index([workspaceId, unitId], map: "idx_territory_unit_unit")
+  @@map("territory_unit")
+  @@schema("yucer_gtm")
+}
+
+/// incr/0052. Which 大区 a territory covers, by id - what territory.regions
+/// used to say by name.
+model TerritoryDivision {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  territoryId String   @map("territory_id") @db.Uuid
+  divisionId  String   @map("division_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  territory Territory      @relation(fields: [territoryId], references: [id], onDelete: Cascade, map: "fk_territory_division_territory")
+  division  MarketDivision @relation(fields: [divisionId], references: [id], onDelete: Cascade, map: "fk_territory_division_division")
+
+  @@id([workspaceId, territoryId, divisionId], map: "pk_territory_division")
+  @@index([workspaceId, divisionId], map: "idx_territory_division_division")
+  @@map("territory_division")
   @@schema("yucer_gtm")
 }
 
@@ -1340,6 +1381,9 @@ model MarketDivision {
 
   provinces MarketDivisionProvince[]
   members   MarketDivisionMember[]
+  /// incr/0052. The territories covering this 大区 - a read-only reference
+  /// from yucer_gtm; the link goes with the 大区 (CASCADE).
+  territories TerritoryDivision[]
 
   @@unique([workspaceId, scope, scopeProvince, divisionCode], map: "uidx_market_division_code")
   @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")

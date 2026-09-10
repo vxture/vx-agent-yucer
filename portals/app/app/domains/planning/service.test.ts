@@ -300,3 +300,41 @@ test("the cycle check sees retired ancestors", async () => {
   });
   assert.equal(r.ok === false && r.violations[0]!.code, "parent_cycle");
 });
+
+// --- The two links (incr/0052) -------------------------------------------------
+
+test("a territory's coverage is 大区 ids, and its regions are their current names", async () => {
+  // The memory store names coverage through the account domain's rows, the
+  // way the Prisma adapter joins them; a rename follows, a stale name cannot.
+  let divisions = [{ id: "d_east", name: "华东" }, { id: "d_south", name: "华南" }];
+  const store = new InMemoryPlanningStore({ divisions: async () => divisions });
+  const c = ctx("sales_leader", "pro", store);
+  const saved = unwrap(await upsertTerritory(c, {
+    territoryCode: "EAST", name: "East", parentId: null, ownerSub: null, status: "active", divisionIds: ["d_east"], unitIds: [],
+  }, new Set(["d_east", "d_south"])));
+  assert.deepEqual([saved.divisionIds, saved.regions], [["d_east"], ["华东"]]);
+  divisions = [{ id: "d_east", name: "华东大区" }, { id: "d_south", name: "华南" }];
+  assert.deepEqual(unwrap(await listTerritories(c))[0]!.regions, ["华东大区"]);
+});
+
+test("a link to a 大区 or unit outside the workspace is refused by code", async () => {
+  const store = new InMemoryPlanningStore();
+  const c = ctx("sales_leader", "pro", store);
+  const draft = { territoryCode: "EAST", name: "East", parentId: null, ownerSub: null, status: "active" as const };
+  const badDivision = await upsertTerritory(c, { ...draft, divisionIds: ["d_nope"] }, new Set(["d_east"]));
+  assert.equal(badDivision.ok === false && badDivision.violations[0].code, "division_unknown");
+  const badUnit = await upsertTerritory(c, { ...draft, unitIds: ["u_nope"] });
+  assert.equal(badUnit.ok === false && badUnit.violations[0].code, "unit_unknown");
+  // Without the caller's list the foreign key is the last word: accepted here.
+  assert.ok((await upsertTerritory(c, { ...draft, divisionIds: ["d_whatever"] })).ok);
+});
+
+test("a fixture seeded in names (pre-0052) resolves to ids through the same rows", async () => {
+  const store = new InMemoryPlanningStore({ divisions: async () => [{ id: "d_east", name: "华东" }] });
+  store.seed({ territories: [{
+    id: "t1", workspaceId: WS, territoryCode: "EAST", name: "East", parentId: null, ownerSub: null,
+    regions: ["华东", "不存在的大区"], status: "active",
+  }] });
+  const [t] = unwrap(await listTerritories(ctx("sales_leader", "pro", store)));
+  assert.deepEqual([t!.divisionIds, t!.regions], [["d_east"], ["华东"]]);
+});

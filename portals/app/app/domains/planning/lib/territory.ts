@@ -32,6 +32,14 @@ export interface TerritoryDraft {
    */
   regions: readonly string[];
   status: TerritoryStatus;
+  /**
+   * The 大区 it covers, BY ID (incr/0052). This is what is written; `regions`
+   * on a record is derived from it at read time. Optional on a draft only for
+   * the demo seed and the pre-0052 tests, which still speak in names.
+   */
+  divisionIds?: readonly string[];
+  /** The units that work it (incr/0052). A territory may have several, or none. */
+  unitIds?: readonly string[];
 }
 
 /** What the rule needs to know about the territories already on file. */
@@ -93,7 +101,13 @@ export function planTerritory(
   const regions = planTerritoryRegions(input.regions ?? []);
   if (!regions.ok) return regions as RuleResult<TerritoryDraft>;
 
-  return ok({ ...input, territoryCode, name, regions: regions.value });
+  // THE TWO LINKS (0052): ids, de-duplicated, blanks dropped. Whether an id
+  // names a real 大区 or unit is the service's question - this rule sees no
+  // store - and the foreign keys' after it.
+  const divisionIds = [...new Set((input.divisionIds ?? []).map((d) => d.trim()).filter(Boolean))];
+  const unitIds = [...new Set((input.unitIds ?? []).map((u) => u.trim()).filter(Boolean))];
+
+  return ok({ ...input, territoryCode, name, regions: regions.value, divisionIds, unitIds });
 }
 
 /** Whether following parent links from `fromId` ever arrives at `targetId`. */

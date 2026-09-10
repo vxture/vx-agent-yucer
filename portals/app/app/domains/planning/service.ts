@@ -75,6 +75,12 @@ export async function listTerritories(
 export async function upsertTerritory(
   ctx: PlanningContext,
   input: TerritoryDraft,
+  /**
+   * The 大区 ids this workspace has (0052), read by the caller from the
+   * account domain - this service may not. Given, an id outside it is refused
+   * in the product's words; absent, the foreign key is the last word.
+   */
+  knownDivisionIds?: ReadonlySet<string>,
 ): Promise<RuleResult<TerritoryRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
   if (!gate.allowed) return denied(gate);
@@ -84,6 +90,18 @@ export async function upsertTerritory(
   const existing = await ctx.store.listTerritories(ctx.workspaceId, { includeRetired: true });
   const plan = planTerritory(input, existing);
   if (!plan.ok) return plan as RuleResult<TerritoryRecord>;
+
+  // THE TWO LINKS (0052) name rows that exist. The units are this domain's;
+  // the 大区 are the account domain's, so the caller says which ones there are.
+  if (plan.value.unitIds && plan.value.unitIds.length > 0) {
+    const units = new Set((await ctx.store.listOrgUnits(ctx.workspaceId)).map((u) => u.id));
+    const bad = plan.value.unitIds.find((u) => !units.has(u));
+    if (bad) return fail(violation("unit_unknown", `${bad} is not a unit of this workspace`, "unitIds"));
+  }
+  if (knownDivisionIds && plan.value.divisionIds) {
+    const bad = plan.value.divisionIds.find((d) => !knownDivisionIds.has(d));
+    if (bad) return fail(violation("division_unknown", `${bad} is not a division here`, "divisionIds"));
+  }
 
   return ok(await ctx.store.upsertTerritory(ctx.workspaceId, plan.value));
 }
@@ -296,17 +314,27 @@ export async function moveOrgUnit(
  * never by removing a trunk. Members placed here become un-placed (CASCADE),
  * and the count is returned so the caller can say so.
  */
-export async function removeOrgUnit(ctx: PlanningContext, id: string): Promise<RuleResult<{ id: string; unplaced: number }>> {
+export async function removeOrgUnit(
+  ctx: PlanningContext,
+  id: string,
+): Promise<RuleResult<{ id: string; unplaced: number; detached: number }>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.org.remove", "data");
   if (!gate.allowed) return denied(gate);
-  const [units, members] = await Promise.all([ctx.store.listOrgUnits(ctx.workspaceId), ctx.store.listOrgMembers(ctx.workspaceId)]);
+  const [units, members, territories] = await Promise.all([
+    ctx.store.listOrgUnits(ctx.workspaceId),
+    ctx.store.listOrgMembers(ctx.workspaceId),
+    ctx.store.listTerritories(ctx.workspaceId, { includeRetired: true }),
+  ]);
   if (!units.some((u) => u.id === id)) return fail(violation("not_found", "no such unit", "id"));
   if (units.some((u) => u.parentId === id)) {
     return fail(violation("unit_has_children", "a unit with units under it cannot be removed", "id"));
   }
   const unplaced = [...members.values()].filter((v) => v === id).length;
+  // Territories that listed this unit lose it (0052, CASCADE) - counted first
+  // so the caller can say so; a territory with no unit is an ordinary state.
+  const detached = territories.filter((t) => t.unitIds.includes(id)).length;
   await ctx.store.removeOrgUnit(ctx.workspaceId, id);
-  return ok({ id, unplaced });
+  return ok({ id, unplaced, detached });
 }
 
 /**
@@ -314,18 +342,27 @@ export async function removeOrgUnit(ctx: PlanningContext, id: string): Promise<R
  * goes (leaves first), every placement with it, and the template's units come
  * in fresh. The caller confirms; this reports how many members it un-placed.
  */
-export async function applyOrgTemplate(ctx: PlanningContext, key: string): Promise<RuleResult<{ key: string; units: number; unplaced: number }>> {
+export async function applyOrgTemplate(
+  ctx: PlanningContext,
+  key: string,
+): Promise<RuleResult<{ key: string; units: number; unplaced: number; detached: number }>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
   if (!gate.allowed) return denied(gate);
   const template = (await ctx.store.listOrgTemplates()).find((t) => t.key === key);
   if (!template) return fail(violation("template_unknown", `${key} is not a shipped template`, "key"));
   await ensureOrgSeeded(ctx);
-  const [units, members] = await Promise.all([ctx.store.listOrgUnits(ctx.workspaceId), ctx.store.listOrgMembers(ctx.workspaceId)]);
+  const [units, members, territories] = await Promise.all([
+    ctx.store.listOrgUnits(ctx.workspaceId),
+    ctx.store.listOrgMembers(ctx.workspaceId),
+    ctx.store.listTerritories(ctx.workspaceId, { includeRetired: true }),
+  ]);
+  // Every territory that listed any unit loses its units with the tree (0052).
+  const detached = territories.filter((t) => t.unitIds.length > 0).length;
   // Leaves first: listOrgUnits gives parents before children, so reversed is
   // children before parents, which is the order RESTRICT allows.
   for (const u of [...units].reverse()) await ctx.store.removeOrgUnit(ctx.workspaceId, u.id);
   await ctx.store.applyOrgTemplate(ctx.workspaceId, template);
-  return ok({ key, units: template.units.length, unplaced: members.size });
+  return ok({ key, units: template.units.length, unplaced: members.size, detached });
 }
 
 /** Place a member in a unit, or in none. Their unit is what the next batch's data scope reads. */

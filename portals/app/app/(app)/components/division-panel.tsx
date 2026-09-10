@@ -56,6 +56,8 @@ export interface DivisionRow {
   readonly members: readonly MarketMember[];
   /** True while it still matches a shipped template, exactly. Derived, not stored. */
   readonly system: boolean;
+  /** The territories covering it (0052), each with the units that work it. */
+  readonly coveredBy: readonly { readonly name: string; readonly units: readonly string[] }[];
 }
 
 export function DivisionPanel(
@@ -169,7 +171,12 @@ export function DivisionPanel(
                         confirm: {
                           verb: ROW_OPS.remove(PLANNING_TEXT.divisionName),
                           target: PLANNING_TEXT.divisionRemoveTarget(r.name),
-                          consequence: PLANNING_TEXT.divisionRemoveConsequence,
+                          /* The link CASCADEs (0052): say how many territories
+                             lose this ground before the click lands. */
+                          consequence:
+                            r.coveredBy.length > 0
+                              ? `${PLANNING_TEXT.divisionRemoveCoverage(r.coveredBy.length)}${PLANNING_TEXT.divisionRemoveConsequence}`
+                              : PLANNING_TEXT.divisionRemoveConsequence,
                           titleTemplate: PLANNING_TEXT.destructiveTitle,
                           cancelLabel: PLANNING_TEXT.templateCancel,
                           onConfirm: () => remove(r.code),
@@ -319,6 +326,28 @@ export function DivisionPanel(
         ) : (
           <EmptyState title={PLANNING_TEXT.divisionPickEmpty(noun)} description={PLANNING_TEXT.divisionRemoveWhy(noun)} />
         )}
+        {/* WHO WORKS THIS GROUND (0052): the territories covering the 大区,
+            and the units behind each - the chain read from the map's end. */}
+        {details ? (
+          <div className="mt-lg">
+            <Section title={PLANNING_TEXT.divisionCoveredBy(details.coveredBy.length)}>
+              {details.coveredBy.length === 0 ? (
+                <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionCoveredNone}</p>
+              ) : (
+                <ul className="gap-xs flex flex-col">
+                  {details.coveredBy.map((t) => (
+                    <li key={t.name} className="gap-xs flex items-center">
+                      <span className="text-body">{t.name}</span>
+                      <span className="text-muted-foreground text-body-sm">
+                        {t.units.length > 0 ? PLANNING_TEXT.divisionCoveredUnits(t.units.join(" / ")) : PLANNING_TEXT.divisionCoveredNoUnits}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          </div>
+        ) : null}
       </Drawer>
     </Section>
   );
