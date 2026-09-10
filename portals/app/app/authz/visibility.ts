@@ -61,8 +61,13 @@ export function canSeeRow(scope: DataScope, row: ScopedRow): boolean {
     return row.accountId != null && scope.accountIds.includes(row.accountId);
   }
 
-  // Territory scope, and BOTH paths matter. `territoryIds` is already expanded
-  // down the hierarchy by the resolver, so each is a membership test.
+  // THE PEOPLE PATH (unit, 0052): a row held by anyone standing in my unit's
+  // subtree is my organisation's, wherever it is filed. Checked before the
+  // ground because it is unconditional - a leader sees their people's work.
+  if (scope.kind === "unit" && scope.memberSubs.includes(row.ownerSub)) return true;
+
+  // Territory and unit scope, and BOTH paths matter. `territoryIds` is already
+  // expanded down the hierarchy by the resolver, so each is a membership test.
   //
   //   the row's own territory  - opportunities carry one.
   //   its customer's           - accounts and leads carry NO territory column

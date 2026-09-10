@@ -100,6 +100,9 @@ GRANT UPDATE (name, parent_id, owner_sub, status, updated_at)
 -- (name, sort_order, updated_at), a unit on (name, kind_id, parent_id,
 -- leader_sub, sort_order, updated_at), a placement on (unit_id, updated_at) -
 -- never a code. yucer_ref.org_template / org_template_unit are SELECT only.
+-- yucer_gtm.territory_unit / territory_division are created by incr/0052 as
+-- pairs: insert and delete, no UPDATE at all. `regions` above stays granted
+-- and is no longer written since 0052 - the names are derived from the link.
 
 -- sales_target: the scope tuple (period, scope_type, territory_id, owner_sub,
 -- metric) is the row identity -> immutable; only the number and state move.

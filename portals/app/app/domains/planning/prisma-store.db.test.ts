@@ -205,7 +205,10 @@ test("upsertTerritory creates on the first call and updates on the second, on th
     });
     assert.equal(second.id, first.id, "same territory_code must upsert, not duplicate");
     assert.equal(second.name, "East China (renamed)");
-    assert.deepEqual(second.regions, ["East", "Central"]);
+    // Since 0052 the names are DERIVED from division links, never from the
+    // column: a draft that speaks in names writes no link, so it reads as
+    // covering nothing. territory-links.db.test.ts proves the id path.
+    assert.deepEqual([second.regions, second.divisionIds, second.unitIds], [[], [], []]);
 
     const count = await withPg((c) =>
       c.query(`SELECT count(*)::int AS n FROM yucer_gtm.territory WHERE workspace_id = $1 AND territory_code = 'T-EAST'`, [WS]),

@@ -392,12 +392,18 @@ export function MemberRoles({
                 void run(key, () => onScope(row.sub, next, ids));
               }}
             >
-              {["workspace", "territory", "own"].map((k) => (
+              {["workspace", "unit", "territory", "own"].map((k) => (
                 <option key={k} value={k}>
                   {MEMBER_TEXT.scopeLabels[k] ?? k}
                 </option>
               ))}
             </NativeSelect>
+            {/* 本单位 with nowhere to stand (0052): the setting is coherent
+                and resolves to the queue alone; say so beside it rather
+                than let the row look configured. */}
+            {row.scope === "unit" && !unitOf[row.sub] ? (
+              <span className="text-warning text-body-sm">{MEMBER_TEXT.scopeUnitUnplaced}</span>
+            ) : null}
             {row.scope === "territory" && territories.length > 0 ? (
               <NativeSelect
                 aria-label={MEMBER_TEXT.scopeTerritory}

@@ -128,3 +128,18 @@ test("planTerritory now runs that validation, which is the point of moving it", 
   });
   assert.equal(bad.ok, false);
 });
+
+// --- The two links (incr/0052) -------------------------------------------------
+
+test("the division and unit ids are de-duplicated and blanks dropped; absent reads as none", () => {
+  const planned = planTerritory({
+    territoryCode: "EAST", name: "East", parentId: null, ownerSub: null, status: "active",
+    divisionIds: ["d1", " d1 ", "", "d2"], unitIds: ["u1", "u1"],
+  });
+  assert.ok(planned.ok);
+  assert.deepEqual(planned.value.divisionIds, ["d1", "d2"]);
+  assert.deepEqual(planned.value.unitIds, ["u1"]);
+  const bare = planTerritory({ territoryCode: "WEST", name: "West", parentId: null, ownerSub: null, status: "active" });
+  assert.ok(bare.ok);
+  assert.deepEqual([bare.value.divisionIds, bare.value.unitIds], [[], []]);
+});

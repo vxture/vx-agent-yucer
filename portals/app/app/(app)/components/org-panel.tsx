@@ -37,6 +37,8 @@ export interface OrgUnitRow {
   readonly members: number;
   readonly depth: number;
   readonly children: number;
+  /** The territories this unit works (0052), with the 大区 each covers. */
+  readonly territories: readonly { readonly code: string; readonly name: string; readonly regions: readonly string[] }[];
 }
 
 export function OrgPanel({
@@ -111,6 +113,7 @@ export function OrgPanel({
       throw new Error(res.error);
     }
     if (res.unplaced > 0) toast({ tone: "info", title: ORG_TEXT.removeDone(res.unplaced) });
+    if (res.detached > 0) toast({ tone: "info", title: ORG_TEXT.removeDetached(res.detached) });
     if (details?.id === r.id) setDetails(null);
     router.refresh();
   };
@@ -139,6 +142,7 @@ export function OrgPanel({
             + " [&_thead_th:nth-child(4)]:w-[7rem]"
             + " [&_thead_th:nth-child(5)]:w-[10rem]"
             + " [&_thead_th:nth-child(6)]:w-[6rem]"
+            + " [&_thead_th:nth-child(7)]:w-[6rem]"
           }
         >
           <DataTable
@@ -239,6 +243,16 @@ export function OrgPanel({
                 cell: (r: OrgUnitRow) =>
                   r.members === 0 ? <Tag>{ORG_TEXT.noMember}</Tag> : <span className="tabular-nums">{ORG_TEXT.members(r.members)}</span>,
               },
+              {
+                /* 区域 (0052): how many territories this unit works; the
+                   names are in the drawer. */
+                id: "territories",
+                header: ORG_TEXT.colTerritories,
+                cell: (r: OrgUnitRow) =>
+                  r.territories.length === 0
+                    ? <Tag>{ORG_TEXT.noTerritory}</Tag>
+                    : <span className="tabular-nums">{ORG_TEXT.territoryCount(r.territories.length)}</span>,
+              },
             ]}
           />
         </div>
@@ -267,6 +281,25 @@ export function OrgPanel({
             ) : (
               <ul className="gap-xs flex flex-wrap">
                 {placedHere.map((n) => <li key={n}><Tag>{n}</Tag></li>)}
+              </ul>
+            )}
+          </Section>
+          {/* 关联区域 (0052): the ground this unit works, and the 大区 each
+              piece of it covers - the whole chain from the unit's side. */}
+          <Section title={ORG_TEXT.detailsTerritories(details?.territories.length ?? 0)}>
+            {!details || details.territories.length === 0 ? (
+              <p className="text-muted-foreground text-body-sm">{ORG_TEXT.detailsNoTerritories}</p>
+            ) : (
+              <ul className="gap-xs flex flex-col">
+                {details.territories.map((t) => (
+                  <li key={t.code} className="gap-xs flex items-center">
+                    <span className="text-body">{t.name}</span>
+                    <span className="text-muted-foreground text-body-sm">{t.code}</span>
+                    <span className="text-muted-foreground text-body-sm">
+                      {t.regions.length > 0 ? ORG_TEXT.territoryCovers(t.regions.join(" / ")) : ORG_TEXT.territoryCoversNone}
+                    </span>
+                  </li>
+                ))}
               </ul>
             )}
           </Section>

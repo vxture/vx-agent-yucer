@@ -10,6 +10,8 @@ import { DivisionImport } from "../../components/division-import";
 import { NewEntryLink } from "../../components/form-page";
 import { isSystemDivision, type MarketScope } from "../../../domains/shared/market-division";
 import { frameName, frameNoun } from "../../lib/frame-copy";
+import { getPlanningStore } from "../../../domains/shared/registry";
+import { listOrgUnits, listTerritories } from "../../../domains/planning/service";
 
 // 市场划分 (大区) - CONFIGURATION, not a business module (owner, 2026-09-08).
 //
@@ -62,12 +64,26 @@ export default async function DivisionPage() {
   /* Read from the account store because that is where incr/0036 put the table,
      and gated on account.view - every roster that shows a customer's 大区 has
      to resolve one, so it is not a separate privilege. */
-  const [divisions, scope, ground, carveRows] = await Promise.all([
+  const planning = { ...ctx, store: getPlanningStore() };
+  const [divisions, scope, ground, carveRows, territories, orgUnits] = await Promise.all([
     listMarketDivisions(ctx),
     marketScope(ctx),
     frameMembers(ctx),
     listCarves(ctx),
+    // WHO WORKS THIS GROUND (0052): the territories covering each 大区 and the
+    // units behind them, read-only here. Each behind its own gate; denied
+    // reads as "nothing listed", never as a wrong list.
+    listTerritories(planning),
+    listOrgUnits(planning),
   ]);
+  const unitName = new Map((orgUnits.ok ? orgUnits.value : []).map((u) => [u.id, u.name]));
+  const coveredBy = (divisionId: string) =>
+    (territories.ok ? territories.value : [])
+      .filter((t) => t.divisionIds.includes(divisionId))
+      .map((t) => ({
+        name: t.name,
+        units: t.unitIds.map((id) => unitName.get(id)).filter((x): x is string => Boolean(x)),
+      }));
   if (!divisions.ok) {
     return (
       <EmptyState
@@ -144,6 +160,7 @@ export default async function DivisionPage() {
         rows={rows.map((d) => ({
           id: d.id, code: d.code, name: d.name, sortOrder: d.sortOrder, members: d.members,
           system: isSystemDivision(carves, d.code, d.name, d.members.map((m) => m.key)),
+          coveredBy: coveredBy(d.id),
         }))}
         unassigned={unassigned}
         noun={noun}

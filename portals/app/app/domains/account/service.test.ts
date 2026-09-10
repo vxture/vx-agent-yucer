@@ -422,6 +422,8 @@ function territory(over: Partial<TerritoryRecord> = {}): TerritoryRecord {
     parentId: null,
     ownerSub: null,
     regions: ["East China"],
+    divisionIds: [],
+    unitIds: [],
     status: "active",
     ...over,
   };

@@ -18,6 +18,8 @@ import {
   saveOrgKind,
   setMemberUnit,
   upsertOrgUnit,
+  listTerritories,
+  upsertTerritory,
   type PlanningContext,
 } from "./service";
 
@@ -122,7 +124,7 @@ test("removing a unit un-places its members and reports how many", async () => {
   unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: team.id }));
   unwrap(await setMemberUnit(c, { sub: "usr_b", unitId: team.id }));
   assert.equal(unwrap(await listOrgUnits(c)).find((u) => u.id === team.id)!.members, 2);
-  assert.deepEqual(unwrap(await removeOrgUnit(c, team.id)), { id: team.id, unplaced: 2 });
+  assert.deepEqual(unwrap(await removeOrgUnit(c, team.id)), { id: team.id, unplaced: 2, detached: 0 });
   assert.equal(unwrap(await listOrgMembers(c)).size, 0);
 });
 
@@ -149,7 +151,7 @@ test("applying a template replaces the tree and reports the un-placed", async ()
   const units = unwrap(await listOrgUnits(c));
   unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: units[0]!.id }));
   assert.equal(unwrap(await listOrgTemplates(c)).length, 3);
-  assert.deepEqual(unwrap(await applyOrgTemplate(c, "small_team")), { key: "small_team", units: 4, unplaced: 1 });
+  assert.deepEqual(unwrap(await applyOrgTemplate(c, "small_team")), { key: "small_team", units: 4, unplaced: 1, detached: 0 });
   const now = unwrap(await listOrgUnits(c));
   assert.deepEqual(now.map((u) => u.unitCode), ["hq", "sales", "presales", "delivery"]);
   assert.deepEqual(now.map((u) => u.depth), [0, 1, 1, 1]);
@@ -181,4 +183,22 @@ test("a kind is added, renamed by code, ordered, and refused while units are of 
   assert.equal(code(await removeOrgKind(c, "nope")), "not_found");
   unwrap(await removeOrgKind(c, added.id));
   assert.ok(!unwrap(await listOrgKinds(c)).some((k) => k.kindCode === "center"));
+});
+
+// --- The unit side of the joint (incr/0052) ------------------------------------
+
+test("a unit removed, or a tree replaced, detaches the territories that listed it and says how many", async () => {
+  const c = ctx("sales_leader");
+  const units = unwrap(await listOrgUnits(c));
+  const south = units.find((u) => u.unitCode === "south")!;
+  const team = units.find((u) => u.unitCode === "south_team1")!;
+  const draft = { territoryCode: "SOUTH", name: "South", parentId: null, ownerSub: null, status: "active" as const };
+  unwrap(await upsertTerritory(c, { ...draft, unitIds: [south.id, team.id] }));
+  unwrap(await upsertTerritory(c, { ...draft, territoryCode: "SOUTH2", name: "South 2", unitIds: [team.id] }));
+  assert.deepEqual(unwrap(await removeOrgUnit(c, team.id)), { id: team.id, unplaced: 0, detached: 2 });
+  const after = unwrap(await listTerritories(c));
+  assert.deepEqual(after.map((t) => t.unitIds), [[south.id], []]);
+  const replaced = unwrap(await applyOrgTemplate(c, "small_team"));
+  assert.equal(replaced.detached, 1, "only SOUTH still had a unit");
+  assert.ok(unwrap(await listTerritories(c)).every((t) => t.unitIds.length === 0));
 });

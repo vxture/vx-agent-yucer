@@ -21,7 +21,7 @@
 
 import { fail, ok, violation, type RuleResult } from "../domains/shared/result";
 
-export const DATA_SCOPES = ["workspace", "territory", "own"] as const;
+export const DATA_SCOPES = ["workspace", "territory", "own", "unit"] as const;
 export type DataScopeKind = (typeof DATA_SCOPES)[number];
 
 export function isDataScope(v: string): v is DataScopeKind {
@@ -83,6 +83,29 @@ export type DataScope =
       readonly unplacedAccountIds: readonly string[];
     }
   | {
+      /**
+       * 按组织 (incr/0052, owner 2026-09-10): the member sees what their
+       * ORGANISATION sees. Their unit's subtree is the frame: rows held by
+       * anyone standing in it, and the ground of every territory a unit in
+       * it works - the same two paths the territory scope walks, plus the
+       * people. Nothing is assigned by hand; being placed in a unit (0051)
+       * is the whole configuration, which is what the scope is for.
+       */
+      readonly kind: "unit";
+      /** The subtree, root first. Empty when the member is placed nowhere. */
+      readonly unitIds: readonly string[];
+      /** Everyone standing in the subtree - THE PEOPLE PATH. */
+      readonly memberSubs: readonly string[];
+      /** The subtree's territories, expanded down the territory tree. */
+      readonly territoryIds: readonly string[];
+      /** Customers on that ground - the parent path, as for territory. */
+      readonly accountIds: readonly string[];
+      /** Territory owners on that ground - the fallback, as for territory. */
+      readonly ownerSubs: readonly string[];
+      /** 未分区, as for territory. */
+      readonly unplacedAccountIds: readonly string[];
+    }
+  | {
       readonly kind: "own";
       readonly sub: string;
       /**
@@ -130,9 +153,11 @@ export const UNSCOPED: ScopeSetting = { kind: "workspace", territoryIds: [] };
  * access to a region. Refusing is how they find out now rather than when
  * somebody reports an empty screen.
  *
- * The other direction is allowed without comment: `workspace` and `own` carry
- * no territories, and a stale list left behind by switching away from
- * `territory` is ignored rather than an error.
+ * The other direction is allowed without comment: `workspace`, `own` and
+ * `unit` carry no territories, and a stale list left behind by switching away
+ * from `territory` is ignored rather than an error. `unit` with no placement
+ * is not refused here - this rule cannot see the organisation - and resolves
+ * to the queue alone, which the members page shows as 未归属 beside it.
  */
 export function validateScopeSetting(s: ScopeSetting): RuleResult<ScopeSetting> {
   if (!isDataScope(s.kind)) {

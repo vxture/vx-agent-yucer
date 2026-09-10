@@ -6,7 +6,7 @@ import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { getPlanningStore } from "../../../domains/shared/registry";
-import { listOrgMembers, listOrgTemplates, listOrgUnits } from "../../../domains/planning/service";
+import { listOrgMembers, listOrgTemplates, listOrgUnits, listTerritories } from "../../../domains/planning/service";
 import { OrgPanel, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
 import { NewEntryLink } from "../../components/form-page";
@@ -36,11 +36,14 @@ export default async function OrgPage() {
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
-  const [units, templates, placements, members] = await Promise.all([
+  const [units, templates, placements, members, territories] = await Promise.all([
     listOrgUnits(planning),
     listOrgTemplates(planning),
     listOrgMembers(planning),
     listWorkspaceMembers({ ...base, store: getAuthzStore() }),
+    // The other side of the joint (0052), behind planning.territory.view; a
+    // reader without it sees the column say 无区域 rather than a wrong count.
+    listTerritories(planning),
   ]);
   if (!units.ok) {
     return <EmptyState title={SHELL_TEXT.loadFailed} description={ORG_TEXT.emptyWhy} />;
@@ -50,7 +53,11 @@ export default async function OrgPage() {
   const nameOf = new Map((members.ok ? members.value : []).map((m) => [m.sub, m.displayName ?? m.sub]));
   const childCount = new Map<string, number>();
   for (const u of units.value) if (u.parentId) childCount.set(u.parentId, (childCount.get(u.parentId) ?? 0) + 1);
+  const worked = territories.ok ? territories.value : [];
   const rows: OrgUnitRow[] = units.value.map((u) => ({
+    territories: worked
+      .filter((t) => t.unitIds.includes(u.id))
+      .map((t) => ({ code: t.territoryCode, name: t.name, regions: t.regions })),
     id: u.id,
     unitCode: u.unitCode,
     name: u.name,

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getCatalogStore, getPlanningStore } from "../../domains/shared/registry";
 import { createTarget, updateTarget, upsertTerritory } from "../../domains/planning/service";
+import { listMarketDivisions } from "../../domains/account/service";
 import {
   TARGET_METRICS,
   TARGET_STATUSES,
@@ -142,6 +143,9 @@ export async function updateSalesTarget(
  */
 export async function saveTerritory(input: {
   regions?: readonly string[];
+  /** The 大区 it covers, by id (0052), and the units that work it. */
+  divisionIds?: readonly string[];
+  unitIds?: readonly string[];
   territoryCode: string;
   name: string;
   parentId: string | null;
@@ -155,15 +159,21 @@ export async function saveTerritory(input: {
     return { ok: false, error: "unknown_status" };
   }
 
+  const base = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+  };
+  /* WHICH 大区 EXIST is the account domain's answer (0052), read here and
+     handed to the planning service so an id outside the workspace is refused
+     in the product's words rather than by the foreign key. */
+  const divisions = await listMarketDivisions({ ...base, store: session.stores.account() });
+  const known = divisions.ok ? new Set(divisions.value.map((d) => d.id)) : undefined;
   const result = await upsertTerritory(
-    {
-      workspaceId: session.workspaceId,
-      sub: session.user.sub,
-      holder: session.authz,
-      entitlement: session.entitlement,
-      store: getPlanningStore(),
-    },
+    { ...base, store: getPlanningStore() },
     { ...input, regions: input.regions ?? [], status: input.status },
+    known,
   );
 
   if (!result.ok) {

@@ -3,7 +3,7 @@ import { ModuleHeadline } from "../components/module-headline";
 import { resolveAppSession } from "../lib/session";
 import { formatMoney, formatPercent } from "../lib/view-model";
 import { getPlanningStore } from "../../domains/shared/registry";
-import { attainment, listTerritories } from "../../domains/planning/service";
+import { attainment, listTerritories, listOrgUnits } from "../../domains/planning/service";
 import { PlanningTable } from "../components/planning-table";
 import { TerritoryPanel } from "../components/territory-panel";
 import { NewEntryLink } from "../components/form-page";
@@ -67,6 +67,10 @@ export default async function PlanningPage() {
   // the list itself; the filtered copy stayed here after the form moved out,
   // computed for nobody.
   const territories = await listTerritories(ctx, { includeRetired: true });
+  // The units' names for the roster's 所属单位 column (0052); a reader without
+  // admin.member.view sees the column say 未挂单位, not a wrong name.
+  const orgUnits = await listOrgUnits(ctx);
+  const unitName = new Map((orgUnits.ok ? orgUnits.value : []).map((u) => [u.id, u.name]));
   const territoryNames = new Map(
     territories.ok ? territories.value.map((t) => [t.id, t.name]) : [],
   );
@@ -160,7 +164,14 @@ export default async function PlanningPage() {
           floating between them belongs to neither. NAMED for the same reason:
           two bare 新建 on one page would make the reader guess which. */}
       <TerritoryPanel
-        rows={territories.ok ? territories.value : []}
+        rows={
+          territories.ok
+            ? territories.value.map((t) => ({
+                ...t,
+                units: t.unitIds.map((id) => unitName.get(id)).filter((x): x is string => Boolean(x)),
+              }))
+            : []
+        }
         action={
           can(session.authz, session.entitlement, "planning.territory.upsert", "ui")
             .allowed ? (
