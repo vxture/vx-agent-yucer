@@ -74,3 +74,10 @@ groupings, 业务线 and 层级. Both are TABLES the workspace owns (`role_line`
 seeded from the shipped lists and extended by the tenant; a preset names its
 group by code. The rule that no two presets share a permission set holds
 across all 24 and is now a test.
+
+## Amended 2026-09-10 (incr/0048): the seed order is the org chart
+
+Presets are ordered business line first, in the shipped 业务线 order, then
+rank from the top rung down inside each line, so a person picking a role
+reads it the way an org chart reads. A workspace that never re-ordered
+follows; one that did keeps its own order.

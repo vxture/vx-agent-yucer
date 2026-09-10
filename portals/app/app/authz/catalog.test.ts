@@ -330,34 +330,50 @@ test("no product role reuses a platform governance role code", () => {
  *  statement writes onto local_authz.role - 0047's, which restates all 24
  *  and therefore supersedes 0046's four-column rows. */
 function seedPresetRows(): Array<[string, string, string, string, string, number]> {
-  const body = seedSection(
+  // THE LAST BLOCK ONLY: 0047 wrote these rows and 0048 restated them in a
+  // new order; the table holds whatever the latest increment says, so the
+  // mirror is held to that and not to a superseded statement.
+  const all = seedSection(
     "UPDATE local_authz.role r SET name = v.name, description = v.description,\n  business_line = v.line",
     ") AS v(code, name, description, line, rank, ord)",
   );
+  const marker = "UPDATE local_authz.role r SET name = v.name";
+  const body = all.slice(all.lastIndexOf(marker));
   return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*(\d+)\)/g)].map(
     (m) => [m[1]!, m[2]!, m[3]!, m[4]!, m[5]!, Number(m[6])],
   );
 }
 
-test("the presets' names, descriptions, lines, ranks and order mirror incr/0047 exactly", () => {
+test("the presets' names, descriptions, lines, ranks and order mirror the latest increment exactly", () => {
   // A workspace copy starts from these columns and prints them (incr/0046,
   // 0047), so the in-memory store's presets and the table's have to be the
   // same rows - or the demo would show one 销售经理 and production another.
   const rows = seedPresetRows();
-  assert.equal(rows.length, ROLE_CODES.length, "0047 names every preset once");
+  assert.equal(rows.length, ROLE_CODES.length, "the latest block names every preset once");
   const mirror = presetRoles();
   for (const [code, name, description, line, rank, ord] of rows) {
     const p = mirror.find((x) => x.code === code);
-    assert.ok(p, `${code} is in 0047 but not in presetRoles()`);
+    assert.ok(p, `${code} is in the seed but not in presetRoles()`);
     assert.equal(p.name, name, `${code}: name`);
     assert.equal(p.description, description, `${code}: description`);
     assert.equal(p.line, line, `${code}: business_line`);
     assert.equal(p.rank, rank, `${code}: rank`);
     assert.equal(p.sortOrder, ord, `${code}: sort_order`);
   }
-  // Roster order is dense and starts with the group layer.
+  // Roster order is dense, starts with the group layer, and inside a line
+  // runs from the top rung down (0048): a reader picks from an org chart.
   assert.deepEqual([...mirror.map((p) => p.sortOrder)], mirror.map((_, i) => i + 1));
   assert.equal(mirror[0]!.code, "sales_leader");
+  const lines = DEFAULT_ROLE_LINES.map((g) => g.code);
+  const ranks = DEFAULT_ROLE_RANKS.map((g) => g.code);
+  for (let i = 1; i < mirror.length; i += 1) {
+    const a = mirror[i - 1]!;
+    const b = mirror[i]!;
+    const la = lines.indexOf(a.line);
+    const lb = lines.indexOf(b.line);
+    assert.ok(la <= lb, `${a.code} before ${b.code}: line order`);
+    if (la === lb) assert.ok(ranks.indexOf(a.rank) >= ranks.indexOf(b.rank), `${a.code} before ${b.code}: rank high to low`);
+  }
 });
 
 test("no two presets hold the same permission set - a rung adds something", () => {

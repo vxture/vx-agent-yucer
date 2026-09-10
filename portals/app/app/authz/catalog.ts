@@ -647,33 +647,34 @@ export const PRESET_ROLE_RANKS: Record<RoleCode, RoleRank> = {
   customer_success: "manager",
 };
 
-/** The roster order 0047 seeds - 集团层 first, then each line's ladder from
- *  the bottom rung up. NOT the seed order, which appends. */
+/** The roster order the seed fixes (0048, owner: 预置角色排序固化): business
+ *  line first, in the shipped 业务线 order, then rank from the top rung down
+ *  inside each line. NOT the seed order, which appends. */
 export const PRESET_ROLE_ORDER: readonly RoleCode[] = [
   "sales_leader",
   "executive",
   "finance",
   "workspace_admin",
   "viewer",
-  "sales_rep",
-  "sales_manager",
-  "senior_sales_manager",
-  "regional_director",
   "regional_general_manager",
-  "channel_manager",
+  "regional_director",
+  "senior_sales_manager",
+  "sales_manager",
+  "sales_rep",
   "senior_channel_manager",
-  "delivery_manager",
+  "channel_manager",
   "senior_delivery_manager",
-  "presales",
+  "delivery_manager",
   "senior_presales",
-  "marketing_specialist",
+  "presales",
   "marketing_manager",
-  "sales_ops_specialist",
+  "marketing_specialist",
   "sales_ops",
+  "sales_ops_specialist",
   "key_account_manager",
+  "customer_success",
   "sdr",
   "deal_desk",
-  "customer_success",
 ];
 
 /** A workspace role's code: the shape chk_workspace_role_code CHECKs (0046).
