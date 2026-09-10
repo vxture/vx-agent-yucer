@@ -1,5 +1,7 @@
 "use client";
 
+import { BRAND } from "@yucer/shared/brand";
+
 import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -130,8 +132,6 @@ export interface AppShellProps {
   readonly userName: string;
   readonly workspaceLabel: string;
   readonly upgradeHref: string;
-  /** Build identity, so a bug report can say which build it was seen on. */
-  readonly appVersion: string;
   /** The tier itself, not its display label - null when unsubscribed. */
   readonly tier: string | null;
   /**
@@ -140,13 +140,6 @@ export interface AppShellProps {
    * printing an empty row.
    */
   readonly tenantId: string | null;
-  /**
-   * True on a production deployment. The tier badge and the build label are
-   * DEVELOPER-FACING: they answer "which build am I looking at" during
-   * development and review. On a customer's screen the tier is a commercial
-   * fact they did not ask to be reminded of on every page.
-   */
-  readonly isProduction: boolean;
   /** Resolved on the server so the first paint is already in this language. */
   readonly locale: Locale;
   /** What search can reach. Assembled on the server so it obeys both gates. */
@@ -183,10 +176,8 @@ export function AppShell({
   userName,
   workspaceLabel,
   upgradeHref,
-  appVersion,
   tier,
   tenantId,
-  isProduction,
   locale,
   searchable,
   boardOpen,
@@ -410,24 +401,27 @@ export function AppShell({
                   its README says why: "运行时应用把需要的资产拷进自己的
                   public/assets/... 自行伺服,不做跨包静态文件假设". Copied in,
                   not deep-imported past the package's exports map. */}
+              {/* THE LOCKUP (owner, 2026-09-10): the product's Chinese name,
+                  and under it the product code as the platform knows it -
+                  the build label that used to sit there is on the status
+                  page, where a bug report goes to read it. */}
               <ShellBrand
                 href="/"
                 logoSrc="/assets/brand/vxture-logo-icon.svg"
                 logoAlt={HEADER_TEXT.logoAlt}
                 label={SHELL_TEXT.brandName}
-                tag={isProduction ? undefined : HEADER_TEXT.version(appVersion)}
+                tag={HEADER_TEXT.productCode(BRAND.productCode)}
               />
 
-              {/* (5) The tier, WITHOUT the word "档" - a Chinese measure word
-                bolted onto an English identifier was neither - and absent
-                entirely in production. */}
-              {isProduction ? null : (
-                <Tag tone={tier ? "brand" : "neutral"}>
-                  {tier
-                    ? HEADER_TEXT.subscription(tier)
-                    : HEADER_TEXT.subscriptionNone}
-                </Tag>
-              )}
+              {/* (5) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
+                  tier from the entitlement, one of five, in English, on every
+                  screen - production included. The brand tone keeps the DS's
+                  star. Unsubscribed says so in the neutral tone. */}
+              <Tag tone={tier ? "brand" : "neutral"} aria-label={HEADER_TEXT.subscriptionAria}>
+                {tier
+                  ? HEADER_TEXT.subscription(tier)
+                  : HEADER_TEXT.subscriptionNone}
+              </Tag>
 
               {/* (6) The rule. It separates identity from scope: everything to
                 its left is which PRODUCT this is, everything to its right is

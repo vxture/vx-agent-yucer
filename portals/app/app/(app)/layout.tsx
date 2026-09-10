@@ -13,8 +13,7 @@ import { can } from "../authz/decide";
 import { AppShell } from "./components/app-shell";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
-import { readNavCollapsed, serviceIdentity } from "@vxture/shared";
-import { BRAND } from "@yucer/shared/brand";
+import { readNavCollapsed } from "@vxture/shared";
 import {
   getAccountStore,
   getDeliveryStore,
@@ -37,25 +36,6 @@ import { notificationItems, notificationTotal } from "./lib/notifications";
 // The three lockout states are distinct on purpose and none of them renders the
 // shell: there is nothing to navigate.
 
-/**
- * What to print beside the wordmark.
- *
- * serviceIdentity returns "unknown" for the sha when GIT_SHA is unset, which is
- * every local run - and "vunknown" in a header reads like a defect rather than
- * like a development build. Say "dev" when that is what it is; a version string
- * that cannot be traced to a build should not pretend to be one.
- */
-function buildLabel(): string {
-  const { gitSha } = serviceIdentity({
-    service: `${BRAND.productCode}-app`,
-    product: BRAND.productCode,
-  });
-  // Three shapes, and only one of them takes a "v": a semver release does,
-  // a commit sha does not, and "dev" is not a version at all.
-  const declared = process.env.APP_VERSION;
-  if (!gitSha || gitSha === "unknown") return declared ? `v${declared}` : "dev";
-  return gitSha.slice(0, 7);
-}
 
 export default async function AppLayout({
   children,
@@ -257,7 +237,6 @@ export default async function AppLayout({
         deckCount={agent.pending.length}
         notificationsTotal={notificationTotal(bellItems)}
         notificationItems={bellItems}
-        appVersion={buildLabel()}
         tenantId={tenantIdOf(session)}
         locale={locale}
         /* NEXT_PUBLIC_APP_ENV, not a guess from the version string's shape.
@@ -273,7 +252,6 @@ export default async function AppLayout({
          NEXT_PUBLIC_APP_ENV=production). Doubly disconnected, so production
          would have shown the build badge it exists to hide. Found by the
          2026-08-30 connectivity audit's declared-vs-read env diff. */
-        isProduction={process.env.NEXT_PUBLIC_APP_ENV === "production"}
         tier={session.entitlement.tier}
         searchable={searchable}
         nav={nav}
