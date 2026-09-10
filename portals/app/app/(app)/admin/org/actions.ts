@@ -10,7 +10,6 @@ import {
   removeOrgKind,
   removeOrgUnit,
   saveOrgKind,
-  setMemberUnit,
   upsertOrgUnit,
 } from "../../../domains/planning/service";
 import type { MoveDirection } from "../../../domains/shared/ordering";
@@ -82,16 +81,6 @@ export async function applyOrgTemplateAction(key: string): Promise<Result<{ unit
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/", "layout");
   return { ok: true, units: r.value.units, unplaced: r.value.unplaced, detached: r.value.detached };
-}
-
-/** Place a member in a unit, or in none (empty string). */
-export async function setMemberUnitAction(sub: string, unitId: string): Promise<{ ok: boolean; error?: string }> {
-  const c = await ctx();
-  if (!c) return { ok: false, error: "not_authenticated" };
-  const r = await setMemberUnit(c, { sub, unitId: unitId === "" ? null : unitId });
-  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/", "layout");
-  return { ok: true };
 }
 
 /* --- 单位类型 ---------------------------------------------------------------- */

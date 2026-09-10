@@ -1397,6 +1397,35 @@ export const MEMBER_TEXT = {
     unit: "本单位",
   } as Record<string, string>,
   scopeUnitUnplaced: "未归属任何单位，只能看到无主记录",
+  // 展示页 / 配置页分离（owner, 2026-09-10：展示信息和编辑、新建混合在一个页面，大bug）。
+  noun: "成员",
+  count: (active: number, inactive: number) => `${active} 人在岗${inactive > 0 ? ` · ${inactive} 人已停用` : ""}`,
+  active: "在岗",
+  detailsTitle: (name: string) => `${name} · 成员详情`,
+  detailsDone: "关闭",
+  detailsEdit: "编辑成员",
+  territoriesNone: "还没有勾选销售区域。",
+  deactivateMenu: "停用成员",
+  deactivateTarget: (name: string) => `「${name}」`,
+  handoverMenu: "转交客户",
+  handoverTitle: (name: string) => `转交 ${name} 的客户`,
+  handoverConfirm: "确认转交",
+  handoverNoHeir: "没有其他在岗成员可以接收。",
+  destructiveTitle: "{verb}{target}？",
+  cancel: "取消",
+  formTitle: "成员设置",
+  formWhy: "角色、所属单位与可见范围。",
+  rolesField: "角色",
+  rolesHint: "勾选这个成员持有的角色；权限随角色而来。",
+  rolesNone: "工作区还没有角色。先到角色管理里建一个。",
+  unitField: "所属单位",
+  unitConfigure: "配置",
+  scopeField: "可见范围",
+  territoriesField: "销售区域",
+  territoriesHint: "本区域范围：勾选能看到的区域，含其下级区域。",
+  save: "保存成员",
+  discard: "放弃",
+  saveFailed: "保存失败",
 } as const;
 
 export const MEMBER_ERROR: Record<string, string> = {
@@ -1425,6 +1454,8 @@ export const MEMBER_ERROR: Record<string, string> = {
   terminal_requires_closed: "赢单/丢单必须同时落下结案时间",
   closed_requires_terminal_stage: "预测归入「已结案」必须配已关闭的阶段",
   unknown_forecast_category: "这条商机的预测分类不在目录中",
+  unknown_scope: "未知的可见范围",
+  territory_required: "本区域范围至少要勾选一个销售区域",
 };
 
 // 客户信息补齐（2026-09-01 owner 提出）。分两组，因为它们的代价不同：
@@ -1826,7 +1857,7 @@ export const ADMIN_TEXT = {
     "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
   planned: "未建",
   entryHint: {
-    members: "谁在这个工作区，启用与交接",
+    members: "谁在这个工作区，各自的角色、单位与可见范围",
     roles: "九个角色各自能做什么",
     permissions: "二十五条权限，谁持有它",
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",

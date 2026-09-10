@@ -6,17 +6,31 @@ import { getAuthzStore } from "../../../authz/store";
 import {
   assignRole,
   deactivateMember,
+  listWorkspaceMembers,
   reactivateMember,
   revokeRole,
   setMemberScope,
 } from "../../../authz/admin";
 import { isDataScope } from "../../../authz/scope";
+import { getPlanningStore } from "../../../domains/shared/registry";
+import { setMemberUnit } from "../../../domains/planning/service";
 
-// Granting and removing roles.
-//
-// The administrator is the SESSION subject, never a parameter. The target is a
-// parameter, because granting someone else a role is the entire point - but the
-// person doing it is not something a request gets to assert.
+/* 成员管理 的写入路径.
+ *
+ * ONE SAVE FOR THE FORM (owner, 2026-09-10: 展示信息和编辑、新建混合在一个页面，
+ * 大bug). The roster used to carry a grant select, a remove button per role,
+ * a scope select, a territory select, a unit select and the lifecycle
+ * buttons inline - six write paths on one display page. The form on
+ * /admin/members/[id] is where a member is configured now, and it saves
+ * through this one action: the roles as a set (grants first, then
+ * revocations, so swapping one administrator role for another never trips
+ * the last-administrator guard), the scope, the unit.
+ *
+ * The administrator is the SESSION subject, never a parameter. The target
+ * is a parameter, because configuring somebody else is the point.
+ *
+ * Returns the violation CODE, never its sentence (TD-010).
+ */
 
 export interface RoleChangeResult {
   ok: boolean;
@@ -33,30 +47,53 @@ function ctx(session: NonNullable<Awaited<ReturnType<typeof resolveAppSession>>>
   };
 }
 
-export async function grantMemberRole(sub: string, role: string): Promise<RoleChangeResult> {
+export async function saveMemberAction(
+  sub: string,
+  input: { roles: readonly string[]; unitId: string; scope: string; territoryIds: readonly string[] },
+): Promise<RoleChangeResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
+  if (!isDataScope(input.scope)) return { ok: false, error: "unknown_scope" };
+  const c = ctx(session);
 
-  const result = await assignRole(ctx(session), sub, role);
-  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  const members = await listWorkspaceMembers(c);
+  if (!members.ok) return { ok: false, error: members.violations[0]?.code ?? "denied" };
+  const me = members.value.find((m) => m.sub === sub);
+  if (!me) return { ok: false, error: "not_found" };
 
-  // The whole shell depends on roles - the nav itself is derived from them - so
-  // a role change invalidates every page, not just this one.
+  // THE ROLES AS A SET. Every write runs the service's own gate and guard.
+  const want = new Set(input.roles);
+  const held = new Set(me.roles);
+  for (const role of want) {
+    if (held.has(role)) continue;
+    const r = await assignRole(c, sub, role);
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+  for (const role of held) {
+    if (want.has(role)) continue;
+    const r = await revokeRole(c, sub, role);
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+
+  // THE SCOPE. Territories kept only for the scope that reads them (0022).
+  const scoped = await setMemberScope(c, sub, {
+    kind: input.scope,
+    territoryIds: input.scope === "territory" ? [...input.territoryIds] : [],
+  });
+  if (!scoped.ok) return { ok: false, error: scoped.violations[0]?.code ?? "denied" };
+
+  // THE UNIT (0051), through the planning service and its own gate.
+  const placed = await setMemberUnit(
+    { ...c, store: getPlanningStore() },
+    { sub, unitId: input.unitId === "" ? null : input.unitId },
+  );
+  if (!placed.ok) return { ok: false, error: placed.violations[0]?.code ?? "denied" };
+
+  // Roles drive the nav and scope decides what every list returns, so the
+  // whole shell is stale - including the page the member themselves holds.
   revalidatePath("/", "layout");
   return { ok: true };
 }
-
-export async function removeMemberRole(sub: string, role: string): Promise<RoleChangeResult> {
-  const session = await resolveAppSession();
-  if (!session) return { ok: false, error: "not_authenticated" };
-
-  const result = await revokeRole(ctx(session), sub, role);
-  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
 
 /**
  * Somebody left. Mark them inactive and take their roles.
@@ -84,40 +121,6 @@ export async function setMemberActive(sub: string): Promise<RoleChangeResult> {
   const result = await reactivateMember(ctx(session), sub);
   if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
 
-  revalidatePath("/", "layout");
-  return { ok: true };
-}
-
-
-/**
- * Decide which rows a member may see.
- *
- * THE CLIENT SENDS A STRING AND A LIST OF IDS, never a scope object: a shape
- * the client assembles is a shape it can assemble wrongly, and this one decides
- * visibility. Parsed and validated on the server, twice - here into the right
- * type, and again in the service against the rule.
- */
-export async function changeMemberScope(
-  sub: string,
-  kind: string,
-  territoryIds: string[],
-): Promise<RoleChangeResult> {
-  const session = await resolveAppSession();
-  if (!session) return { ok: false, error: "not_authenticated" };
-  if (!isDataScope(kind)) return { ok: false, error: "unknown_scope" };
-
-  const result = await setMemberScope(ctx(session), sub, {
-    kind,
-    // Only kept for the scope that reads them. A stale list left behind by
-    // switching away from `territory` is not an error to report at somebody -
-    // it is a list nothing reads - but storing it would leave a configuration
-    // that looks assigned and is not.
-    territoryIds: kind === "territory" ? territoryIds : [],
-  });
-  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
-
-  // Scope decides what every list returns, so the whole shell is stale - and
-  // the member whose scope changed is holding a page built from the old one.
   revalidatePath("/", "layout");
   return { ok: true };
 }

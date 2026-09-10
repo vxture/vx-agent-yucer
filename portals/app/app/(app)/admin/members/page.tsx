@@ -1,34 +1,27 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { listRoles } from "../../../authz/roles";
-import { MemberRoles } from "../../components/member-roles";
-import {
-  changeMemberScope,
-  grantMemberRole,
-  removeMemberRole,
-  setMemberActive,
-  setMemberInactive,
-} from "./actions";
+import { MemberPanel, type MemberRow } from "../../components/member-panel";
 import { listOrgMembers, listOrgUnits, listTerritories } from "../../../domains/planning/service";
-import { setMemberUnitAction } from "../org/actions";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { consoleMembersUrl } from "../../lib/console-url";
-import { handOverBook } from "./handover";
-
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
-// Member and role administration.
+import { Tag } from "../../components/tag";
+
+// 成员管理 - the roster. DISPLAY ONLY (owner, 2026-09-10: 展示信息和编辑、新建
+// 混合在一个页面，大bug): this page states who is here; 成员配置 in the row
+// menu leads to /admin/members/[id], where roles, unit and scope are set;
+// 停用 / 恢复在岗 / 转交客户 are row operations behind their confirmations.
 //
-// Membership is LAZY: a row appears on the first sighting of (workspace, sub) at
-// login, with no roles. So this list is "everyone who has ever signed in", not
-// "everyone the platform says belongs here" - local_authz.member is deliberately
-// not a real-time mirror of platform membership, and this screen does not try to
-// make it one. Someone who has never logged in cannot be pre-assigned a role,
-// which is a consequence of that design rather than an oversight.
+// Membership is LAZY: a row appears on the first sighting of (workspace, sub)
+// at login, with no roles. So this list is "everyone who has ever signed in",
+// not "everyone the platform says belongs here". INVITING IS A PLATFORM ACT -
+// seats and who may sign in are the platform's - so 邀请成员 is a link out.
 
 export const dynamic = "force-dynamic";
 
@@ -36,110 +29,60 @@ export default async function MembersPage() {
   const { ADMIN_TEXT, DOMAIN_LABEL, LOAD_ERROR, MEMBER_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
   if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
+    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
   }
-
-  const result = await listWorkspaceMembers({
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: getAuthzStore(),
-  });
-
-  // The territories an administrator may assign. Read through the service so
-  // both gates run - a page holding a store handle directly is the defect PR
-  // #26 fixed on the account page.
-  const territories = await listTerritories({
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: getPlanningStore(),
-  });
-
-  // The organisation (0051): the units the 所属单位 column offers, in tree
-  // order, and where everybody stands today.
-  const planningCtx = {
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: getPlanningStore(),
-  };
-  const [units, placements] = await Promise.all([listOrgUnits(planningCtx), listOrgMembers(planningCtx)]);
-
-  // The roles the menu offers are the WORKSPACE'S (0046), in its order.
-  const roles = await listRoles({
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: getAuthzStore(),
-  });
-
+  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const authz = { ...base, store: getAuthzStore() };
+  const planning = { ...base, store: getPlanningStore() };
+  const [result, roles, units, placements, territories] = await Promise.all([
+    listWorkspaceMembers(authz),
+    listRoles(authz),
+    listOrgUnits(planning),
+    listOrgMembers(planning),
+    listTerritories(planning),
+  ]);
   if (!result.ok) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(result.violations, LOAD_ERROR)}
-      />
-    );
+    return <EmptyState title={SHELL_TEXT.loadFailed} description={loadFailureText(result.violations, LOAD_ERROR)} />;
   }
+  // Names, in the workspace's own words (0046): a tenant who renamed 销售经理
+  // sees their word.
+  const roleOf = new Map((roles.ok ? roles.value : []).map((r) => [r.code, { code: r.code, name: r.name, admin: r.permissions.includes("admin.manage") }]));
+  const unitName = new Map((units.ok ? units.value : []).map((u) => [u.id, u.name]));
+  const territoryName = new Map((territories.ok ? territories.value : []).map((t) => [t.id, t.name]));
+  const placed = placements.ok ? placements.value : new Map<string, string>();
+  const rows: MemberRow[] = result.value.map((m) => ({
+    memberId: m.memberId,
+    sub: m.sub,
+    name: m.displayName ?? m.sub,
+    roles: m.roles.map((code) => roleOf.get(code) ?? { code, name: code, admin: false }),
+    status: m.status,
+    unit: unitName.get(placed.get(m.sub) ?? "") ?? null,
+    scope: m.scope,
+    territories: m.territoryIds.map((id) => territoryName.get(id)).filter((x): x is string => Boolean(x)),
+  }));
+  // Viewing and changing are separate actions on purpose: the list is useful
+  // to anyone who can see it, and only an administrator gets the controls.
+  const canManage = can(session.authz, session.entitlement, "admin.member.role.assign", "ui").allowed;
+  const inviteUrl = consoleMembersUrl();
+  const active = rows.filter((r) => r.status === "active").length;
 
   return (
     <ViewLayout>
-      <PageCrumbs
-        trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]}
-        current={DOMAIN_LABEL.members}
-      />
+      <PageCrumbs trail={[{ label: ADMIN_TEXT.title, href: "/admin" }]} current={DOMAIN_LABEL.members} />
       <ViewHeader
+        icon="users"
         title={DOMAIN_LABEL.members}
         description={MEMBER_TEXT.description}
+        secondary={<Tag>{MEMBER_TEXT.count(active, rows.length - active)}</Tag>}
+        action={
+          canManage && inviteUrl ? (
+            <Button asChild variant="secondary">
+              <a href={inviteUrl} target="_blank" rel="noreferrer">{MEMBER_TEXT.invite}</a>
+            </Button>
+          ) : null
+        }
       />
-      <MemberRoles
-        members={result.value}
-        roles={
-          roles.ok
-            ? roles.value.map((r) => ({
-                code: r.code,
-                name: r.name,
-                admin: r.permissions.includes("admin.manage"),
-              }))
-            : []
-        }
-        onDeactivate={setMemberInactive}
-        onReactivate={setMemberActive}
-        onHandover={handOverBook}
-        onScope={changeMemberScope}
-        territories={
-          territories.ok
-            ? territories.value.map((t) => ({ id: t.id, name: t.name }))
-            : []
-        }
-        units={units.ok ? units.value.map((u) => ({ id: u.id, name: u.name, depth: u.depth })) : []}
-        unitOf={placements.ok ? Object.fromEntries(placements.value) : {}}
-        onUnit={setMemberUnitAction}
-        inviteUrl={consoleMembersUrl()}
-        // Viewing and changing are separate actions on purpose: the list is
-        // useful to anyone who can see it, and only an administrator gets the
-        // controls.
-        canManage={
-          can(
-            session.authz,
-            session.entitlement,
-            "admin.member.role.assign",
-            "ui",
-          ).allowed
-        }
-        onGrant={grantMemberRole}
-        onRevoke={removeMemberRole}
-      />
+      <MemberPanel rows={rows} canManage={canManage} />
     </ViewLayout>
   );
 }
