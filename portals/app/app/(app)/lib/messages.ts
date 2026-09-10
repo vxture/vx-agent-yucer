@@ -1241,11 +1241,11 @@ export const CATALOG_ERROR: Record<string, string> = {
 
 export const ROLE_LABEL: Record<string, string> = {
   sales_leader: "销售负责人",
-  marketing_manager: "市场经理",
+  marketing_manager: "高级市场经理",
   sales_rep: "销售代表",
   presales: "售前顾问",
   delivery_manager: "交付经理",
-  sales_ops: "销售运营经理",
+  sales_ops: "高级运营经理",
   viewer: "只读成员",
   // 0021 的两级（owner 2026-09-01 裁定）。
   //
@@ -1253,11 +1253,11 @@ export const ROLE_LABEL: Record<string, string> = {
   // （admin.manage / copilot.autopilot / strategy.approve）。两个码一套权限，
   // 是一份假装自己做了区分的目录。要org 头衔上屏，那是改这里的标签，不是加角色。
   sales_manager: "销售经理",
-  regional_director: "大区总监",
+  regional_director: "大区销售总监",
   // 0047 - the group-scale presets. Display names come from the workspace's
   // own row since 0046; these are the fallback for a code with no row.
   executive: "高管",
-  finance: "财务",
+  finance: "财务管理员",
   workspace_admin: "系统管理员",
   senior_sales_manager: "高级销售经理",
   regional_general_manager: "大区总经理",
@@ -1266,11 +1266,19 @@ export const ROLE_LABEL: Record<string, string> = {
   senior_delivery_manager: "高级交付经理",
   senior_presales: "高级售前顾问",
   marketing_specialist: "市场专员",
-  sales_ops_specialist: "销售运营专员",
+  sales_ops_specialist: "运营专员",
   key_account_manager: "大客户经理",
   sdr: "商机开发代表",
   deal_desk: "商务专员",
   customer_success: "客户成功经理",
+  // 0049.
+  branch_general_manager: "分公司总经理",
+  sales_director: "销售总监",
+  channel_head: "渠道负责人",
+  delivery_head: "交付负责人",
+  presales_head: "售前负责人",
+  marketing_head: "市场负责人",
+  ops_head: "运营负责人",
 };
 
 /** 权限的中文说明。25 条，与 authz/catalog.ts 的 PERM_CODES 一一对应；
@@ -4763,5 +4771,13 @@ export const PERMISSION_TREE_TEXT = {
     sdr: "商开",
     deal_desk: "商务",
     customer_success: "客成",
+    // 0049 - the heads of the lines and the sales ladder re-cut.
+    sales_director: "销总",
+    branch_general_manager: "分总",
+    channel_head: "渠负",
+    delivery_head: "交负",
+    presales_head: "售前负",
+    marketing_head: "市负",
+    ops_head: "运负",
   } as Record<string, string>,
 } as const;

@@ -74,3 +74,18 @@ groupings, 业务线 and 层级. Both are TABLES the workspace owns (`role_line`
 seeded from the shipped lists and extended by the tenant; a preset names its
 group by code. The rule that no two presets share a permission set holds
 across all 24 and is now a test.
+
+## Amended 2026-09-10 (incr/0048): the seed order is the org chart
+
+Presets are ordered business line first, in the shipped 业务线 order, then
+rank from the top rung down inside each line, so a person picking a role
+reads it the way an org chart reads. A workspace that never re-ordered
+follows; one that did keeps its own order.
+
+## Amended 2026-09-10 (incr/0049): 31 presets, a head per line
+
+The group line reads 管理; each of 渠道 / 交付 / 售前 / 市场 / 运营 gets a 负责人
+on the director rung; the sales ladder is cut into 销售总监 / 分公司总经理 /
+大区销售总监 so every rung still adds something. The rule for existing
+workspaces is unchanged: a copy still at the shipped value follows the seed,
+a copy the tenant touched is theirs.

@@ -106,7 +106,7 @@ test("rolesOf is empty before any grant, and permissionsOf derives from the real
     assert.ok(perms.length > 0, "sales_rep must resolve to at least one real permission through the workspace's own rows");
     // 0046: the first grant materialised the presets, from the table.
     const mine = await s.listRoles(WS);
-    assert.equal(mine.length, 24);
+    assert.equal(mine.length, 31);
     // 0047: seeded with the vocabularies, and grouped through them.
     assert.equal((await s.listRoleGroups(WS, "line")).length, 8);
     assert.equal(mine.find((r) => r.code === "sales_rep")?.line?.code, "sales");

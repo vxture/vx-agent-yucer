@@ -65,11 +65,11 @@ test("the presets carry the names, descriptions, lines, ranks and order 0047 wro
     );
     // 0047: twenty-four, roster order dense, 集团层 first, each with a line
     // and a rung the CHECKs admit.
-    assert.equal(rows.length, 24);
+    assert.equal(rows.length, 31);
     assert.deepEqual(rows.map((r) => r.sort_order), rows.map((_, i) => i + 1));
-    assert.equal(rows[0].role_code, "sales_leader");
-    assert.equal(rows[0].name, "销售负责人");
-    assert.equal(rows.find((r) => r.role_code === "sales_ops")?.name, "销售运营经理");
+    assert.equal(rows[0].role_code, "executive");
+    assert.equal(rows[0].name, "高管");
+    assert.equal(rows.find((r) => r.role_code === "sales_ops")?.name, "高级运营经理");
     assert.ok(rows.every((r) => r.description.length > 0), "every preset has its sentence");
     const meta = await c.query(`SELECT count(DISTINCT business_line)::int AS lines, count(DISTINCT rank)::int AS ranks FROM local_authz.role`);
     assert.deepEqual(meta.rows[0], { lines: 8, ranks: 6 });

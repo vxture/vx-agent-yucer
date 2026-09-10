@@ -71,21 +71,21 @@ const draft = async (store: InMemoryAuthzStore, over: Partial<{
 
 // --- the presets --------------------------------------------------------------
 
-test("a workspace starts from the 24 presets, in roster order, grouped, and they read as 系统预置", async () => {
+test("a workspace starts from the 31 presets, in roster order, grouped, and they read as 系统预置", async () => {
   const store = fresh();
   const rows = unwrap(await listRoles(ctx("sales_leader", store)));
   assert.deepEqual(rows.map((r) => r.code), [...PRESET_ROLE_ORDER]);
-  assert.equal(rows.length, 24);
+  assert.equal(rows.length, 31);
   assert.ok(rows.every((r) => r.preset), "untouched presets are presets");
   assert.equal(rows.find((r) => r.code === "sales_ops")?.line?.code, "ops");
-  assert.equal(rows.find((r) => r.code === "sales_ops")?.name, "销售运营经理");
+  assert.equal(rows.find((r) => r.code === "sales_ops")?.name, "高级运营经理");
   assert.equal(rows.find((r) => r.code === "regional_general_manager")?.rank?.code, "general_manager");
   assert.deepEqual(rows.find((r) => r.code === "viewer")?.permissions, [...ROLE_PERMISSIONS.viewer]);
   assert.equal(rows.find((r) => r.code === "sales_leader")?.members, 1);
   // And the two vocabularies were seeded with the shipped lists, in order.
   const lines = unwrap(await listRoleGroups(ctx("sales_leader", store), "line"));
   assert.deepEqual(lines.map((g) => g.code), DEFAULT_ROLE_LINES.map((g) => g.code));
-  assert.equal(lines.find((g) => g.code === "sales")?.roles, 5, "five presets stand in 销售");
+  assert.equal(lines.find((g) => g.code === "sales")?.roles, 7, "seven presets stand in 销售");
   const ranks = unwrap(await listRoleGroups(ctx("sales_leader", store), "rank"));
   assert.deepEqual(ranks.map((g) => g.name), DEFAULT_ROLE_RANKS.map((g) => g.name));
 });
@@ -97,7 +97,7 @@ test("the first sighting materialises the presets and the vocabularies, so the o
   const owner = toAuthUser({ sub: "usr_owner", active_workspace: WS, roles: ["workspace:owner"] });
   const c = await resolveAuthzContext(owner, store);
   assert.deepEqual(c?.roles, ["sales_leader"]);
-  assert.equal((await store.listRoles(WS)).length, 24);
+  assert.equal((await store.listRoles(WS)).length, 31);
   assert.equal((await store.listRoleGroups(WS, "line")).length, 8);
   assert.equal((await store.listRoleGroups(WS, "rank")).length, 6);
   // Seeding is once: a second workspace-level seed changes nothing.
@@ -143,13 +143,13 @@ test("a member without admin.manage can neither list nor change roles", async ()
   assert.equal((await listRoles(c)).ok, false);
   const r = await saveRole(c, await draft(store, { code: "x", name: "x" }));
   assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
-  assert.equal((await store.listRoles(WS)).length, 24, "nothing was written");
+  assert.equal((await store.listRoles(WS)).length, 31, "nothing was written");
 });
 
 test("role administration survives a workspace with no feature entitlement", async () => {
   const store = fresh();
   unwrap(await saveRole(ctx("sales_leader", store, "free"), await draft(store)));
-  assert.equal((await store.listRoles(WS)).length, 25);
+  assert.equal((await store.listRoles(WS)).length, 32);
 });
 
 // --- saving ---------------------------------------------------------------------
@@ -160,7 +160,7 @@ test("a new role is created after the presets, in its group, with the grants sta
     description: "经营伙伴体系。",
     permissions: ["account.read", "pipeline.read", "account.read"],
   })));
-  assert.equal(row.sortOrder, 25);
+  assert.equal(row.sortOrder, 32);
   assert.equal(row.line?.code, "channel");
   assert.equal(row.rank?.code, "staff");
   assert.deepEqual(row.permissions, ["account.read", "pipeline.read"], "de-duplicated, catalogue order");
@@ -184,7 +184,7 @@ test("saving an existing code renames and re-groups it and replaces its grants w
   assert.equal(v.name, "观察员");
   assert.equal(v.rank?.code, "manager");
   assert.deepEqual(v.permissions, ["account.read"]);
-  assert.equal(rows.length, 24, "an edit is not a second row");
+  assert.equal(rows.length, 31, "an edit is not a second row");
 });
 
 test("the code, the name, the groups and the permissions are validated in the product's words", async () => {
@@ -202,7 +202,7 @@ test("the code, the name, the groups and the permissions are validated in the pr
   assert.equal(await code({ lineId: "nope" }), "line_unknown");
   assert.equal(await code({ rankId: "nope" }), "rank_unknown");
   assert.equal(await code({ permissions: ["account.read", "nope.write"] }), "permission_unknown");
-  assert.equal((await store.listRoles(WS)).length, 24, "nothing was written");
+  assert.equal((await store.listRoles(WS)).length, 31, "nothing was written");
 });
 
 test("taking admin.manage off the only administrative role anybody holds is refused", async () => {
@@ -220,7 +220,7 @@ test("taking admin.manage off the only administrative role anybody holds is refu
   // An INACTIVE administrator does not count.
   await store.setMemberStatus(WS, "usr_ops", "inactive");
   const again = await saveRole(ctx("sales_leader", store), await draft(store, {
-    code: "sales_ops", name: "销售运营经理", permissions: ["planning.read"],
+    code: "sales_ops", name: "高级运营经理", permissions: ["planning.read"],
   }));
   assert.equal(again.ok === false && again.violations[0]!.code, "last_admin");
 });
@@ -233,7 +233,7 @@ test("a role somebody holds cannot be removed; an unheld one can; an unknown one
   const held = await removeRole(ctx("sales_leader", store), "sales_rep");
   assert.equal(held.ok === false && held.violations[0]!.code, "role_in_use");
   unwrap(await removeRole(ctx("sales_leader", store), "presales"));
-  assert.equal((await store.listRoles(WS)).length, 23);
+  assert.equal((await store.listRoles(WS)).length, 30);
   const gone = await removeRole(ctx("sales_leader", store), "presales");
   assert.equal(gone.ok === false && gone.violations[0]!.code, "role_unknown");
   // And the store itself refuses a held one, whatever the caller checked.
@@ -257,9 +257,9 @@ test("the four moves renumber the whole list densely and refuse the edges", asyn
   unwrap(await moveRole(ctx("sales_leader", store), { code: "viewer", direction: "top" }));
   assert.equal((await codes())[0], "viewer");
   unwrap(await moveRole(ctx("sales_leader", store), { code: "viewer", direction: "down" }));
-  assert.deepEqual((await codes()).slice(0, 2), ["sales_leader", "viewer"]);
+  assert.deepEqual((await codes()).slice(0, 2), ["executive", "viewer"]);
   unwrap(await moveRole(ctx("sales_leader", store), { code: "viewer", direction: "bottom" }));
-  assert.equal((await codes())[23], "viewer");
+  assert.equal((await codes())[30], "viewer");
   const edge = await moveRole(ctx("sales_leader", store), { code: "viewer", direction: "down" });
   assert.equal(edge.ok === false && edge.violations[0]!.code, "move_at_edge");
   const orders = (await store.listRoles(WS)).map((r) => r.sortOrder);
@@ -278,7 +278,7 @@ test("重置预置 restores edited and deleted presets, keeps custom roles, and 
 
   const r = unwrap(await resetPresetRoles(c));
   assert.equal(r.restored, 2, "viewer and presales");
-  assert.equal(r.unchanged, 22);
+  assert.equal(r.unchanged, 29);
   const rows = unwrap(await listRoles(c));
   assert.deepEqual(rows.map((x) => x.code), [...PRESET_ROLE_ORDER, "partner_ops"], "presets first, in order, custom after");
   assert.ok(rows.filter((x) => x.code !== "partner_ops").every((x) => x.preset));
@@ -293,6 +293,7 @@ test("重置预置 brings back a shipped group the tenant had deleted, when a pr
   // Empty the 售前 line of its two presets, delete the line, then reset.
   unwrap(await removeRole(c, "presales"));
   unwrap(await removeRole(c, "senior_presales"));
+  unwrap(await removeRole(c, "presales_head"));
   const line = (await store.listRoleGroups(WS, "line")).find((g) => g.code === "presales")!;
   unwrap(await removeRoleGroup(c, "line", line.id));
   assert.equal((await store.listRoleGroups(WS, "line")).length, 7);
