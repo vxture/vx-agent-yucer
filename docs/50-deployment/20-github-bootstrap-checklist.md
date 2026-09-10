@@ -129,26 +129,50 @@ root; the same image serves both.
 | tag | `v*.*.*` | `beta-*` |
 | GitHub Environment | `production` (required reviewer) | `beta` (no reviewer) |
 | stack root | `/srv/md0/yucer` | `/srv/md1/yucer` (second array) |
+| where that is set | Environment variable `STACK_ROOT` on `production` | Environment variable `STACK_ROOT` on `beta` |
 | compose project / containers | `yucer` / `yucer-app`, `-redis`, `-db`, net `yucer-net` | `yucer-beta` / `yucer-beta-app`, `-redis`, `-db`, net `yucer-beta-net` |
 | published port | `4060` | `4061` (from the stack's own `etc/.env`) |
 | database | `vxturebiz_yucer_prod` | `vxturebiz_yucer_beta` |
 | OIDC client | `yucer` | `yucer-beta` |
 | db-init / rollback | `-f environment=production` | `-f environment=beta` |
 
-The route lives in `deploy.yml`'s detect job (tag -> environment, stack root,
-project name); `db-init.yml` and `rollback.yml` take `environment` as an input
-and derive the same three. `deploy/deploy.sh` reads `PROJECT_NAME` from CI
-(default: the product code) so the two stacks never share a container name,
-and its health check now curls the port the container actually listens on
-(`4060`; it was `3000` since the template and could never have passed).
+The route lives in `deploy.yml`'s detect job (tag -> environment). EVERYTHING
+ELSE THE PIPELINE NEEDS IS READ FROM A GITHUB LAYER, never a literal (owner,
+2026-09-10: 对照 GitHub 全套多层密码和变量，提供了你不用就是严重错误); the deploy job
+refuses to run without any of them, naming the missing one and its layer.
+
+| Value | Layer | Name | production | beta |
+|-------|-------|------|------------|------|
+| product code | repo var | `PRODUCT_CODE` | `yucer` | same |
+| image namespace on ACR | repo var (shadows the org's) | `ALIYUN_ACR_NAMESPACE` | `vx-agentstudio` | same |
+| published port | repo var, Environment var shadows | `APP_PUBLISH_PORT` | `4060` (repo) | `4061` (Environment) |
+| stack root on the host | Environment var | `STACK_ROOT` | `/srv/md0/yucer` | `/srv/md1/yucer` |
+| compose project | Environment var | `PROJECT_NAME` | `yucer` | `yucer-beta` |
+| ACR registry (public) | org var | `ALIYUN_ACR_REGISTRY` | shared | shared |
+| ACR registry the host pulls from | Environment var, optional | `ACR_PULL_REGISTRY` | unset -> public | unset -> public; a VPC host sets it to the org's `ALIYUN_ACR_INTERNAL_HOST` |
+| npm registry for `@vxture/*` | org var | `VXTURE_NPM_REGISTRY` | shared | shared |
+| tailnet tag | org var | `TAILSCALE_OAUTH_CLIENT_TAG` | shared | shared |
+| GHCR namespace | context | `github.repository_owner` | `vxture` | same |
+| host, user, port | Environment secrets | `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_PORT` | set | set |
+| SSH key, passphrase, known hosts | Environment secrets | `DEPLOY_SSH_KEY` / `DEPLOY_SSH_KEY_PASSPHRASE` / `DEPLOY_KNOWN_HOSTS` | set | set |
+| the stack's `.env` | Environment secret | `ENV_FILE_BASE64` | missing | missing |
+| registry / tailnet / npm credentials | org secrets | `ALIYUN_ACR_USERNAME` / `_PASSWORD`, `TAILSCALE_OAUTH_CLIENT_ID` / `_SECRET`, `NODE_AUTH_TOKEN` | shared | shared |
+
+The deploy directory is always `<STACK_ROOT>/deploy` and is rsync --delete'd on
+every deploy; there is no override, because one pointed at the stack root
+would wipe `etc/` and `data/`. The published port is passed by CI from the
+variable, so the stack's `.env` does not carry it. The container port stays
+the registry allocation baked into the image (rule R3).
 
 - [x] `beta` GitHub Environment, no reviewer (created 2026-09-10 by API).
+- [x] Environment variables (2026-09-10): `STACK_ROOT`, `PROJECT_NAME` and
+      `APP_PUBLISH_PORT` on `beta`; `STACK_ROOT` and `PROJECT_NAME` on
+      `production`. `gh variable list --env <name>` shows them.
 - [ ] Secrets on the `beta` Environment: `DEPLOY_HOST` = `vx-worker-02`,
       `DEPLOY_USER`, `DEPLOY_PORT` = `22`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`
       (same host as production - GitHub cannot share environment secrets, so
       they are entered twice), and `ENV_FILE_BASE64` for the BETA `.env`:
-      `NEXT_PUBLIC_APP_ENV=beta`, `APP_PUBLISH_PORT=4061`,
-      `POSTGRES_DB=vxturebiz_yucer_beta`, `DATABASE_URL=...@yucer-beta-db:5432/vxturebiz_yucer_beta`,
+      `NEXT_PUBLIC_APP_ENV=beta`, `POSTGRES_DB=vxturebiz_yucer_beta`, `DATABASE_URL=...@yucer-beta-db:5432/vxturebiz_yucer_beta`,
       `OIDC_CLIENT_ID=yucer-beta`, and the beta app URL - the beta DOMAIN is
       not decided in this repo; `.env.example` carries the prod one only.
 - [ ] Register the `yucer-beta` OIDC client on the platform (10-platform-registration-checklist).

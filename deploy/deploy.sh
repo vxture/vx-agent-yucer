@@ -16,7 +16,7 @@
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"     # /srv/md0/yucer or /srv/md1/yucer
+ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"     # the stack root: the Environment's STACK_ROOT
 ENV_FILE="$ROOT/etc/.env"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yml"
 
@@ -41,6 +41,7 @@ compose() {
   PRODUCT_CODE="$PRODUCT_CODE" \
   PRODUCT_CODE_SNAKE="$PRODUCT_CODE_SNAKE" \
   PROJECT_NAME="$PROJECT_NAME" \
+  APP_PUBLISH_PORT="${APP_PUBLISH_PORT:-}" \
   DATA_DIR="$DATA_DIR" \
   APP_ENV_FILE="$ENV_FILE" \
   IMAGE_REGISTRY="${IMAGE_REGISTRY:-ghcr.io}" \
@@ -50,6 +51,10 @@ compose() {
 }
 
 cmd_environment() {
+  # THE PUBLISHED PORT IS CONFIGURATION (the APP_PUBLISH_PORT variable, per
+  # tier) and CI passes it; a run without it would publish the compose
+  # default and silently collide with the other tier on this host.
+  test -n "${APP_PUBLISH_PORT:-}" || { log "APP_PUBLISH_PORT not passed by CI"; exit 1; }
   test -f "$ENV_FILE" || { log "missing $ENV_FILE"; exit 1; }
   test -f "$COMPOSE_FILE" || { log "missing $COMPOSE_FILE"; exit 1; }
   log "environment OK ($ROOT)"
