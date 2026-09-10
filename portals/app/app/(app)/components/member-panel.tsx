@@ -8,7 +8,6 @@ import {
   EmptyState,
   NativeSelect,
   Section,
-  SegmentedControl,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -21,6 +20,7 @@ import { setMemberActive, setMemberInactive } from "../admin/members/actions";
 import { handOverBook } from "../admin/members/handover";
 import { buildOrgView, type OrgViewUnit } from "../lib/member-org-view";
 import { MemberOrgView } from "./member-org-view";
+import { MemberViewSwitch, type MemberView } from "./member-view-switch";
 import { Tag } from "./tag";
 
 /* 成员管理 - 展示. DISPLAY ONLY, the shape /admin/roles and /admin/org have
@@ -40,9 +40,10 @@ import { Tag } from "./tag";
  * TWO VIEWS OF THE SAME PEOPLE (owner, 2026-09-10: 清单视图、组织视图). The
  * switch is in the section's action slot and the choice is in the URL
  * (`?view=org`), like the drawer's `?details=`, so it survives every refresh
- * an operation causes. The org view draws the same rows under the units
- * they are placed in - several per person since 0053 - names only; the
- * drawer, the row menu and the form stay the roster's.
+ * an operation causes. The org view is the organisation's tree table with
+ * the same rows under the units they are placed in - several per person
+ * since 0053 - names only, and 添加成员 / 移出成员 on each unit's row; the
+ * drawer and the person's form stay the roster's.
  *
  * MARKED, NOT HIDDEN. A departed member keeps their row forever - it is the
  * only thing that maps this sub to a name, and every signature in the audit
@@ -64,8 +65,6 @@ export interface MemberRow {
 }
 
 const SORT_ON = { member: (r: MemberRow) => r.name };
-
-type MemberView = "list" | "org";
 
 export function MemberPanel({ rows, canManage, orgUnits }: {
   readonly rows: readonly MemberRow[];
@@ -161,25 +160,28 @@ export function MemberPanel({ rows, canManage, orgUnits }: {
       {/* THE TOOLBAR ROW, as the permission tree draws its own: the DS's
           Section renders its header - and with it the action slot - only
           when it has a title, so a switch put in `action` on an untitled
-          section is empty air (which is how 组织结构's 全部展开 went missing). */}
+          section is empty air (which is how 组织结构's 全部展开 went missing).
+          The switch is the DS's list/card switch shape with the tree icon
+          (owner: 有 DS 标准，需要更换 icon 即可) - see member-view-switch.tsx. */}
       {rows.length > 0 ? (
         <div className="gap-sm flex items-center justify-end">
-          <SegmentedControl<MemberView>
-            size="sm"
+          <MemberViewSwitch
             value={view}
             onChange={setView}
             ariaLabel={MEMBER_TEXT.viewAria}
-            items={[
-              { value: "list", label: MEMBER_TEXT.viewList },
-              { value: "org", label: MEMBER_TEXT.viewOrg },
-            ]}
+            labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }}
           />
         </div>
       ) : null}
       {rows.length === 0 ? (
         <EmptyState title={MEMBER_TEXT.emptyTitle} description={MEMBER_TEXT.emptyDescription} />
       ) : view === "org" ? (
-        <MemberOrgView view={orgView} onOpen={openBySub} />
+        <MemberOrgView
+          view={orgView}
+          canManage={canManage}
+          roster={rows.filter((r) => r.status === "active").map((r) => ({ sub: r.sub, name: r.name }))}
+          onOpen={openBySub}
+        />
       ) : (
         <div
           className={

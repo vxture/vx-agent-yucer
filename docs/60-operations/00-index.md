@@ -35,6 +35,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-023 | DS 没有步骤条 / 时间轴件 | 2026-09-06 | open（`delivery-plan-flow.tsx` 垫着；已上报 DS） |
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
+| TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1627,6 +1628,20 @@ DS 请求上报（元素缺失，非本仓自建风格）。
 DS 内部，调用方没有任何入口能改到它，本仓不 fork DS。**回收条件**：DS 补上透传后，
 在每个 `FilterBar` 调用点从 `DS_LABELS` 传入这两个名字（`DATA_TABLE_LABELS` 已经
 是这个走法）。已作为 DS 请求上报（元素缺失，非本仓自建）。
+
+### TD-026 - DS `ViewModeSwitch` 的图标写死，装不下"清单 / 树"
+
+2026-09-10，成员管理页按 owner 要求提供清单视图与组织视图（树状表），切换控件
+按 owner 指示走 DS 的 list/card 切换组件"换个图标即可"。DS `ViewModeSwitch`
+的文件头写明"只有两个目的地、图标固定、语义固定"：值域是 `list | cards`，图标
+是 `list` 与 `squares-four`，没有图标属性。组织视图是树，不是卡片格，用九宫格
+图标指代它是指错东西。
+
+**缺失元素**：`ViewModeSwitch` 的第二档可换图标（或一个"两目的地、可指定图标"
+的开关）。**垫片位置**：`(app)/components/member-view-switch.tsx`——与 DS 该件
+同一组合（单选 `ToggleGroup`、`icon-md` 档、`lg` 图标、DS 自己的选中态四个类、
+空值守卫），仅第二档图标为 `tree-structure`，不改任何样式。**收回条件**：DS
+提供图标属性后，删掉该文件改为消费 `ViewModeSwitch`。
 
 ### TD-023 - DS 没有步骤条 / 时间轴件
 
