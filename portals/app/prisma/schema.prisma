@@ -521,6 +521,82 @@ model Territory {
   @@schema("yucer_gtm")
 }
 
+/// 组织结构 templates (incr/0051): the three shipped trees, read-only.
+model OrgTemplate {
+  id          String  @id @default(uuid()) @db.Uuid
+  templateKey String  @map("template_key") @db.VarChar(32)
+  name        String  @db.VarChar(64)
+  description String  @default("") @db.VarChar(500)
+  isDefault   Boolean @default(false) @map("is_default")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  @@unique([templateKey], map: "uidx_org_template_key")
+  @@map("org_template")
+  @@schema("yucer_ref")
+}
+
+model OrgTemplateUnit {
+  id         String  @id @default(uuid()) @db.Uuid
+  templateId String  @map("template_id") @db.Uuid
+  parentId   String? @map("parent_id") @db.Uuid
+  unitCode   String  @map("unit_code") @db.VarChar(64)
+  kindCode   String  @map("kind_code") @db.VarChar(32)
+  name       String  @db.VarChar(255)
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  @@unique([templateId, unitCode], map: "uidx_org_template_unit_code")
+  @@map("org_template_unit")
+  @@schema("yucer_ref")
+}
+
+/// 单位类型 - the workspace's own vocabulary (incr/0051), the industry shape.
+model OrgUnitKind {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  kindCode    String   @map("kind_code") @db.VarChar(32)
+  name        String   @db.VarChar(64)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, kindCode], map: "uidx_org_unit_kind_code")
+  @@index([workspaceId, sortOrder], map: "idx_org_unit_kind_ws_sort")
+  @@map("org_unit_kind")
+  @@schema("yucer_gtm")
+}
+
+/// 组织结构 - the workspace's units (incr/0051). unit_code is the anchor.
+model OrgUnit {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  unitCode    String   @map("unit_code") @db.VarChar(64)
+  name        String   @db.VarChar(255)
+  kindId      String   @map("kind_id") @db.Uuid
+  parentId    String?  @map("parent_id") @db.Uuid
+  leaderSub   String?  @map("leader_sub") @db.VarChar(128)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, unitCode], map: "uidx_org_unit_code")
+  @@index([workspaceId, parentId, sortOrder], map: "idx_org_unit_ws_parent")
+  @@map("org_unit")
+  @@schema("yucer_gtm")
+}
+
+/// Which unit a member belongs to - one per (workspace, sub); goes with the unit.
+model OrgUnitMember {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  sub         String   @db.VarChar(128)
+  unitId      String   @map("unit_id") @db.Uuid
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@id([workspaceId, sub], map: "pk_org_unit_member")
+  @@index([unitId], map: "idx_org_unit_member_unit")
+  @@map("org_unit_member")
+  @@schema("yucer_gtm")
+}
+
 model SalesTarget {
   id           String   @id @default(uuid()) @db.Uuid
   workspaceId  String   @map("workspace_id") @db.Uuid

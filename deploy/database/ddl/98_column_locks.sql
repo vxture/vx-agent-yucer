@@ -95,6 +95,11 @@ GRANT UPDATE (name, parent_id, owner_sub, status, updated_at)
 -- column an increment has yet to add fails with "column does not exist" and
 -- takes the whole apply down. The increment carries the full GRANT for its
 -- table; this stays the pre-increment baseline.
+-- yucer_gtm.org_unit_kind / org_unit / org_unit_member are created by
+-- incr/0051 and carry their own locks there: a kind allows UPDATE on
+-- (name, sort_order, updated_at), a unit on (name, kind_id, parent_id,
+-- leader_sub, sort_order, updated_at), a placement on (unit_id, updated_at) -
+-- never a code. yucer_ref.org_template / org_template_unit are SELECT only.
 
 -- sales_target: the scope tuple (period, scope_type, territory_id, owner_sub,
 -- metric) is the row identity -> immutable; only the number and state move.

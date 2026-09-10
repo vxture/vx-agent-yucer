@@ -21,8 +21,10 @@ import {
   type TargetStatus,
 } from "./lib/target";
 import { planTerritory, type TerritoryDraft } from "./lib/territory";
+import { ORG_KIND_CODE_SHAPE, planOrgUnit, type OrgTemplate, type OrgUnitDraft } from "./lib/org";
+import { planMove, type MoveDirection } from "../shared/ordering";
 import type { CatalogStore } from "../catalog/store";
-import type { PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
+import type { OrgKindRecord, OrgUnitRecord, PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
 
 export interface PlanningContext {
   workspaceId: string;
@@ -187,4 +189,193 @@ export async function attainment(
     rows.push({ target, measurement: measure(target, totals) });
   }
   return ok(rows);
+}
+
+/* ===== 组织结构 (incr/0051) ===================================================
+ *
+ * The fourth axis (see lib/org.ts). Reads ride admin.member.view - the
+ * organisation is what 成员管理 is organised BY, and whoever may see the
+ * members may see the tree. Writes are two ids under admin.manage:
+ * admin.org.upsert (a unit, its order, a kind, a template applied) and
+ * admin.org.remove (the two deletes). Placing a member is admin.member.scope,
+ * the id that already governs what a member may see: which unit they are in
+ * is the next batch's data scope, so it takes the scope permission today.
+ *
+ * FIRST SIGHTING: every read seeds the workspace that has nothing yet, the
+ * way presets are materialised (seedPresetRoles). 0051 seeds the workspaces
+ * that exist at deploy time; a workspace provisioned later gets the same
+ * defaults the first time anybody opens the page.
+ */
+
+export interface OrgUnitView extends OrgUnitRecord {
+  readonly kind: { readonly id: string; readonly code: string; readonly name: string } | null;
+  /** How many members are placed here (not counting the units under it). */
+  readonly members: number;
+  readonly depth: number;
+}
+
+async function ensureOrgSeeded(ctx: PlanningContext): Promise<void> {
+  await ctx.store.seedOrgDefaults(ctx.workspaceId);
+}
+
+export async function listOrgKinds(ctx: PlanningContext): Promise<RuleResult<OrgKindRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
+  if (!gate.allowed) return denied(gate);
+  await ensureOrgSeeded(ctx);
+  return ok(await ctx.store.listOrgKinds(ctx.workspaceId));
+}
+
+/** The tree, flattened in tree order, with its kind, depth and head-count. */
+export async function listOrgUnits(ctx: PlanningContext): Promise<RuleResult<OrgUnitView[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
+  if (!gate.allowed) return denied(gate);
+  await ensureOrgSeeded(ctx);
+  const [units, kinds, members] = await Promise.all([
+    ctx.store.listOrgUnits(ctx.workspaceId),
+    ctx.store.listOrgKinds(ctx.workspaceId),
+    ctx.store.listOrgMembers(ctx.workspaceId),
+  ]);
+  const kindById = new Map(kinds.map((k) => [k.id, k]));
+  const count = new Map<string, number>();
+  for (const unitId of members.values()) count.set(unitId, (count.get(unitId) ?? 0) + 1);
+  const depth = new Map<string, number>();
+  return ok(
+    units.map((u) => {
+      const d = u.parentId ? (depth.get(u.parentId) ?? 0) + 1 : 0;
+      depth.set(u.id, d);
+      const k = kindById.get(u.kindId);
+      return { ...u, kind: k ? { id: k.id, code: k.kindCode, name: k.name } : null, members: count.get(u.id) ?? 0, depth: d };
+    }),
+  );
+}
+
+export async function listOrgMembers(ctx: PlanningContext): Promise<RuleResult<Map<string, string>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
+  if (!gate.allowed) return denied(gate);
+  await ensureOrgSeeded(ctx);
+  return ok(await ctx.store.listOrgMembers(ctx.workspaceId));
+}
+
+export async function listOrgTemplates(ctx: PlanningContext): Promise<RuleResult<OrgTemplate[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listOrgTemplates());
+}
+
+/** Create or edit a unit. Upsert by code, like a territory: the code is the anchor. */
+export async function upsertOrgUnit(ctx: PlanningContext, input: OrgUnitDraft): Promise<RuleResult<OrgUnitRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  await ensureOrgSeeded(ctx);
+  const [existing, kinds] = await Promise.all([ctx.store.listOrgUnits(ctx.workspaceId), ctx.store.listOrgKinds(ctx.workspaceId)]);
+  const plan = planOrgUnit(input, existing, new Set(kinds.map((k) => k.id)));
+  if (!plan.ok) return plan as RuleResult<OrgUnitRecord>;
+  return ok(await ctx.store.upsertOrgUnit(ctx.workspaceId, plan.value));
+}
+
+/** Move a unit among its SIBLINGS - the order is per parent. */
+export async function moveOrgUnit(
+  ctx: PlanningContext,
+  input: { id: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const units = await ctx.store.listOrgUnits(ctx.workspaceId);
+  const self = units.find((u) => u.id === input.id);
+  if (!self) return fail(violation("not_found", "no such unit to move", "id"));
+  const siblings = units.filter((u) => u.parentId === self.parentId);
+  const plan = planMove(siblings.map((u) => ({ id: u.id, movable: true })), input.id, input.direction);
+  if (!plan.ok) return plan as RuleResult<true>;
+  await ctx.store.setOrgUnitOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a unit. REFUSED while anything stands under it (the FK's RESTRICT,
+ * said first and in the reader's words) - a tree is dismantled leaf by leaf,
+ * never by removing a trunk. Members placed here become un-placed (CASCADE),
+ * and the count is returned so the caller can say so.
+ */
+export async function removeOrgUnit(ctx: PlanningContext, id: string): Promise<RuleResult<{ id: string; unplaced: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.remove", "data");
+  if (!gate.allowed) return denied(gate);
+  const [units, members] = await Promise.all([ctx.store.listOrgUnits(ctx.workspaceId), ctx.store.listOrgMembers(ctx.workspaceId)]);
+  if (!units.some((u) => u.id === id)) return fail(violation("not_found", "no such unit", "id"));
+  if (units.some((u) => u.parentId === id)) {
+    return fail(violation("unit_has_children", "a unit with units under it cannot be removed", "id"));
+  }
+  const unplaced = [...members.values()].filter((v) => v === id).length;
+  await ctx.store.removeOrgUnit(ctx.workspaceId, id);
+  return ok({ id, unplaced });
+}
+
+/**
+ * 重置预置 for the organisation: REPLACE the tree with a template. Every unit
+ * goes (leaves first), every placement with it, and the template's units come
+ * in fresh. The caller confirms; this reports how many members it un-placed.
+ */
+export async function applyOrgTemplate(ctx: PlanningContext, key: string): Promise<RuleResult<{ key: string; units: number; unplaced: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const template = (await ctx.store.listOrgTemplates()).find((t) => t.key === key);
+  if (!template) return fail(violation("template_unknown", `${key} is not a shipped template`, "key"));
+  await ensureOrgSeeded(ctx);
+  const [units, members] = await Promise.all([ctx.store.listOrgUnits(ctx.workspaceId), ctx.store.listOrgMembers(ctx.workspaceId)]);
+  // Leaves first: listOrgUnits gives parents before children, so reversed is
+  // children before parents, which is the order RESTRICT allows.
+  for (const u of [...units].reverse()) await ctx.store.removeOrgUnit(ctx.workspaceId, u.id);
+  await ctx.store.applyOrgTemplate(ctx.workspaceId, template);
+  return ok({ key, units: template.units.length, unplaced: members.size });
+}
+
+/** Place a member in a unit, or in none. Their unit is what the next batch's data scope reads. */
+export async function setMemberUnit(ctx: PlanningContext, input: { sub: string; unitId: string | null }): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.scope", "data");
+  if (!gate.allowed) return denied(gate);
+  await ensureOrgSeeded(ctx);
+  if (input.unitId !== null) {
+    const units = await ctx.store.listOrgUnits(ctx.workspaceId);
+    if (!units.some((u) => u.id === input.unitId)) return fail(violation("unit_unknown", "no such unit", "unitId"));
+  }
+  await ctx.store.setMemberUnit(ctx.workspaceId, input.sub, input.unitId);
+  return ok(true);
+}
+
+/* --- 单位类型, the vocabulary ---------------------------------------------- */
+
+export async function saveOrgKind(ctx: PlanningContext, input: { kindCode: string; name: string }): Promise<RuleResult<OrgKindRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  await ensureOrgSeeded(ctx);
+  const kindCode = input.kindCode.trim();
+  const name = input.name.trim();
+  if (!kindCode) return fail(violation("code_required", "a kind needs a code", "kindCode"));
+  if (!ORG_KIND_CODE_SHAPE.test(kindCode)) {
+    return fail(violation("code_shape", `${kindCode}: a kind code is lower-case letters, digits and underscores`, "kindCode"));
+  }
+  if (!name) return fail(violation("name_required", "a kind needs a name", "name"));
+  return ok(await ctx.store.upsertOrgKind(ctx.workspaceId, { kindCode, name }));
+}
+
+export async function moveOrgKind(ctx: PlanningContext, input: { id: string; direction: MoveDirection }): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const rows = await ctx.store.listOrgKinds(ctx.workspaceId);
+  const plan = planMove(rows.map((r) => ({ id: r.id, movable: true })), input.id, input.direction);
+  if (!plan.ok) return plan as RuleResult<true>;
+  await ctx.store.setOrgKindOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/** Refused while any unit is of this kind (RESTRICT), in the reader's words. */
+export async function removeOrgKind(ctx: PlanningContext, id: string): Promise<RuleResult<{ id: string }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.remove", "data");
+  if (!gate.allowed) return denied(gate);
+  const rows = await ctx.store.listOrgKinds(ctx.workspaceId);
+  if (!rows.some((r) => r.id === id)) return fail(violation("not_found", "no such kind", "id"));
+  if ((await ctx.store.countUnitsOfKind(ctx.workspaceId, id)) > 0) {
+    return fail(violation("kind_in_use", "units of this kind still exist", "id"));
+  }
+  await ctx.store.removeOrgKind(ctx.workspaceId, id);
+  return ok({ id });
 }

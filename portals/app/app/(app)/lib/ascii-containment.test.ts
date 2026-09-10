@@ -77,6 +77,11 @@ const ALLOWED = new Set([
   // so escaping them here would put a second encoding of the seed in play and
   // guarantee exactly the drift that test exists to catch.
   "domains/shared/market-division.ts",
+  // 组织结构 (incr/0051). The same nature again: the five shipped 单位类型 and
+  // the three templates are ROWS a workspace is materialised from and renames
+  // afterwards, seeded by the SQL, and org.test.ts parses the increment and
+  // fails if the two disagree.
+  "domains/planning/lib/org.ts",
 ]);
 
 // CJK and fullwidth ranges - actual text in a human language. The typographic

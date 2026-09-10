@@ -108,6 +108,12 @@ export interface MemberRolesProps {
     kind: string,
     territoryIds: string[],
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** The organisation's units, in tree order (incr/0051). Empty hides the column's control. */
+  readonly units?: readonly { readonly id: string; readonly name: string; readonly depth: number }[];
+  /** sub -> unit id, for every placed member. */
+  readonly unitOf?: Readonly<Record<string, string>>;
+  /** Place a member in a unit; "" for none. */
+  readonly onUnit?: (sub: string, unitId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 
@@ -130,12 +136,15 @@ export function MemberRoles({
   inviteUrl,
   territories = [],
   onScope,
+  units = [],
+  unitOf = {},
+  onUnit,
 }: MemberRolesProps) {
   /* The workspace's roles decide both what a code is CALLED and which codes
      administer (0046) - read off the rows passed in, never off the build. */
   const nameOf = (code: string) => roles.find((r) => r.code === code)?.name ?? code;
   const isAdminRole = (code: string) => roles.some((r) => r.code === code && r.admin);
-  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT } =
+  const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ORG_TEXT } =
     useMessages();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
@@ -305,6 +314,46 @@ export function MemberRoles({
               {MEMBER_TEXT.assign}
             </Button>
           </>
+        );
+      },
+    },
+    {
+      /* 所属单位 (incr/0051): which unit of the organisation the member is
+         in. ONE unit per member, chosen here the way the scope is - inline,
+         because it is one fact about one row. The list is the tree in its
+         order, indented, so 华南大区 reads under 总部 in a flat select. */
+      id: "unit",
+      header: MEMBER_TEXT.columnUnit,
+      cell: (row) => {
+        const current = unitOf[row.sub] ?? "";
+        const name = units.find((u) => u.id === current)?.name ?? null;
+        if (!canManage || !onUnit || units.length === 0) {
+          return name
+            ? <span className="text-body-sm">{name}</span>
+            : <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.unitNone}</span>;
+        }
+        const key = `${row.sub}:unit`;
+        /* A MINIMUM WIDTH, because this table already overflows at a laptop
+           width (the member's sub is long) and a flexible control in an
+           overflowing table collapses to its chevron. A unit name has to be
+           readable, or the column says nothing. */
+        return (
+          <span className="block min-w-[10rem]">
+            <NativeSelect
+              aria-label={MEMBER_TEXT.columnUnit}
+              value={current}
+              disabled={pending && busy === key}
+              onChange={(e) => {
+                const id = e.target.value;
+                void run(key, () => onUnit(row.sub, id));
+              }}
+            >
+              <option value="">{MEMBER_TEXT.unitNone}</option>
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>{ORG_TEXT.optionIndent(u.depth, u.name)}</option>
+              ))}
+            </NativeSelect>
+          </span>
         );
       },
     },
