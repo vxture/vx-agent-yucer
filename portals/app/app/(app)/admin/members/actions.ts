@@ -151,3 +151,48 @@ export async function placeMembersInUnit(
   revalidatePath("/", "layout");
   return { ok: true };
 }
+
+/**
+ * 移动到单位: this placement, and only this one, goes to another unit. The
+ * person's other units stay (0053). A no-op when from and to are the same.
+ */
+export async function moveMemberToUnit(sub: string, fromUnitId: string, toUnitId: string): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const c = { ...ctx(session), store: getPlanningStore() };
+  const placements = await listOrgMembers(c);
+  if (!placements.ok) return { ok: false, error: placements.violations[0]?.code ?? "denied" };
+  const have = placements.value.get(sub) ?? [];
+  const want = [...have.filter((u) => u !== fromUnitId), ...(have.includes(toUnitId) ? [] : [toUnitId])];
+  const r = await setMemberUnits(c, { sub, unitIds: want });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * 添加到单位 (owner: 多单位意思 + 新角色): put the person into MORE units,
+ * keeping the ones they are in, and grant the roles ticked alongside. The
+ * roles go through the roster service's own gate and guard (assignRole);
+ * a role already held is a no-op there.
+ */
+export async function addMemberToUnits(sub: string, unitIds: readonly string[], roles: readonly string[]): Promise<RoleChangeResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const c = ctx(session);
+  const planning = { ...c, store: getPlanningStore() };
+  const placements = await listOrgMembers(planning);
+  if (!placements.ok) return { ok: false, error: placements.violations[0]?.code ?? "denied" };
+  const have = placements.value.get(sub) ?? [];
+  const want = [...new Set([...have, ...unitIds])];
+  if (want.length !== have.length) {
+    const r = await setMemberUnits(planning, { sub, unitIds: want });
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+  for (const role of new Set(roles)) {
+    const r = await assignRole(c, sub, role);
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

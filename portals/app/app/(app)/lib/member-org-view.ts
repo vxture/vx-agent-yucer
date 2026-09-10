@@ -63,46 +63,87 @@ export function buildOrgView(units: readonly OrgViewUnit[], people: readonly Org
   return { roots, unplaced };
 }
 
-/** One row of the tree table: a unit at its depth, or the 未归属 row last. */
-export interface OrgViewRow {
-  readonly id: string;
-  readonly name: string;
-  readonly depth: number;
-  readonly people: readonly OrgViewPerson[];
-  /** Units directly under this one - a chevron when more than none. */
-  readonly children: number;
-  /** The row that lists whoever is placed nowhere. Not a unit; takes nobody. */
-  readonly unplaced: boolean;
-}
+/**
+ * One row of the tree table (owner, 2026-09-10: 每个人是一行，与组织是同级的
+ * 行; 同级下方，先全部组织，再人员). A unit, or a person placed in one - the
+ * person's row id carries the unit, since 0053 lets the same person appear
+ * under several.
+ */
+export type OrgViewRow =
+  | {
+      readonly kind: "unit";
+      readonly id: string;
+      readonly name: string;
+      readonly depth: number;
+      /** Units directly under this one. */
+      readonly children: number;
+      /** People placed HERE. */
+      readonly headcount: number;
+      /** The pseudo-unit listing whoever is placed nowhere. Takes nobody. */
+      readonly unplaced: boolean;
+    }
+  | {
+      readonly kind: "person";
+      readonly id: string;
+      readonly sub: string;
+      readonly name: string;
+      readonly status: string;
+      readonly depth: number;
+      /** The unit this row sits under; null under 未归属. */
+      readonly unitId: string | null;
+    };
 
 export const UNPLACED_ROW_ID = "__unplaced__";
 
+/** A person's row id under a unit - the pair, as the table is. */
+export function personRowId(unitId: string | null, sub: string): string {
+  return `${unitId ?? UNPLACED_ROW_ID}:${sub}`;
+}
+
 /**
- * Tree order, indented by depth, with the rows under a folded branch left
- * out - the same walk 组织结构's roster does. The 未归属 row comes last, at
- * depth 0, and only when somebody is there.
+ * Tree order, indented by depth, with everything under a folded row left
+ * out. Under a unit: its child units FIRST (each with its own subtree), then
+ * the people placed in it. The 未归属 row comes last, at depth 0, with its
+ * people under it, and only when somebody is there.
  */
 export function flattenOrgView(view: OrgView, collapsed: ReadonlySet<string>): OrgViewRow[] {
   const out: OrgViewRow[] = [];
+  const people = (unitId: string | null, list: readonly OrgViewPerson[], depth: number) => {
+    for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, status: p.status, depth, unitId });
+  };
   const walk = (node: OrgViewNode, depth: number) => {
-    out.push({ id: node.id, name: node.name, depth, people: node.people, children: node.children.length, unplaced: false });
+    out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, unplaced: false });
     if (collapsed.has(node.id)) return;
     for (const c of node.children) walk(c, depth + 1);
+    people(node.id, node.people, depth + 1);
   };
   for (const r of view.roots) walk(r, 0);
   if (view.unplaced.length > 0) {
-    out.push({ id: UNPLACED_ROW_ID, name: "", depth: 0, people: view.unplaced, children: 0, unplaced: true });
+    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", depth: 0, children: 0, headcount: view.unplaced.length, unplaced: true });
+    if (!collapsed.has(UNPLACED_ROW_ID)) people(null, view.unplaced, 1);
   }
   return out;
 }
 
-/** Every unit that has units under it - what 全部收起 folds. */
+/** Every row that can fold - a unit with anything under it, and 未归属. */
 export function branchIds(view: OrgView): string[] {
   const out: string[] = [];
   const walk = (node: OrgViewNode) => {
-    if (node.children.length > 0) out.push(node.id);
+    if (node.children.length > 0 || node.people.length > 0) out.push(node.id);
     for (const c of node.children) walk(c);
   };
   for (const r of view.roots) walk(r);
+  if (view.unplaced.length > 0) out.push(UNPLACED_ROW_ID);
+  return out;
+}
+
+/** The units in tree order with their depth - for a unit select. */
+export function unitOptions(view: OrgView): { id: string; name: string; depth: number }[] {
+  const out: { id: string; name: string; depth: number }[] = [];
+  const walk = (node: OrgViewNode, depth: number) => {
+    out.push({ id: node.id, name: node.name, depth });
+    for (const c of node.children) walk(c, depth + 1);
+  };
+  for (const r of view.roots) walk(r, 0);
   return out;
 }

@@ -66,11 +66,13 @@ export interface MemberRow {
 
 const SORT_ON = { member: (r: MemberRow) => r.name };
 
-export function MemberPanel({ rows, canManage, orgUnits }: {
+export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
   readonly rows: readonly MemberRow[];
   readonly canManage: boolean;
   /** The organisation, in tree order, for the org view. */
   readonly orgUnits: readonly OrgViewUnit[];
+  /** The workspace's roles, in its order - 添加到单位's 新角色. */
+  readonly roleOptions: readonly { readonly code: string; readonly name: string; readonly admin: boolean }[];
 }) {
   const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
@@ -106,6 +108,7 @@ export function MemberPanel({ rows, canManage, orgUnits }: {
     [orgUnits, rows],
   );
   const openBySub = (sub: string) => setDetails(rows.find((r) => r.sub === sub) ?? null);
+  const rolesOf = useMemo(() => new Map(rows.map((r) => [r.sub, r.roles])), [rows]);
 
   // Counted over the whole table so the guard reads the same fact the service
   // does: "is anyone else able to administer this workspace".
@@ -161,18 +164,8 @@ export function MemberPanel({ rows, canManage, orgUnits }: {
           Section renders its header - and with it the action slot - only
           when it has a title, so a switch put in `action` on an untitled
           section is empty air (which is how 组织结构's 全部展开 went missing).
-          The switch is the DS's list/card switch shape with the tree icon
-          (owner: 有 DS 标准，需要更换 icon 即可) - see member-view-switch.tsx. */}
-      {rows.length > 0 ? (
-        <div className="gap-sm flex items-center justify-end">
-          <MemberViewSwitch
-            value={view}
-            onChange={setView}
-            ariaLabel={MEMBER_TEXT.viewAria}
-            labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }}
-          />
-        </div>
-      ) : null}
+          The switch sits at the LEFT end (owner: 切换按钮居左); the org view
+          draws its own toolbar with the switch and its actions. */}
       {rows.length === 0 ? (
         <EmptyState title={MEMBER_TEXT.emptyTitle} description={MEMBER_TEXT.emptyDescription} />
       ) : view === "org" ? (
@@ -180,9 +173,23 @@ export function MemberPanel({ rows, canManage, orgUnits }: {
           view={orgView}
           canManage={canManage}
           roster={rows.filter((r) => r.status === "active").map((r) => ({ sub: r.sub, name: r.name }))}
+          roleOptions={roleOptions}
+          rolesOf={rolesOf}
+          viewValue={view}
+          onViewChange={setView}
           onOpen={openBySub}
+          onConfigure={(sub) => { const r = rows.find((x) => x.sub === sub); if (r) router.push(`/admin/members/${r.memberId}`); }}
         />
       ) : (
+        <div className="gap-md flex flex-col">
+        <div className="gap-sm flex items-center">
+          <MemberViewSwitch
+            value={view}
+            onChange={setView}
+            ariaLabel={MEMBER_TEXT.viewAria}
+            labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }}
+          />
+        </div>
         <div
           className={
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
@@ -312,6 +319,7 @@ export function MemberPanel({ rows, canManage, orgUnits }: {
               },
             ]}
           />
+        </div>
         </div>
       )}
 
