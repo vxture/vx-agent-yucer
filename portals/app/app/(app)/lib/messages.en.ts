@@ -2182,6 +2182,11 @@ export const en: Dictionary = {
     settings: "Settings",
 
     adminAria: "Administration",
+    accountStatus: (status: string | null) =>
+      status === "active" ? "Account active" : status === null ? "Status unknown" : status,
+    accountCentre: "Account centre",
+    switchUser: "Switch user",
+    logout: "Sign out",
     userMenuOpen: "Open the user menu",
     boardOpen: "Show the board",
     boardClose: "Hide the board",

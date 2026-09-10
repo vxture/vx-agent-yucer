@@ -27,3 +27,14 @@ export function consoleMembersUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_CONSOLE_MEMBERS_URL?.trim();
   return raw ? raw : null;
 }
+
+/**
+ * The console itself - the account centre the user panel links to. The same
+ * default the entitlement deep link uses, so the two never point at two
+ * consoles. Null only when explicitly emptied; unset means the default.
+ */
+export function consoleUrl(): string | null {
+  const raw = process.env.NEXT_PUBLIC_CONSOLE_URL;
+  if (raw === "") return null;
+  return (raw ?? "https://console.vxture.com").replace(/\/$/, "");
+}

@@ -7,7 +7,8 @@ import {
   ShellPanelSection,
   ShellScopeButton,
 } from "@vxture/design-system";
-import { Popover, PopoverContent, PopoverTrigger } from "@vxture/design-ui";
+import { Popover, PopoverTrigger } from "@vxture/design-ui";
+import { useState } from "react";
 import { useMessages } from "../lib/i18n/provider";
 
 // The workspace and the tenant it belongs to.
@@ -40,20 +41,28 @@ export function WorkspaceScope({
   tenantId,
 }: WorkspaceScopeProps) {
   const { HEADER_TEXT } = useMessages();
+  /* THE DS'S STRUCTURE (design-system 12.x, owner 2026-09-10: hover 放宽，
+     内部没有适配). ShellScopeButton widens to the panel's width on hover AND
+     while open, and it takes `active` for the open half - so it has to BE
+     the trigger (it forwards its ref) and be told when the panel is open.
+     The old shape wrapped it in a span and never passed `active`: the hover
+     widened, the click did not, and the button snapped back to 192px the
+     moment the pointer left, with the 320px panel hanging off a narrow
+     control. ShellPanelContent IS the DS's PopoverContent, so it is the
+     content directly; a PopoverContent around it was a popover in a popover. */
+  const [open, setOpen] = useState(false);
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <span>
-          <ShellScopeButton
-            icon="building-library"
-            label={workspaceLabel}
-            ariaLabel={HEADER_TEXT.workspaceAria}
-            caret
-          />
-        </span>
+        <ShellScopeButton
+          icon="building-library"
+          label={workspaceLabel}
+          ariaLabel={HEADER_TEXT.workspaceAria}
+          active={open}
+          caret
+        />
       </PopoverTrigger>
-      <PopoverContent align="start" className="p-none">
-        <ShellPanelContent>
+      <ShellPanelContent align="start">
           <ShellPanelHeader icon="building-library" title={workspaceLabel} />
           <ShellPanelSection divided={false}>
             <ShellPanelRow
@@ -73,8 +82,7 @@ export function WorkspaceScope({
               {HEADER_TEXT.workspaceSwitchHint}
             </p>
           </ShellPanelSection>
-        </ShellPanelContent>
-      </PopoverContent>
+      </ShellPanelContent>
     </Popover>
   );
 }
