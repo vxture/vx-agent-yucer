@@ -2319,6 +2319,7 @@ export const en: Dictionary = {
     exitFullscreen: "Leave full screen",
     switchLocale: (to: string): string => (to === "en-US" ? "Switch to English" : "Switch to Chinese"),
     settingsSoon: "Settings (not yet available)",
+    periodResolving: "Reading the clock…",
     periodAll: "All time",
     periodYear: (y: number) => `${y}`,
     periodQuarter: (y: number, q: number) => `${y} Q${q}`,

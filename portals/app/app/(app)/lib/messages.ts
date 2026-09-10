@@ -3079,6 +3079,7 @@ export const SCREEN_TEXT = {
   exitFullscreen: "退出全屏",
   switchLocale: (to: string): string => (to === "en-US" ? "切换到 English" : "切换到中文"),
   settingsSoon: "设置（暂未开放）",
+  periodResolving: "读取时钟中…",
   periodAll: "全部",
   periodYear: (y: number) => `${y} 年度`,
   periodQuarter: (y: number, q: number) => `${y}Q${q}`,

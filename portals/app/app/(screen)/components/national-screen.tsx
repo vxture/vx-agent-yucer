@@ -354,6 +354,11 @@ export function NationalScreen(
     return () => clearInterval(t);
   }, []);
 
+  /* UNTIL THE CLOCK RESOLVES the list is built from epoch zero, which is a
+     window nothing falls in - the waiting state - and which must never be
+     SHOWN: on a browser west of UTC it reads 1969年, and the screen opened
+     on "1969年 无数据" until the first tick (owner, 2026-09-10). The label and
+     the empty sentence below check `now` before printing a year. */
   const periods = useMemo(
     () => periodsFor(now ?? new Date(0), {
       all: SCREEN_TEXT.periodAll,
@@ -584,7 +589,7 @@ export function NationalScreen(
             aria-haspopup="menu"
             onClick={() => setPeriodOpen((v) => !v)}
           >
-            {period.label}
+            {now ? period.label : SCREEN_TEXT.periodResolving}
             <svg viewBox="0 0 8 8" fill="none" aria-hidden>
               <path d="M1.5 2.5 L4 5.5 L6.5 2.5" stroke="currentColor" strokeWidth="1.3"
                     strokeLinecap="round" strokeLinejoin="round" />
@@ -892,7 +897,7 @@ export function NationalScreen(
                 screen that has failed to load - and the reader's next move is
                 to report a bug rather than to pick another period. */}
             {empty ? (
-              <p className="screen-empty">{SCREEN_TEXT.emptyPeriod(period.label)}</p>
+              <p className="screen-empty">{now ? SCREEN_TEXT.emptyPeriod(period.label) : SCREEN_TEXT.periodResolving}</p>
             ) : null}
 
             {tip ? (
