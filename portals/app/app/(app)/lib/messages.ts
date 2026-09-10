@@ -4615,11 +4615,18 @@ export const POSITION_TEXT = {
    - permission-tree.test.ts fails on a missing one. */
 export const PERMISSION_TREE_TEXT = {
   title: "权限管理",
-  why: "按业务域、模块、页面、操作四级展开；每个操作需要的权限，各角色是否持有。全部为预置，不可增删改。",
+  why: "按业务域、模块、页面、操作四级展开；每个操作需要的权限，以及持有它的角色。权限为预置，授权在角色管理里改。",
   count: (actions: number, roles: number) => `${actions} 个操作 · ${roles} 个角色`,
   colPoint: "权限点",
   colLevel: "层级",
   colOps: "操作",
+  // 授权角色一列（owner, 2026-09-10: 撤掉角色横铺，前三名 + 数量，悬停看全部）。
+  colHolders: "授权角色",
+  holdersJoin: "、",
+  holdersMore: (n: number) => `+${n}`,
+  holdersCount: (n: number) => `共 ${n} 个角色`,
+  holdersNone: "无角色持有",
+  holdersTitle: (op: string, n: number) => `${op} · ${n} 个角色可执行`,
   levelLabel: {
     domain: "业务域",
     module: "模块",

@@ -3590,11 +3590,17 @@ export const en: Dictionary = {
   },
   PERMISSION_TREE_TEXT: {
     title: "Permissions",
-    why: "Four levels - domain, module, page, operation; the permission each operation needs, and which roles hold it. All preset; nothing here is created, edited or deleted.",
+    why: "Four levels - domain, module, page, operation; the permission each operation needs, and the roles holding it. Permissions are preset; grants are edited under Roles.",
     count: (actions: number, roles: number) => `${actions} operations · ${roles} roles`,
     colPoint: "Permission point",
     colLevel: "Level",
     colOps: "Actions",
+    colHolders: "Roles",
+    holdersJoin: ", ",
+    holdersMore: (n: number) => `+${n}`,
+    holdersCount: (n: number) => `${n} roles`,
+    holdersNone: "No role holds it",
+    holdersTitle: (op: string, n: number) => `${op} · ${n} roles may`,
     levelLabel: {
       domain: "Domain",
       module: "Module",
