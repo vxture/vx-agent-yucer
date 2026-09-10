@@ -1545,7 +1545,7 @@ export const BATCH_COMPLETE_TEXT = {
 } as const;
 
 export const SHELL_TEXT = {
-  brandName: "Yucer 销售智能体",
+  brandName: "聿策销售智能体",
   workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
@@ -1755,22 +1755,19 @@ export const HEADER_TEXT = {
   groupAccounts: "客户",
   groupDeals: "商机",
 
-  // THE TIER, WITHOUT THE WORD "档". It read "enterprise 档" - a Chinese
-  // measure word bolted onto an English identifier, which is neither. The tier
-  // name is the whole label; what it measures is already said by the badge's
-  // accessible name.
-  //
-  // It is also HIDDEN IN PRODUCTION. A build badge and a tier badge are
-  // developer-facing: they answer "which build am I looking at" during
-  // development and review. On a customer's screen the tier is a commercial
-  // fact they did not ask to be reminded of on every page.
-  subscription: (tier: string) => tier,
+  // THE TIER IS THE VERSION (owner, 2026-09-10: 版本需要从订阅获取，五档，使用英文
+  // 显示). It comes from the entitlement, never from a build label, and it is
+  // shown on every screen, production included - the earlier "hidden in
+  // production" rule is withdrawn by that ruling. English on purpose, in both
+  // languages: the five names are the platform's own identifiers, and a
+  // translated tier would not match the one on the invoice.
+  subscription: (tier: string) => TIER_LABEL[tier] ?? tier,
   subscriptionNone: "未订阅",
   subscriptionAria: "订阅档位",
-  // Passed through. The "v" prefix used to be added here, which turned the
-  // local build label "dev" into "vdev"; a prefix that only fits one of the
-  // three shapes this label takes belongs where the label is chosen.
-  version: (v: string) => v,
+  // The subtitle under the product name: the product code, as the platform
+  // knows this product (owner: 把 yucer 作为副标题，替换 dev). The build label
+  // it replaced lives on the status page, where a bug report goes to read it.
+  productCode: (code: string) => code,
 
   // The functional-domain control. Placed now, inert until the domains are
   // split - see the note in app-shell.tsx for why an inert control is the

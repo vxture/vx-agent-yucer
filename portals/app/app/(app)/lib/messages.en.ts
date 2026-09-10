@@ -47,6 +47,7 @@ import * as zh from "./messages";
  * domain dictionary carried its own copy. Spread FIRST, so a domain with
  * something more specific to say still overrides it.
  */
+
 const GATE_ERROR = {
   not_authenticated: "Your session has expired - please sign in again",
   permission_denied: "You cannot perform this action",
@@ -2150,10 +2151,10 @@ export const en: Dictionary = {
     groupAccounts: "Accounts",
     groupDeals: "Deals",
 
-    subscription: (tier: string) => tier,
+    subscription: (tier: string) => zh.TIER_LABEL[tier] ?? tier,
     subscriptionNone: "No subscription",
     subscriptionAria: "Subscription tier",
-    version: (v: string) => v,
+    productCode: (code: string) => code,
 
     scopeAria: (domain: string) => `Domain: ${domain}`,
     scopeAriaUnknown: "Domain",
