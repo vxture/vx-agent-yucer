@@ -632,7 +632,7 @@ model OrgUnitMember {
   unitId      String   @map("unit_id") @db.Uuid
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
-  @@id([workspaceId, sub], map: "pk_org_unit_member")
+  @@id([workspaceId, sub, unitId], map: "pk_org_unit_member")
   @@index([unitId], map: "idx_org_unit_member_unit")
   @@map("org_unit_member")
   @@schema("yucer_gtm")

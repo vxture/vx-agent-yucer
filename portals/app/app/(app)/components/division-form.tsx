@@ -488,7 +488,7 @@ export function DivisionForm({
           {presetPool.map((p) => (
             <label className="gap-sm flex items-center" key={`${p.key}:${p.code}`} htmlFor={`preset-${p.key}-${p.code}`}>
               <RadioGroupItem id={`preset-${p.key}-${p.code}`} value={`${p.key}:${p.code}`} />
-              <span className="text-body">{PLANNING_TEXT.presetOption(p.from, p.name)}</span>
+              <span className="text-body-md">{PLANNING_TEXT.presetOption(p.from, p.name)}</span>
             </label>
           ))}
         </RadioGroup>

@@ -104,7 +104,6 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // tenant may change. The kind vocabulary locks its code like every other.
   "yucer_gtm.org_unit_kind": ["name", "sort_order", "updated_at"],
   "yucer_gtm.org_unit": ["name", "kind_id", "parent_id", "leader_sub", "sort_order", "updated_at"],
-  "yucer_gtm.org_unit_member": ["unit_id", "updated_at"],
   "yucer_gtm.strategy_plan": [
     "name",
     "period",
@@ -345,6 +344,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // it covers - are pairs: a change is a delete and an insert.
   "yucer_gtm.territory_unit",
   "yucer_gtm.territory_division",
+  // incr/0053. A placement is a pair too - one person in several units - so
+  // the 0051 grant on unit_id is withdrawn: a move is a delete and an insert.
+  "yucer_gtm.org_unit_member",
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",

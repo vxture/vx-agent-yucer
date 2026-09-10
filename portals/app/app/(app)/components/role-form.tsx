@@ -425,7 +425,7 @@ export function RoleForm({
             <label className="gap-sm flex items-start" key={p.code} htmlFor={`preset-${p.code}`}>
               <RadioGroupItem id={`preset-${p.code}`} value={p.code} className="mt-2xs" />
               <span className="gap-3xs flex flex-col">
-                <span className="text-body">{ROLE_TEXT.presetOption(p.name, p.permissions.length)}</span>
+                <span className="text-body-md">{ROLE_TEXT.presetOption(p.name, p.permissions.length)}</span>
                 <span className="text-muted-foreground text-body-sm">{p.description}</span>
               </span>
             </label>

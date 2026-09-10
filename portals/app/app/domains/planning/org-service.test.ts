@@ -16,7 +16,7 @@ import {
   removeOrgKind,
   removeOrgUnit,
   saveOrgKind,
-  setMemberUnit,
+  setMemberUnits,
   upsertOrgUnit,
   listTerritories,
   upsertTerritory,
@@ -121,27 +121,37 @@ test("removing a unit un-places its members and reports how many", async () => {
   const c = ctx("sales_leader");
   const units = unwrap(await listOrgUnits(c));
   const team = units.find((u) => u.unitCode === "east_team1")!;
-  unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: team.id }));
-  unwrap(await setMemberUnit(c, { sub: "usr_b", unitId: team.id }));
+  const east = units.find((u) => u.unitCode === "east")!;
+  unwrap(await setMemberUnits(c, { sub: "usr_a", unitIds: [team.id] }));
+  // usr_b is in the team AND its region (0053): removing the team takes one
+  // placement away and leaves the other standing.
+  unwrap(await setMemberUnits(c, { sub: "usr_b", unitIds: [team.id, east.id] }));
   assert.equal(unwrap(await listOrgUnits(c)).find((u) => u.id === team.id)!.members, 2);
   assert.deepEqual(unwrap(await removeOrgUnit(c, team.id)), { id: team.id, unplaced: 2, detached: 0 });
-  assert.equal(unwrap(await listOrgMembers(c)).size, 0);
+  assert.deepEqual([...unwrap(await listOrgMembers(c))], [["usr_b", [east.id]]]);
 });
 
 // --- Members ------------------------------------------------------------------
 
-test("a member is in one unit; moving replaces; none is allowed; an unknown unit is refused", async () => {
+test("a member is in several units (0053); the set replaces; none is allowed; an unknown unit is refused", async () => {
   const c = ctx("sales_leader");
   const units = unwrap(await listOrgUnits(c));
   const [a, b] = [units.find((u) => u.unitCode === "north")!, units.find((u) => u.unitCode === "south")!];
-  unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: a.id }));
-  unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: b.id }));
-  assert.deepEqual([...unwrap(await listOrgMembers(c))], [["usr_a", b.id]]);
-  unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: null }));
+  unwrap(await setMemberUnits(c, { sub: "usr_a", unitIds: [a.id] }));
+  // Both at once, given south-first: read back in TREE order, north first.
+  unwrap(await setMemberUnits(c, { sub: "usr_a", unitIds: [b.id, a.id, a.id] }));
+  assert.deepEqual([...unwrap(await listOrgMembers(c))], [["usr_a", [a.id, b.id]]]);
+  // Counted in both.
+  const heads = unwrap(await listOrgUnits(c));
+  assert.deepEqual([heads.find((u) => u.id === a.id)!.members, heads.find((u) => u.id === b.id)!.members], [1, 1]);
+  // The set replaces: south alone.
+  unwrap(await setMemberUnits(c, { sub: "usr_a", unitIds: [b.id] }));
+  assert.deepEqual([...unwrap(await listOrgMembers(c))], [["usr_a", [b.id]]]);
+  unwrap(await setMemberUnits(c, { sub: "usr_a", unitIds: [] }));
   assert.equal(unwrap(await listOrgMembers(c)).size, 0);
-  assert.equal(code(await setMemberUnit(c, { sub: "usr_a", unitId: "nope" })), "unit_unknown");
+  assert.equal(code(await setMemberUnits(c, { sub: "usr_a", unitIds: [a.id, "nope"] })), "unit_unknown");
   // admin.member.scope, not admin.manage: the same id that governs what a member sees.
-  assert.equal(code(await setMemberUnit(ctx("sales_rep", c.store as InMemoryPlanningStore), { sub: "usr_a", unitId: a.id })), "permission_denied");
+  assert.equal(code(await setMemberUnits(ctx("sales_rep", c.store as InMemoryPlanningStore), { sub: "usr_a", unitIds: [a.id] })), "permission_denied");
 });
 
 // --- Templates ----------------------------------------------------------------
@@ -149,7 +159,7 @@ test("a member is in one unit; moving replaces; none is allowed; an unknown unit
 test("applying a template replaces the tree and reports the un-placed", async () => {
   const c = ctx("sales_leader");
   const units = unwrap(await listOrgUnits(c));
-  unwrap(await setMemberUnit(c, { sub: "usr_a", unitId: units[0]!.id }));
+  unwrap(await setMemberUnits(c, { sub: "usr_a", unitIds: [units[0]!.id] }));
   assert.equal(unwrap(await listOrgTemplates(c)).length, 3);
   assert.deepEqual(unwrap(await applyOrgTemplate(c, "small_team")), { key: "small_team", units: 4, unplaced: 1, detached: 0 });
   const now = unwrap(await listOrgUnits(c));

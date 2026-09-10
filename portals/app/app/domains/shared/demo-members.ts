@@ -1,5 +1,6 @@
 import type { AuthzStore } from "../../authz/store";
 import type { RoleCode } from "../../authz/catalog";
+import type { PlanningStore } from "../planning/store";
 import { DEMO_MEMBER_NAMES } from "./demo-fixtures";
 
 // The demo's people, as members.
@@ -64,5 +65,36 @@ export async function seedDemoMembers(workspaceId: string, store: AuthzStore): P
     await store.seeMember({ workspaceId, sub: m.sub, displayName: m.displayName });
     for (const role of m.roles) await store.grantRole(workspaceId, m.sub, role);
     if (!m.active) await store.setMemberStatus(workspaceId, m.sub, "inactive");
+  }
+}
+
+/**
+ * WHERE THE DEMO'S PEOPLE SIT in the default organisation (incr/0051's
+ * national_medium template, by unit code) - so 组织视图 shows an organisation
+ * with people in it rather than fifteen empty units, and so the unit scope
+ * has something to frame. Two placements are deliberately several units
+ * (0053: 一人在多个组织内): the leader runs 华东 and also sits at 总部.
+ */
+const DEMO_PLACEMENTS: readonly { readonly sub: string; readonly units: readonly string[] }[] = [
+  { sub: "usr_demo_cro", units: ["hq"] },
+  { sub: "usr_demo_leader", units: ["hq", "east"] },
+  { sub: "usr_demo_rep", units: ["east_team1"] },
+  { sub: "usr_demo_rep2", units: ["east_team1", "south_team1"] },
+  { sub: "usr_demo_pm", units: ["hq"] },
+  // The departed member is placed nowhere: 未归属 is a state the view shows.
+];
+
+/**
+ * Place the demo's people. Idempotent - the set is replaced whole. Seeds the
+ * default tree first if the workspace has none yet (the service does the
+ * same on first read); a code the tree does not carry is skipped, since a
+ * reset to another template is a thing the demo lets you do.
+ */
+export async function seedDemoPlacements(workspaceId: string, planning: PlanningStore): Promise<void> {
+  await planning.seedOrgDefaults(workspaceId);
+  const byCode = new Map((await planning.listOrgUnits(workspaceId)).map((u) => [u.unitCode, u.id]));
+  for (const p of DEMO_PLACEMENTS) {
+    const ids = p.units.map((c) => byCode.get(c)).filter((x): x is string => Boolean(x));
+    if (ids.length > 0) await planning.setMemberUnits(workspaceId, p.sub, ids);
   }
 }

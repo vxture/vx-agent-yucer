@@ -337,7 +337,7 @@ export function DivisionPanel(
                 <ul className="gap-xs flex flex-col">
                   {details.coveredBy.map((t) => (
                     <li key={t.name} className="gap-xs flex items-center">
-                      <span className="text-body">{t.name}</span>
+                      <span className="text-body-md">{t.name}</span>
                       <span className="text-muted-foreground text-body-sm">
                         {t.units.length > 0 ? PLANNING_TEXT.divisionCoveredUnits(t.units.join(" / ")) : PLANNING_TEXT.divisionCoveredNoUnits}
                       </span>

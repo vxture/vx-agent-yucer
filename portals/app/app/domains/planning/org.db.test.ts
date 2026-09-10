@@ -25,6 +25,10 @@ const skip = DATABASE_URL ? false : "no DATABASE_URL - see ci.yml job db-contrac
 const WS = "eeeeeeee-0000-0000-0000-000000000051";
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..", "..");
 const SQL = readFileSync(join(ROOT, "deploy/database/ddl/incr/0051_org_structure.sql"), "utf8");
+// 0053 follows 0051 in db-init: re-playing 0051 alone would re-grant the
+// column UPDATE that 0053 withdraws, and the privilege assertion below reads
+// the database as db-init leaves it, not as 0051 alone would.
+const SQL_0053 = readFileSync(join(ROOT, "deploy/database/ddl/incr/0053_multi_unit_membership.sql"), "utf8");
 
 async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   const c = new Client({ connectionString: DATABASE_URL });
@@ -87,6 +91,7 @@ test("a workspace with members receives the kinds and the default tree, linked, 
     // The increment again, as db-init would run it on a database that has
     // this workspace: CREATE IF NOT EXISTS is a no-op, the seed fires.
     await c.query(SQL);
+    await c.query(SQL_0053);
     const kinds = (await c.query(`SELECT kind_code, name FROM yucer_gtm.org_unit_kind WHERE workspace_id = $1 ORDER BY sort_order`, [WS])).rows;
     assert.deepEqual(kinds.map((k) => ({ code: k.kind_code, name: k.name })), [...DEFAULT_ORG_KINDS]);
     const d = ORG_TEMPLATES.find((t) => t.isDefault)!;
@@ -106,6 +111,7 @@ test("a workspace with members receives the kinds and the default tree, linked, 
     );
     // And again: nothing doubles, nothing re-hangs.
     await c.query(SQL);
+    await c.query(SQL_0053);
     const again = await c.query(`SELECT count(*)::int AS n FROM yucer_gtm.org_unit WHERE workspace_id = $1`, [WS]);
     assert.equal(again.rows[0].n, d.units.length);
     await cleanup(c);
@@ -145,15 +151,17 @@ test("one code per workspace in the code's shape; a trunk and a kind in use stay
     // The trunk stays while the team stands under it; the kind stays while a unit is of it.
     await assert.rejects(c.query(`DELETE FROM yucer_gtm.org_unit WHERE id = $1`, [hqId]), /fk_org_unit_parent|violates foreign key/);
     await assert.rejects(c.query(`DELETE FROM yucer_gtm.org_unit_kind WHERE id = $1`, [kindId]), /fk_org_unit_kind|violates foreign key/);
-    // One unit per member; the placement goes with the unit.
+    // Several units per member (0053): the pair is the key, so the same pair
+    // twice is refused and a second unit is not; the placement goes with the unit.
     await c.query(`INSERT INTO yucer_gtm.org_unit_member (workspace_id, sub, unit_id) VALUES ($1, 'usr_a', $2)`, [WS, teamId]);
+    await c.query(`INSERT INTO yucer_gtm.org_unit_member (workspace_id, sub, unit_id) VALUES ($1, 'usr_a', $2)`, [WS, hqId]);
     await assert.rejects(
       c.query(`INSERT INTO yucer_gtm.org_unit_member (workspace_id, sub, unit_id) VALUES ($1, 'usr_a', $2)`, [WS, hqId]),
       /pk_org_unit_member|duplicate key/,
     );
     await c.query(`DELETE FROM yucer_gtm.org_unit WHERE id = $1`, [teamId]);
-    const left = await c.query(`SELECT count(*)::int AS n FROM yucer_gtm.org_unit_member WHERE workspace_id = $1`, [WS]);
-    assert.equal(left.rows[0].n, 0, "CASCADE: the member is un-placed, not stranded");
+    const left = await c.query(`SELECT unit_id FROM yucer_gtm.org_unit_member WHERE workspace_id = $1`, [WS]);
+    assert.deepEqual(left.rows.map((r) => r.unit_id), [hqId], "CASCADE: the team's placement goes, the other stays");
     await cleanup(c);
   });
 });
@@ -176,7 +184,7 @@ test("the service role reads the templates, and rewrites nothing it is not grant
         [schema, table],
       );
       // The mirror IS the whitelist, column for column.
-      assert.deepEqual(cols.rows.map((r) => r.column_name), [...WRITABLE_COLUMNS[t]!].sort(), t);
+      assert.deepEqual(cols.rows.map((r) => r.column_name), [...(WRITABLE_COLUMNS[t] ?? [])].sort(), t);
     }
   });
 });

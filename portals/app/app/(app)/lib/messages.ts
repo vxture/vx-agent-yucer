@@ -1384,9 +1384,17 @@ export const MEMBER_TEXT = {
   handoverPartial: (skipped: number) =>
     `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
   // 数据范围（incr/0022，owner 2026-09-01 裁定）。决定权在主管理员，不在角色。
-  // 所属单位（incr/0051）。一人一个单位；组织结构页维护单位本身。
+  // 所属单位（incr/0051；0053 起一人可在多个单位）。组织结构页维护单位本身。
   columnUnit: "所属单位",
   unitNone: "未归属",
+  // 两个视图（owner 2026-09-10：清单视图、组织视图；组织视图只显示主名称）。
+  viewAria: "视图",
+  viewList: "清单视图",
+  viewOrg: "组织视图",
+  orgHeadcount: (n: number) => `${n} 人`,
+  orgNoMembers: "暂无成员",
+  orgUnplaced: "未归属单位",
+  orgUnplacedWhy: "还没有归入任何单位的成员。到成员配置里勾选单位。",
   columnScope: "可见范围",
   scopeTerritory: "选择销售区域",
   scopeLabels: {
@@ -1420,6 +1428,8 @@ export const MEMBER_TEXT = {
   rolesNone: "工作区还没有角色。先到角色管理里建一个。",
   unitField: "所属单位",
   unitConfigure: "配置",
+  unitsHint: "可勾选多个单位；一人可同时归入多个单位，本单位范围按各单位的子树合并。",
+  unitsNone: "组织结构里还没有单位。先到组织结构里建一个。",
   scopeField: "可见范围",
   territoriesField: "销售区域",
   territoriesHint: "本区域范围：勾选能看到的区域，含其下级区域。",

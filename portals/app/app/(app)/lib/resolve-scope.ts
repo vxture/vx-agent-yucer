@@ -80,19 +80,21 @@ export async function resolveDataScope(
   }
 
   if (setting.kind === "unit") {
-    // 按组织 (0052). The frame is the member's unit and everything under it;
-    // placed nowhere, the frame is empty and the member sees the queue alone.
+    // 按组织 (0052). The frame is the member's units and everything under
+    // them - the UNION of the subtrees, since 0053 lets one person sit in
+    // several; placed nowhere, the frame is empty and the member sees the
+    // queue alone.
     const planning = getPlanningStore();
     const [placements, units, territories] = await Promise.all([
       planning.listOrgMembers(workspaceId),
       planning.listOrgUnits(workspaceId),
       planning.listTerritories(workspaceId),
     ]);
-    const mine = placements.get(sub);
-    const unitIds = mine ? subtreeIds(units, mine) : [];
+    const mine = placements.get(sub) ?? [];
+    const unitIds = [...new Set(mine.flatMap((u) => subtreeIds(units, u)))];
     const frame = new Set(unitIds);
-    // THE PEOPLE: everyone placed in the subtree, myself included.
-    const memberSubs = [...placements].filter(([, u]) => frame.has(u)).map(([s]) => s);
+    // THE PEOPLE: everyone placed anywhere in the frame, myself included.
+    const memberSubs = [...placements].filter(([, us]) => us.some((u) => frame.has(u))).map(([s]) => s);
     // THE GROUND: every territory a unit in the subtree works, then down the
     // territory tree, then the same three answers the territory scope gives.
     const worked = territories.filter((t) => t.unitIds.some((u) => frame.has(u))).map((t) => t.id);

@@ -65,7 +65,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
         held={mine.roles}
         lastAdmin={lastAdmin}
         units={(units.ok ? units.value : []).map((u) => ({ id: u.id, name: u.name, depth: u.depth }))}
-        unitId={(placements.ok ? placements.value : new Map<string, string>()).get(mine.sub) ?? null}
+        unitIds={(placements.ok ? placements.value : new Map<string, string[]>()).get(mine.sub) ?? []}
         scope={mine.scope}
         scopes={[...DATA_SCOPES]}
         territories={(territories.ok ? territories.value : []).map((t) => ({ id: t.id, name: t.name }))}

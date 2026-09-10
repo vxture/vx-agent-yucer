@@ -8,6 +8,7 @@ import {
   EmptyState,
   NativeSelect,
   Section,
+  SegmentedControl,
   StatusBadge,
   TableTitleCell,
   useToast,
@@ -18,6 +19,8 @@ import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-f
 import { useMessages } from "../lib/i18n/provider";
 import { setMemberActive, setMemberInactive } from "../admin/members/actions";
 import { handOverBook } from "../admin/members/handover";
+import { buildOrgView, type OrgViewUnit } from "../lib/member-org-view";
+import { MemberOrgView } from "./member-org-view";
 import { Tag } from "./tag";
 
 /* 成员管理 - 展示. DISPLAY ONLY, the shape /admin/roles and /admin/org have
@@ -31,8 +34,15 @@ import { Tag } from "./tag";
  * behind a confirmation (停用 / 恢复在岗 / 转交客户).
  *
  * THE ROSTER STATES: name, roles as tags (无角色 called out - that person
- * opens the product and finds nothing), unit, scope, standing. 成员详情 is
+ * opens the product and finds nothing), units, scope, standing. 成员详情 is
  * a drawer, view-only, for every reader; 编辑 in its foot goes to the form.
+ *
+ * TWO VIEWS OF THE SAME PEOPLE (owner, 2026-09-10: 清单视图、组织视图). The
+ * switch is in the section's action slot and the choice is in the URL
+ * (`?view=org`), like the drawer's `?details=`, so it survives every refresh
+ * an operation causes. The org view draws the same rows under the units
+ * they are placed in - several per person since 0053 - names only; the
+ * drawer, the row menu and the form stay the roster's.
  *
  * MARKED, NOT HIDDEN. A departed member keeps their row forever - it is the
  * only thing that maps this sub to a name, and every signature in the audit
@@ -46,7 +56,8 @@ export interface MemberRow {
   /** Role codes held, and their names in the workspace's own words. */
   readonly roles: readonly { readonly code: string; readonly name: string; readonly admin: boolean }[];
   readonly status: string;
-  readonly unit: string | null;
+  /** The units they are placed in (0051; several since 0053), in tree order. */
+  readonly units: readonly { readonly id: string; readonly name: string }[];
   readonly scope: string;
   /** Assigned territories, by name - for the territory scope. */
   readonly territories: readonly string[];
@@ -54,9 +65,13 @@ export interface MemberRow {
 
 const SORT_ON = { member: (r: MemberRow) => r.name };
 
-export function MemberPanel({ rows, canManage }: {
+type MemberView = "list" | "org";
+
+export function MemberPanel({ rows, canManage, orgUnits }: {
   readonly rows: readonly MemberRow[];
   readonly canManage: boolean;
+  /** The organisation, in tree order, for the org view. */
+  readonly orgUnits: readonly OrgViewUnit[];
 }) {
   const { DATA_TABLE_LABELS, MEMBER_ERROR, MEMBER_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
@@ -79,6 +94,19 @@ export function MemberPanel({ rows, canManage }: {
     const qs = next.toString();
     router.replace(qs ? `/admin/members?${qs}` : "/admin/members", { scroll: false });
   };
+  const view: MemberView = params.get("view") === "org" ? "org" : "list";
+  const setView = (v: MemberView) => {
+    const next = new URLSearchParams(params.toString());
+    if (v === "org") next.set("view", "org");
+    else next.delete("view");
+    const qs = next.toString();
+    router.replace(qs ? `/admin/members?${qs}` : "/admin/members", { scroll: false });
+  };
+  const orgView = useMemo(
+    () => buildOrgView(orgUnits, rows.map((r) => ({ sub: r.sub, name: r.name, status: r.status, unitIds: r.units.map((u) => u.id) }))),
+    [orgUnits, rows],
+  );
+  const openBySub = (sub: string) => setDetails(rows.find((r) => r.sub === sub) ?? null);
 
   // Counted over the whole table so the guard reads the same fact the service
   // does: "is anyone else able to administer this workspace".
@@ -130,8 +158,28 @@ export function MemberPanel({ rows, canManage }: {
 
   return (
     <Section id="members">
+      {/* THE TOOLBAR ROW, as the permission tree draws its own: the DS's
+          Section renders its header - and with it the action slot - only
+          when it has a title, so a switch put in `action` on an untitled
+          section is empty air (which is how 组织结构's 全部展开 went missing). */}
+      {rows.length > 0 ? (
+        <div className="gap-sm flex items-center justify-end">
+          <SegmentedControl<MemberView>
+            size="sm"
+            value={view}
+            onChange={setView}
+            ariaLabel={MEMBER_TEXT.viewAria}
+            items={[
+              { value: "list", label: MEMBER_TEXT.viewList },
+              { value: "org", label: MEMBER_TEXT.viewOrg },
+            ]}
+          />
+        </div>
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState title={MEMBER_TEXT.emptyTitle} description={MEMBER_TEXT.emptyDescription} />
+      ) : view === "org" ? (
+        <MemberOrgView view={orgView} onOpen={openBySub} />
       ) : (
         <div
           className={
@@ -232,8 +280,15 @@ export function MemberPanel({ rows, canManage }: {
               {
                 id: "unit",
                 header: MEMBER_TEXT.columnUnit,
+                // Several units read as tags, in tree order (0053).
                 cell: (r: MemberRow) =>
-                  r.unit ? <span className="text-body-sm">{r.unit}</span> : <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.unitNone}</span>,
+                  r.units.length === 0 ? (
+                    <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.unitNone}</span>
+                  ) : (
+                    <span className="gap-2xs flex flex-wrap">
+                      {r.units.map((u) => <Tag key={u.id}>{u.name}</Tag>)}
+                    </span>
+                  ),
               },
               {
                 id: "scope",
@@ -241,7 +296,7 @@ export function MemberPanel({ rows, canManage }: {
                 cell: (r: MemberRow) => (
                   <span className="gap-3xs flex flex-col">
                     <span className="text-body-sm">{scopeLabel(r)}</span>
-                    {r.scope === "unit" && !r.unit ? (
+                    {r.scope === "unit" && r.units.length === 0 ? (
                       <span className="text-warning text-body-sm">{MEMBER_TEXT.scopeUnitUnplaced}</span>
                     ) : null}
                   </span>
@@ -289,16 +344,24 @@ export function MemberPanel({ rows, canManage }: {
               )}
             </dd>
             <dt className="text-muted-foreground text-body-sm">{MEMBER_TEXT.columnUnit}</dt>
-            <dd className="text-body">{details.unit ?? MEMBER_TEXT.unitNone}</dd>
+            <dd>
+              {details.units.length === 0 ? (
+                <span className="text-muted-foreground text-body-md">{MEMBER_TEXT.unitNone}</span>
+              ) : (
+                <span className="gap-2xs flex flex-wrap">
+                  {details.units.map((u) => <Tag key={u.id}>{u.name}</Tag>)}
+                </span>
+              )}
+            </dd>
             <dt className="text-muted-foreground text-body-sm">{MEMBER_TEXT.columnScope}</dt>
             <dd className="gap-3xs flex flex-col">
-              <span className="text-body">{scopeLabel(details)}</span>
+              <span className="text-body-md">{scopeLabel(details)}</span>
               {details.scope === "territory" ? (
                 <span className="text-muted-foreground text-body-sm">
                   {details.territories.length > 0 ? details.territories.join(" / ") : MEMBER_TEXT.territoriesNone}
                 </span>
               ) : null}
-              {details.scope === "unit" && !details.unit ? (
+              {details.scope === "unit" && details.units.length === 0 ? (
                 <span className="text-warning text-body-sm">{MEMBER_TEXT.scopeUnitUnplaced}</span>
               ) : null}
             </dd>

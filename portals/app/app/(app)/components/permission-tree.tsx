@@ -17,6 +17,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableTitleCell,
   type IconName,
 } from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
@@ -206,14 +207,18 @@ export function PermissionTree({
                     ) : (
                       <span className="w-8 shrink-0" />
                     )}
-                    <Icon name={LEVEL_ICON[n.level]} size="sm" className="text-muted-foreground shrink-0" />
-                    <span className="gap-3xs flex min-w-0 flex-col">
-                      <span className="gap-xs flex items-center">
-                        <span className="text-body truncate font-medium">{title(n)}</span>
-                        {branch ? <Tag>{T.childCount(n.children.length)}</Tag> : null}
-                      </span>
-                      <span className="text-muted-foreground text-body-sm truncate">{subtitle(n)}</span>
-                    </span>
+                    {/* THE DS'S TABLE TITLE CELL (owner, 2026-09-10: 权限视图
+                        文字小了): the title wore `text-body`, a tier that does
+                        not exist, and fell through to the table's 12px. The
+                        DS's cell sets the table tier - label-md bold over
+                        body-sm - and carries the level icon itself. */}
+                    <TableTitleCell
+                      icon={LEVEL_ICON[n.level]}
+                      title={title(n)}
+                      tooltip={title(n)}
+                      titleSuffix={branch ? <Tag>{T.childCount(n.children.length)}</Tag> : undefined}
+                      description={subtitle(n)}
+                    />
                   </span>
                 );
               },
@@ -245,20 +250,20 @@ export function PermissionTree({
                   <HoverCard openDelay={150} closeDelay={100}>
                     <HoverCardTrigger asChild>
                       <span className="gap-xs inline-flex cursor-default items-center">
-                        <span className="text-body-sm">{lead.map((x) => x.name).join(T.holdersJoin)}</span>
+                        <span className="text-body-md">{lead.map((x) => x.name).join(T.holdersJoin)}</span>
                         {list.length > 3 ? <Tag>{T.holdersMore(list.length - 3)}</Tag> : null}
-                        <span className="text-muted-foreground text-label-sm">{T.holdersCount(list.length)}</span>
+                        <span className="text-muted-foreground text-label-md">{T.holdersCount(list.length)}</span>
                       </span>
                     </HoverCardTrigger>
                     <HoverCardContent align="start" className="w-auto min-w-[16rem] max-w-[28rem]">
                       <div className="gap-sm flex flex-col">
-                        <span className="text-body-sm font-semibold">{T.holdersTitle(title(r.node), list.length)}</span>
+                        <span className="text-label-md font-semibold">{T.holdersTitle(title(r.node), list.length)}</span>
                         <ul className="gap-2xs flex flex-col">
                           {list.map((x, i) => (
                             <li key={x.code} className="gap-sm flex items-baseline">
-                              <span className="text-muted-foreground text-label-sm w-5 shrink-0 text-right tabular-nums">{i + 1}</span>
-                              <span className="text-body-sm">{x.name}</span>
-                              {x.group ? <span className="text-muted-foreground text-label-sm">{x.group}</span> : null}
+                              <span className="text-muted-foreground text-label-md w-5 shrink-0 text-right tabular-nums">{i + 1}</span>
+                              <span className="text-body-md">{x.name}</span>
+                              {x.group ? <span className="text-muted-foreground text-label-md">{x.group}</span> : null}
                             </li>
                           ))}
                         </ul>
@@ -396,11 +401,7 @@ export function PermissionTreeTable({
                     ) : (
                       <span className="w-8 shrink-0" />
                     )}
-                    <Icon name={LEVEL_ICON[n.level]} size="sm" className="text-muted-foreground shrink-0" />
-                    <span className="gap-3xs flex min-w-0 flex-col">
-                      <span className={`text-body-sm truncate ${branch ? "font-medium" : ""}`}>{title(n)}</span>
-                      <span className="text-muted-foreground text-label-sm truncate">{subtitle(n)}</span>
-                    </span>
+                    <TableTitleCell icon={LEVEL_ICON[n.level]} title={title(n)} tooltip={title(n)} description={subtitle(n)} />
                   </span>
                 </TableCell>
                 <TableCell>

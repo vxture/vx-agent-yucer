@@ -34,3 +34,4 @@ meta-rule section 4). New decisions append; IDs may skip.
 | ADR-028 | [角色属于工作区，九个预置角色是起点](ADR-028-a-role-belongs-to-the-workspace.md) | accepted | 2026-09-09 |
 | ADR-029 | [组织结构是第四个轴，完全自定义，预置模版作基准](ADR-029-the-organisation-is-the-fourth-axis.md) | accepted | 2026-09-10 |
 | ADR-030 | [销售区域是关节：挂单位、覆盖大区都按 id，按组织数据范围由此而来](ADR-030-the-territory-is-the-joint.md) | accepted | 2026-09-10 |
+| ADR-031 | [一人可在多个单位，持多个角色；成员管理有清单与组织两个视图](ADR-031-a-person-belongs-to-several-units.md) | accepted | 2026-09-10 |

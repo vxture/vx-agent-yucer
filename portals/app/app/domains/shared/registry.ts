@@ -11,7 +11,7 @@
 import { prismaEnabled } from "../../lib/db";
 import { seedDemoWorkspace } from "./demo-seed";
 // domains -> authz is the allowed direction; authz must never import a domain.
-import { seedDemoMembers } from "./demo-members";
+import { seedDemoMembers, seedDemoPlacements } from "./demo-members";
 import { getAuthzStore } from "../../authz/store";
 import { InMemoryPipelineStore, type PipelineStore } from "../pipeline/store";
 import { PrismaPipelineStore } from "../pipeline/prisma-store";
@@ -298,6 +298,9 @@ export function ensureDemoData(workspaceId: string): boolean {
   // it is an in-memory upsert, so there is nothing to await for correctness -
   // and awaiting would mean making every caller async to seed a demo.
   void seedDemoMembers(workspaceId, getAuthzStore());
+  // And where they sit (0051 / 0053), through the planning store the same
+  // way - so 组织视图 and the unit scope have an organisation to show.
+  void seedDemoPlacements(workspaceId, getPlanningStore());
 
   seededSet().add(workspaceId);
   return true;
