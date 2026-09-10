@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import {
   Button,
   ButtonGroup,
   DataTable,
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
   Icon,
   SegmentedControl,
   StatusBadge,
@@ -14,9 +17,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
   type IconName,
 } from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
@@ -39,26 +39,24 @@ import { Tag } from "./tag";
  * per level would have had to fake. A chevron on a row that has children
  * opens it; a level tag says what the row is.
  *
- * THE ROLES ARE COLUMNS, ONE EACH (owner: 角色应该展开列，用 icon 显示，不要混合在
- * 一行), and they are the WORKSPACE'S roles (incr/0046) - the presets and
- * whatever the tenant added - so there may be nine or fourteen. The fixed
- * columns (选择 / 序号 / 权限点 / 层级 / 操作) take their stated widths and the
- * roles SPLIT WHAT IS LEFT, equally (owner: 其他列平分). A role header reads
- * icon + short name by default, drops to the icon alone when its column gets
- * too narrow for the name, and always carries the full name in a tooltip.
- * The table only scrolls sideways once a role column would fall below the
- * floor a single icon needs; then the leading columns stay put on the left
- * as the action column does on the right.
+ * THE ROLES ARE ONE COLUMN (owner, 2026-09-10: 角色已经很多，撤掉角色横铺模式).
+ * With thirty-one presets a column per role was a wall that scrolled; an
+ * operation now reads the FIRST THREE roles that may perform it, in roster
+ * order, and how many may in all, and the whole list opens on hover - the
+ * DS's HoverCard, a panel to read rather than a tooltip line. The roster
+ * order is the workspace's own (sort_order), so the three named are the
+ * highest rungs that hold the permission.
  *
  * READ-ONLY HERE: the grants are edited on /admin/roles, one role at a time.
  * The action column is the fitting every table carries, with nothing in it.
  */
 
-/** One column: a workspace role. `short` is what the header prints. */
+/** One workspace role, in roster order. `group` is its line and rung, for
+ *  the hover panel - 销售 · 总监. */
 export interface RoleColumn {
   readonly code: string;
   readonly name: string;
-  readonly short: string;
+  readonly group: string | null;
 }
 
 /** The presets' icons. A role the tenant added wears the generic one. */
@@ -92,42 +90,6 @@ const LEVEL_TONE = {
   action: "warning",
 } as const;
 
-/* THE WIDTHS, IN REM, MEASURED AGAINST THE DS'S OWN CELL.
- *
- * A DS table cell pads 16px each side (`px-md`) and a `sm` icon is 16px, so
- * the narrowest column that still shows its icon whole is 48px - that is the
- * FLOOR, and the scroll threshold. The owner proposed 32px and asked whether
- * it holds: it does not, under this DS - 32px is exactly the padding, with
- * no room left for the mark, so a ✓ at 32px is a clipped ✓. 32px would only
- * work with the role cells' padding cut to 8px, which is restyling the DS's
- * cell to fit a number; the floor follows the cell instead.
- *
- * The header keeps its short name while the CONTENT box (column minus the
- * padding) can hold icon + gap + name at 12px: the longest short name is
- * three characters (负责人), 16 + 4 + 36 = 56px. Two steps down from there,
- * each measured: under 56px the gap goes first (16 + 36 = 52px still shows
- * the name), and under 52px the name goes and the icon stands alone. A name
- * never half-shows. Full-HD is the case that decided the second step: a
- * 1440px content area gives nine roles 85px each, 53px of content - the
- * name fits there without its gap and not with it.
- *
- * FIXED = 选择 4 + 序号 4 + 权限点 24 + 层级 6 + 操作 4. The title column is
- * wide enough for an id and its permission on one line.
- */
-const FIXED_REM = 4 + 4 + 24 + 6 + 4;
-const ROLE_FLOOR_REM = 3;
-
-/* PINNED EDGES. The three leading columns (选择 / 序号 / 权限点) and the
-   action column stay put while the role columns scroll under them. The
-   DS pins its own action column; the left pin is this wrapper's, laid over
-   the DS's cells with the surface colour so scrolled cells pass beneath. */
-const PINNED =
-  " [&_thead_th:nth-child(1)]:sticky [&_thead_th:nth-child(1)]:left-0 [&_tbody_td:nth-child(1)]:sticky [&_tbody_td:nth-child(1)]:left-0"
-  + " [&_thead_th:nth-child(2)]:sticky [&_thead_th:nth-child(2)]:left-[4rem] [&_tbody_td:nth-child(2)]:sticky [&_tbody_td:nth-child(2)]:left-[4rem]"
-  + " [&_thead_th:nth-child(3)]:sticky [&_thead_th:nth-child(3)]:left-[8rem] [&_tbody_td:nth-child(3)]:sticky [&_tbody_td:nth-child(3)]:left-[8rem]"
-  + " [&_thead_th:nth-child(-n+3)]:z-10 [&_tbody_td:nth-child(-n+3)]:z-10"
-  + " [&_thead_th:nth-child(-n+3)]:bg-background [&_tbody_td:nth-child(-n+3)]:bg-background";
-
 /** The words for a node, from the dictionaries: the group, the module, the
  *  page, the operation. Shared by the table and the drawer list. */
 export function useNodeCopy() {
@@ -152,7 +114,7 @@ export function PermissionTree({
   holds,
 }: {
   readonly tree: readonly PermissionNode[];
-  /** Column order - the workspace's sort_order. */
+  /** The workspace's roles, in its sort_order. */
   readonly roles: readonly RoleColumn[];
   /** role code -> the permissions it holds. */
   readonly holds: Readonly<Record<string, readonly string[]>>;
@@ -163,10 +125,19 @@ export function PermissionTree({
   // one click away each rather than a wall.
   const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
   const rows = useMemo(() => flattenTree(tree, expanded), [tree, expanded]);
-  const held = useMemo(
-    () => new Map(roles.map((r) => [r.code, new Set(holds[r.code] ?? [])])),
-    [roles, holds],
-  );
+  /* permission -> the roles that hold it, in roster order. Built once; a
+     cell reads its slice. */
+  const holders = useMemo(() => {
+    const out = new Map<string, RoleColumn[]>();
+    for (const r of roles) {
+      for (const p of holds[r.code] ?? []) {
+        const list = out.get(p) ?? [];
+        list.push(r);
+        out.set(p, list);
+      }
+    }
+    return out;
+  }, [roles, holds]);
 
   const toggle = (key: string) =>
     setExpanded((prev) => {
@@ -196,16 +167,13 @@ export function PermissionTree({
 
       <div
         className={
-          /* NO WIDTH ON THE ROLE COLUMNS. Under `table-fixed` the columns
-             left unsized share the slack equally, which is the 平分; the
-             minimum width below is the fixed sum plus one floor per role,
-             and the wrapper scrolls only once the page is narrower than
-             that. Set as a variable because the count is the roles' and
-             a class string cannot compute. */
-          `overflow-x-auto [&_table]:w-full [&_table]:min-w-[var(--perm-min)] [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}${PINNED}`
+          /* FIXED LAYOUT, FOUR NAMED WIDTHS: the two fittings, the point, the
+             level and the action column; 授权角色 takes what is left. Nothing
+             scrolls and nothing is pinned - one column holds thirty-one
+             roles as well as it holds nine. */
+          `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
           + " [&_thead_th:nth-child(3)]:w-[24rem] [&_thead_th:nth-child(4)]:w-[6rem]"
         }
-        style={{ "--perm-min": `${FIXED_REM + roles.length * ROLE_FLOOR_REM}rem` } as CSSProperties}
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
@@ -257,41 +225,49 @@ export function PermissionTree({
                 <StatusBadge tone={LEVEL_TONE[r.node.level]}>{T.levelLabel[r.node.level]}</StatusBadge>
               ),
             },
-            /* ONE COLUMN PER ROLE. A leaf reads ✓ or —; a branch reads
-               nothing, because a module does not hold a permission - its
-               operations do, each on its own row. */
-            ...roles.map((role) => ({
-              id: role.code,
-              header: (
-                /* The header measures its own cell (`@container` on a block
-                   that fills the th's content box) and hides the short name
-                   once that box is under 52px, its gap under 56 - see
-                   ROLE_FLOOR_REM. The tooltip carries the full name in both
-                   states. */
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="@container block w-full cursor-default">
-                      <span className="gap-2xs @max-[56px]:gap-0 inline-flex items-center">
-                        <Icon name={roleIcon(role.code)} size="sm" />
-                        <span className="@max-[52px]:hidden">{role.short}</span>
-                      </span>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>{role.name}</TooltipContent>
-                </Tooltip>
-              ),
-              align: "center" as const,
+            /* 授权角色: the first three holders in roster order, then how
+               many in all; every holder on hover. A branch reads nothing -
+               a module does not hold a permission, its operations do. */
+            {
+              id: "holders",
+              header: T.colHolders,
+              // Names are read, not compared: left, like the point column.
+              align: "left" as const,
               cell: (r: PermissionRow) => {
                 const p = r.node.permission;
                 if (!p) return null;
-                const ok = held.get(role.code)?.has(p) ?? false;
-                return ok ? (
-                  <Icon name="check" size="sm" className="text-success" aria-label={T.granted} />
-                ) : (
-                  <span className="text-muted-foreground" aria-label={T.notGranted}>—</span>
+                const list = holders.get(p) ?? [];
+                if (list.length === 0) {
+                  return <span className="text-muted-foreground text-body-sm">{T.holdersNone}</span>;
+                }
+                const lead = list.slice(0, 3);
+                return (
+                  <HoverCard openDelay={150} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <span className="gap-xs inline-flex cursor-default items-center">
+                        <span className="text-body-sm">{lead.map((x) => x.name).join(T.holdersJoin)}</span>
+                        {list.length > 3 ? <Tag>{T.holdersMore(list.length - 3)}</Tag> : null}
+                        <span className="text-muted-foreground text-label-sm">{T.holdersCount(list.length)}</span>
+                      </span>
+                    </HoverCardTrigger>
+                    <HoverCardContent align="start" className="w-auto min-w-[16rem] max-w-[28rem]">
+                      <div className="gap-sm flex flex-col">
+                        <span className="text-body-sm font-semibold">{T.holdersTitle(title(r.node), list.length)}</span>
+                        <ul className="gap-2xs flex flex-col">
+                          {list.map((x, i) => (
+                            <li key={x.code} className="gap-sm flex items-baseline">
+                              <span className="text-muted-foreground text-label-sm w-5 shrink-0 text-right tabular-nums">{i + 1}</span>
+                              <span className="text-body-sm">{x.name}</span>
+                              {x.group ? <span className="text-muted-foreground text-label-sm">{x.group}</span> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
                 );
               },
-            })),
+            },
           ]}
         />
       </div>

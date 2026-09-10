@@ -46,12 +46,12 @@ export default async function PermissionsPage() {
     store: getAuthzStore(),
   });
   const rows = roles.ok ? roles.value : [];
-  // A preset keeps its short name; a role the tenant added prints its own
-  // name, and the header compresses it to the icon when the column is narrow.
+  // In roster order: the first three named on a row are the highest rungs
+  // that hold the permission. The line and rung ride along for the panel.
   const columns = rows.map((r) => ({
     code: r.code,
     name: r.name,
-    short: PERMISSION_TREE_TEXT.roleShort[r.code] ?? r.name,
+    group: r.line && r.rank ? `${r.line.name} · ${r.rank.name}` : (r.line?.name ?? r.rank?.name ?? null),
   }));
   const holds = Object.fromEntries(rows.map((r) => [r.code, r.permissions]));
 
