@@ -473,13 +473,19 @@ export function OrgPanel({
                   r.members === 0 ? <Tag>{ORG_TEXT.noMember}</Tag> : <span className="tabular-nums">{ORG_TEXT.members(r.members)}</span>,
               },
               {
-                /* 区域 (0052): the FIRST territory's own name (owner,
-                   2026-09-11: 显示第一个关联区域名称=区域设置的名称) with a
-                   count circle once there is more than one - not an
-                   abstract label, the actual ground. The tone (and its
-                   tooltip) still separates 全范围/已聚合/已继承/无范围, so
-                   顶层组织/领导角色 and a unit that inherited from an
-                   ancestor keep reading differently from 无范围 (真正没有
+                /* 区域 (0052): the FIRST territory's own coverage NAME
+                   (owner, 2026-09-11: 显示第一个关联区域名称=区域设置的名称)
+                   with a count circle once there is more than one - not an
+                   abstract label, the actual ground. REGIONS, NOT `name`:
+                   `name` is set once when the territory is created and never
+                   renamed (owner, 2026-09-11: 我已经改了7分区，但是关联信息
+                   还是5分区 - the exact symptom of reading `name`); `regions`
+                   is derived live from the division's CURRENT name every
+                   read (store.ts's own comment on the field), so it tracks
+                   a 大区 rename with zero cross-domain sync code. The tone
+                   (and its tooltip) still separates 全范围/已聚合/已继承/
+                   无范围, so 顶层组织/领导角色 and a unit that inherited from
+                   an ancestor keep reading differently from 无范围 (真正没有
                    权限) at a glance. */
                 id: "territories",
                 header: ORG_TEXT.colTerritories,
@@ -488,11 +494,13 @@ export function OrgPanel({
                   const tone = r.scope === "full" ? "success" : r.scope === "inherited" ? "info" : "neutral";
                   const label =
                     r.scope === "full" ? ORG_TEXT.fullTerritory : r.scope === "inherited" ? ORG_TEXT.inheritedTerritory : ORG_TEXT.aggregateTerritory;
+                  const first = r.territories[0];
+                  const firstLabel = first ? (first.regions[0] ?? first.name) : "";
                   return (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="gap-2xs inline-flex items-center">
-                          <Tag tone={tone}>{r.territories[0]?.name ?? ""}</Tag>
+                          <Tag tone={tone}>{firstLabel}</Tag>
                           {r.territories.length > 1 ? <TerritoryCount count={r.territories.length} /> : null}
                         </span>
                       </TooltipTrigger>
