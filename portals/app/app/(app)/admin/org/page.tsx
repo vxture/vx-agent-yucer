@@ -7,7 +7,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgTemplates, listOrgUnits, listTerritories } from "../../../domains/planning/service";
-import { REGION_AWARE_ORG_TEMPLATES, subtreeTerritoryIds, territoriesWorkedBy } from "../../../domains/planning/lib/org";
+import { REGION_AWARE_ORG_TEMPLATES, effectiveTerritoryIds, territoriesWorkedBy } from "../../../domains/planning/lib/org";
 import { listCarves, listMarketDivisions } from "../../../domains/account/service";
 import { OrgPanel, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
@@ -78,15 +78,29 @@ export default async function OrgPage() {
   // only territories some LIVE unit still works keeps the badge honest.
   const liveUnitIds = new Set(units.value.map((u) => u.id));
   const allTerritoryIds = new Set(territoriesWorkedBy(worked, liveUnitIds));
+  const nameOfUnit = new Map(units.value.map((u) => [u.id, u.name]));
   const rows: OrgUnitRow[] = units.value.map((u) => {
-    const reach = new Set(subtreeTerritoryIds(units.value, worked, u.id));
+    // 继承范围 (owner, 2026-09-11: 下级没有设置区域，应该显示/生效为继承上
+    // 级) - a unit whose own subtree works nothing is not thereby
+    // unauthorized, it works whatever its nearest ancestor already covers.
+    // Same helper resolve-scope.ts's `unit` branch uses for the real data
+    // scope, so the badge and the actual grant cannot read differently.
+    const { territoryIds: reachIds, inheritedFrom } = effectiveTerritoryIds(units.value, worked, u.id);
+    const reach = new Set(reachIds);
     const scope: OrgUnitRow["scope"] =
-      reach.size === 0 ? "none" : allTerritoryIds.size > 0 && reach.size === allTerritoryIds.size ? "full" : "partial";
+      reach.size === 0
+        ? "none"
+        : inheritedFrom !== null
+          ? "inherited"
+          : allTerritoryIds.size > 0 && reach.size === allTerritoryIds.size
+            ? "full"
+            : "partial";
     return {
       territories: worked
         .filter((t) => reach.has(t.id))
         .map((t) => ({ code: t.territoryCode, name: t.name, regions: t.regions })),
       scope,
+      inheritedFromName: inheritedFrom !== null ? (nameOfUnit.get(inheritedFrom) ?? null) : null,
       id: u.id,
       unitCode: u.unitCode,
       name: u.name,

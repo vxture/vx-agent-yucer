@@ -133,6 +133,40 @@ export function subtreeTerritoryIds(
   return territoriesWorkedBy(territories, subtreeIds(units, id));
 }
 
+export interface EffectiveTerritories {
+  readonly territoryIds: readonly string[];
+  /** The ancestor `territoryIds` actually came from, when `id`'s own
+   *  subtree had none - null when they are `id`'s own (or its own
+   *  descendants'). */
+  readonly inheritedFrom: string | null;
+}
+
+/** `id`'s EFFECTIVE territory reach: its own subtree's aggregate
+ *  (subtreeTerritoryIds) when that is non-empty, otherwise the nearest
+ *  ancestor whose own subtree reaches something (owner, 2026-09-11: 下级
+ *  没有设置区域，应该显示/生效为继承上级 - a leaf unit with nothing of its
+ *  own is not thereby unauthorized, it works whatever ground the nearest
+ *  ancestor above it already covers). Consumed identically by
+ *  resolve-scope.ts's `unit` branch (what a leader placed here actually
+ *  sees) and the org-panel table (what it shows), so a member's real data
+ *  scope and the badge describing it cannot read differently. */
+export function effectiveTerritoryIds(
+  units: readonly KnownOrgUnit[],
+  territories: readonly { readonly id: string; readonly unitIds: readonly string[] }[],
+  id: string,
+): EffectiveTerritories {
+  const own = subtreeTerritoryIds(units, territories, id);
+  if (own.length > 0) return { territoryIds: own, inheritedFrom: null };
+  const byId = new Map(units.map((u) => [u.id, u]));
+  let cursor = byId.get(id)?.parentId ?? null;
+  while (cursor !== null) {
+    const reach = subtreeTerritoryIds(units, territories, cursor);
+    if (reach.length > 0) return { territoryIds: reach, inheritedFrom: cursor };
+    cursor = byId.get(cursor)?.parentId ?? null;
+  }
+  return { territoryIds: [], inheritedFrom: null };
+}
+
 /**
  * The shipped 单位类型 - what a workspace's vocabulary starts from. Mirrored
  * from incr/0051; org.test.ts holds the two in lockstep.

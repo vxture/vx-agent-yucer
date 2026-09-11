@@ -1500,6 +1500,8 @@ export const en: Dictionary = {
     noTerritory: "None",
     fullTerritory: "Full scope",
     fullTerritoryHint: "This unit's subtree covers every territory.",
+    inheritedTerritory: "Inherited",
+    inheritedTerritoryHint: (ancestorName: string) => `This unit has no territory of its own - it inherits "${ancestorName}"'s scope.`,
     detailsTerritories: (n: number) => `Territories · ${n}`,
     detailsNoTerritories: "No territory is worked by this unit yet. Tick the unit on a territory's form.",
     territoryCovers: (regions: string) => `covers ${regions}`,
