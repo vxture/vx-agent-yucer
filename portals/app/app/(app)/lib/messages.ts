@@ -2757,20 +2757,43 @@ export const ORG_TEXT = {
   saveFailed: "保存失败",
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateReset: "应用模版",
-  templateTitle: "应用组织模版",
-  templateWhy: "选一套预置组织模版作为起点，之后随便改。",
+  templateTitle: "应用模版",
+  templateWhy: "选一套预置组织模版作为起点，之后随便改；也可以同步把区域设置一起套上。",
   templateOption: (name: string, units: number) => `${name} · ${units} 个单位`,
   templateDefault: "默认",
   templateDangerTitle: "这是不可撤销的替换",
-  templateWarn: (units: number, placed: number) =>
-    units === 0
+  templateWarn: (units: number, placed: number, divisionName: string | null, currentDivisions: number) => {
+    const org = units === 0
       ? "当前没有单位，直接套用模版。"
-      : `当前 ${units} 个单位将全部删除；${placed} 位成员的所属单位将清空，需要重新归属。`,
+      : `当前 ${units} 个单位将全部删除；${placed} 位成员的所属单位将清空，需要重新归属。`;
+    if (!divisionName) return org;
+    const division = currentDivisions === 0
+      ? `同时会应用「${divisionName}」区域设置模版。`
+      : `同时会用「${divisionName}」替换当前 ${currentDivisions} 个大区。`;
+    return `${org}${division}`;
+  },
   templateConfirm: "确认替换",
   templateVerb: "替换",
-  templateTarget: (name: string) => `为「${name}」`,
-  templateDone: (units: number, unplaced: number, detached: number) =>
-    `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属${detached > 0 ? `；${detached} 个销售区域已解除挂靠` : ""}`,
+  templateTarget: (name: string, divisionName: string | null) => divisionName ? `为「${name}」+「${divisionName}」` : `为「${name}」`,
+  templateDone: (units: number, unplaced: number, detached: number, divisions: number, territories: number, linkedUnits: number) => {
+    const org = `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属${detached > 0 ? `；${detached} 个销售区域已解除挂靠` : ""}`;
+    if (divisions === 0) return org;
+    return `${org}；同步套用 ${divisions} 个大区，新建 ${territories} 个销售区域${linkedUnits > 0 ? `，自动关联 ${linkedUnits} 个机构` : ""}`;
+  },
+  // 应用模版选择面板优化 (owner, 2026-09-11: 应用模版选择面板需要优化了 -
+  // 组织架构模版三选一不变；区域设置模版可选，选了就同步在区域设置应用同一
+  // 套（五分法/七分法），并按大区逐个新建同名销售区域；自动关联现在是独立
+  // 的第三节（owner: 把关联选项作为第三个标题），没同步区域设置就没有新
+  // 销售区域可关联，禁用并说明原因。
+  templateOrgLabel: "组织架构模版",
+  templateDivisionLabel: "区域设置模版",
+  templateDivisionWhy: "同步选一套预置的大区划分；不选就不动区域设置。",
+  templateDivisionNone: "不同步",
+  templateDivisionOption: (name: string, divisions: number) => `${name} · ${divisions} 个大区`,
+  templateAssociateLabel: "自动关联",
+  templateAutoAssociate: "按名称自动关联机构与新建的销售区域",
+  templateAutoAssociateHint: "机构名字里带着销售区域的名字才会关联，例如「华北大区」机构关联「华北」销售区域。",
+  templateAutoAssociateDisabled: "先在上面选一套区域设置模版，才有新建的销售区域可以关联。",
   // 关联区域（incr/0052）：单位这一侧的关系。
   colTerritories: "区域",
   territoryCount: (n: number) => `${n} 个`,

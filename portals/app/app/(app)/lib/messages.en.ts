@@ -1462,20 +1462,38 @@ export const en: Dictionary = {
     discard: "Discard",
     saveFailed: "Save failed",
     templateReset: "Apply template",
-    templateTitle: "Apply an organization template",
-    templateWhy: "Pick a shipped organization template as the starting point, then edit freely.",
+    templateTitle: "Apply template",
+    templateWhy: "Pick a shipped organization template as the starting point, then edit freely - and optionally apply the matching territory setup at the same time.",
     templateOption: (name: string, units: number) => `${name} · ${units} units`,
     templateDefault: "Default",
     templateDangerTitle: "This replacement cannot be undone",
-    templateWarn: (units: number, placed: number) =>
-      units === 0
+    templateWarn: (units: number, placed: number, divisionName: string | null, currentDivisions: number) => {
+      const org = units === 0
         ? "There are no units yet; the template is applied as is."
-        : `All ${units} current units are deleted; ${placed} members lose their unit and need placing again.`,
+        : `All ${units} current units are deleted; ${placed} members lose their unit and need placing again.`;
+      if (!divisionName) return org;
+      const division = currentDivisions === 0
+        ? ` The "${divisionName}" territory template is applied at the same time.`
+        : ` The current ${currentDivisions} regions are also replaced with "${divisionName}".`;
+      return `${org}${division}`;
+    },
     templateConfirm: "Confirm replace",
     templateVerb: "Replace",
-    templateTarget: (name: string) => `with "${name}"`,
-    templateDone: (units: number, unplaced: number, detached: number) =>
-      `Template applied: ${units} units; ${unplaced} members to place again${detached > 0 ? `; ${detached} territories detached` : ""}`,
+    templateTarget: (name: string, divisionName: string | null) => divisionName ? `with "${name}" + "${divisionName}"` : `with "${name}"`,
+    templateDone: (units: number, unplaced: number, detached: number, divisions: number, territories: number, linkedUnits: number) => {
+      const org = `Template applied: ${units} units; ${unplaced} members to place again${detached > 0 ? `; ${detached} territories detached` : ""}`;
+      if (divisions === 0) return org;
+      return `${org}; ${divisions} regions and ${territories} territories set up${linkedUnits > 0 ? `, ${linkedUnits} units auto-linked` : ""}`;
+    },
+    templateOrgLabel: "Organization template",
+    templateDivisionLabel: "Territory setup template",
+    templateDivisionWhy: "Optionally apply a shipped region carve at the same time; leave it as-is otherwise.",
+    templateDivisionNone: "Leave as-is",
+    templateDivisionOption: (name: string, divisions: number) => `${name} · ${divisions} regions`,
+    templateAssociateLabel: "Auto-link",
+    templateAutoAssociate: "Auto-link units to the new territories by name",
+    templateAutoAssociateHint: "Links when a unit's name contains the territory's name, e.g. a \"North Region Team\" unit links to a \"North\" territory.",
+    templateAutoAssociateDisabled: "Pick a territory setup template above first - there is nothing new to link to otherwise.",
     colTerritories: "Territories",
     territoryCount: (n: number) => `${n}`,
     noTerritory: "None",

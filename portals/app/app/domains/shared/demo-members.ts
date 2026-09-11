@@ -76,11 +76,11 @@ export async function seedDemoMembers(workspaceId: string, store: AuthzStore): P
  * (0053: 一人在多个组织内): the leader runs 华东 and also sits at 总部.
  */
 const DEMO_PLACEMENTS: readonly { readonly sub: string; readonly units: readonly string[] }[] = [
-  { sub: "usr_demo_cro", units: ["hq"] },
-  { sub: "usr_demo_leader", units: ["hq", "east"] },
+  { sub: "usr_demo_cro", units: ["headquarters"] },
+  { sub: "usr_demo_leader", units: ["headquarters", "east"] },
   { sub: "usr_demo_rep", units: ["east_team1"] },
   { sub: "usr_demo_rep2", units: ["east_team1", "south_team1"] },
-  { sub: "usr_demo_pm", units: ["hq"] },
+  { sub: "usr_demo_pm", units: ["headquarters"] },
   // The departed member is placed nowhere: 未归属 is a state the view shows.
 ];
 

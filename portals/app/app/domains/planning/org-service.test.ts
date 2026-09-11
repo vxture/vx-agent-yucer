@@ -83,7 +83,7 @@ test("reading rides admin.member.view; writing needs admin.manage", async () => 
 test("a unit is created under a parent, edited by code, moved among its siblings", async () => {
   const c = ctx("sales_leader");
   const units = unwrap(await listOrgUnits(c));
-  const hq = units.find((u) => u.unitCode === "hq")!;
+  const hq = units.find((u) => u.unitCode === "headquarters")!;
   const team = unwrap(await listOrgKinds(c)).find((k) => k.kindCode === "team")!;
   const created = unwrap(await upsertOrgUnit(c, { unitCode: "ka", name: "大客户部", parentId: hq.id, kindId: team.id, leaderSub: "usr_lead" }));
   assert.equal(created.parentId, hq.id);
@@ -163,7 +163,7 @@ test("applying a template replaces the tree and reports the un-placed", async ()
   assert.equal(unwrap(await listOrgTemplates(c)).length, 3);
   assert.deepEqual(unwrap(await applyOrgTemplate(c, "small_team")), { key: "small_team", units: 4, unplaced: 1, detached: 0 });
   const now = unwrap(await listOrgUnits(c));
-  assert.deepEqual(now.map((u) => u.unitCode), ["hq", "sales", "presales", "delivery"]);
+  assert.deepEqual(now.map((u) => u.unitCode), ["headquarters", "sales", "presales", "delivery"]);
   assert.deepEqual(now.map((u) => u.depth), [0, 1, 1, 1]);
   assert.equal(unwrap(await listOrgMembers(c)).size, 0);
   assert.equal(code(await applyOrgTemplate(c, "nope")), "template_unknown");
