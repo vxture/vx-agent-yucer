@@ -38,7 +38,8 @@ set -euo pipefail
 dir="${1-}"
 
 fail() {
-  echo "::error::STACK_ROOT 不可用：$1" >&2
+  local reason="$1"
+  echo "::error::STACK_ROOT 不可用：${reason}" >&2
   echo "        当前值：'${dir}'" >&2
   echo "        它必须是目标主机上的绝对路径，例如 /srv/md0/yucer。" >&2
   echo "        在 Windows 上用 \`gh variable set STACK_ROOT --env <env> --body '/abs/path'\`" >&2
@@ -47,7 +48,7 @@ fail() {
   exit 1
 }
 
-[ -n "$dir" ] || fail "为空"
+[[ -n "$dir" ]] || fail "为空"
 
 # 反斜杠字符用八进制构造，**不写字面量**。
 #
@@ -64,6 +65,7 @@ case "$dir" in
   # 反斜杠与盘符冒号都不该出现在一个 POSIX 路径里。
   *"$backslash"*) fail "含反斜杠，像是 Windows 路径" ;;
   *:*) fail "含冒号，像是被 MSYS 路径转换改写过的盘符路径" ;;
+  *) ;;
 esac
 
 case "$dir" in
@@ -76,6 +78,7 @@ case "$dir" in
   # 但 rsync 对结尾斜杠的语义是**不同的**，而那个差别会以"文件被放到了
   # 上一层"的形式出现。与其解释它，不如不允许。
   */) fail "不要以斜杠结尾——rsync 对结尾斜杠的语义不同" ;;
+  *) ;;
 esac
 
 echo "[assert] STACK_ROOT = ${dir}"

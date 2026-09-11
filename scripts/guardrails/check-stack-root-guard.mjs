@@ -47,20 +47,38 @@ const CASES = [
   // Backslash built from a char code, not a literal: every layer this file
   // passes through (source, then bash argv) would otherwise eat one
   // escape, and the case would stop testing the byte it claims to.
-  ["C:" + String.fromCharCode(92) + "tmp" + String.fromCharCode(92) + "deploy", "反斜杠"],
+  ["C:" + String.fromCodePoint(92) + "tmp" + String.fromCodePoint(92) + "deploy", "反斜杠"],
   ["srv/md0/x", "不是绝对路径"],
   ["/srv/md0/x/", "斜杠结尾"],
   ["", "为空"],
   ["/srv/md0/a:b", "冒号"],
 ];
 
+// Absolute path, not "bash" resolved off PATH: this runs a script that came
+// from the checkout, and the interpreter running it should not depend on
+// what a runner's PATH happens to resolve first.
+const BASH = "/bin/bash";
+
 function run(value) {
   try {
-    const out = execFileSync("bash", [SCRIPT, value], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const out = execFileSync(BASH, [SCRIPT, value], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
     return { code: 0, output: out };
   } catch (e) {
     return { code: e.status ?? 1, output: `${e.stdout ?? ""}${e.stderr ?? ""}` };
   }
+}
+
+/** One CASES entry, checked; the problem string it produced, or none. */
+function checkCase(value, reason) {
+  const { code, output } = run(value);
+  if (reason === null) {
+    return code !== 0 ? [`'${value}' should pass, was rejected: ${output.trim()}`] : [];
+  }
+  if (code === 0) return [`'${value}' should be rejected, but passed`];
+  if (!output.includes(reason)) {
+    return [`'${value}' was rejected, but not for "${reason}" - the message points somewhere else: ${output.trim()}`];
+  }
+  return [];
 }
 
 function findMissingCallSites() {
@@ -87,18 +105,7 @@ function main() {
     problems.push("the real incident's own value is not in the case list at all");
   }
 
-  for (const [value, reason] of CASES) {
-    const { code, output } = run(value);
-    if (reason === null) {
-      if (code !== 0) problems.push(`'${value}' should pass, was rejected: ${output.trim()}`);
-      continue;
-    }
-    if (code === 0) {
-      problems.push(`'${value}' should be rejected, but passed`);
-    } else if (!output.includes(reason)) {
-      problems.push(`'${value}' was rejected, but not for "${reason}" - the message points somewhere else: ${output.trim()}`);
-    }
-  }
+  for (const [value, reason] of CASES) problems.push(...checkCase(value, reason));
 
   problems.push(...findMissingCallSites());
 
