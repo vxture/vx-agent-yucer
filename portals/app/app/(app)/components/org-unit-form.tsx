@@ -89,6 +89,7 @@ export function OrgUnitForm({
   members,
   territoryOptions,
   directTerritoryIds,
+  liveDirectTerritoryIds,
   scope,
   effectiveTerritoryNames,
   inheritedFromName,
@@ -111,9 +112,17 @@ export function OrgUnitForm({
   /** Every territory this workspace has - the 选择区域 drawer's checklist.
    *  Unused (and the whole section hidden) while `isNew`. */
   readonly territoryOptions: readonly TerritoryOption[];
-  /** Territories THIS unit works directly right now - what the drawer opens
-   *  pre-ticked to, and what an empty array means by 暂不关联. */
+  /** Territories THIS unit works directly right now, unfiltered - what the
+   *  drawer opens pre-ticked to, so a since-invalidated link is still
+   *  visible there to clear. */
   readonly directTerritoryIds: readonly string[];
+  /** The subset of `directTerritoryIds` whose division still exists (owner,
+   *  2026-09-11: 可以关联失效，但是不能是错的关联) - what the COLLAPSED
+   *  section renders as chips. A direct link that just went invalid is not
+   *  shown as a chip naming ground the unit no longer has; the section
+   *  falls to the 向下聚合/向上继承/暂不关联 preview instead, same as the
+   *  org-structure table. */
+  readonly liveDirectTerritoryIds: readonly string[];
   /** The EFFECTIVE outcome if nothing more is ticked - computed server-side
    *  by the same function the org-structure table and resolve-scope.ts use. */
   readonly scope: TerritoryScope;
@@ -248,9 +257,9 @@ export function OrgUnitForm({
       {!isNew ? (
         <Section title={ORG_TEXT.formTerritoryTitle}>
           <div className="gap-sm flex flex-col">
-            {directTerritoryIds.length > 0 ? (
+            {liveDirectTerritoryIds.length > 0 ? (
               <ul className="gap-2xs flex flex-wrap">
-                {directTerritoryIds.map((tid) => {
+                {liveDirectTerritoryIds.map((tid) => {
                   const opt = territoryOptions.find((t) => t.id === tid);
                   return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
                 })}

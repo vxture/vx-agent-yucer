@@ -44,11 +44,24 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
   // to this one unit, so the form's preview cannot promise a scope the
   // member would not actually get.
   const territories = territoriesResult.ok ? territoriesResult.value : [];
+  // 从业务视角需要实时数据 (owner, 2026-09-11: 可以关联失效，但是不能是错的
+  // 关联) - a territory whose 大区 no longer exists has `regions: []` and
+  // covers NOTHING (territory.ts's own rule); excluded from the SCOPE
+  // preview so it cannot present a dead link as live coverage. `territories`
+  // (unfiltered) still backs the picker and the direct-link chips below -
+  // an admin's actual direct choice stays visible even while invalid.
+  const scopeTerritories = territories.filter((t) => t.regions.length > 0);
   const directTerritoryIds = territories.filter((t) => t.unitIds.includes(mine.id)).map((t) => t.id);
-  const { territoryIds: effectiveIds, inheritedFrom } = effectiveTerritoryIds(all, territories, mine.id);
+  // The CHIPS shown collapsed are live-only too, same rule: a direct link
+  // whose division was removed must not read as a chip naming ground that
+  // is not there. `directTerritoryIds` (unfiltered) still seeds the
+  // drawer's pre-tick, so the admin opening 选择区域 sees the true stored
+  // state and can actually clear the dead link, not just stop seeing it.
+  const liveDirectTerritoryIds = directTerritoryIds.filter((tid) => scopeTerritories.some((t) => t.id === tid));
+  const { territoryIds: effectiveIds, inheritedFrom } = effectiveTerritoryIds(all, scopeTerritories, mine.id);
   const effectiveSet = new Set(effectiveIds);
   const liveUnitIds = new Set(all.map((u) => u.id));
-  const allTerritoryIds = new Set(territoriesWorkedBy(territories, liveUnitIds));
+  const allTerritoryIds = new Set(territoriesWorkedBy(scopeTerritories, liveUnitIds));
   const nameOfUnit = new Map(all.map((u) => [u.id, u.name]));
   const scope: TerritoryScope =
     effectiveSet.size === 0
@@ -88,8 +101,9 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
         members={mine.members}
         territoryOptions={territories.map((t) => ({ id: t.id, name: label(t), code: t.territoryCode }))}
         directTerritoryIds={directTerritoryIds}
+        liveDirectTerritoryIds={liveDirectTerritoryIds}
         scope={scope}
-        effectiveTerritoryNames={territories.filter((t) => effectiveSet.has(t.id)).map(label)}
+        effectiveTerritoryNames={scopeTerritories.filter((t) => effectiveSet.has(t.id)).map(label)}
         inheritedFromName={inheritedFrom !== null ? (nameOfUnit.get(inheritedFrom) ?? null) : null}
       />
     </ViewLayout>

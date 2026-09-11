@@ -54,6 +54,7 @@ export default async function NewOrgUnitPage() {
         members={0}
         territoryOptions={[]}
         directTerritoryIds={[]}
+        liveDirectTerritoryIds={[]}
         scope="none"
         effectiveTerritoryNames={[]}
         inheritedFromName={null}
