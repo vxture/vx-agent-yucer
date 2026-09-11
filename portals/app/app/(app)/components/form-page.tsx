@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Section } from "@vxture/design-ui";
+import { Banner, Button, DestructiveButton, type DestructiveConfirm } from "@vxture/design-ui";
 import { AssistantSection } from "./assistant";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -158,6 +158,69 @@ export function NewEntryLink({ href, label }: { readonly href: string; readonly 
     <Button asChild variant="secondary">
       <a href={href}>{label ?? ASSIST_TEXT.newEntry}</a>
     </Button>
+  );
+}
+
+/**
+ * THE BOTTOM OF EVERY DEDICATED FORM PAGE, one shape (owner, 2026-09-12:
+ * admin 标题体系与布局统一规范 - 解决按钮位置忽左忽右).
+ *
+ * Four forms had grown four button rows - org-unit-form.tsx's (right-
+ * justified, 放弃 immediately left of 保存, a destructive action pinned to
+ * the far left via `mr-auto`) and three left-aligned ones (division-form,
+ * member-form, role-form: 保存 FIRST/leftmost, then 放弃, with the
+ * destructive action inline in the same flow rather than separated).
+ *
+ * RIGHT-JUSTIFIED, SAVE LAST, WON on the DS's OWN word, not a coin flip:
+ * `DialogForm`'s doc comment states the contract plainly - "取消在左、
+ * 提交在右" (cancel on the left, submit on the right). Within the 放弃/
+ * 保存 pair that is exactly org-unit-form.tsx's order; the other three
+ * forms had it backwards. A destructive action is neither "cancel" nor
+ * "submit" - it stays visually separated via `mr-auto` rather than joining
+ * either end of that pair.
+ */
+export function FormActions({
+  saveLabel,
+  discardLabel,
+  onSave,
+  onDiscard,
+  pending,
+  destructive,
+  error,
+  errorTitle,
+}: {
+  readonly saveLabel: ReactNode;
+  readonly discardLabel: ReactNode;
+  readonly onSave: () => void;
+  readonly onDiscard: () => void;
+  readonly pending: boolean;
+  /** Offered only when the record may currently be removed - the caller
+   *  decides that, this component only places the button. */
+  readonly destructive?: {
+    readonly label: ReactNode;
+    readonly confirm: DestructiveConfirm;
+    readonly disabled?: boolean;
+  };
+  readonly error?: string | null;
+  readonly errorTitle?: ReactNode;
+}) {
+  return (
+    <div className="border-border flex flex-col gap-md border-t pt-md">
+      <div className="gap-sm flex items-center justify-end">
+        {destructive ? (
+          <DestructiveButton className="mr-auto" disabled={pending || destructive.disabled} confirm={destructive.confirm}>
+            {destructive.label}
+          </DestructiveButton>
+        ) : null}
+        <Button variant="secondary" disabled={pending} onClick={onDiscard}>
+          {discardLabel}
+        </Button>
+        <Button onClick={onSave} disabled={pending}>
+          {saveLabel}
+        </Button>
+      </div>
+      {error ? <Banner tone="danger" title={errorTitle} description={error} /> : null}
+    </div>
   );
 }
 

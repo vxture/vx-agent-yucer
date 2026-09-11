@@ -3,10 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  Banner,
   Button,
   Checkbox,
-  DestructiveButton,
   Field,
   FieldDescription,
   FieldLabel,
@@ -15,7 +13,7 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { saveMemberAction, setMemberInactive } from "../admin/members/actions";
-import { FormFieldWide, FormFields } from "./form-page";
+import { FormActions, FormFieldWide, FormFields } from "./form-page";
 import { Tag } from "./tag";
 
 /* 配置成员 - THE ONE FORM a member is configured on (owner, 2026-09-10).
@@ -215,30 +213,30 @@ export function MemberForm({
         </FormFields>
       </Section>
 
-      <div className="border-border flex flex-col gap-md border-t pt-md">
-        <div className="gap-sm flex items-center">
-          <Button onClick={submit} disabled={pending}>{MEMBER_TEXT.save}</Button>
-          <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/members")}>
-            {MEMBER_TEXT.discard}
-          </Button>
-          {status === "active" && !lastAdmin ? (
-            <DestructiveButton
-              disabled={pending}
-              confirm={{
-                verb: MEMBER_TEXT.deactivateMenu,
-                target: MEMBER_TEXT.deactivateTarget(name),
-                consequence: MEMBER_TEXT.deactivateHint,
-                titleTemplate: MEMBER_TEXT.destructiveTitle,
-                cancelLabel: MEMBER_TEXT.cancel,
-                onConfirm: deactivate,
-              }}
-            >
-              {MEMBER_TEXT.deactivateMenu}
-            </DestructiveButton>
-          ) : null}
-        </div>
-        {error ? <Banner tone="danger" title={MEMBER_TEXT.saveFailed} description={error} /> : null}
-      </div>
+      <FormActions
+        saveLabel={MEMBER_TEXT.save}
+        discardLabel={MEMBER_TEXT.discard}
+        onSave={submit}
+        onDiscard={() => router.push("/admin/members")}
+        pending={pending}
+        error={error}
+        errorTitle={MEMBER_TEXT.saveFailed}
+        destructive={
+          status === "active" && !lastAdmin
+            ? {
+                label: MEMBER_TEXT.deactivateMenu,
+                confirm: {
+                  verb: MEMBER_TEXT.deactivateMenu,
+                  target: MEMBER_TEXT.deactivateTarget(name),
+                  consequence: MEMBER_TEXT.deactivateHint,
+                  titleTemplate: MEMBER_TEXT.destructiveTitle,
+                  cancelLabel: MEMBER_TEXT.cancel,
+                  onConfirm: deactivate,
+                },
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

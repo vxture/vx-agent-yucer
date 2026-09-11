@@ -3,9 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
-  Banner,
   Button,
-  DestructiveButton,
   Drawer,
   Field,
   FieldDescription,
@@ -18,7 +16,7 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { removeOrgUnitAction, saveOrgUnitAction, setUnitDivisionsAction } from "../admin/org/actions";
-import { FormFields, FormPage } from "./form-page";
+import { FormActions, FormFields, FormPage } from "./form-page";
 import { Tag } from "./tag";
 
 /* 配置单位 - THE ONE FORM a unit is created and edited on (incr/0051).
@@ -495,35 +493,30 @@ export function OrgUnitForm({
               </div>
             </Section>
 
-            {/* 底部按钮迁移到右侧，顺序调整 (owner, 2026-09-11): 保存单位是
-                最终动作，靠右排在最后；放弃紧挨着它。删除单位仍然是危险
-                操作，用 mr-auto 单独钉在左边，跟"接下来做什么"的两个按钮
-                分开，而不必在没有它时补一个占位元素。 */}
-            <div className="border-border flex flex-col gap-md border-t pt-md">
-              <div className="gap-sm flex items-center justify-end">
-                {!isNew && children === 0 ? (
-                  <DestructiveButton
-                    className="mr-auto"
-                    disabled={pending}
-                    confirm={{
-                      verb: ORG_TEXT.remove,
-                      target: ORG_TEXT.removeTarget(name),
-                      consequence: ORG_TEXT.removeConsequence(members),
-                      titleTemplate: ORG_TEXT.destructiveTitle,
-                      cancelLabel: ORG_TEXT.cancel,
-                      onConfirm: remove,
-                    }}
-                  >
-                    {ORG_TEXT.remove}
-                  </DestructiveButton>
-                ) : null}
-                <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/org")}>
-                  {ORG_TEXT.discard}
-                </Button>
-                <Button onClick={submit} disabled={pending}>{ORG_TEXT.save}</Button>
-              </div>
-              {error ? <Banner tone="danger" title={ORG_TEXT.saveFailed} description={error} /> : null}
-            </div>
+            <FormActions
+              saveLabel={ORG_TEXT.save}
+              discardLabel={ORG_TEXT.discard}
+              onSave={submit}
+              onDiscard={() => router.push("/admin/org")}
+              pending={pending}
+              error={error}
+              errorTitle={ORG_TEXT.saveFailed}
+              destructive={
+                !isNew && children === 0
+                  ? {
+                      label: ORG_TEXT.remove,
+                      confirm: {
+                        verb: ORG_TEXT.remove,
+                        target: ORG_TEXT.removeTarget(name),
+                        consequence: ORG_TEXT.removeConsequence(members),
+                        titleTemplate: ORG_TEXT.destructiveTitle,
+                        cancelLabel: ORG_TEXT.cancel,
+                        onConfirm: remove,
+                      },
+                    }
+                  : undefined
+              }
+            />
           </div>
         }
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Banner, Button, Checkbox, ConfirmDestructive, DialogForm, RadioGroup, RadioGroupItem, useToast } from "@vxture/design-ui";
+import { Banner, Button, Checkbox, ConfirmDestructive, DialogForm, RadioGroup, RadioGroupItem, SectionHeader, useToast } from "@vxture/design-ui";
 import { useRouter } from "next/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { applyStartupTemplateAction } from "../admin/org/actions";
@@ -129,7 +129,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
       >
         <div className="gap-lg flex flex-col">
           <div className="gap-sm flex flex-col">
-            <span className="text-label-md text-foreground font-semibold">{ORG_TEXT.templateOrgLabel}</span>
+            <SectionHeader level={4} title={ORG_TEXT.templateOrgLabel} />
             {/* 三选一，描述句偏长 (owner, 2026-09-10: 每套模版的说明), 一行放
                 不下 - 这一组仍然纵向排，横向铺的是下面短得多的区域选项。 */}
             <RadioGroup value={chosen} onValueChange={chooseOrg} className="gap-md flex flex-col">
@@ -149,10 +149,11 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
           </div>
           {divisionTemplates.length > 0 ? (
             <div className="gap-sm flex flex-col">
-              <span className="text-label-md text-foreground font-semibold">{ORG_TEXT.templateDivisionLabel}</span>
-              <span className="text-muted-foreground text-body-sm">
-                {orgIsRegionAware ? ORG_TEXT.templateDivisionWhy : ORG_TEXT.templateDivisionUnavailable}
-              </span>
+              <SectionHeader
+                level={4}
+                title={ORG_TEXT.templateDivisionLabel}
+                description={orgIsRegionAware ? ORG_TEXT.templateDivisionWhy : ORG_TEXT.templateDivisionUnavailable}
+              />
               {/* 横线铺开 (owner, 2026-09-11: 把大区设置选项横线铺开) - 每个
                   选项就是一个名字加个数，短，面板加宽后一行放得下。 默认禁用
                   (owner: 小公司就不用了=默认禁用) - 小规模简单团队没有大区层，
@@ -184,7 +185,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
                仍然靠区域设置模版是否选了"不同步"来决定能不能勾 - 没有新建的
                销售区域，没有什么可关联的。 */
             <div className="gap-sm flex flex-col">
-              <span className="text-label-md text-foreground font-semibold">{ORG_TEXT.templateAssociateLabel}</span>
+              <SectionHeader level={4} title={ORG_TEXT.templateAssociateLabel} />
               <label className="gap-sm flex items-start">
                 <Checkbox
                   checked={autoAssociate}

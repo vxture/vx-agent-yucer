@@ -282,15 +282,15 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             ) : (
               <span className="gap-sm flex min-w-0 items-center">
                 <UserAvatar alt={r.name} className="size-6 shrink-0" />
-                <button
-                  type="button"
-                  className="text-label-md min-w-0 cursor-pointer truncate text-left font-semibold hover:underline"
-                  aria-label={MEMBER_TEXT.detailsTitle(r.name)}
-                  onClick={() => onOpen(r.sub)}
-                >
-                  {r.name}
-                </button>
-                {r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : null}
+                {/* 标题不走手写 button (owner, 2026-09-12: admin 标题体系统一) -
+                    两行上面的 unit 分支已经用 TableTitleCell，这里看齐它，
+                    只是没有 icon（UserAvatar 已经是这一行的头像）。 */}
+                <TableTitleCell
+                  title={r.name}
+                  tooltip={r.name}
+                  onTitleClick={() => onOpen(r.sub)}
+                  titleSuffix={r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : undefined}
+                />
               </span>
             )}
           </span>

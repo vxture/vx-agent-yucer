@@ -12,6 +12,7 @@ import {
   Icon,
   Input,
   NativeSelect,
+  SectionHeader,
   SegmentedControl,
   StatusBadge,
   Table,
@@ -566,9 +567,10 @@ export function PermissionTree({
                     </HoverCardTrigger>
                     <HoverCardContent align="start" className="w-auto min-w-[16rem] max-w-[28rem]">
                       <div className="gap-sm flex flex-col">
-                        <span className="text-label-md font-semibold">
-                          {n.permission ? T.holdersTitle(title(n), list.length) : T.holdersTitleBranch(title(n), list.length)}
-                        </span>
+                        <SectionHeader
+                          level={4}
+                          title={n.permission ? T.holdersTitle(title(n), list.length) : T.holdersTitleBranch(title(n), list.length)}
+                        />
                         <ul className="gap-2xs flex flex-col">
                           {list.map((x, i) => (
                             <li key={x.code} className="gap-sm flex items-baseline">
