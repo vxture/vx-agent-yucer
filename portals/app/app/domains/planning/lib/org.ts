@@ -200,6 +200,70 @@ export const ORG_TEMPLATES: readonly OrgTemplate[] = [
   },
 ];
 
+/**
+ * 大区级组织结构也需要创建并关联 (owner, 2026-09-11): applying 五分法/七分法
+ * alongside an org template should not just LINK whatever region-shaped units
+ * the org template happens to already have - for 国规模全国公司 that is a
+ * lucky 1:1 with 七分法 (the template's own description says so) and for
+ * 五分法 it is nothing, every unit named "华北大区" etc has no "东部"-style
+ * counterpart at all. The org template's own 大区 units are regenerated to
+ * match whichever division template was actually chosen, key'd here by which
+ * unit(s) the regions attach under - 国规模全国公司 has one trunk (总部),
+ * 集团型大公司 keeps its two 事业部 and gives each the full region set.
+ *
+ * 小规模简单团队 IS NOT HERE ON PURPOSE (owner: 小公司就不用了=默认禁用) -
+ * it has no 大区 layer at all (总部 直接带三个团队), so there is nothing to
+ * regenerate; a region choice paired with it is a no-op higher up, not
+ * something this map needs to refuse.
+ */
+export const REGION_AWARE_ORG_TEMPLATES: Readonly<Record<string, readonly string[]>> = {
+  national_medium: ["headquarters"],
+  group_large: ["bu1", "bu2"],
+};
+
+/** The three levels a static template's own 大区 arm is made of - dropped
+ *  wholesale before the dynamic ones are generated in their place. */
+const REGION_ARM_KINDS = new Set(["region", "branch", "team"]);
+
+/** One 大区 unit named after `r`, plus ONE team under it (owner, 2026-09-11:
+ *  上下级可以按模版保持现状即可，就是可以保持2个事业部，下级各一个单位 -
+ *  the attachment point stays wherever the static template already put its
+ *  大区 arm; what is UNDER a region flattens to this one unit, not the
+ *  deeper 分公司 → 团队 chain 集团型大公司's own three fixed regions still
+ *  carry - replicating that chain once per matched region, twice per 事业部,
+ *  would run to dozens of units for what is meant to be a light sync).
+ *  Division codes are `CHINA-EAST`-shaped; a unit code is lower-case,
+ *  underscored, and unique per parent, hence the transform. */
+function regionUnits(parentCode: string, regions: readonly { readonly code: string; readonly name: string }[]): OrgTemplateUnit[] {
+  const out: OrgTemplateUnit[] = [];
+  for (const r of regions) {
+    const slug = r.code.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const regionCode = `${parentCode}_${slug}`;
+    out.push({ code: regionCode, parent: parentCode, kind: "region", name: `${r.name}大区` });
+    out.push({ code: `${regionCode}_team1`, parent: regionCode, kind: "team", name: "销售一部" });
+  }
+  return out;
+}
+
+/**
+ * `template` with its own 大区 arm (region/branch/team units) replaced by
+ * one region - plus the one team under it - per entry in `regions`, under
+ * every parent `REGION_AWARE_ORG_TEMPLATES` lists for this template's key.
+ * `template` comes back unchanged when its key is not in that map (小规模
+ * 简单团队, or any future template nobody has opted in) or `regions` is
+ * empty (不同步 - no division template chosen, today's behaviour).
+ */
+export function withMatchedRegions(
+  template: OrgTemplate,
+  regions: readonly { readonly code: string; readonly name: string }[],
+): OrgTemplate {
+  const parents = REGION_AWARE_ORG_TEMPLATES[template.key];
+  if (!parents || regions.length === 0) return template;
+  const trunk = template.units.filter((u) => !REGION_ARM_KINDS.has(u.kind));
+  const generated = parents.flatMap((p) => regionUnits(p, regions));
+  return { ...template, units: [...trunk, ...generated] };
+}
+
 export function defaultOrgTemplate(templates: readonly OrgTemplate[] = ORG_TEMPLATES): OrgTemplate {
   return templates.find((t) => t.isDefault) ?? templates[0]!;
 }

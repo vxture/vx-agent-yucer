@@ -2788,6 +2788,7 @@ export const ORG_TEXT = {
   templateOrgLabel: "组织架构模版",
   templateDivisionLabel: "区域设置模版",
   templateDivisionWhy: "同步选一套预置的大区划分；不选就不动区域设置。",
+  templateDivisionUnavailable: "小规模简单团队没有大区这一层，选它就不能同步区域设置。",
   templateDivisionNone: "不同步",
   templateDivisionOption: (name: string, divisions: number) => `${name} · ${divisions} 个大区`,
   templateAssociateLabel: "自动关联",

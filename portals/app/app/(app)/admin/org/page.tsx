@@ -7,6 +7,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgTemplates, listOrgUnits, listTerritories } from "../../../domains/planning/service";
+import { REGION_AWARE_ORG_TEMPLATES } from "../../../domains/planning/lib/org";
 import { listCarves, listMarketDivisions } from "../../../domains/account/service";
 import { OrgPanel, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
@@ -108,6 +109,7 @@ export default async function OrgPage() {
                   key: t.key, name: t.name, divisions: t.divisions.length,
                 }))}
                 currentDivisions={divisions.ok ? divisions.value.length : 0}
+                regionAwareOrgKeys={Object.keys(REGION_AWARE_ORG_TEMPLATES)}
               />
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -1488,6 +1488,7 @@ export const en: Dictionary = {
     templateOrgLabel: "Organization template",
     templateDivisionLabel: "Territory setup template",
     templateDivisionWhy: "Optionally apply a shipped region carve at the same time; leave it as-is otherwise.",
+    templateDivisionUnavailable: "The small-team template has no region layer, so a territory sync is not available with it.",
     templateDivisionNone: "Leave as-is",
     templateDivisionOption: (name: string, divisions: number) => `${name} · ${divisions} regions`,
     templateAssociateLabel: "Auto-link",

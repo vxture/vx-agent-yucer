@@ -15,7 +15,7 @@ import {
   upsertOrgUnit,
   upsertTerritory,
 } from "../../../domains/planning/service";
-import { importDivisionTemplate, listMarketDivisions } from "../../../domains/account/service";
+import { importDivisionTemplate, listCarves, listMarketDivisions } from "../../../domains/account/service";
 import type { MoveDirection } from "../../../domains/shared/ordering";
 
 /* 组织结构 的写入路径 (incr/0051).
@@ -110,6 +110,13 @@ export interface ApplyStartupTemplateResult {
  *    叫"华北大区"，七分法的大区叫"华北"，是同一个词加了后缀，不是同一个词，
  *    按相等匹配会一个都对不上（2026-09-11 实测验证过）。
  *
+ * 0) 大区级组织结构也需要创建并关联 (owner, 2026-09-11) - 在套组织架构模版
+ *    之前，先把选中的区域设置模版自己的大区名单读出来（listCarves，account
+ *    域，不需要真的建出大区行才能拿到名字），传给 applyOrgTemplate：模版
+ *    若是"区域感知"的（withMatchedRegions，见 lib/org.ts），大区一层就照着
+ *    这份名单重建，而不是套用模版自带的那份固定名单（对七分法恰好 1:1，对
+ *    五分法完全对不上）。小规模简单团队没有大区层，传不传都不影响它。
+ *
  * 组织架构在 planning 域，区域设置在 account 域，销售区域在 planning 域但
  * 引用 account 域的大区 id - 三步分属两个域，没有跨域事务，前一步成了后一
  * 步才做；区域设置那步失败，组织架构已经落地的不回滚，销售区域那步就跳过，
@@ -123,8 +130,24 @@ export async function applyStartupTemplateAction(input: {
 }): Promise<Result<ApplyStartupTemplateResult>> {
   const c = await ctx();
   if (!c) return { ok: false, error: "not_authenticated" };
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const accountCtx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: session.stores.account(),
+  };
 
-  const orgResult = await applyOrgTemplate(c, input.orgKey);
+  let regions: { readonly code: string; readonly name: string }[] | undefined;
+  if (input.divisionKey) {
+    const carves = await listCarves(accountCtx);
+    const picked = carves.ok ? carves.value.find((t) => t.key === input.divisionKey) : undefined;
+    regions = picked?.divisions.map((d) => ({ code: d.code, name: d.name }));
+  }
+
+  const orgResult = await applyOrgTemplate(c, input.orgKey, regions);
   if (!orgResult.ok) return { ok: false, error: orgResult.violations[0]?.code ?? "denied" };
 
   let divisions = 0;
@@ -133,43 +156,33 @@ export async function applyStartupTemplateAction(input: {
   let linkedUnits = 0;
 
   if (input.divisionKey) {
-    const session = await resolveAppSession();
-    if (session) {
-      const accountCtx = {
-        workspaceId: session.workspaceId,
-        sub: session.user.sub,
-        holder: session.authz,
-        entitlement: session.entitlement,
-        store: session.stores.account(),
-      };
-      const divisionResult = await importDivisionTemplate(accountCtx, input.divisionKey);
-      if (divisionResult.ok) {
-        divisions = divisionResult.value.divisions;
-        divisionsReplaced = divisionResult.value.replaced;
-        const divisionRows = await listMarketDivisions(accountCtx);
-        const rows = divisionRows.ok ? divisionRows.value : [];
-        const knownDivisionIds = new Set(rows.map((d) => d.id));
-        const unitsResult = input.autoAssociate ? await listOrgUnits(c) : null;
-        const units = unitsResult?.ok ? unitsResult.value : [];
-        for (const d of rows) {
-          const matchedUnitIds = units.filter((u) => u.name.includes(d.name)).map((u) => u.id);
-          const territoryResult = await upsertTerritory(
-            c,
-            {
-              territoryCode: `AUTO-${d.code}`,
-              name: d.name,
-              parentId: null,
-              ownerSub: null,
-              status: "active",
-              divisionIds: [d.id],
-              unitIds: matchedUnitIds,
-            },
-            knownDivisionIds,
-          );
-          if (territoryResult.ok) {
-            territories += 1;
-            linkedUnits += matchedUnitIds.length;
-          }
+    const divisionResult = await importDivisionTemplate(accountCtx, input.divisionKey);
+    if (divisionResult.ok) {
+      divisions = divisionResult.value.divisions;
+      divisionsReplaced = divisionResult.value.replaced;
+      const divisionRows = await listMarketDivisions(accountCtx);
+      const rows = divisionRows.ok ? divisionRows.value : [];
+      const knownDivisionIds = new Set(rows.map((d) => d.id));
+      const unitsResult = input.autoAssociate ? await listOrgUnits(c) : null;
+      const units = unitsResult?.ok ? unitsResult.value : [];
+      for (const d of rows) {
+        const matchedUnitIds = units.filter((u) => u.name.includes(d.name)).map((u) => u.id);
+        const territoryResult = await upsertTerritory(
+          c,
+          {
+            territoryCode: `AUTO-${d.code}`,
+            name: d.name,
+            parentId: null,
+            ownerSub: null,
+            status: "active",
+            divisionIds: [d.id],
+            unitIds: matchedUnitIds,
+          },
+          knownDivisionIds,
+        );
+        if (territoryResult.ok) {
+          territories += 1;
+          linkedUnits += matchedUnitIds.length;
         }
       }
     }
