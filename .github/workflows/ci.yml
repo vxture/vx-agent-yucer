@@ -114,6 +114,16 @@ jobs:
       - name: Port consistency guardrail (registry rule R3)
         run: node scripts/guardrails/check-port-consistency.mjs --strict
 
+      # A real incident (vx-agent-tenderforge, v0.1.0 deploy, 2026-09-10):
+      # STACK_ROOT written by Windows Git Bash's MSYS path conversion into a
+      # value that is a legal RELATIVE path on Linux - every step up to a
+      # much later one succeeds identically. deploy/assert-stack-root.sh is
+      # the one place that value gets checked; this proves the script still
+      # catches it and that every workflow calling STACK_ROOT into a path
+      # actually calls the script first.
+      - name: STACK_ROOT guardrail (MSYS path-mangling assertion)
+        run: node scripts/guardrails/check-stack-root-guard.mjs --strict
+
       # product_251 D-3: machine-check the conformance clauses that can be
       # machine-checked, because a matrix written into a document is a snapshot
       # and it rots.

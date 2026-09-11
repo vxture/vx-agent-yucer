@@ -217,3 +217,23 @@ gh workflow run db-init.yml -f environment=production -f action=apply -f confirm
 **DDL 随运行走**：db-init 把 `expected_sha` 那次检出的 `deploy/database/ddl` rsync 到主机
 `<STACK_ROOT>/db-init/<sha>/`，对着它运行；不再依赖上次发布 rsync 到 `<STACK_ROOT>/deploy`
 的那份，结构变更不必等发布。
+
+## 设置路径型的 secret / variable：一律走 stdin（2026-09-10）
+
+移植自 vx-agent-tenderforge 的真实事故：在 Windows 的 Git Bash 里执行
+`gh variable set STACK_ROOT --env production --body '/srv/md0/x'`（或 `gh secret set ... --body`），
+MSYS 的路径转换会把这个实参改写成 `D:/Program Files/Git/srv/md0/x` 再交给 `gh.exe`，存进去
+的就是这个值——而它在 Linux 上是一个**合法的相对路径**，`mkdir -p`、rsync、compose 断言、
+远端第一次 `cd` 全部一致地成功，直到某个脚本从已经切进去的目录再解析一次才失败，报出来的
+错离病因已经很远。做成 secret 的话连诊断都看不见：日志里全是 `***`。
+
+**任何看起来像文件系统路径的值**（`STACK_ROOT` 是目前唯一一个），一律走 stdin，不用 `--body`：
+
+```bash
+printf '%s' '/srv/md0/yucer' | gh variable set STACK_ROOT --env production
+```
+
+`deploy/assert-stack-root.sh` 是这个值唯一的报错面：四个使用点（deploy / db-init / rollback /
+env-update）在任何远端命令之前都会先调它——非空、无反斜杠、无冒号、以 `/` 开头、不以 `/`
+结尾。`scripts/guardrails/check-stack-root-guard.mjs`（CI 的 `static-checks` 必需检查之一）
+既跑真实事故的那个值验证脚本本身拦得住，也扫四个工作流确认都真的调用了它。
