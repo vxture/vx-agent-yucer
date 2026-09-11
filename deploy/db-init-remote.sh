@@ -15,6 +15,9 @@
 #   DB_ENV        prod | beta   (database is vxturebiz_<snake>_<DB_ENV>)
 #   SNAKE         PRODUCT_CODE with - replaced by _
 #   GIT_SHA       the commit being applied, recorded in the ledger
+#   EXPECTED_INCR how many increments the pinned commit carries - CI counted
+#                 them, so "the glob matched nothing" cannot pass as success
+#                 (the template's 2026-09-01 outage: a stale copy applied zero)
 #   BOOTSTRAP_THROUGH  optional, e.g. 0052: a database that predates the
 #                 ledger is declared to be at this increment; the trio and
 #                 every increment up to it are recorded, not run. Refused
@@ -69,6 +72,10 @@ fi
 
 shopt -s nullglob
 incr_files=(database/ddl/incr/*.sql)
+if [ "${#incr_files[@]}" -ne "${EXPECTED_INCR:-${#incr_files[@]}}" ]; then
+  echo "[db-init] FATAL: ${#incr_files[@]} increment file(s) arrived; the pinned commit carries ${EXPECTED_INCR}" >&2
+  exit 1
+fi
 
 # A DATABASE THAT PREDATES THE LEDGER. Nothing recorded, yet the baseline is
 # there: the files have been applied, just never written down. Re-running
