@@ -1,10 +1,14 @@
 "use client";
 
 import {
+  BulkActionBar,
   Button,
   DataTable,
   Drawer,
   EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
   Section,
   StatusBadge,
   Table,
@@ -15,6 +19,7 @@ import {
   TableRow,
   TableTitleCell,
   useToast,
+  type FilterBarView,
 } from "@vxture/design-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -71,9 +76,10 @@ export function DivisionPanel(
     readonly editable: boolean;
   },
 ) {
-  const { DATA_TABLE_LABELS, PLANNING_TEXT, ROW_OPS, TERRITORY_ERROR } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, PLANNING_TEXT, ROW_OPS, TERRITORY_ERROR } = useMessages();
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
+  const [view, setView] = useState<FilterBarView>("list");
   /* 区域详情 - the members as the form's four-column roster, in a drawer:
      the one menu every panel has (owner, 2026-09-09) starts with XX详情. */
   const [details, setDetails] = useState<DivisionRow | null>(null);
@@ -97,6 +103,80 @@ export function DivisionPanel(
     }
     router.refresh();
   };
+  /* 批量删除 (owner, 2026-09-11: 添加表操作行，模式按照组织架构) - a flat
+     list, unlike 组织架构's tree, so there is no subtree to pre-filter: every
+     selected row is attempted, and one still covering members is refused by
+     the server (the same FK RESTRICT the single-row menu already shows) and
+     reported as skipped rather than as an error. */
+  const bulkRemove = () =>
+    start(async () => {
+      const byCode = new Map(rows.map((r) => [r.code, r]));
+      const targets = selected.map((code) => byCode.get(code)).filter((r): r is DivisionRow => r !== undefined);
+      let removed = 0;
+      let skipped = 0;
+      for (const r of targets) {
+        if (r.members.length > 0) {
+          skipped += 1;
+          continue;
+        }
+        const res = await removeDivisionAction(r.code);
+        if (res.ok) removed += 1;
+        else toast({ tone: "danger", title: `${r.name}: ${TERRITORY_ERROR[res.error] ?? res.error}` });
+      }
+      if (removed > 0) toast({ tone: "success", title: PLANNING_TEXT.divisionBulkRemoveDone(removed) });
+      if (skipped > 0) toast({ tone: "info", title: PLANNING_TEXT.divisionBulkRemoveSkipped(skipped, noun) });
+      setSelected([]);
+      router.refresh();
+    });
+
+  /* Shared between the table row and the card - same menu either way
+     (owner, 2026-09-11: 添加表操作行，模式按照组织架构). rowIndex is the
+     row's own position in `rows`: a flat list, never re-sorted for
+     display, so that position IS the global one 上移/下移 act on. */
+  const actionsFor = (r: DivisionRow) => {
+    const rowIndex = rows.findIndex((x) => x.code === r.code);
+    return (
+      <RowActions
+        disabled={pending}
+        items={[
+          {
+            id: "details",
+            label: ROW_OPS.details(PLANNING_TEXT.divisionName),
+            onSelect: () => setDetails(r),
+          },
+          ...(editable
+            ? [
+                {
+                  id: "edit",
+                  label: ROW_OPS.configure(PLANNING_TEXT.divisionName),
+                  onSelect: () => router.push(`/admin/division/${r.id}`),
+                },
+                ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
+                {
+                  id: "remove",
+                  label: ROW_OPS.remove(PLANNING_TEXT.divisionName),
+                  separatorBefore: true,
+                  danger: true as const,
+                  disabled: r.members.length > 0,
+                  hint: r.members.length > 0 ? PLANNING_TEXT.divisionRemoveHeldHint(r.members.length, noun) : undefined,
+                  confirm: {
+                    verb: ROW_OPS.remove(PLANNING_TEXT.divisionName),
+                    target: PLANNING_TEXT.divisionRemoveTarget(r.name),
+                    consequence:
+                      r.coveredBy.length > 0
+                        ? `${PLANNING_TEXT.divisionRemoveCoverage(r.coveredBy.length)}${PLANNING_TEXT.divisionRemoveConsequence}`
+                        : PLANNING_TEXT.divisionRemoveConsequence,
+                    titleTemplate: PLANNING_TEXT.destructiveTitle,
+                    cancelLabel: PLANNING_TEXT.templateCancel,
+                    onConfirm: () => remove(r.code),
+                  },
+                },
+              ]
+            : []),
+        ]}
+      />
+    );
+  };
 
   return (
     /* NO TITLE HERE. It carried one for a day, while this panel was the
@@ -104,31 +184,94 @@ export function DivisionPanel(
        identical headings one above the other is what the module-name guard
        exists to prevent one level up. */
     <Section id="divisions">
+      {rows.length > 0 ? (
+        <FilterBar
+          count={PLANNING_TEXT.divisionToolbarCount(rows.length)}
+          view={view}
+          onViewChange={(v) => {
+            setView(v);
+            setSelected([]);
+          }}
+          actions={editable ? <Button onClick={() => router.push("/admin/division/new")}>{PLANNING_TEXT.divisionNew}</Button> : undefined}
+        />
+      ) : null}
+      {editable && view === "list" ? (
+        <BulkActionBar
+          count={selected.length}
+          noun={PLANNING_TEXT.divisionSelectionNoun}
+          selectionTemplate={DS_LABELS.bulkSelectionTemplate}
+          toolbarLabel={DS_LABELS.bulkToolbar}
+          clearLabel={PLANNING_TEXT.divisionClearSelection}
+          onClear={() => setSelected([])}
+          actions={[
+            {
+              id: "remove",
+              label: PLANNING_TEXT.divisionBulkRemove,
+              danger: true as const,
+              confirm: {
+                verb: PLANNING_TEXT.divisionBulkRemove,
+                target: PLANNING_TEXT.divisionBulkRemoveTarget(selected.length),
+                consequence: PLANNING_TEXT.divisionBulkRemoveConsequence(noun),
+                titleTemplate: PLANNING_TEXT.destructiveTitle,
+                cancelLabel: PLANNING_TEXT.templateCancel,
+                onConfirm: bulkRemove,
+              },
+            },
+          ]}
+        />
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState
           title={PLANNING_TEXT.divisionEmptyTitle}
           description={PLANNING_TEXT.divisionEmptyWhy}
         />
+      ) : view === "cards" ? (
+        <ListCardGrid>
+          {rows.map((r) => (
+            <ListCard
+              key={r.code}
+              title={r.name}
+              description={r.code}
+              onTitleClick={() => setDetails(r)}
+              status={r.system ? <Tag>{PLANNING_TEXT.divisionSystem}</Tag> : <StatusBadge tone="info">{PLANNING_TEXT.divisionCustom}</StatusBadge>}
+              actions={actionsFor(r)}
+              meta={
+                <div className="gap-xs flex flex-wrap items-center">
+                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                    {PLANNING_TEXT.divisionMemberCount(noun)}: {r.members.length}
+                  </span>
+                  {r.members.map((m) => <Tag key={m.key}>{m.label}</Tag>)}
+                </div>
+              }
+            />
+          ))}
+        </ListCardGrid>
       ) : (
         /* 三件标配 - 选择列 / 序号列 / 操作列. table-fittings.test.ts requires
            all three on every converted table; the edge classes give the
            selection and index columns an equal share so they line up with the
-           DS's own. */
-        /* THE THREE SHORT COLUMNS TAKE EXPLICIT WIDTHS, and the province list
-           takes what is left. Same constraint-from-outside the catalog config
-           tables carry: the DS's `width` tiers are MIN-widths and fixed layout
-           ignores minimums, so untiered the seven columns split evenly and
-           覆盖省份 got the same ~120px as 来源 - which wrapped 广西壮族自治区
-           one character per line. Under fixed layout a column with no width
-           takes the remainder, so naming the short ones is what gives the
-           content column its room. Measured, not guessed: with the tiers alone
-           the header still computed 121px against a min-width of 200. */
+           DS's own.
+
+           COLUMN WIDTHS (owner, 2026-09-11: 调整列宽，覆盖省份=4x 倍，容许
+           换行 - 排除选择/序号/操作三列算比例，跟组织架构的 30/70 拆分同一套
+           规范). 来源/省份数 各一份，覆盖省份四份 - 先按 1:1:1:4 (7 份) 上线
+           实测，区域名称列被压到 61px，CHINA-CENTRAL 这样的代码显示成
+           "CHIN" 就截断了 - 这不是"压缩"，是看不清，跟这轮列宽整改一直在
+           防的问题（组织架构那次的 76 讲得很清楚）是同一件事。改成 2:1:1:4
+           (8 份): 区域名称两份 25%，来源/省份数各一份 12.5%，覆盖省份四份
+           50%。八个百分比仍然恰好加总 100%，跟 org-panel.tsx 同样的理由
+           (table-fittings.test.ts's WIDTH_EXEMPTIONS): 没有缺口留给
+           table-fixed 去按比例分摊，选择/序号/操作照样精确 64px。覆盖省份的
+           标签本来就 flex-wrap；这次是给它真正的空间去换行，不再被压缩到
+           121px（改之前 DS 的 min-width 档位对 table-fixed 不生效，跟
+           组织架构那次的发现一致）。 */
         <div
           className={
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-            + " [&_thead_th:nth-child(3)]:w-[9rem]"
-            + " [&_thead_th:nth-child(4)]:w-[7rem]"
-            + " [&_thead_th:nth-child(5)]:w-[5rem]"
+            + " [&_thead_th:nth-child(3)]:w-[25%]"
+            + " [&_thead_th:nth-child(4)]:w-[12.5%]"
+            + " [&_thead_th:nth-child(5)]:w-[12.5%]"
+            + " [&_thead_th:nth-child(6)]:w-[50%]"
           }
         >
         <DataTable
@@ -136,57 +279,7 @@ export function DivisionPanel(
           indexStart={1}
           selectedKeys={selected}
           onSelectionChange={(keys) => setSelected([...keys])}
-          rowActions={(r: DivisionRow, rowIndex: number) => (
-            <RowActions
-              disabled={pending}
-              items={[
-                /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09: 各操作面板
-                   尽量统一): 区域详情 / 区域配置 ｜ the four moves ｜ 删除区域.
-                   详情 for every reader; the rest for those who may edit. The
-                   column still renders with 详情 alone for a read-only reader -
-                   a table whose action column disappears shifts every other
-                   column across. */
-                {
-                  id: "details",
-                  label: ROW_OPS.details(PLANNING_TEXT.divisionName),
-                  onSelect: () => setDetails(r),
-                },
-                ...(editable
-                  ? [
-                      {
-                        id: "edit",
-                        label: ROW_OPS.configure(PLANNING_TEXT.divisionName),
-                        onSelect: () => router.push(`/admin/division/${r.id}`),
-                      },
-                      /* rowIndex is the global position, since the rows are
-                         never re-sorted for display. */
-                      ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
-                      {
-                        id: "remove",
-                        label: ROW_OPS.remove(PLANNING_TEXT.divisionName),
-                        separatorBefore: true,
-                        danger: true as const,
-                        disabled: r.members.length > 0,
-                        hint: r.members.length > 0 ? PLANNING_TEXT.divisionRemoveHeldHint(r.members.length, noun) : undefined,
-                        confirm: {
-                          verb: ROW_OPS.remove(PLANNING_TEXT.divisionName),
-                          target: PLANNING_TEXT.divisionRemoveTarget(r.name),
-                          /* The link CASCADEs (0052): say how many territories
-                             lose this ground before the click lands. */
-                          consequence:
-                            r.coveredBy.length > 0
-                              ? `${PLANNING_TEXT.divisionRemoveCoverage(r.coveredBy.length)}${PLANNING_TEXT.divisionRemoveConsequence}`
-                              : PLANNING_TEXT.divisionRemoveConsequence,
-                          titleTemplate: PLANNING_TEXT.destructiveTitle,
-                          cancelLabel: PLANNING_TEXT.templateCancel,
-                          onConfirm: () => remove(r.code),
-                        },
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-          )}
+          rowActions={actionsFor}
           rowKey={(r: DivisionRow) => r.code}
           rows={rows}
           columns={[

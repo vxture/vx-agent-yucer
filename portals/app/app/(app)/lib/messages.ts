@@ -3950,6 +3950,18 @@ export const PLANNING_TEXT = {
   divisionCoveredUnits: (units: string) => `单位：${units}`,
   divisionCoveredNoUnits: "未挂单位",
   divisionRemoveCoverage: (n: number) => `${n} 个销售区域将失去这块覆盖。`,
+  // 表格工具行 (owner, 2026-09-11: 添加表操作行，模式按照组织架构，包括按钮
+  // 调整) - 新建区域从页头移进面板自己的工具行，跟组织架构同一个规范：
+  // FilterBar 的 count/view/actions，勾选后单独出现 BulkActionBar。
+  divisionToolbarCount: (n: number) => `共 ${n} 个区域`,
+  divisionSelectionNoun: "个区域",
+  divisionClearSelection: "取消选择",
+  divisionBulkRemove: "删除",
+  divisionBulkRemoveTarget: (n: number) => `已选的 ${n} 个区域`,
+  divisionBulkRemoveConsequence: (noun: string) =>
+    `所选区域会被删除，不可撤销。仍覆盖${noun}的区域不会被删除。`,
+  divisionBulkRemoveDone: (removed: number) => `已删除 ${removed} 个区域`,
+  divisionBulkRemoveSkipped: (n: number, noun: string) => `${n} 个仍覆盖${noun}，未删除`,
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateTitle: "应用划分模版",
   templateWhy: "选一套预置切法作为起点，之后随便改。",

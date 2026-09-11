@@ -7,7 +7,6 @@ import { frameMembers, listCarves, listMarketDivisions, marketScope } from "../.
 import { MarketScopeControl } from "../../components/market-scope-control";
 import { DivisionPanel } from "../../components/division-panel";
 import { DivisionImport } from "../../components/division-import";
-import { NewEntryLink } from "../../components/form-page";
 import { isSystemDivision, type MarketScope } from "../../../domains/shared/market-division";
 import { frameName, frameNoun } from "../../lib/frame-copy";
 import { getPlanningStore } from "../../../domains/shared/registry";
@@ -128,18 +127,19 @@ export default async function DivisionPage() {
             {PLANNING_TEXT.divisionCoverage(placed.size, rows.length, unassigned.length, noun)}
           </StatusBadge>
         }
-        /* BOTH ACTIONS IN THE PAGE HEADER'S SLOT (DS: 右侧动作区，通常是一到
-           两个 Button). They were a row under the table; 新建 and 应用模版 are
-           the two ways to change what the table says, and they belong where
-           the DS puts a page's actions. */
+        /* 新建区域 MOVED OUT (owner, 2026-09-11: 添加表操作行，模式按照组织
+           架构，包括按钮调整) - it is a row-level create now, primary in
+           DivisionPanel's own FilterBar, the same split org-panel.tsx made
+           (层级设置/应用模版/三方接入 stayed in the page header, 新建单位
+           moved into the panel). 市场范围/应用模版 stay here - neither is a
+           row a new division becomes. */
         action={
           upsert ? (
             <>
               {/* THE FRAME IS A BUTTON THAT OPENS A PANEL (owner, 2026-09-09),
-                  beside the two other ways to change what the roster says. A
+                  beside the other way to change what the roster says. A
                   display page states; configuration happens in what it opens. */}
               <MarketScopeControl scope={frame} editable={upsert} />
-              <NewEntryLink href="/admin/division/new" label={PLANNING_TEXT.divisionNew} />
               <DivisionImport
                 currentDivisions={rows.length}
                 customCount={
