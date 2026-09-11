@@ -2783,6 +2783,13 @@ export const ORG_TEXT = {
   // 区域或描述) - NEW 在点过四个按钮之前都是这句；EDIT 永远有真实答案，
   // 用不上它。
   formTerritoryUnset: "请选择",
+  // 已设定/已选择 (owner, 2026-09-11: 设定向下聚合/向上继承不能一直显示为
+  // 无范围 - 应该先给标签「已设定：X」，再显示结果：范围名称或无范围) -
+  // 向下聚合/向上继承共用 territorySetLabel，套上各自的模式名；无区域套上
+  // noTerritory 的说法而不是 territoryModeNone，跟结果行说的是同一个词。
+  // 手动选择改名为选择区域后不再叫"设定"，是"选择"。
+  territorySetLabel: (mode: string) => `已设定：${mode}`,
+  territoryChosenLabel: "已选择",
   formTerritoryDrawerTitle: "选择关联区域",
   formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织架构自动聚合或继承。",
   formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",
