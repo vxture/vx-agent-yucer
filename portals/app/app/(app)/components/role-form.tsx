@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
-  Banner,
   Button,
   ButtonGroup,
   Checkbox,
@@ -29,6 +28,7 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { removeRoleAction, saveRoleAction } from "../admin/roles/actions";
+import { FormActions } from "./form-page";
 import { Tag } from "./tag";
 
 /* 配置角色 - TWO COLUMNS, the division form's shape (owner, 2026-09-09:
@@ -372,39 +372,39 @@ export function RoleForm({
         </Section>
       </div>
 
-      {/* THE WAY OUT, ACROSS BOTH COLUMNS: 保存 primary, 放弃 secondary, and
-          the failure banner beside the button that failed. 删除角色 SITS AFTER
-          THEM (owner, 2026-09-09: 放到底部，保存角色后面) - it is a way out of
-          the page too, not a control in the column - and is OFFERED ONLY
-          WHEN NOBODY HOLDS IT, the foreign key's own rule (ON DELETE
-          RESTRICT) shown rather than enforced after the fact. Red, and
-          confirmed: it is the one button here that cannot be undone. */}
-      <div className="border-border mt-lg flex flex-col gap-md border-t pt-md">
-        <div className="gap-sm flex items-center">
-          <Button onClick={submit} disabled={pending}>
-            {ROLE_TEXT.save}
-          </Button>
-          <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/roles")}>
-            {ROLE_TEXT.discard}
-          </Button>
-          {!isNew && members === 0 ? (
-            <DestructiveButton
-              disabled={pending}
-              confirm={{
-                verb: ROLE_TEXT.remove,
-                target: ROLE_TEXT.removeTarget(name),
-                consequence: ROLE_TEXT.removeConsequence,
-                titleTemplate: ROLE_TEXT.destructiveTitle,
-                cancelLabel: ROLE_TEXT.cancel,
-                onConfirm: remove,
-              }}
-            >
-              {ROLE_TEXT.remove}
-            </DestructiveButton>
-          ) : null}
-        </div>
-        {error ? <Banner tone="danger" title={ROLE_TEXT.saveFailed} description={error} /> : null}
-      </div>
+      {/* THE WAY OUT, ACROSS BOTH COLUMNS. Shared shell (owner, 2026-09-12:
+          admin 按钮位置统一 - 放弃靠左、保存靠右, DS's own DialogForm
+          contract "取消在左、提交在右"). 删除角色 STILL SITS AT THE BOTTOM
+          (owner, 2026-09-09: 放到底部 - it is a way out of the page too,
+          not a control in the column), now pinned to the far left via
+          `mr-auto` rather than trailing after 保存/放弃 - separated, not
+          reordered into either of them. OFFERED ONLY WHEN NOBODY HOLDS IT,
+          the foreign key's own rule (ON DELETE RESTRICT) shown rather than
+          enforced after the fact. */}
+      <FormActions
+        saveLabel={ROLE_TEXT.save}
+        discardLabel={ROLE_TEXT.discard}
+        onSave={submit}
+        onDiscard={() => router.push("/admin/roles")}
+        pending={pending}
+        error={error}
+        errorTitle={ROLE_TEXT.saveFailed}
+        destructive={
+          !isNew && members === 0
+            ? {
+                label: ROLE_TEXT.remove,
+                confirm: {
+                  verb: ROLE_TEXT.remove,
+                  target: ROLE_TEXT.removeTarget(name),
+                  consequence: ROLE_TEXT.removeConsequence,
+                  titleTemplate: ROLE_TEXT.destructiveTitle,
+                  cancelLabel: ROLE_TEXT.cancel,
+                  onConfirm: remove,
+                },
+              }
+            : undefined
+        }
+      />
 
       <DialogForm
         open={applying}

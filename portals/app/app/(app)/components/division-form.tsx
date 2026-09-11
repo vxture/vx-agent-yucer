@@ -38,6 +38,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { frameNoun } from "../lib/frame-copy";
 import { matchPreset } from "../lib/preset-match";
 import { removeDivisionAction, saveDivision } from "../admin/division/actions";
+import { FormActions } from "./form-page";
 import { Tag } from "./tag";
 
 /* 配置区域 - TWO COLUMNS (owner, 2026-09-09: 改为左右布局).
@@ -451,21 +452,21 @@ export function DivisionForm({
       {/* THE WAY OUT, ACROSS BOTH COLUMNS (owner, 2026-09-09: 保存需要一个底部
           拉通的 section，并且需要上方分割线; 保存、放弃，主、辅). Saving commits
           what both columns say, so it belongs to neither: a full-width foot
-          under a rule, 保存 primary and 放弃 secondary, and the failure
-          banner beside the button that failed. */}
-      <div className="border-border mt-lg flex flex-col gap-md border-t pt-md">
-        <div className="gap-sm flex items-center">
-          <Button onClick={submit} disabled={pending}>
-            {PLANNING_TEXT.divisionSave}
-          </Button>
-          <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/division")}>
-            {PLANNING_TEXT.divisionDiscard}
-          </Button>
-        </div>
-        {error ? (
-          <Banner tone="danger" title={PLANNING_TEXT.divisionSaveFailed} description={error} />
-        ) : null}
-      </div>
+          under a rule. Shared shell (owner, 2026-09-12: admin 按钮位置统一,
+          放弃靠左、保存靠右 - DS's own DialogForm contract, "取消在左、
+          提交在右") - no `destructive` here: 删除大区 stays inline in the
+          left column above (its own comment already rules on that - "不是
+          离开这页的方式，是对这个大区本身的操作"), this row only ever
+          means save/discard. */}
+      <FormActions
+        saveLabel={PLANNING_TEXT.divisionSave}
+        discardLabel={PLANNING_TEXT.divisionDiscard}
+        onSave={submit}
+        onDiscard={() => router.push("/admin/division")}
+        pending={pending}
+        error={error}
+        errorTitle={PLANNING_TEXT.divisionSaveFailed}
+      />
 
       <DialogForm
         open={applying}
