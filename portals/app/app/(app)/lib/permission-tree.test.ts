@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { ACTIONS, type ActionId } from "../../authz/actions";
 import { PERM_CODES } from "../../authz/catalog";
 import { FUNCTIONAL_DOMAINS } from "./functional-domains";
-import { NAV_ENTRIES } from "./navigation";
 import {
-  ACTION_DOMAIN_GROUP,
   buildPermissionTree,
   filterPermissionTree,
   flattenTree,
+  GROUP_MODULES,
   keysDownTo,
+  PLACEHOLDER_MODULES,
   splitActionId,
   unheldActionCount,
   type PermissionNode,
@@ -34,19 +34,24 @@ test("every action is a leaf exactly once, with the permission the catalogue giv
   }
 });
 
-test("the levels are 业务域 / 模块 / 页面 / 操作, and a page never sits empty", () => {
+test("the levels are 业务 / 模块 / 页面 / 操作, a page never sits empty, and an empty module is a documented placeholder", () => {
   const tree = buildPermissionTree();
   for (const g of tree) {
     assert.equal(g.level, "domain");
     for (const m of g.children) {
       assert.equal(m.level, "module");
+      if (m.children.length === 0) {
+        assert.ok(PLACEHOLDER_MODULES.has(m.name), `${m.key} is empty but not in PLACEHOLDER_MODULES`);
+        continue;
+      }
+      assert.ok(!PLACEHOLDER_MODULES.has(m.name), `${m.key} is in PLACEHOLDER_MODULES but holds pages`);
+      // Every module's operations sit under an explicit page now, including
+      // a module-level action's synthesized one (owner, 2026-09-11: 合成
+      // 占位页面，复用模块名) - no action hangs directly off a module.
       for (const c of m.children) {
-        if (c.level === "page") {
-          assert.ok(c.children.length > 0, `${c.key} holds nothing`);
-          for (const a of c.children) assert.equal(a.level, "action", a.key);
-        } else {
-          assert.equal(c.level, "action", c.key);
-        }
+        assert.equal(c.level, "page", c.key);
+        assert.ok(c.children.length > 0, `${c.key} holds nothing`);
+        for (const a of c.children) assert.equal(a.level, "action", a.key);
       }
     }
   }
@@ -58,24 +63,32 @@ test("the levels are 业务域 / 模块 / 页面 / 操作, and a page never sits
   assert.equal(new Set(keys).size, keys.length);
 });
 
-test("the typed 业务域 map agrees with FUNCTIONAL_DOMAINS for every built module's gate", () => {
-  /* A module's gate action names its domain; that domain's group must be
-     the group FUNCTIONAL_DOMAINS lists the module under. Two modules are
-     documented exceptions - both sit in 作战部署域 and are gated by another
-     domain's permission, because they are planning done ON that domain's
-     rows: 重点客户 (account.view - a named-account list is planning over
-     customers) and 预测口径 (pipeline.forecast.view - how the pipeline is
-     read is set in planning). In the tree their operations sit with the
-     domain whose permission they need, which is what a role holds. */
-  const EXCEPTIONS = new Set(["namedAccount", "forecastRule"]);
-  const gate = new Map(NAV_ENTRIES.map((e) => [e.key, e.action]));
+test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under the business group the nav lists it in", () => {
+  /* The second tier used to be the ACTIONS catalogue's own nine domains,
+     cross-checked against the nav; it IS the nav's 20 modules now
+     (owner, 2026-09-11), so the check is direct: every BUILT nav module in
+     a functional domain must appear in that same group's GROUP_MODULES
+     entry, and (the five business groups only) every GROUP_MODULES entry
+     must be a nav module for that group, with exactly one documented
+     exception - 合同管理, reserved in 战果沉淀域 ahead of its own route. */
+  const navKeysByGroup = new Map<string, Set<string>>(
+    FUNCTIONAL_DOMAINS.map((fd) => [fd.key, new Set(fd.modules.filter((m) => m.kind === "built").map((m) => m.navKey))]),
+  );
   for (const fd of FUNCTIONAL_DOMAINS) {
     for (const m of fd.modules) {
-      if (m.kind !== "built" || EXCEPTIONS.has(m.navKey)) continue;
-      const action = gate.get(m.navKey);
-      assert.ok(action, `${m.navKey} has no nav entry`);
-      const { module } = splitActionId(action);
-      assert.equal(ACTION_DOMAIN_GROUP[module], fd.key, `${m.navKey} (${action}) is listed under ${fd.key}`);
+      if (m.kind !== "built") continue;
+      assert.ok(
+        GROUP_MODULES[fd.key]?.includes(m.navKey),
+        `${m.navKey} is in FUNCTIONAL_DOMAINS.${fd.key} but not GROUP_MODULES.${fd.key}`,
+      );
+    }
+  }
+  const UNBUILT = new Set(["contract"]);
+  for (const [group, modules] of Object.entries(GROUP_MODULES)) {
+    if (group === "copilot" || group === "admin") continue; // no nav list to check against - see the file header
+    for (const key of modules) {
+      if (UNBUILT.has(key)) continue;
+      assert.ok(navKeysByGroup.get(group)?.has(key), `${group}/${key} is not a nav module FUNCTIONAL_DOMAINS lists there`);
     }
   }
 });
@@ -105,13 +118,10 @@ test("flattening follows the expansion state, and keysDownTo opens to a level", 
   const toPages = keysDownTo(tree, "page");
   const rows = flattenTree(tree, toPages);
   assert.ok(rows.some((r) => r.node.level === "page"));
-  // A module's own operations show (their parent, the module, is open); an
-  // operation under a page does not (pages are closed).
-  assert.ok(rows.some((r) => r.node.level === "action" && splitActionId(r.node.name).page === null));
-  assert.ok(
-    !rows.some((r) => r.node.level === "action" && splitActionId(r.node.name).page !== null),
-    "pages closed: no page operation shown",
-  );
+  // Every module's operations sit under an explicit page now, including a
+  // module-level action's synthesized one - so "expand to page" (pages
+  // themselves closed) shows no operation row at all, from any module.
+  assert.ok(!rows.some((r) => r.node.level === "action"), "pages closed: no operation shown yet");
   const all = keysDownTo(tree, "action");
   assert.equal(flattenTree(tree, all).filter((r) => r.node.level === "action").length, Object.keys(ACTIONS).length);
   assert.deepEqual(splitActionId("admin.member.role.assign"), { module: "admin", page: "member" });

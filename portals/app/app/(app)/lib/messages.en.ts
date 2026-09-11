@@ -208,6 +208,9 @@ export const en: Dictionary = {
     renewal: "Renewals",
     forecastRule: "Forecast rules",
     attainment: "Attainment",
+    // 权限策略 (owner, 2026-09-11): a placeholder module reserved in
+    // settlement - no page, permission point or schema yet.
+    contract: "Contracts",
   },
 
   // The five domain names are the product's loudest claim about itself, so
@@ -3752,6 +3755,9 @@ export const en: Dictionary = {
       action: "Operation",
     } as Record<string, string>,
     childCount: (n: number) => `${n} children`,
+    // A placeholder module - no page, no permission point yet (owner,
+    // 2026-09-11): see PLACEHOLDER_MODULES.
+    modulePending: "Permission point pending",
     expandTo: "Expand to",
     collapseAll: "Collapse all",
     granted: "Granted",
@@ -3769,13 +3775,19 @@ export const en: Dictionary = {
       "planning.territory": "Territories",
       "planning.target": "Targets",
       "planning.attainment": "Attainment",
+      // Synthesized pages for a module's own module-level actions (owner,
+      // 2026-09-11) - reuse the module's own DOMAIN_LABEL text, same as zh.
+      "campaign.base": "Campaigns",
       "campaign.execution": "Campaign execution",
       "account.contact": "Contacts",
       "account.interaction": "Interactions",
       "account.commitment": "Commitments",
       "account.graph": "Relationship graph",
+      "account.base": "Accounts",
+      "signal.base": "Opportunity signals",
       "signal.feed": "Signal feeds",
       "signal.lead": "Leads",
+      "pipeline.base": "Pipeline",
       "pipeline.opportunity": "Opportunities",
       "pipeline.discount": "Discount approval",
       "pipeline.forecast": "Forecast",
@@ -3784,6 +3796,7 @@ export const en: Dictionary = {
       "delivery.milestone": "Milestones",
       "delivery.revenue": "Collections",
       "copilot.session": "Sessions",
+      "copilot.base": "Copilot",
       "copilot.action": "Suggestions",
       "copilot.playbook": "Playbooks",
       "copilot.autopilot": "Autopilot",

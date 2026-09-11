@@ -76,6 +76,9 @@ export const DOMAIN_LABEL: Record<string, string> = {
   quote: "报价管理",
   routing: "线索分派",
   renewal: "合同续约",
+  // 权限策略 (owner, 2026-09-11): 战果沉淀域新增的占位模块，尚无页面/权限点/
+  // 数据表 - 见 PLACEHOLDER_MODULES.
+  contract: "合同管理",
   forecastRule: "预测口径",
   attainment: "承诺达成",
   winLossReview: "赢丢复盘",
@@ -4897,12 +4900,17 @@ export const PERMISSION_TREE_TEXT = {
   // 的角色（owner 2026-09-10：权限应该有继承关系，角色应该是汇聚关系）。
   holdersTitleBranch: (name: string, n: number) => `${name} · ${n} 个角色能做到子级里的至少一件事`,
   levelLabel: {
-    domain: "业务域",
+    // 业务 (owner, 2026-09-11: 四层的名称...= 业务) - not 业务域, which stays
+    // the fuller form the filter labels/headers use (domainFilterLabel 等).
+    domain: "业务",
     module: "模块",
     page: "页面",
     action: "操作",
   } as Record<string, string>,
   childCount: (n: number) => `${n} 子级`,
+  // 占位模块 - 还没有自己的权限点 (owner, 2026-09-11: 先建占位，应该有自己的
+  // 权限点 / 先加一个空占位模块，后续补表): 见 PLACEHOLDER_MODULES。
+  modulePending: "待补充权限点",
   expandTo: "展开到",
   collapseAll: "全部收起",
   granted: "持有",
@@ -4921,13 +4929,21 @@ export const PERMISSION_TREE_TEXT = {
     "planning.territory": "销售区域",
     "planning.target": "销售目标",
     "planning.attainment": "承诺达成",
+    // 合成占位页面，复用模块名 (owner, 2026-09-11) - 一个模块的模块级操作
+    // (campaign.view/signal.view/account.view/pipeline.view/copilot.ask 等)
+    // 原来直接挂在模块下，现在每个模块下至少有一个页面节点，与 DOMAIN_LABEL
+    // 里对应模块的名字相同。
+    "campaign.base": "营销活动",
     "campaign.execution": "活动执行",
+    "account.base": "客户管理",
     "account.contact": "联系人",
     "account.interaction": "互动记录",
     "account.commitment": "客户承诺",
     "account.graph": "客户关系图",
+    "signal.base": "商机智探",
     "signal.feed": "信号源",
     "signal.lead": "线索",
+    "pipeline.base": "商机管理",
     "pipeline.opportunity": "商机",
     "pipeline.discount": "折扣审批",
     "pipeline.forecast": "销售预测",
@@ -4936,6 +4952,7 @@ export const PERMISSION_TREE_TEXT = {
     "delivery.milestone": "里程碑",
     "delivery.revenue": "回款",
     "copilot.session": "会话",
+    "copilot.base": "销售助手",
     "copilot.action": "副驾建议",
     "copilot.playbook": "剧本",
     "copilot.autopilot": "自动执行",

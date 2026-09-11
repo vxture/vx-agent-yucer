@@ -127,34 +127,29 @@ export const LEVEL_ICON: Readonly<Record<PermissionLevel, IconName>> = {
   action: "key",
 };
 
-/* L1-L4 (owner, 2026-09-10: 层级标签没有加上 - the compact depth pill next
+/* L0-L3 (owner, 2026-09-10: 层级标签没有加上 - the compact depth pill next
    to the title, on top of the 类型 column's own tone-coded badge rather
-   than instead of it). Mapped to LEVEL, not raw indent depth: an action
-   hanging directly off a module (no page between) is still L4, the same as
-   one three levels down - "L4" names WHAT it is, not how far this one
-   particular row happened to nest. */
+   than instead of it; renumbered 2026-09-11 to match the owner's own
+   L0 业务/L1 模块/L2 页面/L3 操作 framing). Mapped to LEVEL, not raw indent
+   depth: an action hanging directly off a module (no page between) is still
+   L3, the same as one three levels down - "L3" names WHAT it is, not how far
+   this one particular row happened to nest. */
 export const LEVEL_NUMBER: Readonly<Record<PermissionLevel, string>> = {
-  domain: "L1",
-  module: "L2",
-  page: "L3",
-  action: "L4",
+  domain: "L0",
+  module: "L1",
+  page: "L2",
+  action: "L3",
 };
 
+/* One shared tone per level, for BOTH the 类型 column's badge and the L0-L3
+   pill beside the title (owner, 2026-09-11: 四层的名称...不需要 tone 语气，
+   需要分颜色显示 tag - four tiers, four genuinely distinct colors, chosen
+   to be told apart rather than to mean anything; `neutral` is not a color
+   and is never one of the four). The two badges used to diverge on `page`
+   only because the 类型 column tolerated neutral there and the inline pill
+   could not (it used to render identically to the 子级 tag beside it) - one
+   map that never reaches for neutral satisfies both at once. */
 const LEVEL_TONE = {
-  domain: "brand",
-  module: "info",
-  page: "neutral",
-  action: "warning",
-} as const;
-
-/* The L1-L4 badge's OWN tone, not LEVEL_TONE (owner, 2026-09-10: 用一个亮
-   一点的背景). LEVEL_TONE colors the 类型 column, where `page` is
-   deliberately neutral - reusing it verbatim here made the L3 badge render
-   with the exact same classes as the 子级 tag beside it (`bg-accent`,
-   `border-border`, no icon), indistinguishable at a glance on every 页面
-   row. This badge always says WHICH of four tiers, so all four get a real
-   color; `success` fills the one slot LEVEL_TONE leaves neutral. */
-const LEVEL_BADGE_TONE = {
   domain: "brand",
   module: "info",
   page: "success",
@@ -451,15 +446,23 @@ export function PermissionTree({
                       tooltip={title(n)}
                       titleSuffix={
                         <span className="gap-xs flex items-center">
-                          {/* L1-L4 (owner, 2026-09-10: 层级标签没有加上; then
+                          {/* L0-L3 (owner, 2026-09-10: 层级标签没有加上; then
                               用一个亮一点的背景，两个标签相近拥挤). The
                               SAME tone the 类型 column colors that level by
                               (LEVEL_TONE) - not neutral, which is what made
                               this badge and 子级 read as the same grey blob
                               at a glance - plus an explicit gap, since a
                               bare Fragment left them touching. */}
-                          <Tag tone={LEVEL_BADGE_TONE[n.level]}>{LEVEL_NUMBER[n.level]}</Tag>
+                          <Tag tone={LEVEL_TONE[n.level]}>{LEVEL_NUMBER[n.level]}</Tag>
                           {branch ? <Tag>{T.childCount(n.children.length)}</Tag> : null}
+                          {/* 占位模块 (owner, 2026-09-11: 先建占位，应该有
+                              自己的权限点 / 先加一个空占位模块，后续补表) -
+                              a module with zero pages has no permission
+                              point of its own yet; say so rather than
+                              rendering an unexplained empty row. */}
+                          {n.level === "module" && n.children.length === 0 ? (
+                            <Tag tone="warning">{T.modulePending}</Tag>
+                          ) : null}
                         </span>
                       }
                       description={subtitle(n)}
