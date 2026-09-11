@@ -308,14 +308,29 @@ export function PermissionTree({
 
   return (
     <div className="gap-md flex flex-col">
-      {/* THE FILTER ROW (owner, 2026-09-10): a search box and a 业务域
-          filter, in the DS's own FilterBar - what narrows WHICH rows are
-          visible. Kept apart from the expand-to row below it, which does
-          not change what a query is filtering out - the same
-          filtering-versus-viewing split the DS's own FilterBar docstring
-          draws between its `children` filters and its `scope` slot. */}
+      {/* THE FILTER ROW (owner, 2026-09-11: 把表格顶部的操作行换成标准的
+          DS 结构，不要自造). 展开到...全部收起 不再是页面自己拼的一个
+          `<div>` - FilterBar 自己就有这个位置: `scope`，其文档写的正是
+          "这一屏在看哪一个切面"、"与视图切换同属'这张表长什么样'的一段，
+          一起靠左"、并且排在 `count` 之后 - 与展开层级完全同一件事，不是
+          "在同一份数据里少看几行"的筛选，不该再另起一行。按钮组本身不变。 */}
       <FilterBar
         count={shown === total ? T.toolbarCount(total) : T.toolbarFilteredCount(shown, total)}
+        scope={
+          <span className="gap-sm flex items-center">
+            <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
+            <ButtonGroup>
+              {(["module", "page", "action"] as const).map((lvl) => (
+                <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
+                  {T.levelLabel[lvl]}
+                </Button>
+              ))}
+              <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
+                {T.collapseAll}
+              </Button>
+            </ButtonGroup>
+          </span>
+        }
         search={
           <SearchSlot>
             <Input
@@ -352,22 +367,6 @@ export function PermissionTree({
           </NativeSelect>
         </FilterSlot>
       </FilterBar>
-
-      {/* Expand to a level, or fold everything: the two things a reader does
-          with a tree of this size. */}
-      <div className="gap-sm flex items-center">
-        <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
-        <ButtonGroup>
-          {(["module", "page", "action"] as const).map((lvl) => (
-            <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
-              {T.levelLabel[lvl]}
-            </Button>
-          ))}
-          <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
-            {T.collapseAll}
-          </Button>
-        </ButtonGroup>
-      </div>
 
       {filtered.length === 0 ? (
         <p className="text-muted-foreground text-body-sm">{T.filterEmpty}</p>
