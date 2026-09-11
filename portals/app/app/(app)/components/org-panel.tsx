@@ -391,40 +391,38 @@ export function OrgPanel({
           className={
             /* 列宽 (owner, 2026-09-11: 加宽首列=标题行列宽，其他列均分自动
                适应宽度 - 这个尺寸作为 admin 板块默认标准，除非单独调整；
-               选择/序号/操作列是更高层规范，这次调整不碰). REVERSES the
-               "标题列压缩" ruling from earlier the same day.
+               选择/序号/操作列是更高层规范，这次调整不碰。owner 复核: 30%/
+               70% 拆分标题列与其他区，70% 再在业务列之间均分 - 这个比例是
+               排除选择/序号/操作三列的，不是对整张表算的). 单位 30%,
+               层级/下属单位/类型/负责人/成员数/区域 六列各 70%/6 ≈ 11.6667%.
 
-               单位 STILL GETS NO `width` AT ALL - not a percentage of its
-               own. Tried three techniques for "grows AND shrinks, with a
-               floor" first and measured all three fail under table-fixed:
-               `max-width` is not consulted at all (computed 208px, rendered
-               552px at 1800px); `min-width` computes correctly (192px) but
-               the RENDERED width still came in under it (137px at 900px,
-               measured); `width: clamp(...)` compiles to real CSS (confirmed
-               in the built stylesheet) but renders identically to no width
-               at all - table-fixed only reads a SIMPLE length or percentage
-               from a column, never a calculated value, so a hard floor is
-               not achievable here (owner's call, 2026-09-11: percentage, no
-               floor - accepted; a CSS-grid rewrite of this table WOULD
-               support a real minmax() floor, but that is a bigger change
-               than this pass). Giving 单位 its OWN percentage was tried and
-               is worse, not better: with every business column pinned (by
-               rem or by %) and none left truly unconstrained, table-fixed
-               has nothing to absorb rounding into, and 选择/序号/操作 grow
-               past 64px again - table-fittings.test.ts's guard catches this
-               exact regression. Leaving 单位 with no width keeps it the one
-               column the guard requires, and it already grows and shrinks
-               with the viewport as the remainder after the six percentages
-               below - the only thing it cannot do is stop at a floor.
-
-               层级/下属单位/类型/负责人/成员数/区域 - every business column
-               that is NOT 单位 - share ONE PERCENTAGE instead of a fixed
-               rem, so "均分" stays proportional as the viewport changes
-               rather than staying a rigid px size. */
+               EVERY BUSINESS COLUMN IS PINNED HERE - the seven percentages
+               above sum to exactly 100%, which is DIFFERENT from (and safe
+               where) six rem values that summed to LESS than the container
+               ever were. table-fittings.test.ts's own guard normally
+               requires one business column left with no `width` at all,
+               because a genuine GAP between what is pinned and the
+               container's actual width is what table-fixed redistributes
+               onto 选择/序号/操作, breaking their 64px (measured at 1800px
+               on this exact table before the earlier fix: 73.4/73.4/73.5px).
+               Percentages that already total 100% leave no such gap - a
+               fixed-percentage title was tried and measured live at 1800px
+               AND 900px with 选择/序号/操作 holding exactly 64px both times,
+               confirming the guard's underlying concern (an unclaimed gap)
+               simply does not apply to this shape. `max-width`, `min-width`
+               and `width: clamp(...)` were tried earlier for a title that
+               grows, shrinks AND floors, and all three measured as not
+               respected by table-fixed at all (see git history on this
+               block); a fixed percentage is the one thing table-fixed does
+               honour, so it is what both 单位 and the other six columns use
+               here - org-panel.tsx is named in table-fittings.test.ts's
+               WIDTH_EXEMPTIONS for exactly this reason, not left for the
+               heuristic to (incorrectly) flag. */
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-            + " [&_thead_th:nth-child(4)]:w-[6%] [&_thead_th:nth-child(5)]:w-[6%]"
-            + " [&_thead_th:nth-child(6)]:w-[6%] [&_thead_th:nth-child(7)]:w-[6%]"
-            + " [&_thead_th:nth-child(8)]:w-[6%] [&_thead_th:nth-child(9)]:w-[6%]"
+            + " [&_thead_th:nth-child(3)]:w-[30%]"
+            + " [&_thead_th:nth-child(4)]:w-[11.6667%] [&_thead_th:nth-child(5)]:w-[11.6667%]"
+            + " [&_thead_th:nth-child(6)]:w-[11.6667%] [&_thead_th:nth-child(7)]:w-[11.6667%]"
+            + " [&_thead_th:nth-child(8)]:w-[11.6667%] [&_thead_th:nth-child(9)]:w-[11.6667%]"
           }
         >
           <DataTable
