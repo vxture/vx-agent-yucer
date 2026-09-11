@@ -14,7 +14,6 @@ import {
   Input,
   NativeSelect,
   Section,
-  SectionHeader,
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -164,6 +163,13 @@ export function OrgUnitForm({
    *  live direct links while editing. Empty falls to the badge word for
    *  whichever of aggregate/inherited/none is actually true. */
   const chips = isNew ? territorySelection : liveDirectTerritoryIds;
+  /* 内容区空时显示请选择 (owner, 2026-09-11) - EDIT always has a real
+     answer already (the server computed `scope` before this form ever
+     rendered), so it starts chosen. NEW starts unchosen until the admin
+     actually clicks one of the four buttons - before that there is nothing
+     to show a badge word FOR, so 请选择 stands in rather than defaulting
+     to 无区域 as if that had been decided. */
+  const [chosen, setChosen] = useState(!isNew || territorySelection.length > 0);
 
   const submit = () => {
     setError(null);
@@ -233,12 +239,15 @@ export function OrgUnitForm({
       router.refresh();
     });
   };
-  /* Picking a mode off the dropdown. "手动选择" only flips the local intent -
+  /* Picking one of the four buttons. "手动选择" only flips the local intent -
      nothing is written until 选择区域 actually ticks something and (edit)
      saves, or (new) 保存单位 applies the pending pick. Picking any of the
      other three gives up a direct link that may not exist yet, in which
-     case there is nothing to write and this is a no-op past the flag. */
+     case there is nothing to write and this is a no-op past the flag.
+     Any of the four also settles `chosen` - 请选择 is only for BEFORE a
+     button has been clicked at all. */
   const chooseTerritoryMode = (mode: TerritoryMode) => {
+    setChosen(true);
     if (mode === "manual") {
       setManualIntent(true);
       return;
@@ -297,7 +306,22 @@ export function OrgUnitForm({
                   <FormFields gap="128">
                     <Field>
                       <FieldLabel>{ORG_TEXT.parentField}</FieldLabel>
-                      <NativeSelect value={parentValue} onChange={(e) => setParentValue(e.target.value)} disabled={pending}>
+                      {/* 信息选择或输入框，最大宽度 (owner, 2026-09-11) - a
+                          128px column gap already gives this row room; the
+                          control itself does not also need to fill it.
+                          `wrapperClassName`, not `className`: NativeSelect
+                          renders its chevron absolutely-positioned against
+                          the OUTER span, which stays w-full regardless of
+                          what width lands on the <select> itself - capping
+                          the wrong element leaves the arrow floating off to
+                          the right of a select that visibly stopped short
+                          of it (caught live at a single-column width). */}
+                      <NativeSelect
+                        wrapperClassName="max-w-(--vx-container-sm)"
+                        value={parentValue}
+                        onChange={(e) => setParentValue(e.target.value)}
+                        disabled={pending}
+                      >
                         <option value="">{ORG_TEXT.parentNone}</option>
                         {parents.map((u) => (
                           <option key={u.id} value={u.id}>{ORG_TEXT.optionIndent(u.depth, u.name)}</option>
@@ -308,14 +332,17 @@ export function OrgUnitForm({
                     <Field>
                       <FieldLabel>{ORG_TEXT.kindField}</FieldLabel>
                       <div className="gap-sm flex items-center">
-                        <div className="min-w-0 grow">
-                          <NativeSelect value={kindValue} onChange={(e) => setKindValue(e.target.value)} disabled={pending}>
-                            <option value="">{ORG_TEXT.kindUnset}</option>
-                            {kinds.map((k) => (
-                              <option key={k.id} value={k.id}>{k.name}</option>
-                            ))}
-                          </NativeSelect>
-                        </div>
+                        <NativeSelect
+                          wrapperClassName="min-w-0 max-w-(--vx-container-sm) grow"
+                          value={kindValue}
+                          onChange={(e) => setKindValue(e.target.value)}
+                          disabled={pending}
+                        >
+                          <option value="">{ORG_TEXT.kindUnset}</option>
+                          {kinds.map((k) => (
+                            <option key={k.id} value={k.id}>{k.name}</option>
+                          ))}
+                        </NativeSelect>
                         <Button asChild variant="secondary" className="shrink-0">
                           <a href="/admin/org/kinds">{ORG_TEXT.kindConfigure}</a>
                         </Button>
@@ -324,6 +351,7 @@ export function OrgUnitForm({
                     <Field>
                       <FieldLabel>{ORG_TEXT.code}</FieldLabel>
                       <Input
+                        className="max-w-(--vx-container-sm)"
                         value={codeValue}
                         onChange={(e) => setCodeValue(e.target.value.toLowerCase())}
                         /* The anchor: locked once created (0051). */
@@ -333,11 +361,21 @@ export function OrgUnitForm({
                     </Field>
                     <Field>
                       <FieldLabel>{ORG_TEXT.nameLabel}</FieldLabel>
-                      <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} disabled={pending} />
+                      <Input
+                        className="max-w-(--vx-container-sm)"
+                        value={nameValue}
+                        onChange={(e) => setNameValue(e.target.value)}
+                        disabled={pending}
+                      />
                     </Field>
                     <Field>
                       <FieldLabel>{ORG_TEXT.leaderField}</FieldLabel>
-                      <NativeSelect value={leaderValue} onChange={(e) => setLeaderValue(e.target.value)} disabled={pending}>
+                      <NativeSelect
+                        wrapperClassName="max-w-(--vx-container-sm)"
+                        value={leaderValue}
+                        onChange={(e) => setLeaderValue(e.target.value)}
+                        disabled={pending}
+                      >
                         <option value="">{ORG_TEXT.leaderNone}</option>
                         {leaders.map((m) => (
                           <option key={m.sub} value={m.sub}>{m.name}</option>
@@ -346,66 +384,90 @@ export function OrgUnitForm({
                       <FieldDescription>{ORG_TEXT.leaderHint}</FieldDescription>
                     </Field>
                   </FormFields>
+                </div>
+              </div>
+            </Section>
 
-                  {/* 关联区域 - 小标题 + 右侧下拉 (owner, 2026-09-11): 向下
-                      聚合/向上继承/手动选择/无区域。手动选择才露出选择区域
-                      按钮 - 其余三个只是当前自动结果的说法，选哪个都等同
-                      "放弃手动"，写入后下拉会自己校正回真正生效的那个。 */}
-                  <div className="gap-sm flex flex-col">
-                    <SectionHeader
-                      level={4}
-                      title={ORG_TEXT.formTerritoryTitle}
-                      action={
-                        <div className="gap-sm flex items-center">
-                          <NativeSelect
-                            value={territoryMode}
-                            onChange={(e) => chooseTerritoryMode(e.target.value as TerritoryMode)}
-                            disabled={territoryPending}
-                          >
-                            <option value="aggregate">{ORG_TEXT.territoryModeAggregate}</option>
-                            <option value="inherited">{ORG_TEXT.territoryModeInherited}</option>
-                            <option value="manual">{ORG_TEXT.territoryModeManual}</option>
-                            <option value="none">{ORG_TEXT.territoryModeNone}</option>
-                          </NativeSelect>
-                          {territoryMode === "manual" ? (
-                            <Button type="button" variant="secondary" onClick={openTerritoryDrawer}>
-                              {ORG_TEXT.formTerritoryChoose}
-                            </Button>
-                          ) : null}
-                        </div>
-                      }
-                    />
-                    <div className="w-full">
-                      {chips.length > 0 ? (
-                        <ul className="gap-2xs flex flex-wrap">
-                          {chips.map((tid) => {
-                            const opt = territoryOptions.find((t) => t.id === tid);
-                            return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
-                          })}
-                        </ul>
-                      ) : (
-                        <p className="text-muted-foreground text-body-sm">
-                          {territoryMode === "aggregate"
-                            ? ORG_TEXT.aggregateTerritory
-                            : territoryMode === "inherited"
-                              ? ORG_TEXT.inheritedTerritory
-                              : ORG_TEXT.noTerritory}
-                        </p>
-                      )}
-                    </div>
+            {/* 关联区域 - 域，与部门设置同级标题 (owner, 2026-09-11: 域 部门
+                设置同级标题，提供icon title；把下拉框展开为四个按钮，手动
+                选择-primary) - 手动选择是唯一真正的动作（打开抽屉写入），
+                所以只有它是 primary（默认 variant），其余三个只是"放弃
+                手动，交给自动"的说法，都是 secondary。内容区在还没有点过
+                任何按钮时显示"请选择"，点过之后才显示关联区域或对应的
+                描述文字。 */}
+            <Section icon="map-pin" title={ORG_TEXT.formTerritoryTitle}>
+              <div className="gap-lg flex">
+                <span className="invisible shrink-0" aria-hidden="true">
+                  <Icon name="map-pin" size="lg" />
+                </span>
+                <div className="min-w-0 flex-1 flex flex-col gap-sm">
+                  <div className="gap-sm flex flex-wrap items-center">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={territoryPending}
+                      onClick={() => chooseTerritoryMode("aggregate")}
+                    >
+                      {ORG_TEXT.territoryModeAggregate}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={territoryPending}
+                      onClick={() => chooseTerritoryMode("inherited")}
+                    >
+                      {ORG_TEXT.territoryModeInherited}
+                    </Button>
+                    <Button type="button" disabled={territoryPending} onClick={() => chooseTerritoryMode("manual")}>
+                      {ORG_TEXT.territoryModeManual}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={territoryPending}
+                      onClick={() => chooseTerritoryMode("none")}
+                    >
+                      {ORG_TEXT.territoryModeNone}
+                    </Button>
+                    {territoryMode === "manual" ? (
+                      <Button type="button" variant="secondary" onClick={openTerritoryDrawer}>
+                        {ORG_TEXT.formTerritoryChoose}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="w-full">
+                    {!chosen ? (
+                      <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryUnset}</p>
+                    ) : chips.length > 0 ? (
+                      <ul className="gap-2xs flex flex-wrap">
+                        {chips.map((tid) => {
+                          const opt = territoryOptions.find((t) => t.id === tid);
+                          return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="text-muted-foreground text-body-sm">
+                        {territoryMode === "aggregate"
+                          ? ORG_TEXT.aggregateTerritory
+                          : territoryMode === "inherited"
+                            ? ORG_TEXT.inheritedTerritory
+                            : ORG_TEXT.noTerritory}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
             </Section>
 
+            {/* 底部按钮迁移到右侧，顺序调整 (owner, 2026-09-11): 保存单位是
+                最终动作，靠右排在最后；放弃紧挨着它。删除单位仍然是危险
+                操作，用 mr-auto 单独钉在左边，跟"接下来做什么"的两个按钮
+                分开，而不必在没有它时补一个占位元素。 */}
             <div className="border-border flex flex-col gap-md border-t pt-md">
-              <div className="gap-sm flex items-center">
-                <Button onClick={submit} disabled={pending}>{ORG_TEXT.save}</Button>
-                <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/org")}>
-                  {ORG_TEXT.discard}
-                </Button>
+              <div className="gap-sm flex items-center justify-end">
                 {!isNew && children === 0 ? (
                   <DestructiveButton
+                    className="mr-auto"
                     disabled={pending}
                     confirm={{
                       verb: ORG_TEXT.remove,
@@ -419,6 +481,10 @@ export function OrgUnitForm({
                     {ORG_TEXT.remove}
                   </DestructiveButton>
                 ) : null}
+                <Button variant="secondary" disabled={pending} onClick={() => router.push("/admin/org")}>
+                  {ORG_TEXT.discard}
+                </Button>
+                <Button onClick={submit} disabled={pending}>{ORG_TEXT.save}</Button>
               </div>
               {error ? <Banner tone="danger" title={ORG_TEXT.saveFailed} description={error} /> : null}
             </div>
