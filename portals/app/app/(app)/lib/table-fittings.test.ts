@@ -233,6 +233,7 @@ function pinnedNthChildWidths(text: string): number[] {
  */
 const WIDTH_EXEMPTIONS: Record<string, string> = {
   "org-panel.tsx": "七个业务列百分比之和恰好 100% (30% + 6×11.6667%)，没有缺口需要靠自动列吸收 - 1800px 与 900px 均实测选择/序号/操作仍为 64px (owner, 2026-09-11)",
+  "division-panel.tsx": "四个业务列百分比之和恰好 100% (25% + 2×12.5% + 50%)，同 org-panel.tsx 的理由 - 没有缺口需要靠自动列吸收 (owner, 2026-09-11)",
 };
 
 const USES_FITTING_WIDTHS = /import\s*\{[^}]*\b(?:EDGE_COLUMNS|ACTION_COLUMN)\b[^}]*\}\s*from\s*"\.\/table-fittings"/;
