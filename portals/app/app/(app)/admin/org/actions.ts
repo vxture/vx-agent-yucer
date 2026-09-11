@@ -6,13 +6,13 @@ import { getPlanningStore } from "../../../domains/shared/registry";
 import {
   applyOrgTemplate,
   listOrgUnits,
-  listTerritories,
   moveOrgKind,
   moveOrgUnit,
   removeOrgKind,
   removeOrgUnit,
   reparentOrgUnit,
   saveOrgKind,
+  setUnitDivisions,
   upsertOrgUnit,
   upsertTerritory,
 } from "../../../domains/planning/service";
@@ -89,47 +89,33 @@ export async function reparentOrgUnitAction(id: string, parentId: string | null)
 }
 
 /**
- * 选择区域 (owner, 2026-09-11: 关联区域...向下聚合，向上继承，选择区域，暂不
- * 关联) - from the UNIT's own side, set exactly which territories it works
- * DIRECTLY. `desiredTerritoryIds` is the complete new set, not a delta -
- * empty means 暂不关联.
- *
- * TERRITORY -> UNIT IS STORED ON THE TERRITORY ROW (`unitIds`, incr/0052),
- * and `upsertTerritory` replaces a territory WHOLESALE, upsert-by-code (its
- * own comment: "everything else may move") - there is no partial-patch verb.
- * So every territory whose membership actually changes (this unit newly
- * added, or newly dropped) is re-submitted in full, only its `unitIds`
- * different, never a half-written row.
+ * 关联区域 (incr/0055, owner 2026-09-11: 抽屉挂的是销售区域，跟区域设置的
+ * 大区对不上 - 组织到大区应该直连，不绕销售区域) - from the UNIT's own
+ * side, set exactly which 大区 it is directly linked to.
+ * `desiredDivisionIds` is the complete new set, not a delta - empty means
+ * 暂不关联. Unlike the territory version this used to be, `org_unit_division`
+ * is its own pair table (0055), so this is one direct write instead of a
+ * loop of whole-territory upserts.
  */
-export async function setUnitTerritoriesAction(
+export async function setUnitDivisionsAction(
   unitId: string,
-  desiredTerritoryIds: readonly string[],
+  desiredDivisionIds: readonly string[],
 ): Promise<Result<object>> {
   const c = await ctx();
   if (!c) return { ok: false, error: "not_authenticated" };
-  const all = await listTerritories(c, { includeRetired: true });
-  if (!all.ok) return { ok: false, error: all.violations[0]?.code ?? "denied" };
-  const desired = new Set(desiredTerritoryIds);
-  const touched = all.value.filter((t) => desired.has(t.id) !== t.unitIds.includes(unitId));
-  for (const t of touched) {
-    const nextUnitIds = desired.has(t.id) ? [...t.unitIds, unitId] : t.unitIds.filter((u) => u !== unitId);
-    const r = await upsertTerritory(
-      c,
-      {
-        territoryCode: t.territoryCode,
-        name: t.name,
-        parentId: t.parentId,
-        ownerSub: t.ownerSub,
-        // Read back off an already-valid record, not new input - a plain
-        // narrow, not a re-validation.
-        status: t.status as "active" | "retired",
-        divisionIds: t.divisionIds,
-        unitIds: nextUnitIds,
-      },
-      new Set(t.divisionIds),
-    );
-    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  }
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const accountCtx = {
+    workspaceId: session.workspaceId,
+    sub: session.user.sub,
+    holder: session.authz,
+    entitlement: session.entitlement,
+    store: session.stores.account(),
+  };
+  const divisions = await listMarketDivisions(accountCtx);
+  if (!divisions.ok) return { ok: false, error: divisions.violations[0]?.code ?? "denied" };
+  const r = await setUnitDivisions(c, unitId, desiredDivisionIds, new Set(divisions.value.map((d) => d.id)));
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/", "layout");
   return { ok: true };
 }

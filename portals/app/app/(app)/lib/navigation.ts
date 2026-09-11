@@ -72,7 +72,10 @@ export type NavIcon =
   | "key"
   | "eye"
   | "seal-check"
-  | "clipboard";
+  | "clipboard"
+  // 待迁路由 (owner, 2026-09-11) - a holding page, the glyph for a box things
+  // sit in until they are sorted.
+  | "archive";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */

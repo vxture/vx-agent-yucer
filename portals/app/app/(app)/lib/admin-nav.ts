@@ -116,6 +116,13 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
       // append-only by grant - but nothing reads it back as a record of who
       // decided what.
       { key: "audit", href: null, icon: "clipboard", action: null },
+      // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由，做一个临时
+      // 域，先挂到里面 - 标记：待迁移) - not a 6th functional domain (that
+      // count is test-locked at 5), just a holding page under admin's own
+      // menu for whatever page currently has no entry point anywhere else.
+      // Gated the same as the plainest admin reads (admin.member.view) - it
+      // names no sensitive data, only which routes exist.
+      { key: "pendingMigration", href: "/admin/migration", icon: "archive", action: "admin.member.view" },
     ],
   },
 ];

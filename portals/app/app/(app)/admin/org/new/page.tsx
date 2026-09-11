@@ -7,7 +7,8 @@ import { can } from "../../../../authz/decide";
 import { getAuthzStore } from "../../../../authz/store";
 import { listWorkspaceMembers } from "../../../../authz/admin";
 import { getPlanningStore } from "../../../../domains/shared/registry";
-import { listOrgKinds, listOrgUnits, listTerritories } from "../../../../domains/planning/service";
+import { listOrgKinds, listOrgUnits } from "../../../../domains/planning/service";
+import { listMarketDivisions } from "../../../../domains/account/service";
 import { OrgUnitForm } from "../../../components/org-unit-form";
 
 // 新建单位 - the create half of the module's list/create split.
@@ -25,15 +26,13 @@ export default async function NewOrgUnitPage() {
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
-  const [units, kinds, members, territoriesResult] = await Promise.all([
-    listOrgUnits(planning), listOrgKinds(planning), listWorkspaceMembers({ ...base, store: getAuthzStore() }), listTerritories(planning),
+  const account = { ...base, store: session.stores.account() };
+  const [units, kinds, members, divisionsResult] = await Promise.all([
+    listOrgUnits(planning), listOrgKinds(planning), listWorkspaceMembers({ ...base, store: getAuthzStore() }), listMarketDivisions(account),
   ]);
-  // 组织与区域关联设置 (owner, 2026-09-11: 新建页面也要有) - 选择区域 needs the
-  // real territory list even before the unit exists; regions[0] preferred
-  // over the territory's own name, same as org-panel.tsx's badge and
-  // [id]/page.tsx's edit form.
-  const territories = territoriesResult.ok ? territoriesResult.value : [];
-  const territoryOptions = territories.map((t) => ({ id: t.id, name: t.regions[0] ?? t.name, code: t.territoryCode }));
+  // 关联区域 (incr/0055, owner 2026-09-11: 组织到大区应该直连) - 选择区域
+  // needs the real 大区 list even before the unit exists.
+  const divisionOptions = (divisionsResult.ok ? divisionsResult.value : []).map((d) => ({ id: d.id, name: d.name, code: d.code }));
 
   return (
     <ViewLayout>
@@ -58,11 +57,10 @@ export default async function NewOrgUnitPage() {
         leaders={(members.ok ? members.value : []).map((m) => ({ sub: m.sub, name: m.displayName ?? m.sub }))}
         children={0}
         members={0}
-        territoryOptions={territoryOptions}
-        directTerritoryIds={[]}
-        liveDirectTerritoryIds={[]}
+        divisionOptions={divisionOptions}
+        directDivisionIds={[]}
         scope="none"
-        effectiveTerritoryNames={[]}
+        effectiveDivisionNames={[]}
       />
     </ViewLayout>
   );

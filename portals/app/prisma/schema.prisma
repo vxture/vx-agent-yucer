@@ -584,6 +584,7 @@ model OrgUnit {
   updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
   territories TerritoryUnit[]
+  divisions   OrgUnitDivision[]
 
   @@unique([workspaceId, unitCode], map: "uidx_org_unit_code")
   @@index([workspaceId, parentId, sortOrder], map: "idx_org_unit_ws_parent")
@@ -622,6 +623,25 @@ model TerritoryDivision {
   @@id([workspaceId, territoryId, divisionId], map: "pk_territory_division")
   @@index([workspaceId, divisionId], map: "idx_territory_division_division")
   @@map("territory_division")
+  @@schema("yucer_gtm")
+}
+
+/// incr/0055. Which 大区 a department is directly linked to - a straight
+/// unit<->division path that does not go through a territory. A different
+/// fact from TerritoryUnit/TerritoryDivision: this is "which 大区 the unit
+/// belongs to", not "which ground the unit's territory works".
+model OrgUnitDivision {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  unitId      String   @map("unit_id") @db.Uuid
+  divisionId  String   @map("division_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  unit     OrgUnit        @relation(fields: [unitId], references: [id], onDelete: Cascade, map: "fk_org_unit_division_unit")
+  division MarketDivision @relation(fields: [divisionId], references: [id], onDelete: Cascade, map: "fk_org_unit_division_division")
+
+  @@id([workspaceId, unitId, divisionId], map: "pk_org_unit_division")
+  @@index([workspaceId, divisionId], map: "idx_org_unit_division_division")
+  @@map("org_unit_division")
   @@schema("yucer_gtm")
 }
 
@@ -1384,6 +1404,9 @@ model MarketDivision {
   /// incr/0052. The territories covering this 大区 - a read-only reference
   /// from yucer_gtm; the link goes with the 大区 (CASCADE).
   territories TerritoryDivision[]
+  /// incr/0055. The departments directly linked to this 大区 - a separate
+  /// read-only reference from yucer_gtm, not through a territory.
+  orgUnits    OrgUnitDivision[]
 
   @@unique([workspaceId, scope, scopeProvince, divisionCode], map: "uidx_market_division_code")
   @@index([workspaceId, sortOrder], map: "idx_market_division_ws_sort")

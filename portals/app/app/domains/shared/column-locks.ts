@@ -344,6 +344,8 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // it covers - are pairs: a change is a delete and an insert.
   "yucer_gtm.territory_unit",
   "yucer_gtm.territory_division",
+  // incr/0055. A department's direct 大区 link is the same kind of pair.
+  "yucer_gtm.org_unit_division",
   // incr/0053. A placement is a pair too - one person in several units - so
   // the 0051 grant on unit_id is withdrawn: a move is a delete and an insert.
   "yucer_gtm.org_unit_member",

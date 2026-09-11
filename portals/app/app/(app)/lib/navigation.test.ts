@@ -80,8 +80,11 @@ test("administration is nav, but it is not a capability domain", () => {
     // 预测阈值 and 账龄分档 joined 业务参数 on 2026-09-08 (incr/0041, 0042).
     // They are rule PARAMETERS rather than vocabularies, which is a difference
     // in what they hold and not in where they belong.
+    // 待迁路由 joined 运行状况 on 2026-09-11 (incr/0055's own change): a
+    // holding page for whatever route currently has no entry point anywhere
+    // else, found by an app-wide reachability sweep.
     ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
-     "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption"],
+     "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption", "pendingMigration"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of

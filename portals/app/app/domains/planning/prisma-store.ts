@@ -286,6 +286,32 @@ export class PrismaPlanningStore implements PlanningStore {
     return count;
   }
 
+  async listUnitDivisionLinks(workspaceId: string): Promise<{ id: string; unitIds: string[] }[]> {
+    const p = await getPrismaClient();
+    const rows = (await p.orgUnitDivision.findMany({ where: { workspaceId } })) as Array<{ unitId: string; divisionId: string }>;
+    const byDivision = new Map<string, string[]>();
+    for (const r of rows) (byDivision.get(r.divisionId) ?? byDivision.set(r.divisionId, []).get(r.divisionId)!).push(r.unitId);
+    return [...byDivision].map(([id, unitIds]) => ({ id, unitIds }));
+  }
+
+  async setUnitDivisions(workspaceId: string, unitId: string, desiredDivisionIds: readonly string[]): Promise<void> {
+    const p = await getPrismaClient();
+    // A PAIR TABLE (incr/0055): the set is reconciled by delete and insert,
+    // never by an UPDATE - same shape as setMemberUnits above.
+    const want = new Set(desiredDivisionIds);
+    const have = (await p.orgUnitDivision.findMany({ where: { workspaceId, unitId } })) as Array<{ divisionId: string }>;
+    const gone = have.filter((r) => !want.has(r.divisionId)).map((r) => r.divisionId);
+    const fresh = [...want].filter((id) => !have.some((r) => r.divisionId === id));
+    if (gone.length > 0) await p.orgUnitDivision.deleteMany({ where: { workspaceId, unitId, divisionId: { in: gone } } });
+    if (fresh.length > 0) await p.orgUnitDivision.createMany({ data: fresh.map((divisionId) => ({ workspaceId, unitId, divisionId })) });
+  }
+
+  async detachUnitFromDivisions(workspaceId: string, unitId: string): Promise<number> {
+    const p = await getPrismaClient();
+    const { count } = await p.orgUnitDivision.deleteMany({ where: { workspaceId, unitId } });
+    return count;
+  }
+
   async createTarget(workspaceId: string, target: SalesTarget): Promise<TargetRecord> {
     const p = await getPrismaClient();
     const row = await p.salesTarget.create({
