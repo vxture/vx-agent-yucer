@@ -2779,6 +2779,10 @@ export const ORG_TEXT = {
   territoryModeNone: "无区域",
   formTerritoryChoose: "选择区域",
   formTerritoryDone: "已更新关联区域。",
+  // 内容区空态 (owner, 2026-09-11: 内容区空时显示请选择，选择后展示关联
+  // 区域或描述) - NEW 在点过四个按钮之前都是这句；EDIT 永远有真实答案，
+  // 用不上它。
+  formTerritoryUnset: "请选择",
   formTerritoryDrawerTitle: "选择关联区域",
   formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织架构自动聚合或继承。",
   formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",
