@@ -268,7 +268,7 @@ test("the four moves renumber the whole list densely and refuse the edges", asyn
 
 // --- reset ------------------------------------------------------------------------
 
-test("重置预置 restores edited and deleted presets, keeps custom roles, and reports the count", async () => {
+test("应用模版 restores edited and deleted presets, keeps custom roles, and reports the count", async () => {
   const store = fresh();
   const c = ctx("sales_leader", store);
   unwrap(await saveRole(c, await draft(store, { code: "viewer", name: "观察员", permissions: ["account.read"] })));
@@ -287,7 +287,7 @@ test("重置预置 restores edited and deleted presets, keeps custom roles, and 
   assert.equal(unwrap(await resetPresetRoles(c)).restored, 0);
 });
 
-test("重置预置 brings back a shipped group the tenant had deleted, when a preset needs it", async () => {
+test("应用模版 brings back a shipped group the tenant had deleted, when a preset needs it", async () => {
   const store = fresh();
   const c = ctx("sales_leader", store);
   // Empty the 售前 line of its two presets, delete the line, then reset.

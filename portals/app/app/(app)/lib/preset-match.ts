@@ -1,6 +1,6 @@
 import type { PresetOption } from "../components/division-form";
 
-/* Which preset does 重置预置 restore?
+/* Which preset does 应用模版 restore?
  *
  * THE BUG THIS EXISTS FOR (owner, 2026-09-09). Both national carves ship a
  * CHINA-EAST - 五分法's 东部 and 七分法's 华东 - and the first cut matched on

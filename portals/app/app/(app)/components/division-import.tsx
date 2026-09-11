@@ -13,7 +13,8 @@ import {
 import { useMessages } from "../lib/i18n/provider";
 import { importTemplate } from "../admin/division/actions";
 
-/* 重置预置 - adopt a shipped carve wholesale.
+/* 应用模版 (owner, 2026-09-11: 重置预置改名应用模版) - adopt a shipped carve
+ * wholesale.
  *
  * BESIDE 新建, NOT IN A SECTION OF ITS OWN (owner, 2026-09-08). It was a panel
  * below the roster, which read as a third thing the page is about; it is one

@@ -128,7 +128,7 @@ export async function listRoles(ctx: RoleContext): Promise<RuleResult<RoleView[]
   return ok(roles.map((r) => ({ ...r, preset: isPresetRole(presets, r), members: held.get(r.code) ?? 0 })));
 }
 
-/** The presets, for the form's 应用预置 / 重置预置 and the roster's reset. */
+/** The presets, for the form's 应用预置 / 应用模版 and the roster's reset. */
 export async function listPresetRoles(ctx: RoleContext): Promise<RuleResult<PresetRole[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
   if (!gate.allowed) return denied(gate);
@@ -285,7 +285,7 @@ export async function moveRole(
 }
 
 /**
- * 重置预置 - put the nine presets back the way the catalogue seeds them.
+ * 应用模版 - put the nine presets back the way the catalogue seeds them.
  *
  * RESTORES AND OVERWRITES, NEVER DELETES: a preset the workspace removed
  * comes back; one it renamed or narrowed is set back to the seed, name and

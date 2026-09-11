@@ -129,7 +129,7 @@ export default async function DivisionPage() {
           </StatusBadge>
         }
         /* BOTH ACTIONS IN THE PAGE HEADER'S SLOT (DS: 右侧动作区，通常是一到
-           两个 Button). They were a row under the table; 新建 and 重置预置 are
+           两个 Button). They were a row under the table; 新建 and 应用模版 are
            the two ways to change what the table says, and they belong where
            the DS puts a page's actions. */
         action={

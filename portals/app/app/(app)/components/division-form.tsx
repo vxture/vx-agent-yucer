@@ -127,10 +127,10 @@ export function DivisionForm({
   const [applying, setApplying] = useState(false);
   const [presetChoice, setPresetChoice] = useState("");
 
-  /* The preset that matches THIS region - what 重置预置 restores. By code
+  /* The preset that matches THIS region - what 应用模版 restores. By code
      AND name (preset-match.ts says why: CHINA-EAST is 五分法's 东部 and
      七分法's 华东, and matching on code alone reset one to the other). When
-     the code alone is ambiguous, 重置预置 asks which carve. On a new region
+     the code alone is ambiguous, 应用模版 asks which carve. On a new region
      the match follows what has been typed; on an existing one the code is
      fixed. */
   const presetMatch = useMemo(
@@ -138,7 +138,7 @@ export function DivisionForm({
     [presets, scope, local, nameValue],
   );
   const presetForCode = presetMatch.kind === "one" ? presetMatch.preset : null;
-  /* Which presets the 应用预置 dialog lists: all of them, or - when 重置预置
+  /* Which presets the 应用预置 dialog lists: all of them, or - when 应用模版
      has to ask - only the carves that share this code. */
   const [presetPool, setPresetPool] = useState<readonly PresetOption[]>(presets);
   /* Lay a preset over the form. The CODE follows only while creating - it is
@@ -266,7 +266,7 @@ export function DivisionForm({
             {/* 辖区配置 - FOUR WAYS TO FILL THE LIST, in one row (owner,
                 2026-09-09: 手动选择只是其中一种方式，不能把手动选择作为 label).
                 选择辖区 opens the picker; 应用预置 lays any preset region over
-                this one; 重置预置 restores the preset that matches THIS code,
+                this one; 应用模版 restores the preset that matches THIS code,
                 and is greyed when none does; 清空选择 empties the list. Each
                 is greyed when it could do nothing, so the row reads as what
                 can be done right now. */}

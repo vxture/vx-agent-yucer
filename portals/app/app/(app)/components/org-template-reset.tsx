@@ -7,7 +7,8 @@ import { useMessages } from "../lib/i18n/provider";
 import { applyOrgTemplateAction } from "../admin/org/actions";
 import { Tag } from "./tag";
 
-/* 重置预置 - replace the organisation with a shipped template.
+/* 应用模版 (owner, 2026-09-11: 重置预置改名应用模版) - replace the
+ * organisation with a shipped template.
  *
  * THREE TEMPLATES ARE SHIPPED (owner, 2026-09-10: 集团型大公司 / 中规模全国组织 /
  * 小规模简单团队), and a workspace starts on the middle one. None is more
