@@ -137,7 +137,7 @@ jobs:
           need STACK_ROOT "Environment variable: the stack root on the host, e.g. /srv/md1/yucer"
           need PROJECT_NAME "Environment variable: the compose project, e.g. yucer-beta"
           need APP_PUBLISH_PORT "repo variable (Environment variable to override per tier)"
-          case "$STACK_ROOT" in /*) ;; *) echo "STACK_ROOT must be absolute: $STACK_ROOT" >&2; exit 1 ;; esac
+          bash deploy/assert-stack-root.sh "$STACK_ROOT"
 
       - name: Join tailnet and prepare SSH
         uses: ./.github/actions/tailnet-ssh-connect

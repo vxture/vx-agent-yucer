@@ -53,6 +53,15 @@ jobs:
       STACK_ROOT: ${{ vars.STACK_ROOT }}
       PROJECT_NAME: ${{ vars.PROJECT_NAME }}
     steps:
+      # Checkout comes FIRST here (it did not, before 2026-09-10): the gate
+      # below calls deploy/assert-stack-root.sh, which needs the repo on
+      # disk to run at all. Harmless either way otherwise - checkout has no
+      # side effects worth gating behind confirm=yes.
+      - name: Checkout (for the tailnet action and the STACK_ROOT assertion)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
       - name: Gate on confirm and the Environment's variables
         shell: bash
         env:
@@ -64,15 +73,10 @@ jobs:
           for v in STACK_ROOT PROJECT_NAME ENV_FILE_B64; do
             [ -n "${!v:-}" ] || { echo "$v is not set on the '${{ inputs.environment }}' Environment" >&2; exit 1; }
           done
-          case "$STACK_ROOT" in /*) ;; *) echo "STACK_ROOT must be absolute: $STACK_ROOT" >&2; exit 1 ;; esac
+          bash deploy/assert-stack-root.sh "$STACK_ROOT"
           # The file must decode and carry the one value compose cannot start without.
           printf '%s' "$ENV_FILE_B64" | base64 -d | grep -qE '^POSTGRES_PASSWORD=.+' \
             || { echo "ENV_FILE_BASE64 does not decode to an env file with POSTGRES_PASSWORD" >&2; exit 1; }
-
-      - name: Checkout (for the tailnet action)
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
 
       - name: Join tailnet and prepare SSH
         uses: ./.github/actions/tailnet-ssh-connect

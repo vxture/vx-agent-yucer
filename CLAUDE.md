@@ -149,6 +149,16 @@ A database that predates the ledger is bootstrapped once with the workflow
 input `bootstrap_through=NNNN`. Increments are written for a fresh database;
 they are NOT expected to be no-ops against a schema newer than themselves.
 
+Path-shaped secrets/variables (STACK_ROOT) are set with stdin, never `--body`
+(2026-09-10, mirrored from a real vx-agent-tenderforge incident): Windows Git
+Bash's MSYS path conversion rewrites a `--body` argument into a Windows path
+before `gh.exe` ever sees it, and the result is a legal RELATIVE path on
+Linux - every deploy step up to a much later one succeeds identically.
+`deploy/assert-stack-root.sh` is STACK_ROOT's only error surface, called
+before any remote command in all four workflows that build a path from it;
+`check-stack-root-guard.mjs` (a required check) proves the script still
+catches the incident's own value and that every call site is wired.
+
 `db-contract` joined on 2026-09-01 (owner decision - adding a required check
 edits the ruleset). It is the only check that proves anything about the DATABASE:
 a UNIQUE index, a CHECK, a REVOKE and a NULL comparison are properties of

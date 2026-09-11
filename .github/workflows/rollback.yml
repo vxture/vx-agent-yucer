@@ -69,7 +69,7 @@ jobs:
           for v in STACK_ROOT PROJECT_NAME; do
             [ -n "${!v:-}" ] || { echo "$v is not set on the '${{ inputs.environment }}' Environment" >&2; exit 1; }
           done
-          case "$STACK_ROOT" in /*) ;; *) echo "STACK_ROOT must be absolute: $STACK_ROOT" >&2; exit 1 ;; esac
+          bash deploy/assert-stack-root.sh "$STACK_ROOT"
 
       - name: Resolve image tag
         id: sha
