@@ -16,7 +16,7 @@ import { NewEntryLink } from "../../components/form-page";
 // TypeScript. The owner's ruling of 2026-09-09 made a role the workspace's
 // (支持新建，排序，授权; 有系统预置角色，可以自定义), so this is the list half of
 // the same list/create split /admin/division has: the roster states, the row
-// leads to the form, 新建 and 重置预置 sit in the header's action slot.
+// leads to the form, 新建 and 应用模版 sit in the header's action slot.
 //
 // THE ROSTER GIVES A SENTENCE AND A COUNT, not the grants (owner: 不显示所有
 // 权限名称). 权限详情 in the row menu opens the tree in a drawer.
@@ -51,7 +51,7 @@ export default async function RolesPage() {
   const rows = roles.value;
   const editable = can(session.authz, session.entitlement, "admin.role.upsert", "ui").allowed;
   const custom = rows.filter((r) => !r.preset).length;
-  // What 重置预置 would change, counted here so the dialog can say it.
+  // What 应用模版 would change, counted here so the dialog can say it.
   const presetList = presets.ok ? presets.value : [];
   const changed = rows.filter((r) => presetList.some((p) => p.code === r.code) && !r.preset).length;
   const missing = presetList.filter((p) => !rows.some((r) => r.code === p.code)).length;

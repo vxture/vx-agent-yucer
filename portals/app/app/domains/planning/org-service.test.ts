@@ -59,7 +59,7 @@ test("a workspace that deleted everything is not re-seeded behind its back", asy
   // The kinds are still there, so this is a touched workspace: empty stays empty.
   assert.equal(unwrap(await listOrgUnits(c)).length, 0);
   assert.equal(unwrap(await listOrgKinds(c)).length, DEFAULT_ORG_KINDS.length);
-  // 重置预置 is the way back.
+  // 应用模版 is the way back.
   unwrap(await applyOrgTemplate(c, "national_medium"));
   assert.equal(unwrap(await listOrgUnits(c)).length, 15);
 });

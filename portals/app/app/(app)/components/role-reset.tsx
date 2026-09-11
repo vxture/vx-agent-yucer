@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useMessages } from "../lib/i18n/provider";
 import { resetPresetRolesAction } from "../admin/roles/actions";
 
-/* 重置预置 - put the nine preset roles back the way the catalogue seeds them.
+/* 应用模版 (owner, 2026-09-11: 重置预置改名应用模版) - put the nine preset
+ * roles back the way the catalogue seeds them.
  *
  * BESIDE 新建, in the page header's action slot, like the division roster's.
  * Unlike that one there is nothing to choose - there is one set of presets -

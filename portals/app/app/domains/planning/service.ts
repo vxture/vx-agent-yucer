@@ -341,7 +341,7 @@ export async function removeOrgUnit(
 }
 
 /**
- * 重置预置 for the organisation: REPLACE the tree with a template. Every unit
+ * 应用模版 for the organisation: REPLACE the tree with a template. Every unit
  * goes (leaves first), every placement with it, and the template's units come
  * in fresh. The caller confirms; this reports how many members it un-placed.
  */

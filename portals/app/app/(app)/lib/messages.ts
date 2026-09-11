@@ -2575,7 +2575,9 @@ export const ROLE_TEXT = {
   permsConfig: "权限配置",
   pick: "选择权限",
   applyPreset: "应用预置",
-  resetPreset: "重置预置",
+  // 重置预置改名应用模版 (owner, 2026-09-11): 按钮做的事没变 - 按这个角色的
+  // 代码恢复到预置形状 - 名字换成跟其余四处同一件事一致的说法。
+  resetPreset: "应用模版",
   clear: "清空选择",
   applyPresetTitle: "应用预置",
   applyPresetWhy: (isNew: boolean): string =>
@@ -2614,9 +2616,9 @@ export const ROLE_TEXT = {
   save: "保存角色",
   discard: "放弃",
   saveFailed: "保存失败",
-  // --- 清单页的重置预置：两步，第二步危险确认（与区域一致）---
-  resetAllButton: "重置预置",
-  resetAllTitle: "重置预置角色",
+  // --- 清单页的应用模版：两步，第二步危险确认（与区域一致）---
+  resetAllButton: "应用模版",
+  resetAllTitle: "应用角色模版",
   resetAllWhy: "把九个预置角色恢复为系统配置。自定义角色不受影响。",
   resetAllDangerTitle: "这是不可撤销的覆盖",
   resetAllWarn: (changed: number, missing: number) =>
@@ -2630,7 +2632,7 @@ export const ROLE_TEXT = {
     `${changed} 个改过的预置角色会被覆盖，${missing} 个被删除的会恢复；保存即生效，不可撤销。`,
   resetDone: (restored: number) => `已恢复 ${restored} 个预置角色`,
   emptyTitle: "还没有角色",
-  emptyWhy: "工作区尚未生成预置角色。新建一个，或重置预置。",
+  emptyWhy: "工作区尚未生成预置角色。新建一个，或应用模版。",
 } as const;
 
 /**
@@ -2738,8 +2740,9 @@ export const ORG_TEXT = {
   save: "保存单位",
   discard: "放弃",
   saveFailed: "保存失败",
-  templateReset: "重置预置",
-  templateTitle: "重置为预置模版",
+  // 重置预置改名应用模版 (owner, 2026-09-11)。
+  templateReset: "应用模版",
+  templateTitle: "应用组织模版",
   templateWhy: "选一套预置组织模版作为起点，之后随便改。",
   templateOption: (name: string, units: number) => `${name} · ${units} 个单位`,
   templateDefault: "默认",
@@ -2763,7 +2766,7 @@ export const ORG_TEXT = {
   territoryCoversNone: "未覆盖任何大区",
   removeDetached: (n: number) => `${n} 个销售区域已解除挂靠`,
   emptyTitle: "还没有单位",
-  emptyWhy: "新建一个，或重置预置。",
+  emptyWhy: "新建一个，或应用模版。",
 } as const;
 
 export const ORG_KIND_TEXT = {
@@ -3795,12 +3798,13 @@ export const PLANNING_TEXT = {
   divisionCodeHint: "创建后不可更改。已存在的代码表示改名。",
   divisionNameLabel: "区域名称",
   /* 辖区配置 (owner, 2026-09-09): 手动选择只是一种方式，不能当 label。四个动作
-     并排：选择辖区（抽屉）、应用预置（任选一个预置区域套上来）、重置预置
-     （按当前代码对应的预置恢复）、清空选择。 */
+     并排：选择辖区（抽屉）、应用预置（任选一个预置区域套上来）、应用模版
+     （按当前代码对应的预置恢复，owner 2026-09-11 由"重置预置"改名）、清空
+     选择。 */
   divisionMembersConfig: "辖区配置",
   divisionPickMembers: "选择辖区",
   divisionApplyPreset: "应用预置",
-  divisionResetPreset: "重置预置",
+  divisionResetPreset: "应用模版",
   divisionClearMembers: "清空选择",
   divisionApplyPresetTitle: "应用预置",
   divisionApplyPresetWhy: (isNew: boolean): string =>
@@ -3810,7 +3814,7 @@ export const PLANNING_TEXT = {
   divisionApplyConfirm: "应用",
   divisionResetPresetHint: (from: string, name: string) => `按「${from}-${name}」恢复名称与辖区`,
   /* 两个危险动作的确认框（owner）：动词、对象、后果，DS 的契约。标题句式由产品
-     定：「重置预置 陕西三分法-关中？」 */
+     定：「应用模版 陕西三分法-关中？」 */
   destructiveTitle: "{verb}{target}？",
   divisionResetTarget: (from: string, name: string) => `为「${from}-${name}」`,
   divisionResetConsequence: (n: number, noun: string) =>
@@ -3860,9 +3864,10 @@ export const PLANNING_TEXT = {
   divisionCoveredUnits: (units: string) => `单位：${units}`,
   divisionCoveredNoUnits: "未挂单位",
   divisionRemoveCoverage: (n: number) => `${n} 个销售区域将失去这块覆盖。`,
-  templateTitle: "重置为预置划分",
+  // 重置预置改名应用模版 (owner, 2026-09-11)。
+  templateTitle: "应用划分模版",
   templateWhy: "选一套预置切法作为起点，之后随便改。",
-  templateReset: "重置预置",
+  templateReset: "应用模版",
   templateConfirm: "确认替换",
   templateCancel: "取消",
   /* 两步：对话框里选方案并用 danger Banner 说明代价；「确认替换」再弹危险确认

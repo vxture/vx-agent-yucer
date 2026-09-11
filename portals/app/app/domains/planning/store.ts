@@ -101,7 +101,7 @@ export interface PlanningStore {
   /**
    * FIRST CONTACT: a workspace with no kinds at all gets the kinds and the
    * default template together. A workspace that HAS kinds is one somebody
-   * has touched, and its tree - even an empty one - is left alone; 重置预置
+   * has touched, and its tree - even an empty one - is left alone; 应用模版
    * is the way back. Returns true when it seeded. */
   seedOrgDefaults(workspaceId: string): Promise<boolean>;
   /** Copy a template's units in, on top of whatever is there (upsert by code). */

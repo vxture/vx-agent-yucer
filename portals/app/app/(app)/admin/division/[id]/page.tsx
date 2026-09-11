@@ -73,7 +73,7 @@ export default async function EditDivisionPage(
         name={mine.name}
         members={mine.members.map((m) => m.key)}
         /* The frame's carves, on edit too (owner, 2026-09-09: 辖区配置 - 应用
-           预置 / 重置预置). The form keeps the code - the anchor - and applies
+           预置 / 应用模版). The form keeps the code - the anchor - and applies
            a preset's name and members on top, by an explicit click. */
         presets={carves.flatMap((t) =>
           t.divisions.map((d) => ({

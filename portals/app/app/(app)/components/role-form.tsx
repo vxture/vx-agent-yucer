@@ -42,9 +42,10 @@ import { Tag } from "./tag";
  *
  * 权限配置 IS FOUR BUTTONS, like 辖区配置: 选择权限 opens the picker (grouped by
  * module, each permission with the count of operations it unlocks); 应用预置
- * lays any preset over this role; 重置预置 restores the preset that matches
- * THIS code and is greyed when none does; 清空选择 empties the list. The two
- * that throw away what is on screen are destructive and confirmed as such.
+ * lays any preset over this role; 应用模版 (owner, 2026-09-11: 重置预置改名
+ * 应用模版) restores the preset that matches THIS code and is greyed when
+ * none does; 清空选择 empties the list. The two that throw away what is on
+ * screen are destructive and confirmed as such.
  *
  * THE LAST-ADMINISTRATOR GUARD IS THE SERVICE'S. This form does not know who
  * holds what; it shows the refusal the service returns, in the dictionary's
@@ -129,7 +130,7 @@ export function RoleForm({
   const [applying, setApplying] = useState(false);
   const [presetChoice, setPresetChoice] = useState("");
 
-  /* The preset that matches THIS code - what 重置预置 restores. Role codes
+  /* The preset that matches THIS code - what 应用模版 restores. Role codes
      are unique across the presets (unlike division codes across carves), so
      the match is by code alone and never ambiguous. */
   const presetForCode = useMemo(

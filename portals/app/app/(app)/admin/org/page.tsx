@@ -16,7 +16,7 @@ import { Tag } from "../../components/tag";
 // 预置模版，多套模版作基准；默认中规模全国公司，总部-大区-团队三级).
 //
 // THE SAME LIST/CREATE SPLIT /admin/roles has: the roster states, the row
-// leads to the form, 新建单位 · 单位类型 · 重置预置 sit in the header's action
+// leads to the form, 新建单位 · 单位类型 · 应用模版 sit in the header's action
 // slot. The roster is the TREE, flattened in tree order with chevrons, so a
 // reader sees the company's shape without opening anything.
 //
