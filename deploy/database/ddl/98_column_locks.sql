@@ -126,6 +126,8 @@ GRANT UPDATE (name, parent_id, owner_sub, status, updated_at)
 -- yucer_gtm.territory_unit / territory_division are created by incr/0052 as
 -- pairs: insert and delete, no UPDATE at all. `regions` above stays granted
 -- and is no longer written since 0052 - the names are derived from the link.
+-- yucer_gtm.org_unit_division is created by incr/0055 as the same kind of
+-- pair: insert and delete, no UPDATE - a department's direct 大区 link.
 
 -- sales_target: the scope tuple (period, scope_type, territory_id, owner_sub,
 -- metric) is the row identity -> immutable; only the number and state move.

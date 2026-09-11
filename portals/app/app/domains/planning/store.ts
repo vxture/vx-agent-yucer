@@ -96,6 +96,21 @@ export interface PlanningStore {
    * calls it from removeOrgUnit so both adapters report the same number.
    */
   detachUnitFromTerritories(workspaceId: string, unitId: string): Promise<number>;
+  /**
+   * 关联区域 (incr/0055, owner 2026-09-11): every 大区, and the ids of every
+   * unit directly linked to it - the SAME shape TerritoryRecord's own
+   * `unitIds` already has, so org.ts's aggregate/inherit functions
+   * (subtreeTerritoryIds / territoriesWorkedBy / effectiveTerritoryIds, all
+   * generic over `{id, unitIds}`) work unchanged on divisions too.
+   */
+  listUnitDivisionLinks(workspaceId: string): Promise<{ id: string; unitIds: string[] }[]>;
+  /** Replace a unit's direct 大区 links with exactly this set - a pair,
+   *  insert and delete, same shape as setMemberUnits above it. */
+  setUnitDivisions(workspaceId: string, unitId: string, desiredDivisionIds: readonly string[]): Promise<void>;
+  /** Take a unit out of every 大区 it is directly linked to - the CASCADE,
+   *  done by hand for the memory adapter (Prisma's FK does this on delete);
+   *  called from removeOrgUnit so both adapters report the same number. */
+  detachUnitFromDivisions(workspaceId: string, unitId: string): Promise<number>;
   /** The shipped templates - the table for Prisma, the mirror for memory. */
   listOrgTemplates(): Promise<OrgTemplate[]>;
   /**
@@ -167,6 +182,8 @@ export class InMemoryPlanningStore implements PlanningStore {
   /** `${workspaceId}|${sub}` -> unit id */
   /** (workspace|sub) -> unit ids, a set per person (incr/0053). */
   private orgMembers = new Map<string, Set<string>>();
+  /** (workspace|unitId) -> division ids, a unit's direct 大区 links (0055). */
+  private orgUnitDivisions = new Map<string, Set<string>>();
 
   async listOrgKinds(workspaceId: string): Promise<OrgKindRecord[]> {
     return this.orgKinds
@@ -249,6 +266,7 @@ export class InMemoryPlanningStore implements PlanningStore {
     this.orgUnits = this.orgUnits.filter((u) => !(u.workspaceId === workspaceId && u.id === unitId));
     // The links go with the unit (0052, CASCADE), as the memberships do.
     await this.detachUnitFromTerritories(workspaceId, unitId);
+    await this.detachUnitFromDivisions(workspaceId, unitId);
     // Memberships go with the unit (CASCADE).
     for (const [k, v] of [...this.orgMembers]) {
       if (!k.startsWith(`${workspaceId}|`)) continue;
@@ -419,6 +437,32 @@ export class InMemoryPlanningStore implements PlanningStore {
       n += 1;
     }
     return n;
+  }
+
+  async listUnitDivisionLinks(workspaceId: string): Promise<{ id: string; unitIds: string[] }[]> {
+    const byDivision = new Map<string, string[]>();
+    for (const [key, unitIds] of this.orgUnitDivisions) {
+      const [ws, unitId] = key.split("|") as [string, string];
+      if (ws !== workspaceId) continue;
+      for (const divisionId of unitIds) {
+        (byDivision.get(divisionId) ?? byDivision.set(divisionId, []).get(divisionId)!).push(unitId);
+      }
+    }
+    return [...byDivision].map(([id, unitIds]) => ({ id, unitIds }));
+  }
+
+  async setUnitDivisions(workspaceId: string, unitId: string, desiredDivisionIds: readonly string[]): Promise<void> {
+    const key = `${workspaceId}|${unitId}`;
+    if (desiredDivisionIds.length === 0) this.orgUnitDivisions.delete(key);
+    else this.orgUnitDivisions.set(key, new Set(desiredDivisionIds));
+  }
+
+  async detachUnitFromDivisions(workspaceId: string, unitId: string): Promise<number> {
+    const key = `${workspaceId}|${unitId}`;
+    const held = this.orgUnitDivisions.get(key);
+    if (!held) return 0;
+    this.orgUnitDivisions.delete(key);
+    return held.size;
   }
 
   async publishedTotalsFor(workspaceId: string, scope: TargetScope): Promise<PublishedTotals | null> {

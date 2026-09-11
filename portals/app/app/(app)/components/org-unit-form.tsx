@@ -17,7 +17,7 @@ import {
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { removeOrgUnitAction, saveOrgUnitAction, setUnitTerritoriesAction } from "../admin/org/actions";
+import { removeOrgUnitAction, saveOrgUnitAction, setUnitDivisionsAction } from "../admin/org/actions";
 import { FormFields, FormPage } from "./form-page";
 import { Tag } from "./tag";
 
@@ -50,27 +50,25 @@ export interface LeaderOption {
   readonly name: string;
 }
 
-/* 关联区域 (owner, 2026-09-11: 不要补齐所有显示信息，尤其需要设计关联区域 -
- * 向下聚合，向上继承，选择区域，暂不关联，等类型) - EDIT ONLY: a brand-new
- * unit has no id yet to link a territory to, save it first. ONE REAL
- * CHOICE, not four: 选择区域 (a side Drawer, owner: 选择区域可以用侧栏抽屉)
- * ticks which territories this unit works DIRECTLY - the only thing that
- * actually writes anything. Left at 暂不关联 (nothing ticked, the default),
- * the section shows a READ-ONLY PREVIEW of what 按组织 data-scope already
- * computes automatically from the unit's tree position - 向下聚合 (its own
- * subtree's territories) or 向上继承 (the nearest ancestor's, once its own
- * subtree has none) - via effectiveTerritoryIds, the SAME function
- * resolve-scope.ts's `unit` branch and the org-structure table both call,
- * so this preview cannot promise a scope the member would not actually
- * get. Nothing here recomputes the table's fuller 全范围/已聚合/已继承/
- * 无范围 badges - a create/edit form needs the one fact (what will this
- * unit work), not the table's whole display.
+/* 关联区域 (incr/0055, owner 2026-09-11: 组织到大区应该直连，不绕销售
+ * 区域一跳 - 抽屉挂的是销售区域，跟区域设置的大区对不上) - EDIT ONLY: a
+ * brand-new unit has no id yet to link a 大区 to, save it first. ONE REAL
+ * CHOICE, not four: 选择区域 (a side Drawer) ticks which 大区 this unit is
+ * linked to DIRECTLY - the only thing that actually writes anything. Left
+ * unset, the section shows a READ-ONLY PREVIEW of what 按组织 data-scope
+ * already computes automatically from the unit's tree position - 向下聚合
+ * (its own subtree's direct links) or 向上继承 (the nearest ancestor's,
+ * once its own subtree has none) - via effectiveTerritoryIds (org.ts,
+ * generic over any `{id, unitIds}` shape, reused here unchanged for
+ * divisions rather than territories - see admin/org/[id]/page.tsx).
+ *
+ * 组织架构表格自己的「区域」列仍然显示销售区域范围，不是这里 (owner 已经把
+ * 那一块 - 成员数据范围/resolve-scope.ts - 划为后续彻底撤销销售区域时才动
+ * 的范围，这一批不碰)。两处暂时说的是两件事，销售区域整体撤销时会收敛。
  */
-export type TerritoryScope = "none" | "partial" | "full" | "inherited";
-export interface TerritoryOption {
+export type DivisionScope = "none" | "partial" | "full" | "inherited";
+export interface DivisionOption {
   readonly id: string;
-  /** regions[0] if the territory has a live 大区, else its own static
-   *  name - same preference as the org-structure table's badge. */
   readonly name: string;
   readonly code: string;
 }
@@ -88,11 +86,10 @@ export function OrgUnitForm({
   leaders,
   children,
   members,
-  territoryOptions,
-  directTerritoryIds,
-  liveDirectTerritoryIds,
+  divisionOptions,
+  directDivisionIds,
   scope,
-  effectiveTerritoryNames,
+  effectiveDivisionNames,
 }: {
   readonly isNew: boolean;
   readonly id: string | null;
@@ -109,30 +106,25 @@ export function OrgUnitForm({
   readonly children: number;
   /** Members placed here - what a delete would un-place. */
   readonly members: number;
-  /** Every territory this workspace has - the 选择区域 drawer's checklist.
+  /** Every 大区 this workspace has - the 选择区域 drawer's checklist.
    *  Unused (and the whole section hidden) while `isNew`. */
-  readonly territoryOptions: readonly TerritoryOption[];
-  /** Territories THIS unit works directly right now, unfiltered - what the
-   *  drawer opens pre-ticked to, so a since-invalidated link is still
-   *  visible there to clear. */
-  readonly directTerritoryIds: readonly string[];
-  /** The subset of `directTerritoryIds` whose division still exists (owner,
-   *  2026-09-11: 可以关联失效，但是不能是错的关联) - what the COLLAPSED
-   *  section renders as chips. A direct link that just went invalid is not
-   *  shown as a chip naming ground the unit no longer has; the section
-   *  falls to the 向下聚合/向上继承/暂不关联 preview instead, same as the
-   *  org-structure table. */
-  readonly liveDirectTerritoryIds: readonly string[];
+  readonly divisionOptions: readonly DivisionOption[];
+  /** 大区 THIS unit is linked to directly right now - what the drawer opens
+   *  pre-ticked to and what the COLLAPSED section renders as chips. A
+   *  direct FK, so nothing here can go stale the way a territory's regions
+   *  once could - no separate "live" filter needed. */
+  readonly directDivisionIds: readonly string[];
   /** The EFFECTIVE outcome if nothing more is ticked - computed server-side
-   *  by the same function the org-structure table and resolve-scope.ts use. */
-  readonly scope: TerritoryScope;
-  /** The territories 向下聚合/向上继承 actually resolves to right now (owner,
+   *  by the same function the org-structure table and resolve-scope.ts use,
+   *  called with 大区 links instead of territory links. */
+  readonly scope: DivisionScope;
+  /** The 大区 向下聚合/向上继承 actually resolves to right now (owner,
    *  2026-09-11: 设定向下聚合，向上继承，不能一直显示为无范围 - 应该显示
-   *  继承或聚合结果：范围名称 或 无范围) - the real names, not just the
+   *  聚合或继承结果：范围名称 或 无范围) - the real names, not just the
    *  badge word, so setting one of those two modes shows what it actually
    *  covers rather than a generic label that reads the same regardless of
    *  outcome. Empty (and always, while `isNew`) falls to 无范围. */
-  readonly effectiveTerritoryNames: readonly string[];
+  readonly effectiveDivisionNames: readonly string[];
 }) {
   const { ORG_ERROR, ORG_TEXT } = useMessages();
   const router = useRouter();
@@ -144,23 +136,22 @@ export function OrgUnitForm({
   const [parentValue, setParentValue] = useState(parentId ?? "");
   const [kindValue, setKindValue] = useState(kindId ?? "");
   const [leaderValue, setLeaderValue] = useState(leaderSub ?? "");
-  const [territoryDrawerOpen, setTerritoryDrawerOpen] = useState(false);
-  const [territorySelection, setTerritorySelection] = useState<readonly string[]>(directTerritoryIds);
-  const [territoryPending, startTerritory] = useTransition();
-  /* 关联区域模式 (owner, 2026-09-11: 右侧下拉 - 向下聚合/向上继承/手动选择/
-     无区域) - underneath, there are really only two states (a direct pick,
-     or not), and `manualIntent` is that switch. The other three dropdown
+  const [divisionDrawerOpen, setDivisionDrawerOpen] = useState(false);
+  const [divisionSelection, setDivisionSelection] = useState<readonly string[]>(directDivisionIds);
+  const [divisionPending, startDivision] = useTransition();
+  /* 关联区域模式 (owner, 2026-09-11: 右侧四个按钮 - 向下聚合/向上继承/选择
+     区域/无区域) - underneath, there are really only two states (a direct
+     pick, or not), and `manualIntent` is that switch. The other two button
      labels are DISPLAY of what the tree already resolves automatically
-     (same `scope`/`liveDirectTerritoryIds` the collapsed chips used before
-     this dropdown existed) - picking any of them just means "give up the
-     direct pick", so the select re-syncs to whichever of the three is
-     actually true once the write lands, regardless of which of the three
-     the admin happened to click. */
+     (same `scope`/`directDivisionIds` the collapsed chips used before this
+     button row existed) - picking either just means "give up the direct
+     pick", so the label re-syncs to whichever is actually true once the
+     write lands, regardless of which one the admin happened to click. */
   const [manualIntent, setManualIntent] = useState(
-    isNew ? territorySelection.length > 0 : liveDirectTerritoryIds.length > 0,
+    isNew ? divisionSelection.length > 0 : directDivisionIds.length > 0,
   );
-  type TerritoryMode = "aggregate" | "inherited" | "manual" | "none";
-  const territoryMode: TerritoryMode = manualIntent
+  type DivisionMode = "aggregate" | "inherited" | "manual" | "none";
+  const divisionMode: DivisionMode = manualIntent
     ? "manual"
     : scope === "full" || scope === "partial"
       ? "aggregate"
@@ -168,16 +159,16 @@ export function OrgUnitForm({
         ? "inherited"
         : "none";
   /** What the content area lists as chips - the pending pick while new, the
-   *  live direct links while editing. Empty falls to the badge word for
+   *  direct links while editing. Empty falls to the badge word for
    *  whichever of aggregate/inherited/none is actually true. */
-  const chips = isNew ? territorySelection : liveDirectTerritoryIds;
+  const chips = isNew ? divisionSelection : directDivisionIds;
   /* 内容区空时显示请选择 (owner, 2026-09-11) - EDIT always has a real
      answer already (the server computed `scope` before this form ever
      rendered), so it starts chosen. NEW starts unchosen until the admin
-     actually clicks one of the four buttons - before that there is nothing
-     to show a badge word FOR, so 请选择 stands in rather than defaulting
-     to 无区域 as if that had been decided. */
-  const [chosen, setChosen] = useState(!isNew || territorySelection.length > 0);
+     actually clicks one of the buttons - before that there is nothing to
+     show a badge word FOR, so 请选择 stands in rather than defaulting to
+     无区域 as if that had been decided. */
+  const [chosen, setChosen] = useState(!isNew || divisionSelection.length > 0);
 
   const submit = () => {
     setError(null);
@@ -193,14 +184,14 @@ export function OrgUnitForm({
         setError(ORG_ERROR[r.error] ?? r.error);
         return;
       }
-      // 组织与区域关联设置 (owner, 2026-09-11: 新建页面也要有) - a brand-new
-      // unit has no id until THIS save succeeds, so 选择区域 could only hold
-      // the pick locally; apply it now that the unit is real. The unit
-      // itself is already created - a failure here is reported but does not
-      // block leaving, or a working unit would be stuck behind a retry loop
-      // for a step that has its own fix (open 选择区域 again from 单位配置).
-      if (isNew && territorySelection.length > 0) {
-        const t = await setUnitTerritoriesAction(r.id, territorySelection);
+      // 组织与大区关联设置 (owner, 2026-09-11) - a brand-new unit has no id
+      // until THIS save succeeds, so 选择区域 could only hold the pick
+      // locally; apply it now that the unit is real. The unit itself is
+      // already created - a failure here is reported but does not block
+      // leaving, or a working unit would be stuck behind a retry loop for a
+      // step that has its own fix (open 选择区域 again from 单位配置).
+      if (isNew && divisionSelection.length > 0) {
+        const t = await setUnitDivisionsAction(r.id, divisionSelection);
         if (!t.ok) toast({ tone: "danger", title: ORG_ERROR[t.error] ?? t.error });
       }
       router.push("/admin/org");
@@ -221,62 +212,62 @@ export function OrgUnitForm({
      open-then-cancel). NEW has no server truth yet - the selection IS the
      local state, held across opens so re-opening the drawer does not lose
      what was already picked before the unit is saved. */
-  const openTerritoryDrawer = () => {
-    if (!isNew) setTerritorySelection(directTerritoryIds);
-    setTerritoryDrawerOpen(true);
+  const openDivisionDrawer = () => {
+    if (!isNew) setDivisionSelection(directDivisionIds);
+    setDivisionDrawerOpen(true);
   };
   /* 选择区域 (原手动选择改名，owner 2026-09-11: 放第一个) - one click now
      both commits to the manual mode AND opens the drawer; there is no more
      intermediate "手动选择 reveals a second 选择区域 button" step. */
-  const chooseManualTerritory = () => {
+  const chooseManualDivision = () => {
     setChosen(true);
     setManualIntent(true);
-    openTerritoryDrawer();
+    openDivisionDrawer();
   };
-  const toggleTerritory = (territoryId: string) =>
-    setTerritorySelection((prev) => (prev.includes(territoryId) ? prev.filter((t) => t !== territoryId) : [...prev, territoryId]));
-  /* NEW: nothing to write yet - 保存单位 applies `territorySelection` once
+  const toggleDivision = (divisionId: string) =>
+    setDivisionSelection((prev) => (prev.includes(divisionId) ? prev.filter((d) => d !== divisionId) : [...prev, divisionId]));
+  /* NEW: nothing to write yet - 保存单位 applies `divisionSelection` once
      the unit has an id (see submit() above). EDIT: writes immediately,
      matching every other field on this form reading "保存" as "commit now". */
-  const saveTerritories = () => {
+  const saveDivisions = () => {
     if (isNew) {
-      setTerritoryDrawerOpen(false);
+      setDivisionDrawerOpen(false);
       return;
     }
     if (!id) return;
-    startTerritory(async () => {
-      const r = await setUnitTerritoriesAction(id, territorySelection);
+    startDivision(async () => {
+      const r = await setUnitDivisionsAction(id, divisionSelection);
       if (!r.ok) {
         toast({ tone: "danger", title: ORG_ERROR[r.error] ?? r.error });
         return;
       }
-      toast({ tone: "success", title: ORG_TEXT.formTerritoryDone });
-      setTerritoryDrawerOpen(false);
+      toast({ tone: "success", title: ORG_TEXT.formDivisionDone });
+      setDivisionDrawerOpen(false);
       router.refresh();
     });
   };
-  /* Picking one of the three non-manual buttons (选择区域 has its own
-     handler, chooseManualTerritory, above). Each gives up a direct link
+  /* Picking one of the two non-manual buttons (选择区域 has its own
+     handler, chooseManualDivision, above). Each gives up a direct link
      that may not exist yet, in which case there is nothing to write and
-     this is a no-op past the flag. Any of the three also settles `chosen`
-     - 请选择 is only for BEFORE a button has been clicked at all. */
-  const chooseTerritoryMode = (mode: Exclude<TerritoryMode, "manual">) => {
+     this is a no-op past the flag. Either also settles `chosen` - 请选择
+     is only for BEFORE a button has been clicked at all. */
+  const chooseDivisionMode = (mode: Exclude<DivisionMode, "manual">) => {
     setChosen(true);
     setManualIntent(false);
-    if (territorySelection.length === 0 && liveDirectTerritoryIds.length === 0) return;
+    if (divisionSelection.length === 0 && directDivisionIds.length === 0) return;
     if (isNew) {
-      setTerritorySelection([]);
+      setDivisionSelection([]);
       return;
     }
     if (!id) return;
-    startTerritory(async () => {
-      const r = await setUnitTerritoriesAction(id, []);
+    startDivision(async () => {
+      const r = await setUnitDivisionsAction(id, []);
       if (!r.ok) {
         toast({ tone: "danger", title: ORG_ERROR[r.error] ?? r.error });
         return;
       }
-      setTerritorySelection([]);
-      toast({ tone: "success", title: ORG_TEXT.formTerritoryDone });
+      setDivisionSelection([]);
+      toast({ tone: "success", title: ORG_TEXT.formDivisionDone });
       router.refresh();
     });
   };
@@ -402,46 +393,46 @@ export function OrgUnitForm({
             </Section>
 
             {/* 关联区域 - 域，与部门设置同级标题 (owner, 2026-09-11: 域 部门
-                设置同级标题，提供icon title) - icon+title 之后紧跟四个按钮
-                作为 Section 的 action（owner, 2026-09-11: 把四个按钮放在
-                标题的区，居右显示 - SectionHeader 的 action 本来就贴右）。
-                选择区域（原手动选择改名，放第一个）一步同时切到手动模式
-                并打开抽屉 - 不再是"点手动选择露出第二个按钮"两步；它是唯一
-                真正的动作，所以是唯一的 primary（默认 variant），其余三个
-                只是"放弃手动，交给自动"的说法，都是 secondary。内容区在
-                还没有点过任何按钮时显示"请选择"，点过之后才显示关联区域
-                或对应的描述文字。 */}
+                设置同级标题，提供icon title) - icon+title 之后紧跟按钮作为
+                Section 的 action（owner, 2026-09-11: 把按钮放在标题的区，
+                居右显示 - SectionHeader 的 action 本来就贴右）。选择区域
+                （原手动选择改名，放第一个）一步同时切到手动模式并打开抽屉 -
+                不再是"点手动选择露出第二个按钮"两步；它是唯一真正的动作，
+                所以是唯一的 primary（默认 variant），其余两个只是"放弃
+                手动，交给自动"的说法，都是 secondary。内容区在还没有点过
+                任何按钮时显示"请选择"，点过之后才显示关联区域或对应的
+                描述文字。 */}
             <Section
               icon="map-pin"
-              title={ORG_TEXT.formTerritoryTitle}
+              title={ORG_TEXT.formDivisionTitle}
               action={
                 <div className="gap-sm flex flex-wrap items-center justify-end">
-                  <Button type="button" disabled={territoryPending} onClick={chooseManualTerritory}>
-                    {ORG_TEXT.formTerritoryChoose}
+                  <Button type="button" disabled={divisionPending} onClick={chooseManualDivision}>
+                    {ORG_TEXT.formDivisionChoose}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={territoryPending}
-                    onClick={() => chooseTerritoryMode("aggregate")}
+                    disabled={divisionPending}
+                    onClick={() => chooseDivisionMode("aggregate")}
                   >
-                    {ORG_TEXT.territoryModeAggregate}
+                    {ORG_TEXT.divisionModeAggregate}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={territoryPending}
-                    onClick={() => chooseTerritoryMode("inherited")}
+                    disabled={divisionPending}
+                    onClick={() => chooseDivisionMode("inherited")}
                   >
-                    {ORG_TEXT.territoryModeInherited}
+                    {ORG_TEXT.divisionModeInherited}
                   </Button>
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={territoryPending}
-                    onClick={() => chooseTerritoryMode("none")}
+                    disabled={divisionPending}
+                    onClick={() => chooseDivisionMode("none")}
                   >
-                    {ORG_TEXT.territoryModeNone}
+                    {ORG_TEXT.divisionModeNone}
                   </Button>
                 </div>
               }
@@ -452,19 +443,19 @@ export function OrgUnitForm({
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col gap-2xs">
                   {!chosen ? (
-                    <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryUnset}</p>
-                  ) : territoryMode === "manual" ? (
+                    <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formDivisionUnset}</p>
+                  ) : divisionMode === "manual" ? (
                     <>
                       {/* 已选择 (owner, 2026-09-11) - the label for the one
                           mode that is a real pick, not an automatic
                           resolution; the chips right under it already are
                           the answer to "which ones". */}
-                      <p className="text-body-sm text-foreground">{ORG_TEXT.territoryChosenLabel}</p>
+                      <p className="text-body-sm text-foreground">{ORG_TEXT.divisionChosenLabel}</p>
                       {chips.length > 0 ? (
                         <ul className="gap-2xs flex flex-wrap">
-                          {chips.map((tid) => {
-                            const opt = territoryOptions.find((t) => t.id === tid);
-                            return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
+                          {chips.map((did) => {
+                            const opt = divisionOptions.find((d) => d.id === did);
+                            return opt ? <li key={did}><Tag>{opt.name}</Tag></li> : null;
                           })}
                         </ul>
                       ) : (
@@ -476,22 +467,22 @@ export function OrgUnitForm({
                       {/* 已设定：X (owner, 2026-09-11: 设定向下聚合/向上继承
                           不能一直显示为无范围) - the label names the MODE
                           that was set; the line under it is the RESULT that
-                          mode resolves to right now - the actual territory
-                          names for aggregate/inherited, or 无范围 for 无区域
-                          (same word both places there, since that mode's
-                          setting and its result are the same fact). */}
+                          mode resolves to right now - the actual 大区 names
+                          for aggregate/inherited, or 无范围 for 无区域 (same
+                          word both places there, since that mode's setting
+                          and its result are the same fact). */}
                       <p className="text-body-sm text-foreground">
-                        {ORG_TEXT.territorySetLabel(
-                          territoryMode === "aggregate"
-                            ? ORG_TEXT.territoryModeAggregate
-                            : territoryMode === "inherited"
-                              ? ORG_TEXT.territoryModeInherited
+                        {ORG_TEXT.divisionSetLabel(
+                          divisionMode === "aggregate"
+                            ? ORG_TEXT.divisionModeAggregate
+                            : divisionMode === "inherited"
+                              ? ORG_TEXT.divisionModeInherited
                               : ORG_TEXT.noTerritory,
                         )}
                       </p>
-                      {territoryMode !== "none" && effectiveTerritoryNames.length > 0 ? (
+                      {divisionMode !== "none" && effectiveDivisionNames.length > 0 ? (
                         <ul className="gap-2xs flex flex-wrap">
-                          {effectiveTerritoryNames.map((n) => (
+                          {effectiveDivisionNames.map((n) => (
                             <li key={n}><Tag>{n}</Tag></li>
                           ))}
                         </ul>
@@ -538,31 +529,31 @@ export function OrgUnitForm({
       />
 
       <Drawer
-        open={territoryDrawerOpen}
-        onClose={() => setTerritoryDrawerOpen(false)}
+        open={divisionDrawerOpen}
+        onClose={() => setDivisionDrawerOpen(false)}
         width="md"
-        title={ORG_TEXT.formTerritoryDrawerTitle}
-        description={ORG_TEXT.formTerritoryDrawerWhy}
+        title={ORG_TEXT.formDivisionDrawerTitle}
+        description={ORG_TEXT.formDivisionDrawerWhy}
         closeLabel={ORG_TEXT.cancel}
         footer={
           <div className="gap-sm flex items-center justify-end">
-            <Button variant="secondary" disabled={territoryPending} onClick={() => setTerritoryDrawerOpen(false)}>
+            <Button variant="secondary" disabled={divisionPending} onClick={() => setDivisionDrawerOpen(false)}>
               {ORG_TEXT.cancel}
             </Button>
-            <Button disabled={territoryPending} onClick={saveTerritories}>{ORG_TEXT.save}</Button>
+            <Button disabled={divisionPending} onClick={saveDivisions}>{ORG_TEXT.save}</Button>
           </div>
         }
       >
-        {territoryOptions.length === 0 ? (
-          <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryDrawerEmpty}</p>
+        {divisionOptions.length === 0 ? (
+          <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formDivisionDrawerEmpty}</p>
         ) : (
           <ul className="gap-2xs flex flex-col">
-            {territoryOptions.map((t) => (
-              <li key={t.id}>
+            {divisionOptions.map((d) => (
+              <li key={d.id}>
                 <label className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
-                  <input type="checkbox" checked={territorySelection.includes(t.id)} onChange={() => toggleTerritory(t.id)} />
-                  <span className="text-body-sm">{t.name}</span>
-                  <span className="text-muted-foreground text-body-sm">{t.code}</span>
+                  <input type="checkbox" checked={divisionSelection.includes(d.id)} onChange={() => toggleDivision(d.id)} />
+                  <span className="text-body-sm">{d.name}</span>
+                  <span className="text-muted-foreground text-body-sm">{d.code}</span>
                 </label>
               </li>
             ))}

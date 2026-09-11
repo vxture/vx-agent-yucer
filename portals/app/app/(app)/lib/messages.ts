@@ -113,6 +113,10 @@ export const DOMAIN_LABEL: Record<string, string> = {
   pricingPolicy: "计价规则",
   audit: "操作审计",
   adoption: "使用情况",
+  // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由，做一个临时域，
+  // 先挂到里面) - 不进 5 个 functional domain（那是已经测试锁定的不变量），
+  // 挂在 admin 侧栏下单独一页。
+  pendingMigration: "待迁路由",
 };
 
 /**
@@ -1350,6 +1354,14 @@ export const ADMIN_PAGE_TEXT = {
   scopeTerritories: (n: number) => `${n} 个区域`,
   scopeNoTerritory: "未指定区域——按此配置什么也看不到",
   scopeCount: (n: number) => `${n} 位成员`,
+  // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由) - a holding
+  // list, not a table: every page导航和站内都没有入口，只能靠手打 URL 到达
+  // 的，先记在这里，等对应的功能整体处理时再决定去留。
+  pendingMigrationTitle: "待迁路由",
+  pendingMigrationWhy: "全应用没有任何导航或站内链接指向的页面 - 代码还在，先记在这里，等各自的功能整体处理时再决定去留。",
+  pendingMigrationCount: (n: number) => `${n} 条`,
+  pendingMigrationEmpty: "目前没有找到孤儿路由。",
+  pendingMigrationAccountComplete: "客户资料批量补全 - 功能完整，代码库里没有任何入口指向它",
 } as const;
 
 export const MEMBER_TEXT = {
@@ -2767,32 +2779,32 @@ export const ORG_TEXT = {
   save: "保存单位",
   discard: "放弃",
   saveFailed: "保存失败",
-  // 关联区域 (owner, 2026-09-11: 域，与部门设置同级标题，提供icon title；
-  // 四个按钮放在标题的区，居右显示) - 三个 mode 名是按钮文字，直接借用
-  // 下面表格同一套徽标词做内容区占位（aggregateTerritory/
-  // inheritedTerritory/noTerritory），不用再造一套长句 - 同一件事只该
-  // 有一种说法。选择区域（原手动选择改名，放第一个）合并了"切到手动"和
-  // "打开抽屉"两步，不再需要 territoryModeManual 这个按钮文字。
-  formTerritoryTitle: "关联区域",
-  territoryModeAggregate: "向下聚合",
-  territoryModeInherited: "向上继承",
-  territoryModeNone: "无区域",
-  formTerritoryChoose: "选择区域",
-  formTerritoryDone: "已更新关联区域。",
+  // 关联区域 (incr/0055, owner 2026-09-11: 组织到大区应该直连，不绕销售
+  // 区域一跳 - 域，与部门设置同级标题，提供icon title；按钮放在标题的区，
+  // 居右显示) - 两个 mode 名是按钮文字，直接借用下面表格同一套徽标词做
+  // 内容区占位（noTerritory），不用再造一套长句 - 同一件事只该有一种
+  // 说法。选择区域（原手动选择改名，放第一个）合并了"切到手动"和"打开
+  // 抽屉"两步。
+  formDivisionTitle: "关联区域",
+  divisionModeAggregate: "向下聚合",
+  divisionModeInherited: "向上继承",
+  divisionModeNone: "无区域",
+  formDivisionChoose: "选择区域",
+  formDivisionDone: "已更新关联区域。",
   // 内容区空态 (owner, 2026-09-11: 内容区空时显示请选择，选择后展示关联
-  // 区域或描述) - NEW 在点过四个按钮之前都是这句；EDIT 永远有真实答案，
-  // 用不上它。
-  formTerritoryUnset: "请选择",
+  // 区域或描述) - NEW 在点过按钮之前都是这句；EDIT 永远有真实答案，用不
+  // 上它。
+  formDivisionUnset: "请选择",
   // 已设定/已选择 (owner, 2026-09-11: 设定向下聚合/向上继承不能一直显示为
   // 无范围 - 应该先给标签「已设定：X」，再显示结果：范围名称或无范围) -
-  // 向下聚合/向上继承共用 territorySetLabel，套上各自的模式名；无区域套上
-  // noTerritory 的说法而不是 territoryModeNone，跟结果行说的是同一个词。
-  // 手动选择改名为选择区域后不再叫"设定"，是"选择"。
-  territorySetLabel: (mode: string) => `已设定：${mode}`,
-  territoryChosenLabel: "已选择",
-  formTerritoryDrawerTitle: "选择关联区域",
-  formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织架构自动聚合或继承。",
-  formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",
+  // 向下聚合/向上继承共用 divisionSetLabel，套上各自的模式名；无区域套上
+  // noTerritory 的说法而不是 divisionModeNone，跟结果行说的是同一个词。
+  // 选择区域不叫"设定"，是"选择"。
+  divisionSetLabel: (mode: string) => `已设定：${mode}`,
+  divisionChosenLabel: "已选择",
+  formDivisionDrawerTitle: "选择关联区域",
+  formDivisionDrawerWhy: "勾选这个部门直接归属的大区；一个大区可以挂多个部门。全部不选就是暂不关联，跟着组织架构自动聚合或继承。",
+  formDivisionDrawerEmpty: "还没有可选的大区。先到区域设置里创建。",
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateReset: "应用模版",
   templateTitle: "应用模版",

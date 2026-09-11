@@ -7,9 +7,10 @@ import { can } from "../../../../authz/decide";
 import { getAuthzStore } from "../../../../authz/store";
 import { listWorkspaceMembers } from "../../../../authz/admin";
 import { getPlanningStore } from "../../../../domains/shared/registry";
-import { listOrgKinds, listOrgUnits, listTerritories } from "../../../../domains/planning/service";
+import { listOrgKinds, listOrgUnits, listUnitDivisionLinks } from "../../../../domains/planning/service";
+import { listMarketDivisions } from "../../../../domains/account/service";
 import { effectiveTerritoryIds, subtreeIds, territoriesWorkedBy } from "../../../../domains/planning/lib/org";
-import { OrgUnitForm, type TerritoryScope } from "../../../components/org-unit-form";
+import { OrgUnitForm, type DivisionScope } from "../../../components/org-unit-form";
 
 // 配置单位 - the same form, opened on an existing one. ROUTED BY ID: the code
 // is the anchor, the id is the row's.
@@ -28,8 +29,10 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
-  const [units, kinds, members, territoriesResult] = await Promise.all([
-    listOrgUnits(planning), listOrgKinds(planning), listWorkspaceMembers({ ...base, store: getAuthzStore() }), listTerritories(planning),
+  const account = { ...base, store: session.stores.account() };
+  const [units, kinds, members, linksResult, divisionsResult] = await Promise.all([
+    listOrgUnits(planning), listOrgKinds(planning), listWorkspaceMembers({ ...base, store: getAuthzStore() }),
+    listUnitDivisionLinks(planning), listMarketDivisions(account),
   ]);
   const all = units.ok ? units.value : [];
   const mine = all.find((u) => u.id === id);
@@ -38,42 +41,27 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
   // Neither itself nor anything under it may be its parent.
   const banned = new Set(subtreeIds(all, mine.id));
 
-  // 关联区域 (owner, 2026-09-11: 不要补齐所有显示信息，尤其需要设计关联区域 -
-  // 向下聚合，向上继承，选择区域，暂不关联) - the SAME reach computation the
-  // org-structure table and resolve-scope.ts's real data-scope use, scoped
-  // to this one unit, so the form's preview cannot promise a scope the
-  // member would not actually get.
-  const territories = territoriesResult.ok ? territoriesResult.value : [];
-  // 从业务视角需要实时数据 (owner, 2026-09-11: 可以关联失效，但是不能是错的
-  // 关联) - a territory whose 大区 no longer exists has `regions: []` and
-  // covers NOTHING (territory.ts's own rule); excluded from the SCOPE
-  // preview so it cannot present a dead link as live coverage. `territories`
-  // (unfiltered) still backs the picker and the direct-link chips below -
-  // an admin's actual direct choice stays visible even while invalid.
-  const scopeTerritories = territories.filter((t) => t.regions.length > 0);
-  const directTerritoryIds = territories.filter((t) => t.unitIds.includes(mine.id)).map((t) => t.id);
-  // The CHIPS shown collapsed are live-only too, same rule: a direct link
-  // whose division was removed must not read as a chip naming ground that
-  // is not there. `directTerritoryIds` (unfiltered) still seeds the
-  // drawer's pre-tick, so the admin opening 选择区域 sees the true stored
-  // state and can actually clear the dead link, not just stop seeing it.
-  const liveDirectTerritoryIds = directTerritoryIds.filter((tid) => scopeTerritories.some((t) => t.id === tid));
-  const { territoryIds: effectiveIds, inheritedFrom } = effectiveTerritoryIds(all, scopeTerritories, mine.id);
+  // 关联区域 (incr/0055, owner 2026-09-11: 组织到大区应该直连，不绕销售
+  // 区域一跳) - the SAME reach computation (effectiveTerritoryIds, generic
+  // over any `{id, unitIds}` shape) the org-structure table and
+  // resolve-scope.ts use for TERRITORIES, called here with 大区 links
+  // instead - a department's scope preview cannot promise a 大区 it would
+  // not actually get.
+  const divisionLinks = linksResult.ok ? linksResult.value : [];
+  const allDivisions = divisionsResult.ok ? divisionsResult.value : [];
+  const directDivisionIds = divisionLinks.filter((d) => d.unitIds.includes(mine.id)).map((d) => d.id);
+  const { territoryIds: effectiveIds, inheritedFrom } = effectiveTerritoryIds(all, divisionLinks, mine.id);
   const effectiveSet = new Set(effectiveIds);
   const liveUnitIds = new Set(all.map((u) => u.id));
-  const allTerritoryIds = new Set(territoriesWorkedBy(scopeTerritories, liveUnitIds));
-  const scope: TerritoryScope =
+  const allDivisionIds = new Set(territoriesWorkedBy(divisionLinks, liveUnitIds));
+  const scope: DivisionScope =
     effectiveSet.size === 0
       ? "none"
       : inheritedFrom !== null
         ? "inherited"
-        : allTerritoryIds.size > 0 && effectiveSet.size === allTerritoryIds.size
+        : allDivisionIds.size > 0 && effectiveSet.size === allDivisionIds.size
           ? "full"
           : "partial";
-  // 第一个关联区域名称=区域设置的名称 (owner, 2026-09-11) - `regions[0]`, the
-  // 大区's CURRENT name, live every read; `name` is the territory's own,
-  // set once and never renamed. Same preference as org-panel.tsx's badge.
-  const label = (t: { readonly name: string; readonly regions: readonly string[] }) => t.regions[0] ?? t.name;
 
   return (
     <ViewLayout>
@@ -98,11 +86,10 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
         leaders={(members.ok ? members.value : []).map((m) => ({ sub: m.sub, name: m.displayName ?? m.sub }))}
         children={all.filter((u) => u.parentId === mine.id).length}
         members={mine.members}
-        territoryOptions={territories.map((t) => ({ id: t.id, name: label(t), code: t.territoryCode }))}
-        directTerritoryIds={directTerritoryIds}
-        liveDirectTerritoryIds={liveDirectTerritoryIds}
+        divisionOptions={allDivisions.map((d) => ({ id: d.id, name: d.name, code: d.code }))}
+        directDivisionIds={directDivisionIds}
         scope={scope}
-        effectiveTerritoryNames={scopeTerritories.filter((t) => effectiveSet.has(t.id)).map(label)}
+        effectiveDivisionNames={allDivisions.filter((d) => effectiveSet.has(d.id)).map((d) => d.name)}
       />
     </ViewLayout>
   );

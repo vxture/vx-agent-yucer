@@ -107,6 +107,48 @@ export async function upsertTerritory(
 }
 
 /**
+ * 关联区域 (incr/0055, owner 2026-09-11): a department linked directly to a
+ * 大区, not through a sales territory - org_unit_division is its own table,
+ * so this reads it directly rather than through listTerritories. Same gate
+ * as listTerritories - a unit's association to the market's carve is the
+ * same "who may see the sales ground" question territories already answer.
+ */
+export async function listUnitDivisionLinks(ctx: PlanningContext): Promise<RuleResult<{ id: string; unitIds: string[] }[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.listUnitDivisionLinks(ctx.workspaceId));
+}
+
+/**
+ * Replace a unit's direct 大区 links with exactly this set.
+ *
+ * Same gate as upsertTerritory, deliberately - division/page.tsx's own
+ * comment already settled this: who may re-carve the market is the same
+ * authority as who may redraw the territories on it, and a department's own
+ * link to a 大区 is the same authority a third time.
+ */
+export async function setUnitDivisions(
+  ctx: PlanningContext,
+  unitId: string,
+  desiredDivisionIds: readonly string[],
+  /** The 大区 ids this workspace has, read by the caller from the account
+   *  domain - this service may not, same restriction upsertTerritory's
+   *  `knownDivisionIds` carries. */
+  knownDivisionIds?: ReadonlySet<string>,
+): Promise<RuleResult<object>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const units = new Set((await ctx.store.listOrgUnits(ctx.workspaceId)).map((u) => u.id));
+  if (!units.has(unitId)) return fail(violation("unit_unknown", `${unitId} is not a unit of this workspace`, "unitId"));
+  if (knownDivisionIds) {
+    const bad = desiredDivisionIds.find((d) => !knownDivisionIds.has(d));
+    if (bad) return fail(violation("division_unknown", `${bad} is not a division here`, "divisionIds"));
+  }
+  await ctx.store.setUnitDivisions(ctx.workspaceId, unitId, desiredDivisionIds);
+  return ok({});
+}
+
+/**
  * The caller sends a NUMBER and a currency, never a typed value.
  *
  * The unit is a pure function of the metric (`unitOf`), so deriving it here
