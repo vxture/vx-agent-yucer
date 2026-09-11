@@ -2756,8 +2756,8 @@ export const ORG_TEXT = {
   discard: "放弃",
   saveFailed: "保存失败",
   // 关联区域 (owner, 2026-09-11: 不要补齐所有显示信息，尤其需要设计关联
-  // 区域 - 向下聚合，向上继承，选择区域，暂不关联) - 单位表单里的这一节，只
-  // 编辑存在的单位（新建单位还没有 id）。
+  // 区域 - 向下聚合，向上继承，选择区域，暂不关联；新建页面也要有这一节）-
+  // 新建单位还没有 id，选择区域先只存在本地，保存单位时才真正写入。
   formTerritoryTitle: "关联区域",
   formTerritoryChoose: "选择区域",
   formTerritoryDone: "已更新关联区域。",
@@ -2766,6 +2766,7 @@ export const ORG_TEXT = {
   formTerritoryAggregateHint: (n: number) => `还没有单独选择区域，会自动向下聚合下属单位关联的 ${n} 个区域。`,
   formTerritoryInheritedHint: (ancestorName: string) => `还没有单独选择区域，会自动向上继承「${ancestorName}」的区域范围。`,
   formTerritoryNoneHint: "还没有关联任何区域 - 这个单位和它的上下级都还没有区域。",
+  formTerritoryNewHint: "还没有选择区域 - 可以先选，也可以创建单位后再到「单位配置」里设置。",
   formTerritoryDrawerTitle: "选择关联区域",
   formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织结构自动聚合或继承。",
   formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",

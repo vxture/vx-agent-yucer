@@ -85,7 +85,7 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
         ]}
         current={mine.name}
       />
-      <ViewHeader title={mine.name} description={ORG_TEXT.formWhy} />
+      <ViewHeader icon="tree-structure" title={mine.name} description={ORG_TEXT.formWhy} />
       <OrgUnitForm
         isNew={false}
         id={mine.id}

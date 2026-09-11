@@ -1467,6 +1467,7 @@ export const en: Dictionary = {
     formTerritoryAggregateHint: (n: number) => `No territory chosen directly - it will aggregate the ${n} territories its own units already work.`,
     formTerritoryInheritedHint: (ancestorName: string) => `No territory chosen directly - it will inherit "${ancestorName}"'s scope.`,
     formTerritoryNoneHint: "No territory linked yet - neither this unit nor anything above or below it works one.",
+    formTerritoryNewHint: "No territory chosen yet - pick one now, or set it later from the unit's own settings once it's created.",
     formTerritoryDrawerTitle: "Choose territories",
     formTerritoryDrawerWhy: "Tick the territories this unit works directly; a territory may have several units. Ticking none leaves it to aggregate or inherit automatically from the org tree.",
     formTerritoryDrawerEmpty: "No territories to choose from yet. Create one under territory setup first.",
