@@ -79,12 +79,17 @@ export function FormFields({
   /** "xl" (32px both axes, the default every other form keeps) or "128" -
    *  a single page's explicit ask for far more HORIZONTAL air between its
    *  two columns (owner, 2026-09-11: 内容区一行两条布局的，gap = 128px).
-   *  Only the COLUMN gap widens to 128px - row gap stays the same 32px
-   *  every stacked field already used (owner, 2026-09-11, after "128" first
-   *  shipped as a uniform `gap-[128px]`: 横向gap=128，纵向gap按原来值 - the
-   *  vertical rhythm between rows is not this page's own thing to change).
-   *  Not the default, so it stays that page's own choice rather than a
-   *  systemic redesign of every two-column form. */
+   *  Row gap does NOT also widen to 128px (that shipped once as a uniform
+   *  `gap-[128px]` and was corrected the same day: 横向gap=128，纵向gap
+   *  按原来值). It also does not stay at this component's other rows'
+   *  32px either - a second look at the 128px-wide columns found 32px
+   *  between rows read as too loose next to that much air (owner,
+   *  2026-09-11: 纵向是不是在少一些，行业是多少，8px如何，或者16px) - 16px
+   *  (gap-md) is what this DS's own stacked/single-column forms already
+   *  use between fields, so this drops to that rather than to 8px, which
+   *  reads cramped once a Field's label+control+description is three
+   *  lines tall. Not the default, so it stays that page's own choice
+   *  rather than a systemic redesign of every two-column form. */
   readonly gap?: "xl" | "128";
 }) {
   return (
@@ -100,7 +105,7 @@ export function FormFields({
           Redeclaring the VARIABLE on itself works, because the value is
           resolved on the element the declaration lands on. */}
       <div
-        className={`${gap === "128" ? "gap-y-[32px] gap-x-[128px]" : "gap-xl"} @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)`}
+        className={`${gap === "128" ? "gap-y-md gap-x-[128px]" : "gap-xl"} @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)`}
       >
         {children}
       </div>
