@@ -5,7 +5,10 @@
 # keeping the ledger (ADR-032; database/ddl/ledger.sql).
 #
 # Variables (all required on the host):
-#   REPO_DIR      the checked-out deploy/ directory (holds database/ddl)
+#   REPO_DIR      the directory holding database/ddl - the checkout's DDL,
+#                 rsync'd by the workflow to <STACK_ROOT>/db-init/<sha>
+#   ENV_FILE      the operator .env (<STACK_ROOT>/etc/.env); defaults to
+#                 ../etc/.env relative to REPO_DIR for the old layout
 #   ACTION        apply | verify
 #   PRODUCT_CODE  yucer
 #   PROJECT_NAME  compose project (containers are <PROJECT_NAME>-db / -app)
@@ -23,7 +26,7 @@ set -euo pipefail
 cd "$REPO_DIR"
 DB="vxturebiz_${SNAKE}_${DB_ENV}"
 CONT="${PROJECT_NAME}-db"
-ENV_FILE="$(cd "$REPO_DIR/.." && pwd)/etc/.env"
+ENV_FILE="${ENV_FILE:-$(cd "$REPO_DIR/.." && pwd)/etc/.env}"
 if [ -n "${DB_URL:-}" ]; then
   run() { psql "$DB_URL" -v ON_ERROR_STOP=1 "$@"; }
 else
