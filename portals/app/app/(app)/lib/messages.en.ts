@@ -1480,10 +1480,18 @@ export const en: Dictionary = {
     templateConfirm: "Confirm replace",
     templateVerb: "Replace",
     templateTarget: (name: string, divisionName: string | null) => divisionName ? `with "${name}" + "${divisionName}"` : `with "${name}"`,
-    templateDone: (units: number, unplaced: number, detached: number, divisions: number, territories: number, linkedUnits: number) => {
+    templateDone: (
+      units: number,
+      unplaced: number,
+      detached: number,
+      divisions: number,
+      territories: number,
+      linkedUnits: number,
+      territoriesRetired: number,
+    ) => {
       const org = `Template applied: ${units} units; ${unplaced} members to place again${detached > 0 ? `; ${detached} territories detached` : ""}`;
       if (divisions === 0) return org;
-      return `${org}; ${divisions} regions and ${territories} territories set up${linkedUnits > 0 ? `, ${linkedUnits} units auto-linked` : ""}`;
+      return `${org}; ${divisions} regions and ${territories} territories set up${linkedUnits > 0 ? `, ${linkedUnits} units auto-linked` : ""}${territoriesRetired > 0 ? `, ${territoriesRetired} stale territories retired` : ""}`;
     },
     templateOrgLabel: "Organization template",
     templateDivisionLabel: "Territory setup template",

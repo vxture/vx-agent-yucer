@@ -100,7 +100,10 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
       toast({ tone: "danger", title: ORG_ERROR[r.error] ?? r.error });
       throw new Error(r.error);
     }
-    toast({ tone: "success", title: ORG_TEXT.templateDone(r.units, r.unplaced, r.detached, r.divisions, r.territories, r.linkedUnits) });
+    toast({
+      tone: "success",
+      title: ORG_TEXT.templateDone(r.units, r.unplaced, r.detached, r.divisions, r.territories, r.linkedUnits, r.territoriesRetired),
+    });
     setConfirming(false);
     setOpen(false);
     router.refresh();

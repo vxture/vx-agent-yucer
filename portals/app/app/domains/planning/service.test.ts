@@ -4,12 +4,13 @@ import { EMPTY_ENTITLEMENT, type Entitlement } from "../../entitlement/types";
 import { permissionsForRoles, type RoleCode } from "../../authz/catalog";
 import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
-import { InMemoryPlanningStore, type TargetRecord } from "./store";
+import { InMemoryPlanningStore, type TargetRecord, type TerritoryRecord } from "./store";
 import {
   attainment,
   createTarget,
   listTargets,
   listTerritories,
+  retireOrphanedAutoTerritories,
   updateTarget,
   upsertTerritory,
   type PlanningContext,
@@ -337,4 +338,91 @@ test("a fixture seeded in names (pre-0052) resolves to ids through the same rows
   }] });
   const [t] = unwrap(await listTerritories(ctx("sales_leader", "pro", store)));
   assert.deepEqual([t!.divisionIds, t!.regions], [["d_east"], ["华东"]]);
+});
+
+// --- Orphaned AUTO-<大区代码> territories left by a division-template switch --
+
+function autoTerritory(over: Partial<TerritoryRecord & { id: string }> = {}) {
+  return {
+    id: `t_${over.territoryCode ?? "AUTO-X"}`,
+    workspaceId: WS,
+    territoryCode: "AUTO-X",
+    name: "X",
+    parentId: null,
+    ownerSub: null,
+    regions: [] as readonly string[],
+    status: "active",
+    divisionIds: ["d_gone"],
+    unitIds: ["u_gone"],
+    ...over,
+  };
+}
+
+test("a territory for a division the new carve dropped is retired and unlinked", async () => {
+  // 七分法 -> 五分法: AUTO-CHINA-NORTHEAST is not among the codes the new carve
+  // produces, so nothing will ever upsert it again on its own - it has to be
+  // swept explicitly, the way applyStartupTemplateAction now does.
+  const store = new InMemoryPlanningStore();
+  store.seed({ territories: [autoTerritory({ id: "t_ne", territoryCode: "AUTO-CHINA-NORTHEAST", name: "东北大区" })] });
+  const c = ctx("sales_leader", "pro", store);
+
+  const result = unwrap(await retireOrphanedAutoTerritories(c, new Set(["AUTO-CHINA-NORTH", "AUTO-CHINA-SOUTH"])));
+  assert.equal(result.retired, 1);
+
+  const all = await store.listTerritories(WS, { includeRetired: true });
+  assert.equal(all.length, 1, "the row stays on file - retired, not deleted");
+  assert.equal(all[0]!.status, "retired");
+  assert.deepEqual(all[0]!.divisionIds, [], "no longer points at the deleted division");
+  assert.deepEqual(all[0]!.unitIds, [], "no longer points at the deleted unit");
+  assert.equal(all[0]!.territoryCode, "AUTO-CHINA-NORTHEAST", "the code is kept - it is the anchor, never rewritten");
+});
+
+test("a territory whose code the new carve still produces is left alone", async () => {
+  const store = new InMemoryPlanningStore();
+  store.seed({ territories: [autoTerritory({ id: "t_n", territoryCode: "AUTO-CHINA-NORTH", name: "华北" })] });
+  const c = ctx("sales_leader", "pro", store);
+
+  const result = unwrap(await retireOrphanedAutoTerritories(c, new Set(["AUTO-CHINA-NORTH"])));
+  assert.equal(result.retired, 0);
+
+  const [t] = await store.listTerritories(WS, { includeRetired: true });
+  assert.equal(t!.status, "active", "still current - the day's own upsert loop owns this row");
+  assert.deepEqual(t!.divisionIds, ["d_gone"], "untouched, not zeroed");
+});
+
+test("a hand-made territory is never swept, no matter its code", async () => {
+  // Only the AUTO- prefix marks a row as this feature's own housekeeping - a
+  // territory a person built by hand is never a candidate, however stale its
+  // links look from here.
+  const store = new InMemoryPlanningStore();
+  store.seed({ territories: [autoTerritory({ id: "t_hand", territoryCode: "WEST-KEY-ACCOUNTS", name: "West Key Accounts" })] });
+  const c = ctx("sales_leader", "pro", store);
+
+  const result = unwrap(await retireOrphanedAutoTerritories(c, new Set()));
+  assert.equal(result.retired, 0);
+  assert.equal((await store.listTerritories(WS, { includeRetired: true }))[0]!.status, "active");
+});
+
+test("a row already retired and unlinked is not re-upserted every run", async () => {
+  const store = new InMemoryPlanningStore();
+  store.seed({
+    territories: [
+      autoTerritory({ id: "t_old", territoryCode: "AUTO-CHINA-NORTHWEST", name: "西北大区", status: "retired", divisionIds: [], unitIds: [] }),
+    ],
+  });
+  const c = ctx("sales_leader", "pro", store);
+
+  const result = unwrap(await retireOrphanedAutoTerritories(c, new Set()));
+  assert.equal(result.retired, 0, "already retired with nothing attached - nothing left to do");
+});
+
+test("only a leader may sweep orphans, and only on a paying tier", async () => {
+  const store = new InMemoryPlanningStore();
+  store.seed({ territories: [autoTerritory({ id: "t_ne", territoryCode: "AUTO-CHINA-NORTHEAST" })] });
+
+  const repDenied = await retireOrphanedAutoTerritories(ctx("sales_rep", "pro", store), new Set());
+  assert.equal(repDenied.ok === false && repDenied.violations[0]!.code, "permission_denied");
+
+  const starterDenied = await retireOrphanedAutoTerritories(ctx("sales_leader", "starter", store), new Set());
+  assert.equal(starterDenied.ok === false && starterDenied.violations[0]!.code, "feature_not_in_tier");
 });
