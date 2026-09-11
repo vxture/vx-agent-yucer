@@ -40,6 +40,15 @@ import type { PermCode } from "../../authz/catalog";
  * a row with zero pages - so the gap is a fact on the page rather than a
  * silent omission (owner, 2026-09-11: 先建占位，应该有自己的权限点 /
  * 先加一个空占位模块，后续补表).
+ *
+ * 今日判断 AND 销售大屏 (home / national) join the placeholders for a
+ * different reason: not "not built yet", but "never going to gate on
+ * anything of its own" - `functional-domains.ts`'s own CROSSCUTTING_MODULES
+ * comment is explicit that both own no object, which is exactly why 智能
+ * 副驾 and 配置管理 are groups of their own rather than folded into the five
+ * business domains. Each gets the same one-module-group shape those two do
+ * (owner, 2026-09-11: 缺少今日裁决和销售大屏 - they belong on this page even
+ * though they will likely stay empty forever).
  */
 
 export type PermissionLevel = "domain" | "module" | "page" | "action";
@@ -61,15 +70,17 @@ export interface PermissionNode {
 
 /** Group order: the five business groups as the sidebar lists them, then the two planes. */
 export const GROUP_ORDER: readonly string[] = [
-  "armory", "deployment", "recon", "position", "settlement", "copilot", "admin",
+  "armory", "deployment", "recon", "position", "settlement", "copilot", "admin", "home", "national",
 ];
 
 /** Every 模块, in the order the sidebar's nav lists it (`FUNCTIONAL_DOMAINS`),
- *  or, for the two planes, the single module each already was. 20 modules
- *  across the five business groups (owner, 2026-09-11: 当前功能域5个，内部
- *  的就20个了) plus 合同管理, newly reserved in 战果沉淀域; 智能副驾 / 配置
- *  管理 stay one module each - neither owns an object nor appears in
- *  FUNCTIONAL_DOMAINS, so there is no nav list to promote. */
+ *  or, for the four groups outside it, the single module each already was.
+ *  20 modules across the five business groups (owner, 2026-09-11: 当前功能域
+ *  5个，内部的就20个了) plus 合同管理, newly reserved in 战果沉淀域; 智能副驾
+ *  / 配置管理 / 今日判断 / 销售大屏 each stay one module - none owns an
+ *  object, so none is in FUNCTIONAL_DOMAINS' five columns to promote from
+ *  (`home` / `national` are `CROSSCUTTING_MODULES` instead - reachable, but
+ *  not filed under any of the five). */
 export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   armory: ["strategy", "segment", "solution", "catalog", "pricebook"],
   deployment: ["namedAccount", "planning", "forecastRule"],
@@ -78,13 +89,18 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   settlement: ["delivery", "collection", "renewal", "contract"],
   copilot: ["copilot"],
   admin: ["admin"],
+  home: ["home"],
+  national: ["national"],
 };
 
 /** Modules with no permission point of their own yet: new nav routes that
- *  currently read through another module's `.view` gate, or (合同管理) not
- *  built at all - see the file header. */
+ *  currently read through another module's `.view` gate, 合同管理 (not built
+ *  at all), or 今日判断 / 销售大屏 (owner, 2026-09-11: 缺少今日裁决和销售
+ *  大屏 - both own no object, so neither one is ever going to gate on
+ *  anything of its own; they render here as an honest, permanently-empty
+ *  pair rather than as something still being built toward). */
 export const PLACEHOLDER_MODULES: ReadonlySet<string> = new Set([
-  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract",
+  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract", "home", "national",
 ]);
 
 /** `(domain, page)` -> the 业务/模块/页面 it now renders under. Page "" is

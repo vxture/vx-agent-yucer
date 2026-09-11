@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ACTIONS, type ActionId } from "../../authz/actions";
 import { PERM_CODES } from "../../authz/catalog";
-import { FUNCTIONAL_DOMAINS } from "./functional-domains";
+import { CROSSCUTTING_MODULES, FUNCTIONAL_DOMAINS } from "./functional-domains";
 import {
   buildPermissionTree,
   filterPermissionTree,
@@ -85,11 +85,25 @@ test("GROUP_MODULES agrees with FUNCTIONAL_DOMAINS - every nav module sits under
   }
   const UNBUILT = new Set(["contract"]);
   for (const [group, modules] of Object.entries(GROUP_MODULES)) {
-    if (group === "copilot" || group === "admin") continue; // no nav list to check against - see the file header
+    if (["copilot", "admin", "home", "national"].includes(group)) continue; // no FUNCTIONAL_DOMAINS list to check against - see below and the file header
     for (const key of modules) {
       if (UNBUILT.has(key)) continue;
       assert.ok(navKeysByGroup.get(group)?.has(key), `${group}/${key} is not a nav module FUNCTIONAL_DOMAINS lists there`);
     }
+  }
+});
+
+test("GROUP_MODULES.home / .national agree with CROSSCUTTING_MODULES", () => {
+  /* 今日判断 and 销售大屏 sit outside the five business domains in the nav
+     (CROSSCUTTING_MODULES, not FUNCTIONAL_DOMAINS) precisely because
+     neither owns an object - the same reason 智能副驾 and 配置管理 are
+     groups of their own. Each gets a one-module group here, same shape as
+     those two (owner, 2026-09-11: 缺少今日裁决和销售大屏). */
+  const crosscuttingKeys = new Set(CROSSCUTTING_MODULES.filter((m) => m.kind === "built").map((m) => m.navKey));
+  assert.deepEqual(crosscuttingKeys, new Set(["home", "national"]));
+  for (const key of crosscuttingKeys) {
+    assert.deepEqual(GROUP_MODULES[key], [key], `GROUP_MODULES.${key} should be a single self-named module`);
+    assert.ok(PLACEHOLDER_MODULES.has(key), `${key} owns no object and should never gate on an action of its own`);
   }
 });
 

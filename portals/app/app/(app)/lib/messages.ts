@@ -4866,6 +4866,10 @@ export const PERMISSION_TREE_TEXT = {
   count: (actions: number, roles: number) => `${actions} 个操作 · ${roles} 个角色`,
   colPoint: "名称",
   colLevel: "类型",
+  // 层级 / 子级 (owner, 2026-09-11): 两个Ln、x子项堆积在名称列后面太乱，
+  // 拉出来各自独立成列。
+  colTier: "层级",
+  colChildren: "子级",
   colOps: "操作",
   // 来源一列（owner 2026-09-10：参考平台治理平面的三列布局）：目录整个是
   // 代码里的 authz/actions.ts，没有一条是从这个页面新建出来的，所以每一行
@@ -4907,7 +4911,6 @@ export const PERMISSION_TREE_TEXT = {
     page: "页面",
     action: "操作",
   } as Record<string, string>,
-  childCount: (n: number) => `${n} 子级`,
   // 占位模块 - 还没有自己的权限点 (owner, 2026-09-11: 先建占位，应该有自己的
   // 权限点 / 先加一个空占位模块，后续补表): 见 PLACEHOLDER_MODULES。
   modulePending: "待补充权限点",
@@ -4915,10 +4918,14 @@ export const PERMISSION_TREE_TEXT = {
   collapseAll: "全部收起",
   granted: "持有",
   notGranted: "不持有",
-  // The two planes as 业务域 of their own.
+  // The two planes, plus the two crosscutting modules (owner, 2026-09-11:
+  // 缺少今日裁决和销售大屏) as 业务 of their own - 今日判断 / 销售大屏 own no
+  // object either, same reason 智能副驾 doesn't sit inside a business group.
   groupLabel: {
     copilot: "智能副驾",
     admin: "配置管理",
+    home: "今日判断",
+    national: "销售大屏",
   } as Record<string, string>,
   moduleLabel: {
     admin: "成员与权限",
