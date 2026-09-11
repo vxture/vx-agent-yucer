@@ -43,6 +43,17 @@ database with `DB_URL=...` - which is how the production run was rehearsed on a
 twin (old DDL through 0052, the stray `contact`, then bootstrap: 0053 and 0054
 applied, nothing else; a second run a no-op).
 
+## The DDL travels with the run
+
+db-init used to run against `<STACK_ROOT>/deploy` on the host - the directory
+the last RELEASE deploy had rsync'd - so a run pinned to a commit ahead of the
+deployed release applied the deployed release's DDL and never saw the newer
+increments (the first ledger run, 34550752272, found no `ledger.sql` on the
+host). `expected_sha` pins the checkout, and the checkout is what must reach
+the database: the workflow now rsyncs `deploy/database/ddl` of the pinned
+commit to `<STACK_ROOT>/db-init/<sha>/` and runs there. The running stack's
+`deploy/` is not touched; a structure change no longer waits for a release.
+
 ## What stays true
 
 - `db-init` is still the sole structure-change path; the ledger is its

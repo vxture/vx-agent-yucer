@@ -213,3 +213,7 @@ gh workflow run db-init.yml -f environment=production -f action=apply -f confirm
 ```
 
 `action=verify` 会打印账本行数与最近五条。
+
+**DDL 随运行走**：db-init 把 `expected_sha` 那次检出的 `deploy/database/ddl` rsync 到主机
+`<STACK_ROOT>/db-init/<sha>/`，对着它运行；不再依赖上次发布 rsync 到 `<STACK_ROOT>/deploy`
+的那份，结构变更不必等发布。
