@@ -1,6 +1,6 @@
 import { WHOLE_WORKSPACE, expandTerritories, type DataScope } from "../../authz/scope";
 import { coveringTerritories } from "../../domains/signal/lib/routing";
-import { subtreeIds } from "../../domains/planning/lib/org";
+import { subtreeIds, territoriesWorkedBy } from "../../domains/planning/lib/org";
 import type { AuthzStore } from "../../authz/store";
 import {
   getAccountStore,
@@ -97,7 +97,7 @@ export async function resolveDataScope(
     const memberSubs = [...placements].filter(([, us]) => us.some((u) => frame.has(u))).map(([s]) => s);
     // THE GROUND: every territory a unit in the subtree works, then down the
     // territory tree, then the same three answers the territory scope gives.
-    const worked = territories.filter((t) => t.unitIds.some((u) => frame.has(u))).map((t) => t.id);
+    const worked = territoriesWorkedBy(territories, frame);
     const parentOf = new Map<string, string | null>(territories.map((t) => [t.id, t.parentId ?? null]));
     const territoryIds = expandTerritories(worked, parentOf);
     const held = new Set(territoryIds);

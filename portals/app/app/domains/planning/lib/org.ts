@@ -107,6 +107,32 @@ export function subtreeIds(all: readonly KnownOrgUnit[], id: string): string[] {
   return out;
 }
 
+/** The territories any unit in `unitIds` works, deduplicated - the frame a
+ *  unit-scoped leader's territory reach reduces to (resolve-scope.ts's
+ *  `unit` branch) and what the org-panel table shows per unit, so the two
+ *  read the same ground and cannot silently drift apart. */
+export function territoriesWorkedBy(
+  territories: readonly { readonly id: string; readonly unitIds: readonly string[] }[],
+  unitIds: ReadonlySet<string> | readonly string[],
+): string[] {
+  const frame = unitIds instanceof Set ? unitIds : new Set(unitIds);
+  return territories.filter((t) => t.unitIds.some((u) => frame.has(u))).map((t) => t.id);
+}
+
+/** The territories `id`'s own subtree works - what a leader stationed at
+ *  `id` actually sees under 按组织 data-scope, not just what is directly
+ *  linked to `id` itself. A unit whose subtree reaches EVERY territory the
+ *  workspace has is, in effect, unrestricted (owner, 2026-09-11: 高层组织和
+ *  领导角色需要能跟"真正没有权限"区分开 - 总部/事业部这类顶层单位此前显示
+ *  "无区域"，跟真的没有关联区域没法区分). */
+export function subtreeTerritoryIds(
+  units: readonly KnownOrgUnit[],
+  territories: readonly { readonly id: string; readonly unitIds: readonly string[] }[],
+  id: string,
+): string[] {
+  return territoriesWorkedBy(territories, subtreeIds(units, id));
+}
+
 /**
  * The shipped 单位类型 - what a workspace's vocabulary starts from. Mirrored
  * from incr/0051; org.test.ts holds the two in lockstep.

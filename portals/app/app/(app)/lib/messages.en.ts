@@ -1498,6 +1498,8 @@ export const en: Dictionary = {
     colTerritories: "Territories",
     territoryCount: (n: number) => `${n}`,
     noTerritory: "None",
+    fullTerritory: "Full scope",
+    fullTerritoryHint: "This unit's subtree covers every territory.",
     detailsTerritories: (n: number) => `Territories · ${n}`,
     detailsNoTerritories: "No territory is worked by this unit yet. Tick the unit on a territory's form.",
     territoryCovers: (regions: string) => `covers ${regions}`,

@@ -2799,6 +2799,11 @@ export const ORG_TEXT = {
   colTerritories: "区域",
   territoryCount: (n: number) => `${n} 个`,
   noTerritory: "无区域",
+  // 全范围（owner, 2026-09-11）：这个单位的下属子树覆盖了全部销售区域 -
+  // 跟"无区域"（真的没有关联任何区域）区分开，总部/事业部这类顶层单位不再
+  // 显示成看起来没有权限的样子。
+  fullTerritory: "全范围",
+  fullTerritoryHint: "这个单位的下属子树覆盖了全部销售区域。",
   detailsTerritories: (n: number) => `关联区域 · ${n} 个`,
   detailsNoTerritories: "还没有销售区域挂在这个单位。到销售区域的表单里勾选所属单位。",
   territoryCovers: (regions: string) => `覆盖 ${regions}`,

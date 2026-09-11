@@ -7,7 +7,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgTemplates, listOrgUnits, listTerritories } from "../../../domains/planning/service";
-import { REGION_AWARE_ORG_TEMPLATES } from "../../../domains/planning/lib/org";
+import { REGION_AWARE_ORG_TEMPLATES, subtreeTerritoryIds, territoriesWorkedBy } from "../../../domains/planning/lib/org";
 import { listCarves, listMarketDivisions } from "../../../domains/account/service";
 import { OrgPanel, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
@@ -64,21 +64,41 @@ export default async function OrgPage() {
   const childCount = new Map<string, number>();
   for (const u of units.value) if (u.parentId) childCount.set(u.parentId, (childCount.get(u.parentId) ?? 0) + 1);
   const worked = territories.ok ? territories.value : [];
-  const rows: OrgUnitRow[] = units.value.map((u) => ({
-    territories: worked
-      .filter((t) => t.unitIds.includes(u.id))
-      .map((t) => ({ code: t.territoryCode, name: t.name, regions: t.regions })),
-    id: u.id,
-    unitCode: u.unitCode,
-    name: u.name,
-    parentId: u.parentId,
-    kindName: u.kind?.name ?? null,
-    leaderSub: u.leaderSub,
-    leaderName: u.leaderSub ? (nameOf.get(u.leaderSub) ?? u.leaderSub) : null,
-    members: u.members,
-    depth: u.depth,
-    children: childCount.get(u.id) ?? 0,
-  }));
+  // 区域 归属 (owner, 2026-09-11: 高层组织和领导角色需要跟"真正没有权限"区分
+  // 开) - SUBTREE-aggregated, the same ground resolve-scope.ts's `unit`
+  // branch gives a leader stationed here, not just what is directly linked
+  // to this one row. A unit whose subtree reaches every territory that
+  // exists gets 全范围 instead of a count that would read as "none".
+  //
+  // THE DENOMINATOR IS LIVE UNITS ONLY, not every territory row: 应用模版
+  // upserts by territory CODE (AUTO-<大区代码>), so switching from 七分法 to
+  // 五分法 leaves AUTO-CHINA-NORTHEAST etc. behind, still pointing at a unit
+  // id that reset just deleted. Counting those against the total would make
+  // 全范围 unreachable forever after the first template switch - counting
+  // only territories some LIVE unit still works keeps the badge honest.
+  const liveUnitIds = new Set(units.value.map((u) => u.id));
+  const allTerritoryIds = new Set(territoriesWorkedBy(worked, liveUnitIds));
+  const rows: OrgUnitRow[] = units.value.map((u) => {
+    const reach = new Set(subtreeTerritoryIds(units.value, worked, u.id));
+    const scope: OrgUnitRow["scope"] =
+      reach.size === 0 ? "none" : allTerritoryIds.size > 0 && reach.size === allTerritoryIds.size ? "full" : "partial";
+    return {
+      territories: worked
+        .filter((t) => reach.has(t.id))
+        .map((t) => ({ code: t.territoryCode, name: t.name, regions: t.regions })),
+      scope,
+      id: u.id,
+      unitCode: u.unitCode,
+      name: u.name,
+      parentId: u.parentId,
+      kindName: u.kind?.name ?? null,
+      leaderSub: u.leaderSub,
+      leaderName: u.leaderSub ? (nameOf.get(u.leaderSub) ?? u.leaderSub) : null,
+      members: u.members,
+      depth: u.depth,
+      children: childCount.get(u.id) ?? 0,
+    };
+  });
   const placed = rows.reduce((n, r) => n + r.members, 0);
   // Who is in each unit, by name - what the 单位详情 drawer answers.
   const unitMembers: Record<string, string[]> = {};
