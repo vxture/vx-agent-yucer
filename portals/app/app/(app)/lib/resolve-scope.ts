@@ -1,6 +1,6 @@
 import { WHOLE_WORKSPACE, expandTerritories, type DataScope } from "../../authz/scope";
 import { coveringTerritories } from "../../domains/signal/lib/routing";
-import { subtreeIds, territoriesWorkedBy } from "../../domains/planning/lib/org";
+import { effectiveTerritoryIds, subtreeIds } from "../../domains/planning/lib/org";
 import type { AuthzStore } from "../../authz/store";
 import {
   getAccountStore,
@@ -95,9 +95,12 @@ export async function resolveDataScope(
     const frame = new Set(unitIds);
     // THE PEOPLE: everyone placed anywhere in the frame, myself included.
     const memberSubs = [...placements].filter(([, us]) => us.some((u) => frame.has(u))).map(([s]) => s);
-    // THE GROUND: every territory a unit in the subtree works, then down the
+    // THE GROUND: every territory a unit in the subtree works - or, when a
+    // placement's own subtree works none, whatever its nearest ancestor
+    // works (owner, 2026-09-11: 下级没有设置区域，应该继承上级 - a leaf unit
+    // with nothing of its own is not thereby unauthorized) - then down the
     // territory tree, then the same three answers the territory scope gives.
-    const worked = territoriesWorkedBy(territories, frame);
+    const worked = [...new Set(mine.flatMap((u) => effectiveTerritoryIds(units, territories, u).territoryIds))];
     const parentOf = new Map<string, string | null>(territories.map((t) => [t.id, t.parentId ?? null]));
     const territoryIds = expandTerritories(worked, parentOf);
     const held = new Set(territoryIds);

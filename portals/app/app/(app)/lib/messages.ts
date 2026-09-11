@@ -2804,6 +2804,11 @@ export const ORG_TEXT = {
   // 显示成看起来没有权限的样子。
   fullTerritory: "全范围",
   fullTerritoryHint: "这个单位的下属子树覆盖了全部销售区域。",
+  // 继承范围（owner, 2026-09-11：下级没有设置区域，应该显示继承上级）：这个
+  // 单位自己的子树没有关联任何销售区域，效力上跟着最近一个有区域的上级走 -
+  // 不是真的没有权限，是这一级没单独配置。
+  inheritedTerritory: "继承范围",
+  inheritedTerritoryHint: (ancestorName: string) => `这个单位自己没有关联区域，继承了「${ancestorName}」的区域范围。`,
   detailsTerritories: (n: number) => `关联区域 · ${n} 个`,
   detailsNoTerritories: "还没有销售区域挂在这个单位。到销售区域的表单里勾选所属单位。",
   territoryCovers: (regions: string) => `覆盖 ${regions}`,

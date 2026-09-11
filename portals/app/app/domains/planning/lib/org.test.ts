@@ -8,6 +8,7 @@ import {
   ORG_TEMPLATES,
   ORG_UNIT_CODE_SHAPE,
   defaultOrgTemplate,
+  effectiveTerritoryIds,
   planOrgUnit,
   reaches,
   subtreeIds,
@@ -142,4 +143,34 @@ test("reaches walks up; subtreeIds walks down, in tree order", () => {
   assert.deepEqual(subtreeIds(existing, "u1"), ["u1", "u2", "u3"]);
   assert.deepEqual(subtreeIds(existing, "u2"), ["u2", "u3"]);
   assert.deepEqual(subtreeIds(existing, "u3"), ["u3"]);
+});
+
+test("effectiveTerritoryIds: a unit's own subtree wins; a bare leaf inherits the nearest ancestor's", () => {
+  // u1 (hq) -> u2 (north, 大区, holds t1) -> u3 (north_team1, leaf, nothing
+  // of its own).
+  const territories = [{ id: "t1", unitIds: ["u2"] }];
+  // u2 works its own territory directly - not inherited.
+  assert.deepEqual(effectiveTerritoryIds(existing, territories, "u2"), { territoryIds: ["t1"], inheritedFrom: null });
+  // u3 has nothing of its own subtree (itself, no children) - it inherits u2's.
+  assert.deepEqual(effectiveTerritoryIds(existing, territories, "u3"), { territoryIds: ["t1"], inheritedFrom: "u2" });
+  // u1's own SUBTREE aggregate already reaches t1 through u2 - its own, not inherited.
+  assert.deepEqual(effectiveTerritoryIds(existing, territories, "u1"), { territoryIds: ["t1"], inheritedFrom: null });
+});
+
+test("effectiveTerritoryIds walks past an empty ancestor to a further one, and gives up at the root", () => {
+  // u1 (hq) -> u2 (north, holds t1); u1 -> u5 (a second, territory-less
+  // branch) -> u6 (leaf under it). u5's own subtree is empty, so it walks
+  // past itself to u1, whose subtree DOES reach t1 through u2.
+  const withBranch: KnownOrgUnit[] = [
+    ...existing,
+    { id: "u5", unitCode: "south", parentId: "u1" },
+    { id: "u6", unitCode: "south_team1", parentId: "u5" },
+  ];
+  const territories = [{ id: "t1", unitIds: ["u2"] }];
+  assert.deepEqual(effectiveTerritoryIds(withBranch, territories, "u5"), { territoryIds: ["t1"], inheritedFrom: "u1" });
+  assert.deepEqual(effectiveTerritoryIds(withBranch, territories, "u6"), { territoryIds: ["t1"], inheritedFrom: "u1" });
+  // A unit with nothing anywhere in its own subtree OR its ancestor chain -
+  // genuinely unauthorized, the one state inheritance must not paper over.
+  const isolated: KnownOrgUnit[] = [...existing, { id: "u4", unitCode: "orphan", parentId: null }];
+  assert.deepEqual(effectiveTerritoryIds(isolated, territories, "u4"), { territoryIds: [], inheritedFrom: null });
 });
