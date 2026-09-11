@@ -391,12 +391,40 @@ export function OrgPanel({
           className={
             /* 模式参考权限策略表格 (owner, 2026-09-11): 标题列压缩，层级/下属
                单位/类型/负责人/成员数/区域 六列平分；选择/序号/操作列固定，
-               不动 - EDGE_COLUMNS 与 ACTION_COLUMN 是跨表的高一层要求。 */
+               不动 - EDGE_COLUMNS 与 ACTION_COLUMN 是跨表的高一层要求。
+
+               STANDARDS FIX (2026-09-11, table-fittings.test.ts guard): this
+               copied permission-tree.tsx's "six columns split evenly, every
+               column named" shape one day after that table's own ruling, and
+               both inherited the same defect table-fittings.tsx's EDGE_COLUMNS
+               comment already predicted - with EVERY column pinned, table-fixed
+               has nothing to give the surplus to, so it shares it out
+               proportionally and 选择/序号/操作 grow past 64px (measured at
+               1800px: 73.4px, confirmed live).
+
+               TRIED `max-w-[13rem]` ON THE TITLE COLUMN FIRST AND MEASURED IT
+               NOT WORKING: table-fixed's column-width algorithm reads a
+               cell's `width`, and once that is absent it hands the column the
+               entire remaining slack - `max-width` does not claw any of that
+               back (computed maxWidth: 208px, actual rendered width: 552px at
+               1800px - the constraint is simply not consulted for fixed-table
+               column sizing). And 标题列压缩 means SMALL, which is the
+               opposite of what the one auto column is for - it becomes
+               whichever column the layout gives the surplus to, so making the
+               title that column would have inflated the exact thing the
+               owner asked to keep small.
+
+               区域 stays the auto column instead - last of the six evenly
+               split columns, dropped from the list below. It already renders
+               as wrapping tags (`gap-2xs flex flex-wrap`), so absorbing extra
+               width just means the tags sit less crowded rather than reading
+               as a defect, and unlike the title it was never asked to stay a
+               fixed size. 标题列 keeps its plain `w-[13rem]` - genuinely
+               compressed now, not just labelled as such. */
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
             + " [&_thead_th:nth-child(3)]:w-[13rem] [&_thead_th:nth-child(4)]:w-[5rem]"
             + " [&_thead_th:nth-child(5)]:w-[6rem] [&_thead_th:nth-child(6)]:w-[6rem]"
             + " [&_thead_th:nth-child(7)]:w-[7rem] [&_thead_th:nth-child(8)]:w-[6rem]"
-            + " [&_thead_th:nth-child(9)]:w-[6rem]"
           }
         >
           <DataTable

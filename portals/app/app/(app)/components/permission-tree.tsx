@@ -379,9 +379,28 @@ export function PermissionTree({
              rule's own fixed width (owner, 2026-09-06; 编号...是高一层要求
              的固定列宽 no longer applies to 编号 itself, since this table's
              编号 is no longer that fitting - see table-fittings.test.ts's
-             FITTING_EXEMPTIONS). */
+             FITTING_EXEMPTIONS).
+
+             STANDARDS FIX (2026-09-11, table-fittings.test.ts guard): "every
+             column named" is exactly the shape table-fittings.tsx's EDGE_
+             COLUMNS comment warns about - table-fixed only holds a specified
+             width while SOME column is left auto to take the slack, and with
+             all eight pinned here 操作 measured 96px at 1800px instead of its
+             64px contract (confirmed live; org-panel.tsx had the identical
+             defect, traced back to copying this file's shape one day after
+             this ruling). 名称 drops its `w-[16rem]` outright, not to
+             `max-w-[16rem]` - tried that first and measured it not working
+             (computed maxWidth: 208px, actual rendered width kept growing
+             past it; table-fixed's column-sizing pass hands an unpinned
+             column the whole remaining slack and does not consult
+             `max-width` when doing it). Leaving 名称 fully unpinned is also
+             the column the surplus SHOULD go to: it was already the one
+             column asked to carry more than the rest ("除了名称列宽一些"),
+             so growing further under a wide container extends that intent
+             instead of fighting it. 层级 / 类型 / 子级 / 来源 / 授权角色 keep
+             splitting evenly at their named widths, unchanged. */
           "[&_table]:table-fixed " + ACTION_COLUMN
-          + " [&_thead_th:nth-child(1)]:w-[6rem] [&_thead_th:nth-child(2)]:w-[16rem]"
+          + " [&_thead_th:nth-child(1)]:w-[6rem]"
           + " [&_thead_th:nth-child(3)]:w-[5rem] [&_thead_th:nth-child(4)]:w-[6rem]"
           + " [&_thead_th:nth-child(5)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem]"
           + " [&_thead_th:nth-child(7)]:w-[7rem]"
