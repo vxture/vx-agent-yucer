@@ -105,10 +105,14 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
     const qs = next.toString();
     router.replace(qs ? `/admin/members?${qs}` : "/admin/members", { scroll: false });
   };
-  const orgView = useMemo(
-    () => buildOrgView(orgUnits, rows.map((r) => ({ sub: r.sub, name: r.name, status: r.status, unitIds: r.units.map((u) => u.id), scope: r.scope, territories: r.territories }))),
-    [orgUnits, rows],
+  /* THE TREE HOLDS THE PEOPLE IN STANDING; the departed are listed apart
+     under it (owner, 2026-09-10). */
+  const people = useMemo(
+    () => rows.map((r) => ({ sub: r.sub, name: r.name, status: r.status, unitIds: r.units.map((u) => u.id), scope: r.scope, territories: r.territories })),
+    [rows],
   );
+  const orgView = useMemo(() => buildOrgView(orgUnits, people.filter((p) => p.status !== "inactive")), [orgUnits, people]);
+  const inactivePeople = useMemo(() => people.filter((p) => p.status === "inactive"), [people]);
   const openBySub = (sub: string) => setDetails(rows.find((r) => r.sub === sub) ?? null);
   const rolesOf = useMemo(() => new Map(rows.map((r) => [r.sub, r.roles])), [rows]);
 
@@ -173,6 +177,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
       ) : view === "org" ? (
         <MemberOrgView
           view={orgView}
+          inactive={inactivePeople}
           canManage={canManage}
           roster={rows.filter((r) => r.status === "active").map((r) => ({ sub: r.sub, name: r.name }))}
           roleOptions={roleOptions}
@@ -181,6 +186,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
           onViewChange={setView}
           onOpen={openBySub}
           onConfigure={(sub) => { const r = rows.find((x) => x.sub === sub); if (r) router.push(`/admin/members/${r.memberId}`); }}
+          onReactivate={(sub) => { const r = rows.find((x) => x.sub === sub); if (r) reactivate(r); }}
         />
       ) : (
         <div className="gap-md flex flex-col">

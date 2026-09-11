@@ -5,6 +5,9 @@ import {
   Button,
   ButtonGroup,
   Checkbox,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   DataTable,
   DialogForm,
   Field,
@@ -20,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
-import { UNPLACED_ROW_ID, branchIds, flattenOrgView, unitOptions, type OrgView, type OrgViewRow } from "../lib/member-org-view";
+import { UNPLACED_ROW_ID, branchIds, flattenOrgView, personRowId, unitOptions, type OrgView, type OrgViewPerson, type OrgViewRow } from "../lib/member-org-view";
 import { addMemberToUnits, bulkPlaceMembers, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
 import { MemberViewSwitch, type MemberView } from "./member-view-switch";
 import { Tag } from "./tag";
@@ -54,6 +57,12 @@ import { Tag } from "./tag";
  * units is two placements. 移除 ends those placements; 移动 sends them to
  * a unit; 复用 adds the unit and ends nothing.
  *
+ * THE DEPARTED ARE APART (owner, 2026-09-10: 已停用人员现在还混合在租户清单
+ * 中，需要单独拆分处理，放到组织管理下方，默认收起来，点击再展开，表结构与上面
+ * 一样): the tree holds the people in standing; whoever is deactivated sits
+ * in a second table under it, the same columns, folded until opened. Their
+ * row menu is what a departed person still needs - 详情, 配置, 恢复在岗.
+ *
  * Every write goes through the members actions, which go through the
  * services' own gates; the view only asks.
  */
@@ -64,8 +73,10 @@ export interface RoleOption {
   readonly admin: boolean;
 }
 
-export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, viewValue, onViewChange, onOpen, onConfigure }: {
+export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, rolesOf, viewValue, onViewChange, onOpen, onConfigure, onReactivate }: {
   readonly view: OrgView;
+  /** Whoever is deactivated - kept out of the tree, listed apart. */
+  readonly inactive: readonly OrgViewPerson[];
   readonly canManage: boolean;
   /** Everyone active, for 添加成员's pick list. */
   readonly roster: readonly { readonly sub: string; readonly name: string }[];
@@ -77,6 +88,7 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
   readonly onViewChange: (v: MemberView) => void;
   readonly onOpen: (sub: string) => void;
   readonly onConfigure: (sub: string) => void;
+  readonly onReactivate: (sub: string) => void;
 }) {
   const { DATA_TABLE_LABELS, DS_LABELS, MEMBER_ERROR, MEMBER_TEXT, ORG_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
@@ -84,6 +96,12 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
   const [pending, start] = useTransition();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
+  const [selectedInactive, setSelectedInactive] = useState<string[]>([]);
+  const inactiveRows = useMemo<OrgViewRow[]>(
+    () => inactive.map((p) => ({ kind: "person", id: personRowId(null, p.sub), sub: p.sub, name: p.name, status: p.status, depth: 0, unitId: null, scope: p.scope, territories: p.territories })),
+    [inactive],
+  );
   const rows = useMemo(() => flattenOrgView(view, collapsed), [view, collapsed]);
   const branches = useMemo(() => branchIds(view), [view]);
   const units = useMemo(() => unitOptions(view), [view]);
@@ -246,6 +264,79 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
     ];
   };
 
+  /* THE COLUMNS, shared by the tree and the deactivated table under it. */
+  const columns = [
+      {
+        /* THE TREE COLUMN: indent, a muted chevron where there is
+           something to fold, then the row's own face - one icon for
+           every unit, an avatar for every person (point 2). */
+        id: "name",
+        header: MEMBER_TEXT.orgColName,
+        cell: (r: OrgViewRow) => (
+          <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
+            {r.kind === "unit" && (r.children > 0 || r.headcount > 0) ? chevron(r.id, r.unplaced ? MEMBER_TEXT.orgUnplaced : r.name) : <span className="size-6 shrink-0" />}
+            {r.kind === "unit" ? (
+              r.unplaced
+                ? <TableTitleCell icon="buildings" title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
+                : <TableTitleCell icon="buildings" title={r.name} tooltip={r.name} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
+            ) : (
+              <span className="gap-sm flex min-w-0 items-center">
+                <UserAvatar alt={r.name} className="size-6 shrink-0" />
+                <button
+                  type="button"
+                  className="text-label-md min-w-0 cursor-pointer truncate text-left font-semibold hover:underline"
+                  aria-label={MEMBER_TEXT.detailsTitle(r.name)}
+                  onClick={() => onOpen(r.sub)}
+                >
+                  {r.name}
+                </button>
+                {r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : null}
+              </span>
+            )}
+          </span>
+        ),
+      },
+      {
+        /* 关联区域: the unit's ground, or the person's assigned territories. */
+        id: "territories",
+        header: MEMBER_TEXT.orgColTerritories,
+        cell: (r: OrgViewRow) => {
+          if (r.kind === "unit" && r.unplaced) return null;
+          const list = r.territories;
+          return list.length === 0 ? (
+            <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.orgTerritoriesNone}</span>
+          ) : (
+            <span className="gap-2xs flex flex-wrap">
+              {list.map((t) => <Tag key={t}>{t}</Tag>)}
+            </span>
+          );
+        },
+      },
+      {
+        /* 数据范围: the person's scope kind; nothing on a unit row. */
+        id: "scope",
+        header: MEMBER_TEXT.orgColScope,
+        cell: (r: OrgViewRow) =>
+          r.kind === "person" ? <span className="text-body-md">{MEMBER_TEXT.scopeLabels[r.scope] ?? r.scope}</span> : null,
+      },
+      {
+        /* THE ROLES (point 4), on the person rows. */
+        id: "roles",
+        header: MEMBER_TEXT.columnRoles,
+        cell: (r: OrgViewRow) => {
+          if (r.kind !== "person") return null;
+          const held = rolesOf.get(r.sub) ?? [];
+          return held.length === 0 ? (
+            <StatusBadge tone="warning" dot>{MEMBER_TEXT.noRoles}</StatusBadge>
+          ) : (
+            <span className="gap-2xs flex flex-wrap">
+              {held.map((x) => <Tag key={x.code} tone={x.admin ? "info" : "neutral"}>{x.name}</Tag>)}
+            </span>
+          );
+        },
+      },
+  ];
+
   const unitSelect = (value: string, onChange: (v: string) => void, exclude: ReadonlySet<string | null>) => (
     <NativeSelect value={value} onChange={(e) => onChange(e.target.value)} disabled={pending}>
       <option value="">{MEMBER_TEXT.orgPickUnit}</option>
@@ -307,79 +398,57 @@ export function MemberOrgView({ view, canManage, roster, roleOptions, rolesOf, v
           rowKey={(r: OrgViewRow) => r.id}
           rows={rows}
           rowActions={(r: OrgViewRow) => <RowActions disabled={pending} items={rowActions(r)} />}
-          columns={[
-            {
-              /* THE TREE COLUMN: indent, a muted chevron where there is
-                 something to fold, then the row's own face - one icon for
-                 every unit, an avatar for every person (point 2). */
-              id: "name",
-              header: MEMBER_TEXT.orgColName,
-              cell: (r: OrgViewRow) => (
-                <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
-                  {r.kind === "unit" && (r.children > 0 || r.headcount > 0) ? chevron(r.id, r.unplaced ? MEMBER_TEXT.orgUnplaced : r.name) : <span className="size-6 shrink-0" />}
-                  {r.kind === "unit" ? (
-                    r.unplaced
-                      ? <TableTitleCell icon="buildings" title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
-                      : <TableTitleCell icon="buildings" title={r.name} tooltip={r.name} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
-                  ) : (
-                    <span className="gap-sm flex min-w-0 items-center">
-                      <UserAvatar alt={r.name} className="size-6 shrink-0" />
-                      <button
-                        type="button"
-                        className="text-label-md min-w-0 cursor-pointer truncate text-left font-semibold hover:underline"
-                        aria-label={MEMBER_TEXT.detailsTitle(r.name)}
-                        onClick={() => onOpen(r.sub)}
-                      >
-                        {r.name}
-                      </button>
-                      {r.status === "inactive" ? <Tag>{MEMBER_TEXT.inactive}</Tag> : null}
-                    </span>
-                  )}
-                </span>
-              ),
-            },
-            {
-              /* 关联区域: the unit's ground, or the person's assigned territories. */
-              id: "territories",
-              header: MEMBER_TEXT.orgColTerritories,
-              cell: (r: OrgViewRow) => {
-                if (r.kind === "unit" && r.unplaced) return null;
-                const list = r.territories;
-                return list.length === 0 ? (
-                  <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.orgTerritoriesNone}</span>
-                ) : (
-                  <span className="gap-2xs flex flex-wrap">
-                    {list.map((t) => <Tag key={t}>{t}</Tag>)}
-                  </span>
-                );
-              },
-            },
-            {
-              /* 数据范围: the person's scope kind; nothing on a unit row. */
-              id: "scope",
-              header: MEMBER_TEXT.orgColScope,
-              cell: (r: OrgViewRow) =>
-                r.kind === "person" ? <span className="text-body-md">{MEMBER_TEXT.scopeLabels[r.scope] ?? r.scope}</span> : null,
-            },
-            {
-              /* THE ROLES (point 4), on the person rows. */
-              id: "roles",
-              header: MEMBER_TEXT.columnRoles,
-              cell: (r: OrgViewRow) => {
-                if (r.kind !== "person") return null;
-                const held = rolesOf.get(r.sub) ?? [];
-                return held.length === 0 ? (
-                  <StatusBadge tone="warning" dot>{MEMBER_TEXT.noRoles}</StatusBadge>
-                ) : (
-                  <span className="gap-2xs flex flex-wrap">
-                    {held.map((x) => <Tag key={x.code} tone={x.admin ? "info" : "neutral"}>{x.name}</Tag>)}
-                  </span>
-                );
-              },
-            },
-          ]}
+          columns={columns}
         />
       </div>
+
+      {/* THE DEPARTED, under the tree, folded until opened - the same table. */}
+      {inactive.length > 0 ? (
+        <Collapsible open={showInactive} onOpenChange={setShowInactive}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="text-label-md gap-xs flex cursor-pointer items-center font-semibold"
+              aria-label={showInactive ? MEMBER_TEXT.orgCollapse(MEMBER_TEXT.orgInactiveTitle(inactive.length)) : MEMBER_TEXT.orgExpand(MEMBER_TEXT.orgInactiveTitle(inactive.length))}
+            >
+              <Icon name={showInactive ? "chevron-down" : "chevron-right"} size="sm" className="text-muted-foreground" />
+              <span>{MEMBER_TEXT.orgInactiveTitle(inactive.length)}</span>
+              <span className="text-muted-foreground text-body-sm font-normal">{MEMBER_TEXT.orgInactiveWhy}</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className={`mt-sm [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+              <DataTable
+                labels={DATA_TABLE_LABELS}
+                indexStart={1}
+                selectedKeys={selectedInactive}
+                onSelectionChange={(keys) => setSelectedInactive([...keys])}
+                rowKey={(r: OrgViewRow) => r.id}
+                rows={inactiveRows}
+                rowActions={(r: OrgViewRow) => (
+                  <RowActions
+                    disabled={pending}
+                    items={
+                      r.kind === "person"
+                        ? [
+                            { id: "details", label: ROW_OPS.details(MEMBER_TEXT.noun), onSelect: () => onOpen(r.sub) },
+                            ...(canManage
+                              ? [
+                                  { id: "configure", label: ROW_OPS.configure(MEMBER_TEXT.noun), onSelect: () => onConfigure(r.sub) },
+                                  { id: "reactivate", label: MEMBER_TEXT.reactivate, separatorBefore: true, onSelect: () => onReactivate(r.sub) },
+                                ]
+                              : []),
+                          ]
+                        : []
+                    }
+                  />
+                )}
+                columns={columns}
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
 
       {/* 添加成员 / 移出成员 on a unit (or from the toolbar, with a unit to pick). */}
       <DialogForm

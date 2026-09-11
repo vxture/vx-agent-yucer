@@ -4006,6 +4006,8 @@ export const en: Dictionary = {
     orgColTerritories: "Territories",
     orgColScope: "Data scope",
     orgTerritoriesNone: "None",
+    orgInactiveTitle: (n: number) => `Deactivated · ${n}`,
+    orgInactiveWhy: "People who have left are out of the tree. The rows stay forever; roles must be granted again on reactivation.",
     orgSelectionNoun: "people",
     orgClearSelection: "Clear selection",
     orgBulkRemove: "Remove from unit",

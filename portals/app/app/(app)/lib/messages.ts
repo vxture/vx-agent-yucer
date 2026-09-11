@@ -1416,6 +1416,9 @@ export const MEMBER_TEXT = {
   orgColScope: "数据范围",
   orgTerritoriesNone: "无区域",
   // 多选后的表头操作行：移除原单位、移动到单位、复用到单位。
+  // 已停用人员单独一表，在组织之下，默认收起（owner 2026-09-10）。
+  orgInactiveTitle: (n: number) => `已停用人员 · ${n} 人`,
+  orgInactiveWhy: "已离岗的人不再出现在组织树里。行永久保留；恢复在岗后角色需重新授予。",
   orgSelectionNoun: "人",
   orgClearSelection: "取消选择",
   orgBulkRemove: "移除原单位",
