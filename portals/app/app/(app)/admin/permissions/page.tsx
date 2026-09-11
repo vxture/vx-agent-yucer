@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, MetricListCard, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -6,9 +6,8 @@ import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listRoles } from "../../../authz/roles";
 import { ACTIONS } from "../../../authz/actions";
-import { buildPermissionTree } from "../../lib/permission-tree";
+import { buildPermissionTree, unheldActionCount } from "../../lib/permission-tree";
 import { PermissionTree } from "../../components/permission-tree";
-import { Tag } from "../../components/tag";
 
 // 权限策略 (renamed from 权限管理, 2026-09-10 - the page never creates or
 // edits a permission, so "管理" overpromised) - the catalogue as a tree:
@@ -55,6 +54,11 @@ export default async function PermissionsPage() {
     group: r.line && r.rank ? `${r.line.name} · ${r.rank.name}` : (r.line?.name ?? r.rank?.name ?? null),
   }));
   const holds = Object.fromEntries(rows.map((r) => [r.code, r.permissions]));
+  // 未持有角色的权限点 (owner, 2026-09-10: 参考平台治理平面"未绑定"的提示,
+  // 换成我们真实有的信号 - nothing here is ever disabled or unbound from its
+  // OWN definition, but who may act on it can still be nobody).
+  const unheld = unheldActionCount(tree, new Set(rows.flatMap((r) => r.permissions)));
+  const totalActions = Object.keys(ACTIONS).length;
 
   return (
     <ViewLayout>
@@ -66,9 +70,21 @@ export default async function PermissionsPage() {
         icon="key"
         title={PERMISSION_TREE_TEXT.title}
         description={PERMISSION_TREE_TEXT.why}
-        secondary={
-          <Tag>{PERMISSION_TREE_TEXT.count(Object.keys(ACTIONS).length, rows.length)}</Tag>
-        }
+      />
+      {/* 总览卡 (owner, 2026-09-10: 参考平台治理平面的统计区，换成 yucer 真正
+          有的三个独立数字 - 总数和角色数原来就在头部的 Tag 里；未持有的权限点
+          是新的，一个真实的审计信号，不是凑数的第三张卡). The top edge is the
+          DS's own health signal (MetricListCard's `tone`, "只染顶缘"), amber
+          only while something is actually unheld. */}
+      <MetricListCard
+        title={PERMISSION_TREE_TEXT.overviewTitle}
+        icon="key"
+        tone={unheld > 0 ? "warning" : "brand"}
+        metrics={[
+          { key: "total", value: totalActions, label: PERMISSION_TREE_TEXT.overviewTotal },
+          { key: "roles", value: rows.length, label: PERMISSION_TREE_TEXT.overviewRoles },
+          { key: "unheld", value: unheld, label: PERMISSION_TREE_TEXT.overviewUnheld },
+        ]}
       />
       <PermissionTree tree={tree} roles={columns} holds={holds} />
     </ViewLayout>
