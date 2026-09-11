@@ -65,7 +65,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     key: "access",
     items: [
       { key: "members", href: "/admin/members", icon: "users", action: "admin.member.view" },
-      /* 角色管理 and 权限管理 READ the catalogue rather than editing it, and
+      /* 角色管理 and 权限策略 READ the catalogue rather than editing it, and
          that is the honest shape: the 9 roles and their 117 grants are seeded
          DDL (incr/0021), mirrored in authz/catalog.ts, and changing one means
          changing the seed, the mirror and the catalogue doc together. A page

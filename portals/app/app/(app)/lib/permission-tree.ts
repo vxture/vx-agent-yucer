@@ -1,7 +1,9 @@
 import { ACTIONS, type ActionId } from "../../authz/actions";
 import type { PermCode } from "../../authz/catalog";
 
-/* 权限管理 as a TREE - 业务域 / 模块 / 页面 / 操作 (owner, 2026-09-09).
+/* 权限策略 as a TREE - 业务域 / 模块 / 页面 / 操作 (owner, 2026-09-09;
+ * renamed from 权限管理 2026-09-10: the page never creates or edits a
+ * permission, so "管理" overpromised - what it shows IS the policy).
  *
  * NOTHING HERE IS TYPED IN: the tree is READ off the action catalogue. An
  * action id is `<domain>.<page>.<verb>` - `pipeline.winloss.record` - or
@@ -147,5 +149,30 @@ export function keysDownTo(nodes: readonly PermissionNode[], level: PermissionLe
     }
   };
   walk(nodes);
+  return out;
+}
+
+/**
+ * Prune to the nodes a predicate keeps, plus every ancestor of a kept
+ * descendant - the same shape PermissionTreeTable's own `prune` uses for
+ * "只看可执行", generalised to any predicate. A branch survives if it
+ * matches itself OR has a surviving child; nothing is mutated, a fresh
+ * tree comes back with fewer children arrays.
+ *
+ * WHAT THIS IS FOR (owner, 2026-09-10: 参考平台治理平面的搜索/筛选布局): the
+ * page's search box and its 业务域 filter both narrow the SAME full tree
+ * through this one function - text search prunes by a title/code match,
+ * the domain filter narrows the root array first and can be composed with
+ * a text predicate on what is left.
+ */
+export function filterPermissionTree(
+  nodes: readonly PermissionNode[],
+  predicate: (node: PermissionNode) => boolean,
+): PermissionNode[] {
+  const out: PermissionNode[] = [];
+  for (const n of nodes) {
+    const children = filterPermissionTree(n.children, predicate);
+    if (predicate(n) || children.length > 0) out.push({ ...n, children });
+  }
   return out;
 }

@@ -55,7 +55,7 @@ const EVALUATED = new Set<string>();
 // IS gated, in authz/admin.ts, which is server code that happens to live
 // somewhere else. A guard that cries wolf costs more than no guard.
 const ENFORCED = new Set<string>();
-/* COPY IS NOT A GATE. The message dictionaries name every action - 权限管理
+/* COPY IS NOT A GATE. The message dictionaries name every action - 权限策略
    prints a title for each of the 69 (permission-tree) - and a quoted id in a
    label is not an evaluation of it. Scanning them made three actions that gate
    nothing look wired on 2026-09-09. Named here rather than matched by a

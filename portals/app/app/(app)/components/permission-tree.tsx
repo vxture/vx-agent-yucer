@@ -5,10 +5,13 @@ import {
   Button,
   ButtonGroup,
   DataTable,
+  FilterBar,
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
   Icon,
+  Input,
+  NativeSelect,
   SegmentedControl,
   StatusBadge,
   Table,
@@ -20,9 +23,10 @@ import {
   TableTitleCell,
   type IconName,
 } from "@vxture/design-ui";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import {
+  filterPermissionTree,
   flattenTree,
   keysDownTo,
   type PermissionLevel,
@@ -31,8 +35,25 @@ import {
 } from "../lib/permission-tree";
 import { Tag } from "./tag";
 
-/* 权限管理 - 业务域 / 模块 / 页面 / 操作, one tree in one table (owner,
- * 2026-09-09; the reference is the platform console's permission tree).
+/* 权限策略 - 业务域 / 模块 / 页面 / 操作, one tree in one table (owner,
+ * 2026-09-09; the reference is the platform console's permission tree; the
+ * page renamed from 权限管理 to 权限策略 and its toolbar redrawn 2026-09-10
+ * against a second reference - the platform GOVERNANCE plane's own 权限策略
+ * screen: a search box, a type filter, and 名称 / 类型 / 来源 / 授权角色 /
+ * 操作 columns over a numbered list).
+ *
+ * WHAT CARRIES OVER AND WHAT DOES NOT. That screen edits a flat permission
+ * registry - it has a 状态 column (enabled/disabled) and a 新增权限 button
+ * because ITS permissions are rows a person creates. Ours are not: every
+ * node here is read off authz/actions.ts, a source file, and nothing in
+ * this product ever inserts a row into it from a screen. So there is no
+ * 状态 (nothing here is ever disabled) and no 新增权限 button (there is
+ * nowhere for it to write) - and 来源 says as much, honestly, on every row:
+ * 系统预置. What DOES carry over: the search box, a filter that narrows the
+ * tree instead of just folding it, and 名称 / 类型 / 来源 / 授权角色 in that
+ * order. 类型 keeps this page's own four-tone level badges (业务域 / 模块 /
+ * 页面 / 操作) rather than the reference's plain 菜单/接口 pair - strictly
+ * more information in the same slot, not a slot for a slot's sake.
  *
  * ONE FLAT TABLE, NOT NESTED TABLES. The tree is flattened by its expansion
  * state and each row indents by its depth, so the DS's DataTable draws it
@@ -47,6 +68,15 @@ import { Tag } from "./tag";
  * DS's HoverCard, a panel to read rather than a tooltip line. The roster
  * order is the workspace's own (sort_order), so the three named are the
  * highest rungs that hold the permission.
+ *
+ * SEARCH AND THE DOMAIN FILTER SHARE ONE PRUNE (filterPermissionTree, in the
+ * lib): the domain filter narrows the root array, a query then prunes what
+ * is left to nodes matching by title/code with every ancestor kept, so a
+ * match stays legible inside its branch. While either is active every
+ * remaining branch opens (keysDownTo the deepest level) and the row
+ * chevrons stop writing to the manual expand state - so clearing the filter
+ * restores exactly the fold state you had before searching, not whatever
+ * you clicked while the tree was pruned to begin with.
  *
  * READ-ONLY HERE: the grants are edited on /admin/roles, one role at a time.
  * The action column is the fitting every table carries, with nothing in it.
@@ -125,7 +155,34 @@ export function PermissionTree({
   // Open to the pages by default: the shape is visible, the operations are
   // one click away each rather than a wall.
   const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
-  const rows = useMemo(() => flattenTree(tree, expanded), [tree, expanded]);
+  const [query, setQuery] = useState("");
+  const [domain, setDomain] = useState("");
+  const q = query.trim().toLowerCase();
+  const isFiltering = q !== "" || domain !== "";
+
+  /* THE TOOLBAR'S TWO NARROWING CONTROLS (owner, 2026-09-10: 参考平台治理
+     平面的搜索/筛选布局), one prune: 业务域 narrows the root array first
+     (it IS the tree's top level, no pruning needed for it alone), then a
+     query prunes what is left by title / subtitle / code, keeping every
+     ancestor of a match so a hit still reads inside its branch. */
+  const filtered = useMemo(() => {
+    const byDomain = domain ? tree.filter((g) => g.key === domain) : tree;
+    if (q === "") return byDomain;
+    return filterPermissionTree(byDomain, (n) => {
+      const hay = `${title(n)} ${subtitle(n)} ${n.name} ${n.permission ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tree, domain, q]);
+
+  /* While filtering, every branch that survived the prune opens on its own
+     - there is nothing left to fold - and the chevrons stop writing to
+     `expanded` (below) so the fold state a reader had before searching is
+     exactly what comes back when the filter clears. */
+  const rows = useMemo(
+    () => flattenTree(filtered, isFiltering ? keysDownTo(filtered, "action") : expanded),
+    [filtered, isFiltering, expanded],
+  );
   /* permission -> the roles that hold it, in roster order. Built once; a
      cell reads its slice. */
   const holders = useMemo(() => {
@@ -139,17 +196,60 @@ export function PermissionTree({
     }
     return out;
   }, [roles, holds]);
+  const countActions = (nodes: readonly PermissionNode[]): number =>
+    nodes.reduce((sum, n) => sum + (n.level === "action" ? 1 : countActions(n.children)), 0);
+  const total = countActions(tree);
+  const shown = countActions(filtered);
 
-  const toggle = (key: string) =>
+  const toggle = (key: string) => {
+    // A branch is already forced open while filtering (see `rows` above);
+    // clicking it would silently rewrite `expanded` to something the reader
+    // never asked for and never sees take effect until they clear the
+    // filter, so the click is a no-op here rather than a surprise later.
+    if (isFiltering) return;
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
+  };
 
   return (
     <div className="gap-md flex flex-col">
+      {/* THE FILTER ROW (owner, 2026-09-10): a search box and a 业务域
+          filter, in the DS's own FilterBar - what narrows WHICH rows are
+          visible. Kept apart from the expand-to row below it, which does
+          not change what a query is filtering out - the same
+          filtering-versus-viewing split the DS's own FilterBar docstring
+          draws between its `children` filters and its `scope` slot. */}
+      <FilterBar
+        count={shown === total ? T.toolbarCount(total) : T.toolbarFilteredCount(shown, total)}
+        search={
+          <SearchSlot>
+            <Input
+              type="search"
+              className="w-full"
+              value={query}
+              placeholder={T.searchHint}
+              aria-label={T.searchLabel}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </SearchSlot>
+        }
+        onReset={isFiltering ? () => { setQuery(""); setDomain(""); } : undefined}
+        resetLabel={T.resetFilters}
+      >
+        <FilterSlot width="w-[10rem]">
+          <NativeSelect value={domain} aria-label={T.domainFilterLabel} onChange={(e) => setDomain(e.target.value)}>
+            <option value="">{T.filterAllDomains}</option>
+            {tree.map((g) => (
+              <option key={g.key} value={g.key}>{title(g)}</option>
+            ))}
+          </NativeSelect>
+        </FilterSlot>
+      </FilterBar>
+
       {/* Expand to a level, or fold everything: the two things a reader does
           with a tree of this size. */}
       <div className="gap-sm flex items-center">
@@ -166,14 +266,18 @@ export function PermissionTree({
         </ButtonGroup>
       </div>
 
+      {filtered.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{T.filterEmpty}</p>
+      ) : (
       <div
         className={
-          /* FIXED LAYOUT, FOUR NAMED WIDTHS: the two fittings, the point, the
-             level and the action column; 授权角色 takes what is left. Nothing
-             scrolls and nothing is pinned - one column holds thirty-one
-             roles as well as it holds nine. */
+          /* FIXED LAYOUT, NAMED WIDTHS: the two fittings, the name, the
+             type and the source column; 授权角色 takes what is left.
+             Nothing scrolls and nothing is pinned - one column holds
+             thirty-one roles as well as it holds nine. */
           `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-          + " [&_thead_th:nth-child(3)]:w-[24rem] [&_thead_th:nth-child(4)]:w-[6rem]"
+          + " [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(4)]:w-[6rem]"
+          + " [&_thead_th:nth-child(5)]:w-[6rem]"
         }
       >
         <DataTable
@@ -226,9 +330,21 @@ export function PermissionTree({
             {
               id: "level",
               header: T.colLevel,
+              align: "center" as const,
               cell: (r: PermissionRow) => (
                 <StatusBadge tone={LEVEL_TONE[r.node.level]}>{T.levelLabel[r.node.level]}</StatusBadge>
               ),
+            },
+            /* 来源 (owner, 2026-09-10): every row, branch or leaf, reads
+               系统预置 - the whole tree is read off authz/actions.ts, a
+               source file, and nothing on this page ever writes a row into
+               it. One constant Tag, not a lookup, because the fact is the
+               same for all of them. */
+            {
+              id: "source",
+              header: T.colSource,
+              align: "center" as const,
+              cell: () => <Tag>{T.source}</Tag>,
             },
             /* 授权角色: the first three holders in roster order, then how
                many in all; every holder on hover. A branch reads nothing -
@@ -236,8 +352,10 @@ export function PermissionTree({
             {
               id: "holders",
               header: T.colHolders,
-              // Names are read, not compared: left, like the point column.
-              align: "left" as const,
+              // Owner, 2026-09-10: 除了名称首列，其他全部居中 - the cell is
+              // centered like every other column here; the hover trigger
+              // inside it stays its own left-reading inline-flex.
+              align: "center" as const,
               cell: (r: PermissionRow) => {
                 const p = r.node.permission;
                 if (!p) return null;
@@ -249,8 +367,15 @@ export function PermissionTree({
                 return (
                   <HoverCard openDelay={150} closeDelay={100}>
                     <HoverCardTrigger asChild>
-                      <span className="gap-xs inline-flex cursor-default items-center">
-                        <span className="text-body-md">{lead.map((x) => x.name).join(T.holdersJoin)}</span>
+                      {/* w-full + justify-center, not just the DS wrapper's
+                          own centering: a three-name list is long enough to
+                          wrap onto its own lines inside this narrow a column,
+                          and only text-align on the WRAPPING span - not the
+                          outer flex row's justify-content - centers a line
+                          once it has wrapped (owner, 2026-09-10: 除了名称
+                          首列，其他全部居中). */}
+                      <span className="gap-xs inline-flex w-full cursor-default flex-wrap items-center justify-center">
+                        <span className="text-body-md text-center">{lead.map((x) => x.name).join(T.holdersJoin)}</span>
                         {list.length > 3 ? <Tag>{T.holdersMore(list.length - 3)}</Tag> : null}
                         <span className="text-muted-foreground text-label-md">{T.holdersCount(list.length)}</span>
                       </span>
@@ -276,6 +401,7 @@ export function PermissionTree({
           ]}
         />
       </div>
+      )}
     </div>
   );
 }
@@ -374,7 +500,8 @@ export function PermissionTreeTable({
         <TableHeader>
           <TableRow>
             <TableHead>{T.colPoint}</TableHead>
-            <TableHead className="w-[6.5rem]">{T.colLevel}</TableHead>
+            {/* Owner, 2026-09-10: 除了名称首列，其他全部居中. */}
+            <TableHead className="w-[6.5rem] text-center">{T.colLevel}</TableHead>
             <TableHead className="w-[6rem] text-center">{ROLE_TEXT.detailsColHeld}</TableHead>
           </TableRow>
         </TableHeader>
@@ -404,7 +531,7 @@ export function PermissionTreeTable({
                     <TableTitleCell icon={LEVEL_ICON[n.level]} title={title(n)} tooltip={title(n)} description={subtitle(n)} />
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-center">
                   <StatusBadge tone={LEVEL_TONE[n.level]}>{T.levelLabel[n.level]}</StatusBadge>
                 </TableCell>
                 <TableCell className="text-center">
