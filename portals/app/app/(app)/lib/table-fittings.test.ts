@@ -222,11 +222,18 @@ function pinnedNthChildWidths(text: string): number[] {
 
 /**
  * Tables where every business column is legitimately pinned - named with the
- * reason, same as every other registry in this file. Empty today: nothing in
- * this product currently needs it, and a table that does should earn an
- * entry rather than a silent skip.
+ * reason, same as every other registry in this file.
+ *
+ * org-panel.tsx (owner, 2026-09-11: 30%/70% 拆分标题列与其他区，70% 再在业务
+ * 列之间均分) pins all seven business columns to percentages that sum to
+ * exactly 100%, not six rem values with a gap - the concern this check
+ * guards ("a column with no width absorbs the slack, or 选择/序号/操作 grow
+ * past 64px") does not apply when there is no gap left to absorb. Measured
+ * live at 1800px and 900px: 选择/序号/操作 held exactly 64px both times.
  */
-const WIDTH_EXEMPTIONS: Record<string, string> = {};
+const WIDTH_EXEMPTIONS: Record<string, string> = {
+  "org-panel.tsx": "七个业务列百分比之和恰好 100% (30% + 6×11.6667%)，没有缺口需要靠自动列吸收 - 1800px 与 900px 均实测选择/序号/操作仍为 64px (owner, 2026-09-11)",
+};
 
 const USES_FITTING_WIDTHS = /import\s*\{[^}]*\b(?:EDGE_COLUMNS|ACTION_COLUMN)\b[^}]*\}\s*from\s*"\.\/table-fittings"/;
 
