@@ -6,16 +6,19 @@ import {
   Banner,
   Button,
   DestructiveButton,
+  Drawer,
   Field,
   FieldDescription,
   FieldLabel,
   Input,
   NativeSelect,
   Section,
+  useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
-import { removeOrgUnitAction, saveOrgUnitAction } from "../admin/org/actions";
+import { removeOrgUnitAction, saveOrgUnitAction, setUnitTerritoriesAction } from "../admin/org/actions";
 import { FormFields } from "./form-page";
+import { Tag } from "./tag";
 
 /* 配置单位 - THE ONE FORM a unit is created and edited on (incr/0051).
  *
@@ -46,6 +49,31 @@ export interface LeaderOption {
   readonly name: string;
 }
 
+/* 关联区域 (owner, 2026-09-11: 不要补齐所有显示信息，尤其需要设计关联区域 -
+ * 向下聚合，向上继承，选择区域，暂不关联，等类型) - EDIT ONLY: a brand-new
+ * unit has no id yet to link a territory to, save it first. ONE REAL
+ * CHOICE, not four: 选择区域 (a side Drawer, owner: 选择区域可以用侧栏抽屉)
+ * ticks which territories this unit works DIRECTLY - the only thing that
+ * actually writes anything. Left at 暂不关联 (nothing ticked, the default),
+ * the section shows a READ-ONLY PREVIEW of what 按组织 data-scope already
+ * computes automatically from the unit's tree position - 向下聚合 (its own
+ * subtree's territories) or 向上继承 (the nearest ancestor's, once its own
+ * subtree has none) - via effectiveTerritoryIds, the SAME function
+ * resolve-scope.ts's `unit` branch and the org-structure table both call,
+ * so this preview cannot promise a scope the member would not actually
+ * get. Nothing here recomputes the table's fuller 全范围/已聚合/已继承/
+ * 无范围 badges - a create/edit form needs the one fact (what will this
+ * unit work), not the table's whole display.
+ */
+export type TerritoryScope = "none" | "partial" | "full" | "inherited";
+export interface TerritoryOption {
+  readonly id: string;
+  /** regions[0] if the territory has a live 大区, else its own static
+   *  name - same preference as the org-structure table's badge. */
+  readonly name: string;
+  readonly code: string;
+}
+
 export function OrgUnitForm({
   isNew,
   id,
@@ -59,6 +87,11 @@ export function OrgUnitForm({
   leaders,
   children,
   members,
+  territoryOptions,
+  directTerritoryIds,
+  scope,
+  effectiveTerritoryNames,
+  inheritedFromName,
 }: {
   readonly isNew: boolean;
   readonly id: string | null;
@@ -75,9 +108,21 @@ export function OrgUnitForm({
   readonly children: number;
   /** Members placed here - what a delete would un-place. */
   readonly members: number;
+  /** Every territory this workspace has - the 选择区域 drawer's checklist.
+   *  Unused (and the whole section hidden) while `isNew`. */
+  readonly territoryOptions: readonly TerritoryOption[];
+  /** Territories THIS unit works directly right now - what the drawer opens
+   *  pre-ticked to, and what an empty array means by 暂不关联. */
+  readonly directTerritoryIds: readonly string[];
+  /** The EFFECTIVE outcome if nothing more is ticked - computed server-side
+   *  by the same function the org-structure table and resolve-scope.ts use. */
+  readonly scope: TerritoryScope;
+  readonly effectiveTerritoryNames: readonly string[];
+  readonly inheritedFromName: string | null;
 }) {
   const { ORG_ERROR, ORG_TEXT } = useMessages();
   const router = useRouter();
+  const { toast } = useToast();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [codeValue, setCodeValue] = useState(unitCode);
@@ -85,6 +130,9 @@ export function OrgUnitForm({
   const [parentValue, setParentValue] = useState(parentId ?? "");
   const [kindValue, setKindValue] = useState(kindId ?? "");
   const [leaderValue, setLeaderValue] = useState(leaderSub ?? "");
+  const [territoryDrawerOpen, setTerritoryDrawerOpen] = useState(false);
+  const [territorySelection, setTerritorySelection] = useState<readonly string[]>(directTerritoryIds);
+  const [territoryPending, startTerritory] = useTransition();
 
   const submit = () => {
     setError(null);
@@ -107,6 +155,28 @@ export function OrgUnitForm({
       const r = await removeOrgUnitAction(id);
       if (!r.ok) setError(ORG_ERROR[r.error] ?? r.error);
       else router.push("/admin/org");
+    });
+  };
+
+  /* 选择区域 - opens pre-ticked to what is ALREADY directly linked, so the
+     drawer shows the truth rather than an empty form the first time. */
+  const openTerritoryDrawer = () => {
+    setTerritorySelection(directTerritoryIds);
+    setTerritoryDrawerOpen(true);
+  };
+  const toggleTerritory = (territoryId: string) =>
+    setTerritorySelection((prev) => (prev.includes(territoryId) ? prev.filter((t) => t !== territoryId) : [...prev, territoryId]));
+  const saveTerritories = () => {
+    if (!id) return;
+    startTerritory(async () => {
+      const r = await setUnitTerritoriesAction(id, territorySelection);
+      if (!r.ok) {
+        toast({ tone: "danger", title: ORG_ERROR[r.error] ?? r.error });
+        return;
+      }
+      toast({ tone: "success", title: ORG_TEXT.formTerritoryDone });
+      setTerritoryDrawerOpen(false);
+      router.refresh();
     });
   };
 
@@ -171,6 +241,38 @@ export function OrgUnitForm({
         </FormFields>
       </Section>
 
+      {/* 关联区域 - EDIT ONLY, see the block comment on TerritoryScope above
+          for why this is one real choice (选择区域) plus a read-only
+          preview of the automatic outcome (向下聚合/向上继承/暂不关联),
+          not four independent settings. */}
+      {!isNew ? (
+        <Section title={ORG_TEXT.formTerritoryTitle}>
+          <div className="gap-sm flex flex-col">
+            {directTerritoryIds.length > 0 ? (
+              <ul className="gap-2xs flex flex-wrap">
+                {directTerritoryIds.map((tid) => {
+                  const opt = territoryOptions.find((t) => t.id === tid);
+                  return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
+                })}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground text-body-sm">
+                {scope === "full" || scope === "partial"
+                  ? ORG_TEXT.formTerritoryAggregateHint(effectiveTerritoryNames.length)
+                  : scope === "inherited"
+                    ? ORG_TEXT.formTerritoryInheritedHint(inheritedFromName ?? "")
+                    : ORG_TEXT.formTerritoryNoneHint}
+              </p>
+            )}
+            <div>
+              <Button type="button" variant="secondary" onClick={openTerritoryDrawer}>
+                {ORG_TEXT.formTerritoryChoose}
+              </Button>
+            </div>
+          </div>
+        </Section>
+      ) : null}
+
       <div className="border-border flex flex-col gap-md border-t pt-md">
         <div className="gap-sm flex items-center">
           <Button onClick={submit} disabled={pending}>{ORG_TEXT.save}</Button>
@@ -195,6 +297,39 @@ export function OrgUnitForm({
         </div>
         {error ? <Banner tone="danger" title={ORG_TEXT.saveFailed} description={error} /> : null}
       </div>
+
+      <Drawer
+        open={territoryDrawerOpen}
+        onClose={() => setTerritoryDrawerOpen(false)}
+        width="md"
+        title={ORG_TEXT.formTerritoryDrawerTitle}
+        description={ORG_TEXT.formTerritoryDrawerWhy}
+        closeLabel={ORG_TEXT.cancel}
+        footer={
+          <div className="gap-sm flex items-center justify-end">
+            <Button variant="secondary" disabled={territoryPending} onClick={() => setTerritoryDrawerOpen(false)}>
+              {ORG_TEXT.cancel}
+            </Button>
+            <Button disabled={territoryPending} onClick={saveTerritories}>{ORG_TEXT.save}</Button>
+          </div>
+        }
+      >
+        {territoryOptions.length === 0 ? (
+          <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryDrawerEmpty}</p>
+        ) : (
+          <ul className="gap-2xs flex flex-col">
+            {territoryOptions.map((t) => (
+              <li key={t.id}>
+                <label className="gap-sm hover:bg-muted flex items-center rounded-sm px-2xs py-2xs">
+                  <input type="checkbox" checked={territorySelection.includes(t.id)} onChange={() => toggleTerritory(t.id)} />
+                  <span className="text-body-sm">{t.name}</span>
+                  <span className="text-muted-foreground text-body-sm">{t.code}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Drawer>
     </div>
   );
 }

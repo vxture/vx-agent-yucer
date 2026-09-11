@@ -52,6 +52,11 @@ export default async function NewOrgUnitPage() {
         leaders={(members.ok ? members.value : []).map((m) => ({ sub: m.sub, name: m.displayName ?? m.sub }))}
         children={0}
         members={0}
+        territoryOptions={[]}
+        directTerritoryIds={[]}
+        scope="none"
+        effectiveTerritoryNames={[]}
+        inheritedFromName={null}
       />
     </ViewLayout>
   );

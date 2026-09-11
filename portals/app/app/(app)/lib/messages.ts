@@ -2755,6 +2755,20 @@ export const ORG_TEXT = {
   save: "保存单位",
   discard: "放弃",
   saveFailed: "保存失败",
+  // 关联区域 (owner, 2026-09-11: 不要补齐所有显示信息，尤其需要设计关联
+  // 区域 - 向下聚合，向上继承，选择区域，暂不关联) - 单位表单里的这一节，只
+  // 编辑存在的单位（新建单位还没有 id）。
+  formTerritoryTitle: "关联区域",
+  formTerritoryChoose: "选择区域",
+  formTerritoryDone: "已更新关联区域。",
+  // 暂不关联时的只读预览 - 向下聚合/向上继承来自 effectiveTerritoryIds，跟
+  // 组织结构表格、resolve-scope.ts 的真实数据范围算的是同一件事。
+  formTerritoryAggregateHint: (n: number) => `还没有单独选择区域，会自动向下聚合下属单位关联的 ${n} 个区域。`,
+  formTerritoryInheritedHint: (ancestorName: string) => `还没有单独选择区域，会自动向上继承「${ancestorName}」的区域范围。`,
+  formTerritoryNoneHint: "还没有关联任何区域 - 这个单位和它的上下级都还没有区域。",
+  formTerritoryDrawerTitle: "选择关联区域",
+  formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织结构自动聚合或继承。",
+  formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateReset: "应用模版",
   templateTitle: "应用模版",

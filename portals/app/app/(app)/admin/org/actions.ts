@@ -6,6 +6,7 @@ import { getPlanningStore } from "../../../domains/shared/registry";
 import {
   applyOrgTemplate,
   listOrgUnits,
+  listTerritories,
   moveOrgKind,
   moveOrgUnit,
   removeOrgKind,
@@ -83,6 +84,52 @@ export async function reparentOrgUnitAction(id: string, parentId: string | null)
   if (!c) return { ok: false, error: "not_authenticated" };
   const r = await reparentOrgUnit(c, { id, parentId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * 选择区域 (owner, 2026-09-11: 关联区域...向下聚合，向上继承，选择区域，暂不
+ * 关联) - from the UNIT's own side, set exactly which territories it works
+ * DIRECTLY. `desiredTerritoryIds` is the complete new set, not a delta -
+ * empty means 暂不关联.
+ *
+ * TERRITORY -> UNIT IS STORED ON THE TERRITORY ROW (`unitIds`, incr/0052),
+ * and `upsertTerritory` replaces a territory WHOLESALE, upsert-by-code (its
+ * own comment: "everything else may move") - there is no partial-patch verb.
+ * So every territory whose membership actually changes (this unit newly
+ * added, or newly dropped) is re-submitted in full, only its `unitIds`
+ * different, never a half-written row.
+ */
+export async function setUnitTerritoriesAction(
+  unitId: string,
+  desiredTerritoryIds: readonly string[],
+): Promise<Result<object>> {
+  const c = await ctx();
+  if (!c) return { ok: false, error: "not_authenticated" };
+  const all = await listTerritories(c, { includeRetired: true });
+  if (!all.ok) return { ok: false, error: all.violations[0]?.code ?? "denied" };
+  const desired = new Set(desiredTerritoryIds);
+  const touched = all.value.filter((t) => desired.has(t.id) !== t.unitIds.includes(unitId));
+  for (const t of touched) {
+    const nextUnitIds = desired.has(t.id) ? [...t.unitIds, unitId] : t.unitIds.filter((u) => u !== unitId);
+    const r = await upsertTerritory(
+      c,
+      {
+        territoryCode: t.territoryCode,
+        name: t.name,
+        parentId: t.parentId,
+        ownerSub: t.ownerSub,
+        // Read back off an already-valid record, not new input - a plain
+        // narrow, not a re-validation.
+        status: t.status as "active" | "retired",
+        divisionIds: t.divisionIds,
+        unitIds: nextUnitIds,
+      },
+      new Set(t.divisionIds),
+    );
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
   revalidatePath("/", "layout");
   return { ok: true };
 }
