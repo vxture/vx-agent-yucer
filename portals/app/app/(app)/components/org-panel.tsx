@@ -482,10 +482,17 @@ export function OrgPanel({
                    还是5分区 - the exact symptom of reading `name`); `regions`
                    is derived live from the division's CURRENT name every
                    read (store.ts's own comment on the field), so it tracks
-                   a 大区 rename with zero cross-domain sync code. The tone
-                   (and its tooltip) still separates 全范围/已聚合/已继承/
-                   无范围, so 顶层组织/领导角色 and a unit that inherited from
-                   an ancestor keep reading differently from 无范围 (真正没有
+                   a 大区 rename with zero cross-domain sync code. NO `name`
+                   FALLBACK: page.tsx already excludes any territory whose
+                   `regions` is empty (its 大区 was removed, not renamed) from
+                   `r.territories` entirely (owner, 2026-09-11: 可以关联失效，
+                   但是不能是错的关联) - showing that territory's old name
+                   here would be exactly the wrong association the ruling
+                   forbids, so every territory that reaches this cell is
+                   guaranteed to have a live region. The tone (and its
+                   tooltip) still separates 全范围/已聚合/已继承/无范围, so
+                   顶层组织/领导角色 and a unit that inherited from an
+                   ancestor keep reading differently from 无范围 (真正没有
                    权限) at a glance. */
                 id: "territories",
                 header: ORG_TEXT.colTerritories,
@@ -494,8 +501,7 @@ export function OrgPanel({
                   const tone = r.scope === "full" ? "success" : r.scope === "inherited" ? "info" : "neutral";
                   const label =
                     r.scope === "full" ? ORG_TEXT.fullTerritory : r.scope === "inherited" ? ORG_TEXT.inheritedTerritory : ORG_TEXT.aggregateTerritory;
-                  const first = r.territories[0];
-                  const firstLabel = first ? (first.regions[0] ?? first.name) : "";
+                  const firstLabel = r.territories[0]?.regions[0] ?? "";
                   return (
                     <Tooltip>
                       <TooltipTrigger asChild>

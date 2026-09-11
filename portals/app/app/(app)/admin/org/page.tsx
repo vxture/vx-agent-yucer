@@ -63,7 +63,15 @@ export default async function OrgPage() {
   const nameOf = new Map((members.ok ? members.value : []).map((m) => [m.sub, m.displayName ?? m.sub]));
   const childCount = new Map<string, number>();
   for (const u of units.value) if (u.parentId) childCount.set(u.parentId, (childCount.get(u.parentId) ?? 0) + 1);
-  const worked = territories.ok ? territories.value : [];
+  // 从业务视角需要实时数据 (owner, 2026-09-11: 可以关联失效，但是不能是错的
+  // 关联) - a territory whose 大区 was removed by a division-template switch
+  // has `regions: []` (territory.ts's own rule: empty covers NOTHING, the
+  // same rule routing already lives by). EXCLUDED HERE, not just hidden in
+  // the cell: it must not count toward any unit's own aggregate, the 全范围
+  // denominator, or surface a stale name - 关联失效 is fine, a wrong
+  // association is not. A unit whose only direct link just went invalid
+  // falls through to 继承范围, exactly as it should.
+  const worked = (territories.ok ? territories.value : []).filter((t) => t.regions.length > 0);
   // 区域 归属 (owner, 2026-09-11: 高层组织和领导角色需要跟"真正没有权限"区分
   // 开) - SUBTREE-aggregated, the same ground resolve-scope.ts's `unit`
   // branch gives a leader stationed here, not just what is directly linked
