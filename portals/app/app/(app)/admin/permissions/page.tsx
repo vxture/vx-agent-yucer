@@ -1,4 +1,4 @@
-import { EmptyState, MetricListCard, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, PanelCard, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -71,21 +71,26 @@ export default async function PermissionsPage() {
         title={PERMISSION_TREE_TEXT.title}
         description={PERMISSION_TREE_TEXT.why}
       />
-      {/* 总览卡 (owner, 2026-09-10: 参考平台治理平面的统计区，换成 yucer 真正
-          有的三个独立数字 - 总数和角色数原来就在头部的 Tag 里；未持有的权限点
-          是新的，一个真实的审计信号，不是凑数的第三张卡). The top edge is the
-          DS's own health signal (MetricListCard's `tone`, "只染顶缘"), amber
-          only while something is actually unheld. */}
-      <MetricListCard
-        title={PERMISSION_TREE_TEXT.overviewTitle}
-        icon="key"
-        tone={unheld > 0 ? "warning" : "brand"}
-        metrics={[
-          { key: "total", value: totalActions, label: PERMISSION_TREE_TEXT.overviewTotal },
-          { key: "roles", value: rows.length, label: PERMISSION_TREE_TEXT.overviewRoles },
-          { key: "unheld", value: unheld, label: PERMISSION_TREE_TEXT.overviewUnheld },
-        ]}
-      />
+      {/* 总览：三张独立卡片 (owner, 2026-09-10: 页首统计区是3个card，独立的 -
+          参考图里三个数字各自一张卡，不是一张卡里塞三个指标; MetricListCard
+          的"一卡多指标"是另一件事，用它拼三张单指标卡是用错了件). 总数和
+          角色数原来就在头部的 Tag 里；未持有的权限点是新的，一个真实的审计
+          信号，不是凑数的第三张卡 - 它的顶边跟着数字变色，其余两张常态。 */}
+      <div className="gap-md grid grid-cols-1 sm:grid-cols-3">
+        <PanelCard title={PERMISSION_TREE_TEXT.overviewTotal} icon="key" tone="brand">
+          <span className="text-heading-2 font-semibold tabular-nums">{totalActions}</span>
+        </PanelCard>
+        <PanelCard title={PERMISSION_TREE_TEXT.overviewRoles} icon="users" tone="brand">
+          <span className="text-heading-2 font-semibold tabular-nums">{rows.length}</span>
+        </PanelCard>
+        <PanelCard
+          title={PERMISSION_TREE_TEXT.overviewUnheld}
+          icon="shield-warning"
+          tone={unheld > 0 ? "warning" : "brand"}
+        >
+          <span className="text-heading-2 font-semibold tabular-nums">{unheld}</span>
+        </PanelCard>
+      </div>
       <PermissionTree tree={tree} roles={columns} holds={holds} />
     </ViewLayout>
   );

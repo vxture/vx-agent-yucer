@@ -24,7 +24,7 @@ import {
   useToast,
   type IconName,
 } from "@vxture/design-ui";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot } from "./table-fittings";
+import { ACTION_COLUMN, FilterSlot, RowActions, SearchSlot } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import {
   filterPermissionTree,
@@ -124,6 +124,19 @@ export const LEVEL_ICON: Readonly<Record<PermissionLevel, IconName>> = {
   module: "squares-four",
   page: "table",
   action: "key",
+};
+
+/* L1-L4 (owner, 2026-09-10: 层级标签没有加上 - the compact depth pill next
+   to the title, on top of the 类型 column's own tone-coded badge rather
+   than instead of it). Mapped to LEVEL, not raw indent depth: an action
+   hanging directly off a module (no page between) is still L4, the same as
+   one three levels down - "L4" names WHAT it is, not how far this one
+   particular row happened to nest. */
+export const LEVEL_NUMBER: Readonly<Record<PermissionLevel, string>> = {
+  domain: "L1",
+  module: "L2",
+  page: "L3",
+  action: "L4",
 };
 
 const LEVEL_TONE = {
@@ -346,19 +359,30 @@ export function PermissionTree({
       ) : (
       <div
         className={
-          /* FIXED LAYOUT, NAMED WIDTHS: the two SHARED fittings (owner,
-             2026-09-06: 每张表都有选择列/序号列/操作列 - the product's own
-             cross-table grid rule; table-fittings.test.ts enforces it), the
-             name, the type and the source column; 授权角色 - now a single
-             count tag, not a wrapping name list - takes what is left. */
-          `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-          + " [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(4)]:w-[6rem]"
-          + " [&_thead_th:nth-child(5)]:w-[6rem]"
+          /* EVERY COLUMN NAMED, NOTHING LEFT TO AUTO (owner, 2026-09-10:
+             列宽固定，不够可以放宽但固定；除了名称列宽一些，其他的列平分
+             列宽). 序号 keeps the 4rem the shared EDGE_COLUMNS constant
+             gives every table's index column (owner, 2026-09-06's
+             cross-table grid rule; 编号...是高一层要求的固定列宽 - the
+             VALUE is that rule's, applied by hand rather than via the
+             constant itself, because EDGE_COLUMNS sizes a leadingSpacer +
+             indexStart PAIR and this table no longer has the spacer half
+             of it - reusing it verbatim would put its second 4rem on 名称
+             instead). 类型 / 来源 / 授权角色 split evenly; 操作 is
+             ACTION_COLUMN, that rule's own fixed width, untouched. */
+          "[&_table]:table-fixed " + ACTION_COLUMN
+          + " [&_thead_th:nth-child(1)]:w-[4rem] [&_thead_th:nth-child(2)]:w-[22rem]"
+          + " [&_thead_th:nth-child(3)]:w-[7rem] [&_thead_th:nth-child(4)]:w-[7rem]"
+          + " [&_thead_th:nth-child(5)]:w-[7rem]"
         }
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
-          leadingSpacer
+          /* 去掉左侧占位列 (owner, 2026-09-10): this tree is never
+             bulk-selected - there is nothing a checkbox column here would
+             ever do, placeholder or real, so it is gone rather than kept
+             as dead space. table-fittings.test.ts's EXEMPT_BY_DESIGN
+             names this file and why; 序号 and 操作 still apply. */
           indexStart={1}
           rowActions={(r: PermissionRow) =>
             <RowActions items={r.node.permission ? [{ id: "copy", label: T.copyCode, icon: "copy", onSelect: () => copyCode(r.node.permission!) }] : []} />
@@ -408,7 +432,13 @@ export function PermissionTree({
                       icon={LEVEL_ICON[n.level]}
                       title={title(n)}
                       tooltip={title(n)}
-                      titleSuffix={branch ? <Tag>{T.childCount(n.children.length)}</Tag> : undefined}
+                      titleSuffix={
+                        <>
+                          {/* L1-L4 (owner, 2026-09-10: 层级标签没有加上). */}
+                          <Tag>{LEVEL_NUMBER[n.level]}</Tag>
+                          {branch ? <Tag>{T.childCount(n.children.length)}</Tag> : null}
+                        </>
+                      }
                       description={subtitle(n)}
                     />
                   </span>
@@ -458,8 +488,15 @@ export function PermissionTree({
                 return (
                   <HoverCard openDelay={150} closeDelay={100}>
                     <HoverCardTrigger asChild>
+                      {/* 授权角色只留数字 (owner, 2026-09-10: 表述太啰嗦，
+                          满屏一样的字，只留 tag「icon xx」数字) - the column
+                          header already says 授权角色; repeating "个角色" on
+                          every one of seventy rows said nothing "共 31" did
+                          not. The hover panel keeps the full sentence -
+                          that is the ONE place per row it appears, not the
+                          whole screen. */}
                       <span className="inline-flex cursor-default">
-                        <StatusBadge tone="brand" icon="users">{T.holdersCount(list.length)}</StatusBadge>
+                        <StatusBadge tone="brand" icon="users">{list.length}</StatusBadge>
                       </span>
                     </HoverCardTrigger>
                     <HoverCardContent align="start" className="w-auto min-w-[16rem] max-w-[28rem]">

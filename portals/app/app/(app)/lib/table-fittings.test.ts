@@ -78,7 +78,7 @@ test("every converted table carries the three standard fittings", () => {
   for (const t of TABLES) {
     if (t.name in NOT_YET_CONVERTED) continue;
     const has = {
-      选择: t.text.includes("selectedKeys") || t.text.includes("leadingSpacer"),
+      选择: t.name in NO_SELECTION_BY_DESIGN || t.text.includes("selectedKeys") || t.text.includes("leadingSpacer"),
       序号: t.text.includes("indexStart"),
       操作: t.text.includes("rowActions"),
     };
@@ -108,6 +108,18 @@ const ACTIONS_REPLACED: Record<string, string> = {
     "the sort variant puts 上移/下移 in a regular trailing column; the 64px slot would be a second one",
 };
 
+/**
+ * Tables where 选择列 does not apply, by owner decision - not backlog, and
+ * not exempted from 序号 or 操作, both of which still hold.
+ */
+const NO_SELECTION_BY_DESIGN: Record<string, string> = {
+  "permission-tree.tsx":
+    "owner, 2026-09-10: 去掉左侧占位列 - a hierarchical tree of permission " +
+    "points is never bulk-selected; the DS's `leadingSpacer` held the " +
+    "column's width without offering the control, which is dead space with " +
+    "extra steps",
+};
+
 // The half of the ruling that is easy to lose: the column has to survive a
 // reader who cannot act. A `rowActions` bound to `canWrite ? ... : undefined`
 // is exactly the shape that does not.
@@ -132,8 +144,12 @@ test("the action column does not vanish for a reader who cannot act", () => {
   );
 });
 
-test("every not-yet-converted entry still names a table that exists", () => {
+test("every registry entry (backlog or by-design) still names a table that exists", () => {
   const names = new Set(TABLES.map((t) => t.name));
-  const stale = Object.keys(NOT_YET_CONVERTED).filter((n) => !names.has(n));
+  const registries = { NOT_YET_CONVERTED, ACTIONS_REPLACED, NO_SELECTION_BY_DESIGN };
+  const stale: string[] = [];
+  for (const [registry, entries] of Object.entries(registries)) {
+    for (const n of Object.keys(entries)) if (!names.has(n)) stale.push(`${registry}.${n}`);
+  }
   assert.deepEqual(stale, [], `these listed tables are gone - drop the lines: ${stale.join(", ")}`);
 });
