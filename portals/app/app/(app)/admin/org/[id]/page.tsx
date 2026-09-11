@@ -102,6 +102,7 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
         directTerritoryIds={directTerritoryIds}
         liveDirectTerritoryIds={liveDirectTerritoryIds}
         scope={scope}
+        effectiveTerritoryNames={scopeTerritories.filter((t) => effectiveSet.has(t.id)).map(label)}
       />
     </ViewLayout>
   );

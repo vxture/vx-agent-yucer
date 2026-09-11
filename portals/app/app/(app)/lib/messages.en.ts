@@ -1469,6 +1469,8 @@ export const en: Dictionary = {
     formTerritoryChoose: "Choose territories",
     formTerritoryDone: "Territories updated.",
     formTerritoryUnset: "Choose one",
+    territorySetLabel: (mode: string) => `Set: ${mode}`,
+    territoryChosenLabel: "Chosen",
     formTerritoryDrawerTitle: "Choose territories",
     formTerritoryDrawerWhy: "Tick the territories this unit works directly; a territory may have several units. Ticking none leaves it to aggregate or inherit automatically from the org tree.",
     formTerritoryDrawerEmpty: "No territories to choose from yet. Create one under territory setup first.",

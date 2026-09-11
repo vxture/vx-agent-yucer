@@ -62,6 +62,7 @@ export default async function NewOrgUnitPage() {
         directTerritoryIds={[]}
         liveDirectTerritoryIds={[]}
         scope="none"
+        effectiveTerritoryNames={[]}
       />
     </ViewLayout>
   );

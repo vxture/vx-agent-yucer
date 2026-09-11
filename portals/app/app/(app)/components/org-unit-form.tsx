@@ -92,6 +92,7 @@ export function OrgUnitForm({
   directTerritoryIds,
   liveDirectTerritoryIds,
   scope,
+  effectiveTerritoryNames,
 }: {
   readonly isNew: boolean;
   readonly id: string | null;
@@ -125,6 +126,13 @@ export function OrgUnitForm({
   /** The EFFECTIVE outcome if nothing more is ticked - computed server-side
    *  by the same function the org-structure table and resolve-scope.ts use. */
   readonly scope: TerritoryScope;
+  /** The territories 向下聚合/向上继承 actually resolves to right now (owner,
+   *  2026-09-11: 设定向下聚合，向上继承，不能一直显示为无范围 - 应该显示
+   *  继承或聚合结果：范围名称 或 无范围) - the real names, not just the
+   *  badge word, so setting one of those two modes shows what it actually
+   *  covers rather than a generic label that reads the same regardless of
+   *  outcome. Empty (and always, while `isNew`) falls to 无范围. */
+  readonly effectiveTerritoryNames: readonly string[];
 }) {
   const { ORG_ERROR, ORG_TEXT } = useMessages();
   const router = useRouter();
@@ -442,24 +450,55 @@ export function OrgUnitForm({
                 <span className="invisible shrink-0" aria-hidden="true">
                   <Icon name="map-pin" size="lg" />
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 flex flex-col gap-2xs">
                   {!chosen ? (
                     <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryUnset}</p>
-                  ) : chips.length > 0 ? (
-                    <ul className="gap-2xs flex flex-wrap">
-                      {chips.map((tid) => {
-                        const opt = territoryOptions.find((t) => t.id === tid);
-                        return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
-                      })}
-                    </ul>
+                  ) : territoryMode === "manual" ? (
+                    <>
+                      {/* 已选择 (owner, 2026-09-11) - the label for the one
+                          mode that is a real pick, not an automatic
+                          resolution; the chips right under it already are
+                          the answer to "which ones". */}
+                      <p className="text-body-sm text-foreground">{ORG_TEXT.territoryChosenLabel}</p>
+                      {chips.length > 0 ? (
+                        <ul className="gap-2xs flex flex-wrap">
+                          {chips.map((tid) => {
+                            const opt = territoryOptions.find((t) => t.id === tid);
+                            return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground text-body-sm">{ORG_TEXT.noTerritory}</p>
+                      )}
+                    </>
                   ) : (
-                    <p className="text-muted-foreground text-body-sm">
-                      {territoryMode === "aggregate"
-                        ? ORG_TEXT.aggregateTerritory
-                        : territoryMode === "inherited"
-                          ? ORG_TEXT.inheritedTerritory
-                          : ORG_TEXT.noTerritory}
-                    </p>
+                    <>
+                      {/* 已设定：X (owner, 2026-09-11: 设定向下聚合/向上继承
+                          不能一直显示为无范围) - the label names the MODE
+                          that was set; the line under it is the RESULT that
+                          mode resolves to right now - the actual territory
+                          names for aggregate/inherited, or 无范围 for 无区域
+                          (same word both places there, since that mode's
+                          setting and its result are the same fact). */}
+                      <p className="text-body-sm text-foreground">
+                        {ORG_TEXT.territorySetLabel(
+                          territoryMode === "aggregate"
+                            ? ORG_TEXT.territoryModeAggregate
+                            : territoryMode === "inherited"
+                              ? ORG_TEXT.territoryModeInherited
+                              : ORG_TEXT.noTerritory,
+                        )}
+                      </p>
+                      {territoryMode !== "none" && effectiveTerritoryNames.length > 0 ? (
+                        <ul className="gap-2xs flex flex-wrap">
+                          {effectiveTerritoryNames.map((n) => (
+                            <li key={n}><Tag>{n}</Tag></li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground text-body-sm">{ORG_TEXT.noTerritory}</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
