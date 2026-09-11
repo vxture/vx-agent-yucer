@@ -292,6 +292,32 @@ export async function upsertOrgUnit(ctx: PlanningContext, input: OrgUnitDraft): 
   return ok(await ctx.store.upsertOrgUnit(ctx.workspaceId, plan.value));
 }
 
+/**
+ * 迁到… (owner, 2026-09-11): change a unit's PARENT, everything else about it
+ * held fixed - its own current code, name, kind and leader, re-submitted
+ * through the same upsert-by-code path the full edit form uses, so the same
+ * cycle check (`parent_cycle`, in `planOrgUnit`) and every other invariant
+ * apply exactly as they do there. Not a sibling reorder - see `moveOrgUnit`
+ * for that, a different axis entirely.
+ */
+export async function reparentOrgUnit(
+  ctx: PlanningContext,
+  input: { id: string; parentId: string | null },
+): Promise<RuleResult<OrgUnitRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  const units = await ctx.store.listOrgUnits(ctx.workspaceId);
+  const self = units.find((u) => u.id === input.id);
+  if (!self) return fail(violation("not_found", "no such unit to move", "id"));
+  return upsertOrgUnit(ctx, {
+    unitCode: self.unitCode,
+    name: self.name,
+    parentId: input.parentId,
+    kindId: self.kindId,
+    leaderSub: self.leaderSub,
+  });
+}
+
 /** Move a unit among its SIBLINGS - the order is per parent. */
 export async function moveOrgUnit(
   ctx: PlanningContext,

@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { Button, EmptyState, Tooltip, TooltipContent, TooltipTrigger, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -7,6 +7,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgTemplates, listOrgUnits, listTerritories } from "../../../domains/planning/service";
+import { listCarves, listMarketDivisions } from "../../../domains/account/service";
 import { OrgPanel, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
 import { NewEntryLink } from "../../components/form-page";
@@ -15,10 +16,12 @@ import { Tag } from "../../components/tag";
 // 组织结构 - the fourth axis (incr/0051; owner, 2026-09-10: 完全可以自定义；平台
 // 预置模版，多套模版作基准；默认中规模全国公司，总部-大区-团队三级).
 //
-// THE SAME LIST/CREATE SPLIT /admin/roles has: the roster states, the row
-// leads to the form, 新建单位 · 单位类型 · 应用模版 sit in the header's action
-// slot. The roster is the TREE, flattened in tree order with chevrons, so a
-// reader sees the company's shape without opening anything.
+// HEADER: THREE BUTTONS (owner, 2026-09-11: 头部按钮保留三个，层级设置，应用
+// 模版，三方接入（禁用）) - 层级设置 is the renamed 单位类型 button (same
+// route, /admin/org/kinds; see ORG_KIND_TEXT.title), 应用模版 is unchanged,
+// 三方接入 is a new, permanently-disabled placeholder. 新建单位 moved out of
+// the header into OrgPanel's own toolbar, primary, beside the table it acts
+// on - see OrgPanel for why.
 //
 // GATED ON admin.member.view to read - the organisation is what the member
 // list is organised by - and admin.org.upsert to change.
@@ -36,7 +39,8 @@ export default async function OrgPage() {
   }
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
-  const [units, templates, placements, members, territories] = await Promise.all([
+  const account = { ...base, store: session.stores.account() };
+  const [units, templates, placements, members, territories, carves, divisions] = await Promise.all([
     listOrgUnits(planning),
     listOrgTemplates(planning),
     listOrgMembers(planning),
@@ -44,6 +48,11 @@ export default async function OrgPage() {
     // The other side of the joint (0052), behind planning.territory.view; a
     // reader without it sees the column say 无区域 rather than a wrong count.
     listTerritories(planning),
+    // 应用模版 面板 (owner, 2026-09-11): 区域设置的预置划分, for the panel's
+    // optional division-sync choice - a reader without account.view just
+    // sees no such section, same silent-degrade as territories above.
+    listCarves(account),
+    listMarketDivisions(account),
   ]);
   if (!units.ok) {
     return <EmptyState title={SHELL_TEXT.loadFailed} description={ORG_TEXT.emptyWhy} />;
@@ -88,7 +97,6 @@ export default async function OrgPage() {
         action={
           editable ? (
             <>
-              <NewEntryLink href="/admin/org/new" label={ORG_TEXT.newUnit} />
               <NewEntryLink href="/admin/org/kinds" label={ORG_TEXT.kindsButton} />
               <OrgTemplateReset
                 templates={(templates.ok ? templates.value : []).map((t) => ({
@@ -96,7 +104,19 @@ export default async function OrgPage() {
                 }))}
                 currentUnits={rows.length}
                 placed={placed}
+                divisionTemplates={(carves.ok ? carves.value : []).map((t) => ({
+                  key: t.key, name: t.name, divisions: t.divisions.length,
+                }))}
+                currentDivisions={divisions.ok ? divisions.value.length : 0}
               />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button variant="secondary" disabled>{ORG_TEXT.thirdParty}</Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{ORG_TEXT.thirdPartyHint}</TooltipContent>
+              </Tooltip>
             </>
           ) : null
         }

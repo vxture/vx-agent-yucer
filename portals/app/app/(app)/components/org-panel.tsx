@@ -1,12 +1,32 @@
 "use client";
 
-import { Button, ButtonGroup, DataTable, Drawer, EmptyState, Icon, Section, TableTitleCell, useToast } from "@vxture/design-ui";
+import {
+  BulkActionBar,
+  Button,
+  ButtonGroup,
+  DataTable,
+  DialogForm,
+  Drawer,
+  EmptyState,
+  Field,
+  FieldLabel,
+  FilterBar,
+  Icon,
+  ListCard,
+  ListCardGrid,
+  NativeSelect,
+  Section,
+  StatusBadge,
+  TableTitleCell,
+  useToast,
+  type FilterBarView,
+} from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
-import { moveOrgUnitAction, removeOrgUnitAction } from "../admin/org/actions";
+import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
 import { Tag } from "./tag";
 
 /* 组织结构 - 展示. DISPLAY ONLY, the shape /admin/roles has.
@@ -19,7 +39,19 @@ import { Tag } from "./tag";
  * THE ORDER IS THE ORDER, per parent: sort_order is what this roster, the
  * parent select on the unit form and the unit menu on /admin/members all
  * follow, so there are no sortable headers; the four moves are in the row's
- * menu and move a unit AMONG ITS SIBLINGS.
+ * menu and move a unit AMONG ITS SIBLINGS - 迁到… (below) is the other axis,
+ * changing WHICH parent a unit stands under.
+ *
+ * THE TOOLBAR (owner, 2026-09-11: 增加表格头，list/card 模式切换，共xx个机构;
+ * 展开/收起 按钮 ---- 留白 ---- 删除（选择后红色-需二次确认），新建（primary）)
+ * is the DS's own `FilterBar`, the same slot the permission tree's toolbar
+ * uses: `count` on the left, `scope` for 展开/收起 (a view-state control, not
+ * a filter - same reasoning as the permission tree's own 展开到), `view` for
+ * the list/card switch, `actions` on the right for 新建 (always primary, the
+ * DS's own convention). 删除 is NOT in `actions` - it depends on a selection,
+ * which is exactly what `BulkActionBar` is for (the shape /admin/members'
+ * 组织 tab already uses for its own bulk actions), so it renders separately
+ * once something is checked, with its own two-step confirm.
  *
  * 单位详情 answers the question 成员管理 could not: who is in 华南分公司. It
  * is a drawer, view-only; 编辑 in its foot goes to the one form.
@@ -41,6 +73,25 @@ export interface OrgUnitRow {
   readonly territories: readonly { readonly code: string; readonly name: string; readonly regions: readonly string[] }[];
 }
 
+/** Every id in `id`'s own subtree, `id` itself included - what 迁到… must
+ *  exclude from the target list, or a unit could be moved under its own
+ *  descendant. `rows` is small (a few dozen units at most), so a couple of
+ *  linear passes over it costs nothing worth memoising harder. */
+function subtreeOf(rows: readonly OrgUnitRow[], id: string): Set<string> {
+  const out = new Set<string>([id]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const r of rows) {
+      if (r.parentId && out.has(r.parentId) && !out.has(r.id)) {
+        out.add(r.id);
+        grew = true;
+      }
+    }
+  }
+  return out;
+}
+
 export function OrgPanel({
   rows,
   editable,
@@ -52,11 +103,14 @@ export function OrgPanel({
   /** unit id -> the names placed there, for the drawer. */
   readonly unitMembers: Readonly<Record<string, readonly string[]>>;
 }) {
-  const { DATA_TABLE_LABELS, ORG_ERROR, ORG_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, ORG_ERROR, ORG_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<FilterBarView>("list");
+  const [moveDialog, setMoveDialog] = useState<{ readonly id: string; readonly name: string; readonly parentId: string | null } | null>(null);
+  const [moveTarget, setMoveTarget] = useState("");
   const [pending, start] = useTransition();
   const { toast } = useToast();
 
@@ -118,33 +172,198 @@ export function OrgPanel({
     router.refresh();
   };
 
+  /* 迁到… (owner, 2026-09-11): a unit's own new parent. `subtreeOf` keeps the
+     picker from offering the unit itself or anything under it - moving a
+     branch under its own leaf is the cycle `parent_cycle` exists to refuse,
+     caught here too so the picker never offers a choice the server would
+     bounce. Defaults to the unit's CURRENT parent, so opening the dialog
+     shows where it already stands. */
+  const openMove = (r: OrgUnitRow) => {
+    setMoveDialog({ id: r.id, name: r.name, parentId: r.parentId });
+    setMoveTarget(r.parentId ?? "");
+  };
+  const submitMove = () =>
+    start(async () => {
+      if (!moveDialog) return;
+      const res = await reparentOrgUnitAction(moveDialog.id, moveTarget === "" ? null : moveTarget);
+      if (!res.ok) {
+        toast({ tone: "danger", title: ORG_ERROR[res.error] ?? res.error });
+        return;
+      }
+      toast({ tone: "success", title: ORG_TEXT.moveDone(moveDialog.name) });
+      setMoveDialog(null);
+      router.refresh();
+    });
+
+  /* 批量删除 (owner, 2026-09-11: 删除（选择后红色-需二次确认）). A selected
+     unit is deletable in THIS batch only if every unit under it is ALSO
+     selected - a partial subtree would fail the same FK RESTRICT a single
+     row's delete already respects, so it is skipped rather than attempted
+     and reported as an error. Deletable ones go deepest-first, so a child
+     is always gone before the parent above it is tried. */
+  const childrenOf = useMemo(() => {
+    const out = new Map<string, string[]>();
+    for (const r of rows) if (r.parentId) out.set(r.parentId, [...(out.get(r.parentId) ?? []), r.id]);
+    return out;
+  }, [rows]);
+  const bulkRemove = () =>
+    start(async () => {
+      const selectedSet = new Set(selected);
+      const fullySelected = (id: string): boolean =>
+        (childrenOf.get(id) ?? []).every((childId) => selectedSet.has(childId) && fullySelected(childId));
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const targets = selected
+        .map((id) => byId.get(id))
+        .filter((r): r is OrgUnitRow => r !== undefined);
+      const deletable = targets.filter((r) => fullySelected(r.id)).sort((a, b) => b.depth - a.depth);
+      const skipped = targets.length - deletable.length;
+      let removed = 0;
+      let unplaced = 0;
+      for (const r of deletable) {
+        const res = await removeOrgUnitAction(r.id);
+        if (res.ok) {
+          removed += 1;
+          unplaced += res.unplaced;
+        } else {
+          toast({ tone: "danger", title: `${r.name}: ${ORG_ERROR[res.error] ?? res.error}` });
+        }
+      }
+      if (removed > 0) toast({ tone: "success", title: ORG_TEXT.bulkRemoveDone(removed, unplaced) });
+      if (skipped > 0) toast({ tone: "info", title: ORG_TEXT.bulkRemoveSkipped(skipped) });
+      setSelected([]);
+      router.refresh();
+    });
+
   const children = details ? rows.filter((r) => r.parentId === details.id) : [];
   const placedHere = details ? (unitMembers[details.id] ?? []) : [];
 
+  /* Shared between the table row and the card - same menu either way. */
+  const actionsFor = (r: OrgUnitRow) => {
+    const sib = siblingsOf(r);
+    const at = sib.findIndex((x) => x.id === r.id);
+    return (
+      <RowActions
+        disabled={pending}
+        items={[
+          { id: "details", label: ROW_OPS.details(ORG_TEXT.noun), onSelect: () => setDetails(r) },
+          ...(editable
+            ? [
+                { id: "edit", label: ROW_OPS.configure(ORG_TEXT.noun), onSelect: () => router.push(`/admin/org/${r.id}`) },
+                ...moveItems(ROW_OPS, at, sib.length, (d) => move(r.id, d)),
+                /* 迁到… (owner, 2026-09-11: 操作面板，增加 [迁到...]) - the
+                   OTHER axis: not among siblings, but to a different parent
+                   entirely. */
+                { id: "moveTo", label: ORG_TEXT.moveTo, onSelect: () => openMove(r) },
+                /* The FK's RESTRICT, said first: a trunk is not
+                   deleted while anything stands under it. */
+                {
+                  id: "remove",
+                  label: ROW_OPS.remove(ORG_TEXT.noun),
+                  separatorBefore: true,
+                  danger: true as const,
+                  disabled: r.children > 0,
+                  hint: r.children > 0 ? ORG_TEXT.removeChildrenHint(r.children) : undefined,
+                  confirm: {
+                    verb: ROW_OPS.remove(ORG_TEXT.noun),
+                    target: ORG_TEXT.removeTarget(r.name),
+                    consequence: ORG_TEXT.removeConsequence(r.members),
+                    titleTemplate: ORG_TEXT.destructiveTitle,
+                    cancelLabel: ORG_TEXT.cancel,
+                    onConfirm: () => remove(r),
+                  },
+                },
+              ]
+            : []),
+        ]}
+      />
+    );
+  };
+
   return (
     <Section id="org">
-      {/* A TOOLBAR ROW, as the permission tree draws its own. These two sat in
-          the Section's `action` slot and never rendered: the DS's Section
-          draws its header - and the slot with it - only when it has a title
-          (found 2026-09-10 while placing the members page's view switch). */}
       {rows.length > 0 ? (
-        <div className="gap-sm flex items-center justify-end">
-          <ButtonGroup>
-            <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set())}>{ORG_TEXT.expandAll}</Button>
-            <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set(branches))}>{ORG_TEXT.collapseAll}</Button>
-          </ButtonGroup>
-        </div>
+        <FilterBar
+          count={ORG_TEXT.toolbarCount(rows.length)}
+          view={view}
+          onViewChange={(v) => {
+            setView(v);
+            /* Cards carry no selection checkbox (the DS's ListCard has none) -
+               clearing on switch keeps a stale count from sitting behind the
+               view a reader cannot act on it from. */
+            setSelected([]);
+          }}
+          scope={
+            <ButtonGroup>
+              <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set())}>{ORG_TEXT.expandAll}</Button>
+              <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set(branches))}>{ORG_TEXT.collapseAll}</Button>
+            </ButtonGroup>
+          }
+          actions={editable ? <Button onClick={() => router.push("/admin/org/new")}>{ORG_TEXT.newUnit}</Button> : undefined}
+        />
+      ) : null}
+      {editable && view === "list" ? (
+        <BulkActionBar
+          count={selected.length}
+          noun={ORG_TEXT.selectionNoun}
+          selectionTemplate={DS_LABELS.bulkSelectionTemplate}
+          toolbarLabel={DS_LABELS.bulkToolbar}
+          clearLabel={ORG_TEXT.clearSelection}
+          onClear={() => setSelected([])}
+          actions={[
+            {
+              id: "remove",
+              label: ORG_TEXT.bulkRemove,
+              danger: true as const,
+              confirm: {
+                verb: ORG_TEXT.bulkRemove,
+                target: ORG_TEXT.bulkRemoveTarget(selected.length),
+                consequence: ORG_TEXT.bulkRemoveConsequence,
+                titleTemplate: ORG_TEXT.destructiveTitle,
+                cancelLabel: ORG_TEXT.cancel,
+                onConfirm: bulkRemove,
+              },
+            },
+          ]}
+        />
       ) : null}
       {rows.length === 0 ? (
         <EmptyState title={ORG_TEXT.emptyTitle} description={ORG_TEXT.emptyWhy} />
+      ) : view === "cards" ? (
+        <ListCardGrid>
+          {visible.map((r) => (
+            <ListCard
+              key={r.unitCode}
+              title={r.name}
+              description={r.unitCode}
+              onTitleClick={() => setDetails(r)}
+              status={<StatusBadge tone="info" icon={false}>{`L${r.depth}`}</StatusBadge>}
+              actions={actionsFor(r)}
+              meta={
+                <div className="gap-xs flex flex-wrap items-center">
+                  {r.kindName ? <Tag>{r.kindName}</Tag> : null}
+                  <span className="text-muted-foreground text-body-sm">
+                    {r.leaderName ?? ORG_TEXT.leaderNone}
+                  </span>
+                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                    {r.members === 0 ? ORG_TEXT.noMember : ORG_TEXT.members(r.members)}
+                  </span>
+                  {r.children > 0 ? <Tag>{ORG_TEXT.childCount(r.children)}</Tag> : null}
+                </div>
+              }
+            />
+          ))}
+        </ListCardGrid>
       ) : (
         <div
           className={
+            /* 模式参考权限策略表格 (owner, 2026-09-11): 标题列压缩，层级/下属
+               单位/类型/负责人/成员数/区域 六列平分；选择/序号/操作列固定，
+               不动 - EDGE_COLUMNS 与 ACTION_COLUMN 是跨表的高一层要求。 */
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-            + " [&_thead_th:nth-child(4)]:w-[7rem]"
-            + " [&_thead_th:nth-child(5)]:w-[10rem]"
-            + " [&_thead_th:nth-child(6)]:w-[6rem]"
-            + " [&_thead_th:nth-child(7)]:w-[6rem]"
+            + " [&_thead_th:nth-child(3)]:w-[13rem] [&_thead_th:nth-child(4)]:w-[5rem]"
+            + " [&_thead_th:nth-child(5)]:w-[6rem] [&_thead_th:nth-child(6)]:w-[6rem]"
+            + " [&_thead_th:nth-child(7)]:w-[7rem] [&_thead_th:nth-child(8)]:w-[6rem]"
+            + " [&_thead_th:nth-child(9)]:w-[6rem]"
           }
         >
           <DataTable
@@ -152,42 +371,7 @@ export function OrgPanel({
             indexStart={1}
             selectedKeys={selected}
             onSelectionChange={(keys) => setSelected([...keys])}
-            rowActions={(r: OrgUnitRow) => {
-              const sib = siblingsOf(r);
-              const at = sib.findIndex((x) => x.id === r.id);
-              return (
-                <RowActions
-                  disabled={pending}
-                  items={[
-                    { id: "details", label: ROW_OPS.details(ORG_TEXT.noun), onSelect: () => setDetails(r) },
-                    ...(editable
-                      ? [
-                          { id: "edit", label: ROW_OPS.configure(ORG_TEXT.noun), onSelect: () => router.push(`/admin/org/${r.id}`) },
-                          ...moveItems(ROW_OPS, at, sib.length, (d) => move(r.id, d)),
-                          /* The FK's RESTRICT, said first: a trunk is not
-                             deleted while anything stands under it. */
-                          {
-                            id: "remove",
-                            label: ROW_OPS.remove(ORG_TEXT.noun),
-                            separatorBefore: true,
-                            danger: true as const,
-                            disabled: r.children > 0,
-                            hint: r.children > 0 ? ORG_TEXT.removeChildrenHint(r.children) : undefined,
-                            confirm: {
-                              verb: ROW_OPS.remove(ORG_TEXT.noun),
-                              target: ORG_TEXT.removeTarget(r.name),
-                              consequence: ORG_TEXT.removeConsequence(r.members),
-                              titleTemplate: ORG_TEXT.destructiveTitle,
-                              cancelLabel: ORG_TEXT.cancel,
-                              onConfirm: () => remove(r),
-                            },
-                          },
-                        ]
-                      : []),
-                  ]}
-                />
-              );
-            }}
+            rowActions={actionsFor}
             rowKey={(r: OrgUnitRow) => r.unitCode}
             rows={visible}
             columns={[
@@ -211,20 +395,30 @@ export function OrgPanel({
                     ) : (
                       <span className="w-8 shrink-0" />
                     )}
-                    {/* THE DS'S TABLE TITLE CELL, not a hand-set pair of spans
-                        (owner, 2026-09-10: 组织视图文字小了). The old spans
-                        wore `text-body` - no such tier exists, the name fell
-                        through to the table's 12px - and the DS's cell sets
-                        the table tier itself: label-md bold over body-sm. */}
-                    <TableTitleCell
-                      title={r.name}
-                      tooltip={r.name}
-                      titleSuffix={r.children > 0 ? <Tag>{ORG_TEXT.childCount(r.children)}</Tag> : undefined}
-                      description={r.unitCode}
-                      onTitleClick={() => setDetails(r)}
-                    />
+                    <TableTitleCell title={r.name} tooltip={r.name} description={r.unitCode} onTitleClick={() => setDetails(r)} />
                   </span>
                 ),
+              },
+              {
+                /* 层级 (owner, 2026-09-11: 增加层级展示列 L0，L1) - depth
+                   itself, not a fixed enum of named tiers the way the
+                   permission tree's four levels are, so one tone throughout
+                   rather than one per level. */
+                id: "tier",
+                header: ORG_TEXT.colTier,
+                align: "center" as const,
+                cell: (r: OrgUnitRow) => <StatusBadge tone="info" icon={false}>{`L${r.depth}`}</StatusBadge>,
+              },
+              {
+                /* 下属单位 (owner, 2026-09-11: 独立下属单位列) - pulled out of
+                   the name column's titleSuffix, same reason the permission
+                   tree's 子级 became its own column: two tags stacked behind
+                   a title is clutter, one column each is not. */
+                id: "children",
+                header: ORG_TEXT.colChildren,
+                align: "center" as const,
+                cell: (r: OrgUnitRow) =>
+                  r.children > 0 ? <span className="text-body-sm tabular-nums">{r.children}</span> : <span className="text-muted-foreground">—</span>,
               },
               {
                 id: "kind",
@@ -322,6 +516,34 @@ export function OrgPanel({
           </Section>
         </div>
       </Drawer>
+
+      <DialogForm
+        open={moveDialog !== null}
+        onOpenChange={(o) => { if (!o) setMoveDialog(null); }}
+        title={moveDialog ? ORG_TEXT.moveTitle(moveDialog.name) : ""}
+        description={ORG_TEXT.moveWhy}
+        submitLabel={ORG_TEXT.moveConfirm}
+        cancelLabel={ORG_TEXT.cancel}
+        submitDisabled={pending}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitMove();
+        }}
+      >
+        <Field>
+          <FieldLabel>{ORG_TEXT.moveField}</FieldLabel>
+          <NativeSelect value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} disabled={pending}>
+            <option value="">{ORG_TEXT.parentNone}</option>
+            {moveDialog
+              ? rows
+                  .filter((u) => !subtreeOf(rows, moveDialog.id).has(u.id))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>{ORG_TEXT.optionIndent(u.depth, u.name)}</option>
+                  ))
+              : null}
+          </NativeSelect>
+        </Field>
+      </DialogForm>
     </Section>
   );
 }

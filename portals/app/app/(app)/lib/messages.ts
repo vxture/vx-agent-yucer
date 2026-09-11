@@ -2693,11 +2693,26 @@ export const ORG_TEXT = {
   count: (units: number, placed: number) => `${units} 个单位 · ${placed} 人已归属`,
   noun: "单位",
   newUnit: "新建单位",
-  kindsButton: "单位类型",
+  // 层级设置 (owner, 2026-09-11: 头部按钮改为 层级设置/应用模版/三方接入) -
+  // 单位类型就是这棵树的层级词表（总部/事业部/大区/分公司/团队），改名对齐
+  // 新增的 L0/L1 层级列；页面本身（/admin/org/kinds）不动，见 ORG_KIND_TEXT.title。
+  kindsButton: "层级设置",
+  // 三方接入 (owner, 2026-09-11): 头部第三个按钮，先占位，禁用。
+  thirdParty: "三方接入",
+  thirdPartyHint: "即将推出",
   expandAll: "全部展开",
   collapseAll: "全部收起",
   childCount: (n: number) => `${n} 个下级`,
+  // 工具行 (owner, 2026-09-11: 增加表格头，list/card 模式切换，共xx个机构):
+  // 与权限策略页同一个 FilterBar 位置 - count 在 count，展开/收起挪进 scope。
+  toolbarCount: (n: number) => `共 ${n} 个单位`,
   colUnit: "单位",
+  // 层级 / 下属单位 (owner, 2026-09-11: 增加层级展示列 L0，L1，独立下属单位
+  // 列，模式参考权限策略表格) - Ln 就是 depth，不是固定四档，所以只给一个
+  // 语气，不像权限树那样分四色；下属单位数从名称列的 titleSuffix 里拉出来
+  // 单独成列，同一个理由：堆在标题后面太乱。
+  colTier: "层级",
+  colChildren: "下属单位",
   colKind: "类型",
   colLeader: "负责人",
   colMembers: "成员数",
@@ -2742,20 +2757,43 @@ export const ORG_TEXT = {
   saveFailed: "保存失败",
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateReset: "应用模版",
-  templateTitle: "应用组织模版",
-  templateWhy: "选一套预置组织模版作为起点，之后随便改。",
+  templateTitle: "应用模版",
+  templateWhy: "选一套预置组织模版作为起点，之后随便改；也可以同步把区域设置一起套上。",
   templateOption: (name: string, units: number) => `${name} · ${units} 个单位`,
   templateDefault: "默认",
   templateDangerTitle: "这是不可撤销的替换",
-  templateWarn: (units: number, placed: number) =>
-    units === 0
+  templateWarn: (units: number, placed: number, divisionName: string | null, currentDivisions: number) => {
+    const org = units === 0
       ? "当前没有单位，直接套用模版。"
-      : `当前 ${units} 个单位将全部删除；${placed} 位成员的所属单位将清空，需要重新归属。`,
+      : `当前 ${units} 个单位将全部删除；${placed} 位成员的所属单位将清空，需要重新归属。`;
+    if (!divisionName) return org;
+    const division = currentDivisions === 0
+      ? `同时会应用「${divisionName}」区域设置模版。`
+      : `同时会用「${divisionName}」替换当前 ${currentDivisions} 个大区。`;
+    return `${org}${division}`;
+  },
   templateConfirm: "确认替换",
   templateVerb: "替换",
-  templateTarget: (name: string) => `为「${name}」`,
-  templateDone: (units: number, unplaced: number, detached: number) =>
-    `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属${detached > 0 ? `；${detached} 个销售区域已解除挂靠` : ""}`,
+  templateTarget: (name: string, divisionName: string | null) => divisionName ? `为「${name}」+「${divisionName}」` : `为「${name}」`,
+  templateDone: (units: number, unplaced: number, detached: number, divisions: number, territories: number, linkedUnits: number) => {
+    const org = `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属${detached > 0 ? `；${detached} 个销售区域已解除挂靠` : ""}`;
+    if (divisions === 0) return org;
+    return `${org}；同步套用 ${divisions} 个大区，新建 ${territories} 个销售区域${linkedUnits > 0 ? `，自动关联 ${linkedUnits} 个机构` : ""}`;
+  },
+  // 应用模版选择面板优化 (owner, 2026-09-11: 应用模版选择面板需要优化了 -
+  // 组织架构模版三选一不变；区域设置模版可选，选了就同步在区域设置应用同一
+  // 套（五分法/七分法），并按大区逐个新建同名销售区域；自动关联现在是独立
+  // 的第三节（owner: 把关联选项作为第三个标题），没同步区域设置就没有新
+  // 销售区域可关联，禁用并说明原因。
+  templateOrgLabel: "组织架构模版",
+  templateDivisionLabel: "区域设置模版",
+  templateDivisionWhy: "同步选一套预置的大区划分；不选就不动区域设置。",
+  templateDivisionNone: "不同步",
+  templateDivisionOption: (name: string, divisions: number) => `${name} · ${divisions} 个大区`,
+  templateAssociateLabel: "自动关联",
+  templateAutoAssociate: "按名称自动关联机构与新建的销售区域",
+  templateAutoAssociateHint: "机构名字里带着销售区域的名字才会关联，例如「华北大区」机构关联「华北」销售区域。",
+  templateAutoAssociateDisabled: "先在上面选一套区域设置模版，才有新建的销售区域可以关联。",
   // 关联区域（incr/0052）：单位这一侧的关系。
   colTerritories: "区域",
   territoryCount: (n: number) => `${n} 个`,
@@ -2767,10 +2805,32 @@ export const ORG_TEXT = {
   removeDetached: (n: number) => `${n} 个销售区域已解除挂靠`,
   emptyTitle: "还没有单位",
   emptyWhy: "新建一个，或应用模版。",
+  // 迁到… (owner, 2026-09-11: 操作面板增加 [迁到...] - 点点也是菜单名构成) -
+  // 换一个上级单位，不改代码、名称、类型或负责人；跟 /admin/org/{id} 的完整
+  // 编辑表单是同一个写入路径（saveOrgUnitAction），只是这里只问"迁到哪"。
+  moveTo: "迁到…",
+  moveTitle: (name: string) => `迁到 - ${name}`,
+  moveWhy: "选一个新的上级单位；不能选它自己或它的下级。",
+  moveField: "新的上级单位",
+  moveConfirm: "迁移",
+  moveDone: (name: string) => `已迁移「${name}」`,
+  // 批量删除 (owner, 2026-09-11: 删除（选择后红色-需二次确认）) - BulkActionBar
+  // 自己的两步：点了先弹确认，onConfirm 落锤。仍有下级单位的不在这批里删,
+  // 跳过并如实说跳过了几个 - 沉默地少删几个，比报一个笼统的失败更诚实。
+  selectionNoun: "个单位",
+  clearSelection: "取消选择",
+  bulkRemove: "删除",
+  bulkRemoveTarget: (n: number) => `已选的 ${n} 个单位`,
+  bulkRemoveConsequence: "所选单位会被删除，归属其中的成员将变为未归属；仍有下级单位的不会被删除。不可撤销。",
+  bulkRemoveDone: (removed: number, unplaced: number) =>
+    `已删除 ${removed} 个单位${unplaced > 0 ? `；${unplaced} 位成员已变为未归属` : ""}`,
+  bulkRemoveSkipped: (n: number) => `${n} 个仍有下级单位，未删除`,
 } as const;
 
 export const ORG_KIND_TEXT = {
-  title: "单位类型",
+  // 层级设置 (owner, 2026-09-11): 页面标题跟 ORG_TEXT.kindsButton 的按钮名
+  // 保持一致 - 点了"层级设置"落地页却叫"单位类型"，是同一件事两种说法。
+  title: "层级设置",
   why: "组织里有哪些层级的单位：总部、事业部、大区、分公司、团队。可改名、排序、新增；有单位在用的类型不能删。",
   count: (n: number) => `${n} 种类型`,
   noun: "类型",
