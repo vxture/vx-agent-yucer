@@ -9,6 +9,7 @@ import {
   moveOrgUnit,
   removeOrgKind,
   removeOrgUnit,
+  reparentOrgUnit,
   saveOrgKind,
   upsertOrgUnit,
 } from "../../../domains/planning/service";
@@ -68,6 +69,16 @@ export async function moveOrgUnitAction(id: string, direction: MoveDirection): P
   const c = await ctx();
   if (!c) return { ok: false, error: "not_authenticated" };
   const r = await moveOrgUnit(c, { id, direction });
+  if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** 迁到… - a unit's own new parent, everything else about it unchanged. */
+export async function reparentOrgUnitAction(id: string, parentId: string | null): Promise<Result<object>> {
+  const c = await ctx();
+  if (!c) return { ok: false, error: "not_authenticated" };
+  const r = await reparentOrgUnit(c, { id, parentId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/", "layout");
   return { ok: true };
