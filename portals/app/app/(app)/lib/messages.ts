@@ -96,7 +96,10 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // 组织管理（owner 2026-09-10：成员管理改为组织管理，含菜单和页面）。
   members: "组织管理",
   roles: "角色管理",
-  permissions: "权限管理",
+  // 权限策略（owner 2026-09-10：参考平台治理平面的权限策略页布局改名 -
+  // 这页从不新建/编辑权限，"管理" 名不副实；权限的判断权归属和授权在
+  // 角色管理里做，这里只读地说明策略本身长什么样）。
+  permissions: "权限策略",
   scope: "数据范围",
   orgUnit: "组织结构",
   product: "产品配置",
@@ -1932,7 +1935,7 @@ export const ADMIN_TEXT = {
   entryHint: {
     members: "谁在哪个单位，各自的关联区域、数据范围与角色",
     roles: "九个角色各自能做什么",
-    permissions: "二十五条权限，谁持有它",
+    permissions: "权限如何分组、谁持有它",
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
@@ -4855,12 +4858,26 @@ export const POSITION_TEXT = {
    carry in their middle token, and a name for every one of the 69 operations
    - permission-tree.test.ts fails on a missing one. */
 export const PERMISSION_TREE_TEXT = {
-  title: "权限管理",
-  why: "按业务域、模块、页面、操作四级展开；每个操作需要的权限，以及持有它的角色。权限为预置，授权在角色管理里改。",
+  title: "权限策略",
+  why: "按业务域、模块、页面、操作四级展开；每个操作需要的权限，以及持有它的角色。权限为系统预置，授权在角色管理里改。",
   count: (actions: number, roles: number) => `${actions} 个操作 · ${roles} 个角色`,
-  colPoint: "权限点",
-  colLevel: "层级",
+  colPoint: "名称",
+  colLevel: "类型",
   colOps: "操作",
+  // 来源一列（owner 2026-09-10：参考平台治理平面的三列布局）：目录整个是
+  // 代码里的 authz/actions.ts，没有一条是从这个页面新建出来的，所以每一行
+  // 都如实标"系统预置" - 不做假的"新增权限"入口。
+  colSource: "来源",
+  source: "系统预置",
+  // 工具行的搜索与筛选（owner 2026-09-10：参考平台治理平面的搜索/筛选布局）。
+  searchLabel: "搜索权限",
+  searchHint: "搜索名称、权限码",
+  domainFilterLabel: "业务域",
+  filterAllDomains: "全部业务域",
+  resetFilters: "重置筛选",
+  toolbarCount: (n: number) => `共 ${n} 项操作`,
+  toolbarFilteredCount: (shown: number, total: number) => `筛选出 ${shown} / ${total} 项操作`,
+  filterEmpty: "没有匹配的权限点，换个关键词或业务域再试",
   // 授权角色一列（owner, 2026-09-10: 撤掉角色横铺，前三名 + 数量，悬停看全部）。
   colHolders: "授权角色",
   holdersJoin: "、",

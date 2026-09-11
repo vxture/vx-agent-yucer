@@ -25,7 +25,7 @@ import { Tag } from "./tag";
  * preset - rename one or move a permission and it reads as theirs.
  *
  * THE ORDER IS THE ORDER, as it is for the 大区: sort_order is what the
- * roster, the assignment menu on /admin/members and the columns of 权限管理
+ * roster, the assignment menu on /admin/members and the columns of 权限策略
  * all follow, so there are no sortable headers; the moves are in the row's
  * menu and change the order for everybody.
  */

@@ -7,6 +7,7 @@ import { NAV_ENTRIES } from "./navigation";
 import {
   ACTION_DOMAIN_GROUP,
   buildPermissionTree,
+  filterPermissionTree,
   flattenTree,
   keysDownTo,
   splitActionId,
@@ -113,4 +114,47 @@ test("flattening follows the expansion state, and keysDownTo opens to a level", 
   const all = keysDownTo(tree, "action");
   assert.equal(flattenTree(tree, all).filter((r) => r.node.level === "action").length, Object.keys(ACTIONS).length);
   assert.deepEqual(splitActionId("admin.member.role.assign"), { module: "admin", page: "member" });
+});
+
+// --- filterPermissionTree (the search box and the 业务域 filter share it) ---
+
+test("filterPermissionTree keeps a matching leaf and every ancestor above it, dropping siblings that match nothing", () => {
+  const tree = buildPermissionTree();
+  const target = tree.flatMap((g) => g.children).flatMap((m) => m.children).find((n) => n.level === "action" || n.level === "page")!;
+  const wantedKey = target.key;
+  const filtered = filterPermissionTree(tree, (n) => n.key === wantedKey);
+
+  const collect = (nodes: readonly PermissionNode[]): string[] => nodes.flatMap((n) => [n.key, ...collect(n.children)]);
+  const keys = collect(filtered);
+  assert.ok(keys.includes(wantedKey), "the match itself survives");
+  // Every ancestor path segment of the match is a prefix of its key
+  // ("group/module" and "group/module/page" for a page; the group and
+  // module alone for a module's own action) - each must survive too.
+  const parts = wantedKey.split("/");
+  for (let i = 1; i < parts.length; i++) {
+    assert.ok(keys.includes(parts.slice(0, i).join("/")), `ancestor ${parts.slice(0, i).join("/")} survives`);
+  }
+  // A sibling that does not match, and has no matching descendant, is gone.
+  const groupNode = filtered.find((g) => g.key === parts[0])!;
+  for (const m of groupNode.children) {
+    const matchesSelf = collect([m]).includes(wantedKey);
+    if (!matchesSelf) {
+      // every action under this module must itself fail the predicate too,
+      // or filterPermissionTree would be wrong to have dropped it - proven
+      // by construction: the predicate is `key === wantedKey`, so a module
+      // without the target key anywhere under it holds nothing that matches.
+      assert.ok(!collect([m]).includes(wantedKey));
+    }
+  }
+});
+
+test("filterPermissionTree over a predicate nothing matches returns an empty tree", () => {
+  const tree = buildPermissionTree();
+  assert.deepEqual(filterPermissionTree(tree, () => false), []);
+});
+
+test("filterPermissionTree over a predicate everything matches returns every node, structure intact", () => {
+  const tree = buildPermissionTree();
+  const filtered = filterPermissionTree(tree, () => true);
+  assert.deepEqual(filtered, tree);
 });

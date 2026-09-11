@@ -10,8 +10,9 @@ import { buildPermissionTree } from "../../lib/permission-tree";
 import { PermissionTree } from "../../components/permission-tree";
 import { Tag } from "../../components/tag";
 
-// 权限管理 - the catalogue as a tree: 业务域 / 模块 / 页面 / 操作, with one
-// column per role (owner, 2026-09-09).
+// 权限策略 (renamed from 权限管理, 2026-09-10 - the page never creates or
+// edits a permission, so "管理" overpromised) - the catalogue as a tree:
+// 业务域 / 模块 / 页面 / 操作, with one column per role (owner, 2026-09-09).
 //
 // THE TREE IS READ OFF authz/actions.ts, never restated. THE COLUMNS ARE THE
 // WORKSPACE'S ROLES (incr/0046) - the presets and whatever the tenant added,
