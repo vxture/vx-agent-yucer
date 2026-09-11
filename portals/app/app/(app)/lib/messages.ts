@@ -2789,10 +2789,18 @@ export const ORG_TEXT = {
   templateConfirm: "确认替换",
   templateVerb: "替换",
   templateTarget: (name: string, divisionName: string | null) => divisionName ? `为「${name}」+「${divisionName}」` : `为「${name}」`,
-  templateDone: (units: number, unplaced: number, detached: number, divisions: number, territories: number, linkedUnits: number) => {
+  templateDone: (
+    units: number,
+    unplaced: number,
+    detached: number,
+    divisions: number,
+    territories: number,
+    linkedUnits: number,
+    territoriesRetired: number,
+  ) => {
     const org = `已套用模版：${units} 个单位；${unplaced} 位成员待重新归属${detached > 0 ? `；${detached} 个销售区域已解除挂靠` : ""}`;
     if (divisions === 0) return org;
-    return `${org}；同步套用 ${divisions} 个大区，新建 ${territories} 个销售区域${linkedUnits > 0 ? `，自动关联 ${linkedUnits} 个机构` : ""}`;
+    return `${org}；同步套用 ${divisions} 个大区，新建 ${territories} 个销售区域${linkedUnits > 0 ? `，自动关联 ${linkedUnits} 个机构` : ""}${territoriesRetired > 0 ? `，${territoriesRetired} 个旧销售区域已下线` : ""}`;
   },
   // 应用模版选择面板优化 (owner, 2026-09-11: 应用模版选择面板需要优化了 -
   // 组织架构模版三选一不变；区域设置模版可选，选了就同步在区域设置应用同一

@@ -107,6 +107,56 @@ export async function upsertTerritory(
 }
 
 /**
+ * Retire the AUTO-<大区代码> territories a division template no longer covers.
+ *
+ * 应用模版's own upsert loop (org/actions.ts) only ever touches the codes the
+ * CURRENTLY chosen carve produces - switching carves (七分法 -> 五分法) leaves
+ * the codes the OLD carve made behind: still `active`, still naming the
+ * divisions and units the org-template reset and the division import already
+ * deleted underneath them. Nothing ever re-submits their code, so
+ * `upsertTerritory` never touches them again on its own - see the "全范围"
+ * badge's own workaround (admin/org/page.tsx) for what that garbage forces
+ * every other reader of the territory list to do.
+ *
+ * REUSES upsertTerritory rather than adding a delete capability: this domain
+ * never deletes a territory row - `status` is the append-heavy way a
+ * territory already leaves service - and `status`/`divisionIds`/`unitIds` are
+ * exactly what upsertTerritory already knows how to replace by code. A row
+ * already retired with nothing left attached is left alone rather than
+ * re-upserted every time a template is applied.
+ */
+export async function retireOrphanedAutoTerritories(
+  ctx: PlanningContext,
+  currentAutoCodes: ReadonlySet<string>,
+): Promise<RuleResult<{ retired: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const existing = await ctx.store.listTerritories(ctx.workspaceId, { includeRetired: true });
+  const orphans = existing.filter(
+    (t) =>
+      t.territoryCode.startsWith("AUTO-") &&
+      !currentAutoCodes.has(t.territoryCode) &&
+      !(t.status === "retired" && t.divisionIds.length === 0 && t.unitIds.length === 0),
+  );
+
+  let retired = 0;
+  for (const t of orphans) {
+    const result = await upsertTerritory(ctx, {
+      territoryCode: t.territoryCode,
+      name: t.name,
+      parentId: t.parentId,
+      ownerSub: t.ownerSub,
+      status: "retired",
+      divisionIds: [],
+      unitIds: [],
+    });
+    if (result.ok) retired += 1;
+  }
+  return ok({ retired });
+}
+
+/**
  * The caller sends a NUMBER and a currency, never a typed value.
  *
  * The unit is a pure function of the metric (`unitOf`), so deriving it here

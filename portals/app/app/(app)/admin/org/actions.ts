@@ -12,6 +12,7 @@ import {
   removeOrgKind,
   removeOrgUnit,
   reparentOrgUnit,
+  retireOrphanedAutoTerritories,
   saveOrgKind,
   upsertOrgUnit,
   upsertTerritory,
@@ -142,6 +143,7 @@ export interface ApplyStartupTemplateResult {
   readonly divisionsReplaced: number;
   readonly territories: number;
   readonly linkedUnits: number;
+  readonly territoriesRetired: number;
 }
 
 /**
@@ -169,6 +171,14 @@ export interface ApplyStartupTemplateResult {
  * 步才做；区域设置那步失败，组织架构已经落地的不回滚，销售区域那步就跳过，
  * 如实汇报做到了哪一步（跟 domains/judgement/service.ts 的说法一致：跨域
  * 拼装走各自的 SERVICE，不碰对方的 store）。
+ *
+ * 4) 上一次模版留下的 AUTO-<大区代码> 销售区域 (owner, 2026-09-11: 切换区域
+ *    设置模版会留下孤儿销售区域) - 步骤 3 只 upsert 当前这份模版会产生的
+ *    代码，换一份大区不重叠的模版（如七分法 -> 五分法）时，旧代码
+ *    （AUTO-CHINA-NORTHEAST 等）永远不会再被 upsert 到，行还在，还指着
+ *    步骤 0/2 刚删掉的单位和大区。retireOrphanedAutoTerritories 只在
+ *    planning 域内部把这些行退休（status: retired，链接清空），复用
+ *    upsertTerritory 而不是新增一个删除能力 - 见该函数自己的注释。
  */
 export async function applyStartupTemplateAction(input: {
   readonly orgKey: string;
@@ -201,6 +211,7 @@ export async function applyStartupTemplateAction(input: {
   let divisionsReplaced = 0;
   let territories = 0;
   let linkedUnits = 0;
+  let territoriesRetired = 0;
 
   if (input.divisionKey) {
     const divisionResult = await importDivisionTemplate(accountCtx, input.divisionKey);
@@ -232,6 +243,9 @@ export async function applyStartupTemplateAction(input: {
           linkedUnits += matchedUnitIds.length;
         }
       }
+      const currentAutoCodes = new Set(rows.map((d) => `AUTO-${d.code}`));
+      const retireResult = await retireOrphanedAutoTerritories(c, currentAutoCodes);
+      territoriesRetired = retireResult.ok ? retireResult.value.retired : 0;
     }
   }
 
@@ -245,6 +259,7 @@ export async function applyStartupTemplateAction(input: {
     divisionsReplaced,
     territories,
     linkedUnits,
+    territoriesRetired,
   };
 }
 
