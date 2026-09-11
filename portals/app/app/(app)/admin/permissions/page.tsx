@@ -1,4 +1,4 @@
-import { EmptyState, PanelCard, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, MetricGrid, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -75,22 +75,36 @@ export default async function PermissionsPage() {
           参考图里三个数字各自一张卡，不是一张卡里塞三个指标; MetricListCard
           的"一卡多指标"是另一件事，用它拼三张单指标卡是用错了件). 总数和
           角色数原来就在头部的 Tag 里；未持有的权限点是新的，一个真实的审计
-          信号，不是凑数的第三张卡 - 它的顶边跟着数字变色，其余两张常态。 */}
-      <div className="gap-md grid grid-cols-1 sm:grid-cols-3">
-        <PanelCard title={PERMISSION_TREE_TEXT.overviewTotal} icon="key" tone="brand">
-          <span className="text-heading-2 font-semibold tabular-nums">{totalActions}</span>
-        </PanelCard>
-        <PanelCard title={PERMISSION_TREE_TEXT.overviewRoles} icon="users" tone="brand">
-          <span className="text-heading-2 font-semibold tabular-nums">{rows.length}</span>
-        </PanelCard>
-        <PanelCard
-          title={PERMISSION_TREE_TEXT.overviewUnheld}
-          icon="shield-warning"
-          tone={unheld > 0 ? "warning" : "brand"}
-        >
-          <span className="text-heading-2 font-semibold tabular-nums">{unheld}</span>
-        </PanelCard>
-      </div>
+          信号，不是凑数的第三张卡 - 它的顶边跟着数字变色，其余两张常态。
+          改用 MetricGrid/MetricCard (owner, 2026-09-11: 紧凑且带右侧背景图的
+          那个 - DS 批 E 新增，单指标一卡，右侧自带 watermark，PanelCard 是
+          通用容器没有这个记号)。 */}
+      <MetricGrid
+        columns={3}
+        items={[
+          {
+            id: "total",
+            label: PERMISSION_TREE_TEXT.overviewTotal,
+            value: totalActions,
+            icon: "key",
+            tone: "brand",
+          },
+          {
+            id: "roles",
+            label: PERMISSION_TREE_TEXT.overviewRoles,
+            value: rows.length,
+            icon: "users",
+            tone: "brand",
+          },
+          {
+            id: "unheld",
+            label: PERMISSION_TREE_TEXT.overviewUnheld,
+            value: unheld,
+            icon: "shield-warning",
+            tone: unheld > 0 ? "warning" : "brand",
+          },
+        ]}
+      />
       <PermissionTree tree={tree} roles={columns} holds={holds} />
     </ViewLayout>
   );
