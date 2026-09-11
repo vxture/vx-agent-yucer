@@ -21,7 +21,7 @@ import {
   type TargetStatus,
 } from "./lib/target";
 import { planTerritory, type TerritoryDraft } from "./lib/territory";
-import { ORG_KIND_CODE_SHAPE, planOrgUnit, type OrgTemplate, type OrgUnitDraft } from "./lib/org";
+import { ORG_KIND_CODE_SHAPE, planOrgUnit, withMatchedRegions, type OrgTemplate, type OrgUnitDraft } from "./lib/org";
 import { planMove, type MoveDirection } from "../shared/ordering";
 import type { CatalogStore } from "../catalog/store";
 import type { OrgKindRecord, OrgUnitRecord, PlanningStore, TargetFilter, TargetRecord, TerritoryRecord } from "./store";
@@ -371,14 +371,23 @@ export async function removeOrgUnit(
  * goes (leaves first), every placement with it, and the template's units come
  * in fresh. The caller confirms; this reports how many members it un-placed.
  */
+/**
+ * `regions`, when given, regenerates the template's own 大区 arm to match
+ * them instead of whatever the shipped template hardcodes - see
+ * `withMatchedRegions` (owner, 2026-09-11: 大区级组织结构也需要创建并关联).
+ * Omitted (or the template is not region-aware), the template applies
+ * exactly as shipped - today's behaviour, unchanged.
+ */
 export async function applyOrgTemplate(
   ctx: PlanningContext,
   key: string,
+  regions?: readonly { readonly code: string; readonly name: string }[],
 ): Promise<RuleResult<{ key: string; units: number; unplaced: number; detached: number }>> {
   const gate = can(ctx.holder, ctx.entitlement, "admin.org.upsert", "data");
   if (!gate.allowed) return denied(gate);
-  const template = (await ctx.store.listOrgTemplates()).find((t) => t.key === key);
-  if (!template) return fail(violation("template_unknown", `${key} is not a shipped template`, "key"));
+  const found = (await ctx.store.listOrgTemplates()).find((t) => t.key === key);
+  if (!found) return fail(violation("template_unknown", `${key} is not a shipped template`, "key"));
+  const template = regions ? withMatchedRegions(found, regions) : found;
   await ensureOrgSeeded(ctx);
   const [units, members, territories] = await Promise.all([
     ctx.store.listOrgUnits(ctx.workspaceId),

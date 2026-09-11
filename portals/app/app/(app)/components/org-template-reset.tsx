@@ -46,7 +46,7 @@ export interface DivisionTemplateOption {
   readonly divisions: number;
 }
 
-export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemplates, currentDivisions }: {
+export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemplates, currentDivisions, regionAwareOrgKeys }: {
   readonly templates: readonly OrgTemplateOption[];
   readonly currentUnits: number;
   /** Members placed somewhere in the current tree - every one is un-placed. */
@@ -54,6 +54,10 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
   readonly divisionTemplates: readonly DivisionTemplateOption[];
   /** 大区 rows /admin/division already has - what a division sync would replace. */
   readonly currentDivisions: number;
+  /** Org template keys with a 大区 layer to regenerate (lib/org.ts's
+   *  REGION_AWARE_ORG_TEMPLATES) - 小规模简单团队 is never in this list, it
+   *  has none (owner, 2026-09-11: 小公司就不用了=默认禁用). */
+  readonly regionAwareOrgKeys: readonly string[];
 }) {
   const { DS_LABELS, ORG_ERROR, ORG_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
@@ -67,6 +71,24 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
   const router = useRouter();
   const picked = templates.find((t) => t.key === chosen) ?? null;
   const pickedDivision = divisionTemplates.find((t) => t.key === divisionChosen) ?? null;
+  const orgIsRegionAware = regionAwareOrgKeys.includes(chosen);
+  /** 小规模简单团队 has no 大区 layer - switching to it clears whatever
+   *  region choice stood, rather than leaving a selection the org template
+   *  can no longer act on. */
+  const chooseOrg = (key: string) => {
+    setChosen(key);
+    if (!regionAwareOrgKeys.includes(key)) {
+      setDivisionChosen("");
+      setAutoAssociate(false);
+    }
+  };
+  /** 选了五分法/七分法就同步勾上自动关联，选不同步就取消 (owner, 2026-09-11:
+   *  如果选择了5分/7分，同步勾选自动关联。选择不分时，取消自动关联) - a
+   *  sensible default the user can still uncheck afterwards. */
+  const chooseDivision = (key: string) => {
+    setDivisionChosen(key);
+    setAutoAssociate(key !== "");
+  };
 
   const run = async () => {
     const r = await applyStartupTemplateAction({
@@ -110,7 +132,7 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
             <span className="text-label-md text-foreground font-semibold">{ORG_TEXT.templateOrgLabel}</span>
             {/* 三选一，描述句偏长 (owner, 2026-09-10: 每套模版的说明), 一行放
                 不下 - 这一组仍然纵向排，横向铺的是下面短得多的区域选项。 */}
-            <RadioGroup value={chosen} onValueChange={setChosen} className="gap-md flex flex-col">
+            <RadioGroup value={chosen} onValueChange={chooseOrg} className="gap-md flex flex-col">
               {templates.map((t) => (
                 <label className="gap-sm flex items-start" key={t.key} htmlFor={`org-template-${t.key}`}>
                   <RadioGroupItem id={`org-template-${t.key}`} value={t.key} className="mt-2xs" />
@@ -128,24 +150,28 @@ export function OrgTemplateReset({ templates, currentUnits, placed, divisionTemp
           {divisionTemplates.length > 0 ? (
             <div className="gap-sm flex flex-col">
               <span className="text-label-md text-foreground font-semibold">{ORG_TEXT.templateDivisionLabel}</span>
-              <span className="text-muted-foreground text-body-sm">{ORG_TEXT.templateDivisionWhy}</span>
+              <span className="text-muted-foreground text-body-sm">
+                {orgIsRegionAware ? ORG_TEXT.templateDivisionWhy : ORG_TEXT.templateDivisionUnavailable}
+              </span>
               {/* 横线铺开 (owner, 2026-09-11: 把大区设置选项横线铺开) - 每个
-                  选项就是一个名字加个数，短，面板加宽后一行放得下。 */}
-              <RadioGroup value={divisionChosen} onValueChange={setDivisionChosen} className="gap-sm flex flex-row flex-wrap">
+                  选项就是一个名字加个数，短，面板加宽后一行放得下。 默认禁用
+                  (owner: 小公司就不用了=默认禁用) - 小规模简单团队没有大区层，
+                  这一整组随组织架构模版的选择禁用，不只是回落到"不同步"。 */}
+              <RadioGroup value={divisionChosen} onValueChange={chooseDivision} className="gap-sm flex flex-row flex-wrap">
                 <label
-                  className="gap-sm border-border has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted flex items-center rounded-lg border px-md py-sm"
+                  className="gap-sm border-border has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted flex items-center rounded-lg border px-md py-sm has-[[data-disabled]]:opacity-muted"
                   htmlFor="division-template-none"
                 >
-                  <RadioGroupItem id="division-template-none" value="" />
+                  <RadioGroupItem id="division-template-none" value="" disabled={!orgIsRegionAware} />
                   <span className="text-body-md">{ORG_TEXT.templateDivisionNone}</span>
                 </label>
                 {divisionTemplates.map((t) => (
                   <label
-                    className="gap-sm border-border has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted flex items-center rounded-lg border px-md py-sm"
+                    className="gap-sm border-border has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary-muted flex items-center rounded-lg border px-md py-sm has-[[data-disabled]]:opacity-muted"
                     key={t.key}
                     htmlFor={`division-template-${t.key}`}
                   >
-                    <RadioGroupItem id={`division-template-${t.key}`} value={t.key} />
+                    <RadioGroupItem id={`division-template-${t.key}`} value={t.key} disabled={!orgIsRegionAware} />
                     <span className="text-body-md">{ORG_TEXT.templateDivisionOption(t.name, t.divisions)}</span>
                   </label>
                 ))}
