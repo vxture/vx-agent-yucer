@@ -83,10 +83,11 @@ import { Tag } from "./tag";
  * 是汇聚关系 - 看不到域就看不到模块，看不到页面就看不到按钮，你的权限树
  * 组织也需要这种思路): read the other way, a domain/module/page's own
  * 授权角色 is exactly the UNION of its children's - a role can do something
- * on a page if it can do something under one of the page's operations. The
- * 序号 in the 名称 cell is the same containment made legible as a number: a
- * child's path is its parent's with one more segment, so "05.01.01" already
- * says "under 05, under 05.01" before you read a single word.
+ * on a page if it can do something under one of the page's operations. 编号
+ * (its own column since 2026-09-10: 把 xx.xx.xx 直接作为编号) is the same
+ * containment made legible as a number: a child's path is its parent's with
+ * one more segment, so "05.01.01" already says "under 05, under 05.01"
+ * before you read a single word.
  *
  * READ-ONLY HERE: the grants are edited on /admin/roles, one role at a time.
  * The action column carries one action a read-only page can still offer -
@@ -143,6 +144,20 @@ const LEVEL_TONE = {
   domain: "brand",
   module: "info",
   page: "neutral",
+  action: "warning",
+} as const;
+
+/* The L1-L4 badge's OWN tone, not LEVEL_TONE (owner, 2026-09-10: 用一个亮
+   一点的背景). LEVEL_TONE colors the 类型 column, where `page` is
+   deliberately neutral - reusing it verbatim here made the L3 badge render
+   with the exact same classes as the 子级 tag beside it (`bg-accent`,
+   `border-border`, no icon), indistinguishable at a glance on every 页面
+   row. This badge always says WHICH of four tiers, so all four get a real
+   color; `success` fills the one slot LEVEL_TONE leaves neutral. */
+const LEVEL_BADGE_TONE = {
+  domain: "brand",
+  module: "info",
+  page: "success",
   action: "warning",
 } as const;
 
@@ -361,35 +376,48 @@ export function PermissionTree({
         className={
           /* EVERY COLUMN NAMED, NOTHING LEFT TO AUTO (owner, 2026-09-10:
              列宽固定，不够可以放宽但固定；除了名称列宽一些，其他的列平分
-             列宽). 序号 keeps the 4rem the shared EDGE_COLUMNS constant
-             gives every table's index column (owner, 2026-09-06's
-             cross-table grid rule; 编号...是高一层要求的固定列宽 - the
-             VALUE is that rule's, applied by hand rather than via the
-             constant itself, because EDGE_COLUMNS sizes a leadingSpacer +
-             indexStart PAIR and this table no longer has the spacer half
-             of it - reusing it verbatim would put its second 4rem on 名称
-             instead). 类型 / 来源 / 授权角色 split evenly; 操作 is
-             ACTION_COLUMN, that rule's own fixed width, untouched. */
+             列宽；then: 把 xx.xx.xx 直接作为编号，列宽适当优化). 编号 is
+             now the tree path itself (up to "01.01.01.01", eleven
+             characters) rather than the DS's own flat `indexStart` count,
+             so it gets more room than that fitting's usual 4rem. 类型 /
+             来源 / 授权角色 split evenly; 操作 is ACTION_COLUMN, the
+             cross-table rule's own fixed width (owner, 2026-09-06;
+             编号...是高一层要求的固定列宽 no longer applies to 编号 itself,
+             since this table's 编号 is no longer that fitting - see
+             table-fittings.test.ts's FITTING_EXEMPTIONS). */
           "[&_table]:table-fixed " + ACTION_COLUMN
-          + " [&_thead_th:nth-child(1)]:w-[4rem] [&_thead_th:nth-child(2)]:w-[22rem]"
+          + " [&_thead_th:nth-child(1)]:w-[6rem] [&_thead_th:nth-child(2)]:w-[20rem]"
           + " [&_thead_th:nth-child(3)]:w-[7rem] [&_thead_th:nth-child(4)]:w-[7rem]"
           + " [&_thead_th:nth-child(5)]:w-[7rem]"
         }
       >
         <DataTable
           labels={DATA_TABLE_LABELS}
-          /* 去掉左侧占位列 (owner, 2026-09-10): this tree is never
-             bulk-selected - there is nothing a checkbox column here would
-             ever do, placeholder or real, so it is gone rather than kept
-             as dead space. table-fittings.test.ts's EXEMPT_BY_DESIGN
-             names this file and why; 序号 and 操作 still apply. */
-          indexStart={1}
+          /* 去掉左侧占位列 与 把 xx.xx.xx 直接作为编号 (owner, 2026-09-10):
+             neither the DS's `leadingSpacer` nor its `indexStart` fitting
+             is used - a bulk-select gutter has nothing to select in a
+             read-only catalogue, and a flat 1-N count would say less than
+             the 编号 column below already does. table-fittings.test.ts's
+             FITTING_EXEMPTIONS names this file and both fittings, with the
+             reason; 操作 still applies. */
           rowActions={(r: PermissionRow) =>
             <RowActions items={r.node.permission ? [{ id: "copy", label: T.copyCode, icon: "copy", onSelect: () => copyCode(r.node.permission!) }] : []} />
           }
           rowKey={(r: PermissionRow) => r.node.key}
           rows={rows}
           columns={[
+            {
+              /* 编号 (owner, 2026-09-10): the row's OWN path, not a running
+                 count - "05" for the fifth root, "05.01.01" for its
+                 grandchild's first child. Each ancestor's ordinal among
+                 ITS siblings, so the column already says how deep and
+                 where among its siblings a row sits before the indent or
+                 a single word of the title is read. */
+              id: "path",
+              header: "#",
+              align: "center" as const,
+              cell: (r: PermissionRow) => <span className="text-body-sm tabular-nums">{r.path}</span>,
+            },
             {
               id: "point",
               header: T.colPoint,
@@ -398,16 +426,6 @@ export function PermissionTree({
                 const branch = n.children.length > 0;
                 return (
                   <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
-                    {/* 路径编号 (owner, 2026-09-10: 参考平台治理平面的
-                        01/05.01 编号 - 只加编号，不加深度徽章). The DS's own
-                        `indexStart` is the 序号列 every table carries (owner,
-                        2026-09-06) and stays a flat running count for that
-                        reason; this is the SECOND, independent number the
-                        reference's own numbering actually encoded - each
-                        ancestor's ordinal among ITS siblings - so it lives
-                        beside the title instead of claiming another whole
-                        column against the cross-table grid rule. */}
-                    <span className="text-muted-foreground text-label-sm w-12 shrink-0 tabular-nums">{r.path}</span>
                     {/* The chevron is the row's own control; a leaf keeps
                         its width so titles line up down a level. */}
                     {branch ? (
@@ -433,11 +451,17 @@ export function PermissionTree({
                       title={title(n)}
                       tooltip={title(n)}
                       titleSuffix={
-                        <>
-                          {/* L1-L4 (owner, 2026-09-10: 层级标签没有加上). */}
-                          <Tag>{LEVEL_NUMBER[n.level]}</Tag>
+                        <span className="gap-xs flex items-center">
+                          {/* L1-L4 (owner, 2026-09-10: 层级标签没有加上; then
+                              用一个亮一点的背景，两个标签相近拥挤). The
+                              SAME tone the 类型 column colors that level by
+                              (LEVEL_TONE) - not neutral, which is what made
+                              this badge and 子级 read as the same grey blob
+                              at a glance - plus an explicit gap, since a
+                              bare Fragment left them touching. */}
+                          <Tag tone={LEVEL_BADGE_TONE[n.level]}>{LEVEL_NUMBER[n.level]}</Tag>
                           {branch ? <Tag>{T.childCount(n.children.length)}</Tag> : null}
-                        </>
+                        </span>
                       }
                       description={subtitle(n)}
                     />
