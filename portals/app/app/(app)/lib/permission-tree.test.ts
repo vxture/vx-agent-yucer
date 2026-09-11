@@ -11,6 +11,7 @@ import {
   flattenTree,
   keysDownTo,
   splitActionId,
+  unheldActionCount,
   type PermissionNode,
 } from "./permission-tree";
 import * as zh from "./messages";
@@ -157,4 +158,55 @@ test("filterPermissionTree over a predicate everything matches returns every nod
   const tree = buildPermissionTree();
   const filtered = filterPermissionTree(tree, () => true);
   assert.deepEqual(filtered, tree);
+});
+
+// --- the "#" column's path numbering (owner, 2026-09-10: 参考平台治理平面
+// 的 01/05.01 编号，只加编号，不加深度徽章) ---
+
+test("flattenTree's path is the sibling-ordinal chain, two digits per level, independent of global row order", () => {
+  const tree = buildPermissionTree();
+  const rows = flattenTree(tree, keysDownTo(tree, "action"));
+  // The fifth root is "05" - never "5", and never the row's position in the
+  // flattened array (which would be a much bigger number by then).
+  const fifthRoot = tree[4]!;
+  const fifthRow = rows.find((r) => r.node.key === fifthRoot.key)!;
+  assert.equal(fifthRow.path, "05");
+  // A child's path is its parent's, with its own two-digit ordinal appended.
+  const firstChild = fifthRoot.children[0]!;
+  const firstChildRow = rows.find((r) => r.node.key === firstChild.key)!;
+  assert.equal(firstChildRow.path, `${fifthRow.path}.01`);
+  // Every root gets a distinct two-digit path, in tree order.
+  const rootPaths = tree.map((g, i) => rows.find((r) => r.node.key === g.key)!.path);
+  assert.deepEqual(rootPaths, tree.map((_, i) => String(i + 1).padStart(2, "0")));
+});
+
+test("unheldActionCount counts only actions nobody in the given set holds, and zero when everyone is covered", () => {
+  const tree = buildPermissionTree();
+  const allPermissions = new Set<string>();
+  const walk = (nodes: readonly PermissionNode[]) => {
+    for (const n of nodes) {
+      if (n.level === "action" && n.permission) allPermissions.add(n.permission);
+      walk(n.children);
+    }
+  };
+  walk(tree);
+  assert.equal(unheldActionCount(tree, allPermissions), 0, "every permission held: nothing unheld");
+  assert.ok(unheldActionCount(tree, new Set()) > 0, "nobody holds anything: every action is unheld");
+  // Removing exactly one permission from the held set raises the count by
+  // exactly the number of actions that share it (usually one).
+  const [oneCode] = allPermissions;
+  const withoutOne = new Set(allPermissions);
+  withoutOne.delete(oneCode!);
+  const sharers = (() => {
+    let n = 0;
+    const count = (nodes: readonly PermissionNode[]) => {
+      for (const node of nodes) {
+        if (node.level === "action" && node.permission === oneCode) n++;
+        count(node.children);
+      }
+    };
+    count(tree);
+    return n;
+  })();
+  assert.equal(unheldActionCount(tree, withoutOne), sharers);
 });

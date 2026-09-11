@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
   TableTitleCell,
+  useToast,
   type IconName,
 } from "@vxture/design-ui";
 import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot } from "./table-fittings";
@@ -69,17 +70,28 @@ import { Tag } from "./tag";
  * order is the workspace's own (sort_order), so the three named are the
  * highest rungs that hold the permission.
  *
- * SEARCH AND THE DOMAIN FILTER SHARE ONE PRUNE (filterPermissionTree, in the
- * lib): the domain filter narrows the root array, a query then prunes what
- * is left to nodes matching by title/code with every ancestor kept, so a
- * match stays legible inside its branch. While either is active every
- * remaining branch opens (keysDownTo the deepest level) and the row
- * chevrons stop writing to the manual expand state - so clearing the filter
- * restores exactly the fold state you had before searching, not whatever
- * you clicked while the tree was pruned to begin with.
+ * SEARCH, A LEVEL FILTER AND THE DOMAIN FILTER SHARE ONE PRUNE
+ * (filterPermissionTree, in the lib, extended 2026-09-10 for 层级): 业务域
+ * narrows the root array, then 层级 and a text query prune what is left
+ * together, keeping every ancestor of a match so a hit stays legible inside
+ * its branch. While any is active every remaining branch opens (keysDownTo
+ * the deepest level) and the row chevrons stop writing to the manual expand
+ * state - so clearing the filter restores exactly the fold state you had
+ * before searching, not whatever you clicked while the tree was pruned.
+ *
+ * 角色汇聚 ON A BRANCH ROW (owner, 2026-09-10: 权限应该有继承关系，角色应该
+ * 是汇聚关系 - 看不到域就看不到模块，看不到页面就看不到按钮，你的权限树
+ * 组织也需要这种思路): read the other way, a domain/module/page's own
+ * 授权角色 is exactly the UNION of its children's - a role can do something
+ * on a page if it can do something under one of the page's operations. The
+ * 序号 in the 名称 cell is the same containment made legible as a number: a
+ * child's path is its parent's with one more segment, so "05.01.01" already
+ * says "under 05, under 05.01" before you read a single word.
  *
  * READ-ONLY HERE: the grants are edited on /admin/roles, one role at a time.
- * The action column is the fitting every table carries, with nothing in it.
+ * The action column carries one action a read-only page can still offer -
+ * 复制权限码 - and nothing else; on a branch, which has no code of its own
+ * to copy, it is the empty case every table's action column has to have.
  */
 
 /** One workspace role, in roster order. `group` is its line and rung, for
@@ -152,28 +164,37 @@ export function PermissionTree({
 }) {
   const { DATA_TABLE_LABELS, PERMISSION_TREE_TEXT: T } = useMessages();
   const { title, subtitle } = useNodeCopy();
+  const { toast } = useToast();
   // Open to the pages by default: the shape is visible, the operations are
   // one click away each rather than a wall.
   const [expanded, setExpanded] = useState<Set<string>>(() => keysDownTo(tree, "page"));
   const [query, setQuery] = useState("");
   const [domain, setDomain] = useState("");
+  // 层级筛选 (owner, 2026-09-10: 参考平台治理平面的"全部类型" - 与业务域筛选
+  // 并列的第二种入口): narrows to one PermissionLevel, ancestors kept the
+  // same way a text match keeps them, through the one shared prune.
+  const [level, setLevel] = useState<PermissionLevel | "">("");
   const q = query.trim().toLowerCase();
-  const isFiltering = q !== "" || domain !== "";
+  const isFiltering = q !== "" || domain !== "" || level !== "";
 
-  /* THE TOOLBAR'S TWO NARROWING CONTROLS (owner, 2026-09-10: 参考平台治理
+  /* THE TOOLBAR'S THREE NARROWING CONTROLS (owner, 2026-09-10: 参考平台治理
      平面的搜索/筛选布局), one prune: 业务域 narrows the root array first
-     (it IS the tree's top level, no pruning needed for it alone), then a
-     query prunes what is left by title / subtitle / code, keeping every
-     ancestor of a match so a hit still reads inside its branch. */
+     (it IS the tree's top level, no pruning needed for it alone); 层级 and
+     a text query then prune what is left through the SAME predicate - a
+     node survives if it matches both active conditions itself, or has a
+     surviving child, so an ancestor of a match stays even though the
+     ancestor's own level or text does not match. */
   const filtered = useMemo(() => {
     const byDomain = domain ? tree.filter((g) => g.key === domain) : tree;
-    if (q === "") return byDomain;
+    if (q === "" && level === "") return byDomain;
     return filterPermissionTree(byDomain, (n) => {
+      if (level !== "" && n.level !== level) return false;
+      if (q === "") return true;
       const hay = `${title(n)} ${subtitle(n)} ${n.name} ${n.permission ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tree, domain, q]);
+  }, [tree, domain, level, q]);
 
   /* While filtering, every branch that survived the prune opens on its own
      - there is nothing left to fold - and the chevrons stop writing to
@@ -196,6 +217,37 @@ export function PermissionTree({
     }
     return out;
   }, [roles, holds]);
+  /* 角色汇聚 (owner, 2026-09-10: 权限应该有继承关系，角色应该是汇聚关系 -
+     看不到域就看不到模块，看不到页面就看不到按钮). Read the other way, for
+     a BRANCH row: a domain/module/page's own reach is exactly the UNION of
+     what its children's reach is - a page can be done by a role if some
+     operation on it can. One pass over the WHOLE tree (not the filtered
+     view; a branch's reach is a structural fact, not something a search
+     should appear to change), permission codes collected bottom-up per
+     node key, keyed once and read by every row. */
+  const subtreePermissions = useMemo(() => {
+    const out = new Map<string, ReadonlySet<string>>();
+    const collect = (n: PermissionNode): ReadonlySet<string> => {
+      if (n.level === "action") {
+        const own = new Set<string>(n.permission ? [n.permission] : []);
+        out.set(n.key, own);
+        return own;
+      }
+      const union = new Set<string>();
+      for (const c of n.children) for (const p of collect(c)) union.add(p);
+      out.set(n.key, union);
+      return union;
+    };
+    for (const root of tree) collect(root);
+    return out;
+  }, [tree]);
+  /* Roles that can reach AT LEAST ONE action in a node's subtree, in
+     roster order - a branch's own "授权角色". */
+  const branchHolders = (node: PermissionNode): RoleColumn[] => {
+    const perms = subtreePermissions.get(node.key);
+    if (!perms || perms.size === 0) return [];
+    return roles.filter((r) => (holds[r.code] ?? []).some((p) => perms.has(p)));
+  };
   const countActions = (nodes: readonly PermissionNode[]): number =>
     nodes.reduce((sum, n) => sum + (n.level === "action" ? 1 : countActions(n.children)), 0);
   const total = countActions(tree);
@@ -213,6 +265,17 @@ export function PermissionTree({
       else next.add(key);
       return next;
     });
+  };
+
+  /* 复制权限码 (owner, 2026-09-10): the one thing a read-only page can still
+     DO - hand a developer or support reader the exact string the service
+     layer checks, for a bug report or a permission catalog. Nothing is
+     written anywhere; the clipboard is the browser's, not this product's. */
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code).then(
+      () => toast({ tone: "success", title: T.codeCopied(code) }),
+      () => toast({ tone: "danger", title: T.copyFailed }),
+    );
   };
 
   return (
@@ -237,9 +300,21 @@ export function PermissionTree({
             />
           </SearchSlot>
         }
-        onReset={isFiltering ? () => { setQuery(""); setDomain(""); } : undefined}
+        onReset={isFiltering ? () => { setQuery(""); setDomain(""); setLevel(""); } : undefined}
         resetLabel={T.resetFilters}
       >
+        <FilterSlot width="w-[8rem]">
+          <NativeSelect
+            value={level}
+            aria-label={T.levelFilterLabel}
+            onChange={(e) => setLevel(e.target.value as PermissionLevel | "")}
+          >
+            <option value="">{T.filterAllLevels}</option>
+            {(["domain", "module", "page", "action"] as const).map((lvl) => (
+              <option key={lvl} value={lvl}>{T.levelLabel[lvl]}</option>
+            ))}
+          </NativeSelect>
+        </FilterSlot>
         <FilterSlot width="w-[10rem]">
           <NativeSelect value={domain} aria-label={T.domainFilterLabel} onChange={(e) => setDomain(e.target.value)}>
             <option value="">{T.filterAllDomains}</option>
@@ -271,10 +346,11 @@ export function PermissionTree({
       ) : (
       <div
         className={
-          /* FIXED LAYOUT, NAMED WIDTHS: the two fittings, the name, the
-             type and the source column; 授权角色 takes what is left.
-             Nothing scrolls and nothing is pinned - one column holds
-             thirty-one roles as well as it holds nine. */
+          /* FIXED LAYOUT, NAMED WIDTHS: the two SHARED fittings (owner,
+             2026-09-06: 每张表都有选择列/序号列/操作列 - the product's own
+             cross-table grid rule; table-fittings.test.ts enforces it), the
+             name, the type and the source column; 授权角色 - now a single
+             count tag, not a wrapping name list - takes what is left. */
           `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
           + " [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(4)]:w-[6rem]"
           + " [&_thead_th:nth-child(5)]:w-[6rem]"
@@ -284,7 +360,9 @@ export function PermissionTree({
           labels={DATA_TABLE_LABELS}
           leadingSpacer
           indexStart={1}
-          rowActions={() => <RowActions items={[]} />}
+          rowActions={(r: PermissionRow) =>
+            <RowActions items={r.node.permission ? [{ id: "copy", label: T.copyCode, icon: "copy", onSelect: () => copyCode(r.node.permission!) }] : []} />
+          }
           rowKey={(r: PermissionRow) => r.node.key}
           rows={rows}
           columns={[
@@ -296,6 +374,16 @@ export function PermissionTree({
                 const branch = n.children.length > 0;
                 return (
                   <span className="gap-xs flex items-center" style={{ paddingLeft: `${r.depth * 1.5}rem` }}>
+                    {/* 路径编号 (owner, 2026-09-10: 参考平台治理平面的
+                        01/05.01 编号 - 只加编号，不加深度徽章). The DS's own
+                        `indexStart` is the 序号列 every table carries (owner,
+                        2026-09-06) and stays a flat running count for that
+                        reason; this is the SECOND, independent number the
+                        reference's own numbering actually encoded - each
+                        ancestor's ordinal among ITS siblings - so it lives
+                        beside the title instead of claiming another whole
+                        column against the cross-table grid rule. */}
+                    <span className="text-muted-foreground text-label-sm w-12 shrink-0 tabular-nums">{r.path}</span>
                     {/* The chevron is the row's own control; a leaf keeps
                         its width so titles line up down a level. */}
                     {branch ? (
@@ -346,43 +434,39 @@ export function PermissionTree({
               align: "center" as const,
               cell: () => <Tag>{T.source}</Tag>,
             },
-            /* 授权角色: the first three holders in roster order, then how
-               many in all; every holder on hover. A branch reads nothing -
-               a module does not hold a permission, its operations do. */
+            /* 授权角色 (owner, 2026-09-10: 只留数字，tags 模式，鼠标浮动显示
+               角色列表保留；分支行读 branchHolders - 角色应该是汇聚关系，一
+               个分支能被谁触达是它每个子节点能被谁触达的并集). A name list
+               wraps in a narrow column and reads worse the harder it is
+               forced to center; a single count badge does not have that
+               problem and says the one fact a reader scanning seventy rows
+               actually wants - "how many" - with the full roster one hover
+               away, unchanged. Zero holders is its own warning-toned badge,
+               not a hover target - there is nothing to list, on a leaf
+               (nobody may perform it) or on a branch (nobody may do
+               anything under it at all). */
             {
               id: "holders",
               header: T.colHolders,
-              // Owner, 2026-09-10: 除了名称首列，其他全部居中 - the cell is
-              // centered like every other column here; the hover trigger
-              // inside it stays its own left-reading inline-flex.
               align: "center" as const,
               cell: (r: PermissionRow) => {
-                const p = r.node.permission;
-                if (!p) return null;
-                const list = holders.get(p) ?? [];
+                const n = r.node;
+                const list = n.permission ? (holders.get(n.permission) ?? []) : branchHolders(n);
                 if (list.length === 0) {
-                  return <span className="text-muted-foreground text-body-sm">{T.holdersNone}</span>;
+                  return <StatusBadge tone="warning" dot>{T.holdersNone}</StatusBadge>;
                 }
-                const lead = list.slice(0, 3);
                 return (
                   <HoverCard openDelay={150} closeDelay={100}>
                     <HoverCardTrigger asChild>
-                      {/* w-full + justify-center, not just the DS wrapper's
-                          own centering: a three-name list is long enough to
-                          wrap onto its own lines inside this narrow a column,
-                          and only text-align on the WRAPPING span - not the
-                          outer flex row's justify-content - centers a line
-                          once it has wrapped (owner, 2026-09-10: 除了名称
-                          首列，其他全部居中). */}
-                      <span className="gap-xs inline-flex w-full cursor-default flex-wrap items-center justify-center">
-                        <span className="text-body-md text-center">{lead.map((x) => x.name).join(T.holdersJoin)}</span>
-                        {list.length > 3 ? <Tag>{T.holdersMore(list.length - 3)}</Tag> : null}
-                        <span className="text-muted-foreground text-label-md">{T.holdersCount(list.length)}</span>
+                      <span className="inline-flex cursor-default">
+                        <StatusBadge tone="brand" icon="users">{T.holdersCount(list.length)}</StatusBadge>
                       </span>
                     </HoverCardTrigger>
                     <HoverCardContent align="start" className="w-auto min-w-[16rem] max-w-[28rem]">
                       <div className="gap-sm flex flex-col">
-                        <span className="text-label-md font-semibold">{T.holdersTitle(title(r.node), list.length)}</span>
+                        <span className="text-label-md font-semibold">
+                          {n.permission ? T.holdersTitle(title(n), list.length) : T.holdersTitleBranch(title(n), list.length)}
+                        </span>
                         <ul className="gap-2xs flex flex-col">
                           {list.map((x, i) => (
                             <li key={x.code} className="gap-sm flex items-baseline">

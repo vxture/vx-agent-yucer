@@ -4877,14 +4877,27 @@ export const PERMISSION_TREE_TEXT = {
   resetFilters: "重置筛选",
   toolbarCount: (n: number) => `共 ${n} 项操作`,
   toolbarFilteredCount: (shown: number, total: number) => `筛选出 ${shown} / ${total} 项操作`,
-  filterEmpty: "没有匹配的权限点，换个关键词或业务域再试",
+  filterEmpty: "没有匹配的权限点，换个关键词、层级或业务域再试",
+  levelFilterLabel: "层级",
+  filterAllLevels: "全部层级",
+  // 复制权限码（owner 2026-09-10：操作列加一个只读能做的动作）。
+  copyCode: "复制权限码",
+  codeCopied: (code: string) => `已复制：${code}`,
+  copyFailed: "复制失败，换成手动选中",
+  // 顶部总览卡（owner 2026-09-10：参考平台治理平面的统计区，换成我们真有的数）。
+  overviewTitle: "权限总览",
+  overviewTotal: "总操作数",
+  overviewRoles: "角色数",
+  overviewUnheld: "未持有角色",
   // 授权角色一列（owner, 2026-09-10: 撤掉角色横铺，前三名 + 数量，悬停看全部）。
   colHolders: "授权角色",
-  holdersJoin: "、",
-  holdersMore: (n: number) => `+${n}`,
+  // 授权角色列只放数量（owner 2026-09-10：只留数字，tags 模式，悬浮看名单）。
   holdersCount: (n: number) => `共 ${n} 个角色`,
   holdersNone: "无角色持有",
   holdersTitle: (op: string, n: number) => `${op} · ${n} 个角色可执行`,
+  // 分支行（业务域/模块/页面）的悬浮标题：角色汇聚——能做到它子树里任意一件事
+  // 的角色（owner 2026-09-10：权限应该有继承关系，角色应该是汇聚关系）。
+  holdersTitleBranch: (name: string, n: number) => `${name} · ${n} 个角色能做到子级里的至少一件事`,
   levelLabel: {
     domain: "业务域",
     module: "模块",

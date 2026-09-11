@@ -120,20 +120,57 @@ export interface PermissionRow {
   readonly node: PermissionNode;
   readonly depth: number;
   readonly expanded: boolean;
+  /**
+   * The row's position as its ancestors' sibling-ordinals, two digits each,
+   * joined by "." - "05" for the fifth root, "05.01" for its first child
+   * (owner, 2026-09-10: 参考平台治理平面的编号方式 - the sequence in the
+   * shared "#" column). A SECOND, independent way to read the tree's shape
+   * besides the indent: the indent says how deep, the path says where among
+   * its siblings, at every level at once.
+   */
+  readonly path: string;
 }
 
 export function flattenTree(
   nodes: readonly PermissionNode[],
   expanded: ReadonlySet<string>,
   depth = 0,
+  pathPrefix: readonly string[] = [],
 ): PermissionRow[] {
   const out: PermissionRow[] = [];
-  for (const node of nodes) {
+  nodes.forEach((node, i) => {
+    const path = [...pathPrefix, String(i + 1).padStart(2, "0")];
     const open = expanded.has(node.key);
-    out.push({ node, depth, expanded: open });
-    if (open && node.children.length > 0) out.push(...flattenTree(node.children, expanded, depth + 1));
-  }
+    out.push({ node, depth, expanded: open, path: path.join(".") });
+    if (open && node.children.length > 0) out.push(...flattenTree(node.children, expanded, depth + 1, path));
+  });
   return out;
+}
+
+/**
+ * How many operations no role (among the ones given) may perform - a node
+ * whose permission nobody holds. `heldPermissions` is the union of every
+ * role's grants; the caller decides whose (owner, 2026-09-10: 参考平台治理
+ * 平面"未绑定"的提示 - our analogue, since nothing here is ever disabled or
+ * unbound from its definition: what CAN go to zero is who may act on it).
+ */
+export function unheldActionCount(
+  tree: readonly PermissionNode[],
+  // A plain string set, not ReadonlySet<PermCode>: the caller's source is a
+  // role's stored grants (persisted as text), narrower than PermCode is not
+  // guaranteed there and is not needed here - membership only ever reads a
+  // PermCode against it, which a wider string set already answers correctly.
+  heldPermissions: ReadonlySet<string>,
+): number {
+  let n = 0;
+  const walk = (nodes: readonly PermissionNode[]) => {
+    for (const node of nodes) {
+      if (node.level === "action" && node.permission && !heldPermissions.has(node.permission)) n++;
+      walk(node.children);
+    }
+  };
+  walk(tree);
+  return n;
 }
 
 /** Every key at or above a level - what "expand to 页面" means. */
