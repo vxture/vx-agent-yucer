@@ -104,7 +104,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // 角色管理里做，这里只读地说明策略本身长什么样）。
   permissions: "权限策略",
   scope: "数据范围",
-  orgUnit: "组织结构",
+  orgUnit: "组织架构",
   product: "产品配置",
   winLossReason: "赢丢原因",
   industry: "行业分类",
@@ -1391,7 +1391,7 @@ export const MEMBER_TEXT = {
   handoverPartial: (skipped: number) =>
     `其中 ${skipped} 条未能转交，规则拒绝了它们。`,
   // 数据范围（incr/0022，owner 2026-09-01 裁定）。决定权在主管理员，不在角色。
-  // 所属单位（incr/0051；0053 起一人可在多个单位）。组织结构页维护单位本身。
+  // 所属单位（incr/0051；0053 起一人可在多个单位）。组织架构页维护单位本身。
   columnUnit: "所属单位",
   unitNone: "未归属",
   // 两个视图（owner 2026-09-10：清单视图、组织视图；组织视图只显示主名称）。
@@ -1492,7 +1492,7 @@ export const MEMBER_TEXT = {
   unitField: "所属单位",
   unitConfigure: "配置",
   unitsHint: "可勾选多个单位；一人可同时归入多个单位，本单位范围按各单位的子树合并。",
-  unitsNone: "组织结构里还没有单位。先到组织结构里建一个。",
+  unitsNone: "组织架构里还没有单位。先到组织架构里建一个。",
   scopeField: "可见范围",
   territoriesField: "销售区域",
   territoriesHint: "本区域范围：勾选能看到的区域，含其下级区域。",
@@ -2686,9 +2686,9 @@ export const ROLE_GROUP_TEXT = {
   },
 } as const;
 
-/** 组织结构（incr/0051）。 */
+/** 组织架构（incr/0051）。 */
 export const ORG_TEXT = {
-  title: "组织结构",
+  title: "组织架构",
   why: "公司怎么搭：总部、大区、团队，谁归哪个单位、谁负责。预置三套模版可选，之后随便改。",
   count: (units: number, placed: number) => `${units} 个单位 · ${placed} 人已归属`,
   noun: "单位",
@@ -2762,13 +2762,13 @@ export const ORG_TEXT = {
   formTerritoryChoose: "选择区域",
   formTerritoryDone: "已更新关联区域。",
   // 暂不关联时的只读预览 - 向下聚合/向上继承来自 effectiveTerritoryIds，跟
-  // 组织结构表格、resolve-scope.ts 的真实数据范围算的是同一件事。
+  // 组织架构表格、resolve-scope.ts 的真实数据范围算的是同一件事。
   formTerritoryAggregateHint: (n: number) => `还没有单独选择区域，会自动向下聚合下属单位关联的 ${n} 个区域。`,
   formTerritoryInheritedHint: (ancestorName: string) => `还没有单独选择区域，会自动向上继承「${ancestorName}」的区域范围。`,
   formTerritoryNoneHint: "还没有关联任何区域 - 这个单位和它的上下级都还没有区域。",
   formTerritoryNewHint: "还没有选择区域 - 可以先选，也可以创建单位后再到「单位配置」里设置。",
   formTerritoryDrawerTitle: "选择关联区域",
-  formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织结构自动聚合或继承。",
+  formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织架构自动聚合或继承。",
   formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateReset: "应用模版",
@@ -4052,7 +4052,7 @@ export const PLANNING_TEXT = {
   // 所属单位（incr/0052）：一个区域可挂多个单位。
   territoryUnits: "所属单位",
   territoryUnitsHint: "勾选负责这块区域的单位。一个区域可以由多个单位共同负责；不勾选，就只是一块没人负责的地。",
-  territoryUnitsNone: "还没有单位。先到组织结构里建单位。",
+  territoryUnitsNone: "还没有单位。先到组织架构里建单位。",
   territoryNoUnit: "未挂单位",
   territoryCode: "区域代码",
   territoryName: "名称",
@@ -5060,7 +5060,7 @@ export const PERMISSION_TREE_TEXT = {
     "admin.member": "成员",
     "admin.adoption": "使用情况",
     "admin.role": "角色",
-    "admin.org": "组织结构",
+    "admin.org": "组织架构",
   } as Record<string, string>,
   actionLabel: {
     "strategy.plan.view": "查看战略方案",
