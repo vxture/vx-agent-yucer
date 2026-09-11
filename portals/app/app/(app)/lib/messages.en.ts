@@ -1465,7 +1465,6 @@ export const en: Dictionary = {
     formTerritoryTitle: "Territories",
     territoryModeAggregate: "Aggregate downward",
     territoryModeInherited: "Inherit upward",
-    territoryModeManual: "Choose manually",
     territoryModeNone: "No territory",
     formTerritoryChoose: "Choose territories",
     formTerritoryDone: "Territories updated.",

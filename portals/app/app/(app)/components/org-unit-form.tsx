@@ -217,6 +217,14 @@ export function OrgUnitForm({
     if (!isNew) setTerritorySelection(directTerritoryIds);
     setTerritoryDrawerOpen(true);
   };
+  /* 选择区域 (原手动选择改名，owner 2026-09-11: 放第一个) - one click now
+     both commits to the manual mode AND opens the drawer; there is no more
+     intermediate "手动选择 reveals a second 选择区域 button" step. */
+  const chooseManualTerritory = () => {
+    setChosen(true);
+    setManualIntent(true);
+    openTerritoryDrawer();
+  };
   const toggleTerritory = (territoryId: string) =>
     setTerritorySelection((prev) => (prev.includes(territoryId) ? prev.filter((t) => t !== territoryId) : [...prev, territoryId]));
   /* NEW: nothing to write yet - 保存单位 applies `territorySelection` once
@@ -239,19 +247,13 @@ export function OrgUnitForm({
       router.refresh();
     });
   };
-  /* Picking one of the four buttons. "手动选择" only flips the local intent -
-     nothing is written until 选择区域 actually ticks something and (edit)
-     saves, or (new) 保存单位 applies the pending pick. Picking any of the
-     other three gives up a direct link that may not exist yet, in which
-     case there is nothing to write and this is a no-op past the flag.
-     Any of the four also settles `chosen` - 请选择 is only for BEFORE a
-     button has been clicked at all. */
-  const chooseTerritoryMode = (mode: TerritoryMode) => {
+  /* Picking one of the three non-manual buttons (选择区域 has its own
+     handler, chooseManualTerritory, above). Each gives up a direct link
+     that may not exist yet, in which case there is nothing to write and
+     this is a no-op past the flag. Any of the three also settles `chosen`
+     - 请选择 is only for BEFORE a button has been clicked at all. */
+  const chooseTerritoryMode = (mode: Exclude<TerritoryMode, "manual">) => {
     setChosen(true);
-    if (mode === "manual") {
-      setManualIntent(true);
-      return;
-    }
     setManualIntent(false);
     if (territorySelection.length === 0 && liveDirectTerritoryIds.length === 0) return;
     if (isNew) {
@@ -278,12 +280,13 @@ export function OrgUnitForm({
      reserved 20rem second column (form-page.tsx), so this form gets the
      content-column constraint alone, at full width.
 
-     ONE SECTION, NOT TWO (owner, 2026-09-11: 标题全面引用DS - icon/title/
-     desc；关联区域提升为小标题) - 关联区域 used to be its own boxed Section
-     below this one; it is a property OF the department, not a second
-     topic, so it is now a level-4 SectionHeader inside the same Section,
-     with the mode dropdown standing in its `action` slot the way every
-     other Section-level control does.
+     TWO SECTIONS, SAME LEVEL (owner, 2026-09-11: 域 部门设置同级标题，
+     提供icon title) - 关联区域 is its own icon+title Section beside 部门
+     设置, not nested inside it. gap-xl (32px, up from the lg/24px every
+     other page's sibling-Section rhythm uses) between them and before the
+     button row (owner, 2026-09-11: 两个标题之间，gap 增加一些) - the
+     128px-wide field columns already read as spacious, and 24px between
+     two full Sections looked tight by comparison.
 
      THE INDENT (owner, 2026-09-11: 内容板块缩进，与标题文字对齐) - the
      header's own icon + gap-lg puts the TITLE text one icon-width in;
@@ -295,14 +298,16 @@ export function OrgUnitForm({
     <>
       <FormPage
         form={
-          <div className="gap-lg flex flex-col">
+          <div className="gap-xl flex flex-col">
             <Section icon="tree-structure" title={ORG_TEXT.formTitle} description={ORG_TEXT.formSectionWhy}>
               <div className="gap-lg flex">
                 <span className="invisible shrink-0" aria-hidden="true">
                   <Icon name="tree-structure" size="lg" />
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col gap-lg">
-                  {/* 一行两条，gap = 128px (owner, 2026-09-11). */}
+                  {/* 一行两条，横向 gap = 128px，纵向按原来的行间距 - 不是
+                      32px（owner, 2026-09-11 指出这太松，问行业惯例是多少）
+                      而是 16px/gap-md，两列表单行与行之间常见的量。 */}
                   <FormFields gap="128">
                     <Field>
                       <FieldLabel>{ORG_TEXT.parentField}</FieldLabel>
@@ -389,72 +394,73 @@ export function OrgUnitForm({
             </Section>
 
             {/* 关联区域 - 域，与部门设置同级标题 (owner, 2026-09-11: 域 部门
-                设置同级标题，提供icon title；把下拉框展开为四个按钮，手动
-                选择-primary) - 手动选择是唯一真正的动作（打开抽屉写入），
-                所以只有它是 primary（默认 variant），其余三个只是"放弃
-                手动，交给自动"的说法，都是 secondary。内容区在还没有点过
-                任何按钮时显示"请选择"，点过之后才显示关联区域或对应的
-                描述文字。 */}
-            <Section icon="map-pin" title={ORG_TEXT.formTerritoryTitle}>
+                设置同级标题，提供icon title) - icon+title 之后紧跟四个按钮
+                作为 Section 的 action（owner, 2026-09-11: 把四个按钮放在
+                标题的区，居右显示 - SectionHeader 的 action 本来就贴右）。
+                选择区域（原手动选择改名，放第一个）一步同时切到手动模式
+                并打开抽屉 - 不再是"点手动选择露出第二个按钮"两步；它是唯一
+                真正的动作，所以是唯一的 primary（默认 variant），其余三个
+                只是"放弃手动，交给自动"的说法，都是 secondary。内容区在
+                还没有点过任何按钮时显示"请选择"，点过之后才显示关联区域
+                或对应的描述文字。 */}
+            <Section
+              icon="map-pin"
+              title={ORG_TEXT.formTerritoryTitle}
+              action={
+                <div className="gap-sm flex flex-wrap items-center justify-end">
+                  <Button type="button" disabled={territoryPending} onClick={chooseManualTerritory}>
+                    {ORG_TEXT.formTerritoryChoose}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={territoryPending}
+                    onClick={() => chooseTerritoryMode("aggregate")}
+                  >
+                    {ORG_TEXT.territoryModeAggregate}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={territoryPending}
+                    onClick={() => chooseTerritoryMode("inherited")}
+                  >
+                    {ORG_TEXT.territoryModeInherited}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={territoryPending}
+                    onClick={() => chooseTerritoryMode("none")}
+                  >
+                    {ORG_TEXT.territoryModeNone}
+                  </Button>
+                </div>
+              }
+            >
               <div className="gap-lg flex">
                 <span className="invisible shrink-0" aria-hidden="true">
                   <Icon name="map-pin" size="lg" />
                 </span>
-                <div className="min-w-0 flex-1 flex flex-col gap-sm">
-                  <div className="gap-sm flex flex-wrap items-center">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={territoryPending}
-                      onClick={() => chooseTerritoryMode("aggregate")}
-                    >
-                      {ORG_TEXT.territoryModeAggregate}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={territoryPending}
-                      onClick={() => chooseTerritoryMode("inherited")}
-                    >
-                      {ORG_TEXT.territoryModeInherited}
-                    </Button>
-                    <Button type="button" disabled={territoryPending} onClick={() => chooseTerritoryMode("manual")}>
-                      {ORG_TEXT.territoryModeManual}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={territoryPending}
-                      onClick={() => chooseTerritoryMode("none")}
-                    >
-                      {ORG_TEXT.territoryModeNone}
-                    </Button>
-                    {territoryMode === "manual" ? (
-                      <Button type="button" variant="secondary" onClick={openTerritoryDrawer}>
-                        {ORG_TEXT.formTerritoryChoose}
-                      </Button>
-                    ) : null}
-                  </div>
-                  <div className="w-full">
-                    {!chosen ? (
-                      <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryUnset}</p>
-                    ) : chips.length > 0 ? (
-                      <ul className="gap-2xs flex flex-wrap">
-                        {chips.map((tid) => {
-                          const opt = territoryOptions.find((t) => t.id === tid);
-                          return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="text-muted-foreground text-body-sm">
-                        {territoryMode === "aggregate"
-                          ? ORG_TEXT.aggregateTerritory
-                          : territoryMode === "inherited"
-                            ? ORG_TEXT.inheritedTerritory
-                            : ORG_TEXT.noTerritory}
-                      </p>
-                    )}
-                  </div>
+                <div className="min-w-0 flex-1">
+                  {!chosen ? (
+                    <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryUnset}</p>
+                  ) : chips.length > 0 ? (
+                    <ul className="gap-2xs flex flex-wrap">
+                      {chips.map((tid) => {
+                        const opt = territoryOptions.find((t) => t.id === tid);
+                        return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground text-body-sm">
+                      {territoryMode === "aggregate"
+                        ? ORG_TEXT.aggregateTerritory
+                        : territoryMode === "inherited"
+                          ? ORG_TEXT.inheritedTerritory
+                          : ORG_TEXT.noTerritory}
+                    </p>
+                  )}
                 </div>
               </div>
             </Section>

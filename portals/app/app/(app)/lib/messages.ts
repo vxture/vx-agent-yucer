@@ -2767,15 +2767,15 @@ export const ORG_TEXT = {
   save: "保存单位",
   discard: "放弃",
   saveFailed: "保存失败",
-  // 关联区域 (owner, 2026-09-11: 提升为小标题，右侧放下拉选择 - 向下聚合/
-  // 向上继承/手动选择/无区域，选了手动选择才在后面显示选择区域按钮) - 四个
-  // 模式名是下拉的选项文字；内容区没有选择时的占位，直接借用下面表格同一套
-  // 徽标词（aggregateTerritory/inheritedTerritory/noTerritory），不用再造
-  // 一套长句 - 同一件事只该有一种说法。
+  // 关联区域 (owner, 2026-09-11: 域，与部门设置同级标题，提供icon title；
+  // 四个按钮放在标题的区，居右显示) - 三个 mode 名是按钮文字，直接借用
+  // 下面表格同一套徽标词做内容区占位（aggregateTerritory/
+  // inheritedTerritory/noTerritory），不用再造一套长句 - 同一件事只该
+  // 有一种说法。选择区域（原手动选择改名，放第一个）合并了"切到手动"和
+  // "打开抽屉"两步，不再需要 territoryModeManual 这个按钮文字。
   formTerritoryTitle: "关联区域",
   territoryModeAggregate: "向下聚合",
   territoryModeInherited: "向上继承",
-  territoryModeManual: "手动选择",
   territoryModeNone: "无区域",
   formTerritoryChoose: "选择区域",
   formTerritoryDone: "已更新关联区域。",
