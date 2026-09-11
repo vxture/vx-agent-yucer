@@ -63,17 +63,39 @@ GRANT UPDATE (flushed_at) ON local_usage.checkpoint TO yucer_svc;
 -- ###########################################################################
 
 -- --- yucer_core ---
-REVOKE UPDATE ON yucer_core.account FROM yucer_svc;
 -- `province` is NOT listed here and must not be: incr/0035 adds that column,
 -- and this file runs BEFORE incr/*, so naming it would grant on a column that
 -- does not exist yet and kill db-init on a fresh database. Its grant ships
 -- inside the increment. check-incr-grants.mjs enforces exactly this.
-GRANT UPDATE (name, industry, region, segment_code, owner_sub, health_score, status, updated_at, deleted_at)
-  ON yucer_core.account TO yucer_svc;
+--
+-- BASELINE SHAPE ONLY. The mirror case bit on 2026-09-10: db-init re-applies
+-- 00 / 97 / 98 before the increments on EVERY run, and incr/0040 has dropped
+-- `industry` - so on a database already past 0040 this grant named a column
+-- that no longer exists and the second production db-init ever run died
+-- here (run 34517329962). 0040 restates the whole account grant right after
+-- dropping the column, so on such a database this statement has nothing to
+-- say; it runs only while the column is still there. Same guard on the two
+-- statements below that an increment later reshapes.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'yucer_core' AND table_name = 'account' AND column_name = 'industry') THEN
+    REVOKE UPDATE ON yucer_core.account FROM yucer_svc;
+    GRANT UPDATE (name, industry, region, segment_code, owner_sub, health_score, status, updated_at, deleted_at)
+      ON yucer_core.account TO yucer_svc;
+  END IF;
+END $$;
 
-REVOKE UPDATE ON yucer_core.contact FROM yucer_svc;
-GRANT UPDATE (name, title, department, decision_role, influence, status, updated_at, deleted_at)
-  ON yucer_core.contact TO yucer_svc;
+-- incr/0026 renames contact to person and restates its grant; this runs only
+-- while the table still carries the baseline name.
+DO $$
+BEGIN
+  IF to_regclass('yucer_core.contact') IS NOT NULL THEN
+    REVOKE UPDATE ON yucer_core.contact FROM yucer_svc;
+    GRANT UPDATE (name, title, department, decision_role, influence, status, updated_at, deleted_at)
+      ON yucer_core.contact TO yucer_svc;
+  END IF;
+END $$;
 
 -- account_relation: append-only graph edge -> no UPDATE.
 REVOKE UPDATE ON yucer_core.account_relation FROM yucer_svc;
@@ -148,9 +170,16 @@ GRANT UPDATE (name, plan_id, territory_id, owner_sub, stage, forecast_category,
 REVOKE UPDATE ON yucer_pipeline.opportunity_stage_event FROM yucer_svc;
 REVOKE UPDATE ON yucer_pipeline.forecast_snapshot FROM yucer_svc;
 
-REVOKE UPDATE ON yucer_pipeline.win_loss_review FROM yucer_svc;
-GRANT UPDATE (outcome, primary_reason, competitor, lessons, reviewer_sub, reviewed_at, updated_at)
-  ON yucer_pipeline.win_loss_review TO yucer_svc;
+-- incr/0039 drops `primary_reason` and restates this grant; baseline shape only.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_schema = 'yucer_pipeline' AND table_name = 'win_loss_review' AND column_name = 'primary_reason') THEN
+    REVOKE UPDATE ON yucer_pipeline.win_loss_review FROM yucer_svc;
+    GRANT UPDATE (outcome, primary_reason, competitor, lessons, reviewer_sub, reviewed_at, updated_at)
+      ON yucer_pipeline.win_loss_review TO yucer_svc;
+  END IF;
+END $$;
 
 -- --- yucer_delivery ---
 REVOKE UPDATE ON yucer_delivery.project FROM yucer_svc;

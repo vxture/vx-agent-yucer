@@ -141,6 +141,14 @@ repo with no unit tests still provides a permanently-green `test-coverage` job (
 occupies the context; zero tests passes). Never remove a check from the required
 set.
 
+db-init keeps a ledger (ADR-032, 2026-09-10): `deploy/database/ddl/ledger.sql`
+creates `yucer_meta.applied_ddl`, the remote half is `deploy/db-init-remote.sh`
+(rehearsable locally with DB_URL), and each DDL file is applied ONCE - the
+00/97/98 trio on a fresh database only, each increment when not yet recorded.
+A database that predates the ledger is bootstrapped once with the workflow
+input `bootstrap_through=NNNN`. Increments are written for a fresh database;
+they are NOT expected to be no-ops against a schema newer than themselves.
+
 `db-contract` joined on 2026-09-01 (owner decision - adding a required check
 edits the ruleset). It is the only check that proves anything about the DATABASE:
 a UNIQUE index, a CHECK, a REVOKE and a NULL comparison are properties of
