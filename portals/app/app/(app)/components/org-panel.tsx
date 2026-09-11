@@ -69,8 +69,15 @@ export interface OrgUnitRow {
   readonly members: number;
   readonly depth: number;
   readonly children: number;
-  /** The territories this unit works (0052), with the 大区 each covers. */
+  /** The territories this unit's own SUBTREE works (0052), with the 大区
+   *  each covers - what a leader stationed here actually sees under 按组织
+   *  data-scope, not just what is directly linked to this one row. */
   readonly territories: readonly { readonly code: string; readonly name: string; readonly regions: readonly string[] }[];
+  /** "none" - the subtree works no territory at all; "full" - it reaches
+   *  every territory the workspace has (顶层组织/领导角色 read as 全范围,
+   *  distinct from a unit that genuinely has no permission); "partial" -
+   *  somewhere in between, the count in `territories` says how much. */
+  readonly scope: "none" | "partial" | "full";
 }
 
 /** Every id in `id`'s own subtree, `id` itself included - what 迁到… must
@@ -440,14 +447,18 @@ export function OrgPanel({
                   r.members === 0 ? <Tag>{ORG_TEXT.noMember}</Tag> : <span className="tabular-nums">{ORG_TEXT.members(r.members)}</span>,
               },
               {
-                /* 区域 (0052): how many territories this unit works; the
-                   names are in the drawer. */
+                /* 区域 (0052): how many territories this unit's subtree
+                   works; the names are in the drawer. FULL SCOPE gets its
+                   own badge (owner, 2026-09-11: 高层组织和领导角色需要跟
+                   "真正没有权限"区分开) rather than reading like 无区域. */
                 id: "territories",
                 header: ORG_TEXT.colTerritories,
                 cell: (r: OrgUnitRow) =>
-                  r.territories.length === 0
-                    ? <Tag>{ORG_TEXT.noTerritory}</Tag>
-                    : <span className="tabular-nums">{ORG_TEXT.territoryCount(r.territories.length)}</span>,
+                  r.scope === "full"
+                    ? <Tag tone="success">{ORG_TEXT.fullTerritory}</Tag>
+                    : r.scope === "none"
+                      ? <Tag>{ORG_TEXT.noTerritory}</Tag>
+                      : <span className="tabular-nums">{ORG_TEXT.territoryCount(r.territories.length)}</span>,
               },
             ]}
           />
@@ -480,9 +491,14 @@ export function OrgPanel({
               </ul>
             )}
           </Section>
-          {/* 关联区域 (0052): the ground this unit works, and the 大区 each
-              piece of it covers - the whole chain from the unit's side. */}
+          {/* 关联区域 (0052): the ground this unit's subtree works, and the
+              大区 each piece of it covers - the whole chain from the
+              unit's side. 全范围 gets its own line (owner, 2026-09-11) so
+              the reader does not have to count the list to notice it. */}
           <Section title={ORG_TEXT.detailsTerritories(details?.territories.length ?? 0)}>
+            {details?.scope === "full" ? (
+              <p className="text-body-sm text-success">{ORG_TEXT.fullTerritoryHint}</p>
+            ) : null}
             {!details || details.territories.length === 0 ? (
               <p className="text-muted-foreground text-body-sm">{ORG_TEXT.detailsNoTerritories}</p>
             ) : (
