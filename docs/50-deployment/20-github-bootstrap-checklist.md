@@ -194,3 +194,22 @@ the registry allocation baked into the image (rule R3).
       `incr/0001_seed_authz_catalog.sql` (the role/permission catalog seed).
 - [ ] Release: `git tag v0.1.0 && git push origin v0.1.0` -> approve the pending
       `production` deployment.
+
+
+## db-init 的账本（ADR-032，2026-09-10）
+
+db-init 不再每次全量重放 DDL。它先应用 `deploy/database/ddl/ledger.sql`（建
+`yucer_meta.applied_ddl`），然后：账本里没有 `baseline` 才跑 00 / 97 / 98；每个增量
+只在账本里没有时应用，应用后记账。远端脚本是仓库文件 `deploy/db-init-remote.sh`，
+本地可用 `DB_URL=postgres://... bash deploy/db-init-remote.sh` 演练。
+
+**账本之前的老库只需一次 bootstrap**：账本为空但基线已在时，db-init 拒绝执行，
+直到传入 `bootstrap_through=NNNN`（该库已应用到的最后一个增量），此时把 baseline
+与 0001..NNNN 记为已应用（`applied_by = bootstrap`），再从 NNNN+1 起正常应用。
+账本已有记录时再传该参数会被拒绝。
+
+```bash
+gh workflow run db-init.yml -f environment=production -f action=apply -f confirm=yes -f expected_sha=<sha> -f bootstrap_through=0052
+```
+
+`action=verify` 会打印账本行数与最近五条。

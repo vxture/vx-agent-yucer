@@ -200,6 +200,18 @@ CREATE INDEX IF NOT EXISTS idx_account_ws_owner ON yucer_core.account (workspace
 CREATE INDEX IF NOT EXISTS idx_account_ws_status ON yucer_core.account (workspace_id, status);
 
 -- Contact inside an account. influence/decision_role drive the relationship map.
+--
+-- ONLY WHILE `person` DOES NOT EXIST. incr/0026 renames this table to person,
+-- and db-init re-applies this file before the increments on EVERY run: a
+-- plain CREATE TABLE IF NOT EXISTS then finds no `contact` (it is `person`
+-- now) and creates a second, empty one beside it. That is what the second
+-- production db-init ever run did on 2026-09-10 (run 34517329962); incr/0054
+-- removes the stray. A baseline is create-once: once the increment has moved
+-- the table on, this statement has nothing to create.
+DO $$
+BEGIN
+  IF to_regclass('yucer_core.person') IS NULL THEN
+    EXECUTE $contact$
 CREATE TABLE IF NOT EXISTS yucer_core.contact (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id   UUID NOT NULL,                       -- [ref]
@@ -218,8 +230,11 @@ CREATE TABLE IF NOT EXISTS yucer_core.contact (
   deleted_at     TIMESTAMPTZ,
   CONSTRAINT chk_contact_influence CHECK (influence IS NULL OR (influence BETWEEN 0 AND 100)),
   CONSTRAINT fk_contact_account FOREIGN KEY (account_id) REFERENCES yucer_core.account (id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_contact_ws_account ON yucer_core.contact (workspace_id, account_id);
+)
+    $contact$;
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_contact_ws_account ON yucer_core.contact (workspace_id, account_id)';
+  END IF;
+END $$;
 
 -- Directed edge of the account relationship graph (reports-to, allied-with, ...).
 CREATE TABLE IF NOT EXISTS yucer_core.account_relation (
