@@ -77,9 +77,10 @@ test("every converted table carries the three standard fittings", () => {
   const missing: string[] = [];
   for (const t of TABLES) {
     if (t.name in NOT_YET_CONVERTED) continue;
+    const exempt = FITTING_EXEMPTIONS[t.name]?.skip ?? [];
     const has = {
-      选择: t.name in NO_SELECTION_BY_DESIGN || t.text.includes("selectedKeys") || t.text.includes("leadingSpacer"),
-      序号: t.text.includes("indexStart"),
+      选择: exempt.includes("选择") || t.text.includes("selectedKeys") || t.text.includes("leadingSpacer"),
+      序号: exempt.includes("序号") || t.text.includes("indexStart"),
       操作: t.text.includes("rowActions"),
     };
     const gaps = Object.entries(has)
@@ -109,15 +110,23 @@ const ACTIONS_REPLACED: Record<string, string> = {
 };
 
 /**
- * Tables where 选择列 does not apply, by owner decision - not backlog, and
- * not exempted from 序号 or 操作, both of which still hold.
+ * Tables where one or more of 选择列 / 序号列 does not apply, by owner
+ * decision - not backlog. 操作 is never in this list: every table keeps it.
+ * Each entry names WHICH fitting(s) it skips and why, so an entry naming
+ * one but relying on the OTHER also being absent stays a bug, not a pass.
  */
-const NO_SELECTION_BY_DESIGN: Record<string, string> = {
-  "permission-tree.tsx":
-    "owner, 2026-09-10: 去掉左侧占位列 - a hierarchical tree of permission " +
-    "points is never bulk-selected; the DS's `leadingSpacer` held the " +
-    "column's width without offering the control, which is dead space with " +
-    "extra steps",
+const FITTING_EXEMPTIONS: Record<string, { skip: readonly ("选择" | "序号")[]; reason: string }> = {
+  "permission-tree.tsx": {
+    skip: ["选择", "序号"],
+    reason:
+      "owner, 2026-09-10: 去掉左侧占位列 (a hierarchical tree of permission " +
+      "points is never bulk-selected; the DS's `leadingSpacer` held the " +
+      "column's width without offering the control - dead space with extra " +
+      "steps) 与 把 xx.xx.xx 直接作为编号 (the tree's own path number - " +
+      "05.01.01, each ancestor's ordinal among its siblings - IS this " +
+      "table's 编号; the DS's `indexStart` flat 1-N count beside it would " +
+      "say nothing new)",
+  },
 };
 
 // The half of the ruling that is easy to lose: the column has to survive a
@@ -146,10 +155,9 @@ test("the action column does not vanish for a reader who cannot act", () => {
 
 test("every registry entry (backlog or by-design) still names a table that exists", () => {
   const names = new Set(TABLES.map((t) => t.name));
-  const registries = { NOT_YET_CONVERTED, ACTIONS_REPLACED, NO_SELECTION_BY_DESIGN };
   const stale: string[] = [];
-  for (const [registry, entries] of Object.entries(registries)) {
-    for (const n of Object.keys(entries)) if (!names.has(n)) stale.push(`${registry}.${n}`);
-  }
+  for (const n of Object.keys(NOT_YET_CONVERTED)) if (!names.has(n)) stale.push(`NOT_YET_CONVERTED.${n}`);
+  for (const n of Object.keys(ACTIONS_REPLACED)) if (!names.has(n)) stale.push(`ACTIONS_REPLACED.${n}`);
+  for (const n of Object.keys(FITTING_EXEMPTIONS)) if (!names.has(n)) stale.push(`FITTING_EXEMPTIONS.${n}`);
   assert.deepEqual(stale, [], `these listed tables are gone - drop the lines: ${stale.join(", ")}`);
 });
