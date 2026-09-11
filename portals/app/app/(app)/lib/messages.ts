@@ -2795,19 +2795,19 @@ export const ORG_TEXT = {
   templateAutoAssociate: "按名称自动关联机构与新建的销售区域",
   templateAutoAssociateHint: "机构名字里带着销售区域的名字才会关联，例如「华北大区」机构关联「华北」销售区域。",
   templateAutoAssociateDisabled: "先在上面选一套区域设置模版，才有新建的销售区域可以关联。",
-  // 关联区域（incr/0052）：单位这一侧的关系。
+  // 关联区域（incr/0052）：单位这一侧的关系。四态名称统一改短（owner，
+  // 2026-09-11）：全范围/已聚合/已继承/无范围 - 表格里显示的是第一个关联
+  // 区域的实际名称（=区域设置里的名称）加圈数字，这四个词现在只出现在
+  // tooltip 和详情抽屉里，标记"这是哪一种"。
   colTerritories: "区域",
-  territoryCount: (n: number) => `${n} 个`,
-  noTerritory: "无区域",
-  // 全范围（owner, 2026-09-11）：这个单位的下属子树覆盖了全部销售区域 -
-  // 跟"无区域"（真的没有关联任何区域）区分开，总部/事业部这类顶层单位不再
-  // 显示成看起来没有权限的样子。
+  noTerritory: "无范围",
   fullTerritory: "全范围",
   fullTerritoryHint: "这个单位的下属子树覆盖了全部销售区域。",
-  // 继承范围（owner, 2026-09-11：下级没有设置区域，应该显示继承上级）：这个
+  aggregateTerritory: "已聚合",
+  // 已继承（owner，2026-09-11：下级没有设置区域，应该显示继承上级）：这个
   // 单位自己的子树没有关联任何销售区域，效力上跟着最近一个有区域的上级走 -
   // 不是真的没有权限，是这一级没单独配置。
-  inheritedTerritory: "继承范围",
+  inheritedTerritory: "已继承",
   inheritedTerritoryHint: (ancestorName: string) => `这个单位自己没有关联区域，继承了「${ancestorName}」的区域范围。`,
   detailsTerritories: (n: number) => `关联区域 · ${n} 个`,
   detailsNoTerritories: "还没有销售区域挂在这个单位。到销售区域的表单里勾选所属单位。",
