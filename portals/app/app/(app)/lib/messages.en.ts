@@ -3725,6 +3725,10 @@ export const en: Dictionary = {
     count: (actions: number, roles: number) => `${actions} operations · ${roles} roles`,
     colPoint: "Name",
     colLevel: "Type",
+    // 层级 / 子级 (owner, 2026-09-11): pulled the L0-L3 pill and the child
+    // count out of the name column into their own independent columns.
+    colTier: "Tier",
+    colChildren: "Children",
     colOps: "Actions",
     colSource: "Source",
     source: "System preset",
@@ -3754,7 +3758,6 @@ export const en: Dictionary = {
       page: "Page",
       action: "Operation",
     } as Record<string, string>,
-    childCount: (n: number) => `${n} children`,
     // A placeholder module - no page, no permission point yet (owner,
     // 2026-09-11): see PLACEHOLDER_MODULES.
     modulePending: "Permission point pending",
@@ -3762,9 +3765,14 @@ export const en: Dictionary = {
     collapseAll: "Collapse all",
     granted: "Granted",
     notGranted: "Not granted",
+    // The two planes, plus the two crosscutting modules (owner, 2026-09-11) -
+    // neither owns an object either, same reason Copilot doesn't sit inside
+    // a business group.
     groupLabel: {
       copilot: "Copilot",
       admin: "Configuration",
+      home: "Today's calls",
+      national: "Sales screen",
     } as Record<string, string>,
     moduleLabel: {
       admin: "Members and access",

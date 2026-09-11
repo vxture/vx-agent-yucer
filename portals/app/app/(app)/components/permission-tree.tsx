@@ -370,19 +370,21 @@ export function PermissionTree({
         className={
           /* EVERY COLUMN NAMED, NOTHING LEFT TO AUTO (owner, 2026-09-10:
              列宽固定，不够可以放宽但固定；除了名称列宽一些，其他的列平分
-             列宽；then: 把 xx.xx.xx 直接作为编号，列宽适当优化). 编号 is
-             now the tree path itself (up to "01.01.01.01", eleven
-             characters) rather than the DS's own flat `indexStart` count,
-             so it gets more room than that fitting's usual 4rem. 类型 /
-             来源 / 授权角色 split evenly; 操作 is ACTION_COLUMN, the
-             cross-table rule's own fixed width (owner, 2026-09-06;
-             编号...是高一层要求的固定列宽 no longer applies to 编号 itself,
-             since this table's 编号 is no longer that fitting - see
-             table-fittings.test.ts's FITTING_EXEMPTIONS). */
+             列宽；then: 把 xx.xx.xx 直接作为编号，列宽适当优化; 2026-09-11:
+             层级/子级 拆成两列后，六个非名称列一起平分). 编号 is the tree
+             path itself (up to "01.01.01.01", eleven characters) rather
+             than the DS's own flat `indexStart` count, so it gets more room
+             than that fitting's usual 4rem. 层级 / 类型 / 子级 / 来源 /
+             授权角色 split evenly; 操作 is ACTION_COLUMN, the cross-table
+             rule's own fixed width (owner, 2026-09-06; 编号...是高一层要求
+             的固定列宽 no longer applies to 编号 itself, since this table's
+             编号 is no longer that fitting - see table-fittings.test.ts's
+             FITTING_EXEMPTIONS). */
           "[&_table]:table-fixed " + ACTION_COLUMN
-          + " [&_thead_th:nth-child(1)]:w-[6rem] [&_thead_th:nth-child(2)]:w-[20rem]"
-          + " [&_thead_th:nth-child(3)]:w-[7rem] [&_thead_th:nth-child(4)]:w-[7rem]"
-          + " [&_thead_th:nth-child(5)]:w-[7rem]"
+          + " [&_thead_th:nth-child(1)]:w-[6rem] [&_thead_th:nth-child(2)]:w-[16rem]"
+          + " [&_thead_th:nth-child(3)]:w-[5rem] [&_thead_th:nth-child(4)]:w-[6rem]"
+          + " [&_thead_th:nth-child(5)]:w-[5rem] [&_thead_th:nth-child(6)]:w-[6rem]"
+          + " [&_thead_th:nth-child(7)]:w-[7rem]"
         }
       >
         <DataTable
@@ -439,31 +441,24 @@ export function PermissionTree({
                         文字小了): the title wore `text-body`, a tier that does
                         not exist, and fell through to the table's 12px. The
                         DS's cell sets the table tier - label-md bold over
-                        body-sm - and carries the level icon itself. */}
+                        body-sm - and carries the level icon itself.
+                        L0-L3 与子级数 不再堆在这里 (owner, 2026-09-11: 两个
+                        Ln、x子项堆积在title后面太乱，提出单列，各自独立) -
+                        见下面新增的 层级 / 子级 两列；这里只剩占位模块的
+                        提示，不是同一类信息。 */}
                     <TableTitleCell
                       icon={LEVEL_ICON[n.level]}
                       title={title(n)}
                       tooltip={title(n)}
                       titleSuffix={
-                        <span className="gap-xs flex items-center">
-                          {/* L0-L3 (owner, 2026-09-10: 层级标签没有加上; then
-                              用一个亮一点的背景，两个标签相近拥挤). The
-                              SAME tone the 类型 column colors that level by
-                              (LEVEL_TONE) - not neutral, which is what made
-                              this badge and 子级 read as the same grey blob
-                              at a glance - plus an explicit gap, since a
-                              bare Fragment left them touching. */}
-                          <Tag tone={LEVEL_TONE[n.level]}>{LEVEL_NUMBER[n.level]}</Tag>
-                          {branch ? <Tag>{T.childCount(n.children.length)}</Tag> : null}
-                          {/* 占位模块 (owner, 2026-09-11: 先建占位，应该有
-                              自己的权限点 / 先加一个空占位模块，后续补表) -
-                              a module with zero pages has no permission
-                              point of its own yet; say so rather than
-                              rendering an unexplained empty row. */}
-                          {n.level === "module" && n.children.length === 0 ? (
-                            <Tag tone="warning">{T.modulePending}</Tag>
-                          ) : null}
-                        </span>
+                        /* 占位模块 (owner, 2026-09-11: 先建占位，应该有
+                           自己的权限点 / 先加一个空占位模块，后续补表) -
+                           a module with zero pages has no permission point
+                           of its own yet; say so rather than rendering an
+                           unexplained empty row. */
+                        n.level === "module" && n.children.length === 0 ? (
+                          <Tag tone="warning">{T.modulePending}</Tag>
+                        ) : null
                       }
                       description={subtitle(n)}
                     />
@@ -472,12 +467,37 @@ export function PermissionTree({
               },
             },
             {
+              /* 层级 (owner, 2026-09-11): the L0-L3 pill, pulled out of the
+                 name column into its own - 类型 already spells the level out
+                 in words (业务/模块/页面/操作), this is its compact code. */
+              id: "tier",
+              header: T.colTier,
+              align: "center" as const,
+              cell: (r: PermissionRow) => (
+                <StatusBadge tone={LEVEL_TONE[r.node.level]} icon={false}>{LEVEL_NUMBER[r.node.level]}</StatusBadge>
+              ),
+            },
+            {
               id: "level",
               header: T.colLevel,
               align: "center" as const,
               cell: (r: PermissionRow) => (
-                <StatusBadge tone={LEVEL_TONE[r.node.level]}>{T.levelLabel[r.node.level]}</StatusBadge>
+                <StatusBadge tone={LEVEL_TONE[r.node.level]} icon={false}>{T.levelLabel[r.node.level]}</StatusBadge>
               ),
+            },
+            {
+              /* 子级 (owner, 2026-09-11): pulled out of the name column into
+                 its own - a leaf has none, so the cell reads "—" rather than
+                 a zero that would read as a count of something. */
+              id: "children",
+              header: T.colChildren,
+              align: "center" as const,
+              cell: (r: PermissionRow) =>
+                r.node.children.length > 0 ? (
+                  <span className="text-body-sm tabular-nums">{r.node.children.length}</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                ),
             },
             /* 来源 (owner, 2026-09-10): every row, branch or leaf, reads
                系统预置 - the whole tree is read off authz/actions.ts, a
@@ -679,7 +699,9 @@ export function PermissionTreeTable({
                   </span>
                 </TableCell>
                 <TableCell className="text-center">
-                  <StatusBadge tone={LEVEL_TONE[n.level]}>{T.levelLabel[n.level]}</StatusBadge>
+                  {/* 类型 tag 去图标 (owner, 2026-09-11: 层级、类型tag的icon
+                      去除). */}
+                  <StatusBadge tone={LEVEL_TONE[n.level]} icon={false}>{T.levelLabel[n.level]}</StatusBadge>
                 </TableCell>
                 <TableCell className="text-center">
                   {branch ? (
