@@ -62,7 +62,6 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
   const effectiveSet = new Set(effectiveIds);
   const liveUnitIds = new Set(all.map((u) => u.id));
   const allTerritoryIds = new Set(territoriesWorkedBy(scopeTerritories, liveUnitIds));
-  const nameOfUnit = new Map(all.map((u) => [u.id, u.name]));
   const scope: TerritoryScope =
     effectiveSet.size === 0
       ? "none"
@@ -103,8 +102,6 @@ export default async function EditOrgUnitPage({ params }: { params: Promise<{ id
         directTerritoryIds={directTerritoryIds}
         liveDirectTerritoryIds={liveDirectTerritoryIds}
         scope={scope}
-        effectiveTerritoryNames={scopeTerritories.filter((t) => effectiveSet.has(t.id)).map(label)}
-        inheritedFromName={inheritedFrom !== null ? (nameOfUnit.get(inheritedFrom) ?? null) : null}
       />
     </ViewLayout>
   );

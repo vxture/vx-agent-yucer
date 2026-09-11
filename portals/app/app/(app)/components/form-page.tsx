@@ -36,7 +36,11 @@ export function FormPage({
 }) {
   return (
     <div className="@container">
-      <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_20rem]">
+      {/* The 20rem second column is reserved ONLY when there is an aside to
+          put in it - a form with no `assist` used to keep the template
+          anyway, leaving a permanent 20rem blank strip on the right past
+          @3xl (owner, 2026-09-11: 没有留白空间, org-unit-form.tsx has none). */}
+      <div className={`grid items-start gap-lg${assist ? " @3xl:grid-cols-[minmax(0,1fr)_20rem]" : ""}`}>
         <div className="min-w-0">{form}</div>
         {assist ? <div className="min-w-0">{assist}</div> : null}
       </div>
@@ -67,7 +71,18 @@ export function FormPage({
  * the viewport does not know that. @xl is 36rem of container: two columns only
  * when each still gets ~17rem.
  */
-export function FormFields({ children }: { readonly children: ReactNode }) {
+export function FormFields({
+  children,
+  gap = "xl",
+}: {
+  readonly children: ReactNode;
+  /** "xl" (32px, the default every other form keeps) or "128" - a single
+   *  page's explicit ask for far more air between its two columns
+   *  (owner, 2026-09-11: 内容区一行两条布局的，gap = 128px). Not the
+   *  default, so it stays that page's own choice rather than a systemic
+   *  redesign of every two-column form. */
+  readonly gap?: "xl" | "128";
+}) {
   return (
     <div className="@container">
       {/* gap-xl (32px) rather than the md the stacked forms used: two columns
@@ -80,7 +95,9 @@ export function FormFields({ children }: { readonly children: ReactNode }) {
           carries itself - so a wide field cannot simply declare max-w-none.
           Redeclaring the VARIABLE on itself works, because the value is
           resolved on the element the declaration lands on. */}
-      <div className="gap-xl @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)">
+      <div
+        className={`${gap === "128" ? "gap-[128px]" : "gap-xl"} @xl:grid-cols-2 grid grid-cols-1 [--vx-field-measure:var(--vx-container-lg)] *:min-w-0 *:max-w-(--vx-field-measure)`}
+      >
         {children}
       </div>
     </div>

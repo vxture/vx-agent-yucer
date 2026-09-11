@@ -2692,7 +2692,11 @@ export const ORG_TEXT = {
   why: "公司怎么搭：总部、大区、团队，谁归哪个单位、谁负责。预置三套模版可选，之后随便改。",
   count: (units: number, placed: number) => `${units} 个单位 · ${placed} 人已归属`,
   noun: "单位",
-  newUnit: "新建单位",
+  // 新建部门 (owner, 2026-09-11: 把新建单位，全面改为新建部门) - the create
+  // doorway's own label; the tree's rows are still 单位 everywhere else on
+  // this page (list column, detail drawer, delete copy) - only the ACTION
+  // that starts one changed name.
+  newUnit: "新建部门",
   // 层级设置 (owner, 2026-09-11: 头部按钮改为 层级设置/应用模版/三方接入) -
   // 单位类型就是这棵树的层级词表（总部/事业部/大区/分公司/团队），改名对齐
   // 新增的 L0/L1 层级列；页面本身（/admin/org/kinds）不动，见 ORG_KIND_TEXT.title。
@@ -2738,8 +2742,16 @@ export const ORG_TEXT = {
   removeDone: (unplaced: number) => `${unplaced} 位成员已变为未归属`,
   destructiveTitle: "{verb}{target}？",
   cancel: "取消",
-  formTitle: "单位设置",
-  formWhy: "上级、类型、代码、名称与负责人。",
+  // 部门设置 (owner, 2026-09-11: 新建部门 - 单位设置，改名成部门设置) -
+  // 跟随 newUnit 的改名，配上表单本身这一节的标题；表单里的字段名
+  // （上级单位/单位类型/单位代码/单位名称）不动，改的只是这一节的标题。
+  // 极简，用户视角，标题与板块各说各的 (owner, 2026-09-11: icon-title-desc
+  // 全面简化) - formWhy 是页头一句"这是干什么的"，formSectionWhy 是板块
+  // 标题下那句"这里填什么"；两句说同一件事就是重复，所以是两个不同的句子，
+  // 不是同一句抄两遍。
+  formTitle: "部门设置",
+  formWhy: "配置这个部门的归属、类型与负责人。",
+  formSectionWhy: "上级单位、单位类型、代码、单位名称与负责人。",
   parentField: "上级单位",
   parentNone: "无（顶层）",
   parentHint: "不能选它自己或它的下级。",
@@ -2755,18 +2767,18 @@ export const ORG_TEXT = {
   save: "保存单位",
   discard: "放弃",
   saveFailed: "保存失败",
-  // 关联区域 (owner, 2026-09-11: 不要补齐所有显示信息，尤其需要设计关联
-  // 区域 - 向下聚合，向上继承，选择区域，暂不关联；新建页面也要有这一节）-
-  // 新建单位还没有 id，选择区域先只存在本地，保存单位时才真正写入。
+  // 关联区域 (owner, 2026-09-11: 提升为小标题，右侧放下拉选择 - 向下聚合/
+  // 向上继承/手动选择/无区域，选了手动选择才在后面显示选择区域按钮) - 四个
+  // 模式名是下拉的选项文字；内容区没有选择时的占位，直接借用下面表格同一套
+  // 徽标词（aggregateTerritory/inheritedTerritory/noTerritory），不用再造
+  // 一套长句 - 同一件事只该有一种说法。
   formTerritoryTitle: "关联区域",
+  territoryModeAggregate: "向下聚合",
+  territoryModeInherited: "向上继承",
+  territoryModeManual: "手动选择",
+  territoryModeNone: "无区域",
   formTerritoryChoose: "选择区域",
   formTerritoryDone: "已更新关联区域。",
-  // 暂不关联时的只读预览 - 向下聚合/向上继承来自 effectiveTerritoryIds，跟
-  // 组织架构表格、resolve-scope.ts 的真实数据范围算的是同一件事。
-  formTerritoryAggregateHint: (n: number) => `还没有单独选择区域，会自动向下聚合下属单位关联的 ${n} 个区域。`,
-  formTerritoryInheritedHint: (ancestorName: string) => `还没有单独选择区域，会自动向上继承「${ancestorName}」的区域范围。`,
-  formTerritoryNoneHint: "还没有关联任何区域 - 这个单位和它的上下级都还没有区域。",
-  formTerritoryNewHint: "还没有选择区域 - 可以先选，也可以创建单位后再到「单位配置」里设置。",
   formTerritoryDrawerTitle: "选择关联区域",
   formTerritoryDrawerWhy: "勾选这个单位直接工作的销售区域；一个区域可以挂多个单位。全部不选就是暂不关联，跟着组织架构自动聚合或继承。",
   formTerritoryDrawerEmpty: "还没有可选的销售区域。先到区域设置里创建。",

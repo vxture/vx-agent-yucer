@@ -10,9 +10,11 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
+  Icon,
   Input,
   NativeSelect,
   Section,
+  SectionHeader,
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -91,8 +93,6 @@ export function OrgUnitForm({
   directTerritoryIds,
   liveDirectTerritoryIds,
   scope,
-  effectiveTerritoryNames,
-  inheritedFromName,
 }: {
   readonly isNew: boolean;
   readonly id: string | null;
@@ -126,8 +126,6 @@ export function OrgUnitForm({
   /** The EFFECTIVE outcome if nothing more is ticked - computed server-side
    *  by the same function the org-structure table and resolve-scope.ts use. */
   readonly scope: TerritoryScope;
-  readonly effectiveTerritoryNames: readonly string[];
-  readonly inheritedFromName: string | null;
 }) {
   const { ORG_ERROR, ORG_TEXT } = useMessages();
   const router = useRouter();
@@ -142,6 +140,30 @@ export function OrgUnitForm({
   const [territoryDrawerOpen, setTerritoryDrawerOpen] = useState(false);
   const [territorySelection, setTerritorySelection] = useState<readonly string[]>(directTerritoryIds);
   const [territoryPending, startTerritory] = useTransition();
+  /* 关联区域模式 (owner, 2026-09-11: 右侧下拉 - 向下聚合/向上继承/手动选择/
+     无区域) - underneath, there are really only two states (a direct pick,
+     or not), and `manualIntent` is that switch. The other three dropdown
+     labels are DISPLAY of what the tree already resolves automatically
+     (same `scope`/`liveDirectTerritoryIds` the collapsed chips used before
+     this dropdown existed) - picking any of them just means "give up the
+     direct pick", so the select re-syncs to whichever of the three is
+     actually true once the write lands, regardless of which of the three
+     the admin happened to click. */
+  const [manualIntent, setManualIntent] = useState(
+    isNew ? territorySelection.length > 0 : liveDirectTerritoryIds.length > 0,
+  );
+  type TerritoryMode = "aggregate" | "inherited" | "manual" | "none";
+  const territoryMode: TerritoryMode = manualIntent
+    ? "manual"
+    : scope === "full" || scope === "partial"
+      ? "aggregate"
+      : scope === "inherited"
+        ? "inherited"
+        : "none";
+  /** What the content area lists as chips - the pending pick while new, the
+   *  live direct links while editing. Empty falls to the badge word for
+   *  whichever of aggregate/inherited/none is actually true. */
+  const chips = isNew ? territorySelection : liveDirectTerritoryIds;
 
   const submit = () => {
     setError(null);
@@ -211,120 +233,167 @@ export function OrgUnitForm({
       router.refresh();
     });
   };
+  /* Picking a mode off the dropdown. "手动选择" only flips the local intent -
+     nothing is written until 选择区域 actually ticks something and (edit)
+     saves, or (new) 保存单位 applies the pending pick. Picking any of the
+     other three gives up a direct link that may not exist yet, in which
+     case there is nothing to write and this is a no-op past the flag. */
+  const chooseTerritoryMode = (mode: TerritoryMode) => {
+    if (mode === "manual") {
+      setManualIntent(true);
+      return;
+    }
+    setManualIntent(false);
+    if (territorySelection.length === 0 && liveDirectTerritoryIds.length === 0) return;
+    if (isNew) {
+      setTerritorySelection([]);
+      return;
+    }
+    if (!id) return;
+    startTerritory(async () => {
+      const r = await setUnitTerritoriesAction(id, []);
+      if (!r.ok) {
+        toast({ tone: "danger", title: ORG_ERROR[r.error] ?? r.error });
+        return;
+      }
+      setTerritorySelection([]);
+      toast({ tone: "success", title: ORG_TEXT.formTerritoryDone });
+      router.refresh();
+    });
+  };
 
   /* FormPage - THE SHAPE EVERY DEDICATED FORM PAGE SHARES (owner ruling,
      2026-09-05, form-page.tsx). No `assist`: there is nothing this form has
      to suggest the way territory-form.tsx's uncovered-region assistant
-     does, and FormPage's aside is optional - omitting it still gets the
-     content-column constraint that keeps this page's fields the same
-     measure as every other dedicated form, instead of stretching bare
-     under the page title (owner, 2026-09-11: 内容区没有缩紧，要与标题文本
-     对齐). The icon on Section matches the page's own ViewHeader icon,
-     same as territory-form.tsx/plan-form.tsx/etc - the page ViewHeader
-     still owns the TITLE TEXT, so Section only repeats the icon, not the
-     sentence. */
+     does, and FormPage's aside is optional - dropping it also drops the
+     reserved 20rem second column (form-page.tsx), so this form gets the
+     content-column constraint alone, at full width.
+
+     ONE SECTION, NOT TWO (owner, 2026-09-11: 标题全面引用DS - icon/title/
+     desc；关联区域提升为小标题) - 关联区域 used to be its own boxed Section
+     below this one; it is a property OF the department, not a second
+     topic, so it is now a level-4 SectionHeader inside the same Section,
+     with the mode dropdown standing in its `action` slot the way every
+     other Section-level control does.
+
+     THE INDENT (owner, 2026-09-11: 内容板块缩进，与标题文字对齐) - the
+     header's own icon + gap-lg puts the TITLE text one icon-width in;
+     everything below it used to start at the section's left edge instead,
+     under the icon rather than under the title. The invisible spacer below
+     is the same icon at the same size, so the content column lines up
+     with the title text regardless of how many pixels "lg" resolves to. */
   return (
     <>
       <FormPage
         form={
           <div className="gap-lg flex flex-col">
-            <Section icon="tree-structure" title={ORG_TEXT.formTitle}>
-              <FormFields>
-                <Field>
-                  <FieldLabel>{ORG_TEXT.parentField}</FieldLabel>
-                  <NativeSelect value={parentValue} onChange={(e) => setParentValue(e.target.value)} disabled={pending}>
-                    <option value="">{ORG_TEXT.parentNone}</option>
-                    {parents.map((u) => (
-                      <option key={u.id} value={u.id}>{ORG_TEXT.optionIndent(u.depth, u.name)}</option>
-                    ))}
-                  </NativeSelect>
-                  <FieldDescription>{ORG_TEXT.parentHint}</FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel>{ORG_TEXT.kindField}</FieldLabel>
-                  <div className="gap-sm flex items-center">
-                    <div className="min-w-0 grow">
-                      <NativeSelect value={kindValue} onChange={(e) => setKindValue(e.target.value)} disabled={pending}>
-                        <option value="">{ORG_TEXT.kindUnset}</option>
-                        {kinds.map((k) => (
-                          <option key={k.id} value={k.id}>{k.name}</option>
+            <Section icon="tree-structure" title={ORG_TEXT.formTitle} description={ORG_TEXT.formSectionWhy}>
+              <div className="gap-lg flex">
+                <span className="invisible shrink-0" aria-hidden="true">
+                  <Icon name="tree-structure" size="lg" />
+                </span>
+                <div className="min-w-0 flex-1 flex flex-col gap-lg">
+                  {/* 一行两条，gap = 128px (owner, 2026-09-11). */}
+                  <FormFields gap="128">
+                    <Field>
+                      <FieldLabel>{ORG_TEXT.parentField}</FieldLabel>
+                      <NativeSelect value={parentValue} onChange={(e) => setParentValue(e.target.value)} disabled={pending}>
+                        <option value="">{ORG_TEXT.parentNone}</option>
+                        {parents.map((u) => (
+                          <option key={u.id} value={u.id}>{ORG_TEXT.optionIndent(u.depth, u.name)}</option>
                         ))}
                       </NativeSelect>
-                    </div>
-                    <Button asChild variant="secondary" className="shrink-0">
-                      <a href="/admin/org/kinds">{ORG_TEXT.kindConfigure}</a>
-                    </Button>
-                  </div>
-                </Field>
-                <Field>
-                  <FieldLabel>{ORG_TEXT.code}</FieldLabel>
-                  <Input
-                    value={codeValue}
-                    onChange={(e) => setCodeValue(e.target.value.toLowerCase())}
-                    /* The anchor: locked once created (0051). */
-                    disabled={!isNew || pending}
-                  />
-                  <FieldDescription>{isNew ? ORG_TEXT.codeHint : ORG_TEXT.codeLocked}</FieldDescription>
-                </Field>
-                <Field>
-                  <FieldLabel>{ORG_TEXT.nameLabel}</FieldLabel>
-                  <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} disabled={pending} />
-                </Field>
-                <Field>
-                  <FieldLabel>{ORG_TEXT.leaderField}</FieldLabel>
-                  <NativeSelect value={leaderValue} onChange={(e) => setLeaderValue(e.target.value)} disabled={pending}>
-                    <option value="">{ORG_TEXT.leaderNone}</option>
-                    {leaders.map((m) => (
-                      <option key={m.sub} value={m.sub}>{m.name}</option>
-                    ))}
-                  </NativeSelect>
-                  <FieldDescription>{ORG_TEXT.leaderHint}</FieldDescription>
-                </Field>
-              </FormFields>
-            </Section>
+                      <FieldDescription>{ORG_TEXT.parentHint}</FieldDescription>
+                    </Field>
+                    <Field>
+                      <FieldLabel>{ORG_TEXT.kindField}</FieldLabel>
+                      <div className="gap-sm flex items-center">
+                        <div className="min-w-0 grow">
+                          <NativeSelect value={kindValue} onChange={(e) => setKindValue(e.target.value)} disabled={pending}>
+                            <option value="">{ORG_TEXT.kindUnset}</option>
+                            {kinds.map((k) => (
+                              <option key={k.id} value={k.id}>{k.name}</option>
+                            ))}
+                          </NativeSelect>
+                        </div>
+                        <Button asChild variant="secondary" className="shrink-0">
+                          <a href="/admin/org/kinds">{ORG_TEXT.kindConfigure}</a>
+                        </Button>
+                      </div>
+                    </Field>
+                    <Field>
+                      <FieldLabel>{ORG_TEXT.code}</FieldLabel>
+                      <Input
+                        value={codeValue}
+                        onChange={(e) => setCodeValue(e.target.value.toLowerCase())}
+                        /* The anchor: locked once created (0051). */
+                        disabled={!isNew || pending}
+                      />
+                      <FieldDescription>{isNew ? ORG_TEXT.codeHint : ORG_TEXT.codeLocked}</FieldDescription>
+                    </Field>
+                    <Field>
+                      <FieldLabel>{ORG_TEXT.nameLabel}</FieldLabel>
+                      <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} disabled={pending} />
+                    </Field>
+                    <Field>
+                      <FieldLabel>{ORG_TEXT.leaderField}</FieldLabel>
+                      <NativeSelect value={leaderValue} onChange={(e) => setLeaderValue(e.target.value)} disabled={pending}>
+                        <option value="">{ORG_TEXT.leaderNone}</option>
+                        {leaders.map((m) => (
+                          <option key={m.sub} value={m.sub}>{m.name}</option>
+                        ))}
+                      </NativeSelect>
+                      <FieldDescription>{ORG_TEXT.leaderHint}</FieldDescription>
+                    </Field>
+                  </FormFields>
 
-            {/* 关联区域 (owner, 2026-09-11: 组织与区域关联设置没有 - 新建页面
-                也要有) - ONE real choice (选择区域), plus a read-only preview
-                of the automatic outcome (向下聚合/向上继承/暂不关联), not
-                four independent settings; see the block comment on
-                TerritoryScope above. NEW has no id yet to write a direct
-                link to, so 选择区域 there only holds the pick locally -
-                submit() applies it once 保存单位 gives the unit an id - and
-                there is no tree-position preview to show pre-creation, only
-                whatever has been picked so far. */}
-            <Section title={ORG_TEXT.formTerritoryTitle}>
-              <div className="gap-sm flex flex-col">
-                {isNew ? (
-                  territorySelection.length > 0 ? (
-                    <ul className="gap-2xs flex flex-wrap">
-                      {territorySelection.map((tid) => {
-                        const opt = territoryOptions.find((t) => t.id === tid);
-                        return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="text-muted-foreground text-body-sm">{ORG_TEXT.formTerritoryNewHint}</p>
-                  )
-                ) : liveDirectTerritoryIds.length > 0 ? (
-                  <ul className="gap-2xs flex flex-wrap">
-                    {liveDirectTerritoryIds.map((tid) => {
-                      const opt = territoryOptions.find((t) => t.id === tid);
-                      return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-muted-foreground text-body-sm">
-                    {scope === "full" || scope === "partial"
-                      ? ORG_TEXT.formTerritoryAggregateHint(effectiveTerritoryNames.length)
-                      : scope === "inherited"
-                        ? ORG_TEXT.formTerritoryInheritedHint(inheritedFromName ?? "")
-                        : ORG_TEXT.formTerritoryNoneHint}
-                  </p>
-                )}
-                <div>
-                  <Button type="button" variant="secondary" onClick={openTerritoryDrawer}>
-                    {ORG_TEXT.formTerritoryChoose}
-                  </Button>
+                  {/* 关联区域 - 小标题 + 右侧下拉 (owner, 2026-09-11): 向下
+                      聚合/向上继承/手动选择/无区域。手动选择才露出选择区域
+                      按钮 - 其余三个只是当前自动结果的说法，选哪个都等同
+                      "放弃手动"，写入后下拉会自己校正回真正生效的那个。 */}
+                  <div className="gap-sm flex flex-col">
+                    <SectionHeader
+                      level={4}
+                      title={ORG_TEXT.formTerritoryTitle}
+                      action={
+                        <div className="gap-sm flex items-center">
+                          <NativeSelect
+                            value={territoryMode}
+                            onChange={(e) => chooseTerritoryMode(e.target.value as TerritoryMode)}
+                            disabled={territoryPending}
+                          >
+                            <option value="aggregate">{ORG_TEXT.territoryModeAggregate}</option>
+                            <option value="inherited">{ORG_TEXT.territoryModeInherited}</option>
+                            <option value="manual">{ORG_TEXT.territoryModeManual}</option>
+                            <option value="none">{ORG_TEXT.territoryModeNone}</option>
+                          </NativeSelect>
+                          {territoryMode === "manual" ? (
+                            <Button type="button" variant="secondary" onClick={openTerritoryDrawer}>
+                              {ORG_TEXT.formTerritoryChoose}
+                            </Button>
+                          ) : null}
+                        </div>
+                      }
+                    />
+                    <div className="w-full">
+                      {chips.length > 0 ? (
+                        <ul className="gap-2xs flex flex-wrap">
+                          {chips.map((tid) => {
+                            const opt = territoryOptions.find((t) => t.id === tid);
+                            return opt ? <li key={tid}><Tag>{opt.name}</Tag></li> : null;
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-muted-foreground text-body-sm">
+                          {territoryMode === "aggregate"
+                            ? ORG_TEXT.aggregateTerritory
+                            : territoryMode === "inherited"
+                              ? ORG_TEXT.inheritedTerritory
+                              : ORG_TEXT.noTerritory}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </Section>
