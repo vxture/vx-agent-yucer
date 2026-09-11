@@ -159,5 +159,92 @@ test("every registry entry (backlog or by-design) still names a table that exist
   for (const n of Object.keys(NOT_YET_CONVERTED)) if (!names.has(n)) stale.push(`NOT_YET_CONVERTED.${n}`);
   for (const n of Object.keys(ACTIONS_REPLACED)) if (!names.has(n)) stale.push(`ACTIONS_REPLACED.${n}`);
   for (const n of Object.keys(FITTING_EXEMPTIONS)) if (!names.has(n)) stale.push(`FITTING_EXEMPTIONS.${n}`);
+  for (const n of Object.keys(WIDTH_EXEMPTIONS)) if (!names.has(n)) stale.push(`WIDTH_EXEMPTIONS.${n}`);
   assert.deepEqual(stale, [], `these listed tables are gone - drop the lines: ${stale.join(", ")}`);
+});
+
+// PIN THE EDGES, LEAVE ONE BUSINESS COLUMN AUTO - owner ruling, 2026-09-06
+// (see EDGE_COLUMNS's own comment in components/table-fittings.tsx).
+//
+// Under `table-fixed`, a `w-[...]` width on a header cell is only HONOURED
+// while some other column in the same row is left with no `width` at all:
+// that column absorbs the slack, and everything with a specified width - the
+// 64px edges, a 64px or wider action column, and any business column that
+// also states a width - holds exactly what it says. Pin every column and
+// there is nothing left to absorb the surplus, so table-fixed shares it out
+// PROPORTIONALLY instead and the "fixed" columns grow with the container.
+// org-panel.tsx measured this live at 1800px: 选择/序号/操作 came in at
+// 73.4px/73.4px/73.5px, not 64px, because its title, tier, children, kind,
+// leader and members columns were all pinned and nothing was left over to
+// absorb the slack (`max-width` does NOT rescue this - table-fixed's
+// column-sizing pass reads a cell's `width` and, once that's absent, hands
+// the whole remaining slack to that column without consulting `max-width` at
+// all; tried on org-panel's title column first and measured a computed
+// maxWidth of 208px next to an actual rendered width of 552px).
+//
+// THE SAME PHYSICS APPLIES WITHOUT EDGE_COLUMNS. permission-tree.tsx pins
+// every column via ACTION_COLUMN alone (no selection/index columns - see
+// FITTING_EXEMPTIONS above) and measured the identical defect: 操作 at 96px
+// instead of 64px at 1800px, scaled by the exact same 1.5x every other pinned
+// column scaled by. So this check runs for any table importing EDGE_COLUMNS
+// and/or ACTION_COLUMN, not only the EDGE_COLUMNS ones.
+//
+// WHAT THIS CANNOT DO: it does not parse a real AST, so "how many business
+// columns does this table have" is a text heuristic - it counts multi-line
+// `{ \n  id: "..."` object openers, which is how every column definition in
+// this codebase is formatted (a row-menu item like `{ id: "up", label: ... }`
+// is written on ONE line and does not match). That heuristic can OVER-count
+// a file's true column total (stray multi-line objects elsewhere in the file
+// also match), which only makes the check MORE lenient - it can miss a
+// genuine violation by over-estimating how many columns exist, never invent
+// one by under-estimating. Verified against this file's own history: run
+// against org-panel.tsx and permission-tree.tsx BEFORE their fix (`git show
+// HEAD~1`, or before this guard's own commit), both are reported as
+// violations; after the fix, both pass.
+function countBusinessColumnDefs(text: string): number {
+  const re = /\{\s*\n(?:\s*\/\*[\s\S]*?\*\/\s*\n)*\s*id:\s*"/g;
+  return (text.match(re) ?? []).length;
+}
+
+function pinnedNthChildWidths(text: string): number[] {
+  // `:w-[` only - a `:max-w-[` does not pin the column for table-fixed's
+  // column-sizing pass (see the block comment above), so it does not count
+  // against "leave one column auto".
+  const re = /\[&_thead_th:nth-child\((\d+)\)\]:w-\[/g;
+  const found = new Set<number>();
+  for (const m of text.matchAll(re)) found.add(Number(m[1]));
+  return [...found].sort((a, b) => a - b);
+}
+
+/**
+ * Tables where every business column is legitimately pinned - named with the
+ * reason, same as every other registry in this file. Empty today: nothing in
+ * this product currently needs it, and a table that does should earn an
+ * entry rather than a silent skip.
+ */
+const WIDTH_EXEMPTIONS: Record<string, string> = {};
+
+const USES_FITTING_WIDTHS = /import\s*\{[^}]*\b(?:EDGE_COLUMNS|ACTION_COLUMN)\b[^}]*\}\s*from\s*"\.\/table-fittings"/;
+
+test("every table pinning EDGE_COLUMNS/ACTION_COLUMN leaves one business column auto", () => {
+  const violations: string[] = [];
+  for (const t of TABLES) {
+    if (t.name in WIDTH_EXEMPTIONS) continue;
+    if (!USES_FITTING_WIDTHS.test(t.text)) continue;
+    const total = countBusinessColumnDefs(t.text);
+    const pinned = pinnedNthChildWidths(t.text);
+    if (total > 0 && pinned.length >= total) {
+      violations.push(
+        `${t.name}: ${pinned.length} column(s) pinned to a fixed width ` +
+          `(nth-child ${pinned.join(", ")}) against ~${total} business column(s) found - ` +
+          `none left auto, so 选择/序号/操作 will grow past their pinned width under a wide ` +
+          `container instead of staying exact (table-fittings.tsx's EDGE_COLUMNS comment)`,
+      );
+    }
+  }
+  assert.deepEqual(
+    violations,
+    [],
+    `PIN THE EDGES, LEAVE ONE BUSINESS COLUMN AUTO (table-fittings.tsx, owner ruling 2026-09-06):\n  ${violations.join("\n  ")}`,
+  );
 });
