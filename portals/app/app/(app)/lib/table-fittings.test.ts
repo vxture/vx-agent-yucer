@@ -190,19 +190,23 @@ test("every registry entry (backlog or by-design) still names a table that exist
 // and/or ACTION_COLUMN, not only the EDGE_COLUMNS ones.
 //
 // WHAT THIS CANNOT DO: it does not parse a real AST, so "how many business
-// columns does this table have" is a text heuristic - it counts multi-line
-// `{ \n  id: "..."` object openers, which is how every column definition in
-// this codebase is formatted (a row-menu item like `{ id: "up", label: ... }`
-// is written on ONE line and does not match). That heuristic can OVER-count
-// a file's true column total (stray multi-line objects elsewhere in the file
-// also match), which only makes the check MORE lenient - it can miss a
-// genuine violation by over-estimating how many columns exist, never invent
-// one by under-estimating. Verified against this file's own history: run
-// against org-panel.tsx and permission-tree.tsx BEFORE their fix (`git show
-// HEAD~1`, or before this guard's own commit), both are reported as
-// violations; after the fix, both pass.
+// columns does this table have" is a text heuristic - it counts `id: "..."`
+// occurrences that are paired with a `header:` key close by, which is how
+// every column definition in this codebase is written (a row-menu item like
+// `{ id: "up", label: ... }` pairs with `label:`, never `header:`, so it does
+// not match). The gap between `id:` and `header:` is BOUNDED (at most 200
+// characters, not a `*`/`+`) specifically so the pattern cannot backtrack
+// unboundedly on a pathological file - CodeQL flagged an earlier version of
+// this heuristic (a repeated optional-comment group with `\s*` sitting
+// directly against a literal `\n`, which gave the engine many equivalent
+// ways to split the whitespace on a failed match) for exponential
+// backtracking; a single bounded gap has no such ambiguity. Verified against
+// this file's own history: run against org-panel.tsx and permission-tree.tsx
+// at the commit before their fix, both are reported as violations; after the
+// fix, both pass (and the counts this heuristic finds now match a manual
+// column count exactly or over-count only slightly, never under).
 function countBusinessColumnDefs(text: string): number {
-  const re = /\{\s*\n(?:\s*\/\*[\s\S]*?\*\/\s*\n)*\s*id:\s*"/g;
+  const re = /\bid:\s*"[a-zA-Z0-9_]+"[^{}]{0,200}?\bheader:/g;
   return (text.match(re) ?? []).length;
 }
 
