@@ -334,19 +334,26 @@ export function RolePanel({
           ))}
         </ListCardGrid>
       ) : (
-        /* 三件标配, and the short columns take explicit widths so the
-           description column gets the room - the same constraint-from-outside
-           every roster here carries: the DS's width tiers are MIN-widths and
-           fixed layout ignores minimums. */
+        /* 首列 30% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 - 7 个
+           业务列落在 "5-6 列→30%" 这档的自然延伸，跟 org-panel.tsx 同档).
+
+           改成全部业务列钉百分比、加总恰好 100%（跟 org-panel.tsx/
+           division-panel.tsx 同一套理由，登记进 table-fittings.test.ts 的
+           WIDTH_EXEMPTIONS）- 之前"五个短列固定 rem + 说明列自适应"这套在
+           宽屏下量出来说明列被压到 0px：五个短列的 rem 值加总本来就有
+           504px，再加三个 64px 的固定列，首列按 30% 一分流走的宽度就把
+           说明列僅剩的空间吃没了。改成全部按比例分，说明列拿固定的 26%，
+           不会再被压没。 */
         <div
           className={
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-            + " [&_thead_th:nth-child(3)]:w-[13rem]"
-            + " [&_thead_th:nth-child(4)]:w-[6.5rem]"
-            + " [&_thead_th:nth-child(5)]:w-[6.5rem]"
-            + " [&_thead_th:nth-child(6)]:w-[6.5rem]"
-            + " [&_thead_th:nth-child(7)]:w-[6rem]"
-            + " [&_thead_th:nth-child(8)]:w-[6rem]"
+            + " [&_thead_th:nth-child(3)]:w-[30%]"
+            + " [&_thead_th:nth-child(4)]:w-[8%]"
+            + " [&_thead_th:nth-child(5)]:w-[10%]"
+            + " [&_thead_th:nth-child(6)]:w-[10%]"
+            + " [&_thead_th:nth-child(7)]:w-[8%]"
+            + " [&_thead_th:nth-child(8)]:w-[8%]"
+            + " [&_thead_th:nth-child(9)]:w-[26%]"
           }
         >
           <DataTable

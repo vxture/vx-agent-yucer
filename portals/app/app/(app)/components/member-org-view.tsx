@@ -390,7 +390,10 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
           ]}
         />
       ) : null}
-      <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+      {/* 首列 40% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 - 名称/
+          关联区域/数据范围/角色四个业务列落在 "2-4 列→40%" 这档). 关联区域、
+          角色两列继续留白自适应。 */}
+      <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
         <DataTable
           labels={DATA_TABLE_LABELS}
           indexStart={1}
@@ -429,7 +432,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             }
           >
             <CollapsibleContent>
-              <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+              <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
                 <DataTable
                   labels={DATA_TABLE_LABELS}
                   indexStart={1}
