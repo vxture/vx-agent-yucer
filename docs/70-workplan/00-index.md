@@ -3246,3 +3246,67 @@ SIGNAL_ACTION / MEMBER / LIFECYCLE / LOAD，zh 的 FIELD）补上 `...GATE_ERROR
 `TIER_LABEL` 按 owner 决定不动，理由记在 header 里：档位名是**商业命名**，
 英文叫什么是「在卖什么」的决定，翻译者自拟等于替产品取名。它等的是那个决定，
 不是一个空闲下午。
+
+## 数据范围提案：territory 档位改现算，不再手工勾选（分析批，未实现，等 owner 裁定）
+
+owner 2026-09-12 提出的问题：数据授权策略（`member.scope`）现在这个板块是否需要
+存在，跟角色什么关系，跟组织（区域）什么关系，不应该直接绑定在用户上，用户体现
+的应该是授权后的具体结果；用户级配置只应该是极个别特殊需求。排查后的结论分两半，
+角色那半不用动，组织那半有一处真实的重复数据，值得单开一批修。
+
+### 角色这半：2026-09-01 的裁定仍然成立，不用改
+
+`incr/0022` 原话：「SCOPE IS A PROPERTY OF THE MEMBER, NOT OF THE ROLE……
+Deriving it from the role — 'a regional director sees their region' — would put
+the decision in the catalogue, which is product-wide and closed.」角色目录今天
+仍然是产品级、冻结的（FROZEN AT 19 个 feature key 是姊妹裁定），31 个预置角色
+（`businessLine` × `rank`）没有任何一个字段携带范围语义，也确实不该有——同一个
+「销售总监」角色，在 A 工作区可能该给 workspace 档、在 B 工作区可能只该给
+territory 档，这正是裁定要「挂在管理员够得着的地方」的原因。**这条不用动。**
+
+### 组织这半：unit 档位早就是现算的，territory 档位不是——这是唯二的落差
+
+`resolveDataScope()`（`lib/resolve-scope.ts:82-115`）的 `unit` 分支，member 身上
+从来只存一个「档位=unit」的枚举值；具体「能看哪些单位」每次请求现查
+`org_unit_member`（成员属于哪些单位，ADR-031 之后一人可属多个单位）+
+`territory_unit`（单位覆盖哪些区域，ADR-030）现算出来——**改一次单位归属，所有
+unit 档位的人立刻同步，没有第二份数据要保持一致。**这正是 owner 现在要的模式。
+
+但 `territory` 档位不是这样：`member-form.tsx`（181-212 行）在选完档位之后，另开
+一组独立勾选框，写进 `member_territory` 表（`incr/0022` 同批建的，与
+`org_unit_member`/`territory_unit` 完全无关）。一个人挂在「华南分公司」这个单位
+下，territory 档位却可以手动勾一堆跟华南毫无关系的区域——这就是 owner 担心的
+「直接绑在用户身上」的真实案例，而且这仓库刚好有一次一模一样的修法可以照抄：
+`territory.regions` 曾经是手工维护的大区名单（`incr/0017`），改名就散架，
+ADR-030 把它换成「读的时候从 `territory_division` 关联表现算」，原话
+「every reader of regions is untouched, and the one truth they read now follows
+a rename」。`member.scope=territory` 的勾选框是同一种病，同一种药。
+
+### 提案（未实现，需要 owner 就下面几点裁定后才能立项）
+
+把 territory 档位「覆盖哪些区域」的来源，从 `member_territory` 手工勾选表，改成
+跟 unit 档位一样，从这个人的单位归属 + `territory_unit` 现算——本质是让
+territory 档位收窄成「unit 档位的一个只读投影」。**档位本身（workspace / territory
+/ own / unit 四选一）继续留给管理员手动选**，不建议连这一步也自动化：这一步是
+真实的、per-person 的保密判断，机械推导不出来。
+
+需要 owner 裁定的点：
+1. **存量 `member_territory` 数据怎么处理**——直接按单位归属现算覆盖掉（等于
+   承认存量手工勾选是错的，一次性纠正），还是过渡期内保留手工勾选作为「显式覆盖」
+   （管理员手动指定的优先于现算结果，只在两者不一致时生效）？后者更保守，但会
+   让「territory 档位」重新出现和 unit 档位一样的漂移风险，等于没修。
+2. **改完之后 `territory` 和 `unit` 两档是否干脆合并**——现算逻辑趋同之后，
+   四选一是否还需要留两个，还是收成 workspace / own / unit 三档？合并涉及历史
+   数据里已经存的 `scope='territory'` 枚举值迁移，改动面比只改数据来源大一截。
+3. `scope-table.tsx`（独立的「数据范围」页面）这个页面本身是否保留——上一轮分析
+   已经发现它跟 `member-panel.tsx`/`member-org-view.tsx` 三处重复展示同一个字段，
+   且 `SCOPE_LABEL` 字典缺 `unit` 键、在该页面漏译成英文，这次一并交给 owner
+   连同 territory 改造一起裁定，不单独处理。
+
+**影响面**（已用只读排查确认，不需要动 64 处消费「解析后 DataScope」的调用点，
+它们读的是算出来的结果，不是存储字段本身）：`member-form.tsx` 的 territory 勾选
+框、`member_territory` 表与 `incr/0022`、`authz/store.ts` 与 `prisma-store.ts` 的
+`getScope`/`setScope` 实现、`scope-table.tsx`/`member-panel.tsx` 的展示逻辑。
+
+**本批只记录分析与提案，不在这次改代码**——按 owner 2026-09-12 的原话「先立项
+详细设计，不在本会话直接改」，等裁定完上面三点，再单独开分支实现。
