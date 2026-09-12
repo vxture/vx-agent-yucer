@@ -46,6 +46,10 @@ export default async function IndustryPage() {
   if (!can(session.authz, session.entitlement, "account.view", "ui").allowed) {
     return <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />;
   }
+  /* 能看不能写的中间态是真的 (owner: 所有这些页面、按钮都需要权限点) - view 只
+     决定这页可不可见, 新建/改名/删除要 account.upsert. 复用 industry-actions.ts
+     自己注释里点名的服务层权限码, 而不是新造一个。 */
+  const editable = can(session.authz, session.entitlement, "account.upsert", "ui").allowed;
 
   const [industries, usage] = await Promise.all([listIndustries(ctx), industryUsage(ctx)]);
   if (!industries.ok) {
@@ -72,6 +76,7 @@ export default async function IndustryPage() {
       <IndustryConfig
         industries={industries.value}
         usage={usage.ok ? usage.value : {}}
+        editable={editable}
         onSave={saveIndustry}
         onMove={moveIndustryAction}
         onDelete={removeIndustryAction}

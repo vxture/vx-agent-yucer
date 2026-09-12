@@ -31,6 +31,7 @@ type Applies = { forWon: boolean; forLost: boolean };
 export function WinLossReasonConfig({
   reasons,
   usage,
+  editable,
   onSave,
   onMove,
   onDelete,
@@ -38,6 +39,8 @@ export function WinLossReasonConfig({
   readonly reasons: readonly WinLossReasonRecord[];
   /** How many reviews cite each reason, by id. */
   readonly usage: Readonly<Record<string, number>>;
+  /** `pipeline.winloss.record` - the page checks this, this panel only renders it. */
+  readonly editable: boolean;
   readonly onSave: (input: {
     reasonCode: string;
     name: string;
@@ -55,6 +58,7 @@ export function WinLossReasonConfig({
       rows={rows}
       idPrefix="wlr"
       errors={REVIEW_ERROR}
+      editable={editable}
       page={{ icon: "clock-counter-clockwise", count: WINLOSS_TEXT.reasonCount }}
       text={{
         title: WINLOSS_TEXT.reasonConfigTitle,

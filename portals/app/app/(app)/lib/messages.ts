@@ -2674,6 +2674,12 @@ export const ROW_OPS = {
   top: "移到顶部",
   bottom: "移到底部",
   remove: (noun: string) => `删除${noun}`,
+  // 词表面板 (vocabulary-config.tsx) 共用的工具行文案 - 八张表同一套措辞，
+  // 不必每张表各自造一份 (owner: 表头操作行参照 /admin/permissions 补齐)。
+  toolbarCount: (n: number, noun: string) => `共 ${n} 个${noun}`,
+  toolbarFilteredCount: (shown: number, total: number, noun: string) => `筛选出 ${shown} / 共 ${total} 个${noun}`,
+  searchPlaceholder: "搜索名称或代码",
+  searchLabel: "搜索",
 } as const;
 
 export const ROLE_GROUP_TEXT = {

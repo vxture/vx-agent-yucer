@@ -1382,6 +1382,10 @@ export const en: Dictionary = {
     top: "Move to top",
     bottom: "Move to bottom",
     remove: (noun: string) => `Delete ${noun}`,
+    toolbarCount: (n: number, noun: string) => `${n} ${noun}`,
+    toolbarFilteredCount: (shown: number, total: number, noun: string) => `${shown} of ${total} ${noun}`,
+    searchPlaceholder: "Search by name or code",
+    searchLabel: "Search",
   },
   ROLE_GROUP_TEXT: {
     pageTitle: "Group settings",
