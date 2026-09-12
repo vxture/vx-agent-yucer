@@ -346,12 +346,41 @@ export async function setMarketScope(
   return ok(scope);
 }
 
+/** 五分法 (东/南/西/北/中) - `DIVISION_TEMPLATES`'s `"five"` carve, `incr/0036`'s
+ *  own default. Named here rather than re-derived, since the first-contact
+ *  seed below and `startup-preset.ts`'s org/territory seed both read it by
+ *  this exact key and must agree. */
+export const DEFAULT_DIVISION_CARVE_KEY = "five";
+
 export async function listMarketDivisions(
   ctx: AccountContext,
 ): Promise<RuleResult<MarketDivisionRecord[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
   if (!gate.allowed) return denied(gate);
-  return ok(await ctx.store.listMarketDivisions(ctx.workspaceId));
+
+  let rows = await ctx.store.listMarketDivisions(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - listIndustries's own pattern,
+     a few lines below. `incr/0036` only backfilled workspaces that already
+     had an account at migration time; a workspace with none - every brand
+     new one - reads empty here forever without this. Store calls only
+     (`upsertMarketDivision`/`placeMember`), the same two `importDivisionTemplate`
+     itself calls, so a manual "导入方案" later and this first read cannot
+     disagree about what 五分法 looks like. */
+  if (rows.length === 0) {
+    const template = (await ctx.store.listCarves(ctx.workspaceId)).find(
+      (t) => t.key === DEFAULT_DIVISION_CARVE_KEY,
+    );
+    if (template) {
+      for (const d of template.divisions) {
+        await ctx.store.upsertMarketDivision(ctx.workspaceId, { code: d.code, name: d.name, sortOrder: d.sortOrder });
+      }
+      for (const [member, code] of Object.entries(template.members)) {
+        await ctx.store.placeMember(ctx.workspaceId, member, code);
+      }
+      rows = await ctx.store.listMarketDivisions(ctx.workspaceId);
+    }
+  }
+  return ok(rows);
 }
 
 /** The ground the current frame is carved from - what a region may hold. */

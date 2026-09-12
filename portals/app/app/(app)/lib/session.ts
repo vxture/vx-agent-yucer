@@ -9,8 +9,10 @@ import {
   ensureDemoData,
   getAccountStore,
   getPipelineStore,
+  getPlanningStore,
   getSignalStore,
 } from "../../domains/shared/registry";
+import { applyStartupPreset } from "./startup-preset";
 import { getAuthzStore } from "../../authz/store";
 import type { DataScope } from "../../authz/scope";
 import {
@@ -23,6 +25,7 @@ import type { PipelineStore } from "../../domains/pipeline/store";
 import type { SignalStore } from "../../domains/signal/store";
 import { resolveDataScope } from "./resolve-scope";
 import { resolveDevSession } from "./dev-session";
+import { DEFAULT_DIVISION_CARVE_KEY } from "../../domains/account/service";
 
 // Per-request resolution of everything a product surface needs, in the order
 // design_yucer_100 section 5 mandates:
@@ -66,6 +69,54 @@ export interface AppSession {
     account(): AccountStore;
     signal(): SignalStore;
   };
+}
+
+/**
+ * 新租户预置：总部 + 5 分区 (owner, 2026-09-12: 任何新开通业务的租户有这个
+ * 演示数据). REAL WORKSPACES ONLY - the identical orchestration
+ * `applyStartupTemplateAction` already runs from a manual "应用模版" button
+ * (`admin/org/actions.ts`), just triggered here automatically instead, the
+ * first time a real person opens the app in a workspace that has never had
+ * any org structure at all.
+ *
+ * NO MEMBER, ACCOUNT OR OPPORTUNITY ROWS - deliberately. `member` is a real
+ * login identity (a `sub`), and `tenant.provisioned` carries none (no person
+ * event exists on that webhook at all); seeding people nobody can log in as
+ * would be worse than seeding nothing. `Opportunity.ownerSub` is NOT NULL
+ * (incr/0034) so opportunities are blocked by the same absence. Both wait on
+ * a "placeholder member" feature that does not exist yet.
+ *
+ * THE GUARD IS THE SAME EMPTY-CHECK `ensureOrgSeeded`/`seedOrgDefaults`
+ * (`domains/planning/service.ts`) ALREADY USES for its own default-template
+ * lazy seed - `org_unit_kind` count for the workspace. `resolveAppSession`
+ * is the one function every real page calls before any page-specific domain
+ * read, so this always resolves before a page's own `ensureOrgSeeded` could
+ * possibly fire in the same request and seed the STATIC 7-region default
+ * instead of this 5-region one.
+ *
+ * PERMISSION-GATED LIKE THE MANUAL BUTTON IS, ON PURPOSE - `applyOrgTemplate`/
+ * `importDivisionTemplate`/`upsertTerritory`/`setUnitDivisions` all check
+ * `admin.org.upsert`/`planning.territory.upsert` internally, same as a real
+ * admin clicking "应用模版" would need. The common case (the workspace OWNER
+ * is virtually always the first real login) already holds every permission
+ * (`OWNER_BOOTSTRAP_ROLE = sales_leader`, 25/25 grants) the moment
+ * `resolveAuthzContext` runs above, a few lines up. The rare case - someone
+ * else logs in first - fails the gate silently and the empty-check simply
+ * tries again on the next real login, which is the same self-healing shape
+ * every other lazy seed in this file already has; forking an ungated path
+ * just for this one caller was not worth carrying two versions of the same
+ * orchestration.
+ */
+async function ensureStartupPreset(workspaceId: string, sub: string, authz: AuthzContext, entitlement: Entitlement) {
+  const planningStore = getPlanningStore();
+  if ((await planningStore.listOrgKinds(workspaceId)).length > 0) return;
+  const planningCtx = { workspaceId, sub, holder: authz, entitlement, store: planningStore };
+  const accountCtx = { workspaceId, sub, holder: authz, entitlement, store: getAccountStore() };
+  await applyStartupPreset(planningCtx, accountCtx, {
+    orgKey: "national_medium",
+    divisionKey: DEFAULT_DIVISION_CARVE_KEY,
+    autoAssociate: true,
+  });
 }
 
 /** Attach the scoped stores to a resolved session. */
@@ -121,6 +172,16 @@ export async function resolveAppSession(): Promise<AppSession | null> {
   // Offline demo path only. No-op unless YUCER_DEMO_DATA is explicitly "on" AND
   // there is no DATABASE_URL; see ensureDemoData for why it is guarded twice.
   ensureDemoData(workspaceId);
+
+  // REAL WORKSPACES ONLY - never the `dev` branch above. `demo-members.ts`'s
+  // DEMO_PLACEMENTS hardcodes bare unit codes ("east") matching the STATIC
+  // default template; this 5-region preset generates prefixed ones
+  // ("headquarters_east", `planning/lib/org.ts`'s `regionUnits`) and
+  // `applyOrgTemplate` is destructive (wipes existing units first) - running
+  // it against the dev-session workspace would rebuild the demo org tree
+  // with codes `seedDemoPlacements()` can no longer find. See
+  // `ensureStartupPreset`'s own comment for the rest of the reasoning.
+  await ensureStartupPreset(workspaceId, user.sub, authz, entitlement);
 
   const scope = await resolveDataScope(workspaceId, user.sub, getAuthzStore());
   return withStores({ user, workspaceId, entitlement, authz, scope });
