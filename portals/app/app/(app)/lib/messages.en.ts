@@ -1986,8 +1986,18 @@ export const en: Dictionary = {
       "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days).",
   },
 
+  CURRENCY_LABEL: {
+    CNY: "Chinese yuan",
+    USD: "US dollar",
+    HKD: "Hong Kong dollar",
+    TWD: "New Taiwan dollar",
+  },
+
+  // Same symbols in both locales - a currency sign is not language text.
+  CURRENCY_SYMBOL: zh.CURRENCY_SYMBOL,
+
   PRICING_ERROR: {
-    currency_invalid: "A currency is a three-letter ISO code, like CNY or USD",
+    currency_invalid: "Currency must be one of CNY, USD, HKD or TWD",
 
     ...GATE_ERROR,
   },
@@ -1999,7 +2009,7 @@ export const en: Dictionary = {
     discard: "Discard",
     saved: "Saved. Deals and lines created from now on take the new currency.",
     currencyLabel: "Default currency",
-    currencyHint: "ISO 4217, three letters. Existing prices and deals are untouched; only what is written next.",
+    currencyHint: "Existing prices and deals are untouched; only what is written next.",
   },
 
   AGEING_ERROR: {
