@@ -1206,6 +1206,7 @@ export const AGEING_TEXT = {
   cutoffAdd: "加一档",
   cutoffRemove: "删除",
   bandPlaceholder: "—",
+  noDueDateHint: "到期日没填，算不出逾期天数，不在这里配置",
   confirmAdd: (days: number) => `添加 ${days} 天的分档点？`,
   confirmRemove: (days: string) => `删除 ${days} 天的分档点？`,
   confirmYes: "确认",
