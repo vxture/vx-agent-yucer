@@ -35,8 +35,77 @@ import { Tag } from "./tag";
 // block of tags off to the side made the reader match each one back to a
 // cutoff by counting; each row now states what it closes right next to the
 // input that sets it, and the two ends that never move - 未到期 above the
-// list, the open-ended band and 未填到期日 below it - bracket the rows they
-// do not depend on editing.
+// list, 未填到期日 below it - bracket the rows they do not depend on editing.
+//
+// THE RULER (owner, 2026-09-12: 做成一个进度尺，全宽，添加刻度定标，区间做
+// 说明). The row list says what each cutoff IS; it cannot say how the days
+// are actually carved up relative to each other - a 1-30 band and a
+// 3560-3650 band read as the same size in a list of numbers. Below the rows,
+// a full-width bar gives every band its own proportional share (the
+// open-ended tail gets a fixed share instead, since nothing is proportional
+// to infinity) with a tick and the cutoff's own number at each boundary. It
+// replaces the old trailing "开放档" tag - that band is now the bar's own
+// last segment - and only renders once every row holds, the same
+// `validPrefix` gate the row labels use, so it never states a shape built on
+// a broken number.
+const RULER_OPEN_SHARE = 0.22;
+const RULER_BAND_TONES = ["bg-primary/10", "bg-primary/18", "bg-primary/26", "bg-primary/34", "bg-primary/42"];
+
+function AgeingRuler({
+  cutoffs,
+  openLabel,
+}: {
+  readonly cutoffs: readonly number[];
+  readonly openLabel: string;
+}) {
+  const { DELIVERY_TEXT } = useMessages();
+  const last = cutoffs[cutoffs.length - 1];
+  const boundedShare = 1 - RULER_OPEN_SHARE;
+  let from = 1;
+  let cumulativePct = 0;
+  const segments = cutoffs.map((to, i) => {
+    const widthPct = ((to - from + 1) / last) * boundedShare * 100;
+    cumulativePct += widthPct;
+    const seg = { key: i, from, to, widthPct, tickPct: cumulativePct };
+    from = to + 1;
+    return seg;
+  });
+
+  return (
+    <div className="w-full">
+      <div className="border-border flex h-10 w-full overflow-hidden rounded-md border">
+        {segments.map((s, i) => (
+          <div
+            key={s.key}
+            style={{ width: `${s.widthPct}%` }}
+            className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
+          >
+            {DELIVERY_TEXT.ageingBetween(s.from, s.to)}
+          </div>
+        ))}
+        <div
+          style={{ width: `${RULER_OPEN_SHARE * 100}%` }}
+          className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center gap-2xs overflow-hidden px-2xs whitespace-nowrap"
+        >
+          {openLabel}
+          <Icon name="arrow-right" size="xs" />
+        </div>
+      </div>
+      <div className="relative mt-2xs h-4 w-full">
+        {segments.map((s) => (
+          <div
+            key={s.key}
+            className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-2xs"
+            style={{ left: `${s.tickPct}%` }}
+          >
+            <span className="bg-border h-2xs w-px" />
+            <span className="text-label-xs text-muted-foreground tabular-nums">{s.to}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function AgeingPolicyConfig({
   cutoffs,
@@ -134,10 +203,10 @@ export function AgeingPolicyConfig({
         <Section>
           <Field>
             <FieldLabel>{AGEING_TEXT.cutoffsLabel}</FieldLabel>
-            <div className="gap-xs flex flex-col">
-              <div className="gap-xs flex items-center">
-                <Tag>{DELIVERY_TEXT.ageingBand.not_due}</Tag>
-              </div>
+            <div className="gap-xs flex items-center">
+              <Tag>{DELIVERY_TEXT.ageingBand.not_due}</Tag>
+            </div>
+            <div className="gap-xs mt-xs flex flex-col">
               {rows.map((v, i) => (
                 <div key={i} className="gap-xs flex items-center">
                   <Input
@@ -150,11 +219,9 @@ export function AgeingPolicyConfig({
                     onChange={(e) => editRow(i, e.target.value)}
                   />
                   <span className="text-body-sm text-muted-foreground">{AGEING_TEXT.days}</span>
-                  <span className="text-body-sm text-muted-foreground">
-                    {validPrefix[i]
-                      ? DELIVERY_TEXT.ageingBetween(i === 0 ? 1 : parsed[i - 1] + 1, parsed[i])
-                      : AGEING_TEXT.bandPlaceholder}
-                  </span>
+                  {!validPrefix[i] ? (
+                    <span className="text-body-sm text-muted-foreground">{AGEING_TEXT.bandPlaceholder}</span>
+                  ) : null}
                   {canWrite && rows.length > 1 ? (
                     <Button
                       variant="ghost"
@@ -168,14 +235,6 @@ export function AgeingPolicyConfig({
                   ) : null}
                 </div>
               ))}
-              <div className="gap-xs flex items-center">
-                <Tag>
-                  {allValid ? DELIVERY_TEXT.ageingOver(parsed[rows.length - 1]) : AGEING_TEXT.bandPlaceholder}
-                </Tag>
-              </div>
-              <div className="gap-xs flex items-center">
-                <Tag>{DELIVERY_TEXT.ageingBand.no_due_date}</Tag>
-              </div>
             </div>
             {canWrite ? (
               <Button
@@ -188,6 +247,16 @@ export function AgeingPolicyConfig({
                 {AGEING_TEXT.cutoffAdd}
               </Button>
             ) : null}
+            <div className="mt-sm">
+              {allValid ? (
+                <AgeingRuler cutoffs={parsed as number[]} openLabel={DELIVERY_TEXT.ageingOver(parsed[parsed.length - 1])} />
+              ) : (
+                <p className="text-body-sm text-muted-foreground">{AGEING_TEXT.bandPlaceholder}</p>
+              )}
+            </div>
+            <div className="gap-xs mt-sm flex items-center">
+              <Tag>{DELIVERY_TEXT.ageingBand.no_due_date}</Tag>
+            </div>
             <FieldDescription>{AGEING_TEXT.cutoffsHint}</FieldDescription>
           </Field>
         </Section>
