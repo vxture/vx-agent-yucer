@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   Button,
   DataTable,
+  FilterBar,
+  Icon,
   ViewHeader,
   type ActionMenuItem,
+  type IconName,
   DialogForm,
   Field,
   FieldDescription,
@@ -95,6 +98,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   errors,
   idPrefix,
   page,
+  icon,
   columns = [],
   sortOn = {},
   nameSuffix,
@@ -115,15 +119,29 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
    *
    * TWO SHAPES, BECAUSE THERE ARE TWO SITUATIONS. On a page that is only this
    * table (/admin/industry, /admin/winloss) the vocabulary IS the page: it
-   * takes the ViewHeader, and its add button goes where the DS puts a page's
-   * actions - the same call /admin/division already made. Stacked with others
-   * (产品配置 carries three) it is a Section instead, because there the page
-   * header names the trio and each table has to say which one it is.
+   * takes the ViewHeader (icon + count in `secondary`), and the add button
+   * goes in a FilterBar of its own above the table - the same place
+   * org-panel.tsx/division-panel.tsx put theirs (owner ruling, batch 2: a
+   * page-level ViewHeader.action is for page-level controls, not "new row").
+   * Stacked with others (产品配置 carries three) it is a Section instead,
+   * because there the page header names the trio and each table has to say
+   * which one it is.
    *
    * The panel owns the dialog, so it has to own whichever control opens it -
    * a server page cannot hand a Button its open state.
    */
   readonly page?: { readonly icon: NavIcon; readonly count: (n: number) => string };
+  /**
+   * The Section branch's OWN icon (owner ruling, batch 2: 标题邻近的堆叠场景
+   * 也要有图标，互相用不同的图标区分；样式统一到 org-unit-form.tsx 的
+   * 部门设置/关联区域 - level 2, 24px icon, 不单独降级). Only meaningful when
+   * `page` is absent - given, it prints an invisible spacer icon of the same
+   * name/size ahead of the content column, so the content lines up with the
+   * TITLE text rather than the section's raw left edge, same device
+   * org-unit-form.tsx uses. Omit to keep the old icon-less heading (e.g. a
+   * caller that hasn't opted in yet).
+   */
+  readonly icon?: IconName;
   /** The violation-code dictionary this vocabulary renders through (TD-010). */
   readonly errors: Record<string, string>;
   /** Prefixes the dialog's field ids, so two panels on one page stay distinct. */
@@ -218,90 +236,103 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           title={text.title}
           description={text.why}
           secondary={<Tag>{page.count(rows.length)}</Tag>}
-          action={add}
         />
       ) : null}
+      {page ? <FilterBar count={page.count(rows.length)} actions={add} /> : null}
     <Section
       title={page ? undefined : text.title}
       description={page ? undefined : text.why}
       action={page ? undefined : add}
+      icon={page ? undefined : icon}
     >
       {/* The same two constraints from outside every config table carries
-          (TD-022), so they line up column for column. */}
-      <div
-        ref={select.ref}
-        className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
-      >
-        <DataTable
-          labels={DATA_TABLE_LABELS}
-          indexStart={1}
-          selectedKeys={selected}
-          onSelectionChange={setSelected}
-          rowKey={(r: T) => r.id}
-          rows={[...sorted.sortRows(rows)]}
-          sort={sorted.sort}
-          onSortChange={sorted.onSortChange}
-          columns={[
-            {
-              id: "name",
-              sortable: true,
-              header: text.colName,
-              width: "md" as const,
-              /* The code is omitted when it equals the name - a second line
-                 repeating the first costs height and says nothing. */
-              cell: (r: T) =>
-                nameSuffix ? (
-                  <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
-                ) : (
-                  <TableTitleCell
-                    title={r.name}
-                    description={r.code !== r.name ? r.code : undefined}
-                    tooltip={r.name}
-                  />
-                ),
-            },
-            ...columns,
-          ]}
-          rowActions={(r: T, rowIndex: number) => (
-            <RowActions
-              disabled={pending}
-              items={[
-                /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09): XX配置,
-                   the vocabulary's own verbs, the four moves, 删除XX. */
-                {
-                  id: "rename",
-                  label: ROW_OPS.configure(text.noun),
-                  onSelect: () =>
-                    setDialog({
-                      mode: "rename",
-                      code: r.code,
-                      name: r.name,
-                      extra: extraFromRow(r),
-                    }),
-                },
-                ...(extraActions ? extraActions(r, run) : []),
-                ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => run(onMove(r.id, d))),
-                ...(deleteHiddenWhen?.(r)
-                  ? []
-                  : [
-                      {
-                        id: "delete",
-                        label: ROW_OPS.remove(text.noun),
-                        danger: true as const,
-                        separatorBefore: true,
-                        disabled: deletableWhen ? !deletableWhen(r) : false,
-                        confirm: {
-                          verb: ROW_OPS.remove(text.noun),
-                          target: r.name,
-                          consequence: text.deleteConsequence,
-                          onConfirm: () => run(onDelete(r.id)),
+          (TD-022), so they line up column for column. icon 缩进 (owner
+          ruling, batch 2, 统一到 org-unit-form.tsx 的 部门设置/关联区域 同一
+          个样式 - level 2, 24px icon, 不单独降级) - 一个跟标题同名同尺寸的
+          隐形占位图标，让内容列跟标题文字对齐而不是跟 Section 左边缘对齐；
+          没有 icon 的调用方(page 模式、或还没选图标的堆叠调用方) 这层 flex
+          退化成单子元素，布局不变。 */}
+      <div className="gap-lg flex">
+        {!page && icon ? (
+          <span className="invisible shrink-0" aria-hidden="true">
+            <Icon name={icon} size="lg" />
+          </span>
+        ) : null}
+        <div
+          ref={select.ref}
+          className={`min-w-0 flex-1 [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
+        >
+          <DataTable
+            labels={DATA_TABLE_LABELS}
+            indexStart={1}
+            selectedKeys={selected}
+            onSelectionChange={setSelected}
+            rowKey={(r: T) => r.id}
+            rows={[...sorted.sortRows(rows)]}
+            sort={sorted.sort}
+            onSortChange={sorted.onSortChange}
+            columns={[
+              {
+                id: "name",
+                sortable: true,
+                header: text.colName,
+                width: "md" as const,
+                /* The code is omitted when it equals the name - a second line
+                   repeating the first costs height and says nothing. */
+                cell: (r: T) =>
+                  nameSuffix ? (
+                    <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
+                  ) : (
+                    <TableTitleCell
+                      title={r.name}
+                      description={r.code !== r.name ? r.code : undefined}
+                      tooltip={r.name}
+                    />
+                  ),
+              },
+              ...columns,
+            ]}
+            rowActions={(r: T, rowIndex: number) => (
+              <RowActions
+                disabled={pending}
+                items={[
+                  /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09): XX配置,
+                     the vocabulary's own verbs, the four moves, 删除XX. */
+                  {
+                    id: "rename",
+                    label: ROW_OPS.configure(text.noun),
+                    onSelect: () =>
+                      setDialog({
+                        mode: "rename",
+                        code: r.code,
+                        name: r.name,
+                        extra: extraFromRow(r),
+                      }),
+                  },
+                  ...(extraActions ? extraActions(r, run) : []),
+                  ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => run(onMove(r.id, d))),
+                  ...(deleteHiddenWhen?.(r)
+                    ? []
+                    : [
+                        {
+                          id: "delete",
+                          label: ROW_OPS.remove(text.noun),
+                          danger: true as const,
+                          separatorBefore: true,
+                          disabled: deletableWhen ? !deletableWhen(r) : false,
+                          confirm: {
+                            verb: ROW_OPS.remove(text.noun),
+                            target: r.name,
+                            consequence: text.deleteConsequence,
+                            onConfirm: () => run(onDelete(r.id)),
+                          },
                         },
-                      },
-                    ]),
-              ]}
-            />
-          )}
-        />
+                      ]),
+                ]}
+              />
+            )}
+          />
+        </div>
       </div>
 
       <DialogForm

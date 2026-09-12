@@ -64,9 +64,11 @@ export default async function IndustryPage() {
         current={INDUSTRY_TEXT.configTitle}
       />
       {/* The header is the PANEL's, not the page's: 新建行业 opens a dialog the
-          panel owns, and the DS puts a page's actions in the ViewHeader's own
-          slot (the call /admin/division already made). A page that rendered
-          the header here would have to keep the button somewhere else. */}
+          panel owns. It renders in a FilterBar above its own table, not the
+          ViewHeader's action slot (batch 2: a page header holds page-level
+          controls, "new row" is the toolbar's - the same split org-panel.tsx/
+          division-panel.tsx made). A page that rendered the header here would
+          have to keep the button somewhere else. */}
       <IndustryConfig
         industries={industries.value}
         usage={usage.ok ? usage.value : {}}

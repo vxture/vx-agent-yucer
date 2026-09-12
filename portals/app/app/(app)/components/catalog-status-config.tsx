@@ -53,6 +53,7 @@ export function CatalogStatusConfig({
     <VocabularyConfig
       rows={rows}
       idPrefix="status"
+      icon="flag"
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.statusesTitle,

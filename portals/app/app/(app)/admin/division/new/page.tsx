@@ -49,7 +49,7 @@ export default async function NewDivisionPage() {
         ]}
         current={PLANNING_TEXT.divisionNew}
       />
-      <ViewHeader title={PLANNING_TEXT.divisionNew} description={PLANNING_TEXT.divisionFormWhy(noun)} />
+      <ViewHeader icon="map-pin" title={PLANNING_TEXT.divisionNew} description={PLANNING_TEXT.divisionFormWhy(noun)} />
       <DivisionForm
         scope={frame}
         isNew

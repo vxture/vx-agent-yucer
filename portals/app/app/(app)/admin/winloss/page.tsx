@@ -69,7 +69,8 @@ export default async function WinLossReasonPage() {
         current={WINLOSS_TEXT.reasonConfigTitle}
       />
       {/* Same as /admin/industry: the header belongs to the panel, because
-          新建原因 opens a dialog only the panel can open. */}
+          新建原因 opens a dialog only the panel can open - it renders in the
+          panel's own FilterBar, not the ViewHeader. */}
       <WinLossReasonConfig
         reasons={reasons.value}
         usage={usage.ok ? usage.value : {}}

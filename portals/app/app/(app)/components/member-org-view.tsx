@@ -14,6 +14,7 @@ import {
   FieldLabel,
   Icon,
   NativeSelect,
+  Section,
   StatusBadge,
   TableTitleCell,
   UserAvatar,
@@ -402,51 +403,63 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
         />
       </div>
 
-      {/* THE DEPARTED, under the tree, folded until opened - the same table. */}
+      {/* THE DEPARTED, under the tree, folded until opened - the same table.
+          THE TITLE IS A Section NOW, NOT THE TRIGGER (batch 2 heading pass):
+          it used to be a hand-rolled <button> carrying the title text itself,
+          which read as a heading nowhere the accessibility tree or the DS's
+          own SectionHeader could see it. The title/description sit still,
+          same as overdue-commitments.tsx/signal-queue.tsx; only the icon
+          button that actually toggles goes in CollapsibleTrigger. */}
       {inactive.length > 0 ? (
         <Collapsible open={showInactive} onOpenChange={setShowInactive}>
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="text-label-md gap-xs flex cursor-pointer items-center font-semibold"
-              aria-label={showInactive ? MEMBER_TEXT.orgCollapse(MEMBER_TEXT.orgInactiveTitle(inactive.length)) : MEMBER_TEXT.orgExpand(MEMBER_TEXT.orgInactiveTitle(inactive.length))}
-            >
-              <Icon name={showInactive ? "chevron-down" : "chevron-right"} size="sm" className="text-muted-foreground" />
-              <span>{MEMBER_TEXT.orgInactiveTitle(inactive.length)}</span>
-              <span className="text-muted-foreground text-body-sm font-normal">{MEMBER_TEXT.orgInactiveWhy}</span>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className={`mt-sm [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(5)]:w-[7rem]`}>
-              <DataTable
-                labels={DATA_TABLE_LABELS}
-                indexStart={1}
-                selectedKeys={selectedInactive}
-                onSelectionChange={(keys) => setSelectedInactive([...keys])}
-                rowKey={(r: OrgViewRow) => r.id}
-                rows={inactiveRows}
-                rowActions={(r: OrgViewRow) => (
-                  <RowActions
-                    disabled={pending}
-                    items={
-                      r.kind === "person"
-                        ? [
-                            { id: "details", label: ROW_OPS.details(MEMBER_TEXT.noun), onSelect: () => onOpen(r.sub) },
-                            ...(canManage
-                              ? [
-                                  { id: "configure", label: ROW_OPS.configure(MEMBER_TEXT.noun), onSelect: () => onConfigure(r.sub) },
-                                  { id: "reactivate", label: MEMBER_TEXT.reactivate, separatorBefore: true, onSelect: () => onReactivate(r.sub) },
-                                ]
-                              : []),
-                          ]
-                        : []
-                    }
-                  />
-                )}
-                columns={columns}
-              />
-            </div>
-          </CollapsibleContent>
+          <Section
+            level={4}
+            title={MEMBER_TEXT.orgInactiveTitle(inactive.length)}
+            description={MEMBER_TEXT.orgInactiveWhy}
+            action={
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={showInactive ? MEMBER_TEXT.orgCollapse(MEMBER_TEXT.orgInactiveTitle(inactive.length)) : MEMBER_TEXT.orgExpand(MEMBER_TEXT.orgInactiveTitle(inactive.length))}
+                >
+                  <Icon name={showInactive ? "chevron-down" : "chevron-right"} size="xs" />
+                </Button>
+              </CollapsibleTrigger>
+            }
+          >
+            <CollapsibleContent>
+              <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[20rem] [&_thead_th:nth-child(5)]:w-[7rem]`}>
+                <DataTable
+                  labels={DATA_TABLE_LABELS}
+                  indexStart={1}
+                  selectedKeys={selectedInactive}
+                  onSelectionChange={(keys) => setSelectedInactive([...keys])}
+                  rowKey={(r: OrgViewRow) => r.id}
+                  rows={inactiveRows}
+                  rowActions={(r: OrgViewRow) => (
+                    <RowActions
+                      disabled={pending}
+                      items={
+                        r.kind === "person"
+                          ? [
+                              { id: "details", label: ROW_OPS.details(MEMBER_TEXT.noun), onSelect: () => onOpen(r.sub) },
+                              ...(canManage
+                                ? [
+                                    { id: "configure", label: ROW_OPS.configure(MEMBER_TEXT.noun), onSelect: () => onConfigure(r.sub) },
+                                    { id: "reactivate", label: MEMBER_TEXT.reactivate, separatorBefore: true, onSelect: () => onReactivate(r.sub) },
+                                  ]
+                                : []),
+                            ]
+                          : []
+                      }
+                    />
+                  )}
+                  columns={columns}
+                />
+              </div>
+            </CollapsibleContent>
+          </Section>
         </Collapsible>
       ) : null}
 

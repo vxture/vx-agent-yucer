@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, EmptyState, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, Icon, PanelCard, StatusBadge, ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
 import { getMessages } from "../../lib/i18n/server";
@@ -61,15 +61,13 @@ export default async function PendingMigrationPage() {
       ) : (
         <div className="gap-md flex flex-col">
           {routes.map((r) => (
-            <Card key={r.href}>
-              <CardHeader>
-                <CardTitle>
-                  <Link href={r.href} className="hover:underline">{r.href}</Link>
-                </CardTitle>
-                <CardDescription>{r.label}</CardDescription>
-              </CardHeader>
-              <CardContent />
-            </Card>
+            <Link key={r.href} href={r.href} className="no-underline">
+              <PanelCard icon="link" title={r.label} description={r.href}>
+                <span className="flex items-center justify-end gap-md">
+                  <Icon name="arrow-right" size="xs" />
+                </span>
+              </PanelCard>
+            </Link>
           ))}
         </div>
       )}

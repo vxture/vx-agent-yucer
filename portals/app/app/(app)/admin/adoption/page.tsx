@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   EmptyState,
+  Icon,
   MetricGrid,
   Section,
   StatusBadge,
@@ -169,7 +170,7 @@ export default async function AdoptionPage() {
         icon="chart-bar"
         title={DOMAIN_LABEL.adoption}
         description={ADOPTION_TEXT.description}
-        action={
+        secondary={
           <StatusBadge tone={verdict.tone} dot>
             {verdict.label}
           </StatusBadge>
@@ -183,71 +184,89 @@ export default async function AdoptionPage() {
           measuring the thing it was built to measure. */}
       <StatusBadge tone="info">{ADOPTION_TEXT.notAScoreboard}</StatusBadge>
 
-      <Section title={ADOPTION_TEXT.week} description={ADOPTION_TEXT.rateHint}>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">{ADOPTION_TEXT.week}</th>
-              <th scope="col">{ADOPTION_TEXT.openDeals}</th>
-              <th scope="col">{ADOPTION_TEXT.touched}</th>
-              <th scope="col">{ADOPTION_TEXT.notes}</th>
-              <th scope="col">{ADOPTION_TEXT.coverage}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map((w) => (
-              <tr key={w.weekStart.toISOString()}>
-                <th scope="row">
-                  {w.weekStart.toISOString().slice(0, 10)}
-                  {/* The current week is shown because a manager wants to know
-                      how it is going - and marked because otherwise its number
-                      is read as a result. A Monday morning row saying 0% is an
-                      artifact of the calendar, not a fact about the team, and
-                      an unmarked artifact is indistinguishable from a verdict. */}
-                  {w.complete ? null : (
-                    <StatusBadge tone="info">
-                      {ADOPTION_TEXT.weekInProgress}
-                    </StatusBadge>
-                  )}
-                </th>
-                <td>
-                  {w.opportunities === 0
-                    ? ADOPTION_TEXT.noDeals
-                    : w.opportunities}
-                </td>
-                <td>{w.covered}</td>
-                <td>{w.interactions}</td>
-                {/* Null, not zero: a week with no open deals is not a week the
-                    team failed to record anything. */}
-                <td>{w.complete ? pct(w.coverage) : "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* icon+缩进跟标题文字对齐 (batch 2 heading 裁决: 堆叠场景也要图标区分，
+          样式统一到 org-unit-form.tsx 的 部门设置/关联区域 - level 2, 24px
+          icon，不单独降级) - 本周表格 vs 下面的沉寂交易，互相用不同图标区分。 */}
+      <Section title={ADOPTION_TEXT.week} description={ADOPTION_TEXT.rateHint} icon="calendar">
+        <div className="gap-lg flex">
+          <span className="invisible shrink-0" aria-hidden="true">
+            <Icon name="calendar" size="lg" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{ADOPTION_TEXT.week}</th>
+                  <th scope="col">{ADOPTION_TEXT.openDeals}</th>
+                  <th scope="col">{ADOPTION_TEXT.touched}</th>
+                  <th scope="col">{ADOPTION_TEXT.notes}</th>
+                  <th scope="col">{ADOPTION_TEXT.coverage}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weeks.map((w) => (
+                  <tr key={w.weekStart.toISOString()}>
+                    <th scope="row">
+                      {w.weekStart.toISOString().slice(0, 10)}
+                      {/* The current week is shown because a manager wants to know
+                          how it is going - and marked because otherwise its number
+                          is read as a result. A Monday morning row saying 0% is an
+                          artifact of the calendar, not a fact about the team, and
+                          an unmarked artifact is indistinguishable from a verdict. */}
+                      {w.complete ? null : (
+                        <StatusBadge tone="info">
+                          {ADOPTION_TEXT.weekInProgress}
+                        </StatusBadge>
+                      )}
+                    </th>
+                    <td>
+                      {w.opportunities === 0
+                        ? ADOPTION_TEXT.noDeals
+                        : w.opportunities}
+                    </td>
+                    <td>{w.covered}</td>
+                    <td>{w.interactions}</td>
+                    {/* Null, not zero: a week with no open deals is not a week the
+                        team failed to record anything. */}
+                    <td>{w.complete ? pct(w.coverage) : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </Section>
 
       <Section
         title={ADOPTION_TEXT.darkDeals}
         description={ADOPTION_TEXT.darkDealsHint}
+        icon="moon"
       >
-        {dark.length === 0 ? (
-          <EmptyState
-            title={ADOPTION_TEXT.darkDealsEmpty}
-            description={windowStart.toISOString().slice(0, 10)}
-          />
-        ) : (
-          <ul>
-            {dark.map((o: OpportunityRecord) => (
-              <li key={o.id}>
-                <Tag>
-                  {STAGE_LABEL[o.stage as Stage] ?? o.stage}
-                </Tag>
-                <Link href={`/pipeline/${o.id}`}>{o.name}</Link>
-                <span>{o.ownerSub ?? "-"}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="gap-lg flex">
+          <span className="invisible shrink-0" aria-hidden="true">
+            <Icon name="moon" size="lg" />
+          </span>
+          <div className="min-w-0 flex-1">
+            {dark.length === 0 ? (
+              <EmptyState
+                title={ADOPTION_TEXT.darkDealsEmpty}
+                description={windowStart.toISOString().slice(0, 10)}
+              />
+            ) : (
+              <ul>
+                {dark.map((o: OpportunityRecord) => (
+                  <li key={o.id}>
+                    <Tag>
+                      {STAGE_LABEL[o.stage as Stage] ?? o.stage}
+                    </Tag>
+                    <Link href={`/pipeline/${o.id}`}>{o.name}</Link>
+                    <span>{o.ownerSub ?? "-"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </Section>
     </ViewLayout>
   );
