@@ -1171,10 +1171,27 @@ export const FORECAST_PARAM_TEXT = {
   stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。",
 };
 
+/** `SUPPORTED_CURRENCIES` (catalog/lib/pricing-policy.ts) 的显示名，同一组
+ *  代码作 key - 域层只认代码，名字是这里的事。 */
+export const CURRENCY_LABEL: Record<string, string> = {
+  CNY: "人民币",
+  USD: "美元",
+  HKD: "港币",
+  TWD: "新台币",
+};
+
+/** 同一组代码的符号 - 不是中文，en 字典原样复用这份值。 */
+export const CURRENCY_SYMBOL: Record<string, string> = {
+  CNY: "¥",
+  USD: "$",
+  HKD: "HK$",
+  TWD: "NT$",
+};
+
 /** 计价规则的回执 (0044)。 */
 export const PRICING_ERROR: Record<string, string> = {
   ...GATE_ERROR,
-  currency_invalid: "币种是三个大写字母的 ISO 代码，如 CNY、USD",
+  currency_invalid: "币种只能是人民币、美元、港币、新台币之一",
 };
 
 export const PRICING_TEXT = {
@@ -1184,7 +1201,7 @@ export const PRICING_TEXT = {
   discard: "放弃",
   saved: "已保存，之后新建的商机与报价行按新币种计",
   currencyLabel: "默认币种",
-  currencyHint: "ISO 4217 三字母代码。已有的价目与商机不改，只影响之后新写的。",
+  currencyHint: "已有的价目与商机不改，只影响之后新写的。",
 };
 
 /** 账龄分档的回执 (0042)。 */

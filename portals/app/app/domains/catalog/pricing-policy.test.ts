@@ -26,9 +26,13 @@ function ctx(role: RoleCode, store = new InMemoryCatalogStore()): CatalogContext
   };
 }
 
-test("a currency is three capitals, and is stored as such however it was typed", () => {
+test("a currency is one of the four shipped codes, and is stored as such however it was typed", () => {
   assert.deepEqual(unwrap(planPricingPolicy({ defaultCurrency: " usd " })), { defaultCurrency: "USD" });
-  for (const bad of ["CN", "CNYY", "cn1", ""]) {
+  // Three valid-SHAPED capitals is not enough on its own (owner, 2026-09-12:
+  // 换成封闭下拉，只能在候选列表里选) - EUR is a real ISO 4217 code the old
+  // regex-only check would have passed; it is not one of the four this
+  // workspace is offered.
+  for (const bad of ["CN", "CNYY", "cn1", "", "EUR", "GBP"]) {
     const r = planPricingPolicy({ defaultCurrency: bad });
     assert.equal(r.ok === false && r.violations[0].code, "currency_invalid", bad);
   }

@@ -5,12 +5,15 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
-  Input,
   Section,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
   ViewHeader,
   useToast,
 } from "@vxture/design-ui";
-import type { PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
+import { SUPPORTED_CURRENCIES, type PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
 import { useMessages } from "../lib/i18n/provider";
 import { FormActions, FormFields } from "./form-page";
 import { Tag } from "./tag";
@@ -35,11 +38,11 @@ export function PricingPolicyConfig({
   readonly canWrite: boolean;
   readonly onSave: (input: PricingPolicy) => Promise<{ ok: boolean; error?: string }>;
 }) {
-  const { PRICING_ERROR, PRICING_TEXT } = useMessages();
+  const { CURRENCY_LABEL, CURRENCY_SYMBOL, PRICING_ERROR, PRICING_TEXT } = useMessages();
   const [pending, start] = useTransition();
   const [currency, setCurrency] = useState(policy.defaultCurrency);
   const { toast } = useToast();
-  const dirty = currency.trim().toUpperCase() !== policy.defaultCurrency;
+  const dirty = currency !== policy.defaultCurrency;
 
   const save = () =>
     start(async () => {
@@ -70,14 +73,34 @@ export function PricingPolicyConfig({
           <FormFields>
             <Field>
               <FieldLabel htmlFor="pricing-currency">{PRICING_TEXT.currencyLabel}</FieldLabel>
-              <Input
-                id="pricing-currency"
-                className="max-w-[8rem] uppercase"
-                maxLength={3}
-                value={currency}
-                disabled={pending || !canWrite}
-                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              />
+              {/* THE SYMBOL IS SPLIT OUT of the option rows (owner, 2026-09-12):
+                  it lives only in the closed trigger, next to the code. Each
+                  open-list row carries just the code and the muted, right-
+                  aligned Chinese name - never the trigger's own chevron, since
+                  that name never renders in the trigger at all. */}
+              <Select value={currency} onValueChange={setCurrency} disabled={pending || !canWrite}>
+                <SelectTrigger id="pricing-currency" className="max-w-40">
+                  <span className="flex items-center gap-xs">
+                    <span className="text-muted-foreground">{CURRENCY_SYMBOL[currency]}</span>
+                    <span className="font-medium">{currency}</span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent className="min-w-56">
+                  {SUPPORTED_CURRENCIES.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {/* A FIXED width, not w-full: SelectItemText is a bare,
+                          content-sized span (Radix, not ours to style), so a
+                          percentage width here would just resolve against its
+                          own shrink-wrapped size and never reach the row's
+                          actual right edge. */}
+                      <span className="flex w-40 items-center justify-between gap-sm">
+                        <span className="font-medium">{code}</span>
+                        <span className="text-muted-foreground text-body-sm">{CURRENCY_LABEL[code]}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FieldDescription>{PRICING_TEXT.currencyHint}</FieldDescription>
             </Field>
           </FormFields>
