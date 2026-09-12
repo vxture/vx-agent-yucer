@@ -2021,8 +2021,11 @@ export const en: Dictionary = {
     cutoffsHint: "Ascending whole days, 1 to 3650, up to five.",
     cutoffAdd: "Add a cutoff",
     cutoffRemove: "Remove",
-    days: "days",
     bandPlaceholder: "—",
+    confirmAdd: (days: number) => `Add the ${days}-day cutoff?`,
+    confirmRemove: (days: string) => `Remove the ${days}-day cutoff?`,
+    confirmYes: "Confirm",
+    confirmNo: "Cancel",
   },
 
   INDUSTRY_ERROR: {

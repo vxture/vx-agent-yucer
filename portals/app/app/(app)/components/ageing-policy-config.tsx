@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type MouseEvent } from "react";
 import {
+  Button,
   Field,
   FieldDescription,
   FieldLabel,
@@ -56,20 +57,45 @@ import { Tag } from "./tag";
 // mid-edit cannot state a shape built on a broken number, so it falls back
 // to one flat, unlabelled bar instead.
 //
-// CLICK THE BAR TO INSERT, CLICK A MARKER TO REMOVE (owner, 2026-09-12,
-// third pass: 做成标签式游标，点击可以插入式增加和删除，下面数字可设置数字。
-// 由于复原简单，增删都无需确认). Each cutoff is a `Tag` sitting on the bar at
-// its own position - clicking IT removes that cutoff, immediately, no
-// confirmation dialog: Discard already reverts every unsaved change in one
-// click, so a second guard on top of it would only be asked to protect
-// against something the page already undoes for free. Clicking empty track
-// inserts a new cutoff at that position (kept in sorted array order so the
-// ascending-order check still reads left-to-right); an exact number is typed
-// into the small input under each tag rather than dragged, because a drag on
-// a 1-3650-day axis cannot land an integer as reliably as typing one.
+// CLICK THE BAR TO INSERT, CLICK "-" TO REMOVE (owner, 2026-09-12, third
+// pass then a correction: 做成标签式游标，点击可以插入式增加和删除，下面数字
+// 可设置数字，第一版按「由于复原简单，增删都无需确认」做成即时生效；第四版
+// 改了主意 - 给一条虚线定位并显示数字，点击后还是确认一下再添加，删除也要
+// 同一个确认). A click - the track, or a row's own "-" - never writes to
+// `rows` directly any more: it only stages a `pendingAction`, which the
+// dashed marker (insert) or the confirm bar under the ruler renders, and
+// only confirming there commits it. Also settled: one number per cutoff, not
+// two - a `Tag` sitting above its own `Input` read as the same value shown
+// twice ("现在有两个太搞笑了"), so the Input alone carries it now (native
+// spin buttons on, so typing or clicking them both work), with "-" behind it
+// rather than a whole second control above it.
 const RULER_OPEN_SHARE = 0.22;
 const RULER_MIN_SCALE = 30;
 const RULER_BAND_TONES = ["bg-primary/10", "bg-primary/18", "bg-primary/26", "bg-primary/34", "bg-primary/42"];
+
+/** A stable identity per cutoff, since insert splices into the middle of the
+ *  array (not just appends/removes like line-editor.tsx's rows) - an index
+ *  key would let React reattach an input's DOM state to the wrong cutoff the
+ *  moment one gets inserted ahead of it. */
+type CutoffRow = { readonly id: string; readonly value: string };
+const toRows = (values: readonly string[]): CutoffRow[] =>
+  values.map((value) => ({ id: crypto.randomUUID(), value }));
+
+// SAME PRECEDENCE `planAgeingCutoffs` CHECKS IN: count, then range, then
+// order - so the toast on an invalid save names the same violation the
+// server would have, reusing its exact wording rather than a second one.
+// WRITTEN AS if/else, NOT A NESTED TERNARY - the three-deep chain that used
+// to live inline here is exactly SonarCloud's "nested ternary" complaint,
+// and pulling it out to its own function is what let the caller stay
+// readable without it.
+function firstAgeingError(rowCount: number, parsed: readonly number[], maxCutoffs: number) {
+  if (rowCount < 1 || rowCount > maxCutoffs) return "cutoff_count";
+  if (parsed.some((n) => !(Number.isInteger(n) && n >= 1 && n <= 3650))) return "cutoff_range";
+  if (parsed.some((n, i) => i > 0 && Number.isInteger(n) && Number.isInteger(parsed[i - 1]) && n <= parsed[i - 1])) {
+    return "cutoffs_unordered";
+  }
+  return null;
+}
 
 export function AgeingPolicyConfig({
   cutoffs,
@@ -82,32 +108,21 @@ export function AgeingPolicyConfig({
 }) {
   const { AGEING_ERROR, AGEING_TEXT, DELIVERY_TEXT } = useMessages();
   const [pending, start] = useTransition();
-  const initialRows = cutoffs.length > 0 ? cutoffs.map(String) : [""];
-  const [rows, setRows] = useState<readonly string[]>(initialRows);
+  const initialRows = toRows(cutoffs.length > 0 ? cutoffs.map(String) : [""]);
+  const [rows, setRows] = useState<readonly CutoffRow[]>(initialRows);
+  const [pendingAction, setPendingAction] = useState<
+    { readonly kind: "insert"; readonly value: number } | { readonly kind: "remove"; readonly id: string; readonly value: string } | null
+  >(null);
   const { toast } = useToast();
 
   // Whatever they typed, as numbers. Anything unparseable becomes NaN, and a
   // row carrying one is flagged rather than silently dropped - the rule
   // refuses it by name rather than this component guessing.
-  const parsed = rows.map((v) => (v.trim() === "" ? Number.NaN : Number(v)));
+  const parsed = rows.map((r) => (r.value.trim() === "" ? Number.NaN : Number(r.value)));
   const dirty = parsed.join(",") !== cutoffs.join(",");
 
   const MAX_CUTOFFS = 5;
-  const countIssue = rows.length < 1 || rows.length > MAX_CUTOFFS;
-  const rangeIssueIndex = parsed.findIndex((n) => !(Number.isInteger(n) && n >= 1 && n <= 3650));
-  const orderIssueIndex = parsed.findIndex(
-    (n, i) => i > 0 && Number.isInteger(n) && Number.isInteger(parsed[i - 1]) && n <= parsed[i - 1],
-  );
-  // SAME PRECEDENCE `planAgeingCutoffs` CHECKS IN: count, then range, then
-  // order - so the toast on an invalid save names the same violation the
-  // server would have, reusing its exact wording rather than a second one.
-  const firstError = countIssue
-    ? "cutoff_count"
-    : rangeIssueIndex !== -1
-      ? "cutoff_range"
-      : orderIssueIndex !== -1
-        ? "cutoffs_unordered"
-        : null;
+  const firstError = firstAgeingError(rows.length, parsed, MAX_CUTOFFS);
 
   // PER-ROW, for the input's own aria-invalid styling - which number is
   // wrong, not just that the list as a whole is.
@@ -126,10 +141,13 @@ export function AgeingPolicyConfig({
   });
   const allValid = rows.length > 0 && validPrefix[rows.length - 1] === true;
 
-  const editRow = (i: number, value: string) =>
-    setRows((prev) => prev.map((v, j) => (j === i ? value : v)));
-  const removeRow = (i: number) => setRows((prev) => prev.filter((_, j) => j !== i));
-  const discard = () => setRows(initialRows);
+  const editRow = (id: string, value: string) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, value } : r)));
+  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
+  const discard = () => {
+    setRows(initialRows);
+    setPendingAction(null);
+  };
 
   // INSERTED SORTED, not appended - array order doubles as day order
   // everywhere else in this component (the order check reads
@@ -139,9 +157,9 @@ export function AgeingPolicyConfig({
     if (rows.length >= MAX_CUTOFFS) return;
     const v = String(Math.min(3650, Math.max(1, Math.round(value))));
     setRows((prev) => {
-      const idx = prev.findIndex((r) => Number(r) > Number(v) || Number.isNaN(Number(r)));
+      const idx = prev.findIndex((r) => Number(r.value) > Number(v) || Number.isNaN(Number(r.value)));
       const at = idx === -1 ? prev.length : idx;
-      return [...prev.slice(0, at), v, ...prev.slice(at)];
+      return [...prev.slice(0, at), { id: crypto.randomUUID(), value: v }, ...prev.slice(at)];
     });
   };
 
@@ -154,13 +172,36 @@ export function AgeingPolicyConfig({
   const posPct = (n: number) =>
     Number.isFinite(n) ? (Math.min(refMax, Math.max(0, n)) / refMax) * boundedShare * 100 : 0;
 
-  const trackClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (!canWrite || pending) return;
+  // STAGES, DOES NOT COMMIT (owner, 2026-09-12, fourth pass: 给一条虚线定位
+  // 并显示数字，点击后还是确认一下再添加 / 点击删除...需要确认框，==同增加).
+  // A click - track or the row's own "-" - only sets `pendingAction`; the
+  // dashed marker and the confirm bar below the ruler are what actually
+  // render it, and only `confirmPendingAction` writes to `rows`.
+  const trackClick = (e: MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
+    // A REAL BUTTON MEANS A KEYBOARD ACTIVATION FIRES THIS TOO (Enter/Space),
+    // and a synthetic click has no meaningful clientX - `detail === 0` is the
+    // standard way to tell it apart from an actual pointer click, so a
+    // keyboard user gets the same "extend past the last cutoff" default a
+    // click past the open tail gets, not a position computed from nothing.
+    if (e.detail === 0) {
+      setPendingAction({ kind: "insert", value: refMax + RULER_MIN_SCALE });
+      return;
+    }
     const pct = ((e.clientX - rect.left) / rect.width) * 100;
-    const value = pct >= boundedShare * 100 ? refMax + RULER_MIN_SCALE : (pct / (boundedShare * 100)) * refMax;
-    insertCutoff(value);
+    const value =
+      pct >= boundedShare * 100
+        ? refMax + RULER_MIN_SCALE
+        : Math.round((pct / (boundedShare * 100)) * refMax);
+    setPendingAction({ kind: "insert", value });
   };
+  const stageRemoval = (id: string, value: string) => setPendingAction({ kind: "remove", id, value });
+  const confirmPendingAction = () => {
+    if (pendingAction?.kind === "insert") insertCutoff(pendingAction.value);
+    else if (pendingAction?.kind === "remove") removeRow(pendingAction.id);
+    setPendingAction(null);
+  };
+  const cancelPendingAction = () => setPendingAction(null);
 
   let segFrom = 1;
   const segments = allValid
@@ -209,18 +250,19 @@ export function AgeingPolicyConfig({
             <div className="gap-xs flex items-center">
               <Tag>{DELIVERY_TEXT.ageingBand.not_due}</Tag>
             </div>
-            {/* THE RULER IS THE INPUT. Track: click empty space to insert a
-                cutoff there. Overlay: one Tag per cutoff at its own position -
-                click the tag to remove it (no confirm - Discard already
-                undoes everything in one click) - with its exact number
-                editable in the small input right under it. */}
+            {/* THE RULER IS THE INPUT. Track: click empty space to STAGE a
+                cutoff there (a dashed marker previews it below, nothing
+                written to `rows` yet). Overlay: one number input per cutoff
+                at its own position, spinners on to say it is adjustable, a
+                "-" behind it to STAGE that cutoff's removal. Either stage
+                only resolves through the confirm bar underneath. */}
             <div className="mt-xs w-full">
-              <div
-                role="button"
-                tabIndex={canWrite ? 0 : -1}
+              <button
+                type="button"
                 aria-label={AGEING_TEXT.cutoffAdd}
                 title={AGEING_TEXT.cutoffAdd}
                 onClick={trackClick}
+                disabled={!canWrite || pending || rows.length >= MAX_CUTOFFS}
                 className={`border-border flex h-10 w-full overflow-hidden rounded-md border ${canWrite && rows.length < MAX_CUTOFFS ? "cursor-pointer" : "cursor-default"}`}
               >
                 {allValid
@@ -241,41 +283,62 @@ export function AgeingPolicyConfig({
                   {allValid ? DELIVERY_TEXT.ageingOver(parsed[parsed.length - 1]) : AGEING_TEXT.bandPlaceholder}
                   <Icon name="arrow-right" size="xs" />
                 </div>
-              </div>
-              <div className="relative mt-xs h-16 w-full">
-                {rows.map((v, i) => (
+              </button>
+              <div className="relative mt-xs h-10 w-full">
+                {rows.map((r, i) => (
                   <div
-                    key={i}
-                    className="gap-2xs absolute top-0 flex -translate-x-1/2 flex-col items-center"
+                    key={r.id}
+                    className="gap-2xs absolute top-0 flex -translate-x-1/2 items-center"
                     style={{ left: `${posPct(parsed[i])}%` }}
                   >
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (canWrite && rows.length > 1) removeRow(i);
-                      }}
-                      aria-label={AGEING_TEXT.cutoffRemove}
-                      disabled={!canWrite || pending || rows.length <= 1}
-                      className="disabled:pointer-events-none disabled:opacity-disabled"
-                    >
-                      <Tag tone={rowInvalid[i] ? "warning" : "neutral"}>{v || "?"}</Tag>
-                    </button>
                     <Input
                       type="number"
                       inputMode="numeric"
-                      className="w-14 text-center"
-                      value={v}
+                      className="h-control-xs w-16 text-center [&::-webkit-inner-spin-button]:opacity-100 [&::-webkit-outer-spin-button]:opacity-100"
+                      value={r.value}
                       disabled={pending || !canWrite}
                       aria-invalid={rowInvalid[i]}
                       aria-label={AGEING_TEXT.cutoffsLabel}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => editRow(i, e.target.value)}
+                      onChange={(e) => editRow(r.id, e.target.value)}
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-xs"
+                      onClick={() => stageRemoval(r.id, r.value)}
+                      aria-label={AGEING_TEXT.cutoffRemove}
+                      disabled={!canWrite || pending || rows.length <= 1}
+                    >
+                      <Icon name="minus" size="xs" />
+                    </Button>
                   </div>
                 ))}
+                {pendingAction?.kind === "insert" ? (
+                  <div
+                    className="gap-2xs pointer-events-none absolute top-0 flex -translate-x-1/2 flex-col items-center"
+                    style={{ left: `${posPct(pendingAction.value)}%` }}
+                  >
+                    <span className="border-muted-foreground h-10 border-l border-dashed" />
+                    <span className="text-label-xs text-muted-foreground tabular-nums">{pendingAction.value}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
+            {pendingAction ? (
+              <div className="gap-sm border-border bg-card mt-xs flex items-center rounded-md border border-dashed p-sm">
+                <span className="text-body-sm">
+                  {pendingAction.kind === "insert"
+                    ? AGEING_TEXT.confirmAdd(pendingAction.value)
+                    : AGEING_TEXT.confirmRemove(pendingAction.value || "?")}
+                </span>
+                <Button size="sm" onClick={confirmPendingAction}>
+                  {AGEING_TEXT.confirmYes}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={cancelPendingAction}>
+                  {AGEING_TEXT.confirmNo}
+                </Button>
+              </div>
+            ) : null}
             <div className="gap-xs mt-sm flex items-center">
               <Tag>{DELIVERY_TEXT.ageingBand.no_due_date}</Tag>
             </div>

@@ -1205,8 +1205,11 @@ export const AGEING_TEXT = {
   cutoffsHint: "从小到大的整数天数，1 到 3650 之间，最多 5 个。",
   cutoffAdd: "加一档",
   cutoffRemove: "删除",
-  days: "天",
   bandPlaceholder: "—",
+  confirmAdd: (days: number) => `添加 ${days} 天的分档点？`,
+  confirmRemove: (days: string) => `删除 ${days} 天的分档点？`,
+  confirmYes: "确认",
+  confirmNo: "取消",
 };
 
 export const INDUSTRY_TEXT = {
