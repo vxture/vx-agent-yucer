@@ -98,7 +98,15 @@ import { Tag } from "./tag";
 const RULER_NOT_DUE_SHARE = 0.14;
 const RULER_OPEN_SHARE = 0.22;
 const RULER_MIN_SCALE = 30;
-const RULER_BAND_TONES = ["bg-primary/10", "bg-primary/18", "bg-primary/26", "bg-primary/34", "bg-primary/42"];
+// STRONG ENOUGH TO READ AT INDEX 0, AND EVERY SEAM HAS A BORDER TOO (owner,
+// 2026-09-12: 当前未到期和1-X 同色了 / 只有一个当时，前后颜色也同色了，看不出
+// 来分界). /10 read as indistinguishable from the neutral bg-muted either
+// side of it - the fix is two things together, not just a darker ramp: the
+// tones start visibly saturated, AND every segment carries its own
+// `border-r` so a boundary is never resting on colour contrast alone (a
+// single-cutoff ruler has exactly this shape - 未到期 | one band | the open
+// tail - where two muted neighbours would otherwise read as one field).
+const RULER_BAND_TONES = ["bg-primary/20", "bg-primary/30", "bg-primary/40", "bg-primary/50", "bg-primary/60"];
 
 /** A stable identity per cutoff, since insert splices into the middle of the
  *  array (not just appends/removes like line-editor.tsx's rows) - an index
@@ -304,7 +312,7 @@ export function AgeingPolicyConfig({
                 at its own position, spinners on to say it is adjustable, a
                 "-" behind it to STAGE that cutoff's removal. Either stage
                 only resolves through the confirm bar underneath. */}
-            <div className="mt-xs w-full">
+            <div className="relative mt-xs w-full">
               <button
                 type="button"
                 aria-label={AGEING_TEXT.cutoffAdd}
@@ -317,7 +325,7 @@ export function AgeingPolicyConfig({
               >
                 <div
                   style={{ width: `${RULER_NOT_DUE_SHARE * 100}%` }}
-                  className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center overflow-hidden px-2xs whitespace-nowrap"
+                  className="border-border bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap"
                 >
                   {DELIVERY_TEXT.ageingBand.not_due}
                 </div>
@@ -326,12 +334,12 @@ export function AgeingPolicyConfig({
                       <div
                         key={s.key}
                         style={{ width: `${s.widthPct}%` }}
-                        className={`text-label-sm flex shrink-0 items-center justify-center overflow-hidden px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
+                        className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
                       >
                         {DELIVERY_TEXT.ageingBetween(s.from, s.to)}
                       </div>
                     ))
-                  : <div style={{ width: `${boundedShare * 100}%` }} className="bg-muted shrink-0" />}
+                  : <div style={{ width: `${boundedShare * 100}%` }} className="border-border bg-muted shrink-0 border-r" />}
                 <div
                   style={{ width: `${RULER_OPEN_SHARE * 100}%` }}
                   className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center gap-2xs overflow-hidden px-2xs whitespace-nowrap"
@@ -344,7 +352,7 @@ export function AgeingPolicyConfig({
                 {rows.map((r, i) => (
                   <div
                     key={r.id}
-                    className="gap-2xs absolute top-0 flex -translate-x-1/2 items-center"
+                    className="gap-2xs z-0 absolute top-0 flex -translate-x-1/2 items-center"
                     style={{ left: `${posPct(parsed[i])}%` }}
                   >
                     <Input
@@ -371,20 +379,36 @@ export function AgeingPolicyConfig({
                 ))}
                 {/* HOVER PREVIEWS, A CLICK STAGES (owner, 2026-09-12: 在
                     hover 时就显示并带数字，点击后确认，现在点击根本不知道
-                    点到哪里了). Same dashed marker either way; staged
-                    (`pendingAction`) is full opacity since it is about to be
-                    asked to confirm, a live hover is half that - a hint, not
-                    a commitment yet. */}
+                    点到哪里了 - then a layout correction: 说明文字与hover数字
+                    重合，把数字提升，虚线应该在进度条上可以上下出血，数字要
+                    和已有数字对齐、更上层显示，可遮挡其他数字). The number
+                    lives IN this row (same container as the real Input rows,
+                    `z-10` over their `z-0` - it is allowed to sit on top of
+                    one, never the other way round) so it lands on the exact
+                    baseline the real numbers already read at, instead of
+                    stacking below a full-height line and overflowing into
+                    `cutoffsHint` underneath this whole block. The dashed
+                    line is the SEPARATE span below, scoped to the outer
+                    wrapper so it can bleed slightly past the bar's top and
+                    this row's bottom without affecting this row's own
+                    height. */}
                 {ghostInsertValue !== null ? (
                   <div
-                    className={`gap-2xs pointer-events-none absolute top-0 flex -translate-x-1/2 flex-col items-center ${pendingAction ? "" : "opacity-50"}`}
+                    className={`pointer-events-none absolute top-0 z-10 flex -translate-x-1/2 items-center ${pendingAction ? "" : "opacity-70"}`}
                     style={{ left: `${posPct(ghostInsertValue)}%` }}
                   >
-                    <span className="border-muted-foreground h-10 border-l border-dashed" />
-                    <span className="text-label-xs text-muted-foreground tabular-nums">{ghostInsertValue}</span>
+                    <span className="bg-background border-border shadow-raised text-label-xs text-foreground rounded-sm border px-2xs py-2xs tabular-nums">
+                      {ghostInsertValue}
+                    </span>
                   </div>
                 ) : null}
               </div>
+              {ghostInsertValue !== null ? (
+                <span
+                  className={`border-muted-foreground pointer-events-none absolute -top-1 -bottom-1 border-l border-dashed ${pendingAction ? "" : "opacity-70"}`}
+                  style={{ left: `${posPct(ghostInsertValue)}%` }}
+                />
+              ) : null}
             </div>
             {/* THE RULE FOR THIS CONTROL, RIGHT UNDER THE CONTROL (owner,
                 2026-09-12: 说明进行放到哪里合适 - this used to sit at the
