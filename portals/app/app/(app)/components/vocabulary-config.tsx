@@ -327,6 +327,20 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
     filtered.length === rows.length
       ? ROW_OPS.toolbarCount(rows.length, text.noun)
       : ROW_OPS.toolbarFilteredCount(filtered.length, rows.length, text.noun);
+  /* 首列宽度按业务列数量分档 (owner, 表格列宽新一轮规则): 1-2 列→50%，
+     3-4 列→40%，5+ 列→30%（跟 org-panel.tsx 7 列时的既有 30% 同档）。
+     `columns` 是调用方在 name 列之外追加的列，+1 把 name 自己算进业务列
+     总数里 - 8 个调用方共用这一处公式，不用每个文件各自算一遍。 */
+  const businessColumns = columns.length + 1;
+  /* Tailwind's scanner needs the full class string literal in source - a
+     runtime-built `w-[${n}%]` never gets its CSS generated. Three named
+     branches instead of interpolating the number. */
+  const titleWidthClass =
+    businessColumns <= 2
+      ? "[&_thead_th:nth-child(3)]:w-[50%]"
+      : businessColumns <= 4
+        ? "[&_thead_th:nth-child(3)]:w-[40%]"
+        : "[&_thead_th:nth-child(3)]:w-[30%]";
 
   return (
     <>
@@ -407,7 +421,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           ) : (
             <div
               ref={select.ref}
-              className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
+              className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${titleWidthClass} ${select.className}`}
             >
               <DataTable
                 labels={DATA_TABLE_LABELS}
@@ -423,7 +437,6 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
                     id: "name",
                     sortable: true,
                     header: text.colName,
-                    width: "md" as const,
                     /* The code is omitted when it equals the name - a second line
                        repeating the first costs height and says nothing. */
                     cell: (r: T) =>

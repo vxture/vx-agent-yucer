@@ -200,7 +200,12 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         </div>
         <div
           className={
+            /* 首列 30% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 -
+               成员/角色/单位/数据范围/状态五个业务列落在 "5-6 列→30%" 这档)。
+               角色列继续留白自适应，撑起表格宽度守卫要求的"至少一列不钉
+               宽度"。 */
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
+            + " [&_thead_th:nth-child(3)]:w-[30%]"
             + " [&_thead_th:nth-child(5)]:w-[9rem]"
             + " [&_thead_th:nth-child(6)]:w-[7rem]"
             + " [&_thead_th:nth-child(7)]:w-[6rem]"

@@ -233,7 +233,17 @@ function pinnedNthChildWidths(text: string): number[] {
  */
 const WIDTH_EXEMPTIONS: Record<string, string> = {
   "org-panel.tsx": "七个业务列百分比之和恰好 100% (30% + 6×11.6667%)，没有缺口需要靠自动列吸收 - 1800px 与 900px 均实测选择/序号/操作仍为 64px (owner, 2026-09-11)",
-  "division-panel.tsx": "四个业务列百分比之和恰好 100% (25% + 2×12.5% + 50%)，同 org-panel.tsx 的理由 - 没有缺口需要靠自动列吸收 (owner, 2026-09-11)",
+  "division-panel.tsx": "四个业务列百分比之和恰好 100% (40% + 2×10% + 40%)，同 org-panel.tsx 的理由 - 没有缺口需要靠自动列吸收 (owner, 表格列宽新一轮规则: 首列按业务列数量分档)",
+  "role-panel.tsx": "七个业务列百分比之和恰好 100% (30% + 8% + 10% + 10% + 8% + 8% + 26%)，同 org-panel.tsx 的理由 - 之前五个短列固定 rem + 说明列自适应，宽屏下实测说明列被压到 0px，改成全部按比例分 (owner, 表格列宽新一轮规则: 首列按业务列数量分档)",
+  /* vocabulary-config.tsx 是泛型共享组件 (8 个调用方复用) - 它自己的源码
+     里只写死了一个 `id: "name"` 列定义，正文列（`columns` prop）是调用方
+     各自 `...columns` 展开进来的，这条扫描器的 regex 只认单文件里字面出现
+     的 `id:"..."` + `header:`，看不见展开进来的那些，才把"1 个业务列全部
+     钉死"误判成没有自动列吸收缺口。真实情况：调用方展开进来的列全部走
+     DS 自己的 `width: "sm"|"lg"` 档位（不是 nth-child 百分比），从不参与
+     这条扫描器数的"钉死列"，所以每个调用方实际上都还留着自动列 - 8 个
+     调用方各自在浏览器里量过 (表格列宽新一轮规则)。 */
+  "vocabulary-config.tsx": "泛型共享组件，业务列数因调用方而异 - 正文列走 DS width 档位而非 nth-child，扫描器看不到调用方展开进来的列 (owner, 表格列宽新一轮规则: 首列按业务列数量分档公式写在组件里)",
 };
 
 const USES_FITTING_WIDTHS = /import\s*\{[^}]*\b(?:EDGE_COLUMNS|ACTION_COLUMN)\b[^}]*\}\s*from\s*"\.\/table-fittings"/;

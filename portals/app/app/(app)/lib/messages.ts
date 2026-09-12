@@ -1352,7 +1352,10 @@ export const ADMIN_PAGE_TEXT = {
   scopeColumnScope: "范围",
   scopeColumnDetail: "覆盖",
   scopeTerritories: (n: number) => `${n} 个区域`,
-  scopeNoTerritory: "未指定区域——按此配置什么也看不到",
+  // 精简 (owner, 表格列宽新一轮规则: 零值/警示文案要简化，大面积重复文字要
+  // 弱化 - 这条本来是整句塞进一个醒目 warning 徽章; tone="warning" 的强调
+  // 保留，只是文字本身缩到跟徽章配的短语)。
+  scopeNoTerritory: "未指定区域",
   scopeCount: (n: number) => `${n} 位成员`,
   // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由) - a holding
   // list, not a table: every page导航和站内都没有入口，只能靠手打 URL 到达
@@ -1479,7 +1482,9 @@ export const MEMBER_TEXT = {
     // 按组织（incr/0052）：本单位子树成员持有的，加子树区域覆盖的客户。
     unit: "本单位",
   } as Record<string, string>,
-  scopeUnitUnplaced: "未归属任何单位，只能看到无主记录",
+  // 精简 (owner, 表格列宽新一轮规则)：warning 语气（text-warning）保留，
+  // 文字缩短，不带后半句的推论。
+  scopeUnitUnplaced: "未归属单位",
   // 展示页 / 配置页分离（owner, 2026-09-10：展示信息和编辑、新建混合在一个页面，大bug）。
   noun: "成员",
   count: (active: number, inactive: number) => `${active} 人在岗${inactive > 0 ? ` · ${inactive} 人已停用` : ""}`,

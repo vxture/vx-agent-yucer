@@ -301,26 +301,21 @@ export function DivisionPanel(
            selection and index columns an equal share so they line up with the
            DS's own.
 
-           COLUMN WIDTHS (owner, 2026-09-11: 调整列宽，覆盖省份=4x 倍，容许
-           换行 - 排除选择/序号/操作三列算比例，跟组织架构的 30/70 拆分同一套
-           规范). 来源/省份数 各一份，覆盖省份四份 - 先按 1:1:1:4 (7 份) 上线
-           实测，区域名称列被压到 61px，CHINA-CENTRAL 这样的代码显示成
-           "CHIN" 就截断了 - 这不是"压缩"，是看不清，跟这轮列宽整改一直在
-           防的问题（组织架构那次的 76 讲得很清楚）是同一件事。改成 2:1:1:4
-           (8 份): 区域名称两份 25%，来源/省份数各一份 12.5%，覆盖省份四份
-           50%。八个百分比仍然恰好加总 100%，跟 org-panel.tsx 同样的理由
-           (table-fittings.test.ts's WIDTH_EXEMPTIONS): 没有缺口留给
-           table-fixed 去按比例分摊，选择/序号/操作照样精确 64px。覆盖省份的
-           标签本来就 flex-wrap；这次是给它真正的空间去换行，不再被压缩到
-           121px（改之前 DS 的 min-width 档位对 table-fixed 不生效，跟
-           组织架构那次的发现一致）。 */
+           COLUMN WIDTHS (owner, 表格列宽新一轮规则: 首列 30%-50%，按业务列
+           数量分档 - 4 列落在 "2-4 列→40%" 这档，比这里之前的 25% 宽). 首列
+           40%，其余三列按原有 1:1:4 的比例摊剩余 60%：来源/省份数各 10%，
+           覆盖省份 40% - 覆盖省份仍然是最宽的一列（规则 3 允许特殊列按倍数
+           分配，覆盖省份的标签本来就要换行，这个意图不变，只是跟着首列一起
+           缩小了绝对占比）。四个百分比仍然恰好加总 100%，跟 org-panel.tsx
+           同样的理由 (table-fittings.test.ts's WIDTH_EXEMPTIONS): 没有缺口
+           留给 table-fixed 去按比例分摊，选择/序号/操作照样精确 64px。 */
         <div
           className={
             `[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN}`
-            + " [&_thead_th:nth-child(3)]:w-[25%]"
-            + " [&_thead_th:nth-child(4)]:w-[12.5%]"
-            + " [&_thead_th:nth-child(5)]:w-[12.5%]"
-            + " [&_thead_th:nth-child(6)]:w-[50%]"
+            + " [&_thead_th:nth-child(3)]:w-[40%]"
+            + " [&_thead_th:nth-child(4)]:w-[10%]"
+            + " [&_thead_th:nth-child(5)]:w-[10%]"
+            + " [&_thead_th:nth-child(6)]:w-[40%]"
           }
         >
         <DataTable
