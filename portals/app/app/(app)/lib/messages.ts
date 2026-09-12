@@ -2654,6 +2654,16 @@ export const ROLE_TEXT = {
   bulkRemoveConsequence: "角色及其权限配置会被删除，不可撤销。",
   bulkRemoveDone: (removed: number) => `已删除 ${removed} 个角色`,
   bulkRemoveSkipped: (n: number) => `${n} 个仍有成员持有，未删除`,
+  // 搜索/筛选 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐)。
+  toolbarFilteredCount: (shown: number, total: number) => `筛选出 ${shown} / 共 ${total} 个角色`,
+  searchPlaceholder: "搜索角色名称或代码",
+  searchLabel: "搜索",
+  resetFilters: "重置筛选",
+  lineFilterLabel: "按业务线筛选",
+  filterAllLines: "全部业务线",
+  rankFilterLabel: "按层级筛选",
+  filterAllRanks: "全部层级",
+  filterEmpty: "没有匹配的角色",
 } as const;
 
 /**
@@ -2901,6 +2911,13 @@ export const ORG_TEXT = {
   bulkRemoveDone: (removed: number, unplaced: number) =>
     `已删除 ${removed} 个单位${unplaced > 0 ? `；${unplaced} 位成员已变为未归属` : ""}`,
   bulkRemoveSkipped: (n: number) => `${n} 个仍有下级单位，未删除`,
+  // 搜索/筛选 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐)。
+  toolbarFilteredCount: (shown: number, total: number) => `筛选出 ${shown} / 共 ${total} 个单位`,
+  searchPlaceholder: "搜索单位名称或代码",
+  searchLabel: "搜索",
+  resetFilters: "重置筛选",
+  kindFilterLabel: "按类型筛选",
+  filterAllKinds: "全部类型",
 } as const;
 
 export const ORG_KIND_TEXT = {
@@ -4012,6 +4029,14 @@ export const PLANNING_TEXT = {
     `所选区域会被删除，不可撤销。仍覆盖${noun}的区域不会被删除。`,
   divisionBulkRemoveDone: (removed: number) => `已删除 ${removed} 个区域`,
   divisionBulkRemoveSkipped: (n: number, noun: string) => `${n} 个仍覆盖${noun}，未删除`,
+  // 搜索/筛选 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐)。
+  divisionToolbarFilteredCount: (shown: number, total: number) => `筛选出 ${shown} / 共 ${total} 个区域`,
+  divisionSearchPlaceholder: "搜索区域名称或代码",
+  divisionSearchLabel: "搜索",
+  divisionResetFilters: "重置筛选",
+  divisionSourceFilterLabel: "按来源筛选",
+  divisionFilterAllSources: "全部来源",
+  divisionFilterEmpty: "没有匹配的区域",
   // 重置预置改名应用模版 (owner, 2026-09-11)。
   templateTitle: "应用划分模版",
   templateWhy: "选一套预置切法作为起点，之后随便改。",

@@ -7,8 +7,10 @@ import {
   Drawer,
   EmptyState,
   FilterBar,
+  Input,
   ListCard,
   ListCardGrid,
+  NativeSelect,
   Section,
   StatusBadge,
   Table,
@@ -23,8 +25,8 @@ import {
 } from "@vxture/design-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
+import { useMemo, useState, useTransition } from "react";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketMember } from "../../domains/shared/market-division";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -80,6 +82,20 @@ export function DivisionPanel(
   const router = useRouter();
   const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<FilterBarView>("list");
+  /* 搜索/筛选 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐) -
+     a flat list, unlike 组织架构's tree, so filtering is a plain array
+     filter with nothing to flatten first. */
+  const [query, setQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<"" | "system" | "custom">("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (q === "" || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q))
+        && (sourceFilter === "" || (sourceFilter === "system") === r.system),
+    );
+  }, [rows, query, sourceFilter]);
+  const searching = query.trim() !== "" || sourceFilter !== "";
   /* 区域详情 - the members as the form's four-column roster, in a drawer:
      the one menu every panel has (owner, 2026-09-09) starts with XX详情. */
   const [details, setDetails] = useState<DivisionRow | null>(null);
@@ -131,10 +147,11 @@ export function DivisionPanel(
 
   /* Shared between the table row and the card - same menu either way
      (owner, 2026-09-11: 添加表操作行，模式按照组织架构). rowIndex is the
-     row's own position in `rows`: a flat list, never re-sorted for
-     display, so that position IS the global one 上移/下移 act on. */
+     row's position in `filtered`, not the true stored order - 上移/下移
+     greying reflects what a reader is currently looking at, matching
+     vocabulary-config.tsx's own choice while a search narrows the rows. */
   const actionsFor = (r: DivisionRow) => {
-    const rowIndex = rows.findIndex((x) => x.code === r.code);
+    const rowIndex = filtered.findIndex((x) => x.code === r.code);
     return (
       <RowActions
         disabled={pending}
@@ -151,7 +168,7 @@ export function DivisionPanel(
                   label: ROW_OPS.configure(PLANNING_TEXT.divisionName),
                   onSelect: () => router.push(`/admin/division/${r.id}`),
                 },
-                ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
+                ...moveItems(ROW_OPS, rowIndex, filtered.length, (d) => move(r.code, d)),
                 {
                   id: "remove",
                   label: ROW_OPS.remove(PLANNING_TEXT.divisionName),
@@ -186,14 +203,44 @@ export function DivisionPanel(
     <Section id="divisions">
       {rows.length > 0 ? (
         <FilterBar
-          count={PLANNING_TEXT.divisionToolbarCount(rows.length)}
+          count={
+            searching
+              ? PLANNING_TEXT.divisionToolbarFilteredCount(filtered.length, rows.length)
+              : PLANNING_TEXT.divisionToolbarCount(rows.length)
+          }
           view={view}
           onViewChange={(v) => {
             setView(v);
             setSelected([]);
           }}
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={PLANNING_TEXT.divisionSearchPlaceholder}
+                aria-label={PLANNING_TEXT.divisionSearchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={searching ? () => { setQuery(""); setSourceFilter(""); } : undefined}
+          resetLabel={PLANNING_TEXT.divisionResetFilters}
           actions={editable ? <Button onClick={() => router.push("/admin/division/new")}>{PLANNING_TEXT.divisionNew}</Button> : undefined}
-        />
+        >
+          <FilterSlot width="w-[9rem]">
+            <NativeSelect
+              value={sourceFilter}
+              aria-label={PLANNING_TEXT.divisionSourceFilterLabel}
+              onChange={(e) => setSourceFilter(e.target.value as "" | "system" | "custom")}
+            >
+              <option value="">{PLANNING_TEXT.divisionFilterAllSources}</option>
+              <option value="system">{PLANNING_TEXT.divisionSystem}</option>
+              <option value="custom">{PLANNING_TEXT.divisionCustom}</option>
+            </NativeSelect>
+          </FilterSlot>
+        </FilterBar>
       ) : null}
       {editable && view === "list" ? (
         <BulkActionBar
@@ -225,9 +272,11 @@ export function DivisionPanel(
           title={PLANNING_TEXT.divisionEmptyTitle}
           description={PLANNING_TEXT.divisionEmptyWhy}
         />
+      ) : filtered.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionFilterEmpty}</p>
       ) : view === "cards" ? (
         <ListCardGrid>
-          {rows.map((r) => (
+          {filtered.map((r) => (
             <ListCard
               key={r.code}
               title={r.name}
@@ -281,7 +330,7 @@ export function DivisionPanel(
           onSelectionChange={(keys) => setSelected([...keys])}
           rowActions={actionsFor}
           rowKey={(r: DivisionRow) => r.code}
-          rows={rows}
+          rows={filtered}
           columns={[
             {
               // 首列走 TableTitleCell: the name leads, the code is its

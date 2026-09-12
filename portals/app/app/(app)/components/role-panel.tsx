@@ -6,8 +6,10 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
+  Input,
   ListCard,
   ListCardGrid,
+  NativeSelect,
   Section,
   StatusBadge,
   TableTitleCell,
@@ -16,7 +18,7 @@ import {
 } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveRoleAction, removeRoleAction } from "../admin/roles/actions";
@@ -72,6 +74,29 @@ export function RolePanel({
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<FilterBarView>("list");
+  /* 搜索/筛选 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐) -
+     a flat list, so filtering is a plain array filter. */
+  const [query, setQuery] = useState("");
+  const [lineFilter, setLineFilter] = useState("");
+  const [rankFilter, setRankFilter] = useState("");
+  const lineOptions = useMemo(
+    () => [...new Map(rows.filter((r) => r.line).map((r) => [r.line!.code, r.line!.name])).entries()],
+    [rows],
+  );
+  const rankOptions = useMemo(
+    () => [...new Map(rows.filter((r) => r.rank).map((r) => [r.rank!.code, r.rank!.name])).entries()],
+    [rows],
+  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (q === "" || r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q))
+        && (lineFilter === "" || r.line?.code === lineFilter)
+        && (rankFilter === "" || r.rank?.code === rankFilter),
+    );
+  }, [rows, query, lineFilter, rankFilter]);
+  const searching = query.trim() !== "" || lineFilter !== "" || rankFilter !== "";
   /* WHICH ROLE THE DRAWER SHOWS IS IN THE URL (`?details=<code>`), not in
      component state (owner, 2026-09-09: 保持侧边栏抽屉打开状态). So it survives
      the refresh every row move - and every save inside the drawer - causes,
@@ -142,11 +167,12 @@ export function RolePanel({
     });
 
   /* Shared between the table row and the card - same menu either way
-     (模式按照组织架构/区域设置). rowIndex is the row's own position in
-     `rows`: a flat list, never re-sorted for display, so that position IS
-     the global one 上移/下移 act on. */
+     (模式按照组织架构/区域设置). rowIndex is the row's position in
+     `filtered`, not the true stored order - 上移/下移 greying reflects what
+     a reader is currently looking at, matching vocabulary-config.tsx's own
+     choice while a search narrows the rows. */
   const actionsFor = (r: RoleRow) => {
-    const rowIndex = rows.findIndex((x) => x.code === r.code);
+    const rowIndex = filtered.findIndex((x) => x.code === r.code);
     return (
       <RowActions
         disabled={pending}
@@ -171,7 +197,7 @@ export function RolePanel({
                    greyed at the end they cannot pass. rowIndex is the
                    global position, since the rows are never re-sorted
                    for display. */
-                ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
+                ...moveItems(ROW_OPS, rowIndex, filtered.length, (d) => move(r.code, d)),
                 /* THE THIRD GROUP, UNDER ITS OWN RULE (owner: 按类用分割线
                    隔开，增加删除按钮): the one thing that cannot be
                    undone, red, confirmed by the DS - verb, target,
@@ -205,14 +231,53 @@ export function RolePanel({
     <Section id="roles">
       {rows.length > 0 ? (
         <FilterBar
-          count={ROLE_TEXT.toolbarCount(rows.length)}
+          count={
+            searching
+              ? ROLE_TEXT.toolbarFilteredCount(filtered.length, rows.length)
+              : ROLE_TEXT.toolbarCount(rows.length)
+          }
           view={view}
           onViewChange={(v) => {
             setView(v);
             setSelected([]);
           }}
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={ROLE_TEXT.searchPlaceholder}
+                aria-label={ROLE_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={searching ? () => { setQuery(""); setLineFilter(""); setRankFilter(""); } : undefined}
+          resetLabel={ROLE_TEXT.resetFilters}
           actions={editable ? <Button onClick={() => router.push("/admin/roles/new")}>{ROLE_TEXT.newRole}</Button> : undefined}
-        />
+        >
+          {lineOptions.length > 0 ? (
+            <FilterSlot width="w-[9rem]">
+              <NativeSelect value={lineFilter} aria-label={ROLE_TEXT.lineFilterLabel} onChange={(e) => setLineFilter(e.target.value)}>
+                <option value="">{ROLE_TEXT.filterAllLines}</option>
+                {lineOptions.map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </NativeSelect>
+            </FilterSlot>
+          ) : null}
+          {rankOptions.length > 0 ? (
+            <FilterSlot width="w-[9rem]">
+              <NativeSelect value={rankFilter} aria-label={ROLE_TEXT.rankFilterLabel} onChange={(e) => setRankFilter(e.target.value)}>
+                <option value="">{ROLE_TEXT.filterAllRanks}</option>
+                {rankOptions.map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </NativeSelect>
+            </FilterSlot>
+          ) : null}
+        </FilterBar>
       ) : null}
       {editable && view === "list" ? (
         <BulkActionBar
@@ -241,9 +306,11 @@ export function RolePanel({
       ) : null}
       {rows.length === 0 ? (
         <EmptyState title={ROLE_TEXT.emptyTitle} description={ROLE_TEXT.emptyWhy} />
+      ) : filtered.length === 0 ? (
+        <p className="text-muted-foreground text-body-sm">{ROLE_TEXT.filterEmpty}</p>
       ) : view === "cards" ? (
         <ListCardGrid>
-          {rows.map((r) => (
+          {filtered.map((r) => (
             <ListCard
               key={r.code}
               title={r.name}
@@ -289,7 +356,7 @@ export function RolePanel({
             onSelectionChange={(keys) => setSelected([...keys])}
             rowActions={actionsFor}
             rowKey={(r: RoleRow) => r.code}
-            rows={rows}
+            rows={filtered}
             columns={[
               {
                 /* 首列走 TableTitleCell: the name leads, the code is its
