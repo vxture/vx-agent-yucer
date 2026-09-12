@@ -69,6 +69,33 @@ import { Tag } from "./tag";
 // twice ("现在有两个太搞笑了"), so the Input alone carries it now (native
 // spin buttons on, so typing or clicking them both work), with "-" behind it
 // rather than a whole second control above it.
+//
+// 未到期 MOVED INTO THE BAR, 未填到期日 STAYS OUTSIDE IT (owner, 2026-09-12:
+// 把未到期加入到进度条中，从1开始逾期 / 底部显示未填到期日，什么意思和逻辑，
+// 这里能填吗). The two are not the same kind of exception: 未到期 is "before
+// the clock starts", which is a position ON the ageing axis (the leftmost
+// one), so it is now the bar's own leading segment - a fixed share, since it
+// has no day count to be proportional to, but still a place on the ruler.
+// 未填到期日 is not a position on that axis at all - the due-date field is
+// empty, so there is no clock to have started or not, nothing this page's
+// cutoffs could ever place it relative to. It stays a plain fixed tag below
+// the ruler, with `noDueDateHint` saying in place why it is not a field this
+// page configures, since the question came up once already.
+//
+// THE HINT MOVED TO SIT UNDER THE RULER (owner, 2026-09-12: 说明进行放到哪里
+// 合适) - `cutoffsHint` describes the numbers this control takes (ascending,
+// 1-3650, up to five), and it used to render at the very bottom of the
+// Field, after 未填到期日, which is not the numbers this control takes.
+// 未到期 IS NOW A SEGMENT OF THE BAR TOO (owner, 2026-09-12: 把未到期加入到
+// 进度条中，从1开始逾期), a fixed share on the LEFT the same way the
+// open-ended tail is a fixed share on the right - neither has a day count to
+// be proportional to, one because it is "before the clock starts" and the
+// other because it never ends. 逾期 STILL COUNTS FROM DAY 1 the moment it
+// starts (unchanged) - 未到期 only claims the room to its left, it does not
+// shift where the numbered bands begin. That zone is real estate, not a
+// value: `valueFromClientX` returns null for a click or hover landing in it,
+// since there is no day number a click there could mean.
+const RULER_NOT_DUE_SHARE = 0.14;
 const RULER_OPEN_SHARE = 0.22;
 const RULER_MIN_SCALE = 30;
 const RULER_BAND_TONES = ["bg-primary/10", "bg-primary/18", "bg-primary/26", "bg-primary/34", "bg-primary/42"];
@@ -167,20 +194,25 @@ export function AgeingPolicyConfig({
 
   // THE RULER'S OWN SCALE. A row positions off its OWN number against the
   // largest one currently typed, floored at RULER_MIN_SCALE so a lone small
-  // cutoff (or none yet) does not stretch across the whole bar.
+  // cutoff (or none yet) does not stretch across the whole bar. The numbered
+  // region sits between the fixed 未到期 share on the left and the fixed
+  // open-tail share on the right.
   const finiteValues = parsed.filter((n) => Number.isFinite(n));
   const refMax = Math.max(RULER_MIN_SCALE, ...(finiteValues.length > 0 ? finiteValues : [0]));
-  const boundedShare = 1 - RULER_OPEN_SHARE;
+  const boundedShare = 1 - RULER_NOT_DUE_SHARE - RULER_OPEN_SHARE;
   const posPct = (n: number) =>
-    Number.isFinite(n) ? (Math.min(refMax, Math.max(0, n)) / refMax) * boundedShare * 100 : 0;
+    Number.isFinite(n)
+      ? RULER_NOT_DUE_SHARE * 100 + (Math.min(refMax, Math.max(0, n)) / refMax) * boundedShare * 100
+      : 0;
 
   // THE SAME MATH FOR HOVER AND CLICK, so the number a click stages is
-  // exactly the number the hover preview just promised.
-  const valueFromClientX = (clientX: number, rect: DOMRect) => {
+  // exactly the number the hover preview just promised. Returns null for a
+  // click/hover landing in the 未到期 zone - there is no day it could mean.
+  const valueFromClientX = (clientX: number, rect: DOMRect): number | null => {
     const pct = ((clientX - rect.left) / rect.width) * 100;
-    return pct >= boundedShare * 100
-      ? refMax + RULER_MIN_SCALE
-      : Math.round((pct / (boundedShare * 100)) * refMax);
+    if (pct < RULER_NOT_DUE_SHARE * 100) return null;
+    if (pct >= (RULER_NOT_DUE_SHARE + boundedShare) * 100) return refMax + RULER_MIN_SCALE;
+    return Math.round(((pct - RULER_NOT_DUE_SHARE * 100) / (boundedShare * 100)) * refMax);
   };
 
   // STAGES, DOES NOT COMMIT (owner, 2026-09-12: 给一条虚线定位并显示数字，
@@ -205,11 +237,10 @@ export function AgeingPolicyConfig({
     // keyboard user gets the same "extend past the last cutoff" default a
     // click past the open tail gets, not a position computed from nothing.
     const value =
-      e.detail === 0
-        ? refMax + RULER_MIN_SCALE
-        : valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+      e.detail === 0 ? refMax + RULER_MIN_SCALE : valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
     setHoverValue(null);
-    setPendingAction({ kind: "insert", value });
+    // null = the click landed in the 未到期 zone, which stages nothing.
+    if (value !== null) setPendingAction({ kind: "insert", value });
   };
   const stageRemoval = (id: string, value: string) => setPendingAction({ kind: "remove", id, value });
   const confirmPendingAction = () => {
@@ -265,11 +296,10 @@ export function AgeingPolicyConfig({
         <Section>
           <Field>
             <FieldLabel>{AGEING_TEXT.cutoffsLabel}</FieldLabel>
-            <div className="gap-xs flex items-center">
-              <Tag>{DELIVERY_TEXT.ageingBand.not_due}</Tag>
-            </div>
-            {/* THE RULER IS THE INPUT. Track: click empty space to STAGE a
-                cutoff there (a dashed marker previews it below, nothing
+            {/* THE RULER IS THE INPUT. 未到期 is now the bar's own leading
+                segment (fixed share, not a day value - clicks there stage
+                nothing). Track: click empty space in the numbered region to
+                STAGE a cutoff there (a dashed marker previews it, nothing
                 written to `rows` yet). Overlay: one number input per cutoff
                 at its own position, spinners on to say it is adjustable, a
                 "-" behind it to STAGE that cutoff's removal. Either stage
@@ -285,6 +315,12 @@ export function AgeingPolicyConfig({
                 disabled={!canWrite || pending || rows.length >= MAX_CUTOFFS}
                 className={`border-border flex h-10 w-full overflow-hidden rounded-md border ${canWrite && rows.length < MAX_CUTOFFS ? "cursor-pointer" : "cursor-default"}`}
               >
+                <div
+                  style={{ width: `${RULER_NOT_DUE_SHARE * 100}%` }}
+                  className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center overflow-hidden px-2xs whitespace-nowrap"
+                >
+                  {DELIVERY_TEXT.ageingBand.not_due}
+                </div>
                 {allValid
                   ? segments.map((s, i) => (
                       <div
@@ -350,6 +386,11 @@ export function AgeingPolicyConfig({
                 ) : null}
               </div>
             </div>
+            {/* THE RULE FOR THIS CONTROL, RIGHT UNDER THE CONTROL (owner,
+                2026-09-12: 说明进行放到哪里合适 - this used to sit at the
+                very bottom of the Field, after 未填到期日, which describes
+                something this hint has nothing to do with). */}
+            <FieldDescription>{AGEING_TEXT.cutoffsHint}</FieldDescription>
             {pendingAction ? (
               <div className="gap-sm border-border bg-card mt-xs flex items-center rounded-md border border-dashed p-sm">
                 <span className="text-body-sm">
@@ -367,8 +408,8 @@ export function AgeingPolicyConfig({
             ) : null}
             <div className="gap-xs mt-sm flex items-center">
               <Tag>{DELIVERY_TEXT.ageingBand.no_due_date}</Tag>
+              <span className="text-body-sm text-muted-foreground">{AGEING_TEXT.noDueDateHint}</span>
             </div>
-            <FieldDescription>{AGEING_TEXT.cutoffsHint}</FieldDescription>
           </Field>
         </Section>
         {canWrite ? (
