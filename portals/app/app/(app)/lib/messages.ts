@@ -616,6 +616,17 @@ export const DS_LABELS = {
   /** Toasts. Both outlets are accessible names a reader never sees but hears. */
   toastRegion: "通知",
   toastDismiss: "关闭通知",
+
+  /** Pagination footer (owner, 表格列宽新一轮规则: 规则 5). Its defaults are
+   *  English ("15 records"/"Previous page") - every table's `<Pagination>`
+   *  needs these passed explicitly, the same reason `actionMenu` above does. */
+  paginationCount: (n: number) => `共 ${n} 条记录`,
+  paginationFilteredCount: (shown: number, total: number) => `共 ${total} 条记录，当前筛选 ${shown} 条`,
+  paginationPrevious: "上一页",
+  paginationNext: "下一页",
+  paginationPageSizeLabel: "每页条数",
+  paginationPageSizeOptionTemplate: "每页 {size} 条",
+  paginationPageSizeAuto: "每页条数自适应",
 } as const;
 
 /**

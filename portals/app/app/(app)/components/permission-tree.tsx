@@ -22,10 +22,11 @@ import {
   TableHeader,
   TableRow,
   TableTitleCell,
+  useListPagination,
   useToast,
   type IconName,
 } from "@vxture/design-ui";
-import { ACTION_COLUMN, FilterSlot, RowActions, SearchSlot } from "./table-fittings";
+import { ACTION_COLUMN, FilterSlot, PaginationFooter, RowActions, SearchSlot } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import {
   filterPermissionTree,
@@ -228,6 +229,10 @@ export function PermissionTree({
     () => flattenTree(filtered, isFiltering ? keysDownTo(filtered, "action") : expanded),
     [filtered, isFiltering, expanded],
   );
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 按拍平后的行数组分页，
+     页大小放宽到 50，跟 org-panel.tsx/member-org-view.tsx 两张树形表同一个
+     妥协：真被展开撑爆一页是边界情况，不是这一轮要解决的问题。 */
+  const pagination = useListPagination(rows, 50);
   /* permission -> the roles that hold it, in roster order. Built once; a
      cell reads its slice. */
   const holders = useMemo(() => {
@@ -317,11 +322,11 @@ export function PermissionTree({
             <span className="text-muted-foreground text-body-sm">{T.expandTo}</span>
             <ButtonGroup>
               {(["module", "page", "action"] as const).map((lvl) => (
-                <Button key={lvl} variant="secondary" size="sm" onClick={() => setExpanded(keysDownTo(tree, lvl))}>
+                <Button key={lvl} variant="secondary" size="sm" onClick={() => { setExpanded(keysDownTo(tree, lvl)); pagination.resetPage(); }}>
                   {T.levelLabel[lvl]}
                 </Button>
               ))}
-              <Button variant="secondary" size="sm" onClick={() => setExpanded(new Set())}>
+              <Button variant="secondary" size="sm" onClick={() => { setExpanded(new Set()); pagination.resetPage(); }}>
                 {T.collapseAll}
               </Button>
             </ButtonGroup>
@@ -335,18 +340,18 @@ export function PermissionTree({
               value={query}
               placeholder={T.searchHint}
               aria-label={T.searchLabel}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); pagination.resetPage(); }}
             />
           </SearchSlot>
         }
-        onReset={isFiltering ? () => { setQuery(""); setDomain(""); setLevel(""); } : undefined}
+        onReset={isFiltering ? () => { setQuery(""); setDomain(""); setLevel(""); pagination.resetPage(); } : undefined}
         resetLabel={T.resetFilters}
       >
         <FilterSlot width="w-[8rem]">
           <NativeSelect
             value={level}
             aria-label={T.levelFilterLabel}
-            onChange={(e) => setLevel(e.target.value as PermissionLevel | "")}
+            onChange={(e) => { setLevel(e.target.value as PermissionLevel | ""); pagination.resetPage(); }}
           >
             <option value="">{T.filterAllLevels}</option>
             {(["domain", "module", "page", "action"] as const).map((lvl) => (
@@ -355,7 +360,7 @@ export function PermissionTree({
           </NativeSelect>
         </FilterSlot>
         <FilterSlot width="w-[10rem]">
-          <NativeSelect value={domain} aria-label={T.domainFilterLabel} onChange={(e) => setDomain(e.target.value)}>
+          <NativeSelect value={domain} aria-label={T.domainFilterLabel} onChange={(e) => { setDomain(e.target.value); pagination.resetPage(); }}>
             <option value="">{T.filterAllDomains}</option>
             {tree.map((g) => (
               <option key={g.key} value={g.key}>{title(g)}</option>
@@ -367,6 +372,7 @@ export function PermissionTree({
       {filtered.length === 0 ? (
         <p className="text-muted-foreground text-body-sm">{T.filterEmpty}</p>
       ) : (
+      <>
       <div
         className={
           /* EVERY COLUMN NAMED, NOTHING LEFT TO AUTO (owner, 2026-09-10:
@@ -420,7 +426,7 @@ export function PermissionTree({
             <RowActions items={r.node.permission ? [{ id: "copy", label: T.copyCode, icon: "copy", onSelect: () => copyCode(r.node.permission!) }] : []} />
           }
           rowKey={(r: PermissionRow) => r.node.key}
-          rows={rows}
+          rows={pagination.pageRows}
           columns={[
             {
               /* 编号 (owner, 2026-09-10): the row's OWN path, not a running
@@ -589,6 +595,8 @@ export function PermissionTree({
           ]}
         />
       </div>
+      <PaginationFooter pagination={pagination} total={rows.length} />
+      </>
       )}
     </div>
   );

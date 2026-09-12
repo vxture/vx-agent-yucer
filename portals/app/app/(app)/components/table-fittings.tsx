@@ -3,9 +3,12 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   ActionMenu,
+  Pagination,
   type ActionMenuItem,
   type DataTableSort,
+  type PageSizeChoice,
 } from "@vxture/design-ui";
+import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
 // 表格三件标配 - owner ruling, 2026-09-06.
@@ -323,4 +326,52 @@ export function moveItems(
     { id: "top", label: ops.top, disabled: index === 0, onSelect: () => move("top") },
     { id: "bottom", label: ops.bottom, disabled: index === count - 1, onSelect: () => move("bottom") },
   ];
+}
+
+/**
+ * 分页页脚 - owner ruling (表格列宽新一轮规则, 规则 5): DS 格式的页脚，左侧
+ * 统计信息，右侧翻页组件组。DS 的 `Pagination` 本身就是"左统计右翻页"一整条,
+ * 缺省文案是英文（"15 records"/"Previous page"）- 跟 `DS_LABELS.actionMenu`
+ * 同一个理由，每张表都要显式传中文覆盖，抽成一个共享件，不用 9 张表各自
+ * 拼 7 个 prop。`filteredTotal` 给了就是"共 M 条记录，当前筛选 N 条"，不给
+ * 就是"共 M 条记录" - 调用方决定当前是不是在筛选状态。
+ */
+export function PaginationFooter({
+  pagination,
+  total,
+  filteredTotal,
+}: {
+  readonly pagination: {
+    readonly page: number;
+    readonly pageCount: number;
+    readonly pageSize: PageSizeChoice;
+    readonly onPageChange: (page: number) => void;
+    readonly onPageSizeChange: (size: PageSizeChoice) => void;
+  };
+  readonly total: number;
+  readonly filteredTotal?: number;
+}) {
+  const { DS_LABELS } = useMessages();
+  return (
+    <Pagination
+      page={pagination.page}
+      pageCount={pagination.pageCount}
+      total={total}
+      filteredTotal={filteredTotal}
+      pageSize={pagination.pageSize}
+      pageSizeOptions={[10, 20, 50]}
+      onPageChange={pagination.onPageChange}
+      onPageSizeChange={pagination.onPageSizeChange}
+      countLabel={
+        filteredTotal !== undefined
+          ? DS_LABELS.paginationFilteredCount(filteredTotal, total)
+          : DS_LABELS.paginationCount(total)
+      }
+      previousLabel={DS_LABELS.paginationPrevious}
+      nextLabel={DS_LABELS.paginationNext}
+      pageSizeLabel={DS_LABELS.paginationPageSizeLabel}
+      pageSizeOptionTemplate={DS_LABELS.paginationPageSizeOptionTemplate}
+      pageSizeAutoLabel={DS_LABELS.paginationPageSizeAuto}
+    />
+  );
 }

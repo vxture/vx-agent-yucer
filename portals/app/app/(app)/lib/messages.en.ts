@@ -675,6 +675,13 @@ export const en: Dictionary = {
     bulkSelectionTemplate: "{count} {noun} selected",
     toastRegion: "Notifications",
     toastDismiss: "Dismiss notification",
+    paginationCount: (n: number) => `${n} records`,
+    paginationFilteredCount: (shown: number, total: number) => `${total} records, ${shown} shown`,
+    paginationPrevious: "Previous page",
+    paginationNext: "Next page",
+    paginationPageSizeLabel: "Rows per page",
+    paginationPageSizeOptionTemplate: "{size} per page",
+    paginationPageSizeAuto: "Auto rows per page",
   },
 
   REVENUE_ERROR: {

@@ -21,6 +21,7 @@ import {
   Input,
   Section,
   TableTitleCell,
+  useListPagination,
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -28,6 +29,7 @@ import type { NavIcon } from "../lib/navigation";
 import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
+  PaginationFooter,
   RowActions,
   SearchSlot,
   moveItems,
@@ -227,6 +229,10 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
     return rows.filter((r) => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q));
   }, [rows, query]);
   const sorted = useTableSort<T>([], { name: (r: T) => r.name, ...sortOn });
+  const sortedFiltered = useMemo(() => sorted.sortRows(filtered), [sorted, filtered]);
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 8 个调用方共用这一处,
+     不用各自接一遍。 */
+  const pagination = useListPagination(sortedFiltered, 20);
   const select = rowClickSelection(filtered, (r) => r.id, selected, setSelected);
   const { toast } = useToast();
   const router = useRouter();
@@ -319,7 +325,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
         value={query}
         placeholder={ROW_OPS.searchPlaceholder}
         aria-label={ROW_OPS.searchLabel}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => { setQuery(e.target.value); pagination.resetPage(); }}
       />
     </SearchSlot>
   );
@@ -397,7 +403,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
         <div className="min-w-0 flex-1">
           {view === "cards" ? (
             <ListCardGrid>
-              {sorted.sortRows(filtered).map((r) => (
+              {pagination.pageRows.map((r) => (
                 <ListCard
                   key={r.id}
                   title={r.name}
@@ -425,11 +431,11 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
             >
               <DataTable
                 labels={DATA_TABLE_LABELS}
-                indexStart={1}
+                indexStart={pagination.indexStart}
                 selectedKeys={selected}
                 onSelectionChange={setSelected}
                 rowKey={(r: T) => r.id}
-                rows={[...sorted.sortRows(filtered)]}
+                rows={pagination.pageRows}
                 sort={sorted.sort}
                 onSortChange={sorted.onSortChange}
                 columns={[
@@ -458,6 +464,13 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           )}
         </div>
       </div>
+      {filtered.length > 0 ? (
+        <PaginationFooter
+          pagination={pagination}
+          total={rows.length}
+          filteredTotal={filtered.length !== rows.length ? filtered.length : undefined}
+        />
+      ) : null}
 
       <DialogForm
         open={dialog !== null}
