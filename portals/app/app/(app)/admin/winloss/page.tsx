@@ -48,6 +48,9 @@ export default async function WinLossReasonPage() {
   if (!can(session.authz, session.entitlement, "pipeline.winloss.view", "ui").allowed) {
     return <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />;
   }
+  /* 能看不能写的中间态是真的 (owner: 所有这些页面、按钮都需要权限点) - view 只
+     决定这页可不可见, 新建/改名/删除要 pipeline.winloss.record. */
+  const editable = can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed;
 
   const [reasons, usage] = await Promise.all([
     listWinLossReasons(ctx),
@@ -74,6 +77,7 @@ export default async function WinLossReasonPage() {
       <WinLossReasonConfig
         reasons={reasons.value}
         usage={usage.ok ? usage.value : {}}
+        editable={editable}
         onSave={saveWinLossReason}
         onMove={moveWinLossReasonAction}
         onDelete={removeWinLossReasonAction}

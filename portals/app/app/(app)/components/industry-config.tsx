@@ -21,6 +21,7 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 export function IndustryConfig({
   industries,
   usage,
+  editable,
   onSave,
   onMove,
   onDelete,
@@ -28,6 +29,8 @@ export function IndustryConfig({
   readonly industries: readonly IndustryRecord[];
   /** How many customers are filed under each industry, by id. */
   readonly usage: Readonly<Record<string, number>>;
+  /** `account.upsert` - the page checks this, this panel only renders it. */
+  readonly editable: boolean;
   readonly onSave: (input: { industryCode: string; name: string }) => Promise<VocabularyResult>;
   readonly onMove: (industryId: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (industryId: string) => Promise<VocabularyResult>;
@@ -40,6 +43,7 @@ export function IndustryConfig({
       rows={rows}
       idPrefix="ind"
       errors={INDUSTRY_ERROR}
+      editable={editable}
       page={{ icon: "buildings", count: INDUSTRY_TEXT.count }}
       text={{
         title: INDUSTRY_TEXT.configTitle,
