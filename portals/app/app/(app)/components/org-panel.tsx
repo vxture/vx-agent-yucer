@@ -150,7 +150,7 @@ export function OrgPanel({
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("");
   const kindOptions = useMemo(
-    () => [...new Set(rows.map((r) => r.kindName).filter((k): k is string => k !== null))].sort(),
+    () => [...new Set(rows.map((r) => r.kindName).filter((k): k is string => k !== null))].sort((a, b) => a.localeCompare(b)),
     [rows],
   );
   const searching = query.trim() !== "" || kindFilter !== "";
