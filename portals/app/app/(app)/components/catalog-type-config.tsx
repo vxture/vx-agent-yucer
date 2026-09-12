@@ -48,6 +48,7 @@ export function CatalogTypeConfig({
     <VocabularyConfig
       rows={rows}
       idPrefix="type"
+      icon="package"
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.typesTitle,

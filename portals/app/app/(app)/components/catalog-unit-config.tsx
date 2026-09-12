@@ -44,6 +44,7 @@ export function CatalogUnitConfig({
     <VocabularyConfig
       rows={rows}
       idPrefix="unit"
+      icon="gauge"
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.unitsTitle,

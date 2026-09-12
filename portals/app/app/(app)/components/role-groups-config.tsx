@@ -30,6 +30,7 @@ export function RoleGroupsConfig({ kind, rows }: {
     <VocabularyConfig
       rows={rows}
       idPrefix={kind}
+      icon={kind === "line" ? "buildings" : "medal"}
       errors={ROLE_GROUP_ERROR}
       text={{
         title: T.title,

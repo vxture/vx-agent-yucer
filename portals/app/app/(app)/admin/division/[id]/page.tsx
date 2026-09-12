@@ -65,7 +65,7 @@ export default async function EditDivisionPage(
         ]}
         current={mine.name}
       />
-      <ViewHeader title={mine.name} description={PLANNING_TEXT.divisionFormWhy(noun)} />
+      <ViewHeader icon="map-pin" title={mine.name} description={PLANNING_TEXT.divisionFormWhy(noun)} />
       <DivisionForm
         scope={frame}
         isNew={false}
