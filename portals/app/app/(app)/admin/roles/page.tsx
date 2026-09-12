@@ -74,9 +74,11 @@ export default async function RolesPage() {
         action={
           editable ? (
             <>
-              <NewEntryLink href="/admin/roles/new" label={ROLE_TEXT.newRole} />
               {/* The two vocabularies' own page (0047): configuration beside
-                  the other ways to change what the roster says. */}
+                  the other ways to change what the roster says. 新建角色
+                  itself lives in RolePanel's own FilterBar now - the same
+                  split org/division already have between page-level actions
+                  here and "new row" in the toolbar. */}
               <NewEntryLink href="/admin/roles/groups" label={ROLE_TEXT.groupsButton} />
               <RoleReset changed={changed} missing={missing} />
             </>

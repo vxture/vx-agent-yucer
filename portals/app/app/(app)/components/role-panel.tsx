@@ -1,6 +1,19 @@
 "use client";
 
-import { DataTable, EmptyState, Section, StatusBadge, TableTitleCell, useToast } from "@vxture/design-ui";
+import {
+  BulkActionBar,
+  Button,
+  DataTable,
+  EmptyState,
+  FilterBar,
+  ListCard,
+  ListCardGrid,
+  Section,
+  StatusBadge,
+  TableTitleCell,
+  useToast,
+  type FilterBarView,
+} from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
@@ -54,10 +67,11 @@ export function RolePanel({
   readonly total: number;
   readonly editable: boolean;
 }) {
-  const { DATA_TABLE_LABELS, ROLE_ERROR, ROLE_TEXT, ROW_OPS } = useMessages();
+  const { DATA_TABLE_LABELS, DS_LABELS, ROLE_ERROR, ROLE_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
+  const [view, setView] = useState<FilterBarView>("list");
   /* WHICH ROLE THE DRAWER SHOWS IS IN THE URL (`?details=<code>`), not in
      component state (owner, 2026-09-09: 保持侧边栏抽屉打开状态). So it survives
      the refresh every row move - and every save inside the drawer - causes,
@@ -98,11 +112,160 @@ export function RolePanel({
     if (details?.code === code) setDetails(null);
     router.refresh();
   };
+  /* 批量删除 (模式按照组织架构/区域设置) - a flat list, so every selected
+     row is attempted; one still held by a member is skipped rather than
+     failing the whole batch (the same FK RESTRICT the single-row menu
+     already shows), and the counts are reported separately. */
+  const bulkRemove = () =>
+    start(async () => {
+      const byCode = new Map(rows.map((r) => [r.code, r]));
+      const targets = selected.map((code) => byCode.get(code)).filter((r): r is RoleRow => r !== undefined);
+      let removed = 0;
+      let skipped = 0;
+      for (const r of targets) {
+        if (r.members > 0) {
+          skipped += 1;
+          continue;
+        }
+        const res = await removeRoleAction(r.code);
+        if (res.ok) {
+          removed += 1;
+          if (details?.code === r.code) setDetails(null);
+        } else {
+          toast({ tone: "danger", title: `${r.name}: ${ROLE_ERROR[res.error] ?? res.error}` });
+        }
+      }
+      if (removed > 0) toast({ tone: "success", title: ROLE_TEXT.bulkRemoveDone(removed) });
+      if (skipped > 0) toast({ tone: "info", title: ROLE_TEXT.bulkRemoveSkipped(skipped) });
+      setSelected([]);
+      router.refresh();
+    });
+
+  /* Shared between the table row and the card - same menu either way
+     (模式按照组织架构/区域设置). rowIndex is the row's own position in
+     `rows`: a flat list, never re-sorted for display, so that position IS
+     the global one 上移/下移 act on. */
+  const actionsFor = (r: RoleRow) => {
+    const rowIndex = rows.findIndex((x) => x.code === r.code);
+    return (
+      <RowActions
+        disabled={pending}
+        items={[
+          /* THREE GROUPS, SEPARATED (owner, 2026-09-09): read and
+             configure; the four moves; delete. 权限详情 FIRST, and for
+             every reader: the drawer is the one thing a read-only
+             reader came here to open. */
+          {
+            id: "details",
+            label: ROLE_TEXT.details,
+            onSelect: () => setDetails(r),
+          },
+          ...(editable
+            ? [
+                {
+                  id: "edit",
+                  label: ROLE_TEXT.edit,
+                  onSelect: () => router.push(`/admin/roles/${r.id}`),
+                },
+                /* THE FOUR MOVES, one set for every panel (ROW_OPS),
+                   greyed at the end they cannot pass. rowIndex is the
+                   global position, since the rows are never re-sorted
+                   for display. */
+                ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
+                /* THE THIRD GROUP, UNDER ITS OWN RULE (owner: 按类用分割线
+                   隔开，增加删除按钮): the one thing that cannot be
+                   undone, red, confirmed by the DS - verb, target,
+                   consequence - and greyed with its reason while
+                   somebody holds the role (the FK's RESTRICT, said
+                   first). */
+                {
+                  id: "remove",
+                  label: ROLE_TEXT.remove,
+                  separatorBefore: true,
+                  danger: true as const,
+                  disabled: r.members > 0,
+                  hint: r.members > 0 ? ROLE_TEXT.removeHeldHint(r.members) : undefined,
+                  confirm: {
+                    verb: ROLE_TEXT.remove,
+                    target: ROLE_TEXT.removeTarget(r.name),
+                    consequence: ROLE_TEXT.removeConsequence,
+                    titleTemplate: ROLE_TEXT.destructiveTitle,
+                    cancelLabel: ROLE_TEXT.cancel,
+                    onConfirm: () => remove(r.code),
+                  },
+                },
+              ]
+            : []),
+        ]}
+      />
+    );
+  };
 
   return (
     <Section id="roles">
+      {rows.length > 0 ? (
+        <FilterBar
+          count={ROLE_TEXT.toolbarCount(rows.length)}
+          view={view}
+          onViewChange={(v) => {
+            setView(v);
+            setSelected([]);
+          }}
+          actions={editable ? <Button onClick={() => router.push("/admin/roles/new")}>{ROLE_TEXT.newRole}</Button> : undefined}
+        />
+      ) : null}
+      {editable && view === "list" ? (
+        <BulkActionBar
+          count={selected.length}
+          noun={ROLE_TEXT.selectionNoun}
+          selectionTemplate={DS_LABELS.bulkSelectionTemplate}
+          toolbarLabel={DS_LABELS.bulkToolbar}
+          clearLabel={ROLE_TEXT.clearSelection}
+          onClear={() => setSelected([])}
+          actions={[
+            {
+              id: "remove",
+              label: ROLE_TEXT.bulkRemove,
+              danger: true as const,
+              confirm: {
+                verb: ROLE_TEXT.bulkRemove,
+                target: ROLE_TEXT.bulkRemoveTarget(selected.length),
+                consequence: ROLE_TEXT.bulkRemoveConsequence,
+                titleTemplate: ROLE_TEXT.destructiveTitle,
+                cancelLabel: ROLE_TEXT.cancel,
+                onConfirm: bulkRemove,
+              },
+            },
+          ]}
+        />
+      ) : null}
       {rows.length === 0 ? (
         <EmptyState title={ROLE_TEXT.emptyTitle} description={ROLE_TEXT.emptyWhy} />
+      ) : view === "cards" ? (
+        <ListCardGrid>
+          {rows.map((r) => (
+            <ListCard
+              key={r.code}
+              title={r.name}
+              description={r.code}
+              onTitleClick={() => setDetails(r)}
+              status={r.preset ? <Tag>{ROLE_TEXT.preset}</Tag> : <StatusBadge tone="info">{ROLE_TEXT.custom}</StatusBadge>}
+              actions={actionsFor(r)}
+              meta={
+                <div className="gap-xs flex flex-wrap items-center">
+                  {r.line ? <Tag>{r.line.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>}
+                  {r.rank ? <Tag>{r.rank.name}</Tag> : <span className="text-muted-foreground text-body-sm">{ROLE_TEXT.ungrouped}</span>}
+                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                    {r.members === 0 ? ROLE_TEXT.noMember : ROLE_TEXT.members(r.members)}
+                  </span>
+                  <span className="text-muted-foreground text-body-sm tabular-nums">
+                    {ROLE_TEXT.permCount(r.permissions.length, total)}
+                  </span>
+                </div>
+              }
+            />
+          ))}
+        </ListCardGrid>
       ) : (
         /* 三件标配, and the short columns take explicit widths so the
            description column gets the room - the same constraint-from-outside
@@ -124,58 +287,7 @@ export function RolePanel({
             indexStart={1}
             selectedKeys={selected}
             onSelectionChange={(keys) => setSelected([...keys])}
-            rowActions={(r: RoleRow, rowIndex: number) => (
-              <RowActions
-                disabled={pending}
-                items={[
-                  /* THREE GROUPS, SEPARATED (owner, 2026-09-09): read and
-                     configure; the four moves; delete. 权限详情 FIRST, and for
-                     every reader: the drawer is the one thing a read-only
-                     reader came here to open. */
-                  {
-                    id: "details",
-                    label: ROLE_TEXT.details,
-                    onSelect: () => setDetails(r),
-                  },
-                  ...(editable
-                    ? [
-                        {
-                          id: "edit",
-                          label: ROLE_TEXT.edit,
-                          onSelect: () => router.push(`/admin/roles/${r.id}`),
-                        },
-                        /* THE FOUR MOVES, one set for every panel (ROW_OPS),
-                           greyed at the end they cannot pass. rowIndex is the
-                           global position, since the rows are never re-sorted
-                           for display. */
-                        ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => move(r.code, d)),
-                        /* THE THIRD GROUP, UNDER ITS OWN RULE (owner: 按类用分割线
-                           隔开，增加删除按钮): the one thing that cannot be
-                           undone, red, confirmed by the DS - verb, target,
-                           consequence - and greyed with its reason while
-                           somebody holds the role (the FK's RESTRICT, said
-                           first). */
-                        {
-                          id: "remove",
-                          label: ROLE_TEXT.remove,
-                          separatorBefore: true,
-                          danger: true as const,
-                          disabled: r.members > 0,
-                          hint: r.members > 0 ? ROLE_TEXT.removeHeldHint(r.members) : undefined,
-                          confirm: {
-                            verb: ROLE_TEXT.remove,
-                            target: ROLE_TEXT.removeTarget(r.name),
-                            consequence: ROLE_TEXT.removeConsequence,
-                            titleTemplate: ROLE_TEXT.destructiveTitle,
-                            cancelLabel: ROLE_TEXT.cancel,
-                            onConfirm: () => remove(r.code),
-                          },
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            )}
+            rowActions={actionsFor}
             rowKey={(r: RoleRow) => r.code}
             rows={rows}
             columns={[

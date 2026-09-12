@@ -2645,6 +2645,15 @@ export const ROLE_TEXT = {
   resetDone: (restored: number) => `已恢复 ${restored} 个预置角色`,
   emptyTitle: "还没有角色",
   emptyWhy: "工作区尚未生成预置角色。新建一个，或应用模版。",
+  // --- 工具栏：count / 批量操作（与组织架构、区域设置同一套形状）---
+  toolbarCount: (n: number) => `共 ${n} 个角色`,
+  selectionNoun: "个角色",
+  clearSelection: "取消选择",
+  bulkRemove: "删除",
+  bulkRemoveTarget: (n: number) => `已选的 ${n} 个角色`,
+  bulkRemoveConsequence: "角色及其权限配置会被删除，不可撤销。",
+  bulkRemoveDone: (removed: number) => `已删除 ${removed} 个角色`,
+  bulkRemoveSkipped: (n: number) => `${n} 个仍有成员持有，未删除`,
 } as const;
 
 /**
