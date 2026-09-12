@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  Button,
   Field,
   FieldDescription,
   FieldLabel,
@@ -13,7 +12,7 @@ import {
 } from "@vxture/design-ui";
 import type { PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
 import { useMessages } from "../lib/i18n/provider";
-import { FormFields } from "./form-page";
+import { FormActions, FormFields } from "./form-page";
 import { Tag } from "./tag";
 
 // 计价规则 - the currency this workspace prices in (incr/0044).
@@ -52,6 +51,8 @@ export function PricingPolicyConfig({
       );
     });
 
+  const discard = () => setCurrency(policy.defaultCurrency);
+
   return (
     <>
       <ViewHeader
@@ -59,30 +60,40 @@ export function PricingPolicyConfig({
         title={PRICING_TEXT.title}
         description={PRICING_TEXT.why}
         secondary={<Tag>{policy.defaultCurrency}</Tag>}
-        action={
-          canWrite ? (
-            <Button onClick={save} disabled={pending || !dirty}>
-              {PRICING_TEXT.save}
-            </Button>
-          ) : null
-        }
       />
-      <Section>
-        <FormFields>
-          <Field>
-            <FieldLabel htmlFor="pricing-currency">{PRICING_TEXT.currencyLabel}</FieldLabel>
-            <Input
-              id="pricing-currency"
-              className="max-w-[8rem] uppercase"
-              maxLength={3}
-              value={currency}
-              disabled={pending || !canWrite}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+      {/* INDENTED TO THE TITLE TEXT, not the icon - the same 80px
+          (size-icon-2xl 48px + header gap-xl 32px) forecast-threshold-config
+          and ageing-policy-config use, so content reads as belonging to
+          "计价规则" the text. */}
+      <div className="pl-20">
+        <Section>
+          <FormFields>
+            <Field>
+              <FieldLabel htmlFor="pricing-currency">{PRICING_TEXT.currencyLabel}</FieldLabel>
+              <Input
+                id="pricing-currency"
+                className="max-w-[8rem] uppercase"
+                maxLength={3}
+                value={currency}
+                disabled={pending || !canWrite}
+                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+              />
+              <FieldDescription>{PRICING_TEXT.currencyHint}</FieldDescription>
+            </Field>
+          </FormFields>
+        </Section>
+        {canWrite ? (
+          <div className="mt-lg">
+            <FormActions
+              saveLabel={PRICING_TEXT.save}
+              discardLabel={PRICING_TEXT.discard}
+              onSave={save}
+              onDiscard={discard}
+              pending={pending || !dirty}
             />
-            <FieldDescription>{PRICING_TEXT.currencyHint}</FieldDescription>
-          </Field>
-        </FormFields>
-      </Section>
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }

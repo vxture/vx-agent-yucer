@@ -1996,6 +1996,7 @@ export const en: Dictionary = {
     title: "Pricing rules",
     why: "What quotes, prices and roll-ups are in unless a row says otherwise.",
     save: "Save",
+    discard: "Discard",
     saved: "Saved. Deals and lines created from now on take the new currency.",
     currencyLabel: "Default currency",
     currencyHint: "ISO 4217, three letters. Existing prices and deals are untouched; only what is written next.",
