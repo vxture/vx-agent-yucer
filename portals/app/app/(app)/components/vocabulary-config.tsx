@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
   DataTable,
   FilterBar,
   Icon,
+  ListCard,
+  ListCardGrid,
   ViewHeader,
   type ActionMenuItem,
+  type FilterBarView,
   type IconName,
   DialogForm,
   Field,
@@ -26,6 +29,7 @@ import {
   ACTION_COLUMN,
   EDGE_COLUMNS,
   RowActions,
+  SearchSlot,
   moveItems,
   rowClickSelection,
   useTableSort,
@@ -99,6 +103,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
   idPrefix,
   page,
   icon,
+  editable = true,
   columns = [],
   sortOn = {},
   nameSuffix,
@@ -142,6 +147,19 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
    * caller that hasn't opted in yet).
    */
   readonly icon?: IconName;
+  /**
+   * Whether this vocabulary may be WRITTEN, not just seen (owner: 所有这些
+   * 页面、按钮都需要权限点 - 复用各表已有的权限码). Defaults to `true` for
+   * callers whose page already gates the whole route (a `redirect()` when the
+   * upsert permission is missing, e.g. org-kinds/product/role-groups - there
+   * is no "can see but not write" state to represent). `industry-config.tsx`/
+   * `win-loss-reason-config.tsx` pass their own `can(..., "account.upsert" |
+   * "pipeline.winloss.record", "ui")` result, because those two pages show
+   * the table to anyone who can VIEW it. `false` disables (never hides) the
+   * new-button and drops the rename/delete row actions, the same "greyed not
+   * gone" contract `FilterBar.actions` documents for 新建.
+   */
+  readonly editable?: boolean;
   /** The violation-code dictionary this vocabulary renders through (TD-010). */
   readonly errors: Record<string, string>;
   /** Prefixes the dialog's field ids, so two panels on one page stay distinct. */
@@ -198,8 +216,18 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
     { mode: "create" | "rename"; code: string; name: string; extra: E } | null
   >(null);
   const [selected, setSelected] = useState<readonly string[]>([]);
+  const [view, setView] = useState<FilterBarView>("list");
+  /* 搜索 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐) - by
+     name or code, front-end only: every vocabulary here is a handful of rows
+     to a few dozen, never enough to need a server round-trip. */
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q));
+  }, [rows, query]);
   const sorted = useTableSort<T>([], { name: (r: T) => r.name, ...sortOn });
-  const select = rowClickSelection(rows, (r) => r.id, selected, setSelected);
+  const select = rowClickSelection(filtered, (r) => r.id, selected, setSelected);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -222,11 +250,83 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
 
   const add = (
     <Button
+      disabled={!editable}
       onClick={() => setDialog({ mode: "create", code: "", name: "", extra: extraDefaults })}
     >
       {text.add}
     </Button>
   );
+
+  /* Shared between the table row and the card - same menu either way (owner:
+     表头操作行统一, list/card 切换补齐). rowIndex is computed against
+     `filtered`, not the true stored order - moveItems' 上移/下移 greying
+     reflects what a reader is currently looking at, the same "local to the
+     view" choice search results carry everywhere else in this product. */
+  const actionsFor = (r: T) => {
+    const rowIndex = filtered.findIndex((x) => x.id === r.id);
+    return (
+      <RowActions
+        disabled={pending}
+        items={[
+          /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09): XX配置,
+             the vocabulary's own verbs, the four moves, 删除XX - all gated
+             on `editable`, since a reader with no write permission gets the
+             read-only half of this menu, not a dialog the server refuses. */
+          ...(editable
+            ? [
+                {
+                  id: "rename",
+                  label: ROW_OPS.configure(text.noun),
+                  onSelect: () =>
+                    setDialog({
+                      mode: "rename",
+                      code: r.code,
+                      name: r.name,
+                      extra: extraFromRow(r),
+                    }),
+                },
+              ]
+            : []),
+          ...(editable && extraActions ? extraActions(r, run) : []),
+          ...(editable ? moveItems(ROW_OPS, rowIndex, filtered.length, (d) => run(onMove(r.id, d))) : []),
+          ...(deleteHiddenWhen?.(r) || !editable
+            ? []
+            : [
+                {
+                  id: "delete",
+                  label: ROW_OPS.remove(text.noun),
+                  danger: true as const,
+                  separatorBefore: true,
+                  disabled: deletableWhen ? !deletableWhen(r) : false,
+                  confirm: {
+                    verb: ROW_OPS.remove(text.noun),
+                    target: r.name,
+                    consequence: text.deleteConsequence,
+                    onConfirm: () => run(onDelete(r.id)),
+                  },
+                },
+              ]),
+        ]}
+      />
+    );
+  };
+
+  const search = (
+    <SearchSlot>
+      <Input
+        type="search"
+        className="w-full"
+        value={query}
+        placeholder={ROW_OPS.searchPlaceholder}
+        aria-label={ROW_OPS.searchLabel}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+    </SearchSlot>
+  );
+  const count =
+    filtered.length === rows.length
+      ? ROW_OPS.toolbarCount(rows.length, text.noun)
+      : ROW_OPS.toolbarFilteredCount(filtered.length, rows.length, text.noun);
 
   return (
     <>
@@ -238,13 +338,35 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
           secondary={<Tag>{page.count(rows.length)}</Tag>}
         />
       ) : null}
-      {page ? <FilterBar count={page.count(rows.length)} actions={add} /> : null}
+      {page ? (
+        <FilterBar
+          count={count}
+          view={view}
+          onViewChange={(v) => {
+            setView(v);
+            setSelected([]);
+          }}
+          search={search}
+          actions={add}
+        />
+      ) : null}
     <Section
       title={page ? undefined : text.title}
       description={page ? undefined : text.why}
-      action={page ? undefined : add}
       icon={page ? undefined : icon}
     >
+      {page ? null : (
+        <FilterBar
+          count={count}
+          view={view}
+          onViewChange={(v) => {
+            setView(v);
+            setSelected([]);
+          }}
+          search={search}
+          actions={add}
+        />
+      )}
       {/* The same two constraints from outside every config table carries
           (TD-022), so they line up column for column. icon 缩进 (owner
           ruling, batch 2, 统一到 org-unit-form.tsx 的 部门设置/关联区域 同一
@@ -258,80 +380,69 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
             <Icon name={icon} size="lg" />
           </span>
         ) : null}
-        <div
-          ref={select.ref}
-          className={`min-w-0 flex-1 [&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
-        >
-          <DataTable
-            labels={DATA_TABLE_LABELS}
-            indexStart={1}
-            selectedKeys={selected}
-            onSelectionChange={setSelected}
-            rowKey={(r: T) => r.id}
-            rows={[...sorted.sortRows(rows)]}
-            sort={sorted.sort}
-            onSortChange={sorted.onSortChange}
-            columns={[
-              {
-                id: "name",
-                sortable: true,
-                header: text.colName,
-                width: "md" as const,
-                /* The code is omitted when it equals the name - a second line
-                   repeating the first costs height and says nothing. */
-                cell: (r: T) =>
-                  nameSuffix ? (
-                    <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
-                  ) : (
-                    <TableTitleCell
-                      title={r.name}
-                      description={r.code !== r.name ? r.code : undefined}
-                      tooltip={r.name}
-                    />
-                  ),
-              },
-              ...columns,
-            ]}
-            rowActions={(r: T, rowIndex: number) => (
-              <RowActions
-                disabled={pending}
-                items={[
-                  /* THE ONE MENU EVERY PANEL HAS (owner, 2026-09-09): XX配置,
-                     the vocabulary's own verbs, the four moves, 删除XX. */
+        <div className="min-w-0 flex-1">
+          {view === "cards" ? (
+            <ListCardGrid>
+              {sorted.sortRows(filtered).map((r) => (
+                <ListCard
+                  key={r.id}
+                  title={r.name}
+                  description={r.code !== r.name ? r.code : undefined}
+                  status={nameSuffix ? nameSuffix(r) : undefined}
+                  actions={actionsFor(r)}
+                  meta={
+                    columns.length > 0 ? (
+                      <div className="gap-xs flex flex-wrap items-center">
+                        {columns.map((c) => (
+                          <span key={c.id} className="text-muted-foreground text-body-sm">
+                            {c.cell(r)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : undefined
+                  }
+                />
+              ))}
+            </ListCardGrid>
+          ) : (
+            <div
+              ref={select.ref}
+              className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} ${select.className}`}
+            >
+              <DataTable
+                labels={DATA_TABLE_LABELS}
+                indexStart={1}
+                selectedKeys={selected}
+                onSelectionChange={setSelected}
+                rowKey={(r: T) => r.id}
+                rows={[...sorted.sortRows(filtered)]}
+                sort={sorted.sort}
+                onSortChange={sorted.onSortChange}
+                columns={[
                   {
-                    id: "rename",
-                    label: ROW_OPS.configure(text.noun),
-                    onSelect: () =>
-                      setDialog({
-                        mode: "rename",
-                        code: r.code,
-                        name: r.name,
-                        extra: extraFromRow(r),
-                      }),
+                    id: "name",
+                    sortable: true,
+                    header: text.colName,
+                    width: "md" as const,
+                    /* The code is omitted when it equals the name - a second line
+                       repeating the first costs height and says nothing. */
+                    cell: (r: T) =>
+                      nameSuffix ? (
+                        <TableTitleCell title={r.name} tooltip={r.name} titleSuffix={nameSuffix(r)} />
+                      ) : (
+                        <TableTitleCell
+                          title={r.name}
+                          description={r.code !== r.name ? r.code : undefined}
+                          tooltip={r.name}
+                        />
+                      ),
                   },
-                  ...(extraActions ? extraActions(r, run) : []),
-                  ...moveItems(ROW_OPS, rowIndex, rows.length, (d) => run(onMove(r.id, d))),
-                  ...(deleteHiddenWhen?.(r)
-                    ? []
-                    : [
-                        {
-                          id: "delete",
-                          label: ROW_OPS.remove(text.noun),
-                          danger: true as const,
-                          separatorBefore: true,
-                          disabled: deletableWhen ? !deletableWhen(r) : false,
-                          confirm: {
-                            verb: ROW_OPS.remove(text.noun),
-                            target: r.name,
-                            consequence: text.deleteConsequence,
-                            onConfirm: () => run(onDelete(r.id)),
-                          },
-                        },
-                      ]),
+                  ...columns,
                 ]}
+                rowActions={actionsFor}
               />
-            )}
-          />
+            </div>
+          )}
         </div>
       </div>
 
