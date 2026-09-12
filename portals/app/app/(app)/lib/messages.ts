@@ -1163,10 +1163,10 @@ export const FORECAST_PARAM_TEXT = {
   saved: "已保存，预测口径页立即按新阈值给建议",
   percent: "%",
   days: "天",
+  thresholdsLabel: "最好情况 / 承诺起算（概率）",
+  thresholdsHint: "最好情况必须低于承诺，两个都是 1 到 100 之间的整数百分比。",
   commitLabel: "承诺起算",
-  commitHint: "商机自己的赢率到这个数，就算进承诺。默认 80：谈判阶段默认就是 90，定在 90 等于只是在复述阶段。",
   bestCaseLabel: "最好情况起算",
-  bestCaseHint: "到这个数算最好情况，低于它算漏斗。必须低于承诺。",
   stallLabel: "停滞天数",
   stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。",
 };

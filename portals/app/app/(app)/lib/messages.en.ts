@@ -1977,11 +1977,10 @@ export const en: Dictionary = {
     saved: "Saved. The forecast review suggests against the new bands from now on.",
     percent: "%",
     days: "days",
+    thresholdsLabel: "Best case / commit starts at (probability)",
+    thresholdsHint: "Best case has to be under commit. Both are whole percentages, 1 to 100.",
     commitLabel: "Commit starts at",
-    commitHint:
-      "A deal's own probability at or above this reads as commit. 80 by default: negotiate already defaults to 90, so 90 here would only restate the stage.",
     bestCaseLabel: "Best case starts at",
-    bestCaseHint: "At or above this is best case, below it is pipeline. Has to be under commit.",
     stallLabel: "A stall is",
     stallHint:
       "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days).",
