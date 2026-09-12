@@ -2015,13 +2015,17 @@ export const en: Dictionary = {
     why: "Where an overdue receivable is cut. Not yet due and no due date are always their own.",
     bandCount: (n: number) => `${n} late bands`,
     save: "Save",
+    discard: "Discard",
     saved: "Saved. The collections chart is cut by the new bands from now on.",
     cutoffsLabel: "Cutoffs (days)",
-    cutoffsHint: "Comma separated, ascending. 30, 60 gives 1-30 days, 31-60 days, and 60+.",
-    previewLabel: "Which gives these bands",
-    previewHint:
-      "The two at the ends do not move: one is money that is simply early, the other is money nobody can age at all.",
-    previewUnusable: "Ascending whole numbers, please",
+    cutoffsHint: "Ascending whole days, 1 to 3650, up to five.",
+    cutoffAdd: "Add a cutoff",
+    cutoffRemove: "Remove",
+    bandPlaceholder: "—",
+    confirmAdd: (days: number) => `Add the ${days}-day cutoff?`,
+    confirmRemove: (days: string) => `Remove the ${days}-day cutoff?`,
+    confirmYes: "Confirm",
+    confirmNo: "Cancel",
   },
 
   INDUSTRY_ERROR: {
