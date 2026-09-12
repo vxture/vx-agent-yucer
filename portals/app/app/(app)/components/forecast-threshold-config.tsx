@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  Button,
   Field,
   FieldDescription,
   FieldLabel,
@@ -11,7 +10,7 @@ import {
   ViewHeader,
   useToast,
 } from "@vxture/design-ui";
-import { FormFields } from "./form-page";
+import { FormActions, FormFields } from "./form-page";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -71,6 +70,13 @@ export function ForecastThresholdConfig({
       );
     });
 
+  const discard = () =>
+    setForm({
+      commitAt: String(thresholds.commitAt),
+      bestCaseAt: String(thresholds.bestCaseAt),
+      stallDays: String(thresholds.stallDays),
+    });
+
   const field = (
     key: keyof typeof form,
     label: string,
@@ -106,40 +112,51 @@ export function ForecastThresholdConfig({
             {FORECAST_PARAM_TEXT.ladder(thresholds.bestCaseAt, thresholds.commitAt)}
           </Tag>
         }
-        action={
-          canWrite ? (
-            <Button onClick={save} disabled={pending || !dirty}>
-              {FORECAST_PARAM_TEXT.save}
-            </Button>
-          ) : null
-        }
       />
-      <Section>
-        {/* TWO TO A ROW, evenly (owner, 2026-09-09). The commit and best-case
-            thresholds are one decision read together, so they sit side by
-            side; the stall clock is a different question and takes the next
-            row on its own rather than being padded out to fill this one. */}
-        <FormFields>
-          {field(
-            "commitAt",
-            FORECAST_PARAM_TEXT.commitLabel,
-            FORECAST_PARAM_TEXT.commitHint,
-            FORECAST_PARAM_TEXT.percent,
-          )}
-          {field(
-            "bestCaseAt",
-            FORECAST_PARAM_TEXT.bestCaseLabel,
-            FORECAST_PARAM_TEXT.bestCaseHint,
-            FORECAST_PARAM_TEXT.percent,
-          )}
-          {field(
-            "stallDays",
-            FORECAST_PARAM_TEXT.stallLabel,
-            FORECAST_PARAM_TEXT.stallHint,
-            FORECAST_PARAM_TEXT.days,
-          )}
-        </FormFields>
-      </Section>
+      {/* INDENTED TO THE TITLE TEXT, not the icon: ViewHeader's icon
+          (size-icon-2xl, 48px) plus its gap-xl (32px) to the title is the
+          same 80px a nested H2 would sit under, so the content below reads
+          as belonging to "预测阈值" the text, not to the icon column. */}
+      <div className="pl-20">
+        <Section>
+          {/* TWO TO A ROW, evenly (owner, 2026-09-09). The commit and
+              best-case thresholds are one decision read together, so they
+              sit side by side; the stall clock is a different question and
+              takes the next row on its own rather than being padded out to
+              fill this one. */}
+          <FormFields>
+            {field(
+              "commitAt",
+              FORECAST_PARAM_TEXT.commitLabel,
+              FORECAST_PARAM_TEXT.commitHint,
+              FORECAST_PARAM_TEXT.percent,
+            )}
+            {field(
+              "bestCaseAt",
+              FORECAST_PARAM_TEXT.bestCaseLabel,
+              FORECAST_PARAM_TEXT.bestCaseHint,
+              FORECAST_PARAM_TEXT.percent,
+            )}
+            {field(
+              "stallDays",
+              FORECAST_PARAM_TEXT.stallLabel,
+              FORECAST_PARAM_TEXT.stallHint,
+              FORECAST_PARAM_TEXT.days,
+            )}
+          </FormFields>
+        </Section>
+        {canWrite ? (
+          <div className="mt-lg">
+            <FormActions
+              saveLabel={FORECAST_PARAM_TEXT.save}
+              discardLabel={FORECAST_PARAM_TEXT.discard}
+              onSave={save}
+              onDiscard={discard}
+              pending={pending || !dirty}
+            />
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }
