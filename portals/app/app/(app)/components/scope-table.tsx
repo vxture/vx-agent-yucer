@@ -1,7 +1,7 @@
 "use client";
 
-import { DataTable, StatusBadge, TableTitleCell } from "@vxture/design-ui";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
+import { DataTable, StatusBadge, TableTitleCell, useListPagination } from "@vxture/design-ui";
+import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
@@ -34,8 +34,12 @@ const SORT_ON = {
 export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
   const { ADMIN_PAGE_TEXT, DATA_TABLE_LABELS, MEMBER_TEXT, SCOPE_LABEL } = useMessages();
   const sorted = useTableSort<ScopeRow>([], SORT_ON);
+  const sortedRows = sorted.sortRows(rows);
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5). */
+  const pagination = useListPagination(sortedRows, 20);
 
   return (
+    <div className="gap-md flex flex-col">
     <div
       className={
         /* 首列 40% (owner, 表格列宽新一轮规则: 首列按业务列数量分档 - 成员/
@@ -49,10 +53,10 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
       <DataTable
         labels={DATA_TABLE_LABELS}
         leadingSpacer
-        indexStart={1}
+        indexStart={pagination.indexStart}
         rowActions={() => <RowActions items={[]} />}
         rowKey={(r: ScopeRow) => r.sub}
-        rows={[...sorted.sortRows(rows)]}
+        rows={pagination.pageRows}
         sort={sorted.sort}
         onSortChange={sorted.onSortChange}
         columns={[
@@ -100,6 +104,8 @@ export function ScopeTable({ rows }: { readonly rows: readonly ScopeRow[] }) {
           },
         ]}
       />
+    </div>
+    {rows.length > 0 ? <PaginationFooter pagination={pagination} total={rows.length} /> : null}
     </div>
   );
 }

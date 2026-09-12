@@ -13,12 +13,13 @@ import {
   Section,
   StatusBadge,
   TableTitleCell,
+  useListPagination,
   useToast,
   type FilterBarView,
 } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot, moveItems } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveRoleAction, removeRoleAction } from "../admin/roles/actions";
@@ -97,6 +98,8 @@ export function RolePanel({
     );
   }, [rows, query, lineFilter, rankFilter]);
   const searching = query.trim() !== "" || lineFilter !== "" || rankFilter !== "";
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5). */
+  const pagination = useListPagination(filtered, 20);
   /* WHICH ROLE THE DRAWER SHOWS IS IN THE URL (`?details=<code>`), not in
      component state (owner, 2026-09-09: 保持侧边栏抽屉打开状态). So it survives
      the refresh every row move - and every save inside the drawer - causes,
@@ -249,17 +252,17 @@ export function RolePanel({
                 value={query}
                 placeholder={ROLE_TEXT.searchPlaceholder}
                 aria-label={ROLE_TEXT.searchLabel}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); pagination.resetPage(); }}
               />
             </SearchSlot>
           }
-          onReset={searching ? () => { setQuery(""); setLineFilter(""); setRankFilter(""); } : undefined}
+          onReset={searching ? () => { setQuery(""); setLineFilter(""); setRankFilter(""); pagination.resetPage(); } : undefined}
           resetLabel={ROLE_TEXT.resetFilters}
           actions={editable ? <Button onClick={() => router.push("/admin/roles/new")}>{ROLE_TEXT.newRole}</Button> : undefined}
         >
           {lineOptions.length > 0 ? (
             <FilterSlot width="w-[9rem]">
-              <NativeSelect value={lineFilter} aria-label={ROLE_TEXT.lineFilterLabel} onChange={(e) => setLineFilter(e.target.value)}>
+              <NativeSelect value={lineFilter} aria-label={ROLE_TEXT.lineFilterLabel} onChange={(e) => { setLineFilter(e.target.value); pagination.resetPage(); }}>
                 <option value="">{ROLE_TEXT.filterAllLines}</option>
                 {lineOptions.map(([code, name]) => (
                   <option key={code} value={code}>{name}</option>
@@ -269,7 +272,7 @@ export function RolePanel({
           ) : null}
           {rankOptions.length > 0 ? (
             <FilterSlot width="w-[9rem]">
-              <NativeSelect value={rankFilter} aria-label={ROLE_TEXT.rankFilterLabel} onChange={(e) => setRankFilter(e.target.value)}>
+              <NativeSelect value={rankFilter} aria-label={ROLE_TEXT.rankFilterLabel} onChange={(e) => { setRankFilter(e.target.value); pagination.resetPage(); }}>
                 <option value="">{ROLE_TEXT.filterAllRanks}</option>
                 {rankOptions.map(([code, name]) => (
                   <option key={code} value={code}>{name}</option>
@@ -310,7 +313,7 @@ export function RolePanel({
         <p className="text-muted-foreground text-body-sm">{ROLE_TEXT.filterEmpty}</p>
       ) : view === "cards" ? (
         <ListCardGrid>
-          {filtered.map((r) => (
+          {pagination.pageRows.map((r) => (
             <ListCard
               key={r.code}
               title={r.name}
@@ -358,12 +361,12 @@ export function RolePanel({
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
-            indexStart={1}
+            indexStart={pagination.indexStart}
             selectedKeys={selected}
             onSelectionChange={(keys) => setSelected([...keys])}
             rowActions={actionsFor}
             rowKey={(r: RoleRow) => r.code}
-            rows={filtered}
+            rows={pagination.pageRows}
             columns={[
               {
                 /* 首列走 TableTitleCell: the name leads, the code is its
@@ -450,6 +453,13 @@ export function RolePanel({
           />
         </div>
       )}
+      {filtered.length > 0 ? (
+        <PaginationFooter
+          pagination={pagination}
+          total={rows.length}
+          filteredTotal={searching ? filtered.length : undefined}
+        />
+      ) : null}
 
       <RolePermissionsDrawer
         role={details}

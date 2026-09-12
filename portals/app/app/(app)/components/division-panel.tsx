@@ -20,13 +20,14 @@ import {
   TableHeader,
   TableRow,
   TableTitleCell,
+  useListPagination,
   useToast,
   type FilterBarView,
 } from "@vxture/design-ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot, moveItems } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MarketMember } from "../../domains/shared/market-division";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -96,6 +97,8 @@ export function DivisionPanel(
     );
   }, [rows, query, sourceFilter]);
   const searching = query.trim() !== "" || sourceFilter !== "";
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5). */
+  const pagination = useListPagination(filtered, 20);
   /* 区域详情 - the members as the form's four-column roster, in a drawer:
      the one menu every panel has (owner, 2026-09-09) starts with XX详情. */
   const [details, setDetails] = useState<DivisionRow | null>(null);
@@ -221,11 +224,11 @@ export function DivisionPanel(
                 value={query}
                 placeholder={PLANNING_TEXT.divisionSearchPlaceholder}
                 aria-label={PLANNING_TEXT.divisionSearchLabel}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); pagination.resetPage(); }}
               />
             </SearchSlot>
           }
-          onReset={searching ? () => { setQuery(""); setSourceFilter(""); } : undefined}
+          onReset={searching ? () => { setQuery(""); setSourceFilter(""); pagination.resetPage(); } : undefined}
           resetLabel={PLANNING_TEXT.divisionResetFilters}
           actions={editable ? <Button onClick={() => router.push("/admin/division/new")}>{PLANNING_TEXT.divisionNew}</Button> : undefined}
         >
@@ -233,7 +236,7 @@ export function DivisionPanel(
             <NativeSelect
               value={sourceFilter}
               aria-label={PLANNING_TEXT.divisionSourceFilterLabel}
-              onChange={(e) => setSourceFilter(e.target.value as "" | "system" | "custom")}
+              onChange={(e) => { setSourceFilter(e.target.value as "" | "system" | "custom"); pagination.resetPage(); }}
             >
               <option value="">{PLANNING_TEXT.divisionFilterAllSources}</option>
               <option value="system">{PLANNING_TEXT.divisionSystem}</option>
@@ -276,7 +279,7 @@ export function DivisionPanel(
         <p className="text-muted-foreground text-body-sm">{PLANNING_TEXT.divisionFilterEmpty}</p>
       ) : view === "cards" ? (
         <ListCardGrid>
-          {filtered.map((r) => (
+          {pagination.pageRows.map((r) => (
             <ListCard
               key={r.code}
               title={r.name}
@@ -320,12 +323,12 @@ export function DivisionPanel(
         >
         <DataTable
           labels={DATA_TABLE_LABELS}
-          indexStart={1}
+          indexStart={pagination.indexStart}
           selectedKeys={selected}
           onSelectionChange={(keys) => setSelected([...keys])}
           rowActions={actionsFor}
           rowKey={(r: DivisionRow) => r.code}
-          rows={filtered}
+          rows={pagination.pageRows}
           columns={[
             {
               // 首列走 TableTitleCell: the name leads, the code is its
@@ -400,6 +403,13 @@ export function DivisionPanel(
         />
         </div>
       )}
+      {filtered.length > 0 ? (
+        <PaginationFooter
+          pagination={pagination}
+          total={rows.length}
+          filteredTotal={searching ? filtered.length : undefined}
+        />
+      ) : null}
 
       {/* THE CONCLUSION, UNDER A RULE (owner, 2026-09-09). The header's badge
           gives the COUNT; this line gives the NAMES. A reader told "3 省份未归入"

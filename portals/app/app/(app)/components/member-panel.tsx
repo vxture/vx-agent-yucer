@@ -10,11 +10,12 @@ import {
   Section,
   StatusBadge,
   TableTitleCell,
+  useListPagination,
   useToast,
 } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, useTableSort } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions, useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { setMemberActive, setMemberInactive } from "../admin/members/actions";
 import { handOverBook } from "../admin/members/handover";
@@ -79,6 +80,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
   const params = useSearchParams();
   const [selected, setSelected] = useState<string[]>([]);
   const sorted = useTableSort<MemberRow>(rows, SORT_ON);
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 这一份只管 list 视图；org
+     树形视图是另一份数据源，在 member-org-view.tsx 自己接。 */
+  const pagination = useListPagination(sorted.rows, 20);
   const [pending, start] = useTransition();
   const { toast } = useToast();
 
@@ -213,7 +217,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
-            indexStart={1}
+            indexStart={pagination.indexStart}
             selectedKeys={selected}
             onSelectionChange={(keys) => setSelected([...keys])}
             sort={sorted.sort}
@@ -263,7 +267,7 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
               />
             )}
             rowKey={(r: MemberRow) => r.memberId}
-            rows={[...sorted.rows]}
+            rows={pagination.pageRows}
             columns={[
               {
                 id: "member",
@@ -333,6 +337,9 @@ export function MemberPanel({ rows, canManage, orgUnits, roleOptions }: {
             ]}
           />
         </div>
+        {rows.length > 0 ? (
+          <PaginationFooter pagination={pagination} total={rows.length} />
+        ) : null}
         </div>
       )}
 

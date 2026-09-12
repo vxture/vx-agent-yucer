@@ -18,11 +18,12 @@ import {
   StatusBadge,
   TableTitleCell,
   UserAvatar,
+  useListPagination,
   useToast,
 } from "@vxture/design-ui";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { UNPLACED_ROW_ID, branchIds, flattenOrgView, personRowId, unitOptions, type OrgView, type OrgViewPerson, type OrgViewRow } from "../lib/member-org-view";
 import { addMemberToUnits, bulkPlaceMembers, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
@@ -104,6 +105,11 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
     [inactive],
   );
   const rows = useMemo(() => flattenOrgView(view, collapsed), [view, collapsed]);
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5) - 按拍平后的行数组分页，
+     页大小放宽到 50 (而不是其它表的 20)，把"展开全部后子树被截断到下一页"
+     的概率压低：这是树形表的已知局部妥协，见 plan 的"不做"一节。 */
+  const pagination = useListPagination(rows, 50);
+  const inactivePagination = useListPagination(inactiveRows, 50);
   const branches = useMemo(() => branchIds(view), [view]);
   const units = useMemo(() => unitOptions(view), [view]);
   const unitName = (id: string | null) => (id === null ? MEMBER_TEXT.orgUnplaced : (units.find((u) => u.id === id)?.name ?? id));
@@ -354,8 +360,8 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
         <MemberViewSwitch value={viewValue} onChange={onViewChange} ariaLabel={MEMBER_TEXT.viewAria} labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }} />
         <div className="gap-sm flex items-center">
           <ButtonGroup>
-            <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set())}>{MEMBER_TEXT.orgExpandAll}</Button>
-            <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set(branches))}>{MEMBER_TEXT.orgCollapseAll}</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set()); pagination.resetPage(); }}>{MEMBER_TEXT.orgExpandAll}</Button>
+            <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches)); pagination.resetPage(); }}>{MEMBER_TEXT.orgCollapseAll}</Button>
           </ButtonGroup>
           {canManage ? (
             <Button size="sm" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
@@ -396,15 +402,16 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
       <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
         <DataTable
           labels={DATA_TABLE_LABELS}
-          indexStart={1}
+          indexStart={pagination.indexStart}
           selectedKeys={selected}
           onSelectionChange={(keys) => setSelected([...keys])}
           rowKey={(r: OrgViewRow) => r.id}
-          rows={rows}
+          rows={pagination.pageRows}
           rowActions={(r: OrgViewRow) => <RowActions disabled={pending} items={rowActions(r)} />}
           columns={columns}
         />
       </div>
+      {rows.length > 0 ? <PaginationFooter pagination={pagination} total={rows.length} /> : null}
 
       {/* THE DEPARTED, under the tree, folded until opened - the same table.
           THE TITLE IS A Section NOW, NOT THE TRIGGER (batch 2 heading pass):
@@ -435,11 +442,11 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
               <div className={`[&_table]:table-fixed ${EDGE_COLUMNS} ${ACTION_COLUMN} [&_thead_th:nth-child(3)]:w-[40%] [&_thead_th:nth-child(5)]:w-[7rem]`}>
                 <DataTable
                   labels={DATA_TABLE_LABELS}
-                  indexStart={1}
+                  indexStart={inactivePagination.indexStart}
                   selectedKeys={selectedInactive}
                   onSelectionChange={(keys) => setSelectedInactive([...keys])}
                   rowKey={(r: OrgViewRow) => r.id}
-                  rows={inactiveRows}
+                  rows={inactivePagination.pageRows}
                   rowActions={(r: OrgViewRow) => (
                     <RowActions
                       disabled={pending}
@@ -461,6 +468,9 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
                   columns={columns}
                 />
               </div>
+              {inactiveRows.length > 0 ? (
+                <PaginationFooter pagination={inactivePagination} total={inactiveRows.length} />
+              ) : null}
             </CollapsibleContent>
           </Section>
         </Collapsible>

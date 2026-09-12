@@ -22,12 +22,13 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  useListPagination,
   useToast,
   type FilterBarView,
 } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot, moveItems } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
@@ -197,6 +198,12 @@ export function OrgPanel({
     }
     return out;
   }, [rows, collapsed, searching, searchFiltered]);
+  /* 分页页脚 (owner: 表格列宽新一轮规则, 规则 5 - DS 格式页脚，左统计右翻页).
+     按拍平后的 `visible` 分页，跟"展开全部"这类树形操作用同一份数据源，
+     list/cards 两种呈现共用同一页。展开/收起、搜索、筛选都可能大幅改变
+     `visible` 的内容，各自的 onChange 里都调用 resetPage()，避免筛/展开
+     完了停在一个空页上。 */
+  const pagination = useListPagination(visible, 20);
   const toggle = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -353,8 +360,8 @@ export function OrgPanel({
           }}
           scope={
             <ButtonGroup>
-              <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set())}>{ORG_TEXT.expandAll}</Button>
-              <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set(branches))}>{ORG_TEXT.collapseAll}</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set()); pagination.resetPage(); }}>{ORG_TEXT.expandAll}</Button>
+              <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches)); pagination.resetPage(); }}>{ORG_TEXT.collapseAll}</Button>
             </ButtonGroup>
           }
           search={
@@ -365,17 +372,17 @@ export function OrgPanel({
                 value={query}
                 placeholder={ORG_TEXT.searchPlaceholder}
                 aria-label={ORG_TEXT.searchLabel}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => { setQuery(e.target.value); pagination.resetPage(); }}
               />
             </SearchSlot>
           }
-          onReset={searching ? () => { setQuery(""); setKindFilter(""); } : undefined}
+          onReset={searching ? () => { setQuery(""); setKindFilter(""); pagination.resetPage(); } : undefined}
           resetLabel={ORG_TEXT.resetFilters}
           actions={editable ? <Button onClick={() => router.push("/admin/org/new")}>{ORG_TEXT.newUnit}</Button> : undefined}
         >
           {kindOptions.length > 0 ? (
             <FilterSlot width="w-[10rem]">
-              <NativeSelect value={kindFilter} aria-label={ORG_TEXT.kindFilterLabel} onChange={(e) => setKindFilter(e.target.value)}>
+              <NativeSelect value={kindFilter} aria-label={ORG_TEXT.kindFilterLabel} onChange={(e) => { setKindFilter(e.target.value); pagination.resetPage(); }}>
                 <option value="">{ORG_TEXT.filterAllKinds}</option>
                 {kindOptions.map((k) => (
                   <option key={k} value={k}>{k}</option>
@@ -414,7 +421,7 @@ export function OrgPanel({
         <EmptyState title={ORG_TEXT.emptyTitle} description={ORG_TEXT.emptyWhy} />
       ) : view === "cards" ? (
         <ListCardGrid>
-          {visible.map((r) => (
+          {pagination.pageRows.map((r) => (
             <ListCard
               key={r.unitCode}
               title={r.name}
@@ -478,12 +485,12 @@ export function OrgPanel({
         >
           <DataTable
             labels={DATA_TABLE_LABELS}
-            indexStart={1}
+            indexStart={pagination.indexStart}
             selectedKeys={selected}
             onSelectionChange={(keys) => setSelected([...keys])}
             rowActions={actionsFor}
             rowKey={(r: OrgUnitRow) => r.unitCode}
-            rows={visible}
+            rows={pagination.pageRows}
             columns={[
               {
                 /* THE TREE COLUMN: indent by depth, chevron on a branch, the
@@ -596,6 +603,13 @@ export function OrgPanel({
           />
         </div>
       )}
+      {rows.length > 0 ? (
+        <PaginationFooter
+          pagination={pagination}
+          total={rows.length}
+          filteredTotal={searching ? visible.length : undefined}
+        />
+      ) : null}
 
       <Drawer
         open={details !== null}
