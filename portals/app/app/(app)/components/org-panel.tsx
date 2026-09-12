@@ -12,6 +12,7 @@ import {
   FieldLabel,
   FilterBar,
   Icon,
+  Input,
   ListCard,
   ListCardGrid,
   NativeSelect,
@@ -26,7 +27,7 @@ import {
 } from "@vxture/design-ui";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ACTION_COLUMN, EDGE_COLUMNS, RowActions, moveItems } from "./table-fittings";
+import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
@@ -142,6 +143,25 @@ export function OrgPanel({
   const [selected, setSelected] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [view, setView] = useState<FilterBarView>("list");
+  /* 搜索/筛选 (owner: 表头操作行参照 /admin/permissions 补齐, 筛选组的补齐) -
+     when either is active, the tree flattens to whichever rows match: a
+     search result is read as a list of hits, not a shape to fold/unfold, the
+     same reason permission-tree.tsx's own search ignores its expand state. */
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState("");
+  const kindOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.kindName).filter((k): k is string => k !== null))].sort(),
+    [rows],
+  );
+  const searching = query.trim() !== "" || kindFilter !== "";
+  const searchFiltered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (q === "" || r.name.toLowerCase().includes(q) || r.unitCode.toLowerCase().includes(q))
+        && (kindFilter === "" || r.kindName === kindFilter),
+    );
+  }, [rows, query, kindFilter]);
   const [moveDialog, setMoveDialog] = useState<{ readonly id: string; readonly name: string; readonly parentId: string | null } | null>(null);
   const [moveTarget, setMoveTarget] = useState("");
   const [pending, start] = useTransition();
@@ -162,8 +182,10 @@ export function OrgPanel({
   };
 
   /* A row is shown while no ancestor is folded. Parents precede children in
-     `rows`, so one pass with a hidden-set suffices. */
+     `rows`, so one pass with a hidden-set suffices. Skipped entirely while
+     searching - `searchFiltered` is already the flat set of hits. */
   const visible = useMemo(() => {
+    if (searching) return searchFiltered;
     const hidden = new Set<string>();
     const out: OrgUnitRow[] = [];
     for (const r of rows) {
@@ -174,7 +196,7 @@ export function OrgPanel({
       out.push(r);
     }
     return out;
-  }, [rows, collapsed]);
+  }, [rows, collapsed, searching, searchFiltered]);
   const toggle = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -316,7 +338,11 @@ export function OrgPanel({
     <Section id="org">
       {rows.length > 0 ? (
         <FilterBar
-          count={ORG_TEXT.toolbarCount(rows.length)}
+          count={
+            searching
+              ? ORG_TEXT.toolbarFilteredCount(searchFiltered.length, rows.length)
+              : ORG_TEXT.toolbarCount(rows.length)
+          }
           view={view}
           onViewChange={(v) => {
             setView(v);
@@ -331,8 +357,33 @@ export function OrgPanel({
               <Button variant="secondary" size="sm" onClick={() => setCollapsed(new Set(branches))}>{ORG_TEXT.collapseAll}</Button>
             </ButtonGroup>
           }
+          search={
+            <SearchSlot>
+              <Input
+                type="search"
+                className="w-full"
+                value={query}
+                placeholder={ORG_TEXT.searchPlaceholder}
+                aria-label={ORG_TEXT.searchLabel}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchSlot>
+          }
+          onReset={searching ? () => { setQuery(""); setKindFilter(""); } : undefined}
+          resetLabel={ORG_TEXT.resetFilters}
           actions={editable ? <Button onClick={() => router.push("/admin/org/new")}>{ORG_TEXT.newUnit}</Button> : undefined}
-        />
+        >
+          {kindOptions.length > 0 ? (
+            <FilterSlot width="w-[10rem]">
+              <NativeSelect value={kindFilter} aria-label={ORG_TEXT.kindFilterLabel} onChange={(e) => setKindFilter(e.target.value)}>
+                <option value="">{ORG_TEXT.filterAllKinds}</option>
+                {kindOptions.map((k) => (
+                  <option key={k} value={k}>{k}</option>
+                ))}
+              </NativeSelect>
+            </FilterSlot>
+          ) : null}
+        </FilterBar>
       ) : null}
       {editable && view === "list" ? (
         <BulkActionBar
