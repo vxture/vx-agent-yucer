@@ -1159,6 +1159,7 @@ export const FORECAST_PARAM_TEXT = {
   why: "概率到多少算承诺、算最好情况，以及停多久算停滞。",
   ladder: (best: number, commit: number) => `最好情况 ${best}% · 承诺 ${commit}%`,
   save: "保存",
+  discard: "放弃",
   saved: "已保存，预测口径页立即按新阈值给建议",
   percent: "%",
   days: "天",

@@ -1973,6 +1973,7 @@ export const en: Dictionary = {
     why: "What probability counts as commit, as best case, and how long a stall takes.",
     ladder: (best: number, commit: number) => `Best case ${best}% - commit ${commit}%`,
     save: "Save",
+    discard: "Discard",
     saved: "Saved. The forecast review suggests against the new bands from now on.",
     percent: "%",
     days: "days",
