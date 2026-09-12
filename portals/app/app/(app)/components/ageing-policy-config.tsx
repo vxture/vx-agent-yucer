@@ -113,6 +113,7 @@ export function AgeingPolicyConfig({
   const [pendingAction, setPendingAction] = useState<
     { readonly kind: "insert"; readonly value: number } | { readonly kind: "remove"; readonly id: string; readonly value: string } | null
   >(null);
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Whatever they typed, as numbers. Anything unparseable becomes NaN, and a
@@ -147,6 +148,7 @@ export function AgeingPolicyConfig({
   const discard = () => {
     setRows(initialRows);
     setPendingAction(null);
+    setHoverValue(null);
   };
 
   // INSERTED SORTED, not appended - array order doubles as day order
@@ -172,27 +174,41 @@ export function AgeingPolicyConfig({
   const posPct = (n: number) =>
     Number.isFinite(n) ? (Math.min(refMax, Math.max(0, n)) / refMax) * boundedShare * 100 : 0;
 
-  // STAGES, DOES NOT COMMIT (owner, 2026-09-12, fourth pass: 给一条虚线定位
-  // 并显示数字，点击后还是确认一下再添加 / 点击删除...需要确认框，==同增加).
-  // A click - track or the row's own "-" - only sets `pendingAction`; the
-  // dashed marker and the confirm bar below the ruler are what actually
-  // render it, and only `confirmPendingAction` writes to `rows`.
+  // THE SAME MATH FOR HOVER AND CLICK, so the number a click stages is
+  // exactly the number the hover preview just promised.
+  const valueFromClientX = (clientX: number, rect: DOMRect) => {
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    return pct >= boundedShare * 100
+      ? refMax + RULER_MIN_SCALE
+      : Math.round((pct / (boundedShare * 100)) * refMax);
+  };
+
+  // STAGES, DOES NOT COMMIT (owner, 2026-09-12: 给一条虚线定位并显示数字，
+  // 点击后还是确认一下再添加 / 点击删除...需要确认框，==同增加 - then a
+  // correction: 在hover 时就显示并带数字，点击后确认，现在点击根本不知道点到
+  // 哪里了). The dashed marker now follows the pointer on hover
+  // (`hoverValue`, cleared on leave) so a click lands where it was already
+  // shown to land, rather than only revealing the position after the fact.
+  // Clicking (or an Enter/Space activation, which has no real hover to have
+  // shown anything) is what turns that preview into a `pendingAction`; the
+  // confirm bar under the ruler is still the only thing that writes to
+  // `rows`.
+  const trackHover = (e: MouseEvent<HTMLButtonElement>) => {
+    if (pendingAction || !canWrite || pending) return;
+    setHoverValue(valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect()));
+  };
+  const trackLeave = () => setHoverValue(null);
   const trackClick = (e: MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
     // A REAL BUTTON MEANS A KEYBOARD ACTIVATION FIRES THIS TOO (Enter/Space),
     // and a synthetic click has no meaningful clientX - `detail === 0` is the
     // standard way to tell it apart from an actual pointer click, so a
     // keyboard user gets the same "extend past the last cutoff" default a
     // click past the open tail gets, not a position computed from nothing.
-    if (e.detail === 0) {
-      setPendingAction({ kind: "insert", value: refMax + RULER_MIN_SCALE });
-      return;
-    }
-    const pct = ((e.clientX - rect.left) / rect.width) * 100;
     const value =
-      pct >= boundedShare * 100
+      e.detail === 0
         ? refMax + RULER_MIN_SCALE
-        : Math.round((pct / (boundedShare * 100)) * refMax);
+        : valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+    setHoverValue(null);
     setPendingAction({ kind: "insert", value });
   };
   const stageRemoval = (id: string, value: string) => setPendingAction({ kind: "remove", id, value });
@@ -202,6 +218,8 @@ export function AgeingPolicyConfig({
     setPendingAction(null);
   };
   const cancelPendingAction = () => setPendingAction(null);
+
+  const ghostInsertValue = pendingAction?.kind === "insert" ? pendingAction.value : hoverValue;
 
   let segFrom = 1;
   const segments = allValid
@@ -262,6 +280,8 @@ export function AgeingPolicyConfig({
                 aria-label={AGEING_TEXT.cutoffAdd}
                 title={AGEING_TEXT.cutoffAdd}
                 onClick={trackClick}
+                onMouseMove={trackHover}
+                onMouseLeave={trackLeave}
                 disabled={!canWrite || pending || rows.length >= MAX_CUTOFFS}
                 className={`border-border flex h-10 w-full overflow-hidden rounded-md border ${canWrite && rows.length < MAX_CUTOFFS ? "cursor-pointer" : "cursor-default"}`}
               >
@@ -313,13 +333,19 @@ export function AgeingPolicyConfig({
                     </Button>
                   </div>
                 ))}
-                {pendingAction?.kind === "insert" ? (
+                {/* HOVER PREVIEWS, A CLICK STAGES (owner, 2026-09-12: 在
+                    hover 时就显示并带数字，点击后确认，现在点击根本不知道
+                    点到哪里了). Same dashed marker either way; staged
+                    (`pendingAction`) is full opacity since it is about to be
+                    asked to confirm, a live hover is half that - a hint, not
+                    a commitment yet. */}
+                {ghostInsertValue !== null ? (
                   <div
-                    className="gap-2xs pointer-events-none absolute top-0 flex -translate-x-1/2 flex-col items-center"
-                    style={{ left: `${posPct(pendingAction.value)}%` }}
+                    className={`gap-2xs pointer-events-none absolute top-0 flex -translate-x-1/2 flex-col items-center ${pendingAction ? "" : "opacity-50"}`}
+                    style={{ left: `${posPct(ghostInsertValue)}%` }}
                   >
                     <span className="border-muted-foreground h-10 border-l border-dashed" />
-                    <span className="text-label-xs text-muted-foreground tabular-nums">{pendingAction.value}</span>
+                    <span className="text-label-xs text-muted-foreground tabular-nums">{ghostInsertValue}</span>
                   </div>
                 ) : null}
               </div>
