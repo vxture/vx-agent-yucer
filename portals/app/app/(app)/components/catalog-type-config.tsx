@@ -48,7 +48,10 @@ export function CatalogTypeConfig({
     <VocabularyConfig
       rows={rows}
       idPrefix="type"
-      icon="package"
+      /* squares-four, not package/cube (owner: 产品配置页头跟产品类型这两个
+         相邻标题图标撞了 - 都是"箱子"轮廓，视觉上分不清). 网格代表"分类"，
+         跟页头的 cube、跟下面产品状态的 flag、计价单位的 gauge 都不撞。 */
+      icon="squares-four"
       errors={CATALOG_ERROR}
       text={{
         title: CATALOG_TEXT.typesTitle,
