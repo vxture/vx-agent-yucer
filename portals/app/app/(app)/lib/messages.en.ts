@@ -2022,7 +2022,6 @@ export const en: Dictionary = {
     cutoffAdd: "Add a cutoff",
     cutoffRemove: "Remove",
     bandPlaceholder: "—",
-    noDueDateHint: "No due date on file, so there's no overdue count to place - not configured here",
     confirmAdd: (days: number) => `Add the ${days}-day cutoff?`,
     confirmRemove: (days: string) => `Remove the ${days}-day cutoff?`,
     confirmYes: "Confirm",
