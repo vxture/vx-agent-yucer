@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type MouseEvent } from "react";
 import {
-  Button,
   Field,
   FieldDescription,
   FieldLabel,
@@ -28,84 +27,49 @@ import { Tag } from "./tag";
 // admin to hand-format a list and re-type the whole thing to fix one typo, and
 // it had no per-value feedback - the same `line-editor.tsx`/`catalog-forms.tsx`
 // shape (`useState<string[]>` + index-matched update, a row's own remove
-// button, an add button below) replaces it here, one input per number.
+// button, an add button) replaces it here, one input per number.
 //
-// THE BAND A ROW PRODUCES SITS ON THAT ROW, NOT IN A SEPARATE PREVIEW COLUMN
-// (owner, 2026-09-12: 把账期说明拆解为按行，并对齐数据行，不要写一堆). A
-// block of tags off to the side made the reader match each one back to a
-// cutoff by counting; each row now states what it closes right next to the
-// input that sets it, and the two ends that never move - 未到期 above the
-// list, 未填到期日 below it - bracket the rows they do not depend on editing.
+// THE INPUT SITS ON THE RULER, NOT ABOVE IT (owner, 2026-09-12, second pass:
+// 设置和展示需要融合在一起 - a stacked row-list-then-ruler was still two
+// surfaces: a plain list to edit and a separate read-only bar to admire,
+// exactly the "preview column" problem the first pass already ended, just
+// moved one level up. There is now one control: each cutoff's own number
+// input sits AT its position on the full-width bar, so typing 60 both sets
+// the value and moves that tick - editing IS what draws the picture, not a
+// second step after it.
 //
-// THE RULER (owner, 2026-09-12: 做成一个进度尺，全宽，添加刻度定标，区间做
-// 说明). The row list says what each cutoff IS; it cannot say how the days
-// are actually carved up relative to each other - a 1-30 band and a
-// 3560-3650 band read as the same size in a list of numbers. Below the rows,
-// a full-width bar gives every band its own proportional share (the
-// open-ended tail gets a fixed share instead, since nothing is proportional
-// to infinity) with a tick and the cutoff's own number at each boundary. It
-// replaces the old trailing "开放档" tag - that band is now the bar's own
-// last segment - and only renders once every row holds, the same
-// `validPrefix` gate the row labels use, so it never states a shape built on
-// a broken number.
+// A DS `Slider` WAS THE FIRST THING TRIED HERE, AND IT DOES NOT FIT: the
+// wrapper (`design-ui`'s `Slider`) hardcodes exactly one
+// `SliderPrimitive.Thumb`, so it has no multi-handle mode to bind an
+// arbitrary, 1-5-long cutoff list to - and dragging a handle on a 1-3650-day
+// axis cannot land an exact integer anyway, which typing already does
+// better. So this stays a set of ordinary number inputs; what changed is
+// where they sit, not how they take a value.
+//
+// POSITION IS ALWAYS DEFINED, VALIDITY IS SEPARATE: a row positions itself
+// off its OWN typed number against the current largest one (`refMax`),
+// regardless of range or ascending-order problems - so a cutoff typed out of
+// order visibly lands to the left of where it should be, which is the bug
+// showing itself on the ruler rather than only in a red border. The coloured
+// bands and their range labels are the one part that still needs the WHOLE
+// list to hold (`allValid`, same gate the row-list version used): a segment
+// mid-edit cannot state a shape built on a broken number, so it falls back
+// to one flat, unlabelled bar instead.
+//
+// CLICK THE BAR TO INSERT, CLICK A MARKER TO REMOVE (owner, 2026-09-12,
+// third pass: 做成标签式游标，点击可以插入式增加和删除，下面数字可设置数字。
+// 由于复原简单，增删都无需确认). Each cutoff is a `Tag` sitting on the bar at
+// its own position - clicking IT removes that cutoff, immediately, no
+// confirmation dialog: Discard already reverts every unsaved change in one
+// click, so a second guard on top of it would only be asked to protect
+// against something the page already undoes for free. Clicking empty track
+// inserts a new cutoff at that position (kept in sorted array order so the
+// ascending-order check still reads left-to-right); an exact number is typed
+// into the small input under each tag rather than dragged, because a drag on
+// a 1-3650-day axis cannot land an integer as reliably as typing one.
 const RULER_OPEN_SHARE = 0.22;
+const RULER_MIN_SCALE = 30;
 const RULER_BAND_TONES = ["bg-primary/10", "bg-primary/18", "bg-primary/26", "bg-primary/34", "bg-primary/42"];
-
-function AgeingRuler({
-  cutoffs,
-  openLabel,
-}: {
-  readonly cutoffs: readonly number[];
-  readonly openLabel: string;
-}) {
-  const { DELIVERY_TEXT } = useMessages();
-  const last = cutoffs[cutoffs.length - 1];
-  const boundedShare = 1 - RULER_OPEN_SHARE;
-  let from = 1;
-  let cumulativePct = 0;
-  const segments = cutoffs.map((to, i) => {
-    const widthPct = ((to - from + 1) / last) * boundedShare * 100;
-    cumulativePct += widthPct;
-    const seg = { key: i, from, to, widthPct, tickPct: cumulativePct };
-    from = to + 1;
-    return seg;
-  });
-
-  return (
-    <div className="w-full">
-      <div className="border-border flex h-10 w-full overflow-hidden rounded-md border">
-        {segments.map((s, i) => (
-          <div
-            key={s.key}
-            style={{ width: `${s.widthPct}%` }}
-            className={`border-border text-label-sm flex shrink-0 items-center justify-center overflow-hidden border-r px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
-          >
-            {DELIVERY_TEXT.ageingBetween(s.from, s.to)}
-          </div>
-        ))}
-        <div
-          style={{ width: `${RULER_OPEN_SHARE * 100}%` }}
-          className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center gap-2xs overflow-hidden px-2xs whitespace-nowrap"
-        >
-          {openLabel}
-          <Icon name="arrow-right" size="xs" />
-        </div>
-      </div>
-      <div className="relative mt-2xs h-4 w-full">
-        {segments.map((s) => (
-          <div
-            key={s.key}
-            className="absolute top-0 flex -translate-x-1/2 flex-col items-center gap-2xs"
-            style={{ left: `${s.tickPct}%` }}
-          >
-            <span className="bg-border h-2xs w-px" />
-            <span className="text-label-xs text-muted-foreground tabular-nums">{s.to}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function AgeingPolicyConfig({
   cutoffs,
@@ -165,8 +129,47 @@ export function AgeingPolicyConfig({
   const editRow = (i: number, value: string) =>
     setRows((prev) => prev.map((v, j) => (j === i ? value : v)));
   const removeRow = (i: number) => setRows((prev) => prev.filter((_, j) => j !== i));
-  const addRow = () => setRows((prev) => [...prev, ""]);
   const discard = () => setRows(initialRows);
+
+  // INSERTED SORTED, not appended - array order doubles as day order
+  // everywhere else in this component (the order check reads
+  // `parsed[i-1]`), so a click at day 45 has to land between 30 and 60, not
+  // after them.
+  const insertCutoff = (value: number) => {
+    if (rows.length >= MAX_CUTOFFS) return;
+    const v = String(Math.min(3650, Math.max(1, Math.round(value))));
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => Number(r) > Number(v) || Number.isNaN(Number(r)));
+      const at = idx === -1 ? prev.length : idx;
+      return [...prev.slice(0, at), v, ...prev.slice(at)];
+    });
+  };
+
+  // THE RULER'S OWN SCALE. A row positions off its OWN number against the
+  // largest one currently typed, floored at RULER_MIN_SCALE so a lone small
+  // cutoff (or none yet) does not stretch across the whole bar.
+  const finiteValues = parsed.filter((n) => Number.isFinite(n));
+  const refMax = Math.max(RULER_MIN_SCALE, ...(finiteValues.length > 0 ? finiteValues : [0]));
+  const boundedShare = 1 - RULER_OPEN_SHARE;
+  const posPct = (n: number) =>
+    Number.isFinite(n) ? (Math.min(refMax, Math.max(0, n)) / refMax) * boundedShare * 100 : 0;
+
+  const trackClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!canWrite || pending) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    const value = pct >= boundedShare * 100 ? refMax + RULER_MIN_SCALE : (pct / (boundedShare * 100)) * refMax;
+    insertCutoff(value);
+  };
+
+  let segFrom = 1;
+  const segments = allValid
+    ? parsed.map((to, i) => {
+        const seg = { key: i, from: segFrom, to, widthPct: posPct(to) - posPct(segFrom - 1) };
+        segFrom = to + 1;
+        return seg;
+      })
+    : [];
 
   const save = () => {
     // DISABLING SAVE WOULD ALSO DISABLE DISCARD - FormActions shares one
@@ -206,53 +209,72 @@ export function AgeingPolicyConfig({
             <div className="gap-xs flex items-center">
               <Tag>{DELIVERY_TEXT.ageingBand.not_due}</Tag>
             </div>
-            <div className="gap-xs mt-xs flex flex-col">
-              {rows.map((v, i) => (
-                <div key={i} className="gap-xs flex items-center">
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    className="max-w-[8rem]"
-                    value={v}
-                    disabled={pending || !canWrite}
-                    aria-invalid={rowInvalid[i]}
-                    onChange={(e) => editRow(i, e.target.value)}
-                  />
-                  <span className="text-body-sm text-muted-foreground">{AGEING_TEXT.days}</span>
-                  {!validPrefix[i] ? (
-                    <span className="text-body-sm text-muted-foreground">{AGEING_TEXT.bandPlaceholder}</span>
-                  ) : null}
-                  {canWrite && rows.length > 1 ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={AGEING_TEXT.cutoffRemove}
-                      disabled={pending}
-                      onClick={() => removeRow(i)}
-                    >
-                      <Icon name="x" size="xs" />
-                    </Button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-            {canWrite ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-xs w-fit"
-                disabled={pending || rows.length >= MAX_CUTOFFS}
-                onClick={addRow}
+            {/* THE RULER IS THE INPUT. Track: click empty space to insert a
+                cutoff there. Overlay: one Tag per cutoff at its own position -
+                click the tag to remove it (no confirm - Discard already
+                undoes everything in one click) - with its exact number
+                editable in the small input right under it. */}
+            <div className="mt-xs w-full">
+              <div
+                role="button"
+                tabIndex={canWrite ? 0 : -1}
+                aria-label={AGEING_TEXT.cutoffAdd}
+                title={AGEING_TEXT.cutoffAdd}
+                onClick={trackClick}
+                className={`border-border flex h-10 w-full overflow-hidden rounded-md border ${canWrite && rows.length < MAX_CUTOFFS ? "cursor-pointer" : "cursor-default"}`}
               >
-                {AGEING_TEXT.cutoffAdd}
-              </Button>
-            ) : null}
-            <div className="mt-sm">
-              {allValid ? (
-                <AgeingRuler cutoffs={parsed as number[]} openLabel={DELIVERY_TEXT.ageingOver(parsed[parsed.length - 1])} />
-              ) : (
-                <p className="text-body-sm text-muted-foreground">{AGEING_TEXT.bandPlaceholder}</p>
-              )}
+                {allValid
+                  ? segments.map((s, i) => (
+                      <div
+                        key={s.key}
+                        style={{ width: `${s.widthPct}%` }}
+                        className={`text-label-sm flex shrink-0 items-center justify-center overflow-hidden px-2xs whitespace-nowrap ${RULER_BAND_TONES[i % RULER_BAND_TONES.length]}`}
+                      >
+                        {DELIVERY_TEXT.ageingBetween(s.from, s.to)}
+                      </div>
+                    ))
+                  : <div style={{ width: `${boundedShare * 100}%` }} className="bg-muted shrink-0" />}
+                <div
+                  style={{ width: `${RULER_OPEN_SHARE * 100}%` }}
+                  className="bg-muted text-label-sm text-muted-foreground flex shrink-0 items-center justify-center gap-2xs overflow-hidden px-2xs whitespace-nowrap"
+                >
+                  {allValid ? DELIVERY_TEXT.ageingOver(parsed[parsed.length - 1]) : AGEING_TEXT.bandPlaceholder}
+                  <Icon name="arrow-right" size="xs" />
+                </div>
+              </div>
+              <div className="relative mt-xs h-16 w-full">
+                {rows.map((v, i) => (
+                  <div
+                    key={i}
+                    className="gap-2xs absolute top-0 flex -translate-x-1/2 flex-col items-center"
+                    style={{ left: `${posPct(parsed[i])}%` }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (canWrite && rows.length > 1) removeRow(i);
+                      }}
+                      aria-label={AGEING_TEXT.cutoffRemove}
+                      disabled={!canWrite || pending || rows.length <= 1}
+                      className="disabled:pointer-events-none disabled:opacity-disabled"
+                    >
+                      <Tag tone={rowInvalid[i] ? "warning" : "neutral"}>{v || "?"}</Tag>
+                    </button>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      className="w-14 text-center"
+                      value={v}
+                      disabled={pending || !canWrite}
+                      aria-invalid={rowInvalid[i]}
+                      aria-label={AGEING_TEXT.cutoffsLabel}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => editRow(i, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="gap-xs mt-sm flex items-center">
               <Tag>{DELIVERY_TEXT.ageingBand.no_due_date}</Tag>
