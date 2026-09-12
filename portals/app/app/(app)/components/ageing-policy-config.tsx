@@ -78,17 +78,18 @@ import { Tag } from "./tag";
 // has no day count to be proportional to, but still a place on the ruler.
 // 未填到期日 is not a position on that axis at all - the due-date field is
 // empty, so there is no clock to have started or not, nothing this page's
-// cutoffs could ever place it relative to. It stays a plain fixed tag below
-// the ruler.
+// cutoffs could ever place it relative to.
 //
-// NO EXPLANATION OF WHAT 未填到期日 MEANS LIVES HERE (owner, 2026-09-12:
-// 这条为什么要在这里，这里是配置，不是应用 - a correction of the line above
-// this comment, which had reasoned the opposite way). This page configures
-// where 逾期 gets cut; teaching what a fixed band MEANS is the application's
-// job (wherever 未填到期日 shows real rows, e.g. the ageing chart on
-// /collection), not a config screen's. The tag having no input beside it -
-// unlike every band that does - is the only signal this page owes: it says
-// "fixed" by shape, without a sentence explaining why.
+// 未填到期日 DOES NOT APPEAR ON THIS PAGE AT ALL, TWO CORRECTIONS LATER
+// (owner, 2026-09-12: first 这条为什么要在这里，这里是配置，不是应用 dropped
+// the sentence explaining what it means; then 这个裸标签是什么意图，为什么
+// 要，其存在价值 asked what the bare tag itself was still doing there once
+// the sentence was gone). Nothing was left for it to say: `why` in the
+// ViewHeader description already states once, in one place, that 未到期 and
+// 未填到期日 are always their own bands - a second, silent, unclickable tag
+// repeating half of that sentence was not completeness, it was the leftover
+// shape of the old "two tags bracket the ruler" layout after 未到期 moved
+// into the bar and took its half of the pairing with it.
 //
 // THE HINT MOVED TO SIT UNDER THE RULER (owner, 2026-09-12: 说明进行放到哪里
 // 合适) - `cutoffsHint` describes the numbers this control takes (ascending,
@@ -438,9 +439,6 @@ export function AgeingPolicyConfig({
                 </Button>
               </div>
             ) : null}
-            <div className="gap-xs mt-sm flex items-center">
-              <Tag>{DELIVERY_TEXT.ageingBand.no_due_date}</Tag>
-            </div>
           </Field>
         </Section>
         {canWrite ? (
