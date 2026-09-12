@@ -1333,11 +1333,12 @@ export const PERMISSION_LABEL: Record<string, string> = {
   "admin.manage": "配置管理——成员角色与各类目录",
 };
 
-/** 数据范围的三档 (incr/0022)。 */
+/** 数据范围的四档 (incr/0022, unit 见 incr/0052)。 */
 export const SCOPE_LABEL: Record<string, string> = {
   workspace: "整个工作区",
   territory: "所辖区域",
   own: "仅自己",
+  unit: "本单位",
 };
 
 export const ADMIN_PAGE_TEXT = {

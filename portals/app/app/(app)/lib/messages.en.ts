@@ -4062,6 +4062,7 @@ export const en: Dictionary = {
     workspace: "Whole workspace",
     territory: "Their territories",
     own: "Their own rows",
+    unit: "Their unit",
   },
   ADMIN_PAGE_TEXT: {
     rolesTitle: "Roles",
