@@ -1181,6 +1181,7 @@ export const PRICING_TEXT = {
   title: "计价规则",
   why: "报价、价目与汇总默认按哪个币种。行上另有币种时以行为准。",
   save: "保存",
+  discard: "放弃",
   saved: "已保存，之后新建的商机与报价行按新币种计",
   currencyLabel: "默认币种",
   currencyHint: "ISO 4217 三字母代码。已有的价目与商机不改，只影响之后新写的。",
