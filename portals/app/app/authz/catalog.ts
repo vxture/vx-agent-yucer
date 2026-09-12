@@ -727,7 +727,7 @@ export const DEFAULT_ROLE_LINES: readonly { readonly code: string; readonly name
   { code: "presales", name: "售前" },
   { code: "marketing", name: "市场" },
   { code: "ops", name: "运营" },
-  { code: "account", name: "客户与商机开发" },
+  { code: "account", name: "商拓" },
 ];
 export const DEFAULT_ROLE_RANKS: readonly { readonly code: string; readonly name: string }[] = [
   // TOP RUNG FIRST (owner, 2026-09-10: 层级配置的顺序也要改), the way the
