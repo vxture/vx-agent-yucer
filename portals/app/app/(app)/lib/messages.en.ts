@@ -2022,10 +2022,7 @@ export const en: Dictionary = {
     cutoffAdd: "Add a cutoff",
     cutoffRemove: "Remove",
     days: "days",
-    previewLabel: "Which gives these bands",
-    previewHint:
-      "The two at the ends do not move: one is money that is simply early, the other is money nobody can age at all.",
-    previewUnusable: "Ascending whole numbers, please",
+    bandPlaceholder: "—",
   },
 
   INDUSTRY_ERROR: {

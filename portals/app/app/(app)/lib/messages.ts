@@ -1206,9 +1206,7 @@ export const AGEING_TEXT = {
   cutoffAdd: "加一档",
   cutoffRemove: "删除",
   days: "天",
-  previewLabel: "分出来是这些档",
-  previewHint: "两头的「未到期」「未填到期日」不受分档点影响：一个是还早，一个是没法算。",
-  previewUnusable: "先填成从小到大的正整数",
+  bandPlaceholder: "—",
 };
 
 export const INDUSTRY_TEXT = {
