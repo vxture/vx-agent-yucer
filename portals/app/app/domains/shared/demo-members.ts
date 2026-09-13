@@ -1,7 +1,7 @@
 import type { AuthzStore } from "../../authz/store";
 import type { RoleCode } from "../../authz/catalog";
 import type { PlanningStore } from "../planning/store";
-import { DEMO_MEMBER_NAMES } from "./demo-fixtures";
+import { DEMO_MEMBER_NAMES, DEMO_WUXIA_MEMBER_NAMES } from "./demo-fixtures";
 
 // The demo's people, as members.
 //
@@ -30,6 +30,73 @@ interface DemoMember {
   readonly active: boolean;
 }
 
+/**
+ * THE DEPARTMENT ROSTER (owner, 2026-09-13: 按照金庸武侠小说正面人物，构建
+ * 100+数据，作为演示数据 - 本组织的成员/团队，并分配关联到组织、大区、角色;
+ * 100+用户，并分配到各级部门). `DEMO_WUXIA_MEMBER_NAMES` (demo-fixtures.ts)
+ * is a flat 116-name list; this file turns it into people WITH A SEAT - a
+ * unit and a role - by POSITION, so the flat list stays free of any org
+ * opinion and every seating rule lives in exactly one place.
+ *
+ * NINE LEADERS, THEN THE REST ON THE FLOOR. The first nine names take
+ * headquarters (two seats: 高管/财务) and one 大区 each of the seven the
+ * default template (`national_medium`, org.ts) ships - a regional director
+ * per 大区, the shape a national company actually has. Everyone after that
+ * is rank-and-file, round-robined across the seven teams (`*_team1`) so no
+ * team is empty and none is dramatically overloaded, with a small role cycle
+ * (mostly 销售代表, one 销售经理 and two specialist roles per lap) so a team
+ * is not nine identical rows.
+ */
+const WUXIA_LEADERSHIP: readonly { readonly unit: string; readonly role: RoleCode }[] = [
+  { unit: "headquarters", role: "executive" },
+  { unit: "headquarters", role: "finance" },
+  { unit: "north", role: "regional_director" },
+  { unit: "northeast", role: "regional_director" },
+  { unit: "east", role: "regional_director" },
+  { unit: "central", role: "regional_director" },
+  { unit: "south", role: "regional_director" },
+  { unit: "southwest", role: "regional_director" },
+  { unit: "northwest", role: "regional_director" },
+];
+
+/** The one team unit under each of the seven 大区 (org.ts's `national_medium`). */
+const WUXIA_TEAM_UNITS: readonly string[] = [
+  "north_team1", "northeast_team1", "east_team1", "central_team1",
+  "south_team1", "southwest_team1", "northwest_team1",
+];
+
+/** Cycled across the rank-and-file - mostly 销售代表, one 销售经理 and two
+ *  specialist roles per lap of seven. */
+const WUXIA_TEAM_ROLE_CYCLE: readonly RoleCode[] = [
+  "sales_rep", "sales_rep", "sales_manager", "presales", "sales_rep", "sdr", "sales_rep",
+];
+
+const wuxiaSub = (i: number): string => `usr_demo_m${String(i + 1).padStart(3, "0")}`;
+
+interface WuxiaSeat {
+  readonly sub: string;
+  readonly name: string;
+  readonly unit: string;
+  readonly role: RoleCode;
+}
+
+const WUXIA_SEATS: readonly WuxiaSeat[] = DEMO_WUXIA_MEMBER_NAMES.map((name, i) => {
+  const seat = i < WUXIA_LEADERSHIP.length
+    ? WUXIA_LEADERSHIP[i]!
+    : (() => {
+        const j = i - WUXIA_LEADERSHIP.length;
+        return { unit: WUXIA_TEAM_UNITS[j % WUXIA_TEAM_UNITS.length]!, role: WUXIA_TEAM_ROLE_CYCLE[j % WUXIA_TEAM_ROLE_CYCLE.length]! };
+      })();
+  return { sub: wuxiaSub(i), name, unit: seat.unit, role: seat.role };
+});
+
+const WUXIA_MEMBERS: readonly DemoMember[] = WUXIA_SEATS.map((s) => ({
+  sub: s.sub,
+  displayName: s.name,
+  roles: [s.role],
+  active: true,
+}));
+
 export const DEMO_MEMBERS: readonly DemoMember[] = [
   // Owns the strategy plans and the targets.
   { sub: "usr_demo_cro", displayName: DEMO_MEMBER_NAMES.cro, roles: ["sales_leader"], active: true },
@@ -54,6 +121,7 @@ export const DEMO_MEMBERS: readonly DemoMember[] = [
   // member who still owns deals is the handover case, and handover does not
   // exist yet, so the demo would be posing a problem it has no control to fix.
   { sub: "usr_demo_former", displayName: DEMO_MEMBER_NAMES.former, roles: [], active: false },
+  ...WUXIA_MEMBERS,
 ];
 
 /**
@@ -82,6 +150,7 @@ const DEMO_PLACEMENTS: readonly { readonly sub: string; readonly units: readonly
   { sub: "usr_demo_rep2", units: ["east_team1", "south_team1"] },
   { sub: "usr_demo_pm", units: ["headquarters"] },
   // The departed member is placed nowhere: 未归属 is a state the view shows.
+  ...WUXIA_SEATS.map((s) => ({ sub: s.sub, units: [s.unit] })),
 ];
 
 /**

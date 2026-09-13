@@ -462,3 +462,45 @@ export const DEMO_MEMBER_NAMES = {
 
 /** The local-review user, so a reviewer can find themselves in the roster. */
 export const DEV_REVIEWER_NAME = "本地评审用户";
+
+/**
+ * 100+ 正面人物 (owner, 2026-09-13: 按照金庸武侠小说正面人物，构建100+数据，
+ * 作为演示数据 - 100+用户，并分配到各级部门), so 组织管理/组织架构 show a
+ * roster deep enough to page, search and filter against instead of the six
+ * names the business-rule fixtures needed. Nine novels, no villains and no
+ * real historical figures - fictional and unambiguous either way a reader
+ * takes it. Flat on purpose: demo-members.ts assigns unit and role by
+ * position, not by which novel a name is from.
+ */
+export const DEMO_WUXIA_MEMBER_NAMES: readonly string[] = [
+  // 射雕英雄传
+  "郭靖", "黄蓉", "黄药师", "洪七公", "周伯通", "一灯大师", "柯镇恶", "朱聪",
+  "韩宝驹", "南希仁", "张阿生", "全金发", "韩小莹", "丘处机", "马钰", "谭处端",
+  "刘处玄", "王处一", "郝大通", "孙不二", "李萍", "穆念慈", "华筝",
+  // 神雕侠侣
+  "杨过", "小龙女", "郭襄", "武敦儒", "武修文", "陆无双", "程英", "公孙绿萼",
+  "朱子柳", "武三通", "耶律齐", "完颜萍", "郭芙",
+  // 倚天屠龙记
+  "张无忌", "赵敏", "小昭", "殷离", "张翠山", "殷素素", "张三丰", "俞岱岩",
+  "俞莲舟", "宋远桥", "殷梨亭", "莫声谷", "张松溪", "杨逍", "范遥", "韦一笑",
+  "说不得", "彭莹玉", "黛绮丝", "周颠", "铁冠道人", "谢逊",
+  // 天龙八部
+  "乔峰", "段誉", "虚竹", "阿朱", "王语嫣", "木婉清", "钟灵", "阿碧",
+  "段正淳", "段正明", "枯荣大师", "扫地僧", "智光大师", "单正",
+  // 笑傲江湖
+  "令狐冲", "任盈盈", "仪琳", "岳灵珊", "向问天", "风清扬", "定闲师太",
+  "定逸师太", "方证大师", "冲虚道长",
+  // 书剑恩仇录
+  "陈家洛", "霍青桐", "香香公主", "文泰来", "余鱼同", "骆冰", "徐天宏",
+  "周绮", "赵半山", "石双英", "卫春华", "章进", "心砚",
+  // 碧血剑
+  "袁承志", "温青青", "夏雪宜", "焦公礼", "程青竹", "阿九",
+  // 侠客行
+  "石破天", "丁珰", "石清", "闵柔",
+  // 雪山飞狐/飞狐外传
+  "胡斐", "苗若兰", "程灵素", "苗人凤", "马春花",
+  // 连城诀
+  "狄云", "水笙", "丁典", "凌霜华",
+  // 白马啸西风
+  "李文秀", "苏普",
+] as const;
