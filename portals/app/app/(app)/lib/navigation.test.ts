@@ -83,7 +83,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // 待迁路由 joined 运行状况 on 2026-09-11 (incr/0055's own change): a
     // holding page for whatever route currently has no entry point anywhere
     // else, found by an app-wide reachability sweep.
-    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "industry",
+    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "stage", "industry",
      "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption", "pendingMigration"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
@@ -219,6 +219,12 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     // wherever /pipeline does, on every tier.
     "quote",
     "solution",
+    // 商机阶段 rides pipeline.stage.view, which resolves to pipeline.read - the
+    // stage catalog is a facet of the same free pipeline.manage key /pipeline
+    // itself carries (incr/0059), not a new paid capability. A rep sees it
+    // read-only; editing it needs pipeline.stage.manage, which sales_rep does
+    // not hold.
+    "stage",
   ]);
 });
 
@@ -252,7 +258,10 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
      line on a quote. Editing either needs an upsert action they lack. */
   // 赢丢原因 rides pipeline.winloss.view, which a viewer holds - so the gear
   // shows a viewer three read-only items now, not two.
-  const inPlane = ["division", "product", "winLossReason", "industry",
+  const inPlane = ["division", "product", "winLossReason",
+    // 商机阶段 rides pipeline.stage.view, which resolves to pipeline.read - the
+    // same permission a viewer already holds for every other pipeline read.
+    "stage", "industry",
     // A viewer holds pipeline.read and delivery.read, so both parameter pages
     // are readable; writing them needs permissions a viewer does not hold, and
     // the panels render without their save button.

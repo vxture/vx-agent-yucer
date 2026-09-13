@@ -8,7 +8,9 @@ import {
   getPipelineStore,
 } from "../../domains/shared/registry";
 import { listOpportunityLines } from "../../domains/catalog/service";
-import { listPipeline } from "../../domains/pipeline/service";
+import { listPipeline, listStageDefinitions } from "../../domains/pipeline/service";
+import { toStageCatalog } from "../../domains/pipeline/store";
+import { DEFAULT_STAGE_DEFINITIONS } from "../../domains/pipeline/lib/stage";
 import { listAccounts } from "../../domains/account/service";
 import { QuoteTable, type QuoteRow } from "../components/quote-table";
 import { loadFailureText } from "../lib/load-failure";
@@ -49,7 +51,7 @@ export default async function QuotePage() {
     entitlement: session.entitlement,
   };
 
-  const [deals, lines, accounts] = await Promise.all([
+  const [deals, lines, accounts, stageRows] = await Promise.all([
     listPipeline(
       { ...base, store: session.stores.pipeline() },
       { includeClosed: true },
@@ -61,7 +63,9 @@ export default async function QuotePage() {
     // A member who cannot read accounts gets a blank here instead, which is
     // the honest answer to "who is this" when you are not allowed to know.
     listAccounts({ ...base, store: session.stores.account() }),
+    listStageDefinitions({ ...base, store: session.stores.pipeline() }),
   ]);
+  const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
   if (!deals.ok) {
     return (
@@ -127,7 +131,7 @@ export default async function QuotePage() {
         description={QUOTE_TEXT.why}
         tags={<StatusBadge tone="success">{QUOTE_TEXT.tagCount(rows.length)}</StatusBadge>}
       />
-      <QuoteTable rows={rows} />
+      <QuoteTable rows={rows} stageDefinitions={stageDefinitions} />
     </ViewLayout>
   );
 }

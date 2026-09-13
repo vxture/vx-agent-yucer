@@ -107,6 +107,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   orgUnit: "组织架构",
   product: "产品配置",
   winLossReason: "赢丢原因",
+  stage: "商机阶段",
   industry: "行业分类",
   forecastThreshold: "预测阈值",
   ageingPolicy: "账龄分档",
@@ -1145,6 +1146,23 @@ export const INDUSTRY_ERROR: Record<string, string> = {
   not_found: "找不到这个行业，可能刚被删掉，刷新后重试",
 };
 
+/** 商机阶段目录的写入回执 (incr/0057-0059)。 */
+export const STAGE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "阶段代码不能为空",
+  name_required: "阶段名称不能为空",
+  probability_range: "默认赢率必须是 0-100 之间的整数",
+  won_must_be_terminal: "赢单阶段必须是终态",
+  won_probability_fixed: "赢单阶段的默认赢率固定为 100%",
+  lost_probability_fixed: "终态、非赢单阶段的默认赢率固定为 0%",
+  stage_in_use: "还有商机停在这个阶段，先把它们移到别处",
+  last_won_stage: "工作区至少要保留一个赢单阶段",
+  last_lost_stage: "工作区至少要保留一个非赢单的终态阶段",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个阶段，可能刚被删掉，刷新后重试",
+};
+
 /** 预测阈值的回执 (0041)。 */
 export const FORECAST_PARAM_ERROR: Record<string, string> = {
   ...GATE_ERROR,
@@ -2000,6 +2018,7 @@ export const ADMIN_TEXT = {
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
+    stage: "商机推进经过的阶段，改名/排序/默认赢率/增删",
     industry: "客户按行业归档，一处改，处处改",
     forecastThreshold: "承诺、最好情况从多少概率起算",
     ageingPolicy: "逾期多少天算一档",
@@ -4691,6 +4710,31 @@ export const WINLOSS_REASON_LABEL: Record<string, string> = {
   no_decision: "客户未决策",
   other: "其他",
 };
+
+/** 商机阶段目录的配置面 (incr/0057-0059)。 */
+export const STAGE_CONFIG_TEXT = {
+  noun: "阶段",
+  title: "商机阶段",
+  stageCount: (n: number) => `${n} 个阶段`,
+  why: "商机推进经过的阶段。可以改名称、调顺序、改默认赢率，或增删阶段——赢单/终态阶段的默认赢率由系统固定，不可编辑。",
+  add: "新建阶段",
+  save: "保存",
+  codeLabel: "阶段代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  nameLabel: "阶段名称",
+  colName: "阶段",
+  deleteConsequence: "该阶段将从阶段目录中移除。仍有商机停留在这个阶段，或它是工作区最后一个赢单/终态阶段时，删不掉。",
+  colFlags: "标记",
+  colProbability: "默认赢率",
+  colUsed: "商机数",
+  flagWon: "赢单",
+  flagLost: "终态",
+  probabilityLabel: "默认赢率",
+  probabilityHint: "0-100 之间的整数。",
+  probabilityFixedWon: "固定 100%",
+  probabilityFixedLost: "固定 0%",
+  probabilityFixedHint: "赢单/终态阶段的默认赢率由系统固定，不可编辑。",
+} as const;
 
 /** incr/0027：唯一能写入采购角色的控件，它只存在于商机上。 */
 export const BUYING_ROLE_TEXT = {

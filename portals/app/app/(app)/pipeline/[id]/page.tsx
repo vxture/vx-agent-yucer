@@ -15,6 +15,7 @@ import {
   STAGE_TONE,
   formatMoney,
   probabilityDisplay,
+  stageLabelFor,
 } from "../../lib/view-model";
 import { can } from "../../../authz/decide";
 import {
@@ -27,8 +28,10 @@ import {
 } from "../../../domains/shared/registry";
 import {
   getOpportunityDetail,
+  listStageDefinitions,
   stageHistory,
 } from "../../../domains/pipeline/service";
+import { toStageCatalog } from "../../../domains/pipeline/store";
 import {
   getAccountDetail,
   decisionChainsByOpportunity,
@@ -50,7 +53,7 @@ import { adjudicateProposals } from "../../copilot/actions";
 import { DecisionChain } from "../../components/decision-chain";
 import { PositionBrief } from "../../components/position-brief";
 import type { ForecastCategory } from "../../../domains/pipeline/lib/forecast";
-import type { Stage } from "../../../domains/pipeline/lib/stage";
+import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
 import { DealTerms } from "../../components/deal-terms";
 import { NewEntryLink } from "../../components/form-page";
 import { LineEditor } from "../../components/line-editor";
@@ -154,7 +157,7 @@ export default async function OpportunityDetailPage({
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows] =
+  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows, stageRows] =
     await Promise.all([
       getAccountDetail(accountCtx, opportunity.accountId),
       // incr/0027. THIS PAGE IS A DEAL, so it asks the deal's question. It used
@@ -187,10 +190,16 @@ export default async function OpportunityDetailPage({
       listOpportunityLines(catalogCtx),
       listCatalogProducts(catalogCtx),
       listCatalogUnits(catalogCtx),
+      listStageDefinitions(ctx),
     ]);
   const unitName = new Map(
     (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
   );
+  // The workspace's own stage catalog (incr/0057) - falls back to the shipped
+  // seven only if the gate somehow refuses here, which it should not: anyone
+  // who can view this deal already holds pipeline.read, and pipeline.stage.view
+  // resolves to the same permission.
+  const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
   const plan =
     account.ok && account.value.account.tier === "strategic"
       ? await session.stores.account().getAccountPlan(
@@ -338,7 +347,7 @@ export default async function OpportunityDetailPage({
     "data",
   ).allowed;
 
-  const probability = probabilityDisplay(opportunity);
+  const probability = probabilityDisplay(opportunity, stageDefinitions);
   const metrics: MetricGridItem[] = [
     {
       id: "amount",
@@ -403,7 +412,7 @@ export default async function OpportunityDetailPage({
         action={
           <>
             <Tag tone={STAGE_TONE[opportunity.stage as Stage]} dot>
-              {STAGE_LABEL[opportunity.stage as Stage] ?? opportunity.stage}
+              {stageLabelFor(opportunity.stage, stageDefinitions, STAGE_LABEL)}
             </Tag>
             <Tag
               tone={
@@ -694,6 +703,7 @@ export default async function OpportunityDetailPage({
       <DealTerms
         opportunityId={id}
         stage={opportunity.stage}
+        stageDefinitions={stageDefinitions}
         amount={opportunity.amount?.amount ?? null}
         currency={opportunity.currency}
         probability={opportunity.probability}
@@ -725,6 +735,7 @@ export default async function OpportunityDetailPage({
         opportunityId={id}
         stage={opportunity.stage}
         probability={opportunity.probability}
+        stageDefinitions={stageDefinitions}
         canAdvance={
           can(
             session.authz,
@@ -745,7 +756,7 @@ export default async function OpportunityDetailPage({
       ) : null}
 
       {history.ok ? (
-        <StageJourney events={history.value} />
+        <StageJourney events={history.value} stageDefinitions={stageDefinitions} />
       ) : (
         <EmptyState
           title={SHELL_TEXT.loadFailed}

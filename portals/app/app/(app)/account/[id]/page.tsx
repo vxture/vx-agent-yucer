@@ -38,8 +38,10 @@ import {
   relationshipEvidence,
 } from "../../../domains/account/field-service";
 import { getMessages } from "../../lib/i18n/server";
-import type { Stage } from "../../../domains/pipeline/lib/stage";
-import { listPipeline } from "../../../domains/pipeline/service";
+import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
+import { listPipeline, listStageDefinitions } from "../../../domains/pipeline/service";
+import { toStageCatalog } from "../../../domains/pipeline/store";
+import { stageLabelFor } from "../../lib/view-model";
 import { listProjects } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
@@ -168,7 +170,7 @@ export default async function AccountDetailPage({
     ? policyRead.value.defaultCurrency
     : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [deals, projects, feed, proposals] = await Promise.all([
+  const [deals, projects, feed, proposals, stageRows] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
     cachedFeed(base),
@@ -176,7 +178,9 @@ export default async function AccountDetailPage({
       { ...base, store: getCopilotStore() },
       { status: "proposed" },
     ),
+    listStageDefinitions({ ...base, store: session.stores.pipeline() }),
   ]);
+  const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
   // AFTER the deals, because a chain now belongs to one. Sequential rather than
   // in the Promise.all above: this read genuinely depends on that one, and
@@ -193,7 +197,7 @@ export default async function AccountDetailPage({
   const rosterDeals = (deals.ok ? deals.value : []).map((d) => ({
     id: d.id,
     name: d.name,
-    stageLabel: STAGE_LABEL[d.stage as Stage] ?? d.stage,
+    stageLabel: stageLabelFor(d.stage, stageDefinitions, STAGE_LABEL),
     amount: d.amount?.amount ?? null,
     currency: d.currency,
   }));

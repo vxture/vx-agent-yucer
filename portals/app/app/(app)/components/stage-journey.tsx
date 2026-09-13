@@ -1,7 +1,11 @@
 import { EmptyState, Section, StatusBadge } from "@vxture/design-ui";
-import type { Stage } from "../../domains/pipeline/lib/stage";
+import {
+  DEFAULT_STAGE_DEFINITIONS,
+  type Stage,
+  type StageDefinition,
+} from "../../domains/pipeline/lib/stage";
 import { getMessages } from "../lib/i18n/server";
-import { STAGE_TONE } from "../lib/view-model";
+import { STAGE_TONE, stageLabelFor } from "../lib/view-model";
 import { Tag } from "./tag";
 
 // The stage journal, oldest first.
@@ -28,6 +32,8 @@ export interface StageJourneyProps {
   readonly events: readonly StageJourneyEvent[];
   /** Used to date the interval the deal has spent in its CURRENT stage. */
   readonly now?: Date;
+  /** The workspace's own stage catalog (incr/0057). */
+  readonly stageDefinitions?: readonly StageDefinition[];
 }
 
 const DAY = 86_400_000;
@@ -36,7 +42,7 @@ function daysBetween(from: Date, to: Date): number {
   return Math.max(0, Math.round((to.getTime() - from.getTime()) / DAY));
 }
 
-export async function StageJourney({ events, now }: StageJourneyProps) {
+export async function StageJourney({ events, now, stageDefinitions = DEFAULT_STAGE_DEFINITIONS }: StageJourneyProps) {
   const { OPPORTUNITY_TEXT, STAGE_LABEL } = await getMessages();
   if (events.length === 0) {
     return (
@@ -74,12 +80,12 @@ export async function StageJourney({ events, now }: StageJourneyProps) {
           return (
             <li key={e.id}>
               <Tag tone={STAGE_TONE[e.toStage as Stage]} dot>
-                {STAGE_LABEL[e.toStage as Stage] ?? e.toStage}
+                {stageLabelFor(e.toStage, stageDefinitions, STAGE_LABEL)}
               </Tag>
 
               <span>
                 {e.fromStage
-                  ? `${OPPORTUNITY_TEXT.journeyFrom} ${STAGE_LABEL[e.fromStage as Stage] ?? e.fromStage}`
+                  ? `${OPPORTUNITY_TEXT.journeyFrom} ${stageLabelFor(e.fromStage, stageDefinitions, STAGE_LABEL)}`
                   : OPPORTUNITY_TEXT.journeyCreated}
               </span>
 

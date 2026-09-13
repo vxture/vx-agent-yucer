@@ -22,7 +22,10 @@ import {
   forecastHistory,
   forecastScorecard,
   listPipeline,
+  listStageDefinitions,
 } from "../../domains/pipeline/service";
+import { toStageCatalog } from "../../domains/pipeline/store";
+import { DEFAULT_STAGE_DEFINITIONS } from "../../domains/pipeline/lib/stage";
 import { inPeriod } from "../../domains/pipeline/lib/forecast";
 import { can } from "../../authz/decide";
 
@@ -85,7 +88,7 @@ export default async function PipelinePage({
   const policy = await pricingPolicy(catalogCtx);
   const currency = policy.ok ? policy.value.defaultCurrency : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [result, history, score, lines, products, accounts, territories, feed] =
+  const [result, history, score, lines, products, accounts, territories, feed, stageRows] =
     await Promise.all([
       // includeClosed, or the "closed" tile reports zero on a workspace that has
       // closed 2.7M - the same false zero that hit the quota card, in a third
@@ -118,7 +121,9 @@ export default async function PipelinePage({
         holder: session.authz,
         entitlement: session.entitlement,
       }),
+      listStageDefinitions(ctx),
     ]);
+  const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
   if (!result.ok) {
     // The gate's own message, not a generic error: "you need the pro tier" and
@@ -321,6 +326,7 @@ export default async function PipelinePage({
         currency={currency}
         rows={rows}
         undated={undated}
+        stageDefinitions={stageDefinitions}
         readOnly={
           !can(
             session.authz,
