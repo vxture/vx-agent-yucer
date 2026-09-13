@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEMO_MEMBERS, seedDemoMembers } from "./demo-members";
+import { DEMO_MEMBERS, seedDemoMembers, seedDemoPlacements } from "./demo-members";
+import { DEMO_WUXIA_MEMBER_NAMES } from "./demo-fixtures";
 import { InMemoryAuthzStore } from "../../authz/store";
 import { seedDemoWorkspace, type DemoStores } from "./demo-seed";
 import { InMemoryAccountStore } from "../account/store";
@@ -84,6 +85,41 @@ test("the departed member holds no role, and every active one does", async () =>
       assert.ok(m.roles.length > 0, `${m.sub} is active and would see a locked-out product`);
     }
   }
+});
+
+test("the roster is 100+ deep, and every seat is at some unit in the default tree", async () => {
+  // 100+用户，并分配到各级部门 (owner, 2026-09-13). The 116-name cast joins
+  // the six the business-rule fixtures already needed, so the roster a
+  // reviewer pages through is deep enough to actually page, search and
+  // filter against.
+  assert.ok(DEMO_MEMBERS.length >= 100 + 6, `only ${DEMO_MEMBERS.length} members - the cast should be 100+ on top of the original six`);
+  assert.equal(new Set(DEMO_MEMBERS.map((m) => m.sub)).size, DEMO_MEMBERS.length, "two seats share one sub");
+  assert.equal(new Set(DEMO_WUXIA_MEMBER_NAMES).size, DEMO_WUXIA_MEMBER_NAMES.length, "two seats share one name");
+
+  const planning = new InMemoryPlanningStore();
+  await seedDemoPlacements("ws_wuxia", planning);
+  const byCode = new Map((await planning.listOrgUnits("ws_wuxia")).map((u) => [u.id, u.unitCode]));
+  const placements = await planning.listOrgMembers("ws_wuxia");
+
+  // Everyone but the departed member (placed nowhere on purpose) lands somewhere.
+  const seated = DEMO_MEMBERS.filter((m) => m.active && m.sub !== "usr_demo_former");
+  for (const m of seated) {
+    assert.ok((placements.get(m.sub) ?? []).length > 0, `${m.sub} has a role but sits in no unit`);
+  }
+
+  // 各级部门: headquarters, a 大区 (region) and a team all hold somebody -
+  // not just the floor, and not just the top.
+  const kinds = new Set<string>();
+  for (const unitIds of placements.values()) {
+    for (const id of unitIds) {
+      const code = byCode.get(id);
+      if (!code) continue;
+      if (code === "headquarters") kinds.add("headquarters");
+      else if (code.endsWith("_team1")) kinds.add("team");
+      else kinds.add("region");
+    }
+  }
+  assert.deepEqual([...kinds].sort(), ["headquarters", "region", "team"]);
 });
 
 test("seeding twice does not duplicate or re-grant", async () => {
