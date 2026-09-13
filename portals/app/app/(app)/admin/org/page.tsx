@@ -117,6 +117,7 @@ export default async function OrgPage() {
       leaderSub: u.leaderSub,
       leaderName: u.leaderSub ? (nameOf.get(u.leaderSub) ?? u.leaderSub) : null,
       members: u.members,
+      totalMembers: u.totalMembers,
       depth: u.depth,
       children: childCount.get(u.id) ?? 0,
     };

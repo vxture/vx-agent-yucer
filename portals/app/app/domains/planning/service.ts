@@ -271,6 +271,14 @@ export interface OrgUnitView extends OrgUnitRecord {
   readonly kind: { readonly id: string; readonly code: string; readonly name: string } | null;
   /** How many members are placed here (not counting the units under it). */
   readonly members: number;
+  /** `members` plus every descendant unit's, recursively - the roster a
+   *  leader stationed here actually manages, not just who sits at their own
+   *  desk. Still a SUM of placements, not a deduplicated headcount: the same
+   *  0053 rule `members` already follows (a person in two units counts in
+   *  both) carries up, so someone placed in two units under this one is
+   *  counted twice in its total, same as they would be counted twice if
+   *  both were read separately. */
+  readonly totalMembers: number;
   readonly depth: number;
 }
 
@@ -299,13 +307,34 @@ export async function listOrgUnits(ctx: PlanningContext): Promise<RuleResult<Org
   const count = new Map<string, number>();
   // Head-count per unit: a person in two units is counted in both (0053).
   for (const unitIds of members.values()) for (const unitId of unitIds) count.set(unitId, (count.get(unitId) ?? 0) + 1);
+  /* THE SUBTREE ROLLUP (owner, 2026-09-13: 成员数统计只统计了直属人员，没有
+     汇集下属部门人员，这个应该是递归的) - one reverse pass over `units`
+     suffices because the store's own contract (planning/store.ts) is
+     "parents before children, siblings by sort_order": every descendant of
+     a unit is guaranteed to appear AFTER it, so walking backwards visits a
+     unit's whole subtree before the unit itself, and a child's already-
+     rolled-up total is ready the moment its parent needs it. */
+  const childrenOf = new Map<string, string[]>();
+  for (const u of units) if (u.parentId) childrenOf.get(u.parentId)?.push(u.id) ?? childrenOf.set(u.parentId, [u.id]);
+  const total = new Map<string, number>();
+  for (let i = units.length - 1; i >= 0; i -= 1) {
+    const u = units[i]!;
+    const childSum = (childrenOf.get(u.id) ?? []).reduce((s, id) => s + (total.get(id) ?? 0), 0);
+    total.set(u.id, (count.get(u.id) ?? 0) + childSum);
+  }
   const depth = new Map<string, number>();
   return ok(
     units.map((u) => {
       const d = u.parentId ? (depth.get(u.parentId) ?? 0) + 1 : 0;
       depth.set(u.id, d);
       const k = kindById.get(u.kindId);
-      return { ...u, kind: k ? { id: k.id, code: k.kindCode, name: k.name } : null, members: count.get(u.id) ?? 0, depth: d };
+      return {
+        ...u,
+        kind: k ? { id: k.id, code: k.kindCode, name: k.name } : null,
+        members: count.get(u.id) ?? 0,
+        totalMembers: total.get(u.id) ?? 0,
+        depth: d,
+      };
     }),
   );
 }

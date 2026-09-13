@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StatusBadge, type StatusBadgeTone } from "@vxture/design-ui";
+import { StatusBadge, type IconName, type StatusBadgeTone } from "@vxture/design-ui";
 
 // 标签 - a badge that may be neutral, which is every badge in this product
 // except the ones that are always coloured.
@@ -29,15 +29,20 @@ import { StatusBadge, type StatusBadgeTone } from "@vxture/design-ui";
 export function Tag({
   tone = "neutral",
   dot,
+  icon,
   children,
 }: {
   readonly tone?: StatusBadgeTone;
   /** The DS's dense-row degradation: a dot instead of an icon. */
   readonly dot?: boolean;
+  /** An explicit opinion, same as a coloured tag's tone-default icon is one -
+   *  overrides the neutral-suppresses-icon rule above, for the rare neutral
+   *  tag whose icon actually means something (a headcount, not a dash). */
+  readonly icon?: IconName;
   readonly children: ReactNode;
 }) {
   return (
-    <StatusBadge tone={tone} dot={dot} icon={tone === "neutral" ? false : undefined}>
+    <StatusBadge tone={tone} dot={dot} icon={icon ?? (tone === "neutral" ? false : undefined)}>
       {children}
     </StatusBadge>
   );

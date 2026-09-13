@@ -2811,6 +2811,11 @@ export const ORG_TEXT = {
   leaderNone: "未指定",
   noMember: "无成员",
   members: (n: number) => `${n} 人`,
+  // 成员数汇总 (owner, 2026-09-13: 成员数统计只统计了直属人员，没有汇集下属
+  // 部门人员，这个应该是递归的 - 圆圈{直属人数}, tag {icon 总人数}) - the
+  // circle is direct headcount, the icon tag beside it is the whole subtree's.
+  directMembersTooltip: (n: number) => `直属成员 ${n} 人`,
+  totalMembersTooltip: (n: number) => `含下属部门共 ${n} 人`,
   /** A flat select showing a tree: the indent is the depth. */
   optionIndent: (depth: number, name: string) => `${"　".repeat(depth)}${depth > 0 ? "└ " : ""}${name}`,
   detailsTitle: (name: string) => `${name} · 单位详情`,
