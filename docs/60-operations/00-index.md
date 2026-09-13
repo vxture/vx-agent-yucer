@@ -36,7 +36,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
-| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `rows`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
+| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1725,12 +1725,15 @@ medal: MedalIcon,
 的 `TableTitleCell`，一次改全，不留一处仍指 `role` 的旧值（旧值本身没有坏，
 只是跟 `users` 是同一张脸）。
 
-垫片图标选了两轮：第一轮 `medal`（勋章/职级底座）虽然视觉独立，但
+垫片图标选了三轮：第一轮 `medal`（勋章/职级底座）虽然视觉独立，但
 `role-groups-config.tsx` 的职级词表页已经把这枚图标用在"职级"这个更窄的
 概念上 —— owner 复核后否了，连带否了 `certificate`/`shield`（两个都有明显、
 具体的语义，容易被以后某个真正需要"证书"或"安全"这个含义的功能占用）。第二
-轮改用 `rows`（一排横线，纯结构性，不含任何"角色/权限/身份"这类强语义，
-全库未被占用，也不是 DS `ViewModeSwitch` 已经占着的 `list`）。
+轮改用 `rows`（一排横线，纯结构性，不含任何"角色/权限/身份"这类强语义）——
+owner 复核后仍然否了，理由反过来：太素，没有实际身份感，希望换一个 DS 真正
+支持、又带"人的身份"这层意思的图标。第三轮定为 `role`/`users` 所在的同一个
+"Users & organizations" 分组里的 `user-circle`（一个人形轮廓套一个圈，跟
+`user-switch` 已占的"账户中心"链接是不同页面场景，不算撞）。
 
 **给 DS 的具体修复方案（owner 指出，2026-09-12）**：不必凭空画一个新图标——
 `@vxture/design-ui` 本来就依赖 `@phosphor-icons/react`（`role`/`users` 背后的
@@ -1740,10 +1743,13 @@ medal: MedalIcon,
 零新增依赖。DS 那边要做的只是把注册表里的 `role: UsersIcon` 改成
 `role: IdentificationCardIcon`。
 
-本仓这边**改不了**——`ViewHeader`/`TableTitleCell`/`NavItem` 的 `icon` 属性
-类型都是闭合的 `IconName` 联合，不接受 `ReactNode`，绕过 `Icon` 组件直接塞一个
-`@phosphor-icons/react` 的原始图标进这三处 props 在类型层面就不成立，不是
-"愿不愿意垫"的问题。这条缺口只能等 DS 那边把 `identification-card` 注册
-进来，本仓在那之前没有比 `rows`更好的本地选项。**收回条件**：DS 给 `role`
-注册 `IdentificationCard`（或任何专属图形）后，把这三处换回 `icon="role"`。
+**本仓这边确认过不能自己垫上 `IdentificationCard`**：owner 追问过"能不能本仓
+先自定义用上，等 DS 补齐后再统一换回"——排查后发现三处真正画图标的都是 DS
+自己内部固定的组件（左栏 `ShellSidebarNav`、`ViewHeader`、`TableTitleCell`），
+`icon` 属性的类型是闭合的 `IconName` 联合，不接受 `ReactNode`，从组件外部完全
+没有注入点；要用上 `IdentificationCard`，唯一的路是把这三个组件在本仓各抄一份
+重写 —— 而它们在全应用处处都在用，不只是角色管理这一处，抄一份等于额外背上
+三份随时会跟真 DS 走偏的分支代码。owner 认可这个成本不值，改走 DS 已支持的
+`user-circle`。**收回条件**：DS 给 `role` 注册 `IdentificationCard`（或任何
+专属图形）后，把这三处换回 `icon="role"`。
 

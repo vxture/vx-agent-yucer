@@ -63,7 +63,7 @@ export default async function RolesPage() {
         current={DOMAIN_LABEL.roles}
       />
       <ViewHeader
-        icon="rows"
+        icon="user-circle"
         title={ROLE_TEXT.title}
         description={ROLE_TEXT.why}
         secondary={
