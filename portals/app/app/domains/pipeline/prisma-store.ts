@@ -15,6 +15,7 @@ import {
 } from "./lib/stage";
 import type {
   CommercialTermsPatch,
+  DealTypeRecord,
   NewOpportunity,
   NewWinLossReview,
   WinLossReviewRecord,
@@ -43,6 +44,8 @@ const OPPORTUNITY_TABLE = "yucer_pipeline.opportunity";
 const WIN_LOSS_REASON_TABLE = "yucer_pipeline.win_loss_reason";
 // incr/0057. 商机阶段, one row per (workspace, stage code).
 const STAGE_DEFINITION_TABLE = "yucer_pipeline.stage_definition";
+// incr/0060. 商机类型, one row per (workspace, deal type code).
+const DEAL_TYPE_TABLE = "yucer_pipeline.deal_type";
 // incr/0041. 预测阈值, one row per workspace.
 const FORECAST_THRESHOLD_TABLE = "yucer_pipeline.forecast_threshold";
 
@@ -67,6 +70,7 @@ interface OpportunityRow {
   status: string;
   sourceProjectId: string | null;
   createdAt: Date;
+  dealTypeId: string | null;
 }
 
 function toRecord(row: OpportunityRow): OpportunityRecord {
@@ -93,6 +97,7 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     status: row.status as OpportunityStatus,
     sourceProjectId: row.sourceProjectId,
     createdAt: row.createdAt,
+    dealTypeId: row.dealTypeId,
   };
 }
 
@@ -141,6 +146,7 @@ export class PrismaPipelineStore implements PipelineStore {
           // Written once, here, for the same reason campaignId is: 0019 grants
           // no UPDATE on it.
           sourceProjectId: input.sourceProjectId ?? null,
+          dealTypeId: input.dealTypeId ?? null,
           // forecast_category still defaults to pipeline in the DDL.
         },
       });
@@ -309,6 +315,7 @@ export class PrismaPipelineStore implements PipelineStore {
     if (input.expectedCloseAt !== undefined) patch.expectedCloseAt = input.expectedCloseAt;
     if (input.forecastCategory !== undefined) patch.forecastCategory = input.forecastCategory;
     if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
+    if (input.dealTypeId !== undefined) patch.dealTypeId = input.dealTypeId;
 
     // The same backstop the stage path uses. It should never fire - the patch
     // keys are fixed by CommercialTermsPatch - but it is what turns a future
@@ -659,6 +666,90 @@ export class PrismaPipelineStore implements PipelineStore {
   async countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number> {
     const p = await getPrismaClient();
     return p.opportunity.count({ where: { workspaceId, stage: stageCode } });
+  }
+
+  /* 商机类型 (incr/0060) - the same shape as 赢丢原因/行业分类: an anchor
+     code, a manual order, and a count of what points at a row before it goes.
+     Unlike stage_code, deal_type_id is a genuine uuid FK (Opportunity.
+     dealTypeId), so the usage count filters by id, not by code. */
+  async listDealTypes(workspaceId: string): Promise<DealTypeRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.dealType.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { dealTypeCode: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      dealTypeCode: r.dealTypeCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertDealType(
+    workspaceId: string,
+    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<DealTypeRecord> {
+    const p = await getPrismaClient();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(DEAL_TYPE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked deal_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.dealType.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.dealType.upsert({
+      where: { workspaceId_dealTypeCode: { workspaceId, dealTypeCode: input.dealTypeCode } },
+      update,
+      create: {
+        workspaceId,
+        dealTypeCode: input.dealTypeCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      dealTypeCode: row.dealTypeCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setDealTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(DEAL_TYPE_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked deal_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.dealType.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refuses an in-use type via planDealTypeRemoval;
+    // fk_opportunity_deal_type (incr/0060) RESTRICTs underneath as the last line.
+    const { count } = await p.dealType.deleteMany({ where: { workspaceId, id: dealTypeId } });
+    return count > 0;
+  }
+
+  async countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.opportunity.count({ where: { workspaceId, dealTypeId } });
   }
 
   /* --- 预测阈值 (incr/0041) --------------------------------------------------

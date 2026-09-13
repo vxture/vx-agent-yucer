@@ -98,6 +98,10 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          vocabulary like the other three - set once (rename/reorder/re-price/
          add/remove), read by every screen that shows or advances a deal. */
       { key: "stage", href: "/admin/stage", icon: "workflow", action: "pipeline.stage.view" },
+      /* 商机类型 (incr/0060-0061). A new classification axis with no prior
+         column to migrate from - set once, read wherever a deal's type is
+         shown or filtered on. */
+      { key: "dealtype", href: "/admin/dealtype", icon: "tree-structure", action: "pipeline.dealtype.view" },
       /* 行业分类 (incr/0040). The third vocabulary in this group, and the one
          with the widest reach: it decides how customers are filed, which
          decides the market segment, which decides the playbook. */

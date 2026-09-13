@@ -125,6 +125,18 @@ class ScopedPipelineStore implements PipelineStore {
     this.inner.removeStageDefinition(...a);
   countOpportunitiesByStage: PipelineStore["countOpportunitiesByStage"] = (...a) =>
     this.inner.countOpportunitiesByStage(...a);
+  /* incr/0060. 商机类型 is CONFIGURATION too, the same reasoning as 商机阶段
+     above: the type catalog is the workspace's, not a scoped member's. */
+  listDealTypes: PipelineStore["listDealTypes"] = (...a) =>
+    this.inner.listDealTypes(...a);
+  upsertDealType: PipelineStore["upsertDealType"] = (...a) =>
+    this.inner.upsertDealType(...a);
+  setDealTypeOrder: PipelineStore["setDealTypeOrder"] = (...a) =>
+    this.inner.setDealTypeOrder(...a);
+  removeDealType: PipelineStore["removeDealType"] = (...a) =>
+    this.inner.removeDealType(...a);
+  countOpportunitiesByDealType: PipelineStore["countOpportunitiesByDealType"] = (...a) =>
+    this.inner.countOpportunitiesByDealType(...a);
   /* incr/0041. 预测阈值 is WORKSPACE-WIDE configuration, not a set of deals: a
      rep whose scope is their own book still forecasts against the same bands,
      because they are the workspace's bands. Gated by permission in the service,

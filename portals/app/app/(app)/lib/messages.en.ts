@@ -200,6 +200,7 @@ export const en: Dictionary = {
     product: "Product settings",
     winLossReason: "Win/loss reasons",
     stage: "Pipeline stages",
+    dealtype: "Deal types",
     industry: "Industries",
     forecastThreshold: "Forecast bands",
     ageingPolicy: "Ageing bands",
@@ -1211,6 +1212,21 @@ export const en: Dictionary = {
     probabilityFixedHint: "A won or terminal stage's default win rate is fixed by the system and cannot be edited.",
   },
 
+  DEAL_TYPE_TEXT: {
+    noun: "type",
+    title: "Deal types",
+    count: (n: number) => `${n} type${n === 1 ? "" : "s"}`,
+    why: "How a deal is classified - new logo / renewal / expansion / project / product. Rename, reorder, add or remove.",
+    add: "New type",
+    save: "Save",
+    codeLabel: "Type code",
+    codeHint: "Cannot be changed after creation. An existing code means a rename.",
+    nameLabel: "Type name",
+    colName: "Type",
+    colFiled: "Opportunities",
+    deleteConsequence: "The type is removed from the catalog. Opportunities already filed under it are unaffected - one still using it cannot be deleted.",
+  },
+
   RECENCY_TEXT: {
     title: "Who has actually been spoken to",
     description:
@@ -2095,6 +2111,17 @@ export const en: Dictionary = {
     ...GATE_ERROR,
   },
 
+  DEAL_TYPE_ERROR: {
+    code_required: "A deal type needs a code",
+    name_required: "A deal type needs a name",
+    deal_type_in_use: "Opportunities are still filed under this type - move them first",
+    move_at_edge: "Already at that end of the list",
+    not_movable: "This one cannot be moved",
+    not_found: "No such deal type - it may have just been deleted. Refresh and try again",
+
+    ...GATE_ERROR,
+  },
+
   INDUSTRY_TEXT: {
     noun: "industry",
     configTitle: "Industries",
@@ -2381,6 +2408,7 @@ export const en: Dictionary = {
       product: "Product types, statuses and pricing units",
       winLossReason: "What a win/loss review may choose from",
       stage: "The stages a deal moves through - rename, reorder, default win rate, add/remove",
+      dealtype: "How deals are classified - new logo / renewal / expansion / project / product",
       industry: "How customers are filed by industry - change it once, everywhere follows",
       forecastThreshold: "Where commit and best case start",
       ageingPolicy: "How many days overdue makes a band",
@@ -3968,6 +3996,7 @@ export const en: Dictionary = {
       "pipeline.forecast": "Forecast",
       "pipeline.winloss": "Win/loss review",
       "pipeline.stage": "Stage configuration",
+      "pipeline.dealtype": "Deal types",
       "delivery.project": "Projects",
       "delivery.milestone": "Milestones",
       "delivery.revenue": "Collections",
@@ -4029,6 +4058,8 @@ export const en: Dictionary = {
       "pipeline.winloss.record": "Record a win/loss review",
       "pipeline.stage.view": "View stage configuration",
       "pipeline.stage.manage": "Maintain pipeline stages",
+      "pipeline.dealtype.view": "View deal types",
+      "pipeline.dealtype.manage": "Maintain deal types",
       "delivery.project.view": "View projects",
       "delivery.project.upsert": "Maintain projects",
       "delivery.milestone.upsert": "Maintain milestones",
@@ -4113,6 +4144,7 @@ export const en: Dictionary = {
     "pipeline.forecast": "Submit forecast snapshots",
     "pipeline.discount": "Authorise a price below the product floor",
     "pipeline.stage": "Maintain the pipeline stage catalog - rename, reorder, default win rate, add/remove a stage",
+    "pipeline.dealType": "Maintain the deal type catalog - rename, reorder, add/remove a type",
     "delivery.read": "View delivery projects",
     "delivery.write": "Edit milestones, tasks and revenue schedules",
     "copilot.use": "Use the copilot - open sessions and ask",

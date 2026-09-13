@@ -178,6 +178,12 @@ REVOKE UPDATE ON yucer_pipeline.forecast_snapshot FROM yucer_svc;
 -- grant it already has above (it was always writable) - 0058 only replaces
 -- its CHECK constraint with a composite FK into this new table.
 
+-- yucer_pipeline.deal_type is created by incr/0060 and carries its own locks
+-- there: deal_type_code is the anchor, name/sort_order are writable. That same
+-- increment adds opportunity.deal_type_id and restates opportunity's own
+-- UPDATE grant again to include it - the version above is superseded a second
+-- time on any database that has applied 0060.
+
 -- incr/0039 drops `primary_reason` and restates this grant; baseline shape only.
 DO $$
 BEGIN

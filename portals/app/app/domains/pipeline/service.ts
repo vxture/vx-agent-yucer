@@ -24,6 +24,11 @@ import {
   planWinLossReason,
 } from "./lib/win-loss-vocab";
 import {
+  DEFAULT_DEAL_TYPES,
+  planDealType,
+  planDealTypeRemoval,
+} from "./lib/deal-type-vocab";
+import {
   daysAtStage,
   planSuggestedCategory,
   suggestCategory,
@@ -59,6 +64,7 @@ import {
 import {
   toStageCatalog,
   type CommercialTermsPatch,
+  type DealTypeRecord,
   type NewWinLossReview,
   type OpportunityRecord,
   type PipelineStore,
@@ -190,6 +196,7 @@ export async function createOpportunity(
       // from; every other deal carries null, which is the honest answer and
       // not a placeholder.
       sourceProjectId: plan.value.sourceProjectId ?? null,
+      dealTypeId: plan.value.dealTypeId ?? null,
     }),
   );
 }
@@ -312,7 +319,8 @@ export async function updateCommercialTerms(
     input.amount !== undefined ||
     input.probability !== undefined ||
     input.expectedCloseAt !== undefined ||
-    input.ownerSub !== undefined;
+    input.ownerSub !== undefined ||
+    input.dealTypeId !== undefined;
   const wantsCategory = input.forecastCategory !== undefined;
 
   if (wantsEdit && !editGate.allowed) return denied(editGate);
@@ -354,6 +362,7 @@ export async function updateCommercialTerms(
 
   if (input.expectedCloseAt !== undefined) patch.expectedCloseAt = input.expectedCloseAt;
   if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
+  if (input.dealTypeId !== undefined) patch.dealTypeId = input.dealTypeId;
 
   if (problems.length > 0) return { ok: false, violations: problems };
   if (Object.keys(patch).length === 0) {
@@ -692,6 +701,112 @@ export async function removeStageDefinition(
 
   const removed = await ctx.store.removeStageDefinition(ctx.workspaceId, input.stageId);
   if (!removed) return fail(violation("not_found", "no such stage", "stageId"));
+  return ok(true);
+}
+
+/* ---------------------------------------------------------------------------
+ * 商机类型 - the workspace's own classification axis (incr/0060-0061).
+ *
+ * FIVE VERBS, the same shape as 商机阶段 above - list/usage/upsert/move/remove
+ * - but gated on `pipeline.dealtype.view`/`pipeline.dealtype.manage`, which
+ * are granted far more broadly than the stage ones (see incr/0061's own
+ * note): classifying a deal's type is closer to owning the deal than to
+ * redefining a workspace-wide policy.
+ * ------------------------------------------------------------------------ */
+
+export async function listDealTypes(
+  ctx: PipelineContext,
+): Promise<RuleResult<DealTypeRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let types = await ctx.store.listDealTypes(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard listStageDefinitions
+     uses, and the same five rows incr/0060 seeds for every workspace that
+     already had an opportunity, so the two paths cannot disagree. */
+  if (types.length === 0) {
+    for (const d of DEFAULT_DEAL_TYPES) {
+      await ctx.store.upsertDealType(ctx.workspaceId, { dealTypeCode: d.dealTypeCode, name: d.name });
+    }
+    types = await ctx.store.listDealTypes(ctx.workspaceId);
+  }
+  return ok(types);
+}
+
+/** How many opportunities are filed under each type, by id. */
+export async function dealTypeUsage(
+  ctx: PipelineContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const types = await ctx.store.listDealTypes(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const t of types) {
+    out[t.id] = await ctx.store.countOpportunitiesByDealType(ctx.workspaceId, t.id);
+  }
+  return ok(out);
+}
+
+export async function upsertDealType(
+  ctx: PipelineContext,
+  input: { code: string; name: string },
+): Promise<RuleResult<DealTypeRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planDealType({ dealTypeCode: input.code, name: input.name });
+  if (!plan.ok) return plan as RuleResult<DealTypeRecord>;
+
+  return ok(
+    await ctx.store.upsertDealType(ctx.workspaceId, {
+      dealTypeCode: plan.value.dealTypeCode,
+      name: plan.value.name,
+    }),
+  );
+}
+
+/** Reorder the catalog - the order a picker offers it in. */
+export async function moveDealType(
+  ctx: PipelineContext,
+  input: { dealTypeId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const types = await ctx.store.listDealTypes(ctx.workspaceId);
+  const plan = planMove(
+    types.map((t) => ({ id: t.id, movable: true })),
+    input.dealTypeId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setDealTypeOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a deal type outright.
+ *
+ * planDealTypeRemoval refuses a type with opportunities filed under it, ahead
+ * of the raw FK error (incr/0060's ON DELETE RESTRICT) that would otherwise
+ * surface. Unlike a stage, there is no "last one" restriction - an empty deal
+ * type catalog is a legal, if unhelpful, state.
+ */
+export async function removeDealType(
+  ctx: PipelineContext,
+  input: { dealTypeId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countOpportunitiesByDealType(ctx.workspaceId, input.dealTypeId);
+  const plan = planDealTypeRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeDealType(ctx.workspaceId, input.dealTypeId);
+  if (!removed) return fail(violation("not_found", "no such deal type", "dealTypeId"));
   return ok(true);
 }
 

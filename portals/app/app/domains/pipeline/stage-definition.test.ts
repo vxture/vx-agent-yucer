@@ -237,6 +237,7 @@ test("removing a stage runs the same refusals planStageRemoval does, through the
         ownerSub: "usr_rep",
         requirement: "req",
         sourceProjectId: null,
+        dealTypeId: null,
         stage: "a",
         forecastCategory: "pipeline",
         amount: money(1),

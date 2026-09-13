@@ -94,6 +94,7 @@ export async function repriceOpportunity(
     probability?: string;
     expectedCloseAt?: string;
     forecastCategory?: string;
+    dealTypeId?: string;
   },
 ): Promise<RepriceResult> {
   const session = await resolveAppSession();
@@ -148,6 +149,13 @@ export async function repriceOpportunity(
       return { ok: false, error: "unknown_forecast_category" };
     }
     patch.forecastCategory = input.forecastCategory;
+  }
+
+  if (input.dealTypeId !== undefined) {
+    // An emptied selector means "no type", which is a real state (most deals
+    // predate this column) - treating it as "no change" would make it
+    // unclearable, the same reasoning amount's blank case uses above.
+    patch.dealTypeId = input.dealTypeId.trim() === "" ? null : input.dealTypeId.trim();
   }
 
   const result = await updateCommercialTerms(

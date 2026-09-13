@@ -183,6 +183,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     // understood better as a deal progresses, and a first sentence written at
     // qualify time should be improved, not preserved as a monument.
     "requirement",
+    // incr/0060 - 商机类型, nullable: most deals predate this column, and an
+    // unclassified one is honestly absent, not defaulted.
+    "deal_type_id",
     "expected_close_at",
     "closed_at",
     "status",
@@ -290,6 +293,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // constraints in 0057 keep a won row's probability at 100 and a terminal
   // non-won row's at 0 regardless of what this grant would otherwise allow.
   "yucer_pipeline.stage_definition": ["name", "sort_order", "default_probability", "is_won", "is_terminal", "updated_at"],
+  // 0060. deal_type_code is the anchor; the name and order are the workspace's.
+  "yucer_pipeline.deal_type": ["name", "sort_order", "updated_at"],
   // 0041. The three numbers are the whole point of the row; workspace_id is
   // its identity and is not writable.
   "yucer_pipeline.forecast_threshold": [

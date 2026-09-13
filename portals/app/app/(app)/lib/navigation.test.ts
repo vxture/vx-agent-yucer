@@ -83,7 +83,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // 待迁路由 joined 运行状况 on 2026-09-11 (incr/0055's own change): a
     // holding page for whatever route currently has no entry point anywhere
     // else, found by an app-wide reachability sweep.
-    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "stage", "industry",
+    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "stage", "dealtype", "industry",
      "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption", "pendingMigration"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
@@ -187,6 +187,11 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "attainment",
     "catalog",
     "copilot",
+    // 商机类型 rides pipeline.dealtype.view, which resolves to pipeline.read -
+    // and unlike stage, sales_rep DOES hold pipeline.dealtype.manage too (see
+    // incr/0061's own note): classifying a deal's type is closer to owning
+    // the deal than to redefining a workspace-wide policy.
+    "dealtype",
     "home",
     /* 行业分类 rides account.view, exactly as the customer list does - it is
        the list customers are filed under, and its ACTIONS carry
@@ -261,7 +266,9 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
   const inPlane = ["division", "product", "winLossReason",
     // 商机阶段 rides pipeline.stage.view, which resolves to pipeline.read - the
     // same permission a viewer already holds for every other pipeline read.
-    "stage", "industry",
+    "stage",
+    // 商机类型 rides pipeline.dealtype.view, same resolution to pipeline.read.
+    "dealtype", "industry",
     // A viewer holds pipeline.read and delivery.read, so both parameter pages
     // are readable; writing them needs permissions a viewer does not hold, and
     // the panels render without their save button.

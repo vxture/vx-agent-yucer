@@ -23,6 +23,7 @@ function deal(over: Partial<OpportunityRecord>): OpportunityRecord {
     planId: null,
     campaignId: null,
     sourceProjectId: null,
+    dealTypeId: null,
     territoryId: null,
     ownerSub: "usr_other",
     stage: "discover",

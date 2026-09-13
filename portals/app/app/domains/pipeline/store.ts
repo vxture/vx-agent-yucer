@@ -62,6 +62,8 @@ export interface OpportunityRecord {
    * now" as a historical denominator would let last month's coverage improve on
    * its own every time something closed. */
   createdAt: Date;
+  /** incr/0060 - 商机类型. Nullable: most deals predate this column. */
+  dealTypeId: string | null;
 }
 
 /** One row of the 赢丢原因 vocabulary - incr/0039, per workspace. */
@@ -86,6 +88,15 @@ export interface StageDefinitionRecord {
   defaultProbability: number;
   isWon: boolean;
   isTerminal: boolean;
+}
+
+/** One row of the 商机类型 vocabulary - incr/0060, per workspace. */
+export interface DealTypeRecord {
+  id: string;
+  workspaceId: string;
+  dealTypeCode: string;
+  name: string;
+  sortOrder: number;
 }
 
 /**
@@ -186,6 +197,8 @@ export interface NewOpportunity {
   sourceProjectId?: string | null;
   /** Tests and fixtures only. Real creation lets the database stamp it. */
   createdAt?: Date;
+  /** incr/0060 - 商机类型. Optional: most deals are created with none. */
+  dealTypeId?: string | null;
 }
 
 /**
@@ -198,6 +211,9 @@ export interface CommercialTermsPatch {
   expectedCloseAt?: Date | null;
   forecastCategory?: ForecastCategory;
   ownerSub?: string | null;
+  /** incr/0060 - 商机类型. A classification a deal may acquire or change
+   *  after creation, unlike the stage triple this patch deliberately excludes. */
+  dealTypeId?: string | null;
 }
 
 export interface PipelineStore {
@@ -312,6 +328,21 @@ export interface PipelineStore {
   removeStageDefinition(workspaceId: string, stageId: string): Promise<boolean>;
   countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number>;
 
+  /* 商机类型 (incr/0060) - the same five-verb shape as 赢丢原因/行业分类:
+     an anchor code, a manual order, and a count of what points at a row
+     before it goes. */
+  listDealTypes(workspaceId: string): Promise<DealTypeRecord[]>;
+  upsertDealType(
+    workspaceId: string,
+    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<DealTypeRecord>;
+  setDealTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean>;
+  countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number>;
+
   /* --- 预测阈值 (incr/0041) --------------------------------------------------
      One row per workspace, so there is no list verb and no delete: `get`
      answers with the shipped numbers where no row exists yet, and `set` writes
@@ -328,6 +359,7 @@ export class InMemoryPipelineStore implements PipelineStore {
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private reasons: WinLossReasonRecord[] = [];
   private stageDefinitions: StageDefinitionRecord[] = [];
+  private dealTypes: DealTypeRecord[] = [];
   private seq = 0;
 
   /**
@@ -345,6 +377,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
       reasons?: WinLossReasonRecord[];
       stageDefinitions?: StageDefinitionRecord[];
+      dealTypes?: DealTypeRecord[];
       /** A forecast series. Append-only in the DDL; seeded as a series here so
        *  the trajectory the immutability exists for is actually visible. */
       snapshots?: Array<SnapshotRow & { workspaceId: string }>;
@@ -355,6 +388,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
     if (extra.reasons) this.reasons = [...extra.reasons];
     if (extra.stageDefinitions) this.stageDefinitions = [...extra.stageDefinitions];
+    if (extra.dealTypes) this.dealTypes = [...extra.dealTypes];
     this.snapshots.push(...(extra.snapshots ?? []));
   }
 
@@ -382,6 +416,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       currency: input.currency,
       sourceProjectId: input.sourceProjectId ?? null,
       createdAt: input.createdAt ?? new Date(),
+      dealTypeId: input.dealTypeId ?? null,
     };
     this.opportunities.set(record.id, record);
     return record;
@@ -476,6 +511,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     // predate it. Ignored rather than written, which is what the column
     // enforces anyway.
     if (patch.ownerSub) row.ownerSub = patch.ownerSub;
+    if (patch.dealTypeId !== undefined) row.dealTypeId = patch.dealTypeId;
     return true;
   }
 
@@ -611,6 +647,59 @@ export class InMemoryPipelineStore implements PipelineStore {
   async countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number> {
     return [...this.opportunities.values()].filter(
       (o) => o.workspaceId === workspaceId && o.stage === stageCode,
+    ).length;
+  }
+
+  async listDealTypes(workspaceId: string): Promise<DealTypeRecord[]> {
+    return this.dealTypes
+      .filter((d) => d.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.dealTypeCode.localeCompare(b.dealTypeCode));
+  }
+
+  async upsertDealType(
+    workspaceId: string,
+    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<DealTypeRecord> {
+    const at = this.dealTypes.findIndex(
+      (d) => d.workspaceId === workspaceId && d.dealTypeCode === input.dealTypeCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.dealTypes[at]!, ...input, dealTypeCode: this.dealTypes[at]!.dealTypeCode };
+      this.dealTypes[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.dealTypes.filter((d) => d.workspaceId === workspaceId).map((d) => d.sortOrder),
+    );
+    const row: DealTypeRecord = {
+      id: `dtp_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input,
+    };
+    this.dealTypes.push(row);
+    return row;
+  }
+
+  async setDealTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.dealTypes = this.dealTypes.map((d) =>
+      d.workspaceId === workspaceId && want.has(d.id) ? { ...d, sortOrder: want.get(d.id)! } : d,
+    );
+  }
+
+  async removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean> {
+    const before = this.dealTypes.length;
+    this.dealTypes = this.dealTypes.filter(
+      (d) => !(d.workspaceId === workspaceId && d.id === dealTypeId),
+    );
+    return this.dealTypes.length < before;
+  }
+
+  async countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number> {
+    return [...this.opportunities.values()].filter(
+      (o) => o.workspaceId === workspaceId && o.dealTypeId === dealTypeId,
     ).length;
   }
 

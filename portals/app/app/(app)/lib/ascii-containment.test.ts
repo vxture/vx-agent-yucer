@@ -54,6 +54,9 @@ const ALLOWED = new Set([
   // consume the catalog stay in stage.ts, only the seed data and the
   // vocabulary-editing rules (planStageDefinition/planStageRemoval) moved.
   "domains/pipeline/lib/stage-vocab.ts",
+  // 商机类型 (0060), the same shape again: five shipped rows a workspace
+  // renames and extends, seeded identically by the increment.
+  "domains/pipeline/lib/deal-type-vocab.ts",
   // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
   // Same nature again - data that happens to be text - with one addition that
   // matters more here than anywhere else on this list: these 34 strings are a

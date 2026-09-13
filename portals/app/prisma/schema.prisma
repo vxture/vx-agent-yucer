@@ -787,6 +787,10 @@ model Opportunity {
   /// incr/0034 - what the customer actually wants. NOT NULL and CHECKed
   /// non-blank: an empty string satisfies NOT NULL and says nothing.
   requirement      String    @db.Text
+  /// incr/0060 - 商机类型. Nullable: most deals predate this column, and an
+  /// unclassified one is honestly absent, not defaulted. No Prisma relation,
+  /// the same choice Account.industryId already makes.
+  dealTypeId       String?   @map("deal_type_id") @db.Uuid
   expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
   closedAt         DateTime? @map("closed_at") @db.Timestamptz()
   status           String    @default("open") @db.VarChar(32)
@@ -795,6 +799,7 @@ model Opportunity {
   deletedAt        DateTime? @map("deleted_at") @db.Timestamptz()
 
   @@unique([workspaceId, opportunityNo], map: "uidx_opportunity_ws_no")
+  @@index([workspaceId, dealTypeId], map: "idx_opportunity_ws_deal_type")
   @@map("opportunity")
   @@schema("yucer_pipeline")
 }
@@ -835,6 +840,24 @@ model StageDefinition {
   @@unique([workspaceId, stageCode], map: "uidx_stage_definition_code")
   @@index([workspaceId, sortOrder], map: "idx_stage_definition_ws_sort")
   @@map("stage_definition")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0060 - 商机类型, a per-workspace vocabulary. Same shape as Industry:
+/// no Prisma relation from Opportunity.dealTypeId - both stay a plain scalar
+/// uuid, the FK (0060) does the integrity work at the database level.
+model DealType {
+  id           String   @id @default(uuid()) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  dealTypeCode String   @map("deal_type_code") @db.VarChar(32)
+  name         String   @db.VarChar(64)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, dealTypeCode], map: "uidx_deal_type_code")
+  @@index([workspaceId, sortOrder], map: "idx_deal_type_ws_sort")
+  @@map("deal_type")
   @@schema("yucer_pipeline")
 }
 
