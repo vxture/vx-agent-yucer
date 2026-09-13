@@ -460,6 +460,31 @@ export const DEMO_MEMBER_NAMES = {
   former: "周航",
 } as const;
 
+/**
+ * WHO INHERITS EACH RETIRED SEED IDENTITY'S DATA (owner, 2026-09-13: 把原来
+ * 的几个用户全部归入已停用 - 把他们拥有的数据改到金庸人物名下). `陈总` etc
+ * above go `active: false` in demo-members.ts, same as `former` always was;
+ * these five names - already seated in `DEMO_WUXIA_MEMBER_NAMES` below, not
+ * a sixth standalone cast - take over ownership of every opportunity,
+ * account, interaction, delivery project, win-loss review and proposal the
+ * retired sub used to hold, so nothing the demo shows is data an inactive
+ * member still owns (demo-members.ts's own file header: "a departed member
+ * who still owns deals is the handover case, and handover does not exist
+ * yet"). Picked for fit, not at random: 郭靖 (already headquarters/
+ * executive) inherits CRO's strategy plans and targets; 黄蓉 (headquarters/
+ * finance) inherits 李经理's win-loss sign-off and proposal adjudication;
+ * 南希仁 and 谭处端 (both already 销售代表 on a team) inherit the two reps'
+ * accounts, territories and deal history; 周伯通 (east/regional_director)
+ * inherits 赵工's delivery projects.
+ */
+export const DEMO_SUCCESSOR_NAMES = {
+  cro: "郭靖",
+  leader: "黄蓉",
+  rep: "南希仁",
+  rep2: "谭处端",
+  pm: "周伯通",
+} as const;
+
 /** The local-review user, so a reviewer can find themselves in the roster. */
 export const DEV_REVIEWER_NAME = "本地评审用户";
 

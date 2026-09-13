@@ -1,7 +1,7 @@
 import type { AuthzStore } from "../../authz/store";
 import type { RoleCode } from "../../authz/catalog";
 import type { PlanningStore } from "../planning/store";
-import { DEMO_MEMBER_NAMES, DEMO_WUXIA_MEMBER_NAMES } from "./demo-fixtures";
+import { DEMO_MEMBER_NAMES, DEMO_SUCCESSOR_NAMES, DEMO_WUXIA_MEMBER_NAMES } from "./demo-fixtures";
 
 // The demo's people, as members.
 //
@@ -97,25 +97,39 @@ const WUXIA_MEMBERS: readonly DemoMember[] = WUXIA_SEATS.map((s) => ({
   active: true,
 }));
 
+/** name -> sub, for handing a retiring seed identity's data to a specific
+ *  already-seated cast member (below) rather than inventing a standalone
+ *  identity for it. */
+const WUXIA_SUB_BY_NAME: ReadonlyMap<string, string> = new Map(WUXIA_SEATS.map((s) => [s.name, s.sub]));
+
+/**
+ * WHO NOW OWNS WHAT THE RETIRED FIVE USED TO (owner, 2026-09-13: 把原来的
+ * 几个用户全部归入已停用 - 把他们拥有的数据改到金庸人物名下). See
+ * DEMO_SUCCESSOR_NAMES (demo-fixtures.ts) for who and why; demo-seed.ts reads
+ * these subs rather than the retired ones for every opportunity, account,
+ * interaction, delivery project, win-loss review and proposal that used to
+ * read `usr_demo_cro`/`usr_demo_leader`/`usr_demo_rep`/`usr_demo_rep2`/
+ * `usr_demo_pm`.
+ */
+export const DEMO_SUCCESSOR_SUBS = {
+  cro: WUXIA_SUB_BY_NAME.get(DEMO_SUCCESSOR_NAMES.cro)!,
+  leader: WUXIA_SUB_BY_NAME.get(DEMO_SUCCESSOR_NAMES.leader)!,
+  rep: WUXIA_SUB_BY_NAME.get(DEMO_SUCCESSOR_NAMES.rep)!,
+  rep2: WUXIA_SUB_BY_NAME.get(DEMO_SUCCESSOR_NAMES.rep2)!,
+  pm: WUXIA_SUB_BY_NAME.get(DEMO_SUCCESSOR_NAMES.pm)!,
+} as const;
+
 export const DEMO_MEMBERS: readonly DemoMember[] = [
-  // Owns the strategy plans and the targets.
-  { sub: "usr_demo_cro", displayName: DEMO_MEMBER_NAMES.cro, roles: ["sales_leader"], active: true },
-  // Signs the win/loss reviews and adjudicates the copilot's proposals.
-  {
-    sub: "usr_demo_leader",
-    displayName: DEMO_MEMBER_NAMES.leader,
-    roles: ["sales_leader"],
-    active: true,
-  },
-  { sub: "usr_demo_rep", displayName: DEMO_MEMBER_NAMES.rep, roles: ["sales_rep"], active: true },
-  { sub: "usr_demo_rep2", displayName: DEMO_MEMBER_NAMES.rep2, roles: ["sales_rep"], active: true },
-  // Runs the delivery projects.
-  {
-    sub: "usr_demo_pm",
-    displayName: DEMO_MEMBER_NAMES.pm,
-    roles: ["delivery_manager"],
-    active: true,
-  },
+  // RETIRED (owner, 2026-09-13: 把原来的几个用户全部归入已停用). NO ROLES,
+  // same reason `former` below has none - deactivation takes a member away
+  // rather than remembering them, and an inactive member still holding a
+  // role or owning live data is exactly the state demo-members.test.ts
+  // checks against. DEMO_SUCCESSOR_SUBS above is who owns their old data now.
+  { sub: "usr_demo_cro", displayName: DEMO_MEMBER_NAMES.cro, roles: [], active: false },
+  { sub: "usr_demo_leader", displayName: DEMO_MEMBER_NAMES.leader, roles: [], active: false },
+  { sub: "usr_demo_rep", displayName: DEMO_MEMBER_NAMES.rep, roles: [], active: false },
+  { sub: "usr_demo_rep2", displayName: DEMO_MEMBER_NAMES.rep2, roles: [], active: false },
+  { sub: "usr_demo_pm", displayName: DEMO_MEMBER_NAMES.pm, roles: [], active: false },
   // Someone who has left. NO ROLES, because deactivation takes them away rather
   // than remembering them - see deactivateMember. Owns nothing live: a departed
   // member who still owns deals is the handover case, and handover does not
@@ -140,18 +154,18 @@ export async function seedDemoMembers(workspaceId: string, store: AuthzStore): P
  * WHERE THE DEMO'S PEOPLE SIT in the default organisation (incr/0051's
  * national_medium template, by unit code) - so 组织视图 shows an organisation
  * with people in it rather than fifteen empty units, and so the unit scope
- * has something to frame. Two placements are deliberately several units
- * (0053: 一人在多个组织内): the leader runs 华东 and also sits at 总部.
+ * has something to frame. The retired five (and `former`) are placed
+ * nowhere, same as any departed member: 未归属 is a state the view shows,
+ * and their old seats now belong to whoever DEMO_SUCCESSOR_SUBS names.
+ *
+ * 黄蓉 (`leader`'s successor) keeps the ONE deliberately-several-units
+ * placement the retired `usr_demo_leader` had (0053: 一人在多个组织内) -
+ * headquarters plus 华东 - rather than that scenario quietly losing its only
+ * demo case along with the sub that used to carry it.
  */
-const DEMO_PLACEMENTS: readonly { readonly sub: string; readonly units: readonly string[] }[] = [
-  { sub: "usr_demo_cro", units: ["headquarters"] },
-  { sub: "usr_demo_leader", units: ["headquarters", "east"] },
-  { sub: "usr_demo_rep", units: ["east_team1"] },
-  { sub: "usr_demo_rep2", units: ["east_team1", "south_team1"] },
-  { sub: "usr_demo_pm", units: ["headquarters"] },
-  // The departed member is placed nowhere: 未归属 is a state the view shows.
-  ...WUXIA_SEATS.map((s) => ({ sub: s.sub, units: [s.unit] })),
-];
+const DEMO_PLACEMENTS: readonly { readonly sub: string; readonly units: readonly string[] }[] = WUXIA_SEATS.map(
+  (s) => ({ sub: s.sub, units: s.sub === DEMO_SUCCESSOR_SUBS.leader ? [s.unit, "east"] : [s.unit] }),
+);
 
 /**
  * Place the demo's people. Idempotent - the set is replaced whole. Seeds the
