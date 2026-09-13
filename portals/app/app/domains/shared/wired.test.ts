@@ -47,18 +47,6 @@ const KNOWN_UNWIRED: Record<string, string> = {
   // shipped five times before this test existed, and the difference between
   // that and this is that somebody wrote down when it ends.
   "account.setAccountParent": "no surface until batch 3's customer detail page",
-  // incr/0057-0059. PR1 (this one) is deliberately backend-only: the DDL, the
-  // catalog-driven rewrite of stage.ts, the store/service verbs, the new
-  // pipeline.stage.* permissions - no UI. `listStageDefinitions`/
-  // `upsertStageDefinition`/`removeStageDefinition` happen to already read as
-  // "wired" here because their names coincide with ScopedPipelineStore's
-  // pass-through property names in authz/scoped-stores.ts (a different file,
-  // outside this domain, satisfies the text match by accident); this one does
-  // not, because the store method behind it is `setStageDefinitionOrder`, a
-  // different name. The next PR (stage-config admin UI: rename/probability/
-  // reorder/add/delete a stage, reusing VocabularyConfig's table+dialog shell)
-  // gives all four a real caller and removes this line.
-  "pipeline.moveStageDefinition": "no stage-config admin UI until the next PR",
   // `copilot.execute` LEFT THIS LIST on 2026-09-01. The ruling it was waiting
   // for arrived - "采纳当然要真实发生业务动作" - and adjudicateProposals now
   // calls it for every accepted id, so accepting advances the deal. Its

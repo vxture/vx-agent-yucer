@@ -41,6 +41,22 @@ export const STAGE_TONE: Record<Stage, Tone> = {
 };
 
 /**
+ * The human-readable name for a stage code - the workspace's OWN catalog
+ * first (incr/0057: a tenant may have renamed it), the shipped STAGE_LABEL
+ * dictionary second (a code the catalog doesn't know, e.g. a stale journal
+ * entry from before a rename took effect), and the bare code last rather than
+ * blank. NOT the primary source of truth for whether a code is valid - this
+ * always returns something displayable, even for a code nobody recognizes.
+ */
+export function stageLabelFor(
+  code: string,
+  catalog: readonly StageDefinition[],
+  dictionary: Record<string, string>,
+): string {
+  return catalog.find((s) => s.code === code)?.name ?? dictionary[code] ?? code;
+}
+
+/**
  * Forecast tone. `commit` is deliberately the loudest of the open categories:
  * it is the number someone promised upward, and it should look like a promise.
  */

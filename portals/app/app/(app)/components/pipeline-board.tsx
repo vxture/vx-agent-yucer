@@ -22,7 +22,11 @@ import {
   type MetricGridItem,
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
-import type { Stage } from "../../domains/pipeline/lib/stage";
+import {
+  DEFAULT_STAGE_DEFINITIONS,
+  type Stage,
+  type StageDefinition,
+} from "../../domains/pipeline/lib/stage";
 import {
   rollUp,
   type ForecastCategory,
@@ -34,6 +38,7 @@ import {
   formatMoney,
   formatMoneyCompact,
   probabilityDisplay,
+  stageLabelFor,
 } from "../lib/view-model";
 
 import { useLocale, useMessages } from "../lib/i18n/provider";
@@ -82,6 +87,8 @@ export interface PipelineBoardProps {
    * totals smaller than the book with nothing on screen to explain why.
    */
   readonly undated?: number;
+  /** The workspace's own stage catalog (incr/0057). */
+  readonly stageDefinitions?: readonly StageDefinition[];
 }
 
 /* 排序取值: what each sortable column ORDERS ON, which is not always what
@@ -98,6 +105,7 @@ export function PipelineBoard({
   loading,
   readOnly,
   undated = 0,
+  stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
 }: PipelineBoardProps) {
   const {
     DATA_TABLE_LABELS,
@@ -229,7 +237,7 @@ export function PipelineBoard({
       cell: (row) => (
         <Stack gap="sm">
           <Tag tone={STAGE_TONE[row.stage as Stage]} dot>
-            {STAGE_LABEL[row.stage as Stage]}
+            {stageLabelFor(row.stage, stageDefinitions, STAGE_LABEL)}
           </Tag>
           <Tag
             tone={FORECAST_TONE[row.forecastCategory as ForecastCategory]}
@@ -262,7 +270,7 @@ export function PipelineBoard({
       id: "probability",
       header: PIPELINE_TEXT.columnProbability,
       cell: (row) => {
-        const p = probabilityDisplay(row);
+        const p = probabilityDisplay(row, stageDefinitions);
         if (p.value == null) return "-";
         return p.overridden ? (
           <Tooltip>
@@ -410,7 +418,7 @@ export function PipelineBoard({
                     meta={
                       <>
                         <Tag tone={STAGE_TONE[row.stage as Stage]}>
-                          {STAGE_LABEL[row.stage as Stage] ?? row.stage}
+                          {stageLabelFor(row.stage, stageDefinitions, STAGE_LABEL)}
                         </Tag>
                         <span className="tabular-nums">
                           {formatMoney(
@@ -423,9 +431,9 @@ export function PipelineBoard({
                             prints a dash rather than a zero, because "nobody has
                             set one" and "we think we lose" are different. */}
                         <span className="tabular-nums">
-                          {probabilityDisplay(row).value == null
+                          {probabilityDisplay(row, stageDefinitions).value == null
                             ? "-"
-                            : `${probabilityDisplay(row).value}%`}
+                            : `${probabilityDisplay(row, stageDefinitions).value}%`}
                         </span>
                       </>
                     }

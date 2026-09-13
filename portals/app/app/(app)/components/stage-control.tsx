@@ -21,6 +21,7 @@ import {
   type StageDefinition,
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
+import { stageLabelFor } from "../lib/view-model";
 import { Tag } from "./tag";
 
 // Moving a deal, with the rule visible before the click rather than after it.
@@ -165,14 +166,14 @@ export function StageControl({
             <option value="">-</option>
             {choices.map((s) => (
               <option key={s} value={s}>
-                {(STAGE_LABEL as Record<string, string>)[s] ?? s} ({defaultProbabilityFor(s, stageDefinitions)}%)
+                {stageLabelFor(s, stageDefinitions, STAGE_LABEL)} ({defaultProbabilityFor(s, stageDefinitions)}%)
               </option>
             ))}
           </NativeSelect>
 
           {regression ? (
             <StatusBadge tone="warning">
-              {OPPORTUNITY_TEXT.advanceRegressionHint(STAGE_LABEL[stage])}
+              {OPPORTUNITY_TEXT.advanceRegressionHint(stageLabelFor(stage, stageDefinitions, STAGE_LABEL))}
             </StatusBadge>
           ) : null}
 
@@ -236,7 +237,7 @@ export function StageControl({
       {done ? (
         <>
           <StatusBadge tone="success" dot>
-            {STAGE_LABEL[done.stage as Stage] ?? done.stage}
+            {stageLabelFor(done.stage, stageDefinitions, STAGE_LABEL)}
           </StatusBadge>
           {/* Surfaced, not enforced. Blocking the close until a review exists
               would push people to leave dead deals open, which is worse for

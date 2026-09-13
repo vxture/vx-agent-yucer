@@ -199,6 +199,7 @@ export const en: Dictionary = {
     orgUnit: "Organization",
     product: "Product settings",
     winLossReason: "Win/loss reasons",
+    stage: "Pipeline stages",
     industry: "Industries",
     forecastThreshold: "Forecast bands",
     ageingPolicy: "Ageing bands",
@@ -1186,6 +1187,30 @@ export const en: Dictionary = {
     other: "Other",
   },
 
+  STAGE_CONFIG_TEXT: {
+    noun: "stage",
+    title: "Pipeline stages",
+    stageCount: (n: number) => `${n} stage${n === 1 ? "" : "s"}`,
+    why: "The stages a deal moves through. Rename, reorder, adjust the default win rate, or add/remove one - a won or terminal stage's default win rate is fixed by the system and cannot be edited.",
+    add: "New stage",
+    save: "Save",
+    codeLabel: "Stage code",
+    codeHint: "Cannot be changed after creation. An existing code means a rename.",
+    nameLabel: "Stage name",
+    colName: "Stage",
+    deleteConsequence: "The stage is removed from the catalog. It cannot be deleted while an opportunity still sits on it, or while it is the workspace's last won/terminal stage.",
+    colFlags: "Flags",
+    colProbability: "Default win rate",
+    colUsed: "Opportunities",
+    flagWon: "Won",
+    flagLost: "Terminal",
+    probabilityLabel: "Default win rate",
+    probabilityHint: "A whole number 0-100.",
+    probabilityFixedWon: "Fixed at 100%",
+    probabilityFixedLost: "Fixed at 0%",
+    probabilityFixedHint: "A won or terminal stage's default win rate is fixed by the system and cannot be edited.",
+  },
+
   RECENCY_TEXT: {
     title: "Who has actually been spoken to",
     description:
@@ -2053,6 +2078,23 @@ export const en: Dictionary = {
     ...GATE_ERROR,
   },
 
+  STAGE_ERROR: {
+    code_required: "A stage needs a code",
+    name_required: "A stage needs a name",
+    probability_range: "The default win rate must be a whole number 0-100",
+    won_must_be_terminal: "A won stage must be terminal",
+    won_probability_fixed: "A won stage is fixed at 100%",
+    lost_probability_fixed: "A terminal, non-won stage is fixed at 0%",
+    stage_in_use: "Opportunities are still sitting at this stage - move them first",
+    last_won_stage: "The workspace needs at least one won stage",
+    last_lost_stage: "The workspace needs at least one non-won terminal stage",
+    move_at_edge: "Already at that end of the list",
+    not_movable: "This one cannot be moved",
+    not_found: "No such stage - it may have just been deleted. Refresh and try again",
+
+    ...GATE_ERROR,
+  },
+
   INDUSTRY_TEXT: {
     noun: "industry",
     configTitle: "Industries",
@@ -2338,6 +2380,7 @@ export const en: Dictionary = {
       scope: "Workspace / territory / own - who sits at which",
       product: "Product types, statuses and pricing units",
       winLossReason: "What a win/loss review may choose from",
+      stage: "The stages a deal moves through - rename, reorder, default win rate, add/remove",
       industry: "How customers are filed by industry - change it once, everywhere follows",
       forecastThreshold: "Where commit and best case start",
       ageingPolicy: "How many days overdue makes a band",

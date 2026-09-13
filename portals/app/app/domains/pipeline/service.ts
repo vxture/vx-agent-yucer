@@ -56,15 +56,16 @@ import {
   type StageChangeInput,
   type StageDefinition,
 } from "./lib/stage";
-import type {
-  CommercialTermsPatch,
-  NewWinLossReview,
-  OpportunityRecord,
-  PipelineStore,
-  StageDefinitionRecord,
-  StageEventRecord,
-  WinLossReasonRecord,
-  WinLossReviewRecord,
+import {
+  toStageCatalog,
+  type CommercialTermsPatch,
+  type NewWinLossReview,
+  type OpportunityRecord,
+  type PipelineStore,
+  type StageDefinitionRecord,
+  type StageEventRecord,
+  type WinLossReasonRecord,
+  type WinLossReviewRecord,
 } from "./store";
 import type { MoveDirection } from "../shared/ordering";
 
@@ -109,16 +110,7 @@ export function denied<T>(decision: Decision): RuleResult<T> {
 async function loadStageCatalog(ctx: PipelineContext): Promise<readonly StageDefinition[]> {
   const rows = await ctx.store.listStageDefinitions(ctx.workspaceId);
   if (rows.length === 0) return DEFAULT_STAGE_DEFINITIONS;
-  return [...rows]
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((r) => ({
-      code: r.stageCode,
-      name: r.name,
-      sortOrder: r.sortOrder,
-      defaultProbability: r.defaultProbability,
-      isWon: r.isWon,
-      isTerminal: r.isTerminal,
-    }));
+  return toStageCatalog(rows);
 }
 
 export async function listPipeline(
@@ -602,6 +594,27 @@ export async function listStageDefinitions(
     stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
   }
   return ok(stages);
+}
+
+/**
+ * How many opportunities currently sit at each stage.
+ *
+ * A SEPARATE VERB rather than a field on the list, the same split
+ * `winLossReasonUsage` makes: the stage-picker in `stage-control.tsx` needs
+ * only the names, and only the configuration page needs the counts.
+ */
+export async function stageDefinitionUsage(
+  ctx: PipelineContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const s of stages) {
+    out[s.id] = await ctx.store.countOpportunitiesByStage(ctx.workspaceId, s.stageCode);
+  }
+  return ok(out);
 }
 
 export async function upsertStageDefinition(

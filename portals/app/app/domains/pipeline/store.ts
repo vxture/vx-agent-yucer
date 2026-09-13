@@ -24,6 +24,7 @@ import {
   type OpportunityStatus,
   type Stage,
   type StageChangePlan,
+  type StageDefinition,
 } from "./lib/stage";
 import { asc, by, desc } from "../shared/order";
 
@@ -85,6 +86,27 @@ export interface StageDefinitionRecord {
   defaultProbability: number;
   isWon: boolean;
   isTerminal: boolean;
+}
+
+/**
+ * A workspace's rows, shaped for stage.ts's own rule functions - the store
+ * returns the persistence shape (`id`/`workspaceId`/`stageCode`), the rule
+ * layer takes `StageDefinition` (`code`, no storage identity). Every UI page
+ * that reads `listStageDefinitions(ctx)` and threads the result into
+ * `stage-control.tsx`/`deal-terms.tsx`/`pipeline-board.tsx`/etc. needs this
+ * exact reshaping, so it lives once here rather than once per page.
+ */
+export function toStageCatalog(rows: readonly StageDefinitionRecord[]): readonly StageDefinition[] {
+  return [...rows]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r) => ({
+      code: r.stageCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+      defaultProbability: r.defaultProbability,
+      isWon: r.isWon,
+      isTerminal: r.isTerminal,
+    }));
 }
 
 /**

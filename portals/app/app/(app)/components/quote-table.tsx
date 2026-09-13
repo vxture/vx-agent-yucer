@@ -10,7 +10,11 @@ import {
 } from "@vxture/design-ui";
 import { useTableSort } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
-import { formatMoney } from "../lib/view-model";
+import { formatMoney, stageLabelFor } from "../lib/view-model";
+import {
+  DEFAULT_STAGE_DEFINITIONS,
+  type StageDefinition,
+} from "../../domains/pipeline/lib/stage";
 
 // What we have actually offered, per deal.
 //
@@ -45,6 +49,8 @@ export interface QuoteRow {
 
 export interface QuoteTableProps {
   readonly rows: readonly QuoteRow[];
+  /** The workspace's own stage catalog (incr/0057). */
+  readonly stageDefinitions?: readonly StageDefinition[];
 }
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
@@ -54,7 +60,7 @@ const SORT_ON = {
   amount: (r: QuoteRow) => r.amount,
 };
 
-export function QuoteTable({ rows }: QuoteTableProps) {
+export function QuoteTable({ rows, stageDefinitions = DEFAULT_STAGE_DEFINITIONS }: QuoteTableProps) {
   const { DATA_TABLE_LABELS, QUOTE_TEXT, STAGE_LABEL } = useMessages();
   const sorted = useTableSort<QuoteRow>([], SORT_ON);
 
@@ -97,8 +103,7 @@ export function QuoteTable({ rows }: QuoteTableProps) {
             {
               id: "stage",
               header: QUOTE_TEXT.colStage,
-              cell: (r: QuoteRow) =>
-                (STAGE_LABEL as Record<string, string>)[r.stage] ?? r.stage,
+              cell: (r: QuoteRow) => stageLabelFor(r.stage, stageDefinitions, STAGE_LABEL),
             },
             {
               id: "lines",

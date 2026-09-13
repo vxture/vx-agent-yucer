@@ -17,12 +17,13 @@ import {
 } from "../../../domains/shared/registry";
 import { captureAdoption } from "../../../domains/account/field-service";
 import { CAPTURE_CRITERION } from "../../../domains/account/lib/capture-metric";
-import { listPipeline } from "../../../domains/pipeline/service";
-import type { OpportunityRecord } from "../../../domains/pipeline/store";
-import type { Stage } from "../../../domains/pipeline/lib/stage";
+import { listPipeline, listStageDefinitions } from "../../../domains/pipeline/service";
+import { toStageCatalog, type OpportunityRecord } from "../../../domains/pipeline/store";
+import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
 
 import { getMessages } from "../../lib/i18n/server";
 import { loadFailureText } from "../../lib/load-failure";
+import { stageLabelFor } from "../../lib/view-model";
 import { Tag } from "../../components/tag";
 // The instrument behind ADR-012's kill criterion.
 //
@@ -65,10 +66,13 @@ export default async function AdoptionPage() {
   // 50% bar without anyone recording anything. capture-metric has a test
   // asserting the denominator is historical; it passed because it called the
   // pure function with closed deals the page never supplied.
-  const opportunities = await listPipeline(
-    { ...base, store: session.stores.pipeline() },
-    { includeClosed: true },
-  );
+  const [opportunities, stageRows] = await Promise.all([
+    listPipeline(
+      { ...base, store: session.stores.pipeline() },
+      { includeClosed: true },
+    ),
+    listStageDefinitions({ ...base, store: session.stores.pipeline() }),
+  ]);
   if (!opportunities.ok) {
     return (
       <EmptyState
@@ -77,6 +81,7 @@ export default async function AdoptionPage() {
       />
     );
   }
+  const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
   const result = await captureAdoption(
     { ...base, store: getFieldStore() },
@@ -257,7 +262,7 @@ export default async function AdoptionPage() {
                 {dark.map((o: OpportunityRecord) => (
                   <li key={o.id}>
                     <Tag>
-                      {STAGE_LABEL[o.stage as Stage] ?? o.stage}
+                      {stageLabelFor(o.stage, stageDefinitions, STAGE_LABEL)}
                     </Tag>
                     <Link href={`/pipeline/${o.id}`}>{o.name}</Link>
                     <span>{o.ownerSub ?? "-"}</span>

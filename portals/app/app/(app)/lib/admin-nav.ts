@@ -94,6 +94,10 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          the same reason: it is set once and read by every review afterwards,
          while 赢丢复盘 is where a person works through the reviews themselves. */
       { key: "winLossReason", href: "/admin/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
+      /* 商机阶段 (incr/0057-0059). Was a hardcoded seven-value union; now a
+         vocabulary like the other three - set once (rename/reorder/re-price/
+         add/remove), read by every screen that shows or advances a deal. */
+      { key: "stage", href: "/admin/stage", icon: "workflow", action: "pipeline.stage.view" },
       /* 行业分类 (incr/0040). The third vocabulary in this group, and the one
          with the widest reach: it decides how customers are filed, which
          decides the market segment, which decides the playbook. */
