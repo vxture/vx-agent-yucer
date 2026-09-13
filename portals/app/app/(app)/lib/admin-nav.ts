@@ -90,32 +90,21 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          /catalog before, which is how a settings page ends up somewhere
          nobody looks for settings. */
       { key: "product", href: "/admin/product", icon: "cube", action: "catalog.product.view" },
-      /* 赢丢原因 (incr/0039). A vocabulary like the product one, and here for
-         the same reason: it is set once and read by every review afterwards,
-         while 赢丢复盘 is where a person works through the reviews themselves. */
-      { key: "winLossReason", href: "/admin/winloss", icon: "clock-counter-clockwise", action: "pipeline.winloss.view" },
-      /* 商机阶段 (incr/0057-0059). Was a hardcoded seven-value union; now a
-         vocabulary like the other three - set once (rename/reorder/re-price/
-         add/remove), read by every screen that shows or advances a deal. */
-      { key: "stage", href: "/admin/stage", icon: "workflow", action: "pipeline.stage.view" },
-      /* 商机类型 (incr/0060-0061). A new classification axis with no prior
-         column to migrate from - set once, read wherever a deal's type is
-         shown or filtered on. */
-      { key: "dealtype", href: "/admin/dealtype", icon: "tree-structure", action: "pipeline.dealtype.view" },
-      /* 行业分类 (incr/0040). The third vocabulary in this group, and the one
-         with the widest reach: it decides how customers are filed, which
-         decides the market segment, which decides the playbook. */
+      /* 商机配置 (PR4 of the 商机配置 batch): six items folded into one -
+         赢丢原因 (incr/0039), 商机阶段 (incr/0057-0059), 商机类型
+         (incr/0060-0061), 预测阈值 (incr/0041), 计价规则 (incr/0044) and
+         账龄分档 (incr/0042) each used to be (or, for the first three, briefly
+         were, one PR at a time) their own item here. All six are the same
+         kind of thing - set once, read by every screen that shows or advances
+         a deal - so they join /admin/product's own precedent (三个 section
+         已经堆叠在一页) rather than staying six gear icons nobody who is
+         setting up a workspace goes looking for one at a time. */
+      { key: "opportunityConfig", href: "/admin/opportunity", icon: "kanban", action: "pipeline.opportunityconfig.view" },
+      /* 行业分类 (incr/0040). The one vocabulary in this original trio that
+         stays its own item: it decides how customers are filed, which is a
+         D4 concern rather than a D6 one, and belongs beside the customer list
+         it governs rather than the pipeline it does not. */
       { key: "industry", href: "/admin/industry", icon: "buildings", action: "account.view" },
-      /* 预测阈值 (incr/0041) and 账龄分档 (incr/0042). Not vocabularies but
-         RULE PARAMETERS - the numbers two rules compute with. They are here
-         for the same reason the lists are: set once, read by every screen
-         afterwards, and the pages they feed are where somebody works through
-         the deals and the money rather than deciding the policy. */
-      { key: "forecastThreshold", href: "/admin/forecast", icon: "trend-up", action: "pipeline.forecast.view" },
-      { key: "ageingPolicy", href: "/admin/ageing", icon: "clock-counter-clockwise", action: "delivery.revenue.view" },
-      /* 计价规则 (incr/0044): the currency every line assumes. Rides the price
-         book's read gate; its write is the floor-price permission. */
-      { key: "pricingPolicy", href: "/admin/pricing", icon: "scales", action: "catalog.pricebook.view" },
     ],
   },
   {

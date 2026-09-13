@@ -43,7 +43,7 @@ export function DealTypeConfig({
       idPrefix="dtp"
       errors={DEAL_TYPE_ERROR}
       editable={editable}
-      page={{ icon: "tree-structure", count: DEAL_TYPE_TEXT.count }}
+      icon="tree-structure"
       text={{
         title: DEAL_TYPE_TEXT.title,
         noun: DEAL_TYPE_TEXT.noun,

@@ -37,7 +37,7 @@ export async function saveWinLossReason(input: {
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await upsertWinLossReason(context(session), input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/winloss");
+  revalidatePath("/admin/opportunity");
   revalidatePath("/winloss");
   return { ok: true };
 }
@@ -50,7 +50,7 @@ export async function moveWinLossReasonAction(
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await moveWinLossReason(context(session), { reasonId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/winloss");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }
 
@@ -59,6 +59,6 @@ export async function removeWinLossReasonAction(reasonId: string): Promise<Reaso
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await removeWinLossReason(context(session), { reasonId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/winloss");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }

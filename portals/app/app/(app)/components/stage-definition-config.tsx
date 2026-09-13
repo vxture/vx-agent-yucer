@@ -63,7 +63,7 @@ export function StageDefinitionConfig({
       idPrefix="stg"
       errors={STAGE_ERROR}
       editable={editable}
-      page={{ icon: "workflow", count: STAGE_CONFIG_TEXT.stageCount }}
+      icon="workflow"
       text={{
         title: STAGE_CONFIG_TEXT.title,
         noun: STAGE_CONFIG_TEXT.noun,

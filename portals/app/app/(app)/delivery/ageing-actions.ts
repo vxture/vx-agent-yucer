@@ -27,7 +27,7 @@ export async function saveAgeingCutoffs(
     cutoffs,
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/ageing");
+  revalidatePath("/admin/opportunity");
   // The collections chart is cut by these, so it must not keep the old bands.
   revalidatePath("/collection");
   return { ok: true };

@@ -149,6 +149,9 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   // incr/0060-0061: the same reasoning as pipeline/stage - a facet of the
   // pipeline module's own configuration, not a separate nav destination.
   "pipeline/dealtype": { group: "position", module: "pipeline", page: "pipeline.dealtype" },
+  // PR4 of the batch: the assembly page. Same module as every section it
+  // bundles - a facet of pipeline configuration, not a separate destination.
+  "pipeline/opportunityconfig": { group: "position", module: "pipeline", page: "pipeline.opportunityconfig" },
 
   "delivery/project": { group: "settlement", module: "delivery", page: "delivery.project" },
   "delivery/milestone": { group: "settlement", module: "delivery", page: "delivery.milestone" },

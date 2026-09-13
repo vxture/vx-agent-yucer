@@ -304,3 +304,25 @@ stage_definition`）；`incr/0058` 把 `opportunity.stage` 原来的固定 `CHEC
 `pipeline.stage`。
 
 **没有新增功能键，理由与 `pipeline.stage` 相同。**
+
+## 2026-09-13 增量 - 商机配置装配页（PR4，无新增 DDL）
+
+**权限数不变，仍是 27。角色数、授权数都不变。**
+
+商机配置批次的最后一步：把 赢丢原因/商机类型/商机阶段/预测阈值/计价规则/账龄分档
+六个区块装到同一个页面 `/admin/opportunity`，取代它们各自散落的（或者，对前三个来说，
+是这个批次自己刚建的临时）路由。新增一个 ActionId `pipeline.opportunityconfig.view`
+门禁整页可不可见，但**权限码复用 `pipeline.read`**——跟 `pipeline.stage.view` /
+`pipeline.dealtype.view` 完全一样的选择，所以这次装配不给任何人多开一寸读权限，也
+不需要新的种子增量：`pipeline.read` 已经存在，六个区块各自的写权限（
+`pipeline.winloss.record` / `pipeline.dealType` / `pipeline.stage` /
+`pipeline.forecast` / `catalog.pricebook.upsert` / `delivery.revenue.upsert`）
+原样保留在各自的保存动作里，页面本身只决定"能不能看见这六个区块"，不决定"能不能改
+哪一个"。
+
+**预测阈值和账龄分档区块可能整页可见但区块本身仍然读不到**：`pipeline.forecast.view`
+挂着 `pipeline.forecast` 付费功能键，`delivery.revenue.view` 挂着 `delivery.revenue`
+功能键，两者都不是 `pipeline.opportunityconfig.view` 唯一检查的 `pipeline.read` 能
+保证的。页面因此对这两个区块（以及计价规则，虽然它的 `catalog.pricebook.view` 只挂
+`catalog.read`，实务上人人都有）分别再做一次它们各自的读权限判断，读不到就整块不渲
+染——展示"工作区的默认值"当作"工作区的真实设置"会是比不渲染更糟的错误。

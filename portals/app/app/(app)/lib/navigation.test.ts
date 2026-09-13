@@ -71,20 +71,22 @@ test("administration is nav, but it is not a capability domain", () => {
      neither is the drift this test is watching for. */
   assert.deepEqual(
     ADMIN_NAV_ENTRIES.map((e) => e.key),
-    // 赢丢原因 joined 业务参数 on 2026-09-08 (incr/0039): the reasons a
-    // review may choose from are the workspace's own list, and configuring
-    // them is not the same act as working through the reviews.
-    // 行业分类 joined it the same way (incr/0040): what customers are filed
-    // under is the workspace's own list, and deciding it is not the same act
-    // as working through the customers.
-    // 预测阈值 and 账龄分档 joined 业务参数 on 2026-09-08 (incr/0041, 0042).
-    // They are rule PARAMETERS rather than vocabularies, which is a difference
-    // in what they hold and not in where they belong.
+    // 行业分类 joined 业务参数 on 2026-09-08 (incr/0040): what customers are
+    // filed under is the workspace's own list, and deciding it is not the
+    // same act as working through the customers.
+    // 商机配置 replaced FIVE separate entries here (PR4 of the 商机配置
+    // batch, 2026-09-13): 赢丢原因 (incr/0039), 商机阶段, 商机类型, 预测阈值
+    // (incr/0041) and 账龄分档 (incr/0042) were each their own item - the
+    // first three only briefly, the same PR that built each one's own config
+    // UI also being the one to fold it back out. All are the same kind of
+    // thing (set once, read by every screen that shows or advances a deal),
+    // so /admin/opportunity joins /admin/product's own already-stacked
+    // precedent rather than staying five gear icons.
     // 待迁路由 joined 运行状况 on 2026-09-11 (incr/0055's own change): a
     // holding page for whatever route currently has no entry point anywhere
     // else, found by an app-wide reachability sweep.
-    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "winLossReason", "stage", "dealtype", "industry",
-     "forecastThreshold", "ageingPolicy", "pricingPolicy", "adoption", "pendingMigration"],
+    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "opportunityConfig", "industry",
+     "adoption", "pendingMigration"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -187,11 +189,6 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "attainment",
     "catalog",
     "copilot",
-    // 商机类型 rides pipeline.dealtype.view, which resolves to pipeline.read -
-    // and unlike stage, sales_rep DOES hold pipeline.dealtype.manage too (see
-    // incr/0061's own note): classifying a deal's type is closer to owning
-    // the deal than to redefining a workspace-wide policy.
-    "dealtype",
     "home",
     /* 行业分类 rides account.view, exactly as the customer list does - it is
        the list customers are filed under, and its ACTIONS carry
@@ -207,11 +204,16 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     // hands out no paid capability - the page itself additionally requires
     // pipeline and delivery, and refuses outright if either is missing.
     "national",
+    // 商机配置 rides pipeline.opportunityconfig.view, which resolves to
+    // pipeline.read - the same free pipeline.manage key /pipeline itself
+    // carries, not a new paid capability (PR4 of the 商机配置 batch). A rep
+    // sees the whole assembled page; each of its six sections still checks
+    // its own write permission before showing an edit control (商机类型's is
+    // pipeline.dealType, which sales_rep holds; 商机阶段's is pipeline.stage,
+    // which it does not - that section renders read-only for this role).
+    "opportunityConfig",
     "pipeline",
     "pricebook",
-    /* 计价规则 rides catalog.pricebook.view - no feature key, catalog.read -
-       so it is on every tier, exactly as /pricebook is. */
-    "pricingPolicy",
     /* 产品配置 rides catalog.product.view, exactly as /catalog does - it edits
        the same three vocabularies the catalogue displays, and its ACTIONS
        carry catalog.product.upsert. It appears at every tier for the same
@@ -224,12 +226,6 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     // wherever /pipeline does, on every tier.
     "quote",
     "solution",
-    // 商机阶段 rides pipeline.stage.view, which resolves to pipeline.read - the
-    // stage catalog is a facet of the same free pipeline.manage key /pipeline
-    // itself carries (incr/0059), not a new paid capability. A rep sees it
-    // read-only; editing it needs pipeline.stage.manage, which sales_rep does
-    // not hold.
-    "stage",
   ]);
 });
 
@@ -261,20 +257,14 @@ test("a viewer sees every domain their tier bought, all read-only", () => {
      viewer does not hold. Reading is deliberate on both: the carve explains
      every figure grouped by 大区, and the product vocabulary explains every
      line on a quote. Editing either needs an upsert action they lack. */
-  // 赢丢原因 rides pipeline.winloss.view, which a viewer holds - so the gear
-  // shows a viewer three read-only items now, not two.
-  const inPlane = ["division", "product", "winLossReason",
-    // 商机阶段 rides pipeline.stage.view, which resolves to pipeline.read - the
-    // same permission a viewer already holds for every other pipeline read.
-    "stage",
-    // 商机类型 rides pipeline.dealtype.view, same resolution to pipeline.read.
-    "dealtype", "industry",
-    // A viewer holds pipeline.read and delivery.read, so both parameter pages
-    // are readable; writing them needs permissions a viewer does not hold, and
-    // the panels render without their save button.
-    "forecastThreshold", "ageingPolicy",
-    // 计价规则 rides catalog.read, which every role holds.
-    "pricingPolicy"];
+  // 商机配置 rides pipeline.opportunityconfig.view, which resolves to
+  // pipeline.read - a viewer holds it, so the gear shows the whole assembled
+  // page (赢丢原因/商机类型/商机阶段/预测阈值/账龄分档/计价规则), all six
+  // sections read-only: each one's own write permission
+  // (pipeline.winloss.record / pipeline.dealType / pipeline.stage /
+  // pipeline.forecast / delivery.revenue / catalog.pricebook.upsert) is
+  // something a viewer holds none of.
+  const inPlane = ["division", "product", "opportunityConfig", "industry"];
   assert.equal(
     nav.filter((e) => e.state === "visible").length,
     DOMAIN_NAV_ENTRIES.length + MODULE_NAV_ENTRIES.length + WORK_NAV_ENTRIES.length

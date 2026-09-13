@@ -398,6 +398,19 @@ export const ACTIONS = {
     permission: "pipeline.dealType",
     writes: true,
   },
+  // 商机配置 (PR4 of the batch): the ASSEMBLY page bundling 赢丢原因/商机
+  // 类型/商机阶段/预测阈值/计价规则/账龄分档. Resolves to the same
+  // pipeline.read every one of those sections' own view actions already
+  // resolves to (or, for the two that carry their own feature/permission -
+  // forecast, revenue - is checked again inside the page for that specific
+  // section) - so reaching this page widens nobody's read access. Each
+  // section keeps its own write permission unchanged.
+  "pipeline.opportunityconfig.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
 
   // --- D7 delivery ---------------------------------------------------------
   "delivery.project.view": {
