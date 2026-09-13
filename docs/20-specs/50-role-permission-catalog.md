@@ -247,3 +247,33 @@ owner：业务线「集团与通用」改为「管理」，顺序：高管、销
 
 owner：业务线的顺序改了，层级配置的顺序还没改。预置层级顺序改为 高管 / 总经理 /
 总监 / 高级经理 / 经理 / 专员，与角色清单一致；最低一级由「专员 / 代表」改称「专员」；从未调过顺序的工作区同步重排。
+
+## 2026-09-13 增量 - 商机阶段目录的编辑权（incr/0057-0059）
+
+**权限 25 → 26，授权 397 → 411。角色数不变，仍是 31。**
+
+`incr/0057` 把「商机阶段」从硬编码的七值联合（`STAGES`/`DEFAULT_PROBABILITY`/
+`TERMINAL_STAGES`/`OPEN_STAGE_ORDER`，散落在 `stage.ts` 四个模块常量里）变成一份
+每个工作区自己拥有、可改名/排序/改默认赢率/增删的目录（`yucer_pipeline.
+stage_definition`）；`incr/0058` 把 `opportunity.stage` 原来的固定 `CHECK` 换成指向
+这份目录的复合外键。两个都不动权限，因为**推进单个商机**（advanceStage，调用
+`pipeline.opportunity.advance`）根本没变。
+
+`incr/0059` 加的是**另一件事**：重新定义阶段目录本身——改名、调顺序、改某个非终态
+阶段的默认赢率、增删阶段。这和"推一个单子往前走"不是同一份权力，形状与
+`pipeline.write` / `pipeline.forecast` 的既有分割完全一致（一线销售拥有自己的单，
+不拥有"预测承诺"）：一个只拥有自己单子的销售，不能重新定义"赢单"对全团队意味着什么。
+
+| 权限 | 是什么 | 授予 |
+|------|--------|------|
+| `pipeline.stage.view`（读，权限码复用 `pipeline.read`） | 查看阶段目录 | 与查看商机同一批人——查看目录不是新权力 |
+| `pipeline.stage.manage`（写，新权限码 `pipeline.stage`） | 改名/排序/改默认赢率/增删阶段 | 与 `pipeline.forecast` 完全相同的十四个角色 |
+
+**不给 `pipeline.write`，给 `pipeline.forecast` 的持有者。** `pipeline.forecast` 已经是
+目录里"商机相关、但超出一线销售自己单子范围"的那条线——提交预测快照要向上承诺一个
+数字，重新定义阶段目录要向上承诺一整个团队的漏斗形状，是同一类动作。`sales_rep` /
+`presales` / `delivery_manager` 都不持有 `pipeline.forecast`，因此也都不持有
+`pipeline.stage`。
+
+**没有新增功能键。** 阶段目录是 `pipeline.manage` 这个既有键背后的配置面，和
+`pipeline.discount` 治理该键下的一个侧面而不单独成键是同一个理由——功能键冻结在 19。

@@ -25,7 +25,7 @@ import { analyzeChain, analyzeChainRecency } from "../account/lib/health";
 import { reliability } from "../account/lib/commitment";
 import { DEFAULT_PROPOSAL_TTL_MS } from "../copilot/lib/action";
 import { isExecutable } from "../copilot/lib/autonomy";
-import { OPEN_STAGE_ORDER, isStage, planStageChange } from "../pipeline/lib/stage";
+import { DEFAULT_STAGE_DEFINITIONS, isStage, openStageOrder, planStageChange } from "../pipeline/lib/stage";
 import { coveringTerritories } from "../signal/lib/routing";
 import { accountGaps, fillable } from "../account/lib/completeness";
 
@@ -183,7 +183,7 @@ test("every open stage is occupied, so the board has no empty column", async () 
   const s = seeded();
   const rows = await s.pipeline.listOpportunities(WS);
   const occupied = new Set(rows.map((o) => o.stage));
-  for (const stage of OPEN_STAGE_ORDER) {
+  for (const stage of openStageOrder(DEFAULT_STAGE_DEFINITIONS)) {
     assert.ok(occupied.has(stage), `no demo opportunity sits at ${stage}`);
   }
 });

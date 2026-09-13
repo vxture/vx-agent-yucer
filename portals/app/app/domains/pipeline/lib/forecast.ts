@@ -16,7 +16,7 @@
 
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
 import { ratio, sumMoney, toMinor, type Money } from "../../shared/money";
-import { isTerminal, type Stage } from "./stage";
+import { DEFAULT_STAGE_DEFINITIONS, isTerminal, type Stage, type StageDefinition } from "./stage";
 import { periodRange, within } from "../../shared/period";
 
 export const FORECAST_CATEGORIES = ["pipeline", "best_case", "commit", "closed"] as const;
@@ -421,11 +421,12 @@ export function forecastAccuracy(
 export function planCategoryChange(
   current: { stage: Stage; forecastCategory: ForecastCategory },
   to: ForecastCategory,
+  stageCatalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
 ): RuleResult<{ forecastCategory: ForecastCategory }> {
   if (!isForecastCategory(to)) {
     return fail(violation("unknown_forecast_category", `${String(to)} is not a forecast category`, "forecastCategory"));
   }
-  if (to === "closed" && !isTerminal(current.stage)) {
+  if (to === "closed" && !isTerminal(current.stage, stageCatalog)) {
     return fail(
       violation(
         "closed_requires_terminal_stage",
@@ -434,7 +435,7 @@ export function planCategoryChange(
       ),
     );
   }
-  if (to !== "closed" && isTerminal(current.stage)) {
+  if (to !== "closed" && isTerminal(current.stage, stageCatalog)) {
     return fail(
       violation(
         "terminal_requires_closed",

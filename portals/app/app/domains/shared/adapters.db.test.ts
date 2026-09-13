@@ -92,6 +92,15 @@ test("with the lock, two concurrent allocations pick DIFFERENT numbers", { skip 
        VALUES ($1, $2, 'ACC-RACE', 'Race', 'active') ON CONFLICT DO NOTHING`,
       [acc, WS],
     );
+    // 0057: opportunity.stage is a composite FK now - the insert below names
+    // 'qualify' explicitly, so that row must exist first.
+    await a.query(
+      `INSERT INTO yucer_pipeline.stage_definition
+         (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+       VALUES ($1, 'qualify', '合格判定', 1, 10, FALSE, FALSE)
+       ON CONFLICT (workspace_id, stage_code) DO NOTHING`,
+      [WS],
+    );
 
     const insert = async (c: Client, no: string) =>
       c.query(
@@ -194,6 +203,15 @@ test("a win/loss review is revised only within its own workspace", { skip }, asy
         `INSERT INTO yucer_core.account (id, workspace_id, account_no, name, status)
          VALUES ($1, $2, 'ACC-WL', 'WL', 'active')`,
         [acc, WS],
+      );
+      // 0057: opportunity.stage is a composite FK now - the insert below names
+      // 'won' explicitly, so that row must exist first.
+      await c.query(
+        `INSERT INTO yucer_pipeline.stage_definition
+           (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+         VALUES ($1, 'won', '赢单', 6, 100, TRUE, TRUE)
+         ON CONFLICT (workspace_id, stage_code) DO NOTHING`,
+        [WS],
       );
       await c.query(
         `INSERT INTO yucer_pipeline.opportunity

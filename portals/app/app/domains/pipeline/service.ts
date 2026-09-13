@@ -47,16 +47,21 @@ import {
   type SnapshotRow,
 } from "./lib/forecast";
 import {
+  DEFAULT_STAGE_DEFINITIONS,
   planProbabilityOverride,
   planStageChange,
+  planStageDefinition,
+  planStageRemoval,
   type Stage,
   type StageChangeInput,
+  type StageDefinition,
 } from "./lib/stage";
 import type {
   CommercialTermsPatch,
   NewWinLossReview,
   OpportunityRecord,
   PipelineStore,
+  StageDefinitionRecord,
   StageEventRecord,
   WinLossReasonRecord,
   WinLossReviewRecord,
@@ -83,6 +88,37 @@ export function denied<T>(decision: Decision): RuleResult<T> {
       "authorization",
     ),
   );
+}
+
+/**
+ * The workspace's own stage catalog, for the rule layer - NOT gated, and not
+ * the seeding verb. `listStageDefinitions` below is the gated, seeding entry
+ * point a caller asking "what are our stages" goes through; this is the
+ * un-gated read every OTHER verb in this file needs just to run a stage-aware
+ * rule correctly (advanceStage, updateCommercialTerms, the forecast preview).
+ * Those verbs already run their own gate for the action they perform -
+ * routing them through a second, differently-scoped permission check here
+ * would make "may I advance my own deal" depend on "may I see the stage
+ * catalog", which is not a rule this product draws.
+ *
+ * Falls back to DEFAULT_STAGE_DEFINITIONS for an unseeded workspace without
+ * writing anything - the same fallback stage.ts's own functions default to,
+ * so a caller that skips this helper entirely (every pure unit test) still
+ * gets the identical answer.
+ */
+async function loadStageCatalog(ctx: PipelineContext): Promise<readonly StageDefinition[]> {
+  const rows = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  if (rows.length === 0) return DEFAULT_STAGE_DEFINITIONS;
+  return [...rows]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r) => ({
+      code: r.stageCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+      defaultProbability: r.defaultProbability,
+      isWon: r.isWon,
+      isTerminal: r.isTerminal,
+    }));
 }
 
 export async function listPipeline(
@@ -206,7 +242,10 @@ export async function advanceStage(
   // undefined, requiresWinLossReview is always true, and re-closing an already
   // reviewed deal would demand a second review - which the unique index on
   // opportunity_id would then reject.
-  const existingReview = await ctx.store.getWinLossReview(ctx.workspaceId, opportunityId);
+  const [existingReview, stageCatalog] = await Promise.all([
+    ctx.store.getWinLossReview(ctx.workspaceId, opportunityId),
+    loadStageCatalog(ctx),
+  ]);
 
   const plan = planStageChange(
     {
@@ -217,6 +256,7 @@ export async function advanceStage(
       hasWinLossReview: existingReview != null,
     },
     { ...input, actorSub: ctx.sub },
+    stageCatalog,
   );
   if (!plan.ok) return plan as RuleResult<{ stage: Stage; journalled: true; reviewRequired: boolean }>;
 
@@ -289,7 +329,10 @@ export async function updateCommercialTerms(
   // "nothing changed", so an unauthorized caller learns nothing from the shape.
   if (!wantsEdit && !wantsCategory && !editGate.allowed) return denied(editGate);
 
-  const current = await ctx.store.getOpportunity(ctx.workspaceId, opportunityId);
+  const [current, stageCatalog] = await Promise.all([
+    ctx.store.getOpportunity(ctx.workspaceId, opportunityId),
+    loadStageCatalog(ctx),
+  ]);
   if (!current) {
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
@@ -306,13 +349,13 @@ export async function updateCommercialTerms(
   }
 
   if (input.probability !== undefined) {
-    const planned = planProbabilityOverride(current, input.probability);
+    const planned = planProbabilityOverride(current, input.probability, stageCatalog);
     if (!planned.ok) problems.push(...planned.violations);
     else patch.probability = planned.value.probability;
   }
 
   if (input.forecastCategory !== undefined) {
-    const planned = planCategoryChange(current, input.forecastCategory);
+    const planned = planCategoryChange(current, input.forecastCategory, stageCatalog);
     if (!planned.ok) problems.push(...planned.violations);
     else patch.forecastCategory = planned.value.forecastCategory;
   }
@@ -520,6 +563,122 @@ export async function removeWinLossReason(
 
   const removed = await ctx.store.removeWinLossReason(ctx.workspaceId, input.reasonId);
   if (!removed) return fail(violation("not_found", "no such reason", "reasonId"));
+  return ok(true);
+}
+
+/* ---------------------------------------------------------------------------
+ * 商机阶段 - the workspace's own stage catalog (incr/0057-0059).
+ *
+ * FOUR VERBS, the same four the vocabularies above have, plus the same
+ * first-contact seeding `listWinLossReasons` uses. Gated on
+ * `pipeline.stage.view`/`pipeline.stage.manage`, NOT `pipeline.winloss.*` -
+ * this is a different capability with its own permission (see incr/0059's own
+ * note): reading/writing the stage catalog is not the same act as reading or
+ * writing a win/loss reason, even though both are per-workspace vocabularies.
+ * ------------------------------------------------------------------------ */
+
+export async function listStageDefinitions(
+  ctx: PipelineContext,
+): Promise<RuleResult<StageDefinitionRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard listWinLossReasons
+     uses, and the same seven rows incr/0057 seeds for every workspace that
+     already had an opportunity, so the two paths cannot disagree. This is what
+     covers the case the DDL's own backfill cannot reach: a brand-new workspace
+     with zero opportunities yet. */
+  if (stages.length === 0) {
+    for (const d of DEFAULT_STAGE_DEFINITIONS) {
+      await ctx.store.upsertStageDefinition(ctx.workspaceId, {
+        stageCode: d.code,
+        name: d.name,
+        defaultProbability: d.defaultProbability,
+        isWon: d.isWon,
+        isTerminal: d.isTerminal,
+      });
+    }
+    stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  }
+  return ok(stages);
+}
+
+export async function upsertStageDefinition(
+  ctx: PipelineContext,
+  input: { code: string; name: string; defaultProbability: number; isWon: boolean; isTerminal: boolean },
+): Promise<RuleResult<StageDefinitionRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planStageDefinition(input);
+  if (!plan.ok) return plan as RuleResult<StageDefinitionRecord>;
+
+  return ok(
+    await ctx.store.upsertStageDefinition(ctx.workspaceId, {
+      stageCode: plan.value.code,
+      name: plan.value.name,
+      defaultProbability: plan.value.defaultProbability,
+      isWon: plan.value.isWon,
+      isTerminal: plan.value.isTerminal,
+    }),
+  );
+}
+
+/** Reorder the catalog - the order the board's columns and the funnel walk in. */
+export async function moveStageDefinition(
+  ctx: PipelineContext,
+  input: { stageId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  const plan = planMove(
+    stages.map((s) => ({ id: s.id, movable: true })),
+    input.stageId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setStageDefinitionOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+/**
+ * Delete a stage outright.
+ *
+ * planStageRemoval refuses a stage with opportunities on it, or the
+ * workspace's last won/lost flag bearer, ahead of the raw FK error
+ * (incr/0058's ON DELETE RESTRICT) that would otherwise surface.
+ */
+export async function removeStageDefinition(
+  ctx: PipelineContext,
+  input: { stageId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
+  const removingRow = stages.find((s) => s.id === input.stageId);
+  if (!removingRow) return fail(violation("not_found", "no such stage", "stageId"));
+
+  const catalog: StageDefinition[] = stages.map((s) => ({
+    code: s.stageCode,
+    name: s.name,
+    sortOrder: s.sortOrder,
+    defaultProbability: s.defaultProbability,
+    isWon: s.isWon,
+    isTerminal: s.isTerminal,
+  }));
+  const removing = catalog.find((c) => c.code === removingRow.stageCode)!;
+
+  const opportunitiesOnStage = await ctx.store.countOpportunitiesByStage(ctx.workspaceId, removingRow.stageCode);
+  const plan = planStageRemoval(opportunitiesOnStage, removing, catalog);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeStageDefinition(ctx.workspaceId, input.stageId);
+  if (!removed) return fail(violation("not_found", "no such stage", "stageId"));
   return ok(true);
 }
 
@@ -1064,12 +1223,13 @@ export async function previewCategories(
   /* THE WORKSPACE'S BANDS, not the build's (incr/0041). Read here rather than
      taken from the caller so every reader of this verb forecasts against the
      same numbers - the opts entry stays for a test that wants to vary them. */
-  const [rows, lastMoved, thresholds] = await Promise.all([
+  const [rows, lastMoved, thresholds, stageCatalog] = await Promise.all([
     ctx.store.listOpportunities(ctx.workspaceId),
     ctx.store.latestStageChangeAt(ctx.workspaceId),
     opts.thresholds
       ? Promise.resolve(opts.thresholds)
       : ctx.store.getForecastThresholds(ctx.workspaceId),
+    loadStageCatalog(ctx),
   ]);
 
   const out = rows.map((opportunity) => {
@@ -1087,7 +1247,7 @@ export async function previewCategories(
     };
     return {
       opportunity,
-      verdict: suggestCategory(deal, now, thresholds),
+      verdict: suggestCategory(deal, now, thresholds, stageCatalog),
       daysAtStage: daysAtStage(deal, now),
     };
   });
@@ -1137,11 +1297,12 @@ export async function applyCategorySuggestion(
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
 
-  const [lastMoved, thresholds] = await Promise.all([
+  const [lastMoved, thresholds, stageCatalog] = await Promise.all([
     ctx.store.latestStageChangeAt(ctx.workspaceId),
     opts.thresholds
       ? Promise.resolve(opts.thresholds)
       : ctx.store.getForecastThresholds(ctx.workspaceId),
+    loadStageCatalog(ctx),
   ]);
   const deal: CategorizableDeal = {
     id: current.id,
@@ -1152,7 +1313,7 @@ export async function applyCategorySuggestion(
     lastStageChangeAt: lastMoved.get(current.id) ?? null,
   };
 
-  const verdict = suggestCategory(deal, opts.now ?? new Date(), thresholds);
+  const verdict = suggestCategory(deal, opts.now ?? new Date(), thresholds, stageCatalog);
   const plan = planSuggestedCategory(deal, verdict);
   if (!plan.ok) return plan as RuleResult<OpportunityRecord>;
 

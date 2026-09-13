@@ -25,7 +25,7 @@
 // would eventually forecast confidence out of inactivity.
 
 import { fail, ok, violation, type RuleResult } from "../../shared/result";
-import { DEFAULT_PROBABILITY, isTerminal, type Stage } from "./stage";
+import { DEFAULT_STAGE_DEFINITIONS, defaultProbabilityFor, isTerminal, type Stage, type StageDefinition } from "./stage";
 import type { ForecastCategory } from "./forecast";
 
 /**
@@ -162,12 +162,13 @@ export function suggestCategory(
   deal: CategorizableDeal,
   now: Date,
   thresholds: ForecastThresholds = DEFAULT_FORECAST_THRESHOLDS,
+  stageCatalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
 ): CategoryVerdict {
-  if (isTerminal(deal.stage)) return { kind: "settled", reason: "terminal" };
+  if (isTerminal(deal.stage, stageCatalog)) return { kind: "settled", reason: "terminal" };
 
-  const probability = deal.probability ?? DEFAULT_PROBABILITY[deal.stage];
-  const probabilityIsHuman =
-    deal.probability != null && deal.probability !== DEFAULT_PROBABILITY[deal.stage];
+  const stageDefault = defaultProbabilityFor(deal.stage, stageCatalog);
+  const probability = deal.probability ?? stageDefault;
+  const probabilityIsHuman = deal.probability != null && deal.probability !== stageDefault;
 
   let band: ConfidenceBand =
     probability >= thresholds.commitAt

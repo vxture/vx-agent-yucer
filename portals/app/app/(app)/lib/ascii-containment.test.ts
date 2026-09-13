@@ -46,6 +46,14 @@ const ALLOWED = new Set([
   // 行业分类 (0040), the same shape a fourth time: thirteen shipped rows the
   // workspace renames and extends, seeded identically by the increment.
   "domains/account/lib/industry-vocab.ts",
+  // 商机阶段 (0057), the same shape again: seven shipped rows a workspace
+  // renames, reorders, re-prices and extends, seeded identically by the
+  // increment - these were four scattered module constants in stage.ts
+  // (STAGES/DEFAULT_PROBABILITY/TERMINAL_STAGES/OPEN_STAGE_ORDER) before
+  // incr/0057 made them a per-workspace catalog; the machine rules that
+  // consume the catalog stay in stage.ts, only the seed data and the
+  // vocabulary-editing rules (planStageDefinition/planStageRemoval) moved.
+  "domains/pipeline/lib/stage-vocab.ts",
   // The province vocabulary and the 全国样本 cohort built from it (incr/0035).
   // Same nature again - data that happens to be text - with one addition that
   // matters more here than anywhere else on this list: these 34 strings are a

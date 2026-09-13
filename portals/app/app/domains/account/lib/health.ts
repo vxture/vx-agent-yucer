@@ -14,7 +14,7 @@
 //      is how a derived score gets ignored.
 
 import { ok, type RuleResult } from "../../shared/result";
-import { isTerminal, OPEN_STAGE_ORDER, type Stage } from "../../pipeline/lib/stage";
+import { DEFAULT_STAGE_DEFINITIONS, isTerminal, openStageOrder, type Stage, type StageDefinition } from "../../pipeline/lib/stage";
 
 export type AccountStatus = "prospect" | "active" | "dormant" | "churned";
 export type ProjectHealth = "green" | "amber" | "red";
@@ -75,14 +75,18 @@ export const BASE_SCORE = 50;
 export const STALE_AFTER_DAYS = 30;
 export const VERY_STALE_AFTER_DAYS = 90;
 
-export function deriveHealth(input: HealthInput): RuleResult<HealthResult> {
+export function deriveHealth(
+  input: HealthInput,
+  stageCatalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
+): RuleResult<HealthResult> {
   const now = input.now ?? new Date();
   const contributions: HealthContribution[] = [];
 
   // Pipeline: having live deals is good, and late-stage deals are better. This
   // reads stage rather than amount because a large deal stuck at qualify says
   // less about the relationship than a small one at negotiate.
-  const open = input.openOpportunities.filter((o) => !isTerminal(o.stage));
+  const openOrder = openStageOrder(stageCatalog);
+  const open = input.openOpportunities.filter((o) => !isTerminal(o.stage, stageCatalog));
   if (open.length === 0) {
     contributions.push({
       factor: "pipeline",
@@ -90,12 +94,12 @@ export function deriveHealth(input: HealthInput): RuleResult<HealthResult> {
       reason: { code: "no_open_deals" },
     });
   } else {
-    const depth = open.reduce((best, o) => Math.max(best, OPEN_STAGE_ORDER.indexOf(o.stage)), -1);
+    const depth = open.reduce((best, o) => Math.max(best, openOrder.indexOf(o.stage)), -1);
     const points = Math.min(25, 8 + depth * 4 + Math.min(open.length - 1, 2) * 2);
     contributions.push({
       factor: "pipeline",
       points,
-      reason: { code: "open_deals", count: open.length, furthestStage: OPEN_STAGE_ORDER[Math.max(0, depth)]
+      reason: { code: "open_deals", count: open.length, furthestStage: openOrder[Math.max(0, depth)]
        },
     });
   }

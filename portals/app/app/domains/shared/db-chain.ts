@@ -1,4 +1,5 @@
 import type { Client } from "pg";
+import { DEFAULT_STAGE_DEFINITIONS } from "../pipeline/lib/stage";
 
 // One complete business chain, in a real database.
 //
@@ -109,6 +110,10 @@ export async function clearChain(c: Client): Promise<void> {
     `DELETE FROM yucer_pipeline.win_loss_review WHERE workspace_id = $1`,
     `DELETE FROM yucer_pipeline.win_loss_reason WHERE workspace_id = $1`,
     `DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`,
+    // 0057: RESTRICT means this can only go after every opportunity
+    // referencing it is gone - same ordering reason product_status sits after
+    // product above.
+    `DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account_plan WHERE workspace_id = $1`,
     `DELETE FROM yucer_core.account WHERE workspace_id = $1`,
     `DELETE FROM yucer_gtm.sales_target WHERE workspace_id = $1`,
@@ -178,6 +183,23 @@ export async function seedChain(c: Client): Promise<void> {
      VALUES ($1, $2, $3, '2026Q3', 2000000)`,
     [CHAIN.accountPlan, CHAIN_WS, CHAIN.account],
   );
+
+  // 0057: opportunity.stage is now a composite FK into the workspace's own
+  // stage_definition rows, not a fixed CHECK - the row must exist before the
+  // opportunity below can reference it, the same order product_status
+  // enforces on product just below. The shipped seven, read from stage-vocab.ts
+  // itself rather than retyped here, so this fixture cannot silently drift
+  // from what incr/0057 actually seeds (and the CJK containment guard already
+  // treats stage-vocab.ts as the one place those names live).
+  for (const d of DEFAULT_STAGE_DEFINITIONS) {
+    await c.query(
+      `INSERT INTO yucer_pipeline.stage_definition
+         (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (workspace_id, stage_code) DO NOTHING`,
+      [CHAIN_WS, d.code, d.name, d.sortOrder, d.defaultProbability, d.isWon, d.isTerminal],
+    );
+  }
 
   await c.query(
     // owner_sub and requirement are NOT NULL since incr/0034 - a deal has

@@ -56,9 +56,23 @@ async function seedAccount(c: Client): Promise<void> {
   );
 }
 
+// 0057: opportunity.stage is a composite FK into the workspace's own
+// stage_definition rows now. seedOpportunity below relies on the column's
+// DEFAULT 'qualify' (unchanged by 0058), so that row has to exist first.
+async function seedStages(c: Client): Promise<void> {
+  await c.query(
+    `INSERT INTO yucer_pipeline.stage_definition
+       (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+     VALUES ($1, 'qualify', '合格判定', 1, 10, FALSE, FALSE)
+     ON CONFLICT (workspace_id, stage_code) DO NOTHING`,
+    [WS],
+  );
+}
+
 async function cleanup() {
   await withPg(async (c) => {
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign_execution WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.campaign WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_gtm.market_segment WHERE workspace_id = $1`, [WS]);
@@ -466,6 +480,7 @@ test("attributedOpportunities reads the campaign link frozen on the deal", { ski
     await withPg(async (c) => {
       await seedAccount(c);
       await seedCampaigns(c);
+      await seedStages(c);
       await seedOpportunity(c, "OPP-1");
       await seedOpportunity(c, "OPP-2", { amount: null });
       await seedOpportunity(c, "OPP-OTHER", { campaign: OTHER_CAMPAIGN });
@@ -487,6 +502,7 @@ test("a soft-deleted deal does not count towards what a campaign produced", { sk
     await withPg(async (c) => {
       await seedAccount(c);
       await seedCampaigns(c);
+      await seedStages(c);
       await seedOpportunity(c, "OPP-LIVE");
       await seedOpportunity(c, "OPP-GONE", { deleted: true });
     });

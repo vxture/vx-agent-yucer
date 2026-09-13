@@ -284,6 +284,12 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0039. reason_code is the anchor; the name, which outcome it explains, and
   // the order are the workspace's.
   "yucer_pipeline.win_loss_reason": ["name", "for_won", "for_lost", "sort_order", "updated_at"],
+  // 0057. stage_code is the anchor; the name, order and default win rate are
+  // the workspace's - is_won/is_terminal are writable too (a workspace can
+  // designate which of ITS OWN codes is the won/lost one), but the CHECK
+  // constraints in 0057 keep a won row's probability at 100 and a terminal
+  // non-won row's at 0 regardless of what this grant would otherwise allow.
+  "yucer_pipeline.stage_definition": ["name", "sort_order", "default_probability", "is_won", "is_terminal", "updated_at"],
   // 0041. The three numbers are the whole point of the row; workspace_id is
   // its identity and is not writable.
   "yucer_pipeline.forecast_threshold": [

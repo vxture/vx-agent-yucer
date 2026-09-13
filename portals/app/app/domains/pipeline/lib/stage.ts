@@ -12,53 +12,60 @@
 //   3. The default win rate is a SUGGESTION. Once a human overrides it, later
 //      stage moves must stop rewriting it, or the machine silently discards a
 //      judgement a salesperson was asked to make.
+//
+// STAGE CODES ARE A WORKSPACE'S OWN DATA (incr/0057, owner 2026-09-13): what
+// used to be a hardcoded seven-value union - STAGES/DEFAULT_PROBABILITY/
+// TERMINAL_STAGES/OPEN_STAGE_ORDER - is now a per-workspace catalog a tenant
+// can rename, reorder, re-price and extend. This module stays a PURE,
+// SYNCHRONOUS rule module regardless: every catalog-aware function below
+// takes a trailing `catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS`
+// parameter rather than reading a store itself, the same shape incr/0041
+// (forecast thresholds) already proved out - `suggestCategory(deal, now,
+// thresholds = DEFAULT_FORECAST_THRESHOLDS)`. Only service.ts, which holds
+// `ctx.store`, resolves the workspace's actual rows and threads them through;
+// forecast.ts/health.ts/brief.ts/copilot's executor and this file's own unit
+// tests all keep working unchanged against the shipped default, for free.
+//
+// `Stage` was `(typeof STAGES)[number]`, a closed literal union; it is now a
+// plain `string`, validated against a catalog at runtime with `isStage`
+// rather than by the compiler - the same trade every prior vocabulary
+// (win-loss reason, industry) already made once its codes became tenant data.
 
 import { allOf, fail, ok, violation, type RuleResult, type Violation } from "../../shared/result";
 import type { ForecastCategory } from "./forecast";
+import { DEFAULT_STAGE_DEFINITIONS, type StageDefinition } from "./stage-vocab";
 
-export const STAGES = [
-  "qualify",
-  "discover",
-  "validate",
-  "propose",
-  "negotiate",
-  "won",
-  "lost",
-] as const;
-
-export type Stage = (typeof STAGES)[number];
-
-export const TERMINAL_STAGES = ["won", "lost"] as const;
-export type TerminalStage = (typeof TERMINAL_STAGES)[number];
-
+export type Stage = string;
 export type OpportunityStatus = "open" | "won" | "lost" | "abandoned";
 
-/** Suggested win rate per stage. Not a lock - see applyProbability below. */
-export const DEFAULT_PROBABILITY: Record<Stage, number> = {
-  qualify: 10,
-  discover: 25,
-  validate: 50,
-  propose: 70,
-  negotiate: 90,
-  won: 100,
-  lost: 0,
-};
+// The catalog data (DEFAULT_STAGE_DEFINITIONS/StageDefinition) and the
+// vocabulary-editing rules (planStageDefinition/planStageRemoval) live in
+// ./stage-vocab, not here - the seven names are seed data (CJK containment
+// exempts vocab files, not rule modules), and re-exporting keeps every
+// existing `from "./stage"` import unchanged.
+export { DEFAULT_STAGE_DEFINITIONS, type StageDefinition, planStageDefinition, planStageRemoval } from "./stage-vocab";
+export type { StageDefinitionDraft } from "./stage-vocab";
 
-/** Open stages in selling order, used for direction and funnel analysis. */
-export const OPEN_STAGE_ORDER: readonly Stage[] = [
-  "qualify",
-  "discover",
-  "validate",
-  "propose",
-  "negotiate",
-];
-
-export function isStage(v: string): v is Stage {
-  return (STAGES as readonly string[]).includes(v);
+export function isStage(v: string, catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): v is Stage {
+  return catalog.some((s) => s.code === v);
 }
 
-export function isTerminal(stage: Stage): stage is TerminalStage {
-  return stage === "won" || stage === "lost";
+export function isTerminal(stage: Stage, catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): boolean {
+  return catalog.find((s) => s.code === stage)?.isTerminal ?? false;
+}
+
+/** Open stages in the workspace's own selling order, used for direction and
+ *  funnel analysis - was the static OPEN_STAGE_ORDER export. */
+export function openStageOrder(catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): readonly Stage[] {
+  return [...catalog]
+    .filter((s) => !s.isTerminal)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((s) => s.code);
+}
+
+/** Was the static DEFAULT_PROBABILITY[stage] lookup. */
+export function defaultProbabilityFor(stage: Stage, catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): number {
+  return catalog.find((s) => s.code === stage)?.defaultProbability ?? 0;
 }
 
 /**
@@ -71,8 +78,11 @@ export function isTerminal(stage: Stage): stage is TerminalStage {
  * exactly the default reads as "not overridden" - and the audit trail of who
  * changed it lives in opportunity_stage_event.reason either way.
  */
-export function isProbabilityOverridden(opp: Pick<OpportunitySnapshot, "stage" | "probability">): boolean {
-  return opp.probability != null && opp.probability !== DEFAULT_PROBABILITY[opp.stage];
+export function isProbabilityOverridden(
+  opp: Pick<OpportunitySnapshot, "stage" | "probability">,
+  catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
+): boolean {
+  return opp.probability != null && opp.probability !== defaultProbabilityFor(opp.stage, catalog);
 }
 
 export interface OpportunitySnapshot {
@@ -145,11 +155,12 @@ export interface StageChangePlan {
 export function planStageChange(
   current: OpportunitySnapshot,
   input: StageChangeInput,
+  catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
 ): RuleResult<StageChangePlan> {
   const occurredAt = input.occurredAt ?? new Date();
   const checks: Array<Violation | null> = [];
 
-  if (!isStage(input.to)) {
+  if (!isStage(input.to, catalog)) {
     return fail(violation("unknown_stage", `${String(input.to)} is not a stage`, "stage"));
   }
 
@@ -162,7 +173,7 @@ export function planStageChange(
     );
   }
 
-  if (isTerminal(current.stage) && !input.reopen) {
+  if (isTerminal(current.stage, catalog) && !input.reopen) {
     checks.push(
       violation(
         "terminal_stage",
@@ -177,7 +188,7 @@ export function planStageChange(
   if (input.reopen && !input.reason?.trim()) {
     checks.push(violation("reason_required", "reopening a closed opportunity requires a reason", "reason"));
   }
-  if (!input.reopen && isRegression(current.stage, input.to) && !input.reason?.trim()) {
+  if (!input.reopen && isRegression(current.stage, input.to, catalog) && !input.reason?.trim()) {
     checks.push(
       violation("reason_required", `moving back from ${current.stage} to ${input.to} requires a reason`, "reason"),
     );
@@ -188,14 +199,14 @@ export function planStageChange(
 
   const patch: OpportunityPatch = {
     stage: input.to,
-    status: statusFor(input.to),
+    status: statusFor(input.to, catalog),
     // Entering a terminal stage stamps the close; leaving one clears it, because
     // a reopened deal that keeps its old closed_at lands in a closed period it
     // is no longer part of.
-    closedAt: isTerminal(input.to) ? occurredAt : null,
+    closedAt: isTerminal(input.to, catalog) ? occurredAt : null,
   };
 
-  const nextProbability = applyProbability(current, input.to);
+  const nextProbability = applyProbability(current, input.to, catalog);
   if (nextProbability != null) patch.probability = nextProbability;
 
   // Entering a terminal stage books the deal; leaving one puts it back in the
@@ -203,8 +214,8 @@ export function planStageChange(
   // at before. A reopened deal has to earn `commit` again - restoring it
   // silently would let a closed-then-reopened deal keep a commitment nobody
   // re-made.
-  if (isTerminal(input.to)) patch.forecastCategory = "closed";
-  else if (isTerminal(current.stage)) patch.forecastCategory = "pipeline";
+  if (isTerminal(input.to, catalog)) patch.forecastCategory = "closed";
+  else if (isTerminal(current.stage, catalog)) patch.forecastCategory = "pipeline";
 
   return allOf(
     {
@@ -218,16 +229,17 @@ export function planStageChange(
       patch,
       // One review per opportunity (unique on opportunity_id). Reopening and
       // re-closing therefore updates the existing review rather than adding one.
-      requiresWinLossReview: isTerminal(input.to) && !current.hasWinLossReview,
+      requiresWinLossReview: isTerminal(input.to, catalog) && !current.hasWinLossReview,
     },
     [],
   );
 }
 
 /** Status implied by a stage. abandoned is a human decision, never inferred. */
-export function statusFor(stage: Stage): OpportunityStatus {
-  if (stage === "won") return "won";
-  if (stage === "lost") return "lost";
+export function statusFor(stage: Stage, catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): OpportunityStatus {
+  const row = catalog.find((s) => s.code === stage);
+  if (row?.isWon) return "won";
+  if (row?.isTerminal) return "lost";
   return "open";
 }
 
@@ -241,16 +253,18 @@ export function statusFor(stage: Stage): OpportunityStatus {
 export function applyProbability(
   current: Pick<OpportunitySnapshot, "stage" | "probability">,
   to: Stage,
+  catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
 ): number | null {
-  if (isTerminal(to)) return DEFAULT_PROBABILITY[to];
-  if (isProbabilityOverridden(current)) return null;
-  return DEFAULT_PROBABILITY[to];
+  if (isTerminal(to, catalog)) return defaultProbabilityFor(to, catalog);
+  if (isProbabilityOverridden(current, catalog)) return null;
+  return defaultProbabilityFor(to, catalog);
 }
 
-/** True when `to` is earlier in the selling order than `from`. */
-export function isRegression(from: Stage, to: Stage): boolean {
-  const a = OPEN_STAGE_ORDER.indexOf(from);
-  const b = OPEN_STAGE_ORDER.indexOf(to);
+/** True when `to` is earlier in the workspace's own selling order than `from`. */
+export function isRegression(from: Stage, to: Stage, catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS): boolean {
+  const order = openStageOrder(catalog);
+  const a = order.indexOf(from);
+  const b = order.indexOf(to);
   if (a === -1 || b === -1) return false; // terminal stages are not on the line
   return b < a;
 }
@@ -263,15 +277,16 @@ export function isRegression(from: Stage, to: Stage): boolean {
 export function planProbabilityOverride(
   current: OpportunitySnapshot,
   probability: number,
+  catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
 ): RuleResult<{ probability: number }> {
   if (!Number.isInteger(probability) || probability < 0 || probability > 100) {
     return fail(violation("probability_range", "probability must be an integer 0-100", "probability"));
   }
-  if (isTerminal(current.stage)) {
+  if (isTerminal(current.stage, catalog)) {
     return fail(
       violation(
         "terminal_probability_fixed",
-        `a ${current.stage} opportunity is fixed at ${DEFAULT_PROBABILITY[current.stage]}%`,
+        `a ${current.stage} opportunity is fixed at ${defaultProbabilityFor(current.stage, catalog)}%`,
         "probability",
       ),
     );

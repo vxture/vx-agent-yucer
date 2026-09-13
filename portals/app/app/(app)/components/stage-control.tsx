@@ -11,13 +11,14 @@ import {
   Textarea,
 } from "@vxture/design-ui";
 import {
-  DEFAULT_PROBABILITY,
-  OPEN_STAGE_ORDER,
-  STAGES,
+  DEFAULT_STAGE_DEFINITIONS,
+  defaultProbabilityFor,
+  openStageOrder,
   isRegression,
   isTerminal,
   isProbabilityOverridden,
   type Stage,
+  type StageDefinition,
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -40,6 +41,10 @@ export interface StageControlProps {
   readonly stage: Stage;
   readonly probability: number | null;
   readonly canAdvance: boolean;
+  /** The workspace's own stage catalog (incr/0057). Optional and defaulted
+   *  to the shipped seven so every caller keeps compiling unchanged until it
+   *  threads the real thing through - see stage.ts's own header. */
+  readonly stageDefinitions?: readonly StageDefinition[];
   readonly onAdvance: (
     opportunityId: string,
     input: { to: string; reason?: string; reopen?: boolean },
@@ -56,10 +61,11 @@ export function StageControl({
   stage,
   probability,
   canAdvance,
+  stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
   onAdvance,
 }: StageControlProps) {
   const { OPPORTUNITY_ERROR, OPPORTUNITY_TEXT, STAGE_LABEL } = useMessages();
-  const closed = isTerminal(stage);
+  const closed = isTerminal(stage, stageDefinitions);
   const [reopen, setReopen] = useState(false);
   const [to, setTo] = useState<Stage | "">("");
   const [reason, setReason] = useState("");
@@ -84,14 +90,14 @@ export function StageControl({
   // An open deal may go anywhere except where it already is.
   const choices: Stage[] = closed
     ? reopen
-      ? [...OPEN_STAGE_ORDER]
+      ? [...openStageOrder(stageDefinitions)]
       : []
-    : STAGES.filter((s) => s !== stage);
+    : stageDefinitions.map((s) => s.code).filter((s) => s !== stage);
 
-  const regression = to !== "" && !closed && isRegression(stage, to);
+  const regression = to !== "" && !closed && isRegression(stage, to, stageDefinitions);
   const reasonRequired = regression || (closed && reopen);
-  const terminalTarget = to !== "" && isTerminal(to);
-  const overridden = isProbabilityOverridden({ stage, probability });
+  const terminalTarget = to !== "" && isTerminal(to, stageDefinitions);
+  const overridden = isProbabilityOverridden({ stage, probability }, stageDefinitions);
 
   function submit() {
     if (to === "") return;
@@ -159,7 +165,7 @@ export function StageControl({
             <option value="">-</option>
             {choices.map((s) => (
               <option key={s} value={s}>
-                {STAGE_LABEL[s]} ({DEFAULT_PROBABILITY[s]}%)
+                {(STAGE_LABEL as Record<string, string>)[s] ?? s} ({defaultProbabilityFor(s, stageDefinitions)}%)
               </option>
             ))}
           </NativeSelect>
