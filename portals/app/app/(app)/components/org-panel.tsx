@@ -92,6 +92,10 @@ export interface OrgUnitRow {
   readonly leaderName: string | null;
   /** Members placed HERE, not counting the units under it. */
   readonly members: number;
+  /** `members` plus every descendant unit's, recursively (owner, 2026-09-13:
+   *  成员数统计只统计了直属人员，没有汇集下属部门人员，这个应该是递归的) -
+   *  the roster a leader stationed here actually manages. */
+  readonly totalMembers: number;
   readonly depth: number;
   readonly children: number;
   /** The territories this unit's own SUBTREE works (0052), with the 大区
@@ -112,15 +116,15 @@ export interface OrgUnitRow {
 }
 
 /** 圈数字 (owner, 2026-09-11: 第一个关联区域名称后面圈数字显示总数量，如果
- *  超过1个显示数字) - a neutral count next to the FIRST territory's name,
- *  shown only once there is more than one. NOT `./count-badge.tsx`: that
- *  element is deliberately alert-red for a notification corner mark
- *  (TD-006, 太大/颜色没有警示效果) - a "how many regions" count is
- *  information, not a warning, so reusing its colour would misapply the
- *  exact distinction that component's own comment draws. Same TD-006
- *  shape (a circle at one digit, growing to a pill past two) on neutral
- *  DS tokens instead. */
-function TerritoryCount({ count }: { readonly count: number }) {
+ *  超过1个显示数字) - first used next to the FIRST territory's name, shown
+ *  only once there is more than one; now also the 成员数 column's 直属人数
+ *  (owner, 2026-09-13: 圆圈{直属人数}). NOT `./count-badge.tsx`: that element
+ *  is deliberately alert-red for a notification corner mark (TD-006, 太大/
+ *  颜色没有警示效果) - a plain count is information, not a warning, so
+ *  reusing its colour would misapply the exact distinction that component's
+ *  own comment draws. Same TD-006 shape (a circle at one digit, growing to a
+ *  pill past two) on neutral DS tokens instead. */
+function CountCircle({ count }: { readonly count: number }) {
   return (
     <span className="bg-muted text-muted-foreground inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full px-[0.1875rem] text-[0.625rem] font-semibold leading-none tabular-nums">
       {count}
@@ -470,9 +474,16 @@ export function OrgPanel({
                   <span className="text-muted-foreground text-body-sm">
                     {r.leaderName ?? ORG_TEXT.leaderNone}
                   </span>
-                  <span className="text-muted-foreground text-body-sm tabular-nums">
-                    {r.members === 0 ? ORG_TEXT.noMember : ORG_TEXT.members(r.members)}
-                  </span>
+                  {/* 圆圈{直属人数}, tag {icon 总人数} - same reading as the
+                      list view's own 成员数 column, see its comment there. */}
+                  {r.totalMembers === 0 ? (
+                    <span className="text-muted-foreground text-body-sm">{ORG_TEXT.noMember}</span>
+                  ) : (
+                    <span className="gap-2xs inline-flex items-center" title={ORG_TEXT.directMembersTooltip(r.members)}>
+                      <CountCircle count={r.members} />
+                      <Tag icon="users">{r.totalMembers}</Tag>
+                    </span>
+                  )}
                   {r.children > 0 ? <Tag>{ORG_TEXT.childCount(r.children)}</Tag> : null}
                 </div>
               }
@@ -585,11 +596,37 @@ export function OrgPanel({
                   r.leaderName ? <span className="text-body-md">{r.leaderName}</span> : <span className="text-muted-foreground text-body-sm">{ORG_TEXT.leaderNone}</span>,
               },
               {
+                /* 圆圈{直属人数}, tag {icon 总人数} (owner, 2026-09-13: 成员数
+                   统计只统计了直属人员，没有汇集下属部门人员，这个应该是
+                   递归的) - the circle is who sits here directly, the icon
+                   tag beside it is the whole subtree's, so a leader's row
+                   reads both "how many report to me here" and "how many do
+                   I actually manage" without the two being confused for one
+                   number. A unit nobody is in anywhere below it is a fact
+                   worth seeing, not a zero - unchanged from before. */
                 id: "members",
                 header: ORG_TEXT.colMembers,
-                // A unit nobody is in is a fact worth seeing, not a zero.
                 cell: (r: OrgUnitRow) =>
-                  r.members === 0 ? <Tag>{ORG_TEXT.noMember}</Tag> : <span className="tabular-nums">{ORG_TEXT.members(r.members)}</span>,
+                  r.totalMembers === 0 ? (
+                    <Tag>{ORG_TEXT.noMember}</Tag>
+                  ) : (
+                    <span className="gap-2xs inline-flex items-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span><CountCircle count={r.members} /></span>
+                        </TooltipTrigger>
+                        <TooltipContent>{ORG_TEXT.directMembersTooltip(r.members)}</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Tag icon="users">{r.totalMembers}</Tag>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{ORG_TEXT.totalMembersTooltip(r.totalMembers)}</TooltipContent>
+                      </Tooltip>
+                    </span>
+                  ),
               },
               {
                 /* 区域 (0052): the FIRST territory's own coverage NAME
@@ -626,7 +663,7 @@ export function OrgPanel({
                       <TooltipTrigger asChild>
                         <span className="gap-2xs inline-flex items-center">
                           <Tag tone={tone}>{firstLabel}</Tag>
-                          {r.territories.length > 1 ? <TerritoryCount count={r.territories.length} /> : null}
+                          {r.territories.length > 1 ? <CountCircle count={r.territories.length} /> : null}
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>{label}</TooltipContent>
@@ -708,7 +745,14 @@ export function OrgPanel({
                   <li key={c.id} className="gap-xs flex items-center">
                     <span className="text-body-md">{c.name}</span>
                     {c.kindName ? <Tag>{c.kindName}</Tag> : null}
-                    <span className="text-muted-foreground text-body-sm">{ORG_TEXT.members(c.members)}</span>
+                    {/* totalMembers, not members - the same 递归 fix as the
+                        list/cards views' own 成员数, just without room here
+                        for the circle+tag pair; the title attr carries the
+                        same "includes units below" note the tag's tooltip
+                        gives elsewhere. */}
+                    <span className="text-muted-foreground text-body-sm" title={ORG_TEXT.totalMembersTooltip(c.totalMembers)}>
+                      {ORG_TEXT.members(c.totalMembers)}
+                    </span>
                   </li>
                 ))}
               </ul>

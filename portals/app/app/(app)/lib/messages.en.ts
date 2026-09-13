@@ -1457,6 +1457,8 @@ export const en: Dictionary = {
     leaderNone: "Not set",
     noMember: "No members",
     members: (n: number) => `${n}`,
+    directMembersTooltip: (n: number) => `${n} direct`,
+    totalMembersTooltip: (n: number) => `${n} including units below`,
     optionIndent: (depth: number, name: string) => `${"\u00a0\u00a0".repeat(depth)}${depth > 0 ? "- " : ""}${name}`,
     detailsTitle: (name: string) => `${name} · unit details`,
     detailsWhy: (kind: string, leader: string) => `${kind} · leader ${leader}`,

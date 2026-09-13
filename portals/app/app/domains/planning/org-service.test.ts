@@ -154,6 +154,33 @@ test("a member is in several units (0053); the set replaces; none is allowed; an
   assert.equal(code(await setMemberUnits(ctx("sales_rep", c.store as InMemoryPlanningStore), { sub: "usr_a", unitIds: [a.id] })), "permission_denied");
 });
 
+test("totalMembers rolls up the whole subtree; members stays direct-only (owner, 2026-09-13: 成员数统计只统计了直属人员，没有汇集下属部门人员，这个应该是递归的)", async () => {
+  const c = ctx("sales_leader");
+  const units = unwrap(await listOrgUnits(c));
+  const hq = units.find((u) => u.parentId === null)!;
+  const north = units.find((u) => u.unitCode === "north")!;
+  const northTeam = units.find((u) => u.unitCode === "north_team1")!;
+  const south = units.find((u) => u.unitCode === "south")!;
+  // One at the team (deepest), one at the region directly, one at HQ.
+  unwrap(await setMemberUnits(c, { sub: "usr_team", unitIds: [northTeam.id] }));
+  unwrap(await setMemberUnits(c, { sub: "usr_region", unitIds: [north.id] }));
+  unwrap(await setMemberUnits(c, { sub: "usr_hq", unitIds: [hq.id] }));
+
+  const now = new Map(unwrap(await listOrgUnits(c)).map((u) => [u.id, u]));
+  // Direct is unchanged - each unit sees only who is placed AT it.
+  assert.deepEqual(
+    [now.get(northTeam.id)!.members, now.get(north.id)!.members, now.get(hq.id)!.members, now.get(south.id)!.members],
+    [1, 1, 1, 0],
+  );
+  // Total climbs the chain: the team's own 1, plus the region's own 1 (the
+  // team's total), plus HQ's own 1 (every 大区's total, north's included) -
+  // and a sibling 大区 with nobody under it stays 0, not HQ's total.
+  assert.deepEqual(
+    [now.get(northTeam.id)!.totalMembers, now.get(north.id)!.totalMembers, now.get(hq.id)!.totalMembers, now.get(south.id)!.totalMembers],
+    [1, 2, 3, 0],
+  );
+});
+
 // --- Templates ----------------------------------------------------------------
 
 test("applying a template replaces the tree and reports the un-placed", async () => {
