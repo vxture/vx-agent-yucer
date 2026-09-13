@@ -32,6 +32,7 @@ import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, 
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { orgUnitIcon } from "../lib/org-unit-icon";
+import { collapseFromDepth, depthLevels } from "../lib/tree-expand";
 import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
 import { Tag } from "./tag";
 
@@ -58,6 +59,19 @@ import { Tag } from "./tag";
  * which is exactly what `BulkActionBar` is for (the shape /admin/members'
  * 组织 tab already uses for its own bulk actions), so it renders separately
  * once something is checked, with its own two-step confirm.
+ *
+ * 展开到 Ln (owner, 2026-09-12: 参考权限策略表头，展开到【模块】【页面】模式，
+ * 对树状表优化展开/收起；有多少层就要展开到多少层，后面层级不能没有) replaced
+ * the plain 全部展开/全部收起 pair with one button per depth actually present
+ * - EVERY depth any row reaches, leaf tiers included (`tree-expand.ts`'s
+ * `depthLevels`), not only the ones with something to fold
+ * (`collapseFromDepth`, generalised from permission-tree.ts's `keysDownTo` -
+ * an org tree's depth is a plain number, not a fixed four-rank enum). The
+ * deepest depth offered already folds nothing, so it doubles as 全部展开
+ * without a separate button - the same shape permission-tree.ts's own
+ * deepest rank ("action", never itself foldable) has. Shared with 组织管理's
+ * tree so the two admin surfaces expand the same way, not two hand-rolled
+ * versions of it.
  *
  * 单位详情 answers the question 成员管理 could not: who is in 华南分公司. It
  * is a drawer, view-only; 编辑 in its foot goes to the one form.
@@ -217,7 +231,12 @@ export function OrgPanel({
       else next.add(id);
       return next;
     });
-  const branches = useMemo(() => rows.filter((r) => r.children > 0).map((r) => r.id), [rows]);
+  const branches = useMemo(() => rows.filter((r) => r.children > 0), [rows]);
+  /* EVERY DEPTH, not just the ones that branch (owner, 2026-09-12: 应该有
+     多少层就要展开到多少层，后面层级不能没有) - a leaf tier (a team with no
+     units of its own) still needs its own "展开到" button, or the deepest
+     rows in the tree could never be reached through this control at all. */
+  const levels = useMemo(() => depthLevels(rows), [rows]);
 
   /* A move lands among siblings, so the position the menu greys on is the
      position among them, not the row's place in the flattened list. */
@@ -365,10 +384,19 @@ export function OrgPanel({
             setSelected([]);
           }}
           scope={
-            <ButtonGroup>
-              <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set()); pagination.resetPage(); }}>{ORG_TEXT.expandAll}</Button>
-              <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches)); pagination.resetPage(); }}>{ORG_TEXT.collapseAll}</Button>
-            </ButtonGroup>
+            <span className="gap-sm flex items-center">
+              <span className="text-muted-foreground text-body-sm">{ORG_TEXT.expandTo}</span>
+              <ButtonGroup>
+                {levels.map((lvl) => (
+                  <Button key={lvl} variant="secondary" size="sm" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
+                    {ORG_TEXT.levelLabel(lvl)}
+                  </Button>
+                ))}
+                <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
+                  {ORG_TEXT.collapseAll}
+                </Button>
+              </ButtonGroup>
+            </span>
           }
           search={
             <SearchSlot>

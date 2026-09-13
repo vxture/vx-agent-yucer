@@ -68,6 +68,10 @@ export type NavIcon =
   // rather than eight settings cogs.
   | "tree-structure"
   | "users"
+  // 角色管理 uses "medal", not "role" (TD-027, docs/60-operations/00-index.md):
+  // the DS's icon table has `role` pointing at the same `UsersIcon` as
+  // `users` above, so the two nav items drew one glyph under two names.
+  | "medal"
   | "role"
   | "key"
   | "eye"

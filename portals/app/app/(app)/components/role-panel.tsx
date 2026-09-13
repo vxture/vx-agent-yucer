@@ -373,7 +373,9 @@ export function RolePanel({
                    description. THE NAME OPENS 权限详情 (owner, 2026-09-09: 点击
                    角色名改为抽屉查看权限), for every reader - a role's name
                    is a question about what it may do. Editing is the row
-                   menu's 配置, and only for those who may. */
+                   menu's 配置, and only for those who may. icon="medal", not
+                   "role" - TD-027, the same DS icon-table alias this page's
+                   own nav item and ViewHeader work around. */
                 id: "name",
                 header: ROLE_TEXT.colRole,
                 cell: (r: RoleRow) => (
@@ -383,7 +385,7 @@ export function RolePanel({
                     aria-label={ROLE_TEXT.detailsTitle(r.name)}
                     onClick={() => setDetails(r)}
                   >
-                    <TableTitleCell title={r.name} description={r.code} tooltip={r.name} />
+                    <TableTitleCell icon="medal" title={r.name} description={r.code} tooltip={r.name} />
                   </button>
                 ),
               },

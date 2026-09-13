@@ -25,8 +25,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, PaginationFooter, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
-import { UNPLACED_ROW_ID, branchIds, flattenOrgView, personRowId, unitOptions, type OrgView, type OrgViewPerson, type OrgViewRow } from "../lib/member-org-view";
+import { UNPLACED_ROW_ID, branchNodes, flattenOrgView, personRowId, unitOptions, type OrgView, type OrgViewPerson, type OrgViewRow } from "../lib/member-org-view";
 import { orgUnitIcon } from "../lib/org-unit-icon";
+import { collapseFromDepth, depthLevels } from "../lib/tree-expand";
 import { addMemberToUnits, bulkPlaceMembers, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
 import { MemberViewSwitch, type MemberView } from "./member-view-switch";
 import { Tag } from "./tag";
@@ -119,7 +120,14 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
      的概率压低：这是树形表的已知局部妥协，见 plan 的"不做"一节。 */
   const pagination = useListPagination(rows, 50);
   const inactivePagination = useListPagination(inactiveRows, 50);
-  const branches = useMemo(() => branchIds(view), [view]);
+  const branches = useMemo(() => branchNodes(view), [view]);
+  /* EVERY DEPTH, not just the ones that branch (owner, 2026-09-12: 应该有
+     多少层就要展开到多少层，后面层级不能没有) - a leaf tier (a team with no
+     units of its own, or the people under any unit, always one level
+     deeper than it) still needs its own "展开到" button. Read off the tree
+     FULLY expanded, not the current `rows` - the button list must not
+     shrink just because something is folded right now. */
+  const levels = useMemo(() => depthLevels(flattenOrgView(view, new Set())), [view]);
   const units = useMemo(() => unitOptions(view), [view]);
   const unitName = (id: string | null) => (id === null ? MEMBER_TEXT.orgUnplaced : (units.find((u) => u.id === id)?.name ?? id));
   const toggle = (id: string) =>
@@ -364,18 +372,29 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
 
   return (
     <div className="gap-md flex flex-col">
-      {/* THE TOOLBAR (point 5): the switch at the left end, the actions at the right. */}
+      {/* THE TOOLBAR (point 5, revised 2026-09-12): the switch and 展开到
+          both belong to "这张表长什么样" - a view-state cluster, not a
+          command - so both sit at the left end, the same side org-panel.tsx's
+          FilterBar keeps its own `scope`; 添加成员, the one thing here that
+          DOES something, stands alone at the right. */}
       <div className="gap-sm flex items-center justify-between">
-        <MemberViewSwitch value={viewValue} onChange={onViewChange} ariaLabel={MEMBER_TEXT.viewAria} labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }} />
         <div className="gap-sm flex items-center">
+          <MemberViewSwitch value={viewValue} onChange={onViewChange} ariaLabel={MEMBER_TEXT.viewAria} labels={{ list: MEMBER_TEXT.viewList, org: MEMBER_TEXT.viewOrg }} />
+          <span className="text-muted-foreground text-body-sm">{MEMBER_TEXT.orgExpandTo}</span>
           <ButtonGroup>
-            <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set()); pagination.resetPage(); }}>{MEMBER_TEXT.orgExpandAll}</Button>
-            <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches)); pagination.resetPage(); }}>{MEMBER_TEXT.orgCollapseAll}</Button>
+            {levels.map((lvl) => (
+              <Button key={lvl} variant="secondary" size="sm" onClick={() => { setCollapsed(collapseFromDepth(branches, lvl)); pagination.resetPage(); }}>
+                {MEMBER_TEXT.orgLevelLabel(lvl)}
+              </Button>
+            ))}
+            <Button variant="secondary" size="sm" onClick={() => { setCollapsed(new Set(branches.map((b) => b.id))); pagination.resetPage(); }}>
+              {MEMBER_TEXT.orgCollapseAll}
+            </Button>
           </ButtonGroup>
-          {canManage ? (
-            <Button size="sm" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
-          ) : null}
         </div>
+        {canManage ? (
+          <Button size="sm" onClick={() => open({ kind: "place", unitId: units[0]?.id ?? null, mode: "add", unitName: "" })}>{MEMBER_TEXT.orgAdd}</Button>
+        ) : null}
       </div>
       {canManage ? (
         <BulkActionBar

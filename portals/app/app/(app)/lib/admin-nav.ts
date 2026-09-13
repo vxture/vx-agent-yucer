@@ -70,7 +70,11 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          DDL (incr/0021), mirrored in authz/catalog.ts, and changing one means
          changing the seed, the mirror and the catalogue doc together. A page
          that offered a checkbox would be lying about what it can do. */
-      { key: "roles", href: "/admin/roles", icon: "role", action: "admin.member.view" },
+      // icon: "medal", not "role" - TD-027 (docs/60-operations/00-index.md):
+      // the DS's own icon table has `role` pointing at the same UsersIcon as
+      // `users`, so 组织管理 and 角色管理 drew the identical glyph under two
+      // different names. Revert to "role" once the DS gives it a real one.
+      { key: "roles", href: "/admin/roles", icon: "medal", action: "admin.member.view" },
       { key: "permissions", href: "/admin/permissions", icon: "key", action: "admin.member.view" },
       { key: "scope", href: "/admin/scope", icon: "eye", action: "admin.member.view" },
     ],

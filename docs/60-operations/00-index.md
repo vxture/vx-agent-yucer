@@ -36,6 +36,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
+| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `medal`；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1699,4 +1700,30 @@ fixed 布局下可用；届时删掉这六处包装即可。已作为 DS 请求�
 行高照旧由字号 token 决定。本仓无可观测缺陷（每行走同一个 token，所以行与行仍然
 齐平），不另开 TD，记在这里是因为它与本条是同一个毛病：**DS 的文档说「固定」，
 代码发的是 `min-*`**。看到 d.ts 写「固定」时要去量，不要信。
+
+### TD-027 - DS 图标表里 `role` 是 `UsersIcon` 的别名，跟 `users` 撞成同一个图标
+
+2026-09-12，owner 发现导航里"组织管理"（`users`）和"角色管理"（`role`）两个不同
+的图标名，画出来是同一个人形轮廓 —— 两个名字，一份视觉身份，读者分不清点进去是
+哪一个。追到 `@vxture/design-ui` 的图标注册表（`dist/chunk-VNPOYRXT.mjs`）：
+
+```
+user: UserIcon,
+role: UsersIcon,
+buildings: BuildingsIcon,
+users: UsersIcon,
+medal: MedalIcon,
+```
+
+`role` 从未拿到自己的 SVG，直接钉死指向 `UsersIcon` —— 跟 `users` 逐字节同一个
+`<path>`。这不是本仓哪处传错了名字，两个键就是在注册表里各自都合法，只是背后
+共用了一份图形。
+
+**缺失元素**：`role`（或"角色/身份"这一类概念）自己的一枚图形，不与
+`users`/`user` 共用。**垫片位置**：三处换成已有且视觉独立的 `medal`（勋章/
+职级底座，`role-groups-config.tsx` 的职级词表页已经在用同一枚，语义上本就
+挨着"角色") —— `admin-nav.ts` 的 `roles` 导航项、`/admin/roles` 系列四个页面的
+`ViewHeader`、`role-panel.tsx` 表格里角色名称的 `TableTitleCell`，一次改全，
+不留一处仍指 `role` 的旧值（旧值本身没有坏，只是跟 `users` 是同一张脸）。
+**收回条件**：DS 给 `role` 一份自己的 SVG 后，把这三处换回 `icon="role"`。
 

@@ -1454,7 +1454,11 @@ export const MEMBER_TEXT = {
   orgUnplaced: "未归属单位",
   orgUnplacedWhy: "还没有归入任何单位的成员。到成员配置里勾选单位。",
   // 组织视图是树状表，各单位行内可添加、移出成员（owner 2026-09-10）。
-  orgExpandAll: "全部展开",
+  // 展开到 Ln (owner, 2026-09-12: 参考权限策略的展开到【模块】【页面】模式) -
+  // 全部展开/全部收起两个按钮换成按层级展开，深度不是固定几档，所以是函数
+  // 不是词表，见 org-unit-icon.ts 同一批改动的 ORG_TEXT.levelLabel。
+  orgExpandTo: "展开到",
+  orgLevelLabel: (depth: number) => `L${depth}`,
   orgCollapseAll: "全部收起",
   orgColUnit: "单位",
   orgColMembers: "成员",
@@ -2782,7 +2786,12 @@ export const ORG_TEXT = {
   // 三方接入 (owner, 2026-09-11): 头部第三个按钮，先占位，禁用。
   thirdParty: "三方接入",
   thirdPartyHint: "即将推出",
-  expandAll: "全部展开",
+  // 展开到 Ln (owner, 2026-09-12: 参考权限策略的展开到【模块】【页面】模式) -
+  // 全部展开/全部收起两个按钮换成按层级展开；Ln 是 depth 不是固定四档
+  // （同一条注释见上面 colTier），所以是函数不是词表。最深一档本身就相当于
+  // 全部展开（再深也没有分支了），不用再留一个单独的全部展开按钮。
+  expandTo: "展开到",
+  levelLabel: (depth: number) => `L${depth}`,
   collapseAll: "全部收起",
   childCount: (n: number) => `${n} 个下级`,
   // 工具行 (owner, 2026-09-11: 增加表格头，list/card 模式切换，共xx个机构):

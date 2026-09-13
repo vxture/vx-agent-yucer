@@ -45,7 +45,7 @@ export default async function RoleGroupsPage() {
         current={ROLE_GROUP_TEXT.pageTitle}
       />
       <ViewHeader
-        icon="role"
+        icon="medal"
         title={ROLE_GROUP_TEXT.pageTitle}
         description={ROLE_GROUP_TEXT.pageWhy}
         secondary={<Tag>{ROLE_GROUP_TEXT.count(lineRows.length, rankRows.length)}</Tag>}
