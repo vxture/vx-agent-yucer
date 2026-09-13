@@ -79,6 +79,12 @@ export const PERM_CODES = [
   // for every other rep's pipeline too. Granted to the same roles that already
   // hold pipeline.forecast.
   "pipeline.stage",
+  // --- deal-type catalog authority (incr/0061) ------------------------------
+  // A dedicated code, added the same way pipeline.stage was, but granted far
+  // more broadly: classifying a deal's TYPE is closer to owning the deal than
+  // to redefining a workspace-wide policy, so it rides with pipeline.write's
+  // own role list rather than pipeline.forecast's.
+  "pipeline.dealType",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -146,6 +152,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "delivery.read",
@@ -186,6 +193,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -261,6 +269,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "delivery.read",
@@ -289,6 +298,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "pipeline.discount",
@@ -352,6 +362,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "delivery.read",
@@ -371,6 +382,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "pipeline.discount",
@@ -393,6 +405,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.read",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -406,6 +419,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.read",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -469,6 +483,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -520,6 +535,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "pipeline.discount",
@@ -540,6 +556,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "pipeline.forecast",
     "pipeline.stage",
     "pipeline.discount",
@@ -560,6 +577,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.read",
     "pipeline.read",
     "pipeline.write",
+    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",

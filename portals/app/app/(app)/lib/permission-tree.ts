@@ -146,6 +146,9 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   // module, because it is a facet of the pipeline a tenant edits, not a
   // separate nav destination the way 赢丢复盘 (winLossReview) is.
   "pipeline/stage": { group: "position", module: "pipeline", page: "pipeline.stage" },
+  // incr/0060-0061: the same reasoning as pipeline/stage - a facet of the
+  // pipeline module's own configuration, not a separate nav destination.
+  "pipeline/dealtype": { group: "position", module: "pipeline", page: "pipeline.dealtype" },
 
   "delivery/project": { group: "settlement", module: "delivery", page: "delivery.project" },
   "delivery/milestone": { group: "settlement", module: "delivery", page: "delivery.milestone" },

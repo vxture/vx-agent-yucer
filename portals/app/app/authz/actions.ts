@@ -380,6 +380,24 @@ export const ACTIONS = {
     permission: "pipeline.stage",
     writes: true,
   },
+  // 商机类型 (incr/0060-0061). Viewing the catalog is pipeline.read, same
+  // shape as pipeline.stage.view. Not a new feature key: the type catalog is
+  // configuration behind the existing pipeline.manage key.
+  "pipeline.dealtype.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
+  // Rename/reorder/add/remove a deal type. Dedicated pipeline.dealType
+  // permission - see incr/0061's own note on why it is granted more broadly
+  // than pipeline.stage.manage.
+  "pipeline.dealtype.manage": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.dealType",
+    writes: true,
+  },
 
   // --- D7 delivery ---------------------------------------------------------
   "delivery.project.view": {

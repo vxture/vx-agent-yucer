@@ -108,6 +108,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   product: "产品配置",
   winLossReason: "赢丢原因",
   stage: "商机阶段",
+  dealtype: "商机类型",
   industry: "行业分类",
   forecastThreshold: "预测阈值",
   ageingPolicy: "账龄分档",
@@ -1163,6 +1164,17 @@ export const STAGE_ERROR: Record<string, string> = {
   not_found: "找不到这个阶段，可能刚被删掉，刷新后重试",
 };
 
+/** 商机类型目录的写入回执 (incr/0060-0061)。 */
+export const DEAL_TYPE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "类型代码不能为空",
+  name_required: "类型名称不能为空",
+  deal_type_in_use: "还有商机归在这个类型下，先把它们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个类型，可能刚被删掉，刷新后重试",
+};
+
 /** 预测阈值的回执 (0041)。 */
 export const FORECAST_PARAM_ERROR: Record<string, string> = {
   ...GATE_ERROR,
@@ -1365,6 +1377,7 @@ export const PERMISSION_LABEL: Record<string, string> = {
   "pipeline.forecast": "提交预测快照",
   "pipeline.discount": "批准低于底价的报价",
   "pipeline.stage": "维护商机阶段目录——改名、排序、默认赢率、增删阶段",
+  "pipeline.dealType": "维护商机类型目录——改名、排序、增删类型",
   "delivery.read": "查看交付项目",
   "delivery.write": "编辑里程碑、任务与回款计划",
   "copilot.use": "使用销售助手——发起会话与提问",
@@ -2019,6 +2032,7 @@ export const ADMIN_TEXT = {
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
     stage: "商机推进经过的阶段，改名/排序/默认赢率/增删",
+    dealtype: "商机的分类——新签/续费/增购/项目型/产品型",
     industry: "客户按行业归档，一处改，处处改",
     forecastThreshold: "承诺、最好情况从多少概率起算",
     ageingPolicy: "逾期多少天算一档",
@@ -4736,6 +4750,22 @@ export const STAGE_CONFIG_TEXT = {
   probabilityFixedHint: "赢单/终态阶段的默认赢率由系统固定，不可编辑。",
 } as const;
 
+/** 商机类型目录的配置面 (incr/0060-0061)。 */
+export const DEAL_TYPE_TEXT = {
+  noun: "类型",
+  title: "商机类型",
+  count: (n: number) => `${n} 个类型`,
+  why: "商机的分类——新签/续费/增购/项目型/产品型，可改名、调顺序、增删。",
+  add: "新建类型",
+  save: "保存",
+  codeLabel: "类型代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  nameLabel: "类型名称",
+  colName: "类型",
+  colFiled: "商机数",
+  deleteConsequence: "该类型将从商机类型目录中移除。归在它下面的商机不受影响——有商机在用就删不掉。",
+} as const;
+
 /** incr/0027：唯一能写入采购角色的控件，它只存在于商机上。 */
 export const BUYING_ROLE_TEXT = {
   title: "这一单的采购角色",
@@ -5234,6 +5264,7 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.forecast": "销售预测",
     "pipeline.winloss": "赢丢复盘",
     "pipeline.stage": "阶段配置",
+    "pipeline.dealtype": "商机类型",
     "delivery.project": "交付项目",
     "delivery.milestone": "里程碑",
     "delivery.revenue": "回款",
@@ -5295,6 +5326,8 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.winloss.record": "记录赢丢复盘",
     "pipeline.stage.view": "查看阶段配置",
     "pipeline.stage.manage": "维护商机阶段",
+    "pipeline.dealtype.view": "查看商机类型",
+    "pipeline.dealtype.manage": "维护商机类型",
     "delivery.project.view": "查看交付项目",
     "delivery.project.upsert": "维护交付项目",
     "delivery.milestone.upsert": "维护里程碑",

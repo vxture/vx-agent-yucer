@@ -37,6 +37,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
     planId: null,
     campaignId: "camp_1",
     sourceProjectId: null,
+    dealTypeId: null,
     territoryId: "t_1",
     ownerSub: "usr_rep",
     stage: "discover",

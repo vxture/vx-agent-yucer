@@ -28,6 +28,7 @@ function deals(over: Partial<OpportunityRecord> = {}): InMemoryPipelineStore {
       planId: null,
       campaignId: null,
       sourceProjectId: null,
+      dealTypeId: null,
       territoryId: null,
       ownerSub: "usr_rep",
       stage: "discover",

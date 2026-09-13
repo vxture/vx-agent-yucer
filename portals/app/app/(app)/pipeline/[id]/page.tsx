@@ -28,6 +28,7 @@ import {
 } from "../../../domains/shared/registry";
 import {
   getOpportunityDetail,
+  listDealTypes,
   listStageDefinitions,
   stageHistory,
 } from "../../../domains/pipeline/service";
@@ -157,7 +158,7 @@ export default async function OpportunityDetailPage({
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows, stageRows] =
+  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows, stageRows, dealTypeRows] =
     await Promise.all([
       getAccountDetail(accountCtx, opportunity.accountId),
       // incr/0027. THIS PAGE IS A DEAL, so it asks the deal's question. It used
@@ -191,6 +192,7 @@ export default async function OpportunityDetailPage({
       listCatalogProducts(catalogCtx),
       listCatalogUnits(catalogCtx),
       listStageDefinitions(ctx),
+      listDealTypes(ctx),
     ]);
   const unitName = new Map(
     (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
@@ -200,6 +202,10 @@ export default async function OpportunityDetailPage({
   // who can view this deal already holds pipeline.read, and pipeline.stage.view
   // resolves to the same permission.
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
+  // incr/0060 - the workspace's own deal-type catalog, for the picker. Empty
+  // rather than defaulted on a gate refusal: unlike the stage catalog, an
+  // opportunity has no dealTypeId fallback that needs a matching row to exist.
+  const dealTypes = dealTypeRows.ok ? dealTypeRows.value : [];
   const plan =
     account.ok && account.value.account.tier === "strategic"
       ? await session.stores.account().getAccountPlan(
@@ -725,6 +731,16 @@ export default async function OpportunityDetailPage({
             session.authz,
             session.entitlement,
             "pipeline.forecast.categorize",
+            "ui",
+          ).allowed
+        }
+        dealTypeId={opportunity.dealTypeId}
+        dealTypes={dealTypes.map((t) => ({ id: t.id, name: t.name }))}
+        canSetDealType={
+          can(
+            session.authz,
+            session.entitlement,
+            "pipeline.dealtype.manage",
             "ui",
           ).allowed
         }

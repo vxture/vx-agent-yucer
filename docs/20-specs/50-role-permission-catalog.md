@@ -277,3 +277,30 @@ stage_definition`）；`incr/0058` 把 `opportunity.stage` 原来的固定 `CHEC
 
 **没有新增功能键。** 阶段目录是 `pipeline.manage` 这个既有键背后的配置面，和
 `pipeline.discount` 治理该键下的一个侧面而不单独成键是同一个理由——功能键冻结在 19。
+
+## 2026-09-13 增量 - 商机类型分轴（incr/0060-0061）
+
+**权限 26 → 27，授权 411 → 423。角色数不变，仍是 31。**
+
+`incr/0060` 建了一条全新的分类轴——`opportunity` 此前完全没有 type/kind/category 字
+段，五个预置值（新签/续费/增购/项目型/产品型，`yucer_pipeline.deal_type`）混合了两
+个维度：新签/续费/增购是商业动作，项目型/产品型是交付形态，与本产品别的词表同一种
+"一份摊平列表"的简化。`opportunity.deal_type_id` 可空，因为绝大多数历史商机没有类
+型，"没分类"是诚实的默认值而不是要填的错误。
+
+`incr/0061` 加的权限对，**添加方式跟 `pipeline.stage` 一样**（读复用 `pipeline.read`，
+写是新权限码），但**授予范围完全不同**：
+
+| 权限 | 是什么 | 授予 |
+|------|--------|------|
+| `pipeline.dealType.view`（读，权限码复用 `pipeline.read`） | 查看类型目录 | 与查看商机同一批人 |
+| `pipeline.dealType.manage`（写，新权限码 `pipeline.dealType`） | 改名/排序/增删类型 | 与 `pipeline.write` 完全相同的十二个角色，**包含 `sales_rep`** |
+
+**给 `pipeline.write` 的持有者，不是 `pipeline.forecast` 的。** 这是与 `pipeline.stage`
+刻意不同的一个判断：重新定义阶段目录改写了"赢单"对全团队漏斗的意思，是工作区级别的
+政策；给一笔商机分类是"新签还是续费""项目型还是产品型"，更接近**拥有这一单**本身的
+一部分，而不是重新定义一条团队规则。一线销售能推进自己的单（`pipeline.write`），也
+应该能说清这一单是什么类型——`sales_rep` 因此持有 `pipeline.dealType`，但不持有
+`pipeline.stage`。
+
+**没有新增功能键，理由与 `pipeline.stage` 相同。**

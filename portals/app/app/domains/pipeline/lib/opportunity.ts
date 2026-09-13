@@ -41,6 +41,10 @@ export interface NewOpportunityDraft {
    * answer for them rather than a null somebody has to remember to pass.
    */
   sourceProjectId?: string | null;
+  /** incr/0060 - 商机类型. Optional, like every other reference on this draft
+   *  the FK backstops rather than the rule layer: an unrecognised id fails at
+   *  the database, the same way an invented accountId or territoryId does. */
+  dealTypeId?: string | null;
 }
 
 export interface PlannedOpportunity extends NewOpportunityDraft {

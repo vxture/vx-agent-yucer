@@ -108,7 +108,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 26 permissions, 31 roles, 411 grants", () => {
+test("the catalog is the documented size: 27 permissions, 31 roles, 423 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -142,10 +142,17 @@ test("the catalog is the documented size: 26 permissions, 31 roles, 411 grants",
   // it is a workspace-wide policy act, the same shape as the pipeline.write /
   // pipeline.forecast split. Granted to the fourteen roles that already hold
   // pipeline.forecast - "commits a number upward" for the stage catalog too.
-  assert.equal(PERM_CODES.length, 26);
+  //
+  // 26 -> 27 and 411 -> 423 by incr/0061: pipeline.dealType. incr/0060 built
+  // 商机类型, a new classification axis with no prior column to migrate from.
+  // Added the same way pipeline.stage was (a dedicated code, not a reuse of
+  // pipeline.write) but granted far more broadly - the same twelve roles that
+  // hold pipeline.write - because classifying a deal's type is closer to
+  // owning the deal than to redefining a workspace-wide policy.
+  assert.equal(PERM_CODES.length, 27);
   assert.equal(ROLE_CODES.length, 31);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 411);
+  assert.equal(total, 423);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {
