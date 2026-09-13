@@ -211,200 +211,206 @@ export function RoleForm({
 
   return (
     <div className="@container">
-      <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        {/* LEFT - the controls, one under the other. */}
-        <Section title={ROLE_TEXT.formTitle}>
-          <div className="gap-lg flex flex-col *:max-w-(--vx-container-lg)">
-            <Field>
-              <FieldLabel>{ROLE_TEXT.code}</FieldLabel>
-              <Input
-                value={codeValue}
-                onChange={(e) => setCodeValue(e.target.value.toLowerCase())}
-                /* The anchor. Editable only while creating: every member
-                   link keys on it, and the column is locked (0046). */
-                disabled={!isNew || pending}
-              />
-              <FieldDescription>{isNew ? ROLE_TEXT.codeHint : ROLE_TEXT.codeLocked}</FieldDescription>
-            </Field>
+      {/* INDENTED TO THE TITLE TEXT, not the icon - the same 80px
+          (size-icon-2xl 48px + header gap-xl 32px) pricing-policy-config,
+          forecast-threshold-config and ageing-policy-config use, so this
+          form reads as belonging to the ViewHeader's title above it. */}
+      <div className="pl-20">
+        <div className="grid items-start gap-lg @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          {/* LEFT - the controls, one under the other. */}
+          <Section title={ROLE_TEXT.formTitle}>
+            <div className="gap-lg flex flex-col *:max-w-(--vx-container-lg)">
+              <Field>
+                <FieldLabel>{ROLE_TEXT.code}</FieldLabel>
+                <Input
+                  value={codeValue}
+                  onChange={(e) => setCodeValue(e.target.value.toLowerCase())}
+                  /* The anchor. Editable only while creating: every member
+                     link keys on it, and the column is locked (0046). */
+                  disabled={!isNew || pending}
+                />
+                <FieldDescription>{isNew ? ROLE_TEXT.codeHint : ROLE_TEXT.codeLocked}</FieldDescription>
+              </Field>
 
-            <Field>
-              <FieldLabel>{ROLE_TEXT.nameLabel}</FieldLabel>
-              <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} disabled={pending} />
-            </Field>
+              <Field>
+                <FieldLabel>{ROLE_TEXT.nameLabel}</FieldLabel>
+                <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} disabled={pending} />
+              </Field>
 
-            <Field>
-              <FieldLabel>{ROLE_TEXT.descriptionLabel}</FieldLabel>
-              <Textarea
-                value={descValue}
-                onChange={(e) => setDescValue(e.target.value)}
-                rows={2}
-                disabled={pending}
-              />
-              <FieldDescription>{ROLE_TEXT.descriptionHint}</FieldDescription>
-            </Field>
+              <Field>
+                <FieldLabel>{ROLE_TEXT.descriptionLabel}</FieldLabel>
+                <Textarea
+                  value={descValue}
+                  onChange={(e) => setDescValue(e.target.value)}
+                  rows={2}
+                  disabled={pending}
+                />
+                <FieldDescription>{ROLE_TEXT.descriptionHint}</FieldDescription>
+              </Field>
 
-            {/* THE TWO GROUPS (owner, 2026-09-09: 一个按业务，一个按层级), from
-                the workspace's own lists - 角色分组 on the roster edits them. */}
-            {/* SELECT + 配置 ON ONE LINE, THE COLUMN'S FULL SPAN (owner: 下拉框
-                缩短一点，留出按钮位置，总体跨度一致). The pair sits inside the same
-                measure every control here has; the select grows into what
-                the button leaves, so both rows end where the inputs above
-                them end. 配置 opens 分组管理 - the list is the workspace's,
-                and the form is where somebody finds out it is one short. */}
-            <Field>
-              <FieldLabel>{ROLE_TEXT.lineField}</FieldLabel>
-              <div className="gap-sm flex items-center">
-                <div className="min-w-0 grow">
-                  <NativeSelect value={lineValue} onChange={(e) => setLineValue(e.target.value)} disabled={pending}>
-                    <option value="">{ROLE_TEXT.groupUnset}</option>
-                    {lines.map((g) => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </NativeSelect>
+              {/* THE TWO GROUPS (owner, 2026-09-09: 一个按业务，一个按层级), from
+                  the workspace's own lists - 角色分组 on the roster edits them. */}
+              {/* SELECT + 配置 ON ONE LINE, THE COLUMN'S FULL SPAN (owner: 下拉框
+                  缩短一点，留出按钮位置，总体跨度一致). The pair sits inside the same
+                  measure every control here has; the select grows into what
+                  the button leaves, so both rows end where the inputs above
+                  them end. 配置 opens 分组管理 - the list is the workspace's,
+                  and the form is where somebody finds out it is one short. */}
+              <Field>
+                <FieldLabel>{ROLE_TEXT.lineField}</FieldLabel>
+                <div className="gap-sm flex items-center">
+                  <div className="min-w-0 grow">
+                    <NativeSelect value={lineValue} onChange={(e) => setLineValue(e.target.value)} disabled={pending}>
+                      <option value="">{ROLE_TEXT.groupUnset}</option>
+                      {lines.map((g) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                  <Button asChild variant="secondary" className="shrink-0">
+                    <a href="/admin/roles/groups">{ROLE_TEXT.groupConfigure}</a>
+                  </Button>
                 </div>
-                <Button asChild variant="secondary" className="shrink-0">
-                  <a href="/admin/roles/groups">{ROLE_TEXT.groupConfigure}</a>
-                </Button>
-              </div>
-            </Field>
-            <Field>
-              <FieldLabel>{ROLE_TEXT.rankField}</FieldLabel>
-              <div className="gap-sm flex items-center">
-                <div className="min-w-0 grow">
-                  <NativeSelect value={rankValue} onChange={(e) => setRankValue(e.target.value)} disabled={pending}>
-                    <option value="">{ROLE_TEXT.groupUnset}</option>
-                    {ranks.map((g) => (
-                      <option key={g.id} value={g.id}>{g.name}</option>
-                    ))}
-                  </NativeSelect>
+              </Field>
+              <Field>
+                <FieldLabel>{ROLE_TEXT.rankField}</FieldLabel>
+                <div className="gap-sm flex items-center">
+                  <div className="min-w-0 grow">
+                    <NativeSelect value={rankValue} onChange={(e) => setRankValue(e.target.value)} disabled={pending}>
+                      <option value="">{ROLE_TEXT.groupUnset}</option>
+                      {ranks.map((g) => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </NativeSelect>
+                  </div>
+                  <Button asChild variant="secondary" className="shrink-0">
+                    <a href="/admin/roles/groups">{ROLE_TEXT.groupConfigure}</a>
+                  </Button>
                 </div>
-                <Button asChild variant="secondary" className="shrink-0">
-                  <a href="/admin/roles/groups">{ROLE_TEXT.groupConfigure}</a>
-                </Button>
-              </div>
-            </Field>
+              </Field>
 
-            <Field>
-              <FieldLabel>{ROLE_TEXT.permsConfig}</FieldLabel>
-              <ButtonGroup>
-                <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
-                  {ROLE_TEXT.pick}
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={pending || presets.length === 0}
-                  onClick={() => {
-                    setPresetChoice(presetForCode?.code ?? "");
-                    setApplying(true);
-                  }}
-                >
-                  {ROLE_TEXT.applyPreset}
-                </Button>
-                <DestructiveButton
-                  disabled={pending || !presetForCode}
-                  title={presetForCode ? ROLE_TEXT.resetHint(presetForCode.name) : ROLE_TEXT.resetNone}
-                  confirm={{
-                    verb: ROLE_TEXT.resetPreset,
-                    target: presetForCode ? ROLE_TEXT.resetTarget(presetForCode.name) : "",
-                    consequence: ROLE_TEXT.resetConsequence(chosenList.length),
-                    titleTemplate: ROLE_TEXT.destructiveTitle,
-                    cancelLabel: ROLE_TEXT.cancel,
-                    onConfirm: () => {
-                      if (presetForCode) applyPreset(presetForCode);
-                    },
-                  }}
-                >
-                  {ROLE_TEXT.resetPreset}
-                </DestructiveButton>
-                <DestructiveButton
-                  disabled={pending || chosen.size === 0}
-                  confirm={{
-                    verb: ROLE_TEXT.clear,
-                    target: ROLE_TEXT.clearTarget(chosenList.length),
-                    consequence: ROLE_TEXT.clearConsequence,
-                    titleTemplate: ROLE_TEXT.destructiveTitle,
-                    cancelLabel: ROLE_TEXT.cancel,
-                    onConfirm: () => setChosen(new Set()),
-                  }}
-                >
-                  {ROLE_TEXT.clear}
-                </DestructiveButton>
-              </ButtonGroup>
-            </Field>
+              <Field>
+                <FieldLabel>{ROLE_TEXT.permsConfig}</FieldLabel>
+                <ButtonGroup>
+                  <Button variant="secondary" disabled={pending} onClick={() => setPicking(true)}>
+                    {ROLE_TEXT.pick}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={pending || presets.length === 0}
+                    onClick={() => {
+                      setPresetChoice(presetForCode?.code ?? "");
+                      setApplying(true);
+                    }}
+                  >
+                    {ROLE_TEXT.applyPreset}
+                  </Button>
+                  <DestructiveButton
+                    disabled={pending || !presetForCode}
+                    title={presetForCode ? ROLE_TEXT.resetHint(presetForCode.name) : ROLE_TEXT.resetNone}
+                    confirm={{
+                      verb: ROLE_TEXT.resetPreset,
+                      target: presetForCode ? ROLE_TEXT.resetTarget(presetForCode.name) : "",
+                      consequence: ROLE_TEXT.resetConsequence(chosenList.length),
+                      titleTemplate: ROLE_TEXT.destructiveTitle,
+                      cancelLabel: ROLE_TEXT.cancel,
+                      onConfirm: () => {
+                        if (presetForCode) applyPreset(presetForCode);
+                      },
+                    }}
+                  >
+                    {ROLE_TEXT.resetPreset}
+                  </DestructiveButton>
+                  <DestructiveButton
+                    disabled={pending || chosen.size === 0}
+                    confirm={{
+                      verb: ROLE_TEXT.clear,
+                      target: ROLE_TEXT.clearTarget(chosenList.length),
+                      consequence: ROLE_TEXT.clearConsequence,
+                      titleTemplate: ROLE_TEXT.destructiveTitle,
+                      cancelLabel: ROLE_TEXT.cancel,
+                      onConfirm: () => setChosen(new Set()),
+                    }}
+                  >
+                    {ROLE_TEXT.clear}
+                  </DestructiveButton>
+                </ButtonGroup>
+              </Field>
 
-          </div>
-        </Section>
+            </div>
+          </Section>
 
-        {/* RIGHT - the grants as they stand. */}
-        <Section title={ROLE_TEXT.includes}>
-          <div className="gap-md flex flex-col">
-            {chosenList.length === 0 ? (
-              <EmptyState title={ROLE_TEXT.pickEmpty} description={ROLE_TEXT.pickEmptyWhy} />
-            ) : (
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[10%] text-center">{ROLE_TEXT.colIndex}</TableHead>
-                    <TableHead className="w-[28%]">{ROLE_TEXT.colCode}</TableHead>
-                    <TableHead className="w-[36%]">{ROLE_TEXT.colName}</TableHead>
-                    <TableHead className="w-[13%] text-center">{ROLE_TEXT.colUnlocks}</TableHead>
-                    <TableHead className="w-[13%] text-center">{ROLE_TEXT.colOps}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {chosenList.map((o, i) => (
-                    <TableRow key={o.code}>
-                      <TableCell className="text-muted-foreground text-center tabular-nums">{i + 1}</TableCell>
-                      <TableCell className="font-medium">{o.code}</TableCell>
-                      <TableCell>{o.label}</TableCell>
-                      <TableCell className="text-center tabular-nums">{ROLE_TEXT.unlocks(o.unlocks)}</TableCell>
-                      <TableCell className="text-center">
-                        <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(o.code)}>
-                          {ROLE_TEXT.removePerm}
-                        </Button>
-                      </TableCell>
+          {/* RIGHT - the grants as they stand. */}
+          <Section title={ROLE_TEXT.includes}>
+            <div className="gap-md flex flex-col">
+              {chosenList.length === 0 ? (
+                <EmptyState title={ROLE_TEXT.pickEmpty} description={ROLE_TEXT.pickEmptyWhy} />
+              ) : (
+                <Table className="table-fixed">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[10%] text-center">{ROLE_TEXT.colIndex}</TableHead>
+                      <TableHead className="w-[28%]">{ROLE_TEXT.colCode}</TableHead>
+                      <TableHead className="w-[36%]">{ROLE_TEXT.colName}</TableHead>
+                      <TableHead className="w-[13%] text-center">{ROLE_TEXT.colUnlocks}</TableHead>
+                      <TableHead className="w-[13%] text-center">{ROLE_TEXT.colOps}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </Section>
-      </div>
+                  </TableHeader>
+                  <TableBody>
+                    {chosenList.map((o, i) => (
+                      <TableRow key={o.code}>
+                        <TableCell className="text-muted-foreground text-center tabular-nums">{i + 1}</TableCell>
+                        <TableCell className="font-medium">{o.code}</TableCell>
+                        <TableCell>{o.label}</TableCell>
+                        <TableCell className="text-center tabular-nums">{ROLE_TEXT.unlocks(o.unlocks)}</TableCell>
+                        <TableCell className="text-center">
+                          <Button variant="ghost" size="sm" disabled={pending} onClick={() => toggle(o.code)}>
+                            {ROLE_TEXT.removePerm}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </Section>
+        </div>
 
-      {/* THE WAY OUT, ACROSS BOTH COLUMNS. Shared shell (owner, 2026-09-12:
-          admin 按钮位置统一 - 放弃靠左、保存靠右, DS's own DialogForm
-          contract "取消在左、提交在右"). 删除角色 STILL SITS AT THE BOTTOM
-          (owner, 2026-09-09: 放到底部 - it is a way out of the page too,
-          not a control in the column), now pinned to the far left via
-          `mr-auto` rather than trailing after 保存/放弃 - separated, not
-          reordered into either of them. OFFERED ONLY WHEN NOBODY HOLDS IT,
-          the foreign key's own rule (ON DELETE RESTRICT) shown rather than
-          enforced after the fact. */}
-      <FormActions
-        saveLabel={ROLE_TEXT.save}
-        discardLabel={ROLE_TEXT.discard}
-        onSave={submit}
-        onDiscard={() => router.push("/admin/roles")}
-        pending={pending}
-        error={error}
-        errorTitle={ROLE_TEXT.saveFailed}
-        destructive={
-          !isNew && members === 0
-            ? {
-                label: ROLE_TEXT.remove,
-                confirm: {
-                  verb: ROLE_TEXT.remove,
-                  target: ROLE_TEXT.removeTarget(name),
-                  consequence: ROLE_TEXT.removeConsequence,
-                  titleTemplate: ROLE_TEXT.destructiveTitle,
-                  cancelLabel: ROLE_TEXT.cancel,
-                  onConfirm: remove,
-                },
-              }
-            : undefined
-        }
-      />
+        {/* THE WAY OUT, ACROSS BOTH COLUMNS. Shared shell (owner, 2026-09-12:
+            admin 按钮位置统一 - 放弃靠左、保存靠右, DS's own DialogForm
+            contract "取消在左、提交在右"). 删除角色 STILL SITS AT THE BOTTOM
+            (owner, 2026-09-09: 放到底部 - it is a way out of the page too,
+            not a control in the column), now pinned to the far left via
+            `mr-auto` rather than trailing after 保存/放弃 - separated, not
+            reordered into either of them. OFFERED ONLY WHEN NOBODY HOLDS IT,
+            the foreign key's own rule (ON DELETE RESTRICT) shown rather than
+            enforced after the fact. */}
+        <FormActions
+          saveLabel={ROLE_TEXT.save}
+          discardLabel={ROLE_TEXT.discard}
+          onSave={submit}
+          onDiscard={() => router.push("/admin/roles")}
+          pending={pending}
+          error={error}
+          errorTitle={ROLE_TEXT.saveFailed}
+          destructive={
+            !isNew && members === 0
+              ? {
+                  label: ROLE_TEXT.remove,
+                  confirm: {
+                    verb: ROLE_TEXT.remove,
+                    target: ROLE_TEXT.removeTarget(name),
+                    consequence: ROLE_TEXT.removeConsequence,
+                    titleTemplate: ROLE_TEXT.destructiveTitle,
+                    cancelLabel: ROLE_TEXT.cancel,
+                    onConfirm: remove,
+                  },
+                }
+              : undefined
+          }
+        />
+      </div>
 
       <DialogForm
         open={applying}
