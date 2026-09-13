@@ -17,6 +17,9 @@ import {
   Section,
   StatusBadge,
   TableTitleCell,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   UserAvatar,
   useListPagination,
   useToast,
@@ -30,7 +33,7 @@ import { orgUnitIcon } from "../lib/org-unit-icon";
 import { collapseFromDepth, depthLevels } from "../lib/tree-expand";
 import { addMemberToUnits, bulkPlaceMembers, moveMemberToUnit, placeMembersInUnit } from "../admin/members/actions";
 import { MemberViewSwitch, type MemberView } from "./member-view-switch";
-import { Tag } from "./tag";
+import { CountCircle, Tag } from "./tag";
 
 /* 组织视图 - THE TREE, people and units as rows of one table (owner,
  * 2026-09-10, five points):
@@ -288,6 +291,30 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
     ];
   };
 
+  /* 圆圈{直属人数}, tag {icon 总人数} - the same 递归 fix and reading as
+     org-panel.tsx's own 成员数 column (owner, 2026-09-13: 成员数统计只统计了
+     直属人员，没有汇集下属部门人员，这个应该是递归的): the circle is who sits
+     in this unit directly, the tag beside it is the whole subtree's, so a
+     leader's row reads both "how many report to me here" and "how many do I
+     actually manage" without the two being confused for one number. Not for
+     the 未归属 pseudo-unit - it has no subtree, so `headcount` already is
+     the whole story there (see the caller). */
+  const headcountSuffix = (r: Extract<OrgViewRow, { kind: "unit" }>) =>
+    r.totalHeadcount === 0 ? (
+      <Tag>{MEMBER_TEXT.orgNoMembers}</Tag>
+    ) : (
+      <span className="gap-2xs inline-flex items-center">
+        <Tooltip>
+          <TooltipTrigger asChild><span><CountCircle count={r.headcount} /></span></TooltipTrigger>
+          <TooltipContent>{ORG_TEXT.directMembersTooltip(r.headcount)}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild><span><Tag icon="users">{r.totalHeadcount}</Tag></span></TooltipTrigger>
+          <TooltipContent>{ORG_TEXT.totalMembersTooltip(r.totalHeadcount)}</TooltipContent>
+        </Tooltip>
+      </span>
+    );
+
   /* THE COLUMNS, shared by the tree and the deactivated table under it. */
   const columns = [
       {
@@ -302,7 +329,7 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             {r.kind === "unit" ? (
               r.unplaced
                 ? <TableTitleCell icon={orgUnitIcon(r)} title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
-                : <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
+                : <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} titleSuffix={headcountSuffix(r)} />
             ) : (
               <span className="gap-sm flex min-w-0 items-center">
                 <UserAvatar alt={r.name} className="size-6 shrink-0" />

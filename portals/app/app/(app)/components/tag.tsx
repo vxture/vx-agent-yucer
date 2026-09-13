@@ -47,3 +47,21 @@ export function Tag({
     </StatusBadge>
   );
 }
+
+/** 圈数字 (owner, 2026-09-11: 第一个关联区域名称后面圈数字显示总数量，如果
+ *  超过1个显示数字) - first used next to the FIRST territory's name, shown
+ *  only once there is more than one; also a 成员数 column's 直属人数 (owner,
+ *  2026-09-13: 圆圈{直属人数}), on both org-panel.tsx's and
+ *  member-org-view.tsx's own trees. NOT `./count-badge.tsx`: that element is
+ *  deliberately alert-red for a notification corner mark (TD-006, 太大/颜色
+ *  没有警示效果) - a plain count is information, not a warning, so reusing
+ *  its colour would misapply the exact distinction that component's own
+ *  comment draws. Same TD-006 shape (a circle at one digit, growing to a
+ *  pill past two) on neutral DS tokens instead. */
+export function CountCircle({ count }: { readonly count: number }) {
+  return (
+    <span className="bg-muted text-muted-foreground inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full px-[0.1875rem] text-[0.625rem] font-semibold leading-none tabular-nums">
+      {count}
+    </span>
+  );
+}

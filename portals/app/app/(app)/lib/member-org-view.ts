@@ -40,6 +40,13 @@ export interface OrgViewNode {
   /** The people placed in THIS unit, in roster order. */
   readonly people: readonly OrgViewPerson[];
   readonly children: readonly OrgViewNode[];
+  /** `people.length` plus every descendant unit's, recursively (owner,
+   *  2026-09-13: org-panel.tsx's 成员数递归 fix applies here too, see
+   *  ADR-neighbouring comment on OrgViewRow's `totalHeadcount`). A SUM of
+   *  placements, not a deduplicated headcount: someone placed in two units
+   *  under this one (0053) is counted twice, same as `people.length` already
+   *  counts them once per unit they are directly in. */
+  readonly totalPeople: number;
 }
 
 export interface OrgView {
@@ -57,16 +64,18 @@ export function buildOrgView(units: readonly OrgViewUnit[], people: readonly Org
     if (here.length === 0) unplaced.push(p);
     for (const id of here) (byUnit.get(id) ?? byUnit.set(id, []).get(id)!).push(p);
   }
-  const build = (parentId: string | null): OrgViewNode[] =>
-    units
-      .filter((u) => u.parentId === parentId)
-      .map((u) => ({ id: u.id, name: u.name, territories: u.territories, people: byUnit.get(u.id) ?? [], children: build(u.id) }));
+  // `build` recurses depth-first, so `children` is fully built - and every
+  // child's own `totalPeople` known - before its parent sums them.
+  const node = (u: OrgViewUnit): OrgViewNode => {
+    const people = byUnit.get(u.id) ?? [];
+    const children = build(u.id);
+    const totalPeople = people.length + children.reduce((s, c) => s + c.totalPeople, 0);
+    return { id: u.id, name: u.name, territories: u.territories, people, children, totalPeople };
+  };
+  const build = (parentId: string | null): OrgViewNode[] => units.filter((u) => u.parentId === parentId).map(node);
   // A unit whose parent is not in the list (should not happen: the FK) is
   // shown as a root rather than lost.
-  const roots = [
-    ...build(null),
-    ...units.filter((u) => u.parentId !== null && !known.has(u.parentId)).map((u) => ({ id: u.id, name: u.name, territories: u.territories, people: byUnit.get(u.id) ?? [], children: build(u.id) })),
-  ];
+  const roots = [...build(null), ...units.filter((u) => u.parentId !== null && !known.has(u.parentId)).map(node)];
   return { roots, unplaced };
 }
 
@@ -86,6 +95,11 @@ export type OrgViewRow =
       readonly children: number;
       /** People placed HERE. */
       readonly headcount: number;
+      /** `headcount` plus every descendant unit's, recursively - the roster a
+       *  leader stationed here actually manages, same 递归 fix as
+       *  org-panel.tsx's own `totalMembers` (owner, 2026-09-13). Always equal
+       *  to `headcount` on the 未归属 pseudo-unit, which has no subtree. */
+      readonly totalHeadcount: number;
       readonly territories: readonly string[];
       /** The pseudo-unit listing whoever is placed nowhere. Takes nobody. */
       readonly unplaced: boolean;
@@ -122,14 +136,14 @@ export function flattenOrgView(view: OrgView, collapsed: ReadonlySet<string>): O
     for (const p of list) out.push({ kind: "person", id: personRowId(unitId, p.sub), sub: p.sub, name: p.name, status: p.status, depth, unitId, scope: p.scope, territories: p.territories });
   };
   const walk = (node: OrgViewNode, depth: number) => {
-    out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, territories: node.territories, unplaced: false });
+    out.push({ kind: "unit", id: node.id, name: node.name, depth, children: node.children.length, headcount: node.people.length, totalHeadcount: node.totalPeople, territories: node.territories, unplaced: false });
     if (collapsed.has(node.id)) return;
     for (const c of node.children) walk(c, depth + 1);
     people(node.id, node.people, depth + 1);
   };
   for (const r of view.roots) walk(r, 0);
   if (view.unplaced.length > 0) {
-    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", depth: 0, children: 0, headcount: view.unplaced.length, territories: [], unplaced: true });
+    out.push({ kind: "unit", id: UNPLACED_ROW_ID, name: "", depth: 0, children: 0, headcount: view.unplaced.length, totalHeadcount: view.unplaced.length, territories: [], unplaced: true });
     if (!collapsed.has(UNPLACED_ROW_ID)) people(null, view.unplaced, 1);
   }
   return out;
