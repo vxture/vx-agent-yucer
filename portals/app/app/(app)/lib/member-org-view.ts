@@ -135,16 +135,23 @@ export function flattenOrgView(view: OrgView, collapsed: ReadonlySet<string>): O
   return out;
 }
 
+/** Every row that can fold - a unit with anything under it, and 未归属 - with
+ *  the depth it folds AT, for "展开到 Ln" (tree-expand.ts's
+ *  `collapseFromDepth`) to fold just the branches at or past a target. */
+export function branchNodes(view: OrgView): { readonly id: string; readonly depth: number }[] {
+  const out: { id: string; depth: number }[] = [];
+  const walk = (node: OrgViewNode, depth: number) => {
+    if (node.children.length > 0 || node.people.length > 0) out.push({ id: node.id, depth });
+    for (const c of node.children) walk(c, depth + 1);
+  };
+  for (const r of view.roots) walk(r, 0);
+  if (view.unplaced.length > 0) out.push({ id: UNPLACED_ROW_ID, depth: 0 });
+  return out;
+}
+
 /** Every row that can fold - a unit with anything under it, and 未归属. */
 export function branchIds(view: OrgView): string[] {
-  const out: string[] = [];
-  const walk = (node: OrgViewNode) => {
-    if (node.children.length > 0 || node.people.length > 0) out.push(node.id);
-    for (const c of node.children) walk(c);
-  };
-  for (const r of view.roots) walk(r);
-  if (view.unplaced.length > 0) out.push(UNPLACED_ROW_ID);
-  return out;
+  return branchNodes(view).map((n) => n.id);
 }
 
 /** The units in tree order with their depth - for a unit select. */

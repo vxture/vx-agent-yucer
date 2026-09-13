@@ -47,7 +47,7 @@ export default async function EditRolePage({ params }: { params: Promise<{ id: s
         ]}
         current={mine.name}
       />
-      <ViewHeader icon="role" title={mine.name} description={ROLE_TEXT.formWhy} />
+      <ViewHeader icon="medal" title={mine.name} description={ROLE_TEXT.formWhy} />
       <RoleForm
         isNew={false}
         code={mine.code}

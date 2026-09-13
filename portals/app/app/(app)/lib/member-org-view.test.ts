@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { UNPLACED_ROW_ID, branchIds, buildOrgView, flattenOrgView, personRowId, unitOptions } from "./member-org-view";
+import { UNPLACED_ROW_ID, branchIds, branchNodes, buildOrgView, flattenOrgView, personRowId, unitOptions } from "./member-org-view";
 
 const UNITS = [
   { id: "hq", name: "总部", parentId: null, territories: [] },
@@ -58,6 +58,12 @@ test("flattened in tree order: under a unit its child units first, then its peop
   const folded = flattenOrgView(view, new Set(["east", UNPLACED_ROW_ID]));
   assert.deepEqual(folded.map((r) => r.name), ["总部", "华东", "华南", "乙", ""]);
   assert.deepEqual(branchIds(view), ["hq", "east", "east_t1", UNPLACED_ROW_ID]);
+  assert.deepEqual(branchNodes(view), [
+    { id: "hq", depth: 0 },
+    { id: "east", depth: 1 },
+    { id: "east_t1", depth: 2 },
+    { id: UNPLACED_ROW_ID, depth: 0 },
+  ]);
   assert.deepEqual(unitOptions(view).map((u) => [u.name, u.depth]), [["总部", 0], ["华东", 1], ["华东一组", 2], ["华南", 1]]);
   const nobodyUnplaced = flattenOrgView(buildOrgView(UNITS, []), new Set());
   assert.equal(nobodyUnplaced.some((r) => r.id === UNPLACED_ROW_ID), false);
