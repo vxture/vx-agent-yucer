@@ -53,6 +53,7 @@ import {
   DEMO_TERRITORY_REGIONS,
 } from "./demo-fixtures";
 import { buildNationalCohort } from "./demo-national";
+import { DEMO_SUCCESSOR_SUBS } from "./demo-members";
 import { STARTER_STATUS_DEFAULTS, SYSTEM_STATUS_DEFAULTS } from "../catalog/lib/status-vocab";
 import { DEFAULT_TYPE_VOCABULARY } from "../catalog/lib/type-vocab";
 import { DEFAULT_WIN_LOSS_REASONS } from "../pipeline/lib/win-loss-vocab";
@@ -114,9 +115,16 @@ const daysAhead = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 const offsetDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
 
 const CNY = "CNY";
-const REP1 = "usr_demo_rep";
-const REP2 = "usr_demo_rep2";
-const PM = "usr_demo_pm";
+// REP1/REP2/PM/CRO/LEADER read DEMO_SUCCESSOR_SUBS, not the retired
+// usr_demo_rep/usr_demo_rep2/usr_demo_pm/usr_demo_cro/usr_demo_leader
+// literals (owner, 2026-09-13: 把原来的几个用户全部归入已停用 - 把他们
+// 拥有的数据改到金庸人物名下) - demo-members.ts's own file header explains
+// why an inactive member cannot be left owning any of this.
+const REP1 = DEMO_SUCCESSOR_SUBS.rep;
+const REP2 = DEMO_SUCCESSOR_SUBS.rep2;
+const PM = DEMO_SUCCESSOR_SUBS.pm;
+const CRO = DEMO_SUCCESSOR_SUBS.cro;
+const LEADER = DEMO_SUCCESSOR_SUBS.leader;
 export const DEMO_PERIOD = "2026Q3";
 const PERIOD = DEMO_PERIOD;
 
@@ -269,7 +277,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         name: DEMO_PLANS[0].name,
         period: "2026H2",
         objective: DEMO_PLANS[0].objective,
-        ownerSub: "usr_demo_cro",
+        ownerSub: CRO,
         status: "active",
         approvedAt: daysAgo(60),
       },
@@ -280,7 +288,7 @@ function seedStrategy(workspaceId: string, stores: DemoStores): void {
         name: DEMO_PLANS[1].name,
         period: "2026H1",
         objective: DEMO_PLANS[1].objective,
-        ownerSub: "usr_demo_cro",
+        ownerSub: CRO,
         status: "closed",
         approvedAt: daysAgo(240),
       },
@@ -970,7 +978,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           primaryReasonId: "wlx_demo_2",
           competitor: null,
           lessons: DEMO_LESSONS[1],
-          reviewerSub: "usr_demo_leader",
+          reviewerSub: LEADER,
           reviewedAt: daysAgo(85),
         },
         {
@@ -981,7 +989,7 @@ function seedPipeline(workspaceId: string, stores: DemoStores): void {
           primaryReasonId: "wlx_demo_2",
           competitor: null,
           lessons: DEMO_LESSONS[0],
-          reviewerSub: "usr_demo_leader",
+          reviewerSub: LEADER,
           reviewedAt: daysAgo(35),
         },
       ],
@@ -1162,7 +1170,7 @@ function seedCopilot(workspaceId: string, stores: DemoStores): void {
     proposal("act_demo_1", "proposed", "advance_stage", "opportunity", "opp_demo_2", { to: "propose" }, DEMO_RATIONALES[0], 86, null, 1),
     proposal("act_demo_2", "proposed", "draft_outreach", "account", "acc_demo_1", { channel: "email" }, DEMO_RATIONALES[1], 52, null, 1),
     proposal("act_demo_3", "proposed", "promote_signal", "lead", "lead_demo_2", { score: 71 }, DEMO_RATIONALES[2], 64, null, 2),
-    proposal("act_demo_4", "rejected", "advance_stage", "opportunity", "opp_demo_3", { to: "discover" }, DEMO_RATIONALES[3], 41, "usr_demo_leader", 4),
+    proposal("act_demo_4", "rejected", "advance_stage", "opportunity", "opp_demo_3", { to: "discover" }, DEMO_RATIONALES[3], 41, LEADER, 4),
     proposal("act_demo_5", "proposed", "advance_stage", "opportunity", "opp_demo_6", { to: "negotiate" }, DEMO_RATIONALES[4], 77, null, 1),
     // PAST THE DECISION WINDOW ON PURPOSE. Opening the queue sweeps it, so the
     // demo shows the outcome the spec asks for - a recommendation nobody
