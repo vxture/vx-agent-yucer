@@ -13,6 +13,7 @@ import {
   Field,
   FieldLabel,
   Icon,
+  type IconName,
   NativeSelect,
   Section,
   StatusBadge,
@@ -36,9 +37,12 @@ import { Tag } from "./tag";
  *   1. 每个人是一行，与组织是同级的行 - a person is a row under their unit,
  *      not a name crammed into the unit's cell. The same person appears
  *      under every unit they are in (0053).
- *   2. 人有头像，单位有 icon，一样 icon - the DS's UserAvatar before a
- *      person's name; one `buildings` icon before every unit's, no kind
- *      differentiation. That is how the two kinds of row tell apart.
+ *   2. 人有头像，单位有 icon，按层级分 - the DS's UserAvatar before a
+ *      person's name; a unit's icon reads its DEPTH, not its `org_unit_kind`
+ *      (owner, 2026-09-12: 现在统一为 building 不合理 - L0/L1/L2 each get
+ *      their own icon, L3 and everything under it share the last one, four
+ *      icons total). That is how the two kinds of row tell apart, and how a
+ *      unit row tells its own level apart from a sibling's.
  *   3. 淡化下拉展开箭头，不要常态背景 - the chevron is a muted glyph on a
  *      bare button; no ghost tile, no `aria-expanded` tint (the DS Button
  *      paints `bg-muted` on aria-expanded, which is the background the
@@ -68,6 +72,12 @@ import { Tag } from "./tag";
  * Every write goes through the members actions, which go through the
  * services' own gates; the view only asks.
  */
+
+/** L0/L1/L2 each read their own icon; L3 and anything deeper share the last
+ *  one - four icons, not a fifth per depth the tree could run arbitrarily
+ *  deep to. */
+const UNIT_ICON_BY_DEPTH: readonly IconName[] = ["buildings", "building", "users", "user-circle"];
+const unitIcon = (depth: number): IconName => UNIT_ICON_BY_DEPTH[Math.min(depth, UNIT_ICON_BY_DEPTH.length - 1)];
 
 export interface RoleOption {
   readonly code: string;
@@ -275,8 +285,8 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
   const columns = [
       {
         /* THE TREE COLUMN: indent, a muted chevron where there is
-           something to fold, then the row's own face - one icon for
-           every unit, an avatar for every person (point 2). */
+           something to fold, then the row's own face - a depth-keyed icon
+           for every unit, an avatar for every person (point 2). */
         id: "name",
         header: MEMBER_TEXT.orgColName,
         cell: (r: OrgViewRow) => (
@@ -284,8 +294,8 @@ export function MemberOrgView({ view, inactive, canManage, roster, roleOptions, 
             {r.kind === "unit" && (r.children > 0 || r.headcount > 0) ? chevron(r.id, r.unplaced ? MEMBER_TEXT.orgUnplaced : r.name) : <span className="size-6 shrink-0" />}
             {r.kind === "unit" ? (
               r.unplaced
-                ? <TableTitleCell icon="buildings" title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
-                : <TableTitleCell icon="buildings" title={r.name} tooltip={r.name} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
+                ? <TableTitleCell icon={unitIcon(r.depth)} title={MEMBER_TEXT.orgUnplaced} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
+                : <TableTitleCell icon={unitIcon(r.depth)} title={r.name} tooltip={r.name} titleSuffix={<Tag>{MEMBER_TEXT.orgHeadcount(r.headcount)}</Tag>} />
             ) : (
               <span className="gap-sm flex min-w-0 items-center">
                 <UserAvatar alt={r.name} className="size-6 shrink-0" />
