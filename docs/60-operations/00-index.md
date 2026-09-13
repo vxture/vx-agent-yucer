@@ -36,7 +36,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
-| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `rows`；待上报 DS） |
+| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `rows`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1730,6 +1730,20 @@ medal: MedalIcon,
 概念上 —— owner 复核后否了，连带否了 `certificate`/`shield`（两个都有明显、
 具体的语义，容易被以后某个真正需要"证书"或"安全"这个含义的功能占用）。第二
 轮改用 `rows`（一排横线，纯结构性，不含任何"角色/权限/身份"这类强语义，
-全库未被占用，也不是 DS `ViewModeSwitch` 已经占着的 `list`）。**收回条件**：
-DS 给 `role` 一份自己的 SVG 后，把这三处换回 `icon="role"`。
+全库未被占用，也不是 DS `ViewModeSwitch` 已经占着的 `list`）。
+
+**给 DS 的具体修复方案（owner 指出，2026-09-12）**：不必凭空画一个新图标——
+`@vxture/design-ui` 本来就依赖 `@phosphor-icons/react`（`role`/`users` 背后的
+`UsersIcon`/`MedalIcon` 都是从它导入的），而这个包里已经有一枚现成的
+`IdentificationCard`（`node_modules/@phosphor-icons/react/dist/index.d.ts`
+里的 `export * from './csr/IdentificationCard'`），是"角色/身份"最贴切的语义，
+零新增依赖。DS 那边要做的只是把注册表里的 `role: UsersIcon` 改成
+`role: IdentificationCardIcon`。
+
+本仓这边**改不了**——`ViewHeader`/`TableTitleCell`/`NavItem` 的 `icon` 属性
+类型都是闭合的 `IconName` 联合，不接受 `ReactNode`，绕过 `Icon` 组件直接塞一个
+`@phosphor-icons/react` 的原始图标进这三处 props 在类型层面就不成立，不是
+"愿不愿意垫"的问题。这条缺口只能等 DS 那边把 `identification-card` 注册
+进来，本仓在那之前没有比 `rows`更好的本地选项。**收回条件**：DS 给 `role`
+注册 `IdentificationCard`（或任何专属图形）后，把这三处换回 `icon="role"`。
 
