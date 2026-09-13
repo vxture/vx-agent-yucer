@@ -6,7 +6,7 @@ import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryPipelineStore, type OpportunityRecord } from "./store";
 import { advanceStage, stageHistory, updateCommercialTerms, type PipelineContext } from "./service";
-import { DEFAULT_PROBABILITY } from "./lib/stage";
+import { defaultProbabilityFor } from "./lib/stage";
 import { rollUp } from "./lib/forecast";
 
 // Repricing a deal, and reading how it got where it is.
@@ -36,7 +36,7 @@ function opp(over: Partial<OpportunityRecord> = {}): OpportunityRecord {
     stage: "discover",
     forecastCategory: "commit",
     amount: money(100_000),
-    probability: DEFAULT_PROBABILITY.discover,
+    probability: defaultProbabilityFor("discover"),
     expectedCloseAt: new Date("2026-09-30T00:00:00Z"),
     closedAt: null,
     status: "open",
@@ -67,7 +67,7 @@ test("an unentitled workspace is refused before any rule runs", async () => {
   const r = await updateCommercialTerms(ctx("sales_rep", null, store), "opp_1", { probability: 65 });
   assert.equal(r.ok, false);
   assert.equal(r.ok === false && r.violations[0].code, "no_data_access");
-  assert.equal((await stored(store))?.probability, DEFAULT_PROBABILITY.discover, "nothing was written");
+  assert.equal((await stored(store))?.probability, defaultProbabilityFor("discover"), "nothing was written");
 });
 
 test("a member without pipeline.write cannot reprice", async () => {
@@ -152,14 +152,14 @@ test("a human win rate survives a later stage move", async () => {
     65,
     "the stage machine must not overwrite a number a human committed to",
   );
-  assert.notEqual(DEFAULT_PROBABILITY.validate, 65, "the test would be vacuous if these matched");
+  assert.notEqual(defaultProbabilityFor("validate"), 65, "the test would be vacuous if these matched");
 });
 
 test("a win rate left alone still follows the stage", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([opp()]);
   unwrap(await advanceStage(ctx("sales_rep", "pro", store), "opp_1", { to: "validate" }));
-  assert.equal((await stored(store))?.probability, DEFAULT_PROBABILITY.validate);
+  assert.equal((await stored(store))?.probability, defaultProbabilityFor("validate"));
 });
 
 test("a closed deal's win rate is fixed and cannot be repriced", async () => {
@@ -236,7 +236,7 @@ test("changing one field leaves the others alone", async () => {
   unwrap(await updateCommercialTerms(ctx("sales_rep", "pro", store), "opp_1", { amount: money(250_000) }));
   const row = await stored(store);
   assert.equal(row?.amount?.amount, 250_000);
-  assert.equal(row?.probability, DEFAULT_PROBABILITY.discover, "the win rate was not touched");
+  assert.equal(row?.probability, defaultProbabilityFor("discover"), "the win rate was not touched");
   assert.deepEqual(row?.expectedCloseAt, new Date("2026-09-30T00:00:00Z"), "the close date was not touched");
 });
 
@@ -321,7 +321,7 @@ test("convert-shaped deal: price it, move it, close it", async () => {
   // Before the pricing and stage surfaces existed there was no path from the
   // first state to the second.
   const store = new InMemoryPipelineStore();
-  store.seed([opp({ stage: "qualify", probability: DEFAULT_PROBABILITY.qualify, amount: null, forecastCategory: "pipeline" })]);
+  store.seed([opp({ stage: "qualify", probability: defaultProbabilityFor("qualify"), amount: null, forecastCategory: "pipeline" })]);
   const c = ctx("sales_rep", "pro", store);
 
   unwrap(

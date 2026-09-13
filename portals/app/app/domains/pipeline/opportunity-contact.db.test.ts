@@ -32,6 +32,7 @@ async function cleanup() {
   await withPg(async (c) => {
     await c.query(`DELETE FROM yucer_pipeline.opportunity_contact WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.person WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
@@ -43,6 +44,17 @@ async function seed(c: Client) {
     [ACC, WS],
   );
   await c.query(`INSERT INTO yucer_core.person (id, workspace_id, name) VALUES ($1, $2, 'Wang')`, [P1, WS]);
+  // 0057: opportunity.stage is a composite FK now - both codes the insert
+  // below names ("validate", "discover") must exist first.
+  await c.query(
+    `INSERT INTO yucer_pipeline.stage_definition
+       (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+     VALUES
+       ($1, 'discover', '需求挖掘', 2, 25, FALSE, FALSE),
+       ($1, 'validate', '方案验证', 3, 50, FALSE, FALSE)
+     ON CONFLICT (workspace_id, stage_code) DO NOTHING`,
+    [WS],
+  );
   await c.query(
     `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id, stage, owner_sub, requirement)
      VALUES ($1, $3, 'OPP-B1', 'Supply chain', $4, 'validate', 'usr_db', 'fixture requirement'),

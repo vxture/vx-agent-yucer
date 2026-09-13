@@ -108,7 +108,7 @@ test("role -> permission grants mirror the seed exactly, both directions", () =>
   assert.deepEqual(missingFromSeed, [], "granted in catalog.ts but not in the seed");
 });
 
-test("the catalog is the documented size: 25 permissions, 31 roles, 397 grants", () => {
+test("the catalog is the documented size: 26 permissions, 31 roles, 411 grants", () => {
   // Sizes are asserted separately from parity so a symmetric edit to both the
   // seed and the mirror still trips a review against the spec document.
   //
@@ -136,10 +136,16 @@ test("the catalog is the documented size: 25 permissions, 31 roles, 397 grants",
   // 集团级公司规模，尽量减少用户自定义): the ladder. PERMISSIONS DID NOT MOVE
   // again - twenty-five is still the whole vocabulary - and no two presets
   // hold the same set (presets.test.ts holds that).
-  assert.equal(PERM_CODES.length, 25);
+  //
+  // 25 -> 26 and 397 -> 411 by incr/0059: pipeline.stage. incr/0057/0058 made
+  // the stage catalog a per-workspace vocabulary a tenant can edit; redefining
+  // it is a workspace-wide policy act, the same shape as the pipeline.write /
+  // pipeline.forecast split. Granted to the fourteen roles that already hold
+  // pipeline.forecast - "commits a number upward" for the stage catalog too.
+  assert.equal(PERM_CODES.length, 26);
   assert.equal(ROLE_CODES.length, 31);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 397);
+  assert.equal(total, 411);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {

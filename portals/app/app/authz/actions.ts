@@ -362,6 +362,24 @@ export const ACTIONS = {
     permission: "pipeline.write",
     writes: true,
   },
+  // 商机阶段 (incr/0057/0059). Viewing the catalog is pipeline.read - the same
+  // authority as viewing the deals on it. Not a new feature key: the stage
+  // catalog is configuration behind the existing pipeline.manage key, the same
+  // way pipeline.discount governs a facet of it without its own key.
+  "pipeline.stage.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
+  // Rename/reorder/re-price/add/remove a stage. Dedicated pipeline.stage
+  // permission rather than pipeline.write - see incr/0059's own note.
+  "pipeline.stage.manage": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.stage",
+    writes: true,
+  },
 
   // --- D7 delivery ---------------------------------------------------------
   "delivery.project.view": {

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
@@ -7,7 +8,7 @@ import {
   type ForecastThresholds,
 } from "./lib/forecast-rule";
 import {
-  DEFAULT_PROBABILITY,
+  DEFAULT_STAGE_DEFINITIONS,
   type OpportunityStatus,
   type Stage,
   type StageChangePlan,
@@ -18,6 +19,7 @@ import type {
   NewWinLossReview,
   WinLossReviewRecord,
   WinLossReasonRecord,
+  StageDefinitionRecord,
   OpportunityFilter,
   OpportunityRecord,
   PipelineStore,
@@ -39,6 +41,8 @@ import { lockKey } from "../shared/allocate";
 
 const OPPORTUNITY_TABLE = "yucer_pipeline.opportunity";
 const WIN_LOSS_REASON_TABLE = "yucer_pipeline.win_loss_reason";
+// incr/0057. 商机阶段, one row per (workspace, stage code).
+const STAGE_DEFINITION_TABLE = "yucer_pipeline.stage_definition";
 // incr/0041. 预测阈值, one row per workspace.
 const FORECAST_THRESHOLD_TABLE = "yucer_pipeline.forecast_threshold";
 
@@ -101,6 +105,21 @@ export class PrismaPipelineStore implements PipelineStore {
     // count and both write count+1. It releases at commit or rollback.
     return p.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${lockKey("opportunity_no")}::int, hashtext(${workspaceId})::int)`;
+      // The entry stage (incr/0057) MUST be resolved and written explicitly -
+      // the DDL's own DEFAULT 'qualify' on opportunity.stage is workspace-
+      // agnostic and would violate incr/0058's composite FK the moment a
+      // workspace has renamed or removed the code "qualify". SEEDED here
+      // too, not just defaulted: a genuinely brand-new workspace creating its
+      // very first opportunity has no stage_definition rows at all yet (the
+      // DDL's own backfill only reaches a workspace that already had an
+      // opportunity, and listStageDefinitions' first-contact seeding only
+      // runs once someone opens the stage config page) - falling back to a
+      // VALUE with no matching row would still violate the FK the instant
+      // this insert runs. ensureStageDefinitionsSeeded is called inside this
+      // same transaction, ahead of the insert, so the row it needs always
+      // exists by the time it needs it.
+      await this.ensureStageDefinitionsSeeded(tx, workspaceId);
+      const entry = await this.entryStage(tx, workspaceId);
       const count = await tx.opportunity.count({ where: { workspaceId } });
       const row = await tx.opportunity.create({
         data: {
@@ -116,16 +135,64 @@ export class PrismaPipelineStore implements PipelineStore {
           requirement: input.requirement,
           amount: input.amount?.amount ?? null,
           currency: input.currency,
-          probability: DEFAULT_PROBABILITY.qualify,
+          stage: entry.stageCode,
+          probability: entry.defaultProbability,
           expectedCloseAt: input.expectedCloseAt,
           // Written once, here, for the same reason campaignId is: 0019 grants
           // no UPDATE on it.
           sourceProjectId: input.sourceProjectId ?? null,
-          // stage and forecast_category default to qualify/pipeline in the DDL.
+          // forecast_category still defaults to pipeline in the DDL.
         },
       });
       return toRecord(row as OpportunityRow);
     });
+  }
+
+  /**
+   * FIRST-CONTACT SEEDING, from inside createOpportunity's own transaction -
+   * the same guard listStageDefinitions uses in service.ts, duplicated here
+   * because a brand-new workspace's very first write is not guaranteed to be
+   * a visit to the (not yet built) stage config page. Without this, entryStage
+   * below would return a CODE with no matching row, and the insert right
+   * after it would violate incr/0058's composite FK on its very first try.
+   *
+   * `skipDuplicates` makes this race-safe without needing the advisory lock
+   * that guards opportunity_no: two concurrent first-writes both attempting
+   * this insert just both no-op past each other's rows via the unique index,
+   * same as ON CONFLICT DO NOTHING would.
+   */
+  private async ensureStageDefinitionsSeeded(tx: Prisma.TransactionClient, workspaceId: string): Promise<void> {
+    const count = await tx.stageDefinition.count({ where: { workspaceId } });
+    if (count > 0) return;
+    await tx.stageDefinition.createMany({
+      data: DEFAULT_STAGE_DEFINITIONS.map((d) => ({
+        workspaceId,
+        stageCode: d.code,
+        name: d.name,
+        sortOrder: d.sortOrder,
+        defaultProbability: d.defaultProbability,
+        isWon: d.isWon,
+        isTerminal: d.isTerminal,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  /** Where a new deal lands: the workspace's own lowest-sort-order OPEN stage.
+   *  Falls back to the shipped "qualify"/10 only if DEFAULT_STAGE_DEFINITIONS
+   *  itself somehow had no open stage - ensureStageDefinitionsSeeded above is
+   *  what actually guarantees a matching row exists by the time this runs. */
+  private async entryStage(
+    tx: Prisma.TransactionClient,
+    workspaceId: string,
+  ): Promise<{ stageCode: string; defaultProbability: number }> {
+    const row = await tx.stageDefinition.findFirst({
+      where: { workspaceId, isTerminal: false },
+      orderBy: { sortOrder: "asc" },
+    });
+    if (row) return { stageCode: row.stageCode, defaultProbability: row.defaultProbability };
+    const fallback = DEFAULT_STAGE_DEFINITIONS[0]!;
+    return { stageCode: fallback.code, defaultProbability: fallback.defaultProbability };
   }
 
   async listOpportunities(
@@ -496,6 +563,102 @@ export class PrismaPipelineStore implements PipelineStore {
   async countReviewsByReason(workspaceId: string, reasonId: string): Promise<number> {
     const p = await getPrismaClient();
     return p.winLossReview.count({ where: { workspaceId, primaryReasonId: reasonId } });
+  }
+
+  /* 商机阶段 (incr/0057) - the same shape as 赢丢原因 above, plus the two
+     flags. stage_code is the anchor and is not in the grant, so a rewrite
+     attempt on it fails here rather than at the database. */
+  async listStageDefinitions(workspaceId: string): Promise<StageDefinitionRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.stageDefinition.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { stageCode: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      stageCode: r.stageCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+      defaultProbability: r.defaultProbability,
+      isWon: r.isWon,
+      isTerminal: r.isTerminal,
+    }));
+  }
+
+  async upsertStageDefinition(
+    workspaceId: string,
+    input: Omit<StageDefinitionRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<StageDefinitionRecord> {
+    const p = await getPrismaClient();
+    const update = {
+      name: input.name,
+      defaultProbability: input.defaultProbability,
+      isWon: input.isWon,
+      isTerminal: input.isTerminal,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(STAGE_DEFINITION_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked stage_definition column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.stageDefinition.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.stageDefinition.upsert({
+      where: { workspaceId_stageCode: { workspaceId, stageCode: input.stageCode } },
+      update,
+      create: {
+        workspaceId,
+        stageCode: input.stageCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      stageCode: row.stageCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+      defaultProbability: row.defaultProbability,
+      isWon: row.isWon,
+      isTerminal: row.isTerminal,
+    };
+  }
+
+  async setStageDefinitionOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await getPrismaClient();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(STAGE_DEFINITION_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked stage_definition column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.stageDefinition.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeStageDefinition(workspaceId: string, stageId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refused an in-use/last-won/last-terminal stage via
+    // planStageRemoval; the composite FKs (incr/0058) RESTRICT underneath as
+    // the last line for the in-use case.
+    const { count } = await p.stageDefinition.deleteMany({ where: { workspaceId, id: stageId } });
+    return count > 0;
+  }
+
+  async countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.opportunity.count({ where: { workspaceId, stage: stageCode } });
   }
 
   /* --- 预测阈值 (incr/0041) --------------------------------------------------

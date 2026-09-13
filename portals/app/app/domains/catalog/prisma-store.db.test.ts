@@ -37,6 +37,16 @@ async function seed(c: Client): Promise<void> {
      VALUES ($1, $2, 'ACC-CAT', 'Catalog Test', 'active') ON CONFLICT DO NOTHING`,
     [ACC, WS],
   );
+  // 0057: opportunity.stage is a composite FK now - the insert below relies on
+  // the column's DEFAULT 'qualify' (unchanged by 0058), so that row must exist
+  // first, same as the account it also depends on.
+  await c.query(
+    `INSERT INTO yucer_pipeline.stage_definition
+       (workspace_id, stage_code, name, sort_order, default_probability, is_won, is_terminal)
+     VALUES ($1, 'qualify', '合格判定', 1, 10, FALSE, FALSE)
+     ON CONFLICT (workspace_id, stage_code) DO NOTHING`,
+    [WS],
+  );
   await c.query(
     `INSERT INTO yucer_pipeline.opportunity (id, workspace_id, opportunity_no, name, account_id, owner_sub, requirement)
      VALUES ($1, $2, 'OPP-CAT', 'Catalog Deal', $3, 'usr_db', 'fixture requirement') ON CONFLICT DO NOTHING`,
@@ -55,6 +65,7 @@ async function cleanup() {
     await c.query(`DELETE FROM yucer_catalog.product_type WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_catalog.product_status WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_pipeline.opportunity WHERE workspace_id = $1`, [WS]);
+    await c.query(`DELETE FROM yucer_pipeline.stage_definition WHERE workspace_id = $1`, [WS]);
     await c.query(`DELETE FROM yucer_core.account WHERE workspace_id = $1`, [WS]);
   });
 }

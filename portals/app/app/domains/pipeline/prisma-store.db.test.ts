@@ -108,7 +108,10 @@ test("createOpportunity with no amount leaves amount null, not zero", { skip }, 
   }
 });
 
-test("an unrecognised stage is refused by the real CHECK", { skip }, async () => {
+test("an unrecognised stage is refused - a fixed CHECK before 0057, the workspace's own FK since", { skip }, async () => {
+  // incr/0058 replaced chk_opportunity_stage with a composite FK into the
+  // workspace's own stage_definition rows - "bogus" is refused either way,
+  // but the constraint doing the refusing changed name.
   await cleanup();
   try {
     await withPg(seed);
@@ -121,7 +124,7 @@ test("an unrecognised stage is refused by the real CHECK", { skip }, async () =>
             [WS, ACC],
           ),
         ),
-      /chk_opportunity_stage/,
+      /fk_opportunity_stage/,
     );
   } finally {
     await cleanup();

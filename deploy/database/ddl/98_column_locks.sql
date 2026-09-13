@@ -172,6 +172,12 @@ GRANT UPDATE (name, plan_id, territory_id, owner_sub, stage, forecast_category,
 REVOKE UPDATE ON yucer_pipeline.opportunity_stage_event FROM yucer_svc;
 REVOKE UPDATE ON yucer_pipeline.forecast_snapshot FROM yucer_svc;
 
+-- yucer_pipeline.stage_definition is created by incr/0057 and carries its own
+-- locks there: stage_code is the anchor, name/sort_order/default_probability/
+-- is_won/is_terminal are writable. opportunity.stage itself keeps the exact
+-- grant it already has above (it was always writable) - 0058 only replaces
+-- its CHECK constraint with a composite FK into this new table.
+
 -- incr/0039 drops `primary_reason` and restates this grant; baseline shape only.
 DO $$
 BEGIN

@@ -18,9 +18,11 @@ import {
   type ForecastCategory,
 } from "../../domains/pipeline/lib/forecast";
 import {
-  DEFAULT_PROBABILITY,
+  DEFAULT_STAGE_DEFINITIONS,
+  defaultProbabilityFor,
   isTerminal,
   type Stage,
+  type StageDefinition,
 } from "../../domains/pipeline/lib/stage";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
@@ -52,6 +54,9 @@ export interface DealTermsProps {
   /** The forecast bucket is a pro capability with its own permission; the
    * select is only rendered when the member actually holds it. */
   readonly canCategorize: boolean;
+  /** The workspace's own stage catalog (incr/0057) - see StageControlProps'
+   *  own note on why this is optional and defaulted. */
+  readonly stageDefinitions?: readonly StageDefinition[];
   readonly onSave: (
     opportunityId: string,
     input: {
@@ -76,10 +81,11 @@ export function DealTerms({
   forecastCategory,
   canEdit,
   canCategorize,
+  stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
   onSave,
 }: DealTermsProps) {
   const { FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } = useMessages();
-  const closed = isTerminal(stage);
+  const closed = isTerminal(stage, stageDefinitions);
   const initial = {
     amount: amount == null ? "" : String(amount),
     probability: probability == null ? "" : String(probability),
@@ -204,7 +210,7 @@ export function DealTerms({
               id="terms-probability"
               inputMode="numeric"
               value={
-                closed ? String(DEFAULT_PROBABILITY[stage]) : form.probability
+                closed ? String(defaultProbabilityFor(stage, stageDefinitions)) : form.probability
               }
               onChange={(e) =>
                 setForm({ ...form, probability: e.target.value })

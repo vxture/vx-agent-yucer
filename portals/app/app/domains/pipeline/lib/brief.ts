@@ -43,7 +43,7 @@ import {
   type ForecastThresholds,
 } from "./forecast-rule";
 import type { ForecastCategory } from "./forecast";
-import { OPEN_STAGE_ORDER, type Stage } from "./stage";
+import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage, type StageDefinition } from "./stage";
 
 export type BriefTone = "good" | "warn" | "bad";
 
@@ -123,6 +123,10 @@ export interface DealBriefInput {
    * two answers to one question on two screens.
    */
   readonly thresholds?: ForecastThresholds;
+  /** The workspace's own stage catalog (incr/0057). Optional for the same
+   *  reason `thresholds` is - a caller that has not loaded it gets the
+   *  shipped seven rather than a crash. */
+  readonly stageCatalog?: readonly StageDefinition[];
 }
 
 /**
@@ -164,6 +168,7 @@ const DAY = 86_400_000;
 export function dealBrief(input: DealBriefInput): DealBrief {
   const { deal, chain, commitments, lines, proposals, text, now } = input;
   const thresholds = input.thresholds ?? DEFAULT_FORECAST_THRESHOLDS;
+  const stageCatalog = input.stageCatalog ?? DEFAULT_STAGE_DEFINITIONS;
   const cells: BriefCell[] = [];
   const actions: BriefAction[] = [];
   const terminal = deal.status !== "open";
@@ -179,7 +184,7 @@ export function dealBrief(input: DealBriefInput): DealBrief {
       : stalled
         ? text.stageStalled(deal.stage, days)
         : text.stageMoving(deal.stage, days),
-    detail: stageDetail(deal.stage),
+    detail: stageDetail(deal.stage, stageCatalog),
   });
 
   // --- forecast ------------------------------------------------------------
@@ -327,7 +332,8 @@ export function dealBrief(input: DealBriefInput): DealBrief {
 }
 
 /** Where this stage sits on the road, for the strip's detail line. */
-function stageDetail(stage: Stage): string {
-  const i = OPEN_STAGE_ORDER.indexOf(stage);
-  return i === -1 ? "" : `${i + 1}/${OPEN_STAGE_ORDER.length}`;
+function stageDetail(stage: Stage, catalog: readonly StageDefinition[]): string {
+  const order = openStageOrder(catalog);
+  const i = order.indexOf(stage);
+  return i === -1 ? "" : `${i + 1}/${order.length}`;
 }

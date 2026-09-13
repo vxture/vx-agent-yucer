@@ -814,6 +814,30 @@ model OpportunityStageEvent {
   @@schema("yucer_pipeline")
 }
 
+/// incr/0057 - 商机阶段, a per-workspace vocabulary. No Prisma relation to
+/// Opportunity.stage / OpportunityStageEvent.{from,to}Stage: the FK (0058) is
+/// a composite natural-key FK (workspace_id, stage) against stage_code, and
+/// those three columns stay plain String - hundreds of call sites already
+/// compare/filter/index them by string, which a UUID relation would disturb
+/// for no integrity gain the composite FK does not already give.
+model StageDefinition {
+  id                  String   @id @default(uuid()) @db.Uuid
+  workspaceId         String   @map("workspace_id") @db.Uuid
+  stageCode           String   @map("stage_code") @db.VarChar(32)
+  name                String   @db.VarChar(64)
+  sortOrder           Int      @default(0) @map("sort_order")
+  defaultProbability  Int      @default(0) @map("default_probability") @db.SmallInt
+  isWon               Boolean  @default(false) @map("is_won")
+  isTerminal          Boolean  @default(false) @map("is_terminal")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt           DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, stageCode], map: "uidx_stage_definition_code")
+  @@index([workspaceId, sortOrder], map: "idx_stage_definition_ws_sort")
+  @@map("stage_definition")
+  @@schema("yucer_pipeline")
+}
+
 model ForecastSnapshot {
   id             String   @id @default(uuid()) @db.Uuid
   workspaceId    String   @map("workspace_id") @db.Uuid

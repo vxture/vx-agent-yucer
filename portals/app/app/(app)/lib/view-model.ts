@@ -10,8 +10,10 @@
 // decides what that looks like.
 
 import {
-  DEFAULT_PROBABILITY,
+  DEFAULT_STAGE_DEFINITIONS,
+  defaultProbabilityFor,
   type Stage,
+  type StageDefinition,
   isProbabilityOverridden,
 } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
@@ -168,14 +170,17 @@ export interface ProbabilityDisplay {
  * machine suggested and a number a salesperson committed to look identical in
  * the database and mean completely different things in a review.
  */
-export function probabilityDisplay(opp: {
-  stage: Stage;
-  probability: number | null;
-}): ProbabilityDisplay {
+export function probabilityDisplay(
+  opp: {
+    stage: Stage;
+    probability: number | null;
+  },
+  catalog: readonly StageDefinition[] = DEFAULT_STAGE_DEFINITIONS,
+): ProbabilityDisplay {
   return {
     value: opp.probability,
-    overridden: isProbabilityOverridden(opp),
-    stageDefault: DEFAULT_PROBABILITY[opp.stage],
+    overridden: isProbabilityOverridden(opp, catalog),
+    stageDefault: defaultProbabilityFor(opp.stage, catalog),
   };
 }
 

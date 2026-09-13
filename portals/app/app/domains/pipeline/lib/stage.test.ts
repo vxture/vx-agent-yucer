@@ -1,19 +1,26 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEFAULT_PROBABILITY,
-  OPEN_STAGE_ORDER,
-  STAGES,
+  DEFAULT_STAGE_DEFINITIONS,
   applyProbability,
+  defaultProbabilityFor,
   isProbabilityOverridden,
   isRegression,
   isTerminal,
+  openStageOrder,
   planProbabilityOverride,
   planStageChange,
   statusFor,
   type OpportunitySnapshot,
   type Stage,
 } from "./stage";
+
+// The shipped catalog's own codes/order, derived rather than duplicated -
+// STAGES/OPEN_STAGE_ORDER used to be stage.ts's own exports; now they are
+// just views over DEFAULT_STAGE_DEFINITIONS, so the test reads them the same
+// way every catalog-aware caller does.
+const STAGES = DEFAULT_STAGE_DEFINITIONS.map((s) => s.code);
+const OPEN_STAGE_ORDER = openStageOrder(DEFAULT_STAGE_DEFINITIONS);
 
 const AT = new Date("2026-08-15T10:00:00Z");
 
@@ -29,7 +36,8 @@ function plan(current: OpportunitySnapshot, to: Stage, extra: Record<string, unk
 
 test("the seven stages and their default win rates match the spec table", () => {
   assert.deepEqual([...STAGES], ["qualify", "discover", "validate", "propose", "negotiate", "won", "lost"]);
-  assert.deepEqual(DEFAULT_PROBABILITY, {
+  const probabilities = Object.fromEntries(DEFAULT_STAGE_DEFINITIONS.map((s) => [s.code, s.defaultProbability]));
+  assert.deepEqual(probabilities, {
     qualify: 10,
     discover: 25,
     validate: 50,
@@ -41,7 +49,7 @@ test("the seven stages and their default win rates match the spec table", () => 
 });
 
 test("exactly two stages are terminal, and neither is on the selling line", () => {
-  assert.deepEqual(STAGES.filter(isTerminal), ["won", "lost"]);
+  assert.deepEqual(STAGES.filter((s) => isTerminal(s)), ["won", "lost"]);
   for (const s of OPEN_STAGE_ORDER) assert.equal(isTerminal(s), false);
   assert.equal(OPEN_STAGE_ORDER.length, 5);
 });
@@ -51,7 +59,7 @@ test("status is derived from stage, and abandoned is never inferred", () => {
   assert.equal(statusFor("won"), "won");
   assert.equal(statusFor("lost"), "lost");
   // abandoned is a human decision about an open deal, not a stage.
-  assert.equal(STAGES.map(statusFor).includes("abandoned"), false);
+  assert.equal(STAGES.map((s) => statusFor(s)).includes("abandoned"), false);
 });
 
 // --- Journalling ------------------------------------------------------------
@@ -141,7 +149,7 @@ test("a re-close does not demand a second review - there is only ever one", () =
 
 test("a deal can be lost from any open stage", () => {
   for (const from of OPEN_STAGE_ORDER) {
-    const r = plan(opp({ stage: from, probability: DEFAULT_PROBABILITY[from] }), "lost");
+    const r = plan(opp({ stage: from, probability: defaultProbabilityFor(from) }), "lost");
     assert.ok(r.ok, `lost from ${from}`);
     assert.equal(r.value.patch.probability, 0);
   }

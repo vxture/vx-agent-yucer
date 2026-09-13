@@ -20,7 +20,7 @@ import {
   type ForecastThresholds,
 } from "./lib/forecast-rule";
 import {
-  DEFAULT_PROBABILITY,
+  DEFAULT_STAGE_DEFINITIONS,
   type OpportunityStatus,
   type Stage,
   type StageChangePlan,
@@ -73,6 +73,18 @@ export interface WinLossReasonRecord {
   forWon: boolean;
   forLost: boolean;
   sortOrder: number;
+}
+
+/** One row of the 商机阶段 vocabulary - incr/0057, per workspace. */
+export interface StageDefinitionRecord {
+  id: string;
+  workspaceId: string;
+  stageCode: string;
+  name: string;
+  sortOrder: number;
+  defaultProbability: number;
+  isWon: boolean;
+  isTerminal: boolean;
 }
 
 /**
@@ -263,6 +275,21 @@ export interface PipelineStore {
   removeWinLossReason(workspaceId: string, reasonId: string): Promise<boolean>;
   countReviewsByReason(workspaceId: string, reasonId: string): Promise<number>;
 
+  /* 商机阶段 (incr/0057) - the same shape again, plus the two flags that make
+     a code "won"/terminal and the count a removal must check before the FK
+     (0058) would refuse it anyway. */
+  listStageDefinitions(workspaceId: string): Promise<StageDefinitionRecord[]>;
+  upsertStageDefinition(
+    workspaceId: string,
+    input: Omit<StageDefinitionRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<StageDefinitionRecord>;
+  setStageDefinitionOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeStageDefinition(workspaceId: string, stageId: string): Promise<boolean>;
+  countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number>;
+
   /* --- 预测阈值 (incr/0041) --------------------------------------------------
      One row per workspace, so there is no list verb and no delete: `get`
      answers with the shipped numbers where no row exists yet, and `set` writes
@@ -278,6 +305,7 @@ export class InMemoryPipelineStore implements PipelineStore {
   private snapshots: Array<SnapshotRow & { workspaceId: string }> = [];
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private reasons: WinLossReasonRecord[] = [];
+  private stageDefinitions: StageDefinitionRecord[] = [];
   private seq = 0;
 
   /**
@@ -294,6 +322,7 @@ export class InMemoryPipelineStore implements PipelineStore {
       events?: StageEventRecord[];
       reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
       reasons?: WinLossReasonRecord[];
+      stageDefinitions?: StageDefinitionRecord[];
       /** A forecast series. Append-only in the DDL; seeded as a series here so
        *  the trajectory the immutability exists for is actually visible. */
       snapshots?: Array<SnapshotRow & { workspaceId: string }>;
@@ -303,11 +332,13 @@ export class InMemoryPipelineStore implements PipelineStore {
     this.events.push(...(extra.events ?? []));
     for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
     if (extra.reasons) this.reasons = [...extra.reasons];
+    if (extra.stageDefinitions) this.stageDefinitions = [...extra.stageDefinitions];
     this.snapshots.push(...(extra.snapshots ?? []));
   }
 
   async createOpportunity(workspaceId: string, input: NewOpportunity): Promise<OpportunityRecord> {
     this.seq += 1;
+    const entry = this.entryStage(workspaceId);
     const record: OpportunityRecord = {
       id: `opp_${this.seq}`,
       workspaceId,
@@ -319,10 +350,10 @@ export class InMemoryPipelineStore implements PipelineStore {
       territoryId: input.territoryId,
       ownerSub: input.ownerSub,
       requirement: input.requirement,
-      stage: "qualify",
+      stage: entry.stageCode,
       forecastCategory: "pipeline",
       amount: input.amount,
-      probability: DEFAULT_PROBABILITY.qualify,
+      probability: entry.defaultProbability,
       expectedCloseAt: input.expectedCloseAt,
       closedAt: null,
       status: "open",
@@ -332,6 +363,23 @@ export class InMemoryPipelineStore implements PipelineStore {
     };
     this.opportunities.set(record.id, record);
     return record;
+  }
+
+  /**
+   * Where a new deal lands: the workspace's own lowest-sort-order OPEN stage
+   * (incr/0057), falling back to the shipped "qualify" when the workspace has
+   * never had its stage catalog seeded yet - the bootstrap case for a
+   * genuinely brand-new workspace's very first opportunity, before anything
+   * has called listStageDefinitions (whose own first-contact seeding is what
+   * normally fills this in) to seed it.
+   */
+  private entryStage(workspaceId: string): { stageCode: string; defaultProbability: number } {
+    const rows = this.stageDefinitions
+      .filter((s) => s.workspaceId === workspaceId && !s.isTerminal)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    if (rows.length > 0) return { stageCode: rows[0]!.stageCode, defaultProbability: rows[0]!.defaultProbability };
+    const fallback = DEFAULT_STAGE_DEFINITIONS[0]!;
+    return { stageCode: fallback.code, defaultProbability: fallback.defaultProbability };
   }
 
   async listRenewalSourceProjectIds(workspaceId: string): Promise<Set<string>> {
@@ -488,6 +536,59 @@ export class InMemoryPipelineStore implements PipelineStore {
   async countReviewsByReason(workspaceId: string, reasonId: string): Promise<number> {
     return [...this.reviews.values()].filter(
       (r) => r.workspaceId === workspaceId && r.primaryReasonId === reasonId,
+    ).length;
+  }
+
+  async listStageDefinitions(workspaceId: string): Promise<StageDefinitionRecord[]> {
+    return this.stageDefinitions
+      .filter((s) => s.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.stageCode.localeCompare(b.stageCode));
+  }
+
+  async upsertStageDefinition(
+    workspaceId: string,
+    input: Omit<StageDefinitionRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<StageDefinitionRecord> {
+    const at = this.stageDefinitions.findIndex(
+      (s) => s.workspaceId === workspaceId && s.stageCode === input.stageCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.stageDefinitions[at]!, ...input, stageCode: this.stageDefinitions[at]!.stageCode };
+      this.stageDefinitions[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.stageDefinitions.filter((s) => s.workspaceId === workspaceId).map((s) => s.sortOrder),
+    );
+    const row: StageDefinitionRecord = {
+      id: `stg_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input,
+    };
+    this.stageDefinitions.push(row);
+    return row;
+  }
+
+  async setStageDefinitionOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.stageDefinitions = this.stageDefinitions.map((s) =>
+      s.workspaceId === workspaceId && want.has(s.id) ? { ...s, sortOrder: want.get(s.id)! } : s,
+    );
+  }
+
+  async removeStageDefinition(workspaceId: string, stageId: string): Promise<boolean> {
+    const before = this.stageDefinitions.length;
+    this.stageDefinitions = this.stageDefinitions.filter(
+      (s) => !(s.workspaceId === workspaceId && s.id === stageId),
+    );
+    return this.stageDefinitions.length < before;
+  }
+
+  async countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number> {
+    return [...this.opportunities.values()].filter(
+      (o) => o.workspaceId === workspaceId && o.stage === stageCode,
     ).length;
   }
 

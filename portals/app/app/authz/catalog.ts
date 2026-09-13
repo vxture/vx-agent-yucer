@@ -72,6 +72,13 @@ export const PERM_CODES = [
   // nobody. Not a feature key - keys are frozen at 19 and a signature is not
   // separately sellable.
   "pipeline.discount",
+  // --- stage catalog authority (incr/0059) ----------------------------------
+  // Redefining the stage catalog itself (rename/reorder/re-price/add/remove) is
+  // separate from pipeline.write, the same shape as pipeline.forecast one level
+  // up: a rep who owns their own pipeline must not redefine what "won" means
+  // for every other rep's pipeline too. Granted to the same roles that already
+  // hold pipeline.forecast.
+  "pipeline.stage",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -140,6 +147,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "delivery.read",
     "delivery.write",
     "copilot.use",
@@ -211,6 +219,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.write",
     "pipeline.read",
     "pipeline.forecast",
+    "pipeline.stage",
     "account.read",
     "campaign.read",
     "strategy.read",
@@ -253,6 +262,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -280,6 +290,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -342,6 +353,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -360,6 +372,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -400,6 +413,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "account.record",
     "pipeline.forecast",
+    "pipeline.stage",
     "planning.read",
     "campaign.write",
     "pipeline.discount",
@@ -441,6 +455,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.read",
     "pipeline.read",
     "pipeline.forecast",
+    "pipeline.stage",
     "strategy.read",
     "account.read",
     "campaign.read",
@@ -461,6 +476,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "account.record",
     "pipeline.forecast",
+    "pipeline.stage",
     "planning.read",
     "strategy.read",
   ],
@@ -505,6 +521,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -524,6 +541,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.read",
     "pipeline.write",
     "pipeline.forecast",
+    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -549,6 +567,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "account.record",
     "pipeline.forecast",
+    "pipeline.stage",
     "planning.read",
     "campaign.write",
     "pipeline.discount",
@@ -600,12 +619,14 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.read",
     "delivery.read",
     "pipeline.forecast",
+    "pipeline.stage",
   ],
   ops_head: [
     "planning.read",
     "planning.write",
     "pipeline.read",
     "pipeline.forecast",
+    "pipeline.stage",
     "account.read",
     "campaign.read",
     "strategy.read",
