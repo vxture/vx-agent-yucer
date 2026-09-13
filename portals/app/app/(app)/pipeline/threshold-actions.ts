@@ -27,7 +27,7 @@ export async function saveForecastThresholds(
     input,
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/forecast");
+  revalidatePath("/admin/opportunity");
   // The review page reads the same numbers, so it must not keep the old ones.
   revalidatePath("/forecast");
   return { ok: true };

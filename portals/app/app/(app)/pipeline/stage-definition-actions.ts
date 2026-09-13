@@ -39,7 +39,7 @@ export async function saveStageDefinition(input: {
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await upsertStageDefinition(context(session), input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/stage");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }
 
@@ -51,7 +51,7 @@ export async function moveStageDefinitionAction(
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await moveStageDefinition(context(session), { stageId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/stage");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }
 
@@ -60,6 +60,6 @@ export async function removeStageDefinitionAction(stageId: string): Promise<Stag
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await removeStageDefinition(context(session), { stageId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/stage");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }

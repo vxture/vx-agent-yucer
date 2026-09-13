@@ -59,7 +59,7 @@ export function WinLossReasonConfig({
       idPrefix="wlr"
       errors={REVIEW_ERROR}
       editable={editable}
-      page={{ icon: "clock-counter-clockwise", count: WINLOSS_TEXT.reasonCount }}
+      icon="clock-counter-clockwise"
       text={{
         title: WINLOSS_TEXT.reasonConfigTitle,
         noun: WINLOSS_TEXT.reasonNoun,

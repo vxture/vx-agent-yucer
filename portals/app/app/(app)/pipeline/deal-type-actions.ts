@@ -32,7 +32,7 @@ export async function saveDealType(input: { code: string; name: string }): Promi
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await upsertDealType(context(session), input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/dealtype");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }
 
@@ -44,7 +44,7 @@ export async function moveDealTypeAction(
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await moveDealType(context(session), { dealTypeId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/dealtype");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }
 
@@ -53,6 +53,6 @@ export async function removeDealTypeAction(dealTypeId: string): Promise<DealType
   if (!session) return { ok: false, error: "not_authenticated" };
   const r = await removeDealType(context(session), { dealTypeId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/dealtype");
+  revalidatePath("/admin/opportunity");
   return { ok: true };
 }

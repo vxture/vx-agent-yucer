@@ -28,7 +28,7 @@ export async function savePricingPolicy(
     input,
   );
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
-  revalidatePath("/admin/pricing");
+  revalidatePath("/admin/opportunity");
   // Everything that prices reads this row.
   revalidatePath("/pricebook");
   revalidatePath("/pipeline");

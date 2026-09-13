@@ -125,7 +125,7 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
    * Render the page's own header, with the add button in its action slot.
    *
    * TWO SHAPES, BECAUSE THERE ARE TWO SITUATIONS. On a page that is only this
-   * table (/admin/industry, /admin/winloss) the vocabulary IS the page: it
+   * table (/admin/industry) the vocabulary IS the page: it
    * takes the ViewHeader (icon + count in `secondary`), and the add button
    * goes in a FilterBar of its own above the table - the same place
    * org-panel.tsx/division-panel.tsx put theirs (owner ruling, batch 2: a
