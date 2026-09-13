@@ -36,7 +36,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-024 | FilterBar 的视图切换无法本地化，DS 的默认值也与它自己的文档相反 | 2026-09-07 | open（无垫片可建；已上报 DS） |
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
-| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `medal`；待上报 DS） |
+| TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `rows`；待上报 DS） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1720,10 +1720,16 @@ medal: MedalIcon,
 共用了一份图形。
 
 **缺失元素**：`role`（或"角色/身份"这一类概念）自己的一枚图形，不与
-`users`/`user` 共用。**垫片位置**：三处换成已有且视觉独立的 `medal`（勋章/
-职级底座，`role-groups-config.tsx` 的职级词表页已经在用同一枚，语义上本就
-挨着"角色") —— `admin-nav.ts` 的 `roles` 导航项、`/admin/roles` 系列四个页面的
-`ViewHeader`、`role-panel.tsx` 表格里角色名称的 `TableTitleCell`，一次改全，
-不留一处仍指 `role` 的旧值（旧值本身没有坏，只是跟 `users` 是同一张脸）。
-**收回条件**：DS 给 `role` 一份自己的 SVG 后，把这三处换回 `icon="role"`。
+`users`/`user` 共用。**垫片位置**：`admin-nav.ts` 的 `roles` 导航项、
+`/admin/roles` 系列四个页面的 `ViewHeader`、`role-panel.tsx` 表格里角色名称
+的 `TableTitleCell`，一次改全，不留一处仍指 `role` 的旧值（旧值本身没有坏，
+只是跟 `users` 是同一张脸）。
+
+垫片图标选了两轮：第一轮 `medal`（勋章/职级底座）虽然视觉独立，但
+`role-groups-config.tsx` 的职级词表页已经把这枚图标用在"职级"这个更窄的
+概念上 —— owner 复核后否了，连带否了 `certificate`/`shield`（两个都有明显、
+具体的语义，容易被以后某个真正需要"证书"或"安全"这个含义的功能占用）。第二
+轮改用 `rows`（一排横线，纯结构性，不含任何"角色/权限/身份"这类强语义，
+全库未被占用，也不是 DS `ViewModeSwitch` 已经占着的 `list`）。**收回条件**：
+DS 给 `role` 一份自己的 SVG 后，把这三处换回 `icon="role"`。
 

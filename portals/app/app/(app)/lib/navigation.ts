@@ -68,10 +68,14 @@ export type NavIcon =
   // rather than eight settings cogs.
   | "tree-structure"
   | "users"
-  // 角色管理 uses "medal", not "role" (TD-027, docs/60-operations/00-index.md):
+  // 角色管理 uses "rows", not "role" (TD-027, docs/60-operations/00-index.md):
   // the DS's icon table has `role` pointing at the same `UsersIcon` as
   // `users` above, so the two nav items drew one glyph under two names.
-  | "medal"
+  // Plain and structural on purpose (owner, 2026-09-12: 避开明显有强含义的
+  // 图标, after "medal" turned out to collide with 职级 and two stronger
+  // candidates were vetoed as reserved for other features) - not the DS's
+  // own "list", which `ViewModeSwitch` already owns as the list/card toggle.
+  | "rows"
   | "role"
   | "key"
   | "eye"
