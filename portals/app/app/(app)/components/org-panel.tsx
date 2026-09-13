@@ -31,6 +31,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ACTION_COLUMN, EDGE_COLUMNS, FilterSlot, PaginationFooter, RowActions, SearchSlot, moveItems } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
+import { orgUnitIcon } from "../lib/org-unit-icon";
 import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
 import { Tag } from "./tag";
 
@@ -60,6 +61,11 @@ import { Tag } from "./tag";
  *
  * 单位详情 answers the question 成员管理 could not: who is in 华南分公司. It
  * is a drawer, view-only; 编辑 in its foot goes to the one form.
+ *
+ * A UNIT'S ICON (owner, 2026-09-12: 现在统一为 building 不合理, then 按 Ln
+ * 定位有点绝对了) is `orgUnitIcon` (`../lib/org-unit-icon.ts`), shared with
+ * 组织管理's own tree so the two admin surfaces read the same hierarchy the
+ * same way - both this page's list AND cards view draw it, not just one.
  */
 
 export interface OrgUnitRow {
@@ -424,6 +430,7 @@ export function OrgPanel({
           {pagination.pageRows.map((r) => (
             <ListCard
               key={r.unitCode}
+              icon={orgUnitIcon(r)}
               title={r.name}
               description={r.unitCode}
               onTitleClick={() => setDetails(r)}
@@ -512,7 +519,7 @@ export function OrgPanel({
                     ) : (
                       <span className="w-8 shrink-0" />
                     )}
-                    <TableTitleCell title={r.name} tooltip={r.name} description={r.unitCode} onTitleClick={() => setDetails(r)} />
+                    <TableTitleCell icon={orgUnitIcon(r)} title={r.name} tooltip={r.name} description={r.unitCode} onTitleClick={() => setDetails(r)} />
                   </span>
                 ),
               },
