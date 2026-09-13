@@ -68,3 +68,29 @@ test("flattened in tree order: under a unit its child units first, then its peop
   const nobodyUnplaced = flattenOrgView(buildOrgView(UNITS, []), new Set());
   assert.equal(nobodyUnplaced.some((r) => r.id === UNPLACED_ROW_ID), false);
 });
+
+test("totalPeople rolls up the whole subtree; people stays direct-only (owner, 2026-09-13: same 递归 fix as org-panel.tsx's own totalMembers)", () => {
+  const view = buildOrgView(UNITS, [
+    { sub: "a", name: "甲", status: "active", unitIds: ["east_t1"], scope: "workspace", territories: [] },
+    { sub: "b", name: "乙", status: "active", unitIds: ["east", "south"], scope: "workspace", territories: [] },
+  ]);
+  const hq = view.roots[0]!;
+  const [east, south] = hq.children;
+  const eastT1 = east!.children[0]!;
+  // Direct is unchanged - each node sees only who is placed AT it.
+  assert.deepEqual([eastT1.people.length, east!.people.length, hq.people.length, south!.people.length], [1, 1, 0, 1]);
+  // Total climbs the chain: 华东一组's own 1, plus 华东's own 1 (乙, placed
+  // directly there) makes 华东's total 2; 总部's total is the SUM of its
+  // children's totals (华东's 2 plus 华南's 1) - 乙, placed in both 华东 and
+  // 华南 (0053), is counted once in each subtree and so twice at 总部, same
+  // as listOrgUnits' own totalMembers double-counts a multi-unit placement.
+  assert.deepEqual(
+    [eastT1.totalPeople, east!.totalPeople, hq.totalPeople, south!.totalPeople],
+    [1, 2, 3, 1],
+  );
+  // flattenOrgView carries the same total onto the row as `totalHeadcount`,
+  // next to the direct-only `headcount`.
+  const rows = flattenOrgView(view, new Set());
+  const eastRow = rows.find((r) => r.kind === "unit" && r.name === "华东")!;
+  assert.deepEqual([(eastRow as { headcount: number }).headcount, (eastRow as { totalHeadcount: number }).totalHeadcount], [1, 2]);
+});

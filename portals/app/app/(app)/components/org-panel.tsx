@@ -34,7 +34,7 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 import { orgUnitIcon } from "../lib/org-unit-icon";
 import { collapseFromDepth, depthLevels } from "../lib/tree-expand";
 import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
-import { Tag } from "./tag";
+import { CountCircle, Tag } from "./tag";
 
 /* 组织结构 - 展示. DISPLAY ONLY, the shape /admin/roles has.
  *
@@ -113,23 +113,6 @@ export interface OrgUnitRow {
   /** The ancestor unit `territories` was inherited from - set only when
    *  `scope === "inherited"`. */
   readonly inheritedFromName: string | null;
-}
-
-/** 圈数字 (owner, 2026-09-11: 第一个关联区域名称后面圈数字显示总数量，如果
- *  超过1个显示数字) - first used next to the FIRST territory's name, shown
- *  only once there is more than one; now also the 成员数 column's 直属人数
- *  (owner, 2026-09-13: 圆圈{直属人数}). NOT `./count-badge.tsx`: that element
- *  is deliberately alert-red for a notification corner mark (TD-006, 太大/
- *  颜色没有警示效果) - a plain count is information, not a warning, so
- *  reusing its colour would misapply the exact distinction that component's
- *  own comment draws. Same TD-006 shape (a circle at one digit, growing to a
- *  pill past two) on neutral DS tokens instead. */
-function CountCircle({ count }: { readonly count: number }) {
-  return (
-    <span className="bg-muted text-muted-foreground inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full px-[0.1875rem] text-[0.625rem] font-semibold leading-none tabular-nums">
-      {count}
-    </span>
-  );
 }
 
 /** Every id in `id`'s own subtree, `id` itself included - what 迁到… must
