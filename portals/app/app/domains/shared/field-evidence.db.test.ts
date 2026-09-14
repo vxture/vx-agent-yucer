@@ -46,15 +46,20 @@ async function seed(c: Client): Promise<string> {
 
 // --- The increment applied at all ------------------------------------------
 
-test("the field schema and its three tables exist", { skip }, async () => {
+test("the field schema and its tables exist", { skip }, async () => {
   await withDb(async (c) => {
     const { rows } = await c.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables
        WHERE table_schema = 'yucer_field' AND table_type = 'BASE TABLE' ORDER BY 1`,
     );
+    // ADR-006's THREE evidence tables, plus contact_recency_policy (incr/0065)
+    // - a workspace SETTING, not evidence, that landed in this schema because
+    // it thresholds the same fact (days since a recorded interaction) the
+    // three evidence tables own. See incr/0065's own header for the placement
+    // rationale.
     assert.deepEqual(
       rows.map((r) => r.table_name),
-      ["commitment", "interaction", "interaction_participant"],
+      ["commitment", "contact_recency_policy", "interaction", "interaction_participant"],
     );
   });
 });

@@ -167,6 +167,7 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "admin/adoption": { group: "admin", module: "admin", page: "admin.adoption" },
   "admin/role": { group: "admin", module: "admin", page: "admin.role" },
   "admin/org": { group: "admin", module: "admin", page: "admin.org" },
+  "admin/reminderthreshold": { group: "admin", module: "admin", page: "admin.reminderthreshold" },
 };
 
 /** `pipeline.winloss.record` -> { module: "pipeline", page: "winloss" };

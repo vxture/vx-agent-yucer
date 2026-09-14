@@ -349,6 +349,18 @@ model AgeingPolicy {
   @@schema("yucer_delivery")
 }
 
+/// incr/0066. 续约提醒窗口 - how many days ahead a subscription renewal
+/// surfaces. One row per workspace, like the thresholds above.
+model RenewalPolicy {
+  workspaceId String   @id @map("workspace_id") @db.Uuid
+  windowDays  Int      @default(90) @map("window_days") @db.SmallInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("renewal_policy")
+  @@schema("yucer_delivery")
+}
+
 /// incr/0040. 行业 - the workspace's own industry vocabulary, same shape as the
 /// catalogue's three: an anchor code, a display name, an order.
 model Industry {
@@ -1229,6 +1241,20 @@ model Commitment {
 
   @@index([workspaceId, dueAt])
   @@map("commitment")
+  @@schema("yucer_field")
+}
+
+/// incr/0065. 联系提醒阈值 - how many days of silence count as quiet, stale, or
+/// cold. One row per workspace, like forecast_threshold.
+model ContactRecencyPolicy {
+  workspaceId   String   @id @map("workspace_id") @db.Uuid
+  quietDays     Int      @default(21) @map("quiet_days") @db.SmallInt
+  staleDays     Int      @default(30) @map("stale_days") @db.SmallInt
+  chainWarmDays Int      @default(90) @map("chain_warm_days") @db.SmallInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt     DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@map("contact_recency_policy")
   @@schema("yucer_field")
 }
 

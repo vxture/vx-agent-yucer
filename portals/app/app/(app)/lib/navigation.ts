@@ -83,7 +83,11 @@ export type NavIcon =
   | "clipboard"
   // 待迁路由 (owner, 2026-09-11) - a holding page, the glyph for a box things
   // sit in until they are sorted.
-  | "archive";
+  | "archive"
+  // 提醒阈值 (incr/0065-0066) - the same mark the header's own notification
+  // icon uses, and for the same reason: this page decides when something
+  // starts counting as worth a nudge.
+  | "bell";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */

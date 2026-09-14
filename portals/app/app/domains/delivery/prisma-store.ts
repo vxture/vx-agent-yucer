@@ -3,7 +3,7 @@ import { assertWritable } from "../shared/column-locks";
 import { money, type Money } from "../shared/money";
 import type { MilestoneStatus, ProjectHealth, RevenueStatus } from "./lib/revenue";
 import type { MilestoneChangeDraft, MilestoneDraft } from "./lib/milestone";
-import type { EngagementType } from "./lib/renewal";
+import { DEFAULT_RENEWAL_POLICY, type EngagementType, type RenewalPolicy } from "./lib/renewal";
 import type {
   DeliveryStore,
   InstalmentRecord,
@@ -28,6 +28,7 @@ const MILESTONE_TABLE = "yucer_delivery.project_milestone";
 const REVENUE_TABLE = "yucer_delivery.revenue_schedule";
 // incr/0042. 账龄分档, one row per workspace.
 const AGEING_POLICY_TABLE = "yucer_delivery.ageing_policy";
+const RENEWAL_POLICY_TABLE = "yucer_delivery.renewal_policy";
 // yucer_delivery.milestone_change has no constant here on purpose: assertWritable
 // guards an UPDATE's column list, and this table has no UPDATE to guard. Its
 // entry in APPEND_ONLY_TABLES is what the mirror checks.
@@ -236,6 +237,31 @@ export class PrismaDeliveryStore implements DeliveryStore {
       );
     }
     await p.ageingPolicy.upsert({
+      where: { workspaceId },
+      update,
+      create: { workspaceId, ...update },
+    });
+  }
+
+  /* --- 续约提醒窗口 (incr/0066) ------------------------------------------------
+     Same "no row = shipped default" discipline as ageing_policy above. */
+
+  async getRenewalPolicy(workspaceId: string): Promise<RenewalPolicy> {
+    const p = await getPrismaClient();
+    const row = await p.renewalPolicy.findUnique({ where: { workspaceId } });
+    return row ? { windowDays: row.windowDays } : DEFAULT_RENEWAL_POLICY;
+  }
+
+  async setRenewalPolicy(workspaceId: string, policy: RenewalPolicy): Promise<void> {
+    const p = await getPrismaClient();
+    const update = { windowDays: policy.windowDays, updatedAt: new Date() };
+    const guard = assertWritable(RENEWAL_POLICY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked renewal_policy column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.renewalPolicy.upsert({
       where: { workspaceId },
       update,
       create: { workspaceId, ...update },

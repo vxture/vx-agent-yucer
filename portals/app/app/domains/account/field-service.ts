@@ -25,6 +25,10 @@ import {
 import type { EvidenceGrounding } from "../../agent/orchestrator/prompt";
 import { analyzeChainRecency, type ChainRecency, type ContactNode, type RelationEdge } from "./lib/health";
 import {
+  planContactRecencyPolicy,
+  type ContactRecencyPolicy,
+} from "./lib/contact-recency-policy";
+import {
   CAPTURE_CRITERION,
   assessCapture,
   captureByWeek,
@@ -287,7 +291,43 @@ export async function chainRecency(
     contactId: c.id,
     lastContactAt: last.get(c.id) ?? null,
   }));
-  return ok(analyzeChainRecency(contacts, relations, activity, options));
+  // incr/0065: the caller almost never passes windowDays explicitly (only
+  // tests do), so this is where the workspace's own number actually enters -
+  // a plain store read, not the public contactRecencyPolicy() verb below,
+  // because account.view already gated this call once and re-gating the same
+  // request on admin.reminderthreshold.view would tie "can I see this
+  // account's chain" to "am I a workspace administrator".
+  const windowDays =
+    options.windowDays ??
+    (await ctx.store.getContactRecencyPolicy(ctx.workspaceId)).chainWarmDays;
+  return ok(analyzeChainRecency(contacts, relations, activity, { ...options, windowDays }));
+}
+
+// --- 提醒阈值配置 (incr/0065) -------------------------------------------------
+//
+// Public config verbs for /admin/reminder. Everything ABOVE this line that
+// consumes a recency threshold reads the store directly, already gated by its
+// own action (account.view) - these two are the ones the admin page itself
+// calls, gated on workspace administration rather than account data.
+
+export async function contactRecencyPolicy(
+  ctx: FieldContext,
+): Promise<RuleResult<ContactRecencyPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.reminderthreshold.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getContactRecencyPolicy(ctx.workspaceId));
+}
+
+export async function setContactRecencyPolicy(
+  ctx: FieldContext,
+  input: ContactRecencyPolicy,
+): Promise<RuleResult<ContactRecencyPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.reminderthreshold.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planContactRecencyPolicy(input);
+  if (!plan.ok) return plan;
+  await ctx.store.setContactRecencyPolicy(ctx.workspaceId, plan.value);
+  return ok(plan.value);
 }
 
 /**

@@ -9,12 +9,15 @@ import {
   listProjects,
   listRenewals,
   renewalDraft,
+  renewalPolicy,
+  setRenewalPolicy,
   projectView,
   reconcileProjectHealth,
   transitionInstalment,
   upsertMilestone,
   type DeliveryContext,
 } from "./service";
+import { DEFAULT_RENEWAL_POLICY } from "./lib/renewal";
 
 const WS = "ws_1";
 const NOW = new Date("2026-08-15T00:00:00Z");
@@ -458,6 +461,45 @@ test("both renewal verbs are refused when the tier does not include delivery", a
   const one = await renewalDraft(blind, "prj_1", { now: NOW });
   assert.equal(list.ok, false);
   assert.equal(one.ok, false);
+});
+
+// --- 续约提醒窗口 (incr/0066) ------------------------------------------------
+
+test("reading the renewal window needs admin.manage; setting it does too", async () => {
+  const store = new InMemoryDeliveryStore();
+  assert.equal((await renewalPolicy(ctx("delivery_manager", "business", store))).ok, false);
+  assert.equal((await renewalPolicy(ctx("sales_leader", "business", store))).ok, true);
+
+  const noAuthority = await setRenewalPolicy(ctx("delivery_manager", "business", store), { windowDays: 30 });
+  assert.equal(noAuthority.ok === false && noAuthority.violations[0].code, "permission_denied");
+
+  const saved = unwrap(await setRenewalPolicy(ctx("sales_leader", "business", store), { windowDays: 30 }));
+  assert.deepEqual(saved, { windowDays: 30 });
+});
+
+test("a workspace that has set nothing reads the shipped default", async () => {
+  const store = new InMemoryDeliveryStore();
+  assert.deepEqual(unwrap(await renewalPolicy(ctx("sales_leader", "business", store))), DEFAULT_RENEWAL_POLICY);
+});
+
+test("listRenewals/renewalDraft resolve the workspace's own window - no re-gate on top of delivery.project.view", async () => {
+  const store = new InMemoryDeliveryStore();
+  store.seed({ projects: [subscription({ endsAt: daysAhead(200) })] });
+  await setRenewalPolicy(ctx("sales_leader", "business", store), { windowDays: 270 });
+
+  // 200 days out is too_far_out under the shipped 90-day default, and due
+  // under this workspace's own 270-day window - and renewalCtx (below) holds
+  // no admin.manage at all, proving the resolution happened as a plain store
+  // read rather than through the admin-gated renewalPolicy() verb.
+  const rows = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW }));
+  assert.equal(rows[0].verdict.kind, "due");
+
+  const draft = await renewalDraft(renewalCtx(store), "prj_1", { now: NOW });
+  assert.equal(draft.ok, true);
+
+  // An explicit windowDays in opts still wins, for callers that pass one.
+  const explicit = unwrap(await listRenewals(renewalCtx(store), new Set(), { now: NOW, windowDays: 90 }));
+  assert.equal(explicit[0].verdict.kind, "not_due");
 });
 
 // --- incr/0032: moving a committed gate is a recorded act ---------------------

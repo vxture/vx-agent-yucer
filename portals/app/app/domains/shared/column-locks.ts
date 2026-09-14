@@ -304,6 +304,12 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   ],
   // 0042. Same shape, one column.
   "yucer_delivery.ageing_policy": ["late_cutoffs", "updated_at"],
+  // 0066. Same shape, one column.
+  "yucer_delivery.renewal_policy": ["window_days", "updated_at"],
+  // 0065. Three numbers, one row - see contact-recency-policy.ts.
+  "yucer_field.contact_recency_policy": [
+    "quiet_days", "stale_days", "chain_warm_days", "updated_at",
+  ],
   // 0040. industry_code is the anchor; the display name and the order are the
   // workspace's.
   "yucer_core.industry": ["name", "sort_order", "updated_at"],

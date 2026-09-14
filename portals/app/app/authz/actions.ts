@@ -597,6 +597,25 @@ export const ACTIONS = {
     permission: "admin.manage",
     writes: false,
   },
+  // 提醒阈值 (incr/0065-0066): how many days of silence count as quiet/stale,
+  // a decision-chain contact's warmth window, and how early a renewal
+  // surfaces. All three are workspace administration, not a sales capability
+  // - same reasoning as admin.adoption.view - so no feature key, and view/
+  // manage share admin.manage rather than minting a new PermCode the way
+  // pipeline.opportunityConfig did (that one existed to replace six PAID-TIER
+  // gates; these three were never tier-gated to begin with).
+  "admin.reminderthreshold.view": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: false,
+  },
+  "admin.reminderthreshold.manage": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
   "admin.member.role.assign": {
     domain: "admin",
     feature: null,

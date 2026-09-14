@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { countByUrgency, deriveJudgements, resolveScope, type AccountInput } from "./judgement";
+import { DEFAULT_CONTACT_RECENCY_POLICY } from "../../account/lib/contact-recency-policy";
 
 // The judgement layer.
 //
@@ -299,4 +300,52 @@ test("a non-strategic account gets no cadence judgement at all", () => {
   const ordinary = account({ openDeals: [], commitments: [], lastContactAt: daysAgo(400) });
   const js = deriveJudgements({ accounts: [ordinary], now: NOW });
   assert.equal(js.filter((j) => j.id.startsWith("cadence:")).length, 0);
+});
+
+// --- 联系提醒阈值 (incr/0065) - the same account, a workspace-chosen policy --
+
+test("the default policy is exactly the numbers this file already assumed", () => {
+  assert.deepEqual(deriveJudgements({ accounts: [account()], now: NOW }), deriveJudgements(
+    { accounts: [account()], now: NOW },
+    DEFAULT_CONTACT_RECENCY_POLICY,
+  ));
+});
+
+test("a workspace that widens quietDays past the same silence sees nothing", () => {
+  // 48 days quiet fires the default policy's quiet card (quietDays=21). A
+  // workspace that decided 60 days is normal for it sees no card at all for
+  // the identical account and the identical silence.
+  const widened = deriveJudgements(
+    { accounts: [account()], now: NOW },
+    { ...DEFAULT_CONTACT_RECENCY_POLICY, quietDays: 60, staleDays: 61 },
+  );
+  assert.equal(widened.some((j) => j.id === "quiet:acc_1"), false);
+});
+
+test("a workspace that raises staleDays past the same silence keeps the card at the lighter tier", () => {
+  // 48 days quiet crosses the SHIPPED staleDays (30), which is why the
+  // baseline test above gets "week" rather than "watch". A workspace whose
+  // own staleDays is 90 has not crossed its own escalation point yet.
+  const raised = deriveJudgements(
+    { accounts: [account()], now: NOW },
+    { ...DEFAULT_CONTACT_RECENCY_POLICY, staleDays: 90 },
+  );
+  const quiet = raised.find((j) => j.id === "quiet:acc_1");
+  assert.ok(quiet, "still past this workspace's own quietDays (21)");
+  assert.equal(quiet!.urgency, "watch");
+});
+
+test("a workspace that lowers staleDays turns silence-plus-a-broken-promise into today, sooner", () => {
+  // 41 days overdue and 41 days quiet: the shipped staleDays (30) already
+  // fires "stalled" here. Lowering it further changes nothing about THIS
+  // case; raising it past 41 would suppress the stalled card entirely and
+  // fall back to the lighter quiet-only shape - proving staleDays is really
+  // driving rule 1, not just rule 4's tiering.
+  const withBroken = account({ commitments: [theyOwe(41)], lastContactAt: daysAgo(41) });
+  const raisedPastIt = deriveJudgements(
+    { accounts: [withBroken], now: NOW },
+    { ...DEFAULT_CONTACT_RECENCY_POLICY, staleDays: 50, quietDays: 40 },
+  );
+  assert.equal(raisedPastIt.some((j) => j.id === "stalled:acc_1"), false);
+  assert.equal(raisedPastIt.some((j) => j.id === "quiet:acc_1"), false, "they owe us, so quiet must not fire either");
 });
