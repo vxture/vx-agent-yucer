@@ -111,6 +111,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   stage: "商机阶段",
   dealtype: "商机类型",
   industry: "行业分类",
+  reminderThreshold: "提醒阈值",
   forecastThreshold: "预测阈值",
   ageingPolicy: "账龄分档",
   pricingPolicy: "计价规则",
@@ -241,9 +242,10 @@ export const ROUTING_TEXT = {
 
 export const RENEWAL_TEXT = {
   title: "合同续约",
-  why: "订阅制项目到期前 90 天出现在这里（owner 裁定 2026-08-30：从项目派生，且只为订阅类）。一次性交付不在此列——它交付完就结束了，替它造一个续约义务是客户从没承诺过的事。",
+  // 提前多少天不再是写死的 90——incr/0066 把它挪进「提醒阈值」页，工作区自己设。
+  why: "订阅制项目进入到期前的提醒窗口就出现在这里（窗口天数在「提醒阈值」页配置；owner 裁定 2026-08-30：从项目派生，且只为订阅类）。一次性交付不在此列——它交付完就结束了，替它造一个续约义务是客户从没承诺过的事。",
   none: "没有临近到期的订阅项目",
-  noneWhy: "一次性项目不产生续约；订阅项目要到期限前 90 天才出现在这里。",
+  noneWhy: "一次性项目不产生续约；订阅项目要进入到期前的提醒窗口才出现在这里，窗口天数在「提醒阈值」页配置。",
   colProject: "项目",
   colEnds: "到期",
   colAmount: "上期金额",
@@ -274,7 +276,7 @@ export const RENEWAL_TEXT = {
   notDue: {
     not_subscription: "一次性项目，交付即结束",
     no_end_date: "订阅项目缺到期日——续约会悄悄漏掉",
-    too_far_out: "还没进入 90 天窗口",
+    too_far_out: "还没进入提醒窗口",
     not_delivering: "尚未开始或已终止，没有可续的期限",
     already_renewed: "已有续约商机在跑",
   } as Record<string, string>,
@@ -1200,7 +1202,7 @@ export const FORECAST_PARAM_TEXT = {
   commitLabel: "承诺起算",
   bestCaseLabel: "最好情况起算",
   stallLabel: "停滞天数",
-  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。商机类型也可以单独设置停滞天数，覆盖这里的默认值。",
+  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子，在「提醒阈值」页单独配置。商机类型也可以单独设置停滞天数，覆盖这里的默认值。",
 };
 
 /** `SUPPORTED_CURRENCIES` (catalog/lib/pricing-policy.ts) 的显示名，同一组
@@ -1260,6 +1262,47 @@ export const AGEING_TEXT = {
   confirmRemove: (days: string) => `删除 ${days} 天的分档点？`,
   confirmYes: "确认",
   confirmNo: "取消",
+};
+
+/** 联系提醒阈值的回执 (0065)。 */
+export const CONTACT_RECENCY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  quiet_out_of_range: "多久算轻度沉默是 1 到 365 之间的整数天",
+  stale_out_of_range: "多久算严重停滞是 1 到 365 之间的整数天",
+  recency_bands_cross: "严重停滞的天数必须大于轻度沉默，否则轻度沉默永远升不了级",
+  chain_warm_out_of_range: "决策链温度窗口是 1 到 365 之间的整数天",
+};
+
+export const CONTACT_RECENCY_TEXT = {
+  title: "联系提醒阈值",
+  why: "多久算轻度沉默、多久算严重停滞，以及决策链联系人多久没接触算冷。",
+  save: "保存",
+  discard: "放弃",
+  saved: "已保存，首页判断流与决策链温度立即按新阈值来算",
+  days: "天",
+  quietLabel: "轻度沉默",
+  quietHint: "开放商机超过这么久没跟进记录，首页出现一张较轻的提醒卡。",
+  staleLabel: "严重停滞",
+  staleHint: "超过这么久，轻度沉默卡升级；叠加对方逾期承诺时单独出现一张更重的卡。必须大于轻度沉默天数。",
+  chainWarmLabel: "决策链温度窗口",
+  chainWarmHint: "决策链联系人超过这么久没有记录跟进，判定为冷。",
+};
+
+/** 续约提醒窗口的回执 (0066)。 */
+export const RENEWAL_POLICY_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  window_out_of_range: "提前预警天数是 1 到 365 之间的整数天",
+};
+
+export const RENEWAL_POLICY_TEXT = {
+  title: "续约提醒窗口",
+  why: "合同到期前提前多少天，续约候选开始出现在续约页。",
+  save: "保存",
+  discard: "放弃",
+  saved: "已保存，续约页立即按新窗口来算",
+  days: "天",
+  windowLabel: "提前预警天数",
+  windowHint: "合同到期日往前数这么多天，开始出现在续约候选里。已到期的合同永远算数，不受这个窗口限制。",
 };
 
 export const INDUSTRY_TEXT = {
@@ -2041,6 +2084,7 @@ export const ADMIN_TEXT = {
     stage: "商机推进经过的阶段，改名/排序/默认赢率/增删",
     dealtype: "商机的分类——新签/续费/增购/项目型/产品型",
     industry: "客户按行业归档，一处改，处处改",
+    reminderThreshold: "多久算联系冷淡、决策链温度窗口，以及续约提前多少天提醒",
     forecastThreshold: "承诺、最好情况从多少概率起算",
     ageingPolicy: "逾期多少天算一档",
     pricingPolicy: "报价默认用什么币种",
@@ -5292,6 +5336,7 @@ export const PERMISSION_TREE_TEXT = {
     "admin.adoption": "使用情况",
     "admin.role": "角色",
     "admin.org": "组织架构",
+    "admin.reminderthreshold": "提醒阈值",
   } as Record<string, string>,
   actionLabel: {
     "strategy.plan.view": "查看战略方案",
@@ -5362,6 +5407,8 @@ export const PERMISSION_TREE_TEXT = {
     "catalog.pricebook.upsert": "维护价目",
     "admin.member.view": "查看成员",
     "admin.adoption.view": "查看使用情况",
+    "admin.reminderthreshold.view": "查看提醒阈值",
+    "admin.reminderthreshold.manage": "设置提醒阈值",
     "admin.member.role.assign": "分配角色",
     "admin.member.role.revoke": "撤销角色",
     "admin.member.deactivate": "停用成员",

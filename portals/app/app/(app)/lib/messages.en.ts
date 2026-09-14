@@ -203,6 +203,7 @@ export const en: Dictionary = {
     stage: "Pipeline stages",
     dealtype: "Deal types",
     industry: "Industries",
+    reminderThreshold: "Reminder thresholds",
     forecastThreshold: "Forecast bands",
     ageingPolicy: "Ageing bands",
     pricingPolicy: "Pricing rules",
@@ -319,10 +320,12 @@ export const en: Dictionary = {
   },
   RENEWAL_TEXT: {
     title: "Renewals",
-    why: "Subscription projects appear here 90 days before their term ends (owner ruling, 2026-08-30: derived from the project, and only for subscriptions). One-off deliveries are absent - they finished when they were handed over, and inventing a renewal for one chases an obligation the customer never took on.",
+    // The lead time is no longer a hardcoded 90 - incr/0066 moved it under
+    // Reminder thresholds, workspace-set.
+    why: "Subscription projects appear here once they enter the reminder window before their term ends (window set under Reminder thresholds; owner ruling, 2026-08-30: derived from the project, and only for subscriptions). One-off deliveries are absent - they finished when they were handed over, and inventing a renewal for one chases an obligation the customer never took on.",
     none: "No subscription terms coming up",
     noneWhy:
-      "One-off projects never renew; a subscription appears 90 days before its term ends.",
+      "One-off projects never renew; a subscription appears once it enters the reminder window before its term ends, set under Reminder thresholds.",
     colProject: "Project",
     colEnds: "Term ends",
     colAmount: "Last term",
@@ -343,7 +346,7 @@ export const en: Dictionary = {
       not_subscription: "one-off; it finished when it was delivered",
       no_end_date:
         "subscription with no end date - this renewal will be missed",
-      too_far_out: "outside the 90-day window",
+      too_far_out: "outside the reminder window",
       not_delivering: "not started, or terminated - no term to extend",
       already_renewed: "a renewal deal is already running",
     } as Record<string, string>,
@@ -2032,7 +2035,7 @@ export const en: Dictionary = {
     bestCaseLabel: "Best case starts at",
     stallLabel: "A stall is",
     stallHint:
-      "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days). A deal type can also set its own stall days, overriding this default.",
+      "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' - that one is set separately, under Reminder thresholds. A deal type can also set its own stall days, overriding this default.",
   },
 
   CURRENCY_LABEL: {
@@ -2085,6 +2088,47 @@ export const en: Dictionary = {
     confirmRemove: (days: string) => `Remove the ${days}-day cutoff?`,
     confirmYes: "Confirm",
     confirmNo: "Cancel",
+  },
+
+  CONTACT_RECENCY_ERROR: {
+    quiet_out_of_range: "A quiet window runs from 1 to 365 days",
+    stale_out_of_range: "A stale window runs from 1 to 365 days",
+    recency_bands_cross: "Stale has to sit above quiet, or quiet could never escalate",
+    chain_warm_out_of_range: "A chain-warmth window runs from 1 to 365 days",
+
+    ...GATE_ERROR,
+  },
+
+  CONTACT_RECENCY_TEXT: {
+    title: "Contact reminder thresholds",
+    why: "How many quiet days count as light, as stale, and how long before a decision-chain contact goes cold.",
+    save: "Save",
+    discard: "Discard",
+    saved: "Saved. The home feed and decision-chain warmth use the new thresholds from now on.",
+    days: "days",
+    quietLabel: "Quiet",
+    quietHint: "An open deal with no follow-up this long gets a lighter card on the home feed.",
+    staleLabel: "Stale",
+    staleHint: "This long and the quiet card escalates; combined with an overdue promise it gets its own heavier card. Must be greater than the quiet threshold.",
+    chainWarmLabel: "Decision-chain warmth window",
+    chainWarmHint: "A decision-chain contact goes cold once nobody has reached them inside this many days.",
+  },
+
+  RENEWAL_POLICY_ERROR: {
+    window_out_of_range: "A renewal window runs from 1 to 365 days",
+
+    ...GATE_ERROR,
+  },
+
+  RENEWAL_POLICY_TEXT: {
+    title: "Renewal reminder window",
+    why: "How many days ahead of a contract's end date a renewal candidate appears.",
+    save: "Save",
+    discard: "Discard",
+    saved: "Saved. The renewal page uses the new window from now on.",
+    days: "days",
+    windowLabel: "Lead time",
+    windowHint: "Counting back this many days from the contract's end date. A term that has already lapsed always counts, regardless of this window.",
   },
 
   INDUSTRY_ERROR: {
@@ -2421,6 +2465,7 @@ export const en: Dictionary = {
       stage: "The stages a deal moves through - rename, reorder, default win rate, add/remove",
       dealtype: "How deals are classified - new logo / renewal / expansion / project / product",
       industry: "How customers are filed by industry - change it once, everywhere follows",
+      reminderThreshold: "How many quiet days count as cold, the decision-chain warmth window, and how early a renewal is flagged",
       forecastThreshold: "Where commit and best case start",
       ageingPolicy: "How many days overdue makes a band",
       pricingPolicy: "What currency a quote assumes",
@@ -4024,6 +4069,7 @@ export const en: Dictionary = {
       "admin.adoption": "Adoption",
       "admin.role": "Roles",
       "admin.org": "Organization",
+      "admin.reminderthreshold": "Reminder thresholds",
     } as Record<string, string>,
     actionLabel: {
       "strategy.plan.view": "View strategy plans",
@@ -4094,6 +4140,8 @@ export const en: Dictionary = {
       "catalog.pricebook.upsert": "Maintain the price book",
       "admin.member.view": "View members",
       "admin.adoption.view": "View adoption",
+      "admin.reminderthreshold.view": "View reminder thresholds",
+      "admin.reminderthreshold.manage": "Set reminder thresholds",
       "admin.member.role.assign": "Assign a role",
       "admin.member.role.revoke": "Revoke a role",
       "admin.member.deactivate": "Deactivate a member",

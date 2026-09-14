@@ -138,9 +138,12 @@ export async function judgementFeed(
   const accountCtx = { ...base, store: getAccountStore() };
   const fieldStore = getFieldStore();
 
-  const [accountsResult, dealsResult] = await Promise.all([
+  const [accountsResult, dealsResult, recencyPolicy] = await Promise.all([
     listAccounts(accountCtx),
     listPipeline({ ...base, store: getPipelineStore() }, { includeClosed: true }),
+    // incr/0065. A plain store read, not the public contactRecencyPolicy()
+    // verb - account.view already gated this whole call.
+    fieldStore.getContactRecencyPolicy(ctx.workspaceId),
   ]);
   if (!accountsResult.ok) return accountsResult as RuleResult<JudgementFeed>;
 
@@ -289,11 +292,14 @@ export async function judgementFeed(
     ]),
   );
 
-  const judgements = deriveJudgements({
-    accounts: inputs,
-    captureWeeks: adoption.ok ? adoption.value.weeks : undefined,
-    now,
-  });
+  const judgements = deriveJudgements(
+    {
+      accounts: inputs,
+      captureWeeks: adoption.ok ? adoption.value.weeks : undefined,
+      now,
+    },
+    recencyPolicy,
+  );
 
   // Only accounts whose chain was actually readable count as the denominator -
   // a starter workspace gets no coverage at all, and reporting "0 coaches" for

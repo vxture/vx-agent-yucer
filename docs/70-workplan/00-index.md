@@ -3360,6 +3360,19 @@ owner 在 `/admin/forecast`（该页面后来在商机配置整合批次里并�
 分歧，配置化站得住理由。但现在没有任何存储行、没有管理界面——要做的话是一张
 新的单行配置表 + 一处新的管理入口，是独立工作量，不是顺手加的开关。
 
+**已实现（2026-09-14，incr/0065-0066）**：一次系统性梳理全部 `/admin/*`
+配置面时重新发现这两个（连同独立发现的第三个：`RENEWAL_WINDOW_DAYS = 90`，
+`domains/delivery/lib/renewal.ts`——早就留了 `windowDays` 覆盖参数，却没有
+一个调用方真的传值）都是这一类"硬编码工作区阈值"，owner 确认三个一起做成
+配置项。`QUIET_DAYS`/`STALE_DAYS`/`CHAIN_WARM_DAYS`（决策链温度窗口，
+`domains/account/lib/health.ts`）合并进一张新表
+`yucer_field.contact_recency_policy`（衡量的都是"距上次交互多少天"，跟
+forecast_threshold 揉三个数字进一行是同一先例）；`RENEWAL_WINDOW_DAYS` 单独
+一张 `yucer_delivery.renewal_policy`（衡量的是合同到期日，跟联系时间是不同
+的事实）。新页面 `/admin/reminder`（提醒阈值），不并入 `/admin/opportunity`
+——三个阈值横跨 account/delivery/首页，没有一个是"商机"。权限复用既有
+`admin.manage`（跟 `admin.member.view` 同一模式），未新增 PermCode。
+
 ### 候选二：商机类型分轴——项目型/产品型的停滞天数不该是同一个数字
 
 owner 原话："阶段停留，这个设置是行业通行做法吗，针对项目型，产品型商机或

@@ -17,6 +17,10 @@ import type {
   NewInteraction,
   ParticipantRecord,
 } from "./field-store";
+import {
+  DEFAULT_CONTACT_RECENCY_POLICY,
+  type ContactRecencyPolicy,
+} from "./lib/contact-recency-policy";
 
 // Prisma-backed FieldStore over yucer_field (ADR-006).
 //
@@ -29,6 +33,7 @@ import type {
 // in this repo, against the mirror that now reads the increment's locks too.
 
 const COMMITMENT_TABLE = "yucer_field.commitment";
+const CONTACT_RECENCY_POLICY_TABLE = "yucer_field.contact_recency_policy";
 
 export class PrismaFieldStore implements FieldStore {
   async recordInteraction(workspaceId: string, input: NewInteraction): Promise<InteractionRecord> {
@@ -211,6 +216,43 @@ export class PrismaFieldStore implements FieldStore {
 
     const updated = await p.commitment.updateMany({ where: { id, workspaceId }, data: patch });
     return updated.count > 0;
+  }
+
+  /* --- 联系提醒阈值 (incr/0065) ------------------------------------------------
+     NO ROW IS A VALID STATE, same discipline as forecast_threshold: incr/0065
+     seeds every workspace that already has an account, and a workspace created
+     afterwards has none until somebody changes something. */
+
+  async getContactRecencyPolicy(workspaceId: string): Promise<ContactRecencyPolicy> {
+    const p = await getPrismaClient();
+    const row = await p.contactRecencyPolicy.findUnique({ where: { workspaceId } });
+    if (!row) return DEFAULT_CONTACT_RECENCY_POLICY;
+    return {
+      quietDays: row.quietDays,
+      staleDays: row.staleDays,
+      chainWarmDays: row.chainWarmDays,
+    };
+  }
+
+  async setContactRecencyPolicy(workspaceId: string, policy: ContactRecencyPolicy): Promise<void> {
+    const p = await getPrismaClient();
+    const update = {
+      quietDays: policy.quietDays,
+      staleDays: policy.staleDays,
+      chainWarmDays: policy.chainWarmDays,
+      updatedAt: new Date(),
+    };
+    const guard = assertWritable(CONTACT_RECENCY_POLICY_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked contact_recency_policy column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    await p.contactRecencyPolicy.upsert({
+      where: { workspaceId },
+      update,
+      create: { workspaceId, ...update },
+    });
   }
 }
 

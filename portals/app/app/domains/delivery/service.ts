@@ -12,8 +12,10 @@ import {
   assessRenewal,
   daysUntilEnd,
   planRenewal,
+  planRenewalPolicy,
   type RenewableProject,
   type RenewalDraft,
+  type RenewalPolicy,
   type RenewalVerdict,
 } from "./lib/renewal";
 import type { Entitlement } from "../../entitlement/types";
@@ -385,6 +387,11 @@ export async function listRenewals(
   if (!gate.allowed) return denied(gate);
 
   const now = opts.now ?? new Date();
+  // incr/0066: opts.windowDays is a test-only override; every real caller
+  // leaves it unset, so this is where the workspace's own number actually
+  // enters - a plain store read, not the public renewalPolicy() verb below,
+  // because delivery.project.view already gated this call.
+  const windowDays = opts.windowDays ?? (await ctx.store.getRenewalPolicy(ctx.workspaceId)).windowDays;
   const projects = await ctx.store.listProjects(ctx.workspaceId, {
     engagementType: "subscription",
   });
@@ -397,7 +404,7 @@ export async function listRenewals(
     // that are about to be dismissed.
     const first = assessRenewal(asRenewable(project, project.health), now, {
       alreadyRenewed,
-      windowDays: opts.windowDays,
+      windowDays,
     });
     if (first.kind !== "due") {
       out.push({ project, verdict: first, daysToEnd: daysUntilEnd(project, now), draft: null });
@@ -408,7 +415,7 @@ export async function listRenewals(
     if (!derived.ok) return derived as RuleResult<RenewalCandidate[]>;
 
     const renewable = asRenewable(project, derived.value);
-    const verdict = assessRenewal(renewable, now, { alreadyRenewed, windowDays: opts.windowDays });
+    const verdict = assessRenewal(renewable, now, { alreadyRenewed, windowDays });
     const draft = planRenewal(renewable, verdict);
     if (!draft.ok) return draft as RuleResult<RenewalCandidate[]>;
     out.push({ project, verdict, daysToEnd: daysUntilEnd(project, now), draft: draft.value });
@@ -443,6 +450,7 @@ export async function renewalDraft(
   if (!project) return fail(violation("not_found", `project ${projectId} was not found`, "projectId"));
 
   const now = opts.now ?? new Date();
+  const windowDays = opts.windowDays ?? (await ctx.store.getRenewalPolicy(ctx.workspaceId)).windowDays;
   const derived = await derivedHealthOf(ctx, project, now);
   if (!derived.ok) return derived as RuleResult<RenewalDraft>;
 
@@ -451,9 +459,35 @@ export async function renewalDraft(
     renewable,
     assessRenewal(renewable, now, {
       alreadyRenewed: opts.alreadyRenewed,
-      windowDays: opts.windowDays,
+      windowDays,
     }),
   );
+}
+
+/* ---------------------------------------------------------------------------
+ * 续约提醒窗口 - the workspace's own renewal look-ahead (incr/0066).
+ *
+ * Public config verbs for /admin/reminder, gated on workspace administration
+ * rather than delivery.project.view - listRenewals/renewalDraft above already
+ * resolve the number from the store directly for their own callers.
+ * ------------------------------------------------------------------------ */
+
+export async function renewalPolicy(ctx: DeliveryContext): Promise<RuleResult<RenewalPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.reminderthreshold.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getRenewalPolicy(ctx.workspaceId));
+}
+
+export async function setRenewalPolicy(
+  ctx: DeliveryContext,
+  input: RenewalPolicy,
+): Promise<RuleResult<RenewalPolicy>> {
+  const gate = can(ctx.holder, ctx.entitlement, "admin.reminderthreshold.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  const plan = planRenewalPolicy(input);
+  if (!plan.ok) return plan;
+  await ctx.store.setRenewalPolicy(ctx.workspaceId, plan.value);
+  return ok(plan.value);
 }
 
 function asRenewable(project: ProjectRecord, health: ProjectHealth): RenewableProject {

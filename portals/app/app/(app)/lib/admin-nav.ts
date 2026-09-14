@@ -105,6 +105,15 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          D4 concern rather than a D6 one, and belongs beside the customer list
          it governs rather than the pipeline it does not. */
       { key: "industry", href: "/admin/industry", icon: "buildings", action: "account.view" },
+      /* 提醒阈值 (incr/0065-0066). Found by the same systematic pass that
+         unified /admin/opportunity: QUIET_DAYS/STALE_DAYS (judgement.ts) and
+         CHAIN_WARM_DAYS (account/lib/health.ts) and RENEWAL_WINDOW_DAYS
+         (delivery/lib/renewal.ts) were all still build constants with the
+         same "a workspace may legitimately disagree" shape as stallDays had
+         before incr/0041. NOT folded into opportunityConfig above - these
+         three cross account/delivery/the home feed, none of which is
+         "opportunity", so a dedicated item keeps both pages' names honest. */
+      { key: "reminderThreshold", href: "/admin/reminder", icon: "bell", action: "admin.reminderthreshold.view" },
     ],
   },
   {

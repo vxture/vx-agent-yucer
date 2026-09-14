@@ -155,3 +155,20 @@ test("the boundary is inclusive, so a contact exactly at the window is still war
   assert.equal(r.warm.length, 1, "exactly at the edge counts as inside");
   assert.equal(r.windowDays, CHAIN_WARM_DAYS);
 });
+
+// --- 决策链温度窗口 (incr/0065) - a workspace's own number, not the shipped one
+
+test("a workspace with a shorter warmth window sees the same contact go cold", () => {
+  const contactAt80 = [{ contactId: "coach", lastContactAt: daysAgo(80) }];
+  // Warm under the shipped 90-day window...
+  const shipped = analyzeChainRecency([c("coach", "coach")], [], contactAt80, { now: NOW });
+  assert.equal(shipped.warm.length, 1);
+  // ...cold under a workspace that decided 60 days is its own cutoff. Same
+  // contact, same activity row - only the configured window changed.
+  const narrower = analyzeChainRecency([c("coach", "coach")], [], contactAt80, {
+    now: NOW,
+    windowDays: 60,
+  });
+  assert.equal(narrower.cold.length, 1);
+  assert.equal(narrower.windowDays, 60);
+});

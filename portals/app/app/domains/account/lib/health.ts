@@ -15,6 +15,7 @@
 
 import { ok, type RuleResult } from "../../shared/result";
 import { DEFAULT_STAGE_DEFINITIONS, isTerminal, openStageOrder, type Stage, type StageDefinition } from "../../pipeline/lib/stage";
+import { DEFAULT_CONTACT_RECENCY_POLICY } from "./contact-recency-policy";
 
 export type AccountStatus = "prospect" | "active" | "dormant" | "churned";
 export type ProjectHealth = "green" | "amber" | "red";
@@ -332,9 +333,15 @@ export interface ChainRecency {
   windowDays: number;
 }
 
-/** A quarter. Long enough that a normal gap between meetings is not "cold",
- * short enough that a champion who went quiet shows up before the deal does. */
-export const CHAIN_WARM_DAYS = 90;
+/**
+ * A quarter. Long enough that a normal gap between meetings is not "cold",
+ * short enough that a champion who went quiet shows up before the deal does.
+ *
+ * THE WORKSPACE'S, SINCE incr/0065 - re-exported from contact-recency-policy.ts
+ * rather than restated, so this file's default and the DDL column default
+ * cannot drift apart the way a second literal 90 eventually would.
+ */
+export const CHAIN_WARM_DAYS = DEFAULT_CONTACT_RECENCY_POLICY.chainWarmDays;
 
 export function analyzeChainRecency(
   contacts: readonly ContactNode[],

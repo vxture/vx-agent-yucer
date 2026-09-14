@@ -473,6 +473,48 @@ test("a member who cannot read deals still gets the account judgements", async (
   }
 });
 
+// --- 联系提醒阈值 (incr/0065) ------------------------------------------------
+
+test("the feed reads the workspace's own quietDays, not judgement.ts's shipped default", async () => {
+  // 25 days of silence: past the shipped quietDays (21) but short of the
+  // shipped staleDays (30), so the default fixture gets the lighter "quiet"
+  // card. A workspace that widened quietDays past 25 sees nothing for the
+  // IDENTICAL account and the identical silence - the same account.ts proof
+  // pattern lib/judgement.ts's own tests already use for this policy.
+  const h = install({
+    accounts: [account()],
+    opportunities: [deal("opp_1", "acc_1")],
+    interactions: [
+      {
+        id: "int_1",
+        workspaceId: WS,
+        accountId: "acc_1",
+        opportunityId: null,
+        projectId: null,
+        channel: "call",
+        direction: "outbound",
+        occurredAt: daysAgo(25),
+        actorSub: ME,
+        subject: null,
+        rawNote: "check-in call",
+        summary: null,
+        captureMode: "manual",
+        correctsInteractionId: null,
+      },
+    ],
+  });
+  try {
+    const shipped = unwrap(await judgementFeed(ctx("sales_leader", "business"), { now: NOW }));
+    assert.equal(shipped.judgements.some((j) => j.id === "quiet:acc_1"), true);
+
+    await h.fieldStore.setContactRecencyPolicy(WS, { quietDays: 30, staleDays: 40, chainWarmDays: 90 });
+    const widened = unwrap(await judgementFeed(ctx("sales_leader", "business"), { now: NOW }));
+    assert.equal(widened.judgements.some((j) => j.id === "quiet:acc_1"), false);
+  } finally {
+    h.dispose();
+  }
+});
+
 // WHAT THIS FILE DOES NOT COVER, stated so nobody reads more into a green run
 // than is there.
 //

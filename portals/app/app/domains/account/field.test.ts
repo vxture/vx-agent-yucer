@@ -6,14 +6,19 @@ import { unwrap } from "../shared/result";
 import { InMemoryFieldStore } from "./field-store";
 import {
   captureAdoption,
+  chainRecency,
   closeCommitment,
+  contactRecencyPolicy,
   createCommitment,
   listCommitments,
   recordInteraction,
   relationshipEvidence,
+  setContactRecencyPolicy,
   type FieldContext,
 } from "./field-service";
 import { daysSinceLastContact, isOverdue, reliability } from "./lib/commitment";
+import { DEFAULT_CONTACT_RECENCY_POLICY } from "./lib/contact-recency-policy";
+import type { ContactNode } from "./lib/health";
 
 // The evidence plane's rules.
 //
@@ -475,4 +480,67 @@ test("closing an untouched deal does not retroactively improve past weeks", asyn
     r.weeks.find((w) => w.weekStart.getTime() <= NOW.getTime() - days * 86_400_000 &&
       w.weekEnd.getTime() > NOW.getTime() - days * 86_400_000);
   assert.equal(weekOf(a, 10)?.coverage, weekOf(b, 10)?.coverage, "the past week is unchanged");
+});
+
+// --- 联系提醒阈值 (incr/0065) ------------------------------------------------
+
+test("reading the policy needs admin.manage; setting it does too", async () => {
+  const store = new InMemoryFieldStore();
+  assert.equal((await contactRecencyPolicy(ctx("sales_rep", "enterprise", store))).ok, false);
+  assert.equal((await contactRecencyPolicy(ctx("sales_leader", "enterprise", store))).ok, true);
+
+  const noAuthority = await setContactRecencyPolicy(ctx("sales_rep", "enterprise", store), {
+    quietDays: 10,
+    staleDays: 20,
+    chainWarmDays: 30,
+  });
+  assert.equal(noAuthority.ok === false && noAuthority.violations[0].code, "permission_denied");
+
+  const saved = unwrap(
+    await setContactRecencyPolicy(ctx("sales_leader", "enterprise", store), {
+      quietDays: 10,
+      staleDays: 20,
+      chainWarmDays: 30,
+    }),
+  );
+  assert.deepEqual(saved, { quietDays: 10, staleDays: 20, chainWarmDays: 30 });
+});
+
+test("a workspace that has set nothing reads the shipped defaults", async () => {
+  const store = new InMemoryFieldStore();
+  assert.deepEqual(
+    unwrap(await contactRecencyPolicy(ctx("sales_leader", "enterprise", store))),
+    DEFAULT_CONTACT_RECENCY_POLICY,
+  );
+});
+
+test("chainRecency resolves the workspace's own chainWarmDays, not the shipped one - no re-gate on top of account.view", async () => {
+  const store = new InMemoryFieldStore();
+  const c = ctx("sales_leader", "enterprise", store);
+  await setContactRecencyPolicy(c, { quietDays: 10, staleDays: 20, chainWarmDays: 30 });
+
+  await recordInteraction(c, {
+    accountId: ACC,
+    channel: "call",
+    occurredAt: days(-40),
+    rawNote: "last time we spoke",
+    participants: [{ contactId: "coach" }],
+  });
+
+  const contacts: ContactNode[] = [{ id: "coach", decisionRole: "coach", influence: 50, status: "active" }];
+  const r = unwrap(await chainRecency(c, ACC, contacts, [], { now: NOW }));
+  // 40 days ago is warm under the shipped 90-day default but cold under this
+  // workspace's own 30-day window - proving the resolved value, not the
+  // built-in constant, drove the classification.
+  assert.equal(r.cold.map((x) => x.id).includes("coach"), true);
+  assert.equal(r.windowDays, 30);
+
+  // An explicit windowDays still wins, for callers (mostly tests) that pass one.
+  const overridden = unwrap(await chainRecency(c, ACC, contacts, [], { now: NOW, windowDays: 5 }));
+  assert.equal(overridden.windowDays, 5);
+
+  // permission_denied on the admin verb must not affect the ordinary account
+  // read at all - a viewer holds account.view but not admin.manage.
+  const asViewer = await chainRecency(ctx("viewer", "enterprise", store), ACC, contacts, [], { now: NOW });
+  assert.equal(asViewer.ok, true);
 });

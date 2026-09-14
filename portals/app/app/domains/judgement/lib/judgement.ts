@@ -43,6 +43,10 @@ import {
 } from "../../account/lib/health";
 import { chainForOpportunity, type ChainPerson } from "../../account/lib/buying-role";
 import type { CaptureWeek } from "../../account/lib/capture-metric";
+import {
+  DEFAULT_CONTACT_RECENCY_POLICY,
+  type ContactRecencyPolicy,
+} from "../../account/lib/contact-recency-policy";
 
 /** How soon this needs a person. The three tiers the home screen filters on. */
 export const URGENCIES = ["today", "week", "watch"] as const;
@@ -238,11 +242,6 @@ const DAY = 86_400_000;
 const days = (from: Date, to: Date) =>
   Math.floor((to.getTime() - from.getTime()) / DAY);
 
-/** Quiet long enough to matter. Below this a gap is just a normal week. */
-const QUIET_DAYS = 21;
-/** Quiet long enough to be the story rather than a detail. */
-const STALE_DAYS = 30;
-
 function note(n: AccountInput["notes"][number], now: Date): Citation {
   return {
     kind: "interaction",
@@ -261,9 +260,17 @@ function note(n: AccountInput["notes"][number], now: Date): Citation {
  * Pure and synchronous: the caller has already done the reading. Ordered by
  * urgency then by how long the situation has been true, so the oldest rotting
  * thing is first inside its tier.
+ *
+ * `policy` defaults to the shipped numbers - incr/0065 makes it a workspace
+ * setting, and callers that already resolved one pass it in; callers that
+ * have not (tests, mostly) get the same 21/30 this file hardcoded before.
  */
-export function deriveJudgements(input: JudgementInput): Judgement[] {
+export function deriveJudgements(
+  input: JudgementInput,
+  policy: ContactRecencyPolicy = DEFAULT_CONTACT_RECENCY_POLICY,
+): Judgement[] {
   const now = input.now ?? new Date();
+  const { quietDays, staleDays } = policy;
   const out: Judgement[] = [];
 
   for (const a of input.accounts) {
@@ -301,7 +308,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     if (
       a.openDeals.length > 0 &&
       quiet !== null &&
-      quiet > STALE_DAYS &&
+      quiet > staleDays &&
       theirOverdue.length > 0
     ) {
       const worst = [...theirOverdue].sort(
@@ -353,7 +360,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
               ]
             : []),
         ],
-        rule: "开放商机 且 最近接触 > 30 天 且 对方逾期承诺 >= 1",
+        rule: `开放商机 且 最近接触 > ${staleDays} 天 且 对方逾期承诺 >= 1`,
         analyses: ANALYSES_STALLED,
       });
     }
@@ -523,14 +530,14 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
     if (
       a.openDeals.length > 0 &&
       quiet !== null &&
-      quiet > QUIET_DAYS &&
+      quiet > quietDays &&
       theirOverdue.length === 0 &&
       ourOverdue.length === 0
     ) {
       out.push({
         id: `quiet:${a.accountId}`,
         source: "rule",
-        urgency: quiet > STALE_DAYS ? "week" : "watch",
+        urgency: quiet > staleDays ? "week" : "watch",
         claim: `${a.accountName}已经 ${quiet} 天没有跟进记录。`,
         subjectType: "account",
         subjectId: a.accountId,
@@ -544,7 +551,7 @@ export function deriveJudgements(input: JudgementInput): Judgement[] {
           { label: "最近接触", value: `${quiet} 天前`, tone: "warning" },
           { label: "未兑现承诺", value: "无", tone: "success" },
         ],
-        rule: "开放商机 且 最近接触 > 21 天 且 双方均无逾期承诺",
+        rule: `开放商机 且 最近接触 > ${quietDays} 天 且 双方均无逾期承诺`,
         analyses: ANALYSES_QUIET,
       });
     }

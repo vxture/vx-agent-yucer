@@ -44,12 +44,35 @@ export type RenewalVerdict =
     };
 
 /**
- * How early a renewal appears. Ninety days is the default because a
- * subscription decision is made in the quarter before it lands, not in the
- * week - a renewal that surfaces at thirty days is a renewal already being
- * negotiated by somebody else.
+ * How early a renewal appears - the workspace's own call, since incr/0066.
+ *
+ * `windowDays` was a bare option on `assessRenewal` for a while with nothing
+ * ever supplying it, so every workspace got the same module constant below.
+ * It is a table now for the same reason `forecast_threshold` is: a company on
+ * annual contracts and one on quarterly ones do not agree on how many days
+ * before the end of a term a renewal conversation should already be showing
+ * up, and neither is wrong about itself.
  */
-export const RENEWAL_WINDOW_DAYS = 90;
+export interface RenewalPolicy {
+  readonly windowDays: number;
+}
+
+/**
+ * What a workspace gets before anybody changes it - the same number incr/0066
+ * writes as the column default, so a fresh row and a seeded one agree.
+ *
+ * Ninety days is the default because a subscription decision is made in the
+ * quarter before it lands, not in the week - a renewal that surfaces at
+ * thirty days is a renewal already being negotiated by somebody else.
+ */
+export const DEFAULT_RENEWAL_POLICY: RenewalPolicy = { windowDays: 90 };
+
+export function planRenewalPolicy(input: RenewalPolicy): RuleResult<RenewalPolicy> {
+  if (!Number.isInteger(input.windowDays) || input.windowDays < 1 || input.windowDays > 365) {
+    return fail(violation("window_out_of_range", "a renewal window runs from 1 to 365 days", "windowDays"));
+  }
+  return ok(input);
+}
 
 const DAY = 86_400_000;
 
@@ -92,7 +115,7 @@ export function assessRenewal(
   const daysToEnd = daysUntilEnd(project, now);
   if (daysToEnd === null) return { kind: "not_due", reason: "no_end_date" };
 
-  if (daysToEnd > (opts.windowDays ?? RENEWAL_WINDOW_DAYS)) {
+  if (daysToEnd > (opts.windowDays ?? DEFAULT_RENEWAL_POLICY.windowDays)) {
     return { kind: "not_due", reason: "too_far_out" };
   }
 

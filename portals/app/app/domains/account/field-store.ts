@@ -21,6 +21,10 @@ import type {
   CommitmentStatus,
   InteractionChannel,
 } from "./lib/commitment";
+import {
+  DEFAULT_CONTACT_RECENCY_POLICY,
+  type ContactRecencyPolicy,
+} from "./lib/contact-recency-policy";
 
 export interface InteractionRecord {
   id: string;
@@ -157,12 +161,17 @@ export interface FieldStore {
   listCommitments(workspaceId: string, filter?: CommitmentFilter): Promise<CommitmentRecord[]>;
   /** Takes a decided plan; see the note at the top of this file. */
   applyClosure(workspaceId: string, id: string, patch: CommitmentClosurePatch): Promise<boolean>;
+
+  /** incr/0065. No row is a valid state - it means "shipped defaults", not an error. */
+  getContactRecencyPolicy(workspaceId: string): Promise<ContactRecencyPolicy>;
+  setContactRecencyPolicy(workspaceId: string, policy: ContactRecencyPolicy): Promise<void>;
 }
 
 export class InMemoryFieldStore implements FieldStore {
   private interactions: InteractionRecord[] = [];
   private participants: ParticipantRecord[] = [];
   private commitments = new Map<string, CommitmentRecord>();
+  private recencyPolicies = new Map<string, ContactRecencyPolicy>();
   private seq = 0;
 
   async recordInteraction(workspaceId: string, input: NewInteraction): Promise<InteractionRecord> {
@@ -290,6 +299,14 @@ export class InMemoryFieldStore implements FieldStore {
     if (patch.waivedBySub !== undefined) row.waivedBySub = patch.waivedBySub;
     if (patch.waiveReason !== undefined) row.waiveReason = patch.waiveReason;
     return true;
+  }
+
+  async getContactRecencyPolicy(workspaceId: string): Promise<ContactRecencyPolicy> {
+    return this.recencyPolicies.get(workspaceId) ?? DEFAULT_CONTACT_RECENCY_POLICY;
+  }
+
+  async setContactRecencyPolicy(workspaceId: string, policy: ContactRecencyPolicy): Promise<void> {
+    this.recencyPolicies.set(workspaceId, { ...policy });
   }
 
   /** Test/offline helper. */

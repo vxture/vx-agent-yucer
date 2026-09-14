@@ -86,7 +86,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // holding page for whatever route currently has no entry point anywhere
     // else, found by an app-wide reachability sweep.
     ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "opportunityConfig", "industry",
-     "adoption", "pendingMigration"],
+     "reminderThreshold", "adoption", "pendingMigration"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of

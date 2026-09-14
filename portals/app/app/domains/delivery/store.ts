@@ -12,7 +12,7 @@
 //     silently receiving a different colour than the delivery team submitted.
 
 import type { Money } from "../shared/money";
-import type { EngagementType } from "./lib/renewal";
+import { DEFAULT_RENEWAL_POLICY, type EngagementType, type RenewalPolicy } from "./lib/renewal";
 import type {
   MilestoneAcceptance,
   MilestoneChangeDraft,
@@ -152,6 +152,11 @@ export interface DeliveryStore {
      shipped cutoffs where no row exists, and `set` writes it either way. */
   getAgeingCutoffs(workspaceId: string): Promise<number[]>;
   setAgeingCutoffs(workspaceId: string, cutoffs: readonly number[]): Promise<void>;
+
+  /* --- 续约提醒窗口 (incr/0066) ----------------------------------------------
+     Same one-row-per-workspace shape as ageing_policy above. */
+  getRenewalPolicy(workspaceId: string): Promise<RenewalPolicy>;
+  setRenewalPolicy(workspaceId: string, policy: RenewalPolicy): Promise<void>;
 }
 
 export class InMemoryDeliveryStore implements DeliveryStore {
@@ -163,6 +168,8 @@ export class InMemoryDeliveryStore implements DeliveryStore {
   /* incr/0042. The workspace's ageing policy, which the database holds in
      yucer_delivery.ageing_policy. */
   private cutoffs = new Map<string, number[]>();
+  /* incr/0066. The workspace's renewal policy, yucer_delivery.renewal_policy. */
+  private renewalPolicies = new Map<string, RenewalPolicy>();
 
   async getAgeingCutoffs(workspaceId: string): Promise<number[]> {
     return this.cutoffs.get(workspaceId) ?? [...DEFAULT_AGEING_CUTOFFS];
@@ -170,6 +177,14 @@ export class InMemoryDeliveryStore implements DeliveryStore {
 
   async setAgeingCutoffs(workspaceId: string, cutoffs: readonly number[]): Promise<void> {
     this.cutoffs.set(workspaceId, [...cutoffs]);
+  }
+
+  async getRenewalPolicy(workspaceId: string): Promise<RenewalPolicy> {
+    return this.renewalPolicies.get(workspaceId) ?? DEFAULT_RENEWAL_POLICY;
+  }
+
+  async setRenewalPolicy(workspaceId: string, policy: RenewalPolicy): Promise<void> {
+    this.renewalPolicies.set(workspaceId, { ...policy });
   }
 
   seed(input: {
