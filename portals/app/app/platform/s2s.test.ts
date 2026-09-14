@@ -337,3 +337,26 @@ test("no secret anywhere reports the module as disabled rather than half-working
   assert.equal(getS2SConfig({}).enabled, false);
   assert.equal(getS2SConfig({ OIDC_CLIENT_SECRET: "x" }).enabled, true);
 });
+
+test("blank S2S_* keys - the shape every .env produced from .env.example has - fall back to the C1 client", () => {
+  const cfg = getS2SConfig({
+    OIDC_ISSUER: "https://accounts.vxture.com",
+    OIDC_CLIENT_ID: "yucer",
+    OIDC_CLIENT_SECRET: "the-c1-secret",
+    S2S_TOKEN_URL: "",
+    S2S_CLIENT_ID: "",
+    S2S_CLIENT_SECRET: "   ",
+    PRODUCT_CODE: "",
+  });
+  assert.equal(cfg.enabled, true);
+  assert.equal(cfg.clientId, "yucer");
+  assert.equal(cfg.clientSecret, "the-c1-secret");
+  assert.equal(cfg.tokenUrl, "https://accounts.vxture.com/oidc/token");
+  assert.equal(cfg.productCode, "yucer");
+});
+
+test("an explicit S2S client still wins over the C1 client", () => {
+  const cfg = getS2SConfig({ OIDC_CLIENT_ID: "yucer", OIDC_CLIENT_SECRET: "c1", S2S_CLIENT_ID: "yucer-s2s", S2S_CLIENT_SECRET: "s2s" });
+  assert.equal(cfg.clientId, "yucer-s2s");
+  assert.equal(cfg.clientSecret, "s2s");
+});

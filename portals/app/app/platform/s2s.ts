@@ -76,18 +76,33 @@ export function scopeFor(audience: Audience): string {
   return `tool:${audience}`;
 }
 
+/**
+ * A key that is PRESENT BUT BLANK is unset. The operator .env is produced from
+ * .env.example, which ships every supported key - `S2S_CLIENT_SECRET=` and
+ * `S2S_CLIENT_ID=` included - so on every deployed stack those are empty
+ * strings, and `??` does not fall through an empty string. Production ran
+ * with clientId "" and clientSecret "" while OIDC_CLIENT_SECRET was set;
+ * /platform-check reported the S2S exchange as unconfigured on 2026-09-14 and
+ * that is how this was found. An exchange minted that way fails as
+ * invalid_client, which reads like an environment problem and is not one.
+ */
+function nonEmpty(v: string | undefined): string | undefined {
+  return v && v.trim() ? v : undefined;
+}
+
 export function getS2SConfig(env: EnvLike = process.env): S2SConfig {
-  const issuer = (env.OIDC_ISSUER ?? "https://accounts.vxture.com").replace(/\/$/, "");
-  const clientId = env.S2S_CLIENT_ID ?? env.OIDC_CLIENT_ID ?? "yucer";
+  const issuer = (nonEmpty(env.OIDC_ISSUER) ?? "https://accounts.vxture.com").replace(/\/$/, "");
+  const clientId = nonEmpty(env.S2S_CLIENT_ID) ?? nonEmpty(env.OIDC_CLIENT_ID) ?? "yucer";
+  // Per-client secrets are distributed as OIDC_CLIENT_SECRET_<CLIENT>; using
+  // the unsuffixed one against a different client_id yields invalid_client,
+  // which reads like an environment problem and is not one.
+  const clientSecret = nonEmpty(env.S2S_CLIENT_SECRET) ?? nonEmpty(env.OIDC_CLIENT_SECRET);
   return {
-    tokenUrl: env.S2S_TOKEN_URL ?? `${issuer}/oidc/token`,
+    tokenUrl: nonEmpty(env.S2S_TOKEN_URL) ?? `${issuer}/oidc/token`,
     clientId,
-    // Per-client secrets are distributed as OIDC_CLIENT_SECRET_<CLIENT>; using
-    // the unsuffixed one against a different client_id yields invalid_client,
-    // which reads like an environment problem and is not one.
-    clientSecret: env.S2S_CLIENT_SECRET ?? env.OIDC_CLIENT_SECRET ?? "",
-    productCode: env.PRODUCT_CODE ?? "yucer",
-    enabled: Boolean(env.S2S_CLIENT_SECRET ?? env.OIDC_CLIENT_SECRET),
+    clientSecret: clientSecret ?? "",
+    productCode: nonEmpty(env.PRODUCT_CODE) ?? "yucer",
+    enabled: Boolean(clientSecret),
   };
 }
 
