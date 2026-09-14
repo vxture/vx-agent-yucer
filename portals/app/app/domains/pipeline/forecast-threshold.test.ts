@@ -13,7 +13,7 @@ import {
 import {
   forecastThresholds,
   previewCategories,
-  setDealTypeStallOverride,
+  setBusinessFormStallOverride,
   setForecastThresholds,
   type PipelineContext,
 } from "./service";
@@ -159,13 +159,16 @@ test("reading the bands needs no permission beyond the page's own; setting them 
   );
 });
 
-// --- 商机类型的停滞天数覆盖 (incr/0062) ---------------------------------------
+// --- 业务形态的停滞天数覆盖 (incr/0062, moved onto this axis by incr/0067) ----
 
-test("previewCategories follows a deal's own type override, not the workspace default", async () => {
+test("previewCategories follows a deal's own business form override, not the workspace default", async () => {
   const store = new InMemoryPipelineStore();
   const c = ctx("sales_leader", store);
-  const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
-  await store.setDealTypeStallOverride(WS, dealType.id, 90);
+  const form = await store.upsertBusinessForm(WS, {
+    businessFormCode: "custom_project",
+    name: "项目定制类",
+  });
+  await store.setBusinessFormStallOverride(WS, form.id, 90);
 
   store.seed(
     [
@@ -182,7 +185,7 @@ test("previewCategories follows a deal's own type override, not the workspace de
         expectedCloseAt: new Date("2026-09-20T00:00:00Z"),
         ownerSub: "usr_me",
         requirement: "wants a thing",
-        dealTypeId: dealType.id,
+        businessFormId: form.id,
       } as never,
     ],
     {
@@ -195,7 +198,7 @@ test("previewCategories follows a deal's own type override, not the workspace de
           reason: null,
           actorSub: "usr_me",
           // 60 days ago: past the workspace's own 45-day default, but under
-          // this type's own 90-day override.
+          // this form's own 90-day override.
           occurredAt: new Date(NOW.getTime() - 60 * 86_400_000),
         },
       ],
@@ -205,9 +208,9 @@ test("previewCategories follows a deal's own type override, not the workspace de
   const rows = unwrap(await previewCategories(c, { now: NOW }));
   assert.deepEqual(rows[0]!.verdict.kind === "suggested" && rows[0]!.verdict.basis.caps, []);
 
-  // Shorten this type's own override below 60 days: the SAME deal now stalls,
+  // Shorten this form's own override below 60 days: the SAME deal now stalls,
   // even though the workspace default never changed.
-  unwrap(await setDealTypeStallOverride(c, { dealTypeId: dealType.id, stallDaysOverride: 30 }));
+  unwrap(await setBusinessFormStallOverride(c, { businessFormId: form.id, stallDaysOverride: 30 }));
   const stalled = unwrap(await previewCategories(c, { now: NOW }));
   assert.deepEqual(
     stalled[0]!.verdict.kind === "suggested" && stalled[0]!.verdict.basis.caps,
@@ -215,26 +218,34 @@ test("previewCategories follows a deal's own type override, not the workspace de
   );
 });
 
-test("a role with no /admin/opportunity write authority may not set a deal type's stall override", async () => {
+test("a role with no /admin/opportunity write authority may not set a business form's stall override", async () => {
   // incr/0063 folded this field into the same pipeline.opportunityConfig
   // every other /admin/opportunity write now uses - viewer holds none of the
   // six permissions that were merged, so it still has no authority here.
   const store = new InMemoryPipelineStore();
-  const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
-  const r = await setDealTypeStallOverride(ctx("viewer", store), {
-    dealTypeId: dealType.id,
+  const form = await store.upsertBusinessForm(WS, {
+    businessFormCode: "custom_project",
+    name: "项目定制类",
+  });
+  const r = await setBusinessFormStallOverride(ctx("viewer", store), {
+    businessFormId: form.id,
     stallDaysOverride: 10,
   });
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });
 
-test("sales_rep may set it too now - the same unified permission that renames/reorders the type (incr/0063)", async () => {
+test("sales_rep may set it too now - the same unified permission that renames/reorders the form (incr/0063)", async () => {
   // Before incr/0063 this specifically required pipeline.forecast, which
-  // sales_rep never held, even though it held pipeline.dealType. That split
-  // is gone: the whole page shares one write permission now.
+  // sales_rep never held, even though it held the vocabulary's own permission.
+  // That split is gone: the whole page shares one write permission now.
   const store = new InMemoryPipelineStore();
   const c = ctx("sales_rep", store);
-  const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
-  const r = unwrap(await setDealTypeStallOverride(c, { dealTypeId: dealType.id, stallDaysOverride: 10 }));
+  const form = await store.upsertBusinessForm(WS, {
+    businessFormCode: "custom_project",
+    name: "项目定制类",
+  });
+  const r = unwrap(
+    await setBusinessFormStallOverride(c, { businessFormId: form.id, stallDaysOverride: 10 }),
+  );
   assert.equal(r.stallDaysOverride, 10);
 });

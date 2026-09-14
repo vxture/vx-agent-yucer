@@ -799,10 +799,13 @@ model Opportunity {
   /// incr/0034 - what the customer actually wants. NOT NULL and CHECKed
   /// non-blank: an empty string satisfies NOT NULL and says nothing.
   requirement      String    @db.Text
-  /// incr/0060 - 商机类型. Nullable: most deals predate this column, and an
-  /// unclassified one is honestly absent, not defaulted. No Prisma relation,
-  /// the same choice Account.industryId already makes.
-  dealTypeId       String?   @map("deal_type_id") @db.Uuid
+  /// incr/0067 - 签约类型 and 业务形态, the two axes the old single 商机类型
+  /// column conflated. Both nullable: an unclassified deal is honestly absent
+  /// rather than defaulted, and a deal may now genuinely know one axis and not
+  /// the other. No Prisma relation on either, the same choice
+  /// Account.industryId already makes.
+  contractTypeId   String?   @map("contract_type_id") @db.Uuid
+  businessFormId   String?   @map("business_form_id") @db.Uuid
   expectedCloseAt  DateTime? @map("expected_close_at") @db.Timestamptz()
   closedAt         DateTime? @map("closed_at") @db.Timestamptz()
   status           String    @default("open") @db.VarChar(32)
@@ -811,7 +814,8 @@ model Opportunity {
   deletedAt        DateTime? @map("deleted_at") @db.Timestamptz()
 
   @@unique([workspaceId, opportunityNo], map: "uidx_opportunity_ws_no")
-  @@index([workspaceId, dealTypeId], map: "idx_opportunity_ws_deal_type")
+  @@index([workspaceId, contractTypeId], map: "idx_opportunity_ws_contract_type")
+  @@index([workspaceId, businessFormId], map: "idx_opportunity_ws_business_form")
   @@map("opportunity")
   @@schema("yucer_pipeline")
 }
@@ -855,22 +859,41 @@ model StageDefinition {
   @@schema("yucer_pipeline")
 }
 
-/// incr/0060 - 商机类型, a per-workspace vocabulary. Same shape as Industry:
-/// no Prisma relation from Opportunity.dealTypeId - both stay a plain scalar
-/// uuid, the FK (0060) does the integrity work at the database level.
-model DealType {
+/// incr/0067 - 签约类型, a per-workspace vocabulary: 新签/续签/增购. Same shape
+/// as Industry - no Prisma relation from Opportunity.contractTypeId, the FK
+/// does the integrity work at the database level.
+model ContractType {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @map("workspace_id") @db.Uuid
+  contractTypeCode String   @map("contract_type_code") @db.VarChar(32)
+  name             String   @db.VarChar(64)
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, contractTypeCode], map: "uidx_contract_type_code")
+  @@index([workspaceId, sortOrder], map: "idx_contract_type_ws_sort")
+  @@map("contract_type")
+  @@schema("yucer_pipeline")
+}
+
+/// incr/0067 - 业务形态: 项目定制类/标化产品类/咨询服务类, and the stall-days
+/// override that moved here from deal_type (incr/0062) because how long a deal
+/// may sit at one stage is a fact about delivery complexity, not about whether
+/// the deal is new business or a renewal.
+model BusinessForm {
   id                String   @id @default(uuid()) @db.Uuid
   workspaceId       String   @map("workspace_id") @db.Uuid
-  dealTypeCode      String   @map("deal_type_code") @db.VarChar(32)
+  businessFormCode  String   @map("business_form_code") @db.VarChar(32)
   name              String   @db.VarChar(64)
   sortOrder         Int      @default(0) @map("sort_order")
   stallDaysOverride Int?     @map("stall_days_override") @db.SmallInt
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt         DateTime @default(now()) @map("updated_at") @db.Timestamptz()
 
-  @@unique([workspaceId, dealTypeCode], map: "uidx_deal_type_code")
-  @@index([workspaceId, sortOrder], map: "idx_deal_type_ws_sort")
-  @@map("deal_type")
+  @@unique([workspaceId, businessFormCode], map: "uidx_business_form_code")
+  @@index([workspaceId, sortOrder], map: "idx_business_form_ws_sort")
+  @@map("business_form")
   @@schema("yucer_pipeline")
 }
 

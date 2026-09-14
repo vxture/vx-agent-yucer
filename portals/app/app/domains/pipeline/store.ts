@@ -62,8 +62,10 @@ export interface OpportunityRecord {
    * now" as a historical denominator would let last month's coverage improve on
    * its own every time something closed. */
   createdAt: Date;
-  /** incr/0060 - 商机类型. Nullable: most deals predate this column. */
-  dealTypeId: string | null;
+  /** incr/0067 - 签约类型 / 业务形态. Both nullable: a deal may know one axis
+   *  and not the other, which is what the old single column could not say. */
+  contractTypeId: string | null;
+  businessFormId: string | null;
 }
 
 /** One row of the 赢丢原因 vocabulary - incr/0039, per workspace. */
@@ -90,19 +92,28 @@ export interface StageDefinitionRecord {
   isTerminal: boolean;
 }
 
-/** One row of the 商机类型 vocabulary - incr/0060, per workspace. */
-export interface DealTypeRecord {
+/** One row of the 签约类型 vocabulary - incr/0067, per workspace. */
+export interface ContractTypeRecord {
   id: string;
   workspaceId: string;
-  dealTypeCode: string;
+  contractTypeCode: string;
+  name: string;
+  sortOrder: number;
+}
+
+/** One row of the 业务形态 vocabulary - incr/0067, per workspace. */
+export interface BusinessFormRecord {
+  id: string;
+  workspaceId: string;
+  businessFormCode: string;
   name: string;
   sortOrder: number;
   /**
-   * This type's own stall-days threshold (incr/0062), null when it has none
-   * and defers to the workspace's forecast_threshold.stall_days. Written
-   * only through setDealTypeStallOverride, gated on pipeline.forecast -
-   * upsertDealType's own input deliberately excludes this field so the
-   * pipeline.dealType-gated rename/reorder path cannot touch it.
+   * This form's own stall-days threshold, null when it has none and defers to
+   * the workspace's forecast_threshold.stall_days. It moved here from
+   * deal_type with incr/0067's split, and is written only through
+   * setBusinessFormStallOverride - upsertBusinessForm's own input deliberately
+   * excludes it so the rename/reorder path cannot touch it.
    */
   stallDaysOverride: number | null;
 }
@@ -205,8 +216,10 @@ export interface NewOpportunity {
   sourceProjectId?: string | null;
   /** Tests and fixtures only. Real creation lets the database stamp it. */
   createdAt?: Date;
-  /** incr/0060 - 商机类型. Optional: most deals are created with none. */
-  dealTypeId?: string | null;
+  /** incr/0067 - 签约类型 / 业务形态. Optional: the service fills the first in
+   *  from suggestContractType when the caller names none. */
+  contractTypeId?: string | null;
+  businessFormId?: string | null;
 }
 
 /**
@@ -219,9 +232,10 @@ export interface CommercialTermsPatch {
   expectedCloseAt?: Date | null;
   forecastCategory?: ForecastCategory;
   ownerSub?: string | null;
-  /** incr/0060 - 商机类型. A classification a deal may acquire or change
-   *  after creation, unlike the stage triple this patch deliberately excludes. */
-  dealTypeId?: string | null;
+  /** incr/0067 - 签约类型 / 业务形态. Classifications a deal may acquire or
+   *  change after creation, unlike the stage triple this patch excludes. */
+  contractTypeId?: string | null;
+  businessFormId?: string | null;
 }
 
 export interface PipelineStore {
@@ -336,27 +350,51 @@ export interface PipelineStore {
   removeStageDefinition(workspaceId: string, stageId: string): Promise<boolean>;
   countOpportunitiesByStage(workspaceId: string, stageCode: string): Promise<number>;
 
-  /* 商机类型 (incr/0060) - the same five-verb shape as 赢丢原因/行业分类:
+  /* 签约类型 (incr/0067) - the same five-verb shape as 赢丢原因/行业分类:
      an anchor code, a manual order, and a count of what points at a row
      before it goes. */
-  listDealTypes(workspaceId: string): Promise<DealTypeRecord[]>;
-  upsertDealType(
+  listContractTypes(workspaceId: string): Promise<ContractTypeRecord[]>;
+  upsertContractType(
     workspaceId: string,
-    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
-  ): Promise<DealTypeRecord>;
-  setDealTypeOrder(
+    input: Omit<ContractTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ContractTypeRecord>;
+  setContractTypeOrder(
     workspaceId: string,
     orders: readonly { id: string; sortOrder: number }[],
   ): Promise<void>;
-  removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean>;
-  countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number>;
-  /** 停滞天数覆盖 (incr/0062) - null clears it back to the workspace default.
-   *  Null return means no such row in this workspace. */
-  setDealTypeStallOverride(
+  removeContractType(workspaceId: string, contractTypeId: string): Promise<boolean>;
+  countOpportunitiesByContractType(workspaceId: string, contractTypeId: string): Promise<number>;
+
+  /* 业务形态 (incr/0067) - the same shape again, plus the stall override that
+     moved onto this axis with the split. */
+  listBusinessForms(workspaceId: string): Promise<BusinessFormRecord[]>;
+  upsertBusinessForm(
     workspaceId: string,
-    dealTypeId: string,
+    input: Omit<BusinessFormRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
+  ): Promise<BusinessFormRecord>;
+  setBusinessFormOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeBusinessForm(workspaceId: string, businessFormId: string): Promise<boolean>;
+  countOpportunitiesByBusinessForm(workspaceId: string, businessFormId: string): Promise<number>;
+  /** 停滞天数覆盖 - null clears it back to the workspace default. Null return
+   *  means no such row in this workspace. */
+  setBusinessFormStallOverride(
+    workspaceId: string,
+    businessFormId: string,
     stallDaysOverride: number | null,
-  ): Promise<DealTypeRecord | null>;
+  ): Promise<BusinessFormRecord | null>;
+
+  /**
+   * How many deals this account has already won - incr/0067.
+   *
+   * A COUNT, not a list: the only question asked of it is "is this a customer
+   * we have sold to before", which is what decides whether a new deal defaults
+   * to 新签 or 增购 (suggestContractType). Returning the rows would invite a
+   * caller to answer other questions from a query shaped for this one.
+   */
+  countWonOpportunitiesForAccount(workspaceId: string, accountId: string): Promise<number>;
 
   /* --- 预测阈值 (incr/0041) --------------------------------------------------
      One row per workspace, so there is no list verb and no delete: `get`
@@ -374,7 +412,8 @@ export class InMemoryPipelineStore implements PipelineStore {
   private reviews = new Map<string, WinLossReviewRecord & { workspaceId: string }>();
   private reasons: WinLossReasonRecord[] = [];
   private stageDefinitions: StageDefinitionRecord[] = [];
-  private dealTypes: DealTypeRecord[] = [];
+  private contractTypes: ContractTypeRecord[] = [];
+  private businessForms: BusinessFormRecord[] = [];
   private seq = 0;
 
   /**
@@ -392,7 +431,8 @@ export class InMemoryPipelineStore implements PipelineStore {
       reviews?: Array<WinLossReviewRecord & { workspaceId: string }>;
       reasons?: WinLossReasonRecord[];
       stageDefinitions?: StageDefinitionRecord[];
-      dealTypes?: DealTypeRecord[];
+      contractTypes?: ContractTypeRecord[];
+      businessForms?: BusinessFormRecord[];
       /** A forecast series. Append-only in the DDL; seeded as a series here so
        *  the trajectory the immutability exists for is actually visible. */
       snapshots?: Array<SnapshotRow & { workspaceId: string }>;
@@ -403,7 +443,8 @@ export class InMemoryPipelineStore implements PipelineStore {
     for (const r of extra.reviews ?? []) this.reviews.set(r.opportunityId, { ...r });
     if (extra.reasons) this.reasons = [...extra.reasons];
     if (extra.stageDefinitions) this.stageDefinitions = [...extra.stageDefinitions];
-    if (extra.dealTypes) this.dealTypes = [...extra.dealTypes];
+    if (extra.contractTypes) this.contractTypes = [...extra.contractTypes];
+    if (extra.businessForms) this.businessForms = [...extra.businessForms];
     this.snapshots.push(...(extra.snapshots ?? []));
   }
 
@@ -431,7 +472,8 @@ export class InMemoryPipelineStore implements PipelineStore {
       currency: input.currency,
       sourceProjectId: input.sourceProjectId ?? null,
       createdAt: input.createdAt ?? new Date(),
-      dealTypeId: input.dealTypeId ?? null,
+      contractTypeId: input.contractTypeId ?? null,
+      businessFormId: input.businessFormId ?? null,
     };
     this.opportunities.set(record.id, record);
     return record;
@@ -526,7 +568,8 @@ export class InMemoryPipelineStore implements PipelineStore {
     // predate it. Ignored rather than written, which is what the column
     // enforces anyway.
     if (patch.ownerSub) row.ownerSub = patch.ownerSub;
-    if (patch.dealTypeId !== undefined) row.dealTypeId = patch.dealTypeId;
+    if (patch.contractTypeId !== undefined) row.contractTypeId = patch.contractTypeId;
+    if (patch.businessFormId !== undefined) row.businessFormId = patch.businessFormId;
     return true;
   }
 
@@ -665,68 +708,137 @@ export class InMemoryPipelineStore implements PipelineStore {
     ).length;
   }
 
-  async listDealTypes(workspaceId: string): Promise<DealTypeRecord[]> {
-    return this.dealTypes
-      .filter((d) => d.workspaceId === workspaceId)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.dealTypeCode.localeCompare(b.dealTypeCode));
+  async listContractTypes(workspaceId: string): Promise<ContractTypeRecord[]> {
+    return this.contractTypes
+      .filter((c) => c.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.contractTypeCode.localeCompare(b.contractTypeCode));
   }
 
-  async upsertDealType(
+  async upsertContractType(
     workspaceId: string,
-    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
-  ): Promise<DealTypeRecord> {
-    const at = this.dealTypes.findIndex(
-      (d) => d.workspaceId === workspaceId && d.dealTypeCode === input.dealTypeCode,
+    input: Omit<ContractTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ContractTypeRecord> {
+    const at = this.contractTypes.findIndex(
+      (c) => c.workspaceId === workspaceId && c.contractTypeCode === input.contractTypeCode,
     );
     if (at >= 0) {
-      const next = { ...this.dealTypes[at]!, ...input, dealTypeCode: this.dealTypes[at]!.dealTypeCode };
-      this.dealTypes[at] = next;
+      const next = {
+        ...this.contractTypes[at]!,
+        ...input,
+        contractTypeCode: this.contractTypes[at]!.contractTypeCode,
+      };
+      this.contractTypes[at] = next;
       return next;
     }
     const tail = Math.max(
       0,
-      ...this.dealTypes.filter((d) => d.workspaceId === workspaceId).map((d) => d.sortOrder),
+      ...this.contractTypes.filter((c) => c.workspaceId === workspaceId).map((c) => c.sortOrder),
     );
-    const row: DealTypeRecord = {
-      id: `dtp_${++this.seq}`, workspaceId, sortOrder: tail + 1, stallDaysOverride: null, ...input,
+    const row: ContractTypeRecord = {
+      id: `ctp_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input,
     };
-    this.dealTypes.push(row);
+    this.contractTypes.push(row);
     return row;
   }
 
-  async setDealTypeStallOverride(
-    workspaceId: string,
-    dealTypeId: string,
-    stallDaysOverride: number | null,
-  ): Promise<DealTypeRecord | null> {
-    const at = this.dealTypes.findIndex((d) => d.workspaceId === workspaceId && d.id === dealTypeId);
-    if (at < 0) return null;
-    const next = { ...this.dealTypes[at]!, stallDaysOverride };
-    this.dealTypes[at] = next;
-    return next;
-  }
-
-  async setDealTypeOrder(
+  async setContractTypeOrder(
     workspaceId: string,
     orders: readonly { id: string; sortOrder: number }[],
   ): Promise<void> {
     const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
-    this.dealTypes = this.dealTypes.map((d) =>
-      d.workspaceId === workspaceId && want.has(d.id) ? { ...d, sortOrder: want.get(d.id)! } : d,
+    this.contractTypes = this.contractTypes.map((c) =>
+      c.workspaceId === workspaceId && want.has(c.id) ? { ...c, sortOrder: want.get(c.id)! } : c,
     );
   }
 
-  async removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean> {
-    const before = this.dealTypes.length;
-    this.dealTypes = this.dealTypes.filter(
-      (d) => !(d.workspaceId === workspaceId && d.id === dealTypeId),
+  async removeContractType(workspaceId: string, contractTypeId: string): Promise<boolean> {
+    const before = this.contractTypes.length;
+    this.contractTypes = this.contractTypes.filter(
+      (c) => !(c.workspaceId === workspaceId && c.id === contractTypeId),
     );
-    return this.dealTypes.length < before;
+    return this.contractTypes.length < before;
   }
 
-  async countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number> {
+  async countOpportunitiesByContractType(workspaceId: string, contractTypeId: string): Promise<number> {
     return [...this.opportunities.values()].filter(
-      (o) => o.workspaceId === workspaceId && o.dealTypeId === dealTypeId,
+      (o) => o.workspaceId === workspaceId && o.contractTypeId === contractTypeId,
+    ).length;
+  }
+
+  async listBusinessForms(workspaceId: string): Promise<BusinessFormRecord[]> {
+    return this.businessForms
+      .filter((b) => b.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.businessFormCode.localeCompare(b.businessFormCode));
+  }
+
+  async upsertBusinessForm(
+    workspaceId: string,
+    input: Omit<BusinessFormRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
+  ): Promise<BusinessFormRecord> {
+    const at = this.businessForms.findIndex(
+      (b) => b.workspaceId === workspaceId && b.businessFormCode === input.businessFormCode,
+    );
+    if (at >= 0) {
+      const next = {
+        ...this.businessForms[at]!,
+        ...input,
+        businessFormCode: this.businessForms[at]!.businessFormCode,
+      };
+      this.businessForms[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.businessForms.filter((b) => b.workspaceId === workspaceId).map((b) => b.sortOrder),
+    );
+    const row: BusinessFormRecord = {
+      id: `bfm_${++this.seq}`, workspaceId, sortOrder: tail + 1, stallDaysOverride: null, ...input,
+    };
+    this.businessForms.push(row);
+    return row;
+  }
+
+  async setBusinessFormStallOverride(
+    workspaceId: string,
+    businessFormId: string,
+    stallDaysOverride: number | null,
+  ): Promise<BusinessFormRecord | null> {
+    const at = this.businessForms.findIndex(
+      (b) => b.workspaceId === workspaceId && b.id === businessFormId,
+    );
+    if (at < 0) return null;
+    const next = { ...this.businessForms[at]!, stallDaysOverride };
+    this.businessForms[at] = next;
+    return next;
+  }
+
+  async setBusinessFormOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.businessForms = this.businessForms.map((b) =>
+      b.workspaceId === workspaceId && want.has(b.id) ? { ...b, sortOrder: want.get(b.id)! } : b,
+    );
+  }
+
+  async removeBusinessForm(workspaceId: string, businessFormId: string): Promise<boolean> {
+    const before = this.businessForms.length;
+    this.businessForms = this.businessForms.filter(
+      (b) => !(b.workspaceId === workspaceId && b.id === businessFormId),
+    );
+    return this.businessForms.length < before;
+  }
+
+  async countOpportunitiesByBusinessForm(workspaceId: string, businessFormId: string): Promise<number> {
+    return [...this.opportunities.values()].filter(
+      (o) => o.workspaceId === workspaceId && o.businessFormId === businessFormId,
+    ).length;
+  }
+
+  async countWonOpportunitiesForAccount(workspaceId: string, accountId: string): Promise<number> {
+    return [...this.opportunities.values()].filter(
+      (o) => o.workspaceId === workspaceId && o.accountId === accountId && o.status === "won",
     ).length;
   }
 

@@ -7,16 +7,19 @@ import { getCatalogStore, getDeliveryStore } from "../../../domains/shared/regis
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { ageingCutoffsForConfig } from "../../../domains/delivery/service";
 import {
-  dealTypeUsage,
+  businessFormUsage,
+  contractTypeUsage,
   forecastThresholds,
-  listDealTypes,
+  listBusinessForms,
+  listContractTypes,
   listStageDefinitions,
   listWinLossReasonsForConfig,
   stageDefinitionUsage,
   winLossReasonUsage,
 } from "../../../domains/pipeline/service";
 import { WinLossReasonConfig } from "../../components/win-loss-reason-config";
-import { DealTypeConfig } from "../../components/deal-type-config";
+import { ContractTypeConfig } from "../../components/contract-type-config";
+import { BusinessFormConfig } from "../../components/business-form-config";
 import { StageDefinitionConfig } from "../../components/stage-definition-config";
 import { OpportunityConfigPanel } from "../../components/opportunity-config-panel";
 import {
@@ -25,11 +28,16 @@ import {
   saveWinLossReason,
 } from "../../pipeline/reason-actions";
 import {
-  moveDealTypeAction,
-  removeDealTypeAction,
-  saveDealType,
-  saveDealTypeStallOverride,
-} from "../../pipeline/deal-type-actions";
+  moveContractTypeAction,
+  removeContractTypeAction,
+  saveContractType,
+} from "../../pipeline/contract-type-actions";
+import {
+  moveBusinessFormAction,
+  removeBusinessFormAction,
+  saveBusinessForm,
+  saveBusinessFormStallOverride,
+} from "../../pipeline/business-form-actions";
 import {
   moveStageDefinitionAction,
   removeStageDefinitionAction,
@@ -44,10 +52,10 @@ import { loadFailureText } from "../../lib/load-failure";
 // 商机配置 - the assembly PR of the 商机配置 batch, unified onto one
 // permission (incr/0063).
 //
-// SIX SECTIONS, ONE PAGE: 商机类型/商机阶段/赢丢原因/预测阈值/账龄分档/计价
+// SEVEN SECTIONS, ONE PAGE: 签约类型/业务形态/商机阶段/赢丢原因/预测阈值/账龄分档/计价
 // 货币. Set once, read by every screen that shows or advances a deal - the
 // same /admin/product precedent (产品类型/产品状态/计价单位 stacked on one
-// page) rather than six gear icons nobody goes looking for one at a time.
+// page) rather than seven gear icons nobody goes looking for one at a time.
 //
 // ONE PERMISSION FOR THE WHOLE PAGE, BOTH DIRECTIONS (owner principle,
 // 2026-09-13: admin configuration stays simple and open; tier/permission
@@ -71,10 +79,10 @@ import { loadFailureText } from "../../lib/load-failure";
 // (same data, `pipeline.opportunityconfig.view` instead of the tier-gated
 // `pipeline.winloss.view`/`delivery.revenue.view`) - `listWinLossReasons`/
 // `ageingCutoffs` themselves are shared with /winloss and /collection and
-// keep their own tier gates unchanged. `listDealTypes`/`listStageDefinitions`
-// and `pricingPolicy` need no fork: the first two already carry the FREE-tier
-// `pipeline.manage` feature (no real gate to begin with), and pricing never
-// carried a tier gate at all.
+// keep their own tier gates unchanged. incr/0067's two vocabulary reads,
+// `listStageDefinitions` and `pricingPolicy` need no fork: the first three
+// already carry the FREE-tier `pipeline.manage` feature (no real gate to
+// begin with), and pricing never carried a tier gate at all.
 
 export const dynamic = "force-dynamic";
 
@@ -111,8 +119,10 @@ export default async function OpportunityConfigPage() {
   const [
     reasons,
     reasonUsage,
-    dealTypes,
-    dealTypeUsageRows,
+    contractTypes,
+    contractTypeUsageRows,
+    businessForms,
+    businessFormUsageRows,
     stages,
     stageUsage,
     thresholds,
@@ -121,8 +131,10 @@ export default async function OpportunityConfigPage() {
   ] = await Promise.all([
     listWinLossReasonsForConfig(ctx),
     winLossReasonUsage(ctx),
-    listDealTypes(ctx),
-    dealTypeUsage(ctx),
+    listContractTypes(ctx),
+    contractTypeUsage(ctx),
+    listBusinessForms(ctx),
+    businessFormUsage(ctx),
     listStageDefinitions(ctx),
     stageDefinitionUsage(ctx),
     forecastThresholds(ctx),
@@ -138,11 +150,19 @@ export default async function OpportunityConfigPage() {
       />
     );
   }
-  if (!dealTypes.ok) {
+  if (!contractTypes.ok) {
     return (
       <EmptyState
         title={SHELL_TEXT.loadFailed}
-        description={loadFailureText(dealTypes.violations, LOAD_ERROR)}
+        description={loadFailureText(contractTypes.violations, LOAD_ERROR)}
+      />
+    );
+  }
+  if (!businessForms.ok) {
+    return (
+      <EmptyState
+        title={SHELL_TEXT.loadFailed}
+        description={loadFailureText(businessForms.violations, LOAD_ERROR)}
       />
     );
   }
@@ -167,15 +187,27 @@ export default async function OpportunityConfigPage() {
         description={ADMIN_TEXT.entryHint.opportunityConfig}
       />
 
-      <DealTypeConfig
-        dealTypes={dealTypes.value}
-        usage={dealTypeUsageRows.ok ? dealTypeUsageRows.value : {}}
+      {/* TWO SECTIONS, NOT ONE (owner, 2026-09-14 / incr/0067): the old 商机类型
+          list answered "what kind of deal" and "what is being sold" in one
+          dropdown, so picking either answer said nothing about the other. */}
+      <ContractTypeConfig
+        contractTypes={contractTypes.value}
+        usage={contractTypeUsageRows.ok ? contractTypeUsageRows.value : {}}
+        editable={canManage}
+        onSave={saveContractType}
+        onMove={moveContractTypeAction}
+        onDelete={removeContractTypeAction}
+      />
+
+      <BusinessFormConfig
+        businessForms={businessForms.value}
+        usage={businessFormUsageRows.ok ? businessFormUsageRows.value : {}}
         editable={canManage}
         workspaceStallDays={thresholds.ok ? thresholds.value.stallDays : DEFAULT_FORECAST_THRESHOLDS.stallDays}
-        onSave={saveDealType}
-        onSaveStallOverride={saveDealTypeStallOverride}
-        onMove={moveDealTypeAction}
-        onDelete={removeDealTypeAction}
+        onSave={saveBusinessForm}
+        onSaveStallOverride={saveBusinessFormStallOverride}
+        onMove={moveBusinessFormAction}
+        onDelete={removeBusinessFormAction}
       />
 
       <StageDefinitionConfig

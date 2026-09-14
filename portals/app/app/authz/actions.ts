@@ -381,10 +381,18 @@ export const ACTIONS = {
   // NOT retired (still granted to its original 14 roles in the DB/catalog
   // mirror) - only this now-orphaned ActionId wrapper around it is gone.
   //
-  // 商机类型 (incr/0060-0061). Viewing the catalog is pipeline.read, same
-  // shape as pipeline.stage.view. Not a new feature key: the type catalog is
-  // configuration behind the existing pipeline.manage key.
-  "pipeline.dealtype.view": {
+  // 签约类型 and 业务形态 (incr/0067) - the two axes 商机类型 (incr/0060) put
+  // in one list. Viewing either catalog is pipeline.read, the same shape
+  // pipeline.dealtype.view had and pipeline.stage.view still has. Neither is a
+  // new feature key: both are configuration behind the existing
+  // pipeline.manage one.
+  "pipeline.contracttype.view": {
+    domain: "pipeline",
+    feature: "pipeline.manage",
+    permission: "pipeline.read",
+    writes: false,
+  },
+  "pipeline.businessform.view": {
     domain: "pipeline",
     feature: "pipeline.manage",
     permission: "pipeline.read",

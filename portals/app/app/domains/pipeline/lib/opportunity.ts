@@ -41,10 +41,41 @@ export interface NewOpportunityDraft {
    * answer for them rather than a null somebody has to remember to pass.
    */
   sourceProjectId?: string | null;
-  /** incr/0060 - 商机类型. Optional, like every other reference on this draft
-   *  the FK backstops rather than the rule layer: an unrecognised id fails at
-   *  the database, the same way an invented accountId or territoryId does. */
-  dealTypeId?: string | null;
+  /** incr/0067 - 签约类型 / 业务形态. Optional, like every other reference on
+   *  this draft the FK backstops rather than the rule layer: an unrecognised id
+   *  fails at the database, the same way an invented accountId or territoryId
+   *  does. An absent contractTypeId is filled in by the service from
+   *  `suggestContractType` below; an absent businessFormId stays absent,
+   *  because nothing in the record can tell what is being sold. */
+  contractTypeId?: string | null;
+  businessFormId?: string | null;
+}
+
+/**
+ * What 签约类型 a deal being created almost certainly is - incr/0067.
+ *
+ * THE PRODUCT ALREADY KNEW THIS AND WAS NOT SAYING IT. A deal opened from the
+ * renewal queue carries `sourceProjectId`, which is the definition of a
+ * renewal, yet it reached the pipeline with no contract type at all and a rep
+ * had to tag it a second time by hand. And "is this a new customer" is
+ * answerable from the record - `countNewLogos` answers exactly that question
+ * for reporting - while the tag beside it was free to say the opposite.
+ *
+ * So the two are settled from one place, at the one moment both facts are
+ * known. This is a DEFAULT, not a derivation: it fills an empty field at
+ * creation and a rep may change it on the deal afterwards. The reported
+ * 新客户数 keeps its own definition (first win per account, counted after the
+ * fact) - this makes the tag agree with it on the way in rather than making
+ * either read the other.
+ */
+export function suggestContractType(input: {
+  readonly fromRenewal: boolean;
+  readonly accountHasPriorWin: boolean;
+}): "renewal" | "new_logo" | "expansion" {
+  // Renewal first: a deal derived from a delivered project is a renewal even
+  // at an account whose first win is what produced that very project.
+  if (input.fromRenewal) return "renewal";
+  return input.accountHasPriorWin ? "expansion" : "new_logo";
 }
 
 export interface PlannedOpportunity extends NewOpportunityDraft {

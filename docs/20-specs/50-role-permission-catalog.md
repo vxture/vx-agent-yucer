@@ -385,3 +385,52 @@ FREE 档 `pipeline.manage`，后者压根没有功能键），不用动。
 挂在 `pipeline.forecast.categorize`（与预测阈值本身同一权限，不给 `sales_rep`），
 现在跟同一行的改名/排序字段一样走 `pipeline.opportunityconfig.manage`——装配页
 统一成一个写权限之后，不再需要在同一个对话框里区分两条独立授权的写路径。
+
+## 2026-09-14 增量 - 商机类型真正拆成两根轴（incr/0067）
+
+**权限、角色、授权数全部不变（25 / 9 / 117 那一套种子没被碰）。这一条记在这里，
+是因为上面 2026-09-13 那节亲手写下的"混合了两个维度"现在不成立了。**
+
+`incr/0060` 的注释和本文上一节都白纸黑字承认过：五个预置值里，新签/续费/增购说的
+是**这笔交易是什么性质**，项目型/产品型说的是**卖的是什么形态**，一个下拉框答两道
+题，读的人得自己猜它答的是哪一道。当时按"跟本产品别的词表一样的一份摊平列表"接受
+了这个成本。`incr/0067` 不再接受：
+
+| 新表 | 中文 | 预置值 |
+|------|------|--------|
+| `yucer_pipeline.contract_type` | 签约类型 | 新签 / 续签 / 增购 |
+| `yucer_pipeline.business_form` | 业务形态 | 项目定制类 / 标化产品类 / 咨询服务类 |
+
+`opportunity` 相应地长出 `contract_type_id` + `business_form_id` 两列（都可空，
+理由跟 `deal_type_id` 当初可空一样），回填之后 `deal_type_id` 与
+`yucer_pipeline.deal_type` 在同一个增量里删除——`incr/0029`（product 的
+category/status）、`0039`（赢丢原因）、`0040`（行业分类）都是这个套路，不留僵尸表。
+
+**门禁一个字没改**，这是这次能低成本做的原因：读仍是
+`pipeline.opportunityconfig.view`，写仍是 `pipeline.opportunityconfig.manage`
+(incr/0063 统一后的那一个)，只是被这两条门禁管的动词由一套变成两套。
+`authz/actions.ts` 里 `pipeline.dealtype.view` 换成
+`pipeline.contracttype.view` + `pipeline.businessform.view`，两条都与被替换的那条
+完全同型（`feature: "pipeline.manage"` + `permission: "pipeline.read"`）——ActionId
+是纯 TypeScript 的动作目录，不是权限码，改它不动种子。
+
+**"停滞天数覆盖"跟着业务形态走，不跟签约类型。** `incr/0062` 把它挂在混合轴上，
+现在它落到它本来就属于的那根：一单能在同一阶段停多久，是**交付复杂度**的事——定制
+项目的谈判周期天然长于标准品——跟这单是新签还是续签毫无关系。代价写在增量头注释
+里：曾给新签/续费/增购设过覆盖值的工作区，那三个数字随旧表一起消失，因为它们在新
+轴上没有位置，替它们编一个位置等于这个增量替谁都没决定的事做了决定。
+
+**顺带修掉两个一致性问题**（owner 裁定一并处理）：
+
+1. **续约商机从来不会自动打标签。** `openRenewal` 调 `createOpportunity` 时，别的
+   可选字段都显式传了 `null`，唯独 `dealTypeId` 是静默遗漏的——续约身份只活在
+   `sourceProjectId` 里，销售还得再手动选一次"续费"。
+2. **「新签」有两套定义。** 报表口径的「新客户数」由 `countNewLogos()` 按"该客户
+   历史首次赢单"算，销售手打的标签报表根本不读，两者可以各说各话。
+
+一条规则函数 `suggestContractType({ fromRenewal, accountHasPriorWin })` 同时收口
+这两件事：`createOpportunity` 在调用方没显式指定时算一个默认值填上——来自续约的落
+「续签」，客户此前没赢过单的落「新签」，赢过的落「增购」——销售随时可改。
+`countNewLogos()` 的算法**不动**，报表也**不去读**手工标签：标签是事前意图，
+「新客户数」是事后事实，分工写进两边的注释。工作区把默认值那行删了或改了 code
+就留空，不报错——猜不出来就不猜。
