@@ -160,6 +160,7 @@ refuses to run without any of them, naming the missing one and its layer.
 | host, user, port | Environment secrets | `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_PORT` | set | set |
 | SSH key, passphrase, known hosts | Environment secrets | `DEPLOY_SSH_KEY` / `DEPLOY_SSH_KEY_PASSPHRASE` / `DEPLOY_KNOWN_HOSTS` | set | set |
 | the stack's `.env` | Environment secret | `ENV_FILE_BASE64` | missing | missing |
+| an overlay of keys for the stack's `.env` | Environment secret, optional | `ENV_PATCH_BASE64` | set 2026-09-14 (the platform-issued OIDC / webhook values) | unset | `env-update.yml mode=patch` upserts only these; both modes lay it on top last |
 | registry / tailnet / npm credentials | org secrets | `ALIYUN_ACR_USERNAME` / `_PASSWORD`, `TAILSCALE_OAUTH_CLIENT_ID` / `_SECRET`, `NODE_AUTH_TOKEN` | shared | shared |
 
 The deploy directory is always `<STACK_ROOT>/deploy` and is rsync --delete'd on
