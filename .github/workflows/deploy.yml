@@ -227,9 +227,16 @@ jobs:
             "$stage/" "$DEPLOY_USER@$DEPLOY_HOST:$deploy_dir/"
           rm -rf "$stage"
 
-          # Confirm the delivered compose carries the expected db service.
+          # Confirm the delivered compose carries the db service. Match the
+          # `db:` service key, not a container name: container_name is the
+          # interpolation `${PROJECT_NAME:-yucer}-db`, so the literal
+          # `yucer-db` never appears in the file and the old grep warned on
+          # every successful deploy (v0.1.2, 2026-09-14). The two-space
+          # anchor is deliberate - the app's depends_on lists a `db:` key
+          # too, six spaces deep, and must not satisfy the check.
+          db_service_re='^  db:[[:space:]]*$'
           ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "grep -q '${PRODUCT_CODE}-db' '$deploy_dir/docker-compose.yml' && echo '[deliver] compose has ${PRODUCT_CODE}-db' || echo '[deliver] WARN: ${PRODUCT_CODE}-db missing'"
+            "grep -qE '$db_service_re' '$deploy_dir/docker-compose.yml' && echo '[deliver] compose has db service' || echo '[deliver] WARN: db service missing'"
           ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "printf '%s\n' '$PASSED_SHA' > '$deploy_dir/VERSION'"
 
           # Remote deploy script: GHCR primary (non-VPC host), ACR fallback.
