@@ -1,7 +1,9 @@
 name: env-update
 
-# Replace a stack's etc/.env from the Environment's ENV_FILE_BASE64 and
-# restart the app container - no image build, no DDL, no shell on the host.
+# Replace a stack's etc/.env from the Environment's ENV_FILE_BASE64 (mode
+# replace), or upsert only the keys in ENV_PATCH_BASE64 into the file already
+# on the host (mode patch), and restart the app container - no image build, no
+# DDL, no shell on the host.
 #
 # WHY IT EXISTS (owner, 2026-09-10): the first production deploy shipped with
 # the platform-issued values blank (OIDC client secret, platform URL / token,
@@ -28,9 +30,17 @@ on:
           - production
           - beta
       confirm:
-        description: "Type 'yes' to replace the stack's .env and restart the app"
+        description: "Type 'yes' to change the stack's .env and restart the app"
         required: true
         type: string
+      mode:
+        description: "replace: etc/.env becomes ENV_FILE_BASE64 (with ENV_PATCH_BASE64 laid on top when that secret exists). patch: only the KEY=VALUE lines in ENV_PATCH_BASE64 are upserted into the existing etc/.env; every other key stays as it is."
+        required: false
+        type: choice
+        default: replace
+        options:
+          - replace
+          - patch
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -66,17 +76,38 @@ jobs:
         shell: bash
         env:
           CONFIRM: ${{ inputs.confirm }}
+          MODE: ${{ inputs.mode || 'replace' }}
           ENV_FILE_B64: ${{ secrets.ENV_FILE_BASE64 }}
+          ENV_PATCH_B64: ${{ secrets.ENV_PATCH_BASE64 }}
         run: |
           set -euo pipefail
           [ "$CONFIRM" = "yes" ] || { echo "confirm must be 'yes'" >&2; exit 1; }
-          for v in STACK_ROOT PROJECT_NAME ENV_FILE_B64; do
+          for v in STACK_ROOT PROJECT_NAME; do
             [ -n "${!v:-}" ] || { echo "$v is not set on the '${{ inputs.environment }}' Environment" >&2; exit 1; }
           done
           bash deploy/assert-stack-root.sh "$STACK_ROOT"
-          # The file must decode and carry the one value compose cannot start without.
-          printf '%s' "$ENV_FILE_B64" | base64 -d | grep -qE '^POSTGRES_PASSWORD=.+' \
-            || { echo "ENV_FILE_BASE64 does not decode to an env file with POSTGRES_PASSWORD" >&2; exit 1; }
+          case "$MODE" in
+            replace)
+              [ -n "${ENV_FILE_B64:-}" ] || { echo "ENV_FILE_BASE64 is not set on the '${{ inputs.environment }}' Environment" >&2; exit 1; }
+              # The file must decode and carry the one value compose cannot start without.
+              printf '%s' "$ENV_FILE_B64" | base64 -d | grep -qE '^POSTGRES_PASSWORD=.+' \
+                || { echo "ENV_FILE_BASE64 does not decode to an env file with POSTGRES_PASSWORD" >&2; exit 1; }
+              ;;
+            patch)
+              # PATCH MODE (owner authorised the run, 2026-09-14: the platform-issued
+              # values had to reach a host no operator machine could ssh to).
+              # The whole file is NOT needed and NOT readable from here; only
+              # the keys being set travel, as one more Environment secret.
+              [ -n "${ENV_PATCH_B64:-}" ] || { echo "ENV_PATCH_BASE64 is not set on the '${{ inputs.environment }}' Environment - patch mode has nothing to apply" >&2; exit 1; }
+              ;;
+            *) echo "mode must be replace or patch" >&2; exit 1 ;;
+          esac
+          # Whenever a patch is present it must be KEY=VALUE lines only (blank
+          # lines allowed, nothing else): a comment or a stray shell line would
+          # be appended to the stack's .env verbatim.
+          if [ -n "${ENV_PATCH_B64:-}" ] && printf '%s' "$ENV_PATCH_B64" | base64 -d | grep -vE '^([A-Z_][A-Z0-9_]*=|$)' | grep -q .; then
+            echo "ENV_PATCH_BASE64 has a line that is not KEY=VALUE" >&2; exit 1
+          fi
 
       - name: Join tailnet and prepare SSH
         uses: ./.github/actions/tailnet-ssh-connect
@@ -90,13 +121,15 @@ jobs:
           deploy-ssh-passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
           deploy-known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
 
-      - name: Replace .env and restart the app
+      - name: Replace or patch .env and restart the app
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          MODE: ${{ inputs.mode || 'replace' }}
           ENV_FILE_B64: ${{ secrets.ENV_FILE_BASE64 }}
+          ENV_PATCH_B64: ${{ secrets.ENV_PATCH_BASE64 }}
           # What deploy.sh needs to recreate the app on the SAME image: the
           # published port (the variable), the registries, and the tag read
           # from the host's VERSION file - never `latest`.
@@ -109,12 +142,54 @@ jobs:
           port="${DEPLOY_PORT:-22}"
           ssh_opts=(-i ~/.ssh/deploy_key -p "$port" -o ServerAliveInterval=30 -o ServerAliveCountMax=20 -o ConnectTimeout=30)
           env_file="$STACK_ROOT/etc/.env"
-          # Written to a temp file first and moved into place, so a broken
-          # transfer never leaves a half-written .env for the next restart.
-          printf '%s' "$ENV_FILE_B64" | ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "set -e; mkdir -p '$STACK_ROOT/etc'; base64 -d > '$env_file.next' && chmod 600 '$env_file.next' \
-             && { [ -f '$env_file' ] && cp -p '$env_file' '$env_file.prev' || true; } \
-             && mv '$env_file.next' '$env_file' && echo '[env-update] .env replaced (previous kept as .env.prev)'"
+          if [ "$MODE" = "replace" ]; then
+            # Written to a temp file first and moved into place, so a broken
+            # transfer never leaves a half-written .env for the next restart.
+            printf '%s' "$ENV_FILE_B64" | ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+              "set -e; mkdir -p '$STACK_ROOT/etc'; base64 -d > '$env_file.next' && chmod 600 '$env_file.next' \
+               && { [ -f '$env_file' ] && cp -p '$env_file' '$env_file.prev' || true; } \
+               && mv '$env_file.next' '$env_file' && echo '[env-update] .env replaced (previous kept as .env.prev)'"
+          else
+            ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "test -f '$env_file'" \
+              || { echo "patch mode needs an existing $env_file on the host - a first deploy or replace mode creates it" >&2; exit 1; }
+          fi
+          # THE PATCH, when the Environment carries one: an overlay of KEY=VALUE
+          # lines upserted into the file as it now stands. A key that exists is
+          # rewritten in place (a commented-out line is not a key), a new key
+          # is appended, everything else is untouched. It is applied in BOTH
+          # modes so that a replace from a stale ENV_FILE_BASE64 can never put
+          # the platform-issued values back to blank. The lines travel over
+          # stdin as base64 and are written under umask 077; values never pass
+          # through argv, a shell pattern, or awk -v (ENVIRON carries them, so
+          # a backslash is a backslash).
+          if [ -n "${ENV_PATCH_B64:-}" ]; then
+            cat > /tmp/env-patch.sh <<'REMOTE_SCRIPT'
+          set -euo pipefail
+          : "${ENV_FILE:?}" "${MODE:?}"
+          umask 077
+          patch="$ENV_FILE.patch.$$"
+          base64 -d > "$patch"
+          [ "$MODE" = "patch" ] && cp -p "$ENV_FILE" "$ENV_FILE.prev"
+          cp -p "$ENV_FILE" "$ENV_FILE.next"
+          replaced=0; added=0
+          while IFS= read -r line || [ -n "$line" ]; do
+            [ -n "$line" ] || continue
+            key="${line%%=*}"
+            if grep -qE "^${key}=" "$ENV_FILE.next"; then
+              ENV_PATCH_VALUE="${line#*=}" awk -v k="$key" 'index($0, k "=") == 1 { print k "=" ENVIRON["ENV_PATCH_VALUE"]; next } { print }' "$ENV_FILE.next" > "$ENV_FILE.next.tmp"
+              mv "$ENV_FILE.next.tmp" "$ENV_FILE.next"; replaced=$((replaced + 1))
+            else
+              printf '%s\n' "$line" >> "$ENV_FILE.next"; added=$((added + 1))
+            fi
+          done < "$patch"
+          rm -f "$patch"
+          chmod 600 "$ENV_FILE.next" && mv "$ENV_FILE.next" "$ENV_FILE"
+          echo "[env-update] patch applied: $replaced key(s) rewritten, $added appended (previous kept as .env.prev)"
+          REMOTE_SCRIPT
+            scp -i ~/.ssh/deploy_key -P "$port" -o ConnectTimeout=30 /tmp/env-patch.sh "$DEPLOY_USER@$DEPLOY_HOST:/tmp/env-patch.sh"
+            printf '%s' "$ENV_PATCH_B64" | ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+              "ENV_FILE='$env_file' MODE='$MODE' bash /tmp/env-patch.sh; rm -f /tmp/env-patch.sh"
+          fi
           # The app re-reads its environment only on (re)creation: compose
           # `up -d` recreates the container when the env file it was started
           # with changed, and leaves db and redis alone. The image is the one
