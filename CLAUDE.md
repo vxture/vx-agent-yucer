@@ -106,8 +106,15 @@ ruleset is `docs/50-deployment/rebuild/main-ruleset.json`:
 - `main` (single ruleset): require PR (0 approvals - checks gate merges, not human
   review), require the six status checks below (strict / up-to-date with base),
   block deletion, block non-fast-forward, require linear history, squash-only.
-- `production` GitHub Environment: required reviewer - every `v*.*.*` tag deploy
-  pauses here until approved.
+- `production` GitHub Environment: required reviewer (the owner, `stonesmoker`).
+  Every `v*.*.*` tag deploy, and every db-init / env-update / rollback dispatch
+  that targets production, pauses here until the OWNER CLICKS APPROVE ON
+  GITHUB. An agent never approves a pending deployment - not through the
+  `pending_deployments` API, not any other way - even when its token can
+  (owner, 2026-09-14). Deployment branch policy `main` (branch) + `v*.*.*`
+  (tag); admins cannot bypass; self-review allowed (one-person repo). Runbook:
+  `docs/50-deployment/30-deploy-review-runbook.md`; config artifact:
+  `docs/50-deployment/rebuild/production-environment.json`.
 - `beta` GitHub Environment: no reviewer gate.
 
 **Admin bypass - what "protected" actually means here.** The ruleset carries
