@@ -1287,7 +1287,7 @@ owner 授权的全面检查：每个平台合同面，查「代码、配置、�
 
 | 面 | 实测 |
 |----|------|
-| C3 webhook | `POST /provisioning/webhook` 无签名 → 401 `WEBHOOK_SIGNATURE_INVALID`；幂等（delivery id）、序列水位（`seq <= lastSeq` 忽略）、双密钥轮换（`_NEXT`）齐全有测试 |
+| C3 webhook | `POST /provisioning/webhook`（平台注册的投递地址 `/api/webhooks/vxture` 是同一处理器的再导出，2026-09-14）无签名 → 401 `WEBHOOK_SIGNATURE_INVALID`；幂等（delivery id）、序列水位（`seq <= lastSeq` 忽略）、双密钥轮换（`_NEXT`）齐全有测试 |
 | 内部作业 | `/api/usage/flush`、`/api/arda/sync`、`/api/jobs/commitment-sweep` 无 token → 403 `JOB_TOKEN_INVALID` |
 | C2 entitlement | 未认证 → 401；resolver 在 `PLATFORM_API_URL`+token 齐时走 platform、否则 mock，status 如实报告 |
 | C1 OIDC | 配置装配集中在 `auth/lib/config.ts`，issuer 缺省 accounts.vxture.com |

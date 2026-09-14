@@ -46,7 +46,7 @@ export function getOidcConfig(): OidcConfig {
     enabled: env("OIDC_RP_ENABLED", "off") === "on",
     sessionTtlSeconds: Number(env("RP_SESSION_TTL", "2592000")),
     cookieName: defaultCookieName(),
-    appOrigin: env("NEXT_PUBLIC_APP_URL", env("OIDC_REDIRECT_URI").replace(/\/auth\/callback$/, "")),
+    appOrigin: env("NEXT_PUBLIC_APP_URL", env("OIDC_REDIRECT_URI").replace(/\/(api\/auth\/oidc|auth)\/callback$/, "")),
     authorizeUrl: `${issuer}/oidc/authorize`,
     tokenUrl: `${issuer}/oidc/token`,
     jwksUrl: `${issuer}/oidc/jwks`,
