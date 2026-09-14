@@ -136,17 +136,27 @@ test("the review page reads the workspace's bands, not the build's", async () =>
   assert.equal(theirs[0]!.verdict.kind === "suggested" && theirs[0]!.verdict.category, "commit");
 });
 
-test("reading the bands is not the same authority as setting them", async () => {
+test("reading the bands needs no permission beyond the page's own; setting them needs the unified /admin/opportunity permission (incr/0063)", async () => {
+  // forecastThresholds/setForecastThresholds are exclusively called from
+  // /admin/opportunity now, gated on pipeline.opportunityconfig.view/.manage
+  // - not pipeline.forecast any more. sales_rep holds the union write
+  // permission (it held pipeline.dealType among the six that were merged),
+  // so it can set thresholds here even though it never held pipeline.forecast
+  // itself; viewer holds neither.
   const store = new InMemoryPipelineStore();
-  // A rep may read the forecast; the catalog withholds pipeline.forecast from
-  // the person who owns the deal, which is exactly the point of that split.
   assert.equal((await forecastThresholds(ctx("sales_rep", store))).ok, true);
-  const r = await setForecastThresholds(ctx("sales_rep", store), {
+  const noAuthority = await setForecastThresholds(ctx("viewer", store), {
     commitAt: 10,
     bestCaseAt: 5,
     stallDays: 1,
   });
-  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+  assert.equal(noAuthority.ok === false && noAuthority.violations[0].code, "permission_denied");
+  assert.deepEqual(
+    unwrap(
+      await setForecastThresholds(ctx("sales_rep", store), { commitAt: 10, bestCaseAt: 5, stallDays: 1 }),
+    ),
+    { commitAt: 10, bestCaseAt: 5, stallDays: 1 },
+  );
 });
 
 // --- 商机类型的停滞天数覆盖 (incr/0062) ---------------------------------------
@@ -205,19 +215,25 @@ test("previewCategories follows a deal's own type override, not the workspace de
   );
 });
 
-test("a rep may not set a deal type's stall override, even holding pipeline.dealType", async () => {
+test("a role with no /admin/opportunity write authority may not set a deal type's stall override", async () => {
+  // incr/0063 folded this field into the same pipeline.opportunityConfig
+  // every other /admin/opportunity write now uses - viewer holds none of the
+  // six permissions that were merged, so it still has no authority here.
   const store = new InMemoryPipelineStore();
   const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
-  const r = await setDealTypeStallOverride(ctx("sales_rep", store), {
+  const r = await setDealTypeStallOverride(ctx("viewer", store), {
     dealTypeId: dealType.id,
     stallDaysOverride: 10,
   });
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
 });
 
-test("a sales leader may set it - pipeline.forecast, the same permission the workspace default sits behind", async () => {
+test("sales_rep may set it too now - the same unified permission that renames/reorders the type (incr/0063)", async () => {
+  // Before incr/0063 this specifically required pipeline.forecast, which
+  // sales_rep never held, even though it held pipeline.dealType. That split
+  // is gone: the whole page shares one write permission now.
   const store = new InMemoryPipelineStore();
-  const c = ctx("sales_leader", store);
+  const c = ctx("sales_rep", store);
   const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
   const r = unwrap(await setDealTypeStallOverride(c, { dealTypeId: dealType.id, stallDaysOverride: 10 }));
   assert.equal(r.stallDaysOverride, 10);

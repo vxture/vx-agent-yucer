@@ -42,12 +42,17 @@ test("a workspace that has set nothing prices in the shipped default", async () 
   assert.deepEqual(unwrap(await pricingPolicy(ctx("sales_rep"))), DEFAULT_PRICING_POLICY);
 });
 
-test("reading the policy is every role's; setting it is the floor-price permission", async () => {
+test("reading the policy is every role's; setting it is /admin/opportunity's unified permission (incr/0063)", async () => {
+  // setPricingPolicy is exclusively called from /admin/opportunity now
+  // (incr/0063), so it gates on pipeline.opportunityConfig rather than
+  // catalog.price - sales_rep holds the union permission (it held
+  // pipeline.dealType among the six that were merged), so it succeeds here
+  // even though it never held catalog.price itself. viewer holds neither.
   const store = new InMemoryCatalogStore();
   assert.equal((await pricingPolicy(ctx("viewer", store))).ok, true);
-  const rep = await setPricingPolicy(ctx("sales_rep", store), { defaultCurrency: "USD" });
-  assert.equal(rep.ok === false && rep.violations[0].code, "permission_denied");
-  assert.deepEqual(unwrap(await setPricingPolicy(ctx("sales_leader", store), { defaultCurrency: "usd" })), {
+  const noAuthority = await setPricingPolicy(ctx("viewer", store), { defaultCurrency: "USD" });
+  assert.equal(noAuthority.ok === false && noAuthority.violations[0].code, "permission_denied");
+  assert.deepEqual(unwrap(await setPricingPolicy(ctx("sales_rep", store), { defaultCurrency: "usd" })), {
     defaultCurrency: "USD",
   });
 });

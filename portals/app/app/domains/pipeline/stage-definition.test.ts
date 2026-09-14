@@ -168,9 +168,15 @@ test("a workspace that already has stages keeps them - seeding never overwrites"
 
 // --- upsertStageDefinition: gate and validation --------------------------------
 
-test("editing the catalog needs pipeline.stage.manage - sales_rep may view but not write it", async () => {
+test("editing the catalog needs /admin/opportunity's unified write permission (incr/0063) - viewer may view but not write it", async () => {
+  // upsertStageDefinition is exclusively called from /admin/opportunity now,
+  // gated on pipeline.opportunityconfig.manage rather than pipeline.stage.
+  // sales_rep holds the union permission (it held pipeline.dealType among
+  // the six that were merged), so it succeeds here too, even though it never
+  // held pipeline.stage itself - only a role holding none of the six (viewer)
+  // is still refused.
   const store = new InMemoryPipelineStore();
-  const denied = await upsertStageDefinition(ctx("sales_rep", "enterprise", store), {
+  const denied = await upsertStageDefinition(ctx("viewer", "enterprise", store), {
     code: "intake",
     name: "接洽",
     defaultProbability: 15,
@@ -179,7 +185,7 @@ test("editing the catalog needs pipeline.stage.manage - sales_rep may view but n
   });
   assert.equal(denied.ok, false);
 
-  const allowed = await upsertStageDefinition(ctx("sales_manager", "enterprise", store), {
+  const allowed = await upsertStageDefinition(ctx("sales_rep", "enterprise", store), {
     code: "intake",
     name: "接洽",
     defaultProbability: 15,
@@ -202,7 +208,7 @@ test("an invalid draft is refused before it reaches the store", async () => {
 
 // --- moveStageDefinition --------------------------------------------------------
 
-test("reordering the catalog needs pipeline.stage.manage too", async () => {
+test("reordering the catalog needs the same unified permission too", async () => {
   const store = new InMemoryPipelineStore();
   store.seed([], {
     stageDefinitions: [
@@ -210,12 +216,12 @@ test("reordering the catalog needs pipeline.stage.manage too", async () => {
       row({ id: "s2", stageCode: "b", sortOrder: 2 }),
     ],
   });
-  const denied = await moveStageDefinition(ctx("sales_rep", "enterprise", store), { stageId: "s2", direction: "up" });
+  const denied = await moveStageDefinition(ctx("viewer", "enterprise", store), { stageId: "s2", direction: "up" });
   assert.equal(denied.ok, false);
 
-  const moved = await moveStageDefinition(ctx("sales_manager", "enterprise", store), { stageId: "s2", direction: "up" });
+  const moved = await moveStageDefinition(ctx("sales_rep", "enterprise", store), { stageId: "s2", direction: "up" });
   assert.ok(moved.ok);
-  const after = unwrap(await listStageDefinitions(ctx("sales_manager", "enterprise", store)));
+  const after = unwrap(await listStageDefinitions(ctx("sales_rep", "enterprise", store)));
   assert.deepEqual(after.map((s) => s.stageCode), ["b", "a"]);
 });
 

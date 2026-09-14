@@ -485,6 +485,37 @@ export async function listWinLossReasons(
 ): Promise<RuleResult<WinLossReasonRecord[]>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
   if (!gate.allowed) return denied(gate);
+  return ok(await readWinLossReasonsSeeded(ctx));
+}
+
+/**
+ * Same read, for /admin/opportunity only (incr/0063).
+ *
+ * `pipeline.winloss.view` carries a BUSINESS-tier feature key - right for
+ * /winloss, where recording an actual review is a business-tier capability,
+ * wrong for a configuration page that should stay open regardless of tier
+ * (owner principle, 2026-09-13). `listWinLossReasons` itself cannot be
+ * changed to match - it is the same verb /winloss uses to populate its own
+ * reason picker, and weakening its gate would weaken /winloss too. This is a
+ * separate, page-exclusive wrapper around the same read instead.
+ */
+export async function listWinLossReasonsForConfig(
+  ctx: PipelineContext,
+): Promise<RuleResult<WinLossReasonRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await readWinLossReasonsSeeded(ctx));
+}
+
+// PLACED AFTER BOTH CALLERS, DELIBERATELY (reachable-codes.test.ts's own
+// static slicer cuts from one `export function` to the next, so a private
+// helper sitting BEFORE listWinLossReasons/listWinLossReasonsForConfig would
+// get absorbed into whatever unrelated export precedes it instead - it
+// mistook listPendingReviews for the owner of this body once, pulling
+// upsertWinLossReason's validation codes into a chain that never reaches
+// them. Putting it last, after the two functions that actually call it,
+// keeps the attribution honest.
+async function readWinLossReasonsSeeded(ctx: PipelineContext): Promise<WinLossReasonRecord[]> {
   let reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
   /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard the catalogue
      vocabularies use, and the same rows incr/0039 seeds, so the two paths
@@ -500,7 +531,7 @@ export async function listWinLossReasons(
     }
     reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
   }
-  return ok(reasons);
+  return reasons;
 }
 
 /**
@@ -514,7 +545,7 @@ export async function listWinLossReasons(
 export async function winLossReasonUsage(
   ctx: PipelineContext,
 ): Promise<RuleResult<Record<string, number>>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.view", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.view", "data");
   if (!gate.allowed) return denied(gate);
 
   const reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
@@ -529,7 +560,7 @@ export async function upsertWinLossReason(
   ctx: PipelineContext,
   input: { reasonCode: string; name: string; forWon: boolean; forLost: boolean },
 ): Promise<RuleResult<WinLossReasonRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const plan = planWinLossReason(input);
@@ -543,7 +574,7 @@ export async function moveWinLossReason(
   ctx: PipelineContext,
   input: { reasonId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const reasons = await ctx.store.listWinLossReasons(ctx.workspaceId);
@@ -570,7 +601,7 @@ export async function removeWinLossReason(
   ctx: PipelineContext,
   input: { reasonId: string },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.winloss.record", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const citing = await ctx.store.countReviewsByReason(ctx.workspaceId, input.reasonId);
@@ -645,7 +676,7 @@ export async function upsertStageDefinition(
   ctx: PipelineContext,
   input: { code: string; name: string; defaultProbability: number; isWon: boolean; isTerminal: boolean },
 ): Promise<RuleResult<StageDefinitionRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.manage", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const plan = planStageDefinition(input);
@@ -667,7 +698,7 @@ export async function moveStageDefinition(
   ctx: PipelineContext,
   input: { stageId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.manage", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
@@ -693,7 +724,7 @@ export async function removeStageDefinition(
   ctx: PipelineContext,
   input: { stageId: string },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.stage.manage", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const stages = await ctx.store.listStageDefinitions(ctx.workspaceId);
@@ -767,7 +798,7 @@ export async function upsertDealType(
   ctx: PipelineContext,
   input: { code: string; name: string },
 ): Promise<RuleResult<DealTypeRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.manage", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const plan = planDealType({ dealTypeCode: input.code, name: input.name });
@@ -786,7 +817,7 @@ export async function moveDealType(
   ctx: PipelineContext,
   input: { dealTypeId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.manage", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const types = await ctx.store.listDealTypes(ctx.workspaceId);
@@ -813,7 +844,7 @@ export async function removeDealType(
   ctx: PipelineContext,
   input: { dealTypeId: string },
 ): Promise<RuleResult<true>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.manage", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const filed = await ctx.store.countOpportunitiesByDealType(ctx.workspaceId, input.dealTypeId);
@@ -840,7 +871,7 @@ export async function setDealTypeStallOverride(
   ctx: PipelineContext,
   input: { dealTypeId: string; stallDaysOverride: number | null },
 ): Promise<RuleResult<DealTypeRecord>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.categorize", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const plan = planDealTypeStallOverride(input.stallDaysOverride);
@@ -1355,7 +1386,7 @@ export interface CategoryPreview {
 export async function forecastThresholds(
   ctx: PipelineContext,
 ): Promise<RuleResult<ForecastThresholds>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.view", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.view", "data");
   if (!gate.allowed) return denied(gate);
   return ok(await ctx.store.getForecastThresholds(ctx.workspaceId));
 }
@@ -1364,7 +1395,7 @@ export async function setForecastThresholds(
   ctx: PipelineContext,
   input: ForecastThresholds,
 ): Promise<RuleResult<ForecastThresholds>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.categorize", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const plan = planForecastThresholds(input);

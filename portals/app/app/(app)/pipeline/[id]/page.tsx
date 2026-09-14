@@ -736,11 +736,20 @@ export default async function OpportunityDetailPage({
         }
         dealTypeId={opportunity.dealTypeId}
         dealTypes={dealTypes.map((t) => ({ id: t.id, name: t.name }))}
+        // FIXED, NOT SEPARATE (found while unifying /admin/opportunity's own
+        // permissions, incr/0063): updateCommercialTerms folds a deal's own
+        // dealTypeId into `wantsEdit` (the same gate as amount/probability/
+        // owner), never checked pipeline.dealtype.manage - that PermCode
+        // governs the deal-TYPE VOCABULARY'S own CRUD, a different action.
+        // This UI check used to name the vocabulary permission anyway, which
+        // only ever HID the field from someone the server would actually
+        // have let write it - the safe direction, but still a mismatch worth
+        // fixing now that it surfaced.
         canSetDealType={
           can(
             session.authz,
             session.entitlement,
-            "pipeline.dealtype.manage",
+            "pipeline.opportunity.update",
             "ui",
           ).allowed
         }

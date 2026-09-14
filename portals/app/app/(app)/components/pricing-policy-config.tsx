@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import {
   Field,
   FieldDescription,
@@ -11,14 +10,13 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  useToast,
 } from "@vxture/design-ui";
 import { SUPPORTED_CURRENCIES, type PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
 import { useMessages } from "../lib/i18n/provider";
-import { FormActions, FormFields } from "./form-page";
+import { FormFields } from "./form-page";
 import { Tag } from "./tag";
 
-// 计价规则 - the currency this workspace prices in (incr/0044).
+// 计价货币 - the currency this workspace prices in (incr/0044).
 //
 // WHY IT IS CONFIGURED AT ALL. "CNY" was in eleven places in the build - the
 // line pricer, the pipeline's default, lead conversion, the price book's
@@ -28,33 +26,27 @@ import { Tag } from "./tag";
 // ONE FIELD, deliberately. What else a pricing policy could hold - the floor
 // discipline, a second currency with a rate - is a decision each, and a form
 // that grew fields nobody had asked for would be inventing policy.
+//
+// CONTROLLED, AND NO FormActions OF ITS OWN (incr/0063). This used to own its
+// own currency state and its own Save/Discard bar; both moved up to
+// opportunity-config-panel.tsx - see that file's own header. No validator is
+// exported here (unlike forecast/ageing): the field is a closed `<Select>`
+// enum, so the control itself already guarantees a legal value.
 
 export function PricingPolicyConfig({
   policy,
   canWrite,
-  onSave,
+  currency,
+  onCurrencyChange,
+  pending,
 }: {
   readonly policy: PricingPolicy;
   readonly canWrite: boolean;
-  readonly onSave: (input: PricingPolicy) => Promise<{ ok: boolean; error?: string }>;
+  readonly currency: string;
+  readonly onCurrencyChange: (value: string) => void;
+  readonly pending: boolean;
 }) {
-  const { CURRENCY_LABEL, CURRENCY_SYMBOL, PRICING_ERROR, PRICING_TEXT } = useMessages();
-  const [pending, start] = useTransition();
-  const [currency, setCurrency] = useState(policy.defaultCurrency);
-  const { toast } = useToast();
-  const dirty = currency !== policy.defaultCurrency;
-
-  const save = () =>
-    start(async () => {
-      const r = await onSave({ defaultCurrency: currency });
-      toast(
-        r.ok
-          ? { tone: "success", title: PRICING_TEXT.saved }
-          : { tone: "danger", title: PRICING_ERROR[r.error ?? "denied"] ?? r.error ?? "" },
-      );
-    });
-
-  const discard = () => setCurrency(policy.defaultCurrency);
+  const { CURRENCY_LABEL, CURRENCY_SYMBOL, PRICING_TEXT } = useMessages();
 
   return (
     <Section
@@ -81,7 +73,7 @@ export function PricingPolicyConfig({
                   open-list row carries just the code and the muted, right-
                   aligned Chinese name - never the trigger's own chevron, since
                   that name never renders in the trigger at all. */}
-              <Select value={currency} onValueChange={setCurrency} disabled={pending || !canWrite}>
+              <Select value={currency} onValueChange={onCurrencyChange} disabled={pending || !canWrite}>
                 <SelectTrigger id="pricing-currency" className="max-w-40">
                   <span className="flex items-center gap-xs">
                     <span className="text-muted-foreground">{CURRENCY_SYMBOL[currency]}</span>
@@ -107,17 +99,6 @@ export function PricingPolicyConfig({
               <FieldDescription>{PRICING_TEXT.currencyHint}</FieldDescription>
             </Field>
           </FormFields>
-          {canWrite ? (
-            <div className="mt-lg">
-              <FormActions
-                saveLabel={PRICING_TEXT.save}
-                discardLabel={PRICING_TEXT.discard}
-                onSave={save}
-                onDiscard={discard}
-                pending={pending || !dirty}
-              />
-            </div>
-          ) : null}
         </div>
       </div>
     </Section>

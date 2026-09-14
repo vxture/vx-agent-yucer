@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type MouseEvent } from "react";
+import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import {
   Button,
   Field,
@@ -9,9 +9,7 @@ import {
   Icon,
   Input,
   Section,
-  useToast,
 } from "@vxture/design-ui";
-import { FormActions } from "./form-page";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
@@ -84,7 +82,7 @@ import { Tag } from "./tag";
 // the sentence explaining what it means; then 这个裸标签是什么意图，为什么
 // 要，其存在价值 asked what the bare tag itself was still doing there once
 // the sentence was gone). Nothing was left for it to say: `why` in the
-// ViewHeader description already states once, in one place, that 未到期 and
+// ViewHeader description already states once, in one place, that 未到期 和
 // 未填到期日 are always their own bands - a second, silent, unclickable tag
 // repeating half of that sentence was not completeness, it was the leftover
 // shape of the old "two tags bracket the ruler" layout after 未到期 moved
@@ -103,6 +101,18 @@ import { Tag } from "./tag";
 // shift where the numbered bands begin. That zone is real estate, not a
 // value: `valueFromClientX` returns null for a click or hover landing in it,
 // since there is no day number a click there could mean.
+//
+// CONTROLLED, AND NO FormActions OF ITS OWN (incr/0063). `rows`/
+// `pendingAction`/`hoverValue` used to be local `useState`; all three moved
+// up to opportunity-config-panel.tsx so /admin/opportunity's three form
+// sections share one save bar instead of stacking three - see that file's
+// own header. Only `rows` actually needs to leave this component (it is what
+// `dirty`/save compare against the `cutoffs` prop); `pendingAction`/
+// `hoverValue` are pure interaction staging that never escapes this
+// component's own logic even now - they moved only so `discard` (now the
+// panel's) can reset them alongside `rows`. `firstAgeingError`/`CutoffRow`/
+// `toRows` are exported so the panel can validate and seed its own state
+// without duplicating this file's rules.
 const RULER_NOT_DUE_SHARE = 0.14;
 const RULER_OPEN_SHARE = 0.22;
 const RULER_MIN_SCALE = 30;
@@ -120,9 +130,13 @@ const RULER_BAND_TONES = ["bg-primary/20", "bg-primary/30", "bg-primary/40", "bg
  *  array (not just appends/removes like line-editor.tsx's rows) - an index
  *  key would let React reattach an input's DOM state to the wrong cutoff the
  *  moment one gets inserted ahead of it. */
-type CutoffRow = { readonly id: string; readonly value: string };
-const toRows = (values: readonly string[]): CutoffRow[] =>
+export type CutoffRow = { readonly id: string; readonly value: string };
+export const toRows = (values: readonly string[]): CutoffRow[] =>
   values.map((value) => ({ id: crypto.randomUUID(), value }));
+
+export type PendingCutoffAction =
+  | { readonly kind: "insert"; readonly value: number }
+  | { readonly kind: "remove"; readonly id: string; readonly value: string };
 
 // SAME PRECEDENCE `planAgeingCutoffs` CHECKS IN: count, then range, then
 // order - so the toast on an invalid save names the same violation the
@@ -131,7 +145,7 @@ const toRows = (values: readonly string[]): CutoffRow[] =>
 // to live inline here is exactly SonarCloud's "nested ternary" complaint,
 // and pulling it out to its own function is what let the caller stay
 // readable without it.
-function firstAgeingError(rowCount: number, parsed: readonly number[], maxCutoffs: number) {
+export function firstAgeingError(rowCount: number, parsed: readonly number[], maxCutoffs: number) {
   if (rowCount < 1 || rowCount > maxCutoffs) return "cutoff_count";
   if (parsed.some((n) => !(Number.isInteger(n) && n >= 1 && n <= 3650))) return "cutoff_range";
   if (parsed.some((n, i) => i > 0 && Number.isInteger(n) && Number.isInteger(parsed[i - 1]) && n <= parsed[i - 1])) {
@@ -140,33 +154,35 @@ function firstAgeingError(rowCount: number, parsed: readonly number[], maxCutoff
   return null;
 }
 
+const MAX_CUTOFFS = 5;
+
 export function AgeingPolicyConfig({
   cutoffs,
   canWrite,
-  onSave,
+  rows,
+  onRowsChange,
+  pendingAction,
+  onPendingActionChange,
+  hoverValue,
+  onHoverValueChange,
+  pending,
 }: {
   readonly cutoffs: readonly number[];
   readonly canWrite: boolean;
-  readonly onSave: (cutoffs: readonly number[]) => Promise<{ ok: boolean; error?: string }>;
+  readonly rows: readonly CutoffRow[];
+  readonly onRowsChange: Dispatch<SetStateAction<readonly CutoffRow[]>>;
+  readonly pendingAction: PendingCutoffAction | null;
+  readonly onPendingActionChange: Dispatch<SetStateAction<PendingCutoffAction | null>>;
+  readonly hoverValue: number | null;
+  readonly onHoverValueChange: Dispatch<SetStateAction<number | null>>;
+  readonly pending: boolean;
 }) {
-  const { AGEING_ERROR, AGEING_TEXT, DELIVERY_TEXT } = useMessages();
-  const [pending, start] = useTransition();
-  const initialRows = toRows(cutoffs.length > 0 ? cutoffs.map(String) : [""]);
-  const [rows, setRows] = useState<readonly CutoffRow[]>(initialRows);
-  const [pendingAction, setPendingAction] = useState<
-    { readonly kind: "insert"; readonly value: number } | { readonly kind: "remove"; readonly id: string; readonly value: string } | null
-  >(null);
-  const [hoverValue, setHoverValue] = useState<number | null>(null);
-  const { toast } = useToast();
+  const { AGEING_TEXT, DELIVERY_TEXT } = useMessages();
 
   // Whatever they typed, as numbers. Anything unparseable becomes NaN, and a
   // row carrying one is flagged rather than silently dropped - the rule
   // refuses it by name rather than this component guessing.
   const parsed = rows.map((r) => (r.value.trim() === "" ? Number.NaN : Number(r.value)));
-  const dirty = parsed.join(",") !== cutoffs.join(",");
-
-  const MAX_CUTOFFS = 5;
-  const firstError = firstAgeingError(rows.length, parsed, MAX_CUTOFFS);
 
   // PER-ROW, for the input's own aria-invalid styling - which number is
   // wrong, not just that the list as a whole is.
@@ -186,13 +202,8 @@ export function AgeingPolicyConfig({
   const allValid = rows.length > 0 && validPrefix[rows.length - 1] === true;
 
   const editRow = (id: string, value: string) =>
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, value } : r)));
-  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
-  const discard = () => {
-    setRows(initialRows);
-    setPendingAction(null);
-    setHoverValue(null);
-  };
+    onRowsChange((prev) => prev.map((r) => (r.id === id ? { ...r, value } : r)));
+  const removeRow = (id: string) => onRowsChange((prev) => prev.filter((r) => r.id !== id));
 
   // INSERTED SORTED, not appended - array order doubles as day order
   // everywhere else in this component (the order check reads
@@ -201,7 +212,7 @@ export function AgeingPolicyConfig({
   const insertCutoff = (value: number) => {
     if (rows.length >= MAX_CUTOFFS) return;
     const v = String(Math.min(3650, Math.max(1, Math.round(value))));
-    setRows((prev) => {
+    onRowsChange((prev) => {
       const idx = prev.findIndex((r) => Number(r.value) > Number(v) || Number.isNaN(Number(r.value)));
       const at = idx === -1 ? prev.length : idx;
       return [...prev.slice(0, at), { id: crypto.randomUUID(), value: v }, ...prev.slice(at)];
@@ -243,9 +254,9 @@ export function AgeingPolicyConfig({
   // `rows`.
   const trackHover = (e: MouseEvent<HTMLButtonElement>) => {
     if (pendingAction || !canWrite || pending) return;
-    setHoverValue(valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect()));
+    onHoverValueChange(valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect()));
   };
-  const trackLeave = () => setHoverValue(null);
+  const trackLeave = () => onHoverValueChange(null);
   const trackClick = (e: MouseEvent<HTMLButtonElement>) => {
     // A REAL BUTTON MEANS A KEYBOARD ACTIVATION FIRES THIS TOO (Enter/Space),
     // and a synthetic click has no meaningful clientX - `detail === 0` is the
@@ -254,17 +265,17 @@ export function AgeingPolicyConfig({
     // click past the open tail gets, not a position computed from nothing.
     const value =
       e.detail === 0 ? refMax + RULER_MIN_SCALE : valueFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
-    setHoverValue(null);
+    onHoverValueChange(null);
     // null = the click landed in the 未到期 zone, which stages nothing.
-    if (value !== null) setPendingAction({ kind: "insert", value });
+    if (value !== null) onPendingActionChange({ kind: "insert", value });
   };
-  const stageRemoval = (id: string, value: string) => setPendingAction({ kind: "remove", id, value });
+  const stageRemoval = (id: string, value: string) => onPendingActionChange({ kind: "remove", id, value });
   const confirmPendingAction = () => {
     if (pendingAction?.kind === "insert") insertCutoff(pendingAction.value);
     else if (pendingAction?.kind === "remove") removeRow(pendingAction.id);
-    setPendingAction(null);
+    onPendingActionChange(null);
   };
-  const cancelPendingAction = () => setPendingAction(null);
+  const cancelPendingAction = () => onPendingActionChange(null);
 
   const ghostInsertValue = pendingAction?.kind === "insert" ? pendingAction.value : hoverValue;
 
@@ -276,26 +287,6 @@ export function AgeingPolicyConfig({
         return seg;
       })
     : [];
-
-  const save = () => {
-    // DISABLING SAVE WOULD ALSO DISABLE DISCARD - FormActions shares one
-    // `pending` flag between both buttons, and an admin mid-typo still needs
-    // a way back to the last-saved values. So the button stays clickable and
-    // this guard refuses the attempt by name instead, the same as the server
-    // would.
-    if (firstError) {
-      toast({ tone: "danger", title: AGEING_ERROR[firstError] });
-      return;
-    }
-    start(async () => {
-      const r = await onSave(parsed);
-      toast(
-        r.ok
-          ? { tone: "success", title: AGEING_TEXT.saved }
-          : { tone: "danger", title: AGEING_ERROR[r.error ?? "denied"] ?? r.error ?? "" },
-      );
-    });
-  };
 
   return (
     <Section
@@ -423,9 +414,8 @@ export function AgeingPolicyConfig({
               ) : null}
             </div>
             {/* THE RULE FOR THIS CONTROL, RIGHT UNDER THE CONTROL (owner,
-                2026-09-12: 说明进行放到哪里合适 - this used to sit at the
-                very bottom of the Field, after 未填到期日, which describes
-                something this hint has nothing to do with). */}
+                2026-09-12: 说明进行放到哪里合适) - `cutoffsHint` describes the
+                numbers this control takes (ascending, 1-3650, up to five). */}
             <FieldDescription>{AGEING_TEXT.cutoffsHint}</FieldDescription>
             {pendingAction ? (
               <div className="gap-sm border-border bg-card mt-xs flex items-center rounded-md border border-dashed p-sm">
@@ -443,17 +433,6 @@ export function AgeingPolicyConfig({
               </div>
             ) : null}
           </Field>
-          {canWrite ? (
-            <div className="mt-lg">
-              <FormActions
-                saveLabel={AGEING_TEXT.save}
-                discardLabel={AGEING_TEXT.discard}
-                onSave={save}
-                onDiscard={discard}
-                pending={pending || !dirty}
-              />
-            </div>
-          ) : null}
         </div>
       </div>
     </Section>

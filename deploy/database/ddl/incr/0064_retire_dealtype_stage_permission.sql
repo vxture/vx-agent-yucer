@@ -1,0 +1,35 @@
+-- 0064_retire_dealtype_stage_permission.sql - the first permission RETIREMENT
+-- in this catalog, not just an addition.
+--
+-- Authority for the contents: docs/20-specs/50-role-permission-catalog.md.
+-- This file and that document must be changed together.
+--
+-- WHY THIS ONE, AND NOT THE OTHER FOUR incr/0063 MOVED OFF OF. incr/0063
+-- unified /admin/opportunity's six write actions onto one permission
+-- (pipeline.opportunityConfig), so upsertDealType/upsertStageDefinition (and
+-- their move/remove siblings) stopped checking pipeline.dealType/
+-- pipeline.stage. For pipeline.write/pipeline.forecast/delivery.write/
+-- catalog.price, that was harmless - each still gates a DIFFERENT action
+-- elsewhere (recordWinLossReview, applySuggestedCategory, delivery project/
+-- milestone upserts, the real price book), so leaving them in the catalog is
+-- correct: they are still exercised.
+--
+-- pipeline.dealType and pipeline.stage are NOT like that. Both were minted
+-- specifically for the two ActionIds incr/0063's authz/actions.ts change just
+-- deleted (pipeline.dealtype.manage, pipeline.stage.manage) and were never
+-- referenced by anything else - confirmed by reading every caller of both
+-- ActionIds before deleting them. With those two gone, nothing in the
+-- product checks either permission any more, which
+-- authz/actions.test.ts's "every permission except copilot.autopilot is
+-- exercised by an action" enforces as a hard rule with no exception
+-- mechanism: a granted-but-unchecked permission is a defect this repo
+-- refuses to carry, not a state to leave standing.
+--
+-- ON DELETE CASCADE on fk_role_permission_permission (00_baseline.sql) means
+-- deleting the two permission rows takes their role_permission grants with
+-- them in the same statement - no separate DELETE needed for those.
+--
+-- Idempotent: re-applying is a no-op (DELETE ... WHERE EXISTS is naturally
+-- idempotent; a second run finds nothing left to delete).
+
+DELETE FROM local_authz.permission WHERE perm_code IN ('pipeline.dealType', 'pipeline.stage');

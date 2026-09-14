@@ -72,19 +72,35 @@ export const PERM_CODES = [
   // nobody. Not a feature key - keys are frozen at 19 and a signature is not
   // separately sellable.
   "pipeline.discount",
-  // --- stage catalog authority (incr/0059) ----------------------------------
-  // Redefining the stage catalog itself (rename/reorder/re-price/add/remove) is
-  // separate from pipeline.write, the same shape as pipeline.forecast one level
-  // up: a rep who owns their own pipeline must not redefine what "won" means
-  // for every other rep's pipeline too. Granted to the same roles that already
-  // hold pipeline.forecast.
-  "pipeline.stage",
-  // --- deal-type catalog authority (incr/0061) ------------------------------
-  // A dedicated code, added the same way pipeline.stage was, but granted far
-  // more broadly: classifying a deal's TYPE is closer to owning the deal than
-  // to redefining a workspace-wide policy, so it rides with pipeline.write's
-  // own role list rather than pipeline.forecast's.
-  "pipeline.dealType",
+  // --- stage/deal-type catalog authority (incr/0059, incr/0061), RETIRED
+  // incr/0064 ------------------------------------------------------------
+  // pipeline.stage and pipeline.dealType used to live here - dedicated codes
+  // for "redefining the stage catalog" and "classifying a deal's type",
+  // separate from pipeline.write/pipeline.forecast. incr/0063 unified
+  // /admin/opportunity's six write actions onto one permission
+  // (pipeline.opportunityConfig, below), and unlike pipeline.write/
+  // pipeline.forecast/delivery.write/catalog.price - which still gate their
+  // OWN different actions elsewhere and stayed in this catalog - these two
+  // were never referenced by anything but the two ActionIds that moved off
+  // them. Left granted-but-unchecked, actions.test.ts's own hard rule
+  // ("every permission is exercised by an action", no exception mechanism)
+  // refuses that state outright, so incr/0064 deletes both rows (ON DELETE
+  // CASCADE takes their role_permission grants with them) rather than leave
+  // a permission nothing can ever check.
+  //
+  // --- /admin/opportunity's own unified authority (incr/0063) ---------------
+  // ONE permission for all six sections on that page (商机类型/商机阶段/
+  // 赢丢原因/预测阈值/账龄分档/计价货币), replacing the six different ones
+  // each section inherited from having once been its own standalone route.
+  // Granted to the union of those six permissions' holders at the time (23 of
+  // 31 roles) - see incr/0063's own note. pipeline.write/pipeline.forecast/
+  // delivery.write/catalog.price are NOT retired; they still gate their own,
+  // different actions elsewhere (recordWinLossReview, applySuggestedCategory,
+  // the real price book, delivery project/milestone upserts, lead conversion,
+  // opportunity create/update/advance) - only this page's own service verbs
+  // moved off them. pipeline.dealType/pipeline.stage were retired instead
+  // (incr/0064, above) - they had nothing else to keep them alive.
+  "pipeline.opportunityConfig",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -152,9 +168,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "delivery.read",
     "delivery.write",
     "copilot.use",
@@ -168,6 +182,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     // incr/0012: signing off a below-floor price. Separate from pipeline.write
     // so the person who quotes the discount is not the person who allows it.
     "pipeline.discount",
+    "pipeline.opportunityConfig",
   ],
   // Demand side, up to the lead handoff: triages signals but never edits a deal.
   marketing_manager: [
@@ -193,13 +208,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "pipeline.opportunityConfig",
   ],
   presales: [
     "account.read",
@@ -219,6 +234,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "pipeline.opportunityConfig",
   ],
   // Sets the rules (quota, territory, forecast discipline, role assignment) but
   // does not edit the deals - the rule-setter is not also the data-editor.
@@ -227,7 +243,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.write",
     "pipeline.read",
     "pipeline.forecast",
-    "pipeline.stage",
     "account.read",
     "campaign.read",
     "strategy.read",
@@ -240,6 +255,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     // authority; ops can already move a floor, so withholding the
     // transaction-level exception would be theatre, not separation of duties.
     "pipeline.discount",
+    "pipeline.opportunityConfig",
   ],
   // Read-only, but keeps copilot.use: asking a question produces no write.
   viewer: [
@@ -269,15 +285,14 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "delivery.read",
     "campaign.read",
     "copilot.use",
     "copilot.decide",
     "catalog.read",
     "planning.read",
+    "pipeline.opportunityConfig",
   ],
 
   // A MANAGER WHO MAY APPROVE BELOW THE FLOOR and set the targets their region
@@ -298,9 +313,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -314,6 +327,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "campaign.write",
     // 0049: 大区销售总监 shapes the region's strategy and campaigns.
     "strategy.write",
+    "pipeline.opportunityConfig",
   ],
   // --- 0047: the ladder. Each rung is the one below plus something concrete. ---
   executive: [
@@ -341,6 +355,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.price",
     "pipeline.discount",
     "copilot.use",
+    "pipeline.opportunityConfig",
   ],
   workspace_admin: [
     "strategy.read",
@@ -362,9 +377,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -373,6 +386,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.read",
     "pipeline.discount",
     "strategy.read",
+    "pipeline.opportunityConfig",
   ],
   regional_general_manager: [
     "account.read",
@@ -382,9 +396,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -398,6 +410,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "strategy.approve",
     "campaign.write",
     "delivery.write",
+    "pipeline.opportunityConfig",
   ],
   channel_manager: [
     "account.read",
@@ -405,13 +418,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.read",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "pipeline.opportunityConfig",
   ],
   senior_channel_manager: [
     "account.read",
@@ -419,7 +432,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.read",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -427,10 +439,10 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "account.record",
     "pipeline.forecast",
-    "pipeline.stage",
     "planning.read",
     "campaign.write",
     "pipeline.discount",
+    "pipeline.opportunityConfig",
   ],
   senior_delivery_manager: [
     "delivery.read",
@@ -444,6 +456,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.write",
     "planning.read",
     "strategy.read",
+    "pipeline.opportunityConfig",
   ],
   senior_presales: [
     "account.read",
@@ -469,12 +482,12 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.read",
     "pipeline.read",
     "pipeline.forecast",
-    "pipeline.stage",
     "strategy.read",
     "account.read",
     "campaign.read",
     "catalog.read",
     "copilot.use",
+    "pipeline.opportunityConfig",
   ],
   key_account_manager: [
     "account.read",
@@ -483,7 +496,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -491,9 +503,9 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "account.record",
     "pipeline.forecast",
-    "pipeline.stage",
     "planning.read",
     "strategy.read",
+    "pipeline.opportunityConfig",
   ],
   sdr: [
     "signal.read",
@@ -513,6 +525,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.price",
     "account.read",
     "copilot.use",
+    "pipeline.opportunityConfig",
   ],
   customer_success: [
     "account.read",
@@ -525,6 +538,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "copilot.use",
     "copilot.decide",
+    "pipeline.opportunityConfig",
   ],
   // --- 0049: the heads of the lines, and the sales ladder re-cut. ---
   sales_director: [
@@ -535,9 +549,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -547,6 +559,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.read",
     "planning.write",
     "strategy.read",
+    "pipeline.opportunityConfig",
   ],
   branch_general_manager: [
     "account.read",
@@ -556,9 +569,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.triage",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "pipeline.forecast",
-    "pipeline.stage",
     "pipeline.discount",
     "delivery.read",
     "campaign.read",
@@ -570,6 +581,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "strategy.read",
     "delivery.write",
     "campaign.write",
+    "pipeline.opportunityConfig",
   ],
   channel_head: [
     "account.read",
@@ -577,7 +589,6 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "signal.read",
     "pipeline.read",
     "pipeline.write",
-    "pipeline.dealType",
     "delivery.read",
     "campaign.read",
     "copilot.use",
@@ -585,12 +596,12 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.read",
     "account.record",
     "pipeline.forecast",
-    "pipeline.stage",
     "planning.read",
     "campaign.write",
     "pipeline.discount",
     "planning.write",
     "strategy.read",
+    "pipeline.opportunityConfig",
   ],
   delivery_head: [
     "delivery.read",
@@ -606,6 +617,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "strategy.read",
     "planning.write",
     "signal.read",
+    "pipeline.opportunityConfig",
   ],
   presales_head: [
     "account.read",
@@ -620,6 +632,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.price",
     "planning.read",
+    "pipeline.opportunityConfig",
   ],
   marketing_head: [
     "strategy.read",
@@ -637,14 +650,13 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "planning.read",
     "delivery.read",
     "pipeline.forecast",
-    "pipeline.stage",
+    "pipeline.opportunityConfig",
   ],
   ops_head: [
     "planning.read",
     "planning.write",
     "pipeline.read",
     "pipeline.forecast",
-    "pipeline.stage",
     "account.read",
     "campaign.read",
     "strategy.read",
@@ -656,6 +668,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "pipeline.discount",
     "strategy.write",
     "copilot.decide",
+    "pipeline.opportunityConfig",
   ],
 };
 

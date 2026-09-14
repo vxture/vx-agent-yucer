@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Field, FieldDescription, FieldLabel, Icon, Input, Section, useToast } from "@vxture/design-ui";
-import { FormActions } from "./form-page";
+import { Field, FieldDescription, FieldLabel, Icon, Input, Section } from "@vxture/design-ui";
+import type { Dispatch, SetStateAction } from "react";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 import { FORECAST_LABEL } from "../lib/messages";
 import { useMessages } from "../lib/i18n/provider";
@@ -31,7 +30,16 @@ import { Tag } from "./tag";
 // probability), unrelated to where these two sit.
 const FORECAST_BAND_TONES = ["bg-primary/20", "bg-primary/35", "bg-primary/55"];
 
-function firstForecastError(commitAt: number, bestCaseAt: number, stallDays: number) {
+export type ForecastForm = { commitAt: string; bestCaseAt: string; stallDays: string };
+
+// CONTROLLED, AND NO FormActions OF ITS OWN (incr/0063). This used to own its
+// form state and its own Save/Discard bar; both moved up to
+// opportunity-config-panel.tsx so /admin/opportunity's three form sections
+// (this one, ageing, pricing) share ONE save bar instead of stacking three -
+// see that file's own header for why. `firstForecastError` is exported so the
+// panel's aggregate save can validate this section without duplicating the
+// rule.
+export function firstForecastError(commitAt: number, bestCaseAt: number, stallDays: number) {
   if (!(Number.isInteger(commitAt) && commitAt >= 1 && commitAt <= 100)) return "commit_out_of_range";
   if (!(Number.isInteger(bestCaseAt) && bestCaseAt >= 1 && bestCaseAt <= 100)) return "best_case_out_of_range";
   if (bestCaseAt >= commitAt) return "bands_cross";
@@ -42,21 +50,17 @@ function firstForecastError(commitAt: number, bestCaseAt: number, stallDays: num
 export function ForecastThresholdConfig({
   thresholds,
   canWrite,
-  onSave,
+  form,
+  onFormChange,
+  pending,
 }: {
   readonly thresholds: ForecastThresholds;
   readonly canWrite: boolean;
-  readonly onSave: (input: ForecastThresholds) => Promise<{ ok: boolean; error?: string }>;
+  readonly form: ForecastForm;
+  readonly onFormChange: Dispatch<SetStateAction<ForecastForm>>;
+  readonly pending: boolean;
 }) {
-  const { FORECAST_PARAM_ERROR, FORECAST_PARAM_TEXT } = useMessages();
-  const [pending, start] = useTransition();
-  const initial = {
-    commitAt: String(thresholds.commitAt),
-    bestCaseAt: String(thresholds.bestCaseAt),
-    stallDays: String(thresholds.stallDays),
-  };
-  const [form, setForm] = useState(initial);
-  const { toast } = useToast();
+  const { FORECAST_PARAM_TEXT } = useMessages();
 
   const num = (v: string) => (v.trim() === "" ? Number.NaN : Number(v));
   const parsed = {
@@ -64,38 +68,12 @@ export function ForecastThresholdConfig({
     bestCaseAt: num(form.bestCaseAt),
     stallDays: num(form.stallDays),
   };
-  const dirty =
-    parsed.commitAt !== thresholds.commitAt ||
-    parsed.bestCaseAt !== thresholds.bestCaseAt ||
-    parsed.stallDays !== thresholds.stallDays;
 
-  const firstError = firstForecastError(parsed.commitAt, parsed.bestCaseAt, parsed.stallDays);
   const commitInvalid = !(Number.isInteger(parsed.commitAt) && parsed.commitAt >= 1 && parsed.commitAt <= 100);
   const bestCaseInvalid =
     !(Number.isInteger(parsed.bestCaseAt) && parsed.bestCaseAt >= 1 && parsed.bestCaseAt <= 100) ||
     (!commitInvalid && parsed.bestCaseAt >= parsed.commitAt);
   const bandsValid = !commitInvalid && !bestCaseInvalid;
-
-  const save = () => {
-    // SAME REASON THE AGEING RULER'S SAVE STAYS CLICKABLE: disabling it on
-    // `firstError` would need a second flag Discard does not share, so the
-    // guard lives inside the handler instead and names the violation by the
-    // same wording the server would use.
-    if (firstError) {
-      toast({ tone: "danger", title: FORECAST_PARAM_ERROR[firstError] });
-      return;
-    }
-    start(async () => {
-      const r = await onSave(parsed);
-      toast(
-        r.ok
-          ? { tone: "success", title: FORECAST_PARAM_TEXT.saved }
-          : { tone: "danger", title: FORECAST_PARAM_ERROR[r.error ?? "denied"] ?? r.error ?? "" },
-      );
-    });
-  };
-
-  const discard = () => setForm(initial);
 
   return (
     <Section
@@ -156,7 +134,7 @@ export function ForecastThresholdConfig({
                     disabled={pending || !canWrite}
                     aria-invalid={bestCaseInvalid}
                     aria-label={FORECAST_PARAM_TEXT.bestCaseLabel}
-                    onChange={(e) => setForm((f) => ({ ...f, bestCaseAt: e.target.value }))}
+                    onChange={(e) => onFormChange((f) => ({ ...f, bestCaseAt: e.target.value }))}
                   />
                 </div>
                 <div
@@ -171,7 +149,7 @@ export function ForecastThresholdConfig({
                     disabled={pending || !canWrite}
                     aria-invalid={commitInvalid}
                     aria-label={FORECAST_PARAM_TEXT.commitLabel}
-                    onChange={(e) => setForm((f) => ({ ...f, commitAt: e.target.value }))}
+                    onChange={(e) => onFormChange((f) => ({ ...f, commitAt: e.target.value }))}
                   />
                 </div>
               </div>
@@ -189,23 +167,12 @@ export function ForecastThresholdConfig({
                 value={form.stallDays}
                 disabled={pending || !canWrite}
                 aria-invalid={!(Number.isInteger(parsed.stallDays) && parsed.stallDays >= 1 && parsed.stallDays <= 365)}
-                onChange={(e) => setForm((f) => ({ ...f, stallDays: e.target.value }))}
+                onChange={(e) => onFormChange((f) => ({ ...f, stallDays: e.target.value }))}
               />
               <span className="text-body-sm text-muted-foreground">{FORECAST_PARAM_TEXT.days}</span>
             </div>
             <FieldDescription>{FORECAST_PARAM_TEXT.stallHint}</FieldDescription>
           </Field>
-          {canWrite ? (
-            <div className="mt-lg">
-              <FormActions
-                saveLabel={FORECAST_PARAM_TEXT.save}
-                discardLabel={FORECAST_PARAM_TEXT.discard}
-                onSave={save}
-                onDiscard={discard}
-                pending={pending || !dirty}
-              />
-            </div>
-          ) : null}
         </div>
       </div>
     </Section>

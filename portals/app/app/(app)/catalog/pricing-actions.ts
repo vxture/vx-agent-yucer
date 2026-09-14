@@ -6,11 +6,12 @@ import { setPricingPolicy } from "../../domains/catalog/service";
 import { getCatalogStore } from "../../domains/shared/registry";
 import type { PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
 
-/* 计价规则的写入路径 (incr/0044).
+/* 计价货币的写入路径 (incr/0044, permission unified incr/0063).
  *
- * Gated on `catalog.pricebook.upsert` inside the service - the floor-price
- * permission, because the currency every line assumes is a pricing decision.
- * Returns the violation CODE, never its sentence (TD-010).
+ * Gated on `pipeline.opportunityconfig.manage` inside the service - the one
+ * permission for all six /admin/opportunity sections, not `catalog.price`
+ * any more (that still gates the real price book's own entry upserts,
+ * unchanged). Returns the violation CODE, never its sentence (TD-010).
  */
 export async function savePricingPolicy(
   input: PricingPolicy,

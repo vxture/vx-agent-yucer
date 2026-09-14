@@ -71,9 +71,34 @@ function seedSection(startMarker: string, endMarker: string): string {
   return blocks.join("\n");
 }
 
+/**
+ * Permission codes RETIRED by a later increment's DELETE (incr/0064 is the
+ * first of these - see its own comment for why a permission can be retired
+ * at all when this repo's DDL is otherwise append-only). Subtracted from
+ * seedPermCodes()/seedGrants() below, the same way ON DELETE CASCADE
+ * actually removes their role_permission rows at apply time. Order does not
+ * matter here: a retired code is retired, full stop - unlike inserts, there
+ * is no shape where the same code could be un-retired by a still-later
+ * increment, so this does not need to be order-sensitive the way seedSection
+ * is.
+ */
+function seedRetiredPermCodes(): string[] {
+  const out: string[] = [];
+  for (const source of sources) {
+    for (const m of uncommented(source).matchAll(
+      /DELETE FROM local_authz\.permission WHERE perm_code IN \(([^)]+)\)/g,
+    )) {
+      for (const code of m[1].matchAll(/'([^']+)'/g)) out.push(code[1]);
+    }
+  }
+  return out;
+}
+
 function seedPermCodes(): string[] {
   const body = seedSection("INSERT INTO local_authz.permission", "ON CONFLICT");
-  return [...body.matchAll(/\('([^']+)'\s*,\s*'[^']*'\)/g)].map((m) => m[1]);
+  const inserted = [...body.matchAll(/\('([^']+)'\s*,\s*'[^']*'\)/g)].map((m) => m[1]);
+  const retired = new Set(seedRetiredPermCodes());
+  return inserted.filter((code) => !retired.has(code));
 }
 
 function seedRoleCodes(): string[] {
@@ -83,7 +108,11 @@ function seedRoleCodes(): string[] {
 
 function seedGrants(): Array<[string, string]> {
   const body = seedSection("INSERT INTO local_authz.role_permission", ") AS grants");
-  return [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\)/g)].map((m) => [m[1], m[2]]);
+  const grants = [...body.matchAll(/\('([^']+)'\s*,\s*'([^']+)'\)/g)].map(
+    (m): [string, string] => [m[1]!, m[2]!],
+  );
+  const retired = new Set(seedRetiredPermCodes());
+  return grants.filter(([, perm]) => !retired.has(perm));
 }
 
 test("permission codes mirror the seed exactly, in the same order", () => {
@@ -149,10 +178,26 @@ test("the catalog is the documented size: 27 permissions, 31 roles, 423 grants",
   // pipeline.write) but granted far more broadly - the same twelve roles that
   // hold pipeline.write - because classifying a deal's type is closer to
   // owning the deal than to redefining a workspace-wide policy.
-  assert.equal(PERM_CODES.length, 27);
+  //
+  // 27 -> 28 and 423 -> 446 by incr/0063: pipeline.opportunityConfig, the one
+  // write permission for all six /admin/opportunity sections, replacing the
+  // six they used to check individually. Granted to the union of those six
+  // permissions' 23 current holders (of 31 roles) - nobody's write access on
+  // that page narrows.
+  //
+  // 28 -> 26 and 446 -> 420 by incr/0064: pipeline.stage/pipeline.dealType
+  // RETIRED, not added. Unlike pipeline.write/pipeline.forecast/
+  // delivery.write/catalog.price (which incr/0063 also stopped using for
+  // this page, but which still gate their own different actions elsewhere
+  // and stayed), these two were never referenced by anything but the two
+  // ActionIds incr/0063 deleted - left granted but unchecked,
+  // actions.test.ts's own hard rule refuses that state outright, so incr/0064
+  // deletes both rows (12 pipeline.dealType grants + 14 pipeline.stage
+  // grants = 26 fewer).
+  assert.equal(PERM_CODES.length, 26);
   assert.equal(ROLE_CODES.length, 31);
   const total = ROLE_CODES.reduce((n, r) => n + ROLE_PERMISSIONS[r].length, 0);
-  assert.equal(total, 423);
+  assert.equal(total, 420);
 });
 
 test("no role lists a duplicate permission, and every listed permission exists", () => {

@@ -5,11 +5,13 @@ import { resolveAppSession } from "../lib/session";
 import { setForecastThresholds } from "../../domains/pipeline/service";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 
-/* 预测阈值的写入路径 (incr/0041).
+/* 预测阈值的写入路径 (incr/0041, permission unified incr/0063).
  *
- * Gated on `pipeline.forecast.categorize` inside the service - the same
- * permission that re-files one deal's category. Returns the violation CODE,
- * never its sentence (TD-010).
+ * Gated on `pipeline.opportunityconfig.manage` inside the service - the one
+ * permission for all six /admin/opportunity sections, not
+ * `pipeline.forecast.categorize` any more (that still gates applying a
+ * forecast-category suggestion on /forecast and /pipeline/[id], unchanged).
+ * Returns the violation CODE, never its sentence (TD-010).
  */
 export async function saveForecastThresholds(
   input: ForecastThresholds,
