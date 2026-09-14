@@ -1,4 +1,5 @@
 import { BRAND } from "@yucer/shared/brand";
+import { deployStageOf, type DeployStage } from "./deploy-stage";
 import { serviceIdentity } from "@vxture/shared";
 
 // Integration-status surface (the /status dashboard + /api/status). Summarizes
@@ -48,6 +49,10 @@ export interface IntegrationStatus {
     authTokenConfigured: boolean;
     consoleUrl: string | null;
     cacheTtlMs: number;
+    /** Injected at image build; on beta/production the mock resolver refuses to start. */
+    deployStage: DeployStage;
+    /** ALLOW_MOCK_ON_DEPLOY=on: the mock is being served on a deployed stage, deliberately and loudly. */
+    mockOverride: boolean;
   };
   c3: {
     webhookSecretConfigured: boolean;
@@ -119,6 +124,8 @@ export function buildStatus(env: Env, now: string): IntegrationStatus {
       authTokenConfigured: Boolean(env.PLATFORM_INTERNAL_AUTH_TOKEN),
       consoleUrl: env.NEXT_PUBLIC_CONSOLE_URL ?? null,
       cacheTtlMs: 45_000,
+      deployStage: deployStageOf(env.DEPLOY_STAGE),
+      mockOverride: env.ALLOW_MOCK_ON_DEPLOY === "on",
     },
     c3: {
       webhookSecretConfigured: Boolean(env.PROVISION_WEBHOOK_SECRET),

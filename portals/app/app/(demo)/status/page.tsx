@@ -164,6 +164,8 @@ export default function StatusPage() {
             />
             <Field k="console URL" v={status.c2.consoleUrl ?? "-"} />
             <Field k="cache TTL (ms)" v={status.c2.cacheTtlMs} />
+            <Field k="deploy stage" v={status.c2.deployStage} />
+            <Field k="mock override (ALLOW_MOCK_ON_DEPLOY)" v={status.c2.mockOverride ? "on" : "off"} />
           </section>
 
           <section style={card}>

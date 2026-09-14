@@ -405,7 +405,7 @@ being applied.
   the TS mirror, and `docs/20-specs/50-role-permission-catalog.md`. The mirror
   tests parse the seed and fail on any drift, in both directions.
 
-## Two guards worth knowing before you write code
+## Guards worth knowing before you write code
 
 - `domains/shared/wired.test.ts` - EVERY exported domain verb must have a caller
   outside its own domain. This repo shipped the same defect five times: a
@@ -418,6 +418,15 @@ being applied.
   not exist passed both directions on 2026-08-26 and would have killed db-init
   at deploy time, so a third reference point was added: the CREATE TABLE
   statements. Two mirrors agreeing says nothing about whether either is true.
+- `lib/deploy-stage.ts` - on a deployed stage (DEPLOY_STAGE=production|beta,
+  injected at image build) the entitlement resolver factory REFUSES to fall
+  back to the mock while PLATFORM_API_URL / PLATFORM_INTERNAL_AUTH_TOKEN are
+  unset; ALLOW_MOCK_ON_DEPLOY=on is the loud override and /api/status reports
+  it (deployStage, mockOverride). Mirrors the reference implementation
+  (vx-agent-vxtpl). Production ran the mock silently from 2026-09-10 to
+  2026-09-14 before this existed. The platform channels' credential itself is
+  the platform line's to name (vxture-platform/vxture-platform#329); do not
+  invent an S2S replacement for it inside this repo.
 
 ## Violation messages are keys, not copy
 
