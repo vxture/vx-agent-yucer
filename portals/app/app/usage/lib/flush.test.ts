@@ -17,17 +17,31 @@ test("200 marks rows flushed", async () => {
   assert.equal((await store.unflushed(10)).length, 0);
 });
 
-test("409 (gated) is terminal - flushed, not retried, and evicts C2", async () => {
+test("200 with gated:true is reported and done - counted as gated, and evicts C2", async () => {
   const store = await seeded();
   const evicted: string[] = [];
   const summary = await flushUsage({
     store,
-    consume: async () => ({ status: 409 }),
+    consume: async () => ({ status: 200, gated: true }),
     onGated: (ws) => evicted.push(ws),
   });
   assert.equal(summary.gated, 2);
-  assert.equal((await store.unflushed(10)).length, 0); // terminal, not left for retry
+  assert.equal(summary.flushed, 0);
+  assert.equal((await store.unflushed(10)).length, 0); // the platform recorded it; nothing to retry
   assert.deepEqual(evicted, ["ws", "ws"]);
+});
+
+test("409 is not a terminal answer any more - it stays buffered like any other non-200", async () => {
+  // The contract converged on "always 200, gated in the body"; the 409 branch
+  // this loop carried from the template is gone, and this test is what keeps
+  // it gone.
+  const store = await seeded();
+  const evicted: string[] = [];
+  const summary = await flushUsage({ store, consume: async () => ({ status: 409 }), onGated: (ws) => evicted.push(ws) });
+  assert.equal(summary.gated, 0);
+  assert.equal(summary.retried, 2);
+  assert.equal((await store.unflushed(10)).length, 2);
+  assert.deepEqual(evicted, []);
 });
 
 test("5xx / 404 leaves rows buffered for retry", async () => {

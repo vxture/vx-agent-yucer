@@ -60,3 +60,12 @@ test("provisioned runs the re-entrant init hook", async () => {
   assert.equal(res.handled, true);
   assert.equal(inited, "ws_1");
 });
+
+test("tenant.provisioned and tenant.deprovisioned evict the C2 cache too", async () => {
+  const evicted: string[] = [];
+  const store = new InMemoryProvisioningStore();
+  const d = deps({ store, onSubscriptionChanged: (ws) => { evicted.push(ws); } });
+  await handleProvisioning(ev({ id: "p1", type: "tenant.provisioned", seq: 1, workspace_id: "ws_5" }), d);
+  await handleProvisioning(ev({ id: "p2", type: "tenant.deprovisioned", seq: 2, workspace_id: "ws_5" }), d);
+  assert.deepEqual(evicted, ["ws_5", "ws_5"]);
+});

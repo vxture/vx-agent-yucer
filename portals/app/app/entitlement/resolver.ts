@@ -1,6 +1,7 @@
 import { EMPTY_ENTITLEMENT, type Entitlement, type SubscriptionStatus, type Tier } from "./types";
 import { getPlatformClientConfig } from "./platform-client";
 import { PlatformEntitlementResolver } from "./platform-resolver";
+import { assertMockAllowed } from "../lib/deploy-stage";
 
 // Resolver abstraction (arda precedent). The product code depends only on this
 // interface; the factory picks the real platform client or the offline Mock.
@@ -41,7 +42,17 @@ let singleton: EntitlementResolver | null = null;
 export function getEntitlementResolver(): EntitlementResolver {
   if (singleton) return singleton;
   const cfg = getPlatformClientConfig();
-  singleton = cfg ? new PlatformEntitlementResolver(cfg) : new MockEntitlementResolver(productCode());
+  if (cfg) {
+    singleton = new PlatformEntitlementResolver(cfg);
+    return singleton;
+  }
+  // No platform config. On a deployed stack that is a misconfiguration, not a
+  // fallback: serving mock entitlements in production would silently grant or
+  // deny access on the strength of an env var. Mirrors the reference
+  // implementation (vx-agent-vxtpl); production ran the mock silently from
+  // 2026-09-10 to 2026-09-14 before this line existed.
+  assertMockAllowed("entitlement (C2)", "PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN");
+  singleton = new MockEntitlementResolver(productCode());
   return singleton;
 }
 

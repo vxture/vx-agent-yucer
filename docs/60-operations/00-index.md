@@ -1289,7 +1289,7 @@ owner 授权的全面检查：每个平台合同面，查「代码、配置、�
 |----|------|
 | C3 webhook | `POST /provisioning/webhook`（平台注册的投递地址 `/api/webhooks/vxture` 是同一处理器的再导出，2026-09-14）无签名 → 401 `WEBHOOK_SIGNATURE_INVALID`；幂等（delivery id）、序列水位（`seq <= lastSeq` 忽略）、双密钥轮换（`_NEXT`）齐全有测试 |
 | 内部作业 | `/api/usage/flush`、`/api/arda/sync`、`/api/jobs/commitment-sweep` 无 token → 403 `JOB_TOKEN_INVALID` |
-| C2 entitlement | 未认证 → 401；resolver 在 `PLATFORM_API_URL`+token 齐时走 platform、否则 mock，status 如实报告 |
+| C2 entitlement | 未认证 → 401；resolver 在 `PLATFORM_API_URL`+token 齐时走 platform、否则 mock，status 如实报告。2026-09-14 起：部署阶段（`DEPLOY_STAGE`=production/beta）无配置时**拒绝启动** mock，`ALLOW_MOCK_ON_DEPLOY=on` 为显式且自报的过渡（`lib/deploy-stage.ts`，范本同款）；C3 上行按通则改为「永远 200、`gated` 在体内」，409 化石分支已删；`tenant.*` 事件同样驱逐 C2 缓存 |
 | C1 OIDC | 配置装配集中在 `auth/lib/config.ts`，issuer 缺省 accounts.vxture.com |
 | /api/health | 200，带产品身份 |
 | usage flush 主链 | 200→flushed、409（配额尽）→ 终态+失效 C2 缓存、其余→留桶重试 |

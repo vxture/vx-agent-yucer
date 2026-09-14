@@ -26,7 +26,7 @@ export interface HandleResult {
 export interface HandlerDeps {
   store: ProvisioningStore;
   product: string;
-  onSubscriptionChanged?: (workspaceId: string) => void; // C2 cache evict
+  onSubscriptionChanged?: (workspaceId: string) => void; // C2 cache evict: subscription_changed AND tenant.*
   onProvisioned?: (workspaceId: string) => Promise<void> | void; // re-entrant init
 }
 
@@ -54,10 +54,16 @@ export async function handleProvisioning(
     case "tenant.provisioned":
       await deps.store.upsertInstance(event.workspace_id, deps.product, "provisioned");
       await deps.onProvisioned?.(event.workspace_id);
+      // Both tenant events change what this workspace is entitled to, so the
+      // C2 cache goes here as well (reference implementation: both evict the
+      // workspace's C2 entry). A cached `status: null` would otherwise outlive
+      // the provisioning by up to the cache TTL.
+      deps.onSubscriptionChanged?.(event.workspace_id);
       break;
     case "tenant.deprovisioned":
       // Archive, not hard-delete (080-rp section 4 / product_240 section 6#21).
       await deps.store.upsertInstance(event.workspace_id, deps.product, "deprovisioned");
+      deps.onSubscriptionChanged?.(event.workspace_id);
       break;
     case "subscription_changed":
       deps.onSubscriptionChanged?.(event.workspace_id);

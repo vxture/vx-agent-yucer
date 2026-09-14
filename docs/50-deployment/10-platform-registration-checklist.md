@@ -61,7 +61,11 @@ Concrete values below are the ones derived at instantiation
       `PLATFORM_INTERNAL_AUTH_TOKEN`. Without both the resolver stays `mock`,
       every workspace resolves to no tier, and a signed-in member sees the
       "not subscribed" lockout on every page - login alone does not make the
-      product usable.
+      product usable. **Requested 2026-09-14**:
+      [vxture-platform/vxture-platform#329](https://github.com/vxture-platform/vxture-platform/issues/329)
+      (base URL, the channel credential the rules never named, a webhook
+      test-delivery, the token-exchange body shape). Until answered a deployed
+      stage runs only with `ALLOW_MOCK_ON_DEPLOY=on`, loudly.
 - [ ] Atlas / Runos / arda base URLs and the Atlas product-grants (separate
       planes, separate liaison).
 - [ ] The `yucer-beta` client, for when the beta stack is cut.
