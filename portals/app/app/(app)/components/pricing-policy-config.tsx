@@ -5,12 +5,12 @@ import {
   Field,
   FieldDescription,
   FieldLabel,
+  Icon,
   Section,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  ViewHeader,
   useToast,
 } from "@vxture/design-ui";
 import { SUPPORTED_CURRENCIES, type PricingPolicy } from "../../domains/catalog/lib/pricing-policy";
@@ -57,19 +57,22 @@ export function PricingPolicyConfig({
   const discard = () => setCurrency(policy.defaultCurrency);
 
   return (
-    <>
-      <ViewHeader
-        icon="scales"
-        title={PRICING_TEXT.title}
-        description={PRICING_TEXT.why}
-        secondary={<Tag>{policy.defaultCurrency}</Tag>}
-      />
-      {/* INDENTED TO THE TITLE TEXT, not the icon - the same 80px
-          (size-icon-2xl 48px + header gap-xl 32px) forecast-threshold-config
-          and ageing-policy-config use, so content reads as belonging to
-          "计价规则" the text. */}
-      <div className="pl-20">
-        <Section>
+    <Section
+      icon="scales"
+      title={PRICING_TEXT.title}
+      description={PRICING_TEXT.why}
+      action={<Tag>{policy.defaultCurrency}</Tag>}
+    >
+      {/* INDENTED TO THE TITLE TEXT, not the icon - the same device
+          vocabulary-config.tsx's own Section branch uses for 赢丢原因/商机
+          类型/商机阶段: an invisible icon-sized spacer keeps this content
+          column aligned with the title text, not the section's raw left
+          edge, so every stacked block on this page reads at the same level. */}
+      <div className="gap-lg flex">
+        <span className="invisible shrink-0" aria-hidden="true">
+          <Icon name="scales" size="lg" />
+        </span>
+        <div className="min-w-0 flex-1">
           <FormFields>
             <Field>
               <FieldLabel htmlFor="pricing-currency">{PRICING_TEXT.currencyLabel}</FieldLabel>
@@ -104,19 +107,19 @@ export function PricingPolicyConfig({
               <FieldDescription>{PRICING_TEXT.currencyHint}</FieldDescription>
             </Field>
           </FormFields>
-        </Section>
-        {canWrite ? (
-          <div className="mt-lg">
-            <FormActions
-              saveLabel={PRICING_TEXT.save}
-              discardLabel={PRICING_TEXT.discard}
-              onSave={save}
-              onDiscard={discard}
-              pending={pending || !dirty}
-            />
-          </div>
-        ) : null}
+          {canWrite ? (
+            <div className="mt-lg">
+              <FormActions
+                saveLabel={PRICING_TEXT.save}
+                discardLabel={PRICING_TEXT.discard}
+                onSave={save}
+                onDiscard={discard}
+                pending={pending || !dirty}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
-    </>
+    </Section>
   );
 }

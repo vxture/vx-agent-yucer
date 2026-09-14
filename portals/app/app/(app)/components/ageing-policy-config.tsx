@@ -9,7 +9,6 @@ import {
   Icon,
   Input,
   Section,
-  ViewHeader,
   useToast,
 } from "@vxture/design-ui";
 import { FormActions } from "./form-page";
@@ -299,18 +298,22 @@ export function AgeingPolicyConfig({
   };
 
   return (
-    <>
-      <ViewHeader
-        icon="clock-counter-clockwise"
-        title={AGEING_TEXT.title}
-        description={AGEING_TEXT.why}
-        secondary={<Tag>{AGEING_TEXT.bandCount(cutoffs.length + 1)}</Tag>}
-      />
-      {/* INDENTED TO THE TITLE TEXT, not the icon - the same 80px
-          (size-icon-2xl 48px + header gap-xl 32px) forecast-threshold-config
-          uses, so content reads as belonging to "账龄分档" the text. */}
-      <div className="pl-20">
-        <Section>
+    <Section
+      icon="clock-counter-clockwise"
+      title={AGEING_TEXT.title}
+      description={AGEING_TEXT.why}
+      action={<Tag>{AGEING_TEXT.bandCount(cutoffs.length + 1)}</Tag>}
+    >
+      {/* INDENTED TO THE TITLE TEXT, not the icon - the same device
+          vocabulary-config.tsx's own Section branch uses for 赢丢原因/商机
+          类型/商机阶段: an invisible icon-sized spacer keeps this content
+          column aligned with the title text, not the section's raw left
+          edge, so every stacked block on this page reads at the same level. */}
+      <div className="gap-lg flex">
+        <span className="invisible shrink-0" aria-hidden="true">
+          <Icon name="clock-counter-clockwise" size="lg" />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-md">
           <Field>
             <FieldLabel>{AGEING_TEXT.cutoffsLabel}</FieldLabel>
             {/* THE RULER IS THE INPUT. 未到期 is now the bar's own leading
@@ -440,19 +443,19 @@ export function AgeingPolicyConfig({
               </div>
             ) : null}
           </Field>
-        </Section>
-        {canWrite ? (
-          <div className="mt-lg">
-            <FormActions
-              saveLabel={AGEING_TEXT.save}
-              discardLabel={AGEING_TEXT.discard}
-              onSave={save}
-              onDiscard={discard}
-              pending={pending || !dirty}
-            />
-          </div>
-        ) : null}
+          {canWrite ? (
+            <div className="mt-lg">
+              <FormActions
+                saveLabel={AGEING_TEXT.save}
+                discardLabel={AGEING_TEXT.discard}
+                onSave={save}
+                onDiscard={discard}
+                pending={pending || !dirty}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
-    </>
+    </Section>
   );
 }

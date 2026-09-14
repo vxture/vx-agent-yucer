@@ -2052,7 +2052,7 @@ export const en: Dictionary = {
   },
 
   PRICING_TEXT: {
-    title: "Pricing rules",
+    title: "Pricing currency",
     why: "What quotes, prices and roll-ups are in unless a row says otherwise.",
     save: "Save",
     discard: "Discard",
@@ -2413,7 +2413,7 @@ export const en: Dictionary = {
       scope: "Workspace / territory / own - who sits at which",
       product: "Product types, statuses and pricing units",
       winLossReason: "What a win/loss review may choose from",
-      opportunityConfig: "Win/loss reasons, deal types, pipeline stages, forecast bands, pricing rules, ageing bands - everything about how a deal moves, in one page",
+      opportunityConfig: "Deal types, pipeline stages, win/loss reasons, forecast bands, ageing bands, pricing currency - everything about how a deal moves, in one page",
       stage: "The stages a deal moves through - rename, reorder, default win rate, add/remove",
       dealtype: "How deals are classified - new logo / renewal / expansion / project / product",
       industry: "How customers are filed by industry - change it once, everywhere follows",
