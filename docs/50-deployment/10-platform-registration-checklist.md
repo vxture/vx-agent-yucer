@@ -65,7 +65,17 @@ Concrete values below are the ones derived at instantiation
       [vxture-platform/vxture-platform#329](https://github.com/vxture-platform/vxture-platform/issues/329)
       (base URL, the channel credential the rules never named, a webhook
       test-delivery, the token-exchange body shape). Until answered a deployed
-      stage runs only with `ALLOW_MOCK_ON_DEPLOY=on`, loudly.
+      stage runs only with `ALLOW_MOCK_ON_DEPLOY=on`, loudly. When the values
+      land, `https://yucer.vxture.com/platform-check` is the handshake surface:
+      every channel re-verified live, no screenshots.
+- [ ] C3 upstream has no counter metric to report: the capability matrix defines
+      feature keys and limits, not consumable metrics, and no action point calls
+      `recordUsage`. Defining one (and registering it on the platform) is a
+      product decision; until then the flush loop and the replay probe stay idle.
+- [ ] Recurring jobs (`/api/usage/flush`, `/api/jobs/commitment-sweep`,
+      `/api/arda/sync`) are driven by an EXTERNAL timer per ADR-010, and no
+      timer exists on worker02 or in CI yet - nothing recurring runs in
+      production. Owner's call: a host cron on worker02 is the ADR's own answer.
 - [ ] Atlas / Runos / arda base URLs and the Atlas product-grants (separate
       planes, separate liaison).
 - [ ] The `yucer-beta` client, for when the beta stack is cut.

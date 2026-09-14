@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
-import { subscribeUrl } from "../entitlement/deeplink";
+import { intentFor, subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
 import { MessagesProvider } from "./lib/i18n/provider";
@@ -107,11 +107,12 @@ export default async function AppLayout({
           <EmptyState
             title={SHELL_TEXT.noAccessTitle}
             description={SHELL_TEXT.noAccessDescription}
-            // Intent is upgrade | renew | addon; the console route is already
-            // /subscribe, so a first purchase reads as an upgrade from nothing.
+            // subscribe for a workspace that never subscribed, renew for one
+            // that lapsed - the console shows a different flow for each, and
+            // "upgrade from nothing" was the wrong CTA for a first purchase.
             action={
               <Button asChild>
-                <a href={subscribeUrl({ intent: "upgrade" })}>
+                <a href={subscribeUrl({ intent: intentFor(session.entitlement) })}>
                   {SHELL_TEXT.subscribeCta}
                 </a>
               </Button>
