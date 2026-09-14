@@ -17,17 +17,24 @@
 -- replayed on top of old rows (a test database), never from db-init.
 --
 -- IDEMPOTENT, and a no-op on a fresh database (0051 as it now reads seeds
--- `headquarters`; no `hq` exists).
+-- `headquarters`; no `hq` exists). The two codes are bound once, in `k`, and
+-- the guard is an anti-join on the owning template / workspace.
 
+WITH k AS (SELECT 'hq'::text AS old_code, 'headquarters'::text AS new_code)
 UPDATE yucer_ref.org_template_unit o
-   SET unit_code = 'headquarters'
- WHERE o.unit_code = 'hq'
-   AND NOT EXISTS (SELECT 1 FROM yucer_ref.org_template_unit h
-                    WHERE h.template_id = o.template_id AND h.unit_code = 'headquarters');
+   SET unit_code = k.new_code
+  FROM k
+ WHERE o.unit_code = k.old_code
+   AND o.template_id NOT IN (SELECT h.template_id
+                               FROM yucer_ref.org_template_unit h, k
+                              WHERE h.unit_code = k.new_code);
 
+WITH k AS (SELECT 'hq'::text AS old_code, 'headquarters'::text AS new_code)
 UPDATE yucer_gtm.org_unit o
-   SET unit_code = 'headquarters'
- WHERE o.unit_code = 'hq'
+   SET unit_code = k.new_code
+  FROM k
+ WHERE o.unit_code = k.old_code
    AND o.parent_id IS NULL
-   AND NOT EXISTS (SELECT 1 FROM yucer_gtm.org_unit h
-                    WHERE h.workspace_id = o.workspace_id AND h.unit_code = 'headquarters');
+   AND o.workspace_id NOT IN (SELECT h.workspace_id
+                                FROM yucer_gtm.org_unit h, k
+                               WHERE h.unit_code = k.new_code);
