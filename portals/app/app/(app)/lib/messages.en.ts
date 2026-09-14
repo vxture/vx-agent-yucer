@@ -2396,8 +2396,6 @@ export const en: Dictionary = {
     workspaceLabel: "Workspace",
     tenantLabel: "Tenant",
     tenantUnknown: "Not identified",
-    workspaceSwitchHint:
-      "Workspace and tenant are fixed at sign-in. Sign in again to change them.",
 
     toolsAria: "Shell tools",
     fullscreen: "Full screen",

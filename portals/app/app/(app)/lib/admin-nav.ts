@@ -83,13 +83,6 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     // 业务参数 - the vocabularies the business runs on.
     key: "params",
     items: [
-      /* ONE ITEM, THREE SECTIONS (owner, 2026-09-08): 产品类型 / 产品状态 /
-         计价单位. They are one vocabulary - what a product IS, whether it may
-         be sold, and what one of it means - and a seller setting up a
-         catalogue sets all three in one sitting. It was reachable only from
-         /catalog before, which is how a settings page ends up somewhere
-         nobody looks for settings. */
-      { key: "product", href: "/admin/product", icon: "cube", action: "catalog.product.view" },
       /* 商机配置 (PR4 of the 商机配置 batch): six items folded into one -
          赢丢原因 (incr/0039), 商机阶段 (incr/0057-0059), 商机类型
          (incr/0060-0061), 预测阈值 (incr/0041), 计价规则 (incr/0044) and
@@ -98,8 +91,16 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          kind of thing - set once, read by every screen that shows or advances
          a deal - so they join /admin/product's own precedent (三个 section
          已经堆叠在一页) rather than staying six gear icons nobody who is
-         setting up a workspace goes looking for one at a time. */
+         setting up a workspace goes looking for one at a time.
+         FIRST in the group (owner, 2026-09-14): the busiest of the four. */
       { key: "opportunityConfig", href: "/admin/opportunity", icon: "kanban", action: "pipeline.opportunityconfig.view" },
+      /* ONE ITEM, THREE SECTIONS (owner, 2026-09-08): 产品类型 / 产品状态 /
+         计价单位. They are one vocabulary - what a product IS, whether it may
+         be sold, and what one of it means - and a seller setting up a
+         catalogue sets all three in one sitting. It was reachable only from
+         /catalog before, which is how a settings page ends up somewhere
+         nobody looks for settings. */
+      { key: "product", href: "/admin/product", icon: "cube", action: "catalog.product.view" },
       /* 行业分类 (incr/0040). The one vocabulary in this original trio that
          stays its own item: it decides how customers are filed, which is a
          D4 concern rather than a D6 one, and belongs beside the customer list

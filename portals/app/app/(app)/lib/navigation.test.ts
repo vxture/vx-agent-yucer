@@ -85,7 +85,7 @@ test("administration is nav, but it is not a capability domain", () => {
     // 待迁路由 joined 运行状况 on 2026-09-11 (incr/0055's own change): a
     // holding page for whatever route currently has no entry point anywhere
     // else, found by an app-wide reachability sweep.
-    ["orgUnit", "division", "members", "roles", "permissions", "scope", "product", "opportunityConfig", "industry",
+    ["orgUnit", "division", "members", "roles", "permissions", "scope", "opportunityConfig", "product", "industry",
      "reminderThreshold", "adoption", "pendingMigration"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
