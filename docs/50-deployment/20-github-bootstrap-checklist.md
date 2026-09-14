@@ -60,6 +60,10 @@ literal the instantiate script wrote (`yucer`).
 - [x] `production` GitHub Environment + Required reviewer (deploy pauses until
       approved). Verified 2026-09-10: one protection rule on `production`. No
       `beta` (prod only) - see "No beta lane" below before cutting a `beta-*` tag.
+      2026-09-14 (owner: 部署必须 review, 本人在 GitHub 上点击审批): deployment
+      branch policy `main` + `v*.*.*`, admins cannot bypass, self-review stays
+      allowed; an agent never approves. `30-deploy-review-runbook.md`,
+      `rebuild/production-environment.json`.
 - [ ] Host secrets for worker02: `DEPLOY_HOST` = `vx-worker-02` (tailnet
       MagicDNS), `DEPLOY_USER`, `DEPLOY_PORT` = `22`. Verified 2026-09-10: the
       `production` environment holds `DEPLOY_HOST` and `DEPLOY_PORT` (values not
