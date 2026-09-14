@@ -97,6 +97,14 @@ export interface DealTypeRecord {
   dealTypeCode: string;
   name: string;
   sortOrder: number;
+  /**
+   * This type's own stall-days threshold (incr/0062), null when it has none
+   * and defers to the workspace's forecast_threshold.stall_days. Written
+   * only through setDealTypeStallOverride, gated on pipeline.forecast -
+   * upsertDealType's own input deliberately excludes this field so the
+   * pipeline.dealType-gated rename/reorder path cannot touch it.
+   */
+  stallDaysOverride: number | null;
 }
 
 /**
@@ -334,7 +342,7 @@ export interface PipelineStore {
   listDealTypes(workspaceId: string): Promise<DealTypeRecord[]>;
   upsertDealType(
     workspaceId: string,
-    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder">,
+    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
   ): Promise<DealTypeRecord>;
   setDealTypeOrder(
     workspaceId: string,
@@ -342,6 +350,13 @@ export interface PipelineStore {
   ): Promise<void>;
   removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean>;
   countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number>;
+  /** 停滞天数覆盖 (incr/0062) - null clears it back to the workspace default.
+   *  Null return means no such row in this workspace. */
+  setDealTypeStallOverride(
+    workspaceId: string,
+    dealTypeId: string,
+    stallDaysOverride: number | null,
+  ): Promise<DealTypeRecord | null>;
 
   /* --- 预测阈值 (incr/0041) --------------------------------------------------
      One row per workspace, so there is no list verb and no delete: `get`
@@ -658,7 +673,7 @@ export class InMemoryPipelineStore implements PipelineStore {
 
   async upsertDealType(
     workspaceId: string,
-    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder">,
+    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
   ): Promise<DealTypeRecord> {
     const at = this.dealTypes.findIndex(
       (d) => d.workspaceId === workspaceId && d.dealTypeCode === input.dealTypeCode,
@@ -673,10 +688,22 @@ export class InMemoryPipelineStore implements PipelineStore {
       ...this.dealTypes.filter((d) => d.workspaceId === workspaceId).map((d) => d.sortOrder),
     );
     const row: DealTypeRecord = {
-      id: `dtp_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input,
+      id: `dtp_${++this.seq}`, workspaceId, sortOrder: tail + 1, stallDaysOverride: null, ...input,
     };
     this.dealTypes.push(row);
     return row;
+  }
+
+  async setDealTypeStallOverride(
+    workspaceId: string,
+    dealTypeId: string,
+    stallDaysOverride: number | null,
+  ): Promise<DealTypeRecord | null> {
+    const at = this.dealTypes.findIndex((d) => d.workspaceId === workspaceId && d.id === dealTypeId);
+    if (at < 0) return null;
+    const next = { ...this.dealTypes[at]!, stallDaysOverride };
+    this.dealTypes[at] = next;
+    return next;
   }
 
   async setDealTypeOrder(

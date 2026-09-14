@@ -684,12 +684,13 @@ export class PrismaPipelineStore implements PipelineStore {
       dealTypeCode: r.dealTypeCode,
       name: r.name,
       sortOrder: r.sortOrder,
+      stallDaysOverride: r.stallDaysOverride ?? null,
     }));
   }
 
   async upsertDealType(
     workspaceId: string,
-    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder">,
+    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
   ): Promise<DealTypeRecord> {
     const p = await getPrismaClient();
     const update = { name: input.name, updatedAt: new Date() };
@@ -719,6 +720,7 @@ export class PrismaPipelineStore implements PipelineStore {
       dealTypeCode: row.dealTypeCode,
       name: row.name,
       sortOrder: row.sortOrder,
+      stallDaysOverride: row.stallDaysOverride ?? null,
     };
   }
 
@@ -737,6 +739,33 @@ export class PrismaPipelineStore implements PipelineStore {
       }
       await p.dealType.updateMany({ where: { workspaceId, id: o.id }, data: patch });
     }
+  }
+
+  async setDealTypeStallOverride(
+    workspaceId: string,
+    dealTypeId: string,
+    stallDaysOverride: number | null,
+  ): Promise<DealTypeRecord | null> {
+    const p = await getPrismaClient();
+    const patch = { stallDaysOverride, updatedAt: new Date() };
+    const guard = assertWritable(DEAL_TYPE_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked deal_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const { count } = await p.dealType.updateMany({ where: { workspaceId, id: dealTypeId }, data: patch });
+    if (count === 0) return null;
+    const row = await p.dealType.findUnique({ where: { id: dealTypeId } });
+    if (!row) return null;
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      dealTypeCode: row.dealTypeCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+      stallDaysOverride: row.stallDaysOverride ?? null,
+    };
   }
 
   async removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean> {

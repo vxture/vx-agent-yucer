@@ -27,6 +27,7 @@ import {
   DEFAULT_DEAL_TYPES,
   planDealType,
   planDealTypeRemoval,
+  planDealTypeStallOverride,
 } from "./lib/deal-type-vocab";
 import {
   daysAtStage,
@@ -117,6 +118,20 @@ async function loadStageCatalog(ctx: PipelineContext): Promise<readonly StageDef
   const rows = await ctx.store.listStageDefinitions(ctx.workspaceId);
   if (rows.length === 0) return DEFAULT_STAGE_DEFINITIONS;
   return toStageCatalog(rows);
+}
+
+/**
+ * Deal type id -> its own stall-days override, for types that have one
+ * (incr/0062). Types with no override are absent from the map, not present
+ * with a null - suggestCategory's caller reads a miss as "no override".
+ */
+async function loadDealTypeStallOverrides(ctx: PipelineContext): Promise<ReadonlyMap<string, number>> {
+  const rows = await ctx.store.listDealTypes(ctx.workspaceId);
+  return new Map(
+    rows
+      .filter((r): r is DealTypeRecord & { stallDaysOverride: number } => r.stallDaysOverride != null)
+      .map((r) => [r.id, r.stallDaysOverride]),
+  );
 }
 
 export async function listPipeline(
@@ -810,6 +825,32 @@ export async function removeDealType(
   return ok(true);
 }
 
+/**
+ * Set (or clear) one deal type's own stall-days override (incr/0062,
+ * "候选二" second layer).
+ *
+ * GATED ON `pipeline.forecast.categorize`, NOT `pipeline.dealtype.manage` -
+ * deliberately narrower than renaming or reordering this same row. This
+ * number decides what counts as stalled, the same authority
+ * setForecastThresholds already withholds from a plain sales_rep (incr/0041);
+ * letting the broader deal-type-vocabulary permission reach it would let a
+ * rep loosen the clock on their own book's deal types.
+ */
+export async function setDealTypeStallOverride(
+  ctx: PipelineContext,
+  input: { dealTypeId: string; stallDaysOverride: number | null },
+): Promise<RuleResult<DealTypeRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.forecast.categorize", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planDealTypeStallOverride(input.stallDaysOverride);
+  if (!plan.ok) return plan as RuleResult<DealTypeRecord>;
+
+  const updated = await ctx.store.setDealTypeStallOverride(ctx.workspaceId, input.dealTypeId, plan.value);
+  if (!updated) return fail(violation("not_found", "no such deal type", "dealTypeId"));
+  return ok(updated);
+}
+
 export async function recordWinLossReview(
   ctx: PipelineContext,
   opportunityId: string,
@@ -1351,13 +1392,14 @@ export async function previewCategories(
   /* THE WORKSPACE'S BANDS, not the build's (incr/0041). Read here rather than
      taken from the caller so every reader of this verb forecasts against the
      same numbers - the opts entry stays for a test that wants to vary them. */
-  const [rows, lastMoved, thresholds, stageCatalog] = await Promise.all([
+  const [rows, lastMoved, thresholds, stageCatalog, stallOverrides] = await Promise.all([
     ctx.store.listOpportunities(ctx.workspaceId),
     ctx.store.latestStageChangeAt(ctx.workspaceId),
     opts.thresholds
       ? Promise.resolve(opts.thresholds)
       : ctx.store.getForecastThresholds(ctx.workspaceId),
     loadStageCatalog(ctx),
+    loadDealTypeStallOverrides(ctx),
   ]);
 
   const out = rows.map((opportunity) => {
@@ -1372,6 +1414,7 @@ export async function previewCategories(
       // this" into "it has sat here since it was created" and downgrade every
       // deal older than the journal.
       lastStageChangeAt: lastMoved.get(opportunity.id) ?? null,
+      stallDaysOverride: opportunity.dealTypeId ? (stallOverrides.get(opportunity.dealTypeId) ?? null) : null,
     };
     return {
       opportunity,
@@ -1425,12 +1468,13 @@ export async function applyCategorySuggestion(
     return fail(violation("not_found", `opportunity ${opportunityId} was not found`, "opportunityId"));
   }
 
-  const [lastMoved, thresholds, stageCatalog] = await Promise.all([
+  const [lastMoved, thresholds, stageCatalog, stallOverrides] = await Promise.all([
     ctx.store.latestStageChangeAt(ctx.workspaceId),
     opts.thresholds
       ? Promise.resolve(opts.thresholds)
       : ctx.store.getForecastThresholds(ctx.workspaceId),
     loadStageCatalog(ctx),
+    loadDealTypeStallOverrides(ctx),
   ]);
   const deal: CategorizableDeal = {
     id: current.id,
@@ -1439,6 +1483,7 @@ export async function applyCategorySuggestion(
     probability: current.probability,
     expectedCloseAt: current.expectedCloseAt,
     lastStageChangeAt: lastMoved.get(current.id) ?? null,
+    stallDaysOverride: current.dealTypeId ? (stallOverrides.get(current.dealTypeId) ?? null) : null,
   };
 
   const verdict = suggestCategory(deal, opts.now ?? new Date(), thresholds, stageCatalog);

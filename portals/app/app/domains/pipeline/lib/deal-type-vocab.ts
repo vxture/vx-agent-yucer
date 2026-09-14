@@ -54,6 +54,24 @@ export function planDealType(input: DealTypeDraft): RuleResult<DealTypeDraft> {
  * planIndustryRemoval: re-file those deals first and the row becomes
  * deletable, nothing is lost.
  */
+/**
+ * A stall-days override for one deal type (候选二's second layer, incr/0062).
+ *
+ * `null` clears the override back to "use this workspace's own
+ * forecast_threshold.stall_days" and is always ok. A set value shares
+ * forecast_threshold.stall_days's own bound (chk_forecast_threshold_stall):
+ * a zero-day override would cap a deal the day it moved, and a decade-long
+ * one would never fire - both are ways of turning the clock off, not values
+ * this field is for.
+ */
+export function planDealTypeStallOverride(input: number | null): RuleResult<number | null> {
+  if (input === null) return ok(null);
+  if (!Number.isInteger(input) || input < 1 || input > 365) {
+    return fail(violation("stall_override_out_of_range", "a stall override must be between 1 and 365 days", "stallDaysOverride"));
+  }
+  return ok(input);
+}
+
 export function planDealTypeRemoval(opportunitiesFiled: number): RuleResult<true> {
   if (opportunitiesFiled > 0) {
     return fail(

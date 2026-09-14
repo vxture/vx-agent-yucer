@@ -214,9 +214,43 @@ test("an unused deal type can be deleted", { skip }, async () => {
   });
 });
 
+// --- stall_days_override (incr/0062) ---------------------------------------------
+
+test("stall_days_override accepts NULL and 1-365, refuses 0 and 366", { skip }, async () => {
+  await withPg(async (c) => {
+    await insertDealType(c, "project", "项目型");
+    const { rows } = await c.query(
+      `SELECT id FROM yucer_pipeline.deal_type WHERE workspace_id = $1 AND deal_type_code = 'project'`,
+      [WS],
+    );
+    const dealTypeId = rows[0].id;
+
+    for (const value of [null, 1, 365]) {
+      const ok = await c.query(
+        `UPDATE yucer_pipeline.deal_type SET stall_days_override = $2 WHERE id = $1`,
+        [dealTypeId, value],
+      );
+      assert.equal(ok.rowCount, 1, `${value} must be accepted`);
+    }
+
+    await refuses(
+      c,
+      () =>
+        c.query(`UPDATE yucer_pipeline.deal_type SET stall_days_override = 0 WHERE id = $1`, [dealTypeId]),
+      /chk_deal_type_stall_override/,
+    );
+    await refuses(
+      c,
+      () =>
+        c.query(`UPDATE yucer_pipeline.deal_type SET stall_days_override = 366 WHERE id = $1`, [dealTypeId]),
+      /chk_deal_type_stall_override/,
+    );
+  });
+});
+
 // --- Grants -----------------------------------------------------------------------
 
-test("the service role may write name/order, and not the anchor or the workspace", { skip }, async () => {
+test("the service role may write name/order/stall override, and not the anchor or the workspace", { skip }, async () => {
   await withPg(async (c) => {
     const col = async (name: string) =>
       (
@@ -225,7 +259,7 @@ test("the service role may write name/order, and not the anchor or the workspace
         ])
       ).rows[0].ok;
 
-    for (const name of ["name", "sort_order", "updated_at"]) {
+    for (const name of ["name", "sort_order", "stall_days_override", "updated_at"]) {
       assert.equal(await col(name), true, `deal_type.${name} must be writable`);
     }
     assert.equal(await col("deal_type_code"), false, "deal_type_code is the anchor and must not be writable");

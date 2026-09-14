@@ -1174,6 +1174,7 @@ export const DEAL_TYPE_ERROR: Record<string, string> = {
   move_at_edge: "已经在这一端了",
   not_movable: "这一条不能移动",
   not_found: "找不到这个类型，可能刚被删掉，刷新后重试",
+  stall_override_out_of_range: "停滞天数要在 1 到 365 天之间",
 };
 
 /** 预测阈值的回执 (0041)。 */
@@ -1199,7 +1200,7 @@ export const FORECAST_PARAM_TEXT = {
   commitLabel: "承诺起算",
   bestCaseLabel: "最好情况起算",
   stallLabel: "停滞天数",
-  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。",
+  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子（30 天）。商机类型也可以单独设置停滞天数，覆盖这里的默认值。",
 };
 
 /** `SUPPORTED_CURRENCIES` (catalog/lib/pricing-policy.ts) 的显示名，同一组
@@ -4766,6 +4767,10 @@ export const DEAL_TYPE_TEXT = {
   colName: "类型",
   colFiled: "商机数",
   deleteConsequence: "该类型将从商机类型目录中移除。归在它下面的商机不受影响——有商机在用就删不掉。",
+  colStallOverride: "停滞天数",
+  stallOverrideLabel: "停滞天数覆盖",
+  stallOverrideHint: "留空表示沿用工作区的默认停滞天数；这个字段单独有一道权限（预测配置），跟改名/排序不是同一个权限。",
+  stallOverrideDefault: (n: number) => `默认 ${n} 天`,
 } as const;
 
 /** incr/0027：唯一能写入采购角色的控件，它只存在于商机上。 */

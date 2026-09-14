@@ -1226,6 +1226,10 @@ export const en: Dictionary = {
     colName: "Type",
     colFiled: "Opportunities",
     deleteConsequence: "The type is removed from the catalog. Opportunities already filed under it are unaffected - one still using it cannot be deleted.",
+    colStallOverride: "Stall days",
+    stallOverrideLabel: "Stall-days override",
+    stallOverrideHint: "Leave blank to use the workspace's default stall days. This field carries its own permission (forecast configuration) - a different one from renaming or reordering.",
+    stallOverrideDefault: (n: number) => `default ${n}d`,
   },
 
   RECENCY_TEXT: {
@@ -2028,7 +2032,7 @@ export const en: Dictionary = {
     bestCaseLabel: "Best case starts at",
     stallLabel: "A stall is",
     stallHint:
-      "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days).",
+      "This long at one stage and the suggestion drops a band. Not the same clock as 'nobody has talked to the customer' (30 days). A deal type can also set its own stall days, overriding this default.",
   },
 
   CURRENCY_LABEL: {
@@ -2118,6 +2122,7 @@ export const en: Dictionary = {
     deal_type_in_use: "Opportunities are still filed under this type - move them first",
     move_at_edge: "Already at that end of the list",
     not_movable: "This one cannot be moved",
+    stall_override_out_of_range: "A stall override runs from 1 to 365 days",
     not_found: "No such deal type - it may have just been deleted. Refresh and try again",
 
     ...GATE_ERROR,
