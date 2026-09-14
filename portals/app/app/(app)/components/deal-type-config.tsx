@@ -1,5 +1,6 @@
 "use client";
 
+import { Field, FieldDescription, FieldLabel, Input } from "@vxture/design-ui";
 import type { DealTypeRecord } from "../../domains/pipeline/store";
 import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
@@ -16,12 +17,26 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 //
 // DELETION IS REFUSED WHILE OPPORTUNITIES ARE FILED UNDER IT, the same shape
 // IndustryConfig uses: re-file those deals and the row becomes deletable.
+//
+// STALL-DAYS OVERRIDE (incr/0062) IS A SEPARATE WRITE, gated on
+// `pipeline.forecast.categorize` rather than this panel's own
+// `pipeline.dealType.manage` - the same authority forecast_threshold.stall_days
+// already sits behind, and deliberately narrower than renaming/reordering a
+// type. `canOverrideStallDays` is checked independently of `editable`, and the
+// field is offered at all only when the workspace can see forecasting
+// (`showStallOverride`, the page's own `pipeline.forecast.view`).
+
+type Extra = { stallDaysOverride: number | null };
 
 export function DealTypeConfig({
   dealTypes,
   usage,
   editable,
+  showStallOverride,
+  canOverrideStallDays,
+  workspaceStallDays,
   onSave,
+  onSaveStallOverride,
   onMove,
   onDelete,
 }: {
@@ -30,7 +45,14 @@ export function DealTypeConfig({
   readonly usage: Readonly<Record<string, number>>;
   /** `pipeline.dealType.manage` - the page checks this, this panel only renders it. */
   readonly editable: boolean;
-  readonly onSave: (input: { code: string; name: string }) => Promise<VocabularyResult>;
+  /** `pipeline.forecast.view` - a workspace without forecasting never sees "stalled" anywhere. */
+  readonly showStallOverride: boolean;
+  /** `pipeline.forecast.categorize` - independent of `editable`. */
+  readonly canOverrideStallDays: boolean;
+  /** The workspace's own forecast_threshold.stall_days, shown as the fallback. */
+  readonly workspaceStallDays: number;
+  readonly onSave: (input: { code: string; name: string }) => Promise<VocabularyResult & { dealType?: DealTypeRecord }>;
+  readonly onSaveStallOverride: (dealTypeId: string, stallDaysOverride: number | null) => Promise<VocabularyResult>;
   readonly onMove: (dealTypeId: string, direction: MoveDirection) => Promise<VocabularyResult>;
   readonly onDelete: (dealTypeId: string) => Promise<VocabularyResult>;
 }) {
@@ -64,12 +86,55 @@ export function DealTypeConfig({
           width: "sm",
           cell: (r) => <span className="tabular-nums">{usage[r.id] ?? 0}</span>,
         },
+        ...(showStallOverride
+          ? [
+              {
+                id: "stallOverride",
+                header: DEAL_TYPE_TEXT.colStallOverride,
+                width: "sm" as const,
+                cell: (r: DealTypeRecord) => (
+                  <span className="tabular-nums">
+                    {r.stallDaysOverride ?? DEAL_TYPE_TEXT.stallOverrideDefault(workspaceStallDays)}
+                  </span>
+                ),
+              },
+            ]
+          : []),
       ]}
       sortOn={{ filed: (r) => usage[r.id] ?? 0 }}
       deletableWhen={(r) => (usage[r.id] ?? 0) === 0}
-      extraDefaults={{}}
-      extraFromRow={() => ({})}
-      onSave={(input) => onSave({ code: input.code, name: input.name })}
+      extraDefaults={{ stallDaysOverride: null } as Extra}
+      extraFromRow={(r) => ({ stallDaysOverride: r.stallDaysOverride })}
+      renderExtra={
+        showStallOverride
+          ? (v, set, disabled) => (
+              <Field>
+                <FieldLabel>{DEAL_TYPE_TEXT.stallOverrideLabel}</FieldLabel>
+                <Input
+                  type="number"
+                  min={1}
+                  max={365}
+                  placeholder={DEAL_TYPE_TEXT.stallOverrideDefault(workspaceStallDays)}
+                  value={v.stallDaysOverride ?? ""}
+                  disabled={disabled || !canOverrideStallDays}
+                  onChange={(e) =>
+                    set({ stallDaysOverride: e.target.value === "" ? null : Number(e.target.value) })
+                  }
+                />
+                <FieldDescription>{DEAL_TYPE_TEXT.stallOverrideHint}</FieldDescription>
+              </Field>
+            )
+          : undefined
+      }
+      onSave={async (input) => {
+        const saved = await onSave({ code: input.code, name: input.name });
+        if (!saved.ok) return saved;
+        if (canOverrideStallDays && saved.dealType) {
+          const overrideResult = await onSaveStallOverride(saved.dealType.id, input.stallDaysOverride);
+          if (!overrideResult.ok) return overrideResult;
+        }
+        return saved;
+      }}
       onMove={onMove}
       onDelete={onDelete}
     />

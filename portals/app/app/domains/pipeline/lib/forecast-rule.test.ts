@@ -102,6 +102,35 @@ test("a stall exactly at the threshold is not yet a stall", () => {
   assert.deepEqual(v.kind === "suggested" && v.basis.caps, []);
 });
 
+test("a deal type's own stall override replaces the workspace default (incr/0062)", () => {
+  // Sitting past the WORKSPACE default but still under a longer per-type
+  // override: no stall cap, because this deal's own clock has not fired yet.
+  const notYet = suggestCategory(
+    D({ lastStageChangeAt: daysAgo(STALL_DAYS + 1), stallDaysOverride: STALL_DAYS + 30 }),
+    NOW,
+  );
+  assert.equal(notYet.kind === "suggested" && notYet.category, "commit");
+  assert.deepEqual(notYet.kind === "suggested" && notYet.basis.caps, []);
+
+  // Past the type's own, SHORTER override, even though still under the
+  // workspace default: the type's number is what fires, not the workspace's.
+  const stalledEarly = suggestCategory(
+    D({ lastStageChangeAt: daysAgo(10), stallDaysOverride: 5 }),
+    NOW,
+  );
+  assert.equal(stalledEarly.kind === "suggested" && stalledEarly.category, "best_case");
+  assert.deepEqual(stalledEarly.kind === "suggested" && stalledEarly.basis.caps, ["stalled"]);
+});
+
+test("no override on the type (or no type at all) falls back to the workspace default", () => {
+  const v = suggestCategory(
+    D({ lastStageChangeAt: daysAgo(STALL_DAYS + 1), stallDaysOverride: null }),
+    NOW,
+  );
+  assert.equal(v.kind === "suggested" && v.category, "best_case");
+  assert.deepEqual(v.kind === "suggested" && v.basis.caps, ["stalled"]);
+});
+
 test("a stall never lifts a deal, and never falls below pipeline", () => {
   // demote() floors at pipeline; there is no fourth band below it, and
   // `closed` is deliberately not on this scale - a downgrade must never walk a

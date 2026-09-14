@@ -119,6 +119,13 @@ export interface CategorizableDeal {
   expectedCloseAt: Date | null;
   /** When it last moved stage. Null when the journal has nothing for it. */
   lastStageChangeAt: Date | null;
+  /**
+   * This deal's own stall-days threshold, already resolved from its deal
+   * type's override (incr/0062) by the caller. Undefined/null when its type
+   * has no override, or it has none at all - thresholds.stallDays applies
+   * exactly as before. Optional so every existing literal keeps compiling.
+   */
+  stallDaysOverride?: number | null;
 }
 
 /** Why the suggestion came out where it did, in the rule's own terms. */
@@ -193,10 +200,11 @@ export function suggestCategory(
     band = "pipeline";
   }
 
+  const stallDays = deal.stallDaysOverride ?? thresholds.stallDays;
   if (
     deal.lastStageChangeAt &&
     Math.floor((now.getTime() - deal.lastStageChangeAt.getTime()) / DAY) >
-      thresholds.stallDays
+      stallDays
   ) {
     // ONE BAND, NOT STRAIGHT TO PIPELINE. A stall is evidence, not a verdict -
     // long negotiations are ordinary in this business, and a rule that dropped

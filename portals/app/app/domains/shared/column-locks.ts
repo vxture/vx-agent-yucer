@@ -294,7 +294,9 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // non-won row's at 0 regardless of what this grant would otherwise allow.
   "yucer_pipeline.stage_definition": ["name", "sort_order", "default_probability", "is_won", "is_terminal", "updated_at"],
   // 0060. deal_type_code is the anchor; the name and order are the workspace's.
-  "yucer_pipeline.deal_type": ["name", "sort_order", "updated_at"],
+  // 0062 adds stall_days_override, written only through a separate
+  // pipeline.forecast-gated verb - see setDealTypeStallOverride.
+  "yucer_pipeline.deal_type": ["name", "sort_order", "stall_days_override", "updated_at"],
   // 0041. The three numbers are the whole point of the row; workspace_id is
   // its identity and is not writable.
   "yucer_pipeline.forecast_threshold": [

@@ -137,6 +137,8 @@ class ScopedPipelineStore implements PipelineStore {
     this.inner.removeDealType(...a);
   countOpportunitiesByDealType: PipelineStore["countOpportunitiesByDealType"] = (...a) =>
     this.inner.countOpportunitiesByDealType(...a);
+  setDealTypeStallOverride: PipelineStore["setDealTypeStallOverride"] = (...a) =>
+    this.inner.setDealTypeStallOverride(...a);
   /* incr/0041. 预测阈值 is WORKSPACE-WIDE configuration, not a set of deals: a
      rep whose scope is their own book still forecasts against the same bands,
      because they are the workspace's bands. Gated by permission in the service,

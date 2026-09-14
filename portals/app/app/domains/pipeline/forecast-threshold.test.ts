@@ -13,6 +13,7 @@ import {
 import {
   forecastThresholds,
   previewCategories,
+  setDealTypeStallOverride,
   setForecastThresholds,
   type PipelineContext,
 } from "./service";
@@ -146,4 +147,78 @@ test("reading the bands is not the same authority as setting them", async () => 
     stallDays: 1,
   });
   assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+});
+
+// --- 商机类型的停滞天数覆盖 (incr/0062) ---------------------------------------
+
+test("previewCategories follows a deal's own type override, not the workspace default", async () => {
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_leader", store);
+  const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
+  await store.setDealTypeStallOverride(WS, dealType.id, 90);
+
+  store.seed(
+    [
+      {
+        id: "opp_1",
+        workspaceId: WS,
+        opportunityNo: "OPP-1",
+        name: "Deal",
+        accountId: "acc_1",
+        stage: "propose",
+        status: "open",
+        forecastCategory: "commit",
+        probability: 90,
+        expectedCloseAt: new Date("2026-09-20T00:00:00Z"),
+        ownerSub: "usr_me",
+        requirement: "wants a thing",
+        dealTypeId: dealType.id,
+      } as never,
+    ],
+    {
+      events: [
+        {
+          id: "evt_1",
+          opportunityId: "opp_1",
+          fromStage: null,
+          toStage: "propose",
+          reason: null,
+          actorSub: "usr_me",
+          // 60 days ago: past the workspace's own 45-day default, but under
+          // this type's own 90-day override.
+          occurredAt: new Date(NOW.getTime() - 60 * 86_400_000),
+        },
+      ],
+    },
+  );
+
+  const rows = unwrap(await previewCategories(c, { now: NOW }));
+  assert.deepEqual(rows[0]!.verdict.kind === "suggested" && rows[0]!.verdict.basis.caps, []);
+
+  // Shorten this type's own override below 60 days: the SAME deal now stalls,
+  // even though the workspace default never changed.
+  unwrap(await setDealTypeStallOverride(c, { dealTypeId: dealType.id, stallDaysOverride: 30 }));
+  const stalled = unwrap(await previewCategories(c, { now: NOW }));
+  assert.deepEqual(
+    stalled[0]!.verdict.kind === "suggested" && stalled[0]!.verdict.basis.caps,
+    ["stalled"],
+  );
+});
+
+test("a rep may not set a deal type's stall override, even holding pipeline.dealType", async () => {
+  const store = new InMemoryPipelineStore();
+  const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
+  const r = await setDealTypeStallOverride(ctx("sales_rep", store), {
+    dealTypeId: dealType.id,
+    stallDaysOverride: 10,
+  });
+  assert.equal(r.ok === false && r.violations[0].code, "permission_denied");
+});
+
+test("a sales leader may set it - pipeline.forecast, the same permission the workspace default sits behind", async () => {
+  const store = new InMemoryPipelineStore();
+  const c = ctx("sales_leader", store);
+  const dealType = await store.upsertDealType(WS, { dealTypeCode: "project", name: "项目型" });
+  const r = unwrap(await setDealTypeStallOverride(c, { dealTypeId: dealType.id, stallDaysOverride: 10 }));
+  assert.equal(r.stallDaysOverride, 10);
 });

@@ -6,7 +6,7 @@ import { money } from "../shared/money";
 import { unwrap } from "../shared/result";
 import { InMemoryCatalogStore, type CatalogStore } from "../catalog/store";
 import { InMemoryPipelineStore, type DealTypeRecord } from "./store";
-import { planDealType, planDealTypeRemoval } from "./lib/deal-type-vocab";
+import { planDealType, planDealTypeRemoval, planDealTypeStallOverride } from "./lib/deal-type-vocab";
 import {
   createOpportunity,
   dealTypeUsage,
@@ -50,6 +50,7 @@ function row(over: Partial<DealTypeRecord> = {}): DealTypeRecord {
     dealTypeCode: "new_logo",
     name: "新签",
     sortOrder: 1,
+    stallDaysOverride: null,
     ...over,
   };
 }
@@ -80,6 +81,28 @@ test("a type with opportunities filed under it cannot be removed", () => {
 test("an unused type may always be removed - there is no last-one restriction", () => {
   const r = planDealTypeRemoval(0);
   assert.ok(r.ok);
+});
+
+// --- The rule: planDealTypeStallOverride (incr/0062) ---------------------------
+
+test("null clears the override and is always ok", () => {
+  const r = planDealTypeStallOverride(null);
+  assert.ok(r.ok);
+  assert.equal(r.ok && r.value, null);
+});
+
+test("a stall override outside 1-365 is refused", () => {
+  const zero = planDealTypeStallOverride(0);
+  assert.equal(zero.ok === false && zero.violations[0].code, "stall_override_out_of_range");
+  const tooLong = planDealTypeStallOverride(366);
+  assert.equal(tooLong.ok === false && tooLong.violations[0].code, "stall_override_out_of_range");
+});
+
+test("a stall override within 1-365 is accepted as-is", () => {
+  const low = planDealTypeStallOverride(1);
+  assert.equal(low.ok && low.value, 1);
+  const high = planDealTypeStallOverride(365);
+  assert.equal(high.ok && high.value, 365);
 });
 
 // --- listDealTypes: gate and first-contact seeding -----------------------------

@@ -30,7 +30,9 @@ import {
   moveDealTypeAction,
   removeDealTypeAction,
   saveDealType,
+  saveDealTypeStallOverride,
 } from "../../pipeline/deal-type-actions";
+import { DEFAULT_FORECAST_THRESHOLDS } from "../../../domains/pipeline/lib/forecast-rule";
 import {
   moveStageDefinitionAction,
   removeStageDefinitionAction,
@@ -174,7 +176,11 @@ export default async function OpportunityConfigPage() {
         dealTypes={dealTypes.value}
         usage={dealTypeUsageRows.ok ? dealTypeUsageRows.value : {}}
         editable={can(session.authz, session.entitlement, "pipeline.dealtype.manage", "ui").allowed}
+        showStallOverride={canViewForecast}
+        canOverrideStallDays={can(session.authz, session.entitlement, "pipeline.forecast.categorize", "ui").allowed}
+        workspaceStallDays={thresholds?.ok ? thresholds.value.stallDays : DEFAULT_FORECAST_THRESHOLDS.stallDays}
         onSave={saveDealType}
+        onSaveStallOverride={saveDealTypeStallOverride}
         onMove={moveDealTypeAction}
         onDelete={removeDealTypeAction}
       />
