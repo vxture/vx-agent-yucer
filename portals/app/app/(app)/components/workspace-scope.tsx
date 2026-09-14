@@ -2,7 +2,6 @@
 
 import {
   ShellPanelContent,
-  ShellPanelHeader,
   ShellPanelRow,
   ShellPanelSection,
   ShellScopeButton,
@@ -62,25 +61,19 @@ export function WorkspaceScope({
           caret
         />
       </PopoverTrigger>
+      {/* SIMPLIFIED (owner, 2026-09-14): just the two facts, nothing else -
+          no repeated title bar, no switch-hint copy. Tenant first, then
+          workspace, matching how the two are named when this is described. */}
       <ShellPanelContent align="start">
-          <ShellPanelHeader icon="building-library" title={workspaceLabel} />
           <ShellPanelSection divided={false}>
-            <ShellPanelRow
-              label={HEADER_TEXT.workspaceLabel}
-              value={workspaceLabel}
-            />
             <ShellPanelRow
               label={HEADER_TEXT.tenantLabel}
               value={tenantId ?? HEADER_TEXT.tenantUnknown}
             />
-          </ShellPanelSection>
-          <ShellPanelSection>
-            {/* Said plainly rather than offered as a control that does
-                nothing. A greyed-out switcher would be worse: it implies the
-                capability exists and is merely unavailable to you. */}
-            <p className="text-muted-foreground px-md py-sm text-body-sm">
-              {HEADER_TEXT.workspaceSwitchHint}
-            </p>
+            <ShellPanelRow
+              label={HEADER_TEXT.workspaceLabel}
+              value={workspaceLabel}
+            />
           </ShellPanelSection>
       </ShellPanelContent>
     </Popover>

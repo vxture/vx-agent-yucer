@@ -1751,7 +1751,7 @@ export const BATCH_COMPLETE_TEXT = {
 } as const;
 
 export const SHELL_TEXT = {
-  brandName: "聿策销售智能体",
+  brandName: "禹策销售智能体",
   workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
@@ -1993,10 +1993,6 @@ export const HEADER_TEXT = {
   workspaceLabel: "工作区",
   tenantLabel: "租户",
   tenantUnknown: "未标识",
-  // Said plainly rather than offered as a control that does nothing: the token
-  // carries one workspace and one tenant, both chosen upstream at sign-in, and
-  // this product has no endpoint that could enumerate alternatives.
-  workspaceSwitchHint: "工作区与租户在登录时确定，如需切换请重新登录。",
 
   // The four tools. Grouped because they are the same KIND of thing - they act
   // on the shell, not on the data - and a reader who has found one has found

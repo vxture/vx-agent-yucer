@@ -6,7 +6,6 @@ import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShellBrand,
-  ShellIconButton,
   ShellPreferencePanel,
   ShellSearchBox,
   ShellUserMenu,
@@ -367,22 +366,7 @@ export function AppShell({
         <ShellHeader
           leading={
             <>
-              {/* (1) The board toggle - ABSENT on a detail page, because the
-                  board is. A toggle for something that is not there is a
-                  control that does nothing, and this product has now removed
-                  three of those for the same reason: the tier badge in
-                  production, the caret over a menu of one, and this. */}
-              {isDetail ? null : (
-                <ShellIconButton
-                  icon="sidebar"
-                  label={
-                    showBoard ? HEADER_TEXT.boardClose : HEADER_TEXT.boardOpen
-                  }
-                  onClick={toggleBoard}
-                />
-              )}
-
-              {/* (2) The functional domain: NINE DOTS, no label, no fill.
+              {/* (1) The functional domain: NINE DOTS, no label, no fill.
 
                 An app grid is a universal idiom and it does not need a word
                 beside it; the 110px of text it used to carry made the second
@@ -401,7 +385,7 @@ export function AppShell({
                 upgradeHref={upgradeHref}
               />
 
-              {/* (3)(4) Logo and product name. ShellBrand draws them as one
+              {/* (2)(3) Logo and product name. ShellBrand draws them as one
                 lockup rather than as an image beside a word - the tag slot is
                 the build label, which is part of the identity of what you are
                 looking at, not a separate line of text. */}
@@ -422,7 +406,7 @@ export function AppShell({
                 tag={HEADER_TEXT.productCode(BRAND.productCode)}
               />
 
-              {/* (5) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
+              {/* (4) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
                   tier from the entitlement, one of five, in English, on every
                   screen - production included. The brand tone keeps the DS's
                   star. Unsubscribed says so in the neutral tone. */}
@@ -432,13 +416,13 @@ export function AppShell({
                   : HEADER_TEXT.subscriptionNone}
               </Tag>
 
-              {/* (6) The rule. It separates identity from scope: everything to
+              {/* (5) The rule. It separates identity from scope: everything to
                 its left is which PRODUCT this is, everything to its right is
                 which DATA you are in. Those are different questions and they
                 used to run together as two badges. */}
               <Separator orientation="vertical" className="h-control-sm" />
 
-              {/* (7) Workspace and tenant. The isolation key every row and every
+              {/* (6) Workspace and tenant. The isolation key every row and every
                 gate decision is scoped by - a member with access to more than
                 one has to know which they are reading before they read a single
                 number, so it rides the header rather than a panel that can be
@@ -473,7 +457,15 @@ export function AppShell({
             />
           }
           trailing={
-            <>
+            /* THE DS'S OWN trailing WRAPPER USES gap-2xs (4px) - fine for the
+               icons INSIDE one control cluster (HeaderTools' own
+               ShellIconGroup), too tight between three separate clusters
+               (deck handle / tools / user menu), which is what read as
+               crowded (owner, 2026-09-14). ShellHeader takes no prop for that
+               gap, so this div is the one place it can be widened - it
+               becomes the WRAPPER's only child, so the DS's own gap-2xs
+               governs nothing once there is only one item to space. */
+            <div className="flex items-center gap-lg">
               {/* (2) The agent deck's handle, and the only place the pending
                 count is legible once the deck is shut. */}
               <AgentDockButton
@@ -624,7 +616,7 @@ export function AppShell({
                   />
                 }
               />
-            </>
+            </div>
           }
         />
       }
