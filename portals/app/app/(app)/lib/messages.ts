@@ -1378,8 +1378,7 @@ export const PERMISSION_LABEL: Record<string, string> = {
   "pipeline.write": "编辑商机与推进阶段",
   "pipeline.forecast": "提交预测快照",
   "pipeline.discount": "批准低于底价的报价",
-  "pipeline.stage": "维护商机阶段目录——改名、排序、默认赢率、增删阶段",
-  "pipeline.dealType": "维护商机类型目录——改名、排序、增删类型",
+  "pipeline.opportunityConfig": "维护商机配置——商机类型、商机阶段、赢丢原因、预测阈值、账龄分档、计价货币",
   "delivery.read": "查看交付项目",
   "delivery.write": "编辑里程碑、任务与回款计划",
   "copilot.use": "使用销售助手——发起会话与提问",
@@ -2026,6 +2025,11 @@ export const ADMIN_TEXT = {
   emptyDescription:
     "这不是订阅档位的问题，加钱解决不了。需要一位管理员给你分配角色。",
   planned: "未建",
+  // /admin/opportunity 合并保存栏用的通用文案（incr/0063）——预测阈值/账龄
+  // 分档/计价货币三块共用一个保存栏之后，这是页面级的文案，不再借用某一块
+  // 自己的 save/discard 键。
+  save: "保存",
+  discard: "放弃",
   entryHint: {
     members: "谁在哪个单位，各自的关联区域、数据范围与角色",
     roles: "九个角色各自能做什么",
@@ -4769,7 +4773,7 @@ export const DEAL_TYPE_TEXT = {
   deleteConsequence: "该类型将从商机类型目录中移除。归在它下面的商机不受影响——有商机在用就删不掉。",
   colStallOverride: "停滞天数",
   stallOverrideLabel: "停滞天数覆盖",
-  stallOverrideHint: "留空表示沿用工作区的默认停滞天数；这个字段单独有一道权限（预测配置），跟改名/排序不是同一个权限。",
+  stallOverrideHint: "留空表示沿用工作区的默认停滞天数。",
   stallOverrideDefault: (n: number) => `默认 ${n} 天`,
 } as const;
 
@@ -5333,10 +5337,9 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.winloss.view": "查看赢丢复盘",
     "pipeline.winloss.record": "记录赢丢复盘",
     "pipeline.stage.view": "查看阶段配置",
-    "pipeline.stage.manage": "维护商机阶段",
     "pipeline.dealtype.view": "查看商机类型",
-    "pipeline.dealtype.manage": "维护商机类型",
     "pipeline.opportunityconfig.view": "查看商机配置",
+    "pipeline.opportunityconfig.manage": "维护商机配置",
     "delivery.project.view": "查看交付项目",
     "delivery.project.upsert": "维护交付项目",
     "delivery.milestone.upsert": "维护里程碑",

@@ -372,14 +372,15 @@ export const ACTIONS = {
     permission: "pipeline.read",
     writes: false,
   },
-  // Rename/reorder/re-price/add/remove a stage. Dedicated pipeline.stage
-  // permission rather than pipeline.write - see incr/0059's own note.
-  "pipeline.stage.manage": {
-    domain: "pipeline",
-    feature: "pipeline.manage",
-    permission: "pipeline.stage",
-    writes: true,
-  },
+  // RENAME/REORDER/ADD/REMOVE A STAGE USED TO BE HERE, GATED ON ITS OWN
+  // pipeline.stage.manage (incr/0059). Deleted (incr/0063): upsertStageDefinition
+  // /moveStageDefinition/removeStageDefinition are exclusively called from
+  // /admin/opportunity, which now gates on pipeline.opportunityconfig.manage
+  // instead - nothing else ever checked this ActionId, so it is genuinely
+  // dead rather than merely unused. The PermCode pipeline.stage itself is
+  // NOT retired (still granted to its original 14 roles in the DB/catalog
+  // mirror) - only this now-orphaned ActionId wrapper around it is gone.
+  //
   // 商机类型 (incr/0060-0061). Viewing the catalog is pipeline.read, same
   // shape as pipeline.stage.view. Not a new feature key: the type catalog is
   // configuration behind the existing pipeline.manage key.
@@ -389,27 +390,48 @@ export const ACTIONS = {
     permission: "pipeline.read",
     writes: false,
   },
-  // Rename/reorder/add/remove a deal type. Dedicated pipeline.dealType
-  // permission - see incr/0061's own note on why it is granted more broadly
-  // than pipeline.stage.manage.
-  "pipeline.dealtype.manage": {
-    domain: "pipeline",
-    feature: "pipeline.manage",
-    permission: "pipeline.dealType",
-    writes: true,
-  },
-  // 商机配置 (PR4 of the batch): the ASSEMBLY page bundling 赢丢原因/商机
-  // 类型/商机阶段/预测阈值/计价规则/账龄分档. Resolves to the same
-  // pipeline.read every one of those sections' own view actions already
-  // resolves to (or, for the two that carry their own feature/permission -
-  // forecast, revenue - is checked again inside the page for that specific
-  // section) - so reaching this page widens nobody's read access. Each
-  // section keeps its own write permission unchanged.
+  // RENAME/REORDER/ADD/REMOVE A DEAL TYPE USED TO BE HERE TOO (incr/0061),
+  // GATED ON ITS OWN pipeline.dealtype.manage. Deleted (incr/0063) for the
+  // same reason as pipeline.stage.manage above: the vocabulary-CRUD verbs
+  // that checked it are exclusively called from /admin/opportunity, which now
+  // gates on pipeline.opportunityconfig.manage instead. /pipeline/[id] also
+  // checked this ActionId for a DIFFERENT question ("may this member set
+  // which type a deal is") - fixed in that page to check
+  // pipeline.opportunity.update instead, the permission updateCommercialTerms
+  // actually enforces for that field (it was never pipeline.dealType; folding
+  // dealTypeId into the general edit gate predates this batch). With both
+  // uses gone, this ActionId is genuinely dead - the PermCode pipeline.dealType
+  // itself is NOT retired (still granted to its original 12 roles in the
+  // DB/catalog mirror).
+  //
+  // 商机配置 (PR4 of the batch, later unified incr/0063): the ASSEMBLY page
+  // bundling 赢丢原因/商机类型/商机阶段/预测阈值/账龄分档/计价货币. Resolves
+  // to plain pipeline.read, no feature key beyond the FREE-tier
+  // pipeline.manage every page in this product carries - reaching the page
+  // widens nobody's read access, and (owner principle, 2026-09-13: admin
+  // configuration stays simple and open; tier complexity belongs on the real
+  // business pages that USE these settings, not the page that only
+  // configures them) none of the six sections layer a paid-tier gate on top
+  // of this any more either - see listWinLossReasonsForConfig/
+  // ageingCutoffsForConfig in service.ts for the two that used to.
   "pipeline.opportunityconfig.view": {
     domain: "pipeline",
     feature: "pipeline.manage",
     permission: "pipeline.read",
     writes: false,
+  },
+  // The one write permission for all six sections (incr/0063), replacing the
+  // six each inherited from once being its own standalone route
+  // (pipeline.dealType / pipeline.stage / pipeline.write / pipeline.forecast
+  // / delivery.write / catalog.price - see incr/0063's own note for why the
+  // SERVICE verbs behind this page's six save actions could move off those
+  // without touching any other page). No feature key, same reasoning as the
+  // view action above.
+  "pipeline.opportunityconfig.manage": {
+    domain: "pipeline",
+    feature: null,
+    permission: "pipeline.opportunityConfig",
+    writes: true,
   },
 
   // --- D7 delivery ---------------------------------------------------------

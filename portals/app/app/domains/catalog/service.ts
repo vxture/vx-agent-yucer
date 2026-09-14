@@ -819,9 +819,14 @@ export async function removeSolution(
  * 计价规则 - the currency a workspace prices in (incr/0044).
  *
  * READ rides catalog.pricebook.view: the price book is meaningless without
- * knowing what its numbers are in. WRITE is catalog.pricebook.upsert - the
- * floor-price permission - because changing the currency every line assumes
- * is a pricing decision, not a catalogue edit.
+ * knowing what its numbers are in - untouched, and still called from 8 other
+ * pages besides /admin/opportunity, so its gate cannot narrow.
+ *
+ * WRITE (incr/0063): only /admin/opportunity's own pricing-currency section
+ * calls this verb - the real price book's own entry upserts (below) still
+ * gate on catalog.pricebook.upsert unchanged. Moved to the page's single
+ * pipeline.opportunityconfig.manage permission instead of staying on
+ * catalog.price, the same way the other five /admin/opportunity sections did.
  * ------------------------------------------------------------------------ */
 
 export async function pricingPolicy(ctx: CatalogContext): Promise<RuleResult<PricingPolicy>> {
@@ -834,7 +839,7 @@ export async function setPricingPolicy(
   ctx: CatalogContext,
   input: PricingPolicy,
 ): Promise<RuleResult<PricingPolicy>> {
-  const gate = can(ctx.holder, ctx.entitlement, "catalog.pricebook.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
   const plan = planPricingPolicy(input);
   if (!plan.ok) return plan;

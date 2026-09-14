@@ -11,16 +11,15 @@ import {
 import type { DealTypeRecord } from "../../domains/pipeline/store";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
-/* 商机类型目录的写入路径 (incr/0060-0061).
+/* 商机类型目录的写入路径 (incr/0060-0061, permission unified incr/0063).
  *
- * Gated on `pipeline.dealType.manage` inside the service - granted far more
- * broadly than the stage catalog's own manage permission (see incr/0061's
- * own note). Returns the violation CODE, never its sentence (TD-010).
- *
- * saveDealTypeStallOverride is a SEPARATE write path (incr/0062): the service
- * verb it calls is gated on `pipeline.forecast.categorize`, not
- * `pipeline.dealType.manage` - narrower, the same as forecast_threshold's own
- * write permission.
+ * Both this and saveDealTypeStallOverride now gate on the same
+ * `pipeline.opportunityconfig.manage` inside the service - the one
+ * permission for all six /admin/opportunity sections. They used to be two
+ * separate permissions (`pipeline.dealType` for rename/reorder,
+ * `pipeline.forecast` for the stall override, deliberately narrower) - that
+ * distinction is gone now that the whole page shares one write authority.
+ * Returns the violation CODE, never its sentence (TD-010).
  */
 export type DealTypeResult = { ok: boolean; error?: string; dealType?: DealTypeRecord };
 

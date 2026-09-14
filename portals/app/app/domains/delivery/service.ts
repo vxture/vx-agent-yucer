@@ -52,9 +52,14 @@ export interface DeliveryContext {
  * 账龄分档 - the workspace's own ageing policy (incr/0042).
  *
  * READ is gated on `delivery.revenue.view`, the same gate the collections page
- * needs: the cutoffs are how that page's chart is cut. WRITE is
- * `delivery.revenue.upsert` - deciding when a receivable counts as 60 days
- * late is the money side, not the project side.
+ * needs: the cutoffs are how that page's chart is cut - unchanged, /collection
+ * still requires the delivery.revenue tier to see this.
+ *
+ * WRITE (incr/0063): `setAgeingCutoffs` is exclusively called from
+ * /admin/opportunity, so its own gate moved to the page's single
+ * pipeline.opportunityconfig.manage permission instead of staying on
+ * delivery.write - deciding when a receivable counts as late is no longer a
+ * separate authority from the rest of that page's configuration.
  * ------------------------------------------------------------------------ */
 
 export async function ageingCutoffs(ctx: DeliveryContext): Promise<RuleResult<number[]>> {
@@ -63,11 +68,27 @@ export async function ageingCutoffs(ctx: DeliveryContext): Promise<RuleResult<nu
   return ok(await ctx.store.getAgeingCutoffs(ctx.workspaceId));
 }
 
+/**
+ * Same read, for /admin/opportunity only (incr/0063).
+ *
+ * `delivery.revenue.view` carries a BUSINESS-tier feature key - right for
+ * /collection, wrong for a configuration page that should stay open
+ * regardless of tier (owner principle, 2026-09-13: admin configuration stays
+ * simple and open; the tier gate belongs on the page that actually uses the
+ * capability). `ageingCutoffs` itself cannot be relaxed to match - it is the
+ * same read /collection depends on for its own chart.
+ */
+export async function ageingCutoffsForConfig(ctx: DeliveryContext): Promise<RuleResult<number[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.getAgeingCutoffs(ctx.workspaceId));
+}
+
 export async function setAgeingCutoffs(
   ctx: DeliveryContext,
   cutoffs: readonly number[],
 ): Promise<RuleResult<number[]>> {
-  const gate = can(ctx.holder, ctx.entitlement, "delivery.revenue.upsert", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
   const plan = planAgeingCutoffs(cutoffs);

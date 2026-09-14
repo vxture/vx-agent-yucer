@@ -5,11 +5,13 @@ import { resolveAppSession } from "../lib/session";
 import { setAgeingCutoffs } from "../../domains/delivery/service";
 import { getDeliveryStore } from "../../domains/shared/registry";
 
-/* 账龄分档的写入路径 (incr/0042).
+/* 账龄分档的写入路径 (incr/0042, permission unified incr/0063).
  *
- * Gated on `delivery.revenue.upsert` inside the service - when a receivable
- * counts as 60 days late is the money side, not the project side. Returns the
- * violation CODE, never its sentence (TD-010).
+ * Gated on `pipeline.opportunityconfig.manage` inside the service - the one
+ * permission for all six /admin/opportunity sections, not
+ * `delivery.revenue.upsert` any more (that still gates /collection's own
+ * writes, unchanged). Returns the violation CODE, never its sentence
+ * (TD-010).
  */
 export async function saveAgeingCutoffs(
   cutoffs: readonly number[],

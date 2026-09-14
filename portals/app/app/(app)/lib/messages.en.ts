@@ -1228,7 +1228,7 @@ export const en: Dictionary = {
     deleteConsequence: "The type is removed from the catalog. Opportunities already filed under it are unaffected - one still using it cannot be deleted.",
     colStallOverride: "Stall days",
     stallOverrideLabel: "Stall-days override",
-    stallOverrideHint: "Leave blank to use the workspace's default stall days. This field carries its own permission (forecast configuration) - a different one from renaming or reordering.",
+    stallOverrideHint: "Leave blank to use the workspace's default stall days.",
     stallOverrideDefault: (n: number) => `default ${n}d`,
   },
 
@@ -2406,6 +2406,10 @@ export const en: Dictionary = {
     emptyDescription:
       "This is not a subscription tier problem and money will not fix it. An administrator has to assign you a role.",
     planned: "Not built",
+    // /admin/opportunity's merged save bar (incr/0063) - page-level copy now
+    // that forecast/ageing/pricing share one bar instead of one each.
+    save: "Save",
+    discard: "Discard",
     entryHint: {
       members: "Who sits in which unit: territories, data scope and roles",
       roles: "What each of the nine roles is, and what it may do",
@@ -4065,10 +4069,9 @@ export const en: Dictionary = {
       "pipeline.winloss.view": "View win/loss reviews",
       "pipeline.winloss.record": "Record a win/loss review",
       "pipeline.stage.view": "View stage configuration",
-      "pipeline.stage.manage": "Maintain pipeline stages",
       "pipeline.dealtype.view": "View deal types",
-      "pipeline.dealtype.manage": "Maintain deal types",
       "pipeline.opportunityconfig.view": "View opportunity settings",
+      "pipeline.opportunityconfig.manage": "Manage opportunity settings",
       "delivery.project.view": "View projects",
       "delivery.project.upsert": "Maintain projects",
       "delivery.milestone.upsert": "Maintain milestones",
@@ -4152,8 +4155,7 @@ export const en: Dictionary = {
     "pipeline.write": "Edit opportunities and advance stages",
     "pipeline.forecast": "Submit forecast snapshots",
     "pipeline.discount": "Authorise a price below the product floor",
-    "pipeline.stage": "Maintain the pipeline stage catalog - rename, reorder, default win rate, add/remove a stage",
-    "pipeline.dealType": "Maintain the deal type catalog - rename, reorder, add/remove a type",
+    "pipeline.opportunityConfig": "Maintain opportunity settings - deal types, pipeline stages, win/loss reasons, forecast bands, ageing bands, pricing currency",
     "delivery.read": "View delivery projects",
     "delivery.write": "Edit milestones, tasks and revenue schedules",
     "copilot.use": "Use the copilot - open sessions and ask",

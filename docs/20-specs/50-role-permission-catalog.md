@@ -307,6 +307,10 @@ stage_definition`）；`incr/0058` 把 `opportunity.stage` 原来的固定 `CHEC
 
 ## 2026-09-13 增量 - 商机配置装配页（PR4，无新增 DDL）
 
+**本节的写权限部分已被下面「商机配置：统一权限」一节取代——六个区块各自的写权限
+段落、以及"预测阈值和账龄分档区块可能整页可见但区块本身仍然读不到"那条限制，都
+不再成立。保留本节是因为它记录了装配页本身诞生的真实过程；读当前状态请看下一节。**
+
 **权限数不变，仍是 27。角色数、授权数都不变。**
 
 商机配置批次的最后一步：把 赢丢原因/商机类型/商机阶段/预测阈值/计价规则/账龄分档
@@ -326,3 +330,58 @@ stage_definition`）；`incr/0058` 把 `opportunity.stage` 原来的固定 `CHEC
 保证的。页面因此对这两个区块（以及计价规则，虽然它的 `catalog.pricebook.view` 只挂
 `catalog.read`，实务上人人都有）分别再做一次它们各自的读权限判断，读不到就整块不渲
 染——展示"工作区的默认值"当作"工作区的真实设置"会是比不渲染更糟的错误。
+
+## 2026-09-13 增量 - 商机配置：统一权限（incr/0063-0064）
+
+**权限 27 → 28 → 26，授权 423 → 446 → 420。角色数不变，仍是 31。**
+
+owner 定的原则："admin 权限简单化、开放化——档位门槛主要用在真正的业务域页面
+（预测复核 `/forecast`、赢丢复盘 `/winloss`、收款 `/collection`），配置页应该是
+基础全面提供的，这样开通档位后立刻就能用，不用现开现配。" 据此把 PR4 装配页
+六个区块各自的写权限、以及预测阈值/赢丢原因/账龄分档三块各自的付费档位门槛，
+一次性收拢成页面级的单一读/写模型。
+
+**写：incr/0063 新增一个权限码，替换原来六个。**
+
+| 权限 | 是什么 | 授予 |
+|------|--------|------|
+| `pipeline.opportunityconfig.manage`（写，新权限码 `pipeline.opportunityConfig`） | 商机类型/商机阶段/赢丢原因/预测阈值/账龄分档/计价货币，六块任意一块的增删改 | 原六个权限点（`pipeline.write` / `pipeline.forecast` / `delivery.write` / `catalog.price` / `pipeline.dealType` / `pipeline.stage`）持有者的**并集**，31 个角色里的 23 个 |
+
+授予按并集：现在持有六个权限点中任意一个的角色，都拿到新的统一权限，不缩小任何人
+现有的写权限范围。原六个权限点中的 `pipeline.write` / `pipeline.forecast` /
+`delivery.write` / `catalog.price` **不退役**——它们各自还门禁着装配页之外的其他
+动作（`recordWinLossReview`、`applySuggestedCategory`、真正的价目表、
+`delivery.project.upsert`/`.milestone.upsert`、线索转化、商机创建/编辑/推进），
+装配页六个保存动作的 SERVICE 层门禁换成新权限，不影响这些其他动作。
+
+**`pipeline.dealType` / `pipeline.stage` 是例外，incr/0064 把这两个退役了。** 这两个
+权限点从建立起就只被装配页自己的商机类型/商机阶段增删改动词检查，没有像另外四个
+那样在别处还有别的用处——incr/0063 把这两个动词的门禁换成新权限后，这两个权限点
+变成了"发出去了、但没有任何动词再检查"的状态，`authz/actions.test.ts` 的硬规则
+（每个权限点都必须被某个动作要求，没有例外机制）不允许这种状态存在。incr/0064
+因此把这两行从 `local_authz.permission` 删掉（`ON DELETE CASCADE` 一并清掉对应的
+`role_permission` 授权行）——这是这个权限目录第一次真正的**退役**，而不是新增。
+
+**读：不新增权限点，复用装配页已有的 `pipeline.opportunityconfig.view`。** 预测
+阈值/赢丢原因/账龄分档三块原来各自叠加的付费档位门槛（`pipeline.forecast`
+PRO 档、`pipeline.winloss`/`delivery.revenue` BUSINESS 档）全部收掉——六个区块
+现在统一只要通过装配页自己的 `pipeline.opportunityconfig.view`（复用
+`pipeline.read`，FREE 档 `pipeline.manage` 功能键，等于没有档位门槛）就都读得到，
+不再有"整页可见但某一块读不到"的情况。`listWinLossReasonsForConfig`/
+`ageingCutoffsForConfig`（`domains/pipeline/service.ts`、
+`domains/delivery/service.ts`）是专门为装配页开的两个只读分支，跟原来给
+`/winloss`、`/collection` 用的 `listWinLossReasons`/`ageingCutoffs` 门禁完全不同——
+后两者的付费档位门槛原样保留，`/winloss`、`/collection`、`/forecast` 三个真正的
+业务页面对这三项能力的门槛完全没动，只收了装配页自己的。`pipeline.dealtype.view`/
+`pipeline.stage.view`/`catalog.pricebook.view` 本来就没有真正的档位门槛（前两者是
+FREE 档 `pipeline.manage`，后者压根没有功能键），不用动。
+
+**顺带修掉一个缺陷**：赢丢原因区块原来没有像预测阈值/账龄分档那样单独做
+"整页可见但这一块读不到"的降级——`pipeline.winloss.view` 一样挂着付费档位
+（`pipeline.winloss`，BUSINESS 档），档位不够时会让**整个装配页**报错，而不是
+只缺赢丢原因这一块。收掉这块的档位门槛之后，这个缺陷自然不再存在。
+
+**商机类型"停滞天数覆盖值"字段（incr/0062）一并并入。** 这个字段之前故意单独
+挂在 `pipeline.forecast.categorize`（与预测阈值本身同一权限，不给 `sales_rep`），
+现在跟同一行的改名/排序字段一样走 `pipeline.opportunityconfig.manage`——装配页
+统一成一个写权限之后，不再需要在同一个对话框里区分两条独立授权的写路径。
