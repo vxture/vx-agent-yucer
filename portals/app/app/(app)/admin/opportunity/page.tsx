@@ -163,15 +163,6 @@ export default async function OpportunityConfigPage() {
         description={ADMIN_TEXT.entryHint.opportunityConfig}
       />
 
-      <WinLossReasonConfig
-        reasons={reasons.value}
-        usage={reasonUsage.ok ? reasonUsage.value : {}}
-        editable={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}
-        onSave={saveWinLossReason}
-        onMove={moveWinLossReasonAction}
-        onDelete={removeWinLossReasonAction}
-      />
-
       <DealTypeConfig
         dealTypes={dealTypes.value}
         usage={dealTypeUsageRows.ok ? dealTypeUsageRows.value : {}}
@@ -194,6 +185,15 @@ export default async function OpportunityConfigPage() {
         onDelete={removeStageDefinitionAction}
       />
 
+      <WinLossReasonConfig
+        reasons={reasons.value}
+        usage={reasonUsage.ok ? reasonUsage.value : {}}
+        editable={can(session.authz, session.entitlement, "pipeline.winloss.record", "ui").allowed}
+        onSave={saveWinLossReason}
+        onMove={moveWinLossReasonAction}
+        onDelete={removeWinLossReasonAction}
+      />
+
       {canViewForecast && thresholds?.ok ? (
         <ForecastThresholdConfig
           thresholds={thresholds.value}
@@ -202,19 +202,19 @@ export default async function OpportunityConfigPage() {
         />
       ) : null}
 
-      {canViewPricing && policy?.ok ? (
-        <PricingPolicyConfig
-          policy={policy.value}
-          canWrite={can(session.authz, session.entitlement, "catalog.pricebook.upsert", "ui").allowed}
-          onSave={savePricingPolicy}
-        />
-      ) : null}
-
       {canViewAgeing && cutoffs?.ok ? (
         <AgeingPolicyConfig
           cutoffs={cutoffs.value}
           canWrite={can(session.authz, session.entitlement, "delivery.revenue.upsert", "ui").allowed}
           onSave={saveAgeingCutoffs}
+        />
+      ) : null}
+
+      {canViewPricing && policy?.ok ? (
+        <PricingPolicyConfig
+          policy={policy.value}
+          canWrite={can(session.authz, session.entitlement, "catalog.pricebook.upsert", "ui").allowed}
+          onSave={savePricingPolicy}
         />
       ) : null}
     </ViewLayout>

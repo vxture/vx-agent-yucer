@@ -1227,7 +1227,7 @@ export const PRICING_ERROR: Record<string, string> = {
 };
 
 export const PRICING_TEXT = {
-  title: "计价规则",
+  title: "计价货币",
   why: "报价、价目与汇总默认按哪个币种。行上另有币种时以行为准。",
   save: "保存",
   discard: "放弃",
@@ -2033,7 +2033,7 @@ export const ADMIN_TEXT = {
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
-    opportunityConfig: "赢丢原因、商机类型、商机阶段、预测阈值、计价规则、账龄分档——跟商机推进相关的配置，都在这一页",
+    opportunityConfig: "商机类型、商机阶段、赢丢原因、预测阈值、账龄分档、计价货币——跟商机推进相关的配置，都在这一页",
     stage: "商机推进经过的阶段，改名/排序/默认赢率/增删",
     dealtype: "商机的分类——新签/续费/增购/项目型/产品型",
     industry: "客户按行业归档，一处改，处处改",

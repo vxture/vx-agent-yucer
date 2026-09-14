@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Field, FieldDescription, FieldLabel, Input, Section, ViewHeader, useToast } from "@vxture/design-ui";
+import { Field, FieldDescription, FieldLabel, Icon, Input, Section, useToast } from "@vxture/design-ui";
 import { FormActions } from "./form-page";
 import type { ForecastThresholds } from "../../domains/pipeline/lib/forecast-rule";
 import { FORECAST_LABEL } from "../lib/messages";
@@ -98,19 +98,22 @@ export function ForecastThresholdConfig({
   const discard = () => setForm(initial);
 
   return (
-    <>
-      <ViewHeader
-        icon="trend-up"
-        title={FORECAST_PARAM_TEXT.title}
-        description={FORECAST_PARAM_TEXT.why}
-        secondary={<Tag>{FORECAST_PARAM_TEXT.ladder(thresholds.bestCaseAt, thresholds.commitAt)}</Tag>}
-      />
-      {/* INDENTED TO THE TITLE TEXT, not the icon: ViewHeader's icon
-          (size-icon-2xl, 48px) plus its gap-xl (32px) to the title is the
-          same 80px a nested H2 would sit under, so the content below reads
-          as belonging to "预测阈值" the text, not to the icon column. */}
-      <div className="pl-20">
-        <Section>
+    <Section
+      icon="trend-up"
+      title={FORECAST_PARAM_TEXT.title}
+      description={FORECAST_PARAM_TEXT.why}
+      action={<Tag>{FORECAST_PARAM_TEXT.ladder(thresholds.bestCaseAt, thresholds.commitAt)}</Tag>}
+    >
+      {/* INDENTED TO THE TITLE TEXT, not the icon - the same device
+          vocabulary-config.tsx's own Section branch uses for 赢丢原因/商机
+          类型/商机阶段: an invisible icon-sized spacer keeps this content
+          column aligned with "预测阈值" the text, not the section's raw left
+          edge, so every stacked block on this page reads at the same level. */}
+      <div className="gap-lg flex">
+        <span className="invisible shrink-0" aria-hidden="true">
+          <Icon name="trend-up" size="lg" />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-md">
           <Field>
             <FieldLabel>{FORECAST_PARAM_TEXT.thresholdsLabel}</FieldLabel>
             <div className="relative mt-xs w-full">
@@ -192,19 +195,19 @@ export function ForecastThresholdConfig({
             </div>
             <FieldDescription>{FORECAST_PARAM_TEXT.stallHint}</FieldDescription>
           </Field>
-        </Section>
-        {canWrite ? (
-          <div className="mt-lg">
-            <FormActions
-              saveLabel={FORECAST_PARAM_TEXT.save}
-              discardLabel={FORECAST_PARAM_TEXT.discard}
-              onSave={save}
-              onDiscard={discard}
-              pending={pending || !dirty}
-            />
-          </div>
-        ) : null}
+          {canWrite ? (
+            <div className="mt-lg">
+              <FormActions
+                saveLabel={FORECAST_PARAM_TEXT.save}
+                discardLabel={FORECAST_PARAM_TEXT.discard}
+                onSave={save}
+                onDiscard={discard}
+                pending={pending || !dirty}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
-    </>
+    </Section>
   );
 }
