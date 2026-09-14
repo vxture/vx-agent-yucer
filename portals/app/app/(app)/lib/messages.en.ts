@@ -83,6 +83,7 @@ export const en: Dictionary = {
     tenant_required:
       "This session carries no tenant, so the model plane cannot be reached.",
     empty_question: "There was nothing to ask.",
+    quota_exceeded: "This workspace's copilot turn quota is used up.",
     turn_failed:
       "The assistant could not answer this time. Nothing on this record changed.",
   },
@@ -1810,6 +1811,7 @@ export const en: Dictionary = {
     tenant_required:
       "This session carries no tenant, so the model plane cannot be reached.",
     empty_question: "There was nothing to ask.",
+    quota_exceeded: "This workspace's copilot turn quota is used up.",
     turn_failed:
       "The assistant could not answer this time. Nothing on this record changed.",
   },
@@ -3961,6 +3963,7 @@ export const en: Dictionary = {
       "The model plane is not connected yet (operations has to register and authorise it)",
     errorNoGrant: "This product has no grant on the model plane",
     errorQuota: "The model usage quota is exhausted",
+    errorTurnQuota: "This workspace's copilot turn quota is used up",
     errorGeneric: "Try again shortly; if it keeps failing, contact operations",
     newSession: "New conversation",
   },

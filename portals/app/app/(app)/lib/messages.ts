@@ -1119,6 +1119,7 @@ export const PROPOSAL_ERROR: Record<string, string> = {
   tenant_required: "当前会话没有租户，模型面无法调用",
   empty_question: "没有可问的内容",
   turn_failed: "助手这次没能答上来——可以稍后再试；这条记录没有任何改动",
+  quota_exceeded: "本工作区的参谋对话轮次配额已用完",
 };
 
 /** 复盘记录。`pending-reviews` 此前把裸 code 当句子显示。 */
@@ -1698,6 +1699,7 @@ export const COMPLETENESS_ERROR: Record<string, string> = {
   tenant_required: "当前会话没有租户，模型面无法调用",
   empty_question: "没有可问的内容",
   turn_failed: "助手这次没能答上来——可以稍后再试；这条记录没有任何改动",
+  quota_exceeded: "本工作区的参谋对话轮次配额已用完",
 };
 
 export const COMPLETENESS_TEXT = {
@@ -3639,6 +3641,7 @@ export const COPILOT_TEXT = {
   errorNotConfigured: "模型平面尚未接入（需要运营侧完成注册与授权）",
   errorNoGrant: "本产品在模型平面上还没有被授权",
   errorQuota: "模型用量配额已耗尽",
+  errorTurnQuota: "本工作区的参谋对话轮次配额已用完",
   errorGeneric: "请稍后重试；持续失败请联系运营",
   newSession: "新对话",
 } as const;

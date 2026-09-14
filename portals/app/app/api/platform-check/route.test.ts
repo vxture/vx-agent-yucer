@@ -1,6 +1,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { GET, runPlatformCheck } from "./route";
+import { GET, POST } from "./route";
+import { runPlatformCheck } from "./check";
 
 // The self-proof surface, offline: with nothing configured every probe must
 // say so without touching the network, and the gate must behave like
@@ -71,4 +72,25 @@ test("the C2 probe asks for a session rather than guessing a workspace", async (
   assert.equal(check.c2.configured, true);
   assert.equal(check.c2.ok, false);
   assert.match(check.c2.detail, /sign in/);
+});
+
+function post(body: unknown): Request {
+  return new Request("https://yucer.vxture.com/api/platform-check", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+test("the replay probe is the only spending probe, and it is refused offline in order: off, unknown, unconfigured", async () => {
+  bare();
+  process.env.STATUS_PAGE = "off";
+  assert.equal((await POST(post({ probe: "c3-replay" }))).status, 404);
+  delete process.env.STATUS_PAGE;
+  const unknown = await POST(post({ probe: "anything-else" }));
+  assert.equal(unknown.status, 400);
+  assert.equal(((await unknown.json()) as { code: string }).code, "PLATFORM_CHECK_UNKNOWN_PROBE");
+  const unconfigured = await POST(post({ probe: "c3-replay" }));
+  assert.equal(unconfigured.status, 503);
+  assert.equal(((await unconfigured.json()) as { code: string; retryable: boolean }).code, "PLATFORM_CHECK_NOT_CONFIGURED");
 });

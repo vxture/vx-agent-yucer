@@ -6,6 +6,7 @@ const TEXT = {
   errorNotConfigured: "not configured",
   errorNoGrant: "no grant",
   errorQuota: "quota",
+  errorTurnQuota: "turn quota",
   errorGeneric: "generic",
 } as never;
 
@@ -40,4 +41,9 @@ test("a session with no tenant reads as unconfigured, not as a failure", () => {
   for (const code of ["no_active_tenant", "tenant_required", "atlas_ATLAS_NOT_CONFIGURED"]) {
     assert.equal(explainModelPlaneError(code, TEXT), "not configured", code);
   }
+});
+
+test("the product's own turn quota gets its own sentence, not the model plane's", () => {
+  assert.equal(explainModelPlaneError("quota_exceeded", TEXT), "turn quota");
+  assert.equal(explainModelPlaneError("atlas_QUOTA_EXCEEDED", TEXT), "quota");
 });

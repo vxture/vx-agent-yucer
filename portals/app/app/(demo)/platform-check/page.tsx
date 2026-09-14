@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ViewHeader } from "@vxture/design-ui";
-import type { PlatformCheck, ProbeResult } from "../../api/platform-check/route";
+import type { PlatformCheck, ProbeResult } from "../../api/platform-check/check";
 
 // The self-proof page: renders /api/platform-check (live probes of every
 // platform channel) the way /status renders /api/status. Same posture as that

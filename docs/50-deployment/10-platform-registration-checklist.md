@@ -68,10 +68,11 @@ Concrete values below are the ones derived at instantiation
       stage runs only with `ALLOW_MOCK_ON_DEPLOY=on`, loudly. When the values
       land, `https://yucer.vxture.com/platform-check` is the handshake surface:
       every channel re-verified live, no screenshots.
-- [ ] C3 upstream has no counter metric to report: the capability matrix defines
-      feature keys and limits, not consumable metrics, and no action point calls
-      `recordUsage`. Defining one (and registering it on the platform) is a
-      product decision; until then the flush loop and the replay probe stay idle.
+- [ ] C3 upstream metric `yucer.copilot.turns` (owner, 2026-09-14: 参谋对话轮次)
+      is recorded at the copilot turn action point and must be REGISTERED on the
+      platform as a counter metric before consume accepts it - asked on #329.
+      Until then the events stay buffered (the normal state) and the replay
+      probe on /platform-check cannot pass.
 - [ ] Recurring jobs (`/api/usage/flush`, `/api/jobs/commitment-sweep`,
       `/api/arda/sync`) are driven by an EXTERNAL timer per ADR-010, and no
       timer exists on worker02 or in CI yet - nothing recurring runs in

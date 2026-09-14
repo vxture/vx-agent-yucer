@@ -126,5 +126,11 @@ export function violationEnvelope(
   if (code === "permission_denied") {
     return envelope("POLICY_DENIED", message);
   }
+  // The product's own consumable quota (usage/lib/copilot-turns) is the
+  // commercial ceiling the fourth refusal code names. Carried unprefixed, like
+  // the other three: it means the same thing on every product's surface.
+  if (code === "quota_exceeded") {
+    return envelope("QUOTA_EXCEEDED", message);
+  }
   return envelope(`${modulePrefix}_${code.toUpperCase()}`, message);
 }
