@@ -18,20 +18,53 @@ Concrete values below are the ones derived at instantiation
 
 ## OIDC (customer realm)
 
-- [ ] Register the OIDC client pair: `yucer` (prod) and `yucer-beta` (beta) -
+- [x] Register the OIDC client pair: `yucer` (prod) and `yucer-beta` (beta) -
       double client is canonical (back-channel logout is a single-URI hard
-      constraint). Realm = customer.
-- [ ] Set each client's `redirect_uri` (`https://yucer.vxture.com/auth/callback`),
-      `post_logout_redirect_uri`, and `back_channel_logout_uri`.
-- [ ] Set allowed scopes to `openid profile email phone` (retired product-code and
-      commercial scopes are not registered).
+      constraint). Realm = customer. **`yucer` (stable) handed over
+      2026-09-14** as a confidential client (secret transported separately);
+      `yucer-beta` not yet handed over - the beta stack is not deployed.
+- [x] Set each client's `redirect_uri`, `post_logout_redirect_uri`, and
+      `back_channel_logout_uri`. **Registered for `yucer` (2026-09-14):**
+      `redirect_uri` = `https://yucer.vxture.com/api/auth/oidc/callback`,
+      `post_logout_redirect_uri` = `https://yucer.vxture.com/`. The handoff
+      named no back-channel logout URI - the app serves it at
+      `https://yucer.vxture.com/auth/backchannel-logout`; confirm it is set on
+      the client or IdP-initiated logout will not reach the RP.
+
+  The registered `redirect_uri` is NOT the contract path this checklist used to
+  name (`/auth/callback`, 080-rp). The product adapted rather than asking for a
+  re-registration: `app/api/auth/oidc/callback/route.ts` re-exports the
+  canonical handler, both paths answer, and `OIDC_REDIRECT_URI` carries the
+  registered value byte for byte (the IdP compares, it does not match). Should
+  the platform later re-register to `/auth/callback`, only the env value moves;
+  the alias can then be dropped.
+- [x] Set allowed scopes to `openid profile email phone` (retired product-code and
+      commercial scopes are not registered). Confirmed in the handoff.
 
 ## Provisioning webhook (C3)
 
-- [ ] Register the product in `product_webhooks` with its tailnet delivery
-      address (`YUCER_WEBHOOK_BASE_URL`).
-- [ ] Add `YUCER_PROVISION_WEBHOOK_SECRET` to the platform env; the owner
+- [x] Register the product in `product_webhooks` with its delivery address.
+      **Registered (2026-09-14): `https://yucer.vxture.com/api/webhooks/vxture`**
+      - the public edge, not a tailnet address; the edge proxies every path but
+      `/api/usage/flush` to the app. As with the callback, the registered path
+      is not the contract path (`/provisioning/webhook`, product_200 section
+      4): `app/api/webhooks/vxture/route.ts` re-exports the canonical handler.
+- [x] Add `YUCER_PROVISION_WEBHOOK_SECRET` to the platform env; the owner
       hand-transports the secret value to this repo's GitHub secrets.
+      Transported 2026-09-14; it goes into the production stack's `.env` as
+      `PROVISION_WEBHOOK_SECRET` (and into `ENV_FILE_BASE64`), never into the
+      repo.
+
+## Not in the 2026-09-14 handoff (still open)
+
+- [ ] C2 entitlement: `PLATFORM_API_URL` (internal-network base) and
+      `PLATFORM_INTERNAL_AUTH_TOKEN`. Without both the resolver stays `mock`,
+      every workspace resolves to no tier, and a signed-in member sees the
+      "not subscribed" lockout on every page - login alone does not make the
+      product usable.
+- [ ] Atlas / Runos / arda base URLs and the Atlas product-grants (separate
+      planes, separate liaison).
+- [ ] The `yucer-beta` client, for when the beta stack is cut.
 
 ## Edge and ports
 
