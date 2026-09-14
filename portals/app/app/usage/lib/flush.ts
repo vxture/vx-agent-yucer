@@ -1,5 +1,5 @@
 import { getUsageStore, type UsageRow, type UsageStore } from "./store";
-import { getPlatformClientConfig } from "../../entitlement/platform-client";
+import { getPlatformClientConfig, type PlatformClientConfig } from "../../entitlement/platform-client";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { assertInternalTarget } from "../../lib/internal-target";
 
@@ -21,6 +21,8 @@ export interface ConsumeResult {
   status: number;
   /** From the 200 body: the quota did not cover this call. Information, not an error. */
   gated?: boolean;
+  /** The 200 body as parsed (replayed, event_id, consumed, ...); the replay probe reads it. */
+  body?: Record<string, unknown>;
 }
 export type ConsumeFn = (row: UsageRow) => Promise<ConsumeResult>;
 
@@ -80,6 +82,11 @@ export async function flushUsage(opts: FlushOptions = {}): Promise<FlushSummary>
 function defaultConsume(): ConsumeFn | null {
   const cfg = getPlatformClientConfig();
   if (!cfg) return null;
+  return makePlatformConsume(cfg);
+}
+
+/** POST /usage/consume for one buffered row - the flush loop's caller, and the replay probe's. */
+export function makePlatformConsume(cfg: PlatformClientConfig): ConsumeFn {
   return async (row) => {
     const url = assertInternalTarget(`${cfg.baseUrl.replace(/\/$/, "")}/usage/consume`);
     const res = await fetch(url, {
@@ -102,14 +109,16 @@ function defaultConsume(): ConsumeFn | null {
       cache: "no-store",
     });
     let gated = false;
+    let body: Record<string, unknown> | undefined;
     if (res.status === 200) {
       try {
-        const body = (await res.json()) as { gated?: unknown } | null;
+        const parsed = (await res.json()) as Record<string, unknown> | null;
+        if (parsed && typeof parsed === "object") body = parsed;
         gated = body?.gated === true;
       } catch {
         // A 200 without a JSON body is still a 200: reported, not gated.
       }
     }
-    return { status: res.status, gated };
+    return { status: res.status, gated, body };
   };
 }

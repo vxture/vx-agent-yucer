@@ -16,6 +16,7 @@
 //      rather than written.
 
 import type { Entitlement } from "../../entitlement/types";
+import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns";
 import { CAPABILITY_MATRIX } from "../../entitlement/capability";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
@@ -72,6 +73,8 @@ export interface TurnOutput {
 export interface TurnDeps {
   atlasClient: AtlasClient;
   runosClient: RunosClient;
+  /** The product's own turn metering (usage/lib/copilot-turns); defaults to the real buffer. */
+  meter?: TurnMeter;
 }
 
 export async function runCopilotTurn(
@@ -101,6 +104,27 @@ export async function runCopilotTurn(
   if (!input.tenantId) {
     return fail(violation("tenant_required", "the platform tenant is required to reach the model plane", "tenantId"));
   }
+
+  // 1b. The product's own quota, then the charge - HERE, because this is where
+  // the API route and the server action converge, and a charge placed in
+  // either route would be a second place the decision is made. A pool for
+  // yucer.copilot.turns with nothing left refuses (fleet code QUOTA_EXCEEDED
+  // at the envelope); an admitted turn is buffered before the model is called,
+  // so a model failure is still the turn that was asked for.
+  const meter = deps.meter ?? defaultTurnMeter();
+  const admission = meter.admit(ctx.entitlement);
+  if (!admission.ok) {
+    await recordAuditEvent({
+      workspaceId: ctx.workspaceId,
+      actorId: ctx.sub,
+      objectType: "copilot_turn",
+      objectId: input.sessionId ?? "new",
+      action: "copilot.ask",
+      outcome: "denied",
+    });
+    return fail(violation("quota_exceeded", "this workspace's copilot turn quota is used up", "question"));
+  }
+  await meter.record(ctx.workspaceId);
 
   // 2. Session and question first, so a model failure cannot lose the question.
   const session = input.sessionId

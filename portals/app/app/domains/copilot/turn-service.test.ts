@@ -252,3 +252,57 @@ test("a successful turn is recorded with its task id and its Atlas token spend",
   assert.equal(row.costAmount, 2, "one Atlas call in this fixture, usage.totalTokens = 2");
   setAuditStore(null);
 });
+
+// --- the product's own metering (usage/lib/copilot-turns), at the convergence point ---
+
+function meterSpy(admit: boolean) {
+  const recorded: string[] = [];
+  let admits = 0;
+  const meter = {
+    admit: () => {
+      admits += 1;
+      return admit ? ({ ok: true } as const) : ({ ok: false, remaining: 0 } as const);
+    },
+    record: async (ws: string) => {
+      recorded.push(ws);
+      return "k";
+    },
+  };
+  return { meter, recorded, admits: () => admits };
+}
+
+test("an admitted turn is charged once, before the model is called", async () => {
+  const h = deps({ replies: [{ content: "ok" }] });
+  const m = meterSpy(true);
+  const r = await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, true);
+  assert.deepEqual(m.recorded, [WS]);
+  assert.equal(h.calls.length, 1);
+});
+
+test("a pool with nothing left refuses with quota_exceeded, charges nothing, and never reaches the model", async () => {
+  const h = deps({ replies: [{ content: "ok" }] });
+  const m = meterSpy(false);
+  const r = await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.violations[0]?.code, "quota_exceeded");
+  assert.deepEqual(m.recorded, []);
+  assert.equal(h.calls.length, 0);
+});
+
+test("a gate refusal never consults the meter - nothing was asked for", async () => {
+  const h = deps();
+  const m = meterSpy(true);
+  const r = await runCopilotTurn(ctx("sales_leader", null), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, false);
+  assert.equal(m.admits(), 0);
+  assert.deepEqual(m.recorded, []);
+});
+
+test("the charge is a turn that was asked for: a model failure still counts", async () => {
+  const h = deps({ replies: [], atlasThrows: new AtlasError({ code: "MODEL_RUNTIME_DOWN", status: 502, message: "down" }) });
+  const m = meterSpy(true);
+  const r = await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, false);
+  assert.deepEqual(m.recorded, [WS]);
+});

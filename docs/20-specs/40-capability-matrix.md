@@ -58,6 +58,19 @@ feature key **不是**权限码。两者是不同维度：
 判定顺序固定为：先 `canUseFeature(entitlement, key)`，再查成员权限。任一不通过即
 拒绝。反过来写（先查权限）会让未购买的工作区看到本不该暴露的功能形状。
 
+## 计量（2026-09-14，owner 裁定）
+
+yucer 有**一个**消耗型指标：
+
+| 指标 | 类型 | 动作点 | 口径 |
+|------|------|--------|------|
+| `yucer.copilot.turns` | counter | `runCopilotTurn()`——API 路由与服务端 action 的汇聚点，两道门放行之后、调用模型之前 | 一次「问参谋」= 1；**开局即扣，不等模型结果**（模型失败也是一次被要求的对话） |
+
+- 准入读 C2 信封里该指标的 `quota_pools`：**没有池 = 平台没卖这个配额，不门控**（销售轴决定，不是代码决定）；有池且 `remaining <= 0` → 舰队码 `QUOTA_EXCEEDED`，HTTP 409。
+- 上报走既有的缓冲 + 冲洗（`POST /usage/consume`，永远 200，`gated` 在体内）。指标须先在平台**登记**，否则 consume 返 `unknown_metric`，事件留在缓冲表重试——这是正常态。
+- 模型平面自己的用量由 Atlas 统一上报（通则「谁执行谁上报」的例外），本指标**不是**模型 token，两者不重复。
+- 平台侧登记请求：[vxture-platform/vxture-platform#329](https://github.com/vxture-platform/vxture-platform/issues/329)。
+
 ## 消费纪律
 
 - 产品只读渲染商业事实，**绝不本地重算商业结论**（`30-business-rules.md` 第 8 节）。
