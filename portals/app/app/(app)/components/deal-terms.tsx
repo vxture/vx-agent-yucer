@@ -57,13 +57,18 @@ export interface DealTermsProps {
   /** The workspace's own stage catalog (incr/0057) - see StageControlProps'
    *  own note on why this is optional and defaulted. */
   readonly stageDefinitions?: readonly StageDefinition[];
-  /** incr/0060 - 商机类型, this deal's current one, or null. */
-  readonly dealTypeId?: string | null;
-  /** The workspace's own type catalog, for the picker. Empty by default: a
-   *  page that has not fetched it still compiles and simply offers none. */
-  readonly dealTypes?: readonly { readonly id: string; readonly name: string }[];
-  /** `pipeline.dealType.manage` - the select is only offered when the member
-   *  actually holds it, the same split canCategorize already makes. */
+  /** incr/0067 - 签约类型 / 业务形态, this deal's current ones, or null. Two
+   *  selects because they are two questions: what kind of transaction this is,
+   *  and what is being sold. */
+  readonly contractTypeId?: string | null;
+  readonly businessFormId?: string | null;
+  /** The workspace's own catalogs, for the pickers. Empty by default: a page
+   *  that has not fetched them still compiles and simply offers none. */
+  readonly contractTypes?: readonly { readonly id: string; readonly name: string }[];
+  readonly businessForms?: readonly { readonly id: string; readonly name: string }[];
+  /** `pipeline.opportunity.update` - the same gate updateCommercialTerms
+   *  enforces for these two fields, so the selects are offered only when the
+   *  member actually holds it. */
   readonly canSetDealType?: boolean;
   readonly onSave: (
     opportunityId: string,
@@ -73,7 +78,8 @@ export interface DealTermsProps {
       probability?: string;
       expectedCloseAt?: string;
       forecastCategory?: string;
-      dealTypeId?: string;
+      contractTypeId?: string;
+      businessFormId?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
 }
@@ -91,19 +97,23 @@ export function DealTerms({
   canEdit,
   canCategorize,
   stageDefinitions = DEFAULT_STAGE_DEFINITIONS,
-  dealTypeId = null,
-  dealTypes = [],
+  contractTypeId = null,
+  businessFormId = null,
+  contractTypes = [],
+  businessForms = [],
   canSetDealType = false,
   onSave,
 }: DealTermsProps) {
-  const { DEAL_TYPE_TEXT, FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } = useMessages();
+  const { BUSINESS_FORM_TEXT, CONTRACT_TYPE_TEXT, FORECAST_LABEL, OPPORTUNITY_ERROR, OPPORTUNITY_TEXT } =
+    useMessages();
   const closed = isTerminal(stage, stageDefinitions);
   const initial = {
     amount: amount == null ? "" : String(amount),
     probability: probability == null ? "" : String(probability),
     expectedCloseAt: asDateInput(expectedCloseAt),
     forecastCategory,
-    dealTypeId: dealTypeId ?? "",
+    contractTypeId: contractTypeId ?? "",
+    businessFormId: businessFormId ?? "",
   };
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initial);
@@ -145,7 +155,8 @@ export function DealTerms({
         probability: closed ? undefined : dirty("probability"),
         expectedCloseAt: dirty("expectedCloseAt"),
         forecastCategory: canCategorize ? dirty("forecastCategory") : undefined,
-        dealTypeId: canSetDealType ? dirty("dealTypeId") : undefined,
+        contractTypeId: canSetDealType ? dirty("contractTypeId") : undefined,
+        businessFormId: canSetDealType ? dirty("businessFormId") : undefined,
       }).then((r) => {
         if (!r.ok) {
           setError(
@@ -288,21 +299,44 @@ export function DealTerms({
 
           {canSetDealType ? (
             <Field>
-              <FieldLabel htmlFor="terms-deal-type">
-                {DEAL_TYPE_TEXT.title}
+              <FieldLabel htmlFor="terms-contract-type">
+                {CONTRACT_TYPE_TEXT.title}
               </FieldLabel>
               <NativeSelect
-                id="terms-deal-type"
-                value={form.dealTypeId}
+                id="terms-contract-type"
+                value={form.contractTypeId}
                 onChange={(e) =>
-                  setForm({ ...form, dealTypeId: e.target.value })
+                  setForm({ ...form, contractTypeId: e.target.value })
                 }
                 disabled={pending}
               >
                 <option value="">-</option>
-                {dealTypes.map((t) => (
+                {contractTypes.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+          ) : null}
+
+          {canSetDealType ? (
+            <Field>
+              <FieldLabel htmlFor="terms-business-form">
+                {BUSINESS_FORM_TEXT.title}
+              </FieldLabel>
+              <NativeSelect
+                id="terms-business-form"
+                value={form.businessFormId}
+                onChange={(e) =>
+                  setForm({ ...form, businessFormId: e.target.value })
+                }
+                disabled={pending}
+              >
+                <option value="">-</option>
+                {businessForms.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
                   </option>
                 ))}
               </NativeSelect>

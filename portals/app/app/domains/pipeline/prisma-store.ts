@@ -14,8 +14,9 @@ import {
   type StageChangePlan,
 } from "./lib/stage";
 import type {
+  BusinessFormRecord,
   CommercialTermsPatch,
-  DealTypeRecord,
+  ContractTypeRecord,
   NewOpportunity,
   NewWinLossReview,
   WinLossReviewRecord,
@@ -44,8 +45,9 @@ const OPPORTUNITY_TABLE = "yucer_pipeline.opportunity";
 const WIN_LOSS_REASON_TABLE = "yucer_pipeline.win_loss_reason";
 // incr/0057. 商机阶段, one row per (workspace, stage code).
 const STAGE_DEFINITION_TABLE = "yucer_pipeline.stage_definition";
-// incr/0060. 商机类型, one row per (workspace, deal type code).
-const DEAL_TYPE_TABLE = "yucer_pipeline.deal_type";
+// incr/0067. The two axes 商机类型 split into, one row per (workspace, code).
+const CONTRACT_TYPE_TABLE = "yucer_pipeline.contract_type";
+const BUSINESS_FORM_TABLE = "yucer_pipeline.business_form";
 // incr/0041. 预测阈值, one row per workspace.
 const FORECAST_THRESHOLD_TABLE = "yucer_pipeline.forecast_threshold";
 
@@ -70,7 +72,8 @@ interface OpportunityRow {
   status: string;
   sourceProjectId: string | null;
   createdAt: Date;
-  dealTypeId: string | null;
+  contractTypeId: string | null;
+  businessFormId: string | null;
 }
 
 function toRecord(row: OpportunityRow): OpportunityRecord {
@@ -97,7 +100,8 @@ function toRecord(row: OpportunityRow): OpportunityRecord {
     status: row.status as OpportunityStatus,
     sourceProjectId: row.sourceProjectId,
     createdAt: row.createdAt,
-    dealTypeId: row.dealTypeId,
+    contractTypeId: row.contractTypeId,
+    businessFormId: row.businessFormId,
   };
 }
 
@@ -146,7 +150,8 @@ export class PrismaPipelineStore implements PipelineStore {
           // Written once, here, for the same reason campaignId is: 0019 grants
           // no UPDATE on it.
           sourceProjectId: input.sourceProjectId ?? null,
-          dealTypeId: input.dealTypeId ?? null,
+          contractTypeId: input.contractTypeId ?? null,
+          businessFormId: input.businessFormId ?? null,
           // forecast_category still defaults to pipeline in the DDL.
         },
       });
@@ -315,7 +320,8 @@ export class PrismaPipelineStore implements PipelineStore {
     if (input.expectedCloseAt !== undefined) patch.expectedCloseAt = input.expectedCloseAt;
     if (input.forecastCategory !== undefined) patch.forecastCategory = input.forecastCategory;
     if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
-    if (input.dealTypeId !== undefined) patch.dealTypeId = input.dealTypeId;
+    if (input.contractTypeId !== undefined) patch.contractTypeId = input.contractTypeId;
+    if (input.businessFormId !== undefined) patch.businessFormId = input.businessFormId;
 
     // The same backstop the stage path uses. It should never fire - the patch
     // keys are fixed by CommercialTermsPatch - but it is what turns a future
@@ -668,48 +674,49 @@ export class PrismaPipelineStore implements PipelineStore {
     return p.opportunity.count({ where: { workspaceId, stage: stageCode } });
   }
 
-  /* 商机类型 (incr/0060) - the same shape as 赢丢原因/行业分类: an anchor
-     code, a manual order, and a count of what points at a row before it goes.
-     Unlike stage_code, deal_type_id is a genuine uuid FK (Opportunity.
-     dealTypeId), so the usage count filters by id, not by code. */
-  async listDealTypes(workspaceId: string): Promise<DealTypeRecord[]> {
+  /* 签约类型 / 业务形态 (incr/0067) - the two axes the old deal_type vocabulary
+     conflated. Each has the same shape as 赢丢原因/行业分类: an anchor code, a
+     manual order, and a count of what points at a row before it goes. Both are
+     genuine uuid FKs on Opportunity, so the usage counts filter by id. */
+  async listContractTypes(workspaceId: string): Promise<ContractTypeRecord[]> {
     const p = await getPrismaClient();
-    const rows = await p.dealType.findMany({
+    const rows = await p.contractType.findMany({
       where: { workspaceId },
-      orderBy: [{ sortOrder: "asc" }, { dealTypeCode: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { contractTypeCode: "asc" }],
     });
     return rows.map((r) => ({
       id: r.id,
       workspaceId: r.workspaceId,
-      dealTypeCode: r.dealTypeCode,
+      contractTypeCode: r.contractTypeCode,
       name: r.name,
       sortOrder: r.sortOrder,
-      stallDaysOverride: r.stallDaysOverride ?? null,
     }));
   }
 
-  async upsertDealType(
+  async upsertContractType(
     workspaceId: string,
-    input: Omit<DealTypeRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
-  ): Promise<DealTypeRecord> {
+    input: Omit<ContractTypeRecord, "id" | "workspaceId" | "sortOrder">,
+  ): Promise<ContractTypeRecord> {
     const p = await getPrismaClient();
     const update = { name: input.name, updatedAt: new Date() };
-    const guard = assertWritable(DEAL_TYPE_TABLE, update);
+    const guard = assertWritable(CONTRACT_TYPE_TABLE, update);
     if (!guard.ok) {
       throw new Error(
-        `refusing to write a locked deal_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        `refusing to write a locked contract_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
       );
     }
-    const tail = await p.dealType.aggregate({
+    const tail = await p.contractType.aggregate({
       where: { workspaceId },
       _max: { sortOrder: true },
     });
-    const row = await p.dealType.upsert({
-      where: { workspaceId_dealTypeCode: { workspaceId, dealTypeCode: input.dealTypeCode } },
+    const row = await p.contractType.upsert({
+      where: {
+        workspaceId_contractTypeCode: { workspaceId, contractTypeCode: input.contractTypeCode },
+      },
       update,
       create: {
         workspaceId,
-        dealTypeCode: input.dealTypeCode,
+        contractTypeCode: input.contractTypeCode,
         sortOrder: (tail._max?.sortOrder ?? 0) + 1,
         ...update,
       },
@@ -717,69 +724,171 @@ export class PrismaPipelineStore implements PipelineStore {
     return {
       id: row.id,
       workspaceId: row.workspaceId,
-      dealTypeCode: row.dealTypeCode,
+      contractTypeCode: row.contractTypeCode,
       name: row.name,
       sortOrder: row.sortOrder,
-      stallDaysOverride: row.stallDaysOverride ?? null,
     };
   }
 
-  async setDealTypeOrder(
+  async setContractTypeOrder(
     workspaceId: string,
     orders: readonly { id: string; sortOrder: number }[],
   ): Promise<void> {
     const p = await getPrismaClient();
     for (const o of orders) {
       const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
-      const guard = assertWritable(DEAL_TYPE_TABLE, patch);
+      const guard = assertWritable(CONTRACT_TYPE_TABLE, patch);
       if (!guard.ok) {
         throw new Error(
-          `refusing to write a locked deal_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+          `refusing to write a locked contract_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
         );
       }
-      await p.dealType.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+      await p.contractType.updateMany({ where: { workspaceId, id: o.id }, data: patch });
     }
   }
 
-  async setDealTypeStallOverride(
-    workspaceId: string,
-    dealTypeId: string,
-    stallDaysOverride: number | null,
-  ): Promise<DealTypeRecord | null> {
+  async removeContractType(workspaceId: string, contractTypeId: string): Promise<boolean> {
     const p = await getPrismaClient();
-    const patch = { stallDaysOverride, updatedAt: new Date() };
-    const guard = assertWritable(DEAL_TYPE_TABLE, patch);
+    // The service refuses an in-use type via planContractTypeRemoval;
+    // fk_opportunity_contract_type RESTRICTs underneath as the last line.
+    const { count } = await p.contractType.deleteMany({ where: { workspaceId, id: contractTypeId } });
+    return count > 0;
+  }
+
+  async countOpportunitiesByContractType(
+    workspaceId: string,
+    contractTypeId: string,
+  ): Promise<number> {
+    const p = await getPrismaClient();
+    return p.opportunity.count({ where: { workspaceId, contractTypeId } });
+  }
+
+  async listBusinessForms(workspaceId: string): Promise<BusinessFormRecord[]> {
+    const p = await getPrismaClient();
+    const rows = await p.businessForm.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { businessFormCode: "asc" }],
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      businessFormCode: r.businessFormCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+      stallDaysOverride: r.stallDaysOverride ?? null,
+    }));
+  }
+
+  async upsertBusinessForm(
+    workspaceId: string,
+    input: Omit<BusinessFormRecord, "id" | "workspaceId" | "sortOrder" | "stallDaysOverride">,
+  ): Promise<BusinessFormRecord> {
+    const p = await getPrismaClient();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(BUSINESS_FORM_TABLE, update);
     if (!guard.ok) {
       throw new Error(
-        `refusing to write a locked deal_type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        `refusing to write a locked business_form column: ${guard.violations.map((v) => v.message).join("; ")}`,
       );
     }
-    const { count } = await p.dealType.updateMany({ where: { workspaceId, id: dealTypeId }, data: patch });
-    if (count === 0) return null;
-    const row = await p.dealType.findUnique({ where: { id: dealTypeId } });
-    if (!row) return null;
+    const tail = await p.businessForm.aggregate({
+      where: { workspaceId },
+      _max: { sortOrder: true },
+    });
+    const row = await p.businessForm.upsert({
+      where: {
+        workspaceId_businessFormCode: { workspaceId, businessFormCode: input.businessFormCode },
+      },
+      update,
+      create: {
+        workspaceId,
+        businessFormCode: input.businessFormCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
     return {
       id: row.id,
       workspaceId: row.workspaceId,
-      dealTypeCode: row.dealTypeCode,
+      businessFormCode: row.businessFormCode,
       name: row.name,
       sortOrder: row.sortOrder,
       stallDaysOverride: row.stallDaysOverride ?? null,
     };
   }
 
-  async removeDealType(workspaceId: string, dealTypeId: string): Promise<boolean> {
+  async setBusinessFormOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
     const p = await getPrismaClient();
-    // The service refuses an in-use type via planDealTypeRemoval;
-    // fk_opportunity_deal_type (incr/0060) RESTRICTs underneath as the last line.
-    const { count } = await p.dealType.deleteMany({ where: { workspaceId, id: dealTypeId } });
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(BUSINESS_FORM_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked business_form column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.businessForm.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async setBusinessFormStallOverride(
+    workspaceId: string,
+    businessFormId: string,
+    stallDaysOverride: number | null,
+  ): Promise<BusinessFormRecord | null> {
+    const p = await getPrismaClient();
+    const patch = { stallDaysOverride, updatedAt: new Date() };
+    const guard = assertWritable(BUSINESS_FORM_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked business_form column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const { count } = await p.businessForm.updateMany({
+      where: { workspaceId, id: businessFormId },
+      data: patch,
+    });
+    if (count === 0) return null;
+    const row = await p.businessForm.findUnique({ where: { id: businessFormId } });
+    if (!row) return null;
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      businessFormCode: row.businessFormCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+      stallDaysOverride: row.stallDaysOverride ?? null,
+    };
+  }
+
+  async removeBusinessForm(workspaceId: string, businessFormId: string): Promise<boolean> {
+    const p = await getPrismaClient();
+    // The service refuses an in-use form via planBusinessFormRemoval;
+    // fk_opportunity_business_form RESTRICTs underneath as the last line.
+    const { count } = await p.businessForm.deleteMany({ where: { workspaceId, id: businessFormId } });
     return count > 0;
   }
 
-  async countOpportunitiesByDealType(workspaceId: string, dealTypeId: string): Promise<number> {
+  async countOpportunitiesByBusinessForm(
+    workspaceId: string,
+    businessFormId: string,
+  ): Promise<number> {
     const p = await getPrismaClient();
-    return p.opportunity.count({ where: { workspaceId, dealTypeId } });
+    return p.opportunity.count({ where: { workspaceId, businessFormId } });
   }
+
+  /** incr/0067 - the one fact suggestContractType needs. Soft-deleted rows are
+   *  excluded: a deal that was withdrawn never won anything. */
+  async countWonOpportunitiesForAccount(workspaceId: string, accountId: string): Promise<number> {
+    const p = await getPrismaClient();
+    return p.opportunity.count({
+      where: { workspaceId, accountId, status: "won", deletedAt: null },
+    });
+  }
+
 
   /* --- 预测阈值 (incr/0041) --------------------------------------------------
      NO ROW IS A VALID STATE, and it reads as the shipped numbers: incr/0041

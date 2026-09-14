@@ -125,20 +125,37 @@ class ScopedPipelineStore implements PipelineStore {
     this.inner.removeStageDefinition(...a);
   countOpportunitiesByStage: PipelineStore["countOpportunitiesByStage"] = (...a) =>
     this.inner.countOpportunitiesByStage(...a);
-  /* incr/0060. 商机类型 is CONFIGURATION too, the same reasoning as 商机阶段
-     above: the type catalog is the workspace's, not a scoped member's. */
-  listDealTypes: PipelineStore["listDealTypes"] = (...a) =>
-    this.inner.listDealTypes(...a);
-  upsertDealType: PipelineStore["upsertDealType"] = (...a) =>
-    this.inner.upsertDealType(...a);
-  setDealTypeOrder: PipelineStore["setDealTypeOrder"] = (...a) =>
-    this.inner.setDealTypeOrder(...a);
-  removeDealType: PipelineStore["removeDealType"] = (...a) =>
-    this.inner.removeDealType(...a);
-  countOpportunitiesByDealType: PipelineStore["countOpportunitiesByDealType"] = (...a) =>
-    this.inner.countOpportunitiesByDealType(...a);
-  setDealTypeStallOverride: PipelineStore["setDealTypeStallOverride"] = (...a) =>
-    this.inner.setDealTypeStallOverride(...a);
+  /* incr/0067. 签约类型 and 业务形态 are CONFIGURATION too, the same reasoning
+     as 商机阶段 above: both catalogs are the workspace's, not a scoped
+     member's. */
+  listContractTypes: PipelineStore["listContractTypes"] = (...a) =>
+    this.inner.listContractTypes(...a);
+  upsertContractType: PipelineStore["upsertContractType"] = (...a) =>
+    this.inner.upsertContractType(...a);
+  setContractTypeOrder: PipelineStore["setContractTypeOrder"] = (...a) =>
+    this.inner.setContractTypeOrder(...a);
+  removeContractType: PipelineStore["removeContractType"] = (...a) =>
+    this.inner.removeContractType(...a);
+  countOpportunitiesByContractType: PipelineStore["countOpportunitiesByContractType"] = (...a) =>
+    this.inner.countOpportunitiesByContractType(...a);
+  listBusinessForms: PipelineStore["listBusinessForms"] = (...a) =>
+    this.inner.listBusinessForms(...a);
+  upsertBusinessForm: PipelineStore["upsertBusinessForm"] = (...a) =>
+    this.inner.upsertBusinessForm(...a);
+  setBusinessFormOrder: PipelineStore["setBusinessFormOrder"] = (...a) =>
+    this.inner.setBusinessFormOrder(...a);
+  removeBusinessForm: PipelineStore["removeBusinessForm"] = (...a) =>
+    this.inner.removeBusinessForm(...a);
+  countOpportunitiesByBusinessForm: PipelineStore["countOpportunitiesByBusinessForm"] = (...a) =>
+    this.inner.countOpportunitiesByBusinessForm(...a);
+  setBusinessFormStallOverride: PipelineStore["setBusinessFormStallOverride"] = (...a) =>
+    this.inner.setBusinessFormStallOverride(...a);
+  /* UNSCOPED DELIBERATELY: the question is "has this ACCOUNT ever been won",
+     which decides a new deal's default 签约类型 (incr/0067). Filtering it to
+     the creator's own book would make the same account read as new business
+     for one rep and expansion for another. */
+  countWonOpportunitiesForAccount: PipelineStore["countWonOpportunitiesForAccount"] = (...a) =>
+    this.inner.countWonOpportunitiesForAccount(...a);
   /* incr/0041. 预测阈值 is WORKSPACE-WIDE configuration, not a set of deals: a
      rep whose scope is their own book still forecasts against the same bands,
      because they are the workspace's bands. Gated by permission in the service,

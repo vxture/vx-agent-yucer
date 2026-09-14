@@ -3,25 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import {
-  moveDealType,
-  removeDealType,
-  setDealTypeStallOverride,
-  upsertDealType,
+  moveBusinessForm,
+  removeBusinessForm,
+  setBusinessFormStallOverride,
+  upsertBusinessForm,
 } from "../../domains/pipeline/service";
-import type { DealTypeRecord } from "../../domains/pipeline/store";
+import type { BusinessFormRecord } from "../../domains/pipeline/store";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
-/* 商机类型目录的写入路径 (incr/0060-0061, permission unified incr/0063).
+/* 业务形态目录的写入路径 (incr/0067).
  *
- * Both this and saveDealTypeStallOverride now gate on the same
- * `pipeline.opportunityconfig.manage` inside the service - the one
- * permission for all six /admin/opportunity sections. They used to be two
- * separate permissions (`pipeline.dealType` for rename/reorder,
- * `pipeline.forecast` for the stall override, deliberately narrower) - that
- * distinction is gone now that the whole page shares one write authority.
- * Returns the violation CODE, never its sentence (TD-010).
+ * Gated on `pipeline.opportunityconfig.manage` inside the service, the stall
+ * override included - it rode the same permission on the old 商机类型 since
+ * incr/0063 and keeps it here. Returns the violation CODE, never its sentence
+ * (TD-010).
  */
-export type DealTypeResult = { ok: boolean; error?: string; dealType?: DealTypeRecord };
+export type BusinessFormResult = { ok: boolean; error?: string; businessForm?: BusinessFormRecord };
 
 function context(session: NonNullable<Awaited<ReturnType<typeof resolveAppSession>>>) {
   return {
@@ -33,44 +30,51 @@ function context(session: NonNullable<Awaited<ReturnType<typeof resolveAppSessio
   };
 }
 
-export async function saveDealType(input: { code: string; name: string }): Promise<DealTypeResult> {
+export async function saveBusinessForm(input: {
+  code: string;
+  name: string;
+}): Promise<BusinessFormResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const r = await upsertDealType(context(session), input);
+  const r = await upsertBusinessForm(context(session), input);
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/opportunity");
-  return { ok: true, dealType: r.value };
+  return { ok: true, businessForm: r.value };
 }
 
-export async function saveDealTypeStallOverride(
-  dealTypeId: string,
+export async function saveBusinessFormStallOverride(
+  businessFormId: string,
   stallDaysOverride: number | null,
-): Promise<DealTypeResult> {
+): Promise<BusinessFormResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const r = await setDealTypeStallOverride(context(session), { dealTypeId, stallDaysOverride });
+  const r = await setBusinessFormStallOverride(context(session), {
+    businessFormId,
+    stallDaysOverride,
+  });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/opportunity");
+  // The review page suggests categories against this number.
   revalidatePath("/forecast");
-  return { ok: true, dealType: r.value };
+  return { ok: true, businessForm: r.value };
 }
 
-export async function moveDealTypeAction(
-  dealTypeId: string,
+export async function moveBusinessFormAction(
+  businessFormId: string,
   direction: MoveDirection,
-): Promise<DealTypeResult> {
+): Promise<BusinessFormResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const r = await moveDealType(context(session), { dealTypeId, direction });
+  const r = await moveBusinessForm(context(session), { businessFormId, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/opportunity");
   return { ok: true };
 }
 
-export async function removeDealTypeAction(dealTypeId: string): Promise<DealTypeResult> {
+export async function removeBusinessFormAction(businessFormId: string): Promise<BusinessFormResult> {
   const session = await resolveAppSession();
   if (!session) return { ok: false, error: "not_authenticated" };
-  const r = await removeDealType(context(session), { dealTypeId });
+  const r = await removeBusinessForm(context(session), { businessFormId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
   revalidatePath("/admin/opportunity");
   return { ok: true };

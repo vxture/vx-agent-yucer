@@ -123,7 +123,8 @@ function deal(id: string, accountId: string) {
     currency: "CNY",
     sourceProjectId: null,
     createdAt: daysAgo(30),
-    dealTypeId: null,
+    contractTypeId: null,
+    businessFormId: null,
   };
 }
 

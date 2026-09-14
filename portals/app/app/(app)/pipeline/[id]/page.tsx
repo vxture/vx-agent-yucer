@@ -28,7 +28,8 @@ import {
 } from "../../../domains/shared/registry";
 import {
   getOpportunityDetail,
-  listDealTypes,
+  listBusinessForms,
+  listContractTypes,
   listStageDefinitions,
   stageHistory,
 } from "../../../domains/pipeline/service";
@@ -158,7 +159,7 @@ export default async function OpportunityDetailPage({
   // The catalogue reads go through the SERVICE, like every other cross-domain
   // read on this page - a store handle here would skip both gates.
   const catalogCtx = { ...ctx, store: getCatalogStore() };
-  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows, stageRows, dealTypeRows] =
+  const [account, chain, roles, projects, feed, proposals, lineRows, productRows, unitRows, stageRows, contractTypeRows, businessFormRows] =
     await Promise.all([
       getAccountDetail(accountCtx, opportunity.accountId),
       // incr/0027. THIS PAGE IS A DEAL, so it asks the deal's question. It used
@@ -192,7 +193,8 @@ export default async function OpportunityDetailPage({
       listCatalogProducts(catalogCtx),
       listCatalogUnits(catalogCtx),
       listStageDefinitions(ctx),
-      listDealTypes(ctx),
+      listContractTypes(ctx),
+      listBusinessForms(ctx),
     ]);
   const unitName = new Map(
     (unitRows.ok ? unitRows.value : []).map((u) => [u.id, u.name]),
@@ -202,10 +204,11 @@ export default async function OpportunityDetailPage({
   // who can view this deal already holds pipeline.read, and pipeline.stage.view
   // resolves to the same permission.
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
-  // incr/0060 - the workspace's own deal-type catalog, for the picker. Empty
+  // incr/0067 - the workspace's own two catalogs, for the pickers. Empty
   // rather than defaulted on a gate refusal: unlike the stage catalog, an
-  // opportunity has no dealTypeId fallback that needs a matching row to exist.
-  const dealTypes = dealTypeRows.ok ? dealTypeRows.value : [];
+  // opportunity has no fallback on either axis that needs a matching row.
+  const contractTypes = contractTypeRows.ok ? contractTypeRows.value : [];
+  const businessForms = businessFormRows.ok ? businessFormRows.value : [];
   const plan =
     account.ok && account.value.account.tier === "strategic"
       ? await session.stores.account().getAccountPlan(
@@ -734,13 +737,15 @@ export default async function OpportunityDetailPage({
             "ui",
           ).allowed
         }
-        dealTypeId={opportunity.dealTypeId}
-        dealTypes={dealTypes.map((t) => ({ id: t.id, name: t.name }))}
+        contractTypeId={opportunity.contractTypeId}
+        businessFormId={opportunity.businessFormId}
+        contractTypes={contractTypes.map((t) => ({ id: t.id, name: t.name }))}
+        businessForms={businessForms.map((f) => ({ id: f.id, name: f.name }))}
         // FIXED, NOT SEPARATE (found while unifying /admin/opportunity's own
         // permissions, incr/0063): updateCommercialTerms folds a deal's own
-        // dealTypeId into `wantsEdit` (the same gate as amount/probability/
-        // owner), never checked pipeline.dealtype.manage - that PermCode
-        // governs the deal-TYPE VOCABULARY'S own CRUD, a different action.
+        // classification into `wantsEdit` (the same gate as amount/
+        // probability/owner), never checked the vocabulary's own PermCode -
+        // that one governs the VOCABULARY'S CRUD, a different action.
         // This UI check used to name the vocabulary permission anyway, which
         // only ever HID the field from someone the server would actually
         // have let write it - the safe direction, but still a mismatch worth

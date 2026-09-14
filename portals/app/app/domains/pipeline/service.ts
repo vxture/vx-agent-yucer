@@ -16,7 +16,11 @@
 import type { Entitlement } from "../../entitlement/types";
 import { can, type PermissionHolder } from "../../authz/decide";
 import { approvalFor, lineTotal, priceLine, type DraftLine } from "../catalog/lib/pricing";
-import { planNewOpportunity, type NewOpportunityDraft } from "./lib/opportunity";
+import {
+  planNewOpportunity,
+  suggestContractType,
+  type NewOpportunityDraft,
+} from "./lib/opportunity";
 import { planMove } from "../catalog/lib/lifecycle";
 import {
   DEFAULT_WIN_LOSS_REASONS,
@@ -24,11 +28,16 @@ import {
   planWinLossReason,
 } from "./lib/win-loss-vocab";
 import {
-  DEFAULT_DEAL_TYPES,
-  planDealType,
-  planDealTypeRemoval,
-  planDealTypeStallOverride,
-} from "./lib/deal-type-vocab";
+  DEFAULT_CONTRACT_TYPES,
+  planContractType,
+  planContractTypeRemoval,
+} from "./lib/contract-type-vocab";
+import {
+  DEFAULT_BUSINESS_FORMS,
+  planBusinessForm,
+  planBusinessFormRemoval,
+  planBusinessFormStallOverride,
+} from "./lib/business-form-vocab";
 import {
   daysAtStage,
   planSuggestedCategory,
@@ -64,8 +73,9 @@ import {
 } from "./lib/stage";
 import {
   toStageCatalog,
+  type BusinessFormRecord,
   type CommercialTermsPatch,
-  type DealTypeRecord,
+  type ContractTypeRecord,
   type NewWinLossReview,
   type OpportunityRecord,
   type PipelineStore,
@@ -121,15 +131,16 @@ async function loadStageCatalog(ctx: PipelineContext): Promise<readonly StageDef
 }
 
 /**
- * Deal type id -> its own stall-days override, for types that have one
- * (incr/0062). Types with no override are absent from the map, not present
- * with a null - suggestCategory's caller reads a miss as "no override".
+ * Business form id -> its own stall-days override, for forms that have one
+ * (incr/0062, moved onto this axis by incr/0067). Forms with no override are
+ * absent from the map, not present with a null - suggestCategory's caller
+ * reads a miss as "no override".
  */
-async function loadDealTypeStallOverrides(ctx: PipelineContext): Promise<ReadonlyMap<string, number>> {
-  const rows = await ctx.store.listDealTypes(ctx.workspaceId);
+async function loadBusinessFormStallOverrides(ctx: PipelineContext): Promise<ReadonlyMap<string, number>> {
+  const rows = await ctx.store.listBusinessForms(ctx.workspaceId);
   return new Map(
     rows
-      .filter((r): r is DealTypeRecord & { stallDaysOverride: number } => r.stallDaysOverride != null)
+      .filter((r): r is BusinessFormRecord & { stallDaysOverride: number } => r.stallDaysOverride != null)
       .map((r) => [r.id, r.stallDaysOverride]),
   );
 }
@@ -211,9 +222,43 @@ export async function createOpportunity(
       // from; every other deal carries null, which is the honest answer and
       // not a placeholder.
       sourceProjectId: plan.value.sourceProjectId ?? null,
-      dealTypeId: plan.value.dealTypeId ?? null,
+      // incr/0067. The caller's own answer wins; otherwise the one the record
+      // can already give - see resolveContractTypeId above.
+      contractTypeId:
+        plan.value.contractTypeId !== undefined
+          ? plan.value.contractTypeId
+          : await resolveContractTypeId(ctx, {
+              accountId: plan.value.accountId,
+              fromRenewal: plan.value.sourceProjectId != null,
+            }),
+      // No equivalent default: nothing in the record says what is being sold.
+      businessFormId: plan.value.businessFormId ?? null,
     }),
   );
+}
+
+/**
+ * The 签约类型 a deal being created gets when its creator named none.
+ *
+ * TWO THINGS THIS DELIBERATELY DOES NOT DO. It does not refuse when the
+ * workspace has renamed or deleted the row the rule points at - a missing code
+ * yields null, which is what the column meant before this defaulting existed.
+ * And it does not overrule a caller who passed a type explicitly, including
+ * one who passed null to mean "leave it blank".
+ */
+async function resolveContractTypeId(
+  ctx: PipelineContext,
+  input: { accountId: string; fromRenewal: boolean },
+): Promise<string | null> {
+  const wonBefore = await ctx.store.countWonOpportunitiesForAccount(ctx.workspaceId, input.accountId);
+  const code = suggestContractType({
+    fromRenewal: input.fromRenewal,
+    accountHasPriorWin: wonBefore > 0,
+  });
+  // Through the gated verb's own seeding path, so a workspace that has never
+  // opened the config page still gets its list before this reads it.
+  const types = await listContractTypesSeeded(ctx);
+  return types.find((t) => t.contractTypeCode === code)?.id ?? null;
 }
 
 /**
@@ -335,7 +380,8 @@ export async function updateCommercialTerms(
     input.probability !== undefined ||
     input.expectedCloseAt !== undefined ||
     input.ownerSub !== undefined ||
-    input.dealTypeId !== undefined;
+    input.contractTypeId !== undefined ||
+    input.businessFormId !== undefined;
   const wantsCategory = input.forecastCategory !== undefined;
 
   if (wantsEdit && !editGate.allowed) return denied(editGate);
@@ -377,7 +423,8 @@ export async function updateCommercialTerms(
 
   if (input.expectedCloseAt !== undefined) patch.expectedCloseAt = input.expectedCloseAt;
   if (input.ownerSub !== undefined) patch.ownerSub = input.ownerSub;
-  if (input.dealTypeId !== undefined) patch.dealTypeId = input.dealTypeId;
+  if (input.contractTypeId !== undefined) patch.contractTypeId = input.contractTypeId;
+  if (input.businessFormId !== undefined) patch.businessFormId = input.businessFormId;
 
   if (problems.length > 0) return { ok: false, violations: problems };
   if (Object.keys(patch).length === 0) {
@@ -760,125 +807,228 @@ export async function removeStageDefinition(
  * redefining a workspace-wide policy.
  * ------------------------------------------------------------------------ */
 
-export async function listDealTypes(
-  ctx: PipelineContext,
-): Promise<RuleResult<DealTypeRecord[]>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.view", "data");
-  if (!gate.allowed) return denied(gate);
-
-  let types = await ctx.store.listDealTypes(ctx.workspaceId);
-  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard listStageDefinitions
-     uses, and the same five rows incr/0060 seeds for every workspace that
-     already had an opportunity, so the two paths cannot disagree. */
+/**
+ * The workspace's 签约类型 list, seeded on first contact.
+ *
+ * Split out from the gated verb so `createOpportunity`'s own defaulting can
+ * reuse the seeding without re-running a gate the caller has already passed -
+ * the same shape listWinLossReasons/listWinLossReasonsForConfig use.
+ */
+async function listContractTypesSeeded(ctx: PipelineContext): Promise<ContractTypeRecord[]> {
+  let types = await ctx.store.listContractTypes(ctx.workspaceId);
+  /* FIRST-CONTACT SEEDING, on an EMPTY list - the same guard
+     listStageDefinitions uses, and the same three rows incr/0067 seeds for
+     every workspace that already had the old vocabulary, so the two paths
+     cannot disagree. */
   if (types.length === 0) {
-    for (const d of DEFAULT_DEAL_TYPES) {
-      await ctx.store.upsertDealType(ctx.workspaceId, { dealTypeCode: d.dealTypeCode, name: d.name });
+    for (const c of DEFAULT_CONTRACT_TYPES) {
+      await ctx.store.upsertContractType(ctx.workspaceId, {
+        contractTypeCode: c.contractTypeCode,
+        name: c.name,
+      });
     }
-    types = await ctx.store.listDealTypes(ctx.workspaceId);
+    types = await ctx.store.listContractTypes(ctx.workspaceId);
   }
-  return ok(types);
+  return types;
 }
 
-/** How many opportunities are filed under each type, by id. */
-export async function dealTypeUsage(
+export async function listContractTypes(
+  ctx: PipelineContext,
+): Promise<RuleResult<ContractTypeRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.contracttype.view", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await listContractTypesSeeded(ctx));
+}
+
+/** How many opportunities are filed under each contract type, by id. */
+export async function contractTypeUsage(
   ctx: PipelineContext,
 ): Promise<RuleResult<Record<string, number>>> {
-  const gate = can(ctx.holder, ctx.entitlement, "pipeline.dealtype.view", "data");
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.contracttype.view", "data");
   if (!gate.allowed) return denied(gate);
 
-  const types = await ctx.store.listDealTypes(ctx.workspaceId);
+  const types = await ctx.store.listContractTypes(ctx.workspaceId);
   const out: Record<string, number> = {};
   for (const t of types) {
-    out[t.id] = await ctx.store.countOpportunitiesByDealType(ctx.workspaceId, t.id);
+    out[t.id] = await ctx.store.countOpportunitiesByContractType(ctx.workspaceId, t.id);
   }
   return ok(out);
 }
 
-export async function upsertDealType(
+export async function upsertContractType(
   ctx: PipelineContext,
   input: { code: string; name: string },
-): Promise<RuleResult<DealTypeRecord>> {
+): Promise<RuleResult<ContractTypeRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
-  const plan = planDealType({ dealTypeCode: input.code, name: input.name });
-  if (!plan.ok) return plan as RuleResult<DealTypeRecord>;
+  const plan = planContractType({ contractTypeCode: input.code, name: input.name });
+  if (!plan.ok) return plan as RuleResult<ContractTypeRecord>;
 
   return ok(
-    await ctx.store.upsertDealType(ctx.workspaceId, {
-      dealTypeCode: plan.value.dealTypeCode,
+    await ctx.store.upsertContractType(ctx.workspaceId, {
+      contractTypeCode: plan.value.contractTypeCode,
       name: plan.value.name,
     }),
   );
 }
 
 /** Reorder the catalog - the order a picker offers it in. */
-export async function moveDealType(
+export async function moveContractType(
   ctx: PipelineContext,
-  input: { dealTypeId: string; direction: MoveDirection },
+  input: { contractTypeId: string; direction: MoveDirection },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
-  const types = await ctx.store.listDealTypes(ctx.workspaceId);
+  const types = await ctx.store.listContractTypes(ctx.workspaceId);
   const plan = planMove(
     types.map((t) => ({ id: t.id, movable: true })),
-    input.dealTypeId,
+    input.contractTypeId,
     input.direction,
   );
   if (!plan.ok) return plan as RuleResult<true>;
 
-  await ctx.store.setDealTypeOrder(ctx.workspaceId, plan.value);
+  await ctx.store.setContractTypeOrder(ctx.workspaceId, plan.value);
   return ok(true);
 }
 
 /**
- * Delete a deal type outright.
+ * Delete a contract type outright.
  *
- * planDealTypeRemoval refuses a type with opportunities filed under it, ahead
- * of the raw FK error (incr/0060's ON DELETE RESTRICT) that would otherwise
- * surface. Unlike a stage, there is no "last one" restriction - an empty deal
- * type catalog is a legal, if unhelpful, state.
+ * planContractTypeRemoval refuses one with opportunities filed under it, ahead
+ * of the raw FK error (incr/0067's ON DELETE RESTRICT) that would otherwise
+ * surface. Unlike a stage, there is no "last one" restriction - an empty
+ * catalog is a legal, if unhelpful, state.
  */
-export async function removeDealType(
+export async function removeContractType(
   ctx: PipelineContext,
-  input: { dealTypeId: string },
+  input: { contractTypeId: string },
 ): Promise<RuleResult<true>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
-  const filed = await ctx.store.countOpportunitiesByDealType(ctx.workspaceId, input.dealTypeId);
-  const plan = planDealTypeRemoval(filed);
+  const filed = await ctx.store.countOpportunitiesByContractType(ctx.workspaceId, input.contractTypeId);
+  const plan = planContractTypeRemoval(filed);
   if (!plan.ok) return plan as RuleResult<true>;
 
-  const removed = await ctx.store.removeDealType(ctx.workspaceId, input.dealTypeId);
-  if (!removed) return fail(violation("not_found", "no such deal type", "dealTypeId"));
+  const removed = await ctx.store.removeContractType(ctx.workspaceId, input.contractTypeId);
+  if (!removed) return fail(violation("not_found", "no such contract type", "contractTypeId"));
+  return ok(true);
+}
+
+export async function listBusinessForms(
+  ctx: PipelineContext,
+): Promise<RuleResult<BusinessFormRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.businessform.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let forms = await ctx.store.listBusinessForms(ctx.workspaceId);
+  if (forms.length === 0) {
+    for (const b of DEFAULT_BUSINESS_FORMS) {
+      await ctx.store.upsertBusinessForm(ctx.workspaceId, {
+        businessFormCode: b.businessFormCode,
+        name: b.name,
+      });
+    }
+    forms = await ctx.store.listBusinessForms(ctx.workspaceId);
+  }
+  return ok(forms);
+}
+
+/** How many opportunities are filed under each business form, by id. */
+export async function businessFormUsage(
+  ctx: PipelineContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.businessform.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const forms = await ctx.store.listBusinessForms(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const f of forms) {
+    out[f.id] = await ctx.store.countOpportunitiesByBusinessForm(ctx.workspaceId, f.id);
+  }
+  return ok(out);
+}
+
+export async function upsertBusinessForm(
+  ctx: PipelineContext,
+  input: { code: string; name: string },
+): Promise<RuleResult<BusinessFormRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planBusinessForm({ businessFormCode: input.code, name: input.name });
+  if (!plan.ok) return plan as RuleResult<BusinessFormRecord>;
+
+  return ok(
+    await ctx.store.upsertBusinessForm(ctx.workspaceId, {
+      businessFormCode: plan.value.businessFormCode,
+      name: plan.value.name,
+    }),
+  );
+}
+
+export async function moveBusinessForm(
+  ctx: PipelineContext,
+  input: { businessFormId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const forms = await ctx.store.listBusinessForms(ctx.workspaceId);
+  const plan = planMove(
+    forms.map((f) => ({ id: f.id, movable: true })),
+    input.businessFormId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setBusinessFormOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+export async function removeBusinessForm(
+  ctx: PipelineContext,
+  input: { businessFormId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countOpportunitiesByBusinessForm(ctx.workspaceId, input.businessFormId);
+  const plan = planBusinessFormRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeBusinessForm(ctx.workspaceId, input.businessFormId);
+  if (!removed) return fail(violation("not_found", "no such business form", "businessFormId"));
   return ok(true);
 }
 
 /**
- * Set (or clear) one deal type's own stall-days override (incr/0062,
- * "候选二" second layer).
+ * Set (or clear) one business form's own stall-days override.
  *
- * GATED ON `pipeline.forecast.categorize`, NOT `pipeline.dealtype.manage` -
- * deliberately narrower than renaming or reordering this same row. This
- * number decides what counts as stalled, the same authority
- * setForecastThresholds already withholds from a plain sales_rep (incr/0041);
- * letting the broader deal-type-vocabulary permission reach it would let a
- * rep loosen the clock on their own book's deal types.
+ * THE OVERRIDE LIVES ON THIS AXIS (incr/0067, moved off deal_type where
+ * incr/0062 first put it): how long a deal may sit at one stage before the
+ * clock caps its forecast band is a fact about what is being delivered, not
+ * about whether the deal is new business or a renewal. Gated with the rest of
+ * /admin/opportunity's writes since incr/0063.
  */
-export async function setDealTypeStallOverride(
+export async function setBusinessFormStallOverride(
   ctx: PipelineContext,
-  input: { dealTypeId: string; stallDaysOverride: number | null },
-): Promise<RuleResult<DealTypeRecord>> {
+  input: { businessFormId: string; stallDaysOverride: number | null },
+): Promise<RuleResult<BusinessFormRecord>> {
   const gate = can(ctx.holder, ctx.entitlement, "pipeline.opportunityconfig.manage", "data");
   if (!gate.allowed) return denied(gate);
 
-  const plan = planDealTypeStallOverride(input.stallDaysOverride);
-  if (!plan.ok) return plan as RuleResult<DealTypeRecord>;
+  const plan = planBusinessFormStallOverride(input.stallDaysOverride);
+  if (!plan.ok) return plan as RuleResult<BusinessFormRecord>;
 
-  const updated = await ctx.store.setDealTypeStallOverride(ctx.workspaceId, input.dealTypeId, plan.value);
-  if (!updated) return fail(violation("not_found", "no such deal type", "dealTypeId"));
+  const updated = await ctx.store.setBusinessFormStallOverride(
+    ctx.workspaceId,
+    input.businessFormId,
+    plan.value,
+  );
+  if (!updated) return fail(violation("not_found", "no such business form", "businessFormId"));
   return ok(updated);
 }
 
@@ -1430,7 +1580,7 @@ export async function previewCategories(
       ? Promise.resolve(opts.thresholds)
       : ctx.store.getForecastThresholds(ctx.workspaceId),
     loadStageCatalog(ctx),
-    loadDealTypeStallOverrides(ctx),
+    loadBusinessFormStallOverrides(ctx),
   ]);
 
   const out = rows.map((opportunity) => {
@@ -1445,7 +1595,7 @@ export async function previewCategories(
       // this" into "it has sat here since it was created" and downgrade every
       // deal older than the journal.
       lastStageChangeAt: lastMoved.get(opportunity.id) ?? null,
-      stallDaysOverride: opportunity.dealTypeId ? (stallOverrides.get(opportunity.dealTypeId) ?? null) : null,
+      stallDaysOverride: opportunity.businessFormId ? (stallOverrides.get(opportunity.businessFormId) ?? null) : null,
     };
     return {
       opportunity,
@@ -1505,7 +1655,7 @@ export async function applyCategorySuggestion(
       ? Promise.resolve(opts.thresholds)
       : ctx.store.getForecastThresholds(ctx.workspaceId),
     loadStageCatalog(ctx),
-    loadDealTypeStallOverrides(ctx),
+    loadBusinessFormStallOverrides(ctx),
   ]);
   const deal: CategorizableDeal = {
     id: current.id,
@@ -1514,7 +1664,7 @@ export async function applyCategorySuggestion(
     probability: current.probability,
     expectedCloseAt: current.expectedCloseAt,
     lastStageChangeAt: lastMoved.get(current.id) ?? null,
-    stallDaysOverride: current.dealTypeId ? (stallOverrides.get(current.dealTypeId) ?? null) : null,
+    stallDaysOverride: current.businessFormId ? (stallOverrides.get(current.businessFormId) ?? null) : null,
   };
 
   const verdict = suggestCategory(deal, opts.now ?? new Date(), thresholds, stageCatalog);

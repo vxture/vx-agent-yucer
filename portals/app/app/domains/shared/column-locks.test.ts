@@ -115,6 +115,25 @@ function renamedAway(): Set<string> {
   return out;
 }
 
+/**
+ * Tables an increment DROPs, as the name they no longer have.
+ *
+ * The same argument renamedAway() makes, for the other way a table can stop
+ * existing. incr/0067 is the first to use it: 商机类型 split into two
+ * vocabularies, and once both were backfilled the old deal_type table went -
+ * the established shape here for replacing a vocabulary (0029 dropped
+ * product.category/status the same way). Its grants from 0060/0062 are still
+ * in the text and always will be, so without this the mirror would be asked to
+ * describe a table the database does not have.
+ */
+function droppedAway(): Set<string> {
+  const out = new Set<string>();
+  const re = /DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?(\w+)\.(\w+)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(uncommented))) out.add(`${m[1]}.${m[2]}`);
+  return out;
+}
+
 function ddlRevokes(): Set<string> {
   const out = new Set<string>();
   const re = /REVOKE\s+UPDATE\s+ON\s+(\w+\.\w+)\s+FROM\s+\w+/gi;
@@ -149,10 +168,10 @@ function ddlGrantsWithoutUpdate(): Set<string> {
   return out;
 }
 
-const gone = renamedAway();
-// Drop every name a rename retired, from all three derivations at once: a table
-// that does not exist at the end of the apply cannot be mirrored, cannot be
-// append-only, and cannot be anything else either.
+const gone = new Set([...renamedAway(), ...droppedAway()]);
+// Drop every name a rename or a DROP retired, from all three derivations at
+// once: a table that does not exist at the end of the apply cannot be
+// mirrored, cannot be append-only, and cannot be anything else either.
 const grants = new Map([...ddlGrants()].filter(([t]) => !gone.has(t)));
 const revokes = new Set([...ddlRevokes()].filter((t) => !gone.has(t)));
 const neverUpdatable = new Set([...ddlGrantsWithoutUpdate()].filter((t) => !gone.has(t)));

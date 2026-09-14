@@ -1543,7 +1543,8 @@ function opp(
     // incr/0060 - 商机类型. Not derived: this helper already takes sixteen
     // positional arguments, and no demo deal is classified yet - building the
     // classification axis is this increment's whole job, not populating it.
-    dealTypeId: null,
+    contractTypeId: null,
+    businessFormId: null,
   };
 }
 

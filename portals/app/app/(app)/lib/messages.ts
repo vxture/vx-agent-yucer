@@ -109,7 +109,8 @@ export const DOMAIN_LABEL: Record<string, string> = {
   winLossReason: "赢丢原因",
   opportunityConfig: "业务配置",
   stage: "商机阶段",
-  dealtype: "商机类型",
+  contracttype: "签约类型",
+  businessform: "业务形态",
   industry: "行业分类",
   reminderThreshold: "提醒阈值",
   forecastThreshold: "预测阈值",
@@ -1167,15 +1168,26 @@ export const STAGE_ERROR: Record<string, string> = {
   not_found: "找不到这个阶段，可能刚被删掉，刷新后重试",
 };
 
-/** 商机类型目录的写入回执 (incr/0060-0061)。 */
-export const DEAL_TYPE_ERROR: Record<string, string> = {
+/** 签约类型目录的写入回执 (incr/0067)。 */
+export const CONTRACT_TYPE_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   code_required: "类型代码不能为空",
   name_required: "类型名称不能为空",
-  deal_type_in_use: "还有商机归在这个类型下，先把它们改到别处",
+  contract_type_in_use: "还有商机归在这个签约类型下，先把它们改到别处",
   move_at_edge: "已经在这一端了",
   not_movable: "这一条不能移动",
-  not_found: "找不到这个类型，可能刚被删掉，刷新后重试",
+  not_found: "找不到这个签约类型，可能刚被删掉，刷新后重试",
+};
+
+/** 业务形态目录的写入回执 (incr/0067)。 */
+export const BUSINESS_FORM_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "形态代码不能为空",
+  name_required: "形态名称不能为空",
+  business_form_in_use: "还有商机归在这个业务形态下，先把它们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个业务形态，可能刚被删掉，刷新后重试",
   stall_override_out_of_range: "停滞天数要在 1 到 365 天之间",
 };
 
@@ -1202,7 +1214,7 @@ export const FORECAST_PARAM_TEXT = {
   commitLabel: "承诺起算",
   bestCaseLabel: "最好情况起算",
   stallLabel: "停滞天数",
-  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子，在「提醒阈值」页单独配置。商机类型也可以单独设置停滞天数，覆盖这里的默认值。",
+  stallHint: "在同一阶段停这么久，建议下调一档。这不是「多久没联系客户」——那是另一把尺子，在「提醒阈值」页单独配置。业务形态也可以单独设置停滞天数，覆盖这里的默认值。",
 };
 
 /** `SUPPORTED_CURRENCIES` (catalog/lib/pricing-policy.ts) 的显示名，同一组
@@ -1421,7 +1433,7 @@ export const PERMISSION_LABEL: Record<string, string> = {
   "pipeline.write": "编辑商机与推进阶段",
   "pipeline.forecast": "提交预测快照",
   "pipeline.discount": "批准低于底价的报价",
-  "pipeline.opportunityConfig": "维护业务配置——商机类型、商机阶段、赢丢原因、预测阈值、账龄分档、计价货币",
+  "pipeline.opportunityConfig": "维护业务配置——签约类型、业务形态、商机阶段、赢丢原因、预测阈值、账龄分档、计价货币",
   "delivery.read": "查看交付项目",
   "delivery.write": "编辑里程碑、任务与回款计划",
   "copilot.use": "使用销售助手——发起会话与提问",
@@ -2076,9 +2088,10 @@ export const ADMIN_TEXT = {
     scope: "工作区 / 区域 / 仅自己，谁在哪一档",
     product: "产品的类型、状态与计价单位",
     winLossReason: "复盘时可选的赢丢原因",
-    opportunityConfig: "商机类型、商机阶段、赢丢原因、预测阈值、账龄分档、计价货币——跟商机推进相关的配置，都在这一页",
+    opportunityConfig: "签约类型、业务形态、商机阶段、赢丢原因、预测阈值、账龄分档、计价货币——跟商机推进相关的配置，都在这一页",
     stage: "商机推进经过的阶段，改名/排序/默认赢率/增删",
-    dealtype: "商机的分类——新签/续费/增购/项目型/产品型",
+    contracttype: "交易性质——新签/续签/增购",
+    businessform: "卖的是什么——项目定制类/标化产品类/咨询服务类",
     industry: "客户按行业归档，一处改，处处改",
     reminderThreshold: "多久算联系冷淡、决策链温度窗口，以及续约提前多少天提醒",
     forecastThreshold: "承诺、最好情况从多少概率起算",
@@ -4797,12 +4810,12 @@ export const STAGE_CONFIG_TEXT = {
   probabilityFixedHint: "赢单/终态阶段的默认赢率由系统固定，不可编辑。",
 } as const;
 
-/** 商机类型目录的配置面 (incr/0060-0061)。 */
-export const DEAL_TYPE_TEXT = {
+/** 签约类型 / 业务形态两张目录的配置面 (incr/0067)。 */
+export const CONTRACT_TYPE_TEXT = {
   noun: "类型",
-  title: "商机类型",
+  title: "签约类型",
   count: (n: number) => `${n} 个类型`,
-  why: "商机的分类——新签/续费/增购/项目型/产品型，可改名、调顺序、增删。",
+  why: "这笔交易的性质——新签/续签/增购，可改名、调顺序、增删。新建商机时按客户历史自动给一个默认值，销售可以改。",
   add: "新建类型",
   save: "保存",
   codeLabel: "类型代码",
@@ -4810,10 +4823,25 @@ export const DEAL_TYPE_TEXT = {
   nameLabel: "类型名称",
   colName: "类型",
   colFiled: "商机数",
-  deleteConsequence: "该类型将从商机类型目录中移除。归在它下面的商机不受影响——有商机在用就删不掉。",
+  deleteConsequence: "该类型将从签约类型目录中移除。归在它下面的商机不受影响——有商机在用就删不掉。",
+} as const;
+
+export const BUSINESS_FORM_TEXT = {
+  noun: "形态",
+  title: "业务形态",
+  count: (n: number) => `${n} 个形态`,
+  why: "卖的是什么——项目定制类/标化产品类/咨询服务类，可改名、调顺序、增删。停滞天数也按形态设。",
+  add: "新建形态",
+  save: "保存",
+  codeLabel: "形态代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  nameLabel: "形态名称",
+  colName: "形态",
+  colFiled: "商机数",
+  deleteConsequence: "该形态将从业务形态目录中移除。归在它下面的商机不受影响——有商机在用就删不掉。",
   colStallOverride: "停滞天数",
   stallOverrideLabel: "停滞天数覆盖",
-  stallOverrideHint: "留空表示沿用工作区的默认停滞天数。",
+  stallOverrideHint: "留空表示沿用工作区的默认停滞天数。定制项目通常比标品谈得久，这里按形态单独设。",
   stallOverrideDefault: (n: number) => `默认 ${n} 天`,
 } as const;
 
@@ -5315,7 +5343,8 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.forecast": "销售预测",
     "pipeline.winloss": "赢丢复盘",
     "pipeline.stage": "阶段配置",
-    "pipeline.dealtype": "商机类型",
+    "pipeline.contracttype": "签约类型",
+    "pipeline.businessform": "业务形态",
     "pipeline.opportunityconfig": "业务配置",
     "delivery.project": "交付项目",
     "delivery.milestone": "里程碑",
@@ -5378,7 +5407,8 @@ export const PERMISSION_TREE_TEXT = {
     "pipeline.winloss.view": "查看赢丢复盘",
     "pipeline.winloss.record": "记录赢丢复盘",
     "pipeline.stage.view": "查看阶段配置",
-    "pipeline.dealtype.view": "查看商机类型",
+    "pipeline.contracttype.view": "查看签约类型",
+    "pipeline.businessform.view": "查看业务形态",
     "pipeline.opportunityconfig.view": "查看业务配置",
     "pipeline.opportunityconfig.manage": "维护业务配置",
     "delivery.project.view": "查看交付项目",
