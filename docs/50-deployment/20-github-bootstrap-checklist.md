@@ -218,6 +218,28 @@ gh workflow run db-init.yml -f environment=production -f action=apply -f confirm
 `<STACK_ROOT>/db-init/<sha>/`，对着它运行；不再依赖上次发布 rsync 到 `<STACK_ROOT>/deploy`
 的那份，结构变更不必等发布。
 
+### twin 必须回放失败的运行（2026-09-14）
+
+演练 0055-0067 前按记忆配方搭 twin：32d7320 的 DDL 空库全跑（生产 run 1），
+2e16cdd 的脚本 `BOOTSTRAP_THROUGH=0052`（run 3）。这样搭出来的 twin 与 HEAD
+全新库**完全一致**，什么也测不出。把 09-10 18:55 那次**失败的** run 2 也回放
+（baseline 重跑、97 重跑、98 跑到 `account.industry` 死掉）之后，357 个 db
+测试败 7 个，`pg_dump --schema-only` 对比全新库只差 GRANT：
+
+- `yucer_core.account` 的 15 个列级 UPDATE 全没了——98 的 `REVOKE UPDATE` 跑了，
+  再授权的那条死在 `industry`（0040 已删该列）；0006/0024/0025/0035/0040 各自
+  加的授权一并被 REVOKE 带走。生产从那天起 service role 改不了任何客户字段。
+- `local_authz.member.scope`（0022）的 UPDATE 丢了。
+- 五张只 SELECT+INSERT 的表多了 DELETE：97 的 `GRANT ... ON ALL TABLES` 在重跑
+  时才够得着增量建的表。
+
+结构、约束、索引零差异。修复是 `incr/0068`（纯授权，全新库上是空操作）。
+同一次对比还发现 `incr/0051` 在生产应用后被 PR #244 原地改过（根节点
+`hq` -> `headquarters`），账本只应用一次，生产模板表仍是旧值；`incr/0069`
+是那次改动本该有的形态（TD-028 登记了缺口）。**两条规矩**：twin 要把失败的
+运行也回放；演练前跑 `git diff <生产账本记录的 sha> HEAD --
+deploy/database/ddl/incr/` 查已应用的增量有没有被改过。
+
 ## 设置路径型的 secret / variable：一律走 stdin（2026-09-10）
 
 移植自 vx-agent-tenderforge 的真实事故：在 Windows 的 Git Bash 里执行
