@@ -10,15 +10,22 @@ import { PrismaUsageStore } from "./prisma-store";
 // adapters-prisma.db.test.ts.
 
 function fake() {
-  const calls = { upsert: [] as unknown[], updateMany: [] as unknown[], findMany: [] as unknown[], checkpoint: [] as unknown[] };
+  const calls = { upsert: [] as unknown[], update: [] as unknown[], findMany: [] as unknown[], checkpoint: [] as unknown[] };
   const client = {
     raw: {
       upsert: async (a: unknown) => void calls.upsert.push(a),
-      updateMany: async (a: unknown) => void calls.updateMany.push(a),
+      update: async (a: unknown) => void calls.update.push(a),
       findMany: async (a: unknown) => {
         calls.findMany.push(a);
         return [
-          { workspaceId: "ws_1", metric: "copilot.turns", amount: BigInt(3), idempotencyKey: "k1", flushed: false },
+          {
+            workspaceId: "ws_1",
+            metric: "copilot.turns",
+            amount: BigInt(3),
+            idempotencyKey: "k1",
+            flushed: false,
+            platformEventId: null,
+          },
         ];
       },
     },
@@ -44,23 +51,33 @@ test("record upserts on the idempotency key with an empty update - a replay is a
   assert.equal(arg.create.amount, BigInt(3), "the amount crosses as BigInt");
 });
 
-test("unflushed maps BigInt back to number and keeps the flush flag", async () => {
+test("unflushed maps BigInt back to number and carries platformEventId", async () => {
   const { client } = fake();
   const rows = await new PrismaUsageStore(client).unflushed(10);
   assert.deepEqual(rows, [
-    { workspaceId: "ws_1", metric: "copilot.turns", amount: 3, idempotencyKey: "k1", flushed: false },
+    { workspaceId: "ws_1", metric: "copilot.turns", amount: 3, idempotencyKey: "k1", flushed: false, platformEventId: null },
   ]);
 });
 
-test("markFlushed flips the rows and advances ONE watermark per (workspace, metric)", async () => {
+test("markFlushed writes flushed and each row's OWN platformEventId, and advances ONE watermark per (workspace, metric)", async () => {
+  // updateMany cannot express a per-row value, so a batch of rows with
+  // different platformEventIds must go through individual update() calls.
   const { calls, client } = fake();
   await new PrismaUsageStore(client).markFlushed([
-    { idempotencyKey: "k1", workspaceId: "ws_1", metric: "copilot.turns" },
-    { idempotencyKey: "k2", workspaceId: "ws_1", metric: "copilot.turns" },
-    { idempotencyKey: "k3", workspaceId: "ws_2", metric: "signals.scored" },
+    { idempotencyKey: "k1", workspaceId: "ws_1", metric: "copilot.turns", platformEventId: "evt_1" },
+    { idempotencyKey: "k2", workspaceId: "ws_1", metric: "copilot.turns", platformEventId: "evt_2" },
+    { idempotencyKey: "k3", workspaceId: "ws_2", metric: "signals.scored", platformEventId: null },
   ]);
-  const flip = calls.updateMany[0] as { where: { idempotencyKey: { in: string[] } } };
-  assert.deepEqual(flip.where.idempotencyKey.in, ["k1", "k2", "k3"]);
+  assert.equal(calls.update.length, 3);
+  const updates = calls.update as { where: { idempotencyKey: string }; data: { flushed: boolean; platformEventId: string | null } }[];
+  assert.deepEqual(
+    updates.map((u) => [u.where.idempotencyKey, u.data.flushed, u.data.platformEventId]),
+    [
+      ["k1", true, "evt_1"],
+      ["k2", true, "evt_2"],
+      ["k3", true, null],
+    ],
+  );
   assert.equal(calls.checkpoint.length, 2, "one batch, many rows, ONE watermark per pair");
   const first = calls.checkpoint[0] as { where: { workspaceId_metric: unknown } };
   assert.deepEqual(first.where.workspaceId_metric, { workspaceId: "ws_1", metric: "copilot.turns" });
@@ -69,5 +86,5 @@ test("markFlushed flips the rows and advances ONE watermark per (workspace, metr
 test("an empty batch touches nothing", async () => {
   const { calls, client } = fake();
   await new PrismaUsageStore(client).markFlushed([]);
-  assert.equal(calls.updateMany.length + calls.checkpoint.length, 0);
+  assert.equal(calls.update.length + calls.checkpoint.length, 0);
 });

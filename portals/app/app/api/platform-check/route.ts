@@ -47,7 +47,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!workspaceId) return errorResponse(401, "PLATFORM_CHECK_NOT_AUTHENTICATED", "sign in - the probe consumes against your workspace");
 
   const day = new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  const row = { workspaceId, metric: COPILOT_TURN_METRIC, amount: 1, idempotencyKey: `probe-replay-${workspaceId}-${day}`, flushed: false };
+  const row = { workspaceId, metric: COPILOT_TURN_METRIC, amount: 1, idempotencyKey: `probe-replay-${workspaceId}-${day}`, flushed: false, platformEventId: null };
   const consume = makePlatformConsume(cfg);
   try {
     const first = await consume(row);
