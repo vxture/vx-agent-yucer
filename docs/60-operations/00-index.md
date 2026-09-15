@@ -38,7 +38,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
 | TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
-| TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | open（生产不受影响；本机改走 `pnpm build` + `next start`） |
+| TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | 已修复（`next.config.mjs` 按运行时给 Node 内置模块加 externals/fallback） |
 | TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | open（净数需要逐条核对 incr/0001-0064，未猜测填入） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
@@ -1795,18 +1795,35 @@ instrumentation.ts -> app/jobs/scheduler.ts -> app/jobs/workspaces.ts -> app/aut
 `pg` 在那里都能解析。`next dev` 还会为别的运行时编译同一个入口，那里没有 Node 内置
 模块。所以 v0.1.6、v0.1.7 的生产部署一路正常，坏的只有本机开发服务器。
 
-**已排除的修法**：`next.config.mjs` 的 `serverExternalPackages` 只对 Node 服务端编译
-生效——加 `ioredis` 能消掉第一个错，下一个 `pg` 照旧（两种组合都实测过）。
-`instrumentation.ts` 里的 `await import()` 已经在 `NEXT_RUNTIME !== "nodejs"` 后面，
-那是运行时守卫；webpack 仍然静态分析这条边。
+**已排除的修法**：
 
-**本机绕过**：`pnpm build` + `pnpm exec next start -p 4060`（生产构建那条路径是好的）。
-门禁页三态可在 `/gate-screens` 逐一查看。
+1. `next.config.mjs` 的 `serverExternalPackages` 只对 Node 服务端编译生效——加
+   `ioredis` 能消掉第一个错，下一个 `pg` 照旧（两种组合都实测过）。
+   `instrumentation.ts` 里的 `await import()` 已经在 `NEXT_RUNTIME !== "nodejs"`
+   后面，那是运行时守卫；webpack 仍然静态分析这条边。
+2. 把 (1) 走到底：`serverExternalPackages` 逐层展开 `pg`+Prisma adapter 与
+   `ioredis` 各自的完整传递依赖（脚本按 `package.json` 做 BFS），一路能消到只剩
+   `redis-parser`——单独加它这一个包名（无论放在数组哪个位置）会让同一次构建里
+   *所有其他*已排除的包一起退回最初的 `ioredis -> stream` 报错，换成同槽位的
+   `denque` 对照组则完全正常。没能查出根因（pnpm store 里没有重复版本，
+   `package.json` 无异常，不是顺序或位置问题），判定为不值得继续为一个包在一种
+   打包器配置下的行为下注，遂放弃整条 `serverExternalPackages` 路线。
 
-**修复方向**（未做，需单独一个 PR 并验证生产镜像）：让非 Node 编译看不见这条 import
-链——把调度器从 instrumentation 的静态图上摘掉，或按 Next 的分运行时入口重写。改的是
-`instrumentation.ts` / `app/jobs/scheduler.ts` 的加载方式，必须连同 `next build` 与
-容器启动一起验证，所以不夹带在界面 PR 里。
+**已修复**：问题的公共根子不是某个包，是「Node 内置模块在非 Node 运行时根本不
+存在」——与是哪个包、隔几层无关。`next.config.mjs` 新增一段只在
+`nextRuntime !== "nodejs"` 时生效的 `webpack()` 钩子：`resolve.fallback` 把裸
+说明符形式的内置模块（`stream`、`fs`、`crypto`……）标记为不必打包；`node:` 前缀是
+URI scheme 而非说明符，`resolve.fallback` 认不到它（会另触发
+`UnhandledSchemeError`），额外 `push` 一个 `config.externals` 匹配器把它转成
+`commonjs node:x`（`config.externals` 在 Next 自己的 webpack 配置里已经是数组，
+只能追加，整体替换会打出 `[TypeError: q is not a function]`）。Node 运行时构建
+（生产实际用的那份）完全不进这个分支，未受影响：`pnpm build` + `next start` 单独
+复测过，`/api/status` 的 `appEnv` 正确落在 `production`，本机登录旁路照常被拒。
+详细推导写在 `next.config.mjs` 该段的注释里。
+
+**本机验证**：清 `.next` 冷启动 `pnpm dev`，`/`、`/account`、`/national` 等全量路由
+逐一 curl 200，`/api/status` 报 `appEnv: development`；`tsc --noEmit`、
+`pnpm test`（307 条用例）、`pnpm build` 生产构建、五个 guardrail 脚本全部重跑通过。
 
 ### TD-030 - 权限目录文档的「19 项」表头落后于种子
 
