@@ -1,4 +1,4 @@
-import { poolFor } from "../../entitlement/quota";
+import { isUnlimited, poolFor } from "../../entitlement/quota";
 import type { Entitlement } from "../../entitlement/types";
 import { recordUsage } from "./buffer";
 import type { UsageStore } from "./store";
@@ -41,6 +41,10 @@ export type TurnAdmission = { ok: true } | { ok: false; remaining: number };
 export function admitTurn(e: Entitlement): TurnAdmission {
   const pool = poolFor(e, COPILOT_TURN_METRIC);
   if (!pool) return { ok: true };
+  // -1 = unlimited (same convention as limits{}, checked the same way withinCap
+  // checks it) - a naive `remaining > 0` would read an unlimited pool's -1 as
+  // exhausted, denying a workspace that was never supposed to be gated at all.
+  if (isUnlimited(pool.limit)) return { ok: true };
   return pool.remaining > 0 ? { ok: true } : { ok: false, remaining: pool.remaining };
 }
 

@@ -21,6 +21,11 @@ test("a pool with turns left admits; one with nothing left refuses and reports t
   assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", quota_pools: [{ ...pool(0), metric: "other" }] })), { ok: true });
 });
 
+test("a pool whose limit is -1 (unlimited) admits regardless of remaining", () => {
+  const unlimited = { metric: COPILOT_TURN_METRIC, limit: -1, remaining: 0, priority: 0 };
+  assert.deepEqual(admitTurn(makeEntitlement(WS, "yucer", { tier: "pro", quota_pools: [unlimited] })), { ok: true });
+});
+
 test("the idempotency key is the metric and the business object, never a random id", () => {
   assert.equal(turnIdempotencyKey("msg_1"), `${COPILOT_TURN_METRIC}:msg_1`);
   // Deterministic: the same question always charges under the same key, so a
