@@ -264,42 +264,42 @@ function Ambience() {
           the version that had been on screen through every earlier round. */}
       <div className="absolute inset-0 bg-[radial-gradient(120%_78%_at_50%_-12%,color-mix(in_srgb,var(--primary)_17%,transparent),transparent_62%)]" />
 
-      {/* ONE WAVE, the taller of the two, and it arrives out of nothing.
-          The fill is a vertical gradient over the PATH's own box - which is
-          what objectBoundingBox means, and why the crest is at offset 0 - so
-          the wave is fully transparent where it begins and has no edge to
-          notice. Two waves at a flat value had a visible line where each one
-          started.
+      {/* ONE WAVE, AND THE FADE FOLLOWS THE CURVE.
+          A single vertical gradient could not do this. It runs over the
+          shape's bounding box, so it is only fully transparent at the box's
+          top - which is the crest on the right. The left of the wave starts
+          two thirds of the way down that box and was therefore already tinted
+          where it began, leaving a visible edge along the low side.
+          So the ramp is built from the shape itself: the same path drawn
+          sixteen times, each copy a little lower than the last, each almost
+          invisible on its own. Only one copy covers the pixel just under the
+          curve; all sixteen cover a pixel far below it. Depth from the curve
+          is what sets the value, so every edge fades out, high or low.
           preserveAspectRatio="none" on purpose: this is a band, not a picture,
           and it should meet both edges at every width. */}
       <svg
-        className="absolute inset-x-0 bottom-0 h-[45%] w-full"
+        className="absolute inset-x-0 bottom-0 h-[55%] w-full"
         viewBox="0 0 1440 400"
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id="gate-swell" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
-            {/* 0.22 rather than 0.16: on the dark theme the ground is nearly
-                black and the wave simply did not register below about a fifth.
-                Still gentle on the light one, because the fade does the work -
-                only the very bottom edge ever reaches this value. */}
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.22" />
-          </linearGradient>
+          {/* A WAVE ON A SLANT - one trough, one crest, rising left to right.
+              The baseline climbs about 200 units across the width while one
+              long wave of roughly 150 rides on it. Two segments only, and the
+              join at 880 is smooth by construction: the outgoing control
+              (1120 64) is the reflection of the incoming one (620 236) about
+              that point, which is the whole of why there is no kink. */}
+          <path
+            id="gate-wave"
+            d="M0 244 C 330 300, 620 236, 880 150 C 1120 64, 1240 104, 1440 46 L1440 400 L0 400 Z"
+          />
         </defs>
-        {/* A WAVE ON A SLANT - one trough, one crest, rising left to right.
-            Two corrections met here: three segments read as a row of ripples,
-            and cutting to a single cubic flattened it into a plain diagonal.
-            What is wanted is both, so the baseline climbs about 200 units
-            across the width while ONE long wave of roughly 150 units rides on
-            it. Two segments only, and the join at 880 is smooth by
-            construction: the outgoing control (1120 64) is the reflection of
-            the incoming one (620 236) about that point, which is the whole of
-            why there is no kink in the middle. */}
-        <path
-          d="M0 244 C 330 300, 620 236, 880 150 C 1120 64, 1240 104, 1440 46 L1440 400 L0 400 Z"
-          fill="url(#gate-swell)"
-        />
+
+        <g fill="var(--primary)" fillOpacity="0.016">
+          {Array.from({ length: 16 }, (_, i) => (
+            <use key={i} href="#gate-wave" y={i * 14} />
+          ))}
+        </g>
       </svg>
     </div>
   );
