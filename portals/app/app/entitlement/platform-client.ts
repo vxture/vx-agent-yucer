@@ -54,8 +54,9 @@ export function parseEntitlementEnvelope(
     ...EMPTY_ENTITLEMENT,
     workspace_id: workspaceId,
     product,
-    // status kept as-is (may be an unknown future value; gating uses tier/bundled)
-    status: (str(o.status) as Entitlement["status"]) ?? null,
+    // status kept as-is (may be an unknown future value; gating uses tier/bundled) -
+    // str() already returns string | null, exactly this field's type, no cast needed
+    status: str(o.status),
     trial_ends_at: str(o.trial_ends_at),
     current_period_end: str(o.current_period_end),
     cancel_at_period_end: o.cancel_at_period_end === true,

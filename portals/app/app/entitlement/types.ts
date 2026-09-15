@@ -7,7 +7,7 @@
 // docs/60-operations). Re-exported here so existing local consumers
 // (capability.ts, entitlement-matrix/page.tsx) keep importing from "./types".
 
-import type { Tier, SubscriptionStatus } from "@vxture/shared";
+import type { Tier } from "@vxture/shared";
 
 export { TIERS, SUBSCRIPTION_STATUSES } from "@vxture/shared";
 export type { Tier, SubscriptionStatus } from "@vxture/shared";
@@ -24,7 +24,11 @@ export interface QuotaPool {
 export interface Entitlement {
   workspace_id: string;
   product: string;
-  status: SubscriptionStatus | null; // null = never had a direct-purchase subscription
+  // string, not SubscriptionStatus - the integration rules type this field
+  // `string | null` specifically so a new platform-side status value type-checks
+  // as well as it already parses. SUBSCRIPTION_STATUSES stays the known-value
+  // list ctaFor() classifies against; it is not this field's static type.
+  status: string | null; // null = never had a direct-purchase subscription
   trial_ends_at: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
