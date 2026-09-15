@@ -90,15 +90,34 @@ function nonEmpty(v: string | undefined): string | undefined {
   return v && v.trim() ? v : undefined;
 }
 
+/**
+ * A token endpoint must be an http(s) URL. On 2026-09-14 production's
+ * S2S_TOKEN_URL read `# default: https://accounts.vxture.com/oidc/token`:
+ * the skeleton's inline comment carried `${OIDC_ISSUER}`, compose
+ * interpolated it and kept the whole remainder as the value, and every other
+ * comment-only line came through empty. /platform-check showed it. Anything
+ * that does not parse as an http(s) URL is treated as unset.
+ */
+function httpUrl(v: string | undefined): string | undefined {
+  const s = nonEmpty(v);
+  if (!s) return undefined;
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:" ? s : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getS2SConfig(env: EnvLike = process.env): S2SConfig {
-  const issuer = (nonEmpty(env.OIDC_ISSUER) ?? "https://accounts.vxture.com").replace(/\/$/, "");
+  const issuer = (httpUrl(env.OIDC_ISSUER) ?? "https://accounts.vxture.com").replace(/\/$/, "");
   const clientId = nonEmpty(env.S2S_CLIENT_ID) ?? nonEmpty(env.OIDC_CLIENT_ID) ?? "yucer";
   // Per-client secrets are distributed as OIDC_CLIENT_SECRET_<CLIENT>; using
   // the unsuffixed one against a different client_id yields invalid_client,
   // which reads like an environment problem and is not one.
   const clientSecret = nonEmpty(env.S2S_CLIENT_SECRET) ?? nonEmpty(env.OIDC_CLIENT_SECRET);
   return {
-    tokenUrl: nonEmpty(env.S2S_TOKEN_URL) ?? `${issuer}/oidc/token`,
+    tokenUrl: httpUrl(env.S2S_TOKEN_URL) ?? `${issuer}/oidc/token`,
     clientId,
     clientSecret: clientSecret ?? "",
     productCode: nonEmpty(env.PRODUCT_CODE) ?? "yucer",
