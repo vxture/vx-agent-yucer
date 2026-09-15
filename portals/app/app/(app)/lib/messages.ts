@@ -1766,11 +1766,11 @@ export const BATCH_COMPLETE_TEXT = {
 
 export const SHELL_TEXT = {
   brandName: "禹策销售智能体",
+  website: "官网",
   workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
   noAccessTitle: "当前工作区尚未订阅 yucer",
-  noAccessDescription: "订阅后即可使用客户管理、商机管道与销售智能助手。",
   subscribeCta: "前往订阅",
   noRolesTitle: "还没有为你分配角色",
   // Names WHO, because "an administrator" is not a person anybody can go and
@@ -1799,49 +1799,23 @@ export const SHELL_TEXT = {
  * rather than only reporting a missing session.
  */
 export const SIGNIN_TEXT = {
-  // No exclamation and no welcome: the reader did not choose to be here, they
-  // arrived and were stopped. Say what has to happen and why.
-  description: "登录以验证您的订阅并访问产品。",
   cta: "登录",
-  // Promised because returnTo really does carry the path they asked for - a
-  // hint that were not true would be worse than no hint.
-  hint: "登录后将自动返回当前页面",
   ariaLabel: "登录",
+  // ONE LINE, under the product name. It was the headline until 2026-09-15,
+  // when the owner cut the door back to what a door is: the product's name,
+  // what it does in a sentence, and the way in. The eyebrow, the paragraph and
+  // the three proposition cards are gone - this address exists to let somebody
+  // sign in, not to sell to them. The sentence is still the spec's own
+  // (docs/20-specs/10-product-definition.md), not written for the page.
+  description: "把战略到回款，串成一条可追溯的链路",
 
-  // WHAT THE DOOR SAYS ABOUT THE PRODUCT.
-  //
-  // Every sentence below is the product's own, lifted from
-  // docs/20-specs/10-product-definition.md rather than written for the page.
-  // A front door that makes a claim the spec does not make is a promise
-  // nobody signed off, and it is the first thing a buyer reads.
-  tagline: "企业销售超级智能体",
-  headline: "把战略到回款，串成一条可追溯的链路",
-  lede:
-    "市场战略、销售规划、市场执行、客户管理、商机侦探、商机管理、项目落地共享一套数据与一个智能体；每一个商机都能回溯到它来自哪个战役、哪个细分市场、哪条战略。",
-
-  // THE CHAIN, in the order the product moves through it. It is the product's
-  // central claim, so it is shown rather than described - eight stops the
-  // reader can follow with a finger. Labels match the domain vocabulary in
-  // 20-capability-domains.md; renaming a domain renames the stop.
+  // THE CHAIN, in the order the product moves through it, shown rather than
+  // described. Every stop is four characters (owner, 2026-09-15) so the row
+  // reads as one measure instead of eight ragged ones; 商机管理 and 回款到账
+  // are the long forms of the two that were short. Labels track the domain
+  // vocabulary in 20-capability-domains.md - renaming a domain renames a stop.
   chainLabel: "全链路",
-  chain: ["市场战略", "销售规划", "市场战役", "商机信号", "销售线索", "商机", "交付项目", "回款"],
-
-  // The three value propositions, in the spec's own order and wording.
-  pillarsLabel: "产品主张",
-  pillars: [
-    {
-      title: "全链路可追溯",
-      description: "每一跳都有数据上的父子关系，归因不靠人工填写。",
-    },
-    {
-      title: "商机侦探",
-      description: "不等销售录入，主动从多源信号中发现并评分潜在商机。",
-    },
-    {
-      title: "人机协同，而非人机替代",
-      description: "智能体产出的是可审阅的建议动作，默认需要人确认。",
-    },
-  ],
+  chain: ["市场战略", "销售规划", "市场战役", "商机信号", "销售线索", "商机管理", "交付项目", "回款到账"],
 } as const;
 
 /**
@@ -1859,11 +1833,7 @@ export const NO_SUBSCRIPTION_TEXT = {
   ariaLabel: "当前工作区尚未订阅",
   identityLabel: "登录身份",
   workspaceLabel: "当前工作区",
-  // Said plainly because the reader may not be able to act on the button above
-  // it, and finding that out after a round trip to the console is worse.
-  adminNote: "订阅在账号中心完成，需要工作区管理员的权限。如果你不是管理员，请把这个页面转给他。",
   signOut: "退出登录",
-  unlockTitle: "订阅后可用",
 } as const;
 
 /**
@@ -1876,12 +1846,8 @@ export const NO_SUBSCRIPTION_TEXT = {
 export const SIGNED_OUT_TEXT = {
   ariaLabel: "已退出登录",
   title: "已退出登录",
-  description: "本设备上的会话已经结束。",
   signInAgain: "重新登录",
   toConsole: "前往账号中心",
-  // A real instruction rather than a reassurance: signing out ends the session,
-  // it does not close a browser somebody else is about to use.
-  publicDeviceNote: "如果这是公共设备，请一并关闭浏览器窗口。",
 } as const;
 
 /**

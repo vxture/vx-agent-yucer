@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, Icon, Stack, type IconName } from "@vxture/design-ui";
+import { Button, Icon, Stack } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { GateFrame } from "./gate-frame";
 
@@ -16,32 +16,18 @@ import { GateFrame } from "./gate-frame";
 //      they asked for. Redirect first and that address is gone; the best you
 //      could then offer is the home screen, which is not where they were going.
 //
-// WHY IT SAYS MORE THAN "SIGN IN" (2026-09-15). The door used to be a wordmark,
-// one sentence and a button. That is honest for a member coming back from a
-// stale tab and useless for everyone else who reaches this address - a buyer
-// following a link, an administrator deciding whether to subscribe, a new hire
-// checking they are in the right place. All of them were shown a login and no
-// product. So the door now carries what the product claims, in the product's
-// own words: the headline, the chain and the three propositions below are
-// lifted from docs/20-specs/10-product-definition.md rather than written for
-// the page, because a front door that makes a claim the spec does not make is
-// a promise nobody signed off.
+// WHAT IT SAYS, AND WHAT IT STOPPED SAYING (owner, 2026-09-15). The name, one
+// sentence, the way in, and the chain. It briefly carried an eyebrow, a
+// paragraph and three proposition cards; the owner cut them, and the reason
+// holds: this address exists so somebody can sign in. The product is
+// introduced on the public site, which the header links to.
 //
 // WHY THIS IS NOT AN EmptyState. EmptyState draws a dashed-border box, which
 // means "this container has nothing in it". A front door is not an empty
 // container.
-//
-// WHY IT IS NOT UnifiedAuthPage EITHER. That is the PLATFORM's auth page: it
-// forces a marketing visual panel on desktop and exists to host password /
-// phone / social panels. This product has none of those - authentication is
-// the platform's job and this page's whole content is one deliberate act.
-// Borrowing that template would promise a login form we do not implement.
-
-/** One icon per proposition, in the order the spec lists them. */
-const PILLAR_ICONS: readonly IconName[] = ["tree-structure", "target", "list-checks"];
 
 export function SignIn() {
-  const { SIGNIN_TEXT } = useMessages();
+  const { SHELL_TEXT, SIGNIN_TEXT } = useMessages();
 
   // Built client-side because a server layout cannot see the path. Starts as
   // the bare route so the markup is a real link before hydration and with JS
@@ -56,53 +42,23 @@ export function SignIn() {
   return (
     <GateFrame ariaLabel={SIGNIN_TEXT.ariaLabel} width="wide">
       <Stack gap="lg" className="items-center text-center">
-        <span className="text-overline text-primary-text border-primary/20 bg-primary-muted/40 rounded-full border px-md py-2xs">
-          {SIGNIN_TEXT.tagline}
-        </span>
-
-        {/* Steps down on a phone. display-sm is sized for a desktop hero and
-            set three enormous lines at 375px, where the headline alone filled
-            the screen and the button that is the whole point of the page was
-            below the fold. */}
-        <h1 className="text-title-xl sm:text-display-sm max-w-[20ch] text-balance">
-          {SIGNIN_TEXT.headline}
+        {/* The mark sits IN the heading, sized in em, so the two scale together
+            and stay on one line at every breakpoint. Sized outside it, the
+            logo held its pixels while the type stepped down and the lockup
+            came apart on a phone. */}
+        <h1 className="text-title-xl sm:text-display-sm gap-sm flex items-center justify-center">
+          <img src="/logo.svg" alt="" aria-hidden className="h-[1.05em] w-auto" />
+          {SHELL_TEXT.brandName}
         </h1>
 
-        {/* 62ch is the repo's standing measure for a paragraph of judgement
-            text - TD-007, the DS has no measure token. */}
-        <p className="text-body-lg text-muted-foreground max-w-[56ch]">
-          {SIGNIN_TEXT.lede}
-        </p>
+        <p className="text-body-lg text-muted-foreground">{SIGNIN_TEXT.description}</p>
 
-        <Stack gap="sm" className="items-center pt-xs">
-          <Button asChild size="xl" className="min-w-[240px]">
-            <a href={href}>{SIGNIN_TEXT.cta}</a>
-          </Button>
-          <p className="text-muted-foreground text-body-sm">{SIGNIN_TEXT.hint}</p>
-        </Stack>
+        <Button asChild size="xl" className="min-w-[240px]">
+          <a href={href}>{SIGNIN_TEXT.cta}</a>
+        </Button>
       </Stack>
 
       <Chain label={SIGNIN_TEXT.chainLabel} stops={SIGNIN_TEXT.chain} />
-
-      <div className="gap-md pt-2xl grid grid-cols-1 sm:grid-cols-3">
-        {SIGNIN_TEXT.pillars.map((pillar, i) => (
-          <Card
-            key={pillar.title}
-            surface="soft"
-            className="gap-sm p-lg flex flex-col text-left"
-          >
-            <Icon
-              name={PILLAR_ICONS[i] ?? "placeholder"}
-              size={20}
-              className="text-primary-text"
-            />
-            <h2 className="text-title-sm">{pillar.title}</h2>
-            <p className="text-body-sm text-muted-foreground">
-              {pillar.description}
-            </p>
-          </Card>
-        ))}
-      </div>
     </GateFrame>
   );
 }

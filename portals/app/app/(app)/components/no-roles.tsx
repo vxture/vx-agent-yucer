@@ -1,7 +1,8 @@
 "use client";
 
-import { Button, Card, Icon, LabeledValue, Separator, Stack, StatusBadge } from "@vxture/design-ui";
+import { Card, LabeledValue, Separator, Stack, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { GateActions, GatePrimary, GateSignOut } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
 
 // A member with no role, in a workspace that HAS subscribed.
@@ -41,9 +42,11 @@ export function NoRoles({
   return (
     <GateFrame ariaLabel={NO_ROLES_TEXT.ariaLabel} width="narrow">
       <Stack gap="lg" className="items-center text-center">
-        {/* A queued state, not a fault: circle-dashed is the dictionary's own
-            pending mark, and the reader did nothing wrong. */}
-        <StatusBadge tone="info" icon="circle-dashed">
+        {/* A KEY, because the subject is access (owner, 2026-09-15: the
+            queue-shaped circle-dashed was off the topic). The workspace is
+            paid for and the door is real; this member has not been handed the
+            thing that opens it. */}
+        <StatusBadge tone="info" icon="key">
           {NO_ROLES_TEXT.badge}
         </StatusBadge>
 
@@ -69,27 +72,22 @@ export function NoRoles({
           </div>
         </Card>
 
-        <Stack gap="sm" className="w-full items-center">
-          {/* A plain reload. The role arrives from somewhere else entirely - an
-              administrator in another session - so there is nothing to poll
-              and nothing this page could subscribe to; asking again is the
-              whole mechanism, and the authz cache is 45s. */}
-          <Button asChild size="xl" className="w-full">
-            <a href="/">{NO_ROLES_TEXT.recheck}</a>
-          </Button>
-          <p className="text-body-sm text-muted-foreground">
-            {NO_ROLES_TEXT.wrongWorkspaceHint}
-          </p>
-        </Stack>
+        {/* The primary is a plain reload. The role arrives from somewhere else
+            entirely - an administrator in another session - so there is
+            nothing to poll and nothing this page could subscribe to; asking
+            again is the whole mechanism, and the authz cache is 45s. */}
+        <GateActions
+          primary={<GatePrimary href="/">{NO_ROLES_TEXT.recheck}</GatePrimary>}
+          secondary={<GateSignOut>{NO_ROLES_TEXT.signOut}</GateSignOut>}
+        />
 
-        {/* The same real form the other gate screens use, so it works on a page
-            whose whole content is one refusal. */}
-        <form method="post" action="/auth/logout">
-          <Button type="submit" variant="ghost" size="sm">
-            <Icon name="sign-out" size={14} aria-hidden />
-            {NO_ROLES_TEXT.signOut}
-          </Button>
-        </form>
+        {/* KEPT, where the sibling screens' notes were cut (owner, 2026-09-15:
+            this screen stays as it is). It is not reassurance - it names the
+            other thing that produces this exact page, and the workspace name
+            is right above, so the reader can settle it in one glance. */}
+        <p className="text-body-sm text-muted-foreground">
+          {NO_ROLES_TEXT.wrongWorkspaceHint}
+        </p>
       </Stack>
     </GateFrame>
   );

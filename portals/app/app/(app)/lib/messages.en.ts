@@ -149,14 +149,13 @@ export const en: Dictionary = {
 
   SHELL_TEXT: {
     brandName: "Yucer Sales Agent",
+    website: "Website",
     workspaceFallback: "Current workspace",
     signedOutTitle: "Not signed in",
     signedOutDescription:
       "Sign in with your Vxture account to use this product.",
     noAccessTitle: "This workspace has no yucer subscription",
-    noAccessDescription:
-      "Subscribing unlocks accounts, the deal pipeline and the sales copilot.",
-    subscribeCta: "Subscribe",
+        subscribeCta: "Subscribe",
     noRolesTitle: "No role has been assigned to you yet",
     noRolesDescription:
       "This workspace has a subscription, but nobody has given you a role yet, so there is nothing for you to open. Whoever opened the subscription is this product's super administrator - ask them to assign you one under Administration - Members.",
@@ -1274,14 +1273,9 @@ export const en: Dictionary = {
   },
 
   SIGNIN_TEXT: {
-    description: "Sign in to verify your subscription and open the product.",
     cta: "Sign in",
-    hint: "You will come back to this page after signing in",
     ariaLabel: "Sign in",
-    tagline: "Enterprise sales super-agent",
-    headline: "One traceable chain, from strategy to cash collected",
-    lede:
-      "Market strategy, sales planning, campaign execution, account management, opportunity detection, pipeline and delivery all share one dataset and one agent - so every deal can be traced back to the campaign, the segment and the strategy it came from.",
+    description: "One traceable chain, from strategy to cash collected",
     chainLabel: "The chain",
     chain: [
       "Strategy",
@@ -1292,24 +1286,6 @@ export const en: Dictionary = {
       "Opportunity",
       "Delivery",
       "Collection",
-    ],
-    pillarsLabel: "What the product claims",
-    pillars: [
-      {
-        title: "Traceable end to end",
-        description:
-          "Every hop is a parent-child relation in the data, so attribution is not typed in by hand.",
-      },
-      {
-        title: "Opportunity detection",
-        description:
-          "Rather than waiting for a rep to file it, the agent finds and scores opportunities from multiple signal sources.",
-      },
-      {
-        title: "The agent proposes, a person decides",
-        description:
-          "What the agent produces is a reviewable proposed action, and confirming it is a human step by default.",
-      },
     ],
   },
 
@@ -1342,20 +1318,14 @@ export const en: Dictionary = {
     ariaLabel: "This workspace has no subscription",
     identityLabel: "Signed in as",
     workspaceLabel: "Workspace",
-    adminNote:
-      "Subscribing happens in the account console and needs workspace administrator rights. If that is not you, pass this page on to whoever it is.",
     signOut: "Sign out",
-    unlockTitle: "What a subscription opens",
   },
 
   SIGNED_OUT_TEXT: {
     ariaLabel: "Signed out",
     title: "You are signed out",
-    description: "The session on this device has ended.",
     signInAgain: "Sign in again",
     toConsole: "Go to the account console",
-    publicDeviceNote:
-      "On a shared device, close the browser window as well.",
   },
 
   RELATION_TEXT: {
