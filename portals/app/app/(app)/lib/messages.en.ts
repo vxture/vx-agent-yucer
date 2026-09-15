@@ -149,17 +149,16 @@ export const en: Dictionary = {
 
   SHELL_TEXT: {
     brandName: "Yucer Sales Agent",
+    website: "Website",
     workspaceFallback: "Current workspace",
     signedOutTitle: "Not signed in",
     signedOutDescription:
       "Sign in with your Vxture account to use this product.",
-    noAccessTitle: "This workspace has no yucer subscription",
-    noAccessDescription:
-      "Subscribing unlocks accounts, the deal pipeline and the sales copilot.",
-    subscribeCta: "Subscribe",
+    noAccessTitle: "This workspace has no subscription",
+        subscribeCta: "Subscribe",
     noRolesTitle: "No role has been assigned to you yet",
     noRolesDescription:
-      "The workspace is subscribed, but you hold no role, so nothing is visible to you yet. Ask a workspace administrator to assign one.",
+      "Ask whoever opened the subscription to assign you a role.",
     loadFailed: "Could not load the data",
     backUp: "Back",
     expandNav: "Expand navigation",
@@ -1274,10 +1273,57 @@ export const en: Dictionary = {
   },
 
   SIGNIN_TEXT: {
-    description: "Sign in to verify your subscription and open the product.",
     cta: "Sign in",
-    hint: "You will come back to this page after signing in",
     ariaLabel: "Sign in",
+    title: "Welcome",
+    description: "One traceable chain, from strategy to cash collected",
+    chainLabel: "The chain",
+    chain: [
+      "Strategy",
+      "Planning",
+      "Campaign",
+      "Signal",
+      "Lead",
+      "Opportunity",
+      "Delivery",
+      "Collection",
+    ],
+  },
+
+  NO_ROLES_TEXT: {
+    badge: "No role",
+    ariaLabel: "No role has been assigned to you yet",
+    identityLabel: "Signed in as",
+    workspaceLabel: "Workspace",
+    recheck: "Check again",
+    signOut: "Sign out",
+  },
+
+  GATE_PREVIEW_TEXT: {
+    ariaLabel: "Choose a screen to preview",
+    signIn: "Front door",
+    noSubscription: "No subscription",
+    noRoles: "No role",
+    signedOut: "Signed out",
+    sampleUser: "Sample member",
+    sampleWorkspace: "Sample workspace",
+  },
+
+  NO_SUBSCRIPTION_TEXT: {
+    badge: "No subscription",
+    description: "Subscribe to continue, or ask a workspace administrator to.",
+    ariaLabel: "This workspace has no subscription",
+    identityLabel: "Signed in as",
+    workspaceLabel: "Workspace",
+    signOut: "Sign out",
+  },
+
+  SIGNED_OUT_TEXT: {
+    ariaLabel: "Signed out",
+    title: "You are signed out",
+    description: "On a shared computer, sign out of the browser account too.",
+    signInAgain: "Sign in again",
+    toConsole: "Go to the account console",
   },
 
   RELATION_TEXT: {

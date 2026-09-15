@@ -1766,15 +1766,18 @@ export const BATCH_COMPLETE_TEXT = {
 
 export const SHELL_TEXT = {
   brandName: "禹策销售智能体",
+  website: "官网",
   workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
-  noAccessTitle: "当前工作区尚未订阅 yucer",
-  noAccessDescription: "订阅后即可使用客户管理、商机管道与销售智能助手。",
+  noAccessTitle: "当前工作区未订阅",
   subscribeCta: "前往订阅",
   noRolesTitle: "还没有为你分配角色",
-  noRolesDescription:
-    "工作区已订阅，但你还没有任何角色，因此暂时看不到任何模块。请联系工作区管理员为你分配角色。",
+  // Names WHO, because "an administrator" is not a person anybody can go and
+  // find. Opening the subscription makes you this product's super
+  // administrator (auth/lib/claims.ts: the platform's workspace:owner is the
+  // first-login super-admin), so the reader knows exactly whom to ask.
+  noRolesDescription: "请联系开通订阅的管理员为你分配角色。",
   loadFailed: "数据加载失败",
   /** 面包屑前的返回按钮：纯图标，可访问名在这里。 */
   backUp: "返回上一级",
@@ -1795,14 +1798,105 @@ export const SHELL_TEXT = {
  * rather than only reporting a missing session.
  */
 export const SIGNIN_TEXT = {
-  // No exclamation and no welcome: the reader did not choose to be here, they
-  // arrived and were stopped. Say what has to happen and why.
-  description: "登录以验证您的订阅并访问产品。",
   cta: "登录",
-  // Promised because returnTo really does carry the path they asked for - a
-  // hint that were not true would be worse than no hint.
-  hint: "登录后将自动返回当前页面",
   ariaLabel: "登录",
+  // Every gate screen is a title and a line under it; the door had only the
+  // line, which left its middle band looking unfinished (owner, 2026-09-15).
+  // A greeting rather than an instruction: the button says what to do.
+  title: "欢迎使用",
+  // ONE LINE, under the product name. It was the headline until 2026-09-15,
+  // when the owner cut the door back to what a door is: the product's name,
+  // what it does in a sentence, and the way in. The eyebrow, the paragraph and
+  // the three proposition cards are gone - this address exists to let somebody
+  // sign in, not to sell to them. The sentence is still the spec's own
+  // (docs/20-specs/10-product-definition.md), not written for the page.
+  description: "把战略到回款，串成一条可追溯的链路",
+
+  // THE CHAIN, in the order the product moves through it, shown rather than
+  // described. Every stop is four characters (owner, 2026-09-15) so the row
+  // reads as one measure instead of eight ragged ones; 商机管理 and 回款到账
+  // are the long forms of the two that were short. Labels track the domain
+  // vocabulary in 20-capability-domains.md - renaming a domain renames a stop.
+  chainLabel: "全链路",
+  chain: ["市场战略", "销售规划", "市场战役", "商机信号", "销售线索", "商机管理", "交付项目", "回款到账"],
+} as const;
+
+/**
+ * The workspace that has not subscribed.
+ *
+ * A DIFFERENT PAGE FROM THE FRONT DOOR, because the reader is different: they
+ * are signed in, the product knows who they are, and the one thing they cannot
+ * do is the one thing the page asks for - subscribing happens in the console
+ * and needs an administrator. So the page names who is signed in, says where
+ * the purchase happens, and offers a way out. A reader who can neither buy nor
+ * leave is stranded, which is what a bare EmptyState left them.
+ */
+export const NO_SUBSCRIPTION_TEXT = {
+  badge: "未订阅",
+  // The one line under the title. Both halves are load-bearing: subscribing is
+  // the way forward, and it happens in the console under an administrator's
+  // rights - so a reader who does not have them learns it here rather than
+  // after a round trip.
+  description: "请先完成订阅，或联系工作区管理员订阅。",
+  ariaLabel: "当前工作区尚未订阅",
+  identityLabel: "登录身份",
+  workspaceLabel: "当前工作区",
+  signOut: "退出登录",
+} as const;
+
+/**
+ * After signing out.
+ *
+ * Reached by the IdP's post-logout redirect, which lands on the product root -
+ * the same address as the front door. Without this the product answered a
+ * deliberate sign-out with "登录", which reads as if the sign-out failed.
+ */
+export const SIGNED_OUT_TEXT = {
+  ariaLabel: "已退出登录",
+  title: "已退出登录",
+  // The product ended its own session and can do nothing about the browser's.
+  // One line, and an instruction rather than a reassurance.
+  description: "公用电脑上，请一并退出浏览器账号。",
+  signInAgain: "重新登录",
+  toConsole: "前往账号中心",
+} as const;
+
+/**
+ * A member with no role, in a workspace that HAS subscribed.
+ *
+ * The one gate screen whose reader can do nothing about it themselves - which
+ * is why it says who can, by name of position rather than by the word
+ * "administrator". Whoever opened the subscription is this product's super
+ * administrator; everyone else waits for them.
+ */
+export const NO_ROLES_TEXT = {
+  // Short, because it hangs off the corner of the title as a label - the same
+  // shape and the same length as the sibling screen's, which is what "the same
+  // format" means here.
+  badge: "无角色",
+  ariaLabel: "还没有为你分配角色",
+  identityLabel: "登录身份",
+  workspaceLabel: "当前工作区",
+  recheck: "重新检查",
+  signOut: "退出登录",
+} as const;
+
+/**
+ * The gate-screen preview (demo route only).
+ *
+ * Its own constant rather than strings in the page: the docs and the message
+ * dictionary are the two places copy is allowed to live, and a preview route
+ * is still a route somebody reads.
+ */
+export const GATE_PREVIEW_TEXT = {
+  ariaLabel: "选择要预览的页面",
+  signIn: "未登录引导页",
+  noSubscription: "未订阅",
+  noRoles: "无角色",
+  signedOut: "已退出",
+  // Obviously a sample, so nobody mistakes the preview for a real session.
+  sampleUser: "示例成员",
+  sampleWorkspace: "示例工作区",
 } as const;
 
 /**
