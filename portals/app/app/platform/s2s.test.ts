@@ -360,3 +360,14 @@ test("an explicit S2S client still wins over the C1 client", () => {
   assert.equal(cfg.clientId, "yucer-s2s");
   assert.equal(cfg.clientSecret, "s2s");
 });
+
+test("a token URL that is not an http(s) URL - a leaked env comment - falls back to the issuer's", () => {
+  const cfg = getS2SConfig({
+    OIDC_ISSUER: "https://accounts.vxture.com",
+    OIDC_CLIENT_ID: "yucer",
+    OIDC_CLIENT_SECRET: "s",
+    S2S_TOKEN_URL: "# default: https://accounts.vxture.com/oidc/token",
+  });
+  assert.equal(cfg.tokenUrl, "https://accounts.vxture.com/oidc/token");
+  assert.equal(getS2SConfig({ OIDC_CLIENT_SECRET: "s", S2S_TOKEN_URL: "https://idp.example/oidc/token" }).tokenUrl, "https://idp.example/oidc/token");
+});
