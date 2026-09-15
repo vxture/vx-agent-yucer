@@ -280,8 +280,8 @@ export function buildNationalCohort(
           const status = roll < 0.22 ? "won" : roll < 0.33 ? "lost" : "open";
           const amount = Math.round((180_000 + r() * 2_600_000) * (0.4 + w)) ;
           const stage =
-            status === "won" ? "closed_won"
-            : status === "lost" ? "closed_lost"
+            status === "won" ? "won"
+            : status === "lost" ? "lost"
             : (["discover", "qualify", "validate", "negotiate"] as const)[Math.floor(r() * 4)]!;
           const probability =
             status === "won" ? 100 : status === "lost" ? 0
