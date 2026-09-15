@@ -1,4 +1,4 @@
-import { EmptyState, StatusBadge, ViewLayout } from "@vxture/design-ui";
+import { StatusBadge, ViewLayout } from "@vxture/design-ui";
 import { resolveAppSession } from "../lib/session";
 import { getMessages } from "../lib/i18n/server";
 import { listSignals, listLeads, workspaceExits } from "../../domains/signal/service";
@@ -27,13 +27,12 @@ import { Tag } from "../components/tag";
 export const dynamic = "force-dynamic";
 
 export default async function FunnelPage() {
-  const { FUNNEL_TEXT, SHELL_TEXT } = await getMessages();
+  const { FUNNEL_TEXT } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return (
-      <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />
-    );
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
 
   const base = {
     workspaceId: session.workspaceId,

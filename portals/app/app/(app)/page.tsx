@@ -29,14 +29,10 @@ export default async function HomePage({
   const { HOME_TEXT, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const { scope: rawScope } = await searchParams;
   const session = await resolveAppSession();
-  if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
 
   // Only a scope the reader actually asked for is pinned. Anything else stays
   // undefined so the service can derive it from what this member owns.

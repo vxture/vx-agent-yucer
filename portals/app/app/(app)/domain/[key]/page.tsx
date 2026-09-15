@@ -50,7 +50,6 @@ export default async function DomainHomePage({
   if (!hasHome(key)) notFound();
 
   const {
-    SHELL_TEXT,
     DOMAIN_GROUP_LABEL,
     DOMAIN_GROUP_QUESTION,
     DOMAIN_LABEL,
@@ -62,14 +61,10 @@ export default async function DomainHomePage({
   } = await getMessages();
 
   const session = await resolveAppSession();
-  if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
 
   const nav = resolveNavigation(session.authz, session.entitlement);
   const domain = resolveFunctionalDomains(nav).find((d) => d.key === key);

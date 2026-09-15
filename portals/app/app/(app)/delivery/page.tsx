@@ -33,14 +33,10 @@ export const dynamic = "force-dynamic";
 export default async function DeliveryPage() {
   const { DELIVERY_TEXT, PROJECT_STATUS_LABEL, SHELL_TEXT, LOAD_ERROR } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
 
   const ctx = {
     workspaceId: session.workspaceId,
