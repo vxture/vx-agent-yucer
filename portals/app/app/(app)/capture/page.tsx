@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../lib/session";
@@ -36,11 +36,12 @@ export default async function CapturePage({
   searchParams: Promise<{ account?: string; opportunity?: string; back?: string }>;
 }) {
   const { account: accountId, opportunity: opportunityId, back } = await searchParams;
-  const { DOMAIN_LABEL, FIELD_TEXT, SHELL_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, FIELD_TEXT } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
   if (!accountId) {
     // A capture with no customer is the deck's job (an unanchored dump is
     // legal there); THIS page records against somebody. The account list is

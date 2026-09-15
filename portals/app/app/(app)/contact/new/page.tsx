@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
@@ -21,11 +21,12 @@ export default async function NewContactPage({
   searchParams: Promise<{ account?: string; back?: string }>;
 }) {
   const { account: accountId, back } = await searchParams;
-  const { ACCOUNT_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
+  const { ACCOUNT_TEXT, DOMAIN_LABEL } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
   if (!accountId) redirect("/account");
   if (!can(session.authz, session.entitlement, "account.contact.upsert", "ui").allowed) {
     redirect(`/account/${accountId}`);

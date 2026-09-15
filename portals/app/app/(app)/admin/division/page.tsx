@@ -43,14 +43,10 @@ const CHINA: MarketScope = { kind: "china", code: null };
 export default async function DivisionPage() {
   const { ADMIN_TEXT, DOMAIN_LABEL, PLANNING_TEXT, SHELL_TEXT } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
 
   const ctx = {
     workspaceId: session.workspaceId,

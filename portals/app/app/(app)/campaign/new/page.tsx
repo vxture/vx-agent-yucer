@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
@@ -20,11 +20,12 @@ import { saveExecution } from "../actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewExecutionPage() {
-  const { CAMPAIGN_TEXT, DOMAIN_LABEL, SHELL_TEXT } = await getMessages();
+  const { CAMPAIGN_TEXT, DOMAIN_LABEL } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />;
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
   if (!can(session.authz, session.entitlement, "campaign.execution.upsert", "ui").allowed) {
     redirect("/campaign");
   }

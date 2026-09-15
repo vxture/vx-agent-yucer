@@ -1,4 +1,4 @@
-import { EmptyState, ViewHeader, ViewLayout } from "@vxture/design-ui";
+import { ViewHeader, ViewLayout } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { redirect } from "next/navigation";
 import { resolveAppSession } from "../../lib/session";
@@ -18,13 +18,12 @@ import { saveLead } from "../assign-actions";
 export const dynamic = "force-dynamic";
 
 export default async function NewLeadPage() {
-  const { DOMAIN_LABEL, LEAD_TEXT, SHELL_TEXT } = await getMessages();
+  const { DOMAIN_LABEL, LEAD_TEXT } = await getMessages();
   const session = await resolveAppSession();
-  if (!session) {
-    return (
-      <EmptyState title={SHELL_TEXT.signedOutTitle} description={SHELL_TEXT.signedOutDescription} />
-    );
-  }
+  if (!session) return null;
+  // Unreachable: (app)/layout.tsx already renders the shared SignIn
+  // screen and never mounts this page when there is no session. Kept
+  // only because TypeScript needs it to narrow `session` below.
   if (!can(session.authz, session.entitlement, "signal.lead.upsert", "ui").allowed) {
     redirect("/lead");
   }
