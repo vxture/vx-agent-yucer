@@ -149,7 +149,10 @@ export const en: Dictionary = {
 
   SHELL_TEXT: {
     brandName: "Yucer Sales Agent",
-    website: "Website",
+    // NOT "Website". The button goes to one specific site and the brand names
+    // it; a generic noun tells an English reader less than the Chinese 官网
+    // tells a Chinese one, which is the wrong way round for an override.
+    website: "ruyin",
     workspaceFallback: "Current workspace",
     signedOutTitle: "Not signed in",
     signedOutDescription:
