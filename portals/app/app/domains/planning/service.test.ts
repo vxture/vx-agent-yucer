@@ -10,6 +10,7 @@ import {
   createTarget,
   listTargets,
   listTerritories,
+  retireOrphanedAutoTerritories,
   updateTarget,
   upsertTerritory,
   type PlanningContext,
@@ -337,4 +338,77 @@ test("a fixture seeded in names (pre-0052) resolves to ids through the same rows
   }] });
   const [t] = unwrap(await listTerritories(ctx("sales_leader", "pro", store)));
   assert.deepEqual([t!.divisionIds, t!.regions], [["d_east"], ["华东"]]);
+});
+
+// --- Retiring the AUTO- territories a carve no longer covers -----------------
+//
+// Switching carves (七分法 -> 五分法) is a normal workflow, and the preset's own
+// upsert loop only ever touches the codes the CURRENT carve produces. Without a
+// sweep the old carve's rows stay `active` while the divisions and units they
+// name have already been deleted underneath them - see the "全范围" badge on
+// admin/org/page.tsx, which had to filter them out of its own denominator.
+
+async function seedAuto(store: InMemoryPlanningStore, codes: readonly string[]): Promise<void> {
+  const c = ctx("sales_leader", "pro", store);
+  for (const code of codes) {
+    await upsertTerritory(c, {
+      territoryCode: code,
+      name: code.replace("AUTO-", ""),
+      parentId: null,
+      ownerSub: null,
+      status: "active",
+    });
+  }
+}
+
+test("a code the new carve no longer produces is retired and unlinked", async () => {
+  const store = new InMemoryPlanningStore();
+  await seedAuto(store, ["AUTO-N", "AUTO-S"]);
+
+  const r = await retireOrphanedAutoTerritories(ctx("sales_leader", "pro", store), new Set(["AUTO-N"]));
+  assert.equal(r.ok === true && r.value.retired, 1);
+
+  const all = await store.listTerritories(WS, { includeRetired: true });
+  const kept = all.find((t) => t.territoryCode === "AUTO-N")!;
+  const swept = all.find((t) => t.territoryCode === "AUTO-S")!;
+  assert.equal(kept.status, "active", "a code the carve still produces is untouched");
+  assert.equal(swept.status, "retired");
+  assert.deepEqual(swept.divisionIds, [], "and it stops naming rows that no longer exist");
+  assert.deepEqual(swept.unitIds, []);
+});
+
+test("a hand-made territory is never swept, whatever the carve says", async () => {
+  // The prefix is the whole of the rule: AUTO- rows are the preset's to manage,
+  // and anything a person named is theirs.
+  const store = new InMemoryPlanningStore();
+  const c = ctx("sales_leader", "pro", store);
+  await upsertTerritory(c, {
+    territoryCode: "EAST",
+    name: "East China",
+    parentId: null,
+    ownerSub: null,
+    status: "active",
+  });
+
+  const r = await retireOrphanedAutoTerritories(c, new Set(["AUTO-N"]));
+  assert.equal(r.ok === true && r.value.retired, 0);
+  const east = (await store.listTerritories(WS, { includeRetired: true })).find((t) => t.territoryCode === "EAST")!;
+  assert.equal(east.status, "active");
+});
+
+test("an already-swept row is a no-op, so applying a template twice writes once", async () => {
+  const store = new InMemoryPlanningStore();
+  await seedAuto(store, ["AUTO-S"]);
+  const c = ctx("sales_leader", "pro", store);
+
+  assert.equal((await retireOrphanedAutoTerritories(c, new Set())).ok === true, true);
+  const second = await retireOrphanedAutoTerritories(c, new Set());
+  assert.equal(second.ok === true && second.value.retired, 0, "nothing left to retire");
+});
+
+test("the sweep carries the same gate as maintaining a territory by hand", async () => {
+  const store = new InMemoryPlanningStore();
+  await seedAuto(store, ["AUTO-S"]);
+  const r = await retireOrphanedAutoTerritories(ctx("sales_rep", "pro", store), new Set());
+  assert.equal(r.ok === false && r.violations[0]!.code, "permission_denied");
 });

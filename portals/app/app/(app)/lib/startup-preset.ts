@@ -2,6 +2,7 @@ import {
   applyOrgTemplate,
   listOrgUnits,
   setUnitDivisions,
+  retireOrphanedAutoTerritories,
   upsertTerritory,
   type PlanningContext,
 } from "../../domains/planning/service";
@@ -53,6 +54,8 @@ export interface StartupPresetResult {
   readonly territories: number;
   readonly linkedUnits: number;
   readonly linkedDivisions: number;
+  /** AUTO- territories the PREVIOUS carve left behind, now retired. */
+  readonly territoriesRetired: number;
 }
 
 export type StartupPresetOutcome = ({ readonly ok: true } & StartupPresetResult) | { readonly ok: false; readonly error: string };
@@ -77,6 +80,7 @@ export async function applyStartupPreset(
   let territories = 0;
   let linkedUnits = 0;
   let linkedDivisions = 0;
+  let territoriesRetired = 0;
 
   if (input.divisionKey) {
     const divisionResult = await importDivisionTemplate(accountCtx, input.divisionKey);
@@ -112,6 +116,18 @@ export async function applyStartupPreset(
           if (linkResult.ok) linkedDivisions += 1;
         }
       }
+
+      // AFTER the loop, and only when a carve was actually applied: the codes
+      // this carve produces are exactly what the loop just upserted, so
+      // anything else wearing an AUTO- code belongs to a carve that is no
+      // longer in force. Switching carves is a normal workflow, and without
+      // this those rows stay `active` while the units and divisions they name
+      // have already been deleted underneath them.
+      const retired = await retireOrphanedAutoTerritories(
+        planningCtx,
+        new Set(rows.map((d) => `AUTO-${d.code}`)),
+      );
+      if (retired.ok) territoriesRetired = retired.value.retired;
     }
   }
 
@@ -125,5 +141,6 @@ export async function applyStartupPreset(
     territories,
     linkedUnits,
     linkedDivisions,
+    territoriesRetired,
   };
 }
