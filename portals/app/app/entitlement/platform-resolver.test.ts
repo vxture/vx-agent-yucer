@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PlatformEntitlementResolver } from "./platform-resolver";
 import { makeEntitlement } from "./resolver";
-import type { PlatformClientConfig } from "./platform-client";
+import { DEFAULT_CACHE_TTL_MS, type PlatformClientConfig } from "./platform-client";
 import type { Entitlement } from "./types";
 
 // What a platform outage does to access.
@@ -26,16 +26,17 @@ function ent(over: Partial<Entitlement> = {}): Entitlement {
   return makeEntitlement(WS, "yucer", { tier: "pro", status: "active", ...over });
 }
 
-/** A platform that answers, or fails, on command. */
-function platform(script: Array<Entitlement | Error>) {
+/** A platform that answers, or fails, on command. Answers carry the documented
+ *  default TTL unless a test overrides it via a { entitlement, ttlMs } step. */
+function platform(script: Array<Entitlement | { entitlement: Entitlement; ttlMs: number } | Error>) {
   let i = 0;
   const calls: string[] = [];
-  const fetchImpl = async (_cfg: PlatformClientConfig, workspaceId: string): Promise<Entitlement> => {
+  const fetchImpl = async (_cfg: PlatformClientConfig, workspaceId: string) => {
     calls.push(workspaceId);
     const step = script[Math.min(i, script.length - 1)];
     i += 1;
     if (step instanceof Error) throw step;
-    return step;
+    return "entitlement" in step ? step : { entitlement: step, ttlMs: DEFAULT_CACHE_TTL_MS };
   };
   return { fetchImpl, calls };
 }
@@ -98,13 +99,35 @@ test("a good answer is cached for the TTL", async () => {
   assert.equal(calls.length, 2);
 });
 
+test("the cache follows this fetch's own ttlMs, not a fixed constant", async () => {
+  // A response could carry a shorter or longer Cache-Control max-age than the
+  // documented default; the cache must expire on THAT number, not on a
+  // constant that no longer reads what the response actually said.
+  let clock = 1_000;
+  const calls: string[] = [];
+  const fetchImpl = async (_c: PlatformClientConfig, id: string) => {
+    calls.push(id);
+    return { entitlement: ent(), ttlMs: 5_000 };
+  };
+  const r = new PlatformEntitlementResolver(CFG, { fetchImpl, now: () => clock });
+
+  await r.resolve(WS);
+  clock += 4_000; // within this fetch's reported 5s ttl
+  await r.resolve(WS);
+  assert.equal(calls.length, 1, "still within the 5s this response asked for");
+
+  clock += 2_000; // past the 5s ttl, well short of the 45s default
+  await r.resolve(WS);
+  assert.equal(calls.length, 2, "expired at 5s, not at the 45s default");
+});
+
 test("two workspaces never share a cached entitlement", async () => {
   // A cache keyed loosely here would sell one workspace another's tier.
   const answers = new Map([
     ["ws_a", makeEntitlement("ws_a", "yucer", { tier: "enterprise", status: "active" })],
     ["ws_b", makeEntitlement("ws_b", "yucer", { tier: null, status: null })],
   ]);
-  const fetchImpl = async (_c: PlatformClientConfig, id: string) => answers.get(id)!;
+  const fetchImpl = async (_c: PlatformClientConfig, id: string) => ({ entitlement: answers.get(id)!, ttlMs: DEFAULT_CACHE_TTL_MS });
   const r = new PlatformEntitlementResolver(CFG, { fetchImpl, now: at(1_000) });
 
   assert.equal((await r.resolve("ws_a")).tier, "enterprise");
@@ -132,7 +155,7 @@ test("invalidating one workspace leaves the others cached", async () => {
   const r = new PlatformEntitlementResolver(CFG, {
     fetchImpl: async (_c, id) => {
       fetched.push(id);
-      return makeEntitlement(id, "yucer", { tier: "pro", status: "active" });
+      return { entitlement: makeEntitlement(id, "yucer", { tier: "pro", status: "active" }), ttlMs: DEFAULT_CACHE_TTL_MS };
     },
     now: at(1_000),
   });

@@ -3,11 +3,11 @@ import { fetchEntitlement, type PlatformClientConfig } from "./platform-client";
 import type { Entitlement } from "./types";
 
 // Real C2 resolver: short-TTL cache + C3 invalidate (product_200 section 3).
-// entitlement is derived live, cached ~45s, and evicted on a subscription_changed
-// webhook. Never persisted, never in the token. Stale-on-error keeps the UI up
-// if the platform blips.
-
-const TTL_MS = 45_000;
+// entitlement is derived live, cached per the response's own Cache-Control
+// max-age (fetchEntitlement parses it; ~45s is the documented value, not a
+// constant kept here independently of what the platform actually said), and
+// evicted on a subscription_changed webhook. Never persisted, never in the
+// token. Stale-on-error keeps the UI up if the platform blips.
 
 interface Entry {
   value: Entitlement;
@@ -45,9 +45,9 @@ export class PlatformEntitlementResolver implements EntitlementResolver {
     if (hit && hit.expiresAt > now) return hit.value;
 
     try {
-      const value = await this.fetchImpl(this.cfg, workspaceId);
-      this.cache.set(workspaceId, { value, expiresAt: now + TTL_MS });
-      return value;
+      const { entitlement, ttlMs } = await this.fetchImpl(this.cfg, workspaceId);
+      this.cache.set(workspaceId, { value: entitlement, expiresAt: now + ttlMs });
+      return entitlement;
     } catch {
       // Stale-on-error: last good value, else a no-coverage default (fail-closed
       // to no access, not fail-open).

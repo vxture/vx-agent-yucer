@@ -1,6 +1,7 @@
 import { BRAND } from "@yucer/shared/brand";
 import type { JobsSnapshot } from "../jobs/scheduler";
 import { deployStageOf, type DeployStage } from "./deploy-stage";
+import { DEFAULT_CACHE_TTL_MS } from "../entitlement/platform-client";
 import { serviceIdentity } from "@vxture/shared";
 
 // Integration-status surface (the /status dashboard + /api/status). Summarizes
@@ -126,7 +127,10 @@ export function buildStatus(env: Env, now: string): IntegrationStatus {
       platformApiConfigured: Boolean(env.PLATFORM_API_URL),
       authTokenConfigured: Boolean(env.PLATFORM_INTERNAL_AUTH_TOKEN),
       consoleUrl: env.NEXT_PUBLIC_CONSOLE_URL ?? null,
-      cacheTtlMs: 45_000,
+      // The documented default fetchEntitlement falls back to, not a guarantee
+      // every cached entry currently holds this exact value - each entry's real
+      // expiry follows that fetch's own Cache-Control response.
+      cacheTtlMs: DEFAULT_CACHE_TTL_MS,
       deployStage: deployStageOf(env.DEPLOY_STAGE),
       mockOverride: env.ALLOW_MOCK_ON_DEPLOY === "on",
     },
