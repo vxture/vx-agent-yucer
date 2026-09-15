@@ -10,8 +10,9 @@ import {
   ShellThemeToggle,
   useTheme,
 } from "@vxture/design-system";
-import { Button } from "@vxture/design-ui";
+import { Button, Icon } from "@vxture/design-ui";
 import { LOCALE_CONFIGS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
+import { BRAND_MARK_SRC, BRAND_WORDMARK, PRODUCT_MARK_SRC } from "../lib/brand-assets";
 import { useLocale, useMessages } from "../lib/i18n/provider";
 import { writeLocale } from "../lib/i18n/write-locale";
 import { websiteUrl } from "../lib/website-url";
@@ -19,27 +20,27 @@ import { websiteUrl } from "../lib/website-url";
 // The frame the four gate screens share.
 //
 // WHICH FOUR: the front door (no session), the workspace with no subscription,
-// the member with no role, and the confirmation after signing out. None of
-// them renders the product shell - there is nothing to navigate - so each used
-// to be a bare box on an empty page, and together they read as four unrelated
+// the member with no role, and the confirmation after signing out. None of them
+// renders the product shell - there is nothing to navigate - so each used to be
+// a bare box on an empty page, and together they read as four unrelated
 // products.
 //
-// THE HEADER IS THE PUBLIC SITE'S (owner, 2026-09-15). Measured on
-// vxture.com rather than guessed: the row is 64px tall, the container is
-// centred and climbs 1280 -> 1536 -> 1600px, and the side padding ends at
-// 32px. Product lockup left; the same three controls right (theme / language /
-// fullscreen) and one primary action, which is what that site puts there.
+// THREE BANDS, and the outer two never move (owner, 2026-09-15). Top is the
+// product's identity, bottom is the chain, and the middle is whatever this
+// particular refusal has to say, centred in what is left. Switching screens
+// therefore changes one band and leaves the page around it still: the identity
+// does not jump between a tall screen and a short one, which is what made four
+// pages feel like four products.
 //
-// It was full-bleed before, which put the wordmark and the language control on
-// opposite edges of a 2560px screen with nothing in between; a fixed 1280 then
-// went too far the other way and looked cramped on a wide display. The ladder
-// is the point - it stays generous without ever running to the bezel.
-//
-// These are the DS's own shell controls, not local ones - the same three
-// elements the product shell's preference panel uses, and the same cookie the
-// switcher writes.
+// THE HEADER IS THE COMPANY'S, NOT THE PRODUCT'S. It carries the Vxture mark
+// and ruyin.work, the same three controls the public site carries (theme /
+// language / fullscreen, all DS shell elements), and one primary action out to
+// that site. Measured on vxture.com rather than guessed: 64px tall, container
+// centred and climbing 1280 -> 1536 -> 1600px, side padding ending at 32px.
+// Because the header says nothing about the product, the product identity had
+// to become a band of its own - which is the top band below.
 
-/** How wide the well is. The front door needs room; a refusal is one column. */
+/** How wide the middle band is. The door needs room; a refusal is one column. */
 export type GateWidth = "narrow" | "wide";
 
 // Explicit pixel maxima, NOT max-w-lg / max-w-2xl: the DS registers its own
@@ -64,7 +65,7 @@ export function GateFrame({
   readonly width?: GateWidth;
   readonly children: ReactNode;
 }) {
-  const { SHELL_TEXT, HEADER_TEXT } = useMessages();
+  const { SHELL_TEXT, SIGNIN_TEXT, HEADER_TEXT } = useMessages();
   const locale = useLocale();
   const router = useRouter();
   const { mode, setMode } = useTheme();
@@ -79,7 +80,7 @@ export function GateFrame({
 
       <header className="relative">
         <div className="gap-md px-md sm:px-lg lg:px-xl mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between xl:max-w-[1536px] 2xl:max-w-[1600px]">
-          <ShellBrand href="/" logoSrc="/logo.svg" label={SHELL_TEXT.brandName} />
+          <ShellBrand href="/" logoSrc={BRAND_MARK_SRC} label={BRAND_WORDMARK} />
 
           <div className="gap-sm flex items-center">
             <ShellIconGroup label={HEADER_TEXT.prefTitle}>
@@ -129,12 +130,93 @@ export function GateFrame({
         </div>
       </header>
 
-      <main className="relative flex flex-1 items-center justify-center px-lg py-2xl">
-        <section aria-label={ariaLabel} className={`w-full ${WIDTHS[width]}`}>
-          {children}
-        </section>
-      </main>
+      {/* The three bands. The vertical padding is deliberately large - the
+          owner asked for a loose page, neither pinned to the header nor
+          dropped onto the bottom edge - and it is the token scale rather than
+          a number: 5xl is 64px, 6xl is 80px, measured rather than assumed. */}
+      <div className="px-lg py-5xl sm:py-6xl relative flex flex-1 flex-col items-center">
+        <ProductIdentity name={SHELL_TEXT.brandName} />
+
+        {/* THE MIDDLE, and the only band that changes. flex-1 with centred
+            content, so it takes whatever the other two leave and puts its
+            content in the middle of that rather than under the identity. */}
+        <main className="py-2xl flex w-full flex-1 items-center justify-center">
+          <section aria-label={ariaLabel} className={`w-full ${WIDTHS[width]}`}>
+            {children}
+          </section>
+        </main>
+
+        <Chain label={SIGNIN_TEXT.chainLabel} stops={SIGNIN_TEXT.chain} />
+      </div>
     </div>
+  );
+}
+
+/**
+ * The product's identity, on every gate screen.
+ *
+ * It exists because the header stopped carrying the product (owner,
+ * 2026-09-15): the header is the company's now, so a visitor who types the
+ * product's domain would otherwise never be told which product they reached.
+ *
+ * STACKED, and the mark is what holds the height. The name is deliberately
+ * smaller than the headline it replaced, and a small name on its own would have
+ * left this band too short to read as a band at all.
+ */
+function ProductIdentity({ name }: { readonly name: string }) {
+  return (
+    <div className="gap-sm flex flex-col items-center text-center">
+      {/* From lib/brand-assets, never a literal path: both marks are stand-ins
+          for assets a designer hands over later. */}
+      <img
+        src={PRODUCT_MARK_SRC}
+        alt=""
+        aria-hidden
+        className="h-14 w-auto sm:h-16"
+      />
+      <p className="text-title-md sm:text-title-lg">{name}</p>
+    </div>
+  );
+}
+
+/**
+ * The chain, shown rather than described - and now the bottom band on all four
+ * screens rather than a section of the front door (owner, 2026-09-15).
+ *
+ * It is the product's central claim: strategy to cash, with a parent-child
+ * relation at every hop. An ordered list because the order IS the content; the
+ * chevrons are decoration and are hidden from the reading order.
+ */
+function Chain({ label, stops }: { readonly label: string; readonly stops: readonly string[] }) {
+  return (
+    <nav aria-label={label} className="w-full max-w-[760px]">
+      <div className="gap-md flex items-center">
+        <span className="border-primary/15 h-px flex-1 border-t" />
+        <span className="text-overline text-muted-foreground">{label}</span>
+        <span className="border-primary/15 h-px flex-1 border-t" />
+      </div>
+
+      <ol className="gap-x-xs gap-y-sm pt-md flex flex-wrap items-center justify-center">
+        {stops.map((stop, i) => (
+          <li key={stop} className="gap-x-xs flex items-center">
+            <span className="text-label-sm border-primary/15 bg-card/70 px-sm py-2xs rounded-full border">
+              {stop}
+            </span>
+            {/* AFTER its own stop, not before the next one. Leading it meant a
+                line that wrapped on a phone began with a dangling chevron
+                pointing at nothing. */}
+            {i < stops.length - 1 && (
+              <Icon
+                name="chevron-right"
+                size={12}
+                aria-hidden
+                className="text-muted-foreground/50"
+              />
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
@@ -146,19 +228,20 @@ export function GateFrame({
  * is nothing to compose here. Recovery is to delete this and consume the DS
  * element once one exists.
  *
- * TWO FLAT LAYERS, and no drawing (owner, 2026-09-15: the previous version's
- * hand-drawn curves had no form and were simply ugly). A glow from above the
- * top edge, and a measured grid that fades out before it reaches the reading.
- * A grid is a shape rather than a squiggle: it says the product is precise,
- * it cannot be badly drawn, and it holds up at any viewport because nothing
- * about it is a fixed path.
+ * A GLOW FROM ABOVE AND A SWELL ALONG THE BOTTOM THIRD (owner, 2026-09-15).
+ * It has been hand-drawn curves, which had no form, and then a grid, which the
+ * owner cut. What is left is two curves filling the bottom third under a
+ * vertical gradient - a shape rather than a drawing, and one that cannot be
+ * badly drawn because nothing about it is a fixed path at a fixed size: the
+ * band is a third of whatever the viewport is and stretches to whatever width
+ * it is given.
  *
  * Every colour is a token - `--primary` and `--background`, which are the names
  * the brand entry actually defines on :root (checked in the browser; an
- * undefined custom property makes the whole gradient invalid and the browser
- * drops it silently). No palette from any mockup is reproduced, so the ground
- * follows the brand and both themes. Decoration only: aria-hidden, no pointer
- * events, nothing here carries meaning.
+ * undefined custom property makes a gradient invalid and the browser drops it
+ * silently). No palette from any mockup is reproduced, so the ground follows
+ * the brand and both themes. Decoration only: aria-hidden, no pointer events,
+ * nothing here carries meaning.
  */
 function Ambience() {
   return (
@@ -166,16 +249,43 @@ function Ambience() {
       {/* One light source, from above the top edge. */}
       <div className="absolute inset-0 bg-[radial-gradient(120%_78%_at_50%_-12%,color-mix(in_srgb,var(--primary)_17%,transparent),transparent_62%)]" />
 
-      {/* The grid, masked so it never runs under the text: it is at full
-          strength along the bottom edge and gone by the middle of the page. */}
-      <div
-        className="absolute inset-0 [background-size:64px_64px] [mask-image:linear-gradient(to_top,black,transparent_58%)]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, color-mix(in srgb, var(--primary) 9%, transparent) 1px, transparent 1px)," +
-            "linear-gradient(to bottom, color-mix(in srgb, var(--primary) 9%, transparent) 1px, transparent 1px)",
-        }}
-      />
+      {/* The swell. preserveAspectRatio="none" on purpose: this is a band, not
+          a picture, and it should meet both edges at every width. */}
+      <svg
+        className="absolute inset-x-0 bottom-0 h-1/3 w-full"
+        viewBox="0 0 1440 400"
+        preserveAspectRatio="none"
+        fill="none"
+      >
+        <defs>
+          <linearGradient id="gate-swell-far" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.13" />
+          </linearGradient>
+          <linearGradient id="gate-swell-near" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.22" />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M0 118 C 300 34, 560 210, 880 150 S 1240 42, 1440 96 L1440 400 L0 400 Z"
+          fill="url(#gate-swell-far)"
+        />
+        <path
+          d="M0 232 C 260 156, 620 300, 940 244 S 1280 168, 1440 208 L1440 400 L0 400 Z"
+          fill="url(#gate-swell-near)"
+        />
+        {/* The near crest, drawn so the swell reads as an edge rather than a
+            smudge. Faint enough that it never competes with the chain above. */}
+        <path
+          d="M0 232 C 260 156, 620 300, 940 244 S 1280 168, 1440 208"
+          stroke="var(--primary)"
+          strokeOpacity="0.26"
+          strokeWidth="1.5"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
     </div>
   );
 }
