@@ -41,8 +41,13 @@ Review deployments 批准。agent（Claude）可以调度、可以推 tag，**�
   后 deploy（`20-github-bootstrap-checklist.md`「Release」）；`docker-build` 已
   成功（门在 build 之后）；Environment 的 `STACK_ROOT` / `PROJECT_NAME` /
   `APP_PUBLISH_PORT` 与目标一致。
-- **env-update**：`ENV_FILE_BASE64` 已换成**完整**文件——它整体替换
-  `etc/.env`，不是合并；`.env.prev` 会保留一份，坏值一步可退。
+- **env-update**：`mode=replace`（默认）要求 `ENV_FILE_BASE64` 是**完整**文件——
+  它整体替换 `etc/.env`；`mode=patch` 只把 `ENV_PATCH_BASE64` 里的 `KEY=VALUE`
+  行合并进主机上现有的文件，其余键不动（2026-09-14 加，因为没有能 ssh 到主机
+  的操作机）。两种模式下只要 `ENV_PATCH_BASE64` 存在都会在最后叠加一次，所以
+  过期的 `ENV_FILE_BASE64` 也不会把平台值冲回空白。`.env.prev` 会保留一份，坏
+  值一步可退。核对：补丁只含要改的键，且不含 `POSTGRES_PASSWORD` /
+  `DATABASE_URL`（改它们不会改数据库里的真密码）。
 - **rollback**：`commit_sha` 是以前部署过的构建（镜像还在 GHCR / ACR）；数据库
   结构不回滚——增量不可逆，回滚只回滚应用镜像。
 

@@ -10,16 +10,27 @@ export interface DeliveryMeta {
   result: string;
 }
 
+/** One recorded delivery, as /api/platform-check lists it (newest first). */
+export interface RecentDelivery {
+  deliveryId: string;
+  type: string;
+  result: string;
+  receivedAt: Date;
+}
+
 export interface ProvisioningStore {
   isDelivered(deliveryId: string): Promise<boolean>;
   markDelivered(deliveryId: string, meta?: DeliveryMeta): Promise<void>;
   getLastSeq(workspaceId: string, product: string): Promise<number>;
   setSeq(workspaceId: string, product: string, seq: number): Promise<void>;
   upsertInstance(workspaceId: string, product: string, status: string): Promise<void>;
+  /** The most recent deliveries, newest first - the self-proof surface's C3-down evidence. */
+  recentDeliveries(limit: number): Promise<RecentDelivery[]>;
 }
 
 export class InMemoryProvisioningStore implements ProvisioningStore {
   private delivered = new Set<string>();
+  private log: RecentDelivery[] = [];
   private seq = new Map<string, number>();
   private instances = new Map<string, string>();
 
@@ -36,8 +47,13 @@ export class InMemoryProvisioningStore implements ProvisioningStore {
   async isDelivered(id: string): Promise<boolean> {
     return this.delivered.has(id);
   }
-  async markDelivered(id: string): Promise<void> {
-    this.delivered.add(id); // in-memory ignores meta; the Prisma store persists it
+  async markDelivered(id: string, meta?: DeliveryMeta): Promise<void> {
+    this.delivered.add(id);
+    this.log.push({ deliveryId: id, type: meta?.type ?? "unknown", result: meta?.result ?? "processed", receivedAt: new Date() });
+    if (this.log.length > 100) this.log.shift(); // a ring, not a history
+  }
+  async recentDeliveries(limit: number): Promise<RecentDelivery[]> {
+    return this.log.slice(-limit).reverse();
   }
   async getLastSeq(w: string, p: string): Promise<number> {
     return this.seq.get(this.seqKey(w, p)) ?? -1;

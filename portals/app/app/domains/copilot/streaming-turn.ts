@@ -26,6 +26,7 @@ import { buildTurnMessages, type PromptContext } from "../../agent/orchestrator/
 import { CAPABILITY_MATRIX } from "../../entitlement/capability";
 import { PROPOSE_ACTION_TOOL } from "../../agent/orchestrator/tools";
 import { recordAuditEvent } from "../../audit/lib/record";
+import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns";
 import type { CopilotContext } from "./service";
 import type { SessionRecord } from "./store";
 
@@ -45,6 +46,8 @@ export type StreamEvent =
 
 export interface StreamDeps {
   atlasClient: AtlasClient;
+  /** The product's own turn metering (usage/lib/copilot-turns); defaults to the real buffer. */
+  meter?: TurnMeter;
 }
 
 /**
@@ -55,6 +58,12 @@ export interface StreamDeps {
  *     lose it;
  *   - whatever the model produced is written in a finally block, so an
  *     abandoned stream still leaves a transcript.
+ *
+ * So is the metering contract (2026-09-15: this path had none, and it is the
+ * path every workspace WITHOUT copilot.suggest takes - free and starter, where
+ * a quota pool is most likely to exist): admission by the C2 pool before a
+ * session is opened, the charge keyed by the question row before the model is
+ * called. A streamed turn that never reached the ledger was a free turn.
  *
  * No proposals are produced here: this path does not offer the propose_action
  * tool, because a proposal arriving mid-stream would have to be written before
@@ -94,6 +103,23 @@ export async function* streamCopilotTurn(
     return;
   }
 
+  // The product's own quota, as in runCopilotTurn(): a pool for
+  // yucer.copilot.turns with nothing left refuses before a session exists.
+  const meter = deps.meter ?? defaultTurnMeter();
+  const admission = meter.admit(ctx.entitlement);
+  if (!admission.ok) {
+    await recordAuditEvent({
+      workspaceId: ctx.workspaceId,
+      actorId: ctx.sub,
+      objectType: "copilot_turn",
+      objectId: input.sessionId ?? "new",
+      action: "copilot.ask",
+      outcome: "denied",
+    });
+    yield { type: "error", code: "quota_exceeded", message: "this workspace's copilot turn quota is used up" };
+    return;
+  }
+
   const session: SessionRecord | null = input.sessionId
     ? await ctx.store.getSession(ctx.workspaceId, input.sessionId)
     : await ctx.store.createSession(ctx.workspaceId, {
@@ -107,11 +133,14 @@ export async function* streamCopilotTurn(
   yield { type: "session", sessionId: session.id };
 
   // Before the model. A failure downstream must not lose the question.
-  await ctx.store.appendMessage(ctx.workspaceId, {
+  const asked = await ctx.store.appendMessage(ctx.workspaceId, {
     sessionId: session.id,
     role: "user",
     content: question,
   });
+  // The charge, keyed by that question, also before the model: a model
+  // failure is still the turn that was asked for.
+  await meter.record(ctx.workspaceId, asked.id);
 
   const history = await ctx.store.listMessages(ctx.workspaceId, session.id);
   const prompt: PromptContext = {

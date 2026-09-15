@@ -252,3 +252,62 @@ test("a successful turn is recorded with its task id and its Atlas token spend",
   assert.equal(row.costAmount, 2, "one Atlas call in this fixture, usage.totalTokens = 2");
   setAuditStore(null);
 });
+
+// --- the product's own metering (usage/lib/copilot-turns), at the convergence point ---
+
+function meterSpy(admit: boolean) {
+  const recorded: Array<{ ws: string; messageId: string }> = [];
+  let admits = 0;
+  const meter = {
+    admit: () => {
+      admits += 1;
+      return admit ? ({ ok: true } as const) : ({ ok: false, remaining: 0 } as const);
+    },
+    record: async (ws: string, messageId: string) => {
+      recorded.push({ ws, messageId });
+      return "k";
+    },
+  };
+  return { meter, recorded, admits: () => admits };
+}
+
+test("an admitted turn is charged once, keyed by its question, before the model is called", async () => {
+  const store = new InMemoryCopilotStore();
+  const h = deps({ replies: [{ content: "ok" }] });
+  const m = meterSpy(true);
+  const r = await runCopilotTurn(ctx("sales_rep", "pro", store), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, true);
+  const asked = (await store.listMessages(WS, unwrap(r).session.id)).find((msg) => msg.role === "user");
+  assert.ok(asked);
+  assert.deepEqual(m.recorded, [{ ws: WS, messageId: asked.id }], "the key is the question row, not a fresh id");
+  assert.equal(h.calls.length, 1);
+});
+
+test("a model-plane failure is still a charged turn - the charge landed before the call", async () => {
+  const h = deps({ replies: [], atlasThrows: new AtlasError({ code: "PROVIDER_UNAVAILABLE", status: 503, message: "down" }) });
+  const m = meterSpy(true);
+  const r = await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, false);
+  assert.equal(m.recorded.length, 1);
+});
+
+test("a pool with nothing left refuses with quota_exceeded, opens no session, charges nothing, and never reaches the model", async () => {
+  const store = new InMemoryCopilotStore();
+  const h = deps({ replies: [{ content: "ok" }] });
+  const m = meterSpy(false);
+  const r = await runCopilotTurn(ctx("sales_rep", "pro", store), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.violations[0]?.code, "quota_exceeded");
+  assert.deepEqual(m.recorded, []);
+  assert.equal((await store.listSessions(WS, "usr_me")).length, 0, "a refused turn leaves no session behind");
+  assert.equal(h.calls.length, 0);
+});
+
+test("a gate refusal never consults the meter - nothing was asked for", async () => {
+  const h = deps();
+  const m = meterSpy(true);
+  const r = await runCopilotTurn(ctx("sales_leader", null), { question: "q", tenantId: TENANT }, { ...h.d, meter: m.meter });
+  assert.equal(r.ok, false);
+  assert.equal(m.admits(), 0);
+  assert.deepEqual(m.recorded, []);
+});
