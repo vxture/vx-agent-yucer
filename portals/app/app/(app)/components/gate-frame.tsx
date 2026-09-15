@@ -195,10 +195,16 @@ function ProductIdentity({ name }: { readonly name: string }) {
  * It is the product's central claim: strategy to cash, with a parent-child
  * relation at every hop. An ordered list because the order IS the content; the
  * chevrons are decoration and are hidden from the reading order.
+ *
+ * Wider than the middle band on purpose, and wider than it strictly needs to
+ * be. Eight stops fit one row in Chinese at 760px and wrapped in English,
+ * leaving "Collection" orphaned on a line of its own. Measured in the browser
+ * at 1920: the English row needs 766px, so 1040 keeps it on one line with room
+ * for a longer translation before anything wraps again.
  */
 function Chain({ label, stops }: { readonly label: string; readonly stops: readonly string[] }) {
   return (
-    <nav aria-label={label} className="w-full max-w-[760px]">
+    <nav aria-label={label} className="w-full max-w-[1040px]">
       <div className="gap-md flex items-center">
         <span className="border-primary/15 h-px flex-1 border-t" />
         <span className="text-overline text-muted-foreground">{label}</span>

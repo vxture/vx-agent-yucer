@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SegmentedControl } from "@vxture/design-ui";
-import { DEFAULT_LOCALE } from "@vxture/shared";
+import { DEFAULT_LOCALE, LOCALE_CONSTANTS, SUPPORTED_LOCALES, type Locale } from "@vxture/shared";
 import { MessagesProvider } from "../../(app)/lib/i18n/provider";
 import { SignIn } from "../../(app)/components/sign-in";
 import { SignedOut } from "../../(app)/components/signed-out";
@@ -31,8 +31,26 @@ type Screen = "sign-in" | "no-subscription" | "no-roles" | "signed-out";
 export default function GateScreensPreview() {
   const [screen, setScreen] = useState<Screen>("sign-in");
 
+  // THE REVIEWER'S OWN LANGUAGE, read from the cookie the header's switcher
+  // writes. This page is static and had the default locale hard-coded, so the
+  // control in the frame wrote the cookie and nothing on screen changed - the
+  // one surface built for reviewing these screens could not show half of them.
+  // Read after mount rather than during render: the cookie does not exist on
+  // the server, and reading it in the first pass would be a hydration
+  // mismatch.
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  useEffect(() => {
+    const found = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${LOCALE_CONSTANTS.COOKIE_KEY}=`))
+      ?.slice(LOCALE_CONSTANTS.COOKIE_KEY.length + 1);
+    if (found && (SUPPORTED_LOCALES as readonly string[]).includes(found)) {
+      setLocale(found as Locale);
+    }
+  }, []);
+
   return (
-    <MessagesProvider locale={DEFAULT_LOCALE}>
+    <MessagesProvider locale={locale}>
       {/* Floats over the screen being reviewed rather than pushing it down:
           each of the three is a full viewport, and a picker in the flow above
           them would mean none of them is ever seen at the size it ships at.
