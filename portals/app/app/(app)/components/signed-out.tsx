@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { Icon, Stack } from "@vxture/design-ui";
+import { Stack } from "@vxture/design-ui";
 import { SIGNED_OUT_COOKIE } from "../../auth/lib/signed-out-marker";
 import { useMessages } from "../lib/i18n/provider";
 import { GateActions, GatePrimary, GateSecondary } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
+import { GateHeading } from "./gate-heading";
 
 // After signing out.
 //
@@ -14,10 +15,14 @@ import { GateFrame } from "./gate-frame";
 // the platform. Without this the product answered a deliberate sign-out with
 // "sign in", and a reader cannot tell a completed sign-out from a failed one.
 //
-// It says the act completed and offers the two places somebody might go next.
-// It used to also carry a line restating the title and a note about closing the
-// browser on a shared device; the owner cut both (2026-09-15) and they were
-// filler - somebody who just signed out knows they signed out.
+// NO MARK ABOVE THE TITLE (owner, 2026-09-15). It carried a green tick in a
+// disc, which is the shape a form uses to confirm something that might have
+// failed. Signing out did not; the sentence is the confirmation.
+//
+// The one line under it is the only thing here the reader would not already
+// know: this product ended its own session and can do nothing about the
+// browser's. An instruction, not a reassurance, and it is why the line came
+// back after being cut.
 
 export function SignedOut({ consoleHref }: { readonly consoleHref: string | null }) {
   const { SIGNED_OUT_TEXT } = useMessages();
@@ -32,18 +37,11 @@ export function SignedOut({ consoleHref }: { readonly consoleHref: string | null
 
   return (
     <GateFrame ariaLabel={SIGNED_OUT_TEXT.ariaLabel} width="narrow">
-      <Stack gap="lg" className="items-center text-center">
-        {/* The mark, not a badge: a badge beside a heading saying the same
-            words is the same sentence twice. A completed act, so it gets the
-            tone's colour and nothing to read. */}
-        <span
-          aria-hidden
-          className="bg-success-muted text-success-muted-foreground grid size-12 place-items-center rounded-full"
-        >
-          <Icon name="check" size={22} />
-        </span>
-
-        <h1 className="text-heading-2 text-balance">{SIGNED_OUT_TEXT.title}</h1>
+      <Stack gap="lg" className="items-center">
+        <GateHeading
+          title={SIGNED_OUT_TEXT.title}
+          description={SIGNED_OUT_TEXT.description}
+        />
 
         <GateActions
           primary={

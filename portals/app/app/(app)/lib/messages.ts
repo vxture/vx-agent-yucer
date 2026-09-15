@@ -1770,15 +1770,14 @@ export const SHELL_TEXT = {
   workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
-  noAccessTitle: "当前工作区尚未订阅 yucer",
+  noAccessTitle: "当前工作区未订阅",
   subscribeCta: "前往订阅",
   noRolesTitle: "还没有为你分配角色",
   // Names WHO, because "an administrator" is not a person anybody can go and
   // find. Opening the subscription makes you this product's super
   // administrator (auth/lib/claims.ts: the platform's workspace:owner is the
   // first-login super-admin), so the reader knows exactly whom to ask.
-  noRolesDescription:
-    "工作区已订阅，但还没有人给你分配角色，所以暂时没有可进入的模块。开通订阅的人是本产品的超级管理员，请他在「管理 - 成员」里为你分配。",
+  noRolesDescription: "请联系开通订阅的管理员为你分配角色。",
   loadFailed: "数据加载失败",
   /** 面包屑前的返回按钮：纯图标，可访问名在这里。 */
   backUp: "返回上一级",
@@ -1801,6 +1800,10 @@ export const SHELL_TEXT = {
 export const SIGNIN_TEXT = {
   cta: "登录",
   ariaLabel: "登录",
+  // Every gate screen is a title and a line under it; the door had only the
+  // line, which left its middle band looking unfinished (owner, 2026-09-15).
+  // A greeting rather than an instruction: the button says what to do.
+  title: "欢迎使用",
   // ONE LINE, under the product name. It was the headline until 2026-09-15,
   // when the owner cut the door back to what a door is: the product's name,
   // what it does in a sentence, and the way in. The eyebrow, the paragraph and
@@ -1846,6 +1849,9 @@ export const NO_SUBSCRIPTION_TEXT = {
 export const SIGNED_OUT_TEXT = {
   ariaLabel: "已退出登录",
   title: "已退出登录",
+  // The product ended its own session and can do nothing about the browser's.
+  // One line, and an instruction rather than a reassurance.
+  description: "公用电脑上，请一并退出浏览器账号。",
   signInAgain: "重新登录",
   toConsole: "前往账号中心",
 } as const;
@@ -1859,19 +1865,15 @@ export const SIGNED_OUT_TEXT = {
  * administrator; everyone else waits for them.
  */
 export const NO_ROLES_TEXT = {
-  badge: "等待分配角色",
+  // Short, because it hangs off the corner of the title as a label - the same
+  // shape and the same length as the sibling screen's, which is what "the same
+  // format" means here.
+  badge: "无角色",
   ariaLabel: "还没有为你分配角色",
   identityLabel: "登录身份",
   workspaceLabel: "当前工作区",
-  whoLabel: "谁能处理",
-  // The two facts an administrator needs in order to act, said in the order
-  // they will use them.
-  whoBody: "开通订阅的人默认是本产品的超级管理员，由他完成系统配置并分配角色。把上面的登录身份告诉他，他在「管理 - 成员」里就能找到你。",
   recheck: "重新检查",
   signOut: "退出登录",
-  // The other thing that produces this screen, and the reader can check it
-  // themselves in one glance at the workspace name above.
-  wrongWorkspaceHint: "如果上面的工作区不是你要进的那个，请退出后切换账号。",
 } as const;
 
 /**

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Stack } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { GateFrame } from "./gate-frame";
+import { GateHeading } from "./gate-heading";
 
 // The product's front door.
 //
@@ -37,8 +38,11 @@ export function SignIn() {
 
   return (
     <GateFrame ariaLabel={SIGNIN_TEXT.ariaLabel} width="wide">
-      <Stack gap="lg" className="items-center text-center">
-        <p className="text-body-lg text-muted-foreground">{SIGNIN_TEXT.description}</p>
+      <Stack gap="lg" className="items-center">
+        {/* The same heading shape as the three refusals - a greeting and the
+            product's one sentence. The door had only the sentence, which left
+            this band looking unfinished. */}
+        <GateHeading title={SIGNIN_TEXT.title} description={SIGNIN_TEXT.description} />
 
         <Button asChild size="xl" className="min-w-[240px]">
           <a href={href}>{SIGNIN_TEXT.cta}</a>

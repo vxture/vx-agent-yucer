@@ -130,23 +130,32 @@ export function GateFrame({
         </div>
       </header>
 
-      {/* The three bands. The vertical padding is deliberately large - the
-          owner asked for a loose page, neither pinned to the header nor
-          dropped onto the bottom edge - and it is the token scale rather than
-          a number: 5xl is 64px, 6xl is 80px, measured rather than assumed. */}
-      <div className="px-lg py-5xl sm:py-6xl relative flex flex-1 flex-col items-center">
-        <ProductIdentity name={SHELL_TEXT.brandName} />
+      {/* THE THREE BANDS. Spacing is the token scale rather than round numbers -
+          3xl is 48px, 4xl 56, 6xl 80, measured rather than assumed - and it is
+          deliberately loose: the identity does not sit against the header and
+          the chain does not sit on the floor (80 + 56 under it). */}
+      <div className="px-lg pb-4xl relative flex flex-1 flex-col items-center">
+        <div className="pt-6xl pb-3xl">
+          <ProductIdentity name={SHELL_TEXT.brandName} />
+        </div>
 
-        {/* THE MIDDLE, and the only band that changes. flex-1 with centred
-            content, so it takes whatever the other two leave and puts its
-            content in the middle of that rather than under the identity. */}
-        <main className="py-2xl flex w-full flex-1 items-center justify-center">
+        {/* THE MIDDLE, and the only band that changes.
+            NOT CENTRED: the space under it is twice the space above, so the
+            content sits above the optical middle (owner, 2026-09-15). Centring
+            a short screen left it marooned exactly halfway down a tall one.
+            Two spacers rather than a computed height, so the ratio holds at
+            every viewport and the content still gets whatever it needs. */}
+        <main className="flex w-full flex-1 flex-col items-center">
+          <div className="flex-1" />
           <section aria-label={ariaLabel} className={`w-full ${WIDTHS[width]}`}>
             {children}
           </section>
+          <div className="flex-[2]" />
         </main>
 
-        <Chain label={SIGNIN_TEXT.chainLabel} stops={SIGNIN_TEXT.chain} />
+        <div className="pt-3xl pb-6xl flex w-full justify-center">
+          <Chain label={SIGNIN_TEXT.chainLabel} stops={SIGNIN_TEXT.chain} />
+        </div>
       </div>
     </div>
   );
@@ -165,7 +174,7 @@ export function GateFrame({
  */
 function ProductIdentity({ name }: { readonly name: string }) {
   return (
-    <div className="gap-sm flex flex-col items-center text-center">
+    <div className="gap-md flex items-center">
       {/* From lib/brand-assets, never a literal path: both marks are stand-ins
           for assets a designer hands over later. */}
       <img
@@ -174,7 +183,7 @@ function ProductIdentity({ name }: { readonly name: string }) {
         aria-hidden
         className="h-14 w-auto sm:h-16"
       />
-      <p className="text-title-md sm:text-title-lg">{name}</p>
+      <p className="text-title-xl sm:text-heading-2">{name}</p>
     </div>
   );
 }
@@ -252,7 +261,7 @@ function Ambience() {
       {/* The swell. preserveAspectRatio="none" on purpose: this is a band, not
           a picture, and it should meet both edges at every width. */}
       <svg
-        className="absolute inset-x-0 bottom-0 h-1/3 w-full"
+        className="absolute inset-x-0 bottom-0 h-[45%] w-full"
         viewBox="0 0 1440 400"
         preserveAspectRatio="none"
         fill="none"
@@ -275,15 +284,6 @@ function Ambience() {
         <path
           d="M0 232 C 260 156, 620 300, 940 244 S 1280 168, 1440 208 L1440 400 L0 400 Z"
           fill="url(#gate-swell-near)"
-        />
-        {/* The near crest, drawn so the swell reads as an edge rather than a
-            smudge. Faint enough that it never competes with the chain above. */}
-        <path
-          d="M0 232 C 260 156, 620 300, 940 244 S 1280 168, 1440 208"
-          stroke="var(--primary)"
-          strokeOpacity="0.26"
-          strokeWidth="1.5"
-          vectorEffect="non-scaling-stroke"
         />
       </svg>
     </div>

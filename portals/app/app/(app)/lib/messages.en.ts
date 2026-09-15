@@ -154,11 +154,11 @@ export const en: Dictionary = {
     signedOutTitle: "Not signed in",
     signedOutDescription:
       "Sign in with your Vxture account to use this product.",
-    noAccessTitle: "This workspace has no yucer subscription",
+    noAccessTitle: "This workspace has no subscription",
         subscribeCta: "Subscribe",
     noRolesTitle: "No role has been assigned to you yet",
     noRolesDescription:
-      "This workspace has a subscription, but nobody has given you a role yet, so there is nothing for you to open. Whoever opened the subscription is this product's super administrator - ask them to assign you one under Administration - Members.",
+      "Ask whoever opened the subscription to assign you a role.",
     loadFailed: "Could not load the data",
     backUp: "Back",
     expandNav: "Expand navigation",
@@ -1275,6 +1275,7 @@ export const en: Dictionary = {
   SIGNIN_TEXT: {
     cta: "Sign in",
     ariaLabel: "Sign in",
+    title: "Welcome",
     description: "One traceable chain, from strategy to cash collected",
     chainLabel: "The chain",
     chain: [
@@ -1290,17 +1291,12 @@ export const en: Dictionary = {
   },
 
   NO_ROLES_TEXT: {
-    badge: "Waiting for a role",
+    badge: "No role",
     ariaLabel: "No role has been assigned to you yet",
     identityLabel: "Signed in as",
     workspaceLabel: "Workspace",
-    whoLabel: "Who can fix this",
-    whoBody:
-      "Whoever opened the subscription is this product's super administrator: they configure it and assign the roles. Send them the identity above and they will find you under Administration - Members.",
     recheck: "Check again",
     signOut: "Sign out",
-    wrongWorkspaceHint:
-      "If the workspace above is not the one you meant to open, sign out and switch accounts.",
   },
 
   GATE_PREVIEW_TEXT: {
@@ -1324,6 +1320,7 @@ export const en: Dictionary = {
   SIGNED_OUT_TEXT: {
     ariaLabel: "Signed out",
     title: "You are signed out",
+    description: "On a shared computer, sign out of the browser account too.",
     signInAgain: "Sign in again",
     toConsole: "Go to the account console",
   },

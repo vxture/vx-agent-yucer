@@ -1,9 +1,10 @@
 "use client";
 
-import { Card, LabeledValue, Stack, StatusBadge } from "@vxture/design-ui";
+import { Card, LabeledValue, Stack } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { GateActions, GatePrimary, GateSignOut } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
+import { GateHeading } from "./gate-heading";
 
 // A member who is signed in, in a workspace that has not subscribed.
 //
@@ -15,10 +16,10 @@ import { GateFrame } from "./gate-frame";
 // subscribe and the way out. The previous screen had a subscribe button and
 // nothing else, so a member in the wrong workspace was stranded on it.
 //
-// WHAT IT NO LONGER SAYS (owner, 2026-09-15): a feature list under the title, a
-// paragraph under the button explaining that subscribing needs administrator
-// rights, and a three-item list of what a subscription opens. Somebody looking
-// at a refusal can read a button.
+// THE TITLE NAMES THE WORKSPACE, NOT THE PRODUCT (owner, 2026-09-15). It read
+// "this workspace has no yucer subscription"; the reader did not choose the
+// product code and may not recognise it, and the sentence is about the
+// workspace either way.
 //
 // The gate itself is unchanged and stays in the layout: this component decides
 // nothing, it only renders the refusal it is handed.
@@ -38,12 +39,12 @@ export function NoSubscription({
 
   return (
     <GateFrame ariaLabel={NO_SUBSCRIPTION_TEXT.ariaLabel} width="narrow">
-      <Stack gap="lg" className="items-center text-center">
-        <StatusBadge tone="info" icon="credit-card">
-          {NO_SUBSCRIPTION_TEXT.badge}
-        </StatusBadge>
-
-        <h1 className="text-heading-2 text-balance">{SHELL_TEXT.noAccessTitle}</h1>
+      <Stack gap="lg" className="items-center">
+        <GateHeading
+          badge={NO_SUBSCRIPTION_TEXT.badge}
+          badgeIcon="credit-card"
+          title={SHELL_TEXT.noAccessTitle}
+        />
 
         <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
           <LabeledValue label={NO_SUBSCRIPTION_TEXT.identityLabel} value={userName} />
