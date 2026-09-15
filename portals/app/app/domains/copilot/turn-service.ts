@@ -16,6 +16,7 @@
 //      rather than written.
 
 import type { Entitlement } from "../../entitlement/types";
+import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns";
 import { CAPABILITY_MATRIX } from "../../entitlement/capability";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
@@ -72,6 +73,8 @@ export interface TurnOutput {
 export interface TurnDeps {
   atlasClient: AtlasClient;
   runosClient: RunosClient;
+  /** The product's own turn metering (usage/lib/copilot-turns); defaults to the real buffer. */
+  meter?: TurnMeter;
 }
 
 export async function runCopilotTurn(
@@ -102,6 +105,26 @@ export async function runCopilotTurn(
     return fail(violation("tenant_required", "the platform tenant is required to reach the model plane", "tenantId"));
   }
 
+  // 1b. The product's own quota - HERE, because this is where the API route
+  // and the server action converge, and an admission placed in either route
+  // would be a second place the decision is made. A pool for
+  // yucer.copilot.turns with nothing left refuses (fleet code QUOTA_EXCEEDED
+  // at the envelope). The charge itself waits for the question row in step 2:
+  // the row's id is the idempotency key (usage/lib/copilot-turns).
+  const meter = deps.meter ?? defaultTurnMeter();
+  const admission = meter.admit(ctx.entitlement);
+  if (!admission.ok) {
+    await recordAuditEvent({
+      workspaceId: ctx.workspaceId,
+      actorId: ctx.sub,
+      objectType: "copilot_turn",
+      objectId: input.sessionId ?? "new",
+      action: "copilot.ask",
+      outcome: "denied",
+    });
+    return fail(violation("quota_exceeded", "this workspace's copilot turn quota is used up", "question"));
+  }
+
   // 2. Session and question first, so a model failure cannot lose the question.
   const session = input.sessionId
     ? await ctx.store.getSession(ctx.workspaceId, input.sessionId)
@@ -113,11 +136,15 @@ export async function runCopilotTurn(
       });
   if (!session) return fail(violation("not_found", `session ${input.sessionId} was not found`, "sessionId"));
 
-  await ctx.store.appendMessage(ctx.workspaceId, {
+  const asked = await ctx.store.appendMessage(ctx.workspaceId, {
     sessionId: session.id,
     role: "user",
     content: question,
   });
+
+  // 2b. The charge, keyed by the question that IS the turn - and before the
+  // model is called, so a model failure is still the turn that was asked for.
+  await meter.record(ctx.workspaceId, asked.id);
 
   const history = await ctx.store.listMessages(ctx.workspaceId, session.id);
 

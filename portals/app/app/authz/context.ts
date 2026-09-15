@@ -91,18 +91,38 @@ export async function resolveAuthzContext(
   // is left exactly as it is - the store's own rule.
   if (created) await store.seedPresetRoles(workspaceId);
 
-  // Bootstrap runs on the FIRST sighting only. Re-applying it on every login
-  // would resurrect a role an administrator deliberately revoked, and the
-  // catalog doc is explicit that this is an initialization default, not a
-  // standing mirror of the platform governance role.
-  if (created && user.isWorkspaceOwner) {
-    await store.grantRole(workspaceId, user.sub, OWNER_BOOTSTRAP_ROLE);
-  }
-
-  const [roles, permissions] = await Promise.all([
+  // THE OWNER BOOTSTRAP: whoever opened the subscription is this product's
+  // super administrator, and walks in able to configure it and hand out roles.
+  // `workspace:owner` is the platform's answer to "who is the first admin"
+  // (auth/lib/claims.ts), and OWNER_BOOTSTRAP_ROLE carries all 25 grants.
+  //
+  // THE CONDITION IS "HOLDS NOTHING", NOT "IS NEW" (2026-09-15). It read
+  // `created && isWorkspaceOwner`, i.e. first sighting only, and that left the
+  // super administrator strandable: a member row is created by the FIRST page
+  // load in a workspace - including the one that answers "this workspace has
+  // no subscription" - so anyone who looked at the product before owning it,
+  // or who was made owner afterwards, had already spent their one chance. From
+  // then on they saw the no-role screen forever, and the screen's advice is to
+  // ask an administrator, which is them.
+  //
+  // Re-applying on every login was never the alternative, and is still not:
+  // that is what would resurrect a role an administrator deliberately revoked.
+  // An owner who was moved to `viewer` keeps `viewer` - they hold a role, so
+  // nothing is applied. What heals is only the state nobody can intend: the
+  // workspace's owner holding NO role at all, in a workspace where they may be
+  // the only person who could have granted one.
+  let [roles, permissions] = await Promise.all([
     store.rolesOf(workspaceId, user.sub),
     store.permissionsOf(workspaceId, user.sub),
   ]);
+
+  if (user.isWorkspaceOwner && roles.length === 0) {
+    await store.grantRole(workspaceId, user.sub, OWNER_BOOTSTRAP_ROLE);
+    [roles, permissions] = await Promise.all([
+      store.rolesOf(workspaceId, user.sub),
+      store.permissionsOf(workspaceId, user.sub),
+    ]);
+  }
 
   const value: AuthzContext = {
     workspaceId,

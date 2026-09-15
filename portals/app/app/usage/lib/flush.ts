@@ -1,15 +1,28 @@
 import { getUsageStore, type UsageRow, type UsageStore } from "./store";
-import { getPlatformClientConfig } from "../../entitlement/platform-client";
+import { getPlatformClientConfig, type PlatformClientConfig } from "../../entitlement/platform-client";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { assertInternalTarget } from "../../lib/internal-target";
 
 // Async flush job (product_200 section 4.1): drain buffered counter usage and
-// report to the platform consume service (the single writer). 200 -> flushed;
-// 409 gated (quota exhausted) is a TERMINAL success (gating only blocks UI, not
-// the ledger) and evicts the C2 cache; anything else stays buffered for retry.
+// report to the platform consume service (the single writer).
+//
+// THE CONSUME SERVICE ANSWERS 200 ALWAYS - it keeps the ledger, it does not
+// judge (product integration rules, C3 upstream, 2026-09-13). A quota that did
+// not cover the call comes back as `gated: true` IN THE BODY: the row is
+// reported and done, and the entitlement may have changed, so the C2 cache is
+// evicted. What to do about `gated` is the product's decision at the action
+// point, never this loop's.
+//
+// This file used to treat 409 as "gated, terminal" - the branch the reference
+// implementation names as a fossil from before the contract converged on 200.
+// A 409 is now what every other non-200 is: not reported, stays buffered.
 
 export interface ConsumeResult {
   status: number;
+  /** From the 200 body: the quota did not cover this call. Information, not an error. */
+  gated?: boolean;
+  /** The 200 body as parsed (replayed, event_id, consumed, ...); the replay probe reads it. */
+  body?: Record<string, unknown>;
 }
 export type ConsumeFn = (row: UsageRow) => Promise<ConsumeResult>;
 
@@ -49,15 +62,16 @@ export async function flushUsage(opts: FlushOptions = {}): Promise<FlushSummary>
     }
     if (res.status === 200) {
       done.push(row);
-      flushed++;
-    } else if (res.status === 409) {
-      // Gated is terminal: the platform recorded the attempt and refused the
-      // quota; do not retry, and refresh entitlement so the UI reflects it.
-      done.push(row);
-      gated++;
-      (opts.onGated ?? ((ws: string) => getEntitlementResolver().invalidate(ws)))(row.workspaceId);
+      if (res.gated) {
+        // Recorded by the platform, quota not covering it: done, and the
+        // entitlement is re-read next time anyone asks.
+        gated++;
+        (opts.onGated ?? ((ws: string) => getEntitlementResolver().invalidate(ws)))(row.workspaceId);
+      } else {
+        flushed++;
+      }
     } else {
-      retried++; // 4xx/5xx (incl. 404 fail-closed) -> stays buffered
+      retried++; // any non-200 (4xx incl. 404 fail-closed, 5xx) -> stays buffered
     }
   }
   await store.markFlushed(done);
@@ -68,6 +82,11 @@ export async function flushUsage(opts: FlushOptions = {}): Promise<FlushSummary>
 function defaultConsume(): ConsumeFn | null {
   const cfg = getPlatformClientConfig();
   if (!cfg) return null;
+  return makePlatformConsume(cfg);
+}
+
+/** POST /usage/consume for one buffered row - the flush loop's caller, and the replay probe's. */
+export function makePlatformConsume(cfg: PlatformClientConfig): ConsumeFn {
   return async (row) => {
     const url = assertInternalTarget(`${cfg.baseUrl.replace(/\/$/, "")}/usage/consume`);
     const res = await fetch(url, {
@@ -75,6 +94,10 @@ function defaultConsume(): ConsumeFn | null {
       headers: {
         "content-type": "application/json",
         "x-vxture-internal-auth": cfg.authToken,
+        // Lands next to the usage event on the platform side; the idempotency
+        // key is the one id both sides already share, so reconciliation needs
+        // no second one.
+        "x-request-id": row.idempotencyKey,
       },
       body: JSON.stringify({
         workspace_id: row.workspaceId,
@@ -85,6 +108,17 @@ function defaultConsume(): ConsumeFn | null {
       }),
       cache: "no-store",
     });
-    return { status: res.status };
+    let gated = false;
+    let body: Record<string, unknown> | undefined;
+    if (res.status === 200) {
+      try {
+        const parsed = (await res.json()) as Record<string, unknown> | null;
+        if (parsed && typeof parsed === "object") body = parsed;
+        gated = body?.gated === true;
+      } catch {
+        // A 200 without a JSON body is still a 200: reported, not gated.
+      }
+    }
+    return { status: res.status, gated, body };
   };
 }

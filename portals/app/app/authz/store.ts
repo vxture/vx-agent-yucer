@@ -164,6 +164,14 @@ export interface AuthzStore {
   getScope(workspaceId: string, sub: string): Promise<ScopeSetting>;
   setScope(workspaceId: string, sub: string, setting: ScopeSetting): Promise<void>;
   listMembers(workspaceId: string): Promise<MemberRecord[]>;
+  /**
+   * Every workspace that has ever had a member: the product's own answer to
+   * "which workspaces do the recurring jobs run for". Nothing else in this repo
+   * enumerates workspaces (the sweep and the arda sync take the list from their
+   * caller), and a member is the one row every real workspace acquires at its
+   * first login.
+   */
+  listWorkspaces(): Promise<string[]>;
 }
 
 /**
@@ -434,6 +442,9 @@ export class InMemoryAuthzStore implements AuthzStore {
     record.territoryIds = [...setting.territoryIds];
   }
 
+  async listWorkspaces(): Promise<string[]> {
+    return [...new Set([...this.members.values()].map((m) => m.workspaceId))];
+  }
   async listMembers(workspaceId: string): Promise<MemberRecord[]> {
     return [...this.members.values()]
       .filter((r) => r.workspaceId === workspaceId)

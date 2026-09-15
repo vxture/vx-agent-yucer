@@ -37,6 +37,8 @@ test("the two gates map onto the two reserved refusal codes, and stay distinct",
     assert.equal(violationEnvelope(code, "m", "COPILOT").code, "NOT_ENTITLED", code);
   }
   assert.equal(violationEnvelope("permission_denied", "m", "COPILOT").code, "POLICY_DENIED");
+  // The product's own consumable quota is the fourth refusal code, unprefixed.
+  assert.equal(violationEnvelope("quota_exceeded", "m", "COPILOT").code, "QUOTA_EXCEEDED");
 });
 
 test("a non-refusal is prefixed, never squeezed into a reserved code", () => {

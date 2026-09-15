@@ -40,5 +40,10 @@ export function explainModelPlaneError(
     return COPILOT_TEXT.errorNoGrant;
   }
   if (code === "atlas_QUOTA_EXCEEDED") return COPILOT_TEXT.errorQuota;
+  // Not a model-plane error, but the same single mapping renders it: the
+  // product's OWN turn quota (usage/lib/copilot-turns), refused before the
+  // model is called. Distinct sentence from the model plane's quota - one is
+  // "buy more turns", the other is "operations must top up the plane".
+  if (code === "quota_exceeded") return COPILOT_TEXT.errorTurnQuota;
   return COPILOT_TEXT.errorGeneric;
 }

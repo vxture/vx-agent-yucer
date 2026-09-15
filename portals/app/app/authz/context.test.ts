@@ -69,6 +69,41 @@ test("the owner bootstrap does not resurrect a revoked role on later logins", as
   assert.deepEqual(ctx!.roles, ["viewer"]);
 });
 
+test("an owner who looked at the product before owning it is still bootstrapped", async () => {
+  // THE STRANDING CASE the condition used to allow. A member row is created by
+  // the first page load in a workspace - including the screen that says the
+  // workspace has no subscription - so somebody who read that page, then
+  // subscribed, had already spent their one "first sighting". Under the old
+  // `created && isWorkspaceOwner` they held no role forever, looking at a
+  // screen telling them to ask an administrator, which was them.
+  const store = fresh();
+  const sub = "usr_buyer";
+
+  // Sighting one: signed in, not yet the workspace owner.
+  await resolveAuthzContext(toAuthUser({ sub, active_workspace: WS, roles: [] }), store);
+  invalidateAuthz(WS, sub);
+
+  // Sighting two: the subscription is open and the token now carries it.
+  const owner = toAuthUser({ sub, active_workspace: WS, roles: ["workspace:owner"] });
+  const ctx = await resolveAuthzContext(owner, store);
+  assert.deepEqual(ctx!.roles, [OWNER_BOOTSTRAP_ROLE]);
+  assert.ok(ctx!.permissions.has("admin.manage"), "the super administrator can configure and assign roles");
+});
+
+test("an owner stripped of every role is healed; one who was merely moved is not", async () => {
+  // The two halves of the same rule. Holding SOMETHING is an administrator's
+  // decision and is left alone; holding NOTHING is a workspace nobody can
+  // administer, which is not a state anyone can have intended.
+  const store = fresh();
+  const owner = toAuthUser({ sub: "usr_owner", active_workspace: WS, roles: ["workspace:owner"] });
+  await resolveAuthzContext(owner, store);
+
+  await store.revokeRole(WS, "usr_owner", OWNER_BOOTSTRAP_ROLE);
+  invalidateAuthz(WS, "usr_owner");
+  const healed = await resolveAuthzContext(owner, store);
+  assert.deepEqual(healed!.roles, [OWNER_BOOTSTRAP_ROLE], "nothing left to administer the workspace with");
+});
+
 test("a non-owner is never bootstrapped, however many governance roles they carry", async () => {
   const store = fresh();
   const manager = toAuthUser({

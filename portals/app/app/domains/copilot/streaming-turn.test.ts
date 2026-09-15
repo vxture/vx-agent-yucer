@@ -258,3 +258,70 @@ test("a failed stream is recorded as error, and the partial answer's cost is not
   assert.equal(audit.rows[0].outcome, "error");
   setAuditStore(null);
 });
+
+// --- The product's own metering (usage/lib/copilot-turns) -------------------
+//
+// 2026-09-15: this path had no metering at all, and it is the path every
+// workspace without copilot.suggest takes. Same contract as runCopilotTurn().
+
+function meterSpy(admit: boolean) {
+  const recorded: Array<{ ws: string; messageId: string }> = [];
+  let admits = 0;
+  const meter = {
+    admit: () => {
+      admits += 1;
+      return admit ? ({ ok: true } as const) : ({ ok: false, remaining: 0 } as const);
+    },
+    record: async (ws: string, messageId: string) => {
+      recorded.push({ ws, messageId });
+      return "k";
+    },
+  };
+  return { meter, recorded, admits: () => admits };
+}
+
+test("an admitted stream is charged once, keyed by its question, before the model is called", async () => {
+  const store = new InMemoryCopilotStore();
+  const m = meterSpy(true);
+  const events = await collect(
+    streamCopilotTurn(ctx("sales_rep", "free", store), { question: "q", tenantId: TENANT }, {
+      atlasClient: atlas([], 0), // the model fails outright
+      meter: m.meter,
+    }),
+  );
+  const sessionEvent = events.find((e) => e.type === "session");
+  assert.ok(sessionEvent && sessionEvent.type === "session");
+  const asked = (await store.listMessages(WS, sessionEvent.sessionId))[0];
+  assert.deepEqual(m.recorded, [{ ws: WS, messageId: asked.id }], "charged before the model, so its failure does not uncharge it");
+});
+
+test("a pool with nothing left refuses the stream with quota_exceeded, opens no session, charges nothing, never reaches the model", async () => {
+  const store = new InMemoryCopilotStore();
+  const audit = new InMemoryAuditStore();
+  setAuditStore(audit);
+  let called = false;
+  const spy = {
+    async *chatStream() {
+      called = true;
+    },
+  } as unknown as AtlasClient;
+  const m = meterSpy(false);
+  const events = await collect(
+    streamCopilotTurn(ctx("sales_rep", "free", store), { question: "q", tenantId: TENANT }, { atlasClient: spy, meter: m.meter }),
+  );
+  assert.deepEqual(events, [{ type: "error", code: "quota_exceeded", message: "this workspace's copilot turn quota is used up" }]);
+  assert.equal(called, false);
+  assert.deepEqual(m.recorded, []);
+  assert.equal((await store.listSessions(WS, "usr_me")).length, 0);
+  assert.equal(audit.rows.length, 1);
+  assert.equal(audit.rows[0].outcome, "denied");
+  setAuditStore(null);
+});
+
+test("a gate refusal never consults the meter on the streamed path either", async () => {
+  const m = meterSpy(true);
+  const none = ctx("sales_rep", null);
+  await collect(streamCopilotTurn(none, { question: "q", tenantId: TENANT }, { atlasClient: atlas([]), meter: m.meter }));
+  assert.equal(m.admits(), 0);
+  assert.deepEqual(m.recorded, []);
+});

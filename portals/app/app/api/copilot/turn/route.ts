@@ -82,10 +82,13 @@ export async function POST(request: Request): Promise<Response> {
   if (!result.ok) {
     const first = result.violations[0];
     const code = first?.code ?? "denied";
-    // A gate refusal is 403; a bad reference is 404; everything else is a
+    // A gate refusal is 403; the product's own quota is 409 (the callee
+    // section's third status: quota, handled by refusal code, never retried
+    // as if it were 401); a bad reference is 404; everything else is a
     // dependency failure, which is 502 rather than 500 - the fault is upstream
     // and the distinction tells an operator where to look.
-    const status = code === "not_found" ? 404 : isGateCode(code) ? 403 : 502;
+    const status =
+      code === "not_found" ? 404 : code === "quota_exceeded" ? 409 : isGateCode(code) ? 403 : 502;
     return json(status, {
       ...violationEnvelope(code, first?.message ?? "the copilot refused", "COPILOT"),
       // The full list stays, because one code cannot carry four field errors.

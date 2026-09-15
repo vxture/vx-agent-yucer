@@ -177,3 +177,23 @@ test("an unrecognised status is refused by the real CHECK, not silently accepted
     await cleanup();
   }
 });
+
+test("recentDeliveries lists the newest deliveries first, with their type and result", { skip }, async () => {
+  await cleanup();
+  try {
+    const s = await store();
+    await s.markDelivered("test-prov-recent-1", { type: "tenant.provisioned", result: "processed" });
+    await s.markDelivered("test-prov-recent-2", { type: "subscription_changed", result: "processed" });
+    const recent = (await s.recentDeliveries(50)).filter((d) => d.deliveryId.startsWith("test-prov-recent-"));
+    assert.deepEqual(
+      recent.map((d) => [d.deliveryId, d.type, d.result]),
+      [
+        ["test-prov-recent-2", "subscription_changed", "processed"],
+        ["test-prov-recent-1", "tenant.provisioned", "processed"],
+      ],
+    );
+    assert.ok(recent.every((d) => d.receivedAt instanceof Date));
+  } finally {
+    await cleanup();
+  }
+});
