@@ -287,13 +287,17 @@ function Ambience() {
             <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.22" />
           </linearGradient>
         </defs>
-        {/* ONE CUBIC, EDGE TO EDGE. Three segments read as a row of ripples;
-            this is a single slope with one long bend in it - nearly flat where
-            it enters on the left, lifting through the middle, highest where it
-            leaves on the right. Two control points and no joins, so there is
-            nothing in it that can repeat. */}
+        {/* A WAVE ON A SLANT - one trough, one crest, rising left to right.
+            Two corrections met here: three segments read as a row of ripples,
+            and cutting to a single cubic flattened it into a plain diagonal.
+            What is wanted is both, so the baseline climbs about 200 units
+            across the width while ONE long wave of roughly 150 units rides on
+            it. Two segments only, and the join at 880 is smooth by
+            construction: the outgoing control (1120 64) is the reflection of
+            the incoming one (620 236) about that point, which is the whole of
+            why there is no kink in the middle. */}
         <path
-          d="M0 236 C 520 240, 960 104, 1440 44 L1440 400 L0 400 Z"
+          d="M0 244 C 330 300, 620 236, 880 150 C 1120 64, 1240 104, 1440 46 L1440 400 L0 400 Z"
           fill="url(#gate-swell)"
         />
       </svg>
