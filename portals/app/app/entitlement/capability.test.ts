@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CAPABILITY_MATRIX, FEATURE_KEYS, canUseFeature, minTierFor } from "./capability";
+import { CAPABILITY_MATRIX, FEATURE_KEYS, canUseFeature, featureKeysFor, minTierFor } from "./capability";
 import { EMPTY_ENTITLEMENT, TIERS, type Entitlement } from "./types";
 
 function ent(over: Partial<Entitlement>): Entitlement {
@@ -55,4 +55,15 @@ test("canUseFeature is gated by product access, not just the matrix", () => {
   assert.equal(canUseFeature(ent({ tier: "free" }), "account.manage"), true);
   assert.equal(canUseFeature(ent({ tier: "free" }), "copilot.autopilot"), false);
   assert.equal(canUseFeature(ent({ tier: "enterprise" }), "copilot.autopilot"), true);
+});
+
+test("featureKeysFor is the same gate as canUseFeature, over the whole matrix", () => {
+  // No product access -> nothing, even with bundled coverage - same gate canUseFeature uses.
+  assert.deepEqual(featureKeysFor(ent({ tier: null })), []);
+  assert.deepEqual(featureKeysFor(ent({ tier: null, bundled: true })), []);
+  // With access, the whole tier's key list comes back, and every key in it
+  // individually passes canUseFeature - the two must never disagree.
+  const keys = featureKeysFor(ent({ tier: "pro" }));
+  assert.deepEqual(new Set(keys), new Set(CAPABILITY_MATRIX.pro));
+  for (const key of keys) assert.equal(canUseFeature(ent({ tier: "pro" }), key), true);
 });

@@ -23,7 +23,7 @@ import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
 import { AtlasError } from "../../agent/atlas/errors";
 import { ATLAS_TASK_ID_MAX, type ChatMessage } from "../../agent/atlas/types";
 import { buildTurnMessages, type PromptContext } from "../../agent/orchestrator/prompt";
-import { CAPABILITY_MATRIX } from "../../entitlement/capability";
+import { featureKeysFor } from "../../entitlement/capability";
 import { PROPOSE_ACTION_TOOL } from "../../agent/orchestrator/tools";
 import { recordAuditEvent } from "../../audit/lib/record";
 import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns";
@@ -146,7 +146,7 @@ export async function* streamCopilotTurn(
   const prompt: PromptContext = {
     productName: "Yucer",
     permissions: [...ctx.holder.permissions],
-    features: featureKeysOf(ctx.entitlement),
+    features: featureKeysFor(ctx.entitlement),
     autopilotActive: input.autopilotActive,
   };
   const messages: ChatMessage[] = buildTurnMessages(
@@ -238,11 +238,6 @@ export function shouldStream(entitlement: Entitlement, holder: { permissions: Re
     "data",
   );
   return !suggest.allowed;
-}
-
-function featureKeysOf(entitlement: Entitlement): string[] {
-  if (entitlement.tier == null) return [];
-  return [...CAPABILITY_MATRIX[entitlement.tier]];
 }
 
 /** The tool the streamed path deliberately does NOT offer, exported so the

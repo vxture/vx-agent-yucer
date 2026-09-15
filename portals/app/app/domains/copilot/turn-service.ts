@@ -15,9 +15,8 @@
 //      no proposals - the model may still emit them, and they are dropped here
 //      rather than written.
 
-import type { Entitlement } from "../../entitlement/types";
 import { defaultTurnMeter, type TurnMeter } from "../../usage/lib/copilot-turns";
-import { CAPABILITY_MATRIX } from "../../entitlement/capability";
+import { featureKeysFor } from "../../entitlement/capability";
 import { can, type PermissionHolder } from "../../authz/decide";
 import type { AtlasClient, AtlasContext } from "../../agent/atlas/client";
 import type { RunosClient, RunosContext } from "../../agent/runos/client";
@@ -153,7 +152,7 @@ export async function runCopilotTurn(
   const prompt: PromptContext = {
     productName: "Yucer",
     permissions: [...ctx.holder.permissions],
-    features: featureKeysOf(ctx.entitlement),
+    features: featureKeysFor(ctx.entitlement),
     playbooks,
     evidence: input.evidence,
     subject: input.subject
@@ -327,9 +326,4 @@ async function selectPlaybooks(
     // answers without it.
     return [];
   }
-}
-
-function featureKeysOf(entitlement: Entitlement): string[] {
-  if (entitlement.tier == null) return [];
-  return [...CAPABILITY_MATRIX[entitlement.tier]];
 }
