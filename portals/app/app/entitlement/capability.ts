@@ -106,6 +106,19 @@ export function canUseFeature(e: Entitlement, key: FeatureKey): boolean {
   return CAPABILITY_MATRIX[e.tier].includes(key);
 }
 
+/**
+ * Every feature key a workspace's entitlement unlocks - the whole-matrix
+ * counterpart to canUseFeature's single-key check. The copilot's two turn
+ * services use this to tell the model what it may propose; both used to
+ * hand-roll the same `tier == null` check and read CAPABILITY_MATRIX
+ * directly, which is exactly the kind of second copy that stops matching
+ * canUseFeature's own gate the day that gate grows a bundled-tier fallback.
+ */
+export function featureKeysFor(e: Entitlement): FeatureKey[] {
+  if (!hasProductAccess(e) || e.tier == null) return [];
+  return [...CAPABILITY_MATRIX[e.tier]];
+}
+
 /** Lowest tier that unlocks a feature, or null if no tier grants it. */
 export function minTierFor(key: FeatureKey): Tier | null {
   for (const tier of TIERS) {
