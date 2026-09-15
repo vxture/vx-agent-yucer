@@ -37,6 +37,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
 | TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
+| TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | open（生产不受影响；本机改走 `pnpm build` + `next start`） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
