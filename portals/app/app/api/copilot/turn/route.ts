@@ -90,7 +90,7 @@ export async function POST(request: Request): Promise<Response> {
     const status =
       code === "not_found" ? 404 : code === "quota_exceeded" ? 409 : isGateCode(code) ? 403 : 502;
     return json(status, {
-      ...violationEnvelope(code, first?.message ?? "the copilot refused", "COPILOT"),
+      ...violationEnvelope(code, first?.message ?? "the copilot refused", "COPILOT", first?.retryable),
       // The full list stays, because one code cannot carry four field errors.
       violations: result.violations,
     });

@@ -142,6 +142,17 @@ test("the model plane's own error code reaches the caller", async () => {
   const h = deps({ replies: [], atlasThrows: new AtlasError({ code: "GRANT_DENIED", status: 403, message: "no grant" }) });
   const r = await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, h.d);
   assert.equal(r.ok === false && r.violations[0].code, "atlas_GRANT_DENIED");
+  // GRANT_DENIED needs a new grant, not a retry - X-1's retryable must say so.
+  assert.equal(r.ok === false && r.violations[0].retryable, false);
+});
+
+test("a retryable Atlas failure reaches the caller marked retryable", async () => {
+  // PROVIDER_UNAVAILABLE resolves to backoff (retryPolicyFor), unlike
+  // GRANT_DENIED above - the two must not collapse to the same retryable value.
+  const h = deps({ replies: [], atlasThrows: new AtlasError({ code: "PROVIDER_UNAVAILABLE", status: 503, message: "down" }) });
+  const r = await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, h.d);
+  assert.equal(r.ok === false && r.violations[0].code, "atlas_PROVIDER_UNAVAILABLE");
+  assert.equal(r.ok === false && r.violations[0].retryable, true);
 });
 
 test("a continued session reuses its transcript rather than starting over", async () => {

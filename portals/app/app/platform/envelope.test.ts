@@ -41,6 +41,22 @@ test("the two gates map onto the two reserved refusal codes, and stay distinct",
   assert.equal(violationEnvelope("quota_exceeded", "m", "COPILOT").code, "QUOTA_EXCEEDED");
 });
 
+test("violationEnvelope passes retryable through instead of always forcing false", () => {
+  // A domain violation that knows it came from a retryable upstream failure
+  // (e.g. an Atlas timeout) must reach the caller saying so - forcing false
+  // here would report a genuinely retryable failure as one that is not.
+  assert.equal(violationEnvelope("model_timeout", "m", "COPILOT", true).retryable, true);
+  assert.equal(violationEnvelope("model_timeout", "m", "COPILOT", false).retryable, false);
+  // No opinion still reads as false, same as envelope()'s own default - the
+  // wire shape cannot distinguish "said no" from "said nothing".
+  assert.equal(violationEnvelope("model_timeout", "m", "COPILOT").retryable, false);
+  // Also true through the two reserved-code branches and the quota branch,
+  // not just the generic prefixed path.
+  assert.equal(violationEnvelope("no_product_access", "m", "COPILOT", true).retryable, true);
+  assert.equal(violationEnvelope("permission_denied", "m", "COPILOT", true).retryable, true);
+  assert.equal(violationEnvelope("quota_exceeded", "m", "COPILOT", true).retryable, true);
+});
+
 test("a non-refusal is prefixed, never squeezed into a reserved code", () => {
   // X-1 forbids inventing a FIFTH refusal code. It does not forbid naming
   // something that is not a refusal.

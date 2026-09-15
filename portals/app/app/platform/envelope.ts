@@ -119,18 +119,23 @@ export function violationEnvelope(
   code: string,
   message: string,
   modulePrefix: string,
+  retryable?: boolean,
 ): ErrorEnvelope {
   if (code === "no_product_access" || code === "no_data_access" || code === "feature_not_in_tier") {
-    return envelope("NOT_ENTITLED", message);
+    return envelope("NOT_ENTITLED", message, { retryable });
   }
   if (code === "permission_denied") {
-    return envelope("POLICY_DENIED", message);
+    return envelope("POLICY_DENIED", message, { retryable });
   }
   // The product's own consumable quota (usage/lib/copilot-turns) is the
   // commercial ceiling the fourth refusal code names. Carried unprefixed, like
   // the other three: it means the same thing on every product's surface.
   if (code === "quota_exceeded") {
-    return envelope("QUOTA_EXCEEDED", message);
+    return envelope("QUOTA_EXCEEDED", message, { retryable });
   }
-  return envelope(`${modulePrefix}_${code.toUpperCase()}`, message);
+  // Undefined falls through to envelope()'s own false default - the violation
+  // that produced this code simply had no opinion, which is different from a
+  // violation that said false on purpose, but the wire shape cannot carry
+  // that difference and false is the safe reading either way.
+  return envelope(`${modulePrefix}_${code.toUpperCase()}`, message, { retryable });
 }
