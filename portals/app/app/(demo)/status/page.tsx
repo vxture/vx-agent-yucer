@@ -200,6 +200,26 @@ export default function StatusPage() {
             />
           </section>
 
+          {status.jobs && (
+            <section style={card}>
+              <h3 style={{ margin: "0 0 8px" }}>
+                {status.jobs.enabled ? badge("ok") : badge("warn")} Recurring jobs (in-app scheduler)
+              </h3>
+              <Field k="scheduler" v={`${status.jobs.enabled ? "on" : "off"} - ${status.jobs.reason}`} />
+              {status.jobs.jobs.map((j) => (
+                <Field
+                  key={j.name}
+                  k={`${j.name} (every ${Math.round(j.everyMs / 60000)} min)`}
+                  v={
+                    j.last
+                      ? `${j.last.ok === null ? badge("warn") : j.last.ok ? badge("ok") : badge("bad")} ${j.last.finishedAt ?? "running"} - ${JSON.stringify(j.last.summary)}`
+                      : `${badge("na")} not run yet (${j.runs} runs, ${j.failures} failures, ${j.skippedLocked} skipped: lock held)`
+                  }
+                />
+              ))}
+            </section>
+          )}
+
           <section style={card}>
             <h3 style={{ margin: "0 0 8px" }}>Data plane</h3>
             <Field

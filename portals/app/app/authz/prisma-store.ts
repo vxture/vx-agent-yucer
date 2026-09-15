@@ -382,6 +382,12 @@ export class PrismaAuthzStore implements AuthzStore {
     });
   }
 
+  async listWorkspaces(): Promise<string[]> {
+    const p = await getPrismaClient();
+    const rows = await p.member.findMany({ distinct: ["workspaceId"], select: { workspaceId: true } });
+    return rows.map((r: { workspaceId: string }) => r.workspaceId);
+  }
+
   async listMembers(workspaceId: string): Promise<MemberRecord[]> {
     const p = await getPrismaClient();
     const members = await p.member.findMany({ where: { workspaceId } });

@@ -1,4 +1,5 @@
 import { BRAND } from "@yucer/shared/brand";
+import type { JobsSnapshot } from "../jobs/scheduler";
 import { deployStageOf, type DeployStage } from "./deploy-stage";
 import { serviceIdentity } from "@vxture/shared";
 
@@ -73,6 +74,8 @@ export interface IntegrationStatus {
   };
   data: { database: DbInfo; redis: RedisInfo };
   showInfra: boolean;
+  /** The in-app job scheduler (ADR-033): attached by the route, not derived from env. */
+  jobs?: JobsSnapshot;
 }
 
 /** Parse the NON-SECRET parts of a postgres URL. The password is never returned. */

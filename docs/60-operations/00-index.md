@@ -1289,6 +1289,7 @@ owner 授权的全面检查：每个平台合同面，查「代码、配置、�
 |----|------|
 | C3 webhook | `POST /provisioning/webhook`（平台注册的投递地址 `/api/webhooks/vxture` 是同一处理器的再导出，2026-09-14）无签名 → 401 `WEBHOOK_SIGNATURE_INVALID`；幂等（delivery id）、序列水位（`seq <= lastSeq` 忽略）、双密钥轮换（`_NEXT`）齐全有测试 |
 | 内部作业 | `/api/usage/flush`、`/api/arda/sync`、`/api/jobs/commitment-sweep` 无 token → 403 `JOB_TOKEN_INVALID` |
+| 作业调度（2026-09-14，ADR-033） | 容器自带时钟：`commitment-sweep` 15 分钟、`usage-flush` 5 分钟，`instrumentation.ts` 启动；部署阶段默认开；Redis 锁一周期一次；`/api/status` 的 `jobs` 报每条作业上次账目。生产 09-10 到 09-14 三条路由从未被调用，且 sweep 路由空 body 曾是静默 no-op——两者都在这次修 |
 | 计量（2026-09-14） | `yucer.copilot.turns` 在 `runCopilotTurn()` 两门放行后、调模型前记 1（`usage/lib/copilot-turns.ts`）；池耗尽 → `QUOTA_EXCEEDED` / 409；无池不门控。口径见 `20-specs/40-capability-matrix.md`「计量」 |
 | 自证（2026-09-14） | `GET /api/platform-check`（页面 `/platform-check`）：C1 发现+JWKS、C2 活体拉取+`Cache-Control`、C3 上行缓冲态、C3 下发验签自测+近期投递、换票就绪、三平面可达；全部只读、不花配额；门控同 `/api/status`（`STATUS_PAGE`）。与平台线对量时互发链接，不互发截图。C3 重放探针（清单第 5 条）等 yucer 有第一个登记的计数指标再开 |
 | C2 entitlement | 未认证 → 401；resolver 在 `PLATFORM_API_URL`+token 齐时走 platform、否则 mock，status 如实报告。2026-09-14 起：部署阶段（`DEPLOY_STAGE`=production/beta）无配置时**拒绝启动** mock，`ALLOW_MOCK_ON_DEPLOY=on` 为显式且自报的过渡（`lib/deploy-stage.ts`，范本同款）；C3 上行按通则改为「永远 200、`gated` 在体内」，409 化石分支已删；`tenant.*` 事件同样驱逐 C2 缓存 |

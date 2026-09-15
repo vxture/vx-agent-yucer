@@ -241,3 +241,31 @@ test("listMembers batches roles and territories in two queries, not one per memb
     await withPg((c) => c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [WS]));
   }
 });
+
+// --- listWorkspaces (ADR-033) --------------------------------------------------
+test("listWorkspaces returns each workspace with a member once - the jobs' enumeration", { skip }, async () => {
+  const WS2 = "eeeeeeee-0000-0000-0000-000000000033";
+  const cleanup2 = () =>
+    withPg(async (c) => {
+      await c.query(`DELETE FROM local_authz.member_role WHERE member_id IN (SELECT id FROM local_authz.member WHERE workspace_id = $1)`, [WS2]);
+      await c.query(`DELETE FROM local_authz.member WHERE workspace_id = $1`, [WS2]);
+      await c.query(`DELETE FROM local_authz.workspace_role WHERE workspace_id = $1`, [WS2]);
+      await c.query(`DELETE FROM local_authz.role_line WHERE workspace_id = $1`, [WS2]);
+      await c.query(`DELETE FROM local_authz.role_rank WHERE workspace_id = $1`, [WS2]);
+    });
+  await cleanup();
+  await cleanup2();
+  try {
+    const s = await store();
+    await s.seeMember({ workspaceId: WS, sub: "usr_lw_1" });
+    await s.seeMember({ workspaceId: WS, sub: "usr_lw_2" });
+    await s.seeMember({ workspaceId: WS2, sub: "usr_lw_3" });
+    const all = await s.listWorkspaces();
+    const ours = all.filter((w) => w === WS || w === WS2).sort();
+    assert.deepEqual(ours, [WS2, WS].sort());
+    assert.equal(all.filter((w) => w === WS).length, 1, "distinct, not one per member");
+  } finally {
+    await cleanup();
+    await cleanup2();
+  }
+});
