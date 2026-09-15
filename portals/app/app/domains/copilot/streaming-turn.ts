@@ -42,7 +42,11 @@ export type StreamEvent =
   | { type: "session"; sessionId: string }
   | { type: "delta"; text: string }
   | { type: "done"; answer: string }
-  | { type: "error"; code: string; message: string };
+  // X-1: retryable is required, not optional - a consumer reading `undefined`
+  // cannot tell "not retryable" from "nobody said," and this event has no
+  // second field to disambiguate it the way the HTTP envelope's own presence
+  // check does. Every yield site below states it explicitly.
+  | { type: "error"; code: string; message: string; retryable: boolean };
 
 export interface StreamDeps {
   atlasClient: AtlasClient;
@@ -89,17 +93,17 @@ export async function* streamCopilotTurn(
       action: "copilot.ask",
       outcome: "denied",
     });
-    yield { type: "error", code: gate.reason ?? "denied", message: "not permitted" };
+    yield { type: "error", code: gate.reason ?? "denied", message: "not permitted", retryable: false };
     return;
   }
 
   const question = input.question.trim();
   if (!question) {
-    yield { type: "error", code: "empty_question", message: "ask something" };
+    yield { type: "error", code: "empty_question", message: "ask something", retryable: false };
     return;
   }
   if (!input.tenantId) {
-    yield { type: "error", code: "tenant_required", message: "no active tenant" };
+    yield { type: "error", code: "tenant_required", message: "no active tenant", retryable: false };
     return;
   }
 
@@ -116,7 +120,7 @@ export async function* streamCopilotTurn(
       action: "copilot.ask",
       outcome: "denied",
     });
-    yield { type: "error", code: "quota_exceeded", message: "this workspace's copilot turn quota is used up" };
+    yield { type: "error", code: "quota_exceeded", message: "this workspace's copilot turn quota is used up", retryable: false };
     return;
   }
 
@@ -127,7 +131,7 @@ export async function* streamCopilotTurn(
         title: question.slice(0, 120),
       });
   if (!session) {
-    yield { type: "error", code: "not_found", message: "session not found" };
+    yield { type: "error", code: "not_found", message: "session not found", retryable: false };
     return;
   }
   yield { type: "session", sessionId: session.id };
@@ -169,7 +173,7 @@ export async function* streamCopilotTurn(
   };
 
   let answer = "";
-  let failure: { code: string; message: string } | null = null;
+  let failure: { code: string; message: string; retryable: boolean } | null = null;
   let totalTokens = 0;
 
   try {
@@ -189,8 +193,8 @@ export async function* streamCopilotTurn(
     // reader would have called this a success.
     failure =
       e instanceof AtlasError
-        ? { code: `atlas_${e.code}`, message: e.message }
-        : { code: "turn_failed", message: String(e) };
+        ? { code: `atlas_${e.code}`, message: e.message, retryable: e.retry.kind !== "no" }
+        : { code: "turn_failed", message: String(e), retryable: false };
   } finally {
     // Runs on completion, on error, and when the consumer abandons the
     // generator. Whatever the model actually produced is durable either way -
@@ -220,7 +224,7 @@ export async function* streamCopilotTurn(
   });
 
   if (failure) {
-    yield { type: "error", code: failure.code, message: failure.message };
+    yield { type: "error", code: failure.code, message: failure.message, retryable: failure.retryable };
     return;
   }
   yield { type: "done", answer };

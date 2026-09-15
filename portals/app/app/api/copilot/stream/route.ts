@@ -71,7 +71,7 @@ export async function POST(request: Request): Promise<Response> {
         // Any failure the generator did not already convert into an error event.
         controller.enqueue(
           encoder.encode(
-            `data:${JSON.stringify({ type: "error", code: "stream_failed", message: String(e) })}\n\n`,
+            `data:${JSON.stringify({ type: "error", code: "stream_failed", message: String(e), retryable: false })}\n\n`,
           ),
         );
       } finally {

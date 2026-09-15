@@ -83,6 +83,9 @@ test("a partial answer the member read is still persisted when the stream fails"
   const err = events.find((e) => e.type === "error");
   assert.ok(err && err.type === "error");
   assert.equal(err.code, "atlas_PROVIDER_UNAVAILABLE");
+  // PROVIDER_UNAVAILABLE resolves to backoff (retryPolicyFor) - the consumer
+  // reading this SSE event must see that, not a blanket false.
+  assert.equal(err.retryable, true);
 
   const sessionEvent = events.find((e) => e.type === "session");
   assert.ok(sessionEvent && sessionEvent.type === "session");
@@ -309,7 +312,7 @@ test("a pool with nothing left refuses the stream with quota_exceeded, opens no 
   const events = await collect(
     streamCopilotTurn(ctx("sales_rep", "free", store), { question: "q", tenantId: TENANT }, { atlasClient: spy, meter: m.meter }),
   );
-  assert.deepEqual(events, [{ type: "error", code: "quota_exceeded", message: "this workspace's copilot turn quota is used up" }]);
+  assert.deepEqual(events, [{ type: "error", code: "quota_exceeded", message: "this workspace's copilot turn quota is used up", retryable: false }]);
   assert.equal(called, false);
   assert.deepEqual(m.recorded, []);
   assert.equal((await store.listSessions(WS, "usr_me")).length, 0);

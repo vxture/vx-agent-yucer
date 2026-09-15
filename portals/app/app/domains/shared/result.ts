@@ -19,6 +19,15 @@ export interface Violation {
   field?: string;
   /** English explanation for logs and developers. UI text is keyed off `code`. */
   message: string;
+  /**
+   * X-1: whether the caller should retry. Absent means the rule layer has no
+   * opinion - violationEnvelope() defaults it to false there, the same
+   * "retrying a possibly-side-effecting call is worse" default the platform's
+   * own contract names. A caller that DOES know (an upstream error carrying
+   * its own verdict, e.g. AtlasError.retry) should pass it through rather
+   * than let it collapse to that default.
+   */
+  retryable?: boolean;
 }
 
 export type RuleResult<T> = { ok: true; value: T } | { ok: false; violations: Violation[] };
@@ -31,8 +40,9 @@ export function fail<T>(...violations: Violation[]): RuleResult<T> {
   return { ok: false, violations };
 }
 
-export function violation(code: string, message: string, field?: string): Violation {
-  return field === undefined ? { code, message } : { code, field, message };
+export function violation(code: string, message: string, field?: string, retryable?: boolean): Violation {
+  const base = field === undefined ? { code, message } : { code, field, message };
+  return retryable === undefined ? base : { ...base, retryable };
 }
 
 /** Collect several checks, reporting every failure rather than only the first. */

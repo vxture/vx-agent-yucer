@@ -214,7 +214,9 @@ export async function runCopilotTurn(
     // The model plane's own error code reaches the caller. "GRANT_DENIED" and
     // "the copilot is broken" need different responses from whoever reads this.
     if (e instanceof AtlasError) {
-      return fail(violation(`atlas_${e.code}`, e.message, "model"));
+      // .retry, not .retryable directly - it already applies the fallback
+      // table when Atlas sent no verdict of its own (see retryPolicyFor).
+      return fail(violation(`atlas_${e.code}`, e.message, "model", e.retry.kind !== "no"));
     }
     return fail(violation("turn_failed", String(e), "model"));
   }
