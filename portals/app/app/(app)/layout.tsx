@@ -282,7 +282,7 @@ export default async function AppLayout({
         // passing it here printed "enterprise" twice - once as the place you are
         // in and once as what you pay for, which are different facts.
         workspaceLabel={SHELL_TEXT.workspaceFallback}
-        upgradeHref={subscribeUrl({ intent: "upgrade" })}
+        upgradeHref={subscribeUrl({ intent: intentFor(session.entitlement) })}
       >
         {children}
       </AppShell>
