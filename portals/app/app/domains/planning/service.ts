@@ -120,6 +120,59 @@ export async function listUnitDivisionLinks(ctx: PlanningContext): Promise<RuleR
 }
 
 /**
+ * Retire the AUTO-<大区代码> territories a carve no longer covers.
+ *
+ * applyStartupPreset's own upsert loop only ever touches the codes the
+ * CURRENTLY chosen carve produces - switching carves (七分法 -> 五分法) leaves
+ * the codes the OLD carve made behind: still `active`, still naming the
+ * divisions and units the org-template reset and the division import already
+ * deleted underneath them. Nothing ever re-submits their code, so
+ * upsertTerritory never touches them again on its own, and the "全范围" badge
+ * on admin/org/page.tsx has to filter them out of its denominator - a
+ * workaround that stays correct while the rows keep piling up.
+ *
+ * REUSES upsertTerritory rather than adding a delete capability: this domain
+ * never deletes a territory row - `status` is how a territory leaves service -
+ * and status/divisionIds/unitIds are exactly what upsertTerritory already
+ * replaces by code. A row already retired with nothing attached is left alone
+ * rather than re-upserted on every template application.
+ *
+ * Originally PR #251 (2026-09-11), which could not be rebased: main moved the
+ * orchestration into (app)/lib/startup-preset.ts underneath it, so the verb is
+ * the same and the wiring is new.
+ */
+export async function retireOrphanedAutoTerritories(
+  ctx: PlanningContext,
+  currentAutoCodes: ReadonlySet<string>,
+): Promise<RuleResult<{ retired: number }>> {
+  const gate = can(ctx.holder, ctx.entitlement, "planning.territory.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const existing = await ctx.store.listTerritories(ctx.workspaceId, { includeRetired: true });
+  const orphans = existing.filter(
+    (t) =>
+      t.territoryCode.startsWith("AUTO-") &&
+      !currentAutoCodes.has(t.territoryCode) &&
+      !(t.status === "retired" && t.divisionIds.length === 0 && t.unitIds.length === 0),
+  );
+
+  let retired = 0;
+  for (const t of orphans) {
+    const result = await upsertTerritory(ctx, {
+      territoryCode: t.territoryCode,
+      name: t.name,
+      parentId: t.parentId,
+      ownerSub: t.ownerSub,
+      status: "retired",
+      divisionIds: [],
+      unitIds: [],
+    });
+    if (result.ok) retired += 1;
+  }
+  return ok({ retired });
+}
+
+/**
  * Replace a unit's direct 大区 links with exactly this set.
  *
  * Same gate as upsertTerritory, deliberately - division/page.tsx's own
