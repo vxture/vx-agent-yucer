@@ -8,6 +8,7 @@ import {
   linkContacts,
   upsertContact,
   recomputeHealth,
+  setAccountParent,
 } from "../../domains/account/service";
 import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
 import { isRelationType } from "../../domains/account/lib/health";
@@ -217,5 +218,44 @@ export async function saveContact(
   }
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/");
+  return { ok: true };
+}
+
+/**
+ * Setting or clearing a customer's parent company - incr/0025, ADR-024 batch B.
+ *
+ * The gate, the cycle guard and the write all live in setAccountParent; this
+ * is only the session-to-context wiring every other action here does the same
+ * way.
+ */
+export interface SetParentResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function setAccountParentAction(
+  accountId: string,
+  parentId: string | null,
+): Promise<SetParentResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await setAccountParent(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    parentId,
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath(`/account/${accountId}`);
+  revalidatePath("/account");
   return { ok: true };
 }

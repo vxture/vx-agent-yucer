@@ -1006,6 +1006,21 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   cadence_positive: "零天的节奏不是节奏",
   unknown_tier: "未知的客户分级",
   not_found: "客户不存在，或不属于当前工作区",
+  parent_self: "上级公司不能是它自己",
+  parent_not_found: "选的上级公司不存在，或不属于当前工作区",
+  parent_cycle: "这样设置会形成循环归属——比如两家公司互为对方的上级",
+};
+
+export const ACCOUNT_PARENT_TEXT = {
+  label: "上级公司",
+  none: "无上级公司",
+  change: "更改上级公司",
+  dialogWhy: "选一个上级公司；不能选它自己或它的下级。",
+  field: "上级公司",
+  submit: "确定",
+  cancel: "取消",
+  done: (name: string) => `已设置上级公司为「${name}」`,
+  doneNone: "已清除上级公司",
 };
 
 /**

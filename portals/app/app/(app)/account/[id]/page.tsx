@@ -20,6 +20,7 @@ import {
   accountRelations,
   decisionChainsByOpportunity,
   getAccountDetail,
+  listAccounts,
   recomputeHealth,
 } from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
@@ -52,11 +53,13 @@ import { cachedFeed } from "../../lib/board";
 import { TheatreRoster } from "../../components/theatre-roster";
 import { TheatrePlan } from "../../components/theatre-plan";
 import { DesignateAccount } from "../../components/designate-account";
+import { AccountParentPanel } from "../../components/account-parent-panel";
 import { DEFAULT_PERIOD } from "../../lib/periods";
 import {
   designateAccountTier,
   linkAccountContacts,
   recomputeAccountHealth,
+  setAccountParentAction,
 } from "../actions";
 import {
   recordFollowUp,
@@ -131,11 +134,23 @@ export default async function AccountDetailPage({
 
   const fieldCtx = { ...ctx, store: getFieldStore() };
   const now = new Date();
-  const [interactions, commitments, evidence] = await Promise.all([
+  const [interactions, commitments, evidence, accountsRead] = await Promise.all([
     listInteractions(fieldCtx, { accountId: id, limit: 50 }),
     listCommitments(fieldCtx, { accountId: id }),
     relationshipEvidence(fieldCtx, id, now),
+    // 上级公司 (incr/0025): the picker's candidate list and the current
+    // parent's display name both come off the same workspace-wide read -
+    // setAccountParent's own cycle guard loads exactly this same list.
+    listAccounts(ctx, {}),
   ]);
+  const accountRows = (accountsRead.ok ? accountsRead.value : []).map((a) => ({
+    id: a.id,
+    name: a.name,
+    parentId: a.parentId,
+  }));
+  const parentName = account.parentId
+    ? (accountRows.find((a) => a.id === account.parentId)?.name ?? null)
+    : null;
 
   const [health, relations] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
@@ -283,6 +298,18 @@ export default async function AccountDetailPage({
             {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
           </Tag>
         }
+      />
+
+      {/* 上级公司 (incr/0025, ADR-024 batch B): the one fact this page carried
+          on `account.parentId` since that increment shipped without ever
+          drawing it - wired.test.ts's KNOWN_UNWIRED named exactly this gap. */}
+      <AccountParentPanel
+        accountId={id}
+        parentId={account.parentId}
+        parentName={parentName}
+        accounts={accountRows}
+        canWrite={canWrite}
+        onSetParent={setAccountParentAction}
       />
 
       {/* THE THEATRE, IN THREE LAYERS.
