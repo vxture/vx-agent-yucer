@@ -157,7 +157,7 @@ async function checkC3Down(): Promise<ProbeResult> {
       ok: selfTest && !tampered,
       detail:
         `verifier self-test ${selfTest ? "passed" : "FAILED"}, tamper rejection ${tampered ? "FAILED" : "passed"}; ` +
-        `served at /api/webhooks/vxture (and the legacy /provisioning/webhook until X-4 step 3); ${seen}` +
+        `served at /api/webhooks/vxture (X-4 step 3 complete - the legacy /provisioning/webhook path is gone); ${seen}` +
         `${secrets.length > 1 ? "; rotation secret loaded" : ""}`,
     };
   } catch (err) {

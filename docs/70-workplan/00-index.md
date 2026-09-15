@@ -3424,9 +3424,19 @@ Mock**：`/api/status` 老实报告 `resolver: mock`，`/auth/oidc/callback` 走
 
 平台注册的回调与 webhook 地址是 `/api/auth/oidc/callback` 与
 `/api/webhooks/vxture`，产品原来响应的是 `/auth/callback` 与
-`/provisioning/webhook`——两条历史路径继续存在（迁移期并存，X-4 三步走的第①步），
-新地址**转出**同一个处理器而不是复制一份实现，`route.test.ts` 用函数引用相等断言
-「两条路必须是同一个处理器」，防止日后两边各自演进出不一致的验签逻辑。
+`/provisioning/webhook`——两条历史路径当时都还继续存在（迁移期并存，X-4 三步走的
+第①步），新地址**转出**同一个处理器而不是复制一份实现，`route.test.ts` 用函数引用
+相等断言「两条路必须是同一个处理器」，防止两边各自演进出不一致的验签逻辑。
+
+**webhook 那一条已在 2026-09-15 走完 X-4 三步**：核实平台确实已把 yucer 的登记
+地址切到 `/api/webhooks/vxture` 后，`/api/webhooks/vxture/route.ts` 从"转出"变成
+唯一实现，`/provisioning/webhook` 整个目录已删除——旧路径现在答 404，不再是
+"两条路都通"。`route.test.ts` 的函数引用相等断言相应改为对新路径本身的验签行为
+断言（不签名的投递拒绝、签名正确的投递处理并 200）。**OIDC 回调那一条
+（`/auth/callback` vs `/api/auth/oidc/callback`）仍停在第①步**，结构相同但是
+另一条独立的迁移，本次未动它——`product_200`/通则文本从未像 webhook 那样点名
+把它列进强制清单，先记在这里，动它之前需要单独核实平台侧登记与是否还有依赖旧
+路径的调用方。
 
 C2 从 Mock 换真的那一刻，部署阶段守卫（`lib/deploy-stage.ts`）开始生效：生产/beta
 上没有 `PLATFORM_API_URL` + `PLATFORM_INTERNAL_AUTH_TOKEN` 就拒绝回落到 Mock——
