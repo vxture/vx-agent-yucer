@@ -205,7 +205,9 @@ function Chain({ label, stops }: { readonly label: string; readonly stops: reado
         <span className="border-primary/15 h-px flex-1 border-t" />
       </div>
 
-      <ol className="gap-x-xs gap-y-sm pt-md flex flex-wrap items-center justify-center">
+      {/* pt-xl, not pt-md: the label is the band's heading and sat almost on
+          top of the row it introduces. */}
+      <ol className="gap-x-xs gap-y-sm pt-xl flex flex-wrap items-center justify-center">
         {stops.map((stop, i) => (
           <li key={stop} className="gap-x-xs flex items-center">
             <span className="text-label-sm border-primary/15 bg-card/70 px-sm py-2xs rounded-full border">
@@ -255,36 +257,29 @@ function Chain({ label, stops }: { readonly label: string; readonly stops: reado
 function Ambience() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">
-      {/* One light source, from above the top edge. */}
-      <div className="absolute inset-0 bg-[radial-gradient(120%_78%_at_50%_-12%,color-mix(in_srgb,var(--primary)_17%,transparent),transparent_62%)]" />
+      {/* ONE GRADIENT ACROSS THE WHOLE PAGE, on the diagonal, and TWO STOPS.
+          There were two variations before - a glow from the top and a tinted
+          swell at the bottom - so the eye read tinted, then white, then tinted
+          again. Three stops would have rebuilt exactly that, so this runs one
+          way only: clear at the top left, deepest at the bottom right, which
+          is the corner the swell already occupies. One direction, one value,
+          nothing in the middle to lose. */}
+      <div className="absolute inset-0 bg-[linear-gradient(155deg,transparent_0%,color-mix(in_srgb,var(--primary)_15%,transparent)_100%)]" />
 
-      {/* The swell. preserveAspectRatio="none" on purpose: this is a band, not
-          a picture, and it should meet both edges at every width. */}
+      {/* The swell, and ONE fill value for both curves. Where they overlap the
+          value doubles on its own, which is the whole of the depth here: two
+          different opacities would be the second layer of colour this pass
+          exists to remove. preserveAspectRatio="none" on purpose - this is a
+          band, not a picture, and it should meet both edges at every width. */}
       <svg
-        className="absolute inset-x-0 bottom-0 h-[45%] w-full"
+        className="text-primary absolute inset-x-0 bottom-0 h-[45%] w-full"
         viewBox="0 0 1440 400"
         preserveAspectRatio="none"
-        fill="none"
+        fill="currentColor"
+        fillOpacity="0.07"
       >
-        <defs>
-          <linearGradient id="gate-swell-far" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.13" />
-          </linearGradient>
-          <linearGradient id="gate-swell-near" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.22" />
-          </linearGradient>
-        </defs>
-
-        <path
-          d="M0 118 C 300 34, 560 210, 880 150 S 1240 42, 1440 96 L1440 400 L0 400 Z"
-          fill="url(#gate-swell-far)"
-        />
-        <path
-          d="M0 232 C 260 156, 620 300, 940 244 S 1280 168, 1440 208 L1440 400 L0 400 Z"
-          fill="url(#gate-swell-near)"
-        />
+        <path d="M0 118 C 300 34, 560 210, 880 150 S 1240 42, 1440 96 L1440 400 L0 400 Z" />
+        <path d="M0 232 C 260 156, 620 300, 940 244 S 1280 168, 1440 208 L1440 400 L0 400 Z" />
       </svg>
     </div>
   );
