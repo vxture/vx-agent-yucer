@@ -1311,6 +1311,7 @@ export const en: Dictionary = {
 
   NO_SUBSCRIPTION_TEXT: {
     badge: "No subscription",
+    description: "Subscribe to continue, or ask a workspace administrator to.",
     ariaLabel: "This workspace has no subscription",
     identityLabel: "Signed in as",
     workspaceLabel: "Workspace",

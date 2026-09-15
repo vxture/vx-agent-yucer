@@ -1833,6 +1833,11 @@ export const SIGNIN_TEXT = {
  */
 export const NO_SUBSCRIPTION_TEXT = {
   badge: "未订阅",
+  // The one line under the title. Both halves are load-bearing: subscribing is
+  // the way forward, and it happens in the console under an administrator's
+  // rights - so a reader who does not have them learns it here rather than
+  // after a round trip.
+  description: "请先完成订阅，或联系工作区管理员订阅。",
   ariaLabel: "当前工作区尚未订阅",
   identityLabel: "登录身份",
   workspaceLabel: "当前工作区",

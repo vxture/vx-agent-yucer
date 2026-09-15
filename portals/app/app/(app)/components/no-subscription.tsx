@@ -44,6 +44,7 @@ export function NoSubscription({
           badge={NO_SUBSCRIPTION_TEXT.badge}
           badgeIcon="credit-card"
           title={SHELL_TEXT.noAccessTitle}
+          description={NO_SUBSCRIPTION_TEXT.description}
         />
 
         <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
