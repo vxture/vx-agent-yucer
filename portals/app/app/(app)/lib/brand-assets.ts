@@ -16,5 +16,14 @@ export const BRAND_MARK_SRC = "/assets/brand/vxture-logo-icon.svg";
 /** The company wordmark beside it. */
 export const BRAND_WORDMARK = "ruyin.work";
 
-/** The product mark, in the identity block every gate screen carries. */
+/**
+ * The product mark, in the identity block every gate screen carries.
+ *
+ * SVG here because the product renders it at four different sizes. The same
+ * mark is also published as `/logo.png` (512px, transparent) for consumers
+ * that cannot take SVG - the platform asked for both. Nothing in this product
+ * reads the PNG; it exists to be fetched from outside, so the two files have
+ * to be regenerated together. The PNG is rendered from the SVG's own geometry
+ * rather than traced from it: same segments, same stroke width, same colours.
+ */
 export const PRODUCT_MARK_SRC = "/logo.svg";

@@ -1,16 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Yucer">
-  <title>Yucer</title>
-  <!-- The chain, which is the product's own claim: strategy to cash collected,
-       one traceable line with a parent-child relation at every hop. The line
-       carries the weight so the mark survives at 16px, where a hairline trail
-       simply vanished; the joints are beads on it and the last stop lands.
-       Two tones from the Vxture brand family, so the product mark sits beside
-       the company mark rather than against it. -->
-  <path d="M44 200 L104 140 L150 170 L206 66"
-        fill="none" stroke="#1E51FF" stroke-width="26"
-        stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="104" cy="140" r="12" fill="#B5C7FF"/>
-  <circle cx="150" cy="170" r="12" fill="#B5C7FF"/>
-  <circle cx="206" cy="66" r="32" fill="#1E51FF"/>
-  <circle cx="206" cy="66" r="12" fill="#B5C7FF"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="yucer-logo-title">
+  <title id="yucer-logo-title">Yucer</title>
+  <!--
+    The mark: a Y, drawn as two strokes running into one.
+
+    WHY A Y. It is the product's own initial in both names it goes by - 禹策
+    and yucer - and the letter already draws the thing the product claims:
+    separate lines converging and continuing as a single one. That is the
+    chain, which is what this product sells. A rising line with dots, which
+    this file carried while the screens were being designed, draws an
+    analytics chart and nothing about this product in particular.
+
+    WHY TWO TONES, AND WHERE THEY CHANGE. The colour changes at the junction,
+    not at a segment boundary: the light stroke is what arrives, the dark one
+    is what leaves, and the stem is the dark one continuing. The pair is the
+    Vxture family's: #1E51FF is this product's own primary token, and #698CFF
+    is the midpoint of that and the company mark's light tone #B5C7FF - derived
+    rather than picked. The company's light tone itself was tried first and
+    fails the only test that matters here: at the 16px the header renders, a
+    3.7px stroke of it on the light canvas all but disappears and the mark
+    reads as a tick rather than a Y. A large filled area can carry a tint that
+    a hairline cannot.
+    Literal hex rather than currentColor: a logo file is fetched on its own,
+    with no stylesheet behind it.
+
+    GEOMETRY. Straight strokes, round caps and joins, 34 units on a 256 grid -
+    about 3.7px where the header renders it, which is why it is this heavy.
+    The drawn extent is 43..213 on both axes, so the mark is centred in the
+    canvas by construction rather than by eye.
+  -->
+  <g fill="none" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M60 58 L128 132" stroke="#698CFF" />
+    <path d="M196 58 L128 132 L128 198" stroke="#1E51FF" />
+  </g>
 </svg>
