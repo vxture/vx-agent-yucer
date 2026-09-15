@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { errorResponse } from "../../../platform/envelope";
 import { runCommitmentSweep } from "../../../domains/account/commitment-sweep";
+import { listActiveWorkspaces } from "../../../jobs/workspaces";
 
 // POST /api/jobs/commitment-sweep: turn overdue promises into proposals.
 //
@@ -35,6 +36,12 @@ export async function POST(req: Request): Promise<Response> {
     return errorResponse(400, "JOB_BODY_INVALID", "request body is not valid JSON", { field: "body" });
   }
 
+  // No list in the body means EVERY workspace the product knows (the same
+  // enumeration the in-app scheduler uses, ADR-033). An empty list used to be
+  // a silent no-op: the route answered 200 with a zero ledger and swept nothing.
+  if (workspaces.length === 0) {
+    workspaces = (await listActiveWorkspaces()).map((workspaceId) => ({ workspaceId }));
+  }
   const ledger = await runCommitmentSweep({ workspaces });
   return NextResponse.json(ledger, { status: ledger.failed > 0 ? 502 : 200 });
 }

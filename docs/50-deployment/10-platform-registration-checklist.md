@@ -73,10 +73,11 @@ Concrete values below are the ones derived at instantiation
       platform as a counter metric before consume accepts it - asked on #329.
       Until then the events stay buffered (the normal state) and the replay
       probe on /platform-check cannot pass.
-- [ ] Recurring jobs (`/api/usage/flush`, `/api/jobs/commitment-sweep`,
-      `/api/arda/sync`) are driven by an EXTERNAL timer per ADR-010, and no
-      timer exists on worker02 or in CI yet - nothing recurring runs in
-      production. Owner's call: a host cron on worker02 is the ADR's own answer.
+- [x] Recurring jobs: ADR-033 (2026-09-14) - the container keeps its own clock;
+      `commitment-sweep` and `usage-flush` run from `instrumentation.ts` on a
+      deployed stage, one run per period via a Redis lock, reported on
+      `/api/status`. No host cron. `arda/sync` stays a manual route until a
+      (workspace, tenant) source exists.
 - [ ] Atlas / Runos / arda base URLs and the Atlas product-grants (separate
       planes, separate liaison).
 - [ ] The `yucer-beta` client, for when the beta stack is cut.
