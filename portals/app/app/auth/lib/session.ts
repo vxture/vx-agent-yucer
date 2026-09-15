@@ -10,7 +10,23 @@ import { toAuthUser, type AccessClaims, type AuthUser } from "./claims";
 
 const REFRESH_SKEW_SECONDS = 60;
 
+export interface AuthSession {
+  user: AuthUser;
+  /**
+   * The member's own verified access token - never sent to the browser, never
+   * logged. Its one sanctioned use is as `subject_token` for an OBO S2S
+   * exchange (platform/s2s.ts), so a downstream audit names the person behind
+   * a call rather than just "yucer the product."
+   */
+  accessToken: string;
+}
+
 export async function getAuthUser(cfg: OidcConfig, rpsid: string): Promise<AuthUser | null> {
+  return (await getAuthSession(cfg, rpsid))?.user ?? null;
+}
+
+/** Same resolution as getAuthUser, plus the raw access token for OBO callers. */
+export async function getAuthSession(cfg: OidcConfig, rpsid: string): Promise<AuthSession | null> {
   let session = await getSession(cfg.clientId, rpsid);
   if (!session) return null;
 
@@ -26,7 +42,7 @@ export async function getAuthUser(cfg: OidcConfig, rpsid: string): Promise<AuthU
   } catch {
     return null;
   }
-  return toAuthUser(claims);
+  return { user: toAuthUser(claims), accessToken: session.accessToken };
 }
 
 async function tryRefresh(

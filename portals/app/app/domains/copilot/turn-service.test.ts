@@ -121,6 +121,67 @@ test("a turn opens a session and records both sides of the exchange", async () =
   assert.equal(messages[1].content, "Advance it.");
 });
 
+test("a subjectToken reaches Atlas, so the caller's own client.ts picks OBO over service mode", async () => {
+  // client.ts's mintS2SToken call reads ctx.subjectToken to choose obo vs
+  // service (agent/atlas/client.ts) - this test is only about getting a real
+  // member token as far as that ctx, not about the S2S exchange itself.
+  let seenSubjectToken: string | undefined = "not called";
+  const atlasClient = {
+    async chat(_task: string, _req: unknown, atlasCtx: { subjectToken?: string }) {
+      seenSubjectToken = atlasCtx.subjectToken;
+      return {
+        id: "c",
+        modelCode: "m",
+        message: { role: "assistant", content: "answer" },
+        usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        latencyMs: 1,
+      } as ChatResponse;
+    },
+  } as unknown as AtlasClient;
+  const runosClient = {
+    async discover() {
+      return [];
+    },
+    async invoke() {
+      return { content: [], meta: {} };
+    },
+  } as unknown as RunosClient;
+
+  await runCopilotTurn(
+    ctx("sales_rep", "pro"),
+    { question: "q", tenantId: TENANT, subjectToken: "usr-token-abc" },
+    { atlasClient, runosClient },
+  );
+  assert.equal(seenSubjectToken, "usr-token-abc");
+});
+
+test("no subjectToken means Atlas gets none either - the service-mode fallback for a user-less caller", async () => {
+  let seenSubjectToken: string | undefined = "not called";
+  const atlasClient = {
+    async chat(_task: string, _req: unknown, atlasCtx: { subjectToken?: string }) {
+      seenSubjectToken = atlasCtx.subjectToken;
+      return {
+        id: "c",
+        modelCode: "m",
+        message: { role: "assistant", content: "answer" },
+        usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        latencyMs: 1,
+      } as ChatResponse;
+    },
+  } as unknown as AtlasClient;
+  const runosClient = {
+    async discover() {
+      return [];
+    },
+    async invoke() {
+      return { content: [], meta: {} };
+    },
+  } as unknown as RunosClient;
+
+  await runCopilotTurn(ctx("sales_rep", "pro"), { question: "q", tenantId: TENANT }, { atlasClient, runosClient });
+  assert.equal(seenSubjectToken, undefined);
+});
+
 test("the question survives a model failure", async () => {
   // Persisting the question before the model call is the whole point: the
   // reverse order loses it whenever the model plane is down.
