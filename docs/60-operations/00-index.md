@@ -37,6 +37,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-025 | DS 没有大屏这一类元件：分级地图、蜂窝底、折叠托架，也没有连续色阶 token | 2026-09-07 | open（三处垫片，全部只用 DS 令牌；已上报 DS） |
 | TD-026 | DS `ViewModeSwitch` 的两个图标写死（list / squares-four），无法表达"清单 / 树"这一对视图 | 2026-09-10 | open（`member-view-switch.tsx` 垫着，同一组合换图标；待上报 DS） |
 | TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
+| TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | open（生产不受影响；本机改走 `pnpm build` + `next start`） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -87,7 +88,9 @@ here. This register restarts its numbering for `yucer`.
 写明「原 8 个 auth-* 模块整体引用遗留 token，随其一并退役；认证页样式在 accounts
 收敛时以工具类重建」。也就是说认证形态的样式当前处于收敛中间态，没有可组合的成品。
 
-**权宜位置**：`portals/app/app/(app)/components/sign-in.tsx` 的 `Ambience()`。
+**权宜位置**：`portals/app/app/(app)/components/gate-frame.tsx` 的 `Ambience()`。
+（2026-09-15 从 `sign-in.tsx` 迁入：三张门禁页——引导页、未订阅、已退出——共用同一个
+框架，权宜实现因此只有一份，而不是跟着页面复制三份。）
 
 **为什么不算违规的自建组件**：它不复刻、不覆写、不 fork 任何 DS 元素，颜色全部取自
 DS token（`text-primary` / `var(--background)`），本地不定义任何色值。设计稿里的
@@ -1769,3 +1772,36 @@ owner 复核后仍然否了，理由反过来：太素，没有实际身份感�
 对 PR 中 `incr/` 下已存在于 `main` 的文件有改动即失败（注释也算，宁可多拦），
 或者 db-init 记录每个文件的内容哈希并在 verify 时报告漂移。两者都是新机制，
 等 owner 裁定；本条只登记。
+
+### TD-029 - `next dev` 自 v0.1.6 起全站 500，生产不受影响
+
+**症状**：本机 `pnpm dev` 之后，**任何**路由（含 `/`）都返回 500，页面是 Next 的
+`_error`，报 `Module not found: Can't resolve 'stream'`；把 `ioredis` 排除之后换成
+`Can't resolve 'fs'`，来源变成 `pg`。两者的 import trace 相同：
+
+```
+instrumentation.ts -> app/jobs/scheduler.ts -> app/jobs/lock.ts       -> ioredis -> stream
+instrumentation.ts -> app/jobs/scheduler.ts -> app/jobs/workspaces.ts -> app/authz/store.ts
+  -> app/lib/db.ts -> @prisma/adapter-pg -> pg -> fs
+```
+
+**定性**：既有缺陷，不是某次改动的副作用。2026-09-15 在 `origin/main` 的 5b49887 上
+复现过，与工作分支表现一致。起点是 v0.1.6 的容器内调度器（ADR-033）——在那之前
+`instrumentation.ts` 不引任何 Node 专用库。
+
+**为什么生产没事**：`next build` 只为 Node 运行时构建 instrumentation，`ioredis` 与
+`pg` 在那里都能解析。`next dev` 还会为别的运行时编译同一个入口，那里没有 Node 内置
+模块。所以 v0.1.6、v0.1.7 的生产部署一路正常，坏的只有本机开发服务器。
+
+**已排除的修法**：`next.config.mjs` 的 `serverExternalPackages` 只对 Node 服务端编译
+生效——加 `ioredis` 能消掉第一个错，下一个 `pg` 照旧（两种组合都实测过）。
+`instrumentation.ts` 里的 `await import()` 已经在 `NEXT_RUNTIME !== "nodejs"` 后面，
+那是运行时守卫；webpack 仍然静态分析这条边。
+
+**本机绕过**：`pnpm build` + `pnpm exec next start -p 4060`（生产构建那条路径是好的）。
+门禁页三态可在 `/gate-screens` 逐一查看。
+
+**修复方向**（未做，需单独一个 PR 并验证生产镜像）：让非 Node 编译看不见这条 import
+链——把调度器从 instrumentation 的静态图上摘掉，或按 Next 的分运行时入口重写。改的是
+`instrumentation.ts` / `app/jobs/scheduler.ts` 的加载方式，必须连同 `next build` 与
+容器启动一起验证，所以不夹带在界面 PR 里。

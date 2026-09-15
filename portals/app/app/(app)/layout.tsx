@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { Button, EmptyState, ViewLayout } from "@vxture/design-ui";
+import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { intentFor, subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
@@ -15,6 +15,9 @@ import { consoleUrl } from "./lib/console-url";
 import { AppShell } from "./components/app-shell";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
+import { SignedOut } from "./components/signed-out";
+import { NoSubscription } from "./components/no-subscription";
+import { SIGNED_OUT_COOKIE } from "../auth/lib/signed-out-marker";
 import { readNavCollapsed } from "@vxture/shared";
 import {
   getAccountStore,
@@ -74,9 +77,17 @@ export default async function AppLayout({
     // design (a silent Chinese fallback would hide the missing provider until
     // someone switched locale), which means the sign-in page could never be
     // translated at all: it is the FIRST thing an English reader sees.
+    //
+    // TWO SESSION-LESS SCREENS, not one. A visitor who has never signed in and
+    // a member who just signed out arrive at the same address with the same
+    // (absent) session, and answering both with "sign in" tells the second
+    // that their sign-out failed. /auth/logout leaves a marker cookie on the
+    // way to the IdP and this reads it - see auth/lib/signed-out-marker.ts for
+    // why the product cannot simply be sent to a /signed-out route instead.
+    const justSignedOut = (await cookies()).get(SIGNED_OUT_COOKIE)?.value === "1";
     return (
       <MessagesProvider locale={locale}>
-        <SignIn />
+        {justSignedOut ? <SignedOut consoleHref={consoleUrl()} /> : <SignIn />}
       </MessagesProvider>
     );
   }
@@ -101,24 +112,20 @@ export default async function AppLayout({
   }
 
   if (lockout === "no_entitlement") {
+    // A full screen rather than an EmptyState in a ViewLayout: EmptyState draws
+    // a dashed box meaning "this container has nothing in it", and what is
+    // actually happening is that the workspace has not bought the product. The
+    // decision stays here; the component only renders it.
     return (
       <MessagesProvider locale={locale}>
-        <ViewLayout>
-          <EmptyState
-            title={SHELL_TEXT.noAccessTitle}
-            description={SHELL_TEXT.noAccessDescription}
-            // subscribe for a workspace that never subscribed, renew for one
-            // that lapsed - the console shows a different flow for each, and
-            // "upgrade from nothing" was the wrong CTA for a first purchase.
-            action={
-              <Button asChild>
-                <a href={subscribeUrl({ intent: intentFor(session.entitlement) })}>
-                  {SHELL_TEXT.subscribeCta}
-                </a>
-              </Button>
-            }
-          />
-        </ViewLayout>
+        <NoSubscription
+          // subscribe for a workspace that never subscribed, renew for one
+          // that lapsed - the console shows a different flow for each, and
+          // "upgrade from nothing" was the wrong CTA for a first purchase.
+          subscribeHref={subscribeUrl({ intent: intentFor(session.entitlement) })}
+          userName={member?.displayName ?? session.user.sub}
+          workspaceLabel={SHELL_TEXT.workspaceFallback}
+        />
       </MessagesProvider>
     );
   }

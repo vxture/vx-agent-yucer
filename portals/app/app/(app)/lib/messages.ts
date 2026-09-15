@@ -1803,6 +1803,98 @@ export const SIGNIN_TEXT = {
   // hint that were not true would be worse than no hint.
   hint: "登录后将自动返回当前页面",
   ariaLabel: "登录",
+
+  // WHAT THE DOOR SAYS ABOUT THE PRODUCT.
+  //
+  // Every sentence below is the product's own, lifted from
+  // docs/20-specs/10-product-definition.md rather than written for the page.
+  // A front door that makes a claim the spec does not make is a promise
+  // nobody signed off, and it is the first thing a buyer reads.
+  tagline: "企业销售超级智能体",
+  headline: "把战略到回款，串成一条可追溯的链路",
+  lede:
+    "市场战略、销售规划、市场执行、客户管理、商机侦探、商机管理、项目落地共享一套数据与一个智能体；每一个商机都能回溯到它来自哪个战役、哪个细分市场、哪条战略。",
+
+  // THE CHAIN, in the order the product moves through it. It is the product's
+  // central claim, so it is shown rather than described - eight stops the
+  // reader can follow with a finger. Labels match the domain vocabulary in
+  // 20-capability-domains.md; renaming a domain renames the stop.
+  chainLabel: "全链路",
+  chain: ["市场战略", "销售规划", "市场战役", "商机信号", "销售线索", "商机", "交付项目", "回款"],
+
+  // The three value propositions, in the spec's own order and wording.
+  pillarsLabel: "产品主张",
+  pillars: [
+    {
+      title: "全链路可追溯",
+      description: "每一跳都有数据上的父子关系，归因不靠人工填写。",
+    },
+    {
+      title: "商机侦探",
+      description: "不等销售录入，主动从多源信号中发现并评分潜在商机。",
+    },
+    {
+      title: "人机协同，而非人机替代",
+      description: "智能体产出的是可审阅的建议动作，默认需要人确认。",
+    },
+  ],
+} as const;
+
+/**
+ * The workspace that has not subscribed.
+ *
+ * A DIFFERENT PAGE FROM THE FRONT DOOR, because the reader is different: they
+ * are signed in, the product knows who they are, and the one thing they cannot
+ * do is the one thing the page asks for - subscribing happens in the console
+ * and needs an administrator. So the page names who is signed in, says where
+ * the purchase happens, and offers a way out. A reader who can neither buy nor
+ * leave is stranded, which is what a bare EmptyState left them.
+ */
+export const NO_SUBSCRIPTION_TEXT = {
+  badge: "未订阅",
+  ariaLabel: "当前工作区尚未订阅",
+  identityLabel: "登录身份",
+  workspaceLabel: "当前工作区",
+  // Said plainly because the reader may not be able to act on the button above
+  // it, and finding that out after a round trip to the console is worse.
+  adminNote: "订阅在账号中心完成，需要工作区管理员的权限。如果你不是管理员，请把这个页面转给他。",
+  signOut: "退出登录",
+  unlockTitle: "订阅后可用",
+} as const;
+
+/**
+ * After signing out.
+ *
+ * Reached by the IdP's post-logout redirect, which lands on the product root -
+ * the same address as the front door. Without this the product answered a
+ * deliberate sign-out with "登录", which reads as if the sign-out failed.
+ */
+export const SIGNED_OUT_TEXT = {
+  ariaLabel: "已退出登录",
+  title: "已退出登录",
+  description: "本设备上的会话已经结束。",
+  signInAgain: "重新登录",
+  toConsole: "前往账号中心",
+  // A real instruction rather than a reassurance: signing out ends the session,
+  // it does not close a browser somebody else is about to use.
+  publicDeviceNote: "如果这是公共设备，请一并关闭浏览器窗口。",
+} as const;
+
+/**
+ * The gate-screen preview (demo route only).
+ *
+ * Its own constant rather than strings in the page: the docs and the message
+ * dictionary are the two places copy is allowed to live, and a preview route
+ * is still a route somebody reads.
+ */
+export const GATE_PREVIEW_TEXT = {
+  ariaLabel: "选择要预览的页面",
+  signIn: "未登录引导页",
+  noSubscription: "未订阅",
+  signedOut: "已退出",
+  // Obviously a sample, so nobody mistakes the preview for a real session.
+  sampleUser: "示例成员",
+  sampleWorkspace: "示例工作区",
 } as const;
 
 /**
