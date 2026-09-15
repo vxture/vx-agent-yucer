@@ -287,14 +287,13 @@ function Ambience() {
             <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.22" />
           </linearGradient>
         </defs>
-        {/* THREE SEGMENTS, EACH A DIFFERENT LENGTH AND DEPTH (610 / 470 / 360
-            units, shortening left to right). The previous path used S, which
-            mirrors the control point it follows - so the curve repeated itself
-            and read as a decorative motif rather than a horizon. Written out
-            in full C commands for the same reason: every control point here is
-            deliberate, and none of them is the reflection of another. */}
+        {/* ONE CUBIC, EDGE TO EDGE. Three segments read as a row of ripples;
+            this is a single slope with one long bend in it - nearly flat where
+            it enters on the left, lifting through the middle, highest where it
+            leaves on the right. Two control points and no joins, so there is
+            nothing in it that can repeat. */}
         <path
-          d="M0 150 C 200 96, 380 188, 610 146 C 800 110, 900 210, 1080 176 C 1230 150, 1320 96, 1440 120 L1440 400 L0 400 Z"
+          d="M0 236 C 520 240, 960 104, 1440 44 L1440 400 L0 400 Z"
           fill="url(#gate-swell)"
         />
       </svg>

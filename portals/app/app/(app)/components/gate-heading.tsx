@@ -9,12 +9,12 @@ import { StatusBadge, type IconName } from "@vxture/design-ui";
 // exactly the same format). A statement, a state label beside it, and one line
 // under it.
 //
-// THE LABEL SITS TO THE RIGHT OF THE TITLE, ON THE SAME LINE, ALIGNED TO ITS
-// TOP. It was a centred badge stacked above the title, which read as two
-// headings rather than a heading and its tag; a first correction hung it off
-// the top-left corner, which the owner then placed on the right instead.
-// `items-start` is what does the aligning - the badge is half the title's
-// height, so anything else leaves it floating in the middle of the line.
+// THE LABEL LEADS THE SECOND LINE. It has been a centred badge above the
+// title, then hung off its top-left corner, then set beside it on the right -
+// and beside a heading is where it looked worst, because a badge is the size
+// of body text and a heading is not, so it hung there unattached to anything.
+// On the line it now leads it is the same height as the sentence it prefixes,
+// and it reads as what it is: the state, and then what to do about it.
 
 export function GateHeading({
   badge,
@@ -22,8 +22,9 @@ export function GateHeading({
   title,
   description,
 }: {
-  /** The state, as a short label beside the title. Omitted when there is no
-   *  state to name - the door and the sign-out confirmation pass none. */
+  /** The state, as a short label leading the line under the title. Omitted
+   *  when there is no state to name - the door and the sign-out confirmation
+   *  pass none. */
   readonly badge?: ReactNode;
   readonly badgeIcon?: IconName;
   readonly title: ReactNode;
@@ -31,17 +32,17 @@ export function GateHeading({
 }) {
   return (
     <div className="gap-sm flex flex-col items-center text-center">
-      <div className="gap-sm flex items-start justify-center">
-        <h1 className="text-heading-2 text-balance">{title}</h1>
-        {badge && (
-          <StatusBadge tone="info" icon={badgeIcon}>
-            {badge}
-          </StatusBadge>
-        )}
-      </div>
+      <h1 className="text-heading-2 text-balance">{title}</h1>
 
-      {description && (
-        <p className="text-body-md text-muted-foreground">{description}</p>
+      {(badge || description) && (
+        <p className="gap-sm text-body-md text-muted-foreground flex flex-wrap items-center justify-center">
+          {badge && (
+            <StatusBadge tone="info" icon={badgeIcon}>
+              {badge}
+            </StatusBadge>
+          )}
+          {description}
+        </p>
       )}
     </div>
   );
