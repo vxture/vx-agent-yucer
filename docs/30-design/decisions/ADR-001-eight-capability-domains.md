@@ -2,6 +2,9 @@
 
 - 状态：已接受
 - 日期：2026-08-12
+- 被修订：[ADR-017](ADR-017-catalog-is-a-capability-partition-without-a-feature-key.md)
+  （2026-08-26）追加第九个分区 D9（产品目录）——本文件不改写，现状见
+  `docs/20-specs/20-capability-domains.md`
 
 ## 背景
 

@@ -39,6 +39,7 @@ Append-only. Each entry is a known, deliberately-deferred debt with a stable ID
 | TD-027 | DS 图标表里 `role` 就是 `UsersIcon` 的别名，与 `users` 渲染出同一个 SVG | 2026-09-12 | open（角色管理三处换用 `user-circle`；已定位现成修复 - 依赖里就有 `IdentificationCard`；待上报 DS） |
 | TD-028 | 已应用的增量被原地修改，没有任何守卫 | 2026-09-14 | open |
 | TD-029 | `next dev` 自 v0.1.6 起全站 500：instrumentation 把 ioredis / pg 拖进非 Node 编译 | 2026-09-15 | open（生产不受影响；本机改走 `pnpm build` + `next start`） |
+| TD-030 | `50-role-permission-catalog.md` 表头「权限目录（19 项）」落后于种子，`incr/0010` 起多次增删未回填 | 2026-09-15 | open（净数需要逐条核对 incr/0001-0064，未猜测填入） |
 
 Note: the template's own TD-001 / TD-002 (the `@vxture/shared` value-domain
 dependency and the vendored health-identity deviation) were both closed upstream
@@ -1806,3 +1807,23 @@ instrumentation.ts -> app/jobs/scheduler.ts -> app/jobs/workspaces.ts -> app/aut
 链——把调度器从 instrumentation 的静态图上摘掉，或按 Next 的分运行时入口重写。改的是
 `instrumentation.ts` / `app/jobs/scheduler.ts` 的加载方式，必须连同 `next build` 与
 容器启动一起验证，所以不夹带在界面 PR 里。
+
+### TD-030 - 权限目录文档的「19 项」表头落后于种子
+
+**发现于**：补 D9（产品目录能力分区）文档缺口时，核实 `50-role-permission-catalog.md`
+那句「域前缀与八个能力分区一致」是否还成立——不成立，`catalog.*` 三条权限
+（`incr/0010`）早已存在。顺带发现表头的计数也是同一批留下的旧值。
+
+**现状**：`## 权限目录（19 项）` 这个标题写的是 D9 加入*之前*的数字。此后至少
+`incr/0010`（`catalog.*` 三条）、`incr/0011`（`account.interaction`）、
+`incr/0012`（折扣签字）、`incr/0059`/`0061`/`0063`（阶段与商机类型相关）陆续新增，
+`incr/0064` 退役过其中两条——加加减减之后表格实际有 27 行 `perm_code`,但没人回去
+改过这一行标题里的数字。
+
+**为什么这次不顺手改成「27 项」**：`incr/0001` 之后的每一个相关增量都要逐条读实际
+DML（含 `0064` 的退役）才能确认净数,一次带过容易把一个同样错的数字换成另一个。
+表格本身（逐行的 `perm_code`）才是权威，这条债记的是**表头的汇总数字**该由谁、
+在加不加权限的哪个批次里维护。
+
+**收回条件**：下一次改动本文件的权限表格时，顺手数一遍 `perm_code` 的行数，
+把标题换成真实值,并把这条 TD 关掉。

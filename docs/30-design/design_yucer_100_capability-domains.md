@@ -195,7 +195,8 @@ React context。不报错，只是弹层偶尔不认自己的 provider。精确�
 
 ## 2. 域 -> schema 的映射
 
-八个产品域映射到五个 DB schema。映射依据是**事务边界**：经常在同一个事务里被一起
+九个产品域映射到六个 DB schema（D9 产品目录于 2026-08-26 由 ADR-017 追加，独占
+`yucer_catalog`，本节随之补上）。映射依据是**事务边界**：经常在同一个事务里被一起
 写的对象放同一个 schema。
 
 | Schema | 承载域 | 事务边界理由 |
@@ -205,8 +206,11 @@ React context。不报错，只是弹层偶尔不认自己的 provider。精确�
 | `yucer_pipeline` | D5 D6 | 信号->线索->商机是一条连续管道，转化是单事务 |
 | `yucer_delivery` | D7 | 赢单后才产生，生命周期与前面几段解耦 |
 | `yucer_agent` | D8 | 横切八个能力分区，但自身数据独立，可独立扩容与清理 |
+| `yucer_catalog` | D9 | 全链路只读引用、只有自己写；混进任何一个业务域会让「谁拥有这张表」的答案变得可疑 |
 
-完整理由见 `decisions/ADR-002-five-schemas-for-eight-domains.md`。
+最初八分区五 schema 的完整理由见
+`decisions/ADR-002-five-schemas-for-eight-domains.md`；D9 的追加理由见
+`decisions/ADR-017-catalog-is-a-capability-partition-without-a-feature-key.md`。
 
 ## 3. 跨 schema 引用
 
