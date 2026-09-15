@@ -70,6 +70,40 @@ test("a completed stream ends with the same durable state as a non-streamed turn
   assert.equal(messages[1].content, "Call the CFO.");
 });
 
+test("a subjectToken reaches Atlas's chatStream context, so client.ts picks OBO over service mode", async () => {
+  let seenSubjectToken: string | undefined = "not called";
+  const atlasClient = {
+    async *chatStream(_task: string, _req: unknown, atlasCtx: { subjectToken?: string }) {
+      seenSubjectToken = atlasCtx.subjectToken;
+      yield { type: "text", delta: "hi" } as StreamFrame;
+      yield { type: "done" } as StreamFrame;
+    },
+  } as unknown as AtlasClient;
+
+  await collect(
+    streamCopilotTurn(
+      ctx("sales_rep", "free"),
+      { question: "q", tenantId: TENANT, subjectToken: "usr-token-abc" },
+      { atlasClient },
+    ),
+  );
+  assert.equal(seenSubjectToken, "usr-token-abc");
+});
+
+test("no subjectToken means Atlas's chatStream gets none either - the service-mode fallback", async () => {
+  let seenSubjectToken: string | undefined = "not called";
+  const atlasClient = {
+    async *chatStream(_task: string, _req: unknown, atlasCtx: { subjectToken?: string }) {
+      seenSubjectToken = atlasCtx.subjectToken;
+      yield { type: "text", delta: "hi" } as StreamFrame;
+      yield { type: "done" } as StreamFrame;
+    },
+  } as unknown as AtlasClient;
+
+  await collect(streamCopilotTurn(ctx("sales_rep", "free"), { question: "q", tenantId: TENANT }, { atlasClient }));
+  assert.equal(seenSubjectToken, undefined);
+});
+
 test("a partial answer the member read is still persisted when the stream fails", async () => {
   // A turn that streamed beautifully and lost what it said is worse than one
   // that never streamed.

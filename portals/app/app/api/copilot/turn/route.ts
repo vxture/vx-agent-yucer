@@ -75,6 +75,10 @@ export async function POST(request: Request): Promise<Response> {
           ? { type: subjectType as SubjectType, id: subjectId }
           : undefined,
       tenantId,
+      // OBO when there's a real member token to present; the dev-session
+      // bypass carries none, and mintS2SToken falls back to service mode
+      // (platform/s2s.ts) exactly the way a user-less background job does.
+      subjectToken: session.accessToken ?? undefined,
     },
     { atlasClient: new AtlasClient(), runosClient: new RunosClient() },
   );

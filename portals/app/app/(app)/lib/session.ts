@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import type { Entitlement } from "../../entitlement/types";
 import { getEntitlementResolver } from "../../entitlement/resolver";
 import { getOidcConfig } from "../../auth/lib/config";
-import { getAuthUser } from "../../auth/lib/session";
+import { getAuthSession } from "../../auth/lib/session";
 import type { AuthUser } from "../../auth/lib/claims";
 import { resolveAuthzContext, type AuthzContext } from "../../authz/context";
 import {
@@ -44,6 +44,14 @@ export interface AppSession {
   workspaceId: string;
   entitlement: Entitlement;
   authz: AuthzContext;
+  /**
+   * The member's own access token, for OBO S2S calls (platform/s2s.ts) -
+   * server-only, never serialize this into a client component prop or a JSON
+   * response. Null on the dev-session bypass (no real OIDC token exists
+   * there); a caller with no subject token simply falls back to service mode,
+   * same as a background job with no user in the loop.
+   */
+  accessToken: string | null;
   /**
    * Which rows this member may see, resolved once for the request.
    *
@@ -146,7 +154,8 @@ export async function resolveAppSession(): Promise<AppSession | null> {
     // member's book, and an empty store would resolve to seeing nothing on the
     // first render and everything on the second.
     const scope = await resolveDataScope(dev.workspaceId, dev.user.sub, getAuthzStore());
-    return withStores({ ...dev, scope });
+    // No real OIDC token on this bypass; OBO callers fall back to service mode.
+    return withStores({ ...dev, scope, accessToken: null });
   }
 
   const cfg = getOidcConfig();
@@ -154,8 +163,9 @@ export async function resolveAppSession(): Promise<AppSession | null> {
   const rpsid = jar.get(cfg.cookieName)?.value;
   if (!rpsid) return null;
 
-  const user = await getAuthUser(cfg, rpsid);
-  if (!user) return null;
+  const authSession = await getAuthSession(cfg, rpsid);
+  if (!authSession) return null;
+  const { user, accessToken } = authSession;
 
   // No active workspace means no isolation key, which means no product surface.
   const workspaceId = user.activeWorkspace;
@@ -184,7 +194,7 @@ export async function resolveAppSession(): Promise<AppSession | null> {
   await ensureStartupPreset(workspaceId, user.sub, authz, entitlement);
 
   const scope = await resolveDataScope(workspaceId, user.sub, getAuthzStore());
-  return withStores({ user, workspaceId, entitlement, authz, scope });
+  return withStores({ user, workspaceId, entitlement, authz, scope, accessToken });
 }
 
 /**
