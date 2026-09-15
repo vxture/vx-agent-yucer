@@ -1,6 +1,7 @@
 import { EmptyState } from "@vxture/design-ui";
 import { resolveAppSession } from "../../(app)/lib/session";
 import { getMessages } from "../../(app)/lib/i18n/server";
+import { SignIn } from "../../(app)/components/sign-in";
 import { can } from "../../authz/decide";
 import { listAccounts, listMarketDivisions } from "../../domains/account/service";
 import { listPipeline } from "../../domains/pipeline/service";
@@ -36,15 +37,22 @@ import { NationalScreen } from "../components/national-screen";
 export const dynamic = "force-dynamic";
 
 export default async function NationalScreenPage() {
-  const { SHELL_TEXT, SCREEN_TEXT } = await getMessages();
+  const { SCREEN_TEXT } = await getMessages();
   const session = await resolveAppSession();
+  // THE SAME FRONT DOOR AS THE REST OF THE PRODUCT (2026-09-15). This used to
+  // be a bare EmptyState - the exact pre-redesign shape the four gate screens
+  // replaced everywhere else - because this route group's own layout
+  // (../layout.tsx) deliberately drops the shell and does no session
+  // handling of its own, so nothing upstream of this page ever routed a
+  // no-session visitor through the new SignIn. `(screen)` not wearing the
+  // shell is a deliberate, documented choice (chrome nobody three metres from
+  // a wall display can reach); a session-less visitor not seeing the same
+  // door as anyone else who opens the product by URL was never the
+  // intention - the layout's own comment says this group is "not a second
+  // application". SignIn is a full-bleed front door already, so it costs
+  // nothing extra here despite the shell being off.
   if (!session) {
-    return (
-      <EmptyState
-        title={SHELL_TEXT.signedOutTitle}
-        description={SHELL_TEXT.signedOutDescription}
-      />
-    );
+    return <SignIn />;
   }
 
   const ctx = { holder: session.authz, entitlement: session.entitlement };
