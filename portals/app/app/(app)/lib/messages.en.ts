@@ -713,7 +713,22 @@ export const en: Dictionary = {
     cadence_positive: "A cadence of zero days is not a cadence",
     unknown_tier: "Unknown account tier",
     not_found: "No such account, or it belongs to another workspace",
+    parent_self: "A parent company cannot be itself",
+    parent_not_found: "The chosen parent company does not exist, or belongs to another workspace",
+    parent_cycle: "That would create a cycle - two companies each the other's parent",
     denied: "Refused",
+  },
+
+  ACCOUNT_PARENT_TEXT: {
+    label: "Parent company",
+    none: "No parent company",
+    change: "Change parent company",
+    dialogWhy: "Choose a parent company; it cannot be this account itself or one of its own subsidiaries.",
+    field: "Parent company",
+    submit: "Confirm",
+    cancel: "Cancel",
+    done: (name: string) => `Parent company set to "${name}"`,
+    doneNone: "Parent company cleared",
   },
 
   CATALOG_ERROR: {
