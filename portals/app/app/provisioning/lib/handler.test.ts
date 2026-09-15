@@ -69,3 +69,38 @@ test("tenant.provisioned and tenant.deprovisioned evict the C2 cache too", async
   await handleProvisioning(ev({ id: "p2", type: "tenant.deprovisioned", seq: 2, workspace_id: "ws_5" }), d);
   assert.deepEqual(evicted, ["ws_5", "ws_5"]);
 });
+
+test("a notification with no real seq still fires after the watermark has advanced", async () => {
+  // The platform never attaches seq to subscription_changed/grant.invalidated;
+  // route.ts defaults the field to 0. Once a real tenant.provisioned event has
+  // moved lastSeq past 0, a naive `event.seq <= lastSeq` check would judge every
+  // later notification "stale" and silently drop it forever - this is the exact
+  // production defect the seqBearing guard exists to prevent.
+  const evicted: string[] = [];
+  const store = new InMemoryProvisioningStore();
+  const d = deps({ store, onSubscriptionChanged: (ws) => { evicted.push(ws); } });
+  await handleProvisioning(ev({ id: "p1", type: "tenant.provisioned", seq: 5, workspace_id: "ws_7" }), d);
+  const res = await handleProvisioning(
+    ev({ id: "s1", type: "subscription_changed", seq: 0, workspace_id: "ws_7" }),
+    d,
+  );
+  assert.equal(res.handled, true);
+  assert.equal(res.reason, "processed");
+  assert.deepEqual(evicted, ["ws_7", "ws_7"]);
+});
+
+test("a notification's absent seq does not roll back the real watermark", async () => {
+  // If setSeq were still called unconditionally with the defaulted 0, this
+  // notification would reset lastSeq to 0 - so a genuinely-stale replay of the
+  // earlier tenant.provisioned (seq 5) would then be accepted as new.
+  const store = new InMemoryProvisioningStore();
+  const d = deps({ store });
+  await handleProvisioning(ev({ id: "p1", type: "tenant.provisioned", seq: 5, workspace_id: "ws_8" }), d);
+  await handleProvisioning(ev({ id: "s1", type: "subscription_changed", seq: 0, workspace_id: "ws_8" }), d);
+  const replay = await handleProvisioning(
+    ev({ id: "p1-replay", type: "tenant.provisioned", seq: 5, workspace_id: "ws_8" }),
+    d,
+  );
+  assert.equal(replay.handled, false);
+  assert.equal(replay.reason, "stale");
+});

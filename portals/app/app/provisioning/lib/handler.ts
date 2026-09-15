@@ -30,6 +30,16 @@ export interface HandlerDeps {
   onProvisioned?: (workspaceId: string) => Promise<void> | void; // re-entrant init
 }
 
+// The only two types the platform ever attaches a real seq to. subscription_changed
+// and grant.invalidated never carry one - route.ts defaults the field to 0 for them
+// purely to satisfy ProvisioningEvent's shape, and that 0 is not a real sequence
+// position. Ordering must not be judged against it, and it must not overwrite the
+// real watermark set by an actual tenant.* event: a notification arriving after this
+// workspace's first tenant.provisioned would otherwise be born "stale" forever (0 is
+// never greater than a lastSeq that has already advanced past it), and grant/
+// subscription-cache invalidation would silently stop firing from that point on.
+const SEQ_BEARING_TYPES = new Set(["tenant.provisioned", "tenant.deprovisioned"]);
+
 export async function handleProvisioning(
   event: ProvisioningEvent,
   deps: HandlerDeps,
@@ -44,10 +54,15 @@ export async function handleProvisioning(
     return { ok: true, handled: false, reason: "duplicate" };
   }
 
-  // Ordering: ignore stale/replayed seq (but still ack 2xx at the route).
-  const lastSeq = await deps.store.getLastSeq(event.workspace_id, deps.product);
-  if (event.seq <= lastSeq) {
-    return { ok: true, handled: false, reason: "stale" };
+  const seqBearing = SEQ_BEARING_TYPES.has(event.type);
+
+  // Ordering: ignore stale/replayed seq (but still ack 2xx at the route). Only
+  // applies to the two event types that actually carry one - see the comment above.
+  if (seqBearing) {
+    const lastSeq = await deps.store.getLastSeq(event.workspace_id, deps.product);
+    if (event.seq <= lastSeq) {
+      return { ok: true, handled: false, reason: "stale" };
+    }
   }
 
   switch (event.type) {
@@ -77,6 +92,8 @@ export async function handleProvisioning(
   }
 
   await deps.store.markDelivered(event.id, { type: event.type, result: "processed" });
-  await deps.store.setSeq(event.workspace_id, deps.product, event.seq);
+  if (seqBearing) {
+    await deps.store.setSeq(event.workspace_id, deps.product, event.seq);
+  }
   return { ok: true, handled: true, reason: "processed" };
 }
