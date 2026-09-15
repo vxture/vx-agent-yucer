@@ -7,17 +7,17 @@ import { MessagesProvider } from "../../(app)/lib/i18n/provider";
 import { SignIn } from "../../(app)/components/sign-in";
 import { SignedOut } from "../../(app)/components/signed-out";
 import { NoSubscription } from "../../(app)/components/no-subscription";
+import { NoRoles } from "../../(app)/components/no-roles";
 import { subscribeUrl } from "../../entitlement/deeplink";
 import { GATE_PREVIEW_TEXT } from "../../(app)/lib/messages";
 
 // The three gate screens, side by side, with no session and no platform.
 //
-// WHY A PREVIEW ROUTE AT ALL. Each of the three answers a DIFFERENT absence -
-// no session, no subscription, a session just ended - so seeing them in the
-// product means arranging three states that are mutually exclusive by
-// construction: signing out of a workspace that has no subscription, twice.
-// Locally two of them also need the dev-session switch in opposite positions,
-// which is a server restart between screens.
+// WHY A PREVIEW ROUTE AT ALL. Each of the four answers a DIFFERENT absence -
+// no session, no subscription, no role, a session just ended - so seeing them
+// in the product means arranging four states that are mutually exclusive by
+// construction. Locally two of them also need the dev-session switch in
+// opposite positions, which is a server restart between screens.
 //
 // Same pattern and same limits as the entitlement-matrix and product-preview
 // pages next to it: fixtures only, no session, no database, and it makes
@@ -26,7 +26,7 @@ import { GATE_PREVIEW_TEXT } from "../../(app)/lib/messages";
 
 export const dynamic = "force-static";
 
-type Screen = "sign-in" | "no-subscription" | "signed-out";
+type Screen = "sign-in" | "no-subscription" | "no-roles" | "signed-out";
 
 export default function GateScreensPreview() {
   const [screen, setScreen] = useState<Screen>("sign-in");
@@ -48,6 +48,7 @@ export default function GateScreensPreview() {
             items={[
               { value: "sign-in", label: GATE_PREVIEW_TEXT.signIn },
               { value: "no-subscription", label: GATE_PREVIEW_TEXT.noSubscription },
+              { value: "no-roles", label: GATE_PREVIEW_TEXT.noRoles },
               { value: "signed-out", label: GATE_PREVIEW_TEXT.signedOut },
             ]}
           />
@@ -60,6 +61,12 @@ export default function GateScreensPreview() {
           // The intent a never-subscribed workspace calls for, from the same
           // constructor the layout uses - not a hand-written URL.
           subscribeHref={subscribeUrl({ intent: "subscribe" })}
+          userName={GATE_PREVIEW_TEXT.sampleUser}
+          workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
+        />
+      )}
+      {screen === "no-roles" && (
+        <NoRoles
           userName={GATE_PREVIEW_TEXT.sampleUser}
           workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
         />

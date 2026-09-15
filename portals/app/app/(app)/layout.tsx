@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { EmptyState, ViewLayout } from "@vxture/design-ui";
 import { intentFor, subscribeUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
@@ -17,6 +16,7 @@ import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "./lib/shell-cookies";
 import { SignIn } from "./components/sign-in";
 import { SignedOut } from "./components/signed-out";
 import { NoSubscription } from "./components/no-subscription";
+import { NoRoles } from "./components/no-roles";
 import { SIGNED_OUT_COOKIE } from "../auth/lib/signed-out-marker";
 import { readNavCollapsed } from "@vxture/shared";
 import {
@@ -99,14 +99,17 @@ export default async function AppLayout({
   // workspace has already paid cannot fix a missing role by paying again, and
   // sending them to checkout is worse than saying nothing.
   if (lockout === "no_roles") {
+    // The workspace has paid; this member has not been given a role. The one
+    // refusal its reader cannot act on, so the screen names who can - whoever
+    // opened the subscription is this product's super administrator
+    // (authz/context.ts bootstraps them) - and shows the identity that
+    // administrator will be searching a roster for.
     return (
       <MessagesProvider locale={locale}>
-        <ViewLayout>
-          <EmptyState
-            title={SHELL_TEXT.noRolesTitle}
-            description={SHELL_TEXT.noRolesDescription}
-          />
-        </ViewLayout>
+        <NoRoles
+          userName={member?.displayName ?? session.user.sub}
+          workspaceLabel={SHELL_TEXT.workspaceFallback}
+        />
       </MessagesProvider>
     );
   }

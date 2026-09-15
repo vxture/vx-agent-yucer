@@ -159,7 +159,7 @@ export const en: Dictionary = {
     subscribeCta: "Subscribe",
     noRolesTitle: "No role has been assigned to you yet",
     noRolesDescription:
-      "The workspace is subscribed, but you hold no role, so nothing is visible to you yet. Ask a workspace administrator to assign one.",
+      "This workspace has a subscription, but nobody has given you a role yet, so there is nothing for you to open. Whoever opened the subscription is this product's super administrator - ask them to assign you one under Administration - Members.",
     loadFailed: "Could not load the data",
     backUp: "Back",
     expandNav: "Expand navigation",
@@ -1313,10 +1313,25 @@ export const en: Dictionary = {
     ],
   },
 
+  NO_ROLES_TEXT: {
+    badge: "Waiting for a role",
+    ariaLabel: "No role has been assigned to you yet",
+    identityLabel: "Signed in as",
+    workspaceLabel: "Workspace",
+    whoLabel: "Who can fix this",
+    whoBody:
+      "Whoever opened the subscription is this product's super administrator: they configure it and assign the roles. Send them the identity above and they will find you under Administration - Members.",
+    recheck: "Check again",
+    signOut: "Sign out",
+    wrongWorkspaceHint:
+      "If the workspace above is not the one you meant to open, sign out and switch accounts.",
+  },
+
   GATE_PREVIEW_TEXT: {
     ariaLabel: "Choose a screen to preview",
     signIn: "Front door",
     noSubscription: "No subscription",
+    noRoles: "No role",
     signedOut: "Signed out",
     sampleUser: "Sample member",
     sampleWorkspace: "Sample workspace",

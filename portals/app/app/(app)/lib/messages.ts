@@ -1773,8 +1773,12 @@ export const SHELL_TEXT = {
   noAccessDescription: "订阅后即可使用客户管理、商机管道与销售智能助手。",
   subscribeCta: "前往订阅",
   noRolesTitle: "还没有为你分配角色",
+  // Names WHO, because "an administrator" is not a person anybody can go and
+  // find. Opening the subscription makes you this product's super
+  // administrator (auth/lib/claims.ts: the platform's workspace:owner is the
+  // first-login super-admin), so the reader knows exactly whom to ask.
   noRolesDescription:
-    "工作区已订阅，但你还没有任何角色，因此暂时看不到任何模块。请联系工作区管理员为你分配角色。",
+    "工作区已订阅，但还没有人给你分配角色，所以暂时没有可进入的模块。开通订阅的人是本产品的超级管理员，请他在「管理 - 成员」里为你分配。",
   loadFailed: "数据加载失败",
   /** 面包屑前的返回按钮：纯图标，可访问名在这里。 */
   backUp: "返回上一级",
@@ -1881,6 +1885,30 @@ export const SIGNED_OUT_TEXT = {
 } as const;
 
 /**
+ * A member with no role, in a workspace that HAS subscribed.
+ *
+ * The one gate screen whose reader can do nothing about it themselves - which
+ * is why it says who can, by name of position rather than by the word
+ * "administrator". Whoever opened the subscription is this product's super
+ * administrator; everyone else waits for them.
+ */
+export const NO_ROLES_TEXT = {
+  badge: "等待分配角色",
+  ariaLabel: "还没有为你分配角色",
+  identityLabel: "登录身份",
+  workspaceLabel: "当前工作区",
+  whoLabel: "谁能处理",
+  // The two facts an administrator needs in order to act, said in the order
+  // they will use them.
+  whoBody: "开通订阅的人默认是本产品的超级管理员，由他完成系统配置并分配角色。把上面的登录身份告诉他，他在「管理 - 成员」里就能找到你。",
+  recheck: "重新检查",
+  signOut: "退出登录",
+  // The other thing that produces this screen, and the reader can check it
+  // themselves in one glance at the workspace name above.
+  wrongWorkspaceHint: "如果上面的工作区不是你要进的那个，请退出后切换账号。",
+} as const;
+
+/**
  * The gate-screen preview (demo route only).
  *
  * Its own constant rather than strings in the page: the docs and the message
@@ -1891,6 +1919,7 @@ export const GATE_PREVIEW_TEXT = {
   ariaLabel: "选择要预览的页面",
   signIn: "未登录引导页",
   noSubscription: "未订阅",
+  noRoles: "无角色",
   signedOut: "已退出",
   // Obviously a sample, so nobody mistakes the preview for a real session.
   sampleUser: "示例成员",
