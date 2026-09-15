@@ -208,15 +208,26 @@ test("markFlushed advances the real checkpoint watermark", { skip }, async () =>
   const store = new PrismaUsageStore();
   try {
     await store.record({ workspaceId: WS, metric: "copilot.turns", amount: 1, idempotencyKey: "dbt_u1" });
-    await store.markFlushed([{ idempotencyKey: "dbt_u1", workspaceId: WS, metric: "copilot.turns" }]);
+    await store.markFlushed([
+      { idempotencyKey: "dbt_u1", workspaceId: WS, metric: "copilot.turns", platformEventId: "evt_dbt_1" },
+    ]);
     const first = await withPg((c) =>
       c.query(`SELECT flushed_at FROM local_usage.checkpoint WHERE workspace_id = $1 AND metric = 'copilot.turns'`, [WS]),
     );
     assert.equal(first.rows.length, 1, "the watermark row must exist after a flush");
 
+    // incr/0070: the platform's own event_id round-trips through the real column.
+    const raw = await withPg((c) =>
+      c.query(`SELECT flushed, platform_event_id FROM local_usage.raw WHERE idempotency_key = $1`, ["dbt_u1"]),
+    );
+    assert.equal(raw.rows[0].flushed, true);
+    assert.equal(raw.rows[0].platform_event_id, "evt_dbt_1");
+
     // A second flush UPDATES the same row rather than violating the unique.
     await store.record({ workspaceId: WS, metric: "copilot.turns", amount: 2, idempotencyKey: "dbt_u2" });
-    await store.markFlushed([{ idempotencyKey: "dbt_u2", workspaceId: WS, metric: "copilot.turns" }]);
+    await store.markFlushed([
+      { idempotencyKey: "dbt_u2", workspaceId: WS, metric: "copilot.turns", platformEventId: null },
+    ]);
     const second = await withPg((c) =>
       c.query(`SELECT count(*)::int AS n FROM local_usage.checkpoint WHERE workspace_id = $1`, [WS]),
     );

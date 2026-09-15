@@ -9,7 +9,7 @@ export class PrismaUsageStore implements UsageStore {
    * constructs this with no argument and nothing changes. */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
 
-  async record(row: Omit<UsageRow, "flushed">): Promise<void> {
+  async record(row: Omit<UsageRow, "flushed" | "platformEventId">): Promise<void> {
     const p = await this.client();
     // Upsert on the unique idempotency key; a replay is a no-op (empty update).
     await p.raw.upsert({
@@ -33,18 +33,25 @@ export class PrismaUsageStore implements UsageStore {
       amount: Number(r.amount),
       idempotencyKey: r.idempotencyKey,
       flushed: r.flushed,
+      platformEventId: r.platformEventId,
     }));
   }
 
   async markFlushed(
-    rows: readonly { idempotencyKey: string; workspaceId: string; metric: string }[],
+    rows: readonly Pick<UsageRow, "idempotencyKey" | "workspaceId" | "metric" | "platformEventId">[],
   ): Promise<void> {
     if (rows.length === 0) return;
     const p = await this.client();
-    await p.raw.updateMany({
-      where: { idempotencyKey: { in: rows.map((r) => r.idempotencyKey) } },
-      data: { flushed: true },
-    });
+    // Each row's own platformEventId, not a shared value: one flush call
+    // usually reports several rows in a batch, and the platform returns a
+    // DIFFERENT event id for each - updateMany's single `data` cannot express
+    // that, so this writes flushed and platformEventId together per row.
+    for (const r of rows) {
+      await p.raw.update({
+        where: { idempotencyKey: r.idempotencyKey },
+        data: { flushed: true, platformEventId: r.platformEventId },
+      });
+    }
     // The watermark: one row per (workspace, metric), latest successful flush.
     // Deduplicated first - one batch usually carries many rows of one metric,
     // and (workspace_id, metric) is unique in the DDL.

@@ -85,3 +85,42 @@ test("a failed flush leaves the watermark unmoved", async () => {
   await flushUsage({ store, consume: async () => ({ status: 500 }) });
   assert.equal(store.checkpoints.size, 0, "a retryable failure is not a flush");
 });
+
+// incr/0070: /usage/consume's 200 body's event_id, captured and handed to
+// markFlushed - this is what makes reconciling a local row against the
+// platform's own ledger possible at all, instead of only inside a manual probe.
+
+test("event_id from the 200 body is passed to markFlushed for each row", async () => {
+  const store = await seeded();
+  const marked: unknown[] = [];
+  const realMarkFlushed = store.markFlushed.bind(store);
+  store.markFlushed = async (rows) => {
+    marked.push(...rows);
+    return realMarkFlushed(rows);
+  };
+  let n = 0;
+  await flushUsage({
+    store,
+    consume: async () => {
+      n += 1;
+      return { status: 200, body: { event_id: `evt_${n}` } };
+    },
+  });
+  assert.deepEqual(
+    marked.map((r) => (r as { platformEventId: string | null }).platformEventId).sort(),
+    ["evt_1", "evt_2"],
+  );
+});
+
+test("a 200 with no event_id in the body stores null, not the string \"undefined\"", async () => {
+  const store = new InMemoryUsageStore();
+  await store.record({ workspaceId: "ws", metric: "ai.credit", amount: 1, idempotencyKey: "k1" });
+  const marked: unknown[] = [];
+  const realMarkFlushed = store.markFlushed.bind(store);
+  store.markFlushed = async (rows) => {
+    marked.push(...rows);
+    return realMarkFlushed(rows);
+  };
+  await flushUsage({ store, consume: async () => ({ status: 200 }) }); // no body at all
+  assert.equal((marked[0] as { platformEventId: string | null }).platformEventId, null);
+});

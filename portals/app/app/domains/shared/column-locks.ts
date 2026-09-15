@@ -38,7 +38,7 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // incr/0047 - the two grouping vocabularies; the code is the anchor.
   "local_authz.role_line": ["name", "sort_order", "updated_at"],
   "local_authz.role_rank": ["name", "sort_order", "updated_at"],
-  "local_usage.raw": ["flushed"],
+  "local_usage.raw": ["flushed", "platform_event_id"], // incr/0070
   "local_usage.checkpoint": ["flushed_at"],
 
   // --- yucer_core ---

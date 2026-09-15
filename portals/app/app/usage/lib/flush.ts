@@ -61,7 +61,11 @@ export async function flushUsage(opts: FlushOptions = {}): Promise<FlushSummary>
       continue; // stays buffered
     }
     if (res.status === 200) {
-      done.push(row);
+      // On a fresh consume this is the id the platform just wrote; on a
+      // replayed idempotency_key (replayed: true) it is the ORIGINAL event's
+      // id, which is exactly what makes storing it useful for reconciliation.
+      const platformEventId = typeof res.body?.event_id === "string" ? res.body.event_id : null;
+      done.push({ ...row, platformEventId });
       if (res.gated) {
         // Recorded by the platform, quota not covering it: done, and the
         // entitlement is re-read next time anyone asks.

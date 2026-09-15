@@ -220,13 +220,15 @@ model RolePermission {
 // ===== local_usage =====
 
 model Raw {
-  id             String   @id @default(uuid()) @db.Uuid
-  workspaceId    String   @map("workspace_id") @db.Uuid
-  metric         String   @db.VarChar(128)
-  amount         BigInt
-  idempotencyKey String   @map("idempotency_key") @db.VarChar(128)
-  flushed        Boolean  @default(false)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @map("workspace_id") @db.Uuid
+  metric           String   @db.VarChar(128)
+  amount           BigInt
+  idempotencyKey   String   @map("idempotency_key") @db.VarChar(128)
+  flushed          Boolean  @default(false)
+  /** incr/0070. The platform's own /usage/consume event_id - null until flushed. */
+  platformEventId  String?  @map("platform_event_id") @db.VarChar(128)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@unique([idempotencyKey], map: "uidx_raw_idempotency_key")
   @@map("raw")
