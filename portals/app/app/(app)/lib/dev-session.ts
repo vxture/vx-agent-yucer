@@ -9,7 +9,7 @@ import {
 import type { AuthUser } from "../../auth/lib/claims";
 import type { AuthzContext } from "../../authz/context";
 import { getAuthzStore } from "../../authz/store";
-import { DEV_REVIEWER_NAME } from "../../domains/shared/demo-fixtures";
+import { DEV_REVIEWER_NAME, DEV_ORG_NAME, DEV_WORKSPACE_NAME } from "../../domains/shared/demo-fixtures";
 
 // A synthetic session, for looking at the product locally.
 //
@@ -80,11 +80,19 @@ export async function resolveDevSession(
     sub: DEV_SUB,
     activeOrg: "org_dev",
     activeOrgType: "organization",
+    activeOrgName: DEV_ORG_NAME,
     activeWorkspace: workspaceId,
+    activeWorkspaceName: DEV_WORKSPACE_NAME,
     roles: [],
     accountStatus: "active",
     canManage: true,
     isWorkspaceOwner: true,
+    // Same name the member roster seeds below (seeMember), so the header and
+    // the roster never disagree about who this synthetic reviewer is.
+    displayName: DEV_REVIEWER_NAME,
+    picture: null,
+    email: null,
+    phone: null,
   };
 
   // The REAL resolver, not a hardcoded entitlement. Without PLATFORM_API_URL

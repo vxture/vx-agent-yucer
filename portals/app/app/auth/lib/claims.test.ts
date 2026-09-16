@@ -61,15 +61,26 @@ test("toAuthUser maps claims and derives the gates; entitlement is not consumed"
     sub: "usr_abc",
     active_org: "org_1",
     active_org_type: "organization",
+    active_org_name: "Acme",
     active_workspace: "ws_1",
+    active_workspace_name: "Sales HQ",
     roles: ["workspace:owner"],
     account_status: "active",
+    name: "Jane Doe",
+    email: "jane@example.test",
+    phone: "+861234567890",
   });
   assert.equal(user.sub, "usr_abc");
   assert.equal(user.activeWorkspace, "ws_1");
+  assert.equal(user.activeWorkspaceName, "Sales HQ");
+  assert.equal(user.activeOrgName, "Acme");
   assert.equal(user.canManage, true);
   assert.equal(user.isWorkspaceOwner, true);
   assert.equal(user.accountStatus, "active");
+  assert.equal(user.displayName, "Jane Doe");
+  assert.equal(user.email, "jane@example.test");
+  assert.equal(user.phone, "+861234567890");
+  assert.equal(user.picture, null);
 });
 
 test("toAuthUser tolerates missing roles/context", () => {
@@ -77,4 +88,23 @@ test("toAuthUser tolerates missing roles/context", () => {
   assert.deepEqual(user.roles, []);
   assert.equal(user.canManage, false);
   assert.equal(user.activeWorkspace, null);
+  assert.equal(user.activeWorkspaceName, null);
+  assert.equal(user.activeOrgName, null);
+  assert.equal(user.email, null);
+  assert.equal(user.phone, null);
+  assert.equal(user.picture, null);
+});
+
+// The bug this whole batch fixes: showing the raw usr_<uuid> instead of a name.
+// displayName must never be empty, so the UI never falls back to its own
+// second placeholder on top of this one.
+test("displayName: real name wins, then preferred_username, then sub as the last resort", () => {
+  assert.equal(toAuthUser({ sub: "usr_1", name: "Jane Doe", preferred_username: "jane" }).displayName, "Jane Doe");
+  assert.equal(toAuthUser({ sub: "usr_1", preferred_username: "jane" }).displayName, "jane");
+  assert.equal(toAuthUser({ sub: "usr_1" }).displayName, "usr_1");
+});
+
+test("picture is read only when present - never a guessed URL", () => {
+  assert.equal(toAuthUser({ sub: "usr_1", picture: "https://cdn.example.test/a.png" }).picture, "https://cdn.example.test/a.png");
+  assert.equal(toAuthUser({ sub: "usr_1" }).picture, null);
 });

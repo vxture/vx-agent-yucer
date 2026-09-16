@@ -488,6 +488,12 @@ export const DEMO_SUCCESSOR_NAMES = {
 /** The local-review user, so a reviewer can find themselves in the roster. */
 export const DEV_REVIEWER_NAME = "本地评审用户";
 
+/** The dev-session bypass's synthetic org/workspace names (2026-09-16) - the
+ *  same fixture nature as DEV_REVIEWER_NAME beside it: never a real tenant,
+ *  named so the header shows something real-looking rather than a fallback. */
+export const DEV_ORG_NAME = "本地评审组织";
+export const DEV_WORKSPACE_NAME = "本地评审工作区";
+
 /**
  * 100+ 正面人物 (owner, 2026-09-13: 按照金庸武侠小说正面人物，构建100+数据，
  * 作为演示数据 - 100+用户，并分配到各级部门), so 组织管理/组织架构 show a
