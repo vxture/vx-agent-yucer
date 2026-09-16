@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon, UserAvatar } from "@vxture/design-ui";
+import { formatPhone } from "../lib/format-phone";
 
 // The two cells the gate screens' identity card shows: who is signed in, and
 // which tenant/workspace they are in - shared so the two screens that carry
@@ -46,7 +47,7 @@ export function PersonSummary({
       <UserAvatar src={picture} alt={name} className="size-10 shrink-0" />
       <div className="min-w-0">
         <p className="text-body-md font-medium break-words">{name}</p>
-        {phone && <p className="text-body-md text-muted-foreground break-words">{phone}</p>}
+        {phone && <p className="text-body-md text-muted-foreground break-words">{formatPhone(phone)}</p>}
       </div>
     </div>
   );
