@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
-import { BRAND } from "@yucer/shared/brand";
 import { resolveLocale } from "./(app)/lib/i18n/locale";
 import "./globals.css";
+
+export { metadata } from "./metadata";
 
 // Root layout. The provider stack is the design system's prescribed one
 // (ThemeProvider -> FullscreenProvider), plus ToastProvider and TooltipProvider
@@ -21,11 +22,6 @@ import "./globals.css";
 // translate prompt reads. Found while checking the gate screens in English.
 // resolveLocale() is the same request-scoped resolution every other surface
 // uses, and next/headers caches it per render.
-
-export const metadata = {
-  title: BRAND.displayName,
-  description: `${BRAND.displayName} - a Vxture product`,
-};
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const locale = await resolveLocale();
