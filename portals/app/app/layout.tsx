@@ -1,9 +1,23 @@
 import type { ReactNode } from "react";
+import { DEFAULT_LOCALE } from "@vxture/shared";
 import { Providers } from "./providers";
 import { resolveLocale } from "./(app)/lib/i18n/locale";
+import { buildMetadata } from "./metadata";
 import "./globals.css";
 
-export { metadata } from "./metadata";
+// STATIC on purpose, at DEFAULT_LOCALE (2026-09-16) - not generateMetadata().
+// The (app) route group's own layout.tsx overrides this per-request with the
+// visitor's real locale; it can afford to, because that layout already reads
+// cookies() for the session and is unconditionally dynamic regardless. This
+// root layout also wraps the (demo) route group's explicitly `force-static`
+// preview pages, and a PARENT layout's generateMetadata calling a dynamic API
+// (resolveLocale -> cookies()) forces every child segment dynamic too, no
+// matter what that child declares - it silently broke `/gate-screens` and
+// `/product-preview` back to server-rendered-per-request the one time this
+// lived here. This static fallback only actually reaches a visitor on a
+// route with no more specific layout - the (demo) pages - so its own request
+// never carries a locale to read.
+export const metadata = buildMetadata(DEFAULT_LOCALE);
 
 // Root layout. The provider stack is the design system's prescribed one
 // (ThemeProvider -> FullscreenProvider), plus ToastProvider and TooltipProvider

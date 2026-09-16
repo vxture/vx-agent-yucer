@@ -1,29 +1,30 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { Icon, UserAvatar } from "@vxture/design-ui";
 
 // The two cells the gate screens' identity card shows: who is signed in, and
 // which tenant/workspace they are in - shared so the two screens that carry
 // this card (no-subscription, no-roles) never drift apart.
 //
-// NOT LabeledValue (2026-09-16): its value slot is `truncate` by design (a
-// short reading, one line, ellipsis past it) - exactly the "读数框" the rules
-// revision warns against for a name, which cuts a real person's name to a few
-// characters and a workspace name off the back half of a shared line. Built
-// directly instead, keeping LabeledValue's own two tokens (the label line's
-// `text-label-sm text-muted-foreground`, the value line's `text-title-lg
-// font-bold`) so the card still reads at the same weight - just without the
-// truncation.
-
-function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2xs">
-      <span className="text-label-sm text-muted-foreground truncate">{label}</span>
-      {children}
-    </div>
-  );
-}
+// NOT LabeledValue: its value slot is `truncate` by design (a short reading,
+// one line, ellipsis past it) - exactly the "读数框" the rules revision warns
+// against for a name, which cuts a real person's name to a few characters and
+// a workspace name off the back half of a shared line.
+//
+// SIZED AND STRUCTURED AGAINST TENDERFORGE'S OWN LIVE PAGE (2026-09-16,
+// owner: "两个页面都打开了，你照抄"), read directly off its DOM rather than
+// guessed from the screenshot alone: `text-body-md` (14px) for BOTH lines -
+// `font-medium` for the name/org line, `text-muted-foreground` (no extra
+// weight) for the phone/workspace line beneath it - inside a plain
+// `flex items-center gap-sm` cell with `min-w-0` on the text column and
+// `break-words` on both spans. No caption above either cell - the avatar and
+// the building icon are the label. The first version of this file used
+// `text-title-lg font-bold` (LabeledValue's own value size) and later
+// `text-label-lg` with `whitespace-nowrap` - both still too large or too
+// eager to hold a real name/company name on one line; tenderforge's own
+// choice is smaller than either and never forces single-line at the cost of
+// cutting a genuinely long name, it just rarely needs to wrap at 14px inside
+// this card's own width.
 
 export function PersonSummary({
   label,
@@ -41,15 +42,13 @@ export function PersonSummary({
   readonly picture: string | null;
 }) {
   return (
-    <Field label={label}>
-      <div className="flex items-center gap-sm">
-        <UserAvatar src={picture} alt={name} className="size-9 shrink-0" />
-        <div className="flex min-w-0 flex-col">
-          <span className="text-title-lg text-foreground font-bold text-balance">{name}</span>
-          {phone && <span className="text-body-sm text-muted-foreground">{phone}</span>}
-        </div>
+    <div className="flex min-w-0 items-center gap-sm" aria-label={label}>
+      <UserAvatar src={picture} alt={name} className="size-10 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-body-md font-medium break-words">{name}</p>
+        {phone && <p className="text-body-md text-muted-foreground break-words">{phone}</p>}
       </div>
-    </Field>
+    </div>
   );
 }
 
@@ -67,14 +66,14 @@ export function TenantSummary({
   readonly workspaceLabel: string;
 }) {
   return (
-    <Field label={label}>
-      <div className="flex items-center gap-sm">
-        <Icon name="building-library" size="lg" className="text-muted-foreground shrink-0" />
-        <div className="flex min-w-0 flex-col">
-          <span className="text-title-lg text-foreground font-bold text-balance">{orgLabel ?? orgFallback}</span>
-          <span className="text-body-sm text-muted-foreground">{workspaceLabel}</span>
-        </div>
+    <div className="flex min-w-0 items-center gap-sm" aria-label={label}>
+      <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full">
+        <Icon name="building-library" size="sm" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-body-md font-medium break-words">{orgLabel ?? orgFallback}</p>
+        <p className="text-body-md text-muted-foreground break-words">{workspaceLabel}</p>
       </div>
-    </Field>
+    </div>
   );
 }

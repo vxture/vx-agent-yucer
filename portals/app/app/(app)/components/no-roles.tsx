@@ -57,6 +57,8 @@ export function NoRoles({
           description={SHELL_TEXT.noRolesDescription}
         />
 
+        {/* grid-cols-2 read directly off tenderforge's own live page - see
+            no-subscription.tsx's identical card for why. */}
         <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
           <PersonSummary
             label={NO_ROLES_TEXT.identityLabel}
