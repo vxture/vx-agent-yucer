@@ -3542,3 +3542,109 @@ max-age=45`）；C3 下行 webhook 验签自测通过；C3 上行指标待平台
 区域在切换分法后不会被清理（`retireOrphanedAutoTerritories`，#326）。以及一处
 文档缺口：`20-capability-domains.md` 自 ADR-017（2026-08-26）接受 D9 后从未同步，
 详见 #328。
+
+## 批次 9 - 接入通则逐条核对，十项缺口清零（2026-09-15~16，PR #334-#344）
+
+批次 7 把 C1/C2/C3 从"契约完整、实现对着 Mock"换成了"真的在跟平台对话"；批次 9
+换一个角度再核一遍——不是"接没接上"，是"接得对不对"。依据是平台的《产品接入
+通则》，四路并行审计（C1 身份、C2 权益、C3 用量与 webhook、X/A/B 组形状条款）
+逐条对照条文覆盖全部相关代码路径，得到十项确认缺口与十三项已核对合规项。十批
+全部按"一个 PR、真实数据验证、反证"的节奏合并；过程中顺带发现一项结构相同但
+通则原文未点名的迁移缺口（OIDC 回调双路径），登记为独立任务由另一个会话核实
+并完成，同样节奏收尾，故总数是 11 个 PR。
+
+### 9a C3 的两处真实缺陷：过期误判与对账断链（B1/B3，#334、#341）
+
+`subscription_changed`/`grant.invalidated` 从不带 `seq`，但 webhook 路由把缺失
+的 `seq` 一律归零，`handler.ts` 又在判断事件类型之前先做 `seq <= lastSeq` 的
+过期检查——workspace 一旦处理过一次真实开通事件，之后所有权益变更/授权失效通知
+都会被当成"旧事件"静默丢弃，套餐变了权益缓存却不会失效。修法是把 `seq` 判定
+收窄到只在真正带 `seq` 的两种事件类型上生效，通知类事件直接按 `id` 幂等。
+
+`/usage/consume` 响应里的 `event_id`——重放时对账要用的那个字段——只在一个手工
+诊断探针里被读取过，生产的冲洗路径读到就丢弃：`incr/0070` 给
+`local_usage.raw` 补上 `platform_event_id` 列，`flushUsage` 从响应体取值写回。
+
+### 9b C1 出站从未真正做过 OBO（B4，#342）
+
+换票机制本身合规（grant_type、`act.sub`、无共享密钥、按受众/模式/租户分区
+缓存都对），但 `subjectToken` 这个洞从铸好那天起就没人填过——`AuthUser`/
+`AppSession` 从会话存储往上传时，原始 access token 在半路被丢弃，此前每一次
+用户在 agent 里触发的实时调用铸出来的都是 service 模式的票，下游审计看到的是
+"yucer 这个产品在调用"而不是具体的人。补上 `AppSession.accessToken`，两个
+调用点（`copilot/turn`、`copilot/stream`）把它当 `subjectToken` 传入。**如实
+留白**：路由层这一段接线本身没有自动化测试——`session-store.ts` 硬绑定真实
+Redis、本机没有可注入的内存实现，回退这四个文件重跑全量测试仍然全绿；建议
+部署后用平台 `support.audit_logs` 的 `oidc.token_exchange.issued.mode` 字段
+做真正的端到端核实。见 9h。
+
+### 9c X-1 错误信封的 retryable 被硬编成 false（B5，#340）
+
+领域层 `Violation` 类型压根没有 `retryable` 字段：`AtlasError` 带着真实的
+可重试信号，`turn-service.ts` 捕获时只转 `code`/`message`，信号在这一步就
+丢了；`violationEnvelope()` 也不接受这个参数，无条件套默认值 `false`。一次
+真实的 Atlas 超时（本该可重试）会被上层看成"不可重试"。给 `Violation`/
+`violation()` 加可选字段，`turn-service.ts` 用 `e.retry.kind !== "no"`（走
+`AtlasError.retry` 解出的 `RetryPolicy`，而不是裸的 `.retryable`）透传；
+`streaming-turn.ts` 的 SSE 六处失败出口一并补齐。
+
+### 9d C2 的一个真缓存缺陷与三处重复实现（B6/B7/B8/B9/B10，#339、#335、#336、#337、#338）
+
+权益缓存寿命写死本地常量 `45_000`，请求还传了 `cache:"no-store"`，从没读过
+响应头——通则原文是"按 `Cache-Control` 的 `max-age` 缓存"，平台改了这个值
+yucer 会在没有任何代码信号的情况下悄悄跟规范脱节（#339）。另外四批都是重复
+实现而非安全缺陷：常驻页头的升级按钮漏了一个调用点、仍是硬编码 `intent:
+"upgrade"`，`tier`（能不能看到页面）与 `status`（订阅状态）是两条独立轴，会把
+"已订阅但已过期"的人错误地劝去升级而不是续费（#335）；`status` 字段类型比
+通则本身还窄，压成了 `@vxture/shared` 的封闭七值联合，运行时宽容但静态类型
+违反约定（#336）；`quota_pools[].remaining` 没有 `limits` 那样的 `-1` 无限制
+判断（#337）；两处 `featureKeysOf()` 各自手写了一遍门控公式、绕过唯一入口
+直接读能力矩阵（#338，只影响给大模型拼 prompt 的能力清单，不参与真正授权）。
+
+### 9e 两条历史双路径都走完 X-4 第③步（B2/B-新，#343、#344）
+
+平台登记的回调/webhook 地址是 `/api/auth/oidc/callback` 与
+`/api/webhooks/vxture`，批次 7 只做到"新地址转出到旧实现"（X-4 第①步）。
+本批核实平台登记确实已切到新地址后（webhook 一侧凭本仓部署清单的既有记录；
+OIDC 回调一侧重新读了一遍 `10-platform-registration-checklist.md` 并确认
+`auth/login/route.ts` 发给 IdP 的 `redirect_uri` 从来就是新地址、旧路径从未
+真正接过流量），把新地址从"转出"改成唯一实现，两个旧目录整个删除，现在都
+答 404。OIDC 回调一侧由另一个会话完成（`spawn_task` 派生的独立任务），本会话
+核实其内容与 CI 后合并。
+
+### 9f 方法论：四路并行审计之后，一次对自己的纠偏
+
+四路 Explore 并行审计、依条文而非直觉定位缺口的做法本身值得留：每路都能独立
+给出"这条通则原文，这段代码，两者不一致"的证据链，而不是一次读代码的主观印象。
+但初版结论把六项放进"需要平台确认"，owner 追问"我上百个智能体接入都要去问
+platform 吗"之后重新审视，其中三项（`quota_pools` 的 `-1` 处理、`status` 类型
+收窄、内部 job 端点鉴权边界）其实是可以照抄同仓已有先例直接决定的工程判断，
+不构成真正的外部事实依赖。收窄后的判据：只有"这个仓库review不到的外部系统
+状态"或"只有另一个团队/组织能做的事"才进"需要平台"这一栏；不确定不等于要问。
+
+### 9g 上线（2026-09-16，v0.1.12）
+
+十一个 PR 全部合并到 `main` 之后当天未打 tag。2026-09-16 走完整套发布流程：
+`incr/0070` 是自上一次发布以来唯一的新增 DDL，按"先 db-init 后 deploy"的
+既定顺序，先派发 `db-init.yml`（`action=apply`，`expected_sha` 钉住这次要
+上线的确切提交），owner 在 `production` Environment 批准，DDL 干净应用（基线
+三件套因已存在被跳过，`0070` 应用成功）；随后打 `v0.1.12` 推送，`deploy.yml`
+自动触发，owner 再次批准，build + deploy 全绿。上线后拿 `/api/status` 做活体
+核对而非只看流水线是否变绿：`gitSha` 与 tag 指向的提交一致，`c2.resolver:
+"platform"`（不是 mock）、数据库与 Redis 均 reachable、容器内调度器在跑。
+
+### 9h 尚未处理，明确留在"需要你或平台"这一栏
+
+以下三项这一轮不动，也没有向平台侧发起任何新请求或更新 issue——先把本侧
+（这个仓库自己能核实、能记录的部分）做完、做实，是否要去找平台，等这几项本身
+需要平台回应时再动：
+
+- `back_channel_logout_uri` 是否已在平台侧登记：代码侧接收端点已完整实现，
+  是部署清单里的既有已知开放项，不是本批新增的缺口。
+- 9e 里 webhook 一侧"平台登记确实已切换"这个假设，凭的是本仓部署清单的既有
+  记录，未在运营台单独重新核实过——找时间核对一次，尤其是在这次改动送生产
+  之后；假设有误的话回退 #343 即可重开第①步。
+- `vxture-platform#329` 早于本批就已经开着，不是本批新开的：webhook 真实
+  测试投递、开通关系对账端点、`yucer.copilot.turns` 指标登记、service 模式
+  换票请求体的确切形状（`requested_context` 嵌套对象还是扁平字段），四项都
+  还没有平台侧的回应。
