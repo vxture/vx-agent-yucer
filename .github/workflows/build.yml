@@ -2,8 +2,11 @@ name: build
 
 # Reusable image build, called by deploy.yml after it routes the tag to an
 # environment. Publishes both an immutable sha-<short> tag (what deploy pulls by,
-# and the build-dedup key) and the exact pushed ref tag. Dual registry: GHCR
-# (primary for the non-VPC deploy host) + Aliyun ACR (fallback).
+# and the build-dedup key) and the exact pushed ref tag. Dual registry - both
+# GHCR and Aliyun ACR get every push unconditionally; which one the deploy
+# host treats as primary vs fallback is the PULLING side's decision (deploy.yml/
+# env-update.yml/rollback.yml - ACR primary since 2026-09-16, worker02 being
+# a mainland host), not this workflow's.
 on:
   workflow_call:
     inputs:
