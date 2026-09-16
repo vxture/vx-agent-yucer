@@ -280,24 +280,28 @@ export function DomainLauncher({
         {...(href ? { href, linkComponent: Link } : {})}
         active={d.key === here}
         chevron={false}
-        /* THE WHOLE HEADING IS THE BRAND COLOUR - mark AND name, not just the
-           mark. The DS row's own pairing is a muted icon beside a foreground
-           label, which is the right contrast for a row among rows and exactly
-           the problem here: the heading wore the same two colours as the five
-           rows beneath it, so the only thing separating the levels was the
-           description line. A first pass tinted the icon alone and left the
-           name at foreground - the same near-black as every module under it -
-           so at a glance the levels still read the same.
+        /* GRAY, NOT THE BRAND COLOUR (owner, 2026-09-16: five domain names in
+           text-primary read as too loud for what is just a grouping label -
+           these are not links to click on their own merit, they are section
+           headings). This reverts a pass that put the whole heading - mark
+           and name - in `text-primary` to solve "the heading wore the same
+           two colours as the five rows beneath it": that fix is still real
+           (a heading and its rows should not read as the same level), but the
+           panel already had other differentiators before that pass existed -
+           the description line, the gap below it, the dashed rule between
+           columns (see this function's own doc comment) - so brand colour was
+           solving a problem structure had already solved, at the cost of
+           making a mere grouping look like the panel's most important
+           control.
 
-           `text-primary` carries the label by inheritance; the child selector
-           is needed only because ROW_ICON_TONE sets the icon's colour
-           explicitly and would otherwise win.
+           `text-muted-foreground` on both mark and name (rather than leaving
+           the icon to ROW_ICON_TONE's own default of the same token) keeps
+           the pairing explicit here rather than relying on a DS default this
+           file does not own staying what it is.
 
-           COLOUR TOKENS, NOT COLOURS. `text-primary` is the DS's; the DS has
-           no "heading row" variant to ask for, and the row exposes className
-           for exactly the cases it did not anticipate. Still no background -
-           that belongs to hover and active. */
-        className="text-primary [&_svg]:text-primary"
+           COLOUR TOKENS, NOT COLOURS. Still no background - that belongs to
+           hover and active. */
+        className="text-muted-foreground [&_svg]:text-muted-foreground"
       />
     );
   };
