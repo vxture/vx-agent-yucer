@@ -1844,3 +1844,28 @@ DML（含 `0064` 的退役）才能确认净数,一次带过容易把一个同�
 
 **收回条件**：下一次改动本文件的权限表格时，顺手数一遍 `perm_code` 的行数，
 把标题换成真实值,并把这条 TD 关掉。
+
+### TD-031 - DS `ShellUserMenu` 的姓名槽位固定窄宽，中文姓名会被截断
+
+**发现于**：接入通则 2026-09-16 修订（artifact v24）要求身份显示名一律从
+access token 读（`name`/`preferred_username`），且明确写「名字换行不截断」。
+把 `AuthUser.displayName` 接进 `@vxture/design-system` 的 `ShellUserMenu` 之后
+（本仓 `app-shell.tsx`），本机用 `YUCER_DEV_SESSION` 实测：`displayName` 本身
+一路正确（RSC payload、accessibility tree 均是完整的"本地评审用户"），但
+弹出面板里渲染姓名的那个 `<p class="truncate text-label-lg ...">` 节点固定
+宽度约 70px——6 个汉字的 `scrollWidth` 到 96px，超出的部分被 DS 自己的
+`truncate`（`text-overflow:ellipsis`）吃掉，界面上看到的是「本地评...」。
+
+**为什么不在本仓修**：这个 `<p>` 是 `@vxture/design-system` 内部渲染的节点，
+不是本产品拼出来的——`ShellUserMenu` 只接受 `displayName: string` 一个值，
+没有暴露任何控制这个槽位换行/宽度的 prop。按 CLAUDE.md 的规矩,产品不得
+改 DS 样式,缺失的能力是发给 DS 的请求,不是本仓自己拿 CSS 去覆盖的理由。
+
+**目前的实际影响**：真实姓名通常是 2-4 个汉字（远短于本仓拿来实测的
+`DEV_REVIEWER_NAME`「本地评审用户」，6 字），多数情况下不会撞到这条限制；
+但更长的姓名（含 `preferred_username` 回退到账号名、或英文全名）仍会被截，
+且截断是静默的——用户看不出这是不完整的名字还是完整的短名字。
+
+**收回条件**：DS 给 `ShellUserMenu` 的姓名槽位加上换行或自适应宽度（或提供
+可控制的 `nameWrap`/`maxNameWidth` 之类的 prop）之后，本仓这一侧不需要
+任何改动——`displayName` 数据本身已经是对的，只等 DS 把它完整画出来。

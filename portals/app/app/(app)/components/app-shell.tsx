@@ -129,8 +129,12 @@ export interface AppShellProps {
    * once.
    */
   readonly userName: string;
-  /** The member's sub - the identity line under the name, verbatim. */
-  readonly userSub: string;
+  /** access_token's `phone` - the identity line under the name. Null when the
+   *  member never set one; the popover simply has one fewer line then. */
+  readonly userPhone: string | null;
+  /** access_token's `picture` - only present when the platform has a custom
+   *  avatar on file (rare). Null falls back to the product's own default face. */
+  readonly userPicture: string | null;
   /** The token's account_status; "active" reads as verified. Null when absent. */
   readonly accountStatus: string | null;
   /** The console's account centre; null hides the link. */
@@ -140,11 +144,11 @@ export interface AppShellProps {
   /** The tier itself, not its display label - null when unsubscribed. */
   readonly tier: string | null;
   /**
-   * The tenant the workspace belongs to, from the token's `active_org`.
-   * Null when the platform issued no org - the panel says so rather than
-   * printing an empty row.
+   * The tenant's display name, from the token's `active_org_name` (2026-09-16
+   * rules revision). Null when the platform issued no name - the panel says
+   * so rather than printing an empty row or a raw org id.
    */
-  readonly tenantId: string | null;
+  readonly orgLabel: string | null;
   /** Resolved on the server so the first paint is already in this language. */
   readonly locale: Locale;
   /** What search can reach. Assembled on the server so it obeys both gates. */
@@ -179,13 +183,14 @@ export function AppShell({
   nav,
   admin,
   userName,
-  userSub,
+  userPhone,
+  userPicture,
   accountStatus,
   consoleUrl,
   workspaceLabel,
   upgradeHref,
   tier,
-  tenantId,
+  orgLabel,
   locale,
   searchable,
   boardOpen,
@@ -429,7 +434,7 @@ export function AppShell({
                 shut. */}
               <WorkspaceScope
                 workspaceLabel={workspaceLabel}
-                tenantId={tenantId}
+                orgLabel={orgLabel}
               />
             </>
           }
@@ -510,16 +515,21 @@ export function AppShell({
                   account, and nothing yucer holds carries them: the token
                   claims stop at sub / account_status, and the entitlement
                   contract is workspace tier and quota, not a person. An empty
-                  array leaves no blank row (DS: badges 是空数组时不留空行). */}
+                  array leaves no blank row (DS: badges 是空数组时不留空行).
+
+                  displayName / uniqueLine (phone) / meta (org · workspace) /
+                  avatarSrc all read from the access_token now (2026-09-16 rules
+                  revision) - until then this panel showed the bare sub and a
+                  static "unknown workspace" string, and the avatar comment
+                  claimed the token "carries no picture claim" (it can, rarely -
+                  only when the platform has a custom avatar on file). */}
               <ShellUserMenu
                 openLabel={HEADER_TEXT.userMenuOpen}
                 user={{
                   displayName: userName,
-                  uniqueLine: userSub,
-                  meta: `${workspaceLabel} · ${tenantId ?? HEADER_TEXT.tenantUnknown}`,
-                  // The DS's own default face. The token carries no `picture`
-                  // claim, and an <img> with no src is worse than a silhouette.
-                  avatarSrc: "/assets/icons/avatar-default.svg",
+                  uniqueLine: userPhone ?? undefined,
+                  meta: `${workspaceLabel} · ${orgLabel ?? HEADER_TEXT.tenantUnknown}`,
+                  avatarSrc: userPicture ?? "/assets/icons/avatar-default.svg",
                   avatarAlt: userName,
                   statusTag: {
                     label: HEADER_TEXT.accountStatus(accountStatus),

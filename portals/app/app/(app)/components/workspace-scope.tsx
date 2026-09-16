@@ -32,12 +32,15 @@ import { useMessages } from "../lib/i18n/provider";
 
 export interface WorkspaceScopeProps {
   readonly workspaceLabel: string;
-  readonly tenantId: string | null;
+  /** The tenant's own display name (access_token's active_org_name, 2026-09-16
+   *  rules revision) - a raw org id here was the same class of defect as the
+   *  fallback workspace label: neither is a fact a reader can act on. */
+  readonly orgLabel: string | null;
 }
 
 export function WorkspaceScope({
   workspaceLabel,
-  tenantId,
+  orgLabel,
 }: WorkspaceScopeProps) {
   const { HEADER_TEXT } = useMessages();
   /* THE DS'S STRUCTURE (design-system 12.x, owner 2026-09-10: hover 放宽，
@@ -68,7 +71,7 @@ export function WorkspaceScope({
           <ShellPanelSection divided={false}>
             <ShellPanelRow
               label={HEADER_TEXT.tenantLabel}
-              value={tenantId ?? HEADER_TEXT.tenantUnknown}
+              value={orgLabel ?? HEADER_TEXT.tenantUnknown}
             />
             <ShellPanelRow
               label={HEADER_TEXT.workspaceLabel}
