@@ -7,12 +7,17 @@
 # full-stack pull + up -d is fine.
 #
 #   bash deploy.sh all       # directories -> start -> verify
-#   bash deploy.sh start     # pull image (GHCR primary, ACR fallback) + up -d
+#   bash deploy.sh start     # pull image (registry-agnostic; primary + fallback
+#                            # are whichever the caller sets - worker02 being a
+#                            # mainland host, deploy.yml/env-update.yml/
+#                            # rollback.yml all set ACR primary, GHCR fallback
+#                            # since 2026-09-16) + up -d
 #   bash deploy.sh verify    # health check
 #
 # The image tag + registries come from the environment CI sets:
-#   IMAGE_REGISTRY / IMAGE_NAMESPACE / IMAGE_TAG (primary = GHCR),
-#   FALLBACK_IMAGE_REGISTRY / FALLBACK_IMAGE_NAMESPACE (ACR).
+#   IMAGE_REGISTRY / IMAGE_NAMESPACE / IMAGE_TAG (primary),
+#   FALLBACK_IMAGE_REGISTRY / FALLBACK_IMAGE_NAMESPACE (fallback). This script
+# does not hardcode which registry is which - see the callers.
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,9 +74,16 @@ cmd_start() {
   local reg="${IMAGE_REGISTRY:-ghcr.io}" ns="${IMAGE_NAMESPACE:-vxture}" tag="${IMAGE_TAG:-latest}"
   local primary="${reg}/${ns}/${IMAGE_NAME}:${tag}"
   log "pulling ${primary}"
-  if ! docker pull "$primary"; then
+  # GHCR is a cross-border pull from this host, and it does not fail, it
+  # occasionally just stalls: observed twice (v0.1.13, v0.1.17) as 5 of 6
+  # layers completing in seconds and the 6th taking ~10 minutes with no error
+  # at any point - `docker pull` eventually exits 0, so the fallback below
+  # never ran no matter how long the wait. A timeout converts "very slow"
+  # into "failed", which is exactly the condition the ACR fallback already
+  # exists to handle - it is a domestic mirror kept for this precise case.
+  if ! timeout 120 docker pull "$primary"; then
     local fb="${FALLBACK_IMAGE_REGISTRY:-}/${FALLBACK_IMAGE_NAMESPACE:-}/${IMAGE_NAME}:${tag}"
-    log "primary pull failed; trying fallback ${fb}"
+    log "primary pull failed or stalled past 120s; trying fallback ${fb}"
     docker pull "$fb"
     docker tag "$fb" "$primary"
   fi

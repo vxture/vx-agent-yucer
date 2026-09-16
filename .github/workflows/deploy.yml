@@ -8,7 +8,8 @@ name: deploy
 #   beta-*  -> beta:       stack root /srv/md1/<code>, project <code>-beta,
 #              no reviewer.
 #
-# Same host (worker02, tailnet, non-VPC -> GHCR primary + ACR fallback), same
+# Same host (worker02, tailnet, mainland -> ACR primary + GHCR fallback since
+# 2026-09-16, this domestic host's own registry order), same
 # image, two stacks that never collide: the compose project name prefixes
 # every container and the network, the stack root holds each stack's own
 # etc/.env (port 4061 / OIDC <code>-beta / database vxturebiz_<code>_beta for
@@ -239,17 +240,20 @@ jobs:
             "grep -qE '$db_service_re' '$deploy_dir/docker-compose.yml' && echo '[deliver] compose has db service' || echo '[deliver] WARN: db service missing'"
           ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "printf '%s\n' '$PASSED_SHA' > '$deploy_dir/VERSION'"
 
-          # Remote deploy script: GHCR primary (non-VPC host), ACR fallback.
+          # Remote deploy script: ACR primary (worker02 is a mainland host and
+          # this is the domestic registry - 2026-09-16, after GHCR stalled a
+          # single layer for ~10 minutes on two separate deploys with no error
+          # to trigger the fallback), GHCR as the fallback.
           cat > /tmp/deploy.sh <<'REMOTE_SCRIPT'
           set -euo pipefail
           cd "$REPO_DIR"
-          export IMAGE_REGISTRY="ghcr.io"
-          export IMAGE_NAMESPACE="$GHCR_NAMESPACE"
+          export IMAGE_REGISTRY="$ACR_PULL_REGISTRY"
+          export IMAGE_NAMESPACE="$ALIYUN_ACR_NAMESPACE"
           export IMAGE_TAG="$IMAGE_TAG"
           export PROJECT_NAME="$PROJECT_NAME"
           export APP_PUBLISH_PORT="$APP_PUBLISH_PORT"
-          export FALLBACK_IMAGE_REGISTRY="$ACR_PULL_REGISTRY"
-          export FALLBACK_IMAGE_NAMESPACE="$ALIYUN_ACR_NAMESPACE"
+          export FALLBACK_IMAGE_REGISTRY="ghcr.io"
+          export FALLBACK_IMAGE_NAMESPACE="$GHCR_NAMESPACE"
           if [ -n "${GHCR_TOKEN:-}" ]; then
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
           fi

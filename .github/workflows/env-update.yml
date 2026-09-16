@@ -195,9 +195,11 @@ jobs:
           # with changed, and leaves db and redis alone. The image is the one
           # already deployed - its SHA is in the VERSION file deploy.yml wrote.
           [ -n "$APP_PUBLISH_PORT" ] || { echo "APP_PUBLISH_PORT variable is not set" >&2; exit 1; }
+          # ACR primary, GHCR fallback (2026-09-16) - same swap and the same
+          # reason as deploy.yml: matches deploy.sh, its own comment there.
           ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -e; cd '$STACK_ROOT/deploy'; sha=\$(cat VERSION); tag=sha-\${sha:0:7}; echo \"[env-update] recreating on \$tag\"; \
              PRODUCT_CODE='$PRODUCT_CODE' PROJECT_NAME='$PROJECT_NAME' APP_PUBLISH_PORT='$APP_PUBLISH_PORT' \
-             IMAGE_REGISTRY=ghcr.io IMAGE_NAMESPACE='$GHCR_NAMESPACE' IMAGE_TAG=\$tag \
-             FALLBACK_IMAGE_REGISTRY='$ACR_PULL_REGISTRY' FALLBACK_IMAGE_NAMESPACE='$ALIYUN_ACR_NAMESPACE' \
+             IMAGE_REGISTRY='$ACR_PULL_REGISTRY' IMAGE_NAMESPACE='$ALIYUN_ACR_NAMESPACE' IMAGE_TAG=\$tag \
+             FALLBACK_IMAGE_REGISTRY=ghcr.io FALLBACK_IMAGE_NAMESPACE='$GHCR_NAMESPACE' \
              bash deploy.sh start && bash deploy.sh verify"
