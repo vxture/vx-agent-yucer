@@ -80,12 +80,18 @@ export default function GateScreensPreview() {
           // constructor the layout uses - not a hand-written URL.
           subscribeHref={pricingUrl()}
           userName={GATE_PREVIEW_TEXT.sampleUser}
+          userPhone={GATE_PREVIEW_TEXT.samplePhone}
+          userPicture={null}
+          orgLabel={GATE_PREVIEW_TEXT.sampleOrg}
           workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
         />
       )}
       {screen === "no-roles" && (
         <NoRoles
           userName={GATE_PREVIEW_TEXT.sampleUser}
+          userPhone={GATE_PREVIEW_TEXT.samplePhone}
+          userPicture={null}
+          orgLabel={GATE_PREVIEW_TEXT.sampleOrg}
           workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
         />
       )}

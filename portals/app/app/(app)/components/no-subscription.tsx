@@ -1,10 +1,11 @@
 "use client";
 
-import { Card, LabeledValue, Stack } from "@vxture/design-ui";
+import { Card, Stack } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { GateActions, GatePrimary, GateSignOut } from "./gate-actions";
 import { GateFrame } from "./gate-frame";
 import { GateHeading } from "./gate-heading";
+import { PersonSummary, TenantSummary } from "./identity-summary";
 
 // A member who is signed in, in a workspace that has not subscribed.
 //
@@ -27,15 +28,21 @@ import { GateHeading } from "./gate-heading";
 export function NoSubscription({
   subscribeHref,
   userName,
+  userPhone,
+  userPicture,
+  orgLabel,
   workspaceLabel,
 }: {
   /** Built by the layout from entitlement/deeplink - the website's pricing
    *  page, product only. Never derived here. */
   readonly subscribeHref: string;
   readonly userName: string;
+  readonly userPhone: string | null;
+  readonly userPicture: string | null;
+  readonly orgLabel: string | null;
   readonly workspaceLabel: string;
 }) {
-  const { SHELL_TEXT, NO_SUBSCRIPTION_TEXT } = useMessages();
+  const { SHELL_TEXT, NO_SUBSCRIPTION_TEXT, HEADER_TEXT } = useMessages();
 
   return (
     <GateFrame ariaLabel={NO_SUBSCRIPTION_TEXT.ariaLabel} width="narrow">
@@ -48,8 +55,18 @@ export function NoSubscription({
         />
 
         <Card surface="soft" className="gap-md p-lg grid w-full grid-cols-2 text-left">
-          <LabeledValue label={NO_SUBSCRIPTION_TEXT.identityLabel} value={userName} />
-          <LabeledValue label={NO_SUBSCRIPTION_TEXT.workspaceLabel} value={workspaceLabel} />
+          <PersonSummary
+            label={NO_SUBSCRIPTION_TEXT.identityLabel}
+            name={userName}
+            phone={userPhone}
+            picture={userPicture}
+          />
+          <TenantSummary
+            label={NO_SUBSCRIPTION_TEXT.workspaceLabel}
+            orgLabel={orgLabel}
+            orgFallback={HEADER_TEXT.tenantUnknown}
+            workspaceLabel={workspaceLabel}
+          />
         </Card>
 
         <GateActions
