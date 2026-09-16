@@ -3432,11 +3432,23 @@ Mock**：`/api/status` 老实报告 `resolver: mock`，`/auth/oidc/callback` 走
 地址切到 `/api/webhooks/vxture` 后，`/api/webhooks/vxture/route.ts` 从"转出"变成
 唯一实现，`/provisioning/webhook` 整个目录已删除——旧路径现在答 404，不再是
 "两条路都通"。`route.test.ts` 的函数引用相等断言相应改为对新路径本身的验签行为
-断言（不签名的投递拒绝、签名正确的投递处理并 200）。**OIDC 回调那一条
-（`/auth/callback` vs `/api/auth/oidc/callback`）仍停在第①步**，结构相同但是
-另一条独立的迁移，本次未动它——`product_200`/通则文本从未像 webhook 那样点名
-把它列进强制清单，先记在这里，动它之前需要单独核实平台侧登记与是否还有依赖旧
-路径的调用方。
+断言（不签名的投递拒绝、签名正确的投递处理并 200）。
+
+**OIDC 回调那一条（`/auth/callback` vs `/api/auth/oidc/callback`）已在
+2026-09-15 走完 X-4 三步**：`product_200`/通则文本确实从未像 webhook 那样
+把它点名列进强制清单，这条迁移的追踪本来就比 webhook 那条弱，动手前单独核实
+了两件事——平台侧登记记录（`docs/50-deployment/10-platform-registration-checklist.md`
+第 26-40 行：`yucer` 客户端的 `redirect_uri` 已于 2026-09-14 登记为
+`/api/auth/oidc/callback`，`.env.example` 里部署用的 `OIDC_REDIRECT_URI` 也已
+是这个值，逐字节一致）和是否还有调用方依赖旧路径（`auth/login/route.ts` 发起
+授权请求时直接读 `cfg.redirectUri`，即这个已登记的值，代码里没有任何地方会把
+`/auth/callback` 发给 IdP 作为 `redirect_uri`——真实的 OIDC 回调流量从未打到过
+旧路径）。确认之后，`api/auth/oidc/callback/route.ts` 从"转出"变成唯一实现，
+`auth/callback` 整个目录已删除——旧路径现在答 404。`route.test.ts` 的函数引用
+相等断言相应改为对注册路径本身的行为断言（缺 code/state、缺 code、缺 state
+三种请求形状均在任何查找之前被拒绝）；success path 未加测——RP session 存取
+硬绑定真实 Redis（`session-store.ts` 无可注入的内存实现，不同于 webhook 那边
+的 `InMemoryProvisioningStore`），这一段过去也从未做过单测，本次不新增范围。
 
 C2 从 Mock 换真的那一刻，部署阶段守卫（`lib/deploy-stage.ts`）开始生效：生产/beta
 上没有 `PLATFORM_API_URL` + `PLATFORM_INTERNAL_AUTH_TOKEN` 就拒绝回落到 Mock——
