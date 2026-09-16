@@ -2,9 +2,9 @@
 //
 // THE INVITE DESTINATION IS NOT IN THE CONTRACT YET, and this file says so
 // rather than pretending otherwise. `entitlement/deeplink.ts` is the inherited
-// C2 conversion surface and it has exactly one exit - `/subscribe` with intent
-// `upgrade | renew | addon`. There is no invite intent and no members path,
-// so adding one to that module would be inventing a platform standard inside a
+// C2 conversion surface and it has exactly one exit - the website's pricing
+// page, product only. There is no invite intent and no members path, so
+// adding one to that module would be inventing a platform standard inside a
 // product repo, which CLAUDE.md forbids: a standard gap is fixed in the
 // platform repo first.
 //
@@ -13,7 +13,7 @@
 // is configured - a button that goes nowhere is worse than no button.
 //
 // When the platform publishes an invite intent, this file goes away and the
-// call site moves to subscribeUrl.
+// call site moves to pricingUrl (or whatever that surface is called by then).
 
 /**
  * The console's member administration page, or null when unconfigured.

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { intentFor, subscribeUrl } from "../entitlement/deeplink";
+import { pricingUrl } from "../entitlement/deeplink";
 import { resolveAppSession, tenantIdOf } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
 import { MessagesProvider } from "./lib/i18n/provider";
@@ -125,7 +125,7 @@ export default async function AppLayout({
           // subscribe for a workspace that never subscribed, renew for one
           // that lapsed - the console shows a different flow for each, and
           // "upgrade from nothing" was the wrong CTA for a first purchase.
-          subscribeHref={subscribeUrl({ intent: intentFor(session.entitlement) })}
+          subscribeHref={pricingUrl()}
           userName={member?.displayName ?? session.user.sub}
           workspaceLabel={SHELL_TEXT.workspaceFallback}
         />
@@ -282,7 +282,7 @@ export default async function AppLayout({
         // passing it here printed "enterprise" twice - once as the place you are
         // in and once as what you pay for, which are different facts.
         workspaceLabel={SHELL_TEXT.workspaceFallback}
-        upgradeHref={subscribeUrl({ intent: intentFor(session.entitlement) })}
+        upgradeHref={pricingUrl()}
       >
         {children}
       </AppShell>

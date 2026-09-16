@@ -1,49 +1,36 @@
 import { BRAND } from "@yucer/shared/brand";
-import { ctaFor, type Entitlement, type Tier } from "./types";
 
 // Conversion deep-link constructor (product_200 section 3.2; the integration
-// rules' C2 "conversion deep link"): the single conversion exit to
-// vxture-console. Attach ONLY to an explicit user click - never auto-redirect.
-// product + intent are required; workspace_id is resolved by the console
-// session and MUST NOT be sent by the product.
+// rules' C2 "conversion deep link"). REVISED 2026-09-16 (rules artifact v24):
+// the exit is the PUBLIC WEBSITE's pricing page, not the console's /subscribe
+// screen - console /subscribe is the confirmation step AFTER a tier is picked
+// on the pricing page (entered from the pricing page's own CTA), not a
+// product-side entry point. That was the old shape here
+// ({console}/subscribe?product=&intent=), which the console degrades for any
+// product with no plans registered in its catalogue - the click landed on the
+// console's subscription home with no error on either side.
 //
-// The intent vocabulary is the console's: subscribe | upgrade | renew | addon.
-// `subscribe` was missing here until 2026-09-14, and every lockout sent
-// `upgrade` - the rules' second trap ("status: null is never-subscribed and
-// should lead to a first purchase; expired should lead to a renewal; mixing
-// them shows the wrong CTA forever").
-
-export type Intent = "subscribe" | "upgrade" | "renew" | "addon";
+// The pricing page recognises exactly one param: `product`. No `intent` (the
+// page is not state-aware - the rules deliberately dropped that distinction
+// for this exit), no `workspace_id` (the console resolves the subscribing
+// workspace from the session), no locale segment (the website itself 307s to
+// /zh-CN/ or /en-US/ off the visitor's own NEXT_LOCALE cookie; this product's
+// own locale cookie is host-scoped to its own domain and the website cannot
+// read it, so splicing a guessed segment here would override the visitor's
+// actual choice on vxture.com with this product's guess).
+//
+// Attach ONLY to an explicit user click - never auto-redirect.
 
 /**
- * The intent a workspace's entitlement calls for, derived from the CTA branch
- * in types.ts (product_240 section 2.4 #9) so the two never disagree:
- *
- *   never subscribed (status null)          -> subscribe
- *   expired / cancelled / suspended         -> renew
- *   overdue (payment to fix)                -> renew  (the console has no
- *                                              "pay" intent; renewal is where
- *                                              a lapsed payment is put right)
- *   in good standing                        -> upgrade
+ * NEXT_PUBLIC_WEBSITE_URL empty means "hide the one decorative outward link on
+ * the gate screens" (websiteUrl(), (app)/lib/website-url.ts) - that opt-out
+ * must not also take down the product's one conversion exit, so this reads
+ * the same variable but always falls back to the real default rather than
+ * treating an empty value as "no link".
  */
-export function intentFor(e: Entitlement): Intent {
-  switch (ctaFor(e)) {
-    case "subscribe":
-      return "subscribe";
-    case "renew":
-    case "pay":
-      return "renew";
-    default:
-      return "upgrade";
-  }
-}
-
-export function subscribeUrl(opts: { intent: Intent; targetTier?: Tier; metric?: string }): string {
-  const base = (process.env.NEXT_PUBLIC_CONSOLE_URL ?? "https://console.vxture.com").replace(/\/$/, "");
-  const u = new URL(`${base}/subscribe`);
+export function pricingUrl(): string {
+  const base = (process.env.NEXT_PUBLIC_WEBSITE_URL || "https://vxture.com").replace(/\/$/, "");
+  const u = new URL(`${base}/pricing`);
   u.searchParams.set("product", BRAND.productCode);
-  u.searchParams.set("intent", opts.intent);
-  if (opts.targetTier) u.searchParams.set("target_tier", opts.targetTier);
-  if (opts.metric) u.searchParams.set("metric", opts.metric);
   return u.toString();
 }
