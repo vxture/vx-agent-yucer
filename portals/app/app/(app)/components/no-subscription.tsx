@@ -29,8 +29,8 @@ export function NoSubscription({
   userName,
   workspaceLabel,
 }: {
-  /** Built by the layout from entitlement/deeplink - subscribe for a workspace
-   *  that never subscribed, renew for one that lapsed. Never derived here. */
+  /** Built by the layout from entitlement/deeplink - the website's pricing
+   *  page, product only. Never derived here. */
   readonly subscribeHref: string;
   readonly userName: string;
   readonly workspaceLabel: string;

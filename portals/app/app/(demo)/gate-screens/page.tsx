@@ -8,7 +8,7 @@ import { SignIn } from "../../(app)/components/sign-in";
 import { SignedOut } from "../../(app)/components/signed-out";
 import { NoSubscription } from "../../(app)/components/no-subscription";
 import { NoRoles } from "../../(app)/components/no-roles";
-import { subscribeUrl } from "../../entitlement/deeplink";
+import { pricingUrl } from "../../entitlement/deeplink";
 import { GATE_PREVIEW_TEXT } from "../../(app)/lib/messages";
 
 // The three gate screens, side by side, with no session and no platform.
@@ -78,7 +78,7 @@ export default function GateScreensPreview() {
         <NoSubscription
           // The intent a never-subscribed workspace calls for, from the same
           // constructor the layout uses - not a hand-written URL.
-          subscribeHref={subscribeUrl({ intent: "subscribe" })}
+          subscribeHref={pricingUrl()}
           userName={GATE_PREVIEW_TEXT.sampleUser}
           workspaceLabel={GATE_PREVIEW_TEXT.sampleWorkspace}
         />

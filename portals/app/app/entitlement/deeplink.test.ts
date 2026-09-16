@@ -1,37 +1,48 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { intentFor, subscribeUrl } from "./deeplink";
-import { makeEntitlement } from "./resolver";
+import { pricingUrl } from "./deeplink";
 
-test("subscribe URL carries product + intent and never workspace_id", () => {
-  const u = new URL(subscribeUrl({ intent: "upgrade", targetTier: "pro", metric: "member.max" }));
-  assert.equal(u.pathname, "/subscribe");
-  assert.equal(u.searchParams.get("intent"), "upgrade");
-  assert.equal(u.searchParams.get("target_tier"), "pro");
-  assert.equal(u.searchParams.get("metric"), "member.max");
-  assert.notEqual(u.searchParams.get("product"), null);
-  assert.equal(u.searchParams.get("workspace_id"), null);
-});
+const KEY = "NEXT_PUBLIC_WEBSITE_URL";
 
-test("optional params omitted when not given", () => {
-  const u = new URL(subscribeUrl({ intent: "renew" }));
-  assert.equal(u.searchParams.get("intent"), "renew");
-  assert.equal(u.searchParams.get("target_tier"), null);
-  assert.equal(u.searchParams.get("metric"), null);
-});
-
-test("subscribe is a first-class intent - a never-subscribed workspace is not an upgrade from nothing", () => {
-  const u = new URL(subscribeUrl({ intent: "subscribe" }));
-  assert.equal(u.searchParams.get("intent"), "subscribe");
-});
-
-test("intentFor follows the CTA branch: null -> subscribe, lapsed -> renew, good standing -> upgrade", () => {
-  const ws = "ws_1";
-  assert.equal(intentFor(makeEntitlement(ws, "yucer")), "subscribe"); // status null, tier null
-  for (const status of ["expired", "cancelled", "suspended"] as const) {
-    assert.equal(intentFor(makeEntitlement(ws, "yucer", { status })), "renew", status);
+function withEnv(value: string | undefined, fn: () => void): void {
+  const saved = process.env[KEY];
+  if (value === undefined) delete process.env[KEY];
+  else process.env[KEY] = value;
+  try {
+    fn();
+  } finally {
+    if (saved === undefined) delete process.env[KEY];
+    else process.env[KEY] = saved;
   }
-  assert.equal(intentFor(makeEntitlement(ws, "yucer", { status: "overdue" })), "renew");
-  assert.equal(intentFor(makeEntitlement(ws, "yucer", { status: "active", tier: "pro" })), "upgrade");
-  assert.equal(intentFor(makeEntitlement(ws, "yucer", { status: "trialing", tier: "starter" })), "upgrade");
+}
+
+test("carries product and nothing else - no intent, no workspace_id, no target_tier, no metric", () => {
+  withEnv(undefined, () => {
+    const u = new URL(pricingUrl());
+    assert.equal(u.pathname, "/pricing");
+    assert.equal(u.searchParams.get("product"), "yucer");
+    assert.equal(u.searchParams.get("intent"), null);
+    assert.equal(u.searchParams.get("workspace_id"), null);
+    assert.equal(u.searchParams.get("target_tier"), null);
+    assert.equal(u.searchParams.get("metric"), null);
+    // Exactly one param - not just the four checked above.
+    assert.equal([...u.searchParams.keys()].length, 1);
+  });
+});
+
+test("unset means the public default, because a stack that never declares it still sells somewhere real", () => {
+  withEnv(undefined, () => assert.equal(new URL(pricingUrl()).origin, "https://vxture.com"));
+});
+
+test("empty does NOT disable this exit, unlike websiteUrl()'s decorative-link opt-out", () => {
+  // NEXT_PUBLIC_WEBSITE_URL="" turns off the one decorative outward link on
+  // the gate screens (website-url.test.ts). It must not also break the one
+  // conversion exit the product has - this always falls back to the real
+  // default instead.
+  withEnv("", () => assert.equal(new URL(pricingUrl()).origin, "https://vxture.com"));
+});
+
+test("a configured base is honoured, trailing slash dropped", () => {
+  withEnv("https://example.test/", () => assert.equal(new URL(pricingUrl()).origin, "https://example.test"));
+  withEnv("https://example.test", () => assert.equal(new URL(pricingUrl()).origin, "https://example.test"));
 });
