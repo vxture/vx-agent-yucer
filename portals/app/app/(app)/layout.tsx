@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { pricingUrl } from "../entitlement/deeplink";
 import { resolveAppSession } from "./lib/session";
 import { resolveLocale } from "./lib/i18n/locale";
+import { buildMetadata } from "../metadata";
 import { MessagesProvider } from "./lib/i18n/provider";
 import { getMessages } from "./lib/i18n/server";
 import { resolveNavigation, lockoutReason } from "./lib/navigation";
@@ -40,6 +41,17 @@ import { notificationItems, notificationTotal } from "./lib/notifications";
 // The three lockout states are distinct on purpose and none of them renders the
 // shell: there is nothing to navigate.
 
+// Locale-aware tab title for this whole group (2026-09-16), overriding the
+// root layout's static default. Declared HERE rather than at the root: this
+// layout already reads cookies() (resolveAppSession, resolveLocale) and is
+// therefore already fully dynamic, so nesting the same requirement here costs
+// nothing - putting it on the root layout instead made the (demo) route
+// group's explicitly `force-static` preview pages dynamic too, since a parent
+// layout's generateMetadata using dynamic APIs propagates to every child
+// segment regardless of that child's own `dynamic` export.
+export async function generateMetadata() {
+  return buildMetadata(await resolveLocale());
+}
 
 export default async function AppLayout({
   children,
