@@ -1912,6 +1912,8 @@ export const GATE_PREVIEW_TEXT = {
   // Obviously a sample, so nobody mistakes the preview for a real session.
   sampleUser: "示例成员",
   sampleWorkspace: "示例工作区",
+  sampleOrg: "示例组织",
+  samplePhone: "138 0000 0000",
 } as const;
 
 /**

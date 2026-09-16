@@ -1325,6 +1325,8 @@ export const en: Dictionary = {
     signedOut: "Signed out",
     sampleUser: "Sample member",
     sampleWorkspace: "Sample workspace",
+    sampleOrg: "Sample organization",
+    samplePhone: "+1 555 0100",
   },
 
   NO_SUBSCRIPTION_TEXT: {

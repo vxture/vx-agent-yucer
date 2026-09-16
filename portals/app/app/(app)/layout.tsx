@@ -102,6 +102,9 @@ export default async function AppLayout({
       <MessagesProvider locale={locale}>
         <NoRoles
           userName={session.user.displayName}
+          userPhone={session.user.phone}
+          userPicture={session.user.picture}
+          orgLabel={session.user.activeOrgName}
           workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
       </MessagesProvider>
@@ -121,6 +124,9 @@ export default async function AppLayout({
           // "upgrade from nothing" was the wrong CTA for a first purchase.
           subscribeHref={pricingUrl()}
           userName={session.user.displayName}
+          userPhone={session.user.phone}
+          userPicture={session.user.picture}
+          orgLabel={session.user.activeOrgName}
           workspaceLabel={session.user.activeWorkspaceName ?? SHELL_TEXT.workspaceFallback}
         />
       </MessagesProvider>
