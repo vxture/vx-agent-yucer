@@ -1869,3 +1869,28 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 **收回条件**：DS 给 `ShellUserMenu` 的姓名槽位加上换行或自适应宽度（或提供
 可控制的 `nameWrap`/`maxNameWidth` 之类的 prop）之后，本仓这一侧不需要
 任何改动——`displayName` 数据本身已经是对的，只等 DS 把它完整画出来。
+
+### TD-032 - 身份卡片人员/租户两格视觉上不一致，代码与 computed style 却查不出差异
+
+**现状**：owner 视觉上认为 `no-subscription.tsx`/`no-roles.tsx` 卡片里「人员」
+（头像+姓名/手机号）与「租户」（图标+组织名/工作区名）两格字体、字号看着不一致，
+且在 tenderforge 同一账号的参照页上没有这种观感。逐项核对下来，两处找不到任何
+代码层面的差异：
+
+- 本仓两格的 `font-size`/`font-weight`/`font-family`/`letter-spacing`/`color`
+  逐字节相同（`identity-summary.tsx` 的 `PersonSummary`/`TenantSummary` 本就
+  共用同一套 class）。
+- 跟 tenderforge 线上页面（同一账号）做 `getComputedStyle` 直接比对，两边的
+  这四行文字、头像/图标尺寸（均 40×40）、cell 间距（均 10px）全部一致。
+- owner 自己核对代码后也确认「代码是一样的」。
+
+**为什么先不追**：两次独立核实（本侧 computed style 比对、owner 自己读代码）
+都得到"代码没有差异"的结论，怀疑是渲染环境导致的观感差异（中英文混排在同一
+声明字重下，CJK 系统字体不一定有对应的真实中等字重，浏览器/操作系统各自的
+字体替换和亚像素渲染都可能造成这类感受差异），而非这批改动引入的真实 CSS
+缺陷。owner 决定这个细节先放一放，不阻塞其余任务（2026-09-16）。
+
+**收回条件**：如果能拿到具体是"哪个操作系统/浏览器/缩放比例"下出现这个观感，
+用那个确切环境复测一次；或者干脆是本侧遗漏了某条会影响渲染但不会体现在
+`getComputedStyle` 里的属性（如 `font-feature-settings`、`text-rendering`、
+子像素级别的 `-webkit-font-smoothing`），需要更细的取证才能定位。
