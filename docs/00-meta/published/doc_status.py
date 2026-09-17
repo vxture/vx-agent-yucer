@@ -110,7 +110,7 @@ BODY = r"""
 <tr><td>5</td><td>外壳与国际化</td><td>三栏外壳、功能域启动器、zh-CN / en-US 双字典（65/67 常量）</td></tr>
 <tr><td>6</td><td>设计系统对齐</td><td>design-system 10.0.3 / design-ui 7.0.3，后者按伞包精确钉版</td></tr>
 <tr><td><strong>6</strong></td><td><strong>把已建成的后端接上界面</strong></td>
-<td>钱的链路四个动词全部接通；D9 目录从裁定走到可用（服务 + 适配器 + 页面）；商机行项可编辑且 header 随之重算；重点客户可定级；接线守卫上线</td></tr>
+<td>钱的链路四个动词全部接通；D9 目录从裁定走到可用（服务 + 适配器 + 页面）；商机行项可编辑且 header 随之重算；战略客户可定级；接线守卫上线</td></tr>
 </tbody></table></div>
 
 <div class="grid g3">

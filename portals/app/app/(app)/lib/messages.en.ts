@@ -186,7 +186,7 @@ export const en: Dictionary = {
     pricebook: "Product pricing",
     territory: "Territories",
     division: "Region settings",
-    namedAccount: "Named accounts",
+    namedAccount: "Strategic accounts",
     quote: "Quotes",
     routing: "Lead routing",
     winLossReview: "Win/loss reviews",
@@ -265,11 +265,15 @@ export const en: Dictionary = {
   },
 
   NAMED_ACCOUNT_TEXT: {
-    why: "The strategic account list. It decides who signal scouting watches and whose contact cadence is judged hardest.",
-    tagNamed: (n: number) => `${n} named accounts`,
-    none: "No named accounts yet",
+    // The module is "Strategic accounts" but the roster holds BOTH tiers above
+    // standard, so the copy says "tiered" rather than repeating the module's
+    // own name - naming only the top tier would make the count disagree with
+    // what is actually listed.
+    why: "Every account that carries a tier. This list decides who signal scouting watches and whose contact cadence is judged hardest.",
+    tagNamed: (n: number) => `${n} tiered`,
+    none: "No account has been given a tier yet",
     noneWhy:
-      "Mark an account strategic or key on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
+      "Mark an account strategic or key tier on its own page and it appears here. The tier is set where the evidence for setting it is - health, decision chain and open deals are all on that page.",
   },
   ROUTING_TEXT: {
     title: "Lead routing",
@@ -2471,9 +2475,11 @@ export const en: Dictionary = {
     designateSubmit: "Set the tier",
     designated: (tier: string) => `Set to ${tier}`,
     designateDenied: "You cannot change this account",
-    tierStrategic: "Strategic account",
-    tierKey: "Key account",
-    tierStandard: "Standard account",
+    // "tier", not "account" - the module beside these is itself called
+    // Strategic accounts, and two things on one screen cannot share a name.
+    tierStrategic: "Strategic tier",
+    tierKey: "Key tier",
+    tierStandard: "Standard tier",
     planOf: (period: string) => `${period} account plan`,
     planTarget: "Plan target",
     planDeals: "Open deals",
@@ -4858,7 +4864,7 @@ export const en: Dictionary = {
     segments: "segments",
     solutions: "solutions",
     pricedProducts: "priced",
-    namedAccounts: "key",
+    namedAccounts: "tiered",
     forecastDisagreements: "disputed",
     unrouted: "to assign",
     quoteApprovals: "to sign",

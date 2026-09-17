@@ -72,7 +72,7 @@ export const DOMAIN_LABEL: Record<string, string> = {
   // own; the label stays because the section still needs a name.
   territory: "销售区域",
   division: "区域设置",
-  namedAccount: "重点客户",
+  namedAccount: "战略客户",
   quote: "报价管理",
   routing: "线索分派",
   renewal: "合同续约",
@@ -189,11 +189,14 @@ export const DOMAIN_GROUP_LABEL: Record<string, string> = {
  */
 /** 域首页：跨模块事实的名字。每一条都是两个模块页各持一半、谁都说不全的那件事。 */
 export const NAMED_ACCOUNT_TEXT = {
-  why: "战略客户清单。这份名单决定信号定向盯谁，也决定跟进节奏对谁更严。",
-  tagNamed: (n: number) => `${n} 家重点客户`,
-  none: "还没有重点客户",
+  // 模块叫「战略客户」，收的却是战略级 + 关键级两档（page.tsx 的过滤是
+  // tier !== "standard"）。所以这里的文案一律说「已分级」而不是复述模块名：
+  // 名册里躺着两档，只报最高那一档的名字会让计数与内容对不上。
+  why: "已分级的客户名单。这份名单决定信号定向盯谁，也决定跟进节奏对谁更严。",
+  tagNamed: (n: number) => `${n} 家已分级`,
+  none: "还没有分级过的客户",
   noneWhy:
-    "在客户详情页把一家标为战略或重点，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
+    "在客户详情页把一家标为战略级或关键级，它就会出现在这里。分级要在能看到证据的地方做——健康度、决策链、在办商机都在那一页上。",
 } as const;
 
 export const ROUTING_TEXT = {
@@ -531,8 +534,11 @@ export const DOMAIN_GROUP_QUESTION: Record<string, string> = {
  * never appears in both tables. It was TRUE AS A CLAIM and false as data. Ten
  * entries sat here naming modules that had all since shipped, and because a
  * label that can never render is a label nobody reads, four had quietly drifted
- * away from the live ones - 价目折扣 against 产品定价, 战略客户 against
- * 重点客户, 线索分配 against 线索分派, and 回款计划 against 回款管理, that last
+ * away from the live ones - 价目折扣 against 产品定价, 战略客户 against the
+ * then-live 重点客户 (the module is called 战略客户 again since 2026-09-17,
+ * which is a rename, not a reversal - the tier labels moved to 战略级 /
+ * 关键级 / 普通级 to keep the word from meaning two things), 线索分配 against
+ * 线索分派, and 回款计划 against 回款管理, that last
  * one opened by the rename one commit ago. A third copy of the module names,
  * rotting in the dark.
  *
@@ -2115,7 +2121,7 @@ export const BOARD_TEXT = {
   segments: "细分",
   solutions: "方案",
   pricedProducts: "已定价",
-  namedAccounts: "重点",
+  namedAccounts: "已分级",
   forecastDisagreements: "有分歧",
   unrouted: "待分派",
   quoteApprovals: "待签",
@@ -5500,9 +5506,14 @@ export function healthReasonText(r: {
  * that becomes a second untended TODO list (ADR-003).
  */
 export const POSITION_TEXT = {
-  tierStrategic: "战略客户",
-  tierKey: "重点客户",
-  tierStandard: "普通客户",
+  // 档位带「级」，模块名不带（owner, 2026-09-17：模块改名为「战略客户」）。
+  // 三档是 account.tier 的显示名，模块是收两档的名册——同一屏上两者都会
+  // 出现（商机详情页的档位标 + 左栏的模块名），词面必须分得开，否则
+  // 「战略客户」既像一档又像一张名单。库里的值 strategic/key/standard 不动，
+  // 改的只是显示名，所以不需要新增量。
+  tierStrategic: "战略级",
+  tierKey: "关键级",
+  tierStandard: "普通级",
   planOf: (period: string) => `${period} 经营计划`,
   planTarget: "计划目标",
   planDeals: "在办商机",
