@@ -3648,3 +3648,112 @@ platform 吗"之后重新审视，其中三项（`quota_pools` 的 `-1` 处理�
   测试投递、开通关系对账端点、`yucer.copilot.turns` 指标登记、service 模式
   换票请求体的确切形状（`requested_context` 嵌套对象还是扁平字段），四项都
   还没有平台侧的回应。
+
+## 批次 10 - 赋能分析大屏与安全审计，admin「运行状况」组退役（2026-09-17）
+
+owner 指示：把「每个用户用智能副驾执行了多少任务、采纳/拒绝/忽略了多少建议」
+做成一页，迁入业务功能域（销售大屏之后），从 admin 完全移除；admin 新增
+「安全审计」组，只记配置变更不记业务操作；旧的 admin「运行状况」组连同它
+唯一的真实页面一并退役。
+
+| 项 | 交付 |
+|----|------|
+| 10a | `AuditStore` 新增 `countByActorSince` / `listSince`；`CopilotStore` 新增 `countDecisionsByDeciderSince` / `countExpiredSince`。内存与 Prisma 两个实现均已交付 |
+| 10b | 新页 `/(screen)/enablement`（赋能分析），大屏 SVG 风格，复用 `national-screen.tsx` 一脉的图表原语，挂在 `销售大屏` 之后，门控复用既有 `copilot.action.view` |
+| 10c | 新页 `/admin/audit`（安全审计），过滤到 7 个配置类动作字符串，明确排除 `copilot.ask` 等业务动作；新增权限点 `admin.audit.view` |
+| 10d | 删除 `/admin/adoption` 与 admin「运行状况」组；`待迁路由` 移入 `params` 组，未被静默孤立 |
+
+**遗留、明确未接手的一处治理缺口**：`/admin/adoption` 里原有的 ADR-012
+跟进记录覆盖度表（周覆盖率、达标判定、暗单清单）随页面一起从导航里消失——
+判据逻辑仍在跑并喂给首页判断，但没有任何页面能再浏览这份证据。是否要给它
+找新家（并入下面批次 11 的战略诊断页，或单独恢复一个入口），留给 owner 判断，
+不在本批处理。
+
+`countExpiredSince` 只能给出工作区级总数，无法按人归因——`agent_action` 没有
+「建议给谁看过」这一列，`decided_by_sub` 只在被决策后才落值，`session_id` 可空
+且部分批量生成的提案根本没有——这是诚实反映而非实现疏漏，见
+`domains/copilot/store.ts` 上的注释。
+
+## 批次 11 - 对标差距收口：战略制定与销售一线两个焦点（2026-09-17 规划）
+
+依据 `docs/20-specs/70-competitive-gap-analysis.md`，按 owner 明确的产品重心
+——**智能化赋能战略制定**、**销售一线支撑**——对原始差距清单重新排序：能直接
+喂这两句话的排前面，纯粹补齐通用 CRM 平价功能的排后面。这次排查还带出一个
+比原分析更根本的发现：`CAPABILITY_SPEC`（`domains/copilot/lib/capability.ts`）
+的八个能力键——`deal.stall_risk` / `deal.competition` / `account.chain_map` /
+`account.cadence` / `signal.triage` / `pricing.discount_approval` /
+`delivery.payment_risk` / `campaign.return`——**全部落在 D4-D7（客户/商机/交付/
+战役执行层面）**，D1 战略、D2 规划**零覆盖**。「智能化赋能战略制定」这句话，
+今天在代码里没有任何一个能力键与之对应，这是本批次最高优先级的依据，不是
+主观判断。
+
+### 11a 数据库扩展：给战略层补一条「趋势」而不是只有「快照」（最高优先，先于任何新能力）
+
+**现状核实**（读 `00_baseline.sql` 确认）：`market_segment.criteria` 是 JSONB
+过滤条件，命中哪些客户永远是**实时**对 `account` 求值的结果，没有任何地方把
+某一时点「这个细分市场覆盖了多少客户、多少管道金额」存下来；`sales_target`
+只存目标金额本身，达成度同样是每次现算，没有历史点。这和 `forecast_snapshot`
+当初的设计理由（「历史预测准不准，是管理层最需要的数据，覆盖掉就永远算不出
+来」）是同一个问题，只是这次卡在 D1/D2 而不是 D6——**没有历史点就没有趋势，
+没有趋势就只能是本仓自己刚被 owner 批评过的「统计」，成不了「分析」**。
+
+| 项 | 范围 |
+|----|------|
+| 11a-1 | 新表 `yucer_gtm.segment_coverage_snapshot`：`(id, workspace_id, segment_id, snapshotted_at, matched_account_count, open_pipeline_amount, won_amount, currency)`，只追加、无 UPDATE 授权，仿 `forecast_snapshot` 的写入纪律 |
+| 11a-2 | 新表 `yucer_gtm.territory_attainment_snapshot`：`(id, workspace_id, territory_id, period, snapshotted_at, target_amount, attained_amount, currency)`，同样只追加 |
+| 11a-3 | 两张表的服务角色授权、列锁镜像、Prisma lockstep、`*.db.test.ts` 一并补齐——遵循 `98_column_locks.sql` 与 `column-locks.test.ts` 的既有双向对账模式，不新造机制 |
+| 11a-4 | 写入点：一个按 workspace 定期任务（复用 `jobs/scheduler.ts` 已有的调度骨架）而不是页面按钮——趋势数据的价值在于**不依赖人记得去点一下**，这点和 `forecast_snapshot` 依赖人工提交不同，需要在设计文档里写清楚这个差异是有意的 |
+
+### 11b 智能体新增两个能力键，首次覆盖 D1/D2（承接 11a）
+
+| 能力键 | task | evidence | 回答的问题 |
+|--------|------|----------|-----------|
+| `strategy.segment_coverage` | summarize | 新快照表 + `market_segment` | 哪些细分市场覆盖率在下滑、哪些管道金额增长但客户数不涨（虚胖） |
+| `strategy.territory_attainment` | propose | 新快照表 + `sales_target` + `opportunity` | 哪个区域的达成趋势正在偏离目标、需要往哪调资源 |
+
+两者都是 `summarize`/`propose`，不进入 `autopilot` 白名单——战略判断的建议权重
+比一条折扣审批高得多，人机边界不应该因为「这是分析不是操作」而放松。
+
+### 11c 界面：战略诊断分区
+
+在批次 10 已建的「赋能分析」大屏旁新增一个战略诊断区块（或视信息密度决定是否
+拆成独立 `(screen)` 路由），展示细分市场覆盖趋势排名、区域达成趋势对比、
+「虚胖」预警（管道金额涨但覆盖客户数不涨的细分市场）。复用既有
+`screen-charts.tsx` 图表原语，不引入图表库；不做自助拖拽报表——那是下面
+批次 14 的范围，且明确低于本次重心。
+
+### 11d 一线支撑：会议/通话转结构化（对标分析里唯一的「缺失」级差距，且直接对应销售一线）
+
+现状：`yucer_field.interaction` 表已存在（ADR-006），但录入路径是手工单字段
+表单（批次 3.5 的「一个必填字段」采集表），不是从会议/通话内容自动转录抽取。
+这是同类 Agent 原生产品（Gong、Sybill）相对本仓最明显的领先点，也是对一线
+销售减负最直接的一项——一线不填表，是「销售一线支撑」这句话的字面意思。
+
+| 项 | 范围 |
+|----|------|
+| 11d-1 | **先做契约设计，不接厂商**：语音/会议转录服务是外部依赖，参照 arda/karda 的先例——先定「本仓需要什么形状的输入」（一段结构化文本 + 说话人 + 时间），不猜供应商协议，选型是产品/平台侧待裁定事项，登记而非阻塞 |
+| 11d-2 | 一期最小可用形态：客户页/商机页新增「粘贴会议纪要」入口，交给 copilot 生成 `agent_action` 建议（提议一条结构化 interaction 草稿），人工确认后才真正写入——遵守人机边界，不因为「只是记录」就跳过审阅 |
+| 11d-3 | DB 侧若需要保留原始纪要文本供追溯，评估是否要在 `yucer_field.interaction` 上加一个可空的 `source_note` 列（走 `98_column_locks.sql` 增量流程），而非另开新表——先看 11d-2 落地后的真实字段需求，不预先建表 |
+
+### 11e 一线支撑：客户 360 聚合视图，先核实再决定要不要建
+
+对标分析原文标的是「未确认」，不是「确认缺失」。列为独立最小项：花一次
+Explore 审计核实 `/account/[id]` 现状是否已经聚合跨域信息（商机/交付/回款/
+健康度），核实结果决定要不要真的排进批次。**不要在没核实之前假设它是缺口，
+也不要假设它不是**——上面 70-competitive-gap-analysis.md 已经写明这条待核实，
+本批次把「核实」本身列为可执行的第一步，而不是直接跳到「建」。
+
+### 11f 已知但降级、留在清单里的通用 CRM 平价项（不服务本次两个重心，未来再排）
+
+| 项 | 原差距等级 | 为何降级 |
+|----|-----------|---------|
+| 数据导入/导出 | 缺失，影响新客户迁移 | 是采购门槛，不是「智能化」或「一线支撑」本身；且一旦做，应该先想清楚导入的数据要不要喂给 11a/11b 的战略分析，否则只是普通 CRM 平价功能 |
+| CPQ 审批流深化 | 部分（骨架已在，`catalog.price` 权限已分离） | 一线操作效率项，不构成战略或赋能能力的缺口 |
+| 多渠道触达自动化 | 缺失，但直接踩在「不做营销自动化平台」的非目标边界上 | 需要先有产品裁定「要不要跨界」，在裁定前不构成可排期的任务 |
+
+### 排序依据（一句话版本）
+
+11a → 11b → 11c 是一条完整的链：没有历史快照就没有战略分析能力，没有能力键
+就没有智能体产出，没有界面就没人看得到——三者拆开做没有意义，必须按顺序交付
+到能看见结果为止。11d 独立于前三项，是并行轨道。11e 是一次核实动作，成本极低，
+先做。11f 明确不动，留痕不留期限。

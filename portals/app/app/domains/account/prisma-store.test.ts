@@ -179,8 +179,12 @@ test("listAccounts orders the sickest first and leaves unscored accounts last", 
     ({
       account: { findMany: delegate([], at("findMany")) },
       // incr/0040: the listing resolves industry_id to its name, so the fake
-      // has to answer for the second table as well as the first.
+      // has to answer for the second table as well as the first. incr/0071
+      // adds two more of the same shape.
       industry: { findMany: async () => [] },
+      customerType: { findMany: async () => [] },
+      customerSize: { findMany: async () => [] },
+      customerNature: { findMany: async () => [] },
     }) as never;
   await new PrismaAccountStore(client).listAccounts(WS, { status: "active", limit: 5 });
 
@@ -200,6 +204,9 @@ test("an absent filter adds no predicate at all", async () => {
     ({
       account: { findMany: delegate([], at("findMany")) },
       industry: { findMany: async () => [] },
+      customerType: { findMany: async () => [] },
+      customerSize: { findMany: async () => [] },
+      customerNature: { findMany: async () => [] },
     }) as never;
   await new PrismaAccountStore(client).listAccounts(WS);
 

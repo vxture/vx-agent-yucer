@@ -249,6 +249,30 @@ class ScopedAccountStore implements AccountStore {
   removeIndustry: AccountStore["removeIndustry"] = (...a) => this.inner.removeIndustry(...a);
   countAccountsByIndustry: AccountStore["countAccountsByIndustry"] = (...a) =>
     this.inner.countAccountsByIndustry(...a);
+
+  /* incr/0071. 客户分类's other two vocabularies - same reasoning as 行业
+     above: workspace-wide configuration, unfiltered by data scope. */
+  listCustomerTypes: AccountStore["listCustomerTypes"] = (...a) => this.inner.listCustomerTypes(...a);
+  upsertCustomerType: AccountStore["upsertCustomerType"] = (...a) => this.inner.upsertCustomerType(...a);
+  setCustomerTypeOrder: AccountStore["setCustomerTypeOrder"] = (...a) => this.inner.setCustomerTypeOrder(...a);
+  removeCustomerType: AccountStore["removeCustomerType"] = (...a) => this.inner.removeCustomerType(...a);
+  countAccountsByCustomerType: AccountStore["countAccountsByCustomerType"] = (...a) =>
+    this.inner.countAccountsByCustomerType(...a);
+
+  listCustomerSizes: AccountStore["listCustomerSizes"] = (...a) => this.inner.listCustomerSizes(...a);
+  upsertCustomerSize: AccountStore["upsertCustomerSize"] = (...a) => this.inner.upsertCustomerSize(...a);
+  setCustomerSizeOrder: AccountStore["setCustomerSizeOrder"] = (...a) => this.inner.setCustomerSizeOrder(...a);
+  removeCustomerSize: AccountStore["removeCustomerSize"] = (...a) => this.inner.removeCustomerSize(...a);
+  countAccountsByCustomerSize: AccountStore["countAccountsByCustomerSize"] = (...a) =>
+    this.inner.countAccountsByCustomerSize(...a);
+
+  /* incr/0072. The fourth vocabulary, same reasoning again. */
+  listCustomerNatures: AccountStore["listCustomerNatures"] = (...a) => this.inner.listCustomerNatures(...a);
+  upsertCustomerNature: AccountStore["upsertCustomerNature"] = (...a) => this.inner.upsertCustomerNature(...a);
+  setCustomerNatureOrder: AccountStore["setCustomerNatureOrder"] = (...a) => this.inner.setCustomerNatureOrder(...a);
+  removeCustomerNature: AccountStore["removeCustomerNature"] = (...a) => this.inner.removeCustomerNature(...a);
+  countAccountsByCustomerNature: AccountStore["countAccountsByCustomerNature"] = (...a) =>
+    this.inner.countAccountsByCustomerNature(...a);
 }
 
 class ScopedSignalStore implements SignalStore {

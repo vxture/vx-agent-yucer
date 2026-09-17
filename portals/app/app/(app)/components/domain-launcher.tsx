@@ -187,14 +187,16 @@ export function DomainLauncher({
         newTab
         trailingIcon="external-link"
       />
-    ) : m.key === "national" ? (
-      // 销售大屏 OPENS IN A NEW TAB (owner, 2026-09-13). It is meant to run on
-      // its own - a screen left up on a monitor - not to replace the tab you
-      // were working in, which `newTab` (the same DS flag app-shell.tsx's
-      // account-centre link uses) is exactly for. trailingIcon replaces the
-      // uniform `chevron={false}` other built rows get, the same way the DS's
-      // own doc for the prop names this case: a row whose destination differs
-      // from every other row in the panel is the one row worth marking.
+    ) : m.key === "national" || m.key === "enablement" ? (
+      // 销售大屏 / 赋能分析 OPEN IN A NEW TAB (owner, 2026-09-13; extended to
+      // 赋能分析 2026-09-17 - same (screen) idiom, same reason). Both are
+      // meant to run on their own - a screen left up on a monitor - not to
+      // replace the tab you were working in, which `newTab` (the same DS flag
+      // app-shell.tsx's account-centre link uses) is exactly for. trailingIcon
+      // replaces the uniform `chevron={false}` other built rows get, the same
+      // way the DS's own doc for the prop names this case: a row whose
+      // destination differs from every other row in the panel is the one row
+      // worth marking.
       <ShellPanelRow
         key={m.key}
         icon={m.icon}

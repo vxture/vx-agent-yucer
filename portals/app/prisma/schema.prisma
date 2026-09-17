@@ -288,6 +288,13 @@ model Account {
   /// way the product's type, status and unit already were. Nullable, unlike
   /// product.unit_id: a fresh prospect legitimately has no industry yet.
   industryId    String?   @map("industry_id") @db.Uuid
+  /// incr/0071. 客户分类's other two joins, same nullable shape as industryId:
+  /// most customers arrive unclassified and a workspace fills these in over
+  /// time, never as a condition of being a customer at all.
+  customerTypeId String?  @map("customer_type_id") @db.Uuid
+  customerSizeId String?  @map("customer_size_id") @db.Uuid
+  /// incr/0072. The fourth join - what kind of organisation this is.
+  customerNatureId String? @map("customer_nature_id") @db.Uuid
   region        String?   @db.VarChar(64)
   /// incr/0035. The provincial-level division, one granularity below `region`.
   /// Both are stored: `region` (大区) is what territory routing matches on, so
@@ -318,6 +325,9 @@ model Account {
   @@unique([workspaceId, accountNo], map: "uidx_account_ws_no")
   @@index([workspaceId, province], map: "idx_account_ws_province")
   @@index([workspaceId, industryId], map: "idx_account_ws_industry")
+  @@index([workspaceId, customerTypeId], map: "idx_account_ws_customer_type")
+  @@index([workspaceId, customerSizeId], map: "idx_account_ws_customer_size")
+  @@index([workspaceId, customerNatureId], map: "idx_account_ws_customer_nature")
   @@map("account")
   @@schema("yucer_core")
 }
@@ -377,6 +387,63 @@ model Industry {
   @@unique([workspaceId, industryCode], map: "uidx_industry_code")
   @@index([workspaceId, sortOrder], map: "idx_industry_ws_sort")
   @@map("industry")
+  @@schema("yucer_core")
+}
+
+/// incr/0071. 客户类型 - the second of 客户分类's three vocabularies (owner,
+/// 2026-09-16), same shape as Industry beside it: an anchor code, a display
+/// name, an order. A brand-new column, unlike industry's migration off a
+/// free-text one - there was no prior customer-type field to carry forward.
+model CustomerType {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @map("workspace_id") @db.Uuid
+  customerTypeCode String   @map("customer_type_code") @db.VarChar(32)
+  name             String   @db.VarChar(64)
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, customerTypeCode], map: "uidx_customer_type_code")
+  @@index([workspaceId, sortOrder], map: "idx_customer_type_ws_sort")
+  @@map("customer_type")
+  @@schema("yucer_core")
+}
+
+/// incr/0071. 客户规模 - the third of 客户分类's three vocabularies, same shape
+/// again. NOT `account.employeeCount`: that is a raw headcount the customer
+/// reports; this is the band the workspace itself sells against (集团客户 /
+/// 大型企业 / ... ), and one does not derive the other - see the increment.
+model CustomerSize {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @map("workspace_id") @db.Uuid
+  customerSizeCode String   @map("customer_size_code") @db.VarChar(32)
+  name             String   @db.VarChar(64)
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, customerSizeCode], map: "uidx_customer_size_code")
+  @@index([workspaceId, sortOrder], map: "idx_customer_size_ws_sort")
+  @@map("customer_size")
+  @@schema("yucer_core")
+}
+
+/// incr/0072. 客户性质 - 客户分类's fourth vocabulary (owner, 2026-09-16):
+/// what KIND of organisation this is - government / SOE / private / foreign -
+/// as distinct from customerType (how we sell to it) and industry (what it
+/// does). Same shape again.
+model CustomerNature {
+  id                 String   @id @default(uuid()) @db.Uuid
+  workspaceId        String   @map("workspace_id") @db.Uuid
+  customerNatureCode String   @map("customer_nature_code") @db.VarChar(32)
+  name               String   @db.VarChar(64)
+  sortOrder          Int      @default(0) @map("sort_order")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, customerNatureCode], map: "uidx_customer_nature_code")
+  @@index([workspaceId, sortOrder], map: "idx_customer_nature_ws_sort")
+  @@map("customer_nature")
   @@schema("yucer_core")
 }
 

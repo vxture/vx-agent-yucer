@@ -24,6 +24,8 @@ import { useMessages } from "../lib/i18n/provider";
 import type { MoveDirection } from "../../domains/shared/ordering";
 import { moveRoleAction, removeRoleAction } from "../admin/roles/actions";
 import { RolePermissionsDrawer } from "./role-permissions-drawer";
+import { RoleMembersDrawer } from "./role-members-drawer";
+import { RoleMemberPickerDrawer } from "./role-member-picker-drawer";
 import { Tag } from "./tag";
 
 /* 角色管理 - 展示. DISPLAY ONLY, the shape /admin/division has (owner,
@@ -60,15 +62,31 @@ export interface RoleRow {
   readonly members: number;
 }
 
+/** One workspace member, as 查看成员/关联成员 need it - who they are and which
+ *  role codes they hold today. Fed from the same `listWorkspaceMembers` the
+ *  member roster itself reads (admin.member.view), not a second query. */
+export interface RoleMemberSummary {
+  readonly sub: string;
+  readonly name: string;
+  readonly roles: readonly string[];
+  /** The org unit(s) they are placed in, by name (owner, 2026-09-16: 从角色侧
+   *  展示所属组织，多组织一行隔开显示，超出裁剪) - auxiliary to this drawer's
+   *  own subject, so it renders on the right, via NameOverflowTag. */
+  readonly orgUnitNames: readonly string[];
+}
+
 export function RolePanel({
   rows,
   total,
   editable,
+  members,
 }: {
   readonly rows: readonly RoleRow[];
   /** How many permissions the catalogue has - the count's denominator. */
   readonly total: number;
   readonly editable: boolean;
+  /** The workspace's roster, for 查看成员 (everyone) and 关联成员 (editors only). */
+  readonly members: readonly RoleMemberSummary[];
 }) {
   const { DATA_TABLE_LABELS, DS_LABELS, ROLE_ERROR, ROLE_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
@@ -115,6 +133,22 @@ export function RolePanel({
     const qs = next.toString();
     router.replace(qs ? `/admin/roles?${qs}` : "/admin/roles", { scroll: false });
   };
+  /* 查看成员 - same URL-state reasoning as 权限详情 above, under its own param
+     so the two drawers never collide. */
+  const membersView = useMemo(() => {
+    const code = params.get("members");
+    return code ? (rows.find((r) => r.code === code) ?? null) : null;
+  }, [params, rows]);
+  const setMembersView = (r: RoleRow | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (r) next.set("members", r.code);
+    else next.delete("members");
+    const qs = next.toString();
+    router.replace(qs ? `/admin/roles?${qs}` : "/admin/roles", { scroll: false });
+  };
+  /* 关联成员 - a save flow, not a view, so plain component state is enough
+     (org-unit-form.tsx's 选择区域 drawer is the same shape). */
+  const [picking, setPicking] = useState<RoleRow | null>(null);
   const [pending, start] = useTransition();
   const { toast } = useToast();
   /* A move that landed is read back with an explicit refresh - the same
@@ -189,12 +223,31 @@ export function RolePanel({
             label: ROLE_TEXT.details,
             onSelect: () => setDetails(r),
           },
+          /* 查看成员 sits beside 权限详情, in the same read-only group: both
+             are things a read-only reader of this page (admin.member.view)
+             came here to look at, not to change. */
+          {
+            id: "viewMembers",
+            label: ROLE_TEXT.viewMembers,
+            onSelect: () => setMembersView(r),
+          },
           ...(editable
             ? [
                 {
                   id: "edit",
                   label: ROLE_TEXT.edit,
                   onSelect: () => router.push(`/admin/roles/${r.id}`),
+                },
+                /* 关联成员 - the same assignRole/revokeRole the member roster's
+                   own role picker calls, from this row's direction (role ->
+                   members instead of member -> roles). Gated the same way
+                   编辑/删除 already are on this row: admin.role.upsert and
+                   admin.member.role.assign resolve to the same admin.manage
+                   permission (owner, 2026-09-16: no split for this domain). */
+                {
+                  id: "linkMembers",
+                  label: ROLE_TEXT.linkMembers,
+                  onSelect: () => setPicking(r),
                 },
                 /* THE FOUR MOVES, one set for every panel (ROW_OPS),
                    greyed at the end they cannot pass. rowIndex is the
@@ -469,6 +522,20 @@ export function RolePanel({
         open={details !== null}
         onClose={() => setDetails(null)}
         editHref={editable && details ? `/admin/roles/${details.id}` : null}
+      />
+
+      <RoleMembersDrawer
+        role={membersView}
+        members={members}
+        open={membersView !== null}
+        onClose={() => setMembersView(null)}
+      />
+
+      <RoleMemberPickerDrawer
+        role={picking}
+        members={members}
+        open={picking !== null}
+        onClose={() => setPicking(null)}
       />
     </Section>
   );

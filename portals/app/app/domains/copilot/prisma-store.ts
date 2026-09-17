@@ -316,6 +316,26 @@ export class PrismaCopilotStore implements CopilotStore {
     }));
   }
 
+  async countDecisionsByDeciderSince(
+    workspaceId: string,
+    status: "accepted" | "rejected",
+    since: Date,
+  ): Promise<Record<string, number>> {
+    const p = await getPrismaClient();
+    const groups = await p.agentAction.groupBy({
+      by: ["decidedBySub"],
+      where: { workspaceId, status, decidedAt: { gte: since }, decidedBySub: { not: null } },
+      _count: { _all: true },
+    });
+    const out: Record<string, number> = {};
+    for (const g of groups) if (g.decidedBySub) out[g.decidedBySub] = g._count._all;
+    return out;
+  }
+
+  async countExpiredSince(workspaceId: string, since: Date): Promise<number> {
+    const p = await getPrismaClient();
+    return p.agentAction.count({ where: { workspaceId, status: "expired", createdAt: { gte: since } } });
+  }
 }
 
 function toPlaybook(r: Record<string, unknown>): PlaybookRecord {

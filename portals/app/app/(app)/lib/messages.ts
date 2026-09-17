@@ -111,17 +111,28 @@ export const DOMAIN_LABEL: Record<string, string> = {
   stage: "商机阶段",
   contracttype: "签约类型",
   businessform: "业务形态",
-  industry: "行业分类",
+  // 客户分类 (incr/0040, grown to four vocabularies by incr/0071-0072; renamed
+  // from 行业分类, owner 2026-09-16): 行业/客户类型/客户规模/客户性质, four ways
+  // of answering "who is this customer", bundled on one page.
+  industry: "客户分类",
   reminderThreshold: "提醒阈值",
   forecastThreshold: "预测阈值",
   ageingPolicy: "账龄分档",
   pricingPolicy: "计价规则",
-  audit: "操作审计",
-  adoption: "使用情况",
+  // 安全审计 (owner, 2026-09-17): 从占位条目变为真实页面 - 记录对配置的操作
+  // (成员/角色相关的写操作)，不涉及业务数据。改名自旧的"操作审计"占位标签。
+  audit: "安全审计",
   // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由，做一个临时域，
   // 先挂到里面) - 不进 5 个 functional domain（那是已经测试锁定的不变量），
   // 挂在 admin 侧栏下单独一页。
   pendingMigration: "待迁路由",
+  // 赋能分析 (owner, 2026-09-17): 大屏风格的 AI 使用分析 - 每个人执行了多少
+  // 任务、采纳/拒绝了多少建议。取代被否决的"使用分析"页 ("这些是分析吗，
+  // 这是统计一下")。
+  enablement: "赋能分析",
+  // 系统验证 (owner, 2026-09-17): 是否与平台的连接本身是健康的 - 不是配置
+  // 改没改（安全审计），也不是业务数据。
+  diagnostics: "系统验证",
 };
 
 /**
@@ -556,12 +567,16 @@ export const LAUNCHER_TEXT = {
  * Tier names as a buyer sees them on the price list, not as the enum spells
  * them. `pro` is a key; PRO is what somebody bought.
  */
+// Shortened (owner, 2026-09-17): business -> BIZ, enterprise -> ENT. The five
+// tier identifiers themselves are the platform's own (40-capability-matrix.md
+// - "档位五值来自平台... 产品不得新增或改名"); this is only the on-screen
+// abbreviation of that same five, not a renamed tier.
 export const TIER_LABEL: Record<string, string> = {
   free: "FREE",
   starter: "STARTER",
   pro: "PRO",
-  business: "BUSINESS",
-  enterprise: "ENTERPRISE",
+  business: "BIZ",
+  enterprise: "ENT",
 };
 
 /**
@@ -1353,6 +1368,99 @@ export const INDUSTRY_TEXT = {
   opDelete: "删除",
 };
 
+/** 客户类型目录的写入回执 (incr/0071)。 */
+export const CUSTOMER_TYPE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "客户类型代码不能为空",
+  name_required: "客户类型名称不能为空",
+  customer_type_in_use: "还有客户归在这个类型下，先把他们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个客户类型，可能刚被删掉，刷新后重试",
+};
+
+export const CUSTOMER_TYPE_TEXT = {
+  // 客户类型的配置面 (0071) - 客户分类的第二个 section。
+  configTitle: "客户类型",
+  noun: "类型",
+  configWhy: "客户归档用的类型——直销、渠道、代理商等。有客户在用时不能删。",
+  add: "新建类型",
+  edit: "编辑",
+  save: "保存",
+  code: "类型代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  name: "类型名称",
+  colName: "类型",
+  colFiled: "客户数",
+  deleteConsequence: "该类型将从客户归档中移除。归在它下面的客户不受影响——有人在用就删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+};
+
+/** 客户规模目录的写入回执 (incr/0071)。 */
+export const CUSTOMER_SIZE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "客户规模代码不能为空",
+  name_required: "客户规模名称不能为空",
+  customer_size_in_use: "还有客户归在这个规模下，先把他们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个客户规模，可能刚被删掉，刷新后重试",
+};
+
+export const CUSTOMER_SIZE_TEXT = {
+  // 客户规模的配置面 (0071) - 客户分类的第三个 section。不是员工数：员工数是
+  // 客户自己报的头数，规模是工作区自己拿来定打法、定审批人的档位。
+  configTitle: "客户规模",
+  noun: "规模",
+  configWhy: "客户归档用的规模档位——集团、大型、中型等。有客户在用时不能删。",
+  add: "新建规模",
+  edit: "编辑",
+  save: "保存",
+  code: "规模代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  name: "规模名称",
+  colName: "规模",
+  colFiled: "客户数",
+  deleteConsequence: "该规模将从客户归档中移除。归在它下面的客户不受影响——有人在用就删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+};
+
+/** 客户性质目录的写入回执 (incr/0072)。 */
+export const CUSTOMER_NATURE_ERROR: Record<string, string> = {
+  ...GATE_ERROR,
+  code_required: "客户性质代码不能为空",
+  name_required: "客户性质名称不能为空",
+  customer_nature_in_use: "还有客户归在这个性质下，先把他们改到别处",
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
+  not_found: "找不到这个客户性质，可能刚被删掉，刷新后重试",
+};
+
+export const CUSTOMER_NATURE_TEXT = {
+  // 客户性质的配置面 (0072) - 客户分类的第四个 section。跟客户类型（怎么卖给
+  // 它）、行业（它是干什么的）都不是一回事：政府机构的采购流程、预算周期、
+  // 资质要求，跟其他两个维度无关。
+  configTitle: "客户性质",
+  noun: "性质",
+  configWhy: "客户归档用的性质——政府机构、国企、民营企业等。有客户在用时不能删。",
+  add: "新建性质",
+  edit: "编辑",
+  save: "保存",
+  code: "性质代码",
+  codeHint: "创建后不可更改。已存在的代码表示改名。",
+  name: "性质名称",
+  colName: "性质",
+  colFiled: "客户数",
+  deleteConsequence: "该性质将从客户归档中移除。归在它下面的客户不受影响——有人在用就删不掉。",
+  opUp: "上移",
+  opDown: "下移",
+  opDelete: "删除",
+};
+
 export const CATALOG_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   code_required: "需要填写编码",
@@ -1780,7 +1888,16 @@ export const BATCH_COMPLETE_TEXT = {
 } as const;
 
 export const SHELL_TEXT = {
-  brandName: "禹策销售智能体",
+  // Full spoken form, for contexts that need one string (the tab title, its
+  // aria-label, the meta description) - see metadata.ts.
+  brandName: "聿策销售智能体",
+  // The two-segment lockup used everywhere the name is actually DRAWN (the
+  // header brand mark, the gate screens' product identity): the name itself,
+  // and the descriptive tagline after it, in that visual order. Split so the
+  // caller can weight and separate them (owner, 2026-09-17: 聿策 ｜ 销售智能体，
+  // 两段颜色区分) instead of one flat string with no seam to style.
+  brandMark: "聿策",
+  brandTagline: "销售智能体",
   website: "官网",
   workspaceFallback: "当前工作区",
   signedOutTitle: "尚未登录",
@@ -2098,10 +2215,6 @@ export const HEADER_TEXT = {
   subscription: (tier: string) => TIER_LABEL[tier] ?? tier,
   subscriptionNone: "未订阅",
   subscriptionAria: "订阅档位",
-  // The subtitle under the product name: the product code, as the platform
-  // knows this product (owner: 把 yucer 作为副标题，替换 dev). The build label
-  // it replaced lives on the status page, where a bug report goes to read it.
-  productCode: (code: string) => code,
 
   // The functional-domain control. Placed now, inert until the domains are
   // split - see the note in app-shell.tsx for why an inert control is the
@@ -2178,7 +2291,10 @@ export const ADMIN_GROUP_LABEL: Record<string, string> = {
   org: "组织架构",
   access: "成员权限",
   params: "业务参数",
-  ops: "运行状况",
+  // 高级管理 (owner, 2026-09-17): merged from two separate groups (安全审计,
+  // 系统验证) into one, last - both answer "is something wrong, and where do
+  // I check", not day-to-day workspace setup.
+  advanced: "高级管理",
 };
 
 export const ADMIN_TEXT = {
@@ -2205,14 +2321,15 @@ export const ADMIN_TEXT = {
     stage: "商机推进经过的阶段，改名/排序/默认赢率/增删",
     contracttype: "交易性质——新签/续签/增购",
     businessform: "卖的是什么——项目定制类/标化产品类/咨询服务类",
-    industry: "客户按行业归档，一处改，处处改",
+    industry: "客户按行业、类型、规模与性质归档，一处改，处处改",
     reminderThreshold: "多久算联系冷淡、决策链温度窗口，以及续约提前多少天提醒",
     forecastThreshold: "承诺、最好情况从多少概率起算",
     ageingPolicy: "逾期多少天算一档",
     pricingPolicy: "报价默认用什么币种",
-    adoption: "跟进记录有没有被用起来",
+    audit: "谁在什么时候改了配置——成员、角色相关的操作记录",
     division: "全国怎么切成区域，每个区域管哪些省",
     orgUnit: "总部、大区、团队怎么搭，谁归哪个单位",
+    diagnostics: "与平台的对接是否健康——身份、权益、用量三条通道",
   } as Record<string, string>,
   // What each card says about the state behind it. The cards used to print
   // their own href as body text - a URL is not something a reader wants and
@@ -2230,8 +2347,6 @@ export const ADMIN_TEXT = {
       ? `${divisions} 个区域 · ${total} 个${noun}都已归入`
       : `${divisions} 个区域 · 还有 ${total - placed} 个${noun}没有归入`,
   divisionNoRead: "没有区域读取权限",
-  adoptionCriterion: (weeks: number, judge: number) =>
-    `按最近 ${weeks} 周判定，连续 ${judge} 周达标才算被用起来`,
   open: "打开",
 } as const;
 
@@ -2339,42 +2454,127 @@ export const RECENCY_TEXT = {
     "答「否」会拿我们自己的记录缺口去陈述一个关于客户关系的事实。",
 } as const;
 
-export const ADOPTION_TEXT = {
-  navLabel: "使用情况",
-  title: "跟进记录的使用情况",
-  description: "跟进记录有没有被用起来。判据见 ADR-012。",
-  // The anti-scoreboard note is user-visible on purpose. If people believe it
-  // is a ranking they will record for the ranking, and the number stops
-  // measuring the thing it was built to measure.
-  notAScoreboard:
-    "刻意不按人拆分。一旦这张表能当成绩效看，大家就会为它而记录，它也就不再测量它要测的东西。",
-  coverage: "覆盖率",
-  coverageHint: "当周有开放商机中，至少被记了一笔跟进的比例",
-  rate: "密度",
-  rateHint: "当周跟进笔数 / 当周开放商机数，仅作参照",
-  week: "周",
-  weekInProgress: "本周（进行中，不计入裁定）",
-  openDeals: "开放商机",
-  touched: "被跟进",
-  notes: "跟进笔数",
-  noDeals: "无开放商机",
-  criterion: (pct: number, weeks: number) =>
-    `判据：最近 ${weeks} 周的覆盖率均值达到 ${pct}%。以最近两周而非六周均值判定——问的是习惯现在在不在，不是第一周有没有热情。`,
-  verdictAdopted: "已形成记录习惯",
-  verdictAdoptedHint: "二期（主张与判断）的前置条件成立。",
-  verdictNotAdopted: "未形成记录习惯",
-  verdictNotAdoptedHint:
-    "按 ADR-012 的判据，此时不应建二期。要改的是采集路径本身，不是在空数据上加推理。",
-  verdictTooEarly: "观察期未满",
-  verdictTooEarlyHint:
-    "尚不构成裁定依据。一个能提前失败的判据，一定会被提前引用。",
-  verdictNoData: "尚无开放商机",
-  verdictNoDataHint: "没有可记录的对象，这不是失败。",
-  darkDeals: "无近期跟进的开放商机",
-  darkDealsHint:
-    "这些商机在观察窗口内一笔跟进都没有。停在推进阶段的那几条最值得先看。",
-  darkDealsEmpty: "所有开放商机在窗口内都有跟进记录。",
+/**
+ * 安全审计 (owner, 2026-09-17): a browsable, filtered log of CONFIGURATION
+ * changes only - member/role writes. Explicitly NOT business data;
+ * copilot.ask rides the same append-only table for an unrelated reason
+ * (X-3 cost tracing) and never appears here.
+ */
+export const AUDIT_TEXT = {
+  title: "安全审计",
+  description: "记录对配置的操作——成员、角色相关的变更。不涉及业务数据。系统被改了，这里说谁改的，什么时间，改了什么。",
+  colTime: "时间",
+  colActor: "操作人",
+  colAction: "操作",
+  colObject: "对象",
+  colOutcome: "结果",
+  count: (n: number) => `共 ${n} 条`,
+  empty: "还没有配置变更记录",
+  emptyWhy: "成员、角色相关的操作会记在这里。",
+  searchHint: "按操作人或对象搜索",
+  filterAllActions: "全部操作",
+  filterAllOutcomes: "全部结果",
+  outcomeLabel: {
+    success: "成功",
+    denied: "被拒绝",
+    error: "出错",
+  } as Record<string, string>,
+  actionLabel: {
+    "admin.member.role.assign": "分配角色",
+    "admin.member.role.revoke": "撤销角色",
+    "admin.member.deactivate": "停用成员",
+    "admin.member.reactivate": "恢复成员",
+    "admin.member.scope": "调整可见范围",
+    "admin.role.upsert": "新增或修改角色",
+    "admin.role.remove": "删除角色",
+  } as Record<string, string>,
 } as const;
+
+/**
+ * 系统验证 (owner, 2026-09-17): is the product's own end of the platform
+ * connection healthy - C1 identity, C2 entitlement, C3 usage/provisioning.
+ * Built as SECTIONS (diagnostics-panel.tsx) with exactly one today, 平台对接,
+ * because the owner asked to reserve room for other kinds of system
+ * verification without redesigning the page when the second one arrives.
+ */
+export const DIAGNOSTICS_TEXT = {
+  title: "系统验证",
+  description: "产品这一端与平台的对接是否健康。只读探测，会花钱的动作各自单独标出。",
+  refresh: "重新探测",
+  probedAt: (time: string) => `探测时间 ${time}`,
+  readOnlyNote: "以下探测全部只读，不产生任何费用",
+  sectionPlatform: "平台对接",
+  sectionPlatformHint: "身份（C1）、权益（C2）、用量与供给（C3）三条通道",
+  probe: {
+    c1: "C1 - 身份发现与密钥",
+    tokenMint: "C1 换票 - 工作台代持换票",
+    c2: "C2 - 实时权益读取",
+    c3Up: "C3 上行 - 用量上报",
+    c3Down: "C3 下行 - webhook 验签与投递",
+    atlas: "模型面（Atlas）",
+    runos: "能力面（Runos）",
+    arda: "共享数据面（arda）",
+  } as Record<string, string>,
+  replayTitle: "C3 重放校验（清单第 5 项）",
+  replayHint:
+    "会花钱的探测之一：把同一条用量记录上报两次，核实平台是否按幂等键去重而不是重复计费。每个工作区每天最多算一次。",
+  replayButton: "运行重放校验",
+  replayConfirmTitle: "确认运行重放校验？",
+  replayConfirmBody: "这会向平台实际发送一条用量记录（今天第一次点击才会真的产生费用，重复点击命中同一个幂等键）。",
+  replayConfirmAction: "确认运行",
+  cancel: "取消",
+  replayRunning: "运行中…",
+  replayForbidden: "没有运行这项探测的权限——需要另一位管理员授权",
+  // Atlas 活体探测 (owner, 2026-09-17): "连接并消耗一点 atlas 的 token，按
+  // 逻辑 atlas 会上报" - 只探测可达性不够，得真的打一次通话才能验证上报链路。
+  atlasProbeTitle: "Atlas 活体探测",
+  atlasProbeHint:
+    "会花钱的探测之一：发一条最短的对话给 Atlas，验证连接真的能走完一次完整调用。消耗由 Atlas 自行按其计量口径上报，不经过本仓的用量指标。",
+  atlasProbeButton: "运行 Atlas 探测",
+  atlasProbeConfirmTitle: "确认运行 Atlas 探测？",
+  atlasProbeConfirmBody: "这会向 Atlas 实际发起一次模型调用，产生真实的模型用量费用。",
+  atlasProbeConfirmAction: "确认运行",
+  atlasProbeRunning: "运行中…",
+  atlasProbeForbidden: "没有运行这项探测的权限——需要另一位管理员授权",
+  badgeOk: "正常",
+  badgeFail: "异常",
+  badgeUnconfigured: "未配置",
+} as const;
+
+/**
+ * 赋能分析 (owner, 2026-09-17): a big-screen reading of the copilot's actual
+ * use, per person - tasks executed, suggestions adopted/rejected - plus one
+ * workspace-wide lapsed count. Replaces the rejected 使用分析 admin page
+ * ("这些是分析吗，这是统计一下，页面到处都有，还要专门分析") with rankings
+ * and ratios instead of a bare per-user number table.
+ */
+export const ENABLEMENT_TEXT = {
+  title: "赋能分析",
+  subtitle: "AI Enablement Analysis",
+  home: "平台首页",
+  windowLabel: (days: number) => `近 ${days} 天`,
+  panelExecuted: "任务执行排行",
+  panelExecutedWhy: "谁在通过副驾实际执行任务",
+  panelAdoption: "建议采纳情况",
+  panelAdoptionWhy: "副驾提出的建议，被谁采纳、被谁拒绝",
+  colUser: "成员",
+  colExecuted: "执行次数",
+  colAdopted: "已采纳",
+  colRejected: "已拒绝",
+  heroExecuted: "任务执行总数",
+  heroAdopted: "已采纳建议",
+  heroRejected: "已拒绝建议",
+  heroExpired: "未处理即失效",
+  heroExpiredHint: "工作区整体计数，不可归因到个人——agent_action 没有「给谁看过」这一列",
+  donutTitle: "建议去向构成",
+  donutAdopted: "已采纳",
+  donutRejected: "已拒绝",
+  donutExpired: "未处理",
+  rankEmpty: "窗口内还没有副驾执行记录",
+  noAdoption: "窗口内还没有建议被裁决",
+  unit: (n: number) => `${n} 次`,
+} as const;
+
 
 export const PIPELINE_TEXT = {
   tagOpen: (n: number) => `${n} 个在推进`,
@@ -2803,9 +3003,12 @@ export const ROLE_TEXT = {
   noMember: "暂无成员",
   noDescription: "未填写说明",
   permCount: (n: number, total: number) => `${n} / ${total}`,
-  // 行菜单里成对读：权限详情 ｜ 角色配置 ｜ 上移 …（owner, 2026-09-09）
+  // 行菜单里成对读：权限详情 ｜ 查看成员 ｜ 角色配置 ｜ 关联成员 ｜ 上移 …
+  // （owner, 2026-09-09；查看成员/关联成员 2026-09-16 补上）
   edit: "角色配置",
   details: "权限详情",
+  viewMembers: "查看成员",
+  linkMembers: "关联成员",
   moveUp: "上移",
   moveDown: "下移",
   moveTop: "移到顶部",
@@ -2827,6 +3030,18 @@ export const ROLE_TEXT = {
   detailsEmpty: "这个角色没有任何权限，持有它的成员看不到任何模块。",
   detailsColHeld: "持有",
   detailsEdit: "编辑",
+  // --- 查看成员抽屉 ---
+  membersTitle: (name: string) => `${name} · 成员`,
+  membersWhy: (n: number) => `共 ${n} 人持有这个角色。`,
+  membersEmptyWhy: "还没有人持有这个角色。",
+  membersSearchPlaceholder: "搜索成员姓名",
+  membersSearchEmpty: "没有匹配的成员",
+  // --- 关联成员抽屉 ---
+  linkMembersTitle: (name: string) => `${name} · 关联成员`,
+  linkMembersWhy: "勾选应当持有这个角色的成员，保存后立即生效。",
+  linkMembersCount: (n: number) => `已选 ${n} 人`,
+  linkMembersDone: (n: number) => `已更新，现在 ${n} 人持有`,
+  linkMembersSave: "保存",
   // --- 表单 ---
   formTitle: "配置角色",
   formWhy: "代码、名称、一句说明，以及这个角色持有的权限。",
@@ -3028,11 +3243,24 @@ export const ORG_TEXT = {
   detailsTitle: (name: string) => `${name} · 单位详情`,
   detailsWhy: (kind: string, leader: string) => `${kind} · 负责人 ${leader}`,
   detailsMembers: (n: number) => `成员 · ${n} 人`,
-  detailsNoMembers: "还没有成员归属到这个单位。到成员管理里，把成员的所属单位改到这里。",
+  detailsNoMembers: "还没有成员归属到这个单位。到成员管理里，把成员的所属单位改到这里，或者用这个单位的「添加成员」。",
   detailsChildren: (n: number) => `下级单位 · ${n} 个`,
   detailsNoChildren: "没有下级单位。",
   detailsDone: "关闭",
   detailsEdit: "编辑单位",
+  // --- 查看成员抽屉 (owner, 2026-09-16: 从单位详情拆出，纵向清单式排列) ---
+  viewMembers: "查看成员",
+  membersTitle: (name: string) => `${name} · 成员`,
+  membersSearchPlaceholder: "搜索成员姓名",
+  membersSearchEmpty: "没有匹配的成员",
+  noRole: "未分配角色",
+  // --- 添加成员抽屉 ---
+  addMembers: "添加成员",
+  addMembersTitle: (name: string) => `${name} · 添加成员`,
+  addMembersWhy: "勾选应当归属这个单位的成员；保存后立即生效，不影响他们在其他单位的归属。",
+  addMembersCount: (n: number) => `已选 ${n} 人`,
+  addMembersDone: (n: number) => `已更新，现在 ${n} 人归属`,
+  addMembersSave: "保存",
   remove: "删除单位",
   removeTarget: (name: string) => `「${name}」`,
   removeConsequence: (members: number) =>
@@ -3244,6 +3472,11 @@ export const ROLE_ERROR: Record<string, string> = {
   move_at_edge: "已经在这一端了",
   not_movable: "这一条不能移动",
   not_found: "这个角色不存在，或不属于当前工作区",
+  // 关联成员走 assignRole/revokeRole（authz/admin.ts），错误码和上面几条角色自
+  // 己的校验不是一套 - unknown_role 是那边的 role_unknown，sub_required 理论上
+  // 不会触发（sub 总来自已加载的成员行），保留是不把裸码露给读者。
+  unknown_role: "这个角色不属于当前工作区",
+  sub_required: "缺少成员标识",
 };
 
 export const TERRITORY_ERROR: Record<string, string> = {
@@ -5427,6 +5660,7 @@ export const PERMISSION_TREE_TEXT = {
     admin: "配置管理",
     home: "今日判断",
     national: "销售大屏",
+    enablement: "赋能分析",
   } as Record<string, string>,
   moduleLabel: {
     admin: "成员与权限",
@@ -5472,7 +5706,8 @@ export const PERMISSION_TREE_TEXT = {
     "catalog.solution": "解决方案",
     "catalog.pricebook": "价目",
     "admin.member": "成员",
-    "admin.adoption": "使用情况",
+    "admin.audit": "安全审计",
+    "admin.diagnostics": "系统验证",
     "admin.role": "角色",
     "admin.org": "组织架构",
     "admin.reminderthreshold": "提醒阈值",
@@ -5546,7 +5781,9 @@ export const PERMISSION_TREE_TEXT = {
     "catalog.pricebook.view": "查看价目",
     "catalog.pricebook.upsert": "维护价目",
     "admin.member.view": "查看成员",
-    "admin.adoption.view": "查看使用情况",
+    "admin.audit.view": "查看安全审计",
+    "admin.diagnostics.view": "查看系统验证",
+    "admin.diagnostics.probe": "运行平台探测",
     "admin.reminderthreshold.view": "查看提醒阈值",
     "admin.reminderthreshold.manage": "设置提醒阈值",
     "admin.member.role.assign": "分配角色",

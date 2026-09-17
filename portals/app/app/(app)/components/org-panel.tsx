@@ -34,6 +34,8 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 import { orgUnitIcon } from "../lib/org-unit-icon";
 import { collapseFromDepth, depthLevels } from "../lib/tree-expand";
 import { moveOrgUnitAction, removeOrgUnitAction, reparentOrgUnitAction } from "../admin/org/actions";
+import { OrgMembersDrawer } from "./org-members-drawer";
+import { OrgMemberPickerDrawer } from "./org-member-picker-drawer";
 import { CountCircle, Tag } from "./tag";
 
 /* 组织结构 - 展示. DISPLAY ONLY, the shape /admin/roles has.
@@ -115,6 +117,18 @@ export interface OrgUnitRow {
   readonly inheritedFromName: string | null;
 }
 
+/** One workspace member, as 查看成员/添加成员 need it - who they are, which
+ *  unit id(s) they are placed in today (0053: several, one, or none), and
+ *  which role(s) they hold (owner, 2026-09-16: 从组织视角展示用户角色) -
+ *  auxiliary to this panel's own subject, shown on the right via
+ *  NameOverflowTag, the same pairing role-panel.tsx shows org units on. */
+export interface OrgMemberSummary {
+  readonly sub: string;
+  readonly name: string;
+  readonly unitIds: readonly string[];
+  readonly roleNames: readonly string[];
+}
+
 /** Every id in `id`'s own subtree, `id` itself included - what 迁到… must
  *  exclude from the target list, or a unit could be moved under its own
  *  descendant. `rows` is small (a few dozen units at most), so a couple of
@@ -137,13 +151,13 @@ function subtreeOf(rows: readonly OrgUnitRow[], id: string): Set<string> {
 export function OrgPanel({
   rows,
   editable,
-  unitMembers,
+  members,
 }: {
   /** In tree order: a parent precedes its children. */
   readonly rows: readonly OrgUnitRow[];
   readonly editable: boolean;
-  /** unit id -> the names placed there, for the drawer. */
-  readonly unitMembers: Readonly<Record<string, readonly string[]>>;
+  /** The workspace's roster, for 查看成员 (everyone) and 添加成员 (editors only). */
+  readonly members: readonly OrgMemberSummary[];
 }) {
   const { DATA_TABLE_LABELS, DS_LABELS, ORG_ERROR, ORG_TEXT, ROW_OPS } = useMessages();
   const router = useRouter();
@@ -188,6 +202,22 @@ export function OrgPanel({
     const qs = next.toString();
     router.replace(qs ? `/admin/org?${qs}` : "/admin/org", { scroll: false });
   };
+  /* 查看成员 - same URL-state reasoning as 单位详情 above, its own param so
+     the two drawers never collide (owner, 2026-09-16). */
+  const membersView = useMemo(() => {
+    const code = params.get("members");
+    return code ? (rows.find((r) => r.unitCode === code) ?? null) : null;
+  }, [params, rows]);
+  const setMembersView = (r: OrgUnitRow | null) => {
+    const next = new URLSearchParams(params.toString());
+    if (r) next.set("members", r.unitCode);
+    else next.delete("members");
+    const qs = next.toString();
+    router.replace(qs ? `/admin/org?${qs}` : "/admin/org", { scroll: false });
+  };
+  /* 添加成员 - a save flow, not a view, plain component state (the same
+     shape /admin/roles' 关联成员 picker uses). */
+  const [addingMembers, setAddingMembers] = useState<OrgUnitRow | null>(null);
 
   /* A row is shown while no ancestor is folded. Parents precede children in
      `rows`, so one pass with a hidden-set suffices. Skipped entirely while
@@ -309,7 +339,6 @@ export function OrgPanel({
     });
 
   const children = details ? rows.filter((r) => r.parentId === details.id) : [];
-  const placedHere = details ? (unitMembers[details.id] ?? []) : [];
 
   /* Shared between the table row and the card - same menu either way. */
   const actionsFor = (r: OrgUnitRow) => {
@@ -320,9 +349,19 @@ export function OrgPanel({
         disabled={pending}
         items={[
           { id: "details", label: ROW_OPS.details(ORG_TEXT.noun), onSelect: () => setDetails(r) },
+          /* 查看成员 sits beside 单位详情, in the same read-only group - both
+             answer a question a read-only reader (admin.member.view) came
+             here to ask, not to change (owner, 2026-09-16). */
+          { id: "viewMembers", label: ORG_TEXT.viewMembers, onSelect: () => setMembersView(r) },
           ...(editable
             ? [
                 { id: "edit", label: ROW_OPS.configure(ORG_TEXT.noun), onSelect: () => router.push(`/admin/org/${r.id}`) },
+                /* 添加成员 - setMemberUnits (admin.member.scope, same
+                   admin.manage permission editable already gates on) from
+                   this unit's own side, preserving every member's OTHER
+                   unit(s) (0053: 一人可在多个组织) - see
+                   setUnitMembersAction. */
+                { id: "addMembers", label: ORG_TEXT.addMembers, onSelect: () => setAddingMembers(r) },
                 ...moveItems(ROW_OPS, at, sib.length, (d) => move(r.id, d)),
                 /* 迁到… (owner, 2026-09-11: 操作面板，增加 [迁到...]) - the
                    OTHER axis: not among siblings, but to a different parent
@@ -683,15 +722,6 @@ export function OrgPanel({
         }
       >
         <div className="gap-lg flex flex-col">
-          <Section title={ORG_TEXT.detailsMembers(placedHere.length)}>
-            {placedHere.length === 0 ? (
-              <p className="text-muted-foreground text-body-sm">{ORG_TEXT.detailsNoMembers}</p>
-            ) : (
-              <ul className="gap-xs flex flex-wrap">
-                {placedHere.map((n) => <li key={n}><Tag>{n}</Tag></li>)}
-              </ul>
-            )}
-          </Section>
           {/* 关联区域 (0052): the ground this unit's subtree works, and the
               大区 each piece of it covers - the whole chain from the
               unit's side. 全范围/继承范围 each get their own line (owner,
@@ -743,6 +773,20 @@ export function OrgPanel({
           </Section>
         </div>
       </Drawer>
+
+      <OrgMembersDrawer
+        unit={membersView}
+        members={members}
+        open={membersView !== null}
+        onClose={() => setMembersView(null)}
+      />
+
+      <OrgMemberPickerDrawer
+        unit={addingMembers}
+        members={members}
+        open={addingMembers !== null}
+        onClose={() => setAddingMembers(null)}
+      />
 
       <DialogForm
         open={moveDialog !== null}

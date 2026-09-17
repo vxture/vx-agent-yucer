@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../../lib/session";
 import { getAuthzStore, type RoleGroupKind } from "../../../authz/store";
 import { moveRole, moveRoleGroup, removeRole, removeRoleGroup, resetPresetRoles, saveRole, saveRoleGroup } from "../../../authz/roles";
+import { assignRole, listWorkspaceMembers, revokeRole } from "../../../authz/admin";
 import type { MoveDirection } from "../../../domains/shared/ordering";
 
 /* 角色管理 的写入路径 (incr/0046).
@@ -63,6 +64,39 @@ export async function moveRoleAction(code: string, direction: MoveDirection): Pr
   if (!c) return { ok: false, error: "not_authenticated" };
   const r = await moveRole(c, { code, direction });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * 关联成员 - reconcile who holds this role to exactly `subs`.
+ *
+ * THE SAME WANT/HELD DIFF admin/members/actions.ts's saveMemberAction runs
+ * for one member's set of roles, run here for one role's set of members -
+ * assignRole/revokeRole are the verbs either direction ends up calling, so
+ * the gate (admin.member.role.assign/.revoke, both admin.manage) and the
+ * last-administrator guard on revokeRole apply exactly as they do from the
+ * member page. A revoke that would leave the workspace with no administrator
+ * fails here the same way it fails there, surfaced as ROLE_ERROR.last_admin.
+ */
+export async function setRoleMembersAction(code: string, subs: string[]): Promise<Result<object>> {
+  const c = await ctx();
+  if (!c) return { ok: false, error: "not_authenticated" };
+  const members = await listWorkspaceMembers(c);
+  if (!members.ok) return { ok: false, error: members.violations[0]?.code ?? "denied" };
+
+  const want = new Set(subs);
+  const held = new Set(members.value.filter((m) => m.roles.includes(code)).map((m) => m.sub));
+  for (const sub of want) {
+    if (held.has(sub)) continue;
+    const r = await assignRole(c, sub, code);
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
+  for (const sub of held) {
+    if (want.has(sub)) continue;
+    const r = await revokeRole(c, sub, code);
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
   revalidatePath("/", "layout");
   return { ok: true };
 }

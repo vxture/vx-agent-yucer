@@ -17,7 +17,14 @@ test("a record carries every X-3 field, including the actor console constant", a
     store,
   );
   assert.equal(store.rows.length, 1);
-  assert.deepEqual(store.rows[0], {
+  // id/occurredAt are the in-memory store's own stamps (使用分析/安全审计's
+  // read paths need them to identify and time-filter a row) - real, but not
+  // facts this test names, so they are asserted separately rather than
+  // folded into the exact-shape check below.
+  const { id, occurredAt, ...row } = store.rows[0]!;
+  assert.equal(typeof id, "string");
+  assert.ok(occurredAt instanceof Date);
+  assert.deepEqual(row, {
     workspaceId: "ws_1",
     actorId: "usr_admin",
     actorConsole: ACTOR_CONSOLE_SELF,

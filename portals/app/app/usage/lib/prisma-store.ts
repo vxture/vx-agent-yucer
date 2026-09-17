@@ -9,7 +9,7 @@ export class PrismaUsageStore implements UsageStore {
    * constructs this with no argument and nothing changes. */
   constructor(private readonly client: () => Promise<PrismaClient> = getPrismaClient) {}
 
-  async record(row: Omit<UsageRow, "flushed" | "platformEventId">): Promise<void> {
+  async record(row: Omit<UsageRow, "flushed" | "platformEventId" | "createdAt">): Promise<void> {
     const p = await this.client();
     // Upsert on the unique idempotency key; a replay is a no-op (empty update).
     await p.raw.upsert({
@@ -34,7 +34,17 @@ export class PrismaUsageStore implements UsageStore {
       idempotencyKey: r.idempotencyKey,
       flushed: r.flushed,
       platformEventId: r.platformEventId,
+      createdAt: r.createdAt,
     }));
+  }
+
+  async sumSince(workspaceId: string, metric: string, since: Date): Promise<number> {
+    const p = await this.client();
+    const agg = await p.raw.aggregate({
+      where: { workspaceId, metric, createdAt: { gte: since } },
+      _sum: { amount: true },
+    });
+    return Number(agg._sum.amount ?? 0);
   }
 
   async markFlushed(

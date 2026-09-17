@@ -82,11 +82,19 @@ test("administration is nav, but it is not a capability domain", () => {
     // thing (set once, read by every screen that shows or advances a deal),
     // so /admin/opportunity joins /admin/product's own already-stacked
     // precedent rather than staying five gear icons.
-    // 待迁路由 joined 运行状况 on 2026-09-11 (incr/0055's own change): a
-    // holding page for whatever route currently has no entry point anywhere
-    // else, found by an app-wide reachability sweep.
+    // 待迁路由 joined 业务参数 on 2026-09-17 (moved a second time - it started
+    // in 运行状况 on 2026-09-11, incr/0055's own change - when that group was
+    // deleted along with the 使用分析 page the owner rejected): a holding
+    // page for whatever route currently has no entry point anywhere else,
+    // found by an app-wide reachability sweep.
+    // 安全审计 (owner, 2026-09-17) replaced the old placeholder 操作审计 with
+    // a real, browsable, filtered configuration-change log. 系统验证 (same
+    // day) is whether the platform connection itself is healthy. Both were
+    // briefly their own last groups, then merged same-day into one -
+    // 高级管理 - since both answer "is something wrong" rather than
+    // day-to-day setup; the flat key order here is unaffected by the merge.
     ["orgUnit", "division", "members", "roles", "permissions", "scope", "opportunityConfig", "product", "industry",
-     "reminderThreshold", "adoption", "pendingMigration"],
+     "reminderThreshold", "pendingMigration", "audit", "diagnostics"],
   );
   // The identity that keeps the four lists from silently overlapping. It gained
   // MODULE_NAV_ENTRIES on 2026-08-30: six module pages promoted out of
@@ -120,10 +128,12 @@ test("the work entries are not domains either, and the copilot stays a domain", 
      assertion is unchanged - it is here to stop anything sliding into the
      DOMAIN inventory. The situation screen owns no object; it is a way of
      looking at what the domains already hold, which is exactly why it belongs
-     on this list and not on that one. */
+     on this list and not on that one. `enablement` joined 2026-09-17 for the
+     identical reason - a big-screen reading of the copilot domain's own data,
+     not a capability of its own. */
   assert.deepEqual(
     WORK_NAV_ENTRIES.map((e) => e.key),
-    ["home", "national"],
+    ["home", "national", "enablement"],
   );
   assert.ok(DOMAIN_NAV_ENTRIES.some((e) => e.key === "copilot"));
 });
@@ -189,6 +199,10 @@ test("a free-tier rep sees the core loop and nothing else unlocked", () => {
     "attainment",
     "catalog",
     "copilot",
+    // 赋能分析 rides copilot.action.view, the same free action that already
+    // gates seeing the copilot's own proposal queue - no new tier gate for a
+    // page that only reads what that one already allows reading.
+    "enablement",
     "home",
     /* 行业分类 rides account.view, exactly as the customer list does - it is
        the list customers are filed under, and its ACTIONS carry

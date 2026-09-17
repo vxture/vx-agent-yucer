@@ -3,6 +3,9 @@ import { getPrismaClient } from "../../lib/db";
 import { assertWritable } from "../shared/column-locks";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
+import type { CustomerTypeDraft } from "./lib/customer-type";
+import type { CustomerSizeDraft } from "./lib/customer-size";
+import type { CustomerNatureDraft } from "./lib/customer-nature";
 import {
   DEFAULT_MARKET_SCOPE,
   frameMembers,
@@ -24,6 +27,9 @@ import type {
   ContactRecord,
   HealthInputs,
   IndustryRecord,
+  CustomerTypeRecord,
+  CustomerSizeRecord,
+  CustomerNatureRecord,
   OpportunityContactRecord,
 } from "./store";
 
@@ -45,6 +51,11 @@ const AFFILIATION_TABLE = "yucer_core.person_affiliation";
 const OPPORTUNITY_CONTACT_TABLE = "yucer_pipeline.opportunity_contact";
 // incr/0040. 行业, the workspace's own vocabulary.
 const INDUSTRY_TABLE = "yucer_core.industry";
+// incr/0071. 客户分类's other two vocabularies.
+const CUSTOMER_TYPE_TABLE = "yucer_core.customer_type";
+const CUSTOMER_SIZE_TABLE = "yucer_core.customer_size";
+// incr/0072. The fourth.
+const CUSTOMER_NATURE_TABLE = "yucer_core.customer_nature";
 // incr/0043. 市场范围, one row per workspace.
 const MARKET_SCOPE_TABLE = "yucer_core.market_scope";
 
@@ -320,15 +331,28 @@ export class PrismaAccountStore implements AccountStore {
       orderBy: [{ healthScore: "asc" }, { name: "asc" }],
       ...(filter.limit ? { take: filter.limit } : {}),
     });
-    const names = await this.industryNames(workspaceId);
-    return rows.map((r: Record<string, unknown>) => toAccount(r, names));
+    const [industryNames, customerTypeNames, customerSizeNames, customerNatureNames] = await Promise.all([
+      this.industryNames(workspaceId),
+      this.customerTypeNames(workspaceId),
+      this.customerSizeNames(workspaceId),
+      this.customerNatureNames(workspaceId),
+    ]);
+    return rows.map((r: Record<string, unknown>) =>
+      toAccount(r, industryNames, customerTypeNames, customerSizeNames, customerNatureNames),
+    );
   }
 
   async getAccount(workspaceId: string, id: string): Promise<AccountRecord | null> {
     const p = await this.client();
     const row = await p.account.findFirst({ where: { id, workspaceId, deletedAt: null } });
     if (!row) return null;
-    return toAccount(row as Record<string, unknown>, await this.industryNames(workspaceId));
+    const [industryNames, customerTypeNames, customerSizeNames, customerNatureNames] = await Promise.all([
+      this.industryNames(workspaceId),
+      this.customerTypeNames(workspaceId),
+      this.customerSizeNames(workspaceId),
+      this.customerNatureNames(workspaceId),
+    ]);
+    return toAccount(row as Record<string, unknown>, industryNames, customerTypeNames, customerSizeNames, customerNatureNames);
   }
 
   /**
@@ -342,6 +366,27 @@ export class PrismaAccountStore implements AccountStore {
   private async industryNames(workspaceId: string): Promise<Map<string, string>> {
     const p = await this.client();
     const rows = await p.industry.findMany({ where: { workspaceId } });
+    return new Map(rows.map((r: { id: string; name: string }) => [r.id, r.name]));
+  }
+
+  /** customer_type_id -> the name it reads as. incr/0071, same shape as industryNames. */
+  private async customerTypeNames(workspaceId: string): Promise<Map<string, string>> {
+    const p = await this.client();
+    const rows = await p.customerType.findMany({ where: { workspaceId } });
+    return new Map(rows.map((r: { id: string; name: string }) => [r.id, r.name]));
+  }
+
+  /** customer_size_id -> the name it reads as. incr/0071, same shape again. */
+  private async customerSizeNames(workspaceId: string): Promise<Map<string, string>> {
+    const p = await this.client();
+    const rows = await p.customerSize.findMany({ where: { workspaceId } });
+    return new Map(rows.map((r: { id: string; name: string }) => [r.id, r.name]));
+  }
+
+  /** customer_nature_id -> the name it reads as. incr/0072, same shape again. */
+  private async customerNatureNames(workspaceId: string): Promise<Map<string, string>> {
+    const p = await this.client();
+    const rows = await p.customerNature.findMany({ where: { workspaceId } });
     return new Map(rows.map((r: { id: string; name: string }) => [r.id, r.name]));
   }
 
@@ -658,6 +703,228 @@ export class PrismaAccountStore implements AccountStore {
     return p.account.count({ where: { workspaceId, industryId, deletedAt: null } });
   }
 
+  /* --- 客户类型 / 客户规模 (incr/0071) ---------------------------------------
+     Same five verbs, same assertWritable guard, as 行业 above. */
+
+  async listCustomerTypes(workspaceId: string): Promise<CustomerTypeRecord[]> {
+    const p = await this.client();
+    const rows = await p.customerType.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { customerTypeCode: "asc" }],
+    });
+    return rows.map((r: CustomerTypeRecord) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      customerTypeCode: r.customerTypeCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertCustomerType(workspaceId: string, input: CustomerTypeDraft): Promise<CustomerTypeRecord> {
+    const p = await this.client();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(CUSTOMER_TYPE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked customer type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.customerType.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const row = await p.customerType.upsert({
+      where: { workspaceId_customerTypeCode: { workspaceId, customerTypeCode: input.customerTypeCode } },
+      update,
+      create: {
+        workspaceId,
+        customerTypeCode: input.customerTypeCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      customerTypeCode: row.customerTypeCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setCustomerTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await this.client();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(CUSTOMER_TYPE_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked customer type column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.customerType.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeCustomerType(workspaceId: string, customerTypeId: string): Promise<boolean> {
+    const p = await this.client();
+    const { count } = await p.customerType.deleteMany({ where: { workspaceId, id: customerTypeId } });
+    return count > 0;
+  }
+
+  async countAccountsByCustomerType(workspaceId: string, customerTypeId: string): Promise<number> {
+    const p = await this.client();
+    return p.account.count({ where: { workspaceId, customerTypeId, deletedAt: null } });
+  }
+
+  async listCustomerSizes(workspaceId: string): Promise<CustomerSizeRecord[]> {
+    const p = await this.client();
+    const rows = await p.customerSize.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { customerSizeCode: "asc" }],
+    });
+    return rows.map((r: CustomerSizeRecord) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      customerSizeCode: r.customerSizeCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertCustomerSize(workspaceId: string, input: CustomerSizeDraft): Promise<CustomerSizeRecord> {
+    const p = await this.client();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(CUSTOMER_SIZE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked customer size column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.customerSize.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const row = await p.customerSize.upsert({
+      where: { workspaceId_customerSizeCode: { workspaceId, customerSizeCode: input.customerSizeCode } },
+      update,
+      create: {
+        workspaceId,
+        customerSizeCode: input.customerSizeCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      customerSizeCode: row.customerSizeCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setCustomerSizeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await this.client();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(CUSTOMER_SIZE_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked customer size column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.customerSize.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeCustomerSize(workspaceId: string, customerSizeId: string): Promise<boolean> {
+    const p = await this.client();
+    const { count } = await p.customerSize.deleteMany({ where: { workspaceId, id: customerSizeId } });
+    return count > 0;
+  }
+
+  async countAccountsByCustomerSize(workspaceId: string, customerSizeId: string): Promise<number> {
+    const p = await this.client();
+    return p.account.count({ where: { workspaceId, customerSizeId, deletedAt: null } });
+  }
+
+  /* --- 客户性质 (incr/0072) --------------------------------------------------
+     The fourth vocabulary, same five verbs again. */
+
+  async listCustomerNatures(workspaceId: string): Promise<CustomerNatureRecord[]> {
+    const p = await this.client();
+    const rows = await p.customerNature.findMany({
+      where: { workspaceId },
+      orderBy: [{ sortOrder: "asc" }, { customerNatureCode: "asc" }],
+    });
+    return rows.map((r: CustomerNatureRecord) => ({
+      id: r.id,
+      workspaceId: r.workspaceId,
+      customerNatureCode: r.customerNatureCode,
+      name: r.name,
+      sortOrder: r.sortOrder,
+    }));
+  }
+
+  async upsertCustomerNature(workspaceId: string, input: CustomerNatureDraft): Promise<CustomerNatureRecord> {
+    const p = await this.client();
+    const update = { name: input.name, updatedAt: new Date() };
+    const guard = assertWritable(CUSTOMER_NATURE_TABLE, update);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked customer nature column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const tail = await p.customerNature.aggregate({ where: { workspaceId }, _max: { sortOrder: true } });
+    const row = await p.customerNature.upsert({
+      where: { workspaceId_customerNatureCode: { workspaceId, customerNatureCode: input.customerNatureCode } },
+      update,
+      create: {
+        workspaceId,
+        customerNatureCode: input.customerNatureCode,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        ...update,
+      },
+    });
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      customerNatureCode: row.customerNatureCode,
+      name: row.name,
+      sortOrder: row.sortOrder,
+    };
+  }
+
+  async setCustomerNatureOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await this.client();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(CUSTOMER_NATURE_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked customer nature column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      await p.customerNature.updateMany({ where: { workspaceId, id: o.id }, data: patch });
+    }
+  }
+
+  async removeCustomerNature(workspaceId: string, customerNatureId: string): Promise<boolean> {
+    const p = await this.client();
+    const { count } = await p.customerNature.deleteMany({ where: { workspaceId, id: customerNatureId } });
+    return count > 0;
+  }
+
+  async countAccountsByCustomerNature(workspaceId: string, customerNatureId: string): Promise<number> {
+    const p = await this.client();
+    return p.account.count({ where: { workspaceId, customerNatureId, deletedAt: null } });
+  }
+
   async healthInputs(workspaceId: string, accountId: string): Promise<HealthInputs> {
     const p = await this.client();
 
@@ -785,8 +1052,17 @@ export class PrismaAccountStore implements AccountStore {
   }
 }
 
-function toAccount(r: Record<string, unknown>, industryNames: Map<string, string>): AccountRecord {
+function toAccount(
+  r: Record<string, unknown>,
+  industryNames: Map<string, string>,
+  customerTypeNames: Map<string, string>,
+  customerSizeNames: Map<string, string>,
+  customerNatureNames: Map<string, string>,
+): AccountRecord {
   const industryId = (r.industryId as string | null) ?? null;
+  const customerTypeId = (r.customerTypeId as string | null) ?? null;
+  const customerSizeId = (r.customerSizeId as string | null) ?? null;
+  const customerNatureId = (r.customerNatureId as string | null) ?? null;
   return {
     id: String(r.id),
     workspaceId: String(r.workspaceId),
@@ -794,6 +1070,12 @@ function toAccount(r: Record<string, unknown>, industryNames: Map<string, string
     name: String(r.name),
     industryId,
     industry: industryId ? industryNames.get(industryId) ?? null : null,
+    customerTypeId,
+    customerType: customerTypeId ? customerTypeNames.get(customerTypeId) ?? null : null,
+    customerSizeId,
+    customerSize: customerSizeId ? customerSizeNames.get(customerSizeId) ?? null : null,
+    customerNatureId,
+    customerNature: customerNatureId ? customerNatureNames.get(customerNatureId) ?? null : null,
     region: (r.region as string | null) ?? null,
     province: (r.province as string | null) ?? null,
     segmentCode: (r.segmentCode as string | null) ?? null,

@@ -9,10 +9,12 @@ import { getUsageStore } from "../../usage/lib/store";
 import { verifySignature, webhookSecrets } from "../../provisioning/lib/verify";
 import { getProvisioningStore } from "../../provisioning/lib/store";
 import { getS2SConfig } from "../../platform/s2s";
-import { getAtlasConfig } from "../../agent/atlas/client";
+import { AtlasClient, getAtlasConfig } from "../../agent/atlas/client";
+import { ATLAS_TASK_ID_MAX } from "../../agent/atlas/types";
 import { getRunosConfig } from "../../agent/runos/client";
 import { getArdaConfig } from "../../platform/arda/source";
 import { COPILOT_TURN_METRIC } from "../../usage/lib/copilot-turns";
+import { makePlatformConsume } from "../../usage/lib/flush";
 
 // The probes behind GET /api/platform-check, in a module of their own: a
 // Next.js route file may export only its handlers and segment config, and the
@@ -184,6 +186,92 @@ async function checkPlane(name: string, enabled: boolean, baseUrl: string, requi
     configured: true,
     ok: reachable === true,
     detail: `${name} at ${baseUrl}: ${reachable === true ? "reachable" : reachable === false ? "UNREACHABLE" : "not probed"}; the authenticated probe arrives with the plane's credentials`,
+  };
+}
+
+/**
+ * The C3 replay probe (checklist #5): the same idempotency key sent twice; the
+ * second answer must say replayed:true and carry the FIRST event's id. This is
+ * the ONE probe that spends - at most one yucer.copilot.turns per workspace per
+ * day (the key is date-stable) - so it is a function of its own rather than
+ * folded into the GET sweep above, and every caller (the raw route, the admin
+ * 系统验证 page's server action) goes through the same idempotency key so a
+ * click from either surface on the same day hits the same, already-recorded
+ * event rather than spending twice.
+ */
+export async function runC3ReplayProbe(
+  workspaceId: string,
+): Promise<{
+  ok: boolean;
+  detail: string;
+  first: Record<string, unknown>;
+  second: Record<string, unknown>;
+}> {
+  const cfg = getPlatformClientConfig();
+  if (!cfg) throw new Error("PLATFORM_API_URL + PLATFORM_INTERNAL_AUTH_TOKEN are not set");
+  const day = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const row = {
+    workspaceId,
+    metric: COPILOT_TURN_METRIC,
+    amount: 1,
+    idempotencyKey: `probe-replay-${workspaceId}-${day}`,
+    flushed: false,
+    platformEventId: null,
+    createdAt: new Date(),
+  };
+  const consume = makePlatformConsume(cfg);
+  const first = await consume(row);
+  const second = await consume(row);
+  const ok =
+    first.status === 200 &&
+    second.status === 200 &&
+    second.body?.replayed === true &&
+    Boolean(first.body?.event_id) &&
+    first.body?.event_id === second.body?.event_id;
+  return {
+    ok,
+    detail: ok
+      ? `replay verified: event ${String(second.body?.event_id)} returned twice, second marked replayed`
+      : "replay NOT verified - compare the two raw results",
+    first: { status: first.status, ...(first.body ?? {}) },
+    second: { status: second.status, ...(second.body ?? {}) },
+  };
+}
+
+/**
+ * The Atlas live-call probe (owner, 2026-09-17): "连接并消耗一点 atlas 的
+ * token，按逻辑 atlas 会上报" - `checkPlane` above only proves the base URL
+ * answers HTTP, never that a real, authenticated chat call actually completes
+ * end to end. This makes ONE real `chat` call with the shortest reasonable
+ * prompt and a capped `maxTokens`, through the SAME `AtlasClient.chat()` every
+ * copilot turn uses - no bespoke wire path to keep honest.
+ *
+ * SPENDS REAL MONEY, deliberately not folded into the free `planes.atlas`
+ * reachability probe above. Atlas is the metering authority for its own model
+ * usage (`30-business-rules.md`'s "谁执行谁上报" exception) - yucer records no
+ * local counter for this call and never will; the usage this button causes is
+ * whatever Atlas itself reports upstream, which is the entire point of running
+ * it: proving that reporting path is alive, not just that a socket opens.
+ */
+export async function runAtlasProbe(
+  workspaceId: string,
+  tenantId: string,
+): Promise<{ ok: boolean; detail: string }> {
+  const cfg = getAtlasConfig();
+  if (!cfg.enabled) throw new Error("ATLAS_BASE_URL is not set");
+  const day = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const taskId = `diag-atlas-${workspaceId}-${day}`.slice(0, ATLAS_TASK_ID_MAX);
+  const client = new AtlasClient(cfg);
+  const res = await client.chat(
+    "chat",
+    { messages: [{ role: "user", content: "ping" }], maxTokens: 8 },
+    { workspaceId, tenantId, taskId, applicationId: "yucer-diagnostics", requestId: taskId },
+  );
+  return {
+    ok: true,
+    detail:
+      `model ${res.modelCode} answered in ${res.latencyMs}ms, ` +
+      `${res.usage.totalTokens} token(s) (prompt ${res.usage.promptTokens} + completion ${res.usage.completionTokens})`,
   };
 }
 

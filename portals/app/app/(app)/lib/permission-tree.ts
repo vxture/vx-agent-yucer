@@ -70,7 +70,7 @@ export interface PermissionNode {
 
 /** Group order: the five business groups as the sidebar lists them, then the two planes. */
 export const GROUP_ORDER: readonly string[] = [
-  "armory", "deployment", "recon", "position", "settlement", "copilot", "admin", "home", "national",
+  "armory", "deployment", "recon", "position", "settlement", "copilot", "admin", "home", "national", "enablement",
 ];
 
 /** Every 模块, in the order the sidebar's nav lists it (`FUNCTIONAL_DOMAINS`),
@@ -91,6 +91,9 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
   admin: ["admin"],
   home: ["home"],
   national: ["national"],
+  // 赋能分析 (owner, 2026-09-17) - same one-module placeholder shape as
+  // home/national, and for the same reason: it owns no object.
+  enablement: ["enablement"],
 };
 
 /** Modules with no permission point of their own yet: new nav routes that
@@ -100,7 +103,7 @@ export const GROUP_MODULES: Readonly<Record<string, readonly string[]>> = {
  *  anything of its own; they render here as an honest, permanently-empty
  *  pair rather than as something still being built toward). */
 export const PLACEHOLDER_MODULES: ReadonlySet<string> = new Set([
-  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract", "home", "national",
+  "namedAccount", "forecastRule", "funnel", "quote", "renewal", "contract", "home", "national", "enablement",
 ]);
 
 /** `(domain, page)` -> the 业务/模块/页面 it now renders under. Page "" is
@@ -165,10 +168,11 @@ const REGROUP: Readonly<Record<string, Regroup>> = {
   "copilot/playbook": { group: "copilot", module: "copilot", page: "copilot.playbook" },
 
   "admin/member": { group: "admin", module: "admin", page: "admin.member" },
-  "admin/adoption": { group: "admin", module: "admin", page: "admin.adoption" },
+  "admin/audit": { group: "admin", module: "admin", page: "admin.audit" },
   "admin/role": { group: "admin", module: "admin", page: "admin.role" },
   "admin/org": { group: "admin", module: "admin", page: "admin.org" },
   "admin/reminderthreshold": { group: "admin", module: "admin", page: "admin.reminderthreshold" },
+  "admin/diagnostics": { group: "admin", module: "admin", page: "admin.diagnostics" },
 };
 
 /** `pipeline.winloss.record` -> { module: "pipeline", page: "winloss" };

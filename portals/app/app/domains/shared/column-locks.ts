@@ -47,6 +47,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     // incr/0040 - the industry is a row in the workspace's own vocabulary now,
     // so what an account carries is the join, not the characters.
     "industry_id",
+    // incr/0071 - 客户分类's other two joins, same shape.
+    "customer_type_id",
+    "customer_size_id",
+    // incr/0072 - the fourth join.
+    "customer_nature_id",
     "region",
     // incr/0035 - the province, one granularity below region. Both writable.
     "province",
@@ -316,6 +321,11 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
   // 0040. industry_code is the anchor; the display name and the order are the
   // workspace's.
   "yucer_core.industry": ["name", "sort_order", "updated_at"],
+  // 0071. 客户分类's other two - same shape, same anchor rule.
+  "yucer_core.customer_type": ["name", "sort_order", "updated_at"],
+  "yucer_core.customer_size": ["name", "sort_order", "updated_at"],
+  // 0072. The fourth.
+  "yucer_core.customer_nature": ["name", "sort_order", "updated_at"],
   // 0043. The frame a workspace carves inside - the kind and the province.
   "yucer_core.market_scope": ["scope_kind", "scope_province", "updated_at"],
   // 0031 added the customisation half: the scenario a solution is shaped for,

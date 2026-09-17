@@ -4,6 +4,7 @@ import { verifySignature, webhookSecrets } from "../../../provisioning/lib/verif
 import { handleProvisioning, type ProvisioningEvent } from "../../../provisioning/lib/handler";
 import { getProvisioningStore } from "../../../provisioning/lib/store";
 import { getEntitlementResolver } from "../../../entitlement/resolver";
+import { sendProvisioningAck } from "../../../provisioning/lib/ack";
 
 // POST /api/webhooks/vxture (product_200 section 4, 080-rp section 4) - the
 // standard path the integration rules require (X-4: same path for every
@@ -64,6 +65,15 @@ export async function POST(req: Request): Promise<Response> {
       store: getProvisioningStore(),
       product: productCode(),
       onSubscriptionChanged: (ws) => getEntitlementResolver().invalidate(ws),
+      // C3 回执 (次要约定): yucer has no per-tenant space to build - a shared
+      // schema with row-level workspace_id isolation is ready the instant this
+      // callback runs, so "ready" is the only status this product ever has a
+      // true reason to send. sendProvisioningAck() swallows its own errors -
+      // an ack failure must not turn this already-successful delivery into a
+      // 500 the platform then redelivers.
+      onProvisioned: async (ws) => {
+        await sendProvisioningAck({ workspaceId: ws, status: "ready", deliveryId: event.id });
+      },
     });
   } catch {
     // retryable:true, and it is the honest answer - the platform WILL retry, and

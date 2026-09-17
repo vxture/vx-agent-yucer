@@ -160,6 +160,28 @@ export interface CopilotStore {
     sub: string,
     now: Date,
   ): Promise<{ judgementId: string; urgency: string; until: Date }[]>;
+
+  /**
+   * 赋能分析 (owner, 2026-09-17): decisions MADE since a point in time,
+   * counted per decider - who accepted or rejected a proposal, not who it
+   * was shown to. Filtered on `decidedAt`, which only a decided row carries.
+   */
+  countDecisionsByDeciderSince(
+    workspaceId: string,
+    status: "accepted" | "rejected",
+    since: Date,
+  ): Promise<Record<string, number>>;
+
+  /**
+   * Proposals CREATED since a point in time that ended up `expired` -
+   * workspace-wide only, not per person. An expired row records that nobody
+   * decided (planExpiry's own comment: "no decider - nobody decided, which
+   * is the whole point of this state") - there is no "who this was shown to"
+   * column on agent_action, and session_id is nullable (sweep-generated
+   * proposals carry none), so attributing a lapsed proposal to one person
+   * would be a number this data does not actually support.
+   */
+  countExpiredSince(workspaceId: string, since: Date): Promise<number>;
 }
 
 export class InMemoryCopilotStore implements CopilotStore {
@@ -369,4 +391,31 @@ export class InMemoryCopilotStore implements CopilotStore {
       .map(([k, v]) => ({ judgementId: k.slice(prefix.length), urgency: v.urgency, until: v.until }));
   }
 
+  async countDecisionsByDeciderSince(
+    workspaceId: string,
+    status: "accepted" | "rejected",
+    since: Date,
+  ): Promise<Record<string, number>> {
+    const out: Record<string, number> = {};
+    for (const a of this.actions.values()) {
+      if (
+        a.workspaceId === workspaceId &&
+        a.status === status &&
+        a.decidedBySub &&
+        a.decidedAt &&
+        a.decidedAt.getTime() >= since.getTime()
+      ) {
+        out[a.decidedBySub] = (out[a.decidedBySub] ?? 0) + 1;
+      }
+    }
+    return out;
+  }
+
+  async countExpiredSince(workspaceId: string, since: Date): Promise<number> {
+    let n = 0;
+    for (const a of this.actions.values()) {
+      if (a.workspaceId === workspaceId && a.status === "expired" && a.createdAt.getTime() >= since.getTime()) n += 1;
+    }
+    return n;
+  }
 }

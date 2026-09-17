@@ -136,7 +136,7 @@ export function GateFrame({
           the chain does not sit on the floor (80 + 56 under it). */}
       <div className="px-lg pb-4xl relative flex flex-1 flex-col items-center">
         <div className="pt-6xl pb-3xl">
-          <ProductIdentity name={SHELL_TEXT.brandName} />
+          <ProductIdentity mark={SHELL_TEXT.brandMark} tagline={SHELL_TEXT.brandTagline} />
         </div>
 
         {/* THE MIDDLE, and the only band that changes.
@@ -172,7 +172,13 @@ export function GateFrame({
  * smaller than the headline it replaced, and a small name on its own would have
  * left this band too short to read as a band at all.
  */
-function ProductIdentity({ name }: { readonly name: string }) {
+function ProductIdentity({
+  mark,
+  tagline,
+}: {
+  readonly mark: string;
+  readonly tagline: string;
+}) {
   return (
     <div className="gap-md flex items-center">
       {/* From lib/brand-assets, never a literal path: both marks are stand-ins
@@ -183,7 +189,18 @@ function ProductIdentity({ name }: { readonly name: string }) {
         aria-hidden
         className="h-14 w-auto sm:h-16"
       />
-      <p className="text-title-xl sm:text-heading-2">{name}</p>
+      {/* 聿策 ｜ 销售智能体 (owner, 2026-09-17): the name and its tagline as one
+          lockup, not one flat string - the separator is decoration and the
+          tagline carries the same weakened tone the header's own brand lockup
+          gives its second segment (ShellBrand's `tag` slot), so the two
+          identity spots agree on which part of the name is emphasised. */}
+      <p className="text-title-xl sm:text-heading-2">
+        <span>{mark}</span>
+        <span className="text-muted-foreground mx-xs" aria-hidden>
+          |
+        </span>
+        <span className="text-muted-foreground">{tagline}</span>
+      </p>
     </div>
   );
 }
