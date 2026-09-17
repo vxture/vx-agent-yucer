@@ -595,20 +595,43 @@ export const ACTIONS = {
     permission: "admin.manage",
     writes: false,
   },
-  // Adoption is workspace administration, not a sales capability: it says
-  // whether the product is being used, which is nobody's quota and everybody's
-  // problem. No feature key - withholding the answer from a tier would mean the
-  // people paying least get the least warning that they are not using it.
-  "admin.adoption.view": {
+  // 安全审计 (owner, 2026-09-17): a browsable record of CONFIGURATION changes
+  // only - who changed a role/member/permission, when, what it was. Not a
+  // business-data audit (copilot.ask rides the same append-only table for an
+  // unrelated reason, X-3 cost tracing, and this view excludes it) - workspace
+  // administration, no feature key, admin.manage rather than a new PermCode.
+  "admin.audit.view": {
     domain: "admin",
     feature: null,
     permission: "admin.manage",
     writes: false,
   },
+  // 系统验证 > 平台对接 (owner, 2026-09-17): read the nine C1/C2/C3 probes
+  // (app/api/platform-check/check.ts) inside the app shell instead of only at
+  // the pre-shell /(demo)/platform-check bootstrap route. Workspace
+  // administration, no feature key - same reasoning as every other admin.*
+  // read.
+  "admin.diagnostics.view": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: false,
+  },
+  // The ONE probe that spends (checklist #5, C3 replay) is gated separately
+  // from viewing the page - it consumes one real yucer.copilot.turns unit
+  // against the workspace's quota, at most once a day, and "may see this page"
+  // should not silently double as "may spend against our quota". Same split
+  // as catalog.write / catalog.price.
+  "admin.diagnostics.probe": {
+    domain: "admin",
+    feature: null,
+    permission: "admin.manage",
+    writes: true,
+  },
   // 提醒阈值 (incr/0065-0066): how many days of silence count as quiet/stale,
   // a decision-chain contact's warmth window, and how early a renewal
   // surfaces. All three are workspace administration, not a sales capability
-  // - same reasoning as admin.adoption.view - so no feature key, and view/
+  // - same reasoning as admin.audit.view - so no feature key, and view/
   // manage share admin.manage rather than minting a new PermCode the way
   // pipeline.opportunityConfig did (that one existed to replace six PAID-TIER
   // gates; these three were never tier-gated to begin with).

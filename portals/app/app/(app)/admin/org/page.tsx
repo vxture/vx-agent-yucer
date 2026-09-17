@@ -5,11 +5,12 @@ import { getMessages } from "../../lib/i18n/server";
 import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { listWorkspaceMembers } from "../../../authz/admin";
+import { listRoles } from "../../../authz/roles";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import { listOrgMembers, listOrgTemplates, listOrgUnits, listTerritories } from "../../../domains/planning/service";
 import { REGION_AWARE_ORG_TEMPLATES, effectiveTerritoryIds, territoriesWorkedBy } from "../../../domains/planning/lib/org";
 import { listCarves, listMarketDivisions } from "../../../domains/account/service";
-import { OrgPanel, type OrgUnitRow } from "../../components/org-panel";
+import { OrgPanel, type OrgMemberSummary, type OrgUnitRow } from "../../components/org-panel";
 import { OrgTemplateReset } from "../../components/org-template-reset";
 import { NewEntryLink } from "../../components/form-page";
 import { Tag } from "../../components/tag";
@@ -42,11 +43,15 @@ export default async function OrgPage() {
   const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
   const planning = { ...base, store: getPlanningStore() };
   const account = { ...base, store: session.stores.account() };
-  const [units, templates, placements, members, territories, carves, divisions] = await Promise.all([
+  const authz = { ...base, store: getAuthzStore() };
+  const [units, templates, placements, memberRecords, roles, territories, carves, divisions] = await Promise.all([
     listOrgUnits(planning),
     listOrgTemplates(planning),
     listOrgMembers(planning),
-    listWorkspaceMembers({ ...base, store: getAuthzStore() }),
+    listWorkspaceMembers(authz),
+    // 从组织视角展示用户角色 (owner, 2026-09-16): role CODES already ride on
+    // MemberRecord.roles; this is only for their NAMES.
+    listRoles(authz),
     // The other side of the joint (0052), behind planning.territory.view; a
     // reader without it sees the column say 无区域 rather than a wrong count.
     listTerritories(planning),
@@ -61,7 +66,7 @@ export default async function OrgPage() {
   }
   const editable = can(session.authz, session.entitlement, "admin.org.upsert", "ui").allowed;
   // The leader's NAME, off the member list - the unit stores a sub.
-  const nameOf = new Map((members.ok ? members.value : []).map((m) => [m.sub, m.displayName ?? m.sub]));
+  const nameOf = new Map((memberRecords.ok ? memberRecords.value : []).map((m) => [m.sub, m.displayName ?? m.sub]));
   const childCount = new Map<string, number>();
   for (const u of units.value) if (u.parentId) childCount.set(u.parentId, (childCount.get(u.parentId) ?? 0) + 1);
   // 从业务视角需要实时数据 (owner, 2026-09-11: 可以关联失效，但是不能是错的
@@ -124,12 +129,18 @@ export default async function OrgPage() {
     };
   });
   const placed = rows.reduce((n, r) => n + r.members, 0);
-  // Who is in each unit, by name - what the 单位详情 drawer answers.
-  const unitMembers: Record<string, string[]> = {};
-  // A person in two units is listed under both (0053).
-  for (const [sub, unitIds] of placements.ok ? placements.value : new Map<string, string[]>()) {
-    for (const unitId of unitIds) (unitMembers[unitId] ??= []).push(nameOf.get(sub) ?? sub);
-  }
+  // 查看成员/添加成员 (owner, 2026-09-16): the roster both drawers need - who
+  // somebody is, which unit id(s) they are placed in (0053: several, one, or
+  // none), and which role(s) they hold, by name (auxiliary, shown on the
+  // right - the same pairing role-panel.tsx shows org units on).
+  const roleNameByCode = new Map((roles.ok ? roles.value : []).map((r) => [r.code, r.name]));
+  const placementsOf = placements.ok ? placements.value : new Map<string, string[]>();
+  const memberRoster: OrgMemberSummary[] = (memberRecords.ok ? memberRecords.value : []).map((m) => ({
+    sub: m.sub,
+    name: m.displayName ?? m.sub,
+    unitIds: placementsOf.get(m.sub) ?? [],
+    roleNames: m.roles.map((code) => roleNameByCode.get(code) ?? code),
+  }));
 
   return (
     <ViewLayout>
@@ -167,7 +178,7 @@ export default async function OrgPage() {
           ) : null
         }
       />
-      <OrgPanel rows={rows} editable={editable} unitMembers={unitMembers} />
+      <OrgPanel rows={rows} editable={editable} members={memberRoster} />
     </ViewLayout>
   );
 }

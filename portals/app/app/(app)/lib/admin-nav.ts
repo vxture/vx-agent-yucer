@@ -101,10 +101,15 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          /catalog before, which is how a settings page ends up somewhere
          nobody looks for settings. */
       { key: "product", href: "/admin/product", icon: "cube", action: "catalog.product.view" },
-      /* 行业分类 (incr/0040). The one vocabulary in this original trio that
-         stays its own item: it decides how customers are filed, which is a
-         D4 concern rather than a D6 one, and belongs beside the customer list
-         it governs rather than the pipeline it does not. */
+      /* 客户分类 (incr/0040, grown to four vocabularies by incr/0071-0072; renamed
+         from 行业分类, owner 2026-09-16). 行业/客户类型/客户规模/客户性质 all
+         answer the same question - how is a customer filed - which is a D4
+         concern rather than a D6 one, and belongs beside the customer list it
+         governs rather than the pipeline it does not. Same reasoning that kept
+         行业分类 its own item before the other three joined it: bundling is
+         right, a second nav entry would fragment four vocabularies that are
+         the same kind of fact about the same object. Route unchanged
+         (`/admin/industry`) - the label renamed, not the address. */
       { key: "industry", href: "/admin/industry", icon: "buildings", action: "account.view" },
       /* 提醒阈值 (incr/0065-0066). Found by the same systematic pass that
          unified /admin/opportunity: QUIET_DAYS/STALE_DAYS (judgement.ts) and
@@ -115,25 +120,43 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
          three cross account/delivery/the home feed, none of which is
          "opportunity", so a dedicated item keeps both pages' names honest. */
       { key: "reminderThreshold", href: "/admin/reminder", icon: "bell", action: "admin.reminderthreshold.view" },
-    ],
-  },
-  {
-    // 运行状况 - whether the thing is actually being used, and what was done.
-    key: "ops",
-    items: [
-      { key: "adoption", href: "/admin/adoption", icon: "chart-bar", action: "admin.adoption.view" },
-      // 操作审计. PLANNED. The trail exists in the data - agent_action carries
-      // the copilot's proposals with decided_by_sub, and four tables are
-      // append-only by grant - but nothing reads it back as a record of who
-      // decided what.
-      { key: "audit", href: null, icon: "clipboard", action: null },
       // 待迁路由 (owner, 2026-09-11: 盘点所有未在页面体现的路由，做一个临时
       // 域，先挂到里面 - 标记：待迁移) - not a 6th functional domain (that
       // count is test-locked at 5), just a holding page under admin's own
       // menu for whatever page currently has no entry point anywhere else.
       // Gated the same as the plainest admin reads (admin.member.view) - it
-      // names no sensitive data, only which routes exist.
+      // names no sensitive data, only which routes exist. RELOCATED here
+      // (owner, 2026-09-17) from the now-deleted 运行状况 group: 使用分析,
+      // that group's other occupant, was rejected outright ("这些是分析吗，
+      // 这是统计一下，页面到处都有，还要专门分析") and deleted rather than
+      // reworked a third time - see 赋能分析, the (screen) page that replaced
+      // its per-user AI-usage question. 待迁路由 is unrelated to either and
+      // still points at a real route, so it moved rather than being dropped;
+      // 业务参数 is the last remaining general group, a reasonable resting
+      // place for an otherwise homeless page.
       { key: "pendingMigration", href: "/admin/migration", icon: "archive", action: "admin.member.view" },
+    ],
+  },
+  {
+    // 高级管理 (owner, 2026-09-17: merged from two separate groups into one).
+    // Both items answer "is something wrong, and where do I check" rather
+    // than day-to-day setup, which is why they are last and together:
+    //
+    // 安全审计 - configuration changes only, never business data ("记录对配置
+    // 的操作。不涉及业务操作...系统被改了，要知道谁改的，什么时间，改了
+    // 什么"). Replaces the old placeholder 操作审计 entry (href: null) with a
+    // real, browsable, filtered log - see components/audit-roster.tsx and
+    // admin/audit/page.tsx.
+    //
+    // 系统验证 - is our own end of the platform connection actually working
+    // (C1/C2/C3), not "who changed what". Built as named sections
+    // (diagnostics-panel.tsx) with one today (平台对接), so a second kind of
+    // system verification joins as a new SECTION on that page, not a new
+    // group here.
+    key: "advanced",
+    items: [
+      { key: "audit", href: "/admin/audit", icon: "clipboard", action: "admin.audit.view" },
+      { key: "diagnostics", href: "/admin/diagnostics", icon: "plugs-connected", action: "admin.diagnostics.view" },
     ],
   },
 ];

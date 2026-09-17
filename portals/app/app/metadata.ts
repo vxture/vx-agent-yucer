@@ -12,7 +12,7 @@ import { PRODUCT_MARK_SRC, PRODUCT_MARK_PNG_SRC } from "./(app)/lib/brand-assets
 // THE TAB TITLE IS THE BRAND'S OWN SPOKEN NAME (SHELL_TEXT.brandName), NOT
 // BRAND.displayName (2026-09-16). This shipped once reading BRAND.displayName
 // ("Yucer") - the internal, package-scope constant - while the page's own
-// header renders SHELL_TEXT.brandName ("禹策销售智能体" / "Yucer Sales
+// header renders SHELL_TEXT.brandName ("聿策销售智能体" / "Yucer Sales
 // Agent"), so the tab said something the product never says about itself
 // anywhere a reader can see. Locale-aware for the same reason `lang` on
 // <html> is (layout.tsx's own comment): a Chinese reader's tab should not say

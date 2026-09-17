@@ -1,7 +1,5 @@
 "use client";
 
-import { BRAND } from "@yucer/shared/brand";
-
 import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -38,6 +36,7 @@ import type { BoardModuleCard, BoardSection } from "../lib/board";
 import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
+import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -217,7 +216,7 @@ export function AppShell({
    * second one wins by definition: you are here because you chose this object.
    * The width it frees is a consequence, not the reason.
    *
-   * Named routes rather than a pattern: /admin/members and /admin/adoption are
+   * Named routes rather than a pattern: /admin/members and /admin/audit are
    * two segments deep and are NOT detail pages, they are first-level pages that
    * happen to live under a prefix. A rule keyed on segment count would have
    * stripped the board from them and been wrong in a way nobody would notice
@@ -319,11 +318,17 @@ export function AppShell({
        and the centre's top matches the flanks' or its first line starts above
        theirs, which reads as a misalignment rather than as a margin.
 
-       THE BOTTOM IS pb-6xl (80px) IN ALL THREE, which is the DS's own safe
-       area and its stated reason: scrolled to the end, the last row should not
-       sit against the bottom of the viewport. Each zone owns its own scroll
-       here, so each needs its own - a safe area on the page would not help a
-       flank that scrolls independently of it.
+       THE BOTTOM SAFE AREA BELONGS INSIDE THE SCROLLING ELEMENT, ON EVERY
+       ZONE THAT SCROLLS (corrected 2026-09-17: the nav flank had none - the
+       centre's own pb-2xl below is the reference this followed). The point of
+       the padding is that scrolling to the end still reaches the true bottom,
+       with the last row landing a safe distance short of the viewport edge -
+       not a shorter scrollable box. Padding on a wrapper OUTSIDE the
+       overflow-y-auto element does the opposite: it shrinks how far the zone
+       can scroll, which reads as the list being cut off before its own end.
+       Each zone owns its own scroll, so each needs its own copy of this -  a
+       safe area on the page would not help a flank that scrolls independently
+       of it.
 
        Each flank is flush on the side facing the centre, so its cards reach the
        boundary of their own zone instead of stopping short of it. The standoff
@@ -390,25 +395,48 @@ export function AppShell({
                 upgradeHref={upgradeHref}
               />
 
-              {/* (2)(3) Logo and product name. ShellBrand draws them as one
-                lockup rather than as an image beside a word - the tag slot is
-                the build label, which is part of the identity of what you are
-                looking at, not a separate line of text. */}
-              {/* The mark, SERVED FROM OUR OWN public/. The DS ships the
+              {/* (2)(3) Two logos, then the name: platform mark | product
+                  mark, 聿策 销售智能体. ShellBrandProps only has one `logoSrc`
+                  slot, so the platform mark rides that slot as before and the
+                  product mark moves into `label` alongside the name - `label`
+                  takes any ReactNode, not just text, and that is the only DS
+                  seam wide enough for a second image without hand-rolling a
+                  new lockup component (CLAUDE.md: DS elements only, extend via
+                  the props they expose). */}
+              {/* The marks, SERVED FROM OUR OWN public/. The DS ships the
                   master under assets/ but deliberately does not export it, and
                   its README says why: "运行时应用把需要的资产拷进自己的
                   public/assets/... 自行伺服,不做跨包静态文件假设". Copied in,
                   not deep-imported past the package's exports map. */}
-              {/* THE LOCKUP (owner, 2026-09-10): the product's Chinese name,
-                  and under it the product code as the platform knows it -
-                  the build label that used to sit there is on the status
-                  page, where a bug report goes to read it. */}
+              {/* THE LOCKUP (owner, 2026-09-17, revised): 销售智能体 no longer
+                  rides ShellBrand's `tag` slot - that slot's fixed size/tone
+                  wasn't the point, being able to tune the tagline's own size
+                  and colour independently of 聿策 was, so it is now a plain
+                  styled span inside `label` instead. The raw product code
+                  ("yucer") stays gone - see status page for where a bug report
+                  still finds it. */}
               <ShellBrand
                 href="/"
                 logoSrc="/assets/brand/vxture-logo-icon.svg"
                 logoAlt={HEADER_TEXT.logoAlt}
-                label={SHELL_TEXT.brandName}
-                tag={HEADER_TEXT.productCode(BRAND.productCode)}
+                label={
+                  <span className="gap-xs inline-flex items-center">
+                    <Separator orientation="vertical" className="h-control-xs" />
+                    <img
+                      src={PRODUCT_MARK_SRC}
+                      alt=""
+                      aria-hidden
+                      className="h-6 w-6"
+                    />
+                    <span>{SHELL_TEXT.brandMark}</span>
+                    {/* SAME SIZE AS 聿策 (owner, 2026-09-17): text-body-sm read
+                        too small next to it. Colour still carries the
+                        distinction - gap-xs above is the only spacing. */}
+                    <span className="text-muted-foreground">
+                      {SHELL_TEXT.brandTagline}
+                    </span>
+                  </span>
+                }
               />
 
               {/* (4) THE VERSION IS THE SUBSCRIPTION (owner, 2026-09-10): the
@@ -688,9 +716,15 @@ export function AppShell({
       ) : (
       <div id={SHELL_BODY_ID} className="flex h-full min-h-0 gap-xl p-lg">
         {/* LEFT - ours. Cards that state where things stand; opening one
-            navigates, but that is a consequence of the card, not its purpose. */}
+            navigates, but that is a consequence of the card, not its purpose.
+            pb-2xl MIRRORS THE CENTRE'S OWN (owner, 2026-09-17 fix): this pane
+            was scrolling with none, so its last card sat flush against the
+            zone's bottom edge - reading as cut off rather than as the end of
+            the list. The padding lives on this overflow-y-auto element, not
+            on a wrapper around it, so it scrolls INTO view as trailing space
+            rather than shrinking how far the pane can scroll. */}
         {boardVisible ? (
-          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto">
+          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
             <NavBoard
               sections={board}
               modules={boardModules}
@@ -712,9 +746,11 @@ export function AppShell({
           {children}
         </div>
 
-        {/* RIGHT - the agent, and what it is looking at. */}
+        {/* RIGHT - the agent, and what it is looking at. Same pb-2xl fix as
+            the left flank - this pane scrolls independently too, so it needs
+            its own copy of the safe area rather than inheriting the centre's. */}
         {deckVisible ? (
-          <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto">
+          <aside className="w-(--vx-pane-action) min-h-0 shrink-0 overflow-y-auto pb-2xl">
             {deck}
           </aside>
         ) : null}

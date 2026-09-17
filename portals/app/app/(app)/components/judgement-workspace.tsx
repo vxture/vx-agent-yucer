@@ -245,7 +245,7 @@ function Engagement({
       ? `/account/${j.subjectId}`
       : j.subjectType === "opportunity"
         ? `/pipeline/${j.subjectId}`
-        : "/admin/adoption";
+        : "/";
 
   return (
     // The Collapsible ROOT wraps the whole panel so the trigger can sit in the
@@ -330,8 +330,10 @@ function Engagement({
           <Stack gap="xs" className="ml-auto flex-row flex-wrap items-center">
             <Button size="sm" asChild>
               {/* The team judgement is not an account, so it does not open a
-              position - it opens the adoption board. Sending it to the same
-              label would name the destination wrongly. */}
+              position - and its own reading has no page any more (使用分析
+              was deleted, owner 2026-09-17). It falls back to home rather
+              than to nothing. Sending it to the same label as an account or
+              opportunity would still name the destination wrongly. */}
               <Link href={href}>
                 {j.subjectType === "team"
                   ? HOME_TEXT.openTeam

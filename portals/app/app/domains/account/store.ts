@@ -23,6 +23,9 @@ import type { AccountStatus, ContactNode, DecisionRole, ProjectHealth, RelationE
 import { asc, by, desc } from "../shared/order";
 import type { ContactDraft } from "./lib/contact";
 import type { IndustryDraft } from "./lib/industry-vocab";
+import type { CustomerTypeDraft } from "./lib/customer-type";
+import type { CustomerSizeDraft } from "./lib/customer-size";
+import type { CustomerNatureDraft } from "./lib/customer-nature";
 
 export interface AccountRecord {
   id: string;
@@ -47,6 +50,18 @@ export interface AccountRecord {
    * with nothing to compare.
    */
   industry: string | null;
+  /**
+   * incr/0071. The other two joins of 客户分类, same resolved-on-read shape
+   * as `industry`/`industryId` above: the id is the column, the name is
+   * derived, and the patch takes the id.
+   */
+  customerTypeId: string | null;
+  customerType: string | null;
+  customerSizeId: string | null;
+  customerSize: string | null;
+  /** incr/0072. The fourth join - what kind of organisation this is. */
+  customerNatureId: string | null;
+  customerNature: string | null;
   region: string | null;
   /**
    * incr/0035. The provincial-level division - one granularity below `region`.
@@ -193,6 +208,33 @@ export interface IndustryRecord {
   sortOrder: number;
 }
 
+/** 客户类型 - incr/0071, same shape as IndustryRecord. */
+export interface CustomerTypeRecord {
+  id: string;
+  workspaceId: string;
+  customerTypeCode: string;
+  name: string;
+  sortOrder: number;
+}
+
+/** 客户规模 - incr/0071, same shape again. */
+export interface CustomerSizeRecord {
+  id: string;
+  workspaceId: string;
+  customerSizeCode: string;
+  name: string;
+  sortOrder: number;
+}
+
+/** 客户性质 - incr/0072, same shape again. */
+export interface CustomerNatureRecord {
+  id: string;
+  workspaceId: string;
+  customerNatureCode: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface AccountStore {
   listAccounts(workspaceId: string, filter?: AccountFilter): Promise<AccountRecord[]>;
   /**
@@ -292,10 +334,15 @@ export interface AccountStore {
     // incr/0025. The column lock allows all four; a patch type that did not
     // would repeat the tier defect noted above, where the column existed, the
     // grant existed, and no path could set it.
+    // customerTypeId/customerSizeId joined with incr/0071, customerNatureId
+    // with incr/0072, the same way tier joined in batch 6c - the column lock
+    // allows all three; a patch type that did not would leave nothing able
+    // to set them.
     patch: Partial<
       Pick<
         AccountRecord,
-        | "name" | "industryId" | "region" | "province" | "segmentCode" | "ownerSub" | "healthScore"
+        | "name" | "industryId" | "customerTypeId" | "customerSizeId" | "customerNatureId" | "region" | "province"
+        | "segmentCode" | "ownerSub" | "healthScore"
         | "status" | "tier" | "creditCode" | "website" | "employeeCount" | "parentId"
       >
     >,
@@ -350,6 +397,38 @@ export interface AccountStore {
   ): Promise<void>;
   removeIndustry(workspaceId: string, industryId: string): Promise<boolean>;
   countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number>;
+
+  /* --- 客户类型 / 客户规模 (incr/0071) ---------------------------------------
+     客户分类's other two vocabularies, same five verbs each, same reasoning
+     as 行业 above - independent of it and of each other. */
+  listCustomerTypes(workspaceId: string): Promise<CustomerTypeRecord[]>;
+  upsertCustomerType(workspaceId: string, input: CustomerTypeDraft): Promise<CustomerTypeRecord>;
+  setCustomerTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeCustomerType(workspaceId: string, customerTypeId: string): Promise<boolean>;
+  countAccountsByCustomerType(workspaceId: string, customerTypeId: string): Promise<number>;
+
+  listCustomerSizes(workspaceId: string): Promise<CustomerSizeRecord[]>;
+  upsertCustomerSize(workspaceId: string, input: CustomerSizeDraft): Promise<CustomerSizeRecord>;
+  setCustomerSizeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeCustomerSize(workspaceId: string, customerSizeId: string): Promise<boolean>;
+  countAccountsByCustomerSize(workspaceId: string, customerSizeId: string): Promise<number>;
+
+  /* --- 客户性质 (incr/0072) --------------------------------------------------
+     The fourth of 客户分类's vocabularies, same five verbs again. */
+  listCustomerNatures(workspaceId: string): Promise<CustomerNatureRecord[]>;
+  upsertCustomerNature(workspaceId: string, input: CustomerNatureDraft): Promise<CustomerNatureRecord>;
+  setCustomerNatureOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
+  removeCustomerNature(workspaceId: string, customerNatureId: string): Promise<boolean>;
+  countAccountsByCustomerNature(workspaceId: string, customerNatureId: string): Promise<number>;
 }
 
 export class InMemoryAccountStore implements AccountStore {
@@ -531,6 +610,10 @@ export class InMemoryAccountStore implements AccountStore {
   /* incr/0040. The workspace's industry vocabulary, which the database holds
      in yucer_core.industry. */
   private industries: IndustryRecord[] = [];
+  /* incr/0071. 客户分类's other two vocabularies. */
+  private customerTypes: CustomerTypeRecord[] = [];
+  private customerSizes: CustomerSizeRecord[] = [];
+  private customerNatures: CustomerNatureRecord[] = [];
   private contacts: ContactRecord[] = [];
   private relations: Array<RelationEdge & { workspaceId: string; accountId: string }> = [];
   private inputs = new Map<string, HealthInputs>();
@@ -612,11 +695,25 @@ export class InMemoryAccountStore implements AccountStore {
    * of Postgres and is proved there, by the db tests, against the real FK.
    */
   private hydrate(a: AccountRecord): AccountRecord {
-    if (!a.industryId) return { ...a };
-    const row = this.industries.find(
-      (i) => i.workspaceId === a.workspaceId && i.id === a.industryId,
-    );
-    return { ...a, industry: row?.name ?? null };
+    // ONLY WHERE THE ROW CARRIES A JOIN, for each of the three independently -
+    // a fixture that seeds a bare name (industry/customerType/customerSize)
+    // and never touches the corresponding vocabulary is describing an account
+    // as it reads back, same as the industry comment above always meant; the
+    // real join is proved against Postgres by the db tests, not reproduced
+    // here as a second source of truth.
+    const industry = a.industryId
+      ? (this.industries.find((i) => i.workspaceId === a.workspaceId && i.id === a.industryId)?.name ?? null)
+      : a.industry;
+    const customerType = a.customerTypeId
+      ? (this.customerTypes.find((t) => t.workspaceId === a.workspaceId && t.id === a.customerTypeId)?.name ?? null)
+      : a.customerType;
+    const customerSize = a.customerSizeId
+      ? (this.customerSizes.find((s) => s.workspaceId === a.workspaceId && s.id === a.customerSizeId)?.name ?? null)
+      : a.customerSize;
+    const customerNature = a.customerNatureId
+      ? (this.customerNatures.find((n) => n.workspaceId === a.workspaceId && n.id === a.customerNatureId)?.name ?? null)
+      : a.customerNature;
+    return { ...a, industry, customerType, customerSize, customerNature };
   }
 
   async listAccounts(workspaceId: string, filter: AccountFilter = {}): Promise<AccountRecord[]> {
@@ -701,6 +798,150 @@ export class InMemoryAccountStore implements AccountStore {
   async countAccountsByIndustry(workspaceId: string, industryId: string): Promise<number> {
     return [...this.accounts.values()].filter(
       (a) => a.workspaceId === workspaceId && a.industryId === industryId,
+    ).length;
+  }
+
+  async listCustomerTypes(workspaceId: string): Promise<CustomerTypeRecord[]> {
+    return this.customerTypes
+      .filter((t) => t.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.customerTypeCode.localeCompare(b.customerTypeCode));
+  }
+
+  async upsertCustomerType(workspaceId: string, input: CustomerTypeDraft): Promise<CustomerTypeRecord> {
+    const at = this.customerTypes.findIndex(
+      (t) => t.workspaceId === workspaceId && t.customerTypeCode === input.customerTypeCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.customerTypes[at]!, name: input.name };
+      this.customerTypes[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.customerTypes.filter((t) => t.workspaceId === workspaceId).map((t) => t.sortOrder),
+    );
+    const row: CustomerTypeRecord = { id: `cty_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    this.customerTypes.push(row);
+    return row;
+  }
+
+  async setCustomerTypeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.customerTypes = this.customerTypes.map((t) =>
+      t.workspaceId === workspaceId && want.has(t.id) ? { ...t, sortOrder: want.get(t.id)! } : t,
+    );
+  }
+
+  async removeCustomerType(workspaceId: string, customerTypeId: string): Promise<boolean> {
+    const before = this.customerTypes.length;
+    this.customerTypes = this.customerTypes.filter(
+      (t) => !(t.workspaceId === workspaceId && t.id === customerTypeId),
+    );
+    return this.customerTypes.length < before;
+  }
+
+  async countAccountsByCustomerType(workspaceId: string, customerTypeId: string): Promise<number> {
+    return [...this.accounts.values()].filter(
+      (a) => a.workspaceId === workspaceId && a.customerTypeId === customerTypeId,
+    ).length;
+  }
+
+  async listCustomerSizes(workspaceId: string): Promise<CustomerSizeRecord[]> {
+    return this.customerSizes
+      .filter((s) => s.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.customerSizeCode.localeCompare(b.customerSizeCode));
+  }
+
+  async upsertCustomerSize(workspaceId: string, input: CustomerSizeDraft): Promise<CustomerSizeRecord> {
+    const at = this.customerSizes.findIndex(
+      (s) => s.workspaceId === workspaceId && s.customerSizeCode === input.customerSizeCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.customerSizes[at]!, name: input.name };
+      this.customerSizes[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.customerSizes.filter((s) => s.workspaceId === workspaceId).map((s) => s.sortOrder),
+    );
+    const row: CustomerSizeRecord = { id: `csz_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    this.customerSizes.push(row);
+    return row;
+  }
+
+  async setCustomerSizeOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.customerSizes = this.customerSizes.map((s) =>
+      s.workspaceId === workspaceId && want.has(s.id) ? { ...s, sortOrder: want.get(s.id)! } : s,
+    );
+  }
+
+  async removeCustomerSize(workspaceId: string, customerSizeId: string): Promise<boolean> {
+    const before = this.customerSizes.length;
+    this.customerSizes = this.customerSizes.filter(
+      (s) => !(s.workspaceId === workspaceId && s.id === customerSizeId),
+    );
+    return this.customerSizes.length < before;
+  }
+
+  async countAccountsByCustomerSize(workspaceId: string, customerSizeId: string): Promise<number> {
+    return [...this.accounts.values()].filter(
+      (a) => a.workspaceId === workspaceId && a.customerSizeId === customerSizeId,
+    ).length;
+  }
+
+  async listCustomerNatures(workspaceId: string): Promise<CustomerNatureRecord[]> {
+    return this.customerNatures
+      .filter((n) => n.workspaceId === workspaceId)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.customerNatureCode.localeCompare(b.customerNatureCode));
+  }
+
+  async upsertCustomerNature(workspaceId: string, input: CustomerNatureDraft): Promise<CustomerNatureRecord> {
+    const at = this.customerNatures.findIndex(
+      (n) => n.workspaceId === workspaceId && n.customerNatureCode === input.customerNatureCode,
+    );
+    if (at >= 0) {
+      const next = { ...this.customerNatures[at]!, name: input.name };
+      this.customerNatures[at] = next;
+      return next;
+    }
+    const tail = Math.max(
+      0,
+      ...this.customerNatures.filter((n) => n.workspaceId === workspaceId).map((n) => n.sortOrder),
+    );
+    const row: CustomerNatureRecord = { id: `cnt_${++this.seq}`, workspaceId, sortOrder: tail + 1, ...input };
+    this.customerNatures.push(row);
+    return row;
+  }
+
+  async setCustomerNatureOrder(
+    workspaceId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.customerNatures = this.customerNatures.map((n) =>
+      n.workspaceId === workspaceId && want.has(n.id) ? { ...n, sortOrder: want.get(n.id)! } : n,
+    );
+  }
+
+  async removeCustomerNature(workspaceId: string, customerNatureId: string): Promise<boolean> {
+    const before = this.customerNatures.length;
+    this.customerNatures = this.customerNatures.filter(
+      (n) => !(n.workspaceId === workspaceId && n.id === customerNatureId),
+    );
+    return this.customerNatures.length < before;
+  }
+
+  async countAccountsByCustomerNature(workspaceId: string, customerNatureId: string): Promise<number> {
+    return [...this.accounts.values()].filter(
+      (a) => a.workspaceId === workspaceId && a.customerNatureId === customerNatureId,
     ).length;
   }
 

@@ -52,6 +52,9 @@ import type {
   AccountFilter,
   AccountRecord,
   IndustryRecord,
+  CustomerTypeRecord,
+  CustomerSizeRecord,
+  CustomerNatureRecord,
   MarketDivisionRecord,
   AccountStore,
   AccountTier,
@@ -66,6 +69,24 @@ import {
   resolveIndustry,
   type IndustryDraft,
 } from "./lib/industry-vocab";
+import {
+  DEFAULT_CUSTOMER_TYPES,
+  planCustomerType,
+  planCustomerTypeRemoval,
+  type CustomerTypeDraft,
+} from "./lib/customer-type";
+import {
+  DEFAULT_CUSTOMER_SIZES,
+  planCustomerSize,
+  planCustomerSizeRemoval,
+  type CustomerSizeDraft,
+} from "./lib/customer-size";
+import {
+  DEFAULT_CUSTOMER_NATURES,
+  planCustomerNature,
+  planCustomerNatureRemoval,
+  type CustomerNatureDraft,
+} from "./lib/customer-nature";
 import { planMove, type MoveDirection } from "../catalog/lib/lifecycle";
 
 export interface AccountContext {
@@ -505,6 +526,253 @@ export async function removeIndustry(
 
   const removed = await ctx.store.removeIndustry(ctx.workspaceId, input.industryId);
   if (!removed) return fail(violation("not_found", "no such industry", "industryId"));
+  return ok(true);
+}
+
+/* ---------------------------------------------------------------------------
+ * 客户类型 - 客户分类's second vocabulary (incr/0071). Same five verbs, same
+ * gates, same first-contact seeding as 行业 above - independent of it.
+ * ------------------------------------------------------------------------ */
+
+export async function listCustomerTypes(
+  ctx: AccountContext,
+): Promise<RuleResult<CustomerTypeRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let rows = await ctx.store.listCustomerTypes(ctx.workspaceId);
+  if (rows.length === 0) {
+    for (const d of DEFAULT_CUSTOMER_TYPES) {
+      await ctx.store.upsertCustomerType(ctx.workspaceId, { ...d });
+    }
+    rows = await ctx.store.listCustomerTypes(ctx.workspaceId);
+  }
+  return ok(rows);
+}
+
+export async function customerTypeUsage(
+  ctx: AccountContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCustomerTypes(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    out[r.id] = await ctx.store.countAccountsByCustomerType(ctx.workspaceId, r.id);
+  }
+  return ok(out);
+}
+
+export async function upsertCustomerType(
+  ctx: AccountContext,
+  input: CustomerTypeDraft,
+): Promise<RuleResult<CustomerTypeRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planCustomerType(input);
+  if (!plan.ok) return plan as RuleResult<CustomerTypeRecord>;
+
+  return ok(await ctx.store.upsertCustomerType(ctx.workspaceId, plan.value));
+}
+
+export async function moveCustomerType(
+  ctx: AccountContext,
+  input: { customerTypeId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCustomerTypes(ctx.workspaceId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.customerTypeId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setCustomerTypeOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+export async function removeCustomerType(
+  ctx: AccountContext,
+  input: { customerTypeId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countAccountsByCustomerType(ctx.workspaceId, input.customerTypeId);
+  const plan = planCustomerTypeRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeCustomerType(ctx.workspaceId, input.customerTypeId);
+  if (!removed) return fail(violation("not_found", "no such customer type", "customerTypeId"));
+  return ok(true);
+}
+
+/* ---------------------------------------------------------------------------
+ * 客户规模 - 客户分类's third vocabulary (incr/0071). Same shape again.
+ * ------------------------------------------------------------------------ */
+
+export async function listCustomerSizes(
+  ctx: AccountContext,
+): Promise<RuleResult<CustomerSizeRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let rows = await ctx.store.listCustomerSizes(ctx.workspaceId);
+  if (rows.length === 0) {
+    for (const d of DEFAULT_CUSTOMER_SIZES) {
+      await ctx.store.upsertCustomerSize(ctx.workspaceId, { ...d });
+    }
+    rows = await ctx.store.listCustomerSizes(ctx.workspaceId);
+  }
+  return ok(rows);
+}
+
+export async function customerSizeUsage(
+  ctx: AccountContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCustomerSizes(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    out[r.id] = await ctx.store.countAccountsByCustomerSize(ctx.workspaceId, r.id);
+  }
+  return ok(out);
+}
+
+export async function upsertCustomerSize(
+  ctx: AccountContext,
+  input: CustomerSizeDraft,
+): Promise<RuleResult<CustomerSizeRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planCustomerSize(input);
+  if (!plan.ok) return plan as RuleResult<CustomerSizeRecord>;
+
+  return ok(await ctx.store.upsertCustomerSize(ctx.workspaceId, plan.value));
+}
+
+export async function moveCustomerSize(
+  ctx: AccountContext,
+  input: { customerSizeId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCustomerSizes(ctx.workspaceId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.customerSizeId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setCustomerSizeOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+export async function removeCustomerSize(
+  ctx: AccountContext,
+  input: { customerSizeId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countAccountsByCustomerSize(ctx.workspaceId, input.customerSizeId);
+  const plan = planCustomerSizeRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeCustomerSize(ctx.workspaceId, input.customerSizeId);
+  if (!removed) return fail(violation("not_found", "no such customer size", "customerSizeId"));
+  return ok(true);
+}
+
+/* ---------------------------------------------------------------------------
+ * 客户性质 - 客户分类's fourth vocabulary (incr/0072). Same shape again.
+ * ------------------------------------------------------------------------ */
+
+export async function listCustomerNatures(
+  ctx: AccountContext,
+): Promise<RuleResult<CustomerNatureRecord[]>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  let rows = await ctx.store.listCustomerNatures(ctx.workspaceId);
+  if (rows.length === 0) {
+    for (const d of DEFAULT_CUSTOMER_NATURES) {
+      await ctx.store.upsertCustomerNature(ctx.workspaceId, { ...d });
+    }
+    rows = await ctx.store.listCustomerNatures(ctx.workspaceId);
+  }
+  return ok(rows);
+}
+
+export async function customerNatureUsage(
+  ctx: AccountContext,
+): Promise<RuleResult<Record<string, number>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCustomerNatures(ctx.workspaceId);
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    out[r.id] = await ctx.store.countAccountsByCustomerNature(ctx.workspaceId, r.id);
+  }
+  return ok(out);
+}
+
+export async function upsertCustomerNature(
+  ctx: AccountContext,
+  input: CustomerNatureDraft,
+): Promise<RuleResult<CustomerNatureRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const plan = planCustomerNature(input);
+  if (!plan.ok) return plan as RuleResult<CustomerNatureRecord>;
+
+  return ok(await ctx.store.upsertCustomerNature(ctx.workspaceId, plan.value));
+}
+
+export async function moveCustomerNature(
+  ctx: AccountContext,
+  input: { customerNatureId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCustomerNatures(ctx.workspaceId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.customerNatureId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setCustomerNatureOrder(ctx.workspaceId, plan.value);
+  return ok(true);
+}
+
+export async function removeCustomerNature(
+  ctx: AccountContext,
+  input: { customerNatureId: string },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const filed = await ctx.store.countAccountsByCustomerNature(ctx.workspaceId, input.customerNatureId);
+  const plan = planCustomerNatureRemoval(filed);
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  const removed = await ctx.store.removeCustomerNature(ctx.workspaceId, input.customerNatureId);
+  if (!removed) return fail(violation("not_found", "no such customer nature", "customerNatureId"));
   return ok(true);
 }
 

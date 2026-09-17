@@ -46,6 +46,11 @@ const ALLOWED = new Set([
   // 行业分类 (0040), the same shape a fourth time: thirteen shipped rows the
   // workspace renames and extends, seeded identically by the increment.
   "domains/account/lib/industry-vocab.ts",
+  // 客户类型 / 客户规模 (0071), 客户分类's other two vocabularies, the same
+  // shape again: five shipped rows each, seeded identically by the increment.
+  "domains/account/lib/customer-type.ts",
+  "domains/account/lib/customer-size.ts",
+  "domains/account/lib/customer-nature.ts",
   // 商机阶段 (0057), the same shape again: seven shipped rows a workspace
   // renames, reorders, re-prices and extends, seeded identically by the
   // increment - these were four scattered module constants in stage.ts

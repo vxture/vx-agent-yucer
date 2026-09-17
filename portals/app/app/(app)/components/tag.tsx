@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StatusBadge, type IconName, type StatusBadgeTone } from "@vxture/design-ui";
+import { StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type IconName, type StatusBadgeTone } from "@vxture/design-ui";
 
 // 标签 - a badge that may be neutral, which is every badge in this product
 // except the ones that are always coloured.
@@ -63,5 +63,34 @@ export function CountCircle({ count }: { readonly count: number }) {
     <span className="bg-muted text-muted-foreground inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full px-[0.1875rem] text-[0.625rem] font-semibold leading-none tabular-nums">
       {count}
     </span>
+  );
+}
+
+/** 辅助信息，靠右显示 (owner, 2026-09-16: 组织/角色互相展示对方的名称列表，
+ *  多个用一行、超出裁剪) - the SAME "first name + count circle + tooltip"
+ *  composition org-panel.tsx's own 区域 column already established for
+ *  territories, reused here rather than inventing a second way to show "one
+ *  of several, with the rest one hover away". `empty` renders muted when the
+ *  list is empty (a member holding no role, or placed in no unit) - a fact
+ *  worth seeing, not a blank cell. */
+export function NameOverflowTag({
+  names,
+  empty,
+}: {
+  readonly names: readonly string[];
+  readonly empty: ReactNode;
+}) {
+  if (names.length === 0) return <span className="text-muted-foreground text-body-sm">{empty}</span>;
+  if (names.length === 1) return <Tag>{names[0]}</Tag>;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="gap-2xs inline-flex items-center">
+          <Tag>{names[0]}</Tag>
+          <CountCircle count={names.length} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{names.join(" / ")}</TooltipContent>
+    </Tooltip>
   );
 }

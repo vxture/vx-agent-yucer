@@ -216,6 +216,12 @@ export const CROSSCUTTING_MODULES: readonly DomainModule[] = [
      five-domain shape. Both entries are destinations that read ACROSS the
      domains, which is what this row is for. */
   built("national"),
+  /* 赋能分析 (owner, 2026-09-17), immediately after 销售大屏: the same
+     big-screen idiom, the same "owns no object" reasoning - it is a reading of
+     what the copilot domain already holds (who executed what through it, who
+     accepted or rejected its suggestions), not a capability domain of its
+     own. */
+  built("enablement"),
 ];
 
 /** A module resolved against one member's gates, ready to render. */

@@ -16,12 +16,12 @@ import { PRODUCT_MARK_SRC, PRODUCT_MARK_PNG_SRC } from "./(app)/lib/brand-assets
 //
 // THE FIRST VERSION OF THIS TEST asserted the title against BRAND.displayName
 // ("Yucer") - which is exactly the bug: the tab said "Yucer" while the page's
-// own header says SHELL_TEXT.brandName ("禹策销售智能体" / "Yucer Sales
+// own header says SHELL_TEXT.brandName ("聿策销售智能体" / "Yucer Sales
 // Agent"). Asserting against the wrong reference let a real mismatch ship
 // green. Assert against the dictionary instead, in both locales.
 
 test("the tab title is the brand's own spoken name (SHELL_TEXT.brandName), locale-aware", () => {
-  assert.equal(buildMetadata("zh-CN").title, "禹策销售智能体");
+  assert.equal(buildMetadata("zh-CN").title, "聿策销售智能体");
   assert.equal(buildMetadata("en-US").title, "Yucer Sales Agent");
 });
 

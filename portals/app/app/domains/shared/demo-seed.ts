@@ -1336,6 +1336,15 @@ function account(
        nowhere, so the fixture refuses it rather than writing a dangling id -
        the same refusal fillAccountField makes at runtime. */
     industryId: info.industry ? INDUSTRY_ID_BY_NAME.get(info.industry) ?? null : null,
+    // incr/0071. The demo never assigns either - every fixture account is
+    // honestly unclassified on these two, the same ordinary state as most
+    // real customers on first contact.
+    customerType: null,
+    customerTypeId: null,
+    customerSize: null,
+    customerSizeId: null,
+    customerNature: null,
+    customerNatureId: null,
     // Same reasoning as industry, and needed for the same reason: 港澳零售集团
     // writes "" for the region-derivable case, and the column and every rule
     // downstream treat a blank as unknown, not as an account with no region.

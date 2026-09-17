@@ -13,7 +13,6 @@ import { resolveNavigation, ADMIN_NAV_ENTRIES } from "../lib/navigation";
 import { ADMIN_NAV_GROUPS } from "../lib/admin-nav";
 import { getAuthzStore } from "../../authz/store";
 import { listWorkspaceMembers } from "../../authz/admin";
-import { CAPTURE_CRITERION } from "../../domains/account/lib/capture-metric";
 import { PERM_CODES } from "../../authz/catalog";
 import { listRoles } from "../../authz/roles";
 import { frameMembers, listMarketDivisions, marketScope } from "../../domains/account/service";
@@ -99,10 +98,6 @@ export default async function AdminHomePage() {
           members.value.length,
           new Set(members.value.flatMap((m) => m.roles ?? [])).size,
         );
-  const adoptionFact = ADMIN_TEXT.adoptionCriterion(
-    CAPTURE_CRITERION.windowWeeks,
-    CAPTURE_CRITERION.judgeWeeks,
-  );
   /* A LOOKUP, NOT A TERNARY. It read `e.key === "admin" ? memberFact :
      adoptionFact`, which silently gave every future card the adoption
      sentence - and the plane went from three cards to seven the next day.
@@ -118,7 +113,6 @@ export default async function AdminHomePage() {
   });
   const FACTS: Record<string, string> = {
     members: memberFact,
-    adoption: adoptionFact,
     division: divisionFact,
     roles: ADMIN_TEXT.rolesFact(roleRows.ok ? roleRows.value.length : 0, PERM_CODES.length),
   };

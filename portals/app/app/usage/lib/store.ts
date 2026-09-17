@@ -16,11 +16,28 @@ export interface UsageRow {
    * it useful for reconciling a local row against the platform's own ledger.
    */
   platformEventId: string | null;
+  /**
+   * incr/0072-era read path (使用分析, owner 2026-09-17): `local_usage.raw`
+   * has carried `created_at` since the baseline, but nothing read it back
+   * until now - every prior consumer only cared about `flushed`. Set by the
+   * database default on write; the app never sets it itself, same as
+   * `local_audit.event.occurred_at`.
+   */
+  createdAt: Date;
 }
 
 export interface UsageStore {
-  record(row: Omit<UsageRow, "flushed" | "platformEventId">): Promise<void>;
+  record(row: Omit<UsageRow, "flushed" | "platformEventId" | "createdAt">): Promise<void>;
   unflushed(limit: number): Promise<UsageRow[]>;
+  /**
+   * Total `amount` recorded for one metric since a point in time (使用分析,
+   * owner 2026-09-17) - the first true aggregate read this port has ever had.
+   * Sums rather than counts rows: `amount` is not always 1 for every metric
+   * this port could someday carry, even though it always is for
+   * yucer.copilot.turns today. Flushed and unflushed rows both count - a row
+   * not yet reported to the platform still happened.
+   */
+  sumSince(workspaceId: string, metric: string, since: Date): Promise<number>;
   /**
    * Rows, not bare keys: marking a flush also advances the per-(workspace,
    * metric) watermark in local_usage.checkpoint, and the watermark needs the
@@ -43,10 +60,10 @@ export interface UsageStore {
 export class InMemoryUsageStore implements UsageStore {
   private rows = new Map<string, UsageRow>();
 
-  async record(row: Omit<UsageRow, "flushed" | "platformEventId">): Promise<void> {
+  async record(row: Omit<UsageRow, "flushed" | "platformEventId" | "createdAt">): Promise<void> {
     // Upsert by idempotency key: a replay must not double-count.
     if (!this.rows.has(row.idempotencyKey)) {
-      this.rows.set(row.idempotencyKey, { ...row, flushed: false, platformEventId: null });
+      this.rows.set(row.idempotencyKey, { ...row, flushed: false, platformEventId: null, createdAt: new Date() });
     }
   }
   async unflushed(limit: number): Promise<UsageRow[]> {
@@ -56,6 +73,15 @@ export class InMemoryUsageStore implements UsageStore {
       if (out.length >= limit) break;
     }
     return out;
+  }
+  async sumSince(workspaceId: string, metric: string, since: Date): Promise<number> {
+    let total = 0;
+    for (const r of this.rows.values()) {
+      if (r.workspaceId === workspaceId && r.metric === metric && r.createdAt.getTime() >= since.getTime()) {
+        total += r.amount;
+      }
+    }
+    return total;
   }
   async markFlushed(
     rows: readonly Pick<UsageRow, "idempotencyKey" | "workspaceId" | "metric" | "platformEventId">[],

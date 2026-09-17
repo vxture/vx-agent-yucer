@@ -68,3 +68,59 @@ test("a correctly-signed delivery at the registered path is processed and acked 
     setProvisioningStore(null);
   }
 });
+
+test("tenant.provisioned sends the C3 ack (delivery id as idempotency key) - route wiring, not just the handler or ack.ts in isolation", async () => {
+  const store = new InMemoryProvisioningStore();
+  setProvisioningStore(store);
+  const savedEnv = { url: process.env.PLATFORM_API_URL, token: process.env.PLATFORM_INTERNAL_AUTH_TOKEN };
+  process.env.PLATFORM_API_URL = "https://platform.internal";
+  process.env.PLATFORM_INTERNAL_AUTH_TOKEN = "tok_internal";
+  const originalFetch = globalThis.fetch;
+  const acked: { url?: string; body?: Record<string, unknown> } = {};
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    acked.url = String(url);
+    acked.body = JSON.parse(init.body as string);
+    return new Response(JSON.stringify({ workspace_id: "w1", product: "yucer", acked_at: "now", replayed: false }), {
+      status: 200,
+    });
+  }) as typeof fetch;
+  try {
+    await withSecret(async () => {
+      const raw = JSON.stringify({
+        id: "d-ack-1",
+        type: "tenant.provisioned",
+        seq: 1,
+        workspace_id: "w1",
+        application: "yucer",
+      });
+      const t = Math.floor(Date.now() / 1000);
+      const res = await POST(
+        new Request("https://yucer.vxture.com/api/webhooks/vxture", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-vxture-signature": sign(SECRET, t, raw) },
+          body: raw,
+        }),
+      );
+      assert.equal(res.status, 200);
+    });
+    assert.equal(acked.url, "https://platform.internal/provisioning/ack");
+    // BRAND.productCode ("yucer"), not route.ts's own productCode() - that
+    // reads OIDC_CLIENT_ID and decides which inbound events this route
+    // accepts; the ack's `product` field comes from getPlatformClientConfig(),
+    // which is not influenced by OIDC_CLIENT_ID at all. Two different "which
+    // product" answers for two different questions.
+    assert.deepEqual(acked.body, {
+      workspace_id: "w1",
+      product: "yucer",
+      status: "ready",
+      delivery_id: "d-ack-1",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    setProvisioningStore(null);
+    if (savedEnv.url === undefined) delete process.env.PLATFORM_API_URL;
+    else process.env.PLATFORM_API_URL = savedEnv.url;
+    if (savedEnv.token === undefined) delete process.env.PLATFORM_INTERNAL_AUTH_TOKEN;
+    else process.env.PLATFORM_INTERNAL_AUTH_TOKEN = savedEnv.token;
+  }
+});

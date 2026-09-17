@@ -375,32 +375,42 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
       description={page ? undefined : text.why}
       icon={page ? undefined : icon}
     >
-      {page ? null : (
-        <FilterBar
-          count={count}
-          view={view}
-          onViewChange={(v) => {
-            setView(v);
-            setSelected([]);
-          }}
-          search={search}
-          actions={add}
-        />
-      )}
       {/* The same two constraints from outside every config table carries
           (TD-022), so they line up column for column. icon 缩进 (owner
           ruling, batch 2, 统一到 org-unit-form.tsx 的 部门设置/关联区域 同一
           个样式 - level 2, 24px icon, 不单独降级) - 一个跟标题同名同尺寸的
           隐形占位图标，让内容列跟标题文字对齐而不是跟 Section 左边缘对齐；
           没有 icon 的调用方(page 模式、或还没选图标的堆叠调用方) 这层 flex
-          退化成单子元素，布局不变。 */}
+          退化成单子元素，布局不变。
+
+          THE TOOLBAR AND THE PAGINATION FOOTER ARE INSIDE THIS INDENT TOO
+          (owner, 2026-09-16: 表格已经缩进，但是表格顶部操作行、底部翻页行
+          没有缩进 - 普遍存在). They used to sit OUTSIDE the spacer, as
+          Section's direct children beside this div, so every icon-mode
+          vocabulary page (产品配置's three, 商机配置's six, 客户分类's four,
+          ...) showed the table shifted right of its own toolbar and its own
+          pagination row by exactly the spacer's width. Moving both inside
+          fixes every one of them from this one place, rather than patching
+          each call site. */}
       <div className="gap-lg flex">
         {!page && icon ? (
           <span className="invisible shrink-0" aria-hidden="true">
             <Icon name={icon} size="lg" />
           </span>
         ) : null}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex flex-1 flex-col gap-md">
+          {page ? null : (
+            <FilterBar
+              count={count}
+              view={view}
+              onViewChange={(v) => {
+                setView(v);
+                setSelected([]);
+              }}
+              search={search}
+              actions={add}
+            />
+          )}
           {view === "cards" ? (
             <ListCardGrid>
               {pagination.pageRows.map((r) => (
@@ -462,15 +472,15 @@ export function VocabularyConfig<T extends VocabRow, E extends object>({
               />
             </div>
           )}
+          {filtered.length > 0 ? (
+            <PaginationFooter
+              pagination={pagination}
+              total={rows.length}
+              filteredTotal={filtered.length !== rows.length ? filtered.length : undefined}
+            />
+          ) : null}
         </div>
       </div>
-      {filtered.length > 0 ? (
-        <PaginationFooter
-          pagination={pagination}
-          total={rows.length}
-          filteredTotal={filtered.length !== rows.length ? filtered.length : undefined}
-        />
-      ) : null}
 
       <DialogForm
         open={dialog !== null}

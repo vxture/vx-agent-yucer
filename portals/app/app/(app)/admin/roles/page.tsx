@@ -6,6 +6,9 @@ import { can } from "../../../authz/decide";
 import { getAuthzStore } from "../../../authz/store";
 import { PERM_CODES } from "../../../authz/catalog";
 import { listPresetRoles, listRoles } from "../../../authz/roles";
+import { listWorkspaceMembers } from "../../../authz/admin";
+import { getPlanningStore } from "../../../domains/shared/registry";
+import { listOrgMembers, listOrgUnits } from "../../../domains/planning/service";
 import { RolePanel } from "../../components/role-panel";
 import { RoleReset } from "../../components/role-reset";
 import { NewEntryLink } from "../../components/form-page";
@@ -38,18 +41,37 @@ export default async function RolesPage() {
     return <EmptyState title={ADMIN_TEXT.emptyTitle} description={ADMIN_TEXT.emptyDescription} />;
   }
 
-  const ctx = {
-    workspaceId: session.workspaceId,
-    sub: session.user.sub,
-    holder: session.authz,
-    entitlement: session.entitlement,
-    store: getAuthzStore(),
-  };
-  const [roles, presets] = await Promise.all([listRoles(ctx), listPresetRoles(ctx)]);
+  const base = { workspaceId: session.workspaceId, sub: session.user.sub, holder: session.authz, entitlement: session.entitlement };
+  const ctx = { ...base, store: getAuthzStore() };
+  const planning = { ...base, store: getPlanningStore() };
+  const [roles, presets, members, placements, units] = await Promise.all([
+    listRoles(ctx),
+    listPresetRoles(ctx),
+    listWorkspaceMembers(ctx),
+    // 从角色侧展示所属组织 (owner, 2026-09-16): 组织架构的另一半 - not the
+    // permission catalogue, just who is placed where, the same read
+    // /admin/org itself makes from the authz side.
+    listOrgMembers(planning),
+    listOrgUnits(planning),
+  ]);
   if (!roles.ok) {
     return <EmptyState title={SHELL_TEXT.loadFailed} description={ROLE_TEXT.emptyWhy} />;
   }
   const rows = roles.value;
+  const unitNameById = new Map((units.ok ? units.value : []).map((u) => [u.id, u.name]));
+  const unitsOf = placements.ok ? placements.value : new Map<string, string[]>();
+  // 查看成员/关联成员 (owner, 2026-09-16): the same roster admin.member.view
+  // already lets this page's caller see, reshaped to what a role's row needs
+  // - who somebody is, which role codes they hold today, and which org
+  // unit(s) they are placed in (auxiliary, shown on the right).
+  const roster = members.ok
+    ? members.value.map((m) => ({
+        sub: m.sub,
+        name: m.displayName ?? m.sub,
+        roles: m.roles,
+        orgUnitNames: (unitsOf.get(m.sub) ?? []).map((id) => unitNameById.get(id)).filter((n): n is string => n !== undefined),
+      }))
+    : [];
   const editable = can(session.authz, session.entitlement, "admin.role.upsert", "ui").allowed;
   const custom = rows.filter((r) => !r.preset).length;
   // What 应用模版 would change, counted here so the dialog can say it.
@@ -86,7 +108,7 @@ export default async function RolesPage() {
           ) : null
         }
       />
-      <RolePanel rows={rows} total={PERM_CODES.length} editable={editable} />
+      <RolePanel rows={rows} total={PERM_CODES.length} editable={editable} members={roster} />
     </ViewLayout>
   );
 }

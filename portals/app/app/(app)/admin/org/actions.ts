@@ -5,12 +5,14 @@ import { resolveAppSession } from "../../lib/session";
 import { applyStartupPreset, type StartupPresetResult } from "../../lib/startup-preset";
 import { getPlanningStore } from "../../../domains/shared/registry";
 import {
+  listOrgMembers,
   moveOrgKind,
   moveOrgUnit,
   removeOrgKind,
   removeOrgUnit,
   reparentOrgUnit,
   saveOrgKind,
+  setMemberUnits,
   setUnitDivisions,
   upsertOrgUnit,
 } from "../../../domains/planning/service";
@@ -82,6 +84,40 @@ export async function reparentOrgUnitAction(id: string, parentId: string | null)
   if (!c) return { ok: false, error: "not_authenticated" };
   const r = await reparentOrgUnit(c, { id, parentId });
   if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/**
+ * 添加成员 - reconcile who is placed in this unit to exactly `subs`.
+ *
+ * THE SAME WANT/HELD DIFF admin/roles/actions.ts's setRoleMembersAction runs
+ * for one role's set of members, run here for one unit's set of members -
+ * but the verb underneath, setMemberUnits, REPLACES a member's whole unit set
+ * (0053: 一人可在多个组织), unlike assignRole/revokeRole's incremental grant.
+ * So a member whose membership here actually changes is re-submitted with
+ * their CURRENT full set plus or minus this one unit id - every other unit
+ * they stand in is read fresh from listOrgMembers and carried through
+ * untouched, never dropped by this drawer's own picks.
+ */
+export async function setUnitMembersAction(unitId: string, subs: string[]): Promise<Result<object>> {
+  const c = await ctx();
+  if (!c) return { ok: false, error: "not_authenticated" };
+  const placements = await listOrgMembers(c);
+  if (!placements.ok) return { ok: false, error: placements.violations[0]?.code ?? "denied" };
+
+  const want = new Set(subs);
+  const held = new Set([...placements.value.entries()].filter(([, ids]) => ids.includes(unitId)).map(([sub]) => sub));
+  const touched = new Set([...want, ...held]);
+  for (const sub of touched) {
+    const before = placements.value.get(sub) ?? [];
+    const already = before.includes(unitId);
+    const should = want.has(sub);
+    if (already === should) continue;
+    const next = should ? [...before, unitId] : before.filter((id) => id !== unitId);
+    const r = await setMemberUnits(c, { sub, unitIds: next });
+    if (!r.ok) return { ok: false, error: r.violations[0]?.code ?? "denied" };
+  }
   revalidatePath("/", "layout");
   return { ok: true };
 }

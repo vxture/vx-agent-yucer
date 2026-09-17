@@ -44,6 +44,11 @@ export type NavIcon =
   // the menu, the launcher and its own page.
   | "chart-pie-slice"
   | "puzzle"
+  // 赋能分析 (owner, 2026-09-17). Not "chart-bar" - 销售大屏 already carries
+  // that mark and the two sit next to each other on the crosscutting row; a
+  // line reads as a trend read over time, which is what per-user AI-usage
+  // analysis actually is.
+  | "chart-line"
   // Pricing. Was "currency-cny", which pinned a glyph to one currency while
   // the product ships an English dictionary; a balance is also what a floor
   // price IS - the point below which a discount needs a signature.
@@ -87,7 +92,11 @@ export type NavIcon =
   // 提醒阈值 (incr/0065-0066) - the same mark the header's own notification
   // icon uses, and for the same reason: this page decides when something
   // starts counting as worth a nudge.
-  | "bell";
+  | "bell"
+  // 系统验证 > 平台对接 (owner, 2026-09-17) - two plugs joined, which is what
+  // C1/C2/C3 verification actually checks: is this product's own end of the
+  // connection to the platform still seated.
+  | "plugs-connected";
 
 export interface NavEntry {
   /** Also the key into DOMAIN_LABEL; display text lives in the message catalog. */
@@ -184,6 +193,14 @@ export const WORK_NAV_ENTRIES: readonly NavEntry[] = [
      and refuses unless all three allow. The nav entry only decides whether the
      link is worth showing. */
   { key: "national", href: "/national", icon: "chart-bar", action: "account.view" },
+  /* 赋能分析 (owner, 2026-09-17). Same reasoning as 全国态势屏 immediately
+     above: it OWNS NO OBJECT - it is a big-screen reading of AI usage the
+     copilot domain already holds (audit's copilot.ask counts, agent_action's
+     own decisions), not a sales capability domain of its own. Gated on
+     copilot.action.view, the existing action that already gates seeing the
+     copilot's proposal queue - no new permission point for a page that only
+     reads what that one already allows reading. */
+  { key: "enablement", href: "/enablement", icon: "chart-line", action: "copilot.action.view" },
 ];
 
 /**

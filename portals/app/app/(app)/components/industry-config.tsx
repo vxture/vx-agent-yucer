@@ -5,7 +5,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { VocabularyConfig, type VocabularyResult } from "./vocabulary-config";
 import type { MoveDirection } from "../../domains/shared/ordering";
 
-// 行业分类 - the workspace's own list (incr/0040).
+// 行业分类 - 客户分类's first vocabulary (incr/0040; 客户分类 itself incr/0071).
 //
 // WHY IT IS CONFIGURED AT ALL. It was a free-text column with no list behind
 // it: 制造 on one customer and 制造业 on the next are two industries to every
@@ -17,6 +17,12 @@ import type { MoveDirection } from "../../domains/shared/ordering";
 // win/loss reason that refusal has a way out: re-file those customers and the
 // row becomes deletable. The count is on the row so the refusal is predictable
 // before it is met.
+//
+// ONE OF FOUR SECTIONS on 客户分类 now (owner, 2026-09-16), the same
+// composition 产品配置 uses for its own trio: independent mechanisms, none
+// aware of the other three, stacked on one page under one ViewHeader the
+// PAGE now owns. `icon` replaces the `page` prop this file used when 行业分类
+// was the whole page by itself.
 
 export function IndustryConfig({
   industries,
@@ -44,7 +50,7 @@ export function IndustryConfig({
       idPrefix="ind"
       errors={INDUSTRY_ERROR}
       editable={editable}
-      page={{ icon: "buildings", count: INDUSTRY_TEXT.count }}
+      icon="globe"
       text={{
         title: INDUSTRY_TEXT.configTitle,
         noun: INDUSTRY_TEXT.noun,

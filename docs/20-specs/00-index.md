@@ -14,6 +14,8 @@ yucer 的产品定义落在这一层。yucer 是面向企业市场销售的超�
 | `30-business-rules.md` | 全链路业务规则：阶段机、评分、预测、归因、人机边界 |
 | `40-capability-matrix.md` | 商业档位 x 能力（tier -> feature key），与 `capability.ts` 一一对应 |
 | `50-role-permission-catalog.md` | 产品角色/权限目录，与 `local_authz` 种子数据一一对应 |
+| `60-metering-capability-inventory.md` | 计量能力盘点（能测什么），给平台侧的对接输入，不等同于 `40-capability-matrix.md` 的计量裁定 |
+| `70-competitive-gap-analysis.md` | 对标通用 CRM / 销售情报类 / Agent 原生销售工具的功能差距梳理，按域列出差距等级与优先级 |
 
 ## 两道门的分工（不要混淆）
 

@@ -9,6 +9,8 @@ import { PrismaUsageStore } from "./prisma-store";
 // it needs Postgres to pin. The live-database half runs in db-contract via
 // adapters-prisma.db.test.ts.
 
+const FAKE_CREATED_AT = new Date("2026-09-01T00:00:00Z");
+
 function fake() {
   const calls = { upsert: [] as unknown[], update: [] as unknown[], findMany: [] as unknown[], checkpoint: [] as unknown[] };
   const client = {
@@ -25,6 +27,7 @@ function fake() {
             idempotencyKey: "k1",
             flushed: false,
             platformEventId: null,
+            createdAt: FAKE_CREATED_AT,
           },
         ];
       },
@@ -55,7 +58,10 @@ test("unflushed maps BigInt back to number and carries platformEventId", async (
   const { client } = fake();
   const rows = await new PrismaUsageStore(client).unflushed(10);
   assert.deepEqual(rows, [
-    { workspaceId: "ws_1", metric: "copilot.turns", amount: 3, idempotencyKey: "k1", flushed: false, platformEventId: null },
+    {
+      workspaceId: "ws_1", metric: "copilot.turns", amount: 3, idempotencyKey: "k1",
+      flushed: false, platformEventId: null, createdAt: FAKE_CREATED_AT,
+    },
   ]);
 });
 

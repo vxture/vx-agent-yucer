@@ -229,7 +229,13 @@ export async function captureAdoption(
 ): Promise<
   RuleResult<{ weeks: CaptureWeek[]; assessment: CaptureAssessment; touched: string[] }>
 > {
-  const gate = can(ctx.holder, ctx.entitlement, "admin.adoption.view", "data");
+  // Actioned as admin.member.view rather than a dedicated ActionId of its own
+  // (owner, 2026-09-17: /admin/adoption's own page was removed - "统计一下,
+  // 页面到处都有" - in favour of 赋能分析's per-user framing; this reading has
+  // no page of its own any more, only judgement/service.ts's team judgement
+  // still calls it). Both actions carry the same admin.manage permission and
+  // no feature key, so the gate this function enforces is unchanged.
+  const gate = can(ctx.holder, ctx.entitlement, "admin.member.view", "data");
   if (!gate.allowed) return denied(gate);
 
   const interactions = await ctx.store.listInteractions(ctx.workspaceId, {});
