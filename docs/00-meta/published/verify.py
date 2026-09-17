@@ -179,8 +179,13 @@ for key, doc_name in [('signal', None), ('delivery', None)]:
 print('== 已废弃名称 ==')
 GROUPS = dict(re.findall(r'^  (\w+): "([^"]+)",', re.search(
     r'export const DOMAIN_GROUP_LABEL[^=]*=\s*\{(.*?)\n\};', msg, re.S).group(1), re.M))
+# 战略客户 left this list on 2026-09-17: it is the LIVE module name again
+# (DOMAIN_LABEL.namedAccount), and 重点客户 took its place as the retired one.
+# A name can come back - what may not come back is a document naming the name
+# the build no longer uses, which is why the swap is done in one edit rather
+# than by dropping a row.
 RETIRED = ["兵力部署域", "火力侦察域", "战果结算域", "态势侦察", "战果闭环",
-           "价目折扣", "战略客户", "线索分配", "回款计划", "市场执行 ·", "商机侦探 ",
+           "价目折扣", "重点客户", "线索分配", "回款计划", "市场执行 ·", "商机侦探 ",
            "价格本"]
 for gen in ['doc_status.py', 'doc_arch.py', 'doc_entitle.py', 'doc_data.py', 'doc_surface.py']:
     txt = io.open(gen, encoding='utf-8').read()
