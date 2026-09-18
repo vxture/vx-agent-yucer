@@ -47,7 +47,6 @@ import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
 import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
-import { askCopilot } from "../../copilot/ask-action";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
 import { DecisionChainGraph } from "../../components/decision-chain-graph";
@@ -60,7 +59,6 @@ import {
   type ProjectMilestoneRow,
   type RevenueRow,
 } from "../../components/account-lifecycle";
-import { CopilotChat } from "../../components/copilot-chat";
 import { TheatrePlan } from "../../components/theatre-plan";
 import { DesignateAccount } from "../../components/designate-account";
 import { DEFAULT_PERIOD } from "../../lib/periods";
@@ -81,16 +79,23 @@ import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-pol
 
 // D4 account detail (owner, 2026-09-18: 客户全景视图重排).
 //
-// FOUR ZONES, not two columns: (1) the header states who this is and carries
-// the actions that act on the WHOLE relationship; (2) LEFT is the dossier -
-// facts that do not need reading, stable enough to sit still while the centre
-// is worked through; (3) CENTRE is the full chain - deals, delivery, revenue,
-// contact history - as tabs over one spine, because a reader asking "how is
-// this account doing" needs all four without four separate pages; (4) RIGHT is
-// the copilot, top (conversation) over bottom (what it has already proposed) -
-// the same split the /copilot page itself makes, reused rather than
-// reinvented, because ADR-003's rule (accept/reject only happens in the real
-// queue) has to hold in both places or it does not hold at all.
+// THREE ZONES, not four - the shell already owns the third. (1) The header
+// states who this is and carries the actions that act on the WHOLE
+// relationship. (2) LEFT is the dossier - facts that do not need reading,
+// stable enough to sit still while the centre is worked through. (3) CENTRE
+// is the full chain - deals, delivery, revenue, contact history - as tabs
+// over one spine, plus the theatre-level plan and tier call, because a
+// reader asking "how is this account doing" needs all of it without four
+// separate pages.
+//
+// THE COPILOT IS NOT A FOURTH COLUMN HERE. The shell's own right pane
+// (app-shell.tsx's `deck`, filled for this route by
+// `@deck/account/[id]/page.tsx` -> AgentPanel/AssistantDeck) is ALREADY the
+// account-scoped conversation-plus-pending-proposals panel this page would
+// otherwise duplicate. A second CopilotChat inside the page content rendered
+// two chat boxes on one screen and squeezed the real content into a
+// three-column-inside-a-three-column layout - this page defers to the
+// existing deck instead of rebuilding it.
 //
 // Health is computed WITHOUT persisting (persist: false). Opening a page is a
 // read, and a page render that writes would mean a member with only account.read
@@ -386,11 +391,11 @@ export default async function AccountDetailPage({
         </div>
       ) : null}
 
-      {/* THREE COLUMNS. xl:grid-cols-[18rem_1fr_20rem]: left is the dossier
-          (facts that hold still), centre is the lifecycle spine (the most
-          content, so it takes what is left), right is the copilot deck at
-          roughly the same width the shell's own deck already uses. */}
-      <div className="grid gap-lg xl:grid-cols-[18rem_1fr_20rem]">
+      {/* TWO COLUMNS. xl:grid-cols-[18rem_1fr]: left is the dossier (facts
+          that hold still), centre is the lifecycle spine and takes what is
+          left. The third column is the shell's own right pane - see the
+          file-level note above. */}
+      <div className="grid gap-lg xl:grid-cols-[18rem_1fr]">
 
         {/* ======== LEFT: the dossier ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
@@ -554,17 +559,6 @@ export default async function AccountDetailPage({
                 ),
               },
             ]}
-          />
-        </div>
-
-        {/* ======== RIGHT: the copilot, top over bottom ======== */}
-        <div className="flex min-w-0 flex-col gap-lg">
-          <CopilotChat
-            initialMessages={[]}
-            sessionId={null}
-            canAsk={canAsk}
-            account={{ id, name: account.name }}
-            onAsk={askCopilot}
           />
 
           <TheatrePlan proposals={planProposals} accountId={id} />
