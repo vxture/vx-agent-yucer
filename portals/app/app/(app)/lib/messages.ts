@@ -25,7 +25,7 @@ import type { SignalType } from "../../domains/signal/lib/scoring";
 import type { Stage } from "../../domains/pipeline/lib/stage";
 import type { ForecastCategory } from "../../domains/pipeline/lib/forecast";
 import type { ActionStatus } from "../../domains/copilot/lib/action";
-import type { RevenueStatus } from "../../domains/delivery/lib/revenue";
+import type { MilestoneStatus, RevenueStatus } from "../../domains/delivery/lib/revenue";
 
 export const STAGE_LABEL: Record<Stage, string> = {
   qualify: "合格判定",
@@ -59,6 +59,13 @@ export const REVENUE_STATUS_LABEL: Record<RevenueStatus, string> = {
   settled: "已回款",
   overdue: "逾期",
   written_off: "坏账",
+};
+
+export const MILESTONE_STATUS_LABEL: Record<MilestoneStatus, string> = {
+  pending: "待开始",
+  in_progress: "进行中",
+  done: "已完成",
+  missed: "已错过",
 };
 
 /** Domain navigation labels, keyed by the nav entry key. */
@@ -3610,6 +3617,13 @@ export const AGENT_ACTION_LABEL: Record<string, string> = {
 
 export const PROPOSAL_TEXT = {
   why: "参谋提出的动作，由人裁决。机器只提议，采纳与否你定（ADR-003）。",
+  // 客户详情页 (owner, 2026-09-18): 采纳/忽略不在本页内联执行——按 ADR-003，
+  // 真正的裁决只在队列页发生，这里的按钮只是把人带过去。分析仅在有理由文本
+  // 时出现：没有 rationale 就没有值得深挖的东西。
+  viewInQueue: "去队列裁决",
+  analyze: "分析",
+  analyzeQuestion: (title: string, rationale: string) =>
+    `再深入分析一下这条建议：「${title}」。理由是：${rationale}`,
   tagAwaiting: (n: number) => (n === 0 ? "没有待裁决的" : `${n} 条待裁决`),
   tagLowConfidence: (n: number) => `${n} 条把握不高`,
   title: "智能助手提案",
@@ -4080,6 +4094,31 @@ export const ACCOUNT_TEXT = {
   planEmpty: "暂无待裁决的方案",
   planEmptyWhy:
     "没有提案时不是没有问题，是还没有人问。向参谋提问会产出建议动作。",
+
+  // 单位信息 (owner, 2026-09-18: 客户详情页重排): 上级 + 下级，同一张图的两半。
+  // 上级读写已由 ACCOUNT_PARENT_TEXT/AccountParentPanel 承担，这里只加下级——
+  // 从 accountRows 按 parentId 过滤即可，不需要新的读接口。
+  orgUnitTitle: "单位信息",
+  orgUnitWhy: "这家客户在集团结构里的位置——谁在它上面，谁挂在它下面。",
+  orgUnitChildren: (n: number) => `下级单位（${n}）`,
+
+  // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
+  // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。
+  graphTitle: "决策链图谱",
+  graphWhy: (dealName: string) => `「${dealName}」的决策链——若商机未单独定义，展示客户级默认决策链`,
+  graphMissingRole: "缺失，未识别到人",
+  graphUnreachable: "经济决策人未触达",
+  graphOpen: "查看决策链图谱",
+
+  // 全链条内容的四个分区（商机/交付项目/回款/跟进记录），复用 AnalysisTabs。
+  lifecycleDeals: "商机",
+  lifecycleProjects: "交付项目",
+  lifecycleRevenue: "回款",
+  lifecycleInteractions: "跟进记录",
+  lifecycleNoMilestones: "还没有里程碑",
+  lifecycleNoInstalments: "还没有回款计划",
+  lifecycleStalledDays: (n: number) => `停留 ${n} 天`,
+
   backToList: "客户管理",
   openAccount: "打开客户",
   recompute: "重算健康度",

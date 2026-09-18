@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { EmptyState, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
@@ -32,8 +33,15 @@ export interface PlanProposal {
 
 export function TheatrePlan({
   proposals,
+  accountId,
 }: {
   readonly proposals: readonly PlanProposal[];
+  /**
+   * Where "分析" sends a reader for a deeper conversation - never an inline
+   * accept/reject (ADR-003: that only ever happens on the queue page). Both
+   * buttons here are pointers, not writes.
+   */
+  readonly accountId: string;
 }) {
   const { ACCOUNT_TEXT, PROPOSAL_TEXT } = useMessages();
 
@@ -88,6 +96,26 @@ export function TheatrePlan({
                 {p.rationale ? (
                   <p className="text-muted-foreground text-body-sm">{p.rationale}</p>
                 ) : null}
+                {/* NEITHER LINK WRITES. Both land on /copilot, where the real
+                    accept/reject queue and the full conversation live -
+                    "分析" only differs in prefilling a deeper question, and
+                    only shows up when there is a rationale worth asking about. */}
+                <div className="mt-2xs flex items-center gap-md">
+                  <Link
+                    href={`/copilot?account=${accountId}`}
+                    className="text-primary text-body-sm font-medium hover:underline"
+                  >
+                    {PROPOSAL_TEXT.viewInQueue}
+                  </Link>
+                  {p.rationale ? (
+                    <Link
+                      href={`/copilot?account=${accountId}&ask=${encodeURIComponent(PROPOSAL_TEXT.analyzeQuestion(p.title, p.rationale))}`}
+                      className="text-primary text-body-sm font-medium hover:underline"
+                    >
+                      {PROPOSAL_TEXT.analyze}
+                    </Link>
+                  ) : null}
+                </div>
               </div>
             ))}
         </div>

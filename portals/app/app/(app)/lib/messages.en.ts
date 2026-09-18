@@ -1061,6 +1061,13 @@ export const en: Dictionary = {
     written_off: "Written off",
   },
 
+  MILESTONE_STATUS_LABEL: {
+    pending: "Not started",
+    in_progress: "In progress",
+    done: "Done",
+    missed: "Missed",
+  },
+
   ASK_ABOUT_TEXT: {
     anchored: (name: string) => `This conversation is anchored to ${name}`,
     // Says what the model can and cannot see. A grounded answer that looked
@@ -3207,6 +3214,25 @@ export const en: Dictionary = {
     planEmpty: "Nothing awaiting a decision",
     planEmptyWhy:
       "No proposals is not the same as no problems - it means nobody has asked. Ask the copilot and it will propose.",
+
+    orgUnitTitle: "Org unit",
+    orgUnitWhy: "Where this customer sits in the group structure - who is above it, who reports under it.",
+    orgUnitChildren: (n: number) => `${n} sub-unit${n === 1 ? "" : "s"}`,
+
+    graphTitle: "Decision chain map",
+    graphWhy: (dealName: string) => `The decision chain for "${dealName}" - the customer's default when the deal has none of its own`,
+    graphMissingRole: "Missing - nobody identified",
+    graphUnreachable: "Economic buyer untouched",
+    graphOpen: "View decision chain map",
+
+    lifecycleDeals: "Deals",
+    lifecycleProjects: "Delivery",
+    lifecycleRevenue: "Revenue",
+    lifecycleInteractions: "Interactions",
+    lifecycleNoMilestones: "No milestones yet",
+    lifecycleNoInstalments: "No revenue schedule yet",
+    lifecycleStalledDays: (n: number) => `${n}d in stage`,
+
     backToList: "Accounts",
     openAccount: "Open the account",
     recompute: "Recompute health",
@@ -4030,6 +4056,10 @@ export const en: Dictionary = {
 
   PROPOSAL_TEXT: {
     why: "Actions the copilot proposes and a person decides on. The machine proposes; accepting is yours (ADR-003).",
+    viewInQueue: "Decide in the queue",
+    analyze: "Analyze",
+    analyzeQuestion: (title: string, rationale: string) =>
+      `Go deeper on this suggestion: "${title}". The stated reason: ${rationale}`,
     tagAwaiting: (n: number) => (n === 0 ? "Nothing awaiting you" : `${n} awaiting your call`),
     tagLowConfidence: (n: number) => `${n} low confidence`,
     detailRationale: "Full rationale",

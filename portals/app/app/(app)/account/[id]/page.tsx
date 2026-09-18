@@ -5,7 +5,6 @@ import {
 } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
 import { resolveAppSession } from "../../lib/session";
-import Link from "next/link";
 import { can } from "../../../authz/decide";
 import {
   getCopilotStore,
@@ -24,7 +23,6 @@ import {
   recomputeHealth,
 } from "../../../domains/account/service";
 import { DecisionChain } from "../../components/decision-chain";
-import { Fragment } from "react";
 import { ChainRecencyPanel } from "../../components/chain-recency";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
@@ -43,17 +41,28 @@ import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline
 import { listPipeline, listStageDefinitions } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { stageLabelFor } from "../../lib/view-model";
-import { listProjects } from "../../../domains/delivery/service";
+import { listProjects, projectView } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
 import { AccountCompleteness } from "../../components/account-completeness";
 import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
+import { askCopilot } from "../../copilot/ask-action";
 import { cachedFeed } from "../../lib/board";
-import { TheatreRoster } from "../../components/theatre-roster";
+import { OrgUnitPanel } from "../../components/org-unit-panel";
+import { DecisionChainGraph } from "../../components/decision-chain-graph";
+import { AnalysisTabs } from "../../components/analysis-tabs";
+import {
+  DealLifecyclePanel,
+  ProjectLifecyclePanel,
+  RevenueLifecyclePanel,
+  type DealLifecycleRow,
+  type ProjectMilestoneRow,
+  type RevenueRow,
+} from "../../components/account-lifecycle";
+import { CopilotChat } from "../../components/copilot-chat";
 import { TheatrePlan } from "../../components/theatre-plan";
 import { DesignateAccount } from "../../components/designate-account";
-import { AccountParentPanel } from "../../components/account-parent-panel";
 import { DEFAULT_PERIOD } from "../../lib/periods";
 import {
   designateAccountTier,
@@ -70,7 +79,18 @@ import { Tag } from "../../components/tag";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
-// D4 account detail: health with its reasons, and the decision chain.
+// D4 account detail (owner, 2026-09-18: 客户全景视图重排).
+//
+// FOUR ZONES, not two columns: (1) the header states who this is and carries
+// the actions that act on the WHOLE relationship; (2) LEFT is the dossier -
+// facts that do not need reading, stable enough to sit still while the centre
+// is worked through; (3) CENTRE is the full chain - deals, delivery, revenue,
+// contact history - as tabs over one spine, because a reader asking "how is
+// this account doing" needs all four without four separate pages; (4) RIGHT is
+// the copilot, top (conversation) over bottom (what it has already proposed) -
+// the same split the /copilot page itself makes, reused rather than
+// reinvented, because ADR-003's rule (accept/reject only happens in the real
+// queue) has to hold in both places or it does not hold at all.
 //
 // Health is computed WITHOUT persisting (persist: false). Opening a page is a
 // read, and a page render that writes would mean a member with only account.read
@@ -91,10 +111,14 @@ export default async function AccountDetailPage({
     CHAIN_TEXT,
     CHANNEL_LABEL,
     PROJECT_HEALTH_LABEL,
+    MILESTONE_STATUS_LABEL,
+    REVENUE_STATUS_LABEL,
     SHELL_TEXT,
     STAGE_LABEL,
     LOAD_ERROR,
     DOMAIN_LABEL,
+    ACCOUNT_TEXT,
+    POSITION_TEXT,
   } = await getMessages();
   const { id } = await params;
   const session = await resolveAppSession();
@@ -140,7 +164,9 @@ export default async function AccountDetailPage({
     relationshipEvidence(fieldCtx, id, now),
     // 上级公司 (incr/0025): the picker's candidate list and the current
     // parent's display name both come off the same workspace-wide read -
-    // setAccountParent's own cycle guard loads exactly this same list.
+    // setAccountParent's own cycle guard loads exactly this same list. The
+    // same list also answers "who is BELOW this account" (单位信息's other
+    // half) - filter by parentId, no second read.
     listAccounts(ctx, {}),
   ]);
   const accountRows = (accountsRead.ok ? accountsRead.value : []).map((a) => ({
@@ -151,6 +177,7 @@ export default async function AccountDetailPage({
   const parentName = account.parentId
     ? (accountRows.find((a) => a.id === account.parentId)?.name ?? null)
     : null;
+  const childUnits = accountRows.filter((a) => a.parentId === id);
 
   const [health, relations] = await Promise.all([
     // persist:false - see the note above. It still needs the write gate, so a
@@ -162,13 +189,6 @@ export default async function AccountDetailPage({
   ]);
 
   // THE POSITIONS ON THIS THEATRE, and the theatre-level plan over them.
-  //
-  // A page about an account that cannot say which pursuits are running on it is
-  // the one thing it most owes its reader - and it could not, until
-  // OpportunityFilter gained accountId. Each list links onward: the chain
-  // 战略 -> 战役 -> 信号 -> 线索 -> 商机 -> 交付 has to be walkable in both
-  // directions, and an account that only ever receives links is a dead end in
-  // the middle of it.
   const base = {
     workspaceId: session.workspaceId,
     sub: session.user.sub,
@@ -193,10 +213,7 @@ export default async function AccountDetailPage({
   ]);
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
 
-  // AFTER the deals, because a chain now belongs to one. Sequential rather than
-  // in the Promise.all above: this read genuinely depends on that one, and
-  // faking the parallelism by guessing the deal list would be the same class of
-  // error the whole batch removes.
+  // AFTER the deals, because a chain now belongs to one.
   const chain = await decisionChainsByOpportunity(
     ctx,
     id,
@@ -205,13 +222,25 @@ export default async function AccountDetailPage({
       .map((d) => ({ id: d.id, name: d.name })),
   );
 
-  const rosterDeals = (deals.ok ? deals.value : []).map((d) => ({
-    id: d.id,
-    name: d.name,
-    stageLabel: stageLabelFor(d.stage, stageDefinitions, STAGE_LABEL),
-    amount: d.amount?.amount ?? null,
-    currency: d.currency,
-  }));
+  // ONE REAL READ, TWO USES. cachedFeed() was already being fetched on this
+  // page and rendered nowhere - every account-detail load paid for a judgement
+  // scan that never reached the screen. This puts it to work instead of
+  // fetching something new: the top-of-page banner takes the single highest-
+  // urgency judgement about this account or one of its own open deals, and
+  // the deals tab attaches each opportunity's own judgement (if the rules
+  // engine produced one) as its AI insight line.
+  const dealIds = new Set((deals.ok ? deals.value : []).map((d) => d.id));
+  const relevantJudgements = feed.ok
+    ? feed.value.judgements.filter(
+        (j) => (j.subjectType === "account" && j.subjectId === id) ||
+          (j.subjectType === "opportunity" && dealIds.has(j.subjectId)),
+      )
+    : [];
+  const URGENCY_RANK: Record<string, number> = { today: 0, week: 1, watch: 2 };
+  const topJudgement = [...relevantJudgements].sort(
+    (a, b) => (URGENCY_RANK[a.urgency] ?? 9) - (URGENCY_RANK[b.urgency] ?? 9),
+  )[0] ?? null;
+
   const rosterProjects = (projects.ok ? projects.value : []).map((pr) => ({
     id: pr.id,
     name: pr.name,
@@ -223,6 +252,60 @@ export default async function AccountDetailPage({
         : "danger") as "success" | "warning" | "danger",
   }));
 
+  // 交付/回款 tabs' real data. One projectView() per project - the same N+1
+  // the layout already accepts for the same reason (small N at this
+  // catalogue's size; see layout.tsx's downgradedProjects read).
+  const projectViews = await Promise.all(
+    (projects.ok ? projects.value : []).map((pr) =>
+      projectView({ ...base, store: getDeliveryStore() }, pr.id, { now }),
+    ),
+  );
+  const milestonesByProject = new Map<string, ProjectMilestoneRow[]>();
+  const revenueRows: RevenueRow[] = [];
+  projectViews.forEach((pv, i) => {
+    const pr = (projects.ok ? projects.value : [])[i];
+    if (!pv.ok || !pr) return;
+    milestonesByProject.set(
+      pr.id,
+      pv.value.milestones.map((m) => ({
+        id: m.id,
+        name: m.name,
+        statusLabel: MILESTONE_STATUS_LABEL[m.status] ?? m.status,
+        dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
+        overdue: m.status !== "done" && m.status !== "missed" && m.dueAt != null && m.dueAt < now,
+        amount: null,
+        currency: defaultCurrency,
+      })),
+    );
+    pv.value.instalments.forEach((inst) => {
+      const milestone = pv.value.milestones.find((m) => m.id === inst.milestoneId);
+      revenueRows.push({
+        id: `${pr.id}:${inst.sequence}`,
+        milestoneName: milestone?.name ?? pr.name,
+        statusLabel: REVENUE_STATUS_LABEL[inst.status] ?? inst.status,
+        overdue: inst.status === "overdue",
+        dueAt: inst.dueAt ? inst.dueAt.toISOString().slice(0, 10) : null,
+        amount: inst.plannedAmount.amount,
+        currency: inst.plannedAmount.currency,
+      });
+    });
+  });
+
+  const dealRows: DealLifecycleRow[] = (deals.ok ? deals.value : []).map((d) => {
+    const j = relevantJudgements.find((x) => x.subjectType === "opportunity" && x.subjectId === d.id);
+    return {
+      id: d.id,
+      name: d.name,
+      stageLabel: stageLabelFor(d.stage, stageDefinitions, STAGE_LABEL),
+      amount: d.amount?.amount ?? null,
+      currency: d.currency,
+      status: d.status as "open" | "won" | "lost",
+      insight: j
+        ? { claim: j.claim, rule: j.rule ?? null, tone: j.urgency === "today" ? "danger" : j.urgency === "week" ? "warning" : "neutral" }
+        : null,
+    };
+  });
+
   // THEATRE-LEVEL proposals: those whose subject is this account. A proposal
   // about one of its deals belongs on that deal's page - mixing them here would
   // ask a reader to sign a tactical move from a page about a relationship.
@@ -231,12 +314,6 @@ export default async function AccountDetailPage({
     .map((a) => ({
       id: a.id,
       title: AGENT_ACTION_LABEL[a.actionType] ?? a.actionType,
-      // THE DOMAIN RESOLVES IT, because the rule this hand-rolled version
-      // skipped is `isCapability`. Indexing the label map directly means a
-      // stored key that is no longer a capability still gets whatever label
-      // the map happens to keep for it - the docstring's whole point is that
-      // unlabelled history stays visibly unlabelled rather than being guessed
-      // into a capability, and that property only holds where it is applied.
       group: capabilityLabel(
         a.capability,
         BOARD_TEXT.capabilityLabels,
@@ -246,11 +323,6 @@ export default async function AccountDetailPage({
       confidence: a.confidence,
     }));
 
-  // A second analysis over the same graph: who has actually been in a recorded
-  // room. Deliberately not folded into `chain` - see chain-recency.tsx.
-  // The completeness read spans three domains - deals, territories and segments
-  // - so it takes their stores. Read-only from here: the question is about this
-  // customer, and answering it is not the same as owning them.
   const completeness = await accountCompleteness(
     {
       ...fieldCtx,
@@ -262,13 +334,6 @@ export default async function AccountDetailPage({
     id,
   );
 
-  // PER DEAL, like the chain above it - incr/0027.
-  //
-  // warm / cold / unrecorded are pure evidence and would be the same for every
-  // deal; warmPathToEconomic is not, because it asks whether a COACH can reach
-  // the ECONOMIC BUYER and both of those are per-deal roles now. Computing it
-  // once at account level would need roles that no longer exist there, and
-  // answering it from no roles would report "no warm path" for every customer.
   const recencies =
     relations.ok && chain.ok
       ? await Promise.all(
@@ -276,11 +341,11 @@ export default async function AccountDetailPage({
         )
       : [];
 
+  const canAsk = can(session.authz, session.entitlement, "copilot.ask", "ui").allowed;
+  const canLinkGraph = can(session.authz, session.entitlement, "account.graph.link", "ui").allowed;
+
   return (
     <ViewLayout>
-      {/* THE WAY BACK, through the same binding every other second-level
-          page uses. This one wrote its own for months and took the parent's
-          name from its own dictionary; the trail reads the registry now. */}
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
 
       <ViewHeader
@@ -291,59 +356,54 @@ export default async function AccountDetailPage({
           .filter(Boolean)
           .join(" / ")}
         action={
-          <Tag
-            tone={account.status === "churned" ? "danger" : "neutral"}
-            dot
-          >
-            {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
-          </Tag>
+          <div className="flex items-center gap-xs">
+            <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
+              {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
+            </Tag>
+            {account.tier !== "standard" ? (
+              <Tag tone={account.tier === "strategic" ? "brand" : "warning"}>
+                {account.tier === "strategic" ? POSITION_TEXT.tierStrategic : POSITION_TEXT.tierKey}
+              </Tag>
+            ) : null}
+          </div>
         }
       />
 
-      {/* 上级公司 (incr/0025, ADR-024 batch B): the one fact this page carried
-          on `account.parentId` since that increment shipped without ever
-          drawing it - wired.test.ts's KNOWN_UNWIRED named exactly this gap. */}
-      <AccountParentPanel
-        accountId={id}
-        parentId={account.parentId}
-        parentName={parentName}
-        accounts={accountRows}
-        canWrite={canWrite}
-        onSetParent={setAccountParentAction}
-      />
+      {/* 定向自动分析 (owner, 2026-09-18): the single highest-urgency real
+          judgement about this account or one of its open deals - not a
+          restated fact, a rule's own claim, the same text the home feed
+          would show for it. Renders nothing when the rules engine has not
+          fired one, rather than inventing a placid summary to fill the
+          space. */}
+      {topJudgement ? (
+        <div className="border-primary/30 bg-primary/5 flex items-start gap-sm rounded-lg border p-md">
+          <div className="min-w-0 flex-1">
+            <p className="text-body-sm font-medium">{topJudgement.claim}</p>
+            {topJudgement.rule ? (
+              <p className="text-muted-foreground mt-2xs text-body-sm">{topJudgement.rule}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
-      {/* THE THEATRE, IN THREE LAYERS.
+      {/* THREE COLUMNS. xl:grid-cols-[18rem_1fr_20rem]: left is the dossier
+          (facts that hold still), centre is the lifecycle spine (the most
+          content, so it takes what is left), right is the copilot deck at
+          roughly the same width the shell's own deck already uses. */}
+      <div className="grid gap-lg xl:grid-cols-[18rem_1fr_20rem]">
 
-          A page about an account is not a record card. It is where a
-          multi-year relationship is commanded from, and the three things it
-          owes a reader are what is HERE, how it STANDS, and what to do NEXT.
-
-          LEFT is the dossier and the roster - facts that do not need reading,
-          and the positions being fought. It is the answer to "what is on this
-          theatre", and it is stable enough to sit still while the middle
-          column is worked through.
-
-          CENTRE is one chain of reasoning, top to bottom: the judgement, then
-          the evidence it rests on, then the plan drawn from both. That order is
-          the argument. A plan read before its evidence is a plan signed on
-          trust, and ADR-003 exists because the frictionless path is the
-          dangerous one.
-
-          RIGHT is the shell's deck, already anchored to this account.
-
-          xl:grid-cols-[20rem_1fr], not lg: this grid sits in a pane of viewport
-          minus a fixed 400px deck and 80px of insets, so at lg the pane is 544
-          and a 320px column would leave 190 for everything else. */}
-      <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
+        {/* ======== LEFT: the dossier ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
-          <TheatreRoster deals={rosterDeals} projects={rosterProjects} defaultCurrency={defaultCurrency} />
+          <OrgUnitPanel
+            accountId={id}
+            parentId={account.parentId}
+            parentName={parentName}
+            accounts={accountRows}
+            canWrite={canWrite}
+            onSetParent={setAccountParentAction}
+            children={childUnits}
+          />
 
-          {/* OUTSIDE the chain block below, and that is the point. The chain is
-              gated by `account.graph`, a pro capability; recording who you met
-              rides the free `account.manage`. Nesting the roster inside the
-              chain would leave a starter workspace unable to write down a
-              single contact - and then the coverage figure it cannot see would
-              be computed from nothing. */}
           <ContactRoster
             accountId={id}
             contacts={contacts}
@@ -358,15 +418,6 @@ export default async function AccountDetailPage({
             editHref={`/contact/new?account=${id}&back=/account/${id}`}
           />
 
-          {/* Who is on this theatre. The chart and the reachability verdict,
-              beside the roster rather than buried below the evidence: knowing
-              the economic buyer is untouched changes how every number in the
-              middle column reads. */}
-          {/* WHAT THIS RECORD IS MISSING, above the chain rather than below the
-              evidence: a customer whose region or industry is blank is one the
-              rules downstream cannot reason about properly, so it is the first
-              thing worth fixing on this page. Renders nothing when the record
-              is complete. */}
           {completeness.ok ? (
             <AccountCompleteness
               accountId={id}
@@ -374,22 +425,11 @@ export default async function AccountDetailPage({
               canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
               onFill={fillField}
               onAsk={askToComplete}
-              /* Asking costs a model call, so it is gated on copilot.use -
-                 not on account.upsert, which is what WRITING the answer
-                 needs. Two different acts, two different permissions. */
-              canAsk={can(session.authz, session.entitlement, "copilot.ask", "ui").allowed}
+              canAsk={canAsk}
             />
           ) : null}
+
           {chain.ok ? (
-            // ONE CHAIN PER OPEN DEAL - incr/0027. A buying committee is a fact
-            // about a purchase, so this customer has as many as it has live
-            // deals: none, one, or several that disagree with each other. The
-            // single account-level chain this replaced applied one answer to
-            // every deal at once, which is the defect ADR-024 opens with.
-            //
-            // The relationship editor sits on the FIRST one only. The graph is
-            // the customer's, not any deal's - repeating the form under every
-            // chain would suggest each deal has its own org chart.
             chain.value.length === 0 ? (
               <EmptyState
                 title={CHAIN_TEXT.noOpenDealTitle}
@@ -397,46 +437,39 @@ export default async function AccountDetailPage({
               />
             ) : (
               chain.value.map((c, i) => (
-                <Fragment key={c.opportunityId}>
-                <DecisionChain
-                  title={CHAIN_TEXT.forDeal(c.opportunityName)}
-                  coverage={c.coverage}
-                  contacts={c.people}
-                  linkForm={
-                    i === 0 ? (
-                      <LinkContacts
-                        accountId={id}
-                        // The graph is the CUSTOMER'S, so it is drawn over the
-                        // customer's people - not over this deal's resolved
-                        // roles. c.people carries roles; contacts carries who
-                        // is actually here, which is what an edge joins.
-                        contacts={c.people}
-                        canLink={
-                          can(
-                            session.authz,
-                            session.entitlement,
-                            "account.graph.link",
-                            "ui",
-                          ).allowed
-                        }
-                        unreachable={c.coverage.economicBuyerUnreachable}
-                        onLink={linkAccountContacts}
-                      />
-                    ) : undefined
-                  }
-                />
-                {recencies[i]?.ok ? (
-                  <ChainRecencyPanel
-                    recency={recencies[i].value}
-                    nameOf={(x) => contacts.find((y) => y.id === x.id)?.name ?? x.id}
+                <div key={c.opportunityId} className="flex flex-col gap-sm">
+                  <DecisionChain
+                    title={CHAIN_TEXT.forDeal(c.opportunityName)}
+                    coverage={c.coverage}
+                    contacts={c.people}
+                    linkForm={
+                      i === 0 ? (
+                        <LinkContacts
+                          accountId={id}
+                          contacts={c.people}
+                          canLink={canLinkGraph}
+                          unreachable={c.coverage.economicBuyerUnreachable}
+                          onLink={linkAccountContacts}
+                        />
+                      ) : undefined
+                    }
                   />
-                ) : null}
-                </Fragment>
+                  {recencies[i]?.ok ? (
+                    <ChainRecencyPanel
+                      recency={recencies[i].value}
+                      nameOf={(x) => contacts.find((y) => y.id === x.id)?.name ?? x.id}
+                    />
+                  ) : null}
+                  <DecisionChainGraph
+                    dealName={c.opportunityName}
+                    coverage={c.coverage}
+                    people={c.people}
+                    contacts={contacts}
+                  />
+                </div>
               ))
             )
           ) : (
-            // account.graph is a pro-tier capability. The page still renders -
-            // a starter workspace sees the account without the relationship map.
             <EmptyState
               title={SHELL_TEXT.loadFailed}
               description={loadFailureText(chain.violations, LOAD_ERROR)}
@@ -444,8 +477,8 @@ export default async function AccountDetailPage({
           )}
         </div>
 
+        {/* ======== CENTRE: the lifecycle spine ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
-          {/* 1. HOW IT STANDS. */}
           {health && health.ok ? (
             <HealthPanel
               accountId={id}
@@ -459,46 +492,86 @@ export default async function AccountDetailPage({
             <RelationshipEvidencePanel evidence={evidence.value} now={now} />
           ) : null}
 
-          {/* 2. WHAT IT RESTS ON. Promises first: a broken one is the single
-                 hardest fact in this section, and the timeline is where it can
-                 be checked. */}
-          {commitments.ok ? (
-            <CommitmentList
-              accountId={id}
-              items={commitments.value}
-              // Only real interactions can close a promise, so the picker is
-              // literally the evidence requirement made visible.
-              evidence={(interactions.ok ? interactions.value : []).map(
-                (i) => ({
-                  id: i.id,
-                  label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-                }),
-              )}
-              canWrite={canWrite}
-              captureHref={`/capture?account=${id}&back=/account/${id}`}
-              onSettle={settleCommitment}
-            />
-          ) : null}
+          <AnalysisTabs
+            id="account-lifecycle"
+            title={ACCOUNT_TEXT.roster}
+            description={ACCOUNT_TEXT.rosterWhy}
+            tabs={[
+              {
+                key: "deals",
+                label: `${ACCOUNT_TEXT.lifecycleDeals} (${dealRows.length})`,
+                content: <DealLifecyclePanel deals={dealRows} defaultCurrency={defaultCurrency} />,
+              },
+              {
+                key: "projects",
+                label: `${ACCOUNT_TEXT.lifecycleProjects} (${rosterProjects.length})`,
+                content:
+                  rosterProjects.length === 0 ? (
+                    <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.rosterNoProjects}</p>
+                  ) : (
+                    <div className="flex flex-col gap-md">
+                      {rosterProjects.map((pr) => (
+                        <ProjectLifecyclePanel
+                          key={pr.id}
+                          projectName={pr.name}
+                          healthLabel={pr.healthLabel}
+                          healthTone={pr.healthTone}
+                          milestones={milestonesByProject.get(pr.id) ?? []}
+                        />
+                      ))}
+                    </div>
+                  ),
+              },
+              {
+                key: "revenue",
+                label: ACCOUNT_TEXT.lifecycleRevenue,
+                content: <RevenueLifecyclePanel rows={revenueRows} />,
+              },
+              {
+                key: "interactions",
+                label: ACCOUNT_TEXT.lifecycleInteractions,
+                content: (
+                  <div className="flex flex-col gap-md">
+                    {commitments.ok ? (
+                      <CommitmentList
+                        accountId={id}
+                        items={commitments.value}
+                        evidence={(interactions.ok ? interactions.value : []).map(
+                          (i) => ({
+                            id: i.id,
+                            label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+                          }),
+                        )}
+                        canWrite={canWrite}
+                        captureHref={`/capture?account=${id}&back=/account/${id}`}
+                        onSettle={settleCommitment}
+                      />
+                    ) : null}
+                    {interactions.ok ? (
+                      <InteractionTimeline items={interactions.value} limit={20} />
+                    ) : null}
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </div>
 
+        {/* ======== RIGHT: the copilot, top over bottom ======== */}
+        <div className="flex min-w-0 flex-col gap-lg">
+          <CopilotChat
+            initialMessages={[]}
+            sessionId={null}
+            canAsk={canAsk}
+            account={{ id, name: account.name }}
+            onAsk={askCopilot}
+          />
 
-          {interactions.ok ? (
-            <InteractionTimeline items={interactions.value} limit={5} />
-          ) : null}
+          <TheatrePlan proposals={planProposals} accountId={id} />
 
-          {/* 3. WHAT TO DO NEXT - last, because it is drawn from the two
-                 layers above it. */}
-          <TheatrePlan proposals={planProposals} />
-
-          {/* LAST, after the plan the copilot proposes. Designating a tier is a
-              decision about how the team will spend a year on this customer,
-              and it reads better as the conclusion of the page than as a
-              setting at the top of it. */}
           <DesignateAccount
             accountId={id}
             tier={detail.value.account.tier}
-            /* The default period, not a picker. A plan is written for the
-               current quarter; choosing a different one is a different action
-               and there is no surface for it yet. */
             period={DEFAULT_PERIOD}
             canWrite={
               can(session.authz, session.entitlement, "account.upsert", "ui")
