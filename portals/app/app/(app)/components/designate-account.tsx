@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import {
   Button,
+  Drawer,
   Field,
   FieldLabel,
   Input,
   NativeSelect,
-  Section,
-  StatusBadge,
+  useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 
@@ -19,6 +19,14 @@ import { useMessages } from "../lib/i18n/provider";
 // the cadence rule is the ONLY rule that can fire for an account with no open
 // deal, and it reads the plan. A strategic designation with no plan is a label
 // on a customer that changes which rules run - to none.
+//
+// A HEADER BUTTON + DRAWER, not a permanently-open form on the display page
+// (owner, 2026-09-09: display pages show, configuration lives behind one
+// button - see market-scope-control.tsx for the same shape). The button
+// states the current tier so the header answers "what is this account's tier"
+// without opening anything; the Drawer, not a dialog, because a strategic
+// choice grows a second step (the plan fields) the same way a province frame
+// does.
 
 export interface DesignateAccountProps {
   readonly accountId: string;
@@ -44,14 +52,14 @@ export function DesignateAccount({
   canWrite,
   onDesignate,
 }: DesignateAccountProps) {
-  const { ACCOUNT_ERROR, POSITION_TEXT } = useMessages();
+  const { ACCOUNT_ERROR, DS_LABELS, POSITION_TEXT } = useMessages();
+  const [open, setOpen] = useState(false);
   const [next, setNext] = useState(tier);
   const [target, setTarget] = useState("");
   const [contact, setContact] = useState("30");
   const [exec, setExec] = useState("90");
-  const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const { toast } = useToast();
 
   if (!canWrite) return null;
 
@@ -60,6 +68,7 @@ export function DesignateAccount({
     ["key", POSITION_TEXT.tierKey],
     ["strategic", POSITION_TEXT.tierStrategic],
   ] as const;
+  const currentLabel = TIERS.find(([k]) => k === tier)?.[1] ?? tier;
 
   const strategic = next === "strategic";
   const c = Number(contact);
@@ -72,109 +81,119 @@ export function DesignateAccount({
       e > 0 &&
       period.trim() !== "");
 
+  const openDrawer = () => {
+    setNext(tier);
+    setTarget("");
+    setContact("30");
+    setExec("90");
+    setOpen(true);
+  };
+
+  const submit = () =>
+    start(async () => {
+      const r = await onDesignate({
+        accountId,
+        tier: next,
+        ...(strategic
+          ? {
+              plan: {
+                period,
+                targetAmount: target.trim() === "" ? null : Number(target),
+                contactCadenceDays: c,
+                execCadenceDays: e,
+              },
+            }
+          : {}),
+      });
+      if (!r.ok) {
+        toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error });
+        return;
+      }
+      toast({
+        tone: "success",
+        title: POSITION_TEXT.designated(
+          TIERS.find(([k]) => k === (r.tier ?? next))?.[1] ?? r.tier ?? next,
+        ),
+      });
+      setOpen(false);
+    });
+
   return (
-    <Section
-      icon="star"
-      title={POSITION_TEXT.designate}
-      description={POSITION_TEXT.designateWhy}
-    >
-      <div className="flex flex-wrap items-end gap-md">
-        <Field>
-          <FieldLabel>{POSITION_TEXT.designate}</FieldLabel>
-          <NativeSelect
-            value={next}
-            onChange={(ev) => setNext(ev.target.value)}
-          >
-            {TIERS.map(([k, label]) => (
-              <option key={k} value={k}>
-                {label}
-              </option>
-            ))}
-          </NativeSelect>
-        </Field>
+    <>
+      <Button variant="secondary" onClick={openDrawer}>
+        {POSITION_TEXT.designateButton(currentLabel)}
+      </Button>
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+        width="sm"
+        title={POSITION_TEXT.designate}
+        description={POSITION_TEXT.designateWhy}
+        closeLabel={DS_LABELS.confirmCancel}
+        footer={
+          <div className="gap-sm flex items-center justify-end">
+            <Button variant="secondary" disabled={pending} onClick={() => setOpen(false)}>
+              {DS_LABELS.confirmCancel}
+            </Button>
+            <Button disabled={!ready || pending || next === tier} onClick={submit}>
+              {POSITION_TEXT.designateSubmit}
+            </Button>
+          </div>
+        }
+      >
+        <div className="gap-lg flex flex-col">
+          <Field>
+            <FieldLabel>{POSITION_TEXT.designate}</FieldLabel>
+            <NativeSelect value={next} onChange={(ev) => setNext(ev.target.value)} disabled={pending}>
+              {TIERS.map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Field>
 
-        {strategic ? (
-          <>
-            <Field>
-              <FieldLabel>{POSITION_TEXT.planTarget}</FieldLabel>
-              <Input
-                type="number"
-                min="0"
-                value={target}
-                onChange={(ev) => setTarget(ev.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{POSITION_TEXT.cadenceContact}</FieldLabel>
-              <Input
-                type="number"
-                min="1"
-                value={contact}
-                onChange={(ev) => setContact(ev.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>{POSITION_TEXT.cadenceExec}</FieldLabel>
-              <Input
-                type="number"
-                min="1"
-                value={exec}
-                onChange={(ev) => setExec(ev.target.value)}
-              />
-            </Field>
-          </>
-        ) : null}
-
-        <Button
-          disabled={!ready || pending || next === tier}
-          onClick={() =>
-            start(() => {
-              void onDesignate({
-                accountId,
-                tier: next,
-                ...(strategic
-                  ? {
-                      plan: {
-                        period,
-                        targetAmount:
-                          target.trim() === "" ? null : Number(target),
-                        contactCadenceDays: c,
-                        execCadenceDays: e,
-                      },
-                    }
-                  : {}),
-              }).then((r) => {
-                setErr(
-                  r.ok
-                    ? null
-                    : (ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error ?? ""),
-                );
-                setDone(r.ok ? (r.tier ?? null) : null);
-              });
-            })
-          }
-        >
-          {POSITION_TEXT.designateSubmit}
-        </Button>
-
-        {/* Said while they are choosing, not after they are refused. The rule
-            will reject a plan-less strategic account either way; telling them
-            first is the difference between a product that explains itself and
-            one that argues. */}
-        {strategic ? (
-          <span className="text-muted-foreground text-body-sm">
-            {POSITION_TEXT.planRequired}
-          </span>
-        ) : null}
-        {err ? <StatusBadge tone="danger">{err}</StatusBadge> : null}
-        {done ? (
-          <StatusBadge tone="success">
-            {POSITION_TEXT.designated(
-              TIERS.find(([k]) => k === done)?.[1] ?? done,
-            )}
-          </StatusBadge>
-        ) : null}
-      </div>
-    </Section>
+          {strategic ? (
+            <>
+              <Field>
+                <FieldLabel>{POSITION_TEXT.planTarget}</FieldLabel>
+                <Input
+                  type="number"
+                  min="0"
+                  value={target}
+                  onChange={(ev) => setTarget(ev.target.value)}
+                  disabled={pending}
+                />
+              </Field>
+              <Field>
+                <FieldLabel>{POSITION_TEXT.cadenceContact}</FieldLabel>
+                <Input
+                  type="number"
+                  min="1"
+                  value={contact}
+                  onChange={(ev) => setContact(ev.target.value)}
+                  disabled={pending}
+                />
+              </Field>
+              <Field>
+                <FieldLabel>{POSITION_TEXT.cadenceExec}</FieldLabel>
+                <Input
+                  type="number"
+                  min="1"
+                  value={exec}
+                  onChange={(ev) => setExec(ev.target.value)}
+                  disabled={pending}
+                />
+              </Field>
+              {/* Said while they are choosing, not after they are refused. The
+                  rule will reject a plan-less strategic account either way;
+                  telling them first is the difference between a product that
+                  explains itself and one that argues. */}
+              <p className="text-muted-foreground text-body-sm">{POSITION_TEXT.planRequired}</p>
+            </>
+          ) : null}
+        </div>
+      </Drawer>
+    </>
   );
 }

@@ -5628,6 +5628,9 @@ export const POSITION_TEXT = {
 
   // --- designating a strategic account (batch 6c) ---------------------------
   designate: "定级",
+  /** The header button's own label - states the whole current answer, same
+   *  shape as market-scope-control's 市场范围 · 省级市场 · 陕西. */
+  designateButton: (tierLabel: string) => `定级 · ${tierLabel}`,
   designateWhy:
     "战略客户走的是另一套判断：其余规则都由事件触发、都需要一条开放商机，而战略客户最该报的恰恰是「没有开放商机却安静下来」——没有任何事件会为此触发。节奏规则是那时唯一会响的东西，而它读的是计划。",
   planRequired: "战略客户必须配计划，否则定级只是一个标签",

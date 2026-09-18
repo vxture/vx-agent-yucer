@@ -79,23 +79,31 @@ import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-pol
 
 // D4 account detail (owner, 2026-09-18: 客户全景视图重排).
 //
-// THREE ZONES, not four - the shell already owns the third. (1) The header
-// states who this is and carries the actions that act on the WHOLE
-// relationship. (2) LEFT is the dossier - facts that do not need reading,
-// stable enough to sit still while the centre is worked through. (3) CENTRE
-// is the full chain - deals, delivery, revenue, contact history - as tabs
-// over one spine, plus the theatre-level plan and tier call, because a
-// reader asking "how is this account doing" needs all of it without four
-// separate pages.
+// HEADER, then THREE COLUMNS - nothing mixed across the two. (1) The header
+// states who this is and carries every action that CONFIGURES the
+// relationship (定级/计划 among them - see below). (2) LEFT is the dossier -
+// facts that do not need reading, stable enough to sit still while the
+// centre is worked through. (3) CENTRE is the pure lifecycle spine - deals,
+// delivery, revenue, contact history - as tabs over one line, and nothing
+// else: a reader asking "how is this account doing" needs all of it without
+// four separate pages, and without a config form or a decision list breaking
+// the spine up. (4) RIGHT is this account's own decision items - what the
+// copilot has already proposed about THIS relationship, with buttons that
+// only ever navigate to the real queue (ADR-003).
 //
-// THE COPILOT IS NOT A FOURTH COLUMN HERE. The shell's own right pane
+// THE COPILOT'S CONVERSATION IS NOT A COLUMN HERE. The shell's own right pane
 // (app-shell.tsx's `deck`, filled for this route by
 // `@deck/account/[id]/page.tsx` -> AgentPanel/AssistantDeck) is ALREADY the
-// account-scoped conversation-plus-pending-proposals panel this page would
-// otherwise duplicate. A second CopilotChat inside the page content rendered
-// two chat boxes on one screen and squeezed the real content into a
+// account-scoped chat. A second CopilotChat inside the page content put two
+// chat boxes on one screen and squeezed the real content into a
 // three-column-inside-a-three-column layout - this page defers to the
 // existing deck instead of rebuilding it.
+//
+// 定级/计划 IS CONFIGURATION, so it is a header button + Drawer
+// (designate-account.tsx), never an always-open form sitting in a display
+// column - the same defect market-scope-control.tsx already fixed once
+// (owner, 2026-09-09: 把展示页面和配置子页混合在一起... 用一个按钮，展开面板选择
+// 一项即可).
 //
 // Health is computed WITHOUT persisting (persist: false). Opening a page is a
 // read, and a page render that writes would mean a member with only account.read
@@ -370,6 +378,19 @@ export default async function AccountDetailPage({
                 {account.tier === "strategic" ? POSITION_TEXT.tierStrategic : POSITION_TEXT.tierKey}
               </Tag>
             ) : null}
+            {/* 定级/计划 IS CONFIGURATION, not a fact to display - it lives
+                behind one button, never as an open form on the page (see
+                designate-account.tsx's own note). */}
+            <DesignateAccount
+              accountId={id}
+              tier={detail.value.account.tier}
+              period={DEFAULT_PERIOD}
+              canWrite={
+                can(session.authz, session.entitlement, "account.upsert", "ui")
+                  .allowed
+              }
+              onDesignate={designateAccountTier}
+            />
           </div>
         }
       />
@@ -391,11 +412,13 @@ export default async function AccountDetailPage({
         </div>
       ) : null}
 
-      {/* TWO COLUMNS. xl:grid-cols-[18rem_1fr]: left is the dossier (facts
-          that hold still), centre is the lifecycle spine and takes what is
-          left. The third column is the shell's own right pane - see the
-          file-level note above. */}
-      <div className="grid gap-lg xl:grid-cols-[18rem_1fr]">
+      {/* THREE COLUMNS below the header. xl:grid-cols-[18rem_1fr_20rem]:
+          left is the dossier (facts that hold still), centre is the pure
+          lifecycle spine, right is this account's own decision items - NOT
+          the copilot conversation, which stays exclusively the shell's job
+          (see the file-level note above; a second chat box here is the
+          defect this replaced). */}
+      <div className="grid gap-lg xl:grid-cols-[18rem_1fr_20rem]">
 
         {/* ======== LEFT: the dossier ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
@@ -560,19 +583,11 @@ export default async function AccountDetailPage({
               },
             ]}
           />
+        </div>
 
+        {/* ======== RIGHT: this account's own decision items ======== */}
+        <div className="flex min-w-0 flex-col gap-lg">
           <TheatrePlan proposals={planProposals} accountId={id} />
-
-          <DesignateAccount
-            accountId={id}
-            tier={detail.value.account.tier}
-            period={DEFAULT_PERIOD}
-            canWrite={
-              can(session.authz, session.entitlement, "account.upsert", "ui")
-                .allowed
-            }
-            onDesignate={designateAccountTier}
-          />
         </div>
       </div>
     </ViewLayout>

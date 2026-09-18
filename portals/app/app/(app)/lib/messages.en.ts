@@ -2472,6 +2472,7 @@ export const en: Dictionary = {
 
   POSITION_TEXT: {
     designate: "Set tier",
+    designateButton: (tierLabel: string) => `Tier · ${tierLabel}`,
     designateWhy:
       "A strategic account is judged differently: every other rule is event-triggered and needs an open opportunity, while the thing most worth reporting about a strategic account is that it went quiet WITHOUT one - and no event will ever fire to say so. The cadence rule is what fires instead, and it reads the plan.",
     planRequired:
