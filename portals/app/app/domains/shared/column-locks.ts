@@ -383,6 +383,9 @@ export const APPEND_ONLY_TABLES: readonly string[] = [
   // incr/0053. A placement is a pair too - one person in several units - so
   // the 0051 grant on unit_id is withdrawn: a move is a delete and an insert.
   "yucer_gtm.org_unit_member",
+  // incr/0074. Being on an account's collaborator roster or not is a single
+  // fact, same pair shape as territory_unit/org_unit_member above it.
+  "yucer_core.account_collaborator",
   "yucer_core.account_relation",
   "yucer_pipeline.opportunity_stage_event",
   "yucer_pipeline.forecast_snapshot",

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { resolveAppSession } from "../lib/session";
 import { getAccountStore } from "../../domains/shared/registry";
+import { getAuthzStore } from "../../authz/store";
 import {
   designateAccount,
   linkContacts,
@@ -11,6 +12,12 @@ import {
   recomputeHealth,
   setAccountParent,
   updateAccountBasics,
+  searchExistingContacts,
+  linkExistingContact,
+  unlinkContact,
+  searchColleagues,
+  addAccountCollaborator,
+  removeAccountCollaborator,
   type AccountBasicsPatch,
 } from "../../domains/account/service";
 import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
@@ -321,5 +328,158 @@ export async function updateAccountBasicsAction(
   }
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/account");
+  return { ok: true };
+}
+
+// 关联联系人 (owner, 2026-09-20: mockup - 把系统里已有的人接到这个客户名下).
+
+export interface ContactSearchHit {
+  id: string;
+  name: string;
+  mobile: string | null;
+  email: string | null;
+  affiliations: Array<{ accountId: string; accountName: string; title: string | null }>;
+}
+
+export async function searchContactsAction(
+  accountId: string,
+  query: string,
+): Promise<{ ok: boolean; error?: string; results?: ContactSearchHit[] }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await searchExistingContacts(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    query,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  return { ok: true, results: result.value };
+}
+
+export async function linkExistingContactAction(
+  accountId: string,
+  personId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await linkExistingContact(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    personId,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${accountId}`);
+  return { ok: true };
+}
+
+// 取消关联 (owner, 2026-09-20: mockup 联系人行菜单 - 取消关联).
+export async function unlinkContactAction(
+  accountId: string,
+  contactId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await unlinkContact(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    contactId,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${accountId}`);
+  return { ok: true };
+}
+
+// 关联协作人 (incr/0074, owner 2026-09-20).
+
+export interface ColleagueSearchHit {
+  sub: string;
+  displayName: string | null;
+}
+
+export async function searchColleaguesAction(
+  query: string,
+): Promise<{ ok: boolean; error?: string; results?: ColleagueSearchHit[] }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await searchColleagues(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+      authz: getAuthzStore(),
+    },
+    query,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  return { ok: true, results: result.value };
+}
+
+export async function addCollaboratorAction(
+  accountId: string,
+  memberSub: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await addAccountCollaborator(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    memberSub,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${accountId}`);
+  return { ok: true };
+}
+
+export async function removeCollaboratorAction(
+  accountId: string,
+  memberSub: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await removeAccountCollaborator(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    memberSub,
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${accountId}`);
   return { ok: true };
 }

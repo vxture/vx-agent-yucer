@@ -33,6 +33,7 @@ import {
 import type { PipelineStore } from "../pipeline/store";
 import type { PlanningStore } from "../planning/store";
 import type { StrategyStore } from "../strategy/store";
+import type { AuthzStore } from "../../authz/store";
 import { fail, ok, violation, type RuleResult } from "../shared/result";
 import { planAccountParent } from "./lib/parent";
 import { chainForOpportunity } from "./lib/buying-role";
@@ -1061,6 +1062,168 @@ export async function moveContact(
   if (!plan.ok) return plan as RuleResult<true>;
 
   await ctx.store.setContactOrder(ctx.workspaceId, input.accountId, plan.value);
+  return ok(true);
+}
+
+/**
+ * 关联联系人 (owner, 2026-09-20: mockup - "把系统里已有的人接到这个客户名下，
+ * 不会新建一条联系人记录"). Same gate as upsertContact/moveContact: finding
+ * a candidate to add to the roster is the same authority as editing it.
+ *
+ * A BLANK QUERY RETURNS NOTHING, not everyone. This is a picker for one
+ * specific person, not a directory browse - and the store layer already
+ * refuses to run an empty-string LIKE for the same reason.
+ */
+export async function searchExistingContacts(
+  ctx: AccountContext,
+  accountId: string,
+  query: string,
+): Promise<
+  RuleResult<
+    Array<{
+      id: string;
+      name: string;
+      mobile: string | null;
+      email: string | null;
+      affiliations: Array<{ accountId: string; accountName: string; title: string | null }>;
+    }>
+  >
+> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+  return ok(await ctx.store.searchPersons(ctx.workspaceId, query, accountId));
+}
+
+/** The write half of 关联联系人 - affiliates an EXISTING person (found by
+ *  searchExistingContacts) with this account. Never creates a person row;
+ *  upsertContact still owns that path. */
+export async function linkExistingContact(
+  ctx: AccountContext,
+  accountId: string,
+  personId: string,
+): Promise<RuleResult<ContactRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const written = await ctx.store.linkExistingPerson(ctx.workspaceId, accountId, personId);
+  if (!written) {
+    return fail(violation(
+      "already_linked",
+      "this person is unknown, or already a contact on this account",
+      "personId",
+    ));
+  }
+  return ok(written);
+}
+
+/**
+ * 取消关联 (owner, 2026-09-20: mockup's contact row menu - 取消关联). Ends
+ * the CURRENT affiliation; the person and every piece of evidence naming
+ * them (interactions, relations, buying roles) survive untouched. Same gate
+ * as upsertContact: removing a row from the roster is the same authority as
+ * editing it.
+ */
+export async function unlinkContact(
+  ctx: AccountContext,
+  accountId: string,
+  contactId: string,
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const ended = await ctx.store.endContactAffiliation(ctx.workspaceId, accountId, contactId);
+  if (!ended) {
+    return fail(violation("not_found", `contact ${contactId} was not found on this account`, "contactId"));
+  }
+  return ok(true);
+}
+
+/**
+ * 关联协作人 (incr/0074) - who else works this account, alongside its one
+ * owner (account.ownerSub, unchanged). Reading the CURRENT roster rides
+ * account.view, like every other dossier fact; searchColleagues/
+ * addAccountCollaborator/removeAccountCollaborator below are what the new
+ * account.collaborator permission actually gates.
+ */
+/**
+ * Names resolve here too, off the same member list searchColleagues reads -
+ * gated on the broader account.view rather than account.collaborator on
+ * purpose. Turning a handful of subs THIS RECORD ALREADY NAMES into display
+ * names reveals nothing beyond what the roster already shows; it is a
+ * different act from browsing/searching the whole directory, which is what
+ * account.collaborator actually restricts.
+ */
+export async function listAccountCollaborators(
+  ctx: AccountContext & { authz: AuthzStore },
+  accountId: string,
+): Promise<RuleResult<Array<{ memberSub: string; displayName: string | null; addedAt: Date }>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.view", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listCollaborators(ctx.workspaceId, accountId);
+  if (rows.length === 0) return ok([]);
+  const members = await ctx.authz.listMembers(ctx.workspaceId);
+  const nameOf = new Map(members.map((m) => [m.sub, m.displayName]));
+  return ok(rows.map((r) => ({ ...r, displayName: nameOf.get(r.memberSub) ?? null })));
+}
+
+/**
+ * Search this workspace's OWN member directory for a colleague to add -
+ * NOT listWorkspaceMembers (authz/admin.ts), which is deliberately
+ * admin-only (it backs /admin's paid-seat accounting). This is the narrower,
+ * account.collaborator-gated read the DDL increment's own comment describes:
+ * searching candidates is a step inside managing the roster, not a use case
+ * of its own, so it carries the same permission as the write below rather
+ * than a separate `.view` action - see actions.ts's own note on why (a
+ * `writes: false` action here would force every read-only viewer to hold it
+ * too, and no viewer-facing member search was ever asked for).
+ *
+ * A BLANK QUERY RETURNS NOTHING, matching searchExistingContacts.
+ */
+export async function searchColleagues(
+  ctx: AccountContext & { authz: AuthzStore },
+  query: string,
+): Promise<RuleResult<Array<{ sub: string; displayName: string | null }>>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.collaborator.manage", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const q = query.trim().toLowerCase();
+  if (!q) return ok([]);
+  const members = await ctx.authz.listMembers(ctx.workspaceId);
+  return ok(
+    members
+      .filter(
+        (m) =>
+          m.status === "active" &&
+          ((m.displayName ?? "").toLowerCase().includes(q) || m.sub.toLowerCase().includes(q)),
+      )
+      .slice(0, 20)
+      .map((m) => ({ sub: m.sub, displayName: m.displayName })),
+  );
+}
+
+export async function addAccountCollaborator(
+  ctx: AccountContext,
+  accountId: string,
+  memberSub: string,
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.collaborator.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  if (!memberSub.trim()) {
+    return fail(violation("member_required", "a collaborator needs somebody to add", "memberSub"));
+  }
+  await ctx.store.addCollaborator(ctx.workspaceId, accountId, memberSub);
+  return ok(true);
+}
+
+export async function removeAccountCollaborator(
+  ctx: AccountContext,
+  accountId: string,
+  memberSub: string,
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.collaborator.manage", "data");
+  if (!gate.allowed) return denied(gate);
+  await ctx.store.removeCollaborator(ctx.workspaceId, accountId, memberSub);
   return ok(true);
 }
 

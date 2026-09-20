@@ -18,9 +18,9 @@ export const dynamic = "force-dynamic";
 export default async function NewContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ account?: string; back?: string }>;
+  searchParams: Promise<{ account?: string; back?: string; edit?: string }>;
 }) {
-  const { account: accountId, back } = await searchParams;
+  const { account: accountId, back, edit } = await searchParams;
   const { ACCOUNT_TEXT, DOMAIN_LABEL } = await getMessages();
   const session = await resolveAppSession();
   if (!session) return null;
@@ -65,6 +65,7 @@ export default async function NewContactPage({
         statusLabel={ACCOUNT_TEXT.contactStatusLabel}
         doneHref={doneHref}
         onSave={saveContact}
+        initialId={edit}
       />
     </ViewLayout>
   );

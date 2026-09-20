@@ -236,6 +236,25 @@ export const ACTIONS = {
     permission: "account.write",
     writes: true,
   },
+  // --- 关联协作人 (incr/0074) -------------------------------------------------
+  // ONE ACTION, WRITES ONLY. Seeing who is already on the roster rides
+  // account.view like every other fact on the dossier (单位信息, 联系人); this
+  // permission gates the part that is actually new - searching the workspace
+  // member directory for a colleague to add, and adding/removing one. Not
+  // account.write: the member-directory search is a read account.write was
+  // never meant to answer, and the workspace's only existing member-directory
+  // read (listWorkspaceMembers, authz/admin.ts) is deliberately admin-only -
+  // reusing it here would hand every account editor an admin capability.
+  // writes: true throughout, on purpose: a `writes: false` action here would
+  // trip actions.test.ts's own rule that a read-only viewer holds every read
+  // permission, and no such viewer-facing read was ever asked for - searching
+  // candidates is a step inside managing the roster, not a use case of its own.
+  "account.collaborator.manage": {
+    domain: "account",
+    feature: "account.manage",
+    permission: "account.collaborator",
+    writes: true,
+  },
 
   // --- D5 signal -----------------------------------------------------------
   "signal.view": {

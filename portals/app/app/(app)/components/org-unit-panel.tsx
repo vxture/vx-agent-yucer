@@ -1,10 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { DetailList, DetailRow, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { AccountParentPanel, type AccountParentPanelProps } from "./account-parent-panel";
+import { AccountChildPanel } from "./account-child-panel";
 
 // 单位信息 (owner, 2026-09-18: 客户详情页重排; 2026-09-20: 行业/区域从
 // header 搬到这里 - 严格按照设计实施, mockup 原话: "行业、位置这些是固有属性，
@@ -74,24 +74,13 @@ export function OrgUnitPanel({
           canWrite={canWrite}
           onSetParent={onSetParent}
         />
-        {children.length > 0 ? (
-          <details className="text-body-sm">
-            <summary className="text-muted-foreground hover:text-foreground cursor-pointer select-none">
-              {ACCOUNT_TEXT.orgUnitChildren(children.length)}
-            </summary>
-            <div className="mt-xs pl-md flex flex-col gap-2xs">
-              {children.map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/account/${c.id}`}
-                  className="text-muted-foreground hover:text-foreground min-w-0 truncate hover:underline"
-                >
-                  {c.name}
-                </Link>
-              ))}
-            </div>
-          </details>
-        ) : null}
+        <AccountChildPanel
+          accountId={accountId}
+          children={children}
+          accounts={accounts}
+          canWrite={canWrite}
+          onSetParent={onSetParent}
+        />
       </div>
     </Section>
   );

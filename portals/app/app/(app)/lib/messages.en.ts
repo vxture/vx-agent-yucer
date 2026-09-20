@@ -729,6 +729,8 @@ export const en: Dictionary = {
     name_required: "An account needs a name",
     province_unknown: "Not one of the 34 provincial-level divisions",
     employee_count_invalid: "Employee count must be a non-negative whole number",
+    already_linked: "This person does not exist, or is already a contact on this account",
+    member_required: "Pick a colleague first",
   },
 
   ACCOUNT_PARENT_TEXT: {
@@ -742,6 +744,14 @@ export const en: Dictionary = {
     cancel: "Cancel",
     done: (name: string) => `Parent company set to "${name}"`,
     doneNone: "Parent company cleared",
+    addChild: "+ Link a subsidiary",
+    addChildTitle: "Link a subsidiary",
+    addChildWhy: "Pick a company and set its parent to this account - not itself or its own parent.",
+    addChildField: "Subsidiary",
+    addChildPick: "Pick a company",
+    removeChild: "Remove",
+    removeChildVerb: "Remove",
+    removeChildConsequence: "Only this parent-child link is undone - neither account's own record is deleted.",
   },
 
   CATALOG_ERROR: {
@@ -1390,6 +1400,43 @@ export const en: Dictionary = {
     needTwo: "At least two contacts are needed to record a relationship.",
     hintUnreachable:
       "Recording a path to the decision-maker can turn the verdict above from unreachable to reachable.",
+  },
+
+  LINK_CONTACT_TEXT: {
+    linkButton: "Link",
+    title: "Link a contact",
+    why: "Attach a person already in the system to this account - never creates a new contact record.",
+    searchLabel: "Search name / mobile / email",
+    searchPlaceholder: "Type to search existing contacts",
+    empty: "No matching contacts",
+    hint: "Type at least two characters to search",
+    alsoAt: (accountName: string, title: string | null) =>
+      title ? `Contact at ${accountName} - ${title}` : `Contact at ${accountName}`,
+    unaffiliated: "Not currently a contact at any account",
+    confirm: "Confirm link",
+    cancel: "Cancel",
+    linked: "Linked",
+    unlink: "Unlink",
+    unlinkVerb: "Unlink",
+    unlinkConsequence:
+      "This person and every interaction or decision-chain role naming them are kept - they simply stop being a contact on this account.",
+  },
+
+  COLLABORATOR_TEXT: {
+    title: "Collaborators",
+    linkButton: "+ Add",
+    drawerTitle: "Add a collaborator",
+    why: "Add a colleague to help work this account - the primary owner does not change.",
+    searchLabel: "Search colleague name",
+    searchPlaceholder: "Type to search colleagues",
+    empty: "No matching colleagues",
+    hint: "Type at least two characters to search",
+    confirm: "Confirm",
+    cancel: "Cancel",
+    none: "No collaborators yet",
+    remove: "Remove",
+    removeVerb: "Remove",
+    removeConsequence: "They can be added back at any time.",
   },
 
   RELATION_ERROR: {
@@ -3326,7 +3373,9 @@ export const en: Dictionary = {
     } as Record<string, string>,
     contactEditing: "Editing",
     contactNew: "New contact",
+    contactAddButton: "+ Add",
     contactSave: "Save contact",
+    contactViewDetail: "View details",
     contactSaved: "Saved",
     contactsDenied: "You cannot maintain contacts",
     ownerNone: "Unassigned",
@@ -4344,6 +4393,7 @@ export const en: Dictionary = {
       "account.interaction": "Interactions",
       "account.commitment": "Commitments",
       "account.graph": "Relationship graph",
+      "account.collaborator": "Collaborators",
       "account.base": "Accounts",
       "signal.base": "Opportunity signals",
       "signal.feed": "Signal feeds",
@@ -4400,6 +4450,7 @@ export const en: Dictionary = {
       "account.commitment.settle": "Settle a commitment",
       "account.graph.view": "View the relationship graph",
       "account.graph.link": "Link accounts",
+      "account.collaborator.manage": "Manage collaborators",
       "signal.view": "View signals",
       "signal.triage": "Triage signals",
       "signal.rescore": "Rescore signals",

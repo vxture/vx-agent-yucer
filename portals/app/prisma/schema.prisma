@@ -548,6 +548,23 @@ model AccountRelation {
   @@schema("yucer_core")
 }
 
+/// incr/0074 - a second (third, ...) person working this account, alongside
+/// its one owner (account.ownerSub). A pair, like TerritoryUnit: insert and
+/// delete, no UPDATE. No Prisma @relation to Account, like PersonAffiliation
+/// beside it - the FK lives in the DDL, and every read here filters by
+/// accountId directly rather than navigating the object graph.
+model AccountCollaborator {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  memberSub   String   @map("member_sub") @db.VarChar(128)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@id([workspaceId, accountId, memberSub], map: "pk_account_collaborator")
+  @@index([workspaceId, accountId], map: "idx_account_collaborator_account")
+  @@map("account_collaborator")
+  @@schema("yucer_core")
+}
+
 // ===== yucer_gtm (D1 strategy, D2 planning, D3 campaign) =====
 
 model StrategyPlan {

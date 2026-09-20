@@ -548,6 +548,164 @@ export class PrismaAccountStore implements AccountStore {
     }
   }
 
+  // 关联联系人 (owner, 2026-09-20). Substring, case-insensitive, across the
+  // whole workspace's people - not scoped to any one account, because the
+  // whole point is finding someone who is NOT yet on this one.
+  async searchPersons(
+    workspaceId: string,
+    query: string,
+    excludeAccountId: string,
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      mobile: string | null;
+      email: string | null;
+      affiliations: Array<{ accountId: string; accountName: string; title: string | null }>;
+    }>
+  > {
+    const q = query.trim();
+    if (!q) return [];
+    const p = await this.client();
+    const people = await p.person.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { mobile: { contains: q } },
+          { email: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      take: 20,
+    });
+    if (people.length === 0) return [];
+    const ids = people.map((r: Record<string, unknown>) => String(r.id));
+    // Every CURRENT affiliation for every match, one query - not one per
+    // person, the same reasoning listCollaborators/healthInputs already
+    // apply elsewhere on this page.
+    const links = await p.personAffiliation.findMany({
+      where: { workspaceId, personId: { in: ids }, endedAt: null },
+    });
+    const excluded = new Set(
+      links
+        .filter((l: Record<string, unknown>) => String(l.accountId) === excludeAccountId)
+        .map((l: Record<string, unknown>) => String(l.personId)),
+    );
+    const accountIds = [...new Set(links.map((l: Record<string, unknown>) => String(l.accountId)))];
+    const accounts = accountIds.length
+      ? await p.account.findMany({ where: { id: { in: accountIds } } })
+      : [];
+    const accountName = new Map(
+      accounts.map((a: Record<string, unknown>) => [String(a.id), String(a.name)]),
+    );
+    const byPerson = new Map<string, Array<{ accountId: string; accountName: string; title: string | null }>>();
+    for (const l of links as Record<string, unknown>[]) {
+      const personId = String(l.personId);
+      const arr = byPerson.get(personId) ?? [];
+      arr.push({
+        accountId: String(l.accountId),
+        accountName: accountName.get(String(l.accountId)) ?? String(l.accountId),
+        title: (l.title as string | null) ?? null,
+      });
+      byPerson.set(personId, arr);
+    }
+    return people
+      .filter((r: Record<string, unknown>) => !excluded.has(String(r.id)))
+      .map((r: Record<string, unknown>) => ({
+        id: String(r.id),
+        name: String(r.name),
+        mobile: (r.mobile as string | null) ?? null,
+        email: (r.email as string | null) ?? null,
+        affiliations: byPerson.get(String(r.id)) ?? [],
+      }));
+  }
+
+  async linkExistingPerson(
+    workspaceId: string,
+    accountId: string,
+    personId: string,
+  ): Promise<ContactRecord | null> {
+    const p = await this.client();
+    const person = await p.person.findFirst({ where: { id: personId, workspaceId, deletedAt: null } });
+    if (!person) return null;
+    // Tail of THIS account's roster, same as upsertContact's own create path.
+    const tail = await p.personAffiliation.aggregate({
+      where: { workspaceId, accountId, endedAt: null },
+      _max: { sortOrder: true },
+    });
+    try {
+      const made = await p.personAffiliation.create({
+        data: {
+          workspaceId,
+          personId,
+          accountId,
+          sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+        },
+      });
+      return toContact(person as Record<string, unknown>, made as Record<string, unknown>);
+    } catch {
+      // uidx_person_affiliation_current: already affiliated here. Same shape
+      // as addRelation's own try/catch - there is no UPDATE grant on this
+      // table for anything else to do.
+      return null;
+    }
+  }
+
+  // 取消关联 (owner, 2026-09-20) - ends the CURRENT affiliation, never a
+  // delete. The person, and every piece of evidence naming them, survives.
+  async endContactAffiliation(
+    workspaceId: string,
+    accountId: string,
+    personId: string,
+  ): Promise<boolean> {
+    const p = await this.client();
+    const patch = { endedAt: new Date(), updatedAt: new Date() };
+    const guard = assertWritable(AFFILIATION_TABLE, patch);
+    if (!guard.ok) {
+      throw new Error(
+        `refusing to write a locked ${AFFILIATION_TABLE} column: ${guard.violations.map((v) => v.message).join("; ")}`,
+      );
+    }
+    const res = await p.personAffiliation.updateMany({
+      where: { workspaceId, accountId, personId, endedAt: null },
+      data: patch,
+    });
+    return res.count > 0;
+  }
+
+  // 关联协作人 (incr/0074) - a plain roster, add/remove/list, no update.
+  async listCollaborators(
+    workspaceId: string,
+    accountId: string,
+  ): Promise<Array<{ memberSub: string; addedAt: Date }>> {
+    const p = await this.client();
+    const rows = await p.accountCollaborator.findMany({
+      where: { workspaceId, accountId },
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map((r: Record<string, unknown>) => ({
+      memberSub: String(r.memberSub),
+      addedAt: r.createdAt as Date,
+    }));
+  }
+
+  async addCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {
+    const p = await this.client();
+    try {
+      await p.accountCollaborator.create({ data: { workspaceId, accountId, memberSub } });
+    } catch {
+      // pk_account_collaborator: already on the roster. There is no UPDATE
+      // grant on this table for anything else to do - same shape as
+      // addRelation's own try/catch.
+    }
+  }
+
+  async removeCollaborator(workspaceId: string, accountId: string, memberSub: string): Promise<void> {
+    const p = await this.client();
+    await p.accountCollaborator.deleteMany({ where: { workspaceId, accountId, memberSub } });
+  }
+
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {
     const p = await this.client();
     try {

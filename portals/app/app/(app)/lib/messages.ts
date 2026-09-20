@@ -1044,6 +1044,9 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   name_required: "客户名称不能为空",
   province_unknown: "不是有效的省级行政区划",
   employee_count_invalid: "员工数必须是不小于 0 的整数",
+  // 关联联系人 / 关联协作人 (owner, 2026-09-20)。
+  already_linked: "这个人不存在，或已经是这个客户的联系人",
+  member_required: "请先选一位同事",
 };
 
 export const ACCOUNT_PARENT_TEXT = {
@@ -1061,6 +1064,17 @@ export const ACCOUNT_PARENT_TEXT = {
   cancel: "取消",
   done: (name: string) => `已设置上级公司为「${name}」`,
   doneNone: "已清除上级公司",
+  // 下级单位增删 (owner, 2026-09-20: mockup 编辑单位信息 - "+关联下级单位").
+  // 同一条 setAccountParent 动词, 只是这次改的是"另一家公司自己的上级公司"
+  // 这一格, 不是这家公司自己的 - 从这一页发起, 落到那一行。
+  addChild: "+ 关联下级单位",
+  addChildTitle: "关联下级单位",
+  addChildWhy: "选一家公司，把它的上级公司设为这家客户；不能选它自己或它的上级。",
+  addChildField: "下级单位",
+  addChildPick: "选择一家公司",
+  removeChild: "移除",
+  removeChildVerb: "移除",
+  removeChildConsequence: "只是解除这条上下级关系，两家客户各自的记录都不会被删除。",
 };
 
 /**
@@ -2899,6 +2913,50 @@ export const RELATION_TEXT = {
     "记录一条通往决策人的路径，可以让上面的判断从「不可达」变成「可达」。",
 } as const;
 
+// 关联联系人 (owner, 2026-09-20: mockup - 把系统里已有的人接到这个客户名下,
+// 不会新建一条联系人记录). "+新增" 之外的第二条路 - 新建是造一个新人,
+// 这个是把已有的人接上来。
+export const LINK_CONTACT_TEXT = {
+  linkButton: "关联",
+  title: "关联联系人",
+  why: "把系统里已有的人接到这个客户名下，不会新建一条联系人记录。",
+  searchLabel: "搜索姓名 / 手机 / 邮箱",
+  searchPlaceholder: "输入关键字搜索已有联系人",
+  empty: "没有找到匹配的联系人",
+  hint: "至少输入两个字符开始搜索",
+  // 已经是别的客户的联系人 - 真实事实，不是拒绝理由：一个人本来就可以同时
+  // 是好几家客户的联系人（比如集团内的共用职能）。
+  alsoAt: (accountName: string, title: string | null) =>
+    title ? `${accountName} 的联系人 · ${title}` : `${accountName} 的联系人`,
+  unaffiliated: "目前不是任何客户的联系人",
+  confirm: "确认关联",
+  cancel: "取消",
+  linked: "已关联",
+  // 取消关联 - 行菜单项，及其确认框（DS ConfirmDestructive 的三段式）。
+  unlink: "取消关联",
+  unlinkVerb: "取消关联",
+  unlinkConsequence: "这个人和TA的所有跟进记录、决策链角色都会保留，只是不再是这个客户名下的联系人。",
+} as const;
+
+// 关联协作人 (incr/0074, owner 2026-09-20: mockup - "内部同事可以有多个协作
+// 人，但主负责人始终只有一个，这里关联的都是协作人，不是替换主负责人").
+export const COLLABORATOR_TEXT = {
+  title: "协作人",
+  linkButton: "+ 关联",
+  drawerTitle: "关联协作人",
+  why: "加一位内部同事参与跟进，不会替换主负责人身份。",
+  searchLabel: "搜索同事姓名",
+  searchPlaceholder: "输入关键字搜索内部同事",
+  empty: "没有找到匹配的同事",
+  hint: "至少输入两个字符开始搜索",
+  confirm: "确认关联",
+  cancel: "取消",
+  none: "还没有协作人",
+  remove: "移除",
+  removeVerb: "移除",
+  removeConsequence: "移除后可以随时重新关联。",
+} as const;
+
 export const RELATION_ERROR: Record<string, string> = {
   ...GATE_ERROR,
   self_relation: "同一个人不能和自己建立关系",
@@ -4189,7 +4247,10 @@ export const ACCOUNT_TEXT = {
   } as Record<string, string>,
   contactEditing: "编辑谁",
   contactNew: "新建联系人",
+  // 卡头按钮, 比 contactNew 短 (owner, 2026-09-20: mockup 原话 "+ 新增").
+  contactAddButton: "+ 新增",
   contactSave: "保存联系人",
+  contactViewDetail: "查看详情",
   contactSaved: "已保存",
   contactsDenied: "你没有维护联系人的权限",
   // The owner is a raw subject id and is rendered as one. There is no display
@@ -5838,6 +5899,7 @@ export const PERMISSION_TREE_TEXT = {
     "account.interaction": "互动记录",
     "account.commitment": "客户承诺",
     "account.graph": "客户关系图",
+    "account.collaborator": "协作人",
     "signal.base": "商机智探",
     "signal.feed": "信号源",
     "signal.lead": "线索",
@@ -5893,6 +5955,7 @@ export const PERMISSION_TREE_TEXT = {
     "account.commitment.settle": "结清客户承诺",
     "account.graph.view": "查看客户关系图",
     "account.graph.link": "建立客户关联",
+    "account.collaborator.manage": "管理协作人",
     "signal.view": "查看信号",
     "signal.triage": "处理信号",
     "signal.rescore": "重新评分",

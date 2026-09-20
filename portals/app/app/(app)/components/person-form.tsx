@@ -60,11 +60,16 @@ export function PersonForm({
   statusLabel,
   doneHref,
   onSave,
+  initialId,
 }: {
   readonly accountId: string;
   readonly rows: readonly PersonFormRow[];
   readonly statusLabel: Record<string, string>;
   readonly doneHref: string;
+  /** 查看详情 (owner, 2026-09-20: mockup 联系人行菜单) - opens this same
+   *  form already showing one row, instead of a second page. Ignored when it
+   *  names nobody on `rows`. */
+  readonly initialId?: string;
   readonly onSave: (
     accountId: string,
     input: {
@@ -80,7 +85,20 @@ export function PersonForm({
   ) => Promise<Saved>;
 }) {
   const { ACCOUNT_TEXT, CONTACT_ERROR, ASSIST_TEXT } = useMessages();
-  const [form, setForm] = useState(BLANK);
+  const [form, setForm] = useState(() => {
+    const c = initialId ? rows.find((r) => r.id === initialId) : undefined;
+    if (!c) return BLANK;
+    return {
+      id: c.id,
+      name: c.name,
+      title: c.title ?? "",
+      department: c.department ?? "",
+      email: c.email ?? "",
+      mobile: c.mobile ?? "",
+      wechat: c.wechat ?? "",
+      status: c.status,
+    };
+  });
   const submit = useFormSubmit(doneHref);
 
   function pick(id: string) {

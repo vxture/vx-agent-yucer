@@ -101,6 +101,14 @@ export const PERM_CODES = [
   // moved off them. pipeline.dealType/pipeline.stage were retired instead
   // (incr/0064, above) - they had nothing else to keep them alive.
   "pipeline.opportunityConfig",
+  // --- 关联协作人 (incr/0074) -------------------------------------------------
+  // ITS OWN permission rather than riding account.write: searching the member
+  // directory to pick a colleague is a read the account-editing permission was
+  // never meant to answer, and the only existing member-directory read
+  // (listWorkspaceMembers) is deliberately admin-only. Granted to the exact 22
+  // roles account.record already holds - working a relationship as a team is
+  // the same population as recording what happened in it.
+  "account.collaborator",
 ] as const;
 
 export type PermCode = (typeof PERM_CODES)[number];
@@ -179,6 +187,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "catalog.write",
     "catalog.price",
     "account.record",
+    "account.collaborator",
     // incr/0012: signing off a below-floor price. Separate from pipeline.write
     // so the person who quotes the discount is not the person who allows it.
     "pipeline.discount",
@@ -198,6 +207,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
   ],
   // Owns the deal, not the forecast commitment (pipeline.write without
   // pipeline.forecast is the deliberate split).
@@ -214,6 +224,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "pipeline.opportunityConfig",
   ],
   presales: [
@@ -224,6 +235,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.use",
     "catalog.read",
     "account.record",
+    "account.collaborator",
   ],
   delivery_manager: [
     "delivery.read",
@@ -234,6 +246,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "pipeline.opportunityConfig",
   ],
   // Sets the rules (quota, territory, forecast discipline, role assignment) but
@@ -281,6 +294,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "signal.read",
     "signal.triage",
     "pipeline.read",
@@ -309,6 +323,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "signal.read",
     "signal.triage",
     "pipeline.read",
@@ -373,6 +388,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "signal.read",
     "signal.triage",
     "pipeline.read",
@@ -392,6 +408,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "signal.read",
     "signal.triage",
     "pipeline.read",
@@ -424,6 +441,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "pipeline.opportunityConfig",
   ],
   senior_channel_manager: [
@@ -438,6 +456,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "pipeline.forecast",
     "planning.read",
     "campaign.write",
@@ -453,6 +472,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "account.write",
     "planning.read",
     "strategy.read",
@@ -466,6 +486,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.use",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "catalog.write",
     "strategy.read",
     "copilot.decide",
@@ -502,6 +523,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "pipeline.forecast",
     "planning.read",
     "strategy.read",
@@ -513,6 +535,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "pipeline.read",
     "campaign.read",
     "catalog.read",
@@ -531,6 +554,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "delivery.read",
     "delivery.write",
     "pipeline.read",
@@ -545,6 +569,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "signal.read",
     "signal.triage",
     "pipeline.read",
@@ -565,6 +590,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "account.read",
     "account.write",
     "account.record",
+    "account.collaborator",
     "signal.read",
     "signal.triage",
     "pipeline.read",
@@ -595,6 +621,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "pipeline.forecast",
     "planning.read",
     "campaign.write",
@@ -612,6 +639,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "account.write",
     "planning.read",
     "strategy.read",
@@ -627,6 +655,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.use",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "catalog.write",
     "strategy.read",
     "copilot.decide",
@@ -647,6 +676,7 @@ export const ROLE_PERMISSIONS: Record<RoleCode, readonly PermCode[]> = {
     "copilot.decide",
     "catalog.read",
     "account.record",
+    "account.collaborator",
     "planning.read",
     "delivery.read",
     "pipeline.forecast",
