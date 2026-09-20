@@ -73,7 +73,7 @@ import {
   settleCommitment,
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
-import { Tag } from "../../components/tag";
+import { Tag, TierBadge } from "../../components/tag";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
@@ -391,9 +391,9 @@ export default async function AccountDetailPage({
             <Tag icon="target">
               {POSITION_TEXT.planDeals} {openDealsCount}
             </Tag>
-            <Tag tone={tierTone} icon="medal">
+            <TierBadge tier={account.tier} tone={tierTone}>
               {tierLabel}
-            </Tag>
+            </TierBadge>
             {health && health.ok ? (
               <Tag tone={healthTone(health.value.score)}>
                 {CHAIN_TEXT.healthShort} {health.value.score}

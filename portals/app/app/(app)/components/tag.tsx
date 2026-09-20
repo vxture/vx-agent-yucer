@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { StatusBadge, Tooltip, TooltipContent, TooltipTrigger, type IconName, type StatusBadgeTone } from "@vxture/design-ui";
+import type { AccountTier } from "../../domains/account/store";
 
 // 标签 - a badge that may be neutral, which is every badge in this product
 // except the ones that are always coloured.
@@ -92,5 +93,38 @@ export function NameOverflowTag({
       </TooltipTrigger>
       <TooltipContent>{names.join(" / ")}</TooltipContent>
     </Tooltip>
+  );
+}
+
+/** 客户级别的金/银/铜牌图 (owner, 2026-09-20: 我在项目根目录放了三个icon，
+ *  对应各户级别的图片) - a photographic medal, not the DS's generic flat
+ *  "medal" glyph, so this bypasses Tag and drives StatusBadge directly with
+ *  `icon={false}`: Tag's own icon prop is typed to IconName only (an opinion
+ *  worth keeping there, since every other tag on this product IS a DS icon),
+ *  and passing an <img> as `icon` would have meant widening that contract for
+ *  one caller. Assets normalized to 128x128 transparent PNG under
+ *  public/assets/icons/tier-*.png - see icons.test.ts. */
+const TIER_ICON_SRC: Record<AccountTier, string> = {
+  strategic: "/assets/icons/tier-gold.png",
+  key: "/assets/icons/tier-silver.png",
+  standard: "/assets/icons/tier-bronze.png",
+};
+
+export function TierBadge({
+  tier,
+  tone,
+  children,
+}: {
+  readonly tier: AccountTier;
+  readonly tone: StatusBadgeTone;
+  readonly children: ReactNode;
+}) {
+  return (
+    <StatusBadge tone={tone} icon={false}>
+      <span className="gap-2xs inline-flex items-center">
+        <img src={TIER_ICON_SRC[tier]} alt="" className="h-[14px] w-[14px]" />
+        {children}
+      </span>
+    </StatusBadge>
   );
 }
