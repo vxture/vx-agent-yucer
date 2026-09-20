@@ -10,6 +10,8 @@ import {
   moveContact,
   recomputeHealth,
   setAccountParent,
+  updateAccountBasics,
+  type AccountBasicsPatch,
 } from "../../domains/account/service";
 import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
 import { isRelationType } from "../../domains/account/lib/health";
@@ -276,6 +278,42 @@ export async function setAccountParentAction(
     },
     accountId,
     parentId,
+  );
+
+  if (!result.ok) {
+    return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  }
+  revalidatePath(`/account/${accountId}`);
+  revalidatePath("/account");
+  return { ok: true };
+}
+
+// 基础信息表单 (owner, 2026-09-20: 设计图严格对齐 - 先做基础信息表单，智能
+// 采集先跳过). The gate and every field's own validation live in
+// updateAccountBasics; this is only the session-to-context wiring every
+// other action here does the same way.
+export interface UpdateAccountBasicsResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function updateAccountBasicsAction(
+  accountId: string,
+  patch: AccountBasicsPatch,
+): Promise<UpdateAccountBasicsResult> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+
+  const result = await updateAccountBasics(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    accountId,
+    patch,
   );
 
   if (!result.ok) {

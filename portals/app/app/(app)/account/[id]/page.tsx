@@ -23,8 +23,14 @@ import {
   decisionChainsByOpportunity,
   getAccountDetail,
   listAccounts,
+  listCustomerNatures,
+  listCustomerSizes,
+  listCustomerTypes,
+  listIndustries,
   recomputeHealth,
 } from "../../../domains/account/service";
+import { listSegments } from "../../../domains/strategy/service";
+import { AccountBasicsForm } from "../../components/account-basics-form";
 import { DecisionChainDetail } from "../../components/decision-chain-detail";
 import { ChainViewProvider, ChainDetailSlot, ChainSummaryList, type ChainSummaryItem } from "../../components/decision-chain-switch";
 // NOT importing ROLE_ORDER from decision-chain-graph.tsx here - that file is
@@ -78,6 +84,7 @@ import {
   moveContactAction,
   recomputeAccountHealth,
   setAccountParentAction,
+  updateAccountBasicsAction,
 } from "../actions";
 import {
   recordFollowUp,
@@ -214,14 +221,26 @@ export default async function AccountDetailPage({
     : null;
   const childUnits = accountRows.filter((a) => a.parentId === id);
 
-  const [health, relations] = await Promise.all([
-    // persist:false - see the note above. It still needs the write gate, so a
-    // read-only member gets no panel rather than a silently failing one.
-    canWrite
-      ? recomputeHealth(ctx, id, { persist: false })
-      : Promise.resolve(null),
-    accountRelations(ctx, id),
-  ]);
+  const [health, relations, industriesRead, customerTypesRead, customerSizesRead, customerNaturesRead, segmentsRead] =
+    await Promise.all([
+      // persist:false - see the note above. It still needs the write gate, so a
+      // read-only member gets no panel rather than a silently failing one.
+      canWrite
+        ? recomputeHealth(ctx, id, { persist: false })
+        : Promise.resolve(null),
+      accountRelations(ctx, id),
+      // 基础信息表单的四个词表 (owner, 2026-09-20: 先做基础信息表单) - only a
+      // writer ever sees the form, but the reads are cheap account.view-gated
+      // lists already used elsewhere (admin config pages), not a new query
+      // shape.
+      canWrite ? listIndustries(ctx) : Promise.resolve(null),
+      canWrite ? listCustomerTypes(ctx) : Promise.resolve(null),
+      canWrite ? listCustomerSizes(ctx) : Promise.resolve(null),
+      canWrite ? listCustomerNatures(ctx) : Promise.resolve(null),
+      canWrite
+        ? listSegments({ ...ctx, store: getStrategyStore() })
+        : Promise.resolve(null),
+    ]);
 
   // THE POSITIONS ON THIS THEATRE, and the theatre-level plan over them.
   const base = {
@@ -621,6 +640,32 @@ export default async function AccountDetailPage({
             children={childUnits}
             industry={account.industry}
             region={account.region}
+            editForm={
+              canWrite ? (
+                <AccountBasicsForm
+                  accountId={id}
+                  accountNo={account.accountNo}
+                  name={account.name}
+                  region={account.region}
+                  province={account.province}
+                  industryId={account.industryId}
+                  segmentCode={account.segmentCode}
+                  customerTypeId={account.customerTypeId}
+                  customerSizeId={account.customerSizeId}
+                  customerNatureId={account.customerNatureId}
+                  creditCode={account.creditCode}
+                  website={account.website}
+                  employeeCount={account.employeeCount}
+                  industries={industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : []}
+                  segments={segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : []}
+                  customerTypes={customerTypesRead && customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : []}
+                  customerSizes={customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : []}
+                  customerNatures={customerNaturesRead && customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : []}
+                  canWrite={canWrite}
+                  onSave={updateAccountBasicsAction}
+                />
+              ) : undefined
+            }
           />
 
           <ContactRoster

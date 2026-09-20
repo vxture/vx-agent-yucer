@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { DetailList, DetailRow, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
@@ -34,10 +35,18 @@ export function OrgUnitPanel({
   onSetParent,
   industry,
   region,
+  editForm,
 }: AccountParentPanelProps & {
   readonly children: readonly { id: string; name: string }[];
   readonly industry: string | null;
   readonly region: string | null;
+  /** AccountBasicsForm, built server-side in page.tsx and mounted here as the
+   *  card's own action - same "server builds it, client just mounts it"
+   *  pattern linkForm has used all along (owner, 2026-09-20: 编辑单位信息 -
+   *  this card's own edit trigger, not a header ··· menu - see
+   *  designate-account.tsx's own note on why a header button beats a shared
+   *  menu here). Optional: absent for a read-only member. */
+  readonly editForm?: ReactNode;
 }) {
   const { ACCOUNT_TEXT } = useMessages();
   // 没有 description (owner, 2026-09-20: 去掉所有垃圾说明) - 这是每天用的
@@ -48,6 +57,7 @@ export function OrgUnitPanel({
       tone="raised"
       icon="buildings"
       title={ACCOUNT_TEXT.orgUnitTitle}
+      action={editForm}
     >
       <div className="flex flex-col gap-sm">
         {industry || region ? (

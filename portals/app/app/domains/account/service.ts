@@ -1135,6 +1135,103 @@ export async function reassignAccount(
 }
 
 /**
+ * The multi-field 基础信息 form (owner, 2026-09-20: 设计图严格对齐 - 先做
+ * 基础信息表单，智能采集先跳过).
+ *
+ * THE STORE PATCH TYPE ALREADY COVERED EVERY ONE OF THESE FIELDS - name,
+ * industryId/customerTypeId/customerSizeId/customerNatureId, region,
+ * province, segmentCode, creditCode, website, employeeCount have all been
+ * writable via `updateAccount()` since their own increments (0024/0035/0040/
+ * 0071/0072), and every one of those increments said so in its own grant
+ * comment. What did not exist was a SERVICE VERB taking more than one of them
+ * at once - `fillAccountField` only ever writes the single completeness-gap
+ * field a "补充" link points at, `reassignAccount`/`designateAccount` each own
+ * one fact. A form with eleven fields calling fillAccountField eleven times
+ * would gate, read and write the account eleven separate times for one save.
+ *
+ * UNDEFINED MEANS "LEAVE IT", null MEANS "CLEAR IT" - the same convention
+ * `updateAccount`'s own patch already uses (a Partial<Pick<...>>): a caller
+ * only sends the keys the form actually changed, and a nullable column can
+ * still be blanked out on purpose.
+ *
+ * NO 智能采集 HERE. That is an AI-driven external enrichment action, a
+ * different capability from "write the value a person typed" - conflating
+ * the two would make this verb's gate answer a question ("may an AI fetch
+ * external data about this company") that account.upsert was never meant to
+ * answer. Building it out is the owner's explicit next step, not this one's.
+ */
+export interface AccountBasicsPatch {
+  name?: string;
+  region?: string | null;
+  province?: string | null;
+  industryId?: string | null;
+  segmentCode?: string | null;
+  customerTypeId?: string | null;
+  customerSizeId?: string | null;
+  customerNatureId?: string | null;
+  creditCode?: string | null;
+  website?: string | null;
+  employeeCount?: number | null;
+}
+
+export async function updateAccountBasics(
+  ctx: AccountContext,
+  accountId: string,
+  patch: AccountBasicsPatch,
+): Promise<RuleResult<AccountRecord>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  if (patch.name !== undefined && !patch.name.trim()) {
+    return fail(violation("name_required", "an account needs a name", "name"));
+  }
+  // Same CHECK the database enforces (incr/0035) - refused here, in the
+  // product's own terms, rather than as a raw constraint violation.
+  if (patch.province != null && !isProvince(patch.province)) {
+    return fail(violation(
+      "province_unknown",
+      `${patch.province} is not one of the 34 provincial-level divisions`,
+      "province",
+    ));
+  }
+  if (
+    patch.employeeCount != null &&
+    (!Number.isInteger(patch.employeeCount) || patch.employeeCount < 0)
+  ) {
+    return fail(violation(
+      "employee_count_invalid",
+      "employee count must be a non-negative whole number",
+      "employeeCount",
+    ));
+  }
+
+  const current = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  if (!current) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+
+  const write: Partial<AccountRecord> = {};
+  if (patch.name !== undefined) write.name = patch.name.trim();
+  if (patch.region !== undefined) write.region = patch.region;
+  if (patch.province !== undefined) write.province = patch.province;
+  if (patch.industryId !== undefined) write.industryId = patch.industryId;
+  if (patch.segmentCode !== undefined) write.segmentCode = patch.segmentCode;
+  if (patch.customerTypeId !== undefined) write.customerTypeId = patch.customerTypeId;
+  if (patch.customerSizeId !== undefined) write.customerSizeId = patch.customerSizeId;
+  if (patch.customerNatureId !== undefined) write.customerNatureId = patch.customerNatureId;
+  if (patch.creditCode !== undefined) write.creditCode = patch.creditCode;
+  if (patch.website !== undefined) write.website = patch.website;
+  if (patch.employeeCount !== undefined) write.employeeCount = patch.employeeCount;
+
+  const written = await ctx.store.updateAccount(ctx.workspaceId, accountId, write);
+  if (!written) {
+    return fail(violation("not_found", `account ${accountId} was not found`, "accountId"));
+  }
+  const updated = await ctx.store.getAccount(ctx.workspaceId, accountId);
+  return ok(updated as AccountRecord);
+}
+
+/**
  * Fill one field on a customer record.
  *
  * THE WRITE BEHIND ONE-CLICK FILL. The owner's ask of 2026-09-01: the agent

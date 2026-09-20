@@ -726,6 +726,9 @@ export const en: Dictionary = {
     denied: "Refused",
     move_at_edge: "Already at that end",
     not_movable: "This row cannot be moved",
+    name_required: "An account needs a name",
+    province_unknown: "Not one of the 34 provincial-level divisions",
+    employee_count_invalid: "Employee count must be a non-negative whole number",
   },
 
   ACCOUNT_PARENT_TEXT: {
@@ -2571,6 +2574,33 @@ export const en: Dictionary = {
     approve: "Approve",
     reject: "Reject",
     confidence: (n: number) => `Confidence ${n}`,
+  },
+
+  ACCOUNT_BASICS_TEXT: {
+    editButton: "Edit account details",
+    title: "Edit account details",
+    why: "The account's own attributes - name, classification, contact points. Who owns it and the decision chain each have their own card.",
+    name: "Account name",
+    accountNo: "Account number",
+    region: "Sales region",
+    province: "Province",
+    provincePick: "Not set",
+    industry: "Industry",
+    industryPick: "Not set",
+    segment: "Market segment",
+    segmentPick: "Not set",
+    customerType: "Customer type",
+    customerTypePick: "Not set",
+    customerSize: "Customer size",
+    customerSizePick: "Not set",
+    customerNature: "Customer nature",
+    customerNaturePick: "Not set",
+    creditCode: "Registration number",
+    website: "Website",
+    employeeCount: "Employee count",
+    save: "Save",
+    cancel: "Cancel",
+    saved: "Saved",
   },
 
   // A FUNCTION, so the whole switch is re-implemented rather than a table

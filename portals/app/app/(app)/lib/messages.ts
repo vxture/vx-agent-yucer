@@ -1040,6 +1040,10 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   // 联系人排序四元组 (incr/0073) - 跟其他可排序词表共用同一对措辞。
   move_at_edge: "已经在这一端了",
   not_movable: "这一条不能移动",
+  // 基础信息表单 (owner, 2026-09-20)。
+  name_required: "客户名称不能为空",
+  province_unknown: "不是有效的省级行政区划",
+  employee_count_invalid: "员工数必须是不小于 0 的整数",
 };
 
 export const ACCOUNT_PARENT_TEXT = {
@@ -5702,6 +5706,36 @@ export const POSITION_TEXT = {
   designateSubmit: "确认定级",
   designated: (tier: string) => `已定为${tier}`,
   designateDenied: "你没有修改客户的权限",
+} as const;
+
+// 基础信息表单 (owner, 2026-09-20: 设计图严格对齐 - 先做基础信息表单，智能
+// 采集先跳过). 字段全部对应 updateAccountBasics() 已经能写的真实列 - 没有
+// 一个是这张表单发明的新事实。
+export const ACCOUNT_BASICS_TEXT = {
+  editButton: "编辑单位信息",
+  title: "编辑单位信息",
+  why: "客户的固有属性 - 名称、分类、联系入口。谁负责跟进、决策链这些另有自己的卡片。",
+  name: "客户名称",
+  accountNo: "客户编号",
+  region: "销售大区",
+  province: "省份",
+  provincePick: "未标注",
+  industry: "行业",
+  industryPick: "未标注",
+  segment: "细分市场",
+  segmentPick: "未标注",
+  customerType: "客户类型",
+  customerTypePick: "未标注",
+  customerSize: "客户规模",
+  customerSizePick: "未标注",
+  customerNature: "客户性质",
+  customerNaturePick: "未标注",
+  creditCode: "统一社会信用代码",
+  website: "官网",
+  employeeCount: "员工规模",
+  save: "保存",
+  cancel: "取消",
+  saved: "已保存",
 } as const;
 
 /* 权限管理 - the tree's own copy (owner, 2026-09-09: 业务域-模块-页面-操作 四级).
