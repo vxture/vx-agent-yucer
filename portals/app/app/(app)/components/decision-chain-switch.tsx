@@ -52,7 +52,11 @@ export function ChainViewProvider({
   );
 }
 
-function useChainView(): ChainViewState {
+/** Exported (owner, 2026-09-20: mockup's deal card links to "本商机的决策链")
+ *  so account-lifecycle.tsx's DealLifecyclePanel can jump a deal row straight
+ *  to its own chain's detail view instead of only 栏1's summary list being
+ *  able to open one. */
+export function useChainView(): ChainViewState {
   const ctx = useContext(ChainViewContext);
   if (!ctx) throw new Error("useChainView must be used inside ChainViewProvider");
   return ctx;

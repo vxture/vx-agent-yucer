@@ -4132,6 +4132,11 @@ export const ACCOUNT_TEXT = {
   lifecycleInteractions: "跟进记录",
   lifecycleNoMilestones: "还没有里程碑",
   lifecycleNoInstalments: "还没有回款计划",
+  // 商机卡跳到自己那条决策链 (owner, 2026-09-20: mockup 每张商机卡都有一个
+  // "本商机的决策链"链接) - 真实数据里每个开放商机本来就有自己的一条链
+  // (decisionChainsByOpportunity), 不是 mockup demo 里"没单独定义就读企业
+  // 默认"那种回退, 所以措辞直接是"查看", 不用"未单独定义"这类免责声明。
+  lifecycleViewChain: "查看本商机的决策链",
   lifecycleStalledDays: (n: number) => `停留 ${n} 天`,
 
   backToList: "客户管理",

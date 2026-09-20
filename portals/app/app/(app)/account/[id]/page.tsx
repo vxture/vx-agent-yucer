@@ -47,8 +47,9 @@ import {
   relationshipEvidence,
 } from "../../../domains/account/field-service";
 import { getMessages } from "../../lib/i18n/server";
-import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
-import { listPipeline, listStageDefinitions } from "../../../domains/pipeline/service";
+import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
+import { daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
+import { listPipeline, listStageDefinitions, stageChangeTimestamps } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
 import { healthTone, stageLabelFor } from "../../lib/view-model";
 import { listProjects, projectView } from "../../../domains/delivery/service";
@@ -233,7 +234,7 @@ export default async function AccountDetailPage({
     ? policyRead.value.defaultCurrency
     : DEFAULT_PRICING_POLICY.defaultCurrency;
 
-  const [deals, projects, feed, proposals, stageRows] = await Promise.all([
+  const [deals, projects, feed, proposals, stageRows, stageChanges] = await Promise.all([
     listPipeline({ ...base, store: session.stores.pipeline() }, { accountId: id }),
     listProjects({ ...base, store: getDeliveryStore() }, { accountId: id }),
     cachedFeed(base),
@@ -242,8 +243,10 @@ export default async function AccountDetailPage({
       { status: "proposed" },
     ),
     listStageDefinitions({ ...base, store: session.stores.pipeline() }),
+    stageChangeTimestamps({ ...base, store: session.stores.pipeline() }),
   ]);
   const stageDefinitions = stageRows.ok ? toStageCatalog(stageRows.value) : DEFAULT_STAGE_DEFINITIONS;
+  const openStages = openStageOrder(stageDefinitions);
 
   // AFTER the deals, because a chain now belongs to one.
   const chain = await decisionChainsByOpportunity(
@@ -323,8 +326,10 @@ export default async function AccountDetailPage({
     });
   });
 
+  const chainedDealIds = new Set((chain.ok ? chain.value : []).map((c) => c.opportunityId));
   const dealRows: DealLifecycleRow[] = (deals.ok ? deals.value : []).map((d) => {
     const j = relevantJudgements.find((x) => x.subjectType === "opportunity" && x.subjectId === d.id);
+    const stageIndex = openStages.indexOf(d.stage);
     return {
       id: d.id,
       name: d.name,
@@ -335,6 +340,12 @@ export default async function AccountDetailPage({
       insight: j
         ? { claim: j.claim, rule: j.rule ?? null, tone: j.urgency === "today" ? "danger" : j.urgency === "week" ? "warning" : "neutral" }
         : null,
+      stagePosition: d.status === "open" && stageIndex >= 0 ? { index: stageIndex, total: openStages.length } : null,
+      daysInStage: daysAtStage(
+        { lastStageChangeAt: stageChanges.ok ? (stageChanges.value.get(d.id) ?? null) : null },
+        now,
+      ),
+      hasChain: chainedDealIds.has(d.id),
     };
   });
 

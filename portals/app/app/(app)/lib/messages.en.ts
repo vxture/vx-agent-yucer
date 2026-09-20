@@ -3248,6 +3248,7 @@ export const en: Dictionary = {
     lifecycleInteractions: "Interactions",
     lifecycleNoMilestones: "No milestones yet",
     lifecycleNoInstalments: "No revenue schedule yet",
+    lifecycleViewChain: "View this deal's decision chain",
     lifecycleStalledDays: (n: number) => `${n}d in stage`,
 
     backToList: "Accounts",
