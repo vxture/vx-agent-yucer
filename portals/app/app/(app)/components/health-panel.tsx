@@ -10,8 +10,6 @@ import {
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
-import { healthTone } from "../lib/view-model";
-import { Tag } from "./tag";
 
 // Account health, with its reasons.
 //
@@ -96,27 +94,20 @@ export function HealthPanel({
         ) : null
       }
     >
-      <Tag tone={healthTone(current.score)}>
-        {current.score}
-      </Tag>
-
-      {current.primaryConcern ? (
-        <StatusBadge tone="warning">
-          {CHAIN_TEXT.primaryConcern}:{" "}
-          {healthReasonText(current.primaryConcern.reason)}
-        </StatusBadge>
-      ) : null}
-
+      {/* 卡片正文不再重复分数/首要问题 (owner, 2026-09-20: 设计图严格对齐 -
+          mockup 自己删过一次同样的重复, 注释原话"首要问题：1 笔回款逾期"
+          删掉了) - header 的健康评估维度(RingGauge)现在就是分数本身, 有首要
+          问题时环旁边直接换成问题文字, 这张卡再放一遍分数和首要问题是对同一
+          件事说两遍。error 仍然留着 - 那是这次点击"重新评估"才可能出现的新
+          事实, header 不会有。 */}
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
-      {/* columns={2}, and the third time this has come up is worth naming as a
-          rule: the DS's grids break on the VIEWPORT while every grid in this
-          product sits in a pane sized by the shell. On the theatre page the
-          centre column is 768px - viewport, less a 320px dossier, a 400px deck
-          and the insets - so four cards get ~170 each and their labels clip to
-          one glyph. Two columns is the only lever MetricGrid offers; a
-          container query is what the case wants, and the DS has none. */}
-      <MetricGrid items={items} columns={2} />
+      {/* columns={4} (owner, 2026-09-20: 设计图严格对齐, mockup 一行四个) -
+          之前锁在 2 列的理由(注释见 git 历史)是三栏布局下这一栏只有 768px
+          宽度; 现在栏3已经并入栏2、只剩两栏 (owner: 严格按照设计实施 - 栏3
+          还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
+          下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
+      <MetricGrid items={items} columns={4} />
     </Section>
   );
 }
