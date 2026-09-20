@@ -28,6 +28,14 @@ import { Tag } from "./tag";
 export interface LinkContactsProps {
   readonly accountId: string;
   readonly contacts: readonly ContactNode[];
+  /** contactId -> real name, from the same roster read decision-chain-detail.tsx
+   *  already uses for nameOf()/titleOf() (owner, 2026-09-20: 设计图严格对齐 -
+   *  the picker was showing the raw contact id, "ct_1 (内线)", because
+   *  ContactNode itself carries no name - it is a decision-chain role
+   *  record, not a roster row. The real name was one prop away the whole
+   *  time, just never threaded through). Falls back to the id for a contact
+   *  this map has no entry for, rather than rendering nothing. */
+  readonly contactNames: Readonly<Record<string, string>>;
   readonly canLink: boolean;
   /** Shown when the chain currently reports the buyer as unreachable. */
   readonly unreachable: boolean;
@@ -40,6 +48,7 @@ export interface LinkContactsProps {
 export function LinkContacts({
   accountId,
   contacts,
+  contactNames,
   canLink,
   unreachable,
   onLink,
@@ -71,7 +80,7 @@ export function LinkContacts({
     );
 
   const label = (c: ContactNode) =>
-    `${c.id} (${DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole})`;
+    `${contactNames[c.id] ?? c.id} (${DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole})`;
 
   function submit() {
     setError(null);

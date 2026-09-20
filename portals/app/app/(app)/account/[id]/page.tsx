@@ -182,6 +182,7 @@ export default async function AccountDetailPage({
     );
   }
   const { account, contacts } = detail.value;
+  const contactNameById = Object.fromEntries(contacts.map((c) => [c.id, c.name]));
 
   const canWrite = can(
     session.authz,
@@ -468,6 +469,7 @@ export default async function AccountDetailPage({
                     key={c.opportunityId}
                     accountId={id}
                     contacts={c.people}
+                    contactNames={contactNameById}
                     canLink={canLinkGraph}
                     unreachable={c.coverage.economicBuyerUnreachable}
                     onLink={linkAccountContacts}
