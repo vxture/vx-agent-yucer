@@ -5353,6 +5353,9 @@ export const CHAIN_TEXT = {
   healthTitle: "客户健康度",
   healthDescription:
     "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
+  // header 上放不下"客户健康度"这五个字的读数卡，短标题给 header 用
+  // (owner, 2026-09-18: header 三维度顺序 - 健康评估改名四个字)。
+  healthShort: "健康评估",
   primaryConcern: "首要问题",
   recompute: "重新计算",
   factorPipeline: "商机",

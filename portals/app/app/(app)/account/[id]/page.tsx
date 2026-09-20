@@ -76,6 +76,7 @@ import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
+import { healthTone } from "../../lib/view-model";
 
 // D4 account detail (owner, 2026-09-18: 客户全景视图重排).
 //
@@ -357,6 +358,18 @@ export default async function AccountDetailPage({
   const canAsk = can(session.authz, session.entitlement, "copilot.ask", "ui").allowed;
   const canLinkGraph = can(session.authz, session.entitlement, "account.graph.link", "ui").allowed;
 
+  // header 的三个动态维度 (owner, 2026-09-18: header 三维度顺序 - 商机数量 /
+  // 客户级别 / 健康评估), 都是已有真实数据的读数, 不是新字段。
+  const openDealsCount = dealRows.filter((d) => d.status === "open").length;
+  const tierLabel =
+    account.tier === "strategic"
+      ? POSITION_TEXT.tierStrategic
+      : account.tier === "key"
+        ? POSITION_TEXT.tierKey
+        : POSITION_TEXT.tierStandard;
+  const tierTone =
+    account.tier === "strategic" ? "brand" : account.tier === "key" ? "warning" : "neutral";
+
   return (
     <ViewLayout>
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
@@ -373,9 +386,18 @@ export default async function AccountDetailPage({
             <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
               {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
             </Tag>
-            {account.tier !== "standard" ? (
-              <Tag tone={account.tier === "strategic" ? "brand" : "warning"}>
-                {account.tier === "strategic" ? POSITION_TEXT.tierStrategic : POSITION_TEXT.tierKey}
+            {/* 三个动态维度, 固定顺序: 商机数量 -> 客户级别 -> 健康评估 (owner,
+                2026-09-18: header 三维度顺序). 都读现成的数据, 客户级别现在
+                连普通级也显示, 不再只在非 standard 时才出现. */}
+            <Tag icon="target">
+              {POSITION_TEXT.planDeals} {openDealsCount}
+            </Tag>
+            <Tag tone={tierTone} icon="medal">
+              {tierLabel}
+            </Tag>
+            {health && health.ok ? (
+              <Tag tone={healthTone(health.value.score)}>
+                {CHAIN_TEXT.healthShort} {health.value.score}
               </Tag>
             ) : null}
             {/* 定级/计划 IS CONFIGURATION, not a fact to display - it lives

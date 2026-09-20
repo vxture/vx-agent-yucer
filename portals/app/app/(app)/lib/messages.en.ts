@@ -1184,6 +1184,7 @@ export const en: Dictionary = {
     healthTitle: "Account health",
     healthDescription:
       "A derived value, recomputed from its sources. For sorting and alerting - never the sole basis for a business decision.",
+    healthShort: "Health",
     primaryConcern: "Biggest problem",
     recompute: "Recompute",
     factorPipeline: "Pipeline",
