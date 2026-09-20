@@ -7,10 +7,11 @@ import {
   Field,
   FieldLabel,
   Input,
-  NativeSelect,
   useToast,
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
+import { TIER_ICON_SRC } from "./tag";
+import type { AccountTier } from "../../domains/account/store";
 
 // Designating an account's tier, with the plan a strategic one requires.
 //
@@ -64,9 +65,9 @@ export function DesignateAccount({
   if (!canWrite) return null;
 
   const TIERS = [
-    ["standard", POSITION_TEXT.tierStandard],
-    ["key", POSITION_TEXT.tierKey],
-    ["strategic", POSITION_TEXT.tierStrategic],
+    ["standard", POSITION_TEXT.tierStandard, POSITION_TEXT.tierStandardDesc],
+    ["key", POSITION_TEXT.tierKey, POSITION_TEXT.tierKeyDesc],
+    ["strategic", POSITION_TEXT.tierStrategic, POSITION_TEXT.tierStrategicDesc],
   ] as const;
   const currentLabel = TIERS.find(([k]) => k === tier)?.[1] ?? tier;
 
@@ -144,13 +145,29 @@ export function DesignateAccount({
         <div className="gap-lg flex flex-col">
           <Field>
             <FieldLabel>{POSITION_TEXT.designate}</FieldLabel>
-            <NativeSelect value={next} onChange={(ev) => setNext(ev.target.value)} disabled={pending}>
-              {TIERS.map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
+            {/* 三张奖牌卡, 不是下拉框 (owner, 2026-09-20: mockup - 企业定级需要
+                金银铜奖牌的图形展示, 跟健康评估的图形一样重). TIER_ICON_SRC 是
+                header 三维度那张"客户级别"徽标已经在用的同一份 PNG, 这里只是
+                第二个消费者, 不是新画一套图。 */}
+            <div className="gap-sm flex flex-col">
+              {TIERS.map(([k, label, desc]) => (
+                <button
+                  key={k}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setNext(k)}
+                  className={`gap-sm border-border flex items-center rounded-md border-2 p-sm text-left ${
+                    next === k ? "border-primary bg-primary-muted" : "bg-card"
+                  }`}
+                >
+                  <img src={TIER_ICON_SRC[k as AccountTier]} alt="" className="h-[2.875rem] w-10 flex-none" />
+                  <div className="min-w-0">
+                    <div className="text-body-sm font-bold">{label}</div>
+                    <div className="text-muted-foreground text-body-sm">{desc}</div>
+                  </div>
+                </button>
               ))}
-            </NativeSelect>
+            </div>
           </Field>
 
           {strategic ? (

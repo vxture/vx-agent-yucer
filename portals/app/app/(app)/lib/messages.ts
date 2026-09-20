@@ -5605,6 +5605,12 @@ export const POSITION_TEXT = {
   tierStrategic: "战略级",
   tierKey: "关键级",
   tierStandard: "普通级",
+  // 定级抽屉的三张奖牌卡各自一句 (owner, 2026-09-20: mockup 三档各带一句
+  // tc-desc) - 跟下面 designateWhy/planRequired 说的是同一件事, 只是拆成
+  // 每档一句, 不用打开抽屉细读大段说明就知道选哪档意味着什么。
+  tierStandardDesc: "默认档位，不改变任何规则",
+  tierKeyDesc: "重点关注，暂不需要经营计划",
+  tierStrategicDesc: "需要一份经营计划，节奏规则据此判断",
   // header 商机数量/客户级别/健康评估三维度里, "客户级别"这个维度自己的标签
   // (owner, 2026-09-20: 严格按照设计实施) - tierStrategic/tierKey/tierStandard
   // 是三档的VALUE，这个是维度自己的NAME，两者不是一回事。
