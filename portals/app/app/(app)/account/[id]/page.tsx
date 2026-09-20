@@ -149,6 +149,7 @@ export default async function AccountDetailPage({
     BOARD_TEXT,
     CHAIN_TEXT,
     CHANNEL_LABEL,
+    FIELD_TEXT,
     PROJECT_HEALTH_LABEL,
     MILESTONE_STATUS_LABEL,
     REVENUE_STATUS_LABEL,
@@ -786,35 +787,35 @@ export default async function AccountDetailPage({
                 content: <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />,
               },
               {
+                // 承诺和跟进记录拆成两个 tab (owner, 2026-09-20: 先做跟进
+                // 记录和承诺拆分) - mockup 的跟进记录 tab 从来只有跟进原文,
+                // 承诺(commitment)是 mockup 完全没有的概念, 之前挤进同一个
+                // tab 是这页自己的历史遗留, 不是设计要求。
+                key: "commitments",
+                label: `${FIELD_TEXT.commitTitle} (${commitments.ok ? commitments.value.length : 0})`,
+                content: commitments.ok ? (
+                  <CommitmentList
+                    accountId={id}
+                    items={commitments.value}
+                    evidence={(interactions.ok ? interactions.value : []).map(
+                      (i) => ({
+                        id: i.id,
+                        label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
+                      }),
+                    )}
+                    canWrite={canWrite}
+                    captureHref={`/capture?account=${id}&back=/account/${id}`}
+                    onSettle={settleCommitment}
+                    hideDescription
+                  />
+                ) : null,
+              },
+              {
                 key: "interactions",
-                // 跟进记录条数, 不是这个 tab 现在也带着的承诺条数 (owner,
-                // 2026-09-20: 逐个板块对照设计图核实 - mockup 的这个数字
-                // 数的是跟进记录). 商机/交付项目两个 tab 已经在这么做, 回款/
-                // 跟进记录当初漏了。
                 label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
-                content: (
-                  <div className="flex flex-col gap-md">
-                    {commitments.ok ? (
-                      <CommitmentList
-                        accountId={id}
-                        items={commitments.value}
-                        evidence={(interactions.ok ? interactions.value : []).map(
-                          (i) => ({
-                            id: i.id,
-                            label: `${i.occurredAt.toISOString().slice(0, 10)} ${CHANNEL_LABEL[i.channel] ?? i.channel}`,
-                          }),
-                        )}
-                        canWrite={canWrite}
-                        captureHref={`/capture?account=${id}&back=/account/${id}`}
-                        onSettle={settleCommitment}
-                        hideDescription
-                      />
-                    ) : null}
-                    {interactions.ok ? (
-                      <InteractionTimeline items={interactions.value} limit={20} hideDescription />
-                    ) : null}
-                  </div>
-                ),
+                content: interactions.ok ? (
+                  <InteractionTimeline items={interactions.value} limit={20} hideDescription />
+                ) : null,
               },
             ]}
           />
