@@ -41,11 +41,15 @@ export interface InteractionTimelineProps {
    * the map to gain a history they did not ask for yet.
    */
   readonly limit?: number;
+  /** 默认 false, 不改 pipeline 详情页的样子 (owner, 2026-09-20: 去掉所有
+   *  垃圾说明 - 账户详情页传 true, 见 org-unit-panel.tsx 同名注释). */
+  readonly hideDescription?: boolean;
 }
 
 export function InteractionTimeline({
   items,
   limit,
+  hideDescription,
 }: InteractionTimelineProps) {
   const { CHANNEL_LABEL, FIELD_TEXT } = useMessages();
   const [open, setOpen] = useState(false);
@@ -61,7 +65,7 @@ export function InteractionTimeline({
       <Section
         tone="raised"
         title={FIELD_TEXT.timelineTitle}
-        description={FIELD_TEXT.timelineDescription}
+        description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       >
         <EmptyState
           title={FIELD_TEXT.recordEmpty}
@@ -75,7 +79,7 @@ export function InteractionTimeline({
     <Section
       tone="raised"
       title={FIELD_TEXT.timelineTitle}
-      description={FIELD_TEXT.timelineDescription}
+      description={hideDescription ? undefined : FIELD_TEXT.timelineDescription}
       action={
         limit !== undefined && items.length > limit ? (
           <Button variant="ghost" size="sm" onClick={() => setOpen(!open)}>

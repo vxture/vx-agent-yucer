@@ -40,12 +40,14 @@ export function OrgUnitPanel({
   readonly region: string | null;
 }) {
   const { ACCOUNT_TEXT } = useMessages();
+  // 没有 description (owner, 2026-09-20: 去掉所有垃圾说明) - 这是每天用的
+  // 系统, 标题下面常驻一句"这张卡是干什么的"是写给第一次打开的人看的, 不是
+  // 写给天天开这个页面的销售看的; mockup 的卡头本来也只有标题。
   return (
     <Section
       tone="raised"
       icon="buildings"
       title={ACCOUNT_TEXT.orgUnitTitle}
-      description={ACCOUNT_TEXT.orgUnitWhy}
     >
       <div className="flex flex-col gap-sm">
         {industry || region ? (

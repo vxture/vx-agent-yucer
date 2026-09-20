@@ -92,9 +92,10 @@ export function AccountCompleteness({
   );
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
-  // org-unit-panel.tsx 同名注释).
+  // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
+  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   return (
-    <Section tone="raised" title={COMPLETENESS_TEXT.title} description={COMPLETENESS_TEXT.description}>
+    <Section tone="raised" title={COMPLETENESS_TEXT.title}>
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {derivable.map((g) => (

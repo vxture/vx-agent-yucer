@@ -46,14 +46,14 @@ export function TheatrePlan({
   const { ACCOUNT_TEXT, PROPOSAL_TEXT } = useMessages();
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
-  // org-unit-panel.tsx 同名注释).
+  // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
+  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   if (proposals.length === 0) {
     return (
       <Section
         tone="raised"
         icon="target"
         title={ACCOUNT_TEXT.plan}
-        description={ACCOUNT_TEXT.planWhy}
       >
         <EmptyState
           title={ACCOUNT_TEXT.planEmpty}
@@ -73,7 +73,6 @@ export function TheatrePlan({
       tone="raised"
       icon="target"
       title={ACCOUNT_TEXT.plan}
-      description={ACCOUNT_TEXT.planWhy}
     >
       {groups.map((g) => (
         <div key={g} className="flex flex-col gap-sm">

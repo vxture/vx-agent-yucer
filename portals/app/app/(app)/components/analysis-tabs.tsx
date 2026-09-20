@@ -36,7 +36,9 @@ export function AnalysisTabs({
 }: {
   readonly id: string;
   readonly title: string;
-  readonly description: string;
+  /** Optional (owner, 2026-09-20: 去掉所有垃圾说明 - 账户详情页不传这个了,
+   *  见 account/[id]/page.tsx 的调用). 其他调用方仍可以传。 */
+  readonly description?: string;
   /** The one number the block exists to state, always visible. */
   readonly summary?: ReactNode;
   readonly tabs: readonly AnalysisTab[];

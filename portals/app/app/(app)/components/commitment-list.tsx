@@ -71,6 +71,9 @@ export interface CommitmentListProps {
       opportunityId?: string;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** 默认 false, 不改 pipeline 详情页的样子 (owner, 2026-09-20: 去掉所有
+   *  垃圾说明 - 账户详情页传 true, 见 org-unit-panel.tsx 同名注释). */
+  readonly hideDescription?: boolean;
 }
 
 const DAY = 86_400_000;
@@ -84,6 +87,7 @@ export function CommitmentList({
   now,
   captureHref,
   onSettle,
+  hideDescription,
 }: CommitmentListProps) {
   const { COMMIT_STATUS_LABEL, DIRECTION_LABEL, FIELD_ERROR, FIELD_TEXT } =
     useMessages();
@@ -112,7 +116,7 @@ export function CommitmentList({
     <Section
       tone="raised"
       title={FIELD_TEXT.commitTitle}
-      description={FIELD_TEXT.commitDescription}
+      description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
     >
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 

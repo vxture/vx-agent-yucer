@@ -635,10 +635,11 @@ export default async function AccountDetailPage({
             <RelationshipEvidencePanel evidence={evidence.value} now={now} />
           ) : null}
 
+          {/* 没有 description - 去掉所有垃圾说明 (owner, 2026-09-20; 理由见
+              components/org-unit-panel.tsx 同名注释). */}
           <AnalysisTabs
             id="account-lifecycle"
             title={ACCOUNT_TEXT.roster}
-            description={ACCOUNT_TEXT.rosterWhy}
             tabs={[
               {
                 key: "deals",
@@ -688,10 +689,11 @@ export default async function AccountDetailPage({
                         canWrite={canWrite}
                         captureHref={`/capture?account=${id}&back=/account/${id}`}
                         onSettle={settleCommitment}
+                        hideDescription
                       />
                     ) : null}
                     {interactions.ok ? (
-                      <InteractionTimeline items={interactions.value} limit={20} />
+                      <InteractionTimeline items={interactions.value} limit={20} hideDescription />
                     ) : null}
                   </div>
                 ),
