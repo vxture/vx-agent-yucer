@@ -543,8 +543,14 @@ export default async function AccountDetailPage({
           chat). */}
       {/* ChainViewProvider spans both columns - 栏1 的摘要行点击要改栏2 显示
           什么, 状态得提到两栏共同的父级 (owner: 决策链主从视图). */}
+      {/* 20rem, 不是 18rem (owner: 其他页面的三栏布局/边距/gap，客户详情页
+          是不是一致了) - 18rem 是这页重排前就有的老数字, 查了一圈发现整个
+          产品里唯一真的写了理由的侧栏宽度是 form-page.tsx 的 20rem
+          ("The 20rem second column is reserved..."), 18rem 在别处找不到
+          出处。gap-lg 本来就和 pipeline/[id]/page.tsx 的两栏一致, 不用改;
+          只有这一个数字是孤立的, 改成跟已有惯例对齐。 */}
       <ChainViewProvider chains={chainSummaryItems}>
-      <div className="grid gap-lg xl:grid-cols-[18rem_1fr]">
+      <div className="grid gap-lg xl:grid-cols-[20rem_1fr]">
 
         {/* ======== LEFT: the dossier ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
