@@ -497,6 +497,10 @@ model PersonAffiliation {
   /// NULL is current. Not a sentinel date - an employment with no end has no
   /// end, and 9999-12-31 makes every range comparison wrong at the edges.
   endedAt     DateTime? @map("ended_at") @db.Timestamptz()
+  /// incr/0073 - manual roster order within THIS account, dense-renumbered by
+  /// planMove. Lives here, not on Person: the same person can be affiliated
+  /// with more than one account and would otherwise fight over one order.
+  sortOrder   Int       @default(0) @map("sort_order")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
 

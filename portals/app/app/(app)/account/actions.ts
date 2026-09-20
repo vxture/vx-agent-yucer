@@ -7,11 +7,13 @@ import {
   designateAccount,
   linkContacts,
   upsertContact,
+  moveContact,
   recomputeHealth,
   setAccountParent,
 } from "../../domains/account/service";
 import { ACCOUNT_TIERS, type AccountTier } from "../../domains/account/store";
 import { isRelationType } from "../../domains/account/lib/health";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // Recomputing an account's health.
 //
@@ -218,6 +220,30 @@ export async function saveContact(
   }
   revalidatePath(`/account/${accountId}`);
   revalidatePath("/");
+  return { ok: true };
+}
+
+/** 联系人排序四元组 (incr/0073) - moveIndustryAction's exact shape, scoped to
+ *  one account's roster instead of the workspace-wide vocabulary. */
+export async function moveContactAction(
+  accountId: string,
+  contactId: string,
+  direction: MoveDirection,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await resolveAppSession();
+  if (!session) return { ok: false, error: "not_authenticated" };
+  const result = await moveContact(
+    {
+      workspaceId: session.workspaceId,
+      sub: session.user.sub,
+      holder: session.authz,
+      entitlement: session.entitlement,
+      store: session.stores.account(),
+    },
+    { accountId, contactId, direction },
+  );
+  if (!result.ok) return { ok: false, error: result.violations[0]?.code ?? "denied" };
+  revalidatePath(`/account/${accountId}`);
   return { ok: true };
 }
 

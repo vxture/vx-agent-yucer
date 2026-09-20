@@ -39,6 +39,7 @@ function contact(id: string, decisionRole: string): ContactRecord {
     mobile: null,
     wechat: null,
     status: "active",
+    sortOrder: 0,
   };
 }
 

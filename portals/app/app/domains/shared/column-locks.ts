@@ -92,6 +92,8 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "started_at",
     "ended_at",
     "updated_at",
+    // incr/0073 - manual roster order, per account (see the file's own note).
+    "sort_order",
   ],
 
   // incr/0027. opportunity_id and person_id are ABSENT: the pair is the edge,

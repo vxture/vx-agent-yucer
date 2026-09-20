@@ -65,6 +65,7 @@ function contact(id: string, _role: string, over: Partial<ContactRecord> = {}): 
     mobile: null,
     wechat: null,
     status: "active",
+    sortOrder: 0,
     ...over,
   };
 }

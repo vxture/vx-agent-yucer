@@ -1042,6 +1042,28 @@ export async function upsertContact(
   return ok(written);
 }
 
+/** Reorder one account's roster - incr/0073, 排序四元组. Same gate as
+ *  upsertContact: deciding where a person sits in the list is the same
+ *  authority as editing their row. */
+export async function moveContact(
+  ctx: AccountContext,
+  input: { accountId: string; contactId: string; direction: MoveDirection },
+): Promise<RuleResult<true>> {
+  const gate = can(ctx.holder, ctx.entitlement, "account.contact.upsert", "data");
+  if (!gate.allowed) return denied(gate);
+
+  const rows = await ctx.store.listContacts(ctx.workspaceId, input.accountId);
+  const plan = planMove(
+    rows.map((r) => ({ id: r.id, movable: true })),
+    input.contactId,
+    input.direction,
+  );
+  if (!plan.ok) return plan as RuleResult<true>;
+
+  await ctx.store.setContactOrder(ctx.workspaceId, input.accountId, plan.value);
+  return ok(true);
+}
+
 export async function linkContacts(
   ctx: AccountContext,
   edge: RelationEdge,

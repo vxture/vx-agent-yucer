@@ -65,6 +65,7 @@ import { DEFAULT_PERIOD } from "../../lib/periods";
 import {
   designateAccountTier,
   linkAccountContacts,
+  moveContactAction,
   recomputeAccountHealth,
   setAccountParentAction,
 } from "../actions";
@@ -465,6 +466,7 @@ export default async function AccountDetailPage({
               ).allowed
             }
             editHref={`/contact/new?account=${id}&back=/account/${id}`}
+            onMove={moveContactAction}
           />
 
           {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /

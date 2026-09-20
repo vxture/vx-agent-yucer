@@ -1037,6 +1037,9 @@ export const ACCOUNT_ERROR: Record<string, string> = {
   parent_self: "上级公司不能是它自己",
   parent_not_found: "选的上级公司不存在，或不属于当前工作区",
   parent_cycle: "这样设置会形成循环归属——比如两家公司互为对方的上级",
+  // 联系人排序四元组 (incr/0073) - 跟其他可排序词表共用同一对措辞。
+  move_at_edge: "已经在这一端了",
+  not_movable: "这一条不能移动",
 };
 
 export const ACCOUNT_PARENT_TEXT = {
@@ -4166,6 +4169,10 @@ export const ACCOUNT_TEXT = {
   // person is how a UUID ends up in front of someone who then does not chase it.
   ownerNone: "未指派",
   contactCount: (n: number) => `${n} 位联系人`,
+  // 联系人截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem
+  // 宽, 一张全量表格在这里比一句"还有几位"更占地方。
+  contactsShowAll: (n: number) => `查看全部（${n}）位联系人`,
+  contactsCollapse: "收起",
 } as const;
 
 export const ACCOUNT_STATUS_LABEL: Record<string, string> = {

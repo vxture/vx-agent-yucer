@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Button,
   DataTable,
@@ -11,10 +13,12 @@ import {
   NativeSelect,
   Section,
   TableTitleCell,
+  useToast,
 } from "@vxture/design-ui";
-import { useTableSort } from "./table-fittings";
+import { useTableSort, moveItems, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
+import type { MoveDirection } from "../../domains/shared/ordering";
 
 // The people inside a customer.
 //
@@ -66,6 +70,16 @@ export interface ContactRosterProps {
   /** The person form's page, carrying this account - the create/edit form left
    *  the roster on 2026-09-05 (the consolidation ruling). */
   readonly editHref: string;
+  /** 排序四元组 (incr/0073) - persisted, unlike the 姓名 column's click-sort
+   *  below. Takes `accountId` itself, same shape as HealthPanel's
+   *  `onRecompute` - the component supplies its own id rather than the
+   *  caller binding one in. Optional so a caller with no write path yet
+   *  degrades to the read-only roster rather than a crash. */
+  readonly onMove?: (
+    accountId: string,
+    contactId: string,
+    direction: MoveDirection,
+  ) => Promise<{ ok: boolean; error?: string }>;
 }
 
 /* 排序取值: what each sortable column ORDERS ON. Not always what the cell
@@ -74,9 +88,45 @@ const SORT_ON = {
   name: (r: ContactRow) => r.name,
 };
 
-export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProps) {
-  const { DATA_TABLE_LABELS, ACCOUNT_TEXT } = useMessages();
+/* 截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem 宽, 一张
+   全量表格比"还有几位, 点开看"更占地方。CAP 3 与 mockup 一致。 */
+const CAP = 3;
+
+export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove }: ContactRosterProps) {
+  const { DATA_TABLE_LABELS, ACCOUNT_TEXT, ROW_OPS, ACCOUNT_ERROR } = useMessages();
+  const { toast } = useToast();
+  const router = useRouter();
   const sorted = useTableSort<ContactRow>([], SORT_ON);
+  const [expanded, setExpanded] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function move(id: string, direction: MoveDirection) {
+    if (!onMove) return;
+    startTransition(async () => {
+      const r = await onMove(accountId, id, direction);
+      if (!r.ok) toast({ tone: "danger", title: ACCOUNT_ERROR[r.error ?? "denied"] ?? r.error ?? "" });
+      else router.refresh();
+    });
+  }
+
+  // rowIndex/count against the TRUE server order (contacts, not the possibly
+  // name-sorted or truncated view) - moving a row acts on the persisted
+  // roster, not on whatever a temporary click-sort or the collapsed cap
+  // happens to show (vocabulary-config.tsx's own precedent is the opposite,
+  // local-to-the-view, for search-filtered rows; here the order itself is
+  // the thing incr/0073 keeps, so 上移/下移 greying out has to track it).
+  const rowActions = onMove
+    ? (r: ContactRow) => {
+        const index = contacts.findIndex((c) => c.id === r.id);
+        return (
+          <RowActions
+            disabled={pending || !canEdit}
+            items={canEdit ? moveItems(ROW_OPS, index, contacts.length, (d) => move(r.id, d)) : []}
+          />
+        );
+      }
+    : undefined;
+
   return (
     <Section
       id="contacts"
@@ -102,9 +152,14 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
         <DataTable
           labels={DATA_TABLE_LABELS}
           rowKey={(r: ContactRow) => r.id}
-          rows={[...sorted.sortRows(contacts)]}
+          rows={
+            expanded
+              ? [...sorted.sortRows(contacts)]
+              : [...sorted.sortRows(contacts)].slice(0, CAP)
+          }
           sort={sorted.sort}
           onSortChange={sorted.onSortChange}
+          rowActions={rowActions}
           columns={[
             {
               id: "name",
@@ -146,6 +201,11 @@ export function ContactRoster({ contacts, canEdit, editHref }: ContactRosterProp
             },
           ]}
         />
+        {contacts.length > CAP ? (
+          <Button variant="ghost" size="sm" className="mt-xs" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? ACCOUNT_TEXT.contactsCollapse : ACCOUNT_TEXT.contactsShowAll(contacts.length)}
+          </Button>
+        ) : null}
         </>
       )}
 

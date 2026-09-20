@@ -96,6 +96,7 @@ function buyer(accountId: string, id: string) {
     mobile: null,
     wechat: null,
     status: "active",
+    sortOrder: 0,
   };
 }
 

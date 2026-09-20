@@ -724,6 +724,8 @@ export const en: Dictionary = {
     parent_not_found: "The chosen parent company does not exist, or belongs to another workspace",
     parent_cycle: "That would create a cycle - two companies each the other's parent",
     denied: "Refused",
+    move_at_edge: "Already at that end",
+    not_movable: "This row cannot be moved",
   },
 
   ACCOUNT_PARENT_TEXT: {
@@ -3280,6 +3282,8 @@ export const en: Dictionary = {
     contactsDenied: "You cannot maintain contacts",
     ownerNone: "Unassigned",
     contactCount: (n: number) => `${n} contacts`,
+    contactsShowAll: (n: number) => `Show all ${n} contacts`,
+    contactsCollapse: "Collapse",
   },
 
   ACCOUNT_STATUS_LABEL: {

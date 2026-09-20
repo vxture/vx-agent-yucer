@@ -1383,6 +1383,11 @@ function contact(
     mobile: reach.mobile ?? null,
     wechat: reach.wechat ?? null,
     status: "active",
+    // incr/0073 - every demo contact starts at the DDL default. The sort is
+    // stable, so this array's own order (ct_1, ct_2, ...) is the order they
+    // render in until somebody actually moves one - the self-heal the real
+    // column is designed for (domains/shared/ordering.ts's own comment).
+    sortOrder: 0,
   };
 }
 

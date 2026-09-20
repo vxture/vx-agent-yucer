@@ -84,6 +84,10 @@ function fake(over: Record<string, unknown> = {}) {
       // that must return not_found rather than editing somebody else's record.
       findFirst: async () => ((over.noAffiliation as boolean) ? null : link),
       findMany: async () => ((over.noAffiliation as boolean) ? [] : [link]),
+      // incr/0073 - upsertContact's create path reads the roster's tail
+      // before assigning the new row's sortOrder, same as upsertIndustry's
+      // own `_max` read.
+      aggregate: async () => ({ _max: { sortOrder: 0 } }),
     },
   };
   return { calls, client: async () => client as unknown as PrismaClient };

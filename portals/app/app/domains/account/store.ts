@@ -138,6 +138,9 @@ export interface ContactRecord {
   email: string | null;
   mobile: string | null;
   wechat: string | null;
+  /** incr/0073 - this account's manual roster order, dense-renumbered by
+   *  planMove. A fact about the employment edge, not the person. */
+  sortOrder: number;
 }
 
 /**
@@ -376,6 +379,13 @@ export interface AccountStore {
     accountId: string,
     input: ContactDraft,
   ): Promise<ContactRecord | null>;
+  /** Reorder one account's roster - incr/0073. Scoped to `accountId`, unlike
+   *  `setIndustryOrder`: a person's place in this list is per-account. */
+  setContactOrder(
+    workspaceId: string,
+    accountId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void>;
   /** Append-only edge. There is deliberately no updateRelation. */
   addRelation(workspaceId: string, edge: RelationEdge): Promise<void>;
   removeRelation(workspaceId: string, edge: RelationEdge): Promise<void>;
@@ -946,12 +956,12 @@ export class InMemoryAccountStore implements AccountStore {
   }
 
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
-    // BY NAME since incr/0027. Sorting a customer's roster by influence was
-    // ranking people by a per-deal number stored on the person; the roster is
-    // not a ranking, and the number no longer exists here.
+    // BY sortOrder since incr/0073 - a manual roster order, not the influence
+    // ranking incr/0027 already retired. The "按姓名" the table also offers
+    // is a click-to-sort on the rendered rows, not a second server order.
     return this.contacts
       .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
-      .sort(by(asc((c: ContactRecord) => c.name)));
+      .sort(by(asc((c: ContactRecord) => c.sortOrder)));
   }
 
   async upsertContact(
@@ -977,6 +987,12 @@ export class InMemoryAccountStore implements AccountStore {
       held.status = input.status;
       return held;
     }
+    const tail = Math.max(
+      0,
+      ...this.contacts
+        .filter((c) => c.workspaceId === workspaceId && c.accountId === accountId)
+        .map((c) => c.sortOrder),
+    );
     const created: ContactRecord = {
       id: `con_${++this.seq}`,
       workspaceId,
@@ -988,9 +1004,23 @@ export class InMemoryAccountStore implements AccountStore {
       mobile: input.mobile,
       wechat: input.wechat,
       status: input.status,
+      sortOrder: tail + 1,
     };
     this.contacts.push(created);
     return created;
+  }
+
+  async setContactOrder(
+    workspaceId: string,
+    accountId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const want = new Map(orders.map((o) => [o.id, o.sortOrder]));
+    this.contacts = this.contacts.map((c) =>
+      c.workspaceId === workspaceId && c.accountId === accountId && want.has(c.id)
+        ? { ...c, sortOrder: want.get(c.id)! }
+        : c,
+    );
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {

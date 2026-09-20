@@ -426,21 +426,26 @@ export class PrismaAccountStore implements AccountStore {
    */
   async listContacts(workspaceId: string, accountId: string): Promise<ContactRecord[]> {
     const p = await this.client();
+    // sortOrder ASC, then id: a tie (every row fresh off the DDL default 0)
+    // needs a deterministic tiebreaker, not "whatever Postgres felt like" -
+    // planMove's dense renumbering on the first move is what actually orders
+    // ties, this is only what the list looks like before that ever happens.
     const links = await p.personAffiliation.findMany({
       where: { workspaceId, accountId, endedAt: null },
+      orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
     });
     if (links.length === 0) return [];
     const people = await p.person.findMany({
       where: { workspaceId, id: { in: links.map((l: { personId: string }) => l.personId) }, deletedAt: null },
-      // Ordered by NAME now. Sorting people by influence was sorting them by a
-      // column that no longer exists - influence is per deal, and a customer's
-      // roster is not a ranking.
-      orderBy: { name: "asc" },
     });
-    const byPerson = new Map(links.map((l: { personId: string }) => [l.personId, l]));
-    return people.map((r: Record<string, unknown>) =>
-      toContact(r, byPerson.get(String(r.id)) as Record<string, unknown> | undefined),
-    );
+    const byId = new Map(people.map((r: Record<string, unknown>) => [String(r.id), r]));
+    // Iterate LINKS, not people: this is what carries the persisted order
+    // (incr/0073). Prisma's `findMany` on `person` gives no ordering
+    // guarantee against an `id IN (...)` predicate.
+    return links.flatMap((l: { personId: string }) => {
+      const person = byId.get(l.personId);
+      return person ? [toContact(person, l as unknown as Record<string, unknown>)] : [];
+    });
   }
 
   async upsertContact(
@@ -499,11 +504,48 @@ export class PrismaAccountStore implements AccountStore {
       return row ? toContact(row as Record<string, unknown>, { ...held, ...link }) : null;
     }
 
+    // Tail of THIS account's roster, same shape as upsertIndustry's own
+    // `_max` read - a new contact goes to the end, not to sortOrder 0 where
+    // it would tie with (and sort before, on id) every already-placed row.
+    const tail = await p.personAffiliation.aggregate({
+      where: { workspaceId, accountId, endedAt: null },
+      _max: { sortOrder: true },
+    });
     const row = await p.person.create({ data: { workspaceId, ...writable } });
     const made = await p.personAffiliation.create({
-      data: { workspaceId, personId: String(row.id), accountId, ...link },
+      data: {
+        workspaceId,
+        personId: String(row.id),
+        accountId,
+        ...link,
+        sortOrder: (tail._max?.sortOrder ?? 0) + 1,
+      },
     });
     return toContact(row as Record<string, unknown>, made as Record<string, unknown>);
+  }
+
+  async setContactOrder(
+    workspaceId: string,
+    accountId: string,
+    orders: readonly { id: string; sortOrder: number }[],
+  ): Promise<void> {
+    const p = await this.client();
+    for (const o of orders) {
+      const patch = { sortOrder: o.sortOrder, updatedAt: new Date() };
+      const guard = assertWritable(AFFILIATION_TABLE, patch);
+      if (!guard.ok) {
+        throw new Error(
+          `refusing to write a locked ${AFFILIATION_TABLE} column: ${guard.violations.map((v) => v.message).join("; ")}`,
+        );
+      }
+      // personId, not id: `orders` carries the contact ids the service layer
+      // (and planMove) work with, which are person ids - same shape as
+      // upsertContact's own `input.id`.
+      await p.personAffiliation.updateMany({
+        where: { workspaceId, accountId, personId: o.id, endedAt: null },
+        data: patch,
+      });
+    }
   }
 
   async addRelation(workspaceId: string, edge: RelationEdge): Promise<void> {
@@ -1107,6 +1149,7 @@ function toContact(r: Record<string, unknown>, link?: Record<string, unknown>): 
     mobile: (r.mobile as string | null) ?? null,
     wechat: (r.wechat as string | null) ?? null,
     status: String(r.status),
+    sortOrder: (link?.sortOrder as number | undefined) ?? 0,
   };
 }
 

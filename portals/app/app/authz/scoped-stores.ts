@@ -222,6 +222,7 @@ class ScopedAccountStore implements AccountStore {
   upsertAccountPlan: AccountStore["upsertAccountPlan"] = (...a) => this.inner.upsertAccountPlan(...a);
   listContacts: AccountStore["listContacts"] = (...a) => this.inner.listContacts(...a);
   upsertContact: AccountStore["upsertContact"] = (...a) => this.inner.upsertContact(...a);
+  setContactOrder: AccountStore["setContactOrder"] = (...a) => this.inner.setContactOrder(...a);
   listRelations: AccountStore["listRelations"] = (...a) => this.inner.listRelations(...a);
   addRelation: AccountStore["addRelation"] = (...a) => this.inner.addRelation(...a);
   removeRelation: AccountStore["removeRelation"] = (...a) => this.inner.removeRelation(...a);
