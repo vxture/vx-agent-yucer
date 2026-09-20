@@ -5,7 +5,8 @@ import {
   ViewLayout,
 } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
-import { CircleBadge, DimensionStat, RingGauge } from "../../components/dimension-stat";
+import { CircleBadge, DimensionStat } from "../../components/dimension-stat";
+import { ScoreRing } from "../../components/score-ring";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import {
@@ -475,7 +476,14 @@ export default async function AccountDetailPage({
             {health && health.ok ? (
               <DimensionStat
                 last
-                figure={<RingGauge value={health.value.score} tone={healthTone(health.value.score)} />}
+                figure={
+                  <ScoreRing
+                    score={health.value.score}
+                    tone={healthTone(health.value.score)}
+                    label={`${CHAIN_TEXT.healthShort} ${health.value.score}`}
+                    size={46}
+                  />
+                }
                 label={CHAIN_TEXT.healthShort}
                 value={
                   health.value.primaryConcern ? (

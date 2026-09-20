@@ -25,11 +25,13 @@ import { TONE_INK, type Tone } from "../lib/view-model";
 // confidenceTone never returns, so its info branch fell through to the success
 // colour: a 65 was painted the same green as an 85.
 
-/** The lead rail is `w-control-md` = 32px. The ring is drawn to fill it. */
-const SIZE = 32;
+/** The lead rail is `w-control-md` = 32px, the default. account-detail's
+ *  header (owner, 2026-09-20: 设计图严格对齐 - dimension-stat.tsx's ring,
+ *  now retired) draws it bigger to match the mockup's 46px badge - hence
+ *  `size` being a prop instead of staying a module constant. Every existing
+ *  caller (signal-queue.tsx) passes none and keeps 32. */
+const DEFAULT_SIZE = 32;
 const STROKE = 3;
-const RADIUS = (SIZE - STROKE) / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export interface ScoreRingProps {
   /** null when the signal has not been scored - drawn as an empty track. */
@@ -37,9 +39,12 @@ export interface ScoreRingProps {
   readonly tone: Tone;
   /** Read out to assistive tech, since the ring itself carries no text. */
   readonly label: string;
+  readonly size?: number;
 }
 
-export function ScoreRing({ score, tone, label }: ScoreRingProps) {
+export function ScoreRing({ score, tone, label, size = DEFAULT_SIZE }: ScoreRingProps) {
+  const radius = (size - STROKE) / 2;
+  const circumference = 2 * Math.PI * radius;
   // Scores are a 0-100 scale but the rule is not bounded to it, so clamp:
   // an arc longer than the circle would wrap and read as a smaller one.
   const pct = score === null ? 0 : Math.max(0, Math.min(100, score)) / 100;
@@ -56,18 +61,18 @@ export function ScoreRing({ score, tone, label }: ScoreRingProps) {
       aria-label={label}
     >
       <svg
-        width={SIZE}
-        height={SIZE}
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
         aria-hidden="true"
       >
         {/* Track. Always drawn, so an unscored signal still occupies the rail
             and the column stays a column. */}
         <circle
           className="text-border"
-          cx={SIZE / 2}
-          cy={SIZE / 2}
-          r={RADIUS}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
           fill="none"
           stroke="currentColor"
           strokeWidth={STROKE}
@@ -77,16 +82,16 @@ export function ScoreRing({ score, tone, label }: ScoreRingProps) {
         {score === null ? null : (
           <circle
             className={arc}
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
             fill="none"
             stroke="currentColor"
             strokeWidth={STROKE}
             strokeLinecap="round"
-            strokeDasharray={CIRCUMFERENCE}
-            strokeDashoffset={CIRCUMFERENCE * (1 - pct)}
-            transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - pct)}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
         )}
       </svg>
