@@ -202,13 +202,29 @@ export interface RevenueRow {
   readonly currency: string;
 }
 
-export function RevenueLifecyclePanel({ rows }: { readonly rows: readonly RevenueRow[] }) {
-  const { ACCOUNT_TEXT } = useMessages();
+/** planned - collected, real Money from summarizeCollections() (already read
+ *  by projectView() for every project, just not surfaced here before) - never
+ *  a total invented from the row list itself. Null when the account's
+ *  projects don't share one currency: adding amounts across currencies would
+ *  misstate the total, so the summary line is omitted rather than guessed. */
+export interface RevenueOutstanding {
+  readonly amount: number;
+  readonly currency: string;
+}
+
+export function RevenueLifecyclePanel({
+  rows,
+  outstanding,
+}: {
+  readonly rows: readonly RevenueRow[];
+  readonly outstanding?: RevenueOutstanding | null;
+}) {
+  const { ACCOUNT_TEXT, DELIVERY_TEXT } = useMessages();
   const locale = useLocale();
   if (rows.length === 0) {
     return <p className="text-muted-foreground text-body-sm">{ACCOUNT_TEXT.lifecycleNoInstalments}</p>;
   }
-  return (
+  const list = (
     <PanelList>
       {rows.map((r) => (
         <PanelItem
@@ -225,5 +241,21 @@ export function RevenueLifecyclePanel({ rows }: { readonly rows: readonly Revenu
         />
       ))}
     </PanelList>
+  );
+  if (!outstanding) return list;
+  return (
+    <PanelCard
+      title={ACCOUNT_TEXT.lifecycleRevenueOverview}
+      action={
+        <span className="flex items-center gap-xs">
+          <span className="text-foreground text-body-md font-bold tabular-nums">
+            {formatMoney(outstanding.amount, outstanding.currency, locale)}
+          </span>
+          <span className="text-muted-foreground text-body-sm">{DELIVERY_TEXT.rosterOpen}</span>
+        </span>
+      }
+    >
+      {list}
+    </PanelCard>
   );
 }

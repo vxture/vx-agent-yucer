@@ -4132,6 +4132,11 @@ export const ACCOUNT_TEXT = {
   lifecycleInteractions: "跟进记录",
   lifecycleNoMilestones: "还没有里程碑",
   lifecycleNoInstalments: "还没有回款计划",
+  // 应收总览: summarizeCollections() 早就在算 planned/collected (projectView()
+  // 已经把它读出来给了页面, 只是没接到这张卡上) - 待回款 = planned - collected,
+  // 两个真实 Money 相减, 不是新造的数。多个项目、货币不同时不硬加总, 宁可不
+  // 显示这行, 也不把不同币种的数字加在一起充当一个总数。
+  lifecycleRevenueOverview: "应收总览",
   // 商机卡跳到自己那条决策链 (owner, 2026-09-20: mockup 每张商机卡都有一个
   // "本商机的决策链"链接) - 真实数据里每个开放商机本来就有自己的一条链
   // (decisionChainsByOpportunity), 不是 mockup demo 里"没单独定义就读企业

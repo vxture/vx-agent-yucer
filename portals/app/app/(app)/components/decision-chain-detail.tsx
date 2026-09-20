@@ -69,6 +69,21 @@ export function DecisionChainDetail({
   const rows = ROLE_ORDER.map((role) => people.find((p) => p.decisionRole === role))
     .filter((p): p is ContactNode => p != null);
 
+  // 可达/未触达标记不止经济决策人有 (owner, 2026-09-20: 设计图严格对齐 -
+  // 技术决策人、阻碍者也各自带一个). 内线(coach)不带 - 这个角色本来就是靠
+  // "跟我们有联系"才成立的, 再标一次可达是同一件事说两遍。经济决策人继续用
+  // coverage.economicBuyerUnreachable (经由内线走到他的路径是否存在, 比"这个
+  // 人本身最近有没有联系"更严格的事实); 其余角色用 recency 的 warm/非warm -
+  // 同一份 chainRecency 数据, 不是新算的。
+  const isReachable = (p: ContactNode): boolean | null => {
+    if (p.decisionRole === "coach") return null;
+    if (p.decisionRole === "economic") return !coverage.economicBuyerUnreachable;
+    if (!recency) return null;
+    if (recency.warm.some((c) => c.id === p.id)) return true;
+    if (recency.cold.some((c) => c.id === p.id) || recency.unrecorded.some((c) => c.id === p.id)) return false;
+    return null;
+  };
+
   return (
     <div className="flex flex-col gap-lg">
       <Section
@@ -106,6 +121,7 @@ export function DecisionChainDetail({
             <div className="flex flex-col">
               {rows.map((p) => {
                 const detail = recencyLineFor(p.id);
+                const reachable = isReachable(p);
                 const row = (
                   <div className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
                     <span
@@ -125,15 +141,22 @@ export function DecisionChainDetail({
                     <div className="min-w-0 flex-1">
                       <div className="text-body-sm font-bold">
                         {nameOf(p.id)}
-                        {titleOf(p.id) ? (
-                          <span className="text-muted-foreground ml-2xs font-normal">{titleOf(p.id)}</span>
+                        {/* 影响力是真实字段 (ContactNode.influence, buying-role-form.tsx
+                            可写) - decision-chain.tsx 早就在用同一句式 (`(影响力 N)`),
+                            这里只是把它接到详情视图的姓名行, 不是新造一个概念。 */}
+                        {titleOf(p.id) || p.influence != null ? (
+                          <span className="text-muted-foreground ml-2xs font-normal">
+                            {[titleOf(p.id), p.influence != null ? `${CHAIN_TEXT.influence} ${p.influence}` : null]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
                         ) : null}
                       </div>
                       <div className="text-muted-foreground text-body-sm">{DECISION_ROLE_LABEL[p.decisionRole] ?? p.decisionRole}</div>
                     </div>
-                    {p.decisionRole === "economic" ? (
-                      <StatusBadge tone={coverage.economicBuyerUnreachable ? "danger" : "success"}>
-                        {coverage.economicBuyerUnreachable ? CHAIN_TEXT.reachFlagNo : CHAIN_TEXT.reachFlagYes}
+                    {reachable != null ? (
+                      <StatusBadge tone={reachable ? "success" : "danger"}>
+                        {reachable ? CHAIN_TEXT.reachFlagYes : CHAIN_TEXT.reachFlagNo}
                       </StatusBadge>
                     ) : null}
                   </div>

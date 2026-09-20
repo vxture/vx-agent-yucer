@@ -1,25 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Button,
-  DataTable,
-  EmptyState,
-  Field,
-  FieldLabel,
-  FilterBar,
-  Icon,
-  Input,
-  NativeSelect,
-  Section,
-  TableTitleCell,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  useToast,
-} from "@vxture/design-ui";
-import { useTableSort, moveItems, RowActions } from "./table-fittings";
+import { Button, EmptyState, FilterBar, Icon, Section, Tooltip, TooltipContent, TooltipTrigger, useToast } from "@vxture/design-ui";
+import { moveItems, RowActions } from "./table-fittings";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 import type { MoveDirection } from "../../domains/shared/ordering";
@@ -126,23 +110,72 @@ export interface ContactRosterProps {
     contactId: string,
     direction: MoveDirection,
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** 联系人和最近跟进合并 (owner, 2026-09-20: mockup - 一个最近跟进天数, 不是
+   *  分开的两个事实) - contactId -> {text, warm}, from chainRecency() run
+   *  over the FULL roster (account/[id]/page.tsx), not just decision-chain
+   *  participants. `warm` is carried separately from the already-formatted
+   *  text so this component styles the badge without re-parsing
+   *  RECENCY_TEXT's own wording. A plain Record, not a Map: a Map passed as a
+   *  Server->Client prop is the same class of bundler risk this page already
+   *  hit twice with re-exported constants (dimension-stat.tsx's
+   *  toneSurfaceClasses note). Absent key = chainRecency has nothing for that
+   *  contact yet (gate denied, or the read failed) - row shows no badge
+   *  rather than a guessed one. */
+  readonly recencyText: Readonly<Record<string, { text: string; warm: boolean }>>;
 }
-
-/* 排序取值: what each sortable column ORDERS ON. Not always what the cell
-   renders - a money cell sorts on the raw amount, not its formatted string. */
-const SORT_ON = {
-  name: (r: ContactRow) => r.name,
-};
 
 /* 截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem 宽, 一张
    全量表格比"还有几位, 点开看"更占地方。CAP 3 与 mockup 一致。 */
 const CAP = 3;
 
-export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove }: ContactRosterProps) {
-  const { DATA_TABLE_LABELS, ACCOUNT_TEXT, ROW_OPS, ACCOUNT_ERROR } = useMessages();
+/** 卡片行, 不是表格行 (owner, 2026-09-20: 设计图严格对齐 - mockup 的联系人是
+ *  avatar+两行卡片, 不是六列表格; decision-chain-switch.tsx 的摘要行本来就
+ *  是照着这张卡的样子画的, 现在补回来是同一套样子, 不是新发明一种). 栏1只有
+ *  18rem宽, 六列表格挤不下, 卡片行也是 mockup 明确写的理由。手机号仍然明码
+ *  显示在第二行 (不是同款图标) - 这是这页早先就做过的、有意的取舍: mockup
+ *  把手机也收成图标是因为那是一张纯展示卡, 真实产品里销售要拿这个号码去
+ *  打电话, 收成图标这张卡就做不成它自己的事了。 */
+function ContactCard({
+  contact,
+  recency,
+  statusLabels,
+  channelLabels,
+  actions,
+}: {
+  readonly contact: ContactRow;
+  readonly recency: { text: string; warm: boolean } | undefined;
+  readonly statusLabels: Record<string, string>;
+  readonly channelLabels: { readonly email: string; readonly wechat: string };
+  readonly actions: ReactNode;
+}) {
+  const secondLine = [contact.title, contact.mobile].filter(Boolean).join(" · ");
+  return (
+    <div className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
+      <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+        {contact.name.charAt(0)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-sm">
+          <span className="text-body-sm truncate font-bold">{contact.name}</span>
+          {recency ? <Tag tone={recency.warm ? "success" : "neutral"}>{recency.text}</Tag> : null}
+        </div>
+        <div className="flex items-center justify-between gap-sm">
+          <span className="text-muted-foreground text-body-sm truncate">{secondLine}</span>
+          <span className="flex flex-none items-center gap-xs">
+            <ContactChannels email={contact.email} wechat={contact.wechat} labels={channelLabels} />
+            <ContactStatus status={contact.status} labels={statusLabels} />
+            {actions}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove, recencyText }: ContactRosterProps) {
+  const { ACCOUNT_TEXT, ROW_OPS, ACCOUNT_ERROR } = useMessages();
   const { toast } = useToast();
   const router = useRouter();
-  const sorted = useTableSort<ContactRow>([], SORT_ON);
   const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -155,23 +188,7 @@ export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove }
     });
   }
 
-  // rowIndex/count against the TRUE server order (contacts, not the possibly
-  // name-sorted or truncated view) - moving a row acts on the persisted
-  // roster, not on whatever a temporary click-sort or the collapsed cap
-  // happens to show (vocabulary-config.tsx's own precedent is the opposite,
-  // local-to-the-view, for search-filtered rows; here the order itself is
-  // the thing incr/0073 keeps, so 上移/下移 greying out has to track it).
-  const rowActions = onMove
-    ? (r: ContactRow) => {
-        const index = contacts.findIndex((c) => c.id === r.id);
-        return (
-          <RowActions
-            disabled={pending || !canEdit}
-            items={canEdit ? moveItems(ROW_OPS, index, contacts.length, (d) => move(r.id, d)) : []}
-          />
-        );
-      }
-    : undefined;
+  const visible = expanded ? contacts : contacts.slice(0, CAP);
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
@@ -198,71 +215,34 @@ export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove }
             account, which is the coverage question this section exists for. */}
         <FilterBar count={ACCOUNT_TEXT.contactCount(contacts.length)} />
 
-        <DataTable
-          labels={DATA_TABLE_LABELS}
-          rowKey={(r: ContactRow) => r.id}
-          rows={
-            expanded
-              ? [...sorted.sortRows(contacts)]
-              : [...sorted.sortRows(contacts)].slice(0, CAP)
-          }
-          sort={sorted.sort}
-          onSortChange={sorted.onSortChange}
-          rowActions={rowActions}
-          columns={[
-            {
-              id: "name",
-  sortable: true,
-              header: ACCOUNT_TEXT.contactName,
-              // 只有一行值也走 TableTitleCell (owner, 2026-09-07): the point of
-              // the fitting is that the first column has ONE shape across the
-              // product, and a bare string in one table breaks the row rhythm
-              // the pinned line heights exist to hold.
-              cell: (r: ContactRow) => <TableTitleCell title={r.name} tooltip={r.name} />,
-            },
-            {
-              id: "title",
-              header: ACCOUNT_TEXT.contactTitle,
-              cell: (r: ContactRow) => r.title ?? "",
-            },
-            // THE ROLE AND INFLUENCE COLUMNS ARE GONE - incr/0027. This table
-            // is the customer's roster: who works here and how to reach them.
-            // What each of them is to a purchase is on the deal, and showing
-            // one answer here would be showing the same wrong answer for every
-            // deal at once, which is what the column used to do.
-            {
-              id: "mobile",
-              header: ACCOUNT_TEXT.contactMobile,
-              cell: (r: ContactRow) => r.mobile ?? "",
-            },
-            {
-              id: "channels",
-              header: ACCOUNT_TEXT.contactChannels,
-              cell: (r: ContactRow) => (
-                <ContactChannels
-                  email={r.email}
-                  wechat={r.wechat}
-                  labels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
-                />
-              ),
-            },
-            {
-              id: "status",
-              header: ACCOUNT_TEXT.contactStatus,
-              // A component at module scope rather than an inline arrow that
-              // returns JSX. The DS makes `cell` a render callback so either
-              // works, but a function defined in a component body and returning
-              // an element is indistinguishable from a nested component to a
-              // reader and to a linter - and the fix the linter asks for
-              // (module scope, data as props) is the clearer shape anyway.
-              cell: (r: ContactRow) => (
-                <ContactStatus status={r.status} labels={ACCOUNT_TEXT.contactStatusLabel} />
-              ),
-            },
-          ]}
-        />
+        <div className="flex flex-col">
+          {visible.map((c) => {
+            // rowIndex/count against the TRUE server order (contacts, not the
+            // possibly-truncated visible slice) - moving a row acts on the
+            // persisted roster, not on whatever the collapsed cap happens to
+            // show.
+            const index = contacts.findIndex((row) => row.id === c.id);
+            return (
+              <ContactCard
+                key={c.id}
+                contact={c}
+                recency={recencyText[c.id]}
+                statusLabels={ACCOUNT_TEXT.contactStatusLabel}
+                channelLabels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
+                actions={
+                  onMove ? (
+                    <RowActions
+                      disabled={pending || !canEdit}
+                      items={canEdit ? moveItems(ROW_OPS, index, contacts.length, (d) => move(c.id, d)) : []}
+                    />
+                  ) : null
+                }
+              />
+            );
+          })}
+        </div>
         {contacts.length > CAP ? (
-          <Button variant="ghost" size="sm" className="mt-xs" onClick={() => setExpanded((v) => !v)}>
+          <Button variant="ghost" size="sm" className="mt-xs w-full justify-center" onClick={() => setExpanded((v) => !v)}>
             {expanded ? ACCOUNT_TEXT.contactsCollapse : ACCOUNT_TEXT.contactsShowAll(contacts.length)}
           </Button>
         ) : null}

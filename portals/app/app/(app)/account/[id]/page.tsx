@@ -150,6 +150,7 @@ export default async function AccountDetailPage({
     LOAD_ERROR,
     DOMAIN_LABEL,
     ACCOUNT_TEXT,
+    RECENCY_TEXT,
     healthReasonText,
     POSITION_TEXT,
   } = await getMessages();
@@ -297,9 +298,17 @@ export default async function AccountDetailPage({
   );
   const milestonesByProject = new Map<string, ProjectMilestoneRow[]>();
   const revenueRows: RevenueRow[] = [];
+  const collectionTotals = new Map<string, { planned: number; collected: number }>();
   projectViews.forEach((pv, i) => {
     const pr = (projects.ok ? projects.value : [])[i];
     if (!pv.ok || !pr) return;
+    if (pv.value.collections) {
+      const c = pv.value.collections;
+      const tally = collectionTotals.get(c.planned.currency) ?? { planned: 0, collected: 0 };
+      tally.planned += c.planned.amount;
+      tally.collected += c.collected.amount;
+      collectionTotals.set(c.planned.currency, tally);
+    }
     milestonesByProject.set(
       pr.id,
       pv.value.milestones.map((m) => ({
@@ -325,6 +334,12 @@ export default async function AccountDetailPage({
       });
     });
   });
+  const revenueOutstanding =
+    collectionTotals.size === 1
+      ? (([currency, t]) => ({ amount: t.planned - t.collected, currency }))(
+          [...collectionTotals.entries()][0],
+        )
+      : null;
 
   const chainedDealIds = new Set((chain.ok ? chain.value : []).map((c) => c.opportunityId));
   const dealRows: DealLifecycleRow[] = (deals.ok ? deals.value : []).map((d) => {
@@ -383,6 +398,35 @@ export default async function AccountDetailPage({
           chain.value.map((c) => chainRecency(fieldCtx, id, c.people, relations.value, { now })),
         )
       : [];
+
+  // 联系人和最近跟进合并 (owner, 2026-09-20: mockup - 一个最近跟进天数,
+  // 不是分开的两个事实). chainRecency() only needs `id` to look up
+  // lastContactByContact() - decisionRole/influence are carried through
+  // unused here, so "unknown" is a type placeholder, not a claim about the
+  // roster's decision roles (which are per-deal, not per-account: see
+  // ContactRecord's own comment for why the roster carries none).
+  const rosterRecency = relations.ok
+    ? await chainRecency(
+        fieldCtx,
+        id,
+        contacts.map((c) => ({ id: c.id, decisionRole: "unknown" as const, influence: null, status: c.status })),
+        relations.value,
+        { now },
+      )
+    : null;
+  const contactRecencyText: Record<string, { text: string; warm: boolean }> = {};
+  if (rosterRecency && rosterRecency.ok) {
+    const windowDays = rosterRecency.value.windowDays;
+    rosterRecency.value.warm.forEach((c) => {
+      contactRecencyText[c.id] = { text: RECENCY_TEXT.warm(windowDays), warm: true };
+    });
+    rosterRecency.value.cold.forEach((c) => {
+      contactRecencyText[c.id] = { text: RECENCY_TEXT.cold(windowDays), warm: false };
+    });
+    rosterRecency.value.unrecorded.forEach((c) => {
+      contactRecencyText[c.id] = { text: RECENCY_TEXT.unrecorded, warm: false };
+    });
+  }
 
   const canAsk = can(session.authz, session.entitlement, "copilot.ask", "ui").allowed;
   const canLinkGraph = can(session.authz, session.entitlement, "account.graph.link", "ui").allowed;
@@ -590,6 +634,7 @@ export default async function AccountDetailPage({
             }
             editHref={`/contact/new?account=${id}&back=/account/${id}`}
             onMove={moveContactAction}
+            recencyText={contactRecencyText}
           />
 
           {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /
@@ -680,7 +725,7 @@ export default async function AccountDetailPage({
               {
                 key: "revenue",
                 label: ACCOUNT_TEXT.lifecycleRevenue,
-                content: <RevenueLifecyclePanel rows={revenueRows} />,
+                content: <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />,
               },
               {
                 key: "interactions",
