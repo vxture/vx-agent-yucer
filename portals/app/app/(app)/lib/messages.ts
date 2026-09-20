@@ -2877,7 +2877,10 @@ export const RELATION_TYPE_LABEL: Record<string, string> = {
 };
 
 export const RELATION_TEXT = {
-  title: "补录关系",
+  // owner, 2026-09-20: 设计图严格对齐 - mockup 原词"记录一次关系"; 这个标题
+  // 之前定义了但从没真的用上 (LinkContacts 自己不带 Section, 一直是裸的
+  // <div>), 这次挪进决策链详情视图, 变成自己独立的一张卡, 才第一次用到它。
+  title: "记录一次关系",
   description:
     "关系图是追加写的：关系变了就补一条新的边，不会改写旧的——「上季度谁向谁汇报」是决策链分析要读的事实。",
   from: "发起方",
@@ -5378,11 +5381,26 @@ export const CHAIN_TEXT = {
   // (owner, 2026-09-18: header 三维度顺序 - 健康评估改名四个字)。
   healthShort: "健康评估",
   primaryConcern: "首要问题",
-  recompute: "重新计算",
+  // owner, 2026-09-20: 设计图严格对齐 - mockup 用词是"重新评估"，"重新计算"
+  // 这个措辞这次才发现一直没跟上（早前只在 mockup 里改过）。
+  recompute: "重新评估",
   factorPipeline: "商机",
   factorRecency: "互动时效",
   factorDelivery: "交付",
   factorCollections: "回款",
+  // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认) -
+  // 栏1 只放摘要行, 点开在栏2 展开详情, 这些是详情视图自己的措辞。
+  coverageCount: (n: number, total: number) => `已覆盖 ${n}/${total} 角色`,
+  viewTable: "表格",
+  viewGraph: "图谱",
+  reachFlagYes: "可达",
+  reachFlagNo: "未触达",
+  detailBack: "返回全链条内容",
+  // 摘要行的一句话小结 - 可达性 + (有阻碍者且未触达时) 未触达人数。人数来自
+  // 真实的 recency 数据(该阻碍者是否在 warm 名单里), 不是编出来的。
+  blockersUnreached: (n: number) => `${n} 位阻碍者未触达`,
+  showAllChains: (n: number) => `查看全部（${n}）`,
+  collapseChains: "收起",
 } as const;
 
 export const CONTACT_ERROR: Record<string, string> = {

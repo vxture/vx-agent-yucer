@@ -51,11 +51,15 @@ export function DecisionChain({
   title,
 }: DecisionChainProps) {
   const { CHAIN_TEXT, DECISION_ROLE_LABEL } = useMessages();
-  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
-  // org-unit-panel.tsx 同名注释).
+  // NOT tone="raised" here (reverted, owner 2026-09-20) - this component is
+  // SHARED with the pipeline detail page (pipeline/[id]/page.tsx), which
+  // keeps every other Section on the default tone; account-detail's own
+  // decision-chain card was rebuilt as decision-chain-detail.tsx instead of
+  // reusing this one, specifically so this file's look-and-feel for the
+  // pipeline page would not change as a side effect of that page's redesign.
   if (contacts.length === 0) {
     return (
-      <Section tone="raised" title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+      <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
         <EmptyState
           title={CHAIN_TEXT.emptyTitle}
           description={CHAIN_TEXT.emptyDescription}
@@ -70,7 +74,7 @@ export function DecisionChain({
   );
 
   return (
-    <Section tone="raised" title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+    <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
       {/* Reachability leads. Coverage is secondary and rendered below it. */}
       {coverage.economicBuyerUnreachable ? (
         <Tooltip>

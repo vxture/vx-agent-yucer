@@ -1189,11 +1189,20 @@ export const en: Dictionary = {
       "A derived value, recomputed from its sources. For sorting and alerting - never the sole basis for a business decision.",
     healthShort: "Health",
     primaryConcern: "Biggest problem",
-    recompute: "Recompute",
+    recompute: "Reassess",
     factorPipeline: "Pipeline",
     factorRecency: "Contact recency",
     factorDelivery: "Delivery",
     factorCollections: "Collections",
+    coverageCount: (n: number, total: number) => `${n}/${total} roles covered`,
+    viewTable: "Table",
+    viewGraph: "Graph",
+    reachFlagYes: "Reachable",
+    reachFlagNo: "Unreachable",
+    detailBack: "Back to the full chain",
+    blockersUnreached: (n: number) => `${n} blocker${n === 1 ? "" : "s"} unreached`,
+    showAllChains: (n: number) => `Show all (${n})`,
+    collapseChains: "Collapse",
   },
 
   DECISION_ROLE_LABEL: {
@@ -1365,7 +1374,7 @@ export const en: Dictionary = {
   },
 
   RELATION_TEXT: {
-    title: "Add a relationship",
+    title: "Record a relationship",
     description:
       'The relationship graph is append-only: when a relationship changes you add a new edge rather than rewriting the old one - "who reported to whom last quarter" is a fact the chain analysis has to read.',
     from: "From",

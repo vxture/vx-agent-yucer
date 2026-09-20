@@ -24,8 +24,15 @@ import {
   listAccounts,
   recomputeHealth,
 } from "../../../domains/account/service";
-import { DecisionChain } from "../../components/decision-chain";
-import { ChainRecencyPanel } from "../../components/chain-recency";
+import { DecisionChainDetail } from "../../components/decision-chain-detail";
+import { ChainViewProvider, ChainDetailSlot, ChainSummaryList, type ChainSummaryItem } from "../../components/decision-chain-switch";
+// NOT importing ROLE_ORDER from decision-chain-graph.tsx here - that file is
+// "use client", and a plain array constant re-exported from a client module
+// resolved to a bundler artefact (empty, not undefined - .length read 0
+// rather than throwing) when imported from this server component, the same
+// class of issue as dimension-stat.tsx's toneSurfaceClasses note. DECISION_ROLES
+// is the same fact from a plain (non-"use client") domain lib instead.
+import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { LinkContacts } from "../../components/link-contacts";
 import { ContactRoster } from "../../components/contact-roster";
@@ -51,7 +58,6 @@ import { fillField } from "./completeness-action";
 import { askToComplete } from "./ask-complete-action";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
-import { DecisionChainGraph } from "../../components/decision-chain-graph";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import {
   DealLifecyclePanel,
@@ -117,6 +123,11 @@ import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-pol
 // navigation. The button persists; the view does not.
 
 export const dynamic = "force-dynamic";
+
+// "unknown" is a catch-all for an unset decisionRole, not a sixth role the
+// coverage math counts toward - the "N/5" the decision-chain summary and
+// detail views both show is real roles only.
+const TOTAL_DECISION_ROLES = DECISION_ROLES.filter((r) => r !== "unknown").length;
 
 export default async function AccountDetailPage({
   params,
@@ -364,6 +375,55 @@ export default async function AccountDetailPage({
   const canAsk = can(session.authz, session.entitlement, "copilot.ask", "ui").allowed;
   const canLinkGraph = can(session.authz, session.entitlement, "account.graph.link", "ui").allowed;
 
+  // 决策链主从视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认):
+  // 栏1 只要摘要, 详情内容在这里就地建好当作 ReactNode 传下去, 跟 linkForm
+  // 一直以来的做法一样 - decision-chain-switch.tsx 的 Context 只决定"现在
+  // 显示哪一个", 不重新拿数据。
+  const chainSummaryItems: ChainSummaryItem[] = chain.ok
+    ? chain.value.map((c, i) => {
+        const hasEconomicBuyer = c.people.some(
+          (p) => p.decisionRole === "economic" && p.status === "active",
+        );
+        const recencyRead = recencies[i]?.ok ? recencies[i].value : null;
+        // 未触达阻碍者的真实人数: 这个阻碍者不在 warm 名单里 (recency 没读到
+        // 就不算, 不是"默认都未触达"). 跟摘要行的一句话小结配对, 不是编的。
+        const unreachedBlockers = recencyRead
+          ? c.coverage.blockers.filter((b) => !recencyRead.warm.some((w) => w.id === b.id)).length
+          : 0;
+        return {
+          id: c.opportunityId,
+          title: c.opportunityName,
+          coveredCount: c.coverage.covered.length,
+          totalRoles: TOTAL_DECISION_ROLES,
+          reachable: !c.coverage.economicBuyerUnreachable,
+          hasEconomicBuyer,
+          unreachedBlockers,
+          detail: (
+            <DecisionChainDetail
+              key={c.opportunityId}
+              title={CHAIN_TEXT.forDeal(c.opportunityName)}
+              coverage={c.coverage}
+              people={c.people}
+              contacts={contacts}
+              recency={recencyRead}
+              linkForm={
+                i === 0 ? (
+                  <LinkContacts
+                    key={c.opportunityId}
+                    accountId={id}
+                    contacts={c.people}
+                    canLink={canLinkGraph}
+                    unreachable={c.coverage.economicBuyerUnreachable}
+                    onLink={linkAccountContacts}
+                  />
+                ) : undefined
+              }
+            />
+          ),
+        };
+      })
+    : [];
+
   // header 的三个动态维度 (owner, 2026-09-18: header 三维度顺序 - 商机数量 /
   // 客户级别 / 健康评估), 都是已有真实数据的读数, 不是新字段。
   const openDealsCount = dealRows.filter((d) => d.status === "open").length;
@@ -473,6 +533,9 @@ export default async function AccountDetailPage({
           chat box was the defect that comment describes, and folding 栏3
           into 栏2 does not reopen it - TheatrePlan is a proposal LIST, not a
           chat). */}
+      {/* ChainViewProvider spans both columns - 栏1 的摘要行点击要改栏2 显示
+          什么, 状态得提到两栏共同的父级 (owner: 决策链主从视图). */}
+      <ChainViewProvider chains={chainSummaryItems}>
       <div className="grid gap-lg xl:grid-cols-[18rem_1fr]">
 
         {/* ======== LEFT: the dossier ======== */}
@@ -508,47 +571,14 @@ export default async function AccountDetailPage({
               联系人 / 决策链 / 档案缺口), 因为决策链是这张客户档案的展示重点
               (owner: 决策链需要客户层级的视角...这是展示重点) - 缺口是"还没
               填的", 排在后面才不会把注意力先引到缺什么, 而不是引到已经知道
-              的关系结构上。 */}
+              的关系结构上。
+              栏1 只放摘要行 (owner, 2026-09-20: 设计图严格对齐) - 点开某一条
+              后, 详情在栏2 展开 (ChainDetailSlot), 不再是三个组件平铺在这里。 */}
           {chain.ok ? (
-            chain.value.length === 0 ? (
-              <EmptyState
-                title={CHAIN_TEXT.noOpenDealTitle}
-                description={CHAIN_TEXT.noOpenDealDescription}
-              />
-            ) : (
-              chain.value.map((c, i) => (
-                <div key={c.opportunityId} className="flex flex-col gap-sm">
-                  <DecisionChain
-                    title={CHAIN_TEXT.forDeal(c.opportunityName)}
-                    coverage={c.coverage}
-                    contacts={c.people}
-                    linkForm={
-                      i === 0 ? (
-                        <LinkContacts
-                          accountId={id}
-                          contacts={c.people}
-                          canLink={canLinkGraph}
-                          unreachable={c.coverage.economicBuyerUnreachable}
-                          onLink={linkAccountContacts}
-                        />
-                      ) : undefined
-                    }
-                  />
-                  {recencies[i]?.ok ? (
-                    <ChainRecencyPanel
-                      recency={recencies[i].value}
-                      nameOf={(x) => contacts.find((y) => y.id === x.id)?.name ?? x.id}
-                    />
-                  ) : null}
-                  <DecisionChainGraph
-                    dealName={c.opportunityName}
-                    coverage={c.coverage}
-                    people={c.people}
-                    contacts={contacts}
-                  />
-                </div>
-              ))
-            )
+            <ChainSummaryList
+              emptyTitle={CHAIN_TEXT.noOpenDealTitle}
+              emptyDescription={CHAIN_TEXT.noOpenDealDescription}
+            />
           ) : (
             <EmptyState
               title={SHELL_TEXT.loadFailed}
@@ -573,6 +603,11 @@ export default async function AccountDetailPage({
             the mockup's 栏2 (default view: 健康拆解 + 阵地清单) with
             TheatrePlan appended rather than given its own track. ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
+          {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时
+              健康拆解也去除) - ChainDetailSlot 从 Context 里的 activeId 决定
+              渲染哪一个, 这个 div 本身两种情况下都还是栏2 唯一的容器。 */}
+          <ChainDetailSlot lifecycle={
+          <>
           {health && health.ok ? (
             <HealthPanel
               accountId={id}
@@ -651,8 +686,11 @@ export default async function AccountDetailPage({
           />
 
           <TheatrePlan proposals={planProposals} accountId={id} />
+          </>
+          } />
         </div>
       </div>
+      </ChainViewProvider>
     </ViewLayout>
   );
 }

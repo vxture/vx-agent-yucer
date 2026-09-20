@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Label, NativeSelect, StatusBadge } from "@vxture/design-ui";
+import { Button, Label, NativeSelect, Section, StatusBadge } from "@vxture/design-ui";
 import { RELATION_TYPES, type ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
 
 // Recording a path to the buyer.
 //
-// This sits inside the decision chain rather than on a settings page, because
+// This sits beside the decision chain rather than on a settings page, because
 // the chain is where the gap is stated. Telling a rep "the economic buyer is
 // unreachable" and making them go elsewhere to fix it is how a finding becomes
 // something people learn to ignore.
@@ -16,6 +16,14 @@ import { Tag } from "./tag";
 // Append-only, so there is no edit affordance: a relationship that changed is a
 // new edge. The direction matters and is spelled out in the labels - "A reports
 // to B" and "B reports to A" are different facts about who to approach.
+//
+// OWN Section, tone="raised" (owner, 2026-09-20: 设计图严格对齐 - mockup 的
+// "记录一次关系" is its own card, a sibling of 决策链's card, never merged
+// into it). This used to render as a bare <div> because its one caller
+// nested it inside DecisionChain's own Section - that caller no longer
+// exists (decision-chain-detail.tsx renders it as a sibling instead, see
+// account/[id]/page.tsx's own note on 展示内容和编辑内容拆分), so the title
+// and card chrome that gave it now has to live here.
 
 export interface LinkContactsProps {
   readonly accountId: string;
@@ -50,9 +58,17 @@ export function LinkContacts({
   const [saved, setSaved] = useState(false);
 
   if (!canLink)
-    return <Tag>{RELATION_TEXT.readOnly}</Tag>;
+    return (
+      <Section tone="raised" title={RELATION_TEXT.title}>
+        <Tag>{RELATION_TEXT.readOnly}</Tag>
+      </Section>
+    );
   if (contacts.length < 2)
-    return <Tag>{RELATION_TEXT.needTwo}</Tag>;
+    return (
+      <Section tone="raised" title={RELATION_TEXT.title}>
+        <Tag>{RELATION_TEXT.needTwo}</Tag>
+      </Section>
+    );
 
   const label = (c: ContactNode) =>
     `${c.id} (${DECISION_ROLE_LABEL[c.decisionRole] ?? c.decisionRole})`;
@@ -78,7 +94,7 @@ export function LinkContacts({
   }
 
   return (
-    <div>
+    <Section tone="raised" title={RELATION_TEXT.title}>
       <p>{RELATION_TEXT.description}</p>
       {unreachable ? (
         <StatusBadge tone="info">{RELATION_TEXT.hintUnreachable}</StatusBadge>
@@ -144,6 +160,6 @@ export function LinkContacts({
       {saved ? (
         <StatusBadge tone="success">{RELATION_TEXT.saved}</StatusBadge>
       ) : null}
-    </div>
+    </Section>
   );
 }

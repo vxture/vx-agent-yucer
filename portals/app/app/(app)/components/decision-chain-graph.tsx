@@ -1,18 +1,15 @@
 "use client";
 
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@vxture/design-ui";
 import type { ChainCoverage, ContactNode, DecisionRole } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 
-// 决策链图谱弹窗 (owner, 2026-09-18: 客户详情页重排).
+// 决策链图谱 (owner, 2026-09-18: 客户详情页重排; 2026-09-20: 设计图严格
+// 对齐 - mockup 原话"决策链两个板块都内嵌在栏2里", 不是弹窗). 曾经是一个
+// Dialog 触发的弹窗; 现在 decision-chain-detail.tsx 用一个表格/图谱的
+// segmented 切换控制它的可见性, 图谱本身就是内嵌面板的一半, 不再需要自己
+// 的触发按钮和弹窗外壳。这个组件目前只有 account-detail 一个调用方
+// (跟 decision-chain.tsx 不同 - 那个还被 pipeline 详情页共用), 所以直接
+// 改掉整个导出形状是安全的。
 //
 // SAME DATA AS THE LIST ABOVE IT, drawn instead of enumerated - no second
 // read. `coverage.missing` is what makes the missing nodes honest: they are
@@ -23,7 +20,10 @@ import { useMessages } from "../lib/i18n/provider";
 // hand-placed grid reads clearer than a graph library's physics for something
 // this size - and it is coordinates in a viewBox, not path data.
 
-const ROLE_ORDER: readonly DecisionRole[] = ["economic", "technical", "user", "coach", "blocker"];
+// Exported: decision-chain-detail.tsx's table view walks the same five roles
+// in the same order, so the table and the graph never disagree about which
+// roles exist or what order they read in.
+export const ROLE_ORDER: readonly DecisionRole[] = ["economic", "technical", "user", "coach", "blocker"];
 
 interface RoleNode {
   readonly role: DecisionRole;
@@ -36,12 +36,10 @@ interface RoleNode {
 }
 
 export function DecisionChainGraph({
-  dealName,
   coverage,
   people,
   contacts,
 }: {
-  readonly dealName: string;
   readonly coverage: ChainCoverage;
   readonly people: readonly ContactNode[];
   readonly contacts: readonly { id: string; name: string; title: string | null }[];
@@ -76,40 +74,45 @@ export function DecisionChainGraph({
   const restX = rest.map((_, i) => 120 + i * ((600 - 240) / Math.max(rest.length - 1, 1)));
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="secondary" size="sm">
-          {ACCOUNT_TEXT.graphOpen}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-(--vx-container-2xl)">
-        <DialogHeader>
-          <DialogTitle>{ACCOUNT_TEXT.graphTitle}</DialogTitle>
-          <DialogDescription>{ACCOUNT_TEXT.graphWhy(dealName)}</DialogDescription>
-        </DialogHeader>
-        <svg viewBox="0 0 720 260" width="100%" role="img" aria-label={ACCOUNT_TEXT.graphTitle}>
-          {top ? (
-            rest.map((n, i) => (
-              <line
-                key={n.role}
-                x1={360}
-                y1={62}
-                x2={restX[i]}
-                y2={150}
-                stroke={n.missing ? "var(--border)" : "var(--muted-foreground)"}
-                strokeWidth={2}
-                strokeDasharray={n.missing ? "4 3" : undefined}
-              />
-            ))
-          ) : null}
+    <div>
+      {/* 图例 (owner, 2026-09-20: 设计图严格对齐 - mockup 的图谱面板自带一行
+          图例, 不是靠颜色自己说明). */}
+      <div className="gap-md text-muted-foreground mb-sm flex flex-wrap text-body-sm">
+        <span className="gap-2xs inline-flex items-center">
+          <span className="bg-primary inline-block h-[0.4375rem] w-[0.4375rem] rounded-full" />
+          {DECISION_ROLE_LABEL.economic}
+        </span>
+        <span className="gap-2xs inline-flex items-center">
+          <span className="bg-muted-foreground inline-block h-[0.4375rem] w-[0.4375rem] rounded-full" />
+          {DECISION_ROLE_LABEL.technical} / {DECISION_ROLE_LABEL.coach}
+        </span>
+        <span className="gap-2xs inline-flex items-center">
+          <span className="bg-destructive inline-block h-[0.4375rem] w-[0.4375rem] rounded-full" />
+          {DECISION_ROLE_LABEL.blocker}
+        </span>
+      </div>
+      <svg viewBox="0 0 720 260" width="100%" role="img" aria-label={ACCOUNT_TEXT.graphTitle}>
+        {top ? (
+          rest.map((n, i) => (
+            <line
+              key={n.role}
+              x1={360}
+              y1={62}
+              x2={restX[i]}
+              y2={150}
+              stroke={n.missing ? "var(--border)" : "var(--muted-foreground)"}
+              strokeWidth={2}
+              strokeDasharray={n.missing ? "4 3" : undefined}
+            />
+          ))
+        ) : null}
 
-          {top ? <RoleCircle node={top} cx={360} cy={62} r={32} /> : null}
-          {rest.map((n, i) => (
-            <RoleCircle key={n.role} node={n} cx={restX[i]} cy={150} r={28} />
-          ))}
-        </svg>
-      </DialogContent>
-    </Dialog>
+        {top ? <RoleCircle node={top} cx={360} cy={62} r={32} /> : null}
+        {rest.map((n, i) => (
+          <RoleCircle key={n.role} node={n} cx={restX[i]} cy={150} r={28} />
+        ))}
+      </svg>
+    </div>
   );
 }
 
