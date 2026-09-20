@@ -89,8 +89,11 @@ export async function RelationshipEvidencePanel({
     },
   ];
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   return (
     <Section
+      tone="raised"
       title={FIELD_TEXT.evidenceTitle}
       description={FIELD_TEXT.evidenceDescription}
     >

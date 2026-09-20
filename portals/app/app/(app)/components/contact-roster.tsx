@@ -9,10 +9,14 @@ import {
   Field,
   FieldLabel,
   FilterBar,
+  Icon,
   Input,
   NativeSelect,
   Section,
   TableTitleCell,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   useToast,
 } from "@vxture/design-ui";
 import { useTableSort, moveItems, RowActions } from "./table-fittings";
@@ -49,6 +53,48 @@ function ContactStatus({
   // hides the two rows where the status is the point.
   if (status === "active") return null;
   return <Tag>{labels[status] ?? status}</Tag>;
+}
+
+/** 邮箱/微信 presence, icon only (owner, 2026-09-20: 设计图严格对齐 - 数据
+ *  一直都在 ContactRow 上, 只是这张表从没画出来过). 手机号仍然是明码文本列
+ *  (ACCOUNT_TEXT.contactMobile 那一列) 而不是同款图标 - mockup 把它也收成
+ *  纯图标是因为那是一张纯展示卡, 真实产品里销售要拿这个号码去打电话, 收成
+ *  图标会让这张表没法做它自己的事, 所以只在这里跟进 mockup 的一半: 补上
+ *  从没显示过的两个渠道, 留着已经在用的手机号明码不动。 */
+function ContactChannels({
+  email,
+  wechat,
+  labels,
+}: {
+  readonly email: string | null;
+  readonly wechat: string | null;
+  readonly labels: { readonly email: string; readonly wechat: string };
+}) {
+  if (!email && !wechat) return null;
+  return (
+    <span className="gap-2xs inline-flex items-center">
+      {email ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground inline-flex">
+              <Icon name="mail" size="sm" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{labels.email}</TooltipContent>
+        </Tooltip>
+      ) : null}
+      {wechat ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground inline-flex">
+              <Icon name="wechat" size="sm" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{labels.wechat}</TooltipContent>
+        </Tooltip>
+      ) : null}
+    </span>
+  );
 }
 
 export interface ContactRow {
@@ -127,8 +173,11 @@ export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove }
       }
     : undefined;
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   return (
     <Section
+      tone="raised"
       id="contacts"
       icon="users"
       title={ACCOUNT_TEXT.contactsTitle}
@@ -185,6 +234,17 @@ export function ContactRoster({ accountId, contacts, canEdit, editHref, onMove }
               id: "mobile",
               header: ACCOUNT_TEXT.contactMobile,
               cell: (r: ContactRow) => r.mobile ?? "",
+            },
+            {
+              id: "channels",
+              header: ACCOUNT_TEXT.contactChannels,
+              cell: (r: ContactRow) => (
+                <ContactChannels
+                  email={r.email}
+                  wechat={r.wechat}
+                  labels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
+                />
+              ),
             },
             {
               id: "status",

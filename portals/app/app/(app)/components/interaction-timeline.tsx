@@ -54,9 +54,12 @@ export function InteractionTimeline({
   // the health score beside them is a worse version of this page.
   const bounded = limit !== undefined && !open && items.length > limit;
   const shown = bounded ? items.slice(0, limit) : items;
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   if (items.length === 0) {
     return (
       <Section
+        tone="raised"
         title={FIELD_TEXT.timelineTitle}
         description={FIELD_TEXT.timelineDescription}
       >
@@ -70,6 +73,7 @@ export function InteractionTimeline({
 
   return (
     <Section
+      tone="raised"
       title={FIELD_TEXT.timelineTitle}
       description={FIELD_TEXT.timelineDescription}
       action={

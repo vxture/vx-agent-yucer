@@ -76,8 +76,11 @@ export function HealthPanel({
     tone: c.points < 0 ? "danger" : "success",
   }));
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   return (
     <Section
+      tone="raised"
       title={CHAIN_TEXT.healthTitle}
       description={CHAIN_TEXT.healthDescription}
       action={

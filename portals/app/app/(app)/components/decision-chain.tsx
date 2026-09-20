@@ -51,9 +51,11 @@ export function DecisionChain({
   title,
 }: DecisionChainProps) {
   const { CHAIN_TEXT, DECISION_ROLE_LABEL } = useMessages();
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   if (contacts.length === 0) {
     return (
-      <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+      <Section tone="raised" title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
         <EmptyState
           title={CHAIN_TEXT.emptyTitle}
           description={CHAIN_TEXT.emptyDescription}
@@ -68,7 +70,7 @@ export function DecisionChain({
   );
 
   return (
-    <Section title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
+    <Section tone="raised" title={title ?? CHAIN_TEXT.title} description={CHAIN_TEXT.description}>
       {/* Reachability leads. Coverage is secondary and rendered below it. */}
       {coverage.economicBuyerUnreachable ? (
         <Tooltip>

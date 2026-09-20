@@ -43,9 +43,12 @@ export function AnalysisTabs({
 }) {
   const [active, setActive] = useState(tabs[0]?.key ?? "");
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // components/org-unit-panel.tsx 同名注释).
   return (
     <Tabs value={active} onValueChange={setActive}>
       <Section
+        tone="raised"
         id={id}
         icon="chart-bar"
         title={title}

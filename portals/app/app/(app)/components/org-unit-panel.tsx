@@ -10,6 +10,12 @@ import { AccountParentPanel, type AccountParentPanelProps } from "./account-pare
 // 属于栏1的档案，不是header该扛的身份信息"). 上级 + 下级 + 固有属性，同一张
 // 图的三部分。
 //
+// tone="raised" (owner, 2026-09-20: 设计图是全面card化) - Section 的默认
+// tone 不带边框/底色, 只靠留白分层 (`绝大多数板块用这个` - Section 自己的
+// 文档注释); mockup 把客户详情页的每一块都画成实体卡片 (`.card { border;
+// background; border-radius }`), 这一页因此改用 raised, 不是给整个产品的
+// 默认值动手 - 别的模块继续用 default 是它们自己的决定, 不受这页影响。
+//
 // THE PARENT HALF IS NOT NEW. AccountParentPanel has read the fact and written
 // it (incr/0025) since batch 6c; this only moves it inside a titled card next
 // to its other half instead of floating above the grid on its own row.
@@ -35,7 +41,12 @@ export function OrgUnitPanel({
 }) {
   const { ACCOUNT_TEXT } = useMessages();
   return (
-    <Section icon="buildings" title={ACCOUNT_TEXT.orgUnitTitle} description={ACCOUNT_TEXT.orgUnitWhy}>
+    <Section
+      tone="raised"
+      icon="buildings"
+      title={ACCOUNT_TEXT.orgUnitTitle}
+      description={ACCOUNT_TEXT.orgUnitWhy}
+    >
       <div className="flex flex-col gap-sm">
         {industry || region ? (
           <DetailList>

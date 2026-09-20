@@ -1046,6 +1046,11 @@ export const ACCOUNT_PARENT_TEXT = {
   label: "上级公司",
   none: "无上级公司",
   change: "更改上级公司",
+  // 没有上级公司时, 不打印"无上级公司"这句空事实 (owner, 2026-09-20: 设计图
+  // 严格对齐 - mockup 原话: 一张展示卡不该为每个可能存在的事实都摆一个空态
+  // CTA). 但真实产品里设置上级公司只有这一条路（没有 mockup 假设的"编辑单位
+  // 信息"整页可以退回去用），所以留一个轻量的关联入口，不是完全消失。
+  associate: "+ 关联上级公司",
   dialogWhy: "选一个上级公司；不能选它自己或它的下级。",
   field: "上级公司",
   submit: "确定",
@@ -4157,6 +4162,8 @@ export const ACCOUNT_TEXT = {
   contactMobile: "手机",
   contactEmail: "邮箱",
   contactWechat: "微信",
+  // 邮箱/微信 presence 列的表头 (owner, 2026-09-20: 设计图严格对齐).
+  contactChannels: "联系方式",
   contactStatus: "状态",
   contactStatusLabel: {
     active: "在职",

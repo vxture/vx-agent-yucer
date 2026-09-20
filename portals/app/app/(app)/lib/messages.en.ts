@@ -732,6 +732,7 @@ export const en: Dictionary = {
     label: "Parent company",
     none: "No parent company",
     change: "Change parent company",
+    associate: "+ Link parent company",
     dialogWhy: "Choose a parent company; it cannot be this account itself or one of its own subsidiaries.",
     field: "Parent company",
     submit: "Confirm",
@@ -3272,6 +3273,7 @@ export const en: Dictionary = {
     contactMobile: "Mobile",
     contactEmail: "Email",
     contactWechat: "WeChat",
+    contactChannels: "Contact",
     contactStatus: "Status",
     contactStatusLabel: {
       active: "Active",

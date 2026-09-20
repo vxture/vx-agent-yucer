@@ -91,8 +91,10 @@ export function AccountCompleteness({
     (g) => g.suggestion === null && !g.forModel && COMPLETENESS_TEXT.structural[g.field],
   );
 
+  // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
+  // org-unit-panel.tsx 同名注释).
   return (
-    <Section title={COMPLETENESS_TEXT.title} description={COMPLETENESS_TEXT.description}>
+    <Section tone="raised" title={COMPLETENESS_TEXT.title} description={COMPLETENESS_TEXT.description}>
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {derivable.map((g) => (

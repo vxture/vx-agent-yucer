@@ -92,11 +92,22 @@ export function AccountParentPanel({
 
   return (
     <div className="gap-sm flex flex-wrap items-center">
-      <span className="text-muted-foreground text-body-sm">{ACCOUNT_PARENT_TEXT.label}</span>
-      <span className="text-body-sm">{parentName ?? ACCOUNT_PARENT_TEXT.none}</span>
-      {canWrite ? (
-        <Button variant="secondary" size="sm" onClick={openDialog}>
-          {ACCOUNT_PARENT_TEXT.change}
+      {/* 没有上级公司时不打印"无上级公司"这句空事实 (owner, 2026-09-20: 设计
+          图严格对齐) - 只留一个轻量的关联入口，见 ACCOUNT_PARENT_TEXT.associate
+          自己的注释。 */}
+      {parentName ? (
+        <>
+          <span className="text-muted-foreground text-body-sm">{ACCOUNT_PARENT_TEXT.label}</span>
+          <span className="text-body-sm">{parentName}</span>
+          {canWrite ? (
+            <Button variant="secondary" size="sm" onClick={openDialog}>
+              {ACCOUNT_PARENT_TEXT.change}
+            </Button>
+          ) : null}
+        </>
+      ) : canWrite ? (
+        <Button variant="ghost" size="sm" onClick={openDialog}>
+          {ACCOUNT_PARENT_TEXT.associate}
         </Button>
       ) : null}
 
