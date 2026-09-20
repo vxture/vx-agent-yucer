@@ -5388,7 +5388,10 @@ export const CHAIN_TEXT = {
   influence: "影响力",
   emptyTitle: "还没有联系人",
   emptyDescription: "录入联系人并标注决策角色后，这里会给出决策链分析。",
-  healthTitle: "客户健康度",
+  // mockup 从头到尾一直叫这张卡"健康拆解"(健康评估是header的环, 是不同的
+  // key/healthShort) - 这里之前写成"客户健康度", 跟设计图对不上 (owner,
+  // 2026-09-20: 逐个板块对照设计图核实).
+  healthTitle: "健康拆解",
   healthDescription:
     "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
   // header 上放不下"客户健康度"这五个字的读数卡，短标题给 header 用
@@ -5621,7 +5624,11 @@ export const POSITION_TEXT = {
   tierDimensionLabel: "客户级别",
   planOf: (period: string) => `${period} 经营计划`,
   planTarget: "计划目标",
-  planDeals: "在办商机",
+  // header 三维度里"商机数量"这个维度自己的标签 (owner, 2026-09-20: 逐个
+  // 板块对照设计图核实 - mockup 原话: 标签明确写"开放商机"而不是笼统的
+  // "商机数量", 圆圈里的数字是"状态为 open 的商机数"). 中文之前写成"在办
+  // 商机", 跟这个 key 自己的英文翻译("Open deals")对不上, 也跟设计图对不上。
+  planDeals: "开放商机",
 
   triangle: "负责团队",
   /** The three owners, joined. The separator is text, so it lives here. */

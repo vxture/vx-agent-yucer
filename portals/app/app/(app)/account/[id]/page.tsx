@@ -329,17 +329,28 @@ export default async function AccountDetailPage({
       tally.collected += c.collected.amount;
       collectionTotals.set(c.planned.currency, tally);
     }
+    // 每个里程碑自己挂的那笔回款金额 (owner, 2026-09-20: 逐个板块对照设计图
+    // 核实 - mockup 的每一行里程碑都带着金额, 这里之前硬编码成 null). 一个
+    // milestone 最多对应一个 instalment (incr/0032, milestone_id 是那笔
+    // 回款的释放条件, 不是反过来) - 找不到就是这个里程碑本来没有挂钱, 不是
+    // 数据缺失。
+    const amountByMilestone = new Map(
+      pv.value.instalments.map((inst) => [inst.milestoneId, inst.plannedAmount]),
+    );
     milestonesByProject.set(
       pr.id,
-      pv.value.milestones.map((m) => ({
-        id: m.id,
-        name: m.name,
-        statusLabel: MILESTONE_STATUS_LABEL[m.status] ?? m.status,
-        dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
-        overdue: m.status !== "done" && m.status !== "missed" && m.dueAt != null && m.dueAt < now,
-        amount: null,
-        currency: defaultCurrency,
-      })),
+      pv.value.milestones.map((m) => {
+        const amount = amountByMilestone.get(m.id) ?? null;
+        return {
+          id: m.id,
+          name: m.name,
+          statusLabel: MILESTONE_STATUS_LABEL[m.status] ?? m.status,
+          dueAt: m.dueAt ? m.dueAt.toISOString().slice(0, 10) : null,
+          overdue: m.status !== "done" && m.status !== "missed" && m.dueAt != null && m.dueAt < now,
+          amount: amount?.amount ?? null,
+          currency: amount?.currency ?? defaultCurrency,
+        };
+      }),
     );
     pv.value.instalments.forEach((inst) => {
       const milestone = pv.value.milestones.find((m) => m.id === inst.milestoneId);
@@ -771,12 +782,16 @@ export default async function AccountDetailPage({
               },
               {
                 key: "revenue",
-                label: ACCOUNT_TEXT.lifecycleRevenue,
+                label: `${ACCOUNT_TEXT.lifecycleRevenue} (${revenueRows.length})`,
                 content: <RevenueLifecyclePanel rows={revenueRows} outstanding={revenueOutstanding} />,
               },
               {
                 key: "interactions",
-                label: ACCOUNT_TEXT.lifecycleInteractions,
+                // 跟进记录条数, 不是这个 tab 现在也带着的承诺条数 (owner,
+                // 2026-09-20: 逐个板块对照设计图核实 - mockup 的这个数字
+                // 数的是跟进记录). 商机/交付项目两个 tab 已经在这么做, 回款/
+                // 跟进记录当初漏了。
+                label: `${ACCOUNT_TEXT.lifecycleInteractions} (${interactions.ok ? interactions.value.length : 0})`,
                 content: (
                   <div className="flex flex-col gap-md">
                     {commitments.ok ? (

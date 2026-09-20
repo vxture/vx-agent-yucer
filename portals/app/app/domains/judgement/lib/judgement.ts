@@ -360,7 +360,7 @@ export function deriveJudgements(
               ]
             : []),
         ],
-        rule: `开放商机 且 最近接触 > ${staleDays} 天 且 对方逾期承诺 >= 1`,
+        rule: `开放商机 且 最近接触 > ${staleDays} 天 且 对方逾期承诺 ≥ 1`,
         analyses: ANALYSES_STALLED,
       });
     }

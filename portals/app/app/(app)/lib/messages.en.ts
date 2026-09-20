@@ -1187,7 +1187,7 @@ export const en: Dictionary = {
     emptyTitle: "No contacts yet",
     emptyDescription:
       "Add contacts and mark their decision roles, and the chain analysis appears here.",
-    healthTitle: "Account health",
+    healthTitle: "Health breakdown",
     healthDescription:
       "A derived value, recomputed from its sources. For sorting and alerting - never the sole basis for a business decision.",
     healthShort: "Health",
