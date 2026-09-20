@@ -40,7 +40,7 @@ import { getMessages } from "../../lib/i18n/server";
 import { DEFAULT_STAGE_DEFINITIONS, type Stage } from "../../../domains/pipeline/lib/stage";
 import { listPipeline, listStageDefinitions } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
-import { stageLabelFor } from "../../lib/view-model";
+import { healthTone, stageLabelFor } from "../../lib/view-model";
 import { listProjects, projectView } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
@@ -76,7 +76,6 @@ import { loadFailureText } from "../../lib/load-failure";
 import { Tag } from "../../components/tag";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
-import { healthTone } from "../../lib/view-model";
 
 // D4 account detail (owner, 2026-09-18: 客户全景视图重排).
 //
@@ -468,17 +467,11 @@ export default async function AccountDetailPage({
             editHref={`/contact/new?account=${id}&back=/account/${id}`}
           />
 
-          {completeness.ok ? (
-            <AccountCompleteness
-              accountId={id}
-              gaps={completeness.value.gaps}
-              canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
-              onFill={fillField}
-              onAsk={askToComplete}
-              canAsk={canAsk}
-            />
-          ) : null}
-
+          {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /
+              联系人 / 决策链 / 档案缺口), 因为决策链是这张客户档案的展示重点
+              (owner: 决策链需要客户层级的视角...这是展示重点) - 缺口是"还没
+              填的", 排在后面才不会把注意力先引到缺什么, 而不是引到已经知道
+              的关系结构上。 */}
           {chain.ok ? (
             chain.value.length === 0 ? (
               <EmptyState
@@ -525,6 +518,17 @@ export default async function AccountDetailPage({
               description={loadFailureText(chain.violations, LOAD_ERROR)}
             />
           )}
+
+          {completeness.ok ? (
+            <AccountCompleteness
+              accountId={id}
+              gaps={completeness.value.gaps}
+              canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
+              onFill={fillField}
+              onAsk={askToComplete}
+              canAsk={canAsk}
+            />
+          ) : null}
         </div>
 
         {/* ======== CENTRE: the lifecycle spine ======== */}
