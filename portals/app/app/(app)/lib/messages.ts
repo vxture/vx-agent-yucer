@@ -4104,6 +4104,10 @@ export const ACCOUNT_TEXT = {
   orgUnitTitle: "单位信息",
   orgUnitWhy: "这家客户在集团结构里的位置——谁在它上面，谁挂在它下面。",
   orgUnitChildren: (n: number) => `下级单位（${n}）`,
+  // 行业/区域从 header 搬过来 (owner, 2026-09-20: 严格按照设计实施) - 这些是
+  // 客户固有属性，属于栏1的档案，不是 header 该扛的身份识别信息。
+  orgUnitIndustry: "行业",
+  orgUnitRegion: "区域",
 
   // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
   // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。
@@ -4173,6 +4177,9 @@ export const ACCOUNT_TEXT = {
   // 宽, 一张全量表格在这里比一句"还有几位"更占地方。
   contactsShowAll: (n: number) => `查看全部（${n}）位联系人`,
   contactsCollapse: "收起",
+  // header 的商机数量维度 (owner, 2026-09-20: 严格按照设计实施) - 圆圈里的
+  // 数字之外，还要有一句"N 个进行中"。
+  openDealsCount: (n: number) => `${n} 个进行中`,
 } as const;
 
 export const ACCOUNT_STATUS_LABEL: Record<string, string> = {
@@ -5563,6 +5570,10 @@ export const POSITION_TEXT = {
   tierStrategic: "战略级",
   tierKey: "关键级",
   tierStandard: "普通级",
+  // header 商机数量/客户级别/健康评估三维度里, "客户级别"这个维度自己的标签
+  // (owner, 2026-09-20: 严格按照设计实施) - tierStrategic/tierKey/tierStandard
+  // 是三档的VALUE，这个是维度自己的NAME，两者不是一回事。
+  tierDimensionLabel: "客户级别",
   planOf: (period: string) => `${period} 经营计划`,
   planTarget: "计划目标",
   planDeals: "在办商机",

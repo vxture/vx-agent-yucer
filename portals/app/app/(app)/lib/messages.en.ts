@@ -2491,6 +2491,7 @@ export const en: Dictionary = {
     tierStrategic: "Strategic tier",
     tierKey: "Key tier",
     tierStandard: "Standard tier",
+    tierDimensionLabel: "Account tier",
     planOf: (period: string) => `${period} account plan`,
     planTarget: "Plan target",
     planDeals: "Open deals",
@@ -3222,6 +3223,8 @@ export const en: Dictionary = {
     orgUnitTitle: "Org unit",
     orgUnitWhy: "Where this customer sits in the group structure - who is above it, who reports under it.",
     orgUnitChildren: (n: number) => `${n} sub-unit${n === 1 ? "" : "s"}`,
+    orgUnitIndustry: "Industry",
+    orgUnitRegion: "Region",
 
     graphTitle: "Decision chain map",
     graphWhy: (dealName: string) => `The decision chain for "${dealName}" - the customer's default when the deal has none of its own`,
@@ -3284,6 +3287,7 @@ export const en: Dictionary = {
     contactCount: (n: number) => `${n} contacts`,
     contactsShowAll: (n: number) => `Show all ${n} contacts`,
     contactsCollapse: "Collapse",
+    openDealsCount: (n: number) => `${n} in progress`,
   },
 
   ACCOUNT_STATUS_LABEL: {

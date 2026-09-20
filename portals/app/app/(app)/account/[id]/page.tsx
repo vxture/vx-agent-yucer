@@ -1,9 +1,11 @@
 import {
   EmptyState,
+  Icon,
   ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
+import { CircleBadge, DimensionStat, RingGauge } from "../../components/dimension-stat";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
 import {
@@ -74,23 +76,26 @@ import {
   settleCommitment,
 } from "../field-actions";
 import { loadFailureText } from "../../lib/load-failure";
-import { Tag, TierBadge } from "../../components/tag";
+import { Tag, TIER_ICON_SRC } from "../../components/tag";
 import { pricingPolicy } from "../../../domains/catalog/service";
 import { DEFAULT_PRICING_POLICY } from "../../../domains/catalog/lib/pricing-policy";
 
-// D4 account detail (owner, 2026-09-18: 客户全景视图重排).
+// D4 account detail (owner, 2026-09-20: 严格按照设计实施 - 栏1/栏2排版,
+// matching the finished mockup's header + TWO columns, not three).
 //
-// HEADER, then THREE COLUMNS - nothing mixed across the two. (1) The header
+// HEADER, then TWO COLUMNS - nothing mixed across the two. (1) The header
 // states who this is and carries every action that CONFIGURES the
-// relationship (定级/计划 among them - see below). (2) LEFT is the dossier -
-// facts that do not need reading, stable enough to sit still while the
-// centre is worked through. (3) CENTRE is the pure lifecycle spine - deals,
-// delivery, revenue, contact history - as tabs over one line, and nothing
-// else: a reader asking "how is this account doing" needs all of it without
-// four separate pages, and without a config form or a decision list breaking
-// the spine up. (4) RIGHT is this account's own decision items - what the
-// copilot has already proposed about THIS relationship, with buttons that
-// only ever navigate to the real queue (ADR-003).
+// relationship (定级/计划 among them - see below). (2) LEFT (mockup's 栏1) is
+// the dossier - facts that do not need reading, stable enough to sit still
+// while the right column is worked through. (3) RIGHT (mockup's 栏2) is the
+// lifecycle spine - deals, delivery, revenue, contact history, as tabs over
+// one line - WITH this account's own decision items appended below it: what
+// the copilot has already proposed about THIS relationship, with buttons
+// that only ever navigate to the real queue (ADR-003). One column, two
+// concerns stacked, rather than a third grid track for the second one - a
+// third column was never the mockup's design, and standing a whole grid
+// track on a handful of proposal cards read as more important than the
+// lifecycle spine beside it.
 //
 // THE COPILOT'S CONVERSATION IS NOT A COLUMN HERE. The shell's own right pane
 // (app-shell.tsx's `deck`, filled for this route by
@@ -132,6 +137,7 @@ export default async function AccountDetailPage({
     LOAD_ERROR,
     DOMAIN_LABEL,
     ACCOUNT_TEXT,
+    healthReasonText,
     POSITION_TEXT,
   } = await getMessages();
   const { id } = await params;
@@ -367,38 +373,61 @@ export default async function AccountDetailPage({
       : account.tier === "key"
         ? POSITION_TEXT.tierKey
         : POSITION_TEXT.tierStandard;
-  const tierTone =
-    account.tier === "strategic" ? "brand" : account.tier === "key" ? "warning" : "neutral";
 
   return (
     <ViewLayout>
       <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
 
       <ViewHeader
-        secondary={account.accountNo}
         icon="buildings"
         title={account.name}
-        description={[account.industry, account.region]
-          .filter(Boolean)
-          .join(" / ")}
+        // `secondary` IS the DS's own slot for "a status tag beside the
+        // title" (PageHeaderProps: 标题行内的附加物，通常是 StatusBadge) -
+        // this was sitting in `action` (the right-side button area) before,
+        // which is why 状态 rendered on the opposite side of the header
+        // from where the mockup puts it (owner, 2026-09-20: 严格按照设计
+        // 实施).
+        secondary={
+          <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
+            {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
+          </Tag>
+        }
+        description={account.accountNo}
         action={
-          <div className="flex items-center gap-xs">
-            <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
-              {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
-            </Tag>
+          <div className="flex items-center gap-md">
             {/* 三个动态维度, 固定顺序: 商机数量 -> 客户级别 -> 健康评估 (owner,
-                2026-09-18: header 三维度顺序). 都读现成的数据, 客户级别现在
-                连普通级也显示, 不再只在非 standard 时才出现. */}
-            <Tag icon="target">
-              {POSITION_TEXT.planDeals} {openDealsCount}
-            </Tag>
-            <TierBadge tier={account.tier} tone={tierTone}>
-              {tierLabel}
-            </TierBadge>
+                2026-09-18: header 三维度顺序). 图形 + 两行文字, 不是彩色
+                胶囊 (owner, 2026-09-20: 严格按照设计实施 - mockup 的
+                `.health-mini`) - 都读现成的数据, 客户级别现在连普通级也
+                显示, 不再只在非 standard 时才出现. */}
+            <DimensionStat
+              figure={<CircleBadge tone="brand">{openDealsCount}</CircleBadge>}
+              label={POSITION_TEXT.planDeals}
+              value={ACCOUNT_TEXT.openDealsCount(openDealsCount)}
+            />
+            <DimensionStat
+              figure={
+                <img src={TIER_ICON_SRC[account.tier]} alt="" className="h-[2.875rem] w-10 flex-none" />
+              }
+              label={POSITION_TEXT.tierDimensionLabel}
+              value={tierLabel}
+            />
             {health && health.ok ? (
-              <Tag tone={healthTone(health.value.score)}>
-                {CHAIN_TEXT.healthShort} {health.value.score}
-              </Tag>
+              <DimensionStat
+                last
+                figure={<RingGauge value={health.value.score} tone={healthTone(health.value.score)} />}
+                label={CHAIN_TEXT.healthShort}
+                value={
+                  health.value.primaryConcern ? (
+                    <span className="text-destructive-text flex items-center gap-2xs">
+                      <Icon name="warning" size="sm" />
+                      {healthReasonText(health.value.primaryConcern.reason)}
+                    </span>
+                  ) : (
+                    health.value.score
+                  )
+                }
+              />
             ) : null}
             {/* 定级/计划 IS CONFIGURATION, not a fact to display - it lives
                 behind one button, never as an open form on the page (see
@@ -434,13 +463,17 @@ export default async function AccountDetailPage({
         </div>
       ) : null}
 
-      {/* THREE COLUMNS below the header. xl:grid-cols-[18rem_1fr_20rem]:
-          left is the dossier (facts that hold still), centre is the pure
-          lifecycle spine, right is this account's own decision items - NOT
-          the copilot conversation, which stays exclusively the shell's job
-          (see the file-level note above; a second chat box here is the
-          defect this replaced). */}
-      <div className="grid gap-lg xl:grid-cols-[18rem_1fr_20rem]">
+      {/* TWO COLUMNS below the header, not three (owner, 2026-09-20: 严格
+          按照设计实施 - 栏3是平台全局的智能副驾，不是每个页面自己构建的三分
+          之一). Left is the dossier (facts that hold still); right is
+          everything else this account's own page owns - the lifecycle spine
+          AND this account's own decision items, stacked in one column
+          instead of a third grid track. The copilot conversation itself is
+          still never a column here (see the file-level note above; a second
+          chat box was the defect that comment describes, and folding 栏3
+          into 栏2 does not reopen it - TheatrePlan is a proposal LIST, not a
+          chat). */}
+      <div className="grid gap-lg xl:grid-cols-[18rem_1fr]">
 
         {/* ======== LEFT: the dossier ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
@@ -452,6 +485,8 @@ export default async function AccountDetailPage({
             canWrite={canWrite}
             onSetParent={setAccountParentAction}
             children={childUnits}
+            industry={account.industry}
+            region={account.region}
           />
 
           <ContactRoster
@@ -533,7 +568,10 @@ export default async function AccountDetailPage({
           ) : null}
         </div>
 
-        {/* ======== CENTRE: the lifecycle spine ======== */}
+        {/* ======== RIGHT (mockup's 栏2): the lifecycle spine, then this
+            account's own decision items - one column, two concerns, matching
+            the mockup's 栏2 (default view: 健康拆解 + 阵地清单) with
+            TheatrePlan appended rather than given its own track. ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
           {health && health.ok ? (
             <HealthPanel
@@ -611,10 +649,7 @@ export default async function AccountDetailPage({
               },
             ]}
           />
-        </div>
 
-        {/* ======== RIGHT: this account's own decision items ======== */}
-        <div className="flex min-w-0 flex-col gap-lg">
           <TheatrePlan proposals={planProposals} accountId={id} />
         </div>
       </div>

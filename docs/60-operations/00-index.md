@@ -1894,3 +1894,21 @@ access token 读（`name`/`preferred_username`），且明确写「名字换行�
 用那个确切环境复测一次；或者干脆是本侧遗漏了某条会影响渲染但不会体现在
 `getComputedStyle` 里的属性（如 `font-feature-settings`、`text-rendering`、
 子像素级别的 `-webkit-font-smoothing`），需要更细的取证才能定位。
+
+### TD-033 - DS 没有环形/仪表盘进度件，客户详情页 header 的健康度/商机数环用本地 SVG 垫
+
+2026-09-20，客户详情页 header 严格对齐 mockup 视觉（owner: 严格按照设计实施）
+时确认：DS 的 `Progress` 只有线性一种（`ProgressPrimitive.Root` 包出来的横条），
+没有环形/仪表盘（circular/radial）变体，图标字典（`ICON_GROUPS`）里也没有能
+顶替它的现成图形。逐项核过，不是找得不够仔细 - `Progress`/`MetricCard`/
+`StatusBadge` 三者都不提供"一个数字嵌在圆环里，圆环按比例着色"这个构图。
+
+**垫片位置**：`(app)/components/ring-badge.tsx` 的 `RingBadge` - 一个内联
+`<svg>`，两个同心 `<circle>`（底环 `stroke: var(--border)` 效果的中性色 +
+值环用传入的 tone 着色），`stroke-dasharray`/`stroke-dashoffset` 算比例，中心
+一个 `<text>` 或绝对定位的数字。只用 DS 的语义色 token（通过 Tailwind 的
+`text-*`/`stroke-*` 工具类对应到 tone），不引入 mockup 自己那套 `--primary`/
+`--success` 等硬编码色值。
+
+**恢复条件**：DS 提供环形/仪表盘 Progress 变体后，删掉 `ring-badge.tsx`，
+改为消费该元件。已作为 DS 请求上报（元素缺失，非本仓自建风格）。
