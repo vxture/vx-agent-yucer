@@ -736,8 +736,8 @@ export const en: Dictionary = {
   ACCOUNT_PARENT_TEXT: {
     label: "Parent company",
     none: "No parent company",
-    change: "Change parent company",
-    associate: "+ Link parent company",
+    change: "Apply",
+    sectionTitle: "Parent / subsidiaries",
     dialogWhy: "Choose a parent company; it cannot be this account itself or one of its own subsidiaries.",
     field: "Parent company",
     submit: "Confirm",
@@ -1423,7 +1423,10 @@ export const en: Dictionary = {
   },
 
   COLLABORATOR_TEXT: {
-    title: "Collaborators",
+    title: "Account owner",
+    editButton: "Edit account owner",
+    primary: "Primary owner",
+    tag: "Collaborator",
     linkButton: "+ Add",
     drawerTitle: "Add a collaborator",
     why: "Add a colleague to help work this account - the primary owner does not change.",
@@ -3295,6 +3298,7 @@ export const en: Dictionary = {
     rosterNoProjects: "No delivery projects",
     rosterOpenDeal: "Open the deal",
     rosterOpenProjects: "Go to project delivery",
+    headerOwner: (name: string) => `Account owner ${name}`,
     dossier: "Dossier",
     dossierOwner: "Owner",
     dossierIndustry: "Industry",

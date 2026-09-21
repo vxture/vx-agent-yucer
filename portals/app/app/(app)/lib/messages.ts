@@ -1052,12 +1052,16 @@ export const ACCOUNT_ERROR: Record<string, string> = {
 export const ACCOUNT_PARENT_TEXT = {
   label: "上级公司",
   none: "无上级公司",
-  change: "更改上级公司",
-  // 没有上级公司时, 不打印"无上级公司"这句空事实 (owner, 2026-09-20: 设计图
-  // 严格对齐 - mockup 原话: 一张展示卡不该为每个可能存在的事实都摆一个空态
-  // CTA). 但真实产品里设置上级公司只有这一条路（没有 mockup 假设的"编辑单位
-  // 信息"整页可以退回去用），所以留一个轻量的关联入口，不是完全消失。
-  associate: "+ 关联上级公司",
+  change: "应用",
+  // 只读的单位信息卡片上不再有"+关联上级公司"这个空态 CTA (owner, 2026-09-20:
+  // 死死记住设计文件 - mockup 原话在 scratchpad/account-detail-v2-wrapped.html
+  // 里说得很清楚: "the whole row (and its own change-button) is absent...a
+  // dossier card states facts, it does not carry an empty-state CTA for every
+  // fact that could exist"). 之前留了一个"轻量的关联入口"是没查 mockup 文件
+  // 凭印象判断的结果 - 真实的编辑入口一直都在, 就是"编辑单位信息"抽屉
+  // (account-basics-form.tsx), 这里的 sectionTitle/field/change 现在是
+  // org-relations-editor.tsx 里那张内嵌"上下级关联"卡的文案。
+  sectionTitle: "上下级关联",
   dialogWhy: "选一个上级公司；不能选它自己或它的下级。",
   field: "上级公司",
   submit: "确定",
@@ -1066,7 +1070,8 @@ export const ACCOUNT_PARENT_TEXT = {
   doneNone: "已清除上级公司",
   // 下级单位增删 (owner, 2026-09-20: mockup 编辑单位信息 - "+关联下级单位").
   // 同一条 setAccountParent 动词, 只是这次改的是"另一家公司自己的上级公司"
-  // 这一格, 不是这家公司自己的 - 从这一页发起, 落到那一行。
+  // 这一格, 不是这家公司自己的 - 从"编辑单位信息"抽屉发起, 落到那一行。
+  // 计数文案复用 ACCOUNT_TEXT.orgUnitChildren, 不在这里重复一份。
   addChild: "+ 关联下级单位",
   addChildTitle: "关联下级单位",
   addChildWhy: "选一家公司，把它的上级公司设为这家客户；不能选它自己或它的上级。",
@@ -2940,8 +2945,15 @@ export const LINK_CONTACT_TEXT = {
 
 // 关联协作人 (incr/0074, owner 2026-09-20: mockup - "内部同事可以有多个协作
 // 人，但主负责人始终只有一个，这里关联的都是协作人，不是替换主负责人").
+// 销售负责人 (owner, 2026-09-20: 死死记住设计文件 - mockup 把这张卡叫
+// "销售负责人", 不是"协作人") - 名单里主负责人和协作人同框, title 现在是
+// 卡片/抽屉的标题, editButton 是 header 里那个小触发器的文案, primary/tag
+// 是名单里两种角色各自的标签。
 export const COLLABORATOR_TEXT = {
-  title: "协作人",
+  title: "销售负责人",
+  editButton: "编辑销售负责人",
+  primary: "主负责人",
+  tag: "协作人",
   linkButton: "+ 关联",
   drawerTitle: "关联协作人",
   why: "加一位内部同事参与跟进，不会替换主负责人身份。",
@@ -4153,6 +4165,12 @@ export const ACCOUNT_TEXT = {
   rosterNoProjects: "没有交付项目",
   rosterOpenDeal: "打开阵地",
   rosterOpenProjects: "去项目交付",
+  // header 第二行, 跟 ACC-0001 并列 (owner, 2026-09-20: 死死记住设计文件 -
+  // mockup 原话: `<span>销售负责人 王涛</span>`, 纯文本, 不是按钮, 不在
+  // 单位信息卡片里). 之前把这个字段错放进了单位信息的 DetailList, 用的还是
+  // "负责人"这个通用词 - mockup 自己解释了为什么要叫"销售负责人": 客户联系人
+  // 里也有真人姓名, 光说"负责人"分不清是对方的人还是我方的人。
+  headerOwner: (name: string) => `销售负责人 ${name}`,
   dossier: "战区档案",
   dossierOwner: "负责人",
   dossierIndustry: "行业",
@@ -4169,8 +4187,9 @@ export const ACCOUNT_TEXT = {
     "没有提案时不是没有问题，是还没有人问。向参谋提问会产出建议动作。",
 
   // 单位信息 (owner, 2026-09-18: 客户详情页重排): 上级 + 下级，同一张图的两半。
-  // 上级读写已由 ACCOUNT_PARENT_TEXT/AccountParentPanel 承担，这里只加下级——
-  // 从 accountRows 按 parentId 过滤即可，不需要新的读接口。
+  // 上级/下级的编辑现在都在 org-relations-editor.tsx (挂在"编辑单位信息"
+  // 抽屉里) - 这张只读卡片只用 orgUnitChildren 显示计数。从 accountRows 按
+  // parentId 过滤即可，不需要新的读接口。
   orgUnitTitle: "单位信息",
   orgUnitWhy: "这家客户在集团结构里的位置——谁在它上面，谁挂在它下面。",
   orgUnitChildren: (n: number) => `下级单位（${n}）`,

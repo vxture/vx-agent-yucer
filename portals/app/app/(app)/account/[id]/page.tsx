@@ -35,7 +35,8 @@ import { listSegments } from "../../../domains/strategy/service";
 import { getAuthzStore } from "../../../authz/store";
 import { AccountBasicsForm } from "../../components/account-basics-form";
 import { LinkContactDrawer } from "../../components/link-contact-drawer";
-import { CollaboratorPanel } from "../../components/collaborator-panel";
+import { OwnerEditor } from "../../components/owner-editor";
+import { OrgRelationsEditor } from "../../components/org-relations-editor";
 import { DecisionChainDetail } from "../../components/decision-chain-detail";
 import { ChainViewProvider, ChainDetailSlot, ChainSummaryList, type ChainSummaryItem } from "../../components/decision-chain-switch";
 // NOT importing ROLE_ORDER from decision-chain-graph.tsx here - that file is
@@ -564,7 +565,31 @@ export default async function AccountDetailPage({
             {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
           </Tag>
         }
-        description={account.accountNo}
+        // 第二行: ACC-0001 + 销售负责人 (owner, 2026-09-20: 死死记住设计文件 -
+        // mockup 原话 `<span class="tag neutral mono">ACC-0001</span>
+        // <span class="dot"></span><span>销售负责人 王涛</span>` - 纯文本,
+        // 不是按钮, 不在单位信息卡片里). 编辑入口是旁边那个小图标按钮
+        // (owner-editor.tsx), 跟 accountNo 本身一样"这里的事实不可点改"。
+        description={
+          <span className="gap-xs flex items-center">
+            {account.accountNo}
+            {ownerRead.ok && ownerRead.value ? (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span>{ACCOUNT_TEXT.headerOwner(ownerRead.value)}</span>
+              </>
+            ) : null}
+            <OwnerEditor
+              accountId={id}
+              ownerName={ownerRead.ok ? ownerRead.value : null}
+              collaborators={collaboratorsRead.ok ? collaboratorsRead.value : []}
+              canManage={canManageCollaborators}
+              onSearch={searchColleaguesAction}
+              onAdd={addCollaboratorAction}
+              onRemove={removeCollaboratorAction}
+            />
+          </span>
+        }
         action={
           <div className="flex items-center gap-md">
             {/* 三个动态维度, 固定顺序: 商机数量 -> 客户级别 -> 健康评估 (owner,
@@ -666,16 +691,11 @@ export default async function AccountDetailPage({
         {/* ======== LEFT: the dossier ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
           <OrgUnitPanel
-            accountId={id}
             parentId={account.parentId}
             parentName={parentName}
-            accounts={accountRows}
-            canWrite={canWrite}
-            onSetParent={setAccountParentAction}
             children={childUnits}
             industry={account.industry}
             region={account.region}
-            ownerName={ownerRead.ok ? ownerRead.value : null}
             editForm={
               canWrite ? (
                 <AccountBasicsForm
@@ -699,6 +719,15 @@ export default async function AccountDetailPage({
                   customerNatures={customerNaturesRead && customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : []}
                   canWrite={canWrite}
                   onSave={updateAccountBasicsAction}
+                  orgRelations={
+                    <OrgRelationsEditor
+                      accountId={id}
+                      parentId={account.parentId}
+                      children={childUnits}
+                      accounts={accountRows}
+                      onSetParent={setAccountParentAction}
+                    />
+                  }
                 />
               ) : undefined
             }
@@ -721,15 +750,6 @@ export default async function AccountDetailPage({
               ) : undefined
             }
             onUnlink={canLinkContact ? unlinkContactAction : undefined}
-          />
-
-          <CollaboratorPanel
-            accountId={id}
-            collaborators={collaboratorsRead.ok ? collaboratorsRead.value : []}
-            canManage={canManageCollaborators}
-            onSearch={searchColleaguesAction}
-            onAdd={addCollaboratorAction}
-            onRemove={removeCollaboratorAction}
           />
 
           {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /

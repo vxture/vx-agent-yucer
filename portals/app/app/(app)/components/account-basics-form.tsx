@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Button, Drawer, Field, FieldLabel, Icon, Input, NativeSelect, useToast } from "@vxture/design-ui";
+import { useState, useTransition, type ReactNode } from "react";
+import { Button, Drawer, Field, FieldLabel, Icon, Input, NativeSelect, Separator, useToast } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { ALL_PROVINCES } from "../../domains/shared/provinces";
 
@@ -75,6 +75,13 @@ export interface AccountBasicsFormProps {
       employeeCount?: number | null;
     },
   ) => Promise<{ ok: boolean; error?: string }>;
+  /** org-relations-editor.tsx, built server-side in page.tsx and mounted here
+   *  as the drawer's second card - mockup nests "上下级关联" right after
+   *  "基础信息" inside the same edit surface (owner, 2026-09-20: 死死记住
+   *  设计文件), and "单位信息" as a title already covers org-structure facts
+   *  the same way it covers industry/region. Absent for a read-only member,
+   *  same as the rest of this form. */
+  readonly orgRelations?: ReactNode;
 }
 
 /** "" in a <select>/<input> means "unset" throughout this form - converted
@@ -103,6 +110,7 @@ export function AccountBasicsForm({
   customerNatures,
   canWrite,
   onSave,
+  orgRelations,
 }: AccountBasicsFormProps) {
   const { ACCOUNT_BASICS_TEXT, ACCOUNT_ERROR, DS_LABELS } = useMessages();
   const { toast } = useToast();
@@ -287,6 +295,13 @@ export function AccountBasicsForm({
               disabled={pending}
             />
           </Field>
+
+          {orgRelations ? (
+            <>
+              <Separator />
+              {orgRelations}
+            </>
+          ) : null}
         </div>
       </Drawer>
     </>
