@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
   MetricGrid,
@@ -29,6 +29,11 @@ export interface HealthPanelProps {
   readonly onRecompute: (
     accountId: string,
   ) => Promise<{ ok: boolean; score?: number; error?: string }>;
+  /** 活跃/流失等账户状态 (owner, 2026-09-20: 补充 - status tag 是"动态评估",
+   *  跟客户级别/健康评估同一类, 不属于纯展示的单位信息卡, 搬来这张卡的
+   *  header - 这里已经是内容区第一张卡, 也是"评估类"信息的自然落点). 单位
+   *  信息卡(org-unit-panel.tsx)现在头部只剩 icon+title, 不再带这个标签。 */
+  readonly statusTag: ReactNode;
 }
 
 export function HealthPanel({
@@ -36,6 +41,7 @@ export function HealthPanel({
   health,
   canRecompute,
   onRecompute,
+  statusTag,
 }: HealthPanelProps) {
   const { CHAIN_TEXT, healthReasonText, ACCOUNT_ERROR } = useMessages();
 
@@ -82,7 +88,12 @@ export function HealthPanel({
     <Section
       tone="raised"
       style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-      title={CHAIN_TEXT.healthTitle}
+      title={
+        <span className="gap-xs flex flex-wrap items-center">
+          <span>{CHAIN_TEXT.healthTitle}</span>
+          {statusTag}
+        </span>
+      }
       action={
         canRecompute ? (
           <Button

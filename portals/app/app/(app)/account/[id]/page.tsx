@@ -1,7 +1,6 @@
 import {
   EmptyState,
   Icon,
-  ViewHeader,
   ViewLayout,
 } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
@@ -34,7 +33,6 @@ import {
 import { listSegments } from "../../../domains/strategy/service";
 import { getAuthzStore } from "../../../authz/store";
 import { LinkContactDrawer } from "../../components/link-contact-drawer";
-import { OwnerEditor } from "../../components/owner-editor";
 import { OrgRelationsEditor } from "../../components/org-relations-editor";
 import { DecisionChainDetail } from "../../components/decision-chain-detail";
 import { ChainViewProvider, ChainDetailSlot, ChainSummaryList, type ChainSummaryItem } from "../../components/decision-chain-switch";
@@ -73,6 +71,7 @@ import { askToComplete } from "./ask-complete-action";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
 import { AccountSidebarPortal } from "../../components/account-sidebar-portal";
+import { ACCOUNT_SIDEBAR_EDIT_SLOT_ID, ACCOUNT_SIDEBAR_SLOT_ID } from "../../lib/sidebar-slot";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import {
   DealLifecyclePanel,
@@ -248,9 +247,16 @@ export default async function AccountDetailPage({
       // lists already used elsewhere (admin config pages), not a new query
       // shape.
       canWrite ? listIndustries(ctx) : Promise.resolve(null),
-      canWrite ? listCustomerTypes(ctx) : Promise.resolve(null),
+      // customerTypesRead/customerNaturesRead are UNCONDITIONAL now (owner,
+      // 2026-09-20: 补充 - 性质/类型 需要显示在单位信息卡上, 一张纯展示卡,
+      // 不看 account.upsert). Both are gated on account.view at the service
+      // layer, same as the page itself, so a read-only member resolves the
+      // same id->name lookup a writer's edit form already used - this is not
+      // a new permission surface, just the same read no longer withheld from
+      // someone who cannot also write.
+      listCustomerTypes(ctx),
       canWrite ? listCustomerSizes(ctx) : Promise.resolve(null),
-      canWrite ? listCustomerNatures(ctx) : Promise.resolve(null),
+      listCustomerNatures(ctx),
       canWrite
         ? listSegments({ ...ctx, store: getStrategyStore() })
         : Promise.resolve(null),
@@ -548,270 +554,256 @@ export default async function AccountDetailPage({
         ? POSITION_TEXT.tierKey
         : POSITION_TEXT.tierStandard;
 
+  // 性质/类型 resolved to display names (owner: 补充 - 性质/类型/行业/区域/
+  // 地址). account.customerNatureId/customerTypeId 早就存在, 词表读也早就
+  // 存在(给编辑表单用) - 这里只是第一次把 id 解析成名字用于只读展示, 不是
+  // 新读一次。
+  const customerNatureName =
+    account.customerNatureId && customerNaturesRead.ok
+      ? (customerNaturesRead.value.find((n) => n.id === account.customerNatureId)?.name ?? null)
+      : null;
+  const customerTypeName =
+    account.customerTypeId && customerTypesRead.ok
+      ? (customerTypesRead.value.find((t) => t.id === account.customerTypeId)?.name ?? null)
+      : null;
+
+  // 状态标签是"动态评估" (owner: 补充 - status tag 不能在 sidebar, 应该在
+  // content) - 搬进 health-panel.tsx 的卡头, 跟客户评估同一张卡; health 不可用
+  // (只读成员, 见上面 persist:false 的说明)时退化成不挂卡片的纯文本, 而不是
+  // 整个消失。
+  const statusTag = (
+    <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
+      {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
+    </Tag>
+  );
+
+  // ACC-0001 + 销售负责人, 纯文本 (owner: 展示/编辑拆解 - OwnerEditor 自己的
+  // 编辑触发器已经搬进侧栏顶部的"客户总编辑", 这一行不再带任何按钮)。
+  const ownerRow = (
+    <span className="gap-xs flex items-center">
+      {account.accountNo}
+      {ownerRead.ok && ownerRead.value ? (
+        <>
+          <span className="text-muted-foreground">·</span>
+          <span>{ACCOUNT_TEXT.headerOwner(ownerRead.value)}</span>
+        </>
+      ) : null}
+    </span>
+  );
+
+  // 开放商机 / 客户级别 / 健康评估, stacked (owner: dimensions 概念不变,
+  // 只是从 header 的横排搬进侧栏卡片, 不再需要 flex-wrap/max-w-40 那套
+  // 抢空间的手段 - 这张卡本来就是侧栏宽度, 纵向堆叠即可)。
+  const dimensions = (
+    <div className="flex flex-col gap-sm">
+      <DimensionStat
+        last
+        figure={<CircleBadge tone="brand">{openDealsCount}</CircleBadge>}
+        label={POSITION_TEXT.planDeals}
+        value={ACCOUNT_TEXT.openDealsCount(openDealsCount)}
+      />
+      <DimensionStat
+        last
+        figure={
+          <img src={TIER_ICON_SRC[account.tier]} alt="" className="h-[2.875rem] w-10 flex-none" />
+        }
+        label={POSITION_TEXT.tierDimensionLabel}
+        value={tierLabel}
+      />
+      {health && health.ok ? (
+        <DimensionStat
+          last
+          figure={
+            <ScoreRing
+              score={health.value.score}
+              tone={healthTone(health.value.score)}
+              label={`${CHAIN_TEXT.healthShort} ${health.value.score}`}
+              size={46}
+            />
+          }
+          label={CHAIN_TEXT.healthShort}
+          value={
+            health.value.primaryConcern ? (
+              <span className="text-destructive-text flex items-center gap-2xs">
+                <Icon name="warning" size="sm" />
+                {healthReasonText(health.value.primaryConcern.reason)}
+              </span>
+            ) : (
+              health.value.score
+            )
+          }
+        />
+      ) : null}
+    </div>
+  );
+
+  // 定向自动分析 (owner, 2026-09-18): 判断题放 sidebar - 单位信息卡的最下方,
+  // 不再是独立的横幅。
+  const judgement = topJudgement
+    ? { claim: topJudgement.claim, rule: topJudgement.rule ?? null }
+    : null;
+
   return (
     <ViewLayout>
-      <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
-
-      <ViewHeader
-        icon="buildings"
-        title={account.name}
-        // `secondary` IS the DS's own slot for "a status tag beside the
-        // title" (PageHeaderProps: 标题行内的附加物，通常是 StatusBadge) -
-        // this was sitting in `action` (the right-side button area) before,
-        // which is why 状态 rendered on the opposite side of the header
-        // from where the mockup puts it (owner, 2026-09-20: 严格按照设计
-        // 实施).
-        secondary={
-          <Tag tone={account.status === "churned" ? "danger" : "neutral"} dot>
-            {ACCOUNT_STATUS_LABEL[account.status] ?? account.status}
-          </Tag>
-        }
-        // 第二行: ACC-0001 + 销售负责人 (owner, 2026-09-20: 死死记住设计文件 -
-        // mockup 原话 `<span class="tag neutral mono">ACC-0001</span>
-        // <span class="dot"></span><span>销售负责人 王涛</span>` - 纯文本,
-        // 不是按钮, 不在单位信息卡片里). 编辑入口是旁边那个小图标按钮
-        // (owner-editor.tsx), 跟 accountNo 本身一样"这里的事实不可点改"。
-        description={
-          <span className="gap-xs flex items-center">
-            {account.accountNo}
-            {ownerRead.ok && ownerRead.value ? (
-              <>
-                <span className="text-muted-foreground">·</span>
-                <span>{ACCOUNT_TEXT.headerOwner(ownerRead.value)}</span>
-              </>
-            ) : null}
-            <OwnerEditor
-              accountId={id}
-              ownerName={ownerRead.ok ? ownerRead.value : null}
-              collaborators={collaboratorsRead.ok ? collaboratorsRead.value : []}
-              canManage={canManageCollaborators}
-              onSearch={searchColleaguesAction}
-              onAdd={addCollaboratorAction}
-              onRemove={removeCollaboratorAction}
-            />
-          </span>
-        }
-        action={
-          // max-w-40 + flex-wrap (owner, 2026-09-20: 死死记住这次的要求 -
-          // 三栏布局下中部内容栏比之前窄很多, header 硬塞三个维度+菜单在
-          // 一行会把标题挤到几乎读不出来). 40(10rem/160px) 只比最宽的一块
-          // 徽标(健康评估, 带逾期文字)略宽, 逼着窄屏下三块纵向堆叠成一列
-          // 而不是横向抢标题的空间; 屏幕够宽时 flex-wrap 仍然让它们排成一行,
-          // 不会平白无故占用没必要的高度。三块之间的竖线(border-r)统一去掉
-          // (全部传 last) - 横排时是分隔线, 纵向堆叠时同一条竖线会变成挂在
-          // 单独一块右边、毫无意义的短线。
-          <div className="flex max-w-40 flex-wrap items-center justify-end gap-sm">
-            {/* 三个动态维度, 固定顺序: 商机数量 -> 客户级别 -> 健康评估 (owner,
-                2026-09-18: header 三维度顺序). 图形 + 两行文字, 不是彩色
-                胶囊 (owner, 2026-09-20: 严格按照设计实施 - mockup 的
-                `.health-mini`) - 都读现成的数据, 客户级别现在连普通级也
-                显示, 不再只在非 standard 时才出现. */}
-            <DimensionStat
-              last
-              figure={<CircleBadge tone="brand">{openDealsCount}</CircleBadge>}
-              label={POSITION_TEXT.planDeals}
-              value={ACCOUNT_TEXT.openDealsCount(openDealsCount)}
-            />
-            <DimensionStat
-              last
-              figure={
-                <img src={TIER_ICON_SRC[account.tier]} alt="" className="h-[2.875rem] w-10 flex-none" />
-              }
-              label={POSITION_TEXT.tierDimensionLabel}
-              value={tierLabel}
-            />
-            {health && health.ok ? (
-              <DimensionStat
-                last
-                figure={
-                  <ScoreRing
-                    score={health.value.score}
-                    tone={healthTone(health.value.score)}
-                    label={`${CHAIN_TEXT.healthShort} ${health.value.score}`}
-                    size={46}
-                  />
-                }
-                label={CHAIN_TEXT.healthShort}
-                value={
-                  health.value.primaryConcern ? (
-                    <span className="text-destructive-text flex items-center gap-2xs">
-                      <Icon name="warning" size="sm" />
-                      {healthReasonText(health.value.primaryConcern.reason)}
-                    </span>
-                  ) : (
-                    health.value.score
-                  )
-                }
-              />
-            ) : null}
-            {/* 定级/计划 与 编辑单位信息 都是配置动作，共用一个 "···" 菜单
-                (owner, 2026-09-20: 死死记住设计文件 - mockup 原话: "···'s
-                menu - every configuration action in one place...rather than
-                each one being its own header button", 定级徽标自己"not a
-                button"). 之前这里单独放一个 DesignateAccount 按钮, 跟上面
-                客户级别徽标重复说同一件事 - 现在只保留徽标, 触发器搬进
-                account-header-menu.tsx。 */}
-            <AccountHeaderMenu
-              canWrite={canWrite}
-              tier={{
-                accountId: id,
-                tier: detail.value.account.tier,
-                period: DEFAULT_PERIOD,
-                onDesignate: designateAccountTier,
-              }}
-              basics={{
-                accountId: id,
-                accountNo: account.accountNo,
-                name: account.name,
-                region: account.region,
-                province: account.province,
-                industryId: account.industryId,
-                segmentCode: account.segmentCode,
-                customerTypeId: account.customerTypeId,
-                customerSizeId: account.customerSizeId,
-                customerNatureId: account.customerNatureId,
-                creditCode: account.creditCode,
-                website: account.website,
-                employeeCount: account.employeeCount,
-                industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
-                segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
-                customerTypes: customerTypesRead && customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],
-                customerSizes: customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
-                customerNatures: customerNaturesRead && customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : [],
-                canWrite,
-                onSave: updateAccountBasicsAction,
-                orgRelations: (
-                  <OrgRelationsEditor
-                    accountId={id}
-                    parentId={account.parentId}
-                    children={childUnits}
-                    accounts={accountRows}
-                    onSetParent={setAccountParentAction}
-                  />
-                ),
-                contactManagement: (
-                  <ContactManagementList
-                    accountId={id}
-                    contacts={contacts}
-                    canEdit={canLinkContact}
-                    editHref={`/contact/new?account=${id}&back=/account/${id}`}
-                    onMove={moveContactAction}
-                    onUnlink={canLinkContact ? unlinkContactAction : undefined}
-                    recencyText={contactRecencyText}
-                    linkForm={
-                      canLinkContact ? (
-                        <LinkContactDrawer
-                          accountId={id}
-                          onSearch={searchContactsAction}
-                          onLink={linkExistingContactAction}
-                        />
-                      ) : undefined
-                    }
-                  />
-                ),
-              }}
-            />
-          </div>
-        }
-      />
-
-      {/* 定向自动分析 (owner, 2026-09-18): the single highest-urgency real
-          judgement about this account or one of its open deals - not a
-          restated fact, a rule's own claim, the same text the home feed
-          would show for it. Renders nothing when the rules engine has not
-          fired one, rather than inventing a placid summary to fill the
-          space. */}
-      {topJudgement ? (
-        <div className="border-primary/30 bg-primary/5 flex items-start gap-sm rounded-lg border p-md">
-          <div className="min-w-0 flex-1">
-            <p className="text-body-sm font-medium">{topJudgement.claim}</p>
-            {topJudgement.rule ? (
-              <p className="text-muted-foreground mt-2xs text-body-sm">{topJudgement.rule}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {/* ONE COLUMN here now, not two (owner, 2026-09-20: 死死记住这次的要求 -
-          "整体页面是三栏，不是内容区还是两栏"). 栏1(the dossier) moved OUT of
-          this content column entirely - it now portals into the page-edge
-          sidebar app-shell.tsx renders for this exact route (same slot,
-          same width, same independent scroll NavBoard used on every other
-          page - see account-sidebar-portal.tsx and lib/sidebar-slot.ts). What
-          is left here is just 栏2: the lifecycle spine and this account's own
-          decision items. The copilot conversation itself is still never a
-          column here (see the file-level note above; a second chat box was
-          the defect that comment describes, and this move does not reopen
-          it - TheatrePlan is a proposal LIST, not a chat). */}
-      {/* ChainViewProvider still wraps both - 栏1 的摘要行(现在渲染在侧栏里)
-          点开要改栏2 显示什么, 状态得提到两者共同的父级 (owner: 决策链主从
-          视图). Portal 只改 DOM 位置, 不改 React 树, 这个 Provider 的
-          context 照样跨两处生效。 */}
+      {/* HEADER 没了 (owner, 2026-09-20: 补充 - 把中部第一块-客户信息卡整合
+          进 sidebar-单位信息). ViewHeader 原来管的三件事 - 标题/状态、
+          ACC-0001+销售负责人、三个动态维度+"···"菜单 - 现在分别落到:
+          单位信息卡(标题+ownerRow+dimensions, 侧栏, 纯展示), 客户评估卡
+          的卡头(状态标签, 内容区, 因为它是"动态评估"), 侧栏顶部功能条的
+          "客户总编辑"(三个配置动作合并成一个, owner: 展示/编辑拆解)。
+          判断题横幅也没了 - 挪进单位信息卡最下方(owner: 判断题放sidebar)。
+          PageCrumbs 挪进内容区(owner: 面包屑放content), 不再是跨两栏的
+          页面级横条。 */}
       <ChainViewProvider chains={chainSummaryItems}>
-      <AccountSidebarPortal>
-        {/* ======== 栏1: the dossier, portaled into the shell's left sidebar ======== */}
-        <div className="flex min-w-0 flex-col gap-lg">
-          <OrgUnitPanel
-            parentId={account.parentId}
-            parentName={parentName}
-            children={childUnits}
-            industry={account.industry}
-            region={account.region}
+      <AccountSidebarPortal slotId={ACCOUNT_SIDEBAR_SLOT_ID}>
+        {/* ======== 单位信息 + 联系人 + 决策链摘要 + 档案缺口, portaled into
+            the shell's left sidebar. 目标 div 自己已经是 flex flex-col
+            gap-lg(app-shell.tsx), 这里不再重复包一层。 ======== */}
+        <OrgUnitPanel
+          title={account.name}
+          ownerRow={ownerRow}
+          dimensions={dimensions}
+          parentId={account.parentId}
+          parentName={parentName}
+          children={childUnits}
+          industry={account.industry}
+          region={account.region}
+          customerNatureName={customerNatureName}
+          customerTypeName={customerTypeName}
+          province={account.province}
+          judgement={judgement}
+        />
+
+        <ContactRoster
+          contacts={contacts}
+          canEdit={canLinkContact}
+          editHref={`/contact/new?account=${id}&back=/account/${id}`}
+          recencyText={contactRecencyText}
+          linkForm={
+            canLinkContact ? (
+              <LinkContactDrawer
+                accountId={id}
+                onSearch={searchContactsAction}
+                onLink={linkExistingContactAction}
+              />
+            ) : undefined
+          }
+        />
+
+        {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /
+            联系人 / 决策链 / 档案缺口), 因为决策链是这张客户档案的展示重点
+            (owner: 决策链需要客户层级的视角...这是展示重点) - 缺口是"还没
+            填的", 排在后面才不会把注意力先引到缺什么, 而不是引到已经知道
+            的关系结构上。
+            栏1 只放摘要行 (owner, 2026-09-20: 设计图严格对齐) - 点开某一条
+            后, 详情在栏2 展开 (ChainDetailSlot), 不再是三个组件平铺在这里。 */}
+        {chain.ok ? (
+          <ChainSummaryList
+            emptyTitle={CHAIN_TEXT.noOpenDealTitle}
+            emptyDescription={CHAIN_TEXT.noOpenDealDescription}
           />
-
-          <ContactRoster
-            contacts={contacts}
-            canEdit={canLinkContact}
-            editHref={`/contact/new?account=${id}&back=/account/${id}`}
-            recencyText={contactRecencyText}
-            linkForm={
-              canLinkContact ? (
-                <LinkContactDrawer
-                  accountId={id}
-                  onSearch={searchContactsAction}
-                  onLink={linkExistingContactAction}
-                />
-              ) : undefined
-            }
+        ) : (
+          <EmptyState
+            title={SHELL_TEXT.loadFailed}
+            description={loadFailureText(chain.violations, LOAD_ERROR)}
           />
+        )}
 
-          {/* 决策链在档案缺口前面 (owner, 2026-09-18: 栏1 排版 - 单位信息 /
-              联系人 / 决策链 / 档案缺口), 因为决策链是这张客户档案的展示重点
-              (owner: 决策链需要客户层级的视角...这是展示重点) - 缺口是"还没
-              填的", 排在后面才不会把注意力先引到缺什么, 而不是引到已经知道
-              的关系结构上。
-              栏1 只放摘要行 (owner, 2026-09-20: 设计图严格对齐) - 点开某一条
-              后, 详情在栏2 展开 (ChainDetailSlot), 不再是三个组件平铺在这里。 */}
-          {chain.ok ? (
-            <ChainSummaryList
-              emptyTitle={CHAIN_TEXT.noOpenDealTitle}
-              emptyDescription={CHAIN_TEXT.noOpenDealDescription}
-            />
-          ) : (
-            <EmptyState
-              title={SHELL_TEXT.loadFailed}
-              description={loadFailureText(chain.violations, LOAD_ERROR)}
-            />
-          )}
-
-          {completeness.ok ? (
-            <AccountCompleteness
-              accountId={id}
-              gaps={completeness.value.gaps}
-              canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
-              onFill={fillField}
-              onAsk={askToComplete}
-              canAsk={canAsk}
-            />
-          ) : null}
-        </div>
+        {completeness.ok ? (
+          <AccountCompleteness
+            accountId={id}
+            gaps={completeness.value.gaps}
+            canFill={can(session.authz, session.entitlement, "account.upsert", "ui").allowed}
+            onFill={fillField}
+            onAsk={askToComplete}
+            canAsk={canAsk}
+          />
+        ) : null}
       </AccountSidebarPortal>
 
-        {/* ======== 栏2: the lifecycle spine, then this account's own
-            decision items - one column, two concerns, matching the mockup's
-            栏2 (default view: 健康拆解 + 阵地清单) with TheatrePlan appended
-            rather than given its own track. ======== */}
+      {/* 客户总编辑 (owner: 补充 - 定级/计划、编辑单位信息、编辑销售负责人
+          三个分散的编辑入口合并成一个, 挂在侧栏顶部功能条, 跟返回/收起展开
+          同一行 - app-shell.tsx 建的返回/收起展开是 shell 自己的 chrome,
+          这个按钮需要账户真实数据/Drawer, 只有 page.tsx 有, 所以是第二个
+          独立的 portal 目标(见 lib/sidebar-slot.ts 的说明)。 */}
+      <AccountSidebarPortal slotId={ACCOUNT_SIDEBAR_EDIT_SLOT_ID}>
+        <AccountHeaderMenu
+          canWrite={canWrite}
+          tier={{
+            accountId: id,
+            tier: detail.value.account.tier,
+            period: DEFAULT_PERIOD,
+            onDesignate: designateAccountTier,
+          }}
+          basics={{
+            accountId: id,
+            accountNo: account.accountNo,
+            name: account.name,
+            region: account.region,
+            province: account.province,
+            industryId: account.industryId,
+            segmentCode: account.segmentCode,
+            customerTypeId: account.customerTypeId,
+            customerSizeId: account.customerSizeId,
+            customerNatureId: account.customerNatureId,
+            creditCode: account.creditCode,
+            website: account.website,
+            employeeCount: account.employeeCount,
+            industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
+            segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
+            customerTypes: customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],
+            customerSizes: customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
+            customerNatures: customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : [],
+            canWrite,
+            onSave: updateAccountBasicsAction,
+            orgRelations: (
+              <OrgRelationsEditor
+                accountId={id}
+                parentId={account.parentId}
+                children={childUnits}
+                accounts={accountRows}
+                onSetParent={setAccountParentAction}
+              />
+            ),
+            contactManagement: (
+              <ContactManagementList
+                accountId={id}
+                contacts={contacts}
+                canEdit={canLinkContact}
+                editHref={`/contact/new?account=${id}&back=/account/${id}`}
+                onMove={moveContactAction}
+                onUnlink={canLinkContact ? unlinkContactAction : undefined}
+                recencyText={contactRecencyText}
+                linkForm={
+                  canLinkContact ? (
+                    <LinkContactDrawer
+                      accountId={id}
+                      onSearch={searchContactsAction}
+                      onLink={linkExistingContactAction}
+                    />
+                  ) : undefined
+                }
+              />
+            ),
+          }}
+          owner={{
+            accountId: id,
+            ownerName: ownerRead.ok ? ownerRead.value : null,
+            collaborators: collaboratorsRead.ok ? collaboratorsRead.value : [],
+            canManage: canManageCollaborators,
+            onSearch: searchColleaguesAction,
+            onAdd: addCollaboratorAction,
+            onRemove: removeCollaboratorAction,
+          }}
+        />
+      </AccountSidebarPortal>
+
+        {/* ======== content: 面包屑, then 栏2 - the lifecycle spine, then
+            this account's own decision items. 面包屑放这里 (owner: 判断题
+            放sidebar，面包屑放content) - 不再是跨两栏的页面级横条。 ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
+          <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
+
           {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时
               健康拆解也去除) - ChainDetailSlot 从 Context 里的 activeId 决定
               渲染哪一个, 这个 div 本身两种情况下都还是栏2 唯一的容器。 */}
@@ -823,8 +815,13 @@ export default async function AccountDetailPage({
               health={health.value}
               canRecompute={canWrite}
               onRecompute={recomputeAccountHealth}
+              statusTag={statusTag}
             />
-          ) : null}
+          ) : (
+            // 只读成员没有 health(见上面 persist:false 的说明), 状态标签
+            // 仍然要显示 - 退化成不挂卡片的纯文本, 而不是整个消失。
+            <div className="flex items-center gap-xs">{statusTag}</div>
+          )}
 
           {evidence.ok ? (
             <RelationshipEvidencePanel evidence={evidence.value} now={now} />

@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ShellBrand,
   ShellPreferencePanel,
@@ -10,6 +11,8 @@ import {
   useTheme,
 } from "@vxture/design-system";
 import {
+  Button,
+  Icon,
   Separator,
   ShellHeader,
   ShellPageContainer,
@@ -37,7 +40,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
+import { ACCOUNT_SIDEBAR_EDIT_SLOT_ID, ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -236,6 +239,15 @@ export function AppShell({
    *  只是内容从 NavBoard 换成这个客户自己的档案 - account-sidebar-portal.tsx
    *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
   const isAccountDetail = segments.length >= 2 && segments[0] === "account";
+
+  /** 收起/展开这个客户的档案栏, 独立于 showBoard/toggleBoard (owner, 2026-09-20:
+   *  补充 - 侧栏顶部功能条). 故意不复用全局的 showBoard/toggleBoard: 那是
+   *  "整个工作区要不要看阵地经营域"这个偏好, 写进 cookie, 跨路由生效 - 收起
+   *  这个客户的档案栏是"这次看这一个客户时要不要看它", 跟全局导航偏好是两件
+   *  不该共用一个开关的事: 复用全局开关会导致离开这个客户页面后, 别的页面的
+   *  模块导航也跟着消失, 而用户从没做过那个选择。本地状态, 不写 cookie -
+   *  每次进来都是展开的, 跟 mockup 自己的 toggleCol1() 一样是纯客户端状态。 */
+  const [accountSidebarCollapsed, setAccountSidebarCollapsed] = useState(false);
 
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
@@ -736,10 +748,58 @@ export function AppShell({
             on a wrapper around it, so it scrolls INTO view as trailing space
             rather than shrinking how far the pane can scroll. */}
         {boardVisible ? (
-          <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
-            {isAccountDetail ? (
-              <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
+          isAccountDetail ? (
+            /* 客户详情页的侧栏顶部功能条 (owner, 2026-09-20: 补充 - 返回、
+               收起/展开=sidebar、客户总编辑三个按钮). 收起时只留这一条窄
+               的图标栏(宽度降到刚好放下一个再展开的按钮), 主档案内容和
+               编辑入口都随之隐藏 - 跟 mockup 自己收起栏1 后"只留一个贴边
+               缘的展开热区"是同一个精神, 只是这里选择保留一条常驻的窄栏
+               而不是纯 hover 触发, 因为这个按钮本身也需要在收起状态下
+               保持可点。 */
+            accountSidebarCollapsed ? (
+              <aside className="min-h-0 w-12 shrink-0 overflow-y-auto pb-2xl">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setAccountSidebarCollapsed(false)}
+                  aria-label={SHELL_TEXT.accountSidebarExpand}
+                  title={SHELL_TEXT.accountSidebarExpand}
+                >
+                  <Icon name="chevron-right" size="sm" />
+                </Button>
+              </aside>
             ) : (
+              <aside className="w-(--vx-pane-nav) flex min-h-0 shrink-0 flex-col gap-md overflow-y-auto pb-2xl">
+                <div className="flex items-center justify-between gap-sm">
+                  <Link
+                    href="/account"
+                    className="text-muted-foreground hover:text-foreground gap-2xs flex items-center text-body-sm"
+                  >
+                    <Icon name="arrow-left" size="sm" />
+                    {SHELL_TEXT.accountSidebarBack}
+                  </Link>
+                  <div className="flex items-center gap-2xs">
+                    {/* 客户总编辑 (owner: 三个分散的编辑入口合并成一个) -
+                        page.tsx 建好 AccountHeaderMenu 传送到这里, 这个空
+                        div 只是传送门的落点, 内容跟这个客户的数据/动词是
+                        谁毫无关系的 shell 不需要也不应该知道。 */}
+                    <div id={ACCOUNT_SIDEBAR_EDIT_SLOT_ID} />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setAccountSidebarCollapsed(true)}
+                      aria-label={SHELL_TEXT.accountSidebarCollapse}
+                      title={SHELL_TEXT.accountSidebarCollapse}
+                    >
+                      <Icon name="chevron-left" size="sm" />
+                    </Button>
+                  </div>
+                </div>
+                <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
+              </aside>
+            )
+          ) : (
+            <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
               <NavBoard
                 sections={board}
                 modules={boardModules}
@@ -747,8 +807,8 @@ export function AppShell({
                 pathname={pathname}
                 nav={nav}
               />
-            )}
-          </aside>
+            </aside>
+          )
         ) : null}
 
         {/* CENTRE - the engagement. Its 16px is the only horizontal padding

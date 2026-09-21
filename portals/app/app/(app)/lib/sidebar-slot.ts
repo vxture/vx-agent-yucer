@@ -10,3 +10,18 @@
  *  只是这个特定路由下改放这个客户自己的档案而不是通用的模块导航。
  */
 export const ACCOUNT_SIDEBAR_SLOT_ID = "account-detail-sidebar-slot";
+
+/**
+ * A second, separate slot for the sidebar's own top function bar's edit
+ * trigger (owner: 客户总编辑 - one consolidated button replacing 定级/计划,
+ * 编辑单位信息 and 编辑销售负责人's three separate entry points).
+ *
+ * SEPARATE from ACCOUNT_SIDEBAR_SLOT_ID on purpose: 返回/收起展开 are
+ * shell-owned chrome (app-shell.tsx builds and renders them directly - the
+ * collapse toggle's state has to live there regardless, and neither button
+ * needs any account data), but 客户总编辑 needs this account's real data and
+ * the real Drawers/service verbs, which only page.tsx has. Two portal
+ * targets, in the same function bar, each fed by the layer that actually
+ * owns what it renders - not one bar trying to be both.
+ */
+export const ACCOUNT_SIDEBAR_EDIT_SLOT_ID = "account-detail-sidebar-edit-slot";

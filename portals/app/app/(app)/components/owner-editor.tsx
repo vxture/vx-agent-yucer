@@ -12,14 +12,18 @@ import { useMessages } from "../lib/i18n/provider";
 // 另有自己的卡片" - 这就是那张"自己的卡片"的编辑入口, 不折进
 // account-basics-form.tsx 的"编辑单位信息"抽屉。
 //
-// header 里只显示纯文本"销售负责人 王涛" (owner: mockup 把它放在 ACC-0001
-// 旁边, 不是按钮) - 这个组件是它旁边一个小的、独立的编辑触发器, 跟
-// designate-account.tsx"每个配置项自己的按钮"是同一个道理。
+// CONTROLLED, NOT SELF-TRIGGERING (owner, 2026-09-20: 补充 - 客户总编辑,
+// 三个分散的编辑入口(定级/计划、编辑单位信息、编辑销售负责人)合并成一个,
+// 侧栏顶部功能条的一个按钮). 这个组件曾经自己长一个 header 里的小铅笔图标
+// 触发器 (跟 designate-account.tsx"每个配置项自己的按钮"是同一个道理) -
+// 现在跟 designate-account.tsx/account-basics-form.tsx 一样改成受控组件,
+// 触发器统一收进 account-header-menu.tsx 的共享菜单。展示层(header 纯文本
+// "销售负责人 王涛")完全没变, 只是编辑入口从这里搬走了。
 //
 // TWO LEVELS, 跟 mockup 的"销售负责人"卡 + 它自己的"关联协作人"抽屉一样：
 // 外层抽屉是名单(主负责人 + 协作人，每位协作人可移除)，"+ 关联"再开一层
-// 内层抽屉去搜索/确认 - 内层抽屉的搜索/确认逻辑原样搬自 collaborator-panel.tsx
-// (本次删除), 只是外层从一张常驻 Section 卡片换成了 header 里的一个按钮。
+// 内层抽屉去搜索/确认 - 内层抽屉仍然是这个组件自己管理的本地状态, 只有
+// 外层抽屉的 open 状态提升给了调用方。
 //
 // 主负责人(account.ownerSub) 本身在这次改动里不可改 - reassignAccount 这个
 // 服务动词虽然存在, 但没有人要求过"从这张卡改主负责人"这个交互, 加一个没人
@@ -40,6 +44,8 @@ export interface OwnerEditorProps {
   readonly ownerName: string | null;
   readonly collaborators: readonly OwnerRow[];
   readonly canManage: boolean;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
   readonly onSearch: (query: string) => Promise<{ ok: boolean; error?: string; results?: ColleagueSearchHit[] }>;
   readonly onAdd: (accountId: string, memberSub: string) => Promise<{ ok: boolean; error?: string }>;
   readonly onRemove: (accountId: string, memberSub: string) => Promise<{ ok: boolean; error?: string }>;
@@ -50,6 +56,8 @@ export function OwnerEditor({
   ownerName,
   collaborators,
   canManage,
+  open,
+  onOpenChange,
   onSearch,
   onAdd,
   onRemove,
@@ -57,7 +65,6 @@ export function OwnerEditor({
   const { COLLABORATOR_TEXT, ACCOUNT_TEXT, ACCOUNT_ERROR } = useMessages();
   const router = useRouter();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<readonly ColleagueSearchHit[]>([]);
@@ -116,19 +123,9 @@ export function OwnerEditor({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => setOpen(true)}
-        aria-label={COLLABORATOR_TEXT.editButton}
-        title={COLLABORATOR_TEXT.editButton}
-      >
-        <Icon name="edit" size="sm" />
-      </Button>
-
       <Drawer
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={() => onOpenChange(false)}
         width="sm"
         title={COLLABORATOR_TEXT.title}
         footer={

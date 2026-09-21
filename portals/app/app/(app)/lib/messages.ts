@@ -1944,6 +1944,13 @@ export const SHELL_TEXT = {
   brandTagline: "销售智能体",
   website: "官网",
   workspaceFallback: "当前工作区",
+  // 客户详情页侧栏顶部的功能条 (owner, 2026-09-20: 补充 - 侧栏顶部新作一个
+  // 功能条，放返回、收起/展开=sidebar、客户总编辑按钮). 返回/收起展开是
+  // app-shell.tsx 自己建的 shell 级 chrome - 跟这个客户是谁无关, 所以放在
+  // SHELL_TEXT 而不是 ACCOUNT_TEXT。
+  accountSidebarBack: "返回",
+  accountSidebarCollapse: "收起档案栏",
+  accountSidebarExpand: "展开档案栏",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
   noAccessTitle: "当前工作区未订阅",
@@ -4197,6 +4204,16 @@ export const ACCOUNT_TEXT = {
   // 客户固有属性，属于栏1的档案，不是 header 该扛的身份识别信息。
   orgUnitIndustry: "行业",
   orgUnitRegion: "区域",
+  // 补充字段 (owner, 2026-09-20: 补充 - 性质/类型/地址). 性质/类型的数据
+  // 早就在(customerNatureId/customerTypeId + 各自的词表读), 只是从没作为
+  // 只读事实显示过，只喂给了编辑表单的下拉框。
+  orgUnitNature: "性质",
+  orgUnitType: "类型",
+  // 只到省级 (owner, 2026-09-20: 地址需要显示到省级-市级, 但 account 表
+  // 目前只有 province 列, 没有市级字段 - 不是这次布局调整的范围, 先显示
+  // 已有的省级数据, 市级另开一条数据库增量再说). 没有省份时不显示这一行,
+  // 跟行业/区域同一条"没有就不打印空事实"的规则。
+  orgUnitAddress: "地址",
 
   // 决策链图谱弹窗：同一份 coverage/people 数据的图形化视图，不是新的读——
   // 缺失的角色直接来自 coverage.missing，不是编出来的「未识别」占位。
@@ -5468,10 +5485,11 @@ export const CHAIN_TEXT = {
   influence: "影响力",
   emptyTitle: "还没有联系人",
   emptyDescription: "录入联系人并标注决策角色后，这里会给出决策链分析。",
-  // mockup 从头到尾一直叫这张卡"健康拆解"(健康评估是header的环, 是不同的
-  // key/healthShort) - 这里之前写成"客户健康度", 跟设计图对不上 (owner,
-  // 2026-09-20: 逐个板块对照设计图核实).
-  healthTitle: "健康拆解",
+  // 从"健康拆解"改名"客户评估" (owner, 2026-09-20: 补充 - 中部区域从这张卡
+  // 开始, 原健康拆解). mockup 本来一直叫这张卡"健康拆解"(健康评估是header
+  // 的环, 是不同的 key/healthShort) - 这次是内容区重排时 owner 直接给的新
+  // 名字, 不是照抄设计图, 记录在案。
+  healthTitle: "客户评估",
   healthDescription:
     "派生值，随源数据重算。用于排序和预警，不作为任何业务判断的唯一依据。",
   // header 上放不下"客户健康度"这五个字的读数卡，短标题给 header 用

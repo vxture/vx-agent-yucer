@@ -156,6 +156,9 @@ export const en: Dictionary = {
     // tells a Chinese one, which is the wrong way round for an override.
     website: "ruyin",
     workspaceFallback: "Current workspace",
+    accountSidebarBack: "Back",
+    accountSidebarCollapse: "Collapse dossier",
+    accountSidebarExpand: "Expand dossier",
     signedOutTitle: "Not signed in",
     signedOutDescription:
       "Sign in with your Vxture account to use this product.",
@@ -1197,7 +1200,7 @@ export const en: Dictionary = {
     emptyTitle: "No contacts yet",
     emptyDescription:
       "Add contacts and mark their decision roles, and the chain analysis appears here.",
-    healthTitle: "Health breakdown",
+    healthTitle: "Account assessment",
     healthDescription:
       "A derived value, recomputed from its sources. For sorting and alerting - never the sole basis for a business decision.",
     healthShort: "Health",
@@ -3319,6 +3322,9 @@ export const en: Dictionary = {
     orgUnitChildren: (n: number) => `${n} sub-unit${n === 1 ? "" : "s"}`,
     orgUnitIndustry: "Industry",
     orgUnitRegion: "Region",
+    orgUnitNature: "Ownership",
+    orgUnitType: "Type",
+    orgUnitAddress: "Address",
 
     graphTitle: "Decision chain map",
     graphWhy: (dealName: string) => `The decision chain for "${dealName}" - the customer's default when the deal has none of its own`,
