@@ -8,12 +8,25 @@ import {
   SegmentedControl,
   Section,
   StatusBadge,
+  type IconName,
 } from "@vxture/design-ui";
 import type { ChainCoverage, ChainRecency, ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
+
+// 决策角色 -> 图标 (owner, 2026-09-21: 决策角色在名称后用 tag(icon+文字) 体现).
+// 全部走中性色(Tag 默认 tone="neutral") - 这一行已经有一个真正带颜色语义的
+// StatusBadge(可达/未触达), 角色本身是身份分类, 不是状态, 跟 tag.tsx 文件
+// 自己的规则一致("中性 tag 不该被随手上色去抢一个真正状态徽章的注意力")。
+const ROLE_ICON: Record<string, IconName> = {
+  economic: "wallet",
+  technical: "settings",
+  user: "user",
+  coach: "lightbulb",
+  blocker: "shield-warning",
+};
 
 // 决策链详情视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认).
 //
@@ -138,35 +151,38 @@ export function DecisionChainDetail({
                 const reachable = isReachable(p);
                 const row = (
                   <div className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
-                    <span
-                      className={`flex h-md w-md flex-none items-center justify-center rounded-sm text-label-sm font-bold ${
-                        p.decisionRole === "economic"
-                          ? "bg-primary-muted text-primary-text"
-                          : p.decisionRole === "blocker"
-                            ? "bg-destructive-muted text-destructive-text"
-                            : "bg-accent text-muted-foreground"
-                      }`}
-                    >
-                      {/* 角色徽标的一个字, 从字典里的角色全名取第一个字符 -
-                          不是另建一张硬编码的中文表 (TD-002 containment: 组件
-                          文件里不能直接写字面中文, 拼装出来的不算). */}
-                      {(DECISION_ROLE_LABEL[p.decisionRole] ?? p.decisionRole).charAt(0)}
+                    {/* 徽标表示人，不是角色 (owner, 2026-09-21) - 跟 sidebar
+                        联系人卡片(contact-roster.tsx 的 ContactCard)同一个
+                        "姓氏圆圈"惯例, 不是角色首字。这一行本来就是照那张卡
+                        画的("卡片行, 不是表格行" - 文件头注释), 头像语义
+                        也该跟那张卡一致。 */}
+                    <span className="bg-accent text-muted-foreground flex h-xl w-xl flex-none items-center justify-center rounded-full text-label-md font-bold">
+                      {nameOf(p.id).charAt(0)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-body-sm font-bold">
-                        {nameOf(p.id)}
-                        {/* 影响力是真实字段 (ContactNode.influence, buying-role-form.tsx
-                            可写) - decision-chain.tsx 早就在用同一句式 (`(影响力 N)`),
-                            这里只是把它接到详情视图的姓名行, 不是新造一个概念。 */}
-                        {titleOf(p.id) || p.influence != null ? (
-                          <span className="text-muted-foreground ml-2xs font-normal">
-                            {[titleOf(p.id), p.influence != null ? `${CHAIN_TEXT.influence} ${p.influence}` : null]
-                              .filter(Boolean)
-                              .join(" · ")}
+                      {/* 姓名放大 + 决策角色紧跟其后的 tag(icon+文字) + 重要度
+                          (owner, 2026-09-21: 姓名标题文字放大；决策角色在
+                          名称后用tag体现，后面跟重要度) - 角色不再单独占一
+                          整行文字, 跟姓名同一行更紧凑, 也不再跟徽标重复说
+                          同一件事。 */}
+                      <div className="gap-xs flex flex-wrap items-center">
+                        <span className="text-body-md font-bold">{nameOf(p.id)}</span>
+                        <Tag icon={ROLE_ICON[p.decisionRole]}>{DECISION_ROLE_LABEL[p.decisionRole] ?? p.decisionRole}</Tag>
+                        {/* 影响力是真实字段 (ContactNode.influence,
+                            buying-role-form.tsx 可写) - decision-chain.tsx
+                            早就在用同一句式(`(影响力 N)`), 这里只是把它接到
+                            角色 tag 后面, 不是新造一个概念。 */}
+                        {p.influence != null ? (
+                          <span className="text-muted-foreground text-body-sm">
+                            {CHAIN_TEXT.influence} {p.influence}
                           </span>
                         ) : null}
                       </div>
-                      <div className="text-muted-foreground text-body-sm">{DECISION_ROLE_LABEL[p.decisionRole] ?? p.decisionRole}</div>
+                      {/* 职务放到第二行 (owner, 2026-09-21) - 跟姓名分开,
+                          不再挤在同一行的括号里。 */}
+                      {titleOf(p.id) ? (
+                        <div className="text-muted-foreground text-body-sm">{titleOf(p.id)}</div>
+                      ) : null}
                     </div>
                     {reachable != null ? (
                       <StatusBadge tone={reachable ? "success" : "danger"}>
