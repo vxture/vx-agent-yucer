@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ShellBrand,
   ShellIconButton,
@@ -12,8 +11,6 @@ import {
   useTheme,
 } from "@vxture/design-system";
 import {
-  Button,
-  Icon,
   Separator,
   ShellHeader,
   ShellPageContainer,
@@ -41,7 +38,7 @@ import { useMessages } from "../lib/i18n/provider";
 import { BOARD_COOKIE_PREFIX, DOCK_COOKIE_PREFIX } from "../lib/shell-cookies";
 import { Tag } from "./tag";
 import { PRODUCT_MARK_SRC } from "../lib/brand-assets";
-import { ACCOUNT_SIDEBAR_EDIT_SLOT_ID, ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
+import { ACCOUNT_SIDEBAR_SLOT_ID } from "../lib/sidebar-slot";
 
 // The pinned/archive split is gone (2026-08-31). It existed to rank a stack of
 // route-keyed board cards - which ones stay open, which collapse - and the pane
@@ -241,15 +238,6 @@ export function AppShell({
    *  把 page.tsx 已经建好的栏1内容传送到这里, 不重新发起一次数据读。 */
   const isAccountDetail = segments.length >= 2 && segments[0] === "account";
 
-  /** 收起/展开这个客户的档案栏, 独立于 showBoard/toggleBoard (owner, 2026-09-20:
-   *  补充 - 侧栏顶部功能条). 故意不复用全局的 showBoard/toggleBoard: 那是
-   *  "整个工作区要不要看阵地经营域"这个偏好, 写进 cookie, 跨路由生效 - 收起
-   *  这个客户的档案栏是"这次看这一个客户时要不要看它", 跟全局导航偏好是两件
-   *  不该共用一个开关的事: 复用全局开关会导致离开这个客户页面后, 别的页面的
-   *  模块导航也跟着消失, 而用户从没做过那个选择。本地状态, 不写 cookie -
-   *  每次进来都是展开的, 跟 mockup 自己的 toggleCol1() 一样是纯客户端状态。 */
-  const [accountSidebarCollapsed, setAccountSidebarCollapsed] = useState(false);
-
   // Seeded from the server-read cookie, then owned by the client. The cookie is
   // written on each toggle rather than on unload, so the next full page load is
   // right even if this tab is killed.
@@ -410,11 +398,12 @@ export function AppShell({
                   DETAIL_ROOTS 移出后, 账户详情页恢复了跟其他一级页面一样的
                   三栏布局(自己的 board), 撤掉这个按钮的前提已经不成立 - 这里
                   是把它按原样放回来, 而不是发明一个新控件。
-                  跟 accountSidebarCollapsed 是两件不冲突的事: 这个按钮管的是
-                  showBoard(工作区级偏好, 写 cookie, 跨路由生效, 关掉整个
-                  <aside>), 账户详情页侧栏自己的收起/展开管的是"这次看这一个
-                  客户时要不要看它"(本地状态, 只把内容收窄成一条图标栏) - 一个
-                  是要不要这块地方, 一个是这块地方里显示多少。 */}
+                  账户详情页曾经在这个 aside 顶部另开过一条本地收起/展开
+                  (accountSidebarCollapsed) - 这个全局开关一恢复, "要不要看
+                  这块地方"就只需要一个开关了, 那条本地状态在 2026-09-21
+                  跟着它自己的功能条一起撤掉(owner: 聚焦客户全景图页面 -
+                  这样更好一些, 现在可以去掉 sidebar 顶部的区域), 不是被
+                  这次改动顺带清理的意外产物。 */}
               {isDetail ? null : (
                 <ShellIconButton
                   icon="sidebar"
@@ -772,57 +761,17 @@ export function AppShell({
             rather than shrinking how far the pane can scroll. */}
         {boardVisible ? (
           isAccountDetail ? (
-            /* 客户详情页的侧栏顶部功能条 (owner, 2026-09-20: 补充 - 返回、
-               收起/展开=sidebar、客户总编辑三个按钮; owner, 2026-09-21:
-               收起/展开必须是这一条的第一个按钮 - 之前的实现把它挪到了
-               最右边, 跟这个产品别处"收起/展开永远是第一个控件"的既有
-               约定不一致, 现在改回来). 收起时只留这一条窄的图标栏(宽度
-               降到刚好放下一个再展开的按钮), 主档案内容和编辑入口都随之
-               隐藏 - 跟 mockup 自己收起栏1 后"只留一个贴边缘的展开热区"
-               是同一个精神, 只是这里选择保留一条常驻的窄栏而不是纯 hover
-               触发, 因为这个按钮本身也需要在收起状态下保持可点。 */
-            accountSidebarCollapsed ? (
-              <aside className="min-h-0 w-12 shrink-0 overflow-y-auto pb-2xl">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setAccountSidebarCollapsed(false)}
-                  aria-label={SHELL_TEXT.accountSidebarExpand}
-                  title={SHELL_TEXT.accountSidebarExpand}
-                >
-                  <Icon name="chevron-right" size="sm" />
-                </Button>
-              </aside>
-            ) : (
-              <aside className="w-(--vx-pane-nav) flex min-h-0 shrink-0 flex-col gap-md overflow-y-auto pb-2xl">
-                <div className="flex items-center justify-between gap-sm">
-                  <div className="flex items-center gap-2xs">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setAccountSidebarCollapsed(true)}
-                      aria-label={SHELL_TEXT.accountSidebarCollapse}
-                      title={SHELL_TEXT.accountSidebarCollapse}
-                    >
-                      <Icon name="chevron-left" size="sm" />
-                    </Button>
-                    <Link
-                      href="/account"
-                      className="text-muted-foreground hover:text-foreground gap-2xs flex items-center text-body-sm"
-                    >
-                      <Icon name="arrow-left" size="sm" />
-                      {SHELL_TEXT.accountSidebarBack}
-                    </Link>
-                  </div>
-                  {/* 客户总编辑 (owner: 三个分散的编辑入口合并成一个) -
-                      page.tsx 建好 AccountHeaderMenu 传送到这里, 这个空
-                      div 只是传送门的落点, 内容跟这个客户的数据/动词是
-                      谁毫无关系的 shell 不需要也不应该知道。 */}
-                  <div id={ACCOUNT_SIDEBAR_EDIT_SLOT_ID} />
-                </div>
-                <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
-              </aside>
-            )
+            /* 客户详情页侧栏顶部的功能条撤掉了 (owner, 2026-09-21: 聚焦客户
+               全景图页面 - 这样更好一些, 现在可以去掉 sidebar 顶部的区域).
+               返回/收起展开这两个按钮变得多余的原因是全局 header 的战况板
+               开关已经恢复(见上面第一条 leading 按钮的说明) - 同一件"要不要
+               看这块地方"的事现在只有一个开关, 不需要账户详情页自己再长一个
+               本地的收起/展开。客户总编辑(操作按钮)没有跟着一起删 - 它挪进了
+               内容区的面包屑行, 见 page.tsx。这个 aside 现在跟 NavBoard 的
+               一样朴素: 只有一个供 portal 落点的空 div。 */
+            <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
+              <div id={ACCOUNT_SIDEBAR_SLOT_ID} className="flex flex-col gap-lg" />
+            </aside>
           ) : (
             <aside className="w-(--vx-pane-nav) min-h-0 shrink-0 overflow-y-auto pb-2xl">
               <NavBoard

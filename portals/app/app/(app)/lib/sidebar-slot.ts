@@ -11,17 +11,11 @@
  */
 export const ACCOUNT_SIDEBAR_SLOT_ID = "account-detail-sidebar-slot";
 
-/**
- * A second, separate slot for the sidebar's own top function bar's edit
- * trigger (owner: 客户总编辑 - one consolidated button replacing 定级/计划,
- * 编辑单位信息 and 编辑销售负责人's three separate entry points).
- *
- * SEPARATE from ACCOUNT_SIDEBAR_SLOT_ID on purpose: 返回/收起展开 are
- * shell-owned chrome (app-shell.tsx builds and renders them directly - the
- * collapse toggle's state has to live there regardless, and neither button
- * needs any account data), but 客户总编辑 needs this account's real data and
- * the real Drawers/service verbs, which only page.tsx has. Two portal
- * targets, in the same function bar, each fed by the layer that actually
- * owns what it renders - not one bar trying to be both.
- */
-export const ACCOUNT_SIDEBAR_EDIT_SLOT_ID = "account-detail-sidebar-edit-slot";
+// A second slot used to exist here for the sidebar's own top function bar's
+// edit trigger ("客户总编辑"). That whole function bar (返回/收起展开/客户
+// 总编辑) was removed on 2026-09-21 (owner: 聚焦客户全景图页面 - the global
+// header's board toggle covers 返回/收起展开's job now) - 客户总编辑 moved to
+// the content column's breadcrumb row instead, rendered directly by page.tsx
+// with no portal needed (it was never shell chrome; only its old render
+// location was inside a shell-built div). Do not re-add a second slot id
+// here without a real second portal target to justify it.

@@ -1944,13 +1944,6 @@ export const SHELL_TEXT = {
   brandTagline: "销售智能体",
   website: "官网",
   workspaceFallback: "当前工作区",
-  // 客户详情页侧栏顶部的功能条 (owner, 2026-09-20: 补充 - 侧栏顶部新作一个
-  // 功能条，放返回、收起/展开=sidebar、客户总编辑按钮). 返回/收起展开是
-  // app-shell.tsx 自己建的 shell 级 chrome - 跟这个客户是谁无关, 所以放在
-  // SHELL_TEXT 而不是 ACCOUNT_TEXT。
-  accountSidebarBack: "返回",
-  accountSidebarCollapse: "收起档案栏",
-  accountSidebarExpand: "展开档案栏",
   signedOutTitle: "尚未登录",
   signedOutDescription: "请通过 Vxture 账号登录后使用本产品。",
   noAccessTitle: "当前工作区未订阅",

@@ -156,9 +156,6 @@ export const en: Dictionary = {
     // tells a Chinese one, which is the wrong way round for an override.
     website: "ruyin",
     workspaceFallback: "Current workspace",
-    accountSidebarBack: "Back",
-    accountSidebarCollapse: "Collapse dossier",
-    accountSidebarExpand: "Expand dossier",
     signedOutTitle: "Not signed in",
     signedOutDescription:
       "Sign in with your Vxture account to use this product.",

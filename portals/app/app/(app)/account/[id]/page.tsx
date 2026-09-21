@@ -71,7 +71,7 @@ import { askToComplete } from "./ask-complete-action";
 import { cachedFeed } from "../../lib/board";
 import { OrgUnitPanel } from "../../components/org-unit-panel";
 import { AccountSidebarPortal } from "../../components/account-sidebar-portal";
-import { ACCOUNT_SIDEBAR_EDIT_SLOT_ID, ACCOUNT_SIDEBAR_SLOT_ID } from "../../lib/sidebar-slot";
+import { ACCOUNT_SIDEBAR_SLOT_ID } from "../../lib/sidebar-slot";
 import { AnalysisTabs } from "../../components/analysis-tabs";
 import {
   DealLifecyclePanel,
@@ -649,11 +649,15 @@ export default async function AccountDetailPage({
           进 sidebar-单位信息). ViewHeader 原来管的三件事 - 标题/状态、
           ACC-0001+销售负责人、三个动态维度+"···"菜单 - 现在分别落到:
           单位信息卡(标题+ownerRow+dimensions, 侧栏, 纯展示), 客户评估卡
-          的卡头(状态标签, 内容区, 因为它是"动态评估"), 侧栏顶部功能条的
-          "客户总编辑"(三个配置动作合并成一个, owner: 展示/编辑拆解)。
-          判断题横幅也没了 - 挪进单位信息卡最下方(owner: 判断题放sidebar)。
-          PageCrumbs 挪进内容区(owner: 面包屑放content), 不再是跨两栏的
-          页面级横条。 */}
+          的卡头(状态标签, 内容区, 因为它是"动态评估"), 内容区面包屑行的
+          右侧操作区里的"客户总编辑"(三个配置动作合并成一个, owner: 展示/
+          编辑拆解)。判断题横幅也没了 - 挪进单位信息卡最下方(owner: 判断题
+          放sidebar)。PageCrumbs 挪进内容区(owner: 面包屑放content), 不再是
+          跨两栏的页面级横条 - "客户总编辑"最初挂在侧栏顶部的功能条(返回、
+          收起/展开、客户总编辑三个按钮), 那条功能条在 2026-09-21 整条撤掉
+          (owner: 聚焦客户全景图页面 - 全局 header 的战况板开关恢复后, 返回/
+          收起展开都变得多余), 只有"客户总编辑"跟着搬到这里, 见下面面包屑行
+          自己的说明。 */}
       <ChainViewProvider chains={chainSummaryItems}>
       <AccountSidebarPortal slotId={ACCOUNT_SIDEBAR_SLOT_ID}>
         {/* ======== 单位信息 + 联系人 + 决策链摘要 + 档案缺口, portaled into
@@ -721,88 +725,87 @@ export default async function AccountDetailPage({
         ) : null}
       </AccountSidebarPortal>
 
-      {/* 客户总编辑 (owner: 补充 - 定级/计划、编辑单位信息、编辑销售负责人
-          三个分散的编辑入口合并成一个, 挂在侧栏顶部功能条, 跟返回/收起展开
-          同一行 - app-shell.tsx 建的返回/收起展开是 shell 自己的 chrome,
-          这个按钮需要账户真实数据/Drawer, 只有 page.tsx 有, 所以是第二个
-          独立的 portal 目标(见 lib/sidebar-slot.ts 的说明)。 */}
-      <AccountSidebarPortal slotId={ACCOUNT_SIDEBAR_EDIT_SLOT_ID}>
-        <AccountHeaderMenu
-          canWrite={canWrite}
-          tier={{
-            accountId: id,
-            tier: detail.value.account.tier,
-            period: DEFAULT_PERIOD,
-            onDesignate: designateAccountTier,
-          }}
-          basics={{
-            accountId: id,
-            accountNo: account.accountNo,
-            name: account.name,
-            region: account.region,
-            province: account.province,
-            industryId: account.industryId,
-            segmentCode: account.segmentCode,
-            customerTypeId: account.customerTypeId,
-            customerSizeId: account.customerSizeId,
-            customerNatureId: account.customerNatureId,
-            creditCode: account.creditCode,
-            website: account.website,
-            employeeCount: account.employeeCount,
-            industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
-            segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
-            customerTypes: customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],
-            customerSizes: customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
-            customerNatures: customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : [],
-            canWrite,
-            onSave: updateAccountBasicsAction,
-            orgRelations: (
-              <OrgRelationsEditor
-                accountId={id}
-                parentId={account.parentId}
-                children={childUnits}
-                accounts={accountRows}
-                onSetParent={setAccountParentAction}
-              />
-            ),
-            contactManagement: (
-              <ContactManagementList
-                accountId={id}
-                contacts={contacts}
-                canEdit={canLinkContact}
-                editHref={`/contact/new?account=${id}&back=/account/${id}`}
-                onMove={moveContactAction}
-                onUnlink={canLinkContact ? unlinkContactAction : undefined}
-                recencyText={contactRecencyText}
-                linkForm={
-                  canLinkContact ? (
-                    <LinkContactDrawer
-                      accountId={id}
-                      onSearch={searchContactsAction}
-                      onLink={linkExistingContactAction}
-                    />
-                  ) : undefined
-                }
-              />
-            ),
-          }}
-          owner={{
-            accountId: id,
-            ownerName: ownerRead.ok ? ownerRead.value : null,
-            collaborators: collaboratorsRead.ok ? collaboratorsRead.value : [],
-            canManage: canManageCollaborators,
-            onSearch: searchColleaguesAction,
-            onAdd: addCollaboratorAction,
-            onRemove: removeCollaboratorAction,
-          }}
-        />
-      </AccountSidebarPortal>
-
-        {/* ======== content: 面包屑, then 栏2 - the lifecycle spine, then
-            this account's own decision items. 面包屑放这里 (owner: 判断题
-            放sidebar，面包屑放content) - 不再是跨两栏的页面级横条。 ======== */}
+        {/* ======== content: 面包屑行, then 栏2 - the lifecycle spine, then
+            this account's own decision items. 面包屑放这里(owner: 判断题
+            放sidebar，面包屑放content), 不再是跨两栏的页面级横条。
+            面包屑行拆成左右两块(owner, 2026-09-21: 聚焦客户全景图页面 -
+            sidebar 顶部的功能条撤掉了, 操作按钮=客户总编辑跟着搬到这里) -
+            左边面包屑, 右边操作区, 目前只有客户总编辑这一个按钮; 不再经过
+            AccountSidebarPortal - 这里已经是 page.tsx 直接渲染的内容区,
+            不需要传送门。 ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
-          <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
+          <div className="flex items-center justify-between gap-sm">
+            <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
+            <AccountHeaderMenu
+              canWrite={canWrite}
+              tier={{
+                accountId: id,
+                tier: detail.value.account.tier,
+                period: DEFAULT_PERIOD,
+                onDesignate: designateAccountTier,
+              }}
+              basics={{
+                accountId: id,
+                accountNo: account.accountNo,
+                name: account.name,
+                region: account.region,
+                province: account.province,
+                industryId: account.industryId,
+                segmentCode: account.segmentCode,
+                customerTypeId: account.customerTypeId,
+                customerSizeId: account.customerSizeId,
+                customerNatureId: account.customerNatureId,
+                creditCode: account.creditCode,
+                website: account.website,
+                employeeCount: account.employeeCount,
+                industries: industriesRead && industriesRead.ok ? industriesRead.value.map((i) => ({ id: i.id, name: i.name })) : [],
+                segments: segmentsRead && segmentsRead.ok ? segmentsRead.value.map((s) => ({ id: s.segmentCode, name: s.name })) : [],
+                customerTypes: customerTypesRead.ok ? customerTypesRead.value.map((t) => ({ id: t.id, name: t.name })) : [],
+                customerSizes: customerSizesRead && customerSizesRead.ok ? customerSizesRead.value.map((s) => ({ id: s.id, name: s.name })) : [],
+                customerNatures: customerNaturesRead.ok ? customerNaturesRead.value.map((n) => ({ id: n.id, name: n.name })) : [],
+                canWrite,
+                onSave: updateAccountBasicsAction,
+                orgRelations: (
+                  <OrgRelationsEditor
+                    accountId={id}
+                    parentId={account.parentId}
+                    children={childUnits}
+                    accounts={accountRows}
+                    onSetParent={setAccountParentAction}
+                  />
+                ),
+                contactManagement: (
+                  <ContactManagementList
+                    accountId={id}
+                    contacts={contacts}
+                    canEdit={canLinkContact}
+                    editHref={`/contact/new?account=${id}&back=/account/${id}`}
+                    onMove={moveContactAction}
+                    onUnlink={canLinkContact ? unlinkContactAction : undefined}
+                    recencyText={contactRecencyText}
+                    linkForm={
+                      canLinkContact ? (
+                        <LinkContactDrawer
+                          accountId={id}
+                          onSearch={searchContactsAction}
+                          onLink={linkExistingContactAction}
+                        />
+                      ) : undefined
+                    }
+                  />
+                ),
+              }}
+              owner={{
+                accountId: id,
+                ownerName: ownerRead.ok ? ownerRead.value : null,
+                collaborators: collaboratorsRead.ok ? collaboratorsRead.value : [],
+                canManage: canManageCollaborators,
+                onSearch: searchColleaguesAction,
+                onAdd: addCollaboratorAction,
+                onRemove: removeCollaboratorAction,
+              }}
+            />
+          </div>
 
           {/* lifecycle 视图和某条决策链的详情视图二选一 (owner: 决策链展示时
               健康拆解也去除) - ChainDetailSlot 从 Context 里的 activeId 决定
