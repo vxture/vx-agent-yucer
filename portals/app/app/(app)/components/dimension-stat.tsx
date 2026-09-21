@@ -64,3 +64,56 @@ export function CircleBadge({ tone, children }: { readonly tone: Tone; readonly 
   );
 }
 
+// 徽章区第一块的加强版 (owner, 2026-09-21: 补充一些信息， 商机数 / 累计
+// 合同额，分两行，浅色横线隔开，商机数大字体，合同额小字体+淡色) - 只有
+// 商机这一块从纯圆形换成两行的小方块, 客户级别/健康评估两块不变(它们本身
+// 只有一个数, 没有"累计XX"这种第二个数可补). 自带 Tooltip, 跟 DimensionStat
+// 是姐妹组件而不是套在它里面 - DimensionStat 的 Tooltip 只放得下一组
+// label/value, 这里天生有两组(商机数 count / 累计合同额 amount), 硬塞
+// 进同一个 Tooltip 会打破"一个 tooltip 说一件事"的约定。
+export function DealsSummaryBadge({
+  count,
+  countLabel,
+  amountText,
+  amountLabel,
+  amountFullText,
+}: {
+  readonly count: number;
+  readonly countLabel: string;
+  /** formatMoneyCompact 的结果 - 徽章正文只有这么大地方, 摆不下完整数字。
+   *  null 表示这批开放商机没有一个能合并成同一币种的总额(混币种或全部
+   *  未定价) - 这时只显示商机数, 不硬凑一个误导性的合计。 */
+  readonly amountText: string | null;
+  readonly amountLabel: string;
+  /** formatMoney 的完整结果 - compact 之外的精确数字放 tooltip 里。 */
+  readonly amountFullText: string | null;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className={`flex h-[2.875rem] min-w-[2.875rem] flex-none flex-col items-center justify-center gap-[0.1875rem] rounded-md border-2 px-2xs ${TONE_SURFACE.brand}`}
+        >
+          <span className="font-display text-base leading-none font-extrabold">{count}</span>
+          {amountText ? (
+            <>
+              <span className="border-primary-border/50 h-px w-full" />
+              <span className="text-[0.6rem] leading-none opacity-70">{amountText}</span>
+            </>
+          ) : null}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70">{countLabel}</div>
+        <div className="text-body-sm">{count}</div>
+        {amountFullText ? (
+          <>
+            <div className="text-[0.65rem] font-bold tracking-wide uppercase opacity-70 mt-2xs">{amountLabel}</div>
+            <div className="text-body-sm">{amountFullText}</div>
+          </>
+        ) : null}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+

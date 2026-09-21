@@ -2561,6 +2561,7 @@ export const en: Dictionary = {
     planOf: (period: string) => `${period} account plan`,
     planTarget: "Plan target",
     planDeals: "Open deals",
+    openDealsAmountLabel: "Total contract value",
     triangle: "The team on it",
     triangleOf: (sales: string, presales: string, delivery: string) =>
       `Sales ${sales} - Presales ${presales} - Delivery ${delivery}`,

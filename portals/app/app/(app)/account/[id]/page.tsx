@@ -4,7 +4,7 @@ import {
   ViewLayout,
 } from "@vxture/design-ui";
 import { PageCrumbs } from "../../components/page-crumbs";
-import { CircleBadge, DimensionStat } from "../../components/dimension-stat";
+import { DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
 import { ScoreRing } from "../../components/score-ring";
 import { resolveAppSession } from "../../lib/session";
 import { can } from "../../../authz/decide";
@@ -58,11 +58,12 @@ import {
   relationshipEvidence,
 } from "../../../domains/account/field-service";
 import { getMessages } from "../../lib/i18n/server";
+import { resolveLocale } from "../../lib/i18n/locale";
 import { DEFAULT_STAGE_DEFINITIONS, openStageOrder, type Stage } from "../../../domains/pipeline/lib/stage";
 import { daysAtStage } from "../../../domains/pipeline/lib/forecast-rule";
 import { listPipeline, listStageDefinitions, stageChangeTimestamps } from "../../../domains/pipeline/service";
 import { toStageCatalog } from "../../../domains/pipeline/store";
-import { healthTone, stageLabelFor } from "../../lib/view-model";
+import { formatMoney, formatMoneyCompact, healthTone, stageLabelFor } from "../../lib/view-model";
 import { listProjects, projectView } from "../../../domains/delivery/service";
 import { listProposals } from "../../../domains/copilot/service";
 import { capabilityLabel } from "../../../domains/copilot/lib/capability";
@@ -176,6 +177,10 @@ export default async function AccountDetailPage({
     POSITION_TEXT,
   } = await getMessages();
   const { id } = await params;
+  // 累计合同额需要 Intl.NumberFormat 的 locale (owner, 2026-09-21: 补充 -
+  // 商机数/累计合同额). getMessages() 只给字典, 不给 locale 本身 - 见
+  // lib/i18n/server.ts 自己的注释: 要格式化数字/日期要单独调 resolveLocale()。
+  const locale = await resolveLocale();
   const session = await resolveAppSession();
   if (!session) return null;
   // Unreachable: (app)/layout.tsx already renders the shared SignIn
@@ -548,6 +553,22 @@ export default async function AccountDetailPage({
   // header 的三个动态维度 (owner, 2026-09-18: header 三维度顺序 - 商机数量 /
   // 客户级别 / 健康评估), 都是已有真实数据的读数, 不是新字段。
   const openDealsCount = dealRows.filter((d) => d.status === "open").length;
+  // 累计合同额 (owner, 2026-09-21: 徽章区第一块补充商机数/累计合同额两行
+  // 信息) - 跟 openDealsCount 同一个口径, 只统计 status=open 的商机, 不是
+  // 这个客户全部历史成交额。只在这批开放商机的金额能合并成"同一个币种的
+  // 一个数"时才给出总额 (跟 revenueOutstanding 的 collectionTotals 同一个
+  // 处理方式) - 混币种或全部未定价时给 null, 徽章只显示商机数, 不硬凑一个
+  // 会误导的合计。
+  const openDealAmountTotals = new Map<string, number>();
+  dealRows
+    .filter((d) => d.status === "open" && d.amount != null)
+    .forEach((d) => {
+      openDealAmountTotals.set(d.currency, (openDealAmountTotals.get(d.currency) ?? 0) + d.amount!);
+    });
+  const openDealsAmount =
+    openDealAmountTotals.size === 1
+      ? (([currency, amount]) => ({ amount, currency }))([...openDealAmountTotals.entries()][0])
+      : null;
   const tierLabel =
     account.tier === "strategic"
       ? POSITION_TEXT.tierStrategic
@@ -578,29 +599,25 @@ export default async function AccountDetailPage({
     </Tag>
   );
 
-  // ACC-0001 + 销售负责人, 纯文本 (owner: 展示/编辑拆解 - OwnerEditor 自己的
-  // 编辑触发器已经搬进侧栏顶部的"客户总编辑", 这一行不再带任何按钮)。
-  const ownerRow = (
-    <span className="gap-xs flex items-center">
-      {account.accountNo}
-      {ownerRead.ok && ownerRead.value ? (
-        <>
-          <span className="text-muted-foreground">·</span>
-          <span>{ACCOUNT_TEXT.headerOwner(ownerRead.value)}</span>
-        </>
-      ) : null}
-    </span>
-  );
+  // 销售负责人, 纯文本, footer 专用 (owner, 2026-09-21: 销售负责人迁移到
+  // card 最底部 - ACC-0001 不再跟它同一行, 见下面 title 那一侧). 没有负责人
+  // 时是 null, OrgUnitPanel 整段 footer 不渲染。OwnerEditor 自己的编辑
+  // 触发器已经搬进侧栏顶部的"客户总编辑", 这一行不带任何按钮。
+  const ownerRow =
+    ownerRead.ok && ownerRead.value ? (
+      <span className="text-body-sm">{ACCOUNT_TEXT.headerOwner(ownerRead.value)}</span>
+    ) : null;
 
-  // 开放商机 / 客户级别 / 健康评估, stacked (owner: dimensions 概念不变,
-  // 只是从 header 的横排搬进侧栏卡片, 不再需要 flex-wrap/max-w-40 那套
-  // 抢空间的手段 - 这张卡本来就是侧栏宽度, 纵向堆叠即可)。
-  const dimensions = (
-    <div className="flex items-center gap-md">
-      <DimensionStat
-        figure={<CircleBadge tone="brand">{openDealsCount}</CircleBadge>}
-        label={POSITION_TEXT.planDeals}
-        value={ACCOUNT_TEXT.openDealsCount(openDealsCount)}
+  // 徽章区: 开放商机(累计合同额) / 客户级别 / 健康评估 (owner, 2026-09-21:
+  // 三个图形区域起个名字，叫徽章区；三个徽章整体居中显示 - 之前默认靠左)。
+  const badges = (
+    <div className="flex items-center justify-center gap-md">
+      <DealsSummaryBadge
+        count={openDealsCount}
+        countLabel={POSITION_TEXT.planDeals}
+        amountText={openDealsAmount ? formatMoneyCompact(openDealsAmount.amount, openDealsAmount.currency, locale) : null}
+        amountLabel={POSITION_TEXT.openDealsAmountLabel}
+        amountFullText={openDealsAmount ? formatMoney(openDealsAmount.amount, openDealsAmount.currency, locale) : null}
       />
       <DimensionStat
         figure={
@@ -646,7 +663,7 @@ export default async function AccountDetailPage({
       {/* HEADER 没了 (owner, 2026-09-20: 补充 - 把中部第一块-客户信息卡整合
           进 sidebar-单位信息). ViewHeader 原来管的三件事 - 标题/状态、
           ACC-0001+销售负责人、三个动态维度+"···"菜单 - 现在分别落到:
-          单位信息卡(标题+ownerRow+dimensions, 侧栏, 纯展示), 客户评估卡
+          单位信息卡(标题+徽章区+ownerRow, 侧栏, 纯展示), 客户评估卡
           的卡头(状态标签, 内容区, 因为它是"动态评估"), 内容区面包屑行的
           右侧操作区里的"客户总编辑"(三个配置动作合并成一个, owner: 展示/
           编辑拆解)。判断题横幅也没了 - 挪进单位信息卡最下方(owner: 判断题
@@ -663,8 +680,9 @@ export default async function AccountDetailPage({
             gap-lg(app-shell.tsx), 这里不再重复包一层。 ======== */}
         <OrgUnitPanel
           title={account.name}
+          accountNo={account.accountNo}
           ownerRow={ownerRow}
-          dimensions={dimensions}
+          badges={badges}
           parentId={account.parentId}
           parentName={parentName}
           children={childUnits}

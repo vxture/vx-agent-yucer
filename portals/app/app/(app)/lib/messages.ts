@@ -5720,6 +5720,10 @@ export const POSITION_TEXT = {
   // "商机数量", 圆圈里的数字是"状态为 open 的商机数"). 中文之前写成"在办
   // 商机", 跟这个 key 自己的英文翻译("Open deals")对不上, 也跟设计图对不上。
   planDeals: "开放商机",
+  // 徽章区第一块补充的第二行 (owner, 2026-09-21: 补充一些信息， 商机数 /
+  // 累计合同额). 只统计 status=open 的商机, 跟商机数本身同一个口径 - 不是
+  // 这个客户全部历史成交额。
+  openDealsAmountLabel: "累计合同额",
 
   triangle: "负责团队",
   /** The three owners, joined. The separator is text, so it lives here. */
