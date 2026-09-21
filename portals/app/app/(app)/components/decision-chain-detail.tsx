@@ -12,6 +12,7 @@ import {
 import type { ChainCoverage, ChainRecency, ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
+import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // 决策链详情视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认).
@@ -90,13 +91,18 @@ export function DecisionChainDetail({
       <Section
         tone="raised"
         style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
-        title={CHAIN_TEXT.title}
-        action={<span className="text-muted-foreground text-body-sm">{CHAIN_TEXT.coverageCount(coverage.covered.length, ROLE_ORDER.length)}</span>}
-      >
-        <div className="flex flex-col gap-md">
-          <div className="text-body-sm font-bold">{title}</div>
-
-          <div className="flex items-center justify-between gap-sm">
+        // 标题行整合 (owner, 2026-09-21: 决策链展开页面信息应该整合一下 -
+        // 标题内容丰富: 决策链 · 商机名 + 两个 tag, 居右切换按钮). 之前
+        // "决策链"(卡头) / 商机名(body 里单独一行加粗文字) / 覆盖率(卡头
+        // action, 纯文字) / 可达状态(body 里单独一行, 跟切换按钮并排) 是
+        // 四处分散的信息, `title` prop 本身早就是 CHAIN_TEXT.forDeal 拼好
+        // 的"决策链 · 全国门店数字化"(page.tsx 传进来的), 却只在 body 里
+        // 又写了一遍, 卡头自己还留着通用的"决策链"三个字 - 两处都在说同一
+        // 件事。现在卡头的 title 就是这条完整的字符串, 两个状态各自收成一个
+        // tag 跟在它后面, 不再另起一行。
+        title={
+          <span className="gap-xs flex flex-wrap items-center">
+            <span className="whitespace-nowrap">{title}</span>
             {coverage.economicBuyerUnreachable ? (
               <StatusBadge tone="danger" dot>
                 {rows.some((p) => p.decisionRole === "economic")
@@ -108,17 +114,23 @@ export function DecisionChainDetail({
                 {CHAIN_TEXT.reachable}
               </StatusBadge>
             )}
-
-            <SegmentedControl
-              items={[
-                { value: "table", label: CHAIN_TEXT.viewTable },
-                { value: "graph", label: CHAIN_TEXT.viewGraph },
-              ]}
-              value={view}
-              onChange={setView}
-            />
-          </div>
-
+            <Tag>{CHAIN_TEXT.coverageCount(coverage.covered.length, ROLE_ORDER.length)}</Tag>
+          </span>
+        }
+        // 表格/图谱切换挪到卡头右侧的 action 位, 不再跟可达状态挤在 body 的
+        // 同一行 - 这也是 health-panel.tsx"重新评估"按钮已经在用的位置。
+        action={
+          <SegmentedControl
+            items={[
+              { value: "table", label: CHAIN_TEXT.viewTable },
+              { value: "graph", label: CHAIN_TEXT.viewGraph },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+        }
+      >
+        <div className="flex flex-col gap-md">
           {view === "table" ? (
             <div className="flex flex-col">
               {rows.map((p) => {
