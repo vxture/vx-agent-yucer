@@ -221,8 +221,31 @@ export const WRITABLE_COLUMNS: Record<string, readonly string[]> = {
     "health",
     "starts_at",
     "ends_at", "engagement_type",
+    // incr/0077 - which contract this delivery runs under. Writable, unlike
+    // the frozen links on contract itself: attaching the two is clerical, not
+    // a reallocation of who earned the revenue.
+    "contract_id",
     "status",
     "updated_at",
+  ],
+  // incr/0076 - 合同. contract_no is the anchor; account_id, opportunity_id and
+  // renewed_from_contract_id are all records of how this contract came to
+  // exist and are frozen for the attribution-key reason.
+  "yucer_delivery.contract": [
+    "name",
+    "total_amount",
+    "currency",
+    "term_start",
+    "term_end",
+    "notice_days",
+    "status",
+    "signed_at",
+    "updated_at",
+  ],
+  // incr/0076 - contract_id and product_id are the line's identity, the same
+  // rule opportunity_line carries.
+  "yucer_delivery.contract_line": [
+    "quantity", "unit_price", "amount", "currency", "term_end", "updated_at",
   ],
   // incr/0032 - a milestone became a commercial gate. The acceptance trio is
   // writable because it is RECORDED after the fact (the customer does not use

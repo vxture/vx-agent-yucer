@@ -1077,12 +1077,64 @@ model Project {
   startsAt       DateTime? @map("starts_at") @db.Timestamptz()
   endsAt         DateTime? @map("ends_at") @db.Timestamptz()
   engagementType String    @default("one_off") @map("engagement_type") @db.VarChar(32)
+  contractId     String?   @map("contract_id") @db.Uuid
   status         String    @default("planning") @db.VarChar(32)
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
 
   @@unique([workspaceId, projectNo], map: "uidx_project_ws_no")
+  @@index([workspaceId, contractId], map: "idx_project_ws_contract")
   @@map("project")
+  @@schema("yucer_delivery")
+}
+
+/// incr/0076. 合同 - contract METADATA only (term, amount, notice period,
+/// lineage). Contract TEXT is a non-goal; see 20-specs/10-product-definition.md.
+/// The anchor of 续约窗口 (§9.1) and, through its lines, of 已购态 and 白地.
+model Contract {
+  id                    String    @id @default(uuid()) @db.Uuid
+  workspaceId           String    @map("workspace_id") @db.Uuid
+  contractNo            String    @map("contract_no") @db.VarChar(64)
+  name                  String    @db.VarChar(255)
+  accountId             String    @map("account_id") @db.Uuid
+  opportunityId         String?   @map("opportunity_id") @db.Uuid
+  totalAmount           Decimal?  @map("total_amount") @db.Decimal(18, 2)
+  currency              String    @default("CNY") @db.VarChar(8)
+  termStart             DateTime? @map("term_start") @db.Timestamptz()
+  termEnd               DateTime? @map("term_end") @db.Timestamptz()
+  noticeDays            Int       @default(0) @map("notice_days") @db.SmallInt
+  status                String    @default("draft") @db.VarChar(32)
+  renewedFromContractId String?   @unique(map: "uidx_contract_renewed_from") @map("renewed_from_contract_id") @db.Uuid
+  signedAt              DateTime? @map("signed_at") @db.Timestamptz()
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt             DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@unique([workspaceId, contractNo], map: "uidx_contract_ws_no")
+  @@index([workspaceId, accountId], map: "idx_contract_ws_account")
+  @@index([workspaceId, termEnd], map: "idx_contract_renewal_window")
+  @@map("contract")
+  @@schema("yucer_delivery")
+}
+
+/// incr/0076. 合同明细 - what was actually bought, as opposed to what was
+/// quoted (that is OpportunityLine). termEnd null means the line runs as long
+/// as the contract does.
+model ContractLine {
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  contractId  String    @map("contract_id") @db.Uuid
+  productId   String    @map("product_id") @db.Uuid
+  quantity    Decimal   @default(1) @db.Decimal(12, 2)
+  unitPrice   Decimal   @map("unit_price") @db.Decimal(18, 2)
+  amount      Decimal   @db.Decimal(18, 2)
+  currency    String    @default("CNY") @db.VarChar(8)
+  termEnd     DateTime? @map("term_end") @db.Timestamptz()
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz()
+
+  @@index([workspaceId, contractId], map: "idx_contract_line_contract")
+  @@index([workspaceId, productId], map: "idx_contract_line_product")
+  @@map("contract_line")
   @@schema("yucer_delivery")
 }
 
