@@ -44,7 +44,6 @@ import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type
 import { DECISION_ROLES } from "../../../domains/account/lib/health";
 import { HealthPanel } from "../../components/health-panel";
 import { JudgementNote } from "../../components/judgement-note";
-import { LinkContacts } from "../../components/link-contacts";
 import { ContactRoster } from "../../components/contact-roster";
 import { ContactManagementList } from "../../components/contact-management-list";
 import { InteractionTimeline } from "../../components/interaction-timeline";
@@ -544,17 +543,16 @@ export default async function AccountDetailPage({
               relations={relations.ok ? relations.value : []}
               recency={recencyRead}
               linkForm={
-                i === 0 ? (
-                  <LinkContacts
-                    key={c.opportunityId}
-                    accountId={id}
-                    contacts={c.people}
-                    contactNames={contactNameById}
-                    canLink={canLinkGraph}
-                    unreachable={c.coverage.economicBuyerUnreachable}
-                    onLink={linkAccountContacts}
-                  />
-                ) : undefined
+                i === 0
+                  ? {
+                      accountId: id,
+                      contacts: c.people,
+                      contactNames: contactNameById,
+                      canLink: canLinkGraph,
+                      unreachable: c.coverage.economicBuyerUnreachable,
+                      onLink: linkAccountContacts,
+                    }
+                  : undefined
               }
             />
           ),

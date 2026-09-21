@@ -2912,8 +2912,6 @@ export const RELATION_TEXT = {
   submit: "记录",
   saved: "已记录",
   pick: "选择联系人",
-  readOnly: "你没有编辑关系图的权限。",
-  needTwo: "至少需要两位联系人才能建立关系。",
   hintUnreachable:
     "记录一条通往决策人的路径，可以让上面的判断从「不可达」变成「可达」。",
 } as const;

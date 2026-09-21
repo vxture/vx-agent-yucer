@@ -1423,8 +1423,6 @@ export const en: Dictionary = {
     submit: "Record",
     saved: "Recorded",
     pick: "Pick a contact",
-    readOnly: "You cannot edit the relationship graph.",
-    needTwo: "At least two contacts are needed to record a relationship.",
     hintUnreachable:
       "Recording a path to the decision-maker can turn the verdict above from unreachable to reachable.",
   },

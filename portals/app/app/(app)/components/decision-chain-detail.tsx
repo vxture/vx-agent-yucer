@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Button,
   SegmentedControl,
   Section,
   StatusBadge,
@@ -19,6 +20,7 @@ import {
 import { influenceTier, type ChainCoverage, type ChainRecency, type ContactNode, type RelationEdge } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
+import { LinkContacts, type LinkContactsProps } from "./link-contacts";
 import { Tag } from "./tag";
 import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
@@ -91,8 +93,14 @@ export interface DecisionChainDetailProps {
   /** Null when the recency read failed - the table still renders, just
    *  without the per-row "上次联系" tooltip. */
   readonly recency: ChainRecency | null;
-  /** Only the first chain on the page carries this - see account/[id]/page.tsx. */
-  readonly linkForm?: React.ReactNode;
+  /** Only the first chain on the page carries this - see account/[id]/page.tsx.
+   *  A props bag, not a ready element (owner, 2026-09-21: 把"记录一次关系"
+   *  提成弹出面板, 入口按钮放到决策链标题行) - this component now owns the
+   *  trigger button AND the open/close state, so it has to be able to
+   *  construct <LinkContacts> itself instead of just placing a JSX node
+   *  someone else already built. Same shape as AccountHeaderMenuProps's
+   *  tier/basics/owner bags. */
+  readonly linkForm?: Omit<LinkContactsProps, "open" | "onOpenChange">;
 }
 
 /** 纯内容组件, 没有"返回"按钮 - 那个按钮要改 Context 里的 activeId, 所以
@@ -110,6 +118,7 @@ export function DecisionChainDetail({
   const {
     CHAIN_TEXT,
     RECENCY_TEXT,
+    RELATION_TEXT,
     RELATION_TYPE_LABEL,
     DECISION_ROLE_LABEL,
     DECISION_ROLE_ABBR,
@@ -117,6 +126,11 @@ export function DecisionChainDetail({
     INFLUENCE_TIER_LABEL,
   } = useMessages();
   const [view, setView] = useState<"table" | "graph">("table");
+  const [linkOpen, setLinkOpen] = useState(false);
+  // 入口按钮只在真的能用时出现 (owner: 决策链标题行最右) - 跟
+  // contact-roster.tsx 的 "+新增" 同一惯例: 不能用就不露出触发点, 而不是
+  // 露出触发点再在弹层里说"你不能用"。
+  const canOpenLinkForm = linkForm != null && linkForm.canLink && linkForm.contacts.length >= 2;
 
   const nameOf = (id: string) => contacts.find((c) => c.id === id)?.name ?? id;
   const titleOf = (id: string) => contacts.find((c) => c.id === id)?.title ?? null;
@@ -189,15 +203,29 @@ export function DecisionChainDetail({
         }
         // 表格/图谱切换挪到卡头右侧的 action 位, 不再跟可达状态挤在 body 的
         // 同一行 - 这也是 health-panel.tsx"重新评估"按钮已经在用的位置。
+        //
+        // "记录一次关系"的入口挪到这一行最右, 表格/图谱左移让位 (owner,
+        // 2026-09-21: 把记录一次关系这个便捷页面提成单独弹出面板, 入口按钮
+        // 放到决策链标题行, 位置最右, 把列表/图形按钮左移空出位置) - 之前
+        // 这张便捷表单是卡片下面一张永远占着地方的独立 Section, 不管有没有
+        // 人正要用它, 跟这一session已经改过的上级/下级、联系人、销售负责人
+        // 是同一个"展示和编辑混在一起"的形状, 现在改成按需弹出的 Drawer。
         action={
-          <SegmentedControl
-            items={[
-              { value: "table", label: CHAIN_TEXT.viewTable },
-              { value: "graph", label: CHAIN_TEXT.viewGraph },
-            ]}
-            value={view}
-            onChange={setView}
-          />
+          <span className="gap-sm flex items-center">
+            <SegmentedControl
+              items={[
+                { value: "table", label: CHAIN_TEXT.viewTable },
+                { value: "graph", label: CHAIN_TEXT.viewGraph },
+              ]}
+              value={view}
+              onChange={setView}
+            />
+            {canOpenLinkForm ? (
+              <Button variant="ghost" size="sm" onClick={() => setLinkOpen(true)}>
+                {RELATION_TEXT.title}
+              </Button>
+            ) : null}
+          </span>
         }
       >
         <div className="flex flex-col gap-md">
@@ -308,7 +336,9 @@ export function DecisionChainDetail({
         </div>
       </Section>
 
-      {linkForm}
+      {linkForm ? (
+        <LinkContacts {...linkForm} open={linkOpen} onOpenChange={setLinkOpen} />
+      ) : null}
     </div>
   );
 }
