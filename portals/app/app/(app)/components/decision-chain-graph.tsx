@@ -25,13 +25,28 @@ import { useMessages } from "../lib/i18n/provider";
 // roles exist or what order they read in.
 export const ROLE_ORDER: readonly DecisionRole[] = ["economic", "technical", "user", "coach", "blocker"];
 
+// 五个角色各一个颜色 (owner, 2026-09-21: 有四个角色，视图中合并成了三个，
+// 应该拆开) - 之前 technical 和 coach 共用同一个 muted-foreground 灰点,
+// 图上两个本来不同的角色看不出区别。这五个 token 跟 dimension-stat.tsx 的
+// TONE_SURFACE 是同一套(brand/info/warning/success/danger), 不是另起一套
+// 颜色 - 只是那边给的是 Tailwind 类名, 这里节点画在 SVG 里要用 CSS 变量。
+const ROLE_COLOR: Record<DecisionRole, string> = {
+  economic: "var(--primary)",
+  technical: "var(--info)",
+  user: "var(--warning)",
+  coach: "var(--success)",
+  blocker: "var(--destructive)",
+  // ROLE_ORDER 排除 "unknown" (只有五个真实角色进图), 这个节点永远不会真的
+  // 用到这个值 - 只是 DecisionRole 类型本身带着它, Record 需要穷尽。
+  unknown: "var(--muted-foreground)",
+};
+
 interface RoleNode {
   readonly role: DecisionRole;
   readonly label: string;
   readonly contactName: string | null;
   readonly title: string | null;
   readonly missing: boolean;
-  readonly isBlocker: boolean;
   readonly unreachable: boolean;
 }
 
@@ -62,7 +77,6 @@ export function DecisionChainGraph({
       contactName: person ? nameOf(person.id) : null,
       title: person ? titleOf(person.id) : null,
       missing: isMissing,
-      isBlocker: role === "blocker",
       unreachable: role === "economic" && coverage.economicBuyerUnreachable,
     };
   }).filter((n): n is RoleNode => n !== null);
@@ -74,23 +88,28 @@ export function DecisionChainGraph({
   const restX = rest.map((_, i) => 120 + i * ((600 - 240) / Math.max(rest.length - 1, 1)));
 
   return (
-    <div>
+    <div className="w-full">
       {/* 图例 (owner, 2026-09-20: 设计图严格对齐 - mockup 的图谱面板自带一行
-          图例, 不是靠颜色自己说明). */}
+          图例, 不是靠颜色自己说明). 只列这条链实际出现的角色 (owner,
+          2026-09-21: 有四个角色，视图中合并成了三个，应该拆开) - 不是固定
+          写死 3 条, 每个真实出现的角色一个颜色、一条图例, 跟节点一一对应。 */}
       <div className="gap-md text-muted-foreground mb-sm flex flex-wrap text-body-sm">
-        <span className="gap-2xs inline-flex items-center">
-          <span className="bg-primary inline-block h-[0.4375rem] w-[0.4375rem] rounded-full" />
-          {DECISION_ROLE_LABEL.economic}
-        </span>
-        <span className="gap-2xs inline-flex items-center">
-          <span className="bg-muted-foreground inline-block h-[0.4375rem] w-[0.4375rem] rounded-full" />
-          {DECISION_ROLE_LABEL.technical} / {DECISION_ROLE_LABEL.coach}
-        </span>
-        <span className="gap-2xs inline-flex items-center">
-          <span className="bg-destructive inline-block h-[0.4375rem] w-[0.4375rem] rounded-full" />
-          {DECISION_ROLE_LABEL.blocker}
-        </span>
+        {nodes.map((n) => (
+          <span key={n.role} className="gap-2xs inline-flex items-center">
+            <span
+              className="inline-block h-[0.4375rem] w-[0.4375rem] rounded-full"
+              style={{ backgroundColor: n.missing ? "var(--border)" : ROLE_COLOR[n.role] }}
+            />
+            {n.label}
+          </span>
+        ))}
       </div>
+      {/* w-full (owner, 2026-09-21: 补充调查 - 图谱渲染只有 166px 宽, 文字
+          糊成一团) - 这个组件自己没有类名的根 div 在栏2 的 flex-col 容器里
+          没有拿到预期的"撑满一行", SVG 的 width="100%" 又是相对父元素的
+          百分比, 父元素本身宽度不确定时浏览器会退回内在尺寸(远小于实际可用
+          宽度)。显式给 w-full 让父元素有一个确定宽度, width="100%" 才有
+          东西可以百分比。 */}
       <svg viewBox="0 0 720 260" width="100%" role="img" aria-label={ACCOUNT_TEXT.graphTitle}>
         {top ? (
           rest.map((n, i) => (
@@ -100,7 +119,7 @@ export function DecisionChainGraph({
               y1={62}
               x2={restX[i]}
               y2={150}
-              stroke={n.missing ? "var(--border)" : "var(--muted-foreground)"}
+              stroke={n.missing ? "var(--border)" : ROLE_COLOR[n.role]}
               strokeWidth={2}
               strokeDasharray={n.missing ? "4 3" : undefined}
             />
@@ -130,11 +149,9 @@ function RoleCircle({
   const { ACCOUNT_TEXT } = useMessages();
   const stroke = node.missing
     ? "var(--border)"
-    : node.isBlocker
+    : node.unreachable
       ? "var(--destructive)"
-      : node.unreachable
-        ? "var(--destructive)"
-        : "var(--primary)";
+      : ROLE_COLOR[node.role];
   const fill = node.missing ? "var(--background)" : "var(--muted)";
   return (
     <g>
