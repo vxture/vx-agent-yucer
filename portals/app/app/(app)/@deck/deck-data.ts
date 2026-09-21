@@ -35,7 +35,6 @@ export async function deckBundle(
       entitlement: session.entitlement,
     stores: session.stores,
     },
-    new Date(),
     scope,
   );
 

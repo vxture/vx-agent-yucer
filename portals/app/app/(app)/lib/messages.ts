@@ -2208,7 +2208,6 @@ export const BOARD_TEXT = {
   attach: "添加附件",
   notWired: "该能力尚未接通",
   pendingEmpty: "此刻没有等你裁决的事。",
-  recentEmpty: "最近还没有记过什么。",
   reconTitle: "敌情",
   reconEmpty: "尚未侦察。竞争对手目前只出现在跟进原文里，还没有成型情报。",
   reconCta: "发起竞争态势分析",
@@ -2222,11 +2221,8 @@ export const BOARD_TEXT = {
   capturePlaceholder: "刚跟王总通完电话……",
   captureHelp: "三句话、一段微信、一封转发的邮件都算，原文会原样保留。",
   pendingTitle: "今天要定的",
-  recentTitle: "最近记的",
   sourceRule: "规则",
   sourceModel: "模型",
-  whenToday: "今天",
-  whenDaysAgo: (n: number) => `${n} 天前`,
   truncate: (t: string) => `${t}……`,
 } as const;
 

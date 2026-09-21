@@ -178,7 +178,6 @@ export default async function AppLayout({
       entitlement: session.entitlement,
     stores: session.stores,
     },
-    new Date(),
   );
 
   const board = await boardSections({

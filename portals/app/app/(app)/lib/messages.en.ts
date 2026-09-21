@@ -5127,7 +5127,6 @@ export const en: Dictionary = {
     attach: "Attach a file",
     notWired: "That capability is not connected yet",
     pendingEmpty: "Nothing is waiting on you right now.",
-    recentEmpty: "Nothing captured recently.",
     reconTitle: "Competition",
     reconEmpty:
       "Nothing scouted yet. Rivals appear only inside note text so far; there is no formed intelligence.",
@@ -5138,11 +5137,8 @@ export const en: Dictionary = {
     captureHelp:
       "Three sentences, a chat message, a forwarded email - all count. The original is kept verbatim.",
     pendingTitle: "For you today",
-    recentTitle: "Recently recorded",
     sourceRule: "Rule",
     sourceModel: "Model",
-    whenToday: "today",
-    whenDaysAgo: (n: number) => `${n}d ago`,
     truncate: (t: string) => `${t}...`,
   },
 };
