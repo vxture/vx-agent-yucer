@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button, Section, StatusBadge } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { explainModelPlaneError, isModelPlaneError } from "../lib/model-plane-error";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // What is missing from this customer, and who can answer it.
 //
@@ -96,7 +96,7 @@ export function AccountCompleteness({
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
   // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
   return (
-    <Section tone="raised" style={CARD_VEIL_STYLE} title={COMPLETENESS_TEXT.title}>
+    <Section tone="raised" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={COMPLETENESS_TEXT.title}>
       {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
       {derivable.map((g) => (

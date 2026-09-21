@@ -5,7 +5,7 @@ import { EmptyState, Section } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { confidenceTone } from "../lib/view-model";
 import { Tag } from "./tag";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // The theatre's next move.
 //
@@ -53,7 +53,7 @@ export function TheatrePlan({
     return (
       <Section
         tone="raised"
-        style={CARD_VEIL_STYLE}
+        style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         icon="target"
         title={ACCOUNT_TEXT.plan}
       >
@@ -73,7 +73,7 @@ export function TheatrePlan({
   return (
     <Section
       tone="raised"
-      style={CARD_VEIL_STYLE}
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       icon="target"
       title={ACCOUNT_TEXT.plan}
     >

@@ -10,7 +10,7 @@ import {
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // Account health, with its reasons.
 //
@@ -81,7 +81,7 @@ export function HealthPanel({
   return (
     <Section
       tone="raised"
-      style={CARD_VEIL_STYLE}
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={CHAIN_TEXT.healthTitle}
       action={
         canRecompute ? (

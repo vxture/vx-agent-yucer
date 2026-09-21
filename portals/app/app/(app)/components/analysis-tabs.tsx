@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Section, Tabs, TabsContent, TabsList, TabsTrigger } from "@vxture/design-ui";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // 分析板块的图表切换 - owner ruling, 2026-09-06 (多张图改为 tab 切换，位置放在
 // 标题栏右侧).
@@ -52,7 +52,7 @@ export function AnalysisTabs({
     <Tabs value={active} onValueChange={setActive}>
       <Section
         tone="raised"
-        style={CARD_VEIL_STYLE}
+        style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         id={id}
         icon="chart-bar"
         title={title}

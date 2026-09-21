@@ -17,7 +17,7 @@ import {
 } from "../../domains/account/lib/commitment";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // Promises, and the one control that makes them worth recording.
 //
@@ -116,7 +116,7 @@ export function CommitmentList({
   return (
     <Section
       tone="raised"
-      style={CARD_VEIL_STYLE}
+      style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
       title={FIELD_TEXT.commitTitle}
       description={hideDescription ? undefined : FIELD_TEXT.commitDescription}
     >

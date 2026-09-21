@@ -12,7 +12,7 @@ import {
 import type { ChainCoverage, ChainRecency, ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { DecisionChainGraph, ROLE_ORDER } from "./decision-chain-graph";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // 决策链详情视图 (owner, 2026-09-20: 设计图严格对齐 - 先做，别再等我确认).
 //
@@ -89,7 +89,7 @@ export function DecisionChainDetail({
     <div className="flex flex-col gap-lg">
       <Section
         tone="raised"
-        style={CARD_VEIL_STYLE}
+        style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS}
         title={CHAIN_TEXT.title}
         action={<span className="text-muted-foreground text-body-sm">{CHAIN_TEXT.coverageCount(coverage.covered.length, ROLE_ORDER.length)}</span>}
       >

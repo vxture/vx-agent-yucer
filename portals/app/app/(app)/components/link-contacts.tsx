@@ -5,7 +5,7 @@ import { Button, Label, NativeSelect, Section, StatusBadge } from "@vxture/desig
 import { RELATION_TYPES, type ContactNode } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, CARD_VEIL_STYLE } from "../lib/card-veil";
 
 // Recording a path to the buyer.
 //
@@ -69,13 +69,13 @@ export function LinkContacts({
 
   if (!canLink)
     return (
-      <Section tone="raised" style={CARD_VEIL_STYLE} title={RELATION_TEXT.title}>
+      <Section tone="raised" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={RELATION_TEXT.title}>
         <Tag>{RELATION_TEXT.readOnly}</Tag>
       </Section>
     );
   if (contacts.length < 2)
     return (
-      <Section tone="raised" style={CARD_VEIL_STYLE} title={RELATION_TEXT.title}>
+      <Section tone="raised" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={RELATION_TEXT.title}>
         <Tag>{RELATION_TEXT.needTwo}</Tag>
       </Section>
     );
@@ -104,7 +104,7 @@ export function LinkContacts({
   }
 
   return (
-    <Section tone="raised" style={CARD_VEIL_STYLE} title={RELATION_TEXT.title}>
+    <Section tone="raised" style={CARD_VEIL_STYLE} className={CARD_VEIL_CLASS} title={RELATION_TEXT.title}>
       <p>{RELATION_TEXT.description}</p>
       {unreachable ? (
         <StatusBadge tone="info">{RELATION_TEXT.hintUnreachable}</StatusBadge>
