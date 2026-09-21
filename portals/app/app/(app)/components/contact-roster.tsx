@@ -13,7 +13,7 @@ import {
 } from "@vxture/design-ui";
 import { useMessages } from "../lib/i18n/provider";
 import { Tag } from "./tag";
-import { CARD_VEIL_STYLE } from "../lib/card-veil";
+import { CARD_VEIL_CLASS, SIDEBAR_CARD_STYLE } from "../lib/card-veil";
 
 // The people inside a customer.
 //
@@ -198,7 +198,8 @@ export function ContactRoster({
   return (
     <Section
       tone="raised"
-      style={CARD_VEIL_STYLE}
+      style={SIDEBAR_CARD_STYLE}
+      className={CARD_VEIL_CLASS}
       id="contacts"
       icon="users"
       title={ACCOUNT_TEXT.contactsTitle}
