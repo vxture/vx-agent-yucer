@@ -3,11 +3,11 @@
 import { useState, useTransition, type ReactNode } from "react";
 import {
   Button,
+  FactList,
   Icon,
-  MetricGrid,
   Section,
   StatusBadge,
-  type MetricGridItem,
+  type Fact,
 } from "@vxture/design-ui";
 import type { HealthResult } from "../../domains/account/lib/health";
 import { useMessages } from "../lib/i18n/provider";
@@ -32,9 +32,23 @@ import { JudgementNote, type Judgement } from "./judgement-note";
 // 只留结果, 不留过程 (owner, 2026-09-21: 更多的分析信息应该在下面几个阵地
 // 板块细化, 不要堆积在评估, 评估是结果, 不是过程) - 曾经在这里加过"具体是
 // 哪几条承诺、哪几条跟进记录"的明细列表, 撤回了: 那些明细本来就已经在阵地
-// 清单的"承诺"/"跟进记录"两个 tab 里完整存在, 评估卡只需要 4 个数字本身
-// (跟进条数/对方错过/我方错过/对方守约率), 想看是哪几条, 去阵地清单点开看,
-// 不是在结果卡里再摆一遍。
+// 清单的"承诺"/"跟进记录"两个 tab 里完整存在, 想看是哪几条, 去阵地清单点开
+// 看, 不是在结果卡里再摆一遍。
+//
+// 8 张卡片还是太多, 继续合并压缩, 不单列"证据"这个标题 (owner, 2026-09-21)
+// - 关系证据原本的 4 个数字(跟进条数/对方错过/我方错过/对方守约率)跟健康
+// 因子的 4 个数字合在一起是 8 张, 分两行两张 grid 挂一个"关系证据"小标题
+// 隔开还是太堆。现在合成一列, 数字本身也再压两个: 跟进条数折进互动时效
+// 自己的理由行(反正都是"最近联系得怎样"这一件事), 对方错过折进对方守约率
+// 的理由行(同一个数字的两种口径, 没必要各占一行)。剩 6 项, 没有分组标题。
+// 我方错过留着独立一项 - 这是"证据不能只算对方的账"那条原则, 折进别的行里
+// 会把它变成脚注。
+//
+// 卡片样子也简化了, 信息密度太差 (owner, 2026-09-21) - MetricGrid 是逐项
+// 起卡(有边框、有语气顶缘色条), 6 项排成卡片阵列本身就占地方; 换成
+// FactList("右对齐的若干「键 值」", DS 自己的分工说明: 放进已经有卡壳的
+// 容器时用它, 不要卡中卡) - 同样的语气着色, 但每项只是一行文字, 不是一张
+// 卡, 密度高很多。
 //
 // 整张卡可收起, 收起后只剩标题行 (owner, 2026-09-21: 客户评估收起来应该收到
 // 一行) - Section 本身的 title+action 那一行已经就是"一行", 收起时只是不
@@ -73,57 +87,59 @@ export interface HealthPanelProps {
   readonly evidence?: HealthEvidence | null;
 }
 
-/** The merged-in 关系证据 body - no title of its own, so it can sit inside
- *  HealthPanel's single card (a `<p>` label is enough there) or, for a
- *  read-only member with no `health` at all, inside its own small Section
- *  in account/[id]/page.tsx's degraded path. Exported so that second caller
- *  does not have to keep its own copy in sync with this one.
- *
- *  FOUR NUMBERS, same shape as the health-factor grid above it - no per-item
- *  breakdown here (see the file header note: 评估是结果不是过程, and the
- *  breakdown already lives in 阵地清单's 承诺/跟进记录 tabs). */
+/** value + its trend folded into one string, since Fact has no separate
+ *  trend slot the way MetricGridItem did - "12" and "已 48 天没有接触" (or
+ *  "0% · 对方错过 2") read as one fact stated at two grains, not two facts. */
+function withTrend(value: string, trend?: string): string {
+  return trend ? `${value} · ${trend}` : value;
+}
+
+/** 对方守约率, with the raw miss count folded into its own value string instead
+ *  of a separate row - the two numbers are the same fact at two grains
+ *  (owner, 2026-09-21: 继续合并压缩). Shared by HealthPanel's combined list
+ *  and RelationshipEvidenceDetail's standalone one below. */
+function keptRateFact(evidence: HealthEvidence, FIELD_TEXT: ReturnType<typeof useMessages>["FIELD_TEXT"]): Fact {
+  const rate =
+    evidence.theirKeptRate === null
+      ? FIELD_TEXT.evidenceNoHistory
+      : `${Math.round(evidence.theirKeptRate * 100)}%`;
+  return {
+    label: FIELD_TEXT.evidenceKeptRate,
+    value: withTrend(rate, evidence.theyMissed > 0 ? `${FIELD_TEXT.evidenceTheyMissed} ${evidence.theyMissed}` : undefined),
+    tone:
+      evidence.theirKeptRate === null
+        ? "neutral"
+        : evidence.theirKeptRate >= 0.7
+          ? "success"
+          : "danger",
+  };
+}
+
+/** The merged-in 关系证据 body, for the one path that has no health-factor
+ *  list to fold 跟进条数 into (a read-only member with no `health` at all -
+ *  see account/[id]/page.tsx's degraded path). Exported so that path does
+ *  not keep its own copy of this in sync by hand. HealthPanel itself builds
+ *  its own combined list instead of using this - see its own facts below. */
 export function RelationshipEvidenceDetail({ evidence }: { readonly evidence: HealthEvidence }) {
   const { FIELD_TEXT } = useMessages();
 
-  const items: MetricGridItem[] = [
+  const facts: Fact[] = [
     {
-      id: "interactions",
       label: FIELD_TEXT.evidenceInteractions,
       value: String(evidence.interactionCount),
       tone: "neutral",
     },
     {
-      id: "they-missed",
-      label: FIELD_TEXT.evidenceTheyMissed,
-      value: String(evidence.theyMissed),
-      tone: evidence.theyMissed > 0 ? "danger" : "neutral",
-    },
-    {
-      id: "we-missed",
       // Ours sits beside theirs. A panel that only counted the customer's
       // failures would be a case for the defence, not a diagnosis.
       label: FIELD_TEXT.evidenceWeMissed,
       value: String(evidence.weMissed),
       tone: evidence.weMissed > 0 ? "warning" : "neutral",
     },
-    {
-      id: "kept-rate",
-      label: FIELD_TEXT.evidenceKeptRate,
-      // Null stays null. A relationship with no history is not a perfect one.
-      value:
-        evidence.theirKeptRate === null
-          ? FIELD_TEXT.evidenceNoHistory
-          : `${Math.round(evidence.theirKeptRate * 100)}%`,
-      tone:
-        evidence.theirKeptRate === null
-          ? "neutral"
-          : evidence.theirKeptRate >= 0.7
-            ? "success"
-            : "danger",
-    },
+    keptRateFact(evidence, FIELD_TEXT),
   ];
 
-  return <MetricGrid items={items} columns={4} />;
+  return <FactList facts={facts} />;
 }
 
 export function HealthPanel({
@@ -164,20 +180,45 @@ export function HealthPanel({
     });
   }
 
-  const items: MetricGridItem[] = current.contributions.map((c) => ({
-    id: c.factor,
-    label: FACTOR_LABEL[c.factor] ?? c.factor,
-    // The sign is kept. A contribution of -25 read as "25" would invert the
-    // meaning of the panel.
-    value: `${c.points > 0 ? "+" : ""}${c.points}`,
-    // 商机/交付/回款三个因子不再带理由行 (owner, 2026-09-21: 梳理全景图中心
+  const factorFacts: Fact[] = current.contributions.map((c) => {
+    const isRecency = c.factor === "recency";
+    const value = `${c.points > 0 ? "+" : ""}${c.points}`;
+    // 商机/交付/回款三个因子不再带理由 (owner, 2026-09-21: 梳理全景图中心
     // 区域 - 这三行的理由跟阵地清单的商机/交付项目/回款三个 tab 是同一批
-    // 数据从两个粒度各说一次, 评分卡只留分数, 明细去阵地清单看). 互动时效
-    // 保留理由 - 关系证据的"最近接触"卡片撤掉了, 这一条现在是唯一还在讲
-    // 这件事的地方, 不能也删。
-    trend: c.factor === "recency" ? healthReasonText(c.reason) : undefined,
-    tone: c.points < 0 ? "danger" : "success",
-  }));
+    // 数据从两个粒度各说一次, 评估只留分数, 明细去阵地清单看). 互动时效
+    // 保留理由, 并把跟进条数也折进来 (owner, 2026-09-21: 继续合并压缩) -
+    // "已 48 天没有接触"和"12 条跟进记录"是同一件事(联系频率)的两种口径,
+    // 分两行说是多余的重复, 折成一句话。
+    if (!isRecency) return { label: FACTOR_LABEL[c.factor] ?? c.factor, value, tone: c.points < 0 ? "danger" : "success" };
+    const trend = [healthReasonText(c.reason), evidence ? `${FIELD_TEXT.evidenceInteractions} ${evidence.interactionCount}` : null]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      label: FACTOR_LABEL[c.factor] ?? c.factor,
+      // The sign is kept. A contribution of -25 read as "25" would invert the
+      // meaning of the panel.
+      value: withTrend(value, trend),
+      tone: c.points < 0 ? "danger" : "success",
+    };
+  });
+
+  // 我方错过留独立一行, 对方守约率带上错过次数 (owner, 2026-09-21: 继续
+  // 合并压缩, 不单列"证据"这个标题) - 8 项压到 6 项, 跟健康因子拼进同一个
+  // FactList, 不再单独起一个"关系证据"分组标题。
+  const evidenceFacts: Fact[] = evidence
+    ? [
+        {
+          // Ours sits beside theirs. A panel that only counted the customer's
+          // failures would be a case for the defence, not a diagnosis.
+          label: FIELD_TEXT.evidenceWeMissed,
+          value: String(evidence.weMissed),
+          tone: evidence.weMissed > 0 ? "warning" : "neutral",
+        },
+        keptRateFact(evidence, FIELD_TEXT),
+      ]
+    : [];
+
+  const facts = [...factorFacts, ...evidenceFacts];
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
@@ -229,19 +270,12 @@ export function HealthPanel({
               事实, header 不会有。 */}
           {error ? <StatusBadge tone="danger">{error}</StatusBadge> : null}
 
-          {/* columns={4} (owner, 2026-09-20: 设计图严格对齐, mockup 一行四个) -
-              之前锁在 2 列的理由(注释见 git 历史)是三栏布局下这一栏只有 768px
-              宽度; 现在栏3已经并入栏2、只剩两栏 (owner: 严格按照设计实施 - 栏3
-              还有2个), 同一栏拿到的宽度变了, 实测见下方验证记录, 若变窄的场景
-              下又被压扁, 需要重新回到 2 列并说明测量数据。 */}
-          <MetricGrid items={items} columns={4} />
-
-          {evidence ? (
-            <div className="border-border mt-md flex flex-col gap-sm border-t pt-md">
-              <p className="text-muted-foreground text-label-md">{FIELD_TEXT.evidenceTitle}</p>
-              <RelationshipEvidenceDetail evidence={evidence} />
-            </div>
-          ) : null}
+          {/* FactList, not MetricGrid (owner, 2026-09-21: 8 张卡片还是太多,
+              继续合并压缩, 不单列"证据"这个标题; 卡片样子也简化, 信息密度
+              太差) - 关系证据的数字并进了这一份列表, 不再分两个区块、中间
+              夹一条"关系证据"小标题; 每项是一行文字, 不是一张带边框的卡,
+              6 行占的地方比原来两个 4 卡 grid 小得多。 */}
+          <FactList facts={facts} />
         </>
       ) : null}
     </Section>
