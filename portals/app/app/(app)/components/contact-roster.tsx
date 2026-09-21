@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import {
   Button,
   EmptyState,
-  FilterBar,
   Icon,
   Section,
   Tooltip,
@@ -46,24 +45,36 @@ function ContactStatus({
   return <Tag>{labels[status] ?? status}</Tag>;
 }
 
-/** 邮箱/微信 presence, icon only (owner, 2026-09-20: 设计图严格对齐 - 数据
- *  一直都在 ContactRow 上, 只是这张表从没画出来过). 手机号仍然是明码文本列
- *  (ACCOUNT_TEXT.contactMobile 那一列) 而不是同款图标 - mockup 把它也收成
- *  纯图标是因为那是一张纯展示卡, 真实产品里销售要拿这个号码去打电话, 收成
- *  图标会让这张表没法做它自己的事, 所以只在这里跟进 mockup 的一半: 补上
- *  从没显示过的两个渠道, 留着已经在用的手机号明码不动。 */
+/** 手机/邮箱/微信 presence, ICON ONLY, 不显示明码 (owner, 2026-09-21: 这里
+ *  不显示电话明码，只显示有没有配置各种联系方式。icon即可) - 覆盖了这张卡
+ *  更早一版"手机号明码留着, 因为销售要拿它打电话"的取舍(2026-09-20): 那个
+ *  取舍是这张常驻卡自己的历史遗留, 这次 owner 直接推翻 - 三个渠道统一收成
+ *  图标, hover 只说"这是哪个渠道"(labels.mobile/email/wechat), 不透出号码
+ *  本身。真要看号码/加好友, 去"编辑单位信息"或联系人详情页。 */
 function ContactChannels({
+  mobile,
   email,
   wechat,
   labels,
 }: {
+  readonly mobile: string | null;
   readonly email: string | null;
   readonly wechat: string | null;
-  readonly labels: { readonly email: string; readonly wechat: string };
+  readonly labels: { readonly mobile: string; readonly email: string; readonly wechat: string };
 }) {
-  if (!email && !wechat) return null;
+  if (!mobile && !email && !wechat) return null;
   return (
     <span className="gap-2xs inline-flex items-center">
+      {mobile ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground inline-flex">
+              <Icon name="phone" size="sm" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{labels.mobile}</TooltipContent>
+        </Tooltip>
+      ) : null}
       {email ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -107,17 +118,19 @@ export interface ContactRosterProps {
    *  the roster on 2026-09-05 (the consolidation ruling). */
   readonly editHref: string;
   /** 联系人和最近跟进合并 (owner, 2026-09-20: mockup - 一个最近跟进天数, 不是
-   *  分开的两个事实) - contactId -> {text, warm}, from chainRecency() run
-   *  over the FULL roster (account/[id]/page.tsx), not just decision-chain
+   *  分开的两个事实) - contactId -> {text, warm, tooltip}, from chainRecency()
+   *  run over the FULL roster (account/[id]/page.tsx), not just decision-chain
    *  participants. `warm` is carried separately from the already-formatted
-   *  text so this component styles the badge without re-parsing
-   *  RECENCY_TEXT's own wording. A plain Record, not a Map: a Map passed as a
-   *  Server->Client prop is the same class of bundler risk this page already
-   *  hit twice with re-exported constants (dimension-stat.tsx's
-   *  toneSurfaceClasses note). Absent key = chainRecency has nothing for that
-   *  contact yet (gate denied, or the read failed) - row shows no badge
-   *  rather than a guessed one. */
-  readonly recencyText: Readonly<Record<string, { text: string; warm: boolean }>>;
+   *  text so this component styles the badge without re-parsing the wording.
+   *  `text` is now the SHORT form only ("12 天", owner 2026-09-21: tag 显示
+   *  只有（nn天），不要啰嗦) - the full sentence ("某某在12天前联系") is
+   *  `tooltip`, shown on hover instead of crowding the row. A plain Record,
+   *  not a Map: a Map passed as a Server->Client prop is the same class of
+   *  bundler risk this page already hit twice with re-exported constants
+   *  (dimension-stat.tsx's toneSurfaceClasses note). Absent key = chainRecency
+   *  has nothing for that contact yet (gate denied, or the read failed) - row
+   *  shows no badge rather than a guessed one. */
+  readonly recencyText: Readonly<Record<string, { text: string; warm: boolean; tooltip: string }>>;
   /** LinkContactDrawer, built server-side in page.tsx and mounted here as
    *  the card's second header action, next to "+新增" - the mockup's own
    *  两个按钮 (owner, 2026-09-20: 应该有 新增｜关联 两个按钮). Optional: a
@@ -132,10 +145,14 @@ const CAP = 3;
 /** 卡片行, 不是表格行 (owner, 2026-09-20: 设计图严格对齐 - mockup 的联系人是
  *  avatar+两行卡片, 不是六列表格; decision-chain-switch.tsx 的摘要行本来就
  *  是照着这张卡的样子画的, 现在补回来是同一套样子, 不是新发明一种). 栏1只有
- *  18rem宽, 六列表格挤不下, 卡片行也是 mockup 明确写的理由。手机号仍然明码
- *  显示在第二行 (不是同款图标) - 这是这页早先就做过的、有意的取舍: mockup
- *  把手机也收成图标是因为那是一张纯展示卡, 真实产品里销售要拿这个号码去
- *  打电话, 收成图标这张卡就做不成它自己的事了。 */
+ *  18rem宽, 六列表格挤不下, 卡片行也是 mockup 明确写的理由。
+ *
+ *  第二轮重新规整 (owner, 2026-09-21: 各联系信息有些拥堵，重新设计一下布局，
+ *  行高可以适当调整) - 手机号从第二行的明码文本挪进 ContactChannels 的图标
+ *  组(见那个函数自己的注释, 这是对 2026-09-20 那个"手机留明码"决定的推翻,
+ *  不是延续), 第二行因此只剩职务, 让给右边的图标组和状态标签足够宽度；
+ *  行内边距从 py-sm 提到 py-md, 头像也放大一号 - 少了一整段手机号文本之后
+ *  原来的紧凑间距显得局促, 不是拥堵的另一个来源。 */
 /** Exported (owner, 2026-09-20: 死死记住设计文件 - mockup 的行菜单只该出现
  *  在"编辑单位信息"里的只读联系人卡片上, 栏1这张常驻卡一个按钮都不该有) -
  *  contact-management-list.tsx 复用同一套行外观, 只是那边带 actions, 这里
@@ -148,26 +165,42 @@ export function ContactCard({
   actions,
 }: {
   readonly contact: ContactRow;
-  readonly recency: { text: string; warm: boolean } | undefined;
+  /** tooltip 可选 (owner: 补充 - tag 显示只有（nn天）...toolip=某某在12天前
+   *  联系) - contact-management-list.tsx 复用这张卡时还传的是旧形状
+   *  ({text, warm}), 那边没有要求这个改动, 缺了 tooltip 时这张卡就不挂
+   *  Tooltip, 纯文本 Tag 照旧。 */
+  readonly recency: { text: string; warm: boolean; tooltip?: string } | undefined;
   readonly statusLabels: Record<string, string>;
-  readonly channelLabels: { readonly email: string; readonly wechat: string };
+  readonly channelLabels: { readonly mobile: string; readonly email: string; readonly wechat: string };
   readonly actions?: ReactNode;
 }) {
-  const secondLine = [contact.title, contact.mobile].filter(Boolean).join(" · ");
+  const recencyTag = recency ? <Tag tone={recency.warm ? "success" : "neutral"}>{recency.text}</Tag> : null;
   return (
-    <div className="gap-sm border-border flex items-center border-b py-sm last:border-b-0">
-      <span className="bg-accent text-muted-foreground flex h-lg w-lg flex-none items-center justify-center rounded-full text-label-sm font-bold">
+    <div className="gap-sm border-border flex items-center border-b py-md last:border-b-0">
+      <span className="bg-accent text-muted-foreground flex h-xl w-xl flex-none items-center justify-center rounded-full text-label-md font-bold">
         {contact.name.charAt(0)}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-sm">
           <span className="text-body-sm truncate font-bold">{contact.name}</span>
-          {recency ? <Tag tone={recency.warm ? "success" : "neutral"}>{recency.text}</Tag> : null}
+          {recency?.tooltip ? (
+            <Tooltip>
+              {/* asChild 需要一个能转发 ref 的子节点 - Tag 不是 forwardRef
+                  组件(跟 tag.tsx 里 NameOverflowTag 已经踩过的坑一样), 用
+                  span 包一层, 不是直接把 Tag 塞进 TooltipTrigger。 */}
+              <TooltipTrigger asChild>
+                <span className="inline-flex">{recencyTag}</span>
+              </TooltipTrigger>
+              <TooltipContent>{recency.tooltip}</TooltipContent>
+            </Tooltip>
+          ) : (
+            recencyTag
+          )}
         </div>
-        <div className="flex items-center justify-between gap-sm">
-          <span className="text-muted-foreground text-body-sm truncate">{secondLine}</span>
+        <div className="mt-2xs flex items-center justify-between gap-sm">
+          <span className="text-muted-foreground text-body-sm truncate">{contact.title}</span>
           <span className="flex flex-none items-center gap-xs">
-            <ContactChannels email={contact.email} wechat={contact.wechat} labels={channelLabels} />
+            <ContactChannels mobile={contact.mobile} email={contact.email} wechat={contact.wechat} labels={channelLabels} />
             <ContactStatus status={contact.status} labels={statusLabels} />
             {actions}
           </span>
@@ -191,10 +224,18 @@ export function ContactRoster({
 
   // tone="raised" - 设计图是全面card化 (owner, 2026-09-20; 理由见
   // org-unit-panel.tsx 同名注释). 没有 description - 去掉所有垃圾说明
-  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释). action 里
-  // "+新增｜关联" 两个按钮 (owner: 应该有两个按钮) - 之前"+新增"单独落在卡片
-  // 底部一个 "保存联系人" 链接, 现在跟"关联"并排挪进卡头, 是同一个入口的
-  // 两条路而不是三条 - 卡头讲清楚"能做什么", 底部不再重复。
+  // (owner, 2026-09-20; 理由见 org-unit-panel.tsx 同名注释).
+  //
+  // 联系人数量简化成一个数字, 挂在标题后面 (owner, 2026-09-21: 把联系人数量
+  // （4位联系人），简化为一个数字，tag 放到标题后面) - 撤掉了原来 FilterBar
+  // 那一整行"N 位联系人", 完整的那句话退到 title 属性(无障碍朗读/hover)。
+  //
+  // "新增｜关联" 两个按钮 (owner: 应该有两个按钮), 这次紧凑+靠右, 颜色也
+  // 分主次 (owner: 新增，关联，两个操作按钮间距太大了，紧凑一点点-居右。
+  // 颜色关联保持，新建淡化。表面这里事关联为主) - "关联"(LinkContactDrawer
+  // 自己的触发按钮)维持原样不动; "新增"从一个跟它同等重量的 Button 降级成
+  // 纯文字链接, 视觉上让位给"关联"这个这张卡真正想引导的动作, 两者之间的
+  // 间距也从按钮的内边距+gap 变成两段文字自己的 gap, 观感上更紧。
   return (
     <Section
       tone="raised"
@@ -202,13 +243,20 @@ export function ContactRoster({
       className={CARD_VEIL_CLASS}
       id="contacts"
       icon="users"
-      title={ACCOUNT_TEXT.contactsTitle}
+      title={
+        <span className="inline-flex items-center gap-xs whitespace-nowrap">
+          <span>{ACCOUNT_TEXT.contactsTitle}</span>
+          <span title={ACCOUNT_TEXT.contactCount(contacts.length)}>
+            <Tag>{contacts.length}</Tag>
+          </span>
+        </span>
+      }
       action={
         canEdit ? (
-          <span className="flex items-center gap-xs">
-            <Button asChild variant="ghost" size="sm">
-              <a href={editHref}>{ACCOUNT_TEXT.contactAddButton}</a>
-            </Button>
+          <span className="flex items-center justify-end gap-xs">
+            <a href={editHref} className="text-muted-foreground hover:text-foreground text-body-sm">
+              {ACCOUNT_TEXT.contactAddButton}
+            </a>
             {linkForm}
           </span>
         ) : undefined
@@ -221,14 +269,6 @@ export function ContactRoster({
         />
       ) : (
         <>
-        {/* 按需 - COUNT ONLY (owner's 按需添加, 2026-09-07). This is the roster
-            of ONE customer's people, not a directory: the whole list is on
-            screen, and a keyword box for finding something already visible is
-            a control that does nothing. The count answers a question the
-            heading cannot - how many people we actually know inside this
-            account, which is the coverage question this section exists for. */}
-        <FilterBar count={ACCOUNT_TEXT.contactCount(contacts.length)} />
-
         <div className="flex flex-col">
           {/* NO ROW MENU HERE (owner, 2026-09-20: 死死记住设计文件 - mockup
               原话: 栏1的联系人卡片"职责是列出谁是联系人、多久前联系过", 查看
@@ -242,7 +282,7 @@ export function ContactRoster({
               contact={c}
               recency={recencyText[c.id]}
               statusLabels={ACCOUNT_TEXT.contactStatusLabel}
-              channelLabels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
+              channelLabels={{ mobile: ACCOUNT_TEXT.contactMobile, email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
             />
           ))}
         </div>

@@ -122,7 +122,7 @@ export function ContactManagementList({
                 contact={c}
                 recency={recencyText[c.id]}
                 statusLabels={ACCOUNT_TEXT.contactStatusLabel}
-                channelLabels={{ email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
+                channelLabels={{ mobile: ACCOUNT_TEXT.contactMobile, email: ACCOUNT_TEXT.contactEmail, wechat: ACCOUNT_TEXT.contactWechat }}
                 actions={<RowActions disabled={pending} items={items} />}
               />
             );

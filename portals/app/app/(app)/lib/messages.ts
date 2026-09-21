@@ -4286,11 +4286,23 @@ export const ACCOUNT_TEXT = {
   // name on the record to resolve it against; dressing a machine string as a
   // person is how a UUID ends up in front of someone who then does not chase it.
   ownerNone: "未指派",
+  // 只做 aria-label/tooltip 用 (owner, 2026-09-21: 联系人数量简化为一个数字，
+  // tag 放到标题后面) - 卡头的数字标签本身只显示 contacts.length 这一个
+  // 数, 这句完整的话挪到无障碍朗读/hover 上, 不在屏幕上常驻。
   contactCount: (n: number) => `${n} 位联系人`,
   // 联系人截断 (owner, 2026-09-20: 联系人截断+排序四元组) - 栏1 只有 18rem
   // 宽, 一张全量表格在这里比一句"还有几位"更占地方。
   contactsShowAll: (n: number) => `查看全部（${n}）位联系人`,
   contactsCollapse: "收起",
+  // 精准显示最近联系天数 (owner, 2026-09-21: "90天内有跟进"表达很差，应该
+  // 精准显示（nn天）前联系，非常简短显示; 补充: tag 显示只有（nn天），不要
+  // 啰嗦，全是同样的字很难看) - tag 本身只放数字+"天", 不带"前"/"联系"这类
+  // 每一行都重复的字; 完整的那句话("某某在12天前联系")挪进 tooltip, 见
+  // contactRecencyTooltip。
+  contactRecencyDays: (days: number) => `${days} 天`,
+  contactRecencyTooltip: (name: string, days: number) => `${name} 在 ${days} 天前联系`,
+  contactRecencyUnrecorded: "未联系",
+  contactRecencyTooltipUnrecorded: (name: string) => `${name} 还没有联系记录`,
   // header 的商机数量维度 (owner, 2026-09-20: 严格按照设计实施) - 圆圈里的
   // 数字之外，还要有一句"N 个进行中"。
   openDealsCount: (n: number) => `${n} 个进行中`,

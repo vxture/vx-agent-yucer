@@ -331,6 +331,13 @@ export interface ChainRecency {
   warmPathToEconomic: boolean | null;
   /** Days after which recorded contact counts as cold. */
   windowDays: number;
+  /** contactId -> their most recent recorded interaction, exactly as given in
+   *  `activity` (owner, 2026-09-21: 90天内有跟进...应该精准显示（nn天）前联系 -
+   *  warm/cold is a bucket against `windowDays`, not the actual elapsed time,
+   *  and a caller that wants to say "12 天前" rather than "90 天内" needs the
+   *  real date). Reuses the same map warm/cold/unrecorded were already
+   *  bucketed from - no second read for a caller that wants both. */
+  lastContactAt: ReadonlyMap<string, Date | null>;
 }
 
 /**
@@ -389,5 +396,6 @@ export function analyzeChainRecency(
       ? null
       : warmEconomic.length > 0 && anyPathExists(warmCoaches, warmEconomic, relations, warmIds),
     windowDays,
+    lastContactAt: lastByContact,
   };
 }

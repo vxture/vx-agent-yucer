@@ -172,7 +172,6 @@ export default async function AccountDetailPage({
     LOAD_ERROR,
     DOMAIN_LABEL,
     ACCOUNT_TEXT,
-    RECENCY_TEXT,
     healthReasonText,
     POSITION_TEXT,
   } = await getMessages();
@@ -471,17 +470,30 @@ export default async function AccountDetailPage({
         { now },
       )
     : null;
-  const contactRecencyText: Record<string, { text: string; warm: boolean }> = {};
+  // 精准天数, 不是 windowDays 分档 (owner, 2026-09-21: "90天内有跟进"表达
+  // 很差，应该精准显示（nn天）前联系) - lastContactAt 是 analyzeChainRecency
+  // 已经算过的同一张 Map(见 health.ts 同名字段的注释), 这里只是多读一次
+  // 已经在手上的数据算天数差, 不是新读一次。
+  const contactRecencyText: Record<string, { text: string; warm: boolean; tooltip: string }> = {};
   if (rosterRecency && rosterRecency.ok) {
-    const windowDays = rosterRecency.value.windowDays;
-    rosterRecency.value.warm.forEach((c) => {
-      contactRecencyText[c.id] = { text: RECENCY_TEXT.warm(windowDays), warm: true };
-    });
-    rosterRecency.value.cold.forEach((c) => {
-      contactRecencyText[c.id] = { text: RECENCY_TEXT.cold(windowDays), warm: false };
-    });
-    rosterRecency.value.unrecorded.forEach((c) => {
-      contactRecencyText[c.id] = { text: RECENCY_TEXT.unrecorded, warm: false };
+    const lastByContact = rosterRecency.value.lastContactAt;
+    const warmIds = new Set(rosterRecency.value.warm.map((c) => c.id));
+    contacts.forEach((c) => {
+      const last = lastByContact.get(c.id) ?? null;
+      if (last) {
+        const days = Math.max(0, Math.floor((now.getTime() - last.getTime()) / 86_400_000));
+        contactRecencyText[c.id] = {
+          text: ACCOUNT_TEXT.contactRecencyDays(days),
+          warm: warmIds.has(c.id),
+          tooltip: ACCOUNT_TEXT.contactRecencyTooltip(c.name, days),
+        };
+      } else {
+        contactRecencyText[c.id] = {
+          text: ACCOUNT_TEXT.contactRecencyUnrecorded,
+          warm: false,
+          tooltip: ACCOUNT_TEXT.contactRecencyTooltipUnrecorded(c.name),
+        };
+      }
     });
   }
 

@@ -3390,6 +3390,10 @@ export const en: Dictionary = {
     contactCount: (n: number) => `${n} contacts`,
     contactsShowAll: (n: number) => `Show all ${n} contacts`,
     contactsCollapse: "Collapse",
+    contactRecencyDays: (days: number) => `${days}d`,
+    contactRecencyTooltip: (name: string, days: number) => `${name} was last contacted ${days} days ago`,
+    contactRecencyUnrecorded: "No contact yet",
+    contactRecencyTooltipUnrecorded: (name: string) => `No contact recorded for ${name} yet`,
     openDealsCount: (n: number) => `${n} in progress`,
   },
 
