@@ -30,6 +30,25 @@ const APP = join(import.meta.dirname, "..");
  */
 const NO_CRUMB: Record<string, string> = {};
 
+/**
+ * Nested routes that DO render <PageCrumbs>, but through a named wrapper
+ * component rather than writing `<PageCrumbs` in page.tsx itself, with the
+ * wrapper's file and the reason.
+ *
+ * owner, 2026-09-21: 决策链打开有，顶部有面包屑，增加了一个返回，两个同位置
+ * 重复 - account/[id] used to render <PageCrumbs> directly, but opening a
+ * decision chain needs the SAME row to switch into a chain-aware breadcrumb
+ * (the chain's own "back" folds into it, instead of stacking a second "back"
+ * control in the same spot). That switch reads the chain Context, which only
+ * a client component can do, so PageCrumbs is now rendered by
+ * decision-chain-switch.tsx's <ChainCrumbs> instead of by page.tsx directly.
+ * The entry is checked, not just trusted: the wrapper file must itself
+ * contain `<PageCrumbs`, so this cannot silently rot into a real omission.
+ */
+const CRUMB_VIA: Record<string, string> = {
+  "account/[id]": "components/decision-chain-switch.tsx",
+};
+
 function pages(dir: string, out: string[] = []): string[] {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e);
@@ -50,7 +69,15 @@ test("the sweep found the nested routes at all", () => {
 test("every second-level page shows where it is", () => {
   const missing = nested
     .filter((r) => !(r.route in NO_CRUMB))
-    .filter((r) => !readFileSync(r.file, "utf8").includes("<PageCrumbs"))
+    .filter((r) => {
+      if (readFileSync(r.file, "utf8").includes("<PageCrumbs")) return false;
+      const via = CRUMB_VIA[r.route];
+      if (!via) return true;
+      // Trust nothing the registry says without checking it: the named
+      // wrapper must itself render <PageCrumbs>, or this entry is really
+      // just an omission wearing a label.
+      return !readFileSync(join(APP, via), "utf8").includes("<PageCrumbs");
+    })
     .map((r) => r.route);
   assert.deepEqual(
     missing.sort(),

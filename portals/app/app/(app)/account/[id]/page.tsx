@@ -3,7 +3,6 @@ import {
   Icon,
   ViewLayout,
 } from "@vxture/design-ui";
-import { PageCrumbs } from "../../components/page-crumbs";
 import { DealsSummaryBadge, DimensionStat } from "../../components/dimension-stat";
 import { ScoreRing } from "../../components/score-ring";
 import { resolveAppSession } from "../../lib/session";
@@ -35,7 +34,7 @@ import { getAuthzStore } from "../../../authz/store";
 import { LinkContactDrawer } from "../../components/link-contact-drawer";
 import { OrgRelationsEditor } from "../../components/org-relations-editor";
 import { DecisionChainDetail } from "../../components/decision-chain-detail";
-import { ChainViewProvider, ChainDetailSlot, ChainSummaryList, type ChainSummaryItem } from "../../components/decision-chain-switch";
+import { ChainViewProvider, ChainCrumbs, ChainDetailSlot, ChainSummaryList, type ChainSummaryItem } from "../../components/decision-chain-switch";
 // NOT importing ROLE_ORDER from decision-chain-graph.tsx here - that file is
 // "use client", and a plain array constant re-exported from a client module
 // resolved to a bundler artefact (empty, not undefined - .length read 0
@@ -762,7 +761,7 @@ export default async function AccountDetailPage({
             不需要传送门。 ======== */}
         <div className="flex min-w-0 flex-col gap-lg">
           <div className="flex items-center justify-between gap-sm">
-            <PageCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
+            <ChainCrumbs trail={[{ label: DOMAIN_LABEL.account, href: "/account" }]} current={account.name} />
             <AccountHeaderMenu
               canWrite={canWrite}
               tier={{
